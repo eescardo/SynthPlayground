@@ -1,0 +1,68 @@
+export type SchedulerEventType = "NoteOn" | "NoteOff" | "ParamChange";
+
+export interface BaseSchedulerEvent {
+  id: string;
+  type: SchedulerEventType;
+  sampleTime: number;
+}
+
+export interface NoteOnEvent extends BaseSchedulerEvent {
+  type: "NoteOn";
+  trackId: string;
+  pitchVoct: number;
+  velocity: number;
+  noteId: string;
+}
+
+export interface NoteOffEvent extends BaseSchedulerEvent {
+  type: "NoteOff";
+  trackId: string;
+  pitchVoct: number;
+  noteId: string;
+}
+
+export interface ParamChangeEvent extends BaseSchedulerEvent {
+  type: "ParamChange";
+  patchId: string;
+  nodeId: string;
+  paramId: string;
+  value: number | string | boolean;
+}
+
+export type SchedulerEvent = NoteOnEvent | NoteOffEvent | ParamChangeEvent;
+
+export interface WorkletInitMessage {
+  type: "INIT";
+  sampleRate: number;
+  blockSize: number;
+}
+
+export interface WorkletSetProjectMessage {
+  type: "SET_PROJECT";
+  project: unknown;
+}
+
+export interface WorkletEventsMessage {
+  type: "EVENTS";
+  events: SchedulerEvent[];
+}
+
+export interface WorkletMacroMessage {
+  type: "MACRO";
+  patchId: string;
+  macroId: string;
+  normalized: number;
+}
+
+export interface WorkletTransportMessage {
+  type: "TRANSPORT";
+  isPlaying: boolean;
+  songStartSample: number;
+}
+
+export type WorkletInboundMessage =
+  | WorkletInitMessage
+  | WorkletSetProjectMessage
+  | WorkletEventsMessage
+  | WorkletMacroMessage
+  | WorkletTransportMessage;
