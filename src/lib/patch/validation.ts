@@ -1,13 +1,6 @@
 import { getModuleSchema, moduleRegistryById } from "@/lib/patch/moduleRegistry";
+import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
 import { CompiledNode, CompiledOp, CompiledPlan, Patch, PatchValidationIssue, PatchValidationResult, ParamValue } from "@/types/patch";
-
-const SOURCE_HOST_NODE_IDS = ["$host.pitch", "$host.gate", "$host.velocity", "$host.modwheel"] as const;
-const SOURCE_HOST_NODE_TYPE_BY_ID: Record<(typeof SOURCE_HOST_NODE_IDS)[number], string> = {
-  "$host.pitch": "NotePitch",
-  "$host.gate": "NoteGate",
-  "$host.velocity": "NoteVelocity",
-  "$host.modwheel": "ModWheel"
-};
 
 const pushError = (issues: PatchValidationIssue[], message: string, context?: Record<string, string>): void => {
   issues.push({ level: "error", message, context });

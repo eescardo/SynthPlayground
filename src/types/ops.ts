@@ -1,3 +1,4 @@
+// Patch transform operation types and undo/redo history state for patch editing.
 export type PatchOp =
   | {
       type: "addNode";

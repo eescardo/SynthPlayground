@@ -1,3 +1,4 @@
+// Core song/composition structures used by UI editing, transport, and project persistence.
 import { Patch } from "@/types/patch";
 
 export interface Note {

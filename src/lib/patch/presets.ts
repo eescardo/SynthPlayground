@@ -1,4 +1,5 @@
 import { createDefaultParamsForType } from "@/lib/patch/moduleRegistry";
+import { HOST_NODE_IDS } from "@/lib/patch/constants";
 import { createId } from "@/lib/ids";
 import { Project, Track } from "@/types/music";
 import { Patch } from "@/types/patch";
@@ -12,10 +13,10 @@ const outputNode = (id: string) => ({
 });
 
 const noteCore = {
-  pitch: "$host.pitch",
-  gate: "$host.gate",
-  velocity: "$host.velocity",
-  mod: "$host.modwheel"
+  pitch: HOST_NODE_IDS.pitch,
+  gate: HOST_NODE_IDS.gate,
+  velocity: HOST_NODE_IDS.velocity,
+  mod: HOST_NODE_IDS.modWheel
 };
 
 export const bassPatch = (): Patch => {

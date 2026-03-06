@@ -18,6 +18,16 @@ const NOTE_TO_SEMITONE: Record<string, number> = {
   B: 11
 };
 
+// Pitch string format:
+// - Note letter: A..G
+// - Optional accidental: # or b
+// - Signed octave integer
+// Examples: C4, F#3, Bb2, C-1
+
+/**
+ * Converts a pitch string (for example "C4" or "F#3") to MIDI note number.
+ * MIDI convention used here is C4 = 60.
+ */
 export const pitchToMidi = (pitchStr: string): number => {
   const match = /^([A-G](?:#|b)?)(-?\d+)$/.exec(pitchStr.trim());
   if (!match) {
@@ -36,6 +46,10 @@ export const midiToVoct = (midi: number): number => (midi - 60) / 12;
 
 export const pitchToVoct = (pitchStr: string): number => midiToVoct(pitchToMidi(pitchStr));
 
+/**
+ * Converts a MIDI note number back to pitch string using sharps for accidentals.
+ * Example: 60 -> "C4", 61 -> "C#4".
+ */
 export const midiToPitch = (midi: number): string => {
   const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   const semitone = ((midi % 12) + 12) % 12;

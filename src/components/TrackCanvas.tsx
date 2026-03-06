@@ -10,6 +10,9 @@ const HEADER_WIDTH = 170;
 const RULER_HEIGHT = 28;
 const TRACK_HEIGHT = 72;
 const BEAT_WIDTH = 72;
+const MUTE_ICON_SIZE = 16;
+const SPEAKER_ICON_SRC = "/icons/speaker.svg";
+const SPEAKER_MUTED_ICON_SRC = "/icons/speaker-muted.svg";
 
 interface TrackCanvasProps {
   project: Project;
@@ -105,40 +108,6 @@ const findTrackOverlaps = (notes: Note[]): {
   return { overlapNoteIds, overlapRanges: merged };
 };
 
-const drawSpeaker = (ctx: CanvasRenderingContext2D, x: number, y: number, muted: boolean) => {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.strokeStyle = muted ? "#ff8092" : "#a7c8eb";
-  ctx.fillStyle = muted ? "#ff8092" : "#a7c8eb";
-  ctx.lineWidth = 1.8;
-
-  ctx.beginPath();
-  ctx.rect(1, 5, 4, 6);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(5, 5);
-  ctx.lineTo(10, 2);
-  ctx.lineTo(10, 14);
-  ctx.lineTo(5, 11);
-  ctx.closePath();
-  ctx.fill();
-
-  if (!muted) {
-    ctx.beginPath();
-    ctx.arc(10, 8, 4, -0.8, 0.8);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(10, 8, 6.5, -0.7, 0.7);
-    ctx.stroke();
-  } else {
-    ctx.beginPath();
-    ctx.moveTo(1, 1);
-    ctx.lineTo(14, 14);
-    ctx.stroke();
-  }
-  ctx.restore();
-};
-
 export function TrackCanvas(props: TrackCanvasProps) {
   const { onUpdateNote, project } = props;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -147,11 +116,16 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const noteRectsRef = useRef<NoteRect[]>([]);
   const muteRectsRef = useRef<MuteRect[]>([]);
   const pitchRectsRef = useRef<PitchRect[]>([]);
+  const speakerIconsRef = useRef<{ normal: HTMLImageElement | null; muted: HTMLImageElement | null }>({
+    normal: null,
+    muted: null
+  });
   const wheelPitchLockUntilRef = useRef(0);
   const wheelLockedScrollTopRef = useRef(0);
   const wheelLockedScrollLeftRef = useRef(0);
   const wheelLockTimerRef = useRef<number | null>(null);
   const [hoveredPitch, setHoveredPitch] = useState<{ trackId: string; noteId: string } | null>(null);
+  const [speakerIconsReady, setSpeakerIconsReady] = useState(false);
 
   const meterBeats = props.project.global.meter === "4/4" ? 4 : 3;
 
@@ -180,13 +154,36 @@ export function TrackCanvas(props: TrackCanvasProps) {
     canvas.width = width;
     canvas.height = height;
 
-    ctx.fillStyle = "#0a1118";
+    const COLOR_CANVAS_BG = "#0a1118";
+    const COLOR_HEADER_BG = "#121b27";
+    const COLOR_RULER_BG = "#0d1620";
+    const COLOR_BAR_GRID = "#2f4f7f";
+    const COLOR_BEAT_GRID = "#1e3551";
+    const COLOR_SUB_GRID = "#142230";
+    const COLOR_RULER_TEXT = "#8fb8e8";
+    const COLOR_ROW_SEPARATOR = "#1a2e42";
+    const COLOR_SELECTED_TRACK_OVERLAY = "rgba(33, 112, 210, 0.2)";
+    const COLOR_TRACK_NAME = "#d4e4ff";
+    const COLOR_TRACK_PATCH = "#85a6ce";
+    const COLOR_NOTE = "#2d8cff";
+    const COLOR_NOTE_MUTED = "#405f83";
+    const COLOR_NOTE_OVERLAP = "#dc4a4a";
+    const COLOR_NOTE_OVERLAP_MUTED = "#7b4b4b";
+    const COLOR_NOTE_EDGE_HIGHLIGHT = "rgba(255, 255, 255, 0.2)";
+    const COLOR_NOTE_PITCH_HOVER = "rgba(255, 219, 120, 0.26)";
+    const COLOR_NOTE_LABEL = "#ecf5ff";
+    const COLOR_OVERLAP_RANGE = "rgba(255, 35, 35, 0.52)";
+    const COLOR_PLAYHEAD = "#ff5a7b";
+    const COLOR_MUTE_ICON_FALLBACK = "#ff8092";
+    const COLOR_UNMUTE_ICON_FALLBACK = "#a7c8eb";
+
+    ctx.fillStyle = COLOR_CANVAS_BG;
     ctx.fillRect(0, 0, width, height);
 
-    ctx.fillStyle = "#121b27";
+    ctx.fillStyle = COLOR_HEADER_BG;
     ctx.fillRect(0, 0, HEADER_WIDTH, height);
 
-    ctx.fillStyle = "#0d1620";
+    ctx.fillStyle = COLOR_RULER_BG;
     ctx.fillRect(HEADER_WIDTH, 0, width - HEADER_WIDTH, RULER_HEIGHT);
 
     for (let beat = 0; beat <= totalBeats; beat += props.project.global.gridBeats) {
@@ -194,7 +191,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       const isBar = beat % meterBeats === 0;
       const isBeat = Number.isInteger(beat);
 
-      ctx.strokeStyle = isBar ? "#2f4f7f" : isBeat ? "#1e3551" : "#142230";
+      ctx.strokeStyle = isBar ? COLOR_BAR_GRID : isBeat ? COLOR_BEAT_GRID : COLOR_SUB_GRID;
       ctx.lineWidth = isBar ? 2 : 1;
       ctx.beginPath();
       ctx.moveTo(x, 0);
@@ -202,13 +199,13 @@ export function TrackCanvas(props: TrackCanvasProps) {
       ctx.stroke();
 
       if (isBeat) {
-        ctx.fillStyle = "#8fb8e8";
+        ctx.fillStyle = COLOR_RULER_TEXT;
         ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
         ctx.fillText(String(beat + 1), x + 4, 18);
       }
     }
 
-    ctx.strokeStyle = "#1a2e42";
+    ctx.strokeStyle = COLOR_ROW_SEPARATOR;
     ctx.lineWidth = 1;
     for (let i = 0; i <= props.project.tracks.length; i += 1) {
       const y = RULER_HEIGHT + i * TRACK_HEIGHT;
@@ -228,21 +225,27 @@ export function TrackCanvas(props: TrackCanvasProps) {
       const { overlapNoteIds, overlapRanges } = findTrackOverlaps(track.notes);
 
       if (isSelected) {
-        ctx.fillStyle = "rgba(33, 112, 210, 0.2)";
+        ctx.fillStyle = COLOR_SELECTED_TRACK_OVERLAY;
         ctx.fillRect(0, y, width, TRACK_HEIGHT);
       }
 
-      ctx.fillStyle = "#d4e4ff";
+      ctx.fillStyle = COLOR_TRACK_NAME;
       ctx.font = "13px 'Trebuchet MS', 'Segoe UI', sans-serif";
       ctx.fillText(track.name, 12, y + 24);
-      ctx.fillStyle = "#85a6ce";
+      ctx.fillStyle = COLOR_TRACK_PATCH;
       ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
       ctx.fillText(track.instrumentPatchId.replace("preset_", ""), 12, y + 42);
 
       const muteX = 126;
       const muteY = y + 29;
-      drawSpeaker(ctx, muteX, muteY, Boolean(track.mute));
-      muteRectsRef.current.push({ trackId: track.id, x: muteX, y: muteY, w: 16, h: 16 });
+      const speakerIcon = track.mute ? speakerIconsRef.current.muted : speakerIconsRef.current.normal;
+      if (speakerIconsReady && speakerIcon) {
+        ctx.drawImage(speakerIcon, muteX, muteY, MUTE_ICON_SIZE, MUTE_ICON_SIZE);
+      } else {
+        ctx.fillStyle = track.mute ? COLOR_MUTE_ICON_FALLBACK : COLOR_UNMUTE_ICON_FALLBACK;
+        ctx.fillRect(muteX + 2, muteY + 2, 12, 12);
+      }
+      muteRectsRef.current.push({ trackId: track.id, x: muteX, y: muteY, w: MUTE_ICON_SIZE, h: MUTE_ICON_SIZE });
 
       for (const note of track.notes) {
         const noteX = HEADER_WIDTH + note.startBeat * BEAT_WIDTH;
@@ -251,21 +254,27 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const noteH = TRACK_HEIGHT - 28;
         const overlaps = overlapNoteIds.has(note.id);
 
-        ctx.fillStyle = overlaps ? (track.mute ? "#7b4b4b" : "#dc4a4a") : track.mute ? "#405f83" : "#2d8cff";
+        ctx.fillStyle = overlaps
+          ? track.mute
+            ? COLOR_NOTE_OVERLAP_MUTED
+            : COLOR_NOTE_OVERLAP
+          : track.mute
+            ? COLOR_NOTE_MUTED
+            : COLOR_NOTE;
         ctx.fillRect(noteX, noteY, noteW, noteH);
 
-        ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+        ctx.fillStyle = COLOR_NOTE_EDGE_HIGHLIGHT;
         ctx.fillRect(noteX, noteY, noteW, 2);
 
         const labelX = noteX + 6;
         const labelY = noteY + 16;
         const labelWidth = Math.max(14, ctx.measureText(note.pitchStr).width);
         if (hoveredPitch?.trackId === track.id && hoveredPitch.noteId === note.id) {
-          ctx.fillStyle = "rgba(255, 219, 120, 0.26)";
+          ctx.fillStyle = COLOR_NOTE_PITCH_HOVER;
           ctx.fillRect(labelX - 3, labelY - 10, labelWidth + 6, 13);
         }
 
-        ctx.fillStyle = "#ecf5ff";
+        ctx.fillStyle = COLOR_NOTE_LABEL;
         ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
         ctx.fillText(note.pitchStr, labelX, labelY);
 
@@ -283,13 +292,13 @@ export function TrackCanvas(props: TrackCanvasProps) {
       for (const overlap of overlapRanges) {
         const overlapX = HEADER_WIDTH + overlap.startBeat * BEAT_WIDTH;
         const overlapW = Math.max(2, (overlap.endBeat - overlap.startBeat) * BEAT_WIDTH);
-        ctx.fillStyle = "rgba(255, 35, 35, 0.52)";
+        ctx.fillStyle = COLOR_OVERLAP_RANGE;
         ctx.fillRect(overlapX, y + 14, overlapW, TRACK_HEIGHT - 28);
       }
     });
 
     const playheadX = HEADER_WIDTH + props.playheadBeat * BEAT_WIDTH;
-    ctx.strokeStyle = "#ff5a7b";
+    ctx.strokeStyle = COLOR_PLAYHEAD;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(playheadX, 0);
@@ -303,9 +312,40 @@ export function TrackCanvas(props: TrackCanvasProps) {
     props.project.global.gridBeats,
     props.project.tracks,
     props.selectedTrackId,
+    speakerIconsReady,
     totalBeats,
     width
   ]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadImage = (src: string): Promise<HTMLImageElement> =>
+      new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+        image.src = src;
+      });
+
+    Promise.all([loadImage(SPEAKER_ICON_SRC), loadImage(SPEAKER_MUTED_ICON_SRC)])
+      .then(([normal, muted]) => {
+        if (cancelled) {
+          return;
+        }
+        speakerIconsRef.current = { normal, muted };
+        setSpeakerIconsReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSpeakerIconsReady(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     draw();

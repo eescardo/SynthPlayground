@@ -1,3 +1,4 @@
+// Patch graph schema and compile-time/runtime metadata for modular instrument definitions.
 export type SignalCapability = "AUDIO" | "CV" | "GATE";
 export type ParamType = "float" | "enum" | "bool";
 export type Unit = "Hz" | "s" | "dB" | "ratio" | "cents" | "linear" | "VperOct" | "ms" | "oct" | "semitones";

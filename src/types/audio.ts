@@ -1,3 +1,4 @@
+// Scheduler/worklet message contracts and event payload types for audio transport.
 export type SchedulerEventType = "NoteOn" | "NoteOff" | "ParamChange";
 
 export interface BaseSchedulerEvent {
