@@ -144,6 +144,7 @@ select {
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: auto;
+  overscroll-behavior: contain;
   max-width: 100%;
 }
 
@@ -261,6 +262,138 @@ select {
 .ok {
   color: var(--ok);
   font-size: 0.82rem;
+}
+
+.help-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 8, 14, 0.72);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.help-modal {
+  width: min(640px, 100%);
+  background: #0d1824;
+  border: 1px solid #295071;
+  border-radius: 10px;
+  padding: 1rem;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+}
+
+.help-modal h3 {
+  margin-top: 0;
+}
+
+.help-modal p {
+  margin: 0.45rem 0;
+  line-height: 1.35;
+}
+
+kbd {
+  background: #111e2d;
+  border: 1px solid #335171;
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+}
+
+.pitch-picker-modal {
+  width: min(980px, 100%);
+}
+
+.pitch-picker-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.6rem;
+}
+
+.piano-shell {
+  position: relative;
+  margin-top: 0.5rem;
+  border: 1px solid #2f4f6d;
+  border-radius: 8px;
+  background: #0b141e;
+  padding: 0.65rem 0.5rem 0.5rem;
+  overflow-x: auto;
+}
+
+.piano-keys-wrap {
+  position: relative;
+}
+
+.piano-white-row {
+  display: flex;
+  gap: 1px;
+}
+
+.piano-key {
+  border-radius: 0 0 6px 6px;
+  border: 1px solid #314a61;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.12rem;
+  padding: 0.2rem;
+  cursor: pointer;
+}
+
+.piano-key.white {
+  width: 20px;
+  height: 140px;
+  background: linear-gradient(180deg, #f4f7fa, #d8e0e9 70%);
+  color: #0f1b28;
+}
+
+.piano-key.black {
+  position: absolute;
+  top: 0;
+  width: 12px;
+  height: 90px;
+  background: linear-gradient(180deg, #2b3440, #0e151d 70%);
+  border-color: #4f6780;
+  color: #e8f3ff;
+  font-size: 0.65rem;
+}
+
+.piano-key.selected.white {
+  outline: 2px solid #ffaa4f;
+}
+
+.piano-key.selected.black {
+  outline: 2px solid #ffaa4f;
+}
+
+.piano-black-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.piano-key .pitch-label {
+  font-size: 0.48rem;
+  line-height: 1;
+  color: #101b28;
+}
+
+.piano-key.black .pitch-label {
+  color: #f0f6ff;
+}
+
+.piano-key .qwerty-label {
+  display: inline-block;
+  font-size: 0.42rem;
+  line-height: 1;
+  padding: 0.04rem 0.12rem;
+  border-radius: 3px;
+  background: #8f1414;
+  color: #ffe7e7;
+  border: 1px solid #cf4a4a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 @media (max-width: 1100px) {

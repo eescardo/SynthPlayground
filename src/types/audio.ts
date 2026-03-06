@@ -45,6 +45,7 @@ export interface WorkletSetProjectMessage {
 export interface WorkletEventsMessage {
   type: "EVENTS";
   events: SchedulerEvent[];
+  sessionId?: number;
 }
 
 export interface WorkletMacroMessage {
@@ -58,6 +59,8 @@ export interface WorkletTransportMessage {
   type: "TRANSPORT";
   isPlaying: boolean;
   songStartSample: number;
+  events?: SchedulerEvent[];
+  sessionId?: number;
 }
 
 export type WorkletInboundMessage =

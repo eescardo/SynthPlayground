@@ -18,28 +18,6 @@ const NOTE_TO_SEMITONE: Record<string, number> = {
   B: 11
 };
 
-const QWERTY_PITCH_MAP: Record<string, string> = {
-  a: "C4",
-  w: "C#4",
-  s: "D4",
-  e: "D#4",
-  d: "E4",
-  f: "F4",
-  t: "F#4",
-  g: "G4",
-  y: "G#4",
-  h: "A4",
-  u: "A#4",
-  j: "B4",
-  k: "C5",
-  o: "C#5",
-  l: "D5",
-  p: "D#5",
-  ";": "E5"
-};
-
-export const keyToPitch = (key: string): string | undefined => QWERTY_PITCH_MAP[key.toLowerCase()];
-
 export const pitchToMidi = (pitchStr: string): number => {
   const match = /^([A-G](?:#|b)?)(-?\d+)$/.exec(pitchStr.trim());
   if (!match) {
@@ -63,4 +41,22 @@ export const midiToPitch = (midi: number): string => {
   const semitone = ((midi % 12) + 12) % 12;
   const octave = Math.floor(midi / 12) - 1;
   return `${names[semitone]}${octave}`;
+};
+
+const QWERTY_ORDER = "QWERTYUIOPASDFGHJKLZXCVBNM";
+const QWERTY_START_MIDI = 48; // C3
+
+export const QWERTY_PITCH_MAP: Record<string, string> = Object.fromEntries(
+  QWERTY_ORDER.split("").map((char, index) => [char.toLowerCase(), midiToPitch(QWERTY_START_MIDI + index)])
+);
+
+export const keyToPitch = (key: string): string | undefined => QWERTY_PITCH_MAP[key.toLowerCase()];
+
+export const qwertyKeyForPitch = (pitchStr: string): string | undefined => {
+  for (const [key, pitch] of Object.entries(QWERTY_PITCH_MAP)) {
+    if (pitch === pitchStr) {
+      return key.toUpperCase();
+    }
+  }
+  return undefined;
 };

@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:wasm": "npm run build:wasm && npm run dev",
+    "dev:wasm:strict": "npm run build:wasm && NEXT_PUBLIC_STRICT_WASM=1 npm run dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

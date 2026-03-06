@@ -40,7 +40,7 @@ export function TransportBar(props: TransportBarProps) {
         <button className={props.recordEnabled ? "armed" : ""} onClick={props.onToggleRecord}>
           Record
         </button>
-        <span className="playhead">Beat {props.playheadBeat.toFixed(2)}</span>
+        <span className="playhead">Beat {(props.playheadBeat + 1).toFixed(2)}</span>
       </div>
 
       <div className="transport-right">

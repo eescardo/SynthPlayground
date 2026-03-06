@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AudioEngine } from "@/audio/engine";
+import { loadDspWasm } from "@/audio/wasmBridge";
 import { MacroPanel } from "@/components/MacroPanel";
 import { PatchEditorCanvas } from "@/components/PatchEditorCanvas";
+import { PianoKeyboard } from "@/components/PianoKeyboard";
 import { TrackCanvas } from "@/components/TrackCanvas";
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
@@ -18,16 +20,31 @@ import { Project, Note } from "@/types/music";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchHistoryState, PatchOp } from "@/types/ops";
 
+const notesOverlap = (a: Note, b: Note): boolean => {
+  const epsilon = 1e-9;
+  const aEnd = a.startBeat + a.durationBeats;
+  const bEnd = b.startBeat + b.durationBeats;
+  return a.startBeat < bEnd - epsilon && aEnd > b.startBeat + epsilon;
+};
+
+const hasOverlapWithOthers = (candidate: Note, notes: Note[]): boolean =>
+  notes.some((other) => other.id !== candidate.id && notesOverlap(candidate, other));
+
 export default function HomePage() {
   const [project, setProject] = useState<Project>(() => createDefaultProject());
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [recordEnabled, setRecordEnabled] = useState(false);
   const [playheadBeat, setPlayheadBeat] = useState(0);
+  const [userCueBeat, setUserCueBeat] = useState(0);
   const [selectedTrackId, setSelectedTrackId] = useState<string | undefined>(undefined);
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(undefined);
   const [validationIssues, setValidationIssues] = useState<PatchValidationIssue[]>([]);
   const [macroValues, setMacroValues] = useState<Record<string, number>>({});
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const [strictWasmReady, setStrictWasmReady] = useState(process.env.NEXT_PUBLIC_STRICT_WASM !== "1");
+  const [pitchPicker, setPitchPicker] = useState<{ trackId: string; noteId: string } | null>(null);
 
   const [patchHistoryById, setPatchHistoryById] = useState<Record<string, PatchHistoryState<Patch>>>({});
   const activeRecordKeys = useRef<Map<string, { noteId: string; startBeat: number; trackId: string }>>(new Map());
@@ -68,6 +85,14 @@ export default function HomePage() {
     [project.patches, selectedTrack?.instrumentPatchId]
   );
 
+  const playbackEndBeat = useMemo(() => {
+    const maxNoteEnd = project.tracks
+      .flatMap((track) => track.notes)
+      .reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);
+    const meterBeats = project.global.meter === "4/4" ? 4 : 3;
+    return Math.max(16, Math.ceil(maxNoteEnd + meterBeats));
+  }, [project.global.meter, project.tracks]);
+
   useEffect(() => {
     if (!selectedPatch) return;
     const result = validatePatch(selectedPatch);
@@ -87,13 +112,54 @@ export default function HomePage() {
     audioEngineRef.current.setProject(project);
   }, [project, ready]);
 
-  const tickPlayhead = () => {
+  useEffect(() => {
+    if (!ready || process.env.NEXT_PUBLIC_STRICT_WASM !== "1") return;
+    loadDspWasm()
+      .then((exports) => {
+        if (!exports) {
+          setRuntimeError("Strict WASM mode is active, but WASM exports were not loaded.");
+          setStrictWasmReady(false);
+          return;
+        }
+        setRuntimeError(null);
+        setStrictWasmReady(true);
+      })
+      .catch((error) => {
+        setRuntimeError((error as Error).message);
+        setStrictWasmReady(false);
+      });
+  }, [ready]);
+
+  const stopPlayback = useCallback((resetToCue = false) => {
+    audioEngineRef.current?.stop();
+    setPlaying(false);
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (resetToCue) {
+      setPlayheadBeat(userCueBeat);
+    }
+  }, [userCueBeat]);
+
+  const tickPlayhead = useCallback(() => {
     if (!audioEngineRef.current) return;
-    setPlayheadBeat(audioEngineRef.current.getPlayheadBeat());
+    const beat = audioEngineRef.current.getPlayheadBeat();
+    setPlayheadBeat(beat);
+
+    if (playbackEndBeat > 0 && beat >= playbackEndBeat - 0.0001) {
+      stopPlayback(true);
+      return;
+    }
+
     rafRef.current = window.requestAnimationFrame(tickPlayhead);
-  };
+  }, [playbackEndBeat, stopPlayback]);
 
   const startPlayback = async () => {
+    if (process.env.NEXT_PUBLIC_STRICT_WASM === "1" && !strictWasmReady) {
+      setRuntimeError("Strict WASM mode is enabled and WASM is not ready. Run `npm run dev:wasm:strict`.");
+      return;
+    }
     if (!audioEngineRef.current) {
       audioEngineRef.current = new AudioEngine();
     }
@@ -104,15 +170,6 @@ export default function HomePage() {
       cancelAnimationFrame(rafRef.current);
     }
     rafRef.current = requestAnimationFrame(tickPlayhead);
-  };
-
-  const stopPlayback = () => {
-    audioEngineRef.current?.stop();
-    setPlaying(false);
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
   };
 
   useEffect(() => {
@@ -135,19 +192,56 @@ export default function HomePage() {
     patchTrackNotes(trackId, (notes) => {
       const existing = notes.find((entry) => entry.id === note.id);
       if (existing) {
+        if (hasOverlapWithOthers(note, notes)) {
+          return notes;
+        }
         return notes.map((entry) => (entry.id === note.id ? note : entry));
+      }
+      if (hasOverlapWithOthers(note, notes)) {
+        return notes;
       }
       return [...notes, note].sort((a, b) => a.startBeat - b.startBeat);
     });
   }, [patchTrackNotes]);
 
   const updateNote = useCallback((trackId: string, noteId: string, patch: Partial<Note>) => {
-    patchTrackNotes(trackId, (notes) => notes.map((note) => (note.id === noteId ? { ...note, ...patch } : note)));
+    patchTrackNotes(trackId, (notes) =>
+      notes.map((note) => {
+        if (note.id !== noteId) {
+          return note;
+        }
+        const nextNote = { ...note, ...patch };
+        if (hasOverlapWithOthers(nextNote, notes)) {
+          return note;
+        }
+        return nextNote;
+      })
+    );
   }, [patchTrackNotes]);
 
   const deleteNote = useCallback((trackId: string, noteId: string) => {
     patchTrackNotes(trackId, (notes) => notes.filter((note) => note.id !== noteId));
   }, [patchTrackNotes]);
+
+  const toggleTrackMute = useCallback((trackId: string) => {
+    setProject((prev) => ({
+      ...prev,
+      tracks: prev.tracks.map((track) => (track.id === trackId ? { ...track, mute: !track.mute } : track))
+    }));
+  }, []);
+
+  const setPlayheadFromUser = useCallback((beat: number) => {
+    setUserCueBeat(beat);
+    setPlayheadBeat(beat);
+  }, []);
+
+  const openPitchPicker = useCallback((trackId: string, noteId: string) => {
+    setPitchPicker({ trackId, noteId });
+  }, []);
+
+  const closePitchPicker = useCallback(() => {
+    setPitchPicker(null);
+  }, []);
 
   const applyPatchOp = (op: PatchOp) => {
     if (!selectedPatch) return;
@@ -237,6 +331,7 @@ export default function HomePage() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (pitchPicker) return;
       if (!recordEnabled || !selectedTrack) return;
       const target = event.target as HTMLElement | null;
       if (target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA")) {
@@ -265,6 +360,7 @@ export default function HomePage() {
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
+      if (pitchPicker) return;
       const active = activeRecordKeys.current.get(event.key);
       if (!active) return;
       activeRecordKeys.current.delete(event.key);
@@ -281,7 +377,48 @@ export default function HomePage() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [playheadBeat, project.global.gridBeats, recordEnabled, selectedTrack, updateNote, upsertNote]);
+  }, [pitchPicker, playheadBeat, project.global.gridBeats, recordEnabled, selectedTrack, updateNote, upsertNote]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const editingText = target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA");
+
+      const isHelpKey = event.key === "?" || (event.key === "/" && event.shiftKey);
+      if (isHelpKey && !editingText) {
+        event.preventDefault();
+        setHelpOpen(true);
+      }
+
+      if (event.key === "Escape") {
+        setHelpOpen(false);
+        setPitchPicker(null);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (!pitchPicker) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const editingText = target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA");
+      if (editingText) return;
+
+      const pitch = keyToPitch(event.key);
+      if (!pitch) return;
+
+      event.preventDefault();
+      updateNote(pitchPicker.trackId, pitchPicker.noteId, { pitchStr: pitch });
+      closePitchPicker();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [closePitchPicker, pitchPicker, updateNote]);
 
   const exportJson = () => {
     const payload = exportProjectToJson(project);
@@ -367,6 +504,9 @@ export default function HomePage() {
     return <main className="loading">Loading...</main>;
   }
 
+  const pitchPickerTrack = pitchPicker ? project.tracks.find((track) => track.id === pitchPicker.trackId) : undefined;
+  const pitchPickerNote = pitchPickerTrack?.notes.find((note) => note.id === pitchPicker?.noteId);
+
   return (
     <main className="app">
       <TransportBar
@@ -387,6 +527,7 @@ export default function HomePage() {
       <section className="top-actions">
         <button onClick={addTrack}>Add Track</button>
         <button onClick={duplicatePatchForSelectedTrack}>Duplicate Instrument Patch</button>
+        <button onClick={() => setHelpOpen(true)}>Help (?)</button>
         <button onClick={exportJson}>Export Project JSON</button>
         <button onClick={() => importInputRef.current?.click()}>Import Project JSON</button>
         <button
@@ -416,6 +557,8 @@ export default function HomePage() {
         />
       </section>
 
+      {runtimeError && <p className="error">{runtimeError}</p>}
+
       <section className="track-settings">
         {project.tracks.map((track) => {
           const patch = project.patches.find((entry) => entry.id === track.instrumentPatchId);
@@ -439,8 +582,10 @@ export default function HomePage() {
         project={project}
         selectedTrackId={selectedTrack.id}
         playheadBeat={playheadBeat}
-        onSetPlayheadBeat={setPlayheadBeat}
+        onSetPlayheadBeat={setPlayheadFromUser}
         onSelectTrack={setSelectedTrackId}
+        onToggleTrackMute={toggleTrackMute}
+        onOpenPitchPicker={openPitchPicker}
         onUpsertNote={upsertNote}
         onUpdateNote={updateNote}
         onDeleteNote={deleteNote}
@@ -459,6 +604,58 @@ export default function HomePage() {
         onUndo={undoPatch}
         onRedo={redoPatch}
       />
+
+      {helpOpen && (
+        <div className="help-modal-backdrop" role="dialog" aria-modal="true" onClick={() => setHelpOpen(false)}>
+          <div className="help-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>Quick Help</h3>
+            <p>
+              <strong>Add note:</strong> Left-click an empty spot in a track lane.
+            </p>
+            <p>
+              <strong>Move note:</strong> Drag a note block horizontally.
+            </p>
+            <p>
+              <strong>Resize note:</strong> Drag near the right edge of a note block.
+            </p>
+            <p>
+              <strong>Delete note:</strong> Right-click a note block.
+            </p>
+            <p>
+              <strong>Change note pitch:</strong> Hover the pitch label (for example <code>C4</code>) and use mouse wheel (up/down = +/- semitone).
+            </p>
+            <p>
+              <strong>Record mode:</strong> Arm Record, then use QWERTY keys (A/W/S/E...) to input notes at playhead.
+            </p>
+            <p className="muted">Press <kbd>Esc</kbd> to close this help panel.</p>
+          </div>
+        </div>
+      )}
+
+      {pitchPicker && pitchPickerNote && (
+        <div className="help-modal-backdrop" role="dialog" aria-modal="true" onClick={closePitchPicker}>
+          <div className="help-modal pitch-picker-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>Pick Pitch</h3>
+            <p className="muted">
+              Select a key from C1 to C7. QWERTY-mapped keys are shown on each note.
+            </p>
+            <PianoKeyboard
+              minPitch="C1"
+              maxPitch="C7"
+              selectedPitch={pitchPickerNote.pitchStr}
+              onSelectPitch={(pitch) => {
+                updateNote(pitchPicker.trackId, pitchPicker.noteId, { pitchStr: pitch });
+                closePitchPicker();
+              }}
+            />
+            <div className="pitch-picker-actions">
+              <button type="button" onClick={closePitchPicker}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

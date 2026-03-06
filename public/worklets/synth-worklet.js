@@ -182,7 +182,30 @@ class TrackRuntime {
   }
 
   noteOn(event, sampleTime) {
-    const voice = this.allocateVoice(sampleTime);
+    const existing = this.voices.find((voice) => voice.active && voice.noteId === event.noteId);
+    if (existing) {
+      existing.lastTriggeredSampleTime = sampleTime;
+      existing.host.pitchVoct = event.pitchVoct;
+      existing.host.velocity = event.velocity;
+      existing.host.gate = 1;
+      return;
+    }
+
+    // Track lanes are monophonic in the editor model, so reuse one active voice.
+    let voice = this.voices.find((entry) => entry.active);
+    if (!voice) {
+      voice = this.allocateVoice(sampleTime);
+    } else {
+      for (const other of this.voices) {
+        if (other !== voice) {
+          other.active = false;
+          other.noteId = null;
+          other.host.gate = 0;
+          other.rms = 0;
+        }
+      }
+    }
+
     voice.active = true;
     voice.noteId = event.noteId;
     voice.lastTriggeredSampleTime = sampleTime;
@@ -194,9 +217,21 @@ class TrackRuntime {
   }
 
   noteOff(event) {
+    let released = false;
     for (const voice of this.voices) {
       if (voice.active && voice.noteId === event.noteId) {
         voice.host.gate = 0;
+        released = true;
+      }
+    }
+    if (released) {
+      return;
+    }
+
+    for (const voice of this.voices) {
+      if (voice.active) {
+        voice.host.gate = 0;
+        break;
       }
     }
   }
@@ -392,7 +427,8 @@ class TrackRuntime {
         const gainCv = this.readInput(signalMap, id, "gainCV", 1);
         const bias = this.getSmoothedParam(voice, id, typeId, "bias", Number(node.params.bias ?? 0));
         const gain = this.getSmoothedParam(voice, id, typeId, "gain", Number(node.params.gain ?? 1));
-        const gainEff = clamp(bias + gain * (gainCv * 0.5 + 0.5), 0, 1);
+        const gainCvNorm = gainCv >= 0 && gainCv <= 1 ? gainCv : gainCv * 0.5 + 0.5;
+        const gainEff = clamp(bias + gain * gainCvNorm, 0, 1);
         signalMap.set(`${id}:out`, input * gainEff);
         return;
       }
@@ -641,6 +677,16 @@ class TrackRuntime {
       sample = 0;
     }
 
+    if (!Number.isFinite(sample)) {
+      voice.active = false;
+      voice.noteId = null;
+      voice.host.gate = 0;
+      voice.rms = 0;
+      voice.nodeState.clear();
+      voice.paramState.clear();
+      return 0;
+    }
+
     voice.rms = voice.rms * 0.995 + Math.abs(sample) * 0.005;
     if (voice.host.gate < 0.5 && voice.rms < 0.0005) {
       voice.active = false;
@@ -657,6 +703,9 @@ class TrackRuntime {
       sample += this.renderVoiceSample(voice);
     }
 
+    if (!Number.isFinite(sample)) {
+      sample = 0;
+    }
     sample = this.applyTrackFx(sample);
     if (this.track.mute) {
       return 0;
@@ -704,6 +753,9 @@ class TrackRuntime {
       out = out * gain;
     }
 
+    if (!Number.isFinite(out)) {
+      return 0;
+    }
     return out;
   }
 }
@@ -718,11 +770,22 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
     this.eventQueue = [];
     this.playing = false;
     this.sampleCounter = 0;
-    this.songStartSample = 0;
+    this.songSampleCounter = 0;
+    this.transportSessionId = 0;
 
     this.masterCompressorEnv = 0;
 
     this.port.onmessage = (event) => this.onMessage(event.data);
+  }
+
+  enqueueEvents(events) {
+    for (const evt of events) {
+      if (!evt || !Number.isFinite(evt.sampleTime)) {
+        continue;
+      }
+      this.eventQueue.push(evt);
+    }
+    this.eventQueue.sort((a, b) => a.sampleTime - b.sampleTime);
   }
 
   onMessage(message) {
@@ -743,25 +806,28 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
         }
         break;
       case "TRANSPORT":
-        this.playing = Boolean(message.isPlaying);
-        this.songStartSample = message.songStartSample || 0;
-        if (!this.playing) {
-          this.eventQueue.length = 0;
-          for (const track of this.trackRuntimes) {
-            for (const voice of track.voices) {
-              voice.active = false;
-              voice.host.gate = 0;
-              voice.rms = 0;
-            }
+        this.playing = false;
+        this.transportSessionId = Number.isFinite(message.sessionId) ? message.sessionId : this.transportSessionId + 1;
+        this.songSampleCounter = Math.max(0, message.songStartSample || 0);
+        this.eventQueue.length = 0;
+        if (Array.isArray(message.events)) {
+          this.enqueueEvents(message.events);
+        }
+        for (const track of this.trackRuntimes) {
+          for (const voice of track.voices) {
+            voice.active = false;
+            voice.host.gate = 0;
+            voice.rms = 0;
           }
         }
+        this.playing = Boolean(message.isPlaying);
         break;
       case "EVENTS":
+        if (Number.isFinite(message.sessionId) && message.sessionId !== this.transportSessionId) {
+          break;
+        }
         if (Array.isArray(message.events)) {
-          for (const evt of message.events) {
-            this.eventQueue.push(evt);
-          }
-          this.eventQueue.sort((a, b) => a.sampleTime - b.sampleTime);
+          this.enqueueEvents(message.events);
         }
         break;
       case "MACRO":
@@ -778,6 +844,7 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
 
   handleEvent(event) {
     if (!this.project) return;
+    if (!event || typeof event.type !== "string") return;
 
     if (event.type === "ParamChange") {
       for (const track of this.trackRuntimes) {
@@ -792,7 +859,7 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
     if (!track) return;
 
     if (event.type === "NoteOn") {
-      track.noteOn(event, this.sampleCounter);
+      track.noteOn(event, this.songSampleCounter);
     } else if (event.type === "NoteOff") {
       track.noteOff(event);
     }
@@ -816,6 +883,9 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
       out = clamp(out, -0.98, 0.98);
     }
 
+    if (!Number.isFinite(out)) {
+      return 0;
+    }
     return out;
   }
 
@@ -825,8 +895,17 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
     const right = output[1] || output[0];
 
     for (let i = 0; i < left.length; i += 1) {
-      const currentSample = this.sampleCounter;
-      while (this.eventQueue.length > 0 && this.eventQueue[0].sampleTime <= currentSample) {
+      const currentSongSample = this.songSampleCounter;
+
+      while (this.eventQueue.length > 0) {
+        const next = this.eventQueue[0];
+        if (!next || !Number.isFinite(next.sampleTime)) {
+          this.eventQueue.shift();
+          continue;
+        }
+        if (next.sampleTime > currentSongSample) {
+          break;
+        }
         const event = this.eventQueue.shift();
         this.handleEvent(event);
       }
@@ -839,8 +918,14 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
       }
 
       mixed = this.applyMasterFx(mixed);
+      if (!Number.isFinite(mixed)) {
+        mixed = 0;
+      }
       left[i] = mixed;
       right[i] = mixed;
+      if (this.playing) {
+        this.songSampleCounter += 1;
+      }
       this.sampleCounter += 1;
     }
 

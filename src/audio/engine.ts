@@ -5,7 +5,7 @@ import { beatToSample, samplesPerBeat } from "@/lib/time";
 import { Project } from "@/types/music";
 import { SchedulerEvent } from "@/types/audio";
 
-const LOOKAHEAD_MS = 150;
+const LOOKAHEAD_MS = 300;
 const SCHEDULER_TICK_MS = 25;
 const BLOCK_SIZE = 128;
 const FIXED_SAMPLE_RATE = 48000;
@@ -18,6 +18,19 @@ export class AudioEngine {
   private scheduledUntilSample = 0;
   private isPlaying = false;
   private project: Project | null = null;
+  private playSessionId = 0;
+
+  private computeStaticScheduleEndSample(startSample: number, lookaheadSamples: number): number {
+    if (!this.project) {
+      return startSample + lookaheadSamples;
+    }
+
+    const maxNoteEndBeat = this.project.tracks
+      .flatMap((track) => track.notes)
+      .reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);
+    const maxNoteEndSample = beatToSample(maxNoteEndBeat, FIXED_SAMPLE_RATE, this.project.global.tempo);
+    return Math.max(startSample + lookaheadSamples, maxNoteEndSample + 1);
+  }
 
   async init(): Promise<void> {
     if (this.context && this.worklet) {
@@ -39,6 +52,13 @@ export class AudioEngine {
       sampleRate: FIXED_SAMPLE_RATE,
       blockSize: BLOCK_SIZE
     });
+
+    if (this.project) {
+      this.worklet.port.postMessage({
+        type: "SET_PROJECT",
+        project: this.project
+      });
+    }
   }
 
   async ensureRunning(): Promise<void> {
@@ -65,15 +85,36 @@ export class AudioEngine {
       return;
     }
 
+    this.playSessionId += 1;
+    const sessionId = this.playSessionId;
+
     const secondsAtBeat = (startBeat * 60) / this.project.global.tempo;
     this.songStartContextTime = this.context.currentTime - secondsAtBeat;
-    this.scheduledUntilSample = Math.max(0, beatToSample(startBeat, FIXED_SAMPLE_RATE, this.project.global.tempo));
+    const startSample = Math.max(0, beatToSample(startBeat, FIXED_SAMPLE_RATE, this.project.global.tempo));
+    const lookaheadSamples = Math.round((LOOKAHEAD_MS / 1000) * FIXED_SAMPLE_RATE);
+    const primedToSample =
+      this.project.global.loop?.enabled
+        ? startSample + lookaheadSamples
+        : this.computeStaticScheduleEndSample(startSample, lookaheadSamples);
+    const primedEvents = collectEventsInWindow(this.project, {
+      fromSample: startSample,
+      toSample: primedToSample
+    });
+
+    this.scheduledUntilSample = primedToSample;
     this.isPlaying = true;
+
+    this.worklet.port.postMessage({
+      type: "SET_PROJECT",
+      project: this.project
+    });
 
     this.worklet.port.postMessage({
       type: "TRANSPORT",
       isPlaying: true,
-      songStartSample: Math.round(this.songStartContextTime * FIXED_SAMPLE_RATE)
+      songStartSample: startSample,
+      events: primedEvents,
+      sessionId
     });
 
     this.tickSchedule();
@@ -93,7 +134,8 @@ export class AudioEngine {
     this.worklet?.port.postMessage({
       type: "TRANSPORT",
       isPlaying: false,
-      songStartSample: 0
+      songStartSample: 0,
+      sessionId: this.playSessionId
     });
   }
 
@@ -104,8 +146,12 @@ export class AudioEngine {
 
     const currentSongSample = Math.max(0, Math.round((this.context.currentTime - this.songStartContextTime) * FIXED_SAMPLE_RATE));
     const lookaheadSamples = Math.round((LOOKAHEAD_MS / 1000) * FIXED_SAMPLE_RATE);
-    const fromSample = Math.max(currentSongSample, this.scheduledUntilSample);
-    const toSample = fromSample + lookaheadSamples;
+    const fromSample = this.scheduledUntilSample;
+    const toSample = currentSongSample + lookaheadSamples;
+
+    if (toSample <= fromSample) {
+      return;
+    }
 
     const loop = this.project.global.loop;
     if (loop?.enabled) {
@@ -122,7 +168,7 @@ export class AudioEngine {
 
     const events = collectEventsInWindow(this.project, { fromSample, toSample });
     if (events.length > 0) {
-      this.worklet.port.postMessage({ type: "EVENTS", events });
+      this.worklet.port.postMessage({ type: "EVENTS", events, sessionId: this.playSessionId });
     }
     this.scheduledUntilSample = toSample;
   }

@@ -26,6 +26,18 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+To run dev mode after compiling the Rust WASM artifact first:
+
+```bash
+npm run dev:wasm
+```
+
+To run in strict mode (requires WASM artifact to load; no silent fallback):
+
+```bash
+npm run dev:wasm:strict
+```
+
 ## Build
 
 ```bash

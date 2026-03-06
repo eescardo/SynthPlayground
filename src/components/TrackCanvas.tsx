@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createId } from "@/lib/ids";
+import { midiToPitch, pitchToMidi } from "@/lib/pitch";
 import { snapToGrid } from "@/lib/time";
 import { Project, Note, Track } from "@/types/music";
 
@@ -16,6 +17,8 @@ interface TrackCanvasProps {
   playheadBeat: number;
   onSetPlayheadBeat: (beat: number) => void;
   onSelectTrack: (trackId: string) => void;
+  onToggleTrackMute: (trackId: string) => void;
+  onOpenPitchPicker: (trackId: string, noteId: string) => void;
   onUpsertNote: (trackId: string, note: Note) => void;
   onUpdateNote: (trackId: string, noteId: string, patch: Partial<Note>) => void;
   onDeleteNote: (trackId: string, noteId: string) => void;
@@ -38,11 +41,117 @@ interface NoteRect {
   h: number;
 }
 
+interface MuteRect {
+  trackId: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+interface PitchRect {
+  trackId: string;
+  noteId: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const findTrackOverlaps = (notes: Note[]): {
+  overlapNoteIds: Set<string>;
+  overlapRanges: Array<{ startBeat: number; endBeat: number }>;
+} => {
+  const overlapNoteIds = new Set<string>();
+  const ranges: Array<{ startBeat: number; endBeat: number }> = [];
+  const sorted = [...notes].sort((a, b) => a.startBeat - b.startBeat);
+  const epsilon = 1e-9;
+
+  for (let i = 0; i < sorted.length; i += 1) {
+    const a = sorted[i];
+    const aEnd = a.startBeat + a.durationBeats;
+    for (let j = i + 1; j < sorted.length; j += 1) {
+      const b = sorted[j];
+      if (b.startBeat >= aEnd - epsilon) {
+        break;
+      }
+      const bEnd = b.startBeat + b.durationBeats;
+      const overlapStart = Math.max(a.startBeat, b.startBeat);
+      const overlapEnd = Math.min(aEnd, bEnd);
+      if (overlapEnd > overlapStart + epsilon) {
+        overlapNoteIds.add(a.id);
+        overlapNoteIds.add(b.id);
+        ranges.push({ startBeat: overlapStart, endBeat: overlapEnd });
+      }
+    }
+  }
+
+  if (ranges.length === 0) {
+    return { overlapNoteIds, overlapRanges: [] };
+  }
+
+  ranges.sort((a, b) => a.startBeat - b.startBeat);
+  const merged: Array<{ startBeat: number; endBeat: number }> = [ranges[0]];
+  for (let i = 1; i < ranges.length; i += 1) {
+    const current = ranges[i];
+    const last = merged[merged.length - 1];
+    if (current.startBeat <= last.endBeat + epsilon) {
+      last.endBeat = Math.max(last.endBeat, current.endBeat);
+    } else {
+      merged.push({ ...current });
+    }
+  }
+
+  return { overlapNoteIds, overlapRanges: merged };
+};
+
+const drawSpeaker = (ctx: CanvasRenderingContext2D, x: number, y: number, muted: boolean) => {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.strokeStyle = muted ? "#ff8092" : "#a7c8eb";
+  ctx.fillStyle = muted ? "#ff8092" : "#a7c8eb";
+  ctx.lineWidth = 1.8;
+
+  ctx.beginPath();
+  ctx.rect(1, 5, 4, 6);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(5, 5);
+  ctx.lineTo(10, 2);
+  ctx.lineTo(10, 14);
+  ctx.lineTo(5, 11);
+  ctx.closePath();
+  ctx.fill();
+
+  if (!muted) {
+    ctx.beginPath();
+    ctx.arc(10, 8, 4, -0.8, 0.8);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(10, 8, 6.5, -0.7, 0.7);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(1, 1);
+    ctx.lineTo(14, 14);
+    ctx.stroke();
+  }
+  ctx.restore();
+};
+
 export function TrackCanvas(props: TrackCanvasProps) {
+  const { onUpdateNote, project } = props;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const noteRectsRef = useRef<NoteRect[]>([]);
+  const muteRectsRef = useRef<MuteRect[]>([]);
+  const pitchRectsRef = useRef<PitchRect[]>([]);
+  const wheelPitchLockUntilRef = useRef(0);
+  const wheelLockedScrollTopRef = useRef(0);
+  const wheelLockedScrollLeftRef = useRef(0);
+  const wheelLockTimerRef = useRef<number | null>(null);
+  const [hoveredPitch, setHoveredPitch] = useState<{ trackId: string; noteId: string } | null>(null);
 
   const meterBeats = props.project.global.meter === "4/4" ? 4 : 3;
 
@@ -110,10 +219,13 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
 
     noteRectsRef.current = [];
+    muteRectsRef.current = [];
+    pitchRectsRef.current = [];
 
     props.project.tracks.forEach((track, index) => {
       const y = RULER_HEIGHT + index * TRACK_HEIGHT;
       const isSelected = track.id === props.selectedTrackId;
+      const { overlapNoteIds, overlapRanges } = findTrackOverlaps(track.notes);
 
       if (isSelected) {
         ctx.fillStyle = "rgba(33, 112, 210, 0.2)";
@@ -127,23 +239,52 @@ export function TrackCanvas(props: TrackCanvasProps) {
       ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
       ctx.fillText(track.instrumentPatchId.replace("preset_", ""), 12, y + 42);
 
+      const muteX = 126;
+      const muteY = y + 29;
+      drawSpeaker(ctx, muteX, muteY, Boolean(track.mute));
+      muteRectsRef.current.push({ trackId: track.id, x: muteX, y: muteY, w: 16, h: 16 });
+
       for (const note of track.notes) {
         const noteX = HEADER_WIDTH + note.startBeat * BEAT_WIDTH;
         const noteW = Math.max(8, note.durationBeats * BEAT_WIDTH);
         const noteY = y + 14;
         const noteH = TRACK_HEIGHT - 28;
+        const overlaps = overlapNoteIds.has(note.id);
 
-        ctx.fillStyle = "#2d8cff";
+        ctx.fillStyle = overlaps ? (track.mute ? "#7b4b4b" : "#dc4a4a") : track.mute ? "#405f83" : "#2d8cff";
         ctx.fillRect(noteX, noteY, noteW, noteH);
 
         ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
         ctx.fillRect(noteX, noteY, noteW, 2);
 
+        const labelX = noteX + 6;
+        const labelY = noteY + 16;
+        const labelWidth = Math.max(14, ctx.measureText(note.pitchStr).width);
+        if (hoveredPitch?.trackId === track.id && hoveredPitch.noteId === note.id) {
+          ctx.fillStyle = "rgba(255, 219, 120, 0.26)";
+          ctx.fillRect(labelX - 3, labelY - 10, labelWidth + 6, 13);
+        }
+
         ctx.fillStyle = "#ecf5ff";
         ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
-        ctx.fillText(note.pitchStr, noteX + 6, noteY + 16);
+        ctx.fillText(note.pitchStr, labelX, labelY);
 
         noteRectsRef.current.push({ trackId: track.id, noteId: note.id, x: noteX, y: noteY, w: noteW, h: noteH });
+        pitchRectsRef.current.push({
+          trackId: track.id,
+          noteId: note.id,
+          x: labelX - 3,
+          y: labelY - 10,
+          w: labelWidth + 6,
+          h: 13
+        });
+      }
+
+      for (const overlap of overlapRanges) {
+        const overlapX = HEADER_WIDTH + overlap.startBeat * BEAT_WIDTH;
+        const overlapW = Math.max(2, (overlap.endBeat - overlap.startBeat) * BEAT_WIDTH);
+        ctx.fillStyle = "rgba(255, 35, 35, 0.52)";
+        ctx.fillRect(overlapX, y + 14, overlapW, TRACK_HEIGHT - 28);
       }
     });
 
@@ -154,7 +295,17 @@ export function TrackCanvas(props: TrackCanvasProps) {
     ctx.moveTo(playheadX, 0);
     ctx.lineTo(playheadX, height);
     ctx.stroke();
-  }, [height, meterBeats, props.playheadBeat, props.project.global.gridBeats, props.project.tracks, props.selectedTrackId, totalBeats, width]);
+  }, [
+    height,
+    hoveredPitch,
+    meterBeats,
+    props.playheadBeat,
+    props.project.global.gridBeats,
+    props.project.tracks,
+    props.selectedTrackId,
+    totalBeats,
+    width
+  ]);
 
   useEffect(() => {
     draw();
@@ -162,6 +313,24 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
   const findNoteRect = (x: number, y: number): NoteRect | null => {
     for (const rect of noteRectsRef.current) {
+      if (x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h) {
+        return rect;
+      }
+    }
+    return null;
+  };
+
+  const findMuteRect = (x: number, y: number): MuteRect | null => {
+    for (const rect of muteRectsRef.current) {
+      if (x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h) {
+        return rect;
+      }
+    }
+    return null;
+  };
+
+  const findPitchRect = (x: number, y: number): PitchRect | null => {
+    for (const rect of pitchRectsRef.current) {
       if (x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h) {
         return rect;
       }
@@ -187,6 +356,18 @@ export function TrackCanvas(props: TrackCanvasProps) {
     if (!track) return;
 
     props.onSelectTrack(track.id);
+
+    const muteRect = findMuteRect(x, y);
+    if (muteRect) {
+      props.onToggleTrackMute(muteRect.trackId);
+      return;
+    }
+
+    const pitchRect = findPitchRect(x, y);
+    if (pitchRect && event.button === 0) {
+      props.onOpenPitchPicker(pitchRect.trackId, pitchRect.noteId);
+      return;
+    }
 
     const hitNote = findNoteRect(x, y);
     if (event.button === 2) {
@@ -234,14 +415,23 @@ export function TrackCanvas(props: TrackCanvasProps) {
   };
 
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const drag = dragRef.current;
-    if (!drag) return;
-
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const hitPitch = findPitchRect(x, y);
+    setHoveredPitch((prev) => {
+      const next = hitPitch ? { trackId: hitPitch.trackId, noteId: hitPitch.noteId } : null;
+      if (prev?.trackId === next?.trackId && prev?.noteId === next?.noteId) {
+        return prev;
+      }
+      return next;
+    });
+
+    const drag = dragRef.current;
+    if (!drag) return;
     const beat = snapToGrid(Math.max(0, beatFromX(x)), props.project.global.gridBeats);
     const track = props.project.tracks.find((entry) => entry.id === drag.trackId);
     const note = track?.notes.find((entry) => entry.id === drag.noteId);
@@ -271,6 +461,79 @@ export function TrackCanvas(props: TrackCanvasProps) {
     dragRef.current = null;
   };
 
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const wrapper = wrapperRef.current;
+    if (!canvas || !wrapper) return;
+
+    const engageWheelLock = (now: number) => {
+      const wasUnlocked = now >= wheelPitchLockUntilRef.current;
+      wheelPitchLockUntilRef.current = now + 420;
+      if (wasUnlocked) {
+        wheelLockedScrollTopRef.current = wrapper.scrollTop;
+        wheelLockedScrollLeftRef.current = wrapper.scrollLeft;
+      }
+      wrapper.style.overflow = "hidden";
+
+      if (wheelLockTimerRef.current !== null) {
+        window.clearTimeout(wheelLockTimerRef.current);
+      }
+      wheelLockTimerRef.current = window.setTimeout(() => {
+        wrapper.style.overflow = "auto";
+        wheelLockTimerRef.current = null;
+      }, 440);
+    };
+
+    const onWheelNative = (event: WheelEvent) => {
+      const now = performance.now();
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const hitPitch = findPitchRect(x, y);
+      const shouldLockScroll = now < wheelPitchLockUntilRef.current;
+      if (!hitPitch && !shouldLockScroll) return;
+
+      event.stopPropagation();
+      engageWheelLock(now);
+      wrapper.scrollTop = wheelLockedScrollTopRef.current;
+      wrapper.scrollLeft = wheelLockedScrollLeftRef.current;
+      if (!hitPitch) return;
+
+      const track = project.tracks.find((entry) => entry.id === hitPitch.trackId);
+      const note = track?.notes.find((entry) => entry.id === hitPitch.noteId);
+      if (!note) return;
+
+      let midi = 60;
+      try {
+        midi = pitchToMidi(note.pitchStr);
+      } catch {
+        return;
+      }
+      const semitone = event.deltaY < 0 ? 1 : -1;
+      const nextPitch = midiToPitch(Math.max(21, Math.min(108, midi + semitone)));
+      onUpdateNote(hitPitch.trackId, hitPitch.noteId, { pitchStr: nextPitch });
+    };
+
+    const onScrollNative = () => {
+      if (performance.now() < wheelPitchLockUntilRef.current) {
+        wrapper.scrollTop = wheelLockedScrollTopRef.current;
+        wrapper.scrollLeft = wheelLockedScrollLeftRef.current;
+      }
+    };
+
+    wrapper.addEventListener("wheel", onWheelNative, { passive: false, capture: true });
+    wrapper.addEventListener("scroll", onScrollNative, { capture: true });
+    return () => {
+      wrapper.removeEventListener("wheel", onWheelNative, true);
+      wrapper.removeEventListener("scroll", onScrollNative, true);
+      if (wheelLockTimerRef.current !== null) {
+        window.clearTimeout(wheelLockTimerRef.current);
+        wheelLockTimerRef.current = null;
+      }
+      wrapper.style.overflow = "auto";
+    };
+  }, [onUpdateNote, project.tracks]);
+
   return (
     <div className="track-canvas-shell" ref={wrapperRef}>
       <canvas
@@ -280,7 +543,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerLeave={onPointerUp}
+        onPointerLeave={(event) => {
+          onPointerUp(event);
+          setHoveredPitch(null);
+        }}
         onContextMenu={(event) => event.preventDefault()}
       />
     </div>
