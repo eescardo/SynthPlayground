@@ -25,6 +25,27 @@ const PARAM_SMOOTHING_MS = {
   Output: { gainDb: 30 }
 };
 
+const PORTS_IN_BY_TYPE = {
+  NotePitch: [],
+  NoteGate: [],
+  NoteVelocity: [],
+  ModWheel: [],
+  VCO: ["pitch", "fm", "pwm"],
+  LFO: ["fm"],
+  ADSR: ["gate"],
+  VCA: ["in", "gainCV"],
+  VCF: ["in", "cutoffCV"],
+  Mixer4: ["in1", "in2", "in3", "in4"],
+  SamplePlayer: ["gate", "pitch"],
+  Noise: [],
+  Delay: ["in"],
+  Reverb: ["in"],
+  Saturation: ["in"],
+  Overdrive: ["in"],
+  Compressor: ["in"],
+  Output: ["in"]
+};
+
 const clamp = (x, min, max) => Math.max(min, Math.min(max, x));
 const dbToGain = (db) => Math.pow(10, db / 20);
 
@@ -71,6 +92,7 @@ class VoiceState {
     };
     this.nodeState = new Map();
     this.paramState = new Map();
+    this.signalValues = null;
   }
 }
 
@@ -81,6 +103,9 @@ class TrackRuntime {
     this.sampleRate = sampleRate;
     this.compiled = this.compilePatch(patch);
     this.voices = new Array(MAX_VOICES).fill(0).map(() => new VoiceState());
+    for (const voice of this.voices) {
+      voice.signalValues = new Float32Array(this.compiled.signalCount);
+    }
     this.delayState = {
       buf: new Float32Array(sampleRate * 3),
       write: 0,
@@ -96,6 +121,11 @@ class TrackRuntime {
   }
 
   compilePatch(patch) {
+    // Build per-track execution metadata once:
+    // - topological node order
+    // - destination input -> source signal index lookup table
+    // - per-node runtime descriptors with pre-resolved signal indices
+    // - mutable param targets and macro table
     const nodeById = new Map();
     for (const node of patch.nodes) {
       nodeById.set(node.id, node);
@@ -139,10 +169,63 @@ class TrackRuntime {
     }
     const outputPortId = patch?.io?.audioOutPortId || "out";
 
-    const inputMap = new Map();
+    const outputIndexByKey = new Map();
+    let nextSignalIndex = 0;
+    const ensureOutputIndex = (nodeId, portId) => {
+      const key = `${nodeId}:${portId}`;
+      if (!outputIndexByKey.has(key)) {
+        outputIndexByKey.set(key, nextSignalIndex);
+        nextSignalIndex += 1;
+      }
+      return outputIndexByKey.get(key);
+    };
+
+    const hostSignalIndices = {
+      pitch: ensureOutputIndex("$host.pitch", "out"),
+      gate: ensureOutputIndex("$host.gate", "out"),
+      velocity: ensureOutputIndex("$host.velocity", "out"),
+      modWheel: ensureOutputIndex("$host.modwheel", "out")
+    };
+
+    const inputSourceByDestKey = new Map();
     for (const conn of patch.connections) {
+      const fromIsHost = Boolean(HOST_NODES[conn.from.nodeId]);
+      if (!fromIsHost && !nodeById.has(conn.from.nodeId)) {
+        continue;
+      }
+      if (!nodeById.has(conn.to.nodeId)) {
+        continue;
+      }
+      const sourceSignalIndex = ensureOutputIndex(conn.from.nodeId, conn.from.portId);
       const key = `${conn.to.nodeId}:${conn.to.portId}`;
-      inputMap.set(key, { nodeId: conn.from.nodeId, portId: conn.from.portId });
+      inputSourceByDestKey.set(key, sourceSignalIndex);
+    }
+
+    for (const node of patch.nodes) {
+      ensureOutputIndex(node.id, "out");
+    }
+    const fallbackOutputSignalIndex = ensureOutputIndex(outputNodeId, "out");
+    const outputSignalIndex = outputPortId === "out" ? fallbackOutputSignalIndex : -1;
+    const outputInputSourceSignalIndex = inputSourceByDestKey.get(`${outputNodeId}:${outputPortId}`) ?? -1;
+
+    const nodeRuntimes = [];
+    for (const nodeId of nodeOrder) {
+      const node = nodeById.get(nodeId);
+      if (!node) {
+        continue;
+      }
+      const inputIndices = {};
+      const portsIn = PORTS_IN_BY_TYPE[node.typeId] || ["in"];
+      for (const portId of portsIn) {
+        inputIndices[portId] = inputSourceByDestKey.get(`${node.id}:${portId}`) ?? -1;
+      }
+      nodeRuntimes.push({
+        id: node.id,
+        typeId: node.typeId,
+        params: node.params || {},
+        outIndex: outputIndexByKey.get(`${node.id}:out`) ?? -1,
+        inputs: inputIndices
+      });
     }
 
     const paramTargets = new Map();
@@ -158,12 +241,16 @@ class TrackRuntime {
 
     return {
       nodeById,
-      nodeOrder,
-      inputMap,
+      nodeRuntimes,
       paramTargets,
       macroById,
       outputNodeId,
-      outputPortId
+      outputPortId,
+      outputSignalIndex,
+      fallbackOutputSignalIndex,
+      outputInputSourceSignalIndex,
+      hostSignalIndices,
+      signalCount: nextSignalIndex
     };
   }
 
@@ -272,11 +359,11 @@ class TrackRuntime {
     }
   }
 
-  readInput(signalMap, nodeId, portId, fallback = 0) {
-    const src = this.compiled.inputMap.get(`${nodeId}:${portId}`);
-    if (!src) return fallback;
-    const key = `${src.nodeId}:${src.portId}`;
-    return signalMap.has(key) ? signalMap.get(key) : fallback;
+  readInput(signalValues, inputIndex, fallback = 0) {
+    // signalValues is "current voice, current sample" storage only.
+    // Each source output signal has a compile-time integer index.
+    // readInput is a pure array read; it does NOT advance any cursor/read head.
+    return inputIndex >= 0 ? signalValues[inputIndex] : fallback;
   }
 
   getSmoothedParam(voice, nodeId, typeId, paramId, fallback) {
@@ -287,82 +374,90 @@ class TrackRuntime {
     }
 
     const smoothingMs = PARAM_SMOOTHING_MS[typeId] && PARAM_SMOOTHING_MS[typeId][paramId] ? PARAM_SMOOTHING_MS[typeId][paramId] : 0;
-    const key = `${nodeId}:${paramId}`;
-    const prev = voice.paramState.get(key);
-    if (!prev) {
-      voice.paramState.set(key, targetRaw);
+    let nodeParamState = voice.paramState.get(nodeId);
+    if (!nodeParamState) {
+      nodeParamState = new Map();
+      voice.paramState.set(nodeId, nodeParamState);
+    }
+    const prev = nodeParamState.get(paramId);
+    if (prev === undefined) {
+      nodeParamState.set(paramId, targetRaw);
       return targetRaw;
     }
 
     if (smoothingMs <= 0) {
-      voice.paramState.set(key, targetRaw);
+      nodeParamState.set(paramId, targetRaw);
       return targetRaw;
     }
 
     const alpha = smoothingAlpha(smoothingMs, this.sampleRate);
     const next = onePoleStep(prev, targetRaw, alpha);
-    voice.paramState.set(key, next);
+    nodeParamState.set(paramId, next);
     return next;
   }
 
-  processNodeSample(voice, node, signalMap) {
-    const id = node.id;
-    const typeId = node.typeId;
+  processNodeSample(voice, runtimeNode, signalValues) {
+    // Evaluate exactly one node for exactly one sample of one voice.
+    // Inputs are pulled from signalValues (already-computed upstream outputs for
+    // this same sample), then this node writes its output sample back to signalValues.
+    // The per-sample ordering guarantee comes from compilePatch topological sort.
+    const { id, typeId, params, outIndex, inputs } = runtimeNode;
+    const read = (portId, fallback = 0) => this.readInput(signalValues, inputs[portId] ?? -1, fallback);
 
     if (typeId === "NotePitch") {
-      signalMap.set(`${id}:out`, voice.host.pitchVoct);
+      signalValues[outIndex] = voice.host.pitchVoct;
       return;
     }
     if (typeId === "NoteGate") {
-      signalMap.set(`${id}:out`, voice.host.gate);
+      signalValues[outIndex] = voice.host.gate;
       return;
     }
     if (typeId === "NoteVelocity") {
-      signalMap.set(`${id}:out`, voice.host.velocity);
+      signalValues[outIndex] = voice.host.velocity;
       return;
     }
     if (typeId === "ModWheel") {
-      signalMap.set(`${id}:out`, voice.host.modWheel);
+      signalValues[outIndex] = voice.host.modWheel;
       return;
     }
 
     switch (typeId) {
       case "VCO": {
         const phaseState = voice.nodeState.get(id) || { phase: 0 };
-        const pitch = this.readInput(signalMap, id, "pitch", voice.host.pitchVoct);
-        const fm = this.readInput(signalMap, id, "fm", 0);
-        const pwm = this.readInput(signalMap, id, "pwm", 0);
-        const wave = this.getSmoothedParam(voice, id, typeId, "wave", node.params.wave);
+        const pitch = read("pitch", voice.host.pitchVoct);
+        const fm = read("fm", 0);
+        const pwm = read("pwm", 0);
+        const wave = this.getSmoothedParam(voice, id, typeId, "wave", params.wave);
         const pulseWidth = clamp(
-          this.getSmoothedParam(voice, id, typeId, "pulseWidth", Number(node.params.pulseWidth ?? 0.5)) +
-            this.getSmoothedParam(voice, id, typeId, "pwmAmount", Number(node.params.pwmAmount ?? 0)) * pwm,
+          this.getSmoothedParam(voice, id, typeId, "pulseWidth", Number(params.pulseWidth ?? 0.5)) +
+            this.getSmoothedParam(voice, id, typeId, "pwmAmount", Number(params.pwmAmount ?? 0)) * pwm,
           0.05,
           0.95
         );
         const tuneCents =
-          this.getSmoothedParam(voice, id, typeId, "baseTuneCents", Number(node.params.baseTuneCents ?? 0)) +
-          this.getSmoothedParam(voice, id, typeId, "fineTuneCents", Number(node.params.fineTuneCents ?? 0));
+          this.getSmoothedParam(voice, id, typeId, "baseTuneCents", Number(params.baseTuneCents ?? 0)) +
+          this.getSmoothedParam(voice, id, typeId, "fineTuneCents", Number(params.fineTuneCents ?? 0));
 
         const tuneVoct = tuneCents / 1200;
         const hz = voctToHz(pitch + fm + tuneVoct);
         phaseState.phase = (phaseState.phase + hz / this.sampleRate) % 1;
         const sample = waveformSample(wave, phaseState.phase, pulseWidth);
         voice.nodeState.set(id, phaseState);
-        signalMap.set(`${id}:out`, sample);
+        signalValues[outIndex] = sample;
         return;
       }
 
       case "LFO": {
         const state = voice.nodeState.get(id) || { phase: 0 };
-        const fm = this.readInput(signalMap, id, "fm", 0);
+        const fm = read("fm", 0);
         const freq = clamp(
-          this.getSmoothedParam(voice, id, typeId, "freqHz", Number(node.params.freqHz ?? 1)) * Math.pow(2, fm),
+          this.getSmoothedParam(voice, id, typeId, "freqHz", Number(params.freqHz ?? 1)) * Math.pow(2, fm),
           0.01,
           40
         );
-        const wave = this.getSmoothedParam(voice, id, typeId, "wave", node.params.wave);
-        const pw = this.getSmoothedParam(voice, id, typeId, "pulseWidth", Number(node.params.pulseWidth ?? 0.5));
-        const bipolar = Boolean(this.getSmoothedParam(voice, id, typeId, "bipolar", Boolean(node.params.bipolar ?? true)));
+        const wave = this.getSmoothedParam(voice, id, typeId, "wave", params.wave);
+        const pw = this.getSmoothedParam(voice, id, typeId, "pulseWidth", Number(params.pulseWidth ?? 0.5));
+        const bipolar = Boolean(this.getSmoothedParam(voice, id, typeId, "bipolar", Boolean(params.bipolar ?? true)));
 
         state.phase = (state.phase + freq / this.sampleRate) % 1;
         let sample = waveformSample(wave, state.phase, pw);
@@ -370,23 +465,20 @@ class TrackRuntime {
           sample = sample * 0.5 + 0.5;
         }
         voice.nodeState.set(id, state);
-        signalMap.set(`${id}:out`, sample);
+        signalValues[outIndex] = sample;
         return;
       }
 
       case "ADSR": {
-        const gate = this.readInput(signalMap, id, "gate", voice.host.gate);
-        const attack = Math.max(0.0001, this.getSmoothedParam(voice, id, typeId, "attack", Number(node.params.attack ?? 0.01)));
-        const decay = Math.max(0.0001, this.getSmoothedParam(voice, id, typeId, "decay", Number(node.params.decay ?? 0.2)));
+        const gate = read("gate", voice.host.gate);
+        const attack = Math.max(0.0001, this.getSmoothedParam(voice, id, typeId, "attack", Number(params.attack ?? 0.01)));
+        const decay = Math.max(0.0001, this.getSmoothedParam(voice, id, typeId, "decay", Number(params.decay ?? 0.2)));
         const sustain = clamp(
-          this.getSmoothedParam(voice, id, typeId, "sustain", Number(node.params.sustain ?? 0.7)),
+          this.getSmoothedParam(voice, id, typeId, "sustain", Number(params.sustain ?? 0.7)),
           0,
           1
         );
-        const release = Math.max(
-          0.0001,
-          this.getSmoothedParam(voice, id, typeId, "release", Number(node.params.release ?? 0.2))
-        );
+        const release = Math.max(0.0001, this.getSmoothedParam(voice, id, typeId, "release", Number(params.release ?? 0.2)));
 
         const state = voice.nodeState.get(id) || {
           stage: "idle",
@@ -395,7 +487,7 @@ class TrackRuntime {
         };
 
         if (gate >= 0.5 && state.lastGate < 0.5) {
-          if ((node.params.mode || "retrigger_from_current") === "retrigger_from_zero") {
+          if ((params.mode || "retrigger_from_current") === "retrigger_from_zero") {
             state.level = 0;
           }
           state.stage = "attack";
@@ -427,38 +519,28 @@ class TrackRuntime {
 
         state.lastGate = gate;
         voice.nodeState.set(id, state);
-        signalMap.set(`${id}:out`, clamp(state.level, 0, 1));
+        signalValues[outIndex] = clamp(state.level, 0, 1);
         return;
       }
 
       case "VCA": {
-        const input = this.readInput(signalMap, id, "in", 0);
-        const gainCv = this.readInput(signalMap, id, "gainCV", 1);
-        const bias = this.getSmoothedParam(voice, id, typeId, "bias", Number(node.params.bias ?? 0));
-        const gain = this.getSmoothedParam(voice, id, typeId, "gain", Number(node.params.gain ?? 1));
+        const input = read("in", 0);
+        const gainCv = read("gainCV", 1);
+        const bias = this.getSmoothedParam(voice, id, typeId, "bias", Number(params.bias ?? 0));
+        const gain = this.getSmoothedParam(voice, id, typeId, "gain", Number(params.gain ?? 1));
         const gainCvNorm = gainCv >= 0 && gainCv <= 1 ? gainCv : gainCv * 0.5 + 0.5;
         const gainEff = clamp(bias + gain * gainCvNorm, 0, 1);
-        signalMap.set(`${id}:out`, input * gainEff);
+        signalValues[outIndex] = input * gainEff;
         return;
       }
 
       case "VCF": {
-        const input = this.readInput(signalMap, id, "in", 0);
-        const cutoffCv = this.readInput(signalMap, id, "cutoffCV", 0);
+        const input = read("in", 0);
+        const cutoffCv = read("cutoffCV", 0);
 
-        const cutoffHz = this.getSmoothedParam(voice, id, typeId, "cutoffHz", Number(node.params.cutoffHz ?? 1000));
-        const resonance = clamp(
-          this.getSmoothedParam(voice, id, typeId, "resonance", Number(node.params.resonance ?? 0.1)),
-          0,
-          1
-        );
-        const cutoffModAmount = this.getSmoothedParam(
-          voice,
-          id,
-          typeId,
-          "cutoffModAmountOct",
-          Number(node.params.cutoffModAmountOct ?? 1)
-        );
+        const cutoffHz = this.getSmoothedParam(voice, id, typeId, "cutoffHz", Number(params.cutoffHz ?? 1000));
+        const resonance = clamp(this.getSmoothedParam(voice, id, typeId, "resonance", Number(params.resonance ?? 0.1)), 0, 1);
+        const cutoffModAmount = this.getSmoothedParam(voice, id, typeId, "cutoffModAmountOct", Number(params.cutoffModAmountOct ?? 1));
 
         const cutoffEffective = clamp(cutoffHz * Math.pow(2, cutoffCv * cutoffModAmount), 20, 20000);
         const f = clamp((2 * Math.PI * cutoffEffective) / this.sampleRate, 0.001, 0.99);
@@ -468,32 +550,32 @@ class TrackRuntime {
         state.bp += f * hp;
         state.lp += f * state.bp;
 
-        const type = node.params.type || "lowpass";
+        const type = params.type || "lowpass";
         let out = state.lp;
         if (type === "highpass") out = hp;
         if (type === "bandpass") out = state.bp;
 
         voice.nodeState.set(id, state);
-        signalMap.set(`${id}:out`, out);
+        signalValues[outIndex] = out;
         return;
       }
 
       case "Mixer4": {
-        const in1 = this.readInput(signalMap, id, "in1", 0);
-        const in2 = this.readInput(signalMap, id, "in2", 0);
-        const in3 = this.readInput(signalMap, id, "in3", 0);
-        const in4 = this.readInput(signalMap, id, "in4", 0);
-        const g1 = this.getSmoothedParam(voice, id, typeId, "gain1", Number(node.params.gain1 ?? 1));
-        const g2 = this.getSmoothedParam(voice, id, typeId, "gain2", Number(node.params.gain2 ?? 1));
-        const g3 = this.getSmoothedParam(voice, id, typeId, "gain3", Number(node.params.gain3 ?? 1));
-        const g4 = this.getSmoothedParam(voice, id, typeId, "gain4", Number(node.params.gain4 ?? 1));
-        signalMap.set(`${id}:out`, in1 * g1 + in2 * g2 + in3 * g3 + in4 * g4);
+        const in1 = read("in1", 0);
+        const in2 = read("in2", 0);
+        const in3 = read("in3", 0);
+        const in4 = read("in4", 0);
+        const g1 = this.getSmoothedParam(voice, id, typeId, "gain1", Number(params.gain1 ?? 1));
+        const g2 = this.getSmoothedParam(voice, id, typeId, "gain2", Number(params.gain2 ?? 1));
+        const g3 = this.getSmoothedParam(voice, id, typeId, "gain3", Number(params.gain3 ?? 1));
+        const g4 = this.getSmoothedParam(voice, id, typeId, "gain4", Number(params.gain4 ?? 1));
+        signalValues[outIndex] = in1 * g1 + in2 * g2 + in3 * g3 + in4 * g4;
         return;
       }
 
       case "Noise": {
-        const color = node.params.color || "white";
-        const gain = this.getSmoothedParam(voice, id, typeId, "gain", Number(node.params.gain ?? 0.3));
+        const color = params.color || "white";
+        const gain = this.getSmoothedParam(voice, id, typeId, "gain", Number(params.gain ?? 0.3));
         const state = voice.nodeState.get(id) || { pink: 0, brown: 0 };
         const white = Math.random() * 2 - 1;
         let sample = white;
@@ -506,12 +588,12 @@ class TrackRuntime {
           sample = state.brown;
         }
         voice.nodeState.set(id, state);
-        signalMap.set(`${id}:out`, sample * gain);
+        signalValues[outIndex] = sample * gain;
         return;
       }
 
       case "SamplePlayer": {
-        signalMap.set(`${id}:out`, 0);
+        signalValues[outIndex] = 0;
         return;
       }
 
@@ -520,39 +602,35 @@ class TrackRuntime {
           buf: new Float32Array(this.sampleRate * 2),
           write: 0
         };
-        const input = this.readInput(signalMap, id, "in", 0);
-        const timeMs = this.getSmoothedParam(voice, id, typeId, "timeMs", Number(node.params.timeMs ?? 300));
-        const feedback = clamp(
-          this.getSmoothedParam(voice, id, typeId, "feedback", Number(node.params.feedback ?? 0.3)),
-          0,
-          0.95
-        );
-        const mix = clamp(this.getSmoothedParam(voice, id, typeId, "mix", Number(node.params.mix ?? 0.2)), 0, 1);
+        const input = read("in", 0);
+        const timeMs = this.getSmoothedParam(voice, id, typeId, "timeMs", Number(params.timeMs ?? 300));
+        const feedback = clamp(this.getSmoothedParam(voice, id, typeId, "feedback", Number(params.feedback ?? 0.3)), 0, 0.95);
+        const mix = clamp(this.getSmoothedParam(voice, id, typeId, "mix", Number(params.mix ?? 0.2)), 0, 1);
 
         const delaySamples = clamp(Math.floor((timeMs / 1000) * this.sampleRate), 1, state.buf.length - 1);
-        const read = (state.write - delaySamples + state.buf.length) % state.buf.length;
-        const delayed = state.buf[read];
+        const readIdx = (state.write - delaySamples + state.buf.length) % state.buf.length;
+        const delayed = state.buf[readIdx];
 
         state.buf[state.write] = input + delayed * feedback;
         state.write = (state.write + 1) % state.buf.length;
         voice.nodeState.set(id, state);
 
-        signalMap.set(`${id}:out`, input * (1 - mix) + delayed * mix);
+        signalValues[outIndex] = input * (1 - mix) + delayed * mix;
         return;
       }
 
       case "Reverb": {
-        const input = this.readInput(signalMap, id, "in", 0);
+        const input = read("in", 0);
         const state = voice.nodeState.get(id) || {
           c1: new Float32Array(Math.floor(this.sampleRate * 0.029)),
           c2: new Float32Array(Math.floor(this.sampleRate * 0.041)),
           i1: 0,
           i2: 0
         };
-        const size = this.getSmoothedParam(voice, id, typeId, "size", Number(node.params.size ?? 0.5));
-        const decay = this.getSmoothedParam(voice, id, typeId, "decay", Number(node.params.decay ?? 1.5));
-        const damping = this.getSmoothedParam(voice, id, typeId, "damping", Number(node.params.damping ?? 0.4));
-        const mix = clamp(this.getSmoothedParam(voice, id, typeId, "mix", Number(node.params.mix ?? 0.2)), 0, 1);
+        const size = this.getSmoothedParam(voice, id, typeId, "size", Number(params.size ?? 0.5));
+        const decay = this.getSmoothedParam(voice, id, typeId, "decay", Number(params.decay ?? 1.5));
+        const damping = this.getSmoothedParam(voice, id, typeId, "damping", Number(params.damping ?? 0.4));
+        const mix = clamp(this.getSmoothedParam(voice, id, typeId, "mix", Number(params.mix ?? 0.2)), 0, 1);
 
         const fb = clamp(0.2 + size * 0.7, 0, 0.95) * clamp(decay / 10, 0, 1);
 
@@ -566,31 +644,31 @@ class TrackRuntime {
         voice.nodeState.set(id, state);
 
         const wet = (c1 + c2) * 0.5;
-        signalMap.set(`${id}:out`, input * (1 - mix) + wet * mix);
+        signalValues[outIndex] = input * (1 - mix) + wet * mix;
         return;
       }
 
       case "Saturation": {
-        const input = this.readInput(signalMap, id, "in", 0);
-        const driveDb = this.getSmoothedParam(voice, id, typeId, "driveDb", Number(node.params.driveDb ?? 6));
-        const mix = clamp(this.getSmoothedParam(voice, id, typeId, "mix", Number(node.params.mix ?? 0.5)), 0, 1);
-        const mode = node.params.type || "tanh";
+        const input = read("in", 0);
+        const driveDb = this.getSmoothedParam(voice, id, typeId, "driveDb", Number(params.driveDb ?? 6));
+        const mix = clamp(this.getSmoothedParam(voice, id, typeId, "mix", Number(params.mix ?? 0.5)), 0, 1);
+        const mode = params.type || "tanh";
         const driven = input * dbToGain(driveDb);
         let wet = Math.tanh(driven);
         if (mode === "softclip") {
           wet = clamp(driven, -1.5, 1.5);
           wet = wet - (Math.pow(wet, 3) / 3);
         }
-        signalMap.set(`${id}:out`, input * (1 - mix) + wet * mix);
+        signalValues[outIndex] = input * (1 - mix) + wet * mix;
         return;
       }
 
       case "Overdrive": {
-        const input = this.readInput(signalMap, id, "in", 0);
-        const gainDb = this.getSmoothedParam(voice, id, typeId, "gainDb", Number(node.params.gainDb ?? 12));
-        const tone = this.getSmoothedParam(voice, id, typeId, "tone", Number(node.params.tone ?? 0.5));
-        const mix = clamp(this.getSmoothedParam(voice, id, typeId, "mix", Number(node.params.mix ?? 0.6)), 0, 1);
-        const mode = node.params.mode || "overdrive";
+        const input = read("in", 0);
+        const gainDb = this.getSmoothedParam(voice, id, typeId, "gainDb", Number(params.gainDb ?? 12));
+        const tone = this.getSmoothedParam(voice, id, typeId, "tone", Number(params.tone ?? 0.5));
+        const mix = clamp(this.getSmoothedParam(voice, id, typeId, "mix", Number(params.mix ?? 0.6)), 0, 1);
+        const mode = params.mode || "overdrive";
         const state = voice.nodeState.get(id) || { toneLp: 0 };
 
         let driven = input * dbToGain(gainDb);
@@ -605,30 +683,30 @@ class TrackRuntime {
         state.toneLp = state.toneLp + (driven - state.toneLp) * toneAlpha;
         voice.nodeState.set(id, state);
 
-        signalMap.set(`${id}:out`, input * (1 - mix) + state.toneLp * mix);
+        signalValues[outIndex] = input * (1 - mix) + state.toneLp * mix;
         return;
       }
 
       case "Compressor": {
-        const input = this.readInput(signalMap, id, "in", 0);
+        const input = read("in", 0);
         const thresholdDb = this.getSmoothedParam(
           voice,
           id,
           typeId,
           "thresholdDb",
-          Number(node.params.thresholdDb ?? -24)
+          Number(params.thresholdDb ?? -24)
         );
-        const ratio = this.getSmoothedParam(voice, id, typeId, "ratio", Number(node.params.ratio ?? 4));
-        const attackMs = this.getSmoothedParam(voice, id, typeId, "attackMs", Number(node.params.attackMs ?? 10));
+        const ratio = this.getSmoothedParam(voice, id, typeId, "ratio", Number(params.ratio ?? 4));
+        const attackMs = this.getSmoothedParam(voice, id, typeId, "attackMs", Number(params.attackMs ?? 10));
         const releaseMs = this.getSmoothedParam(
           voice,
           id,
           typeId,
           "releaseMs",
-          Number(node.params.releaseMs ?? 200)
+          Number(params.releaseMs ?? 200)
         );
-        const makeupDb = this.getSmoothedParam(voice, id, typeId, "makeupDb", Number(node.params.makeupDb ?? 2));
-        const mix = clamp(this.getSmoothedParam(voice, id, typeId, "mix", Number(node.params.mix ?? 1)), 0, 1);
+        const makeupDb = this.getSmoothedParam(voice, id, typeId, "makeupDb", Number(params.makeupDb ?? 2));
+        const mix = clamp(this.getSmoothedParam(voice, id, typeId, "mix", Number(params.mix ?? 1)), 0, 1);
 
         const state = voice.nodeState.get(id) || { env: 0 };
         const absIn = Math.abs(input);
@@ -644,51 +722,50 @@ class TrackRuntime {
         const wet = input * gain;
 
         voice.nodeState.set(id, state);
-        signalMap.set(`${id}:out`, input * (1 - mix) + wet * mix);
+        signalValues[outIndex] = input * (1 - mix) + wet * mix;
         return;
       }
 
       case "Output": {
-        const input = this.readInput(signalMap, id, "in", 0);
-        const gainDb = this.getSmoothedParam(voice, id, typeId, "gainDb", Number(node.params.gainDb ?? -6));
-        const limiter = Boolean(node.params.limiter ?? true);
+        const input = read("in", 0);
+        const gainDb = this.getSmoothedParam(voice, id, typeId, "gainDb", Number(params.gainDb ?? -6));
+        const limiter = Boolean(params.limiter ?? true);
         let out = input * dbToGain(gainDb);
         if (limiter) {
           out = Math.tanh(out);
         }
-        signalMap.set(`${id}:out`, out);
+        signalValues[outIndex] = out;
         return;
       }
 
       default:
-        signalMap.set(`${id}:out`, this.readInput(signalMap, id, "in", 0));
+        signalValues[outIndex] = read("in", 0);
     }
   }
 
   renderVoiceSample(voice) {
-    const signalMap = new Map();
-    signalMap.set("$host.pitch:out", voice.host.pitchVoct);
-    signalMap.set("$host.gate:out", voice.host.gate);
-    signalMap.set("$host.velocity:out", voice.host.velocity);
-    signalMap.set("$host.modwheel:out", voice.host.modWheel);
+    // Per-voice signal values for the current sample.
+    // Stateful continuity across samples lives in voice.nodeState/paramState.
+    const signalValues = voice.signalValues;
+    const hostSignalIndices = this.compiled.hostSignalIndices;
+    signalValues[hostSignalIndices.pitch] = voice.host.pitchVoct;
+    signalValues[hostSignalIndices.gate] = voice.host.gate;
+    signalValues[hostSignalIndices.velocity] = voice.host.velocity;
+    signalValues[hostSignalIndices.modWheel] = voice.host.modWheel;
 
-    for (const nodeId of this.compiled.nodeOrder) {
-      const node = this.compiled.nodeById.get(nodeId);
-      if (!node) continue;
-      this.processNodeSample(voice, node, signalMap);
+    for (const nodeRuntime of this.compiled.nodeRuntimes) {
+      this.processNodeSample(voice, nodeRuntime, signalValues);
     }
 
     const outNode = this.compiled.nodeById.get(this.compiled.outputNodeId);
-    const configuredKey = `${this.compiled.outputNodeId}:${this.compiled.outputPortId}`;
-    const fallbackOutKey = `${this.compiled.outputNodeId}:out`;
 
     let sample = 0;
-    if (signalMap.has(configuredKey)) {
-      sample = signalMap.get(configuredKey);
-    } else if (signalMap.has(fallbackOutKey)) {
-      sample = signalMap.get(fallbackOutKey);
-    } else {
-      sample = this.readInput(signalMap, this.compiled.outputNodeId, this.compiled.outputPortId, 0);
+    if (this.compiled.outputSignalIndex >= 0) {
+      sample = signalValues[this.compiled.outputSignalIndex];
+    } else if (this.compiled.fallbackOutputSignalIndex >= 0) {
+      sample = signalValues[this.compiled.fallbackOutputSignalIndex];
+    } else if (this.compiled.outputInputSourceSignalIndex >= 0) {
+      sample = signalValues[this.compiled.outputInputSourceSignalIndex];
     }
 
     if (!outNode) {
@@ -715,6 +792,8 @@ class TrackRuntime {
   }
 
   processTrackSample() {
+    // Per-sample track render:
+    // sum active voices -> apply fixed track FX -> respect mute.
     let sample = 0;
     for (const voice of this.voices) {
       if (!voice.active) continue;
@@ -797,6 +876,8 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
   }
 
   enqueueEvents(events) {
+    // Scheduler sends future events ahead of time; keep queue ordered so process()
+    // can consume all events due at the current song sample.
     for (const evt of events) {
       if (!evt || !Number.isFinite(evt.sampleTime)) {
         continue;
@@ -911,27 +992,36 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
     return out;
   }
 
-  process(_inputs, outputs) {
-    const output = outputs[0];
-    const left = output[0];
-    const right = output[1] || output[0];
-
-    for (let i = 0; i < left.length; i += 1) {
-      const currentSongSample = this.songSampleCounter;
-
-      while (this.eventQueue.length > 0) {
-        const next = this.eventQueue[0];
-        if (!next || !Number.isFinite(next.sampleTime)) {
-          this.eventQueue.shift();
-          continue;
-        }
-        if (next.sampleTime > currentSongSample) {
-          break;
-        }
-        const event = this.eventQueue.shift();
-        this.handleEvent(event);
+  consumeDueEvents() {
+    const currentSongSample = this.songSampleCounter;
+    while (this.eventQueue.length > 0) {
+      const next = this.eventQueue[0];
+      if (!next || !Number.isFinite(next.sampleTime)) {
+        this.eventQueue.shift();
+        continue;
       }
+      if (next.sampleTime > currentSongSample) {
+        break;
+      }
+      const event = this.eventQueue.shift();
+      this.handleEvent(event);
+    }
+  }
 
+  nextPendingEventSample() {
+    while (this.eventQueue.length > 0) {
+      const next = this.eventQueue[0];
+      if (!next || !Number.isFinite(next.sampleTime)) {
+        this.eventQueue.shift();
+        continue;
+      }
+      return next.sampleTime;
+    }
+    return Infinity;
+  }
+
+  renderFrameRange(left, right, startFrame, endFrame) {
+    for (let i = startFrame; i < endFrame; i += 1) {
       let mixed = 0;
       if (this.playing) {
         for (const track of this.trackRuntimes) {
@@ -949,6 +1039,34 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
         this.songSampleCounter += 1;
       }
       this.sampleCounter += 1;
+    }
+  }
+
+  process(_inputs, outputs) {
+    const output = outputs[0];
+    const left = output[0];
+    const right = output[1] || output[0];
+
+    // AudioWorklet callback: render one block as a sequence of frame ranges.
+    // Boundaries are split on event timestamps to preserve sample-accurate timing.
+    let frame = 0;
+    while (frame < left.length) {
+      this.consumeDueEvents();
+
+      let segmentEnd = left.length;
+      if (this.playing) {
+        const nextEventSample = this.nextPendingEventSample();
+        if (Number.isFinite(nextEventSample) && nextEventSample > this.songSampleCounter) {
+          const framesUntilEvent = Math.max(1, Math.floor(nextEventSample - this.songSampleCounter));
+          segmentEnd = Math.min(left.length, frame + framesUntilEvent);
+        }
+      }
+      if (segmentEnd <= frame) {
+        segmentEnd = frame + 1;
+      }
+
+      this.renderFrameRange(left, right, frame, segmentEnd);
+      frame = segmentEnd;
     }
 
     return true;
