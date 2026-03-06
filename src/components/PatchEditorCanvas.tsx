@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createId } from "@/lib/ids";
-import { getModuleSchema, modulePalette } from "@/lib/registry";
-import { makeConnectOp } from "@/lib/patchOps";
+import { getModuleSchema, modulePalette } from "@/lib/patch/moduleRegistry";
+import { makeConnectOp } from "@/lib/patch/ops";
 import { PatchValidationIssue, Patch, PortSchema } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 
@@ -43,6 +43,7 @@ function getCapabilityColor(port: PortSchema): string {
 export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hitPortsRef = useRef<HitPort[]>([]);
+  const dragLastLayoutRef = useRef<{ x: number; y: number } | null>(null);
   const [newNodeType, setNewNodeType] = useState(modulePalette[0]?.typeId ?? "VCO");
   const [pendingFromPort, setPendingFromPort] = useState<HitPort | null>(null);
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
@@ -232,6 +233,8 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     if (hitNodeId) {
       props.onSelectNode(hitNodeId);
       setDragNodeId(hitNodeId);
+      const layout = layoutByNode.get(hitNodeId);
+      dragLastLayoutRef.current = layout ? { x: layout.x, y: layout.y } : null;
       event.currentTarget.setPointerCapture(event.pointerId);
     } else {
       props.onSelectNode(undefined);
@@ -242,13 +245,18 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     if (!dragNodeId) return;
     const pos = pointerToGrid(event);
+    const nextLayout = {
+      x: Math.max(0, pos.x - 2),
+      y: Math.max(0, pos.y - 2)
+    };
+    if (dragLastLayoutRef.current?.x === nextLayout.x && dragLastLayoutRef.current?.y === nextLayout.y) {
+      return;
+    }
+    dragLastLayoutRef.current = nextLayout;
     props.onApplyOp({
       type: "moveNode",
       nodeId: dragNodeId,
-      newLayoutPos: {
-        x: Math.max(0, pos.x - 2),
-        y: Math.max(0, pos.y - 2)
-      }
+      newLayoutPos: nextLayout
     });
   };
 
@@ -260,6 +268,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
         // ignore
       }
     }
+    dragLastLayoutRef.current = null;
     setDragNodeId(null);
   };
 

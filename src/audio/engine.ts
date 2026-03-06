@@ -1,7 +1,7 @@
 "use client";
 
 import { collectEventsInWindow } from "@/audio/scheduler";
-import { beatToSample, samplesPerBeat } from "@/lib/time";
+import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
 import { Project } from "@/types/music";
 import { SchedulerEvent } from "@/types/audio";
 
@@ -71,8 +71,11 @@ export class AudioEngine {
     }
   }
 
-  setProject(project: Project): void {
+  setProject(project: Project, options?: { syncToWorklet?: boolean }): void {
     this.project = project;
+    if (options?.syncToWorklet === false) {
+      return;
+    }
     this.worklet?.port.postMessage({
       type: "SET_PROJECT",
       project

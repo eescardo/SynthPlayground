@@ -129,6 +129,15 @@ class TrackRuntime {
         if (deg === 0) queue.push(next);
       }
     }
+    if (nodeOrder.length !== patch.nodes.length) {
+      throw new Error(`Patch graph for "${patch.id}" contains a cycle or disconnected dependency chain.`);
+    }
+
+    const outputNodeId = patch?.io?.audioOutNodeId;
+    if (!outputNodeId || !nodeById.has(outputNodeId)) {
+      throw new Error(`Patch "${patch.id}" has invalid io.audioOutNodeId.`);
+    }
+    const outputPortId = patch?.io?.audioOutPortId || "out";
 
     const inputMap = new Map();
     for (const conn of patch.connections) {
@@ -153,8 +162,8 @@ class TrackRuntime {
       inputMap,
       paramTargets,
       macroById,
-      outputNodeId: patch.io.audioOutNodeId,
-      outputPortId: patch.io.audioOutPortId
+      outputNodeId,
+      outputPortId
     };
   }
 
@@ -670,8 +679,17 @@ class TrackRuntime {
     }
 
     const outNode = this.compiled.nodeById.get(this.compiled.outputNodeId);
-    const outKey = `${this.compiled.outputNodeId}:out`;
-    let sample = signalMap.has(outKey) ? signalMap.get(outKey) : 0;
+    const configuredKey = `${this.compiled.outputNodeId}:${this.compiled.outputPortId}`;
+    const fallbackOutKey = `${this.compiled.outputNodeId}:out`;
+
+    let sample = 0;
+    if (signalMap.has(configuredKey)) {
+      sample = signalMap.get(configuredKey);
+    } else if (signalMap.has(fallbackOutKey)) {
+      sample = signalMap.get(fallbackOutKey);
+    } else {
+      sample = this.readInput(signalMap, this.compiled.outputNodeId, this.compiled.outputPortId, 0);
+    }
 
     if (!outNode) {
       sample = 0;
@@ -802,7 +820,11 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
           if (!patch) {
             continue;
           }
-          this.trackRuntimes.push(new TrackRuntime(track, patch, this.sampleRateInternal));
+          try {
+            this.trackRuntimes.push(new TrackRuntime(track, patch, this.sampleRateInternal));
+          } catch {
+            // Invalid patch graphs are rejected and skipped for runtime safety.
+          }
         }
         break;
       case "TRANSPORT":

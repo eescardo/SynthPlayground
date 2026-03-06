@@ -1,4 +1,4 @@
-import { createDefaultParamsForType, getModuleSchema } from "@/lib/registry";
+import { createDefaultParamsForType, getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { createId } from "@/lib/ids";
 import { Patch } from "@/types/patch";
 import { PatchHistoryState, PatchOp } from "@/types/ops";
@@ -151,6 +151,17 @@ export const createPatchHistory = <T>(initial: T): PatchHistoryState<T> => ({
 });
 
 export const applyPatchOpWithHistory = (state: PatchHistoryState<Patch>, op: PatchOp): PatchHistoryState<Patch> => {
+  const lastOp = state.ops[state.ops.length - 1];
+  if (op.type === "moveNode" && lastOp?.type === "moveNode" && lastOp.nodeId === op.nodeId) {
+    const nextPatch = applySingleOp(state.current, op);
+    return {
+      current: nextPatch,
+      past: state.past,
+      future: [],
+      ops: [...state.ops.slice(0, -1), op]
+    };
+  }
+
   const nextPatch = applySingleOp(state.current, op);
   return {
     current: nextPatch,

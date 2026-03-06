@@ -1,4 +1,119 @@
-import { Project } from "@/types/music";
+import { createId } from "@/lib/ids";
+import { validatePatch } from "@/lib/patch/validation";
+import { Project, TrackFxSettings } from "@/types/music";
+import { Patch, PatchConnection, PatchMacro, PatchNode } from "@/types/patch";
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const asFiniteNumber = (value: unknown, fallback: number): number =>
+  typeof value === "number" && Number.isFinite(value) ? value : fallback;
+
+const asString = (value: unknown, fallback: string): string => (typeof value === "string" ? value : fallback);
+
+const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
+
+const defaultTrackFx = (): TrackFxSettings => ({
+  delayEnabled: false,
+  reverbEnabled: false,
+  saturationEnabled: false,
+  compressorEnabled: false,
+  delayMix: 0.2,
+  reverbMix: 0.2,
+  drive: 0.2,
+  compression: 0.4
+});
+
+const sanitizeParamMap = (raw: unknown): Record<string, number | string | boolean> => {
+  if (!isObject(raw)) {
+    return {};
+  }
+  const params: Record<string, number | string | boolean> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value === "number" || typeof value === "string" || typeof value === "boolean") {
+      params[key] = value;
+    }
+  }
+  return params;
+};
+
+const sanitizePatchNode = (raw: unknown, index: number): PatchNode => {
+  const node = isObject(raw) ? raw : {};
+  return {
+    id: asString(node.id, `node_${index}`),
+    typeId: asString(node.typeId, ""),
+    params: sanitizeParamMap(node.params)
+  };
+};
+
+const sanitizePatchConnection = (raw: unknown, index: number): PatchConnection => {
+  const connection = isObject(raw) ? raw : {};
+  const from = isObject(connection.from) ? connection.from : {};
+  const to = isObject(connection.to) ? connection.to : {};
+  return {
+    id: asString(connection.id, `conn_${index}`),
+    from: {
+      nodeId: asString(from.nodeId, ""),
+      portId: asString(from.portId, "")
+    },
+    to: {
+      nodeId: asString(to.nodeId, ""),
+      portId: asString(to.portId, "")
+    }
+  };
+};
+
+const sanitizePatchMacro = (raw: unknown, index: number): PatchMacro => {
+  const macro = isObject(raw) ? raw : {};
+  const bindingsRaw = Array.isArray(macro.bindings) ? macro.bindings : [];
+  return {
+    id: asString(macro.id, `macro_${index}`),
+    name: asString(macro.name, `Macro ${index + 1}`),
+    bindings: bindingsRaw.map((binding, bindingIndex) => {
+      const item = isObject(binding) ? binding : {};
+      return {
+        id: asString(item.id, `binding_${bindingIndex}`),
+        nodeId: asString(item.nodeId, ""),
+        paramId: asString(item.paramId, ""),
+        map: item.map === "exp" ? "exp" : "linear",
+        min: asFiniteNumber(item.min, 0),
+        max: asFiniteNumber(item.max, 1)
+      };
+    })
+  };
+};
+
+const sanitizePatch = (raw: unknown, index: number): Patch => {
+  const patch = isObject(raw) ? raw : {};
+  const ui = isObject(patch.ui) ? patch.ui : {};
+  const layout = isObject(patch.layout) ? patch.layout : {};
+  const io = isObject(patch.io) ? patch.io : {};
+
+  return {
+    schemaVersion: Math.max(1, Math.floor(asFiniteNumber(patch.schemaVersion, 1))),
+    id: asString(patch.id, `patch_${index}`),
+    name: asString(patch.name, `Patch ${index + 1}`),
+    nodes: (Array.isArray(patch.nodes) ? patch.nodes : []).map(sanitizePatchNode),
+    connections: (Array.isArray(patch.connections) ? patch.connections : []).map(sanitizePatchConnection),
+    ui: {
+      macros: (Array.isArray(ui.macros) ? ui.macros : []).map(sanitizePatchMacro)
+    },
+    layout: {
+      nodes: (Array.isArray(layout.nodes) ? layout.nodes : []).map((entry) => {
+        const node = isObject(entry) ? entry : {};
+        return {
+          nodeId: asString(node.nodeId, ""),
+          x: Math.max(0, Math.floor(asFiniteNumber(node.x, 0))),
+          y: Math.max(0, Math.floor(asFiniteNumber(node.y, 0)))
+        };
+      })
+    },
+    io: {
+      audioOutNodeId: asString(io.audioOutNodeId, ""),
+      audioOutPortId: asString(io.audioOutPortId, "out")
+    }
+  };
+};
 
 export const exportProjectToJson = (project: Project): string => JSON.stringify(project, null, 2);
 
@@ -10,18 +125,109 @@ export const importProjectFromJson = (json: string): Project => {
     throw new Error("Invalid JSON");
   }
 
-  if (!parsed || typeof parsed !== "object") {
-    throw new Error("Project JSON root must be object");
+  if (!isObject(parsed)) {
+    throw new Error("Project JSON root must be an object");
   }
 
-  const project = parsed as Project;
-  if (!project.global || !Array.isArray(project.tracks) || !Array.isArray(project.patches)) {
-    throw new Error("Project JSON missing required fields");
+  const patchesRaw = Array.isArray(parsed.patches) ? parsed.patches : [];
+  const patches = patchesRaw.map(sanitizePatch);
+  if (patches.length === 0) {
+    throw new Error("Project JSON must include at least one patch");
   }
 
-  if (project.global.sampleRate !== 48000) {
-    project.global.sampleRate = 48000;
+  for (const patch of patches) {
+    const validation = validatePatch(patch);
+    if (!validation.ok) {
+      throw new Error(`Invalid patch "${patch.name}": ${validation.issues.map((issue) => issue.message).join("; ")}`);
+    }
   }
 
-  return project;
+  const globalRaw = isObject(parsed.global) ? parsed.global : {};
+  const meter = globalRaw.meter === "3/4" ? "3/4" : "4/4";
+  const gridBeats = asFiniteNumber(globalRaw.gridBeats, 0.25);
+  const loopRaw = isObject(globalRaw.loop) ? globalRaw.loop : null;
+
+  const patchIds = new Set(patches.map((patch) => patch.id));
+  const fallbackPatchId = patches[0].id;
+  const tracksRaw = Array.isArray(parsed.tracks) ? parsed.tracks : [];
+  const tracks = tracksRaw
+    .map((entry, index) => {
+      const track = isObject(entry) ? entry : {};
+      const fxRaw = isObject(track.fx) ? track.fx : {};
+      const notesRaw = Array.isArray(track.notes) ? track.notes : [];
+
+      const notes = notesRaw
+        .map((noteEntry) => {
+          const note = isObject(noteEntry) ? noteEntry : {};
+          const pitchStr = asString(note.pitchStr, "");
+          const startBeat = asFiniteNumber(note.startBeat, Number.NaN);
+          const durationBeats = asFiniteNumber(note.durationBeats, Number.NaN);
+          if (!pitchStr || !Number.isFinite(startBeat) || !Number.isFinite(durationBeats) || durationBeats <= 0) {
+            return null;
+          }
+          return {
+            id: asString(note.id, createId("note")),
+            pitchStr,
+            startBeat: Math.max(0, startBeat),
+            durationBeats,
+            velocity: clamp(asFiniteNumber(note.velocity, 0.85), 0, 1)
+          };
+        })
+        .filter((note): note is NonNullable<typeof note> => Boolean(note))
+        .sort((a, b) => a.startBeat - b.startBeat);
+
+      const rawPatchId = asString(track.instrumentPatchId, fallbackPatchId);
+      return {
+        id: asString(track.id, `track_${index}`),
+        name: asString(track.name, `Track ${index + 1}`),
+        instrumentPatchId: patchIds.has(rawPatchId) ? rawPatchId : fallbackPatchId,
+        notes,
+        mute: Boolean(track.mute),
+        solo: Boolean(track.solo),
+        fx: {
+          delayEnabled: Boolean(fxRaw.delayEnabled),
+          reverbEnabled: Boolean(fxRaw.reverbEnabled),
+          saturationEnabled: Boolean(fxRaw.saturationEnabled),
+          compressorEnabled: Boolean(fxRaw.compressorEnabled),
+          delayMix: clamp(asFiniteNumber(fxRaw.delayMix, defaultTrackFx().delayMix), 0, 1),
+          reverbMix: clamp(asFiniteNumber(fxRaw.reverbMix, defaultTrackFx().reverbMix), 0, 1),
+          drive: clamp(asFiniteNumber(fxRaw.drive, defaultTrackFx().drive), 0, 1),
+          compression: clamp(asFiniteNumber(fxRaw.compression, defaultTrackFx().compression), 0, 1)
+        }
+      };
+    })
+    .filter((track) => track.instrumentPatchId);
+  if (tracks.length === 0) {
+    throw new Error("Project JSON must include at least one valid track");
+  }
+
+  const masterFxRaw = isObject(parsed.masterFx) ? parsed.masterFx : {};
+  const now = Date.now();
+
+  return {
+    id: asString(parsed.id, `project_${now}`),
+    name: asString(parsed.name, "Imported Project"),
+    global: {
+      sampleRate: 48000,
+      tempo: clamp(asFiniteNumber(globalRaw.tempo, 120), 20, 400),
+      meter,
+      gridBeats: gridBeats > 0 ? gridBeats : 0.25,
+      loop: loopRaw
+        ? {
+            startBeat: Math.max(0, asFiniteNumber(loopRaw.startBeat, 0)),
+            endBeat: Math.max(0, asFiniteNumber(loopRaw.endBeat, 8)),
+            enabled: Boolean(loopRaw.enabled)
+          }
+        : undefined
+    },
+    tracks,
+    patches,
+    masterFx: {
+      compressorEnabled: Boolean(masterFxRaw.compressorEnabled),
+      limiterEnabled: masterFxRaw.limiterEnabled !== false,
+      makeupGain: asFiniteNumber(masterFxRaw.makeupGain, 0)
+    },
+    createdAt: asFiniteNumber(parsed.createdAt, now),
+    updatedAt: asFiniteNumber(parsed.updatedAt, now)
+  };
 };

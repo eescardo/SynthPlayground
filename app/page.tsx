@@ -9,13 +9,13 @@ import { PianoKeyboard } from "@/components/PianoKeyboard";
 import { TrackCanvas } from "@/components/TrackCanvas";
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
-import { clearProject, loadProject, saveProject } from "@/lib/idb";
-import { applyPatchOpWithHistory, createPatchHistory, redoPatchOp, undoPatchOp } from "@/lib/patchOps";
-import { compilePatchPlan, validatePatch } from "@/lib/patchValidation";
-import { createDefaultProject } from "@/lib/presets";
+import { clearProject, loadProject, saveProject } from "@/lib/persistence";
+import { applyPatchOpWithHistory, createPatchHistory, redoPatchOp, undoPatchOp } from "@/lib/patch/ops";
+import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
+import { createDefaultProject } from "@/lib/patch/presets";
 import { importProjectFromJson, exportProjectToJson } from "@/lib/projectSerde";
 import { keyToPitch } from "@/lib/pitch";
-import { snapToGrid } from "@/lib/time";
+import { snapToGrid } from "@/lib/musicTiming";
 import { Project, Note } from "@/types/music";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchHistoryState, PatchOp } from "@/types/ops";
@@ -109,8 +109,8 @@ export default function HomePage() {
     if (!audioEngineRef.current) {
       audioEngineRef.current = new AudioEngine();
     }
-    audioEngineRef.current.setProject(project);
-  }, [project, ready]);
+    audioEngineRef.current.setProject(project, { syncToWorklet: !playing });
+  }, [playing, project, ready]);
 
   useEffect(() => {
     if (!ready || process.env.NEXT_PUBLIC_STRICT_WASM !== "1") return;
@@ -163,7 +163,7 @@ export default function HomePage() {
     if (!audioEngineRef.current) {
       audioEngineRef.current = new AudioEngine();
     }
-    audioEngineRef.current.setProject(project);
+    audioEngineRef.current.setProject(project, { syncToWorklet: true });
     await audioEngineRef.current.play(playheadBeat);
     setPlaying(true);
     if (rafRef.current !== null) {

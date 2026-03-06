@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createId } from "@/lib/ids";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
-import { snapToGrid } from "@/lib/time";
+import { snapToGrid } from "@/lib/musicTiming";
 import { Project, Note, Track } from "@/types/music";
 
 const HEADER_WIDTH = 170;

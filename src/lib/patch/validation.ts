@@ -1,4 +1,4 @@
-import { getModuleSchema, moduleRegistryById } from "@/lib/registry";
+import { getModuleSchema, moduleRegistryById } from "@/lib/patch/moduleRegistry";
 import { CompiledNode, CompiledOp, CompiledPlan, Patch, PatchValidationIssue, PatchValidationResult, ParamValue } from "@/types/patch";
 
 const SOURCE_HOST_NODE_IDS = ["$host.pitch", "$host.gate", "$host.velocity", "$host.modwheel"] as const;

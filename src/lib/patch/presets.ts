@@ -1,4 +1,4 @@
-import { createDefaultParamsForType } from "@/lib/registry";
+import { createDefaultParamsForType } from "@/lib/patch/moduleRegistry";
 import { createId } from "@/lib/ids";
 import { Project, Track } from "@/types/music";
 import { Patch } from "@/types/patch";

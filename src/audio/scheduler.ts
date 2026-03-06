@@ -1,4 +1,4 @@
-import { beatRangeToSampleRange } from "@/lib/time";
+import { beatRangeToSampleRange } from "@/lib/musicTiming";
 import { pitchToVoct } from "@/lib/pitch";
 import { createId } from "@/lib/ids";
 import { Project } from "@/types/music";
@@ -16,6 +16,21 @@ interface NoteEventCache {
 
 const stableNoteEventIds = new Map<string, NoteEventCache>();
 
+const pruneStaleNoteEventIds = (project: Project): void => {
+  const activeKeys = new Set<string>();
+  for (const track of project.tracks) {
+    for (const note of track.notes) {
+      activeKeys.add(`${track.id}:${note.id}`);
+    }
+  }
+
+  for (const key of stableNoteEventIds.keys()) {
+    if (!activeKeys.has(key)) {
+      stableNoteEventIds.delete(key);
+    }
+  }
+};
+
 const noteEventCacheFor = (trackId: string, noteId: string): NoteEventCache => {
   const key = `${trackId}:${noteId}`;
   const existing = stableNoteEventIds.get(key);
@@ -31,6 +46,7 @@ const noteEventCacheFor = (trackId: string, noteId: string): NoteEventCache => {
 };
 
 export const collectEventsInWindow = (project: Project, window: SchedulerWindow): SchedulerEvent[] => {
+  pruneStaleNoteEventIds(project);
   const events: SchedulerEvent[] = [];
 
   for (const track of project.tracks) {
