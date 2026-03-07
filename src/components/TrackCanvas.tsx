@@ -28,8 +28,8 @@ interface TrackCanvasProps {
   onSelectTrack: (trackId: string) => void;
   onToggleTrackMute: (trackId: string) => void;
   onOpenPitchPicker: (trackId: string, noteId: string) => void;
-  onUpsertNote: (trackId: string, note: Note) => void;
-  onUpdateNote: (trackId: string, noteId: string, patch: Partial<Note>) => void;
+  onUpsertNote: (trackId: string, note: Note, options?: { actionKey?: string; coalesce?: boolean }) => void;
+  onUpdateNote: (trackId: string, noteId: string, patch: Partial<Note>, options?: { actionKey?: string; coalesce?: boolean }) => void;
   onDeleteNote: (trackId: string, noteId: string) => void;
 }
 
@@ -465,7 +465,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       durationBeats: Math.max(props.project.global.gridBeats, props.project.global.gridBeats * 2),
       velocity: 0.85
     };
-    props.onUpsertNote(track.id, newNote);
+    props.onUpsertNote(track.id, newNote, { actionKey: `track:${track.id}:note:${newNote.id}:create` });
 
     dragRef.current = {
       trackId: track.id,
@@ -510,11 +510,17 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
     if (drag.mode === "move") {
       const nextStart = Math.max(0, snapToGrid(beat - drag.offsetBeats, props.project.global.gridBeats));
-      props.onUpdateNote(drag.trackId, drag.noteId, { startBeat: nextStart });
+      props.onUpdateNote(drag.trackId, drag.noteId, { startBeat: nextStart }, {
+        actionKey: `track:${drag.trackId}:note:${drag.noteId}:move`,
+        coalesce: true
+      });
     } else {
       const end = Math.max(note.startBeat + props.project.global.gridBeats, beat);
       props.onUpdateNote(drag.trackId, drag.noteId, {
         durationBeats: snapToGrid(end - note.startBeat, props.project.global.gridBeats)
+      }, {
+        actionKey: `track:${drag.trackId}:note:${drag.noteId}:resize`,
+        coalesce: true
       });
     }
   };
@@ -589,7 +595,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
       }
       const semitone = event.deltaY < 0 ? 1 : -1;
       const nextPitch = midiToPitch(Math.max(21, Math.min(108, midi + semitone)));
-      onUpdateNote(hitPitch.trackId, hitPitch.noteId, { pitchStr: nextPitch });
+      onUpdateNote(hitPitch.trackId, hitPitch.noteId, { pitchStr: nextPitch }, {
+        actionKey: `track:${hitPitch.trackId}:pitch:${hitPitch.noteId}`
+      });
     };
 
     const onScrollNative = () => {

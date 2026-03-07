@@ -7,7 +7,7 @@ const clonePatch = (patch: Patch): Patch => structuredClone(patch);
 
 const findLayoutNode = (patch: Patch, nodeId: string): number => patch.layout.nodes.findIndex((node) => node.nodeId === nodeId);
 
-const applySingleOp = (patch: Patch, op: PatchOp): Patch => {
+export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
   const next = clonePatch(patch);
 
   switch (op.type) {
@@ -153,7 +153,7 @@ export const createPatchHistory = <T>(initial: T): PatchHistoryState<T> => ({
 export const applyPatchOpWithHistory = (state: PatchHistoryState<Patch>, op: PatchOp): PatchHistoryState<Patch> => {
   const lastOp = state.ops[state.ops.length - 1];
   if (op.type === "moveNode" && lastOp?.type === "moveNode" && lastOp.nodeId === op.nodeId) {
-    const nextPatch = applySingleOp(state.current, op);
+    const nextPatch = applyPatchOp(state.current, op);
     return {
       current: nextPatch,
       past: state.past,
@@ -162,7 +162,7 @@ export const applyPatchOpWithHistory = (state: PatchHistoryState<Patch>, op: Pat
     };
   }
 
-  const nextPatch = applySingleOp(state.current, op);
+  const nextPatch = applyPatchOp(state.current, op);
   return {
     current: nextPatch,
     past: [...state.past, state.current],

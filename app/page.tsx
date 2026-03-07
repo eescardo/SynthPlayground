@@ -10,7 +10,8 @@ import { TrackCanvas } from "@/components/TrackCanvas";
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
 import { clearProject, loadProject, saveProject } from "@/lib/persistence";
-import { applyPatchOpWithHistory, createPatchHistory, redoPatchOp, undoPatchOp } from "@/lib/patch/ops";
+import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
+import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { createDefaultProject } from "@/lib/patch/presets";
 import { importProjectFromJson, exportProjectToJson } from "@/lib/projectSerde";
@@ -18,7 +19,7 @@ import { keyToPitch } from "@/lib/pitch";
 import { snapToGrid } from "@/lib/musicTiming";
 import { Project, Note } from "@/types/music";
 import { PatchValidationIssue, Patch } from "@/types/patch";
-import { PatchHistoryState, PatchOp } from "@/types/ops";
+import { PatchOp } from "@/types/ops";
 
 const notesOverlap = (a: Note, b: Note): boolean => {
   const epsilon = 1e-9;
@@ -31,7 +32,7 @@ const hasOverlapWithOthers = (candidate: Note, notes: Note[]): boolean =>
   notes.some((other) => other.id !== candidate.id && notesOverlap(candidate, other));
 
 export default function HomePage() {
-  const [project, setProject] = useState<Project>(() => createDefaultProject());
+  const [projectHistory, setProjectHistory] = useState<HistoryState<Project>>(() => createHistory(createDefaultProject()));
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [recordEnabled, setRecordEnabled] = useState(false);
@@ -46,19 +47,18 @@ export default function HomePage() {
   const [strictWasmReady, setStrictWasmReady] = useState(process.env.NEXT_PUBLIC_STRICT_WASM !== "1");
   const [pitchPicker, setPitchPicker] = useState<{ trackId: string; noteId: string } | null>(null);
 
-  const [patchHistoryById, setPatchHistoryById] = useState<Record<string, PatchHistoryState<Patch>>>({});
   const activeRecordKeys = useRef<Map<string, { noteId: string; startBeat: number; trackId: string }>>(new Map());
   const audioEngineRef = useRef<AudioEngine | null>(null);
   const rafRef = useRef<number | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const project = projectHistory.current;
 
   useEffect(() => {
     const boot = async () => {
       const saved = await loadProject();
       const loadedProject = saved ?? createDefaultProject();
-      setProject(loadedProject);
+      setProjectHistory(createHistory(loadedProject));
       setSelectedTrackId(loadedProject.tracks[0]?.id);
-      setPatchHistoryById(Object.fromEntries(loadedProject.patches.map((patch) => [patch.id, createPatchHistory(patch)])));
       setReady(true);
     };
 
@@ -84,6 +84,26 @@ export default function HomePage() {
     () => project.patches.find((patch) => patch.id === selectedTrack?.instrumentPatchId) ?? project.patches[0],
     [project.patches, selectedTrack?.instrumentPatchId]
   );
+
+  const commitProjectChange = useCallback(
+    (
+      updater: (current: Project) => Project,
+      options?: { actionKey?: string; coalesce?: boolean }
+    ) => {
+      setProjectHistory((prev) => {
+        const next = updater(prev.current);
+        if (next === prev.current) {
+          return prev;
+        }
+        return pushHistory(prev, next, options);
+      });
+    },
+    []
+  );
+
+  const resetProjectHistory = useCallback((nextProject: Project) => {
+    setProjectHistory(createHistory(nextProject));
+  }, []);
 
   const playbackEndBeat = useMemo(() => {
     const maxNoteEnd = project.tracks
@@ -181,54 +201,98 @@ export default function HomePage() {
     };
   }, []);
 
-  const patchTrackNotes = useCallback((trackId: string, update: (notes: Note[]) => Note[]) => {
-    setProject((prev) => ({
-      ...prev,
-      tracks: prev.tracks.map((track) => (track.id === trackId ? { ...track, notes: update(track.notes) } : track))
-    }));
-  }, []);
-
-  const upsertNote = useCallback((trackId: string, note: Note) => {
-    patchTrackNotes(trackId, (notes) => {
-      const existing = notes.find((entry) => entry.id === note.id);
-      if (existing) {
-        if (hasOverlapWithOthers(note, notes)) {
-          return notes;
-        }
-        return notes.map((entry) => (entry.id === note.id ? note : entry));
-      }
-      if (hasOverlapWithOthers(note, notes)) {
-        return notes;
-      }
-      return [...notes, note].sort((a, b) => a.startBeat - b.startBeat);
-    });
-  }, [patchTrackNotes]);
-
-  const updateNote = useCallback((trackId: string, noteId: string, patch: Partial<Note>) => {
-    patchTrackNotes(trackId, (notes) =>
-      notes.map((note) => {
-        if (note.id !== noteId) {
-          return note;
-        }
-        const nextNote = { ...note, ...patch };
-        if (hasOverlapWithOthers(nextNote, notes)) {
-          return note;
-        }
-        return nextNote;
-      })
+  const upsertNote = useCallback((trackId: string, note: Note, options?: { actionKey?: string; coalesce?: boolean }) => {
+    commitProjectChange(
+      (current) => {
+        let changed = false;
+        const tracks = current.tracks.map((track) => {
+          if (track.id !== trackId) {
+            return track;
+          }
+          const existing = track.notes.find((entry) => entry.id === note.id);
+          let nextNotes = track.notes;
+          if (existing) {
+            if (hasOverlapWithOthers(note, track.notes)) {
+              return track;
+            }
+            nextNotes = track.notes.map((entry) => (entry.id === note.id ? note : entry));
+          } else {
+            if (hasOverlapWithOthers(note, track.notes)) {
+              return track;
+            }
+            nextNotes = [...track.notes, note].sort((a, b) => a.startBeat - b.startBeat);
+          }
+          if (nextNotes === track.notes) {
+            return track;
+          }
+          changed = true;
+          return { ...track, notes: nextNotes };
+        });
+        return changed ? { ...current, tracks } : current;
+      },
+      options
     );
-  }, [patchTrackNotes]);
+  }, [commitProjectChange]);
+
+  const updateNote = useCallback((trackId: string, noteId: string, patch: Partial<Note>, options?: { actionKey?: string; coalesce?: boolean }) => {
+    commitProjectChange(
+      (current) => {
+        let changed = false;
+        const tracks = current.tracks.map((track) => {
+          if (track.id !== trackId) {
+            return track;
+          }
+          const nextNotes = track.notes.map((note) => {
+            if (note.id !== noteId) {
+              return note;
+            }
+            const nextNote = { ...note, ...patch };
+            if (hasOverlapWithOthers(nextNote, track.notes)) {
+              return note;
+            }
+            if (
+              nextNote.pitchStr === note.pitchStr &&
+              nextNote.startBeat === note.startBeat &&
+              nextNote.durationBeats === note.durationBeats &&
+              nextNote.velocity === note.velocity
+            ) {
+              return note;
+            }
+            changed = true;
+            return nextNote;
+          });
+          return changed ? { ...track, notes: nextNotes } : track;
+        });
+        return changed ? { ...current, tracks } : current;
+      },
+      options
+    );
+  }, [commitProjectChange]);
 
   const deleteNote = useCallback((trackId: string, noteId: string) => {
-    patchTrackNotes(trackId, (notes) => notes.filter((note) => note.id !== noteId));
-  }, [patchTrackNotes]);
+    commitProjectChange((current) => {
+      let changed = false;
+      const tracks = current.tracks.map((track) => {
+        if (track.id !== trackId) {
+          return track;
+        }
+        const nextNotes = track.notes.filter((note) => note.id !== noteId);
+        if (nextNotes.length === track.notes.length) {
+          return track;
+        }
+        changed = true;
+        return { ...track, notes: nextNotes };
+      });
+      return changed ? { ...current, tracks } : current;
+    }, { actionKey: `track:${trackId}:delete-note:${noteId}` });
+  }, [commitProjectChange]);
 
   const toggleTrackMute = useCallback((trackId: string) => {
-    setProject((prev) => ({
-      ...prev,
-      tracks: prev.tracks.map((track) => (track.id === trackId ? { ...track, mute: !track.mute } : track))
-    }));
-  }, []);
+    commitProjectChange((current) => ({
+      ...current,
+      tracks: current.tracks.map((track) => (track.id === trackId ? { ...track, mute: !track.mute } : track))
+    }), { actionKey: `track:${trackId}:mute` });
+  }, [commitProjectChange]);
 
   const setPlayheadFromUser = useCallback((beat: number) => {
     setUserCueBeat(beat);
@@ -246,55 +310,34 @@ export default function HomePage() {
   const applyPatchOp = (op: PatchOp) => {
     if (!selectedPatch) return;
 
-    const currentHistory = patchHistoryById[selectedPatch.id] ?? createPatchHistory(selectedPatch);
-    let nextHistory: PatchHistoryState<Patch>;
+    let nextPatch: Patch;
     try {
-      nextHistory = applyPatchOpWithHistory(currentHistory, op);
+      nextPatch = applyPatchGraphOp(selectedPatch, op);
     } catch (error) {
       setValidationIssues([{ level: "error", message: (error as Error).message }]);
       return;
     }
 
-    const validation = validatePatch(nextHistory.current);
+    const validation = validatePatch(nextPatch);
     if (op.type === "connect" && validation.issues.some((issue) => issue.level === "error")) {
       setValidationIssues(validation.issues);
       return;
     }
 
     setValidationIssues(validation.issues);
-    setPatchHistoryById((prev) => ({
-      ...prev,
-      [selectedPatch.id]: nextHistory
-    }));
-
-    setProject((prev) => ({
-      ...prev,
-      patches: prev.patches.map((patch) => (patch.id === selectedPatch.id ? nextHistory.current : patch))
-    }));
-  };
-
-  const undoPatch = () => {
-    if (!selectedPatch) return;
-    const history = patchHistoryById[selectedPatch.id];
-    if (!history) return;
-    const next = undoPatchOp(history);
-    setPatchHistoryById((prev) => ({ ...prev, [selectedPatch.id]: next }));
-    setProject((prev) => ({
-      ...prev,
-      patches: prev.patches.map((patch) => (patch.id === selectedPatch.id ? next.current : patch))
-    }));
-  };
-
-  const redoPatch = () => {
-    if (!selectedPatch) return;
-    const history = patchHistoryById[selectedPatch.id];
-    if (!history) return;
-    const next = redoPatchOp(history);
-    setPatchHistoryById((prev) => ({ ...prev, [selectedPatch.id]: next }));
-    setProject((prev) => ({
-      ...prev,
-      patches: prev.patches.map((patch) => (patch.id === selectedPatch.id ? next.current : patch))
-    }));
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        patches: current.patches.map((patch) => (patch.id === selectedPatch.id ? nextPatch : patch))
+      }),
+      {
+        actionKey:
+          op.type === "moveNode"
+            ? `patch:${selectedPatch.id}:move-node:${op.nodeId}`
+            : `patch:${selectedPatch.id}:${op.type}`,
+        coalesce: op.type === "moveNode"
+      }
+    );
   };
 
   const handleMacroChange = (macroId: string, normalized: number) => {
@@ -306,28 +349,39 @@ export default function HomePage() {
     const macro = selectedPatch.ui.macros.find((entry) => entry.id === macroId);
     if (!macro) return;
 
-    setProject((prev) => {
-      const nextPatches = prev.patches.map((patch) => {
-        if (patch.id !== selectedPatch.id) return patch;
+    commitProjectChange(
+      (current) => {
+        const nextPatches = current.patches.map((patch) => {
+          if (patch.id !== selectedPatch.id) return patch;
 
-        const cloned = structuredClone(patch);
-        for (const binding of macro.bindings) {
-          const node = cloned.nodes.find((entry) => entry.id === binding.nodeId);
-          if (!node) continue;
+          const cloned = structuredClone(patch);
+          for (const binding of macro.bindings) {
+            const node = cloned.nodes.find((entry) => entry.id === binding.nodeId);
+            if (!node) continue;
 
-          const mapped =
-            binding.map === "exp"
-              ? Math.max(binding.min, 0.000001) * Math.pow(binding.max / Math.max(binding.min, 0.000001), normalized)
-              : binding.min + (binding.max - binding.min) * normalized;
+            const mapped =
+              binding.map === "exp"
+                ? Math.max(binding.min, 0.000001) * Math.pow(binding.max / Math.max(binding.min, 0.000001), normalized)
+                : binding.min + (binding.max - binding.min) * normalized;
 
-          node.params[binding.paramId] = mapped;
-        }
+            node.params[binding.paramId] = mapped;
+          }
 
-        return cloned;
-      });
-      return { ...prev, patches: nextPatches };
-    });
+          return cloned;
+        });
+        return { ...current, patches: nextPatches };
+      },
+      { actionKey: `patch:${selectedPatch.id}:macro:${macroId}`, coalesce: true }
+    );
   };
+
+  const undoProject = useCallback(() => {
+    setProjectHistory((prev) => undoHistory(prev));
+  }, []);
+
+  const redoProject = useCallback(() => {
+    setProjectHistory((prev) => redoHistory(prev));
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -356,7 +410,7 @@ export default function HomePage() {
         startBeat,
         durationBeats: project.global.gridBeats,
         velocity: 0.9
-      });
+      }, { actionKey: `track:${selectedTrack.id}:record-note:${noteId}` });
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
@@ -367,7 +421,10 @@ export default function HomePage() {
 
       const endBeat = snapToGrid(audioEngineRef.current?.getPlayheadBeat() ?? playheadBeat, project.global.gridBeats);
       const duration = Math.max(project.global.gridBeats, endBeat - active.startBeat);
-      updateNote(active.trackId, active.noteId, { durationBeats: duration });
+      updateNote(active.trackId, active.noteId, { durationBeats: duration }, {
+        actionKey: `track:${active.trackId}:record-note:${active.noteId}`,
+        coalesce: true
+      });
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -394,11 +451,27 @@ export default function HomePage() {
         setHelpOpen(false);
         setPitchPicker(null);
       }
+
+      const isUndo = (event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "z";
+      const isRedo =
+        ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "z") ||
+        ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "y");
+
+      if (!editingText && isRedo) {
+        event.preventDefault();
+        redoProject();
+        return;
+      }
+
+      if (!editingText && isUndo) {
+        event.preventDefault();
+        undoProject();
+      }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [redoProject, undoProject]);
 
   useEffect(() => {
     if (!pitchPicker) return;
@@ -412,7 +485,9 @@ export default function HomePage() {
       if (!pitch) return;
 
       event.preventDefault();
-      updateNote(pitchPicker.trackId, pitchPicker.noteId, { pitchStr: pitch });
+      updateNote(pitchPicker.trackId, pitchPicker.noteId, { pitchStr: pitch }, {
+        actionKey: `track:${pitchPicker.trackId}:pitch:${pitchPicker.noteId}`
+      });
       closePitchPicker();
     };
 
@@ -435,9 +510,8 @@ export default function HomePage() {
     const text = await file.text();
     try {
       const imported = importProjectFromJson(text);
-      setProject(imported);
+      resetProjectHistory(imported);
       setSelectedTrackId(imported.tracks[0]?.id);
-      setPatchHistoryById(Object.fromEntries(imported.patches.map((patch) => [patch.id, createPatchHistory(patch)])));
       audioEngineRef.current?.setProject(imported);
     } catch (error) {
       setValidationIssues([{ level: "error", message: (error as Error).message }]);
@@ -449,13 +523,13 @@ export default function HomePage() {
     if (!fallbackPatch) return;
 
     const trackId = createId("track");
-    setProject((prev) => ({
-      ...prev,
+    commitProjectChange((current) => ({
+      ...current,
       tracks: [
-        ...prev.tracks,
+        ...current.tracks,
         {
           id: trackId,
-          name: `Track ${prev.tracks.length + 1}`,
+          name: `Track ${current.tracks.length + 1}`,
           instrumentPatchId: fallbackPatch.id,
           notes: [],
           fx: {
@@ -470,7 +544,7 @@ export default function HomePage() {
           }
         }
       ]
-    }));
+    }), { actionKey: `track:add:${trackId}` });
     setSelectedTrackId(trackId);
   };
 
@@ -481,22 +555,20 @@ export default function HomePage() {
     duplicate.id = createId("patch");
     duplicate.name = `${selectedPatch.name} Copy`;
 
-    setProject((prev) => ({
-      ...prev,
-      patches: [...prev.patches, duplicate],
-      tracks: prev.tracks.map((track) =>
+    commitProjectChange((current) => ({
+      ...current,
+      patches: [...current.patches, duplicate],
+      tracks: current.tracks.map((track) =>
         track.id === selectedTrack.id ? { ...track, instrumentPatchId: duplicate.id } : track
       )
-    }));
-
-    setPatchHistoryById((prev) => ({ ...prev, [duplicate.id]: createPatchHistory(duplicate) }));
+    }), { actionKey: `patch:duplicate:${duplicate.id}` });
   };
 
   const updateTrackPatch = (trackId: string, patchId: string) => {
-    setProject((prev) => ({
-      ...prev,
-      tracks: prev.tracks.map((track) => (track.id === trackId ? { ...track, instrumentPatchId: patchId } : track))
-    }));
+    commitProjectChange((current) => ({
+      ...current,
+      tracks: current.tracks.map((track) => (track.id === trackId ? { ...track, instrumentPatchId: patchId } : track))
+    }), { actionKey: `track:${trackId}:patch` });
     setSelectedNodeId(undefined);
   };
 
@@ -519,15 +591,27 @@ export default function HomePage() {
         onPlay={startPlayback}
         onStop={stopPlayback}
         onToggleRecord={() => setRecordEnabled((prev) => !prev)}
-        onTempoChange={(tempo) => setProject((prev) => ({ ...prev, global: { ...prev.global, tempo } }))}
-        onMeterChange={(meter) => setProject((prev) => ({ ...prev, global: { ...prev.global, meter } }))}
-        onGridChange={(gridBeats) => setProject((prev) => ({ ...prev, global: { ...prev.global, gridBeats } }))}
+        onTempoChange={(tempo) =>
+          commitProjectChange((current) => ({ ...current, global: { ...current.global, tempo } }), {
+            actionKey: "global:tempo"
+          })
+        }
+        onMeterChange={(meter) =>
+          commitProjectChange((current) => ({ ...current, global: { ...current.global, meter } }), {
+            actionKey: "global:meter"
+          })
+        }
+        onGridChange={(gridBeats) =>
+          commitProjectChange((current) => ({ ...current, global: { ...current.global, gridBeats } }), {
+            actionKey: "global:grid"
+          })
+        }
       />
 
       <section className="top-actions">
         <button onClick={addTrack}>Add Track</button>
         <button onClick={duplicatePatchForSelectedTrack}>Duplicate Instrument Patch</button>
-        <button onClick={() => setHelpOpen(true)}>Help (?)</button>
+              <button onClick={() => setHelpOpen(true)}>Help (?)</button>
         <button onClick={exportJson}>Export Project JSON</button>
         <button onClick={() => importInputRef.current?.click()}>Import Project JSON</button>
         <button
@@ -535,9 +619,8 @@ export default function HomePage() {
             stopPlayback();
             await clearProject();
             const fresh = createDefaultProject();
-            setProject(fresh);
+            resetProjectHistory(fresh);
             setSelectedTrackId(fresh.tracks[0]?.id);
-            setPatchHistoryById(Object.fromEntries(fresh.patches.map((patch) => [patch.id, createPatchHistory(patch)])));
           }}
         >
           Reset Project
@@ -601,8 +684,6 @@ export default function HomePage() {
         validationIssues={validationIssues}
         onSelectNode={setSelectedNodeId}
         onApplyOp={applyPatchOp}
-        onUndo={undoPatch}
-        onRedo={redoPatch}
       />
 
       {helpOpen && (
@@ -644,7 +725,9 @@ export default function HomePage() {
               maxPitch="C7"
               selectedPitch={pitchPickerNote.pitchStr}
               onSelectPitch={(pitch) => {
-                updateNote(pitchPicker.trackId, pitchPicker.noteId, { pitchStr: pitch });
+                updateNote(pitchPicker.trackId, pitchPicker.noteId, { pitchStr: pitch }, {
+                  actionKey: `track:${pitchPicker.trackId}:pitch:${pitchPicker.noteId}`
+                });
                 closePitchPicker();
               }}
             />
