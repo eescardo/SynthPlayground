@@ -118,6 +118,9 @@ class TrackRuntime {
     this.compressorEnv = 0;
   }
 
+  // Compile the user patch into a numeric execution plan:
+  // host sources and node outputs get fixed signal indices, inputs resolve to
+  // those indices, and runtime nodes are topologically ordered for block rendering.
   compilePatch(patch) {
     const nodeById = new Map();
     for (const node of patch.nodes) {
@@ -276,6 +279,8 @@ class TrackRuntime {
     };
   }
 
+  // Track-level voice allocation is still intentionally simple: one note at a time
+  // per track, with quietest-voice stealing retained as a safety fallback.
   allocateVoice(sampleTime) {
     const free = this.voices.find((voice) => !voice.active);
     if (free) {
@@ -299,6 +304,8 @@ class TrackRuntime {
     return best;
   }
 
+  // NoteOn updates host control values for the selected voice and resets its DSP
+  // state so envelopes and oscillators restart from a known state.
   noteOn(event, sampleTime) {
     const existing = this.voices.find((voice) => voice.active && voice.noteId === event.noteId);
     if (existing) {
@@ -333,6 +340,8 @@ class TrackRuntime {
     voice.paramState.clear();
   }
 
+  // NoteOff only drops the host gate. Release behavior is then driven entirely by
+  // patch wiring, usually through an ADSR connected to a VCA or filter modulation.
   noteOff(event) {
     let released = false;
     for (const voice of this.voices) {
@@ -353,6 +362,7 @@ class TrackRuntime {
     }
   }
 
+  // ParamChange events and macro bindings both feed this compiled target map.
   setParam(nodeId, paramId, value) {
     const nodeParams = this.compiled.paramTargets.get(nodeId);
     if (!nodeParams) {
@@ -361,6 +371,8 @@ class TrackRuntime {
     nodeParams.set(paramId, value);
   }
 
+  // Macros stay as UI-facing normalized controls and are expanded here into the
+  // concrete node parameter values that the DSP graph consumes.
   applyMacro(macroId, normalized) {
     const macro = this.compiled.macroById.get(macroId);
     if (!macro) {
@@ -380,6 +392,8 @@ class TrackRuntime {
     }
   }
 
+  // Inputs are resolved at compile time to integer signal indices; runtime reads are
+  // just buffer lookups, not string-based graph traversal.
   getInputBuffer(signalBuffers, inputIndex) {
     return inputIndex >= 0 ? signalBuffers[inputIndex] : null;
   }
@@ -399,6 +413,8 @@ class TrackRuntime {
     return buffer;
   }
 
+  // Numeric params are smoothed into per-voice block buffers before node DSP runs.
+  // Nodes then read paramBuffer[i] alongside other audio/CV buffers for the frame range.
   fillNumericParamBuffer(voice, nodeId, typeId, paramId, fallback, startFrame, endFrame) {
     const targetRaw = this.getParamValue(nodeId, paramId, fallback);
     const target = typeof targetRaw === "number" ? targetRaw : Number(fallback);
@@ -429,6 +445,8 @@ class TrackRuntime {
     return buffer;
   }
 
+  // Render one runtime node across a contiguous frame range. Every port read is just
+  // a typed-array access into the preallocated signal buffer set for this voice.
   processNodeFrames(voice, runtimeNode, signalBuffers, startFrame, endFrame) {
     const { id, typeId, params, outIndex, inputs } = runtimeNode;
     const out = signalBuffers[outIndex];
@@ -800,6 +818,8 @@ class TrackRuntime {
     }
   }
 
+  // Render a single voice for the requested frame range by running the compiled node
+  // list in order, then validating and returning the designated output buffer.
   renderVoiceFrames(voice, startFrame, endFrame) {
     const signalBuffers = voice.signalBuffers;
     for (const nodeRuntime of this.compiled.nodeRuntimes) {
@@ -849,6 +869,8 @@ class TrackRuntime {
     return outputBuffer;
   }
 
+  // Track FX are post-voice, pre-master shared effects. They operate in-place on the
+  // mixed track buffer for the current frame slice.
   applyTrackFxRange(buffer, startFrame, endFrame) {
     const fx = this.track.fx || {};
 
@@ -895,6 +917,8 @@ class TrackRuntime {
     }
   }
 
+  // Mix all active voices for this track into a temporary track buffer, apply track
+  // FX once, then accumulate into the master buffer if the track is not muted.
   processTrackFrames(targetBuffer, startFrame, endFrame) {
     this.trackBuffer.fill(0, startFrame, endFrame);
 
@@ -936,6 +960,8 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
     this.port.onmessage = (event) => this.onMessage(event.data);
   }
 
+  // Scheduler messages arrive ahead of playback and are kept ordered by absolute
+  // song-sample time so block rendering can split precisely at event boundaries.
   enqueueEvents(events) {
     for (const evt of events) {
       if (!evt || !Number.isFinite(evt.sampleTime)) {
@@ -946,6 +972,8 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
     this.eventQueue.sort((a, b) => a.sampleTime - b.sampleTime);
   }
 
+  // Main-thread control plane: initializes the processor, swaps in a project,
+  // starts/stops transport, appends scheduled events, and applies macro changes.
   onMessage(message) {
     switch (message.type) {
       case "INIT":
@@ -1005,6 +1033,9 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
     }
   }
 
+  // Event dispatch separates transport-time scheduling from DSP execution. Patch
+  // internals never see these events directly; they only observe updated host values
+  // and parameter targets during rendering.
   handleEvent(event) {
     if (!this.project || !event || typeof event.type !== "string") {
       return;
@@ -1031,6 +1062,8 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
     }
   }
 
+  // Master FX run after all tracks are summed for the frame slice and before samples
+  // are copied to the stereo outputs.
   applyMasterFxRange(buffer, startFrame, endFrame) {
     if (!this.project) {
       return;
@@ -1054,6 +1087,8 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
     }
   }
 
+  // Drain every event whose absolute song sample time is now due before rendering the
+  // next slice of the current worklet block.
   consumeDueEvents() {
     const currentSongSample = this.songSampleCounter;
     while (this.eventQueue.length > 0) {
@@ -1069,6 +1104,8 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
     }
   }
 
+  // Look ahead to the next event boundary so the block can be split into contiguous
+  // frame ranges that are internally event-free.
   nextPendingEventSample() {
     while (this.eventQueue.length > 0) {
       const next = this.eventQueue[0];
@@ -1081,6 +1118,8 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
     return Infinity;
   }
 
+  // Render one event-free frame slice: mix all tracks into the master buffer, run
+  // master FX, and write the resulting mono signal to both output channels.
   renderFrameRange(left, right, startFrame, endFrame) {
     this.masterBuffer.fill(0, startFrame, endFrame);
 
@@ -1103,6 +1142,9 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
     }
   }
 
+  // AudioWorklet entry point. The processor iterates through the output block in
+  // slices separated by pending events so note/param changes remain sample-accurate
+  // without rebuilding the graph for every individual sample.
   process(_inputs, outputs) {
     const output = outputs[0];
     const left = output[0];
