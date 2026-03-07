@@ -10,6 +10,25 @@ import { PatchOp } from "@/types/ops";
 const GRID = 24;
 const NODE_W = 168;
 const NODE_H = 96;
+const NODE_HIT_PADDING = 0;
+const MOVE_CURSOR = "move";
+const MOVE_CURSOR_ACTIVE = "grabbing";
+const COLOR_CAPABILITY_FALLBACK = "#9aa8b4";
+const COLOR_CANVAS_BG = "#0c141d";
+const COLOR_GRID_MAJOR = "#1b2835";
+const COLOR_GRID_MINOR = "#121e28";
+const COLOR_NODE_SELECTED_FILL = "#193f69";
+const COLOR_NODE_HOVER_FILL = "#1b3348";
+const COLOR_NODE_FILL = "#16293a";
+const COLOR_NODE_HOVER_OVERLAY = "rgba(91, 183, 255, 0.08)";
+const COLOR_NODE_SELECTED_STROKE = "#5bb7ff";
+const COLOR_NODE_HOVER_STROKE = "#79c5ff";
+const COLOR_NODE_STROKE = "#315270";
+const COLOR_NODE_TITLE = "#e7f3ff";
+const COLOR_NODE_SUBTITLE = "#8cb3d5";
+const COLOR_PORT_LABEL = "#9ec0df";
+const COLOR_CONNECTION_FALLBACK = "#c7d8e8";
+const COLOR_PENDING_PORT = "#ff5d8f";
 
 const CAPABILITY_COLORS: Record<string, string> = {
   AUDIO: "#4dc0ff",
@@ -37,16 +56,18 @@ interface PatchEditorCanvasProps {
 
 function getCapabilityColor(port: PortSchema): string {
   const first = port.capabilities[0];
-  return CAPABILITY_COLORS[first] ?? "#9aa8b4";
+  return CAPABILITY_COLORS[first] ?? COLOR_CAPABILITY_FALLBACK;
 }
 
 export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hitPortsRef = useRef<HitPort[]>([]);
   const dragLastLayoutRef = useRef<{ x: number; y: number } | null>(null);
+  const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
   const [newNodeType, setNewNodeType] = useState(modulePalette[0]?.typeId ?? "VCO");
   const [pendingFromPort, setPendingFromPort] = useState<HitPort | null>(null);
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
   const layoutByNode = useMemo(() => {
     return new Map(props.patch.layout.nodes.map((node) => [node.nodeId, node] as const));
@@ -65,18 +86,18 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     canvas.width = width;
     canvas.height = height;
 
-    ctx.fillStyle = "#0c141d";
+    ctx.fillStyle = COLOR_CANVAS_BG;
     ctx.fillRect(0, 0, width, height);
 
     for (let x = 0; x < width; x += GRID) {
-      ctx.strokeStyle = x % (GRID * 4) === 0 ? "#1b2835" : "#121e28";
+      ctx.strokeStyle = x % (GRID * 4) === 0 ? COLOR_GRID_MAJOR : COLOR_GRID_MINOR;
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, height);
       ctx.stroke();
     }
     for (let y = 0; y < height; y += GRID) {
-      ctx.strokeStyle = y % (GRID * 4) === 0 ? "#1b2835" : "#121e28";
+      ctx.strokeStyle = y % (GRID * 4) === 0 ? COLOR_GRID_MAJOR : COLOR_GRID_MINOR;
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(width, y);
@@ -95,16 +116,21 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       const y = layout.y * GRID;
 
       const selected = props.selectedNodeId === node.id;
-      ctx.fillStyle = selected ? "#193f69" : "#16293a";
+      const hovered = hoveredNodeId === node.id;
+      ctx.fillStyle = selected ? COLOR_NODE_SELECTED_FILL : hovered ? COLOR_NODE_HOVER_FILL : COLOR_NODE_FILL;
       ctx.fillRect(x, y, NODE_W, NODE_H);
-      ctx.strokeStyle = selected ? "#5bb7ff" : "#315270";
-      ctx.lineWidth = 2;
+      if (hovered && !selected) {
+        ctx.fillStyle = COLOR_NODE_HOVER_OVERLAY;
+        ctx.fillRect(x + 2, y + 2, NODE_W - 4, NODE_H - 4);
+      }
+      ctx.strokeStyle = selected ? COLOR_NODE_SELECTED_STROKE : hovered ? COLOR_NODE_HOVER_STROKE : COLOR_NODE_STROKE;
+      ctx.lineWidth = hovered ? 3 : 2;
       ctx.strokeRect(x, y, NODE_W, NODE_H);
 
-      ctx.fillStyle = "#e7f3ff";
+      ctx.fillStyle = COLOR_NODE_TITLE;
       ctx.font = "12px 'Trebuchet MS', 'Segoe UI', sans-serif";
       ctx.fillText(node.typeId, x + 10, y + 18);
-      ctx.fillStyle = "#8cb3d5";
+      ctx.fillStyle = COLOR_NODE_SUBTITLE;
       ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
       ctx.fillText(node.id, x + 10, y + 32);
 
@@ -115,7 +141,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
         ctx.beginPath();
         ctx.arc(px, py, 4, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = "#9ec0df";
+        ctx.fillStyle = COLOR_PORT_LABEL;
         ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
         ctx.fillText(port.id, px + 8, py + 3);
         portPositions.set(`${node.id}:in:${port.id}`, { x: px, y: py, schema: port });
@@ -128,7 +154,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
         ctx.beginPath();
         ctx.arc(px, py, 4, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = "#9ec0df";
+        ctx.fillStyle = COLOR_PORT_LABEL;
         ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
         const textWidth = ctx.measureText(port.id).width;
         ctx.fillText(port.id, px - 8 - textWidth, py + 3);
@@ -142,7 +168,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       if (!from || !to) continue;
 
       const commonCapability = from.schema.capabilities.find((cap) => to.schema.capabilities.includes(cap)) ?? "AUDIO";
-      ctx.strokeStyle = CAPABILITY_COLORS[commonCapability] ?? "#c7d8e8";
+      ctx.strokeStyle = CAPABILITY_COLORS[commonCapability] ?? COLOR_CONNECTION_FALLBACK;
       ctx.lineWidth = 2;
 
       const middleX = Math.round((from.x + to.x) / 2 / GRID) * GRID;
@@ -158,7 +184,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       const portKey = `${pendingFromPort.nodeId}:out:${pendingFromPort.portId}`;
       const p = portPositions.get(portKey);
       if (p) {
-        ctx.fillStyle = "#ff5d8f";
+        ctx.fillStyle = COLOR_PENDING_PORT;
         ctx.beginPath();
         ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
         ctx.fill();
@@ -170,7 +196,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       const [nodeId, kind, portId] = key.split(":");
       hitPortsRef.current.push({ nodeId, kind: kind as "in" | "out", portId, x: value.x, y: value.y });
     }
-  }, [layoutByNode, pendingFromPort, props.patch.connections, props.patch.nodes, props.selectedNodeId]);
+  }, [hoveredNodeId, layoutByNode, pendingFromPort, props.patch.connections, props.patch.nodes, props.selectedNodeId]);
 
   useEffect(() => {
     draw();
@@ -182,8 +208,10 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       return { x: 0, y: 0, rawX: 0, rawY: 0 };
     }
     const rect = canvas.getBoundingClientRect();
-    const rawX = event.clientX - rect.left;
-    const rawY = event.clientY - rect.top;
+    const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+    const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
+    const rawX = (event.clientX - rect.left) * scaleX;
+    const rawY = (event.clientY - rect.top) * scaleY;
     return {
       x: Math.round(rawX / GRID),
       y: Math.round(rawY / GRID),
@@ -193,12 +221,18 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   };
 
   const getNodeAtPointer = (rawX: number, rawY: number): string | null => {
-    for (const node of props.patch.nodes) {
+    for (let index = props.patch.nodes.length - 1; index >= 0; index -= 1) {
+      const node = props.patch.nodes[index];
       const layout = layoutByNode.get(node.id);
       if (!layout) continue;
       const x = layout.x * GRID;
       const y = layout.y * GRID;
-      if (rawX >= x && rawX <= x + NODE_W && rawY >= y && rawY <= y + NODE_H) {
+      if (
+        rawX >= x - NODE_HIT_PADDING &&
+        rawX <= x + NODE_W + NODE_HIT_PADDING &&
+        rawY >= y - NODE_HIT_PADDING &&
+        rawY <= y + NODE_H + NODE_HIT_PADDING
+      ) {
         return node.id;
       }
     }
@@ -235,6 +269,12 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       setDragNodeId(hitNodeId);
       const layout = layoutByNode.get(hitNodeId);
       dragLastLayoutRef.current = layout ? { x: layout.x, y: layout.y } : null;
+      dragPointerOffsetRef.current = layout
+        ? {
+            x: pos.rawX - layout.x * GRID,
+            y: pos.rawY - layout.y * GRID
+          }
+        : null;
       event.currentTarget.setPointerCapture(event.pointerId);
     } else {
       props.onSelectNode(undefined);
@@ -243,11 +283,17 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   };
 
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!dragNodeId) return;
     const pos = pointerToGrid(event);
+    const hoverPort = getPortAtPointer(pos.rawX, pos.rawY);
+    const hoverNodeId = hoverPort ? null : getNodeAtPointer(pos.rawX, pos.rawY);
+    setHoveredNodeId((prev) => (prev === hoverNodeId ? prev : hoverNodeId));
+
+    if (!dragNodeId) return;
+    const pointerOffset = dragPointerOffsetRef.current;
+    if (!pointerOffset) return;
     const nextLayout = {
-      x: Math.max(0, pos.x - 2),
-      y: Math.max(0, pos.y - 2)
+      x: Math.max(0, Math.round((pos.rawX - pointerOffset.x) / GRID)),
+      y: Math.max(0, Math.round((pos.rawY - pointerOffset.y) / GRID))
     };
     if (dragLastLayoutRef.current?.x === nextLayout.x && dragLastLayoutRef.current?.y === nextLayout.y) {
       return;
@@ -269,6 +315,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       }
     }
     dragLastLayoutRef.current = null;
+    dragPointerOffsetRef.current = null;
     setDragNodeId(null);
   };
 
@@ -346,10 +393,16 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           ref={canvasRef}
           width={1400}
           height={640}
+          style={{
+            cursor: dragNodeId ? MOVE_CURSOR_ACTIVE : hoveredNodeId ? MOVE_CURSOR : "default"
+          }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onPointerLeave={onPointerUp}
+          onPointerLeave={(event) => {
+            onPointerUp(event);
+            setHoveredNodeId(null);
+          }}
         />
 
         <aside className="patch-inspector">
