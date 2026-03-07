@@ -140,6 +140,7 @@ select {
 }
 
 .track-canvas-shell {
+  position: relative;
   background: rgba(9, 17, 26, 0.8);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -152,9 +153,119 @@ select {
   display: block;
 }
 
-.instrument-pane {
-  display: grid;
-  grid-template-columns: 1fr;
+.track-header-overlays {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 170px;
+  pointer-events: none;
+}
+
+.track-patch-select {
+  position: absolute;
+  left: 10px;
+  width: 108px;
+  pointer-events: auto;
+  z-index: 2;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.3rem;
+}
+
+.instrument-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  background: rgba(9, 17, 26, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.8rem;
+}
+
+.instrument-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.instrument-toolbar-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.instrument-toolbar-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.instrument-toolbar-heading h3 {
+  margin: 0;
+}
+
+.instrument-source-badge {
+  padding: 0.16rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.instrument-source-badge.preset {
+  color: #ffd597;
+  border-color: #70563a;
+  background: rgba(112, 86, 58, 0.22);
+}
+
+.instrument-identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.instrument-name-input {
+  min-width: min(320px, 100%);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.instrument-title-id {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.instrument-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.instrument-toolbar-separator {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+}
+
+.instrument-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-left: 0.1rem;
+}
+
+.instrument-preview-label {
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.preview-pitch-button {
+  min-width: 62px;
 }
 
 .macro-panel {
@@ -174,6 +285,28 @@ select {
   gap: 0.5rem;
   align-items: center;
   margin-bottom: 0.4rem;
+}
+
+.macro-slider-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.macro-slider-wrap input[type="range"] {
+  width: 100%;
+}
+
+.macro-default-marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 60%;
+  border-radius: 999px;
+  background: rgba(255, 213, 151, 0.9);
+  box-shadow: 0 0 0 1px rgba(18, 30, 40, 0.9);
+  pointer-events: none;
 }
 
 .patch-editor {
@@ -308,7 +441,16 @@ kbd {
 .pitch-picker-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 0.5rem;
   margin-top: 0.6rem;
+}
+
+.patch-removal-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px 1fr;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.55rem;
 }
 
 .piano-shell {
@@ -417,6 +559,22 @@ kbd {
   }
 
   .param-row {
+    grid-template-columns: 1fr;
+  }
+
+  .instrument-toolbar {
+    align-items: flex-start;
+  }
+
+  .instrument-toolbar-actions {
+    margin-left: 0;
+  }
+
+  .instrument-toolbar-separator {
+    display: none;
+  }
+
+  .patch-removal-row {
     grid-template-columns: 1fr;
   }
 }

@@ -48,6 +48,7 @@ interface PatchEditorCanvasProps {
   patch: Patch;
   selectedNodeId?: string;
   validationIssues: PatchValidationIssue[];
+  structureLocked?: boolean;
   onSelectNode: (nodeId?: string) => void;
   onApplyOp: (op: PatchOp) => void;
 }
@@ -252,6 +253,9 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     const hitPort = getPortAtPointer(pos.rawX, pos.rawY);
 
     if (hitPort) {
+      if (props.structureLocked) {
+        return;
+      }
       if (hitPort.kind === "out") {
         setPendingFromPort(hitPort);
       } else if (hitPort.kind === "in" && pendingFromPort) {
@@ -321,7 +325,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const selectedSchema = selectedNode ? getModuleSchema(selectedNode.typeId) : undefined;
 
   const bindMacro = (paramId: string) => {
-    if (!selectedNode || !selectedSchema) {
+    if (!selectedNode || !selectedSchema || props.structureLocked) {
       return;
     }
 
@@ -354,7 +358,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   return (
     <div className="patch-editor">
       <div className="patch-toolbar">
-        <select value={newNodeType} onChange={(e) => setNewNodeType(e.target.value)}>
+        <select value={newNodeType} disabled={props.structureLocked} onChange={(e) => setNewNodeType(e.target.value)}>
           {modulePalette.map((module) => (
             <option key={module.typeId} value={module.typeId}>
               {module.typeId}
@@ -362,7 +366,9 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           ))}
         </select>
         <button
+          disabled={props.structureLocked}
           onClick={() => {
+            if (props.structureLocked) return;
             const nodeId = createId("node");
             props.onApplyOp({
               type: "addNode",
@@ -376,11 +382,14 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           Add Module
         </button>
         <button
-          disabled={!props.selectedNodeId}
-          onClick={() => props.selectedNodeId && props.onApplyOp({ type: "removeNode", nodeId: props.selectedNodeId })}
+          disabled={!props.selectedNodeId || props.structureLocked}
+          onClick={() =>
+            props.selectedNodeId && !props.structureLocked && props.onApplyOp({ type: "removeNode", nodeId: props.selectedNodeId })
+          }
         >
           Delete Selected
         </button>
+        {props.structureLocked && <span className="muted">Preset structure is locked. Move nodes for clarity or edit macros.</span>}
         {pendingFromPort && <span className="muted">Select input port to complete connection.</span>}
       </div>
 
@@ -422,7 +431,9 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
                         max={param.range.max}
                         step={(param.range.max - param.range.min) / 500}
                         value={Number(value)}
+                        disabled={props.structureLocked}
                         onChange={(event) =>
+                          !props.structureLocked &&
                           props.onApplyOp({
                             type: "setParam",
                             nodeId: selectedNode.id,
@@ -435,7 +446,9 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
                     {param.type === "enum" && (
                       <select
                         value={String(value)}
+                        disabled={props.structureLocked}
                         onChange={(event) =>
+                          !props.structureLocked &&
                           props.onApplyOp({
                             type: "setParam",
                             nodeId: selectedNode.id,
@@ -455,7 +468,9 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
                       <input
                         type="checkbox"
                         checked={Boolean(value)}
+                        disabled={props.structureLocked}
                         onChange={(event) =>
+                          !props.structureLocked &&
                           props.onApplyOp({
                             type: "setParam",
                             nodeId: selectedNode.id,
@@ -465,7 +480,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
                         }
                       />
                     )}
-                    <button type="button" onClick={() => bindMacro(param.id)}>
+                    <button type="button" disabled={props.structureLocked} onClick={() => bindMacro(param.id)}>
                       Expose Macro
                     </button>
                   </label>
@@ -481,7 +496,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
               <code>
                 {connection.from.nodeId}.{connection.from.portId} {" -> "} {connection.to.nodeId}.{connection.to.portId}
               </code>
-              <button onClick={() => props.onApplyOp({ type: "disconnect", connectionId: connection.id })}>x</button>
+              <button disabled={props.structureLocked} onClick={() => !props.structureLocked && props.onApplyOp({ type: "disconnect", connectionId: connection.id })}>x</button>
             </div>
           ))}
 

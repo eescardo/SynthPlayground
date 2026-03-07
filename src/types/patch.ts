@@ -82,6 +82,7 @@ export interface MacroBinding {
 export interface PatchMacro {
   id: string;
   name: string;
+  defaultNormalized?: number;
   bindings: MacroBinding[];
 }
 
@@ -95,6 +96,9 @@ export interface Patch {
   schemaVersion: number;
   id: string;
   name: string;
+  meta: {
+    source: "preset" | "custom";
+  };
   nodes: PatchNode[];
   connections: PatchConnection[];
   ui: {

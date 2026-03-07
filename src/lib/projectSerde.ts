@@ -69,6 +69,7 @@ const sanitizePatchMacro = (raw: unknown, index: number): PatchMacro => {
   return {
     id: asString(macro.id, `macro_${index}`),
     name: asString(macro.name, `Macro ${index + 1}`),
+    defaultNormalized: clamp(asFiniteNumber(macro.defaultNormalized, 0.5), 0, 1),
     bindings: bindingsRaw.map((binding, bindingIndex) => {
       const item = isObject(binding) ? binding : {};
       return {
@@ -93,6 +94,13 @@ const sanitizePatch = (raw: unknown, index: number): Patch => {
     schemaVersion: Math.max(1, Math.floor(asFiniteNumber(patch.schemaVersion, 1))),
     id: asString(patch.id, `patch_${index}`),
     name: asString(patch.name, `Patch ${index + 1}`),
+    meta: {
+      source: patch.meta && isObject(patch.meta) && patch.meta.source === "preset"
+        ? "preset"
+        : asString(patch.id, "").startsWith("preset_")
+          ? "preset"
+          : "custom"
+    },
     nodes: (Array.isArray(patch.nodes) ? patch.nodes : []).map(sanitizePatchNode),
     connections: (Array.isArray(patch.connections) ? patch.connections : []).map(sanitizePatchConnection),
     ui: {
@@ -117,22 +125,15 @@ const sanitizePatch = (raw: unknown, index: number): Patch => {
 
 export const exportProjectToJson = (project: Project): string => JSON.stringify(project, null, 2);
 
-export const importProjectFromJson = (json: string): Project => {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(json);
-  } catch {
-    throw new Error("Invalid JSON");
+export const normalizeProject = (raw: unknown): Project => {
+  if (!isObject(raw)) {
+    throw new Error("Project root must be an object");
   }
 
-  if (!isObject(parsed)) {
-    throw new Error("Project JSON root must be an object");
-  }
-
-  const patchesRaw = Array.isArray(parsed.patches) ? parsed.patches : [];
+  const patchesRaw = Array.isArray(raw.patches) ? raw.patches : [];
   const patches = patchesRaw.map(sanitizePatch);
   if (patches.length === 0) {
-    throw new Error("Project JSON must include at least one patch");
+    throw new Error("Project must include at least one patch");
   }
 
   for (const patch of patches) {
@@ -142,14 +143,14 @@ export const importProjectFromJson = (json: string): Project => {
     }
   }
 
-  const globalRaw = isObject(parsed.global) ? parsed.global : {};
+  const globalRaw = isObject(raw.global) ? raw.global : {};
   const meter = globalRaw.meter === "3/4" ? "3/4" : "4/4";
   const gridBeats = asFiniteNumber(globalRaw.gridBeats, 0.25);
   const loopRaw = isObject(globalRaw.loop) ? globalRaw.loop : null;
 
   const patchIds = new Set(patches.map((patch) => patch.id));
   const fallbackPatchId = patches[0].id;
-  const tracksRaw = Array.isArray(parsed.tracks) ? parsed.tracks : [];
+  const tracksRaw = Array.isArray(raw.tracks) ? raw.tracks : [];
   const tracks = tracksRaw
     .map((entry, index) => {
       const track = isObject(entry) ? entry : {};
@@ -198,15 +199,15 @@ export const importProjectFromJson = (json: string): Project => {
     })
     .filter((track) => track.instrumentPatchId);
   if (tracks.length === 0) {
-    throw new Error("Project JSON must include at least one valid track");
+    throw new Error("Project must include at least one valid track");
   }
 
-  const masterFxRaw = isObject(parsed.masterFx) ? parsed.masterFx : {};
+  const masterFxRaw = isObject(raw.masterFx) ? raw.masterFx : {};
   const now = Date.now();
 
   return {
-    id: asString(parsed.id, `project_${now}`),
-    name: asString(parsed.name, "Imported Project"),
+    id: asString(raw.id, `project_${now}`),
+    name: asString(raw.name, "Imported Project"),
     global: {
       sampleRate: 48000,
       tempo: clamp(asFiniteNumber(globalRaw.tempo, 120), 20, 400),
@@ -227,7 +228,21 @@ export const importProjectFromJson = (json: string): Project => {
       limiterEnabled: masterFxRaw.limiterEnabled !== false,
       makeupGain: asFiniteNumber(masterFxRaw.makeupGain, 0)
     },
-    createdAt: asFiniteNumber(parsed.createdAt, now),
-    updatedAt: asFiniteNumber(parsed.updatedAt, now)
+    createdAt: asFiniteNumber(raw.createdAt, now),
+    updatedAt: asFiniteNumber(raw.updatedAt, now)
   };
+};
+
+export const importProjectFromJson = (json: string): Project => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    throw new Error("Invalid JSON");
+  }
+
+  if (!isObject(parsed)) {
+    throw new Error("Project JSON root must be an object");
+  }
+  return normalizeProject(parsed);
 };

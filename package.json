@@ -9,7 +9,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -p tsconfig.typecheck.json --noEmit",
     "build:wasm": "cd rust/dsp-core && wasm-pack build --target web --out-dir ../../public/wasm/pkg"
   },
   "dependencies": {

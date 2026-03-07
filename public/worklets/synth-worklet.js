@@ -956,6 +956,8 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
     this.trackRuntimes = [];
     this.eventQueue = [];
     this.playing = false;
+    this.previewing = false;
+    this.previewRemainingSamples = 0;
     this.sampleCounter = 0;
     this.songSampleCounter = 0;
     this.transportSessionId = 0;
@@ -1003,6 +1005,8 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
         break;
       case "TRANSPORT":
         this.playing = false;
+        this.previewing = false;
+        this.previewRemainingSamples = 0;
         this.transportSessionId = Number.isFinite(message.sessionId) ? message.sessionId : this.transportSessionId + 1;
         this.songSampleCounter = Math.max(0, message.songStartSample || 0);
         this.eventQueue.length = 0;
@@ -1017,6 +1021,24 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
           }
         }
         this.playing = Boolean(message.isPlaying);
+        break;
+      case "PREVIEW":
+        this.previewing = false;
+        this.playing = false;
+        this.songSampleCounter = 0;
+        this.eventQueue.length = 0;
+        if (Array.isArray(message.events)) {
+          this.enqueueEvents(message.events);
+        }
+        for (const track of this.trackRuntimes) {
+          for (const voice of track.voices) {
+            voice.active = false;
+            voice.host.gate = 0;
+            voice.rms = 0;
+          }
+        }
+        this.previewRemainingSamples = Math.max(0, message.durationSamples || 0);
+        this.previewing = this.previewRemainingSamples > 0;
         break;
       case "EVENTS":
         if (Number.isFinite(message.sessionId) && message.sessionId !== this.transportSessionId) {
@@ -1128,7 +1150,7 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
   renderFrameRange(left, right, startFrame, endFrame) {
     this.masterBuffer.fill(0, startFrame, endFrame);
 
-    if (this.playing) {
+    if (this.playing || this.previewing) {
       for (const track of this.trackRuntimes) {
         track.processTrackFrames(this.masterBuffer, startFrame, endFrame);
       }
@@ -1140,8 +1162,22 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
       const sample = this.masterBuffer[i];
       left[i] = sample;
       right[i] = sample;
-      if (this.playing) {
+      if (this.playing || this.previewing) {
         this.songSampleCounter += 1;
+      }
+      if (this.previewing) {
+        this.previewRemainingSamples -= 1;
+        if (this.previewRemainingSamples <= 0) {
+          this.previewing = false;
+          this.eventQueue.length = 0;
+          for (const track of this.trackRuntimes) {
+            for (const voice of track.voices) {
+              voice.active = false;
+              voice.host.gate = 0;
+              voice.rms = 0;
+            }
+          }
+        }
       }
       this.sampleCounter += 1;
     }
@@ -1160,7 +1196,7 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
       this.consumeDueEvents();
 
       let segmentEnd = left.length;
-      if (this.playing) {
+      if (this.playing || this.previewing) {
         const nextEventSample = this.nextPendingEventSample();
         if (Number.isFinite(nextEventSample) && nextEventSample > this.songSampleCounter) {
           const framesUntilEvent = Math.max(1, Math.floor(nextEventSample - this.songSampleCounter));

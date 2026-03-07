@@ -2,6 +2,7 @@
 
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
+import { createId } from "@/lib/ids";
 import { Project } from "@/types/music";
 import { SchedulerEvent } from "@/types/audio";
 
@@ -204,5 +205,44 @@ export class AudioEngine {
 
   setMacroValue(patchId: string, macroId: string, normalized: number): void {
     this.worklet?.port.postMessage({ type: "MACRO", patchId, macroId, normalized });
+  }
+
+  async previewNote(trackId: string, pitchVoct: number, durationBeats: number, velocity = 0.9): Promise<void> {
+    if (this.isPlaying || !this.project) {
+      return;
+    }
+
+    await this.ensureRunning();
+    if (!this.worklet) {
+      return;
+    }
+
+    const durationSamples = Math.max(1, beatToSample(durationBeats, FIXED_SAMPLE_RATE, this.project.global.tempo));
+    const previewId = createId("preview");
+    const events: SchedulerEvent[] = [
+      {
+        id: `${previewId}_on`,
+        type: "NoteOn",
+        sampleTime: 0,
+        trackId,
+        pitchVoct,
+        velocity,
+        noteId: previewId
+      },
+      {
+        id: `${previewId}_off`,
+        type: "NoteOff",
+        sampleTime: durationSamples,
+        trackId,
+        pitchVoct,
+        noteId: previewId
+      }
+    ];
+
+    this.worklet.port.postMessage({
+      type: "PREVIEW",
+      events,
+      durationSamples: durationSamples + BLOCK_SIZE
+    });
   }
 }

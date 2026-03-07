@@ -31,6 +31,7 @@ export const bassPatch = (): Patch => {
     schemaVersion: 1,
     id: patchId,
     name: "Bass",
+    meta: { source: "preset" },
     nodes: [
       {
         id: vcoId,
@@ -116,6 +117,7 @@ export const bassPatch = (): Patch => {
         {
           id: "macro_cutoff",
           name: "Cutoff",
+          defaultNormalized: 0.22,
           bindings: [
             {
               id: "b1",
@@ -130,6 +132,7 @@ export const bassPatch = (): Patch => {
         {
           id: "macro_decay",
           name: "Decay",
+          defaultNormalized: 0.2,
           bindings: [
             {
               id: "b2",
@@ -180,6 +183,7 @@ export const padPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_pad",
     name: "Pad",
+    meta: { source: "preset" },
     nodes: [
       {
         id: vco1,
@@ -223,11 +227,13 @@ export const padPatch = (): Patch => {
         {
           id: "macro_attack",
           name: "Attack",
+          defaultNormalized: 0.28,
           bindings: [{ id: "b1", nodeId: env, paramId: "attack", map: "linear", min: 0.02, max: 2.8 }]
         },
         {
           id: "macro_motion",
           name: "Motion",
+          defaultNormalized: 0.39,
           bindings: [{ id: "b2", nodeId: lfo, paramId: "freqHz", map: "exp", min: 0.05, max: 8 }]
         }
       ]
@@ -258,6 +264,7 @@ export const pluckPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_pluck",
     name: "Pluck",
+    meta: { source: "preset" },
     nodes: [
       { id: noise, typeId: "Noise", params: { ...createDefaultParamsForType("Noise"), gain: 0.65 } },
       {
@@ -288,11 +295,13 @@ export const pluckPatch = (): Patch => {
         {
           id: "macro_tone",
           name: "Tone",
+          defaultNormalized: 0.47,
           bindings: [{ id: "b1", nodeId: filter, paramId: "cutoffHz", map: "exp", min: 250, max: 8000 }]
         },
         {
           id: "macro_decay",
           name: "Decay",
+          defaultNormalized: 0.15,
           bindings: [{ id: "b2", nodeId: env, paramId: "decay", map: "linear", min: 0.05, max: 0.8 }]
         }
       ]
@@ -321,6 +330,7 @@ export const keysPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_keys",
     name: "Simple Piano-ish",
+    meta: { source: "preset" },
     nodes: [
       { id: vco, typeId: "VCO", params: { ...createDefaultParamsForType("VCO"), wave: "triangle" } },
       {
@@ -345,6 +355,7 @@ export const keysPatch = (): Patch => {
         {
           id: "macro_brightness",
           name: "Brightness",
+          defaultNormalized: 0.33,
           bindings: [{ id: "b1", nodeId: sat, paramId: "driveDb", map: "linear", min: 0, max: 18 }]
         }
       ]
@@ -374,6 +385,7 @@ export const brassPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_brass",
     name: "Brass-ish",
+    meta: { source: "preset" },
     nodes: [
       { id: vco, typeId: "VCO", params: { ...createDefaultParamsForType("VCO"), wave: "square", pulseWidth: 0.35 } },
       { id: lfo, typeId: "LFO", params: { ...createDefaultParamsForType("LFO"), freqHz: 5, bipolar: true } },
@@ -401,6 +413,7 @@ export const brassPatch = (): Patch => {
         {
           id: "macro_bite",
           name: "Bite",
+          defaultNormalized: 0.18,
           bindings: [{ id: "b1", nodeId: vcf, paramId: "resonance", map: "linear", min: 0.05, max: 0.9 }]
         }
       ]
@@ -430,6 +443,7 @@ export const drumPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_drum",
     name: "Drum-ish",
+    meta: { source: "preset" },
     nodes: [
       { id: noise, typeId: "Noise", params: { ...createDefaultParamsForType("Noise"), color: "white", gain: 0.9 } },
       {
@@ -453,6 +467,7 @@ export const drumPatch = (): Patch => {
         {
           id: "macro_body",
           name: "Body",
+          defaultNormalized: 0.5,
           bindings: [{ id: "b1", nodeId: sat, paramId: "mix", map: "linear", min: 0.2, max: 1 }]
         }
       ]
