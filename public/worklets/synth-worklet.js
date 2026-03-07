@@ -101,7 +101,9 @@ class TrackRuntime {
     this.track = track;
     this.patch = patch;
     this.sampleRate = sampleRate;
+    this.sampleRateInv = 1 / sampleRate;
     this.blockSize = blockSize;
+    this.zeroBuffer = new Float32Array(blockSize);
     this.compiled = this.compilePatch(patch);
     this.voices = new Array(MAX_VOICES).fill(0).map(() => new VoiceState(this.compiled.signalCount, blockSize));
     this.trackBuffer = new Float32Array(blockSize);
@@ -398,6 +400,10 @@ class TrackRuntime {
     return inputIndex >= 0 ? signalBuffers[inputIndex] : null;
   }
 
+  getInputBufferOr(signalBuffers, inputIndex, fallbackBuffer) {
+    return this.getInputBuffer(signalBuffers, inputIndex) || fallbackBuffer || this.zeroBuffer;
+  }
+
   getParamValue(nodeId, paramId, fallback) {
     const nodeParams = this.compiled.paramTargets.get(nodeId);
     return nodeParams && nodeParams.has(paramId) ? nodeParams.get(paramId) : fallback;
@@ -450,7 +456,10 @@ class TrackRuntime {
   processNodeFrames(voice, runtimeNode, signalBuffers, startFrame, endFrame) {
     const { id, typeId, params, outIndex, inputs } = runtimeNode;
     const out = signalBuffers[outIndex];
-    const read = (portId) => this.getInputBuffer(signalBuffers, inputs[portId] ?? -1);
+    const hostSignalIndices = this.compiled.hostSignalIndices;
+    const read = (portId, fallbackBuffer) => this.getInputBufferOr(signalBuffers, inputs[portId] ?? -1, fallbackBuffer);
+    const hostPitchBuffer = signalBuffers[hostSignalIndices.pitch];
+    const hostGateBuffer = signalBuffers[hostSignalIndices.gate];
 
     switch (typeId) {
       case "NotePitch":
@@ -471,7 +480,7 @@ class TrackRuntime {
 
       case "VCO": {
         const phaseState = voice.nodeState.get(id) || { phase: 0 };
-        const pitch = read("pitch");
+        const pitch = read("pitch", hostPitchBuffer);
         const fm = read("fm");
         const pwm = read("pwm");
         const wave = this.getParamValue(id, "wave", params.wave);
@@ -481,10 +490,10 @@ class TrackRuntime {
         const fineTuneParam = this.fillNumericParamBuffer(voice, id, typeId, "fineTuneCents", Number(params.fineTuneCents ?? 0), startFrame, endFrame);
 
         for (let i = startFrame; i < endFrame; i += 1) {
-          const pulseWidth = clamp(pulseWidthParam[i] + pwmAmountParam[i] * (pwm ? pwm[i] : 0), 0.05, 0.95);
+          const pulseWidth = clamp(pulseWidthParam[i] + pwmAmountParam[i] * pwm[i], 0.05, 0.95);
           const tuneVoct = (baseTuneParam[i] + fineTuneParam[i]) / 1200;
-          const hz = voctToHz((pitch ? pitch[i] : voice.host.pitchVoct) + (fm ? fm[i] : 0) + tuneVoct);
-          phaseState.phase = (phaseState.phase + hz / this.sampleRate) % 1;
+          const hz = voctToHz(pitch[i] + fm[i] + tuneVoct);
+          phaseState.phase = (phaseState.phase + hz * this.sampleRateInv) % 1;
           out[i] = waveformSample(wave, phaseState.phase, pulseWidth);
         }
         voice.nodeState.set(id, phaseState);
@@ -500,9 +509,9 @@ class TrackRuntime {
         const bipolar = Boolean(this.getParamValue(id, "bipolar", Boolean(params.bipolar ?? true)));
 
         for (let i = startFrame; i < endFrame; i += 1) {
-          const freq = clamp(freqParam[i] * Math.pow(2, fm ? fm[i] : 0), 0.01, 40);
+          const freq = clamp(freqParam[i] * Math.pow(2, fm[i]), 0.01, 40);
           const pulseWidth = pulseWidthParam[i];
-          state.phase = (state.phase + freq / this.sampleRate) % 1;
+          state.phase = (state.phase + freq * this.sampleRateInv) % 1;
           let sample = waveformSample(wave, state.phase, pulseWidth);
           if (!bipolar) {
             sample = sample * 0.5 + 0.5;
@@ -514,7 +523,7 @@ class TrackRuntime {
       }
 
       case "ADSR": {
-        const gate = read("gate");
+        const gate = read("gate", hostGateBuffer);
         const attackParam = this.fillNumericParamBuffer(voice, id, typeId, "attack", Number(params.attack ?? 0.01), startFrame, endFrame);
         const decayParam = this.fillNumericParamBuffer(voice, id, typeId, "decay", Number(params.decay ?? 0.2), startFrame, endFrame);
         const sustainParam = this.fillNumericParamBuffer(voice, id, typeId, "sustain", Number(params.sustain ?? 0.7), startFrame, endFrame);
@@ -523,7 +532,7 @@ class TrackRuntime {
         const state = voice.nodeState.get(id) || { stage: "idle", level: 0, lastGate: 0 };
 
         for (let i = startFrame; i < endFrame; i += 1) {
-          const gateValue = gate ? gate[i] : voice.host.gate;
+          const gateValue = gate[i];
           const attack = Math.max(0.0001, attackParam[i]);
           const decay = Math.max(0.0001, decayParam[i]);
           const sustain = clamp(sustainParam[i], 0, 1);
@@ -574,10 +583,10 @@ class TrackRuntime {
         const gainParam = this.fillNumericParamBuffer(voice, id, typeId, "gain", Number(params.gain ?? 1), startFrame, endFrame);
 
         for (let i = startFrame; i < endFrame; i += 1) {
-          const gainCvValue = gainCv ? gainCv[i] : 1;
+          const gainCvValue = gainCv[i];
           const gainCvNorm = gainCvValue >= 0 && gainCvValue <= 1 ? gainCvValue : gainCvValue * 0.5 + 0.5;
           const gainEff = clamp(biasParam[i] + gainParam[i] * gainCvNorm, 0, 1);
-          out[i] = (input ? input[i] : 0) * gainEff;
+          out[i] = input[i] * gainEff;
         }
         return;
       }
@@ -593,13 +602,13 @@ class TrackRuntime {
 
         for (let i = startFrame; i < endFrame; i += 1) {
           const cutoffEffective = clamp(
-            cutoffHzParam[i] * Math.pow(2, (cutoffCv ? cutoffCv[i] : 0) * cutoffModParam[i]),
+            cutoffHzParam[i] * Math.pow(2, cutoffCv[i] * cutoffModParam[i]),
             20,
             20000
           );
           const resonance = clamp(resonanceParam[i], 0, 1);
           const f = clamp((2 * Math.PI * cutoffEffective) / this.sampleRate, 0.001, 0.99);
-          const hp = (input ? input[i] : 0) - state.lp - resonance * state.bp;
+          const hp = input[i] - state.lp - resonance * state.bp;
           state.bp += f * hp;
           state.lp += f * state.bp;
 
@@ -627,10 +636,10 @@ class TrackRuntime {
 
         for (let i = startFrame; i < endFrame; i += 1) {
           out[i] =
-            (in1 ? in1[i] : 0) * gain1Param[i] +
-            (in2 ? in2[i] : 0) * gain2Param[i] +
-            (in3 ? in3[i] : 0) * gain3Param[i] +
-            (in4 ? in4[i] : 0) * gain4Param[i];
+            in1[i] * gain1Param[i] +
+            in2[i] * gain2Param[i] +
+            in3[i] * gain3Param[i] +
+            in4[i] * gain4Param[i];
         }
         return;
       }
@@ -673,7 +682,7 @@ class TrackRuntime {
           const delayed = state.buf[readIdx];
           const feedback = clamp(feedbackParam[i], 0, 0.95);
           const mix = clamp(mixParam[i], 0, 1);
-          const inputSample = input ? input[i] : 0;
+          const inputSample = input[i];
 
           state.buf[state.write] = inputSample + delayed * feedback;
           state.write = (state.write + 1) % state.buf.length;
@@ -704,7 +713,7 @@ class TrackRuntime {
           const fb = clamp(0.2 + size * 0.7, 0, 0.95) * clamp(decay / 10, 0, 1);
           const c1 = state.c1[state.i1];
           const c2 = state.c2[state.i2];
-          const inputSample = input ? input[i] : 0;
+          const inputSample = input[i];
 
           state.c1[state.i1] = inputSample + (c1 * fb - c1 * damping * 0.05);
           state.c2[state.i2] = inputSample + (c2 * fb - c2 * damping * 0.05);
@@ -723,7 +732,7 @@ class TrackRuntime {
         const mode = this.getParamValue(id, "type", params.type || "tanh");
 
         for (let i = startFrame; i < endFrame; i += 1) {
-          const inputSample = input ? input[i] : 0;
+          const inputSample = input[i];
           const driven = inputSample * dbToGain(driveDbParam[i]);
           let wet = Math.tanh(driven);
           if (mode === "softclip") {
@@ -745,7 +754,7 @@ class TrackRuntime {
         const state = voice.nodeState.get(id) || { toneLp: 0 };
 
         for (let i = startFrame; i < endFrame; i += 1) {
-          const inputSample = input ? input[i] : 0;
+          const inputSample = input[i];
           let driven = inputSample * dbToGain(gainDbParam[i]);
           if (mode === "fuzz") {
             driven = clamp(driven, -1, 1);
@@ -773,7 +782,7 @@ class TrackRuntime {
         const state = voice.nodeState.get(id) || { env: 0 };
 
         for (let i = startFrame; i < endFrame; i += 1) {
-          const inputSample = input ? input[i] : 0;
+          const inputSample = input[i];
           const absIn = Math.abs(inputSample);
           const att = smoothingAlpha(Math.max(0.1, attackMsParam[i]), this.sampleRate);
           const rel = smoothingAlpha(Math.max(1, releaseMsParam[i]), this.sampleRate);
@@ -798,7 +807,7 @@ class TrackRuntime {
         const limiter = Boolean(this.getParamValue(id, "limiter", params.limiter ?? true));
 
         for (let i = startFrame; i < endFrame; i += 1) {
-          let sample = (input ? input[i] : 0) * dbToGain(gainDbParam[i]);
+          let sample = input[i] * dbToGain(gainDbParam[i]);
           if (limiter) {
             sample = Math.tanh(sample);
           }
@@ -809,11 +818,7 @@ class TrackRuntime {
 
       default: {
         const input = read("in");
-        if (input) {
-          out.set(input.subarray(startFrame, endFrame), startFrame);
-        } else {
-          out.fill(0, startFrame, endFrame);
-        }
+        out.set(input.subarray(startFrame, endFrame), startFrame);
       }
     }
   }
