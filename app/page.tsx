@@ -13,6 +13,7 @@ import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } fr
 import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { createDefaultProject } from "@/lib/patch/presets";
+import { resolvePatchSource } from "@/lib/patch/source";
 import { importProjectFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
 import { snapToGrid } from "@/lib/musicTiming";
@@ -406,7 +407,7 @@ export default function HomePage() {
 
   const applyPatchOp = (op: PatchOp) => {
     if (!selectedPatch) return;
-    if (selectedPatch.meta.source === "preset" && op.type !== "moveNode") {
+    if (resolvePatchSource(selectedPatch) === "preset" && op.type !== "moveNode") {
       return;
     }
 
@@ -664,7 +665,7 @@ export default function HomePage() {
   };
 
   const requestRemoveSelectedPatch = useCallback(() => {
-    if (!selectedPatch || selectedPatch.meta.source !== "custom") {
+    if (!selectedPatch || resolvePatchSource(selectedPatch) !== "custom") {
       return;
     }
     const affectedTracks = project.tracks.filter((track) => track.instrumentPatchId === selectedPatch.id);

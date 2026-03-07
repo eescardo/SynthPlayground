@@ -2,6 +2,7 @@
 
 import { MacroPanel } from "@/components/MacroPanel";
 import { PatchEditorCanvas } from "@/components/PatchEditorCanvas";
+import { resolvePatchSource } from "@/lib/patch/source";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 
@@ -24,7 +25,7 @@ interface InstrumentEditorProps {
 }
 
 export function InstrumentEditor(props: InstrumentEditorProps) {
-  const patchSource = props.patch.meta?.source ?? (props.patch.id.startsWith("preset_") ? "preset" : "custom");
+  const patchSource = resolvePatchSource(props.patch);
   const structureLocked = patchSource === "preset";
 
   return (

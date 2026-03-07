@@ -1,4 +1,5 @@
 import { createId } from "@/lib/ids";
+import { resolvePatchSource } from "@/lib/patch/source";
 import { validatePatch } from "@/lib/patch/validation";
 import { Project, TrackFxSettings } from "@/types/music";
 import { Patch, PatchConnection, PatchMacro, PatchNode } from "@/types/patch";
@@ -95,11 +96,10 @@ const sanitizePatch = (raw: unknown, index: number): Patch => {
     id: asString(patch.id, `patch_${index}`),
     name: asString(patch.name, `Patch ${index + 1}`),
     meta: {
-      source: patch.meta && isObject(patch.meta) && patch.meta.source === "preset"
-        ? "preset"
-        : asString(patch.id, "").startsWith("preset_")
-          ? "preset"
-          : "custom"
+      source: resolvePatchSource({
+        id: asString(patch.id, `patch_${index}`),
+        meta: isObject(patch.meta) ? { source: patch.meta.source === "preset" || patch.meta.source === "custom" ? patch.meta.source : undefined } : undefined
+      })
     },
     nodes: (Array.isArray(patch.nodes) ? patch.nodes : []).map(sanitizePatchNode),
     connections: (Array.isArray(patch.connections) ? patch.connections : []).map(sanitizePatchConnection),
