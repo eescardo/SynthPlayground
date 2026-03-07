@@ -56,6 +56,12 @@ export interface WorkletMacroMessage {
   normalized: number;
 }
 
+export interface WorkletPreviewMessage {
+  type: "PREVIEW";
+  events: SchedulerEvent[];
+  durationSamples: number;
+}
+
 export interface WorkletTransportMessage {
   type: "TRANSPORT";
   isPlaying: boolean;
@@ -69,4 +75,5 @@ export type WorkletInboundMessage =
   | WorkletSetProjectMessage
   | WorkletEventsMessage
   | WorkletMacroMessage
+  | WorkletPreviewMessage
   | WorkletTransportMessage;

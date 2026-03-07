@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AudioEngine } from "@/audio/engine";
 import { loadDspWasm } from "@/audio/wasmBridge";
-import { MacroPanel } from "@/components/MacroPanel";
-import { PatchEditorCanvas } from "@/components/PatchEditorCanvas";
+import { InstrumentEditor } from "@/components/InstrumentEditor";
 import { PianoKeyboard } from "@/components/PianoKeyboard";
 import { TrackCanvas } from "@/components/TrackCanvas";
 import { TransportBar } from "@/components/TransportBar";
@@ -14,8 +13,9 @@ import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } fr
 import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { createDefaultProject } from "@/lib/patch/presets";
-import { importProjectFromJson, exportProjectToJson } from "@/lib/projectSerde";
-import { keyToPitch } from "@/lib/pitch";
+import { resolvePatchSource } from "@/lib/patch/source";
+import { importProjectFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
+import { keyToPitch, pitchToVoct } from "@/lib/pitch";
 import { snapToGrid } from "@/lib/musicTiming";
 import { Project, Note } from "@/types/music";
 import { PatchValidationIssue, Patch } from "@/types/patch";
@@ -30,6 +30,30 @@ const notesOverlap = (a: Note, b: Note): boolean => {
 
 const hasOverlapWithOthers = (candidate: Note, notes: Note[]): boolean =>
   notes.some((other) => other.id !== candidate.id && notesOverlap(candidate, other));
+
+const isAudiblePatchOp = (op: PatchOp): boolean =>
+  op.type !== "moveNode" && op.type !== "addMacro" && op.type !== "removeMacro" && op.type !== "bindMacro" && op.type !== "unbindMacro" && op.type !== "renameMacro";
+
+function usePitchPickerHotkeys(enabled: boolean, onSelectPitch: (pitch: string) => void) {
+  useEffect(() => {
+    if (!enabled) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const editingText = target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA");
+      if (editingText) return;
+
+      const pitch = keyToPitch(event.key);
+      if (!pitch) return;
+
+      event.preventDefault();
+      onSelectPitch(pitch);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [enabled, onSelectPitch]);
+}
 
 export default function HomePage() {
   const [projectHistory, setProjectHistory] = useState<HistoryState<Project>>(() => createHistory(createDefaultProject()));
@@ -46,6 +70,13 @@ export default function HomePage() {
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [strictWasmReady, setStrictWasmReady] = useState(process.env.NEXT_PUBLIC_STRICT_WASM !== "1");
   const [pitchPicker, setPitchPicker] = useState<{ trackId: string; noteId: string } | null>(null);
+  const [previewPitch, setPreviewPitch] = useState("C4");
+  const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
+  const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
+  const [patchRemovalDialog, setPatchRemovalDialog] = useState<{
+    patchId: string;
+    rows: Array<{ trackId: string; mode: "fallback" | "remove"; fallbackPatchId: string }>;
+  } | null>(null);
 
   const activeRecordKeys = useRef<Map<string, { noteId: string; startBeat: number; trackId: string }>>(new Map());
   const audioEngineRef = useRef<AudioEngine | null>(null);
@@ -56,7 +87,12 @@ export default function HomePage() {
   useEffect(() => {
     const boot = async () => {
       const saved = await loadProject();
-      const loadedProject = saved ?? createDefaultProject();
+      const loadedProject = saved ? normalizeProject(saved) : createDefaultProject();
+      if (saved) {
+        saveProject(loadedProject).catch(() => {
+          // ignore migration save failures
+        });
+      }
       setProjectHistory(createHistory(loadedProject));
       setSelectedTrackId(loadedProject.tracks[0]?.id);
       setReady(true);
@@ -131,6 +167,20 @@ export default function HomePage() {
     }
     audioEngineRef.current.setProject(project, { syncToWorklet: !playing });
   }, [playing, project, ready]);
+
+  useEffect(() => {
+    if (!ready || !pendingPreview || playing || !selectedTrack) {
+      return;
+    }
+    if (selectedTrack.instrumentPatchId !== pendingPreview.patchId) {
+      setPendingPreview(null);
+      return;
+    }
+    audioEngineRef.current
+      ?.previewNote(selectedTrack.id, pitchToVoct(previewPitch), 1)
+      .catch((error) => setRuntimeError((error as Error).message));
+    setPendingPreview(null);
+  }, [pendingPreview, playing, previewPitch, ready, selectedTrack]);
 
   useEffect(() => {
     if (!ready || process.env.NEXT_PUBLIC_STRICT_WASM !== "1") return;
@@ -307,8 +357,59 @@ export default function HomePage() {
     setPitchPicker(null);
   }, []);
 
+  const schedulePatchPreview = useCallback((patchId: string) => {
+    setPendingPreview({ patchId, nonce: Date.now() });
+  }, []);
+
+  const previewSelectedPatchNow = useCallback((pitch = previewPitch) => {
+    if (!selectedPatch || !selectedTrack || playing) {
+      return;
+    }
+    audioEngineRef.current
+      ?.previewNote(selectedTrack.id, pitchToVoct(pitch), 1)
+      .catch((error) => setRuntimeError((error as Error).message));
+  }, [playing, previewPitch, selectedPatch, selectedTrack]);
+
+  const applyMacroToSelectedPatch = useCallback((macroId: string, normalized: number, options?: { actionKey?: string; coalesce?: boolean }) => {
+    if (!selectedPatch) return;
+
+    setMacroValues((prev) => ({ ...prev, [macroId]: normalized }));
+    audioEngineRef.current?.setMacroValue(selectedPatch.id, macroId, normalized);
+
+    const macro = selectedPatch.ui.macros.find((entry) => entry.id === macroId);
+    if (!macro) return;
+
+    commitProjectChange(
+      (current) => {
+        const nextPatches = current.patches.map((patch) => {
+          if (patch.id !== selectedPatch.id) return patch;
+
+          const cloned = structuredClone(patch);
+          for (const binding of macro.bindings) {
+            const node = cloned.nodes.find((entry) => entry.id === binding.nodeId);
+            if (!node) continue;
+
+            const mapped =
+              binding.map === "exp"
+                ? Math.max(binding.min, 0.000001) * Math.pow(binding.max / Math.max(binding.min, 0.000001), normalized)
+                : binding.min + (binding.max - binding.min) * normalized;
+
+            node.params[binding.paramId] = mapped;
+          }
+
+          return cloned;
+        });
+        return { ...current, patches: nextPatches };
+      },
+      options
+    );
+  }, [commitProjectChange, selectedPatch]);
+
   const applyPatchOp = (op: PatchOp) => {
     if (!selectedPatch) return;
+    if (resolvePatchSource(selectedPatch) === "preset" && op.type !== "moveNode") {
+      return;
+    }
 
     let nextPatch: Patch;
     try {
@@ -338,42 +439,46 @@ export default function HomePage() {
         coalesce: op.type === "moveNode"
       }
     );
+    if (isAudiblePatchOp(op)) {
+      schedulePatchPreview(selectedPatch.id);
+    }
   };
 
   const handleMacroChange = (macroId: string, normalized: number) => {
-    setMacroValues((prev) => ({ ...prev, [macroId]: normalized }));
     if (!selectedPatch) return;
-
-    audioEngineRef.current?.setMacroValue(selectedPatch.id, macroId, normalized);
-
-    const macro = selectedPatch.ui.macros.find((entry) => entry.id === macroId);
-    if (!macro) return;
-
-    commitProjectChange(
-      (current) => {
-        const nextPatches = current.patches.map((patch) => {
-          if (patch.id !== selectedPatch.id) return patch;
-
-          const cloned = structuredClone(patch);
-          for (const binding of macro.bindings) {
-            const node = cloned.nodes.find((entry) => entry.id === binding.nodeId);
-            if (!node) continue;
-
-            const mapped =
-              binding.map === "exp"
-                ? Math.max(binding.min, 0.000001) * Math.pow(binding.max / Math.max(binding.min, 0.000001), normalized)
-                : binding.min + (binding.max - binding.min) * normalized;
-
-            node.params[binding.paramId] = mapped;
-          }
-
-          return cloned;
-        });
-        return { ...current, patches: nextPatches };
-      },
-      { actionKey: `patch:${selectedPatch.id}:macro:${macroId}`, coalesce: true }
-    );
+    applyMacroToSelectedPatch(macroId, normalized, { actionKey: `patch:${selectedPatch.id}:macro:${macroId}`, coalesce: true });
   };
+
+  const handleMacroCommit = () => {
+    if (!selectedPatch) return;
+    schedulePatchPreview(selectedPatch.id);
+  };
+
+  const resetSelectedPatchMacros = useCallback(() => {
+    if (!selectedPatch) {
+      return;
+    }
+
+    for (const macro of selectedPatch.ui.macros) {
+      applyMacroToSelectedPatch(
+        macro.id,
+        macro.defaultNormalized ?? 0.5,
+        { actionKey: `patch:${selectedPatch.id}:macro-reset`, coalesce: true }
+      );
+    }
+    schedulePatchPreview(selectedPatch.id);
+  }, [applyMacroToSelectedPatch, schedulePatchPreview, selectedPatch]);
+
+  const renameSelectedPatch = useCallback((name: string) => {
+    if (!selectedPatch) return;
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        patches: current.patches.map((patch) => (patch.id === selectedPatch.id ? { ...patch, name } : patch))
+      }),
+      { actionKey: `patch:${selectedPatch.id}:rename`, coalesce: true }
+    );
+  }, [commitProjectChange, selectedPatch]);
 
   const undoProject = useCallback(() => {
     setProjectHistory((prev) => undoHistory(prev));
@@ -385,7 +490,7 @@ export default function HomePage() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (pitchPicker) return;
+      if (pitchPicker || previewPitchPickerOpen) return;
       if (!recordEnabled || !selectedTrack) return;
       const target = event.target as HTMLElement | null;
       if (target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA")) {
@@ -434,7 +539,7 @@ export default function HomePage() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [pitchPicker, playheadBeat, project.global.gridBeats, recordEnabled, selectedTrack, updateNote, upsertNote]);
+  }, [pitchPicker, playheadBeat, previewPitchPickerOpen, project.global.gridBeats, recordEnabled, selectedTrack, updateNote, upsertNote]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -450,6 +555,8 @@ export default function HomePage() {
       if (event.key === "Escape") {
         setHelpOpen(false);
         setPitchPicker(null);
+        setPreviewPitchPickerOpen(false);
+        setPatchRemovalDialog(null);
       }
 
       const isUndo = (event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "z";
@@ -473,27 +580,19 @@ export default function HomePage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [redoProject, undoProject]);
 
-  useEffect(() => {
+  usePitchPickerHotkeys(Boolean(pitchPicker), useCallback((pitch: string) => {
     if (!pitchPicker) return;
+    updateNote(pitchPicker.trackId, pitchPicker.noteId, { pitchStr: pitch }, {
+      actionKey: `track:${pitchPicker.trackId}:pitch:${pitchPicker.noteId}`
+    });
+    closePitchPicker();
+  }, [closePitchPicker, pitchPicker, updateNote]));
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const editingText = target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA");
-      if (editingText) return;
-
-      const pitch = keyToPitch(event.key);
-      if (!pitch) return;
-
-      event.preventDefault();
-      updateNote(pitchPicker.trackId, pitchPicker.noteId, { pitchStr: pitch }, {
-        actionKey: `track:${pitchPicker.trackId}:pitch:${pitchPicker.noteId}`
-      });
-      closePitchPicker();
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [closePitchPicker, pitchPicker, updateNote]);
+  usePitchPickerHotkeys(previewPitchPickerOpen, useCallback((pitch: string) => {
+    setPreviewPitch(pitch);
+    setPreviewPitchPickerOpen(false);
+    previewSelectedPatchNow(pitch);
+  }, [previewSelectedPatchNow]));
 
   const exportJson = () => {
     const payload = exportProjectToJson(project);
@@ -554,6 +653,7 @@ export default function HomePage() {
     const duplicate = structuredClone(selectedPatch);
     duplicate.id = createId("patch");
     duplicate.name = `${selectedPatch.name} Copy`;
+    duplicate.meta = { source: "custom" };
 
     commitProjectChange((current) => ({
       ...current,
@@ -563,6 +663,70 @@ export default function HomePage() {
       )
     }), { actionKey: `patch:duplicate:${duplicate.id}` });
   };
+
+  const requestRemoveSelectedPatch = useCallback(() => {
+    if (!selectedPatch || resolvePatchSource(selectedPatch) !== "custom") {
+      return;
+    }
+    const affectedTracks = project.tracks.filter((track) => track.instrumentPatchId === selectedPatch.id);
+    const fallbackPatchId = project.patches.find((patch) => patch.id !== selectedPatch.id)?.id ?? "";
+    setPatchRemovalDialog({
+      patchId: selectedPatch.id,
+      rows: affectedTracks.map((track) => ({
+        trackId: track.id,
+        mode: fallbackPatchId ? "fallback" : "remove",
+        fallbackPatchId
+      }))
+    });
+  }, [project.patches, project.tracks, selectedPatch]);
+
+  const confirmRemovePatch = useCallback(() => {
+    if (!patchRemovalDialog) {
+      return;
+    }
+
+    const nextTrackIds = new Set(project.tracks.map((track) => track.id));
+    for (const row of patchRemovalDialog.rows) {
+      if (row.mode === "remove") {
+        nextTrackIds.delete(row.trackId);
+        continue;
+      }
+      if (!row.fallbackPatchId || row.fallbackPatchId === patchRemovalDialog.patchId) {
+        return;
+      }
+    }
+    if (nextTrackIds.size === 0) {
+      setRuntimeError("At least one track must remain in the project.");
+      return;
+    }
+
+    commitProjectChange((current) => {
+      const rowsByTrackId = new Map(patchRemovalDialog.rows.map((row) => [row.trackId, row] as const));
+      const tracks = current.tracks
+        .flatMap((track) => {
+          if (track.instrumentPatchId !== patchRemovalDialog.patchId) {
+            return [track];
+          }
+          const row = rowsByTrackId.get(track.id);
+          if (!row || row.mode === "remove") {
+            return [];
+          }
+          return [{ ...track, instrumentPatchId: row.fallbackPatchId }];
+        });
+
+      return {
+        ...current,
+        tracks,
+        patches: current.patches.filter((patch) => patch.id !== patchRemovalDialog.patchId)
+      };
+    }, { actionKey: `patch:${patchRemovalDialog.patchId}:remove` });
+
+    const survivingSelectedTrack =
+      selectedTrackId && nextTrackIds.has(selectedTrackId) ? selectedTrackId : project.tracks.find((track) => nextTrackIds.has(track.id))?.id;
+    setSelectedTrackId(survivingSelectedTrack);
+    setPatchRemovalDialog(null);
+    setSelectedNodeId(undefined);
+  }, [commitProjectChange, patchRemovalDialog, project.tracks, selectedTrackId]);
 
   const updateTrackPatch = (trackId: string, patchId: string) => {
     commitProjectChange((current) => ({
@@ -610,8 +774,7 @@ export default function HomePage() {
 
       <section className="top-actions">
         <button onClick={addTrack}>Add Track</button>
-        <button onClick={duplicatePatchForSelectedTrack}>Duplicate Instrument Patch</button>
-              <button onClick={() => setHelpOpen(true)}>Help (?)</button>
+        <button onClick={() => setHelpOpen(true)}>Help (?)</button>
         <button onClick={exportJson}>Export Project JSON</button>
         <button onClick={() => importInputRef.current?.click()}>Import Project JSON</button>
         <button
@@ -642,25 +805,6 @@ export default function HomePage() {
 
       {runtimeError && <p className="error">{runtimeError}</p>}
 
-      <section className="track-settings">
-        {project.tracks.map((track) => {
-          const patch = project.patches.find((entry) => entry.id === track.instrumentPatchId);
-          return (
-            <label key={track.id} className={track.id === selectedTrack.id ? "track-row active" : "track-row"}>
-              <span onClick={() => setSelectedTrackId(track.id)}>{track.name}</span>
-              <select value={track.instrumentPatchId} onChange={(e) => updateTrackPatch(track.id, e.target.value)}>
-                {project.patches.map((patchOption) => (
-                  <option key={patchOption.id} value={patchOption.id}>
-                    {patchOption.name}
-                  </option>
-                ))}
-              </select>
-              <small>{patch?.id}</small>
-            </label>
-          );
-        })}
-      </section>
-
       <TrackCanvas
         project={project}
         selectedTrackId={selectedTrack.id}
@@ -668,20 +812,27 @@ export default function HomePage() {
         onSetPlayheadBeat={setPlayheadFromUser}
         onSelectTrack={setSelectedTrackId}
         onToggleTrackMute={toggleTrackMute}
+        onUpdateTrackPatch={updateTrackPatch}
         onOpenPitchPicker={openPitchPicker}
         onUpsertNote={upsertNote}
         onUpdateNote={updateNote}
         onDeleteNote={deleteNote}
       />
 
-      <section className="instrument-pane">
-        <MacroPanel patch={selectedPatch} macroValues={macroValues} onMacroChange={handleMacroChange} />
-      </section>
-
-      <PatchEditorCanvas
+      <InstrumentEditor
         patch={selectedPatch}
+        macroValues={macroValues}
+        previewPitch={previewPitch}
         selectedNodeId={selectedNodeId}
         validationIssues={validationIssues}
+        onRenamePatch={renameSelectedPatch}
+        onDuplicatePatch={duplicatePatchForSelectedTrack}
+        onResetMacros={resetSelectedPatchMacros}
+        onRequestRemovePatch={requestRemoveSelectedPatch}
+        onOpenPreviewPitchPicker={() => setPreviewPitchPickerOpen(true)}
+        onPreviewNow={() => previewSelectedPatchNow()}
+        onMacroChange={handleMacroChange}
+        onMacroCommit={handleMacroCommit}
         onSelectNode={setSelectedNodeId}
         onApplyOp={applyPatchOp}
       />
@@ -734,6 +885,98 @@ export default function HomePage() {
             <div className="pitch-picker-actions">
               <button type="button" onClick={closePitchPicker}>
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {previewPitchPickerOpen && (
+        <div className="help-modal-backdrop" role="dialog" aria-modal="true" onClick={() => setPreviewPitchPickerOpen(false)}>
+          <div className="help-modal pitch-picker-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>Preview Pitch</h3>
+            <p className="muted">Select the pitch used for auto-preview when an instrument sound changes.</p>
+            <PianoKeyboard
+              minPitch="C1"
+              maxPitch="C7"
+              selectedPitch={previewPitch}
+              onSelectPitch={(pitch) => {
+                setPreviewPitch(pitch);
+                setPreviewPitchPickerOpen(false);
+                previewSelectedPatchNow(pitch);
+              }}
+            />
+            <div className="pitch-picker-actions">
+              <button type="button" onClick={() => setPreviewPitchPickerOpen(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {patchRemovalDialog && (
+        <div className="help-modal-backdrop" role="dialog" aria-modal="true" onClick={() => setPatchRemovalDialog(null)}>
+          <div className="help-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>Remove Instrument</h3>
+            <p className="muted">Choose how tracks using this custom instrument should be handled before removal.</p>
+            {patchRemovalDialog.rows.length === 0 && <p>No tracks currently use this instrument.</p>}
+            {patchRemovalDialog.rows.map((row) => {
+              const track = project.tracks.find((entry) => entry.id === row.trackId);
+              return (
+                <div key={row.trackId} className="patch-removal-row">
+                  <strong>{track?.name ?? row.trackId}</strong>
+                  <select
+                    value={row.mode}
+                    onChange={(event) =>
+                      setPatchRemovalDialog((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              rows: prev.rows.map((entry) =>
+                                entry.trackId === row.trackId ? { ...entry, mode: event.target.value as "fallback" | "remove" } : entry
+                              )
+                            }
+                          : prev
+                      )
+                    }
+                  >
+                    <option value="fallback">Fallback to instrument</option>
+                    <option value="remove">Remove track</option>
+                  </select>
+                  <select
+                    value={row.fallbackPatchId}
+                    disabled={row.mode !== "fallback"}
+                    onChange={(event) =>
+                      setPatchRemovalDialog((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              rows: prev.rows.map((entry) =>
+                                entry.trackId === row.trackId ? { ...entry, fallbackPatchId: event.target.value } : entry
+                              )
+                            }
+                          : prev
+                      )
+                    }
+                  >
+                    {project.patches
+                      .filter((patch) => patch.id !== patchRemovalDialog.patchId)
+                      .map((patch) => (
+                        <option key={patch.id} value={patch.id}>
+                          {patch.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              );
+            })}
+            <div className="pitch-picker-actions">
+              <button type="button" onClick={() => setPatchRemovalDialog(null)}>
+                Cancel
+              </button>
+              <button type="button" onClick={confirmRemovePatch}>
+                Remove Instrument
               </button>
             </div>
           </div>

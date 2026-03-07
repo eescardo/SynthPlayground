@@ -27,6 +27,7 @@ interface TrackCanvasProps {
   onSetPlayheadBeat: (beat: number) => void;
   onSelectTrack: (trackId: string) => void;
   onToggleTrackMute: (trackId: string) => void;
+  onUpdateTrackPatch: (trackId: string, patchId: string) => void;
   onOpenPitchPicker: (trackId: string, noteId: string) => void;
   onUpsertNote: (trackId: string, note: Note, options?: { actionKey?: string; coalesce?: boolean }) => void;
   onUpdateNote: (trackId: string, noteId: string, patch: Partial<Note>, options?: { actionKey?: string; coalesce?: boolean }) => void;
@@ -171,7 +172,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
     const COLOR_ROW_SEPARATOR = "#1a2e42";
     const COLOR_SELECTED_TRACK_OVERLAY = "rgba(33, 112, 210, 0.2)";
     const COLOR_TRACK_NAME = "#d4e4ff";
-    const COLOR_TRACK_PATCH = "#85a6ce";
     const COLOR_NOTE = "#2d8cff";
     const COLOR_NOTE_MUTED = "#405f83";
     const COLOR_NOTE_OVERLAP = "#dc4a4a";
@@ -239,10 +239,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
       ctx.fillStyle = COLOR_TRACK_NAME;
       ctx.font = "13px 'Trebuchet MS', 'Segoe UI', sans-serif";
       ctx.fillText(track.name, 12, y + 24);
-      ctx.fillStyle = COLOR_TRACK_PATCH;
-      ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
-      ctx.fillText(track.instrumentPatchId.replace("preset_", ""), 12, y + 42);
-
       const muteX = 126;
       const muteY = y + 29;
       const speakerIcon = track.mute ? speakerIconsRef.current.muted : speakerIconsRef.current.normal;
@@ -622,6 +618,24 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
   return (
     <div className="track-canvas-shell" ref={wrapperRef}>
+      <div className="track-header-overlays">
+        {project.tracks.map((track, index) => (
+          <select
+            key={track.id}
+            className="track-patch-select"
+            value={track.instrumentPatchId}
+            style={{ top: `${RULER_HEIGHT + index * TRACK_HEIGHT + 44}px` }}
+            onChange={(event) => props.onUpdateTrackPatch(track.id, event.target.value)}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            {project.patches.map((patch) => (
+              <option key={patch.id} value={patch.id}>
+                {patch.name}
+              </option>
+            ))}
+          </select>
+        ))}
+      </div>
       <canvas
         ref={canvasRef}
         width={width}
