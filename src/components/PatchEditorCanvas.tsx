@@ -50,8 +50,6 @@ interface PatchEditorCanvasProps {
   validationIssues: PatchValidationIssue[];
   onSelectNode: (nodeId?: string) => void;
   onApplyOp: (op: PatchOp) => void;
-  onUndo: () => void;
-  onRedo: () => void;
 }
 
 function getCapabilityColor(port: PortSchema): string {
@@ -383,8 +381,6 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
         >
           Delete Selected
         </button>
-        <button onClick={props.onUndo}>Undo</button>
-        <button onClick={props.onRedo}>Redo</button>
         {pendingFromPort && <span className="muted">Select input port to complete connection.</span>}
       </div>
 
