@@ -10,6 +10,9 @@ import { PatchOp } from "@/types/ops";
 const GRID = 24;
 const NODE_W = 168;
 const NODE_H = 96;
+const NODE_HIT_PADDING = 0;
+const MOVE_CURSOR = "move";
+const MOVE_CURSOR_ACTIVE = "grabbing";
 
 const CAPABILITY_COLORS: Record<string, string> = {
   AUDIO: "#4dc0ff",
@@ -44,9 +47,11 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hitPortsRef = useRef<HitPort[]>([]);
   const dragLastLayoutRef = useRef<{ x: number; y: number } | null>(null);
+  const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
   const [newNodeType, setNewNodeType] = useState(modulePalette[0]?.typeId ?? "VCO");
   const [pendingFromPort, setPendingFromPort] = useState<HitPort | null>(null);
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
   const layoutByNode = useMemo(() => {
     return new Map(props.patch.layout.nodes.map((node) => [node.nodeId, node] as const));
@@ -95,10 +100,15 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       const y = layout.y * GRID;
 
       const selected = props.selectedNodeId === node.id;
-      ctx.fillStyle = selected ? "#193f69" : "#16293a";
+      const hovered = hoveredNodeId === node.id;
+      ctx.fillStyle = selected ? "#193f69" : hovered ? "#1b3348" : "#16293a";
       ctx.fillRect(x, y, NODE_W, NODE_H);
-      ctx.strokeStyle = selected ? "#5bb7ff" : "#315270";
-      ctx.lineWidth = 2;
+      if (hovered && !selected) {
+        ctx.fillStyle = "rgba(91, 183, 255, 0.08)";
+        ctx.fillRect(x + 2, y + 2, NODE_W - 4, NODE_H - 4);
+      }
+      ctx.strokeStyle = selected ? "#5bb7ff" : hovered ? "#79c5ff" : "#315270";
+      ctx.lineWidth = hovered ? 3 : 2;
       ctx.strokeRect(x, y, NODE_W, NODE_H);
 
       ctx.fillStyle = "#e7f3ff";
@@ -170,7 +180,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       const [nodeId, kind, portId] = key.split(":");
       hitPortsRef.current.push({ nodeId, kind: kind as "in" | "out", portId, x: value.x, y: value.y });
     }
-  }, [layoutByNode, pendingFromPort, props.patch.connections, props.patch.nodes, props.selectedNodeId]);
+  }, [hoveredNodeId, layoutByNode, pendingFromPort, props.patch.connections, props.patch.nodes, props.selectedNodeId]);
 
   useEffect(() => {
     draw();
@@ -182,8 +192,10 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       return { x: 0, y: 0, rawX: 0, rawY: 0 };
     }
     const rect = canvas.getBoundingClientRect();
-    const rawX = event.clientX - rect.left;
-    const rawY = event.clientY - rect.top;
+    const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+    const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
+    const rawX = (event.clientX - rect.left) * scaleX;
+    const rawY = (event.clientY - rect.top) * scaleY;
     return {
       x: Math.round(rawX / GRID),
       y: Math.round(rawY / GRID),
@@ -193,12 +205,18 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   };
 
   const getNodeAtPointer = (rawX: number, rawY: number): string | null => {
-    for (const node of props.patch.nodes) {
+    for (let index = props.patch.nodes.length - 1; index >= 0; index -= 1) {
+      const node = props.patch.nodes[index];
       const layout = layoutByNode.get(node.id);
       if (!layout) continue;
       const x = layout.x * GRID;
       const y = layout.y * GRID;
-      if (rawX >= x && rawX <= x + NODE_W && rawY >= y && rawY <= y + NODE_H) {
+      if (
+        rawX >= x - NODE_HIT_PADDING &&
+        rawX <= x + NODE_W + NODE_HIT_PADDING &&
+        rawY >= y - NODE_HIT_PADDING &&
+        rawY <= y + NODE_H + NODE_HIT_PADDING
+      ) {
         return node.id;
       }
     }
@@ -235,6 +253,12 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       setDragNodeId(hitNodeId);
       const layout = layoutByNode.get(hitNodeId);
       dragLastLayoutRef.current = layout ? { x: layout.x, y: layout.y } : null;
+      dragPointerOffsetRef.current = layout
+        ? {
+            x: pos.rawX - layout.x * GRID,
+            y: pos.rawY - layout.y * GRID
+          }
+        : null;
       event.currentTarget.setPointerCapture(event.pointerId);
     } else {
       props.onSelectNode(undefined);
@@ -243,11 +267,17 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   };
 
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!dragNodeId) return;
     const pos = pointerToGrid(event);
+    const hoverPort = getPortAtPointer(pos.rawX, pos.rawY);
+    const hoverNodeId = hoverPort ? null : getNodeAtPointer(pos.rawX, pos.rawY);
+    setHoveredNodeId((prev) => (prev === hoverNodeId ? prev : hoverNodeId));
+
+    if (!dragNodeId) return;
+    const pointerOffset = dragPointerOffsetRef.current;
+    if (!pointerOffset) return;
     const nextLayout = {
-      x: Math.max(0, pos.x - 2),
-      y: Math.max(0, pos.y - 2)
+      x: Math.max(0, Math.round((pos.rawX - pointerOffset.x) / GRID)),
+      y: Math.max(0, Math.round((pos.rawY - pointerOffset.y) / GRID))
     };
     if (dragLastLayoutRef.current?.x === nextLayout.x && dragLastLayoutRef.current?.y === nextLayout.y) {
       return;
@@ -269,6 +299,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       }
     }
     dragLastLayoutRef.current = null;
+    dragPointerOffsetRef.current = null;
     setDragNodeId(null);
   };
 
@@ -346,10 +377,16 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           ref={canvasRef}
           width={1400}
           height={640}
+          style={{
+            cursor: dragNodeId ? MOVE_CURSOR_ACTIVE : hoveredNodeId ? MOVE_CURSOR : "default"
+          }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onPointerLeave={onPointerUp}
+          onPointerLeave={(event) => {
+            onPointerUp(event);
+            setHoveredNodeId(null);
+          }}
         />
 
         <aside className="patch-inspector">

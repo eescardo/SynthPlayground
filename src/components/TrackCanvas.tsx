@@ -11,8 +11,14 @@ const RULER_HEIGHT = 28;
 const TRACK_HEIGHT = 72;
 const BEAT_WIDTH = 72;
 const MUTE_ICON_SIZE = 16;
+const NOTE_RESIZE_HANDLE_WIDTH = 8;
 const SPEAKER_ICON_SRC = "/icons/speaker.svg";
 const SPEAKER_MUTED_ICON_SRC = "/icons/speaker-muted.svg";
+const MOVE_CURSOR = "move";
+const MOVE_CURSOR_ACTIVE = "grabbing";
+const RESIZE_CURSOR = "ew-resize";
+
+type CanvasCursor = "default" | "pointer" | "move" | "move-active" | "resize";
 
 interface TrackCanvasProps {
   project: Project;
@@ -126,6 +132,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const wheelLockTimerRef = useRef<number | null>(null);
   const [hoveredPitch, setHoveredPitch] = useState<{ trackId: string; noteId: string } | null>(null);
   const [speakerIconsReady, setSpeakerIconsReady] = useState(false);
+  const [canvasCursor, setCanvasCursor] = useState<CanvasCursor>("default");
 
   const meterBeats = props.project.global.meter === "4/4" ? 4 : 3;
 
@@ -378,6 +385,19 @@ export function TrackCanvas(props: TrackCanvasProps) {
     return null;
   };
 
+  const getCursorForPosition = (x: number, y: number): CanvasCursor => {
+    if (findMuteRect(x, y) || findPitchRect(x, y)) {
+      return "pointer";
+    }
+
+    const hitNote = findNoteRect(x, y);
+    if (!hitNote) {
+      return "default";
+    }
+
+    return x > hitNote.x + hitNote.w - NOTE_RESIZE_HANDLE_WIDTH ? "resize" : "move";
+  };
+
   const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -400,12 +420,14 @@ export function TrackCanvas(props: TrackCanvasProps) {
     const muteRect = findMuteRect(x, y);
     if (muteRect) {
       props.onToggleTrackMute(muteRect.trackId);
+      setCanvasCursor("pointer");
       return;
     }
 
     const pitchRect = findPitchRect(x, y);
     if (pitchRect && event.button === 0) {
       props.onOpenPitchPicker(pitchRect.trackId, pitchRect.noteId);
+      setCanvasCursor("pointer");
       return;
     }
 
@@ -422,7 +444,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       if (!note) return;
 
       const beat = beatFromX(x);
-      const nearRightEdge = x > hitNote.x + hitNote.w - 8;
+      const nearRightEdge = x > hitNote.x + hitNote.w - NOTE_RESIZE_HANDLE_WIDTH;
       dragRef.current = {
         trackId: hitNote.trackId,
         noteId: hitNote.noteId,
@@ -430,6 +452,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         offsetBeats: beat - note.startBeat,
         noteStartBeats: note.startBeat
       };
+      setCanvasCursor(nearRightEdge ? "resize" : "move-active");
       canvas.setPointerCapture(event.pointerId);
       return;
     }
@@ -451,6 +474,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       offsetBeats: 0,
       noteStartBeats: snappedStart
     };
+    setCanvasCursor("move-active");
     canvas.setPointerCapture(event.pointerId);
   };
 
@@ -471,7 +495,12 @@ export function TrackCanvas(props: TrackCanvasProps) {
     });
 
     const drag = dragRef.current;
-    if (!drag) return;
+    if (!drag) {
+      setCanvasCursor(getCursorForPosition(x, y));
+      return;
+    }
+
+    setCanvasCursor(drag.mode === "resize" ? "resize" : "move-active");
     const beat = snapToGrid(Math.max(0, beatFromX(x)), props.project.global.gridBeats);
     const track = props.project.tracks.find((entry) => entry.id === drag.trackId);
     const note = track?.notes.find((entry) => entry.id === drag.noteId);
@@ -491,6 +520,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   };
 
   const onPointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
     if (canvasRef.current && dragRef.current) {
       try {
         canvasRef.current.releasePointerCapture(event.pointerId);
@@ -499,6 +529,14 @@ export function TrackCanvas(props: TrackCanvasProps) {
       }
     }
     dragRef.current = null;
+    if (!canvas) {
+      setCanvasCursor("default");
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    setCanvasCursor(getCursorForPosition(x, y));
   };
 
   useEffect(() => {
@@ -580,12 +618,23 @@ export function TrackCanvas(props: TrackCanvasProps) {
         ref={canvasRef}
         width={width}
         height={height}
+        style={{
+          cursor:
+            canvasCursor === "move"
+              ? MOVE_CURSOR
+              : canvasCursor === "move-active"
+                ? MOVE_CURSOR_ACTIVE
+                : canvasCursor === "resize"
+                  ? RESIZE_CURSOR
+                  : canvasCursor
+        }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerLeave={(event) => {
           onPointerUp(event);
           setHoveredPitch(null);
+          setCanvasCursor("default");
         }}
         onContextMenu={(event) => event.preventDefault()}
       />
