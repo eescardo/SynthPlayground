@@ -25,6 +25,8 @@ export interface Track {
   name: string;
   instrumentPatchId: string;
   notes: Note[];
+  macroValues: Record<string, number>;
+  macroPanelExpanded: boolean;
   mute?: boolean;
   solo?: boolean;
   fx: TrackFxSettings;

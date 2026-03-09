@@ -170,6 +170,32 @@ select {
   padding: 0.2rem 0.3rem;
 }
 
+.track-macro-panel-shell {
+  border-top: 1px solid var(--border);
+  background: rgba(8, 15, 23, 0.94);
+  padding: 0.7rem 0.8rem 0.8rem;
+}
+
+.track-macro-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.track-macro-panel-subtitle {
+  display: block;
+  margin-top: 0.1rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.track-macro-panel-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .instrument-editor {
   display: flex;
   flex-direction: column;
