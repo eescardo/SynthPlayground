@@ -203,8 +203,8 @@ export class AudioEngine {
     this.worklet.port.postMessage({ type: "EVENTS", events });
   }
 
-  setMacroValue(patchId: string, macroId: string, normalized: number): void {
-    this.worklet?.port.postMessage({ type: "MACRO", patchId, macroId, normalized });
+  setMacroValue(trackId: string, macroId: string, normalized: number): void {
+    this.worklet?.port.postMessage({ type: "MACRO", trackId, macroId, normalized });
   }
 
   async previewNote(trackId: string, pitchVoct: number, durationBeats: number, velocity = 0.9): Promise<void> {

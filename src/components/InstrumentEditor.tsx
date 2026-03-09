@@ -1,6 +1,5 @@
 "use client";
 
-import { MacroPanel } from "@/components/MacroPanel";
 import { PatchEditorCanvas } from "@/components/PatchEditorCanvas";
 import { resolvePatchSource } from "@/lib/patch/source";
 import { PatchValidationIssue, Patch } from "@/types/patch";
@@ -10,18 +9,14 @@ interface InstrumentEditorProps {
   patch: Patch;
   selectedNodeId?: string;
   validationIssues: PatchValidationIssue[];
-  macroValues: Record<string, number>;
   previewPitch: string;
   onRenamePatch: (name: string) => void;
   onDuplicatePatch: () => void;
-  onResetMacros: () => void;
   onRequestRemovePatch: () => void;
   onOpenPreviewPitchPicker: () => void;
   onPreviewNow: () => void;
   onSelectNode: (nodeId?: string) => void;
   onApplyOp: (op: PatchOp) => void;
-  onMacroChange: (macroId: string, normalized: number) => void;
-  onMacroCommit: (macroId: string, normalized: number) => void;
 }
 
 export function InstrumentEditor(props: InstrumentEditorProps) {
@@ -51,9 +46,6 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
           <button type="button" onClick={props.onDuplicatePatch}>
             Duplicate Instrument Patch
           </button>
-          <button type="button" onClick={props.onResetMacros}>
-            Reset Macro Values
-          </button>
           <button type="button" disabled={structureLocked} onClick={props.onRequestRemovePatch}>
             Remove Instrument
           </button>
@@ -71,13 +63,6 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
           </button>
         </div>
       </div>
-
-      <MacroPanel
-        patch={props.patch}
-        macroValues={props.macroValues}
-        onMacroChange={props.onMacroChange}
-        onMacroCommit={props.onMacroCommit}
-      />
 
       <PatchEditorCanvas
         patch={props.patch}

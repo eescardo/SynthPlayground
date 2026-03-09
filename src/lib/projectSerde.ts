@@ -25,6 +25,19 @@ const defaultTrackFx = (): TrackFxSettings => ({
   compression: 0.4
 });
 
+const sanitizeMacroValueMap = (raw: unknown): Record<string, number> => {
+  if (!isObject(raw)) {
+    return {};
+  }
+  const values: Record<string, number> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      values[key] = clamp(value, 0, 1);
+    }
+  }
+  return values;
+};
+
 const sanitizeParamMap = (raw: unknown): Record<string, number | string | boolean> => {
   if (!isObject(raw)) {
     return {};
@@ -183,6 +196,8 @@ export const normalizeProject = (raw: unknown): Project => {
         name: asString(track.name, `Track ${index + 1}`),
         instrumentPatchId: patchIds.has(rawPatchId) ? rawPatchId : fallbackPatchId,
         notes,
+        macroValues: sanitizeMacroValueMap(track.macroValues),
+        macroPanelExpanded: track.macroPanelExpanded !== false,
         mute: Boolean(track.mute),
         solo: Boolean(track.solo),
         fx: {

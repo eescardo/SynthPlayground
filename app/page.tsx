@@ -65,7 +65,6 @@ export default function HomePage() {
   const [selectedTrackId, setSelectedTrackId] = useState<string | undefined>(undefined);
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(undefined);
   const [validationIssues, setValidationIssues] = useState<PatchValidationIssue[]>([]);
-  const [macroValues, setMacroValues] = useState<Record<string, number>>({});
   const [helpOpen, setHelpOpen] = useState(false);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [strictWasmReady, setStrictWasmReady] = useState(process.env.NEXT_PUBLIC_STRICT_WASM !== "1");
@@ -370,41 +369,6 @@ export default function HomePage() {
       .catch((error) => setRuntimeError((error as Error).message));
   }, [playing, previewPitch, selectedPatch, selectedTrack]);
 
-  const applyMacroToSelectedPatch = useCallback((macroId: string, normalized: number, options?: { actionKey?: string; coalesce?: boolean }) => {
-    if (!selectedPatch) return;
-
-    setMacroValues((prev) => ({ ...prev, [macroId]: normalized }));
-    audioEngineRef.current?.setMacroValue(selectedPatch.id, macroId, normalized);
-
-    const macro = selectedPatch.ui.macros.find((entry) => entry.id === macroId);
-    if (!macro) return;
-
-    commitProjectChange(
-      (current) => {
-        const nextPatches = current.patches.map((patch) => {
-          if (patch.id !== selectedPatch.id) return patch;
-
-          const cloned = structuredClone(patch);
-          for (const binding of macro.bindings) {
-            const node = cloned.nodes.find((entry) => entry.id === binding.nodeId);
-            if (!node) continue;
-
-            const mapped =
-              binding.map === "exp"
-                ? Math.max(binding.min, 0.000001) * Math.pow(binding.max / Math.max(binding.min, 0.000001), normalized)
-                : binding.min + (binding.max - binding.min) * normalized;
-
-            node.params[binding.paramId] = mapped;
-          }
-
-          return cloned;
-        });
-        return { ...current, patches: nextPatches };
-      },
-      options
-    );
-  }, [commitProjectChange, selectedPatch]);
-
   const applyPatchOp = (op: PatchOp) => {
     if (!selectedPatch) return;
     if (resolvePatchSource(selectedPatch) === "preset" && op.type !== "moveNode") {
@@ -444,30 +408,30 @@ export default function HomePage() {
     }
   };
 
-  const handleMacroChange = (macroId: string, normalized: number) => {
-    if (!selectedPatch) return;
-    applyMacroToSelectedPatch(macroId, normalized, { actionKey: `patch:${selectedPatch.id}:macro:${macroId}`, coalesce: true });
-  };
-
-  const handleMacroCommit = () => {
-    if (!selectedPatch) return;
-    schedulePatchPreview(selectedPatch.id);
-  };
-
   const resetSelectedPatchMacros = useCallback(() => {
-    if (!selectedPatch) {
+    if (!selectedPatch || !selectedTrack) {
       return;
     }
 
-    for (const macro of selectedPatch.ui.macros) {
-      applyMacroToSelectedPatch(
-        macro.id,
-        macro.defaultNormalized ?? 0.5,
-        { actionKey: `patch:${selectedPatch.id}:macro-reset`, coalesce: true }
-      );
+    const nextMacroValues = Object.fromEntries(
+      selectedPatch.ui.macros.map((macro) => [macro.id, macro.defaultNormalized ?? 0.5])
+    );
+    for (const [macroId, normalized] of Object.entries(nextMacroValues)) {
+      audioEngineRef.current?.setMacroValue(selectedTrack.id, macroId, normalized);
     }
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        tracks: current.tracks.map((track) =>
+          track.id === selectedTrack.id
+            ? { ...track, macroValues: nextMacroValues }
+            : track
+        )
+      }),
+      { actionKey: `track:${selectedTrack.id}:macro-reset` }
+    );
     schedulePatchPreview(selectedPatch.id);
-  }, [applyMacroToSelectedPatch, schedulePatchPreview, selectedPatch]);
+  }, [commitProjectChange, schedulePatchPreview, selectedPatch, selectedTrack]);
 
   const renameSelectedPatch = useCallback((name: string) => {
     if (!selectedPatch) return;
@@ -631,6 +595,8 @@ export default function HomePage() {
           name: `Track ${current.tracks.length + 1}`,
           instrumentPatchId: fallbackPatch.id,
           notes: [],
+          macroValues: {},
+          macroPanelExpanded: true,
           fx: {
             delayEnabled: false,
             reverbEnabled: false,
@@ -731,10 +697,45 @@ export default function HomePage() {
   const updateTrackPatch = (trackId: string, patchId: string) => {
     commitProjectChange((current) => ({
       ...current,
-      tracks: current.tracks.map((track) => (track.id === trackId ? { ...track, instrumentPatchId: patchId } : track))
+      tracks: current.tracks.map((track) =>
+        track.id === trackId ? { ...track, instrumentPatchId: patchId, macroValues: {}, macroPanelExpanded: true } : track
+      )
     }), { actionKey: `track:${trackId}:patch` });
     setSelectedNodeId(undefined);
   };
+
+  const toggleTrackMacroPanel = useCallback((trackId: string) => {
+    commitProjectChange((current) => ({
+      ...current,
+      tracks: current.tracks.map((track) =>
+        track.id === trackId ? { ...track, macroPanelExpanded: !track.macroPanelExpanded } : track
+      )
+    }), { actionKey: `track:${trackId}:macro-panel` });
+  }, [commitProjectChange]);
+
+  const changeTrackMacro = useCallback((trackId: string, macroId: string, normalized: number, options?: { commit?: boolean }) => {
+    audioEngineRef.current?.setMacroValue(trackId, macroId, normalized);
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        tracks: current.tracks.map((track) =>
+          track.id === trackId
+            ? { ...track, macroValues: { ...track.macroValues, [macroId]: normalized } }
+            : track
+        )
+      }),
+      { actionKey: `track:${trackId}:macro:${macroId}`, coalesce: !options?.commit }
+    );
+    if (options?.commit) {
+      const track = project.tracks.find((entry) => entry.id === trackId);
+      if (track) {
+        const patch = project.patches.find((entry) => entry.id === track.instrumentPatchId);
+        if (patch) {
+          schedulePatchPreview(patch.id);
+        }
+      }
+    }
+  }, [commitProjectChange, project.patches, project.tracks, schedulePatchPreview]);
 
   if (!ready || !selectedTrack || !selectedPatch) {
     return <main className="loading">Loading...</main>;
@@ -813,6 +814,9 @@ export default function HomePage() {
         onSelectTrack={setSelectedTrackId}
         onToggleTrackMute={toggleTrackMute}
         onUpdateTrackPatch={updateTrackPatch}
+        onToggleTrackMacroPanel={toggleTrackMacroPanel}
+        onChangeTrackMacro={changeTrackMacro}
+        onResetTrackMacros={resetSelectedPatchMacros}
         onOpenPitchPicker={openPitchPicker}
         onUpsertNote={upsertNote}
         onUpdateNote={updateNote}
@@ -821,18 +825,14 @@ export default function HomePage() {
 
       <InstrumentEditor
         patch={selectedPatch}
-        macroValues={macroValues}
         previewPitch={previewPitch}
         selectedNodeId={selectedNodeId}
         validationIssues={validationIssues}
         onRenamePatch={renameSelectedPatch}
         onDuplicatePatch={duplicatePatchForSelectedTrack}
-        onResetMacros={resetSelectedPatchMacros}
         onRequestRemovePatch={requestRemoveSelectedPatch}
         onOpenPreviewPitchPicker={() => setPreviewPitchPickerOpen(true)}
         onPreviewNow={() => previewSelectedPatchNow()}
-        onMacroChange={handleMacroChange}
-        onMacroCommit={handleMacroCommit}
         onSelectNode={setSelectedNodeId}
         onApplyOp={applyPatchOp}
       />

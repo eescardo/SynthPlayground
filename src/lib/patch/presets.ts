@@ -503,6 +503,8 @@ const makeTrack = (name: string, instrumentPatchId: string, notes: Track["notes"
   name,
   instrumentPatchId,
   notes,
+  macroValues: {},
+  macroPanelExpanded: true,
   fx: defaultTrackFx()
 });
 

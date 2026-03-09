@@ -51,7 +51,7 @@ export interface WorkletEventsMessage {
 
 export interface WorkletMacroMessage {
   type: "MACRO";
-  patchId: string;
+  trackId: string;
   macroId: string;
   normalized: number;
 }

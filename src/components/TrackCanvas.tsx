@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MacroPanel } from "@/components/MacroPanel";
 import { createId } from "@/lib/ids";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
 import { snapToGrid } from "@/lib/musicTiming";
@@ -28,6 +29,9 @@ interface TrackCanvasProps {
   onSelectTrack: (trackId: string) => void;
   onToggleTrackMute: (trackId: string) => void;
   onUpdateTrackPatch: (trackId: string, patchId: string) => void;
+  onToggleTrackMacroPanel: (trackId: string) => void;
+  onChangeTrackMacro: (trackId: string, macroId: string, normalized: number, options?: { commit?: boolean }) => void;
+  onResetTrackMacros: (trackId: string) => void;
   onOpenPitchPicker: (trackId: string, noteId: string) => void;
   onUpsertNote: (trackId: string, note: Note, options?: { actionKey?: string; coalesce?: boolean }) => void;
   onUpdateNote: (trackId: string, noteId: string, patch: Partial<Note>, options?: { actionKey?: string; coalesce?: boolean }) => void;
@@ -136,6 +140,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const [canvasCursor, setCanvasCursor] = useState<CanvasCursor>("default");
 
   const meterBeats = props.project.global.meter === "4/4" ? 4 : 3;
+  const selectedTrack = props.project.tracks.find((track) => track.id === props.selectedTrackId) ?? null;
+  const selectedPatch = selectedTrack
+    ? props.project.patches.find((patch) => patch.id === selectedTrack.instrumentPatchId) ?? null
+    : null;
 
   const totalBeats = useMemo(() => {
     const maxEnd = props.project.tracks.flatMap((track) => track.notes).reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);
@@ -660,6 +668,36 @@ export function TrackCanvas(props: TrackCanvasProps) {
         }}
         onContextMenu={(event) => event.preventDefault()}
       />
+      {selectedTrack && selectedPatch && (
+        <div className="track-macro-panel-shell">
+          <div className="track-macro-panel-header">
+            <div>
+              <strong>Track Macros</strong>
+              <span className="track-macro-panel-subtitle">
+                {selectedTrack.name} · {selectedPatch.name}
+              </span>
+            </div>
+            <div className="track-macro-panel-actions">
+              <button type="button" onClick={() => props.onResetTrackMacros(selectedTrack.id)}>
+                Reset
+              </button>
+              <button type="button" onClick={() => props.onToggleTrackMacroPanel(selectedTrack.id)}>
+                {selectedTrack.macroPanelExpanded ? "Collapse" : "Expand"}
+              </button>
+            </div>
+          </div>
+          {selectedTrack.macroPanelExpanded && (
+            <MacroPanel
+              patch={selectedPatch}
+              macroValues={selectedTrack.macroValues}
+              onMacroChange={(macroId, normalized) => props.onChangeTrackMacro(selectedTrack.id, macroId, normalized)}
+              onMacroCommit={(macroId, normalized) =>
+                props.onChangeTrackMacro(selectedTrack.id, macroId, normalized, { commit: true })
+              }
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

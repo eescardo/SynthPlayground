@@ -118,6 +118,19 @@ class TrackRuntime {
       idx2: 0
     };
     this.compressorEnv = 0;
+    this.initializeMacroValues();
+  }
+
+  initializeMacroValues() {
+    for (const macro of this.patch.ui?.macros || []) {
+      const normalized =
+        this.track?.macroValues && typeof this.track.macroValues[macro.id] === "number"
+          ? this.track.macroValues[macro.id]
+          : typeof macro.defaultNormalized === "number"
+            ? macro.defaultNormalized
+            : 0.5;
+      this.applyMacro(macro.id, normalized);
+    }
   }
 
   // Compile the user patch into a numeric execution plan:
@@ -1050,7 +1063,7 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
         break;
       case "MACRO":
         for (const track of this.trackRuntimes) {
-          if (track.patch.id === message.patchId) {
+          if (track.track.id === message.trackId) {
             track.applyMacro(message.macroId, message.normalized);
           }
         }
