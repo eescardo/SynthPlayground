@@ -31,7 +31,7 @@ export const bassPatch = (): Patch => {
     schemaVersion: 1,
     id: patchId,
     name: "Bass",
-    meta: { source: "preset" },
+    meta: { source: "preset", presetId: patchId, presetVersion: 1 },
     nodes: [
       {
         id: vcoId,
@@ -183,7 +183,7 @@ export const padPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_pad",
     name: "Pad",
-    meta: { source: "preset" },
+    meta: { source: "preset", presetId: "preset_pad", presetVersion: 1 },
     nodes: [
       {
         id: vco1,
@@ -264,7 +264,7 @@ export const pluckPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_pluck",
     name: "Pluck",
-    meta: { source: "preset" },
+    meta: { source: "preset", presetId: "preset_pluck", presetVersion: 1 },
     nodes: [
       { id: noise, typeId: "Noise", params: { ...createDefaultParamsForType("Noise"), gain: 0.65 } },
       {
@@ -330,7 +330,7 @@ export const keysPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_keys",
     name: "Simple Piano-ish",
-    meta: { source: "preset" },
+    meta: { source: "preset", presetId: "preset_keys", presetVersion: 1 },
     nodes: [
       { id: vco, typeId: "VCO", params: { ...createDefaultParamsForType("VCO"), wave: "triangle" } },
       {
@@ -385,7 +385,7 @@ export const brassPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_brass",
     name: "Brass-ish",
-    meta: { source: "preset" },
+    meta: { source: "preset", presetId: "preset_brass", presetVersion: 1 },
     nodes: [
       { id: vco, typeId: "VCO", params: { ...createDefaultParamsForType("VCO"), wave: "square", pulseWidth: 0.35 } },
       { id: lfo, typeId: "LFO", params: { ...createDefaultParamsForType("LFO"), freqHz: 5, bipolar: true } },
@@ -443,7 +443,7 @@ export const drumPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_drum",
     name: "Drum-ish",
-    meta: { source: "preset" },
+    meta: { source: "preset", presetId: "preset_drum", presetVersion: 1 },
     nodes: [
       { id: noise, typeId: "Noise", params: { ...createDefaultParamsForType("Noise"), color: "white", gain: 0.9 } },
       {

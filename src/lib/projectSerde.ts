@@ -1,5 +1,5 @@
 import { createId } from "@/lib/ids";
-import { resolvePatchSource } from "@/lib/patch/source";
+import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
 import { validatePatch } from "@/lib/patch/validation";
 import { Project, TrackFxSettings } from "@/types/music";
 import { Patch, PatchConnection, PatchMacro, PatchNode } from "@/types/patch";
@@ -103,16 +103,32 @@ const sanitizePatch = (raw: unknown, index: number): Patch => {
   const ui = isObject(patch.ui) ? patch.ui : {};
   const layout = isObject(patch.layout) ? patch.layout : {};
   const io = isObject(patch.io) ? patch.io : {};
+  const patchId = asString(patch.id, `patch_${index}`);
+  const source = resolvePatchSource({
+    id: patchId,
+    meta: isObject(patch.meta) ? { source: patch.meta.source === "preset" || patch.meta.source === "custom" ? patch.meta.source : undefined } : undefined
+  });
+  const bundledLineage = getBundledPresetLineage(patchId);
 
   return {
     schemaVersion: Math.max(1, Math.floor(asFiniteNumber(patch.schemaVersion, 1))),
-    id: asString(patch.id, `patch_${index}`),
+    id: patchId,
     name: asString(patch.name, `Patch ${index + 1}`),
     meta: {
-      source: resolvePatchSource({
-        id: asString(patch.id, `patch_${index}`),
-        meta: isObject(patch.meta) ? { source: patch.meta.source === "preset" || patch.meta.source === "custom" ? patch.meta.source : undefined } : undefined
-      })
+      source,
+      presetId:
+        source === "preset"
+          ? asString(isObject(patch.meta) ? patch.meta.presetId : undefined, bundledLineage?.presetId ?? patchId)
+          : undefined,
+      presetVersion:
+        source === "preset"
+          ? Math.max(
+              1,
+              Math.floor(
+                asFiniteNumber(isObject(patch.meta) ? patch.meta.presetVersion : undefined, bundledLineage?.presetVersion ?? 1)
+              )
+            )
+          : undefined
     },
     nodes: (Array.isArray(patch.nodes) ? patch.nodes : []).map(sanitizePatchNode),
     connections: (Array.isArray(patch.connections) ? patch.connections : []).map(sanitizePatchConnection),

@@ -98,6 +98,8 @@ export interface Patch {
   name: string;
   meta: {
     source: "preset" | "custom";
+    presetId?: string;
+    presetVersion?: number;
   };
   nodes: PatchNode[];
   connections: PatchConnection[];
