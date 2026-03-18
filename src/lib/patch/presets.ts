@@ -31,7 +31,7 @@ export const bassPatch = (): Patch => {
     schemaVersion: 1,
     id: patchId,
     name: "Bass",
-    meta: { source: "preset", presetId: patchId, presetVersion: 1 },
+    meta: { source: "preset", presetId: "preset_bass", presetVersion: 1 },
     nodes: [
       {
         id: vcoId,

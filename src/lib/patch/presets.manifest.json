@@ -1,0 +1,53 @@
+[
+  {
+    "presetId": "preset_bass",
+    "presetVersion": 1,
+    "name": "Bass",
+    "macroIds": [
+      "macro_cutoff",
+      "macro_decay"
+    ]
+  },
+  {
+    "presetId": "preset_brass",
+    "presetVersion": 1,
+    "name": "Brass-ish",
+    "macroIds": [
+      "macro_bite"
+    ]
+  },
+  {
+    "presetId": "preset_drum",
+    "presetVersion": 1,
+    "name": "Drum-ish",
+    "macroIds": [
+      "macro_body"
+    ]
+  },
+  {
+    "presetId": "preset_keys",
+    "presetVersion": 1,
+    "name": "Simple Piano-ish",
+    "macroIds": [
+      "macro_brightness"
+    ]
+  },
+  {
+    "presetId": "preset_pad",
+    "presetVersion": 1,
+    "name": "Pad",
+    "macroIds": [
+      "macro_attack",
+      "macro_motion"
+    ]
+  },
+  {
+    "presetId": "preset_pluck",
+    "presetVersion": 1,
+    "name": "Pluck",
+    "macroIds": [
+      "macro_tone",
+      "macro_decay"
+    ]
+  }
+]

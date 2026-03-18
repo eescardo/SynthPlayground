@@ -92,15 +92,21 @@ export interface PatchLayoutNode {
   y: number;
 }
 
+export type PatchMeta =
+  | {
+      source: "custom";
+    }
+  | {
+      source: "preset";
+      presetId: string;
+      presetVersion: number;
+    };
+
 export interface Patch {
   schemaVersion: number;
   id: string;
   name: string;
-  meta: {
-    source: "preset" | "custom";
-    presetId?: string;
-    presetVersion?: number;
-  };
+  meta: PatchMeta;
   nodes: PatchNode[];
   connections: PatchConnection[];
   ui: {

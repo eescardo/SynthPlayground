@@ -6,10 +6,14 @@
     "dev": "next dev",
     "dev:wasm": "npm run build:wasm && npm run dev",
     "dev:wasm:strict": "npm run build:wasm && NEXT_PUBLIC_STRICT_WASM=1 npm run dev",
-    "build": "pnpm run check:presets && next build",
+    "build": "pnpm run check:presets:manifest && next build",
     "start": "next start",
-    "lint": "pnpm run check:presets && next lint",
-    "check:presets": "node scripts/check-preset-compatibility.mjs",
+    "lint": "pnpm run check:presets:manifest && next lint",
+    "presets:manifest": "node scripts/generate-preset-manifest.mjs --write",
+    "check:presets:manifest": "node scripts/check-preset-manifest.mjs",
+    "check:presets:compat": "node scripts/check-preset-compatibility.mjs",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
     "typecheck": "tsc -p tsconfig.typecheck.json --noEmit",
     "build:wasm": "cd rust/dsp-core && wasm-pack build --target web --out-dir ../../public/wasm/pkg"
   },
@@ -25,6 +29,7 @@
     "@types/react-dom": "^19.0.2",
     "eslint": "^9.16.0",
     "eslint-config-next": "^15.1.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.0"
   }
 }
