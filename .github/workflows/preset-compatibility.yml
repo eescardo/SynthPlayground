@@ -1,0 +1,40 @@
+name: Preset Compatibility
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+jobs:
+  preset-compatibility:
+    name: Preset Compatibility
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify preset manifest is up to date
+        run: pnpm run check:presets:manifest
+
+      - name: Check preset compatibility against PR base
+        run: pnpm run check:presets:compat -- --base-ref origin/${{ github.base_ref }}
