@@ -176,6 +176,7 @@ export const padPatch = (): Patch => {
   const lfo = "lfo1";
   const mix = "mix1";
   const env = "env1";
+  const vcf = "vcf1";
   const vca = "vca1";
   const out = "out1";
 
@@ -183,30 +184,41 @@ export const padPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_pad",
     name: "Pad",
-    meta: { source: "preset", presetId: "preset_pad", presetVersion: 1 },
+    meta: { source: "preset", presetId: "preset_pad", presetVersion: 4 },
     nodes: [
       {
         id: vco1,
         typeId: "VCO",
-        params: { ...createDefaultParamsForType("VCO"), wave: "triangle", fineTuneCents: -4 }
+        params: { ...createDefaultParamsForType("VCO"), wave: "saw", fineTuneCents: -7 }
       },
       {
         id: vco2,
         typeId: "VCO",
-        params: { ...createDefaultParamsForType("VCO"), wave: "saw", fineTuneCents: 4 }
+        params: {
+          ...createDefaultParamsForType("VCO"),
+          wave: "square",
+          pulseWidth: 0.42,
+          pwmAmount: 0.18,
+          fineTuneCents: 7
+        }
       },
-      { id: lfo, typeId: "LFO", params: { ...createDefaultParamsForType("LFO"), freqHz: 0.3 } },
-      { id: mix, typeId: "Mixer4", params: { ...createDefaultParamsForType("Mixer4"), gain1: 0.5, gain2: 0.5 } },
+      { id: lfo, typeId: "LFO", params: { ...createDefaultParamsForType("LFO"), wave: "triangle", freqHz: 0.18 } },
+      { id: mix, typeId: "Mixer4", params: { ...createDefaultParamsForType("Mixer4"), gain1: 0.46, gain2: 0.4 } },
       {
         id: env,
         typeId: "ADSR",
         params: {
           ...createDefaultParamsForType("ADSR"),
-          attack: 0.8,
-          decay: 0.5,
-          sustain: 0.75,
-          release: 1.8
+          attack: 1.1,
+          decay: 0.9,
+          sustain: 0.78,
+          release: 1.2
         }
+      },
+      {
+        id: vcf,
+        typeId: "VCF",
+        params: { ...createDefaultParamsForType("VCF"), cutoffHz: 1450, resonance: 0.16, cutoffModAmountOct: 1.6 }
       },
       { id: vca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), bias: 0, gain: 1 } },
       outputNode(out)
@@ -215,26 +227,39 @@ export const padPatch = (): Patch => {
       { id: "c1", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: vco1, portId: "pitch" } },
       { id: "c2", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: vco2, portId: "pitch" } },
       { id: "c3", from: { nodeId: noteCore.gate, portId: "out" }, to: { nodeId: env, portId: "gate" } },
-      { id: "c4", from: { nodeId: lfo, portId: "out" }, to: { nodeId: vco1, portId: "pwm" } },
+      { id: "c4", from: { nodeId: lfo, portId: "out" }, to: { nodeId: vco2, portId: "pwm" } },
       { id: "c5", from: { nodeId: vco1, portId: "out" }, to: { nodeId: mix, portId: "in1" } },
       { id: "c6", from: { nodeId: vco2, portId: "out" }, to: { nodeId: mix, portId: "in2" } },
-      { id: "c7", from: { nodeId: mix, portId: "out" }, to: { nodeId: vca, portId: "in" } },
-      { id: "c8", from: { nodeId: env, portId: "out" }, to: { nodeId: vca, portId: "gainCV" } },
-      { id: "c9", from: { nodeId: vca, portId: "out" }, to: { nodeId: out, portId: "in" } }
+      { id: "c7", from: { nodeId: lfo, portId: "out" }, to: { nodeId: vcf, portId: "cutoffCV" } },
+      { id: "c8", from: { nodeId: mix, portId: "out" }, to: { nodeId: vcf, portId: "in" } },
+      { id: "c9", from: { nodeId: vcf, portId: "out" }, to: { nodeId: vca, portId: "in" } },
+      { id: "c10", from: { nodeId: env, portId: "out" }, to: { nodeId: vca, portId: "gainCV" } },
+      { id: "c11", from: { nodeId: vca, portId: "out" }, to: { nodeId: out, portId: "in" } }
     ],
     ui: {
       macros: [
         {
           id: "macro_attack",
           name: "Attack",
-          defaultNormalized: 0.28,
-          bindings: [{ id: "b1", nodeId: env, paramId: "attack", map: "linear", min: 0.02, max: 2.8 }]
+          defaultNormalized: 0.34,
+          bindings: [{ id: "b1", nodeId: env, paramId: "attack", map: "linear", min: 0.05, max: 3.2 }]
+        },
+        {
+          id: "macro_release",
+          name: "Release",
+          defaultNormalized: 0.32,
+          bindings: [{ id: "b6", nodeId: env, paramId: "release", map: "linear", min: 0.15, max: 2.4 }]
         },
         {
           id: "macro_motion",
           name: "Motion",
-          defaultNormalized: 0.39,
-          bindings: [{ id: "b2", nodeId: lfo, paramId: "freqHz", map: "exp", min: 0.05, max: 8 }]
+          defaultNormalized: 0.46,
+          bindings: [
+            { id: "b2", nodeId: lfo, paramId: "freqHz", map: "exp", min: 0.04, max: 4.5 },
+            { id: "b3", nodeId: vco2, paramId: "pwmAmount", map: "linear", min: 0.03, max: 0.42 },
+            { id: "b4", nodeId: vcf, paramId: "cutoffModAmountOct", map: "linear", min: 0.4, max: 2.5 },
+            { id: "b5", nodeId: vcf, paramId: "cutoffHz", map: "exp", min: 700, max: 3600 }
+          ]
         }
       ]
     },
@@ -245,8 +270,9 @@ export const padPatch = (): Patch => {
         { nodeId: lfo, x: 2, y: 10 },
         { nodeId: mix, x: 7, y: 4 },
         { nodeId: env, x: 7, y: 10 },
-        { nodeId: vca, x: 11, y: 4 },
-        { nodeId: out, x: 15, y: 4 }
+        { nodeId: vcf, x: 11, y: 4 },
+        { nodeId: vca, x: 15, y: 4 },
+        { nodeId: out, x: 19, y: 4 }
       ]
     },
     io: { audioOutNodeId: out, audioOutPortId: "in" }
