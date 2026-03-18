@@ -10,6 +10,7 @@ import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
 import { clearProject, loadProject, saveProject } from "@/lib/persistence";
 import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
+import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { createDefaultProject } from "@/lib/patch/presets";
@@ -459,6 +460,63 @@ export default function HomePage() {
     }
   };
 
+  const exposePatchMacro = useCallback((nodeId: string, paramId: string, suggestedName: string) => {
+    if (!selectedPatch || resolvePatchSource(selectedPatch) === "preset") {
+      return;
+    }
+
+    commitProjectChange((current) => {
+      const currentPatch = current.patches.find((patch) => patch.id === selectedPatch.id);
+      if (!currentPatch) {
+        return current;
+      }
+
+      const node = currentPatch.nodes.find((entry) => entry.id === nodeId);
+      if (!node) {
+        return current;
+      }
+
+      const moduleSchema = getModuleSchema(node.typeId);
+      const paramSchema = moduleSchema?.params.find((param) => param.id === paramId);
+      if (!moduleSchema || !paramSchema) {
+        return current;
+      }
+
+      let nextPatch = currentPatch;
+      const existingMacro = currentPatch.ui.macros.find((macro) =>
+        macro.bindings.some((binding) => binding.nodeId === nodeId && binding.paramId === paramId)
+      );
+      if (existingMacro) {
+        return current;
+      }
+
+      const macroId = createId("macro");
+      nextPatch = applyPatchGraphOp(nextPatch, {
+        type: "addMacro",
+        macroId,
+        name: suggestedName
+      });
+
+      const min = paramSchema.type === "float" ? paramSchema.range.min : 0;
+      const max = paramSchema.type === "float" ? paramSchema.range.max : 1;
+      nextPatch = applyPatchGraphOp(nextPatch, {
+        type: "bindMacro",
+        macroId,
+        bindingId: createId("bind"),
+        nodeId,
+        paramId,
+        map: "linear",
+        min,
+        max
+      });
+
+      return {
+        ...current,
+        patches: current.patches.map((patch) => (patch.id === selectedPatch.id ? nextPatch : patch))
+      };
+    }, { actionKey: `patch:${selectedPatch.id}:expose-macro:${nodeId}:${paramId}` });
+  }, [commitProjectChange, selectedPatch]);
+
   const resetSelectedPatchMacros = useCallback(() => {
     if (!selectedPatch || !selectedTrack) {
       return;
@@ -888,6 +946,7 @@ export default function HomePage() {
         onPreviewNow={() => previewSelectedPatchNow()}
         onSelectNode={setSelectedNodeId}
         onApplyOp={applyPatchOp}
+        onExposeMacro={exposePatchMacro}
       />
 
       {helpOpen && (

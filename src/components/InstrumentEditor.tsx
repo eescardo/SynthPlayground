@@ -19,6 +19,7 @@ interface InstrumentEditorProps {
   onPreviewNow: () => void;
   onSelectNode: (nodeId?: string) => void;
   onApplyOp: (op: PatchOp) => void;
+  onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
 }
 
 export function InstrumentEditor(props: InstrumentEditorProps) {
@@ -87,6 +88,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
         structureLocked={structureLocked}
         onSelectNode={props.onSelectNode}
         onApplyOp={props.onApplyOp}
+        onExposeMacro={props.onExposeMacro}
       />
     </section>
   );
