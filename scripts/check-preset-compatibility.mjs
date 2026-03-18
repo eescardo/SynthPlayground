@@ -1,6 +1,37 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { parseArgs, runGit, tryGit } from "./preset-manifest-lib.mjs";
+
+function runGit(cwd, args) {
+  return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+}
+
+function tryGit(cwd, args) {
+  try {
+    return runGit(cwd, args);
+  } catch {
+    return null;
+  }
+}
+
+function parseArgs(argv) {
+  const args = new Map();
+  for (let i = 0; i < argv.length; i += 1) {
+    const current = argv[i];
+    if (!current.startsWith("--")) {
+      continue;
+    }
+    const key = current.slice(2);
+    const next = argv[i + 1];
+    if (!next || next.startsWith("--")) {
+      args.set(key, "true");
+      continue;
+    }
+    args.set(key, next);
+    i += 1;
+  }
+  return args;
+}
 
 const repoRoot = process.cwd();
 const manifestPath = "src/lib/patch/presets.manifest.json";

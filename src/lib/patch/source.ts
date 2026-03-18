@@ -10,6 +10,7 @@ interface BundledPresetLineage {
 }
 
 const bundledPresetLineageById = new Map<string, BundledPresetLineage>();
+const bundledPresetById = new Map<string, Patch>();
 
 for (const patch of presetPatches) {
   if (patch.meta.source === "preset" && Number.isFinite(patch.meta.presetVersion)) {
@@ -17,6 +18,7 @@ for (const patch of presetPatches) {
       presetId: patch.meta.presetId,
       presetVersion: patch.meta.presetVersion
     });
+    bundledPresetById.set(patch.meta.presetId, patch);
   }
 }
 
@@ -29,6 +31,9 @@ export const resolvePatchSource = (patch: Pick<Patch, "id"> & { meta?: Pick<Patc
 
 export const getBundledPresetLineage = (presetId: string | undefined): BundledPresetLineage | undefined =>
   presetId ? bundledPresetLineageById.get(presetId) : undefined;
+
+export const getBundledPresetPatch = (presetId: string | undefined): Patch | undefined =>
+  presetId ? bundledPresetById.get(presetId) : undefined;
 
 export const resolvePatchPresetStatus = (
   patch: Pick<Patch, "id"> & { meta?: PatchMeta | null }

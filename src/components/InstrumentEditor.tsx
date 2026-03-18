@@ -10,8 +10,10 @@ interface InstrumentEditorProps {
   selectedNodeId?: string;
   validationIssues: PatchValidationIssue[];
   previewPitch: string;
+  migrationNotice?: string | null;
   onRenamePatch: (name: string) => void;
   onDuplicatePatch: () => void;
+  onUpdatePreset: () => void;
   onRequestRemovePatch: () => void;
   onOpenPreviewPitchPicker: () => void;
   onPreviewNow: () => void;
@@ -50,6 +52,11 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
         </div>
 
         <div className="instrument-toolbar-actions">
+          {presetStatus === "preset_update_available" && (
+            <button type="button" onClick={props.onUpdatePreset}>
+              Update Preset
+            </button>
+          )}
           <button type="button" onClick={props.onDuplicatePatch}>
             Duplicate Instrument Patch
           </button>
@@ -70,6 +77,8 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
           </button>
         </div>
       </div>
+
+      {props.migrationNotice && <p className="warn">{props.migrationNotice}</p>}
 
       <PatchEditorCanvas
         patch={props.patch}

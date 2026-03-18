@@ -9,8 +9,8 @@
     "build": "pnpm run check:presets:manifest && next build",
     "start": "next start",
     "lint": "pnpm run check:presets:manifest && next lint",
-    "presets:manifest": "node scripts/generate-preset-manifest.mjs --write",
-    "check:presets:manifest": "node scripts/check-preset-manifest.mjs",
+    "presets:manifest": "node --import tsx scripts/generate-preset-manifest.ts --write",
+    "check:presets:manifest": "node --import tsx scripts/check-preset-manifest.ts",
     "check:presets:compat": "node scripts/check-preset-compatibility.mjs",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
@@ -29,6 +29,7 @@
     "@types/react-dom": "^19.0.2",
     "eslint": "^9.16.0",
     "eslint-config-next": "^15.1.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.2",
     "vitest": "^4.1.0"
   }

@@ -1,9 +1,9 @@
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { parsePresetManifestFromSource } from "./preset-manifest-lib.mjs";
+
+import { serializePresetManifest } from "./preset-manifest-lib";
 
 const repoRoot = process.cwd();
-const presetFile = path.join(repoRoot, "src/lib/patch/presets.ts");
 const manifestFile = path.join(repoRoot, "src/lib/patch/presets.manifest.json");
 
 if (!existsSync(manifestFile)) {
@@ -11,8 +11,7 @@ if (!existsSync(manifestFile)) {
   process.exit(1);
 }
 
-const source = readFileSync(presetFile, "utf8");
-const expected = `${JSON.stringify(parsePresetManifestFromSource(source), null, 2)}\n`;
+const expected = serializePresetManifest();
 const actual = readFileSync(manifestFile, "utf8");
 
 if (expected !== actual) {
