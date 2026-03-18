@@ -1,8 +1,8 @@
 import { createId } from "@/lib/ids";
-import { resolvePatchSource } from "@/lib/patch/source";
+import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
 import { validatePatch } from "@/lib/patch/validation";
 import { Project, TrackFxSettings } from "@/types/music";
-import { Patch, PatchConnection, PatchMacro, PatchNode } from "@/types/patch";
+import { Patch, PatchConnection, PatchMacro, PatchMeta, PatchNode } from "@/types/patch";
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -103,17 +103,37 @@ const sanitizePatch = (raw: unknown, index: number): Patch => {
   const ui = isObject(patch.ui) ? patch.ui : {};
   const layout = isObject(patch.layout) ? patch.layout : {};
   const io = isObject(patch.io) ? patch.io : {};
+  const patchId = asString(patch.id, `patch_${index}`);
+  const sourceProbe: Pick<PatchMeta, "source"> | undefined =
+    isObject(patch.meta) && (patch.meta.source === "preset" || patch.meta.source === "custom")
+      ? { source: patch.meta.source }
+      : undefined;
+  const source = resolvePatchSource({
+    id: patchId,
+    meta: sourceProbe
+  });
+  const bundledLineage = getBundledPresetLineage(patchId);
+  const meta: PatchMeta =
+    source === "preset"
+      ? {
+          source: "preset",
+          presetId: asString(isObject(patch.meta) ? patch.meta.presetId : undefined, bundledLineage?.presetId ?? patchId),
+          presetVersion: Math.max(
+            1,
+            Math.floor(
+              asFiniteNumber(isObject(patch.meta) ? patch.meta.presetVersion : undefined, bundledLineage?.presetVersion ?? 1)
+            )
+          )
+        }
+      : {
+          source: "custom"
+        };
 
   return {
     schemaVersion: Math.max(1, Math.floor(asFiniteNumber(patch.schemaVersion, 1))),
-    id: asString(patch.id, `patch_${index}`),
+    id: patchId,
     name: asString(patch.name, `Patch ${index + 1}`),
-    meta: {
-      source: resolvePatchSource({
-        id: asString(patch.id, `patch_${index}`),
-        meta: isObject(patch.meta) ? { source: patch.meta.source === "preset" || patch.meta.source === "custom" ? patch.meta.source : undefined } : undefined
-      })
-    },
+    meta,
     nodes: (Array.isArray(patch.nodes) ? patch.nodes : []).map(sanitizePatchNode),
     connections: (Array.isArray(patch.connections) ? patch.connections : []).map(sanitizePatchConnection),
     ui: {

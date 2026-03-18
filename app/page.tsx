@@ -13,7 +13,7 @@ import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } fr
 import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { createDefaultProject } from "@/lib/patch/presets";
-import { resolvePatchSource } from "@/lib/patch/source";
+import { getBundledPresetPatch, resolvePatchSource } from "@/lib/patch/source";
 import { importProjectFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
 import { snapToGrid } from "@/lib/musicTiming";
@@ -76,6 +76,7 @@ export default function HomePage() {
     patchId: string;
     rows: Array<{ trackId: string; mode: "fallback" | "remove"; fallbackPatchId: string }>;
   } | null>(null);
+  const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
 
   const activeRecordKeys = useRef<Map<string, { noteId: string; startBeat: number; trackId: string }>>(new Map());
   const audioEngineRef = useRef<AudioEngine | null>(null);
@@ -158,6 +159,10 @@ export default function HomePage() {
       // compile errors are reflected by validation issues
     }
   }, [selectedPatch]);
+
+  useEffect(() => {
+    setMigrationNotice(null);
+  }, [selectedPatch?.id, selectedTrack?.id]);
 
   useEffect(() => {
     if (!ready) return;
@@ -359,6 +364,52 @@ export default function HomePage() {
   const schedulePatchPreview = useCallback((patchId: string) => {
     setPendingPreview({ patchId, nonce: Date.now() });
   }, []);
+
+  const updatePresetToLatest = useCallback(() => {
+    if (!selectedPatch || selectedPatch.meta.source !== "preset") {
+      return;
+    }
+
+    const latestPreset = getBundledPresetPatch(selectedPatch.meta.presetId);
+    if (!latestPreset || latestPreset.meta.source !== "preset") {
+      setMigrationNotice("Latest bundled preset snapshot is not available for this instrument.");
+      return;
+    }
+
+    const savedLayoutByNodeId = new Map(selectedPatch.layout.nodes.map((entry) => [entry.nodeId, entry] as const));
+    const nextNodeIds = new Set(latestPreset.nodes.map((node) => node.id));
+    const droppedLayoutCount = selectedPatch.layout.nodes.filter((entry) => !nextNodeIds.has(entry.nodeId)).length;
+    const migratedPatch: Patch = {
+      ...structuredClone(latestPreset),
+      id: selectedPatch.id,
+      name: selectedPatch.name,
+      meta: {
+        source: "preset",
+        presetId: latestPreset.meta.presetId,
+        presetVersion: latestPreset.meta.presetVersion
+      },
+      layout: {
+        nodes: latestPreset.layout.nodes.map((entry) => savedLayoutByNodeId.get(entry.nodeId) ?? entry)
+      }
+    };
+
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        patches: current.patches.map((patch) => (patch.id === selectedPatch.id ? migratedPatch : patch))
+      }),
+      { actionKey: `patch:${selectedPatch.id}:update-preset` }
+    );
+    setSelectedNodeId((currentSelectedNodeId) =>
+      currentSelectedNodeId && nextNodeIds.has(currentSelectedNodeId) ? currentSelectedNodeId : undefined
+    );
+    setMigrationNotice(
+      droppedLayoutCount > 0
+        ? `Preset updated. ${droppedLayoutCount} saved layout position${droppedLayoutCount === 1 ? "" : "s"} were discarded because those nodes changed in the new preset.`
+        : "Preset updated to the latest bundled version."
+    );
+    schedulePatchPreview(selectedPatch.id);
+  }, [commitProjectChange, schedulePatchPreview, selectedPatch]);
 
   const previewSelectedPatchNow = useCallback((pitch = previewPitch) => {
     if (!selectedPatch || !selectedTrack || playing) {
@@ -826,10 +877,12 @@ export default function HomePage() {
       <InstrumentEditor
         patch={selectedPatch}
         previewPitch={previewPitch}
+        migrationNotice={migrationNotice}
         selectedNodeId={selectedNodeId}
         validationIssues={validationIssues}
         onRenamePatch={renameSelectedPatch}
         onDuplicatePatch={duplicatePatchForSelectedTrack}
+        onUpdatePreset={updatePresetToLatest}
         onRequestRemovePatch={requestRemoveSelectedPatch}
         onOpenPreviewPitchPicker={() => setPreviewPitchPickerOpen(true)}
         onPreviewNow={() => previewSelectedPatchNow()}

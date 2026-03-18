@@ -244,6 +244,18 @@ select {
   background: rgba(112, 86, 58, 0.22);
 }
 
+.instrument-source-badge.preset-update {
+  color: #9fd7ff;
+  border-color: #376488;
+  background: rgba(55, 100, 136, 0.22);
+}
+
+.instrument-source-badge.legacy-preset {
+  color: #d7c7ff;
+  border-color: #65577f;
+  background: rgba(101, 87, 127, 0.22);
+}
+
 .instrument-identity {
   display: flex;
   flex-wrap: wrap;

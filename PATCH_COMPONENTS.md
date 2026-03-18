@@ -78,3 +78,32 @@ These provide per-voice note/control context without user manually adding host n
 - Keeps patch editing constrained and predictable for MVP.
 - Makes graphs machine-transformable (ops + validation).
 - Keeps runtime execution straightforward (typed, directed graph, no feedback cycles).
+
+## Preset Metadata And Lineage
+
+Patch definitions carry a small metadata envelope describing whether a patch is a bundled preset or a project-owned custom instrument.
+
+- `meta.source: "custom"` means the patch is fully project-owned and has no preset lineage semantics.
+- `meta.source: "preset"` means the patch is a saved snapshot derived from a bundled preset and also carries:
+  - `presetId`: stable preset family identifier
+  - `presetVersion`: bundled preset version the snapshot came from
+
+Projects still save the full patch snapshot, including nodes, connections, macros, and layout. This keeps old projects playable even if bundled presets later change or disappear.
+
+## Preset Updates And Legacy Presets
+
+Preset evolution follows a snapshot-first model.
+
+- If a bundled preset with the same `presetId` exists and has a newer `presetVersion`, the project patch is treated as `Preset Update Available`.
+- If no bundled preset with that `presetId` exists anymore, the saved snapshot is treated as a `Legacy Preset`.
+
+Updating a preset replaces the saved preset snapshot with the latest bundled snapshot, preserves matching saved layout entries by `nodeId` where possible, and discards stale layout entries without blocking migration. Track-level macro values remain outside the patch definition and are preserved independently.
+
+Preset compatibility is intentionally defined in terms of the user-facing macro API, not internal node wiring. Internal graph structure may change across preset versions as long as the preset family remains macro-compatible.
+
+## TODO
+
+- Replace broad legacy recovery paths in project normalization with explicit schema-version migrations once the file format stabilizes after MVP.
+- Stop inferring missing preset/custom metadata from patch IDs once all persisted projects have been migrated to the current schema.
+- Tighten import validation so malformed project JSON fails with versioned migration errors instead of permissive fallback recovery.
+- Expand preset-update tests to cover layout preservation/discard behavior and legacy-preset UI states.

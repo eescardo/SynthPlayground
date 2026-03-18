@@ -1,7 +1,7 @@
 "use client";
 
 import { PatchEditorCanvas } from "@/components/PatchEditorCanvas";
-import { resolvePatchSource } from "@/lib/patch/source";
+import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 
@@ -10,8 +10,10 @@ interface InstrumentEditorProps {
   selectedNodeId?: string;
   validationIssues: PatchValidationIssue[];
   previewPitch: string;
+  migrationNotice?: string | null;
   onRenamePatch: (name: string) => void;
   onDuplicatePatch: () => void;
+  onUpdatePreset: () => void;
   onRequestRemovePatch: () => void;
   onOpenPreviewPitchPicker: () => void;
   onPreviewNow: () => void;
@@ -21,6 +23,7 @@ interface InstrumentEditorProps {
 
 export function InstrumentEditor(props: InstrumentEditorProps) {
   const patchSource = resolvePatchSource(props.patch);
+  const presetStatus = resolvePatchPresetStatus(props.patch);
   const structureLocked = patchSource === "preset";
 
   return (
@@ -29,7 +32,13 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
         <div className="instrument-toolbar-main">
           <div className="instrument-toolbar-heading">
             <h3>Instrument</h3>
-            {patchSource === "preset" && <span className="instrument-source-badge preset">Preset</span>}
+            {presetStatus === "preset" && <span className="instrument-source-badge preset">Preset</span>}
+            {presetStatus === "preset_update_available" && (
+              <span className="instrument-source-badge preset-update">Preset Update Available</span>
+            )}
+            {presetStatus === "legacy_preset" && (
+              <span className="instrument-source-badge legacy-preset">Legacy Preset</span>
+            )}
             <code className="instrument-title-id">({props.patch.id})</code>
           </div>
           <div className="instrument-identity">
@@ -43,6 +52,11 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
         </div>
 
         <div className="instrument-toolbar-actions">
+          {presetStatus === "preset_update_available" && (
+            <button type="button" onClick={props.onUpdatePreset}>
+              Update Preset
+            </button>
+          )}
           <button type="button" onClick={props.onDuplicatePatch}>
             Duplicate Instrument Patch
           </button>
@@ -63,6 +77,8 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
           </button>
         </div>
       </div>
+
+      {props.migrationNotice && <p className="warn">{props.migrationNotice}</p>}
 
       <PatchEditorCanvas
         patch={props.patch}
