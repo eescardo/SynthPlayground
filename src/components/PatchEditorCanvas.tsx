@@ -51,6 +51,7 @@ interface PatchEditorCanvasProps {
   structureLocked?: boolean;
   onSelectNode: (nodeId?: string) => void;
   onApplyOp: (op: PatchOp) => void;
+  onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
 }
 
 function getCapabilityColor(port: PortSchema): string {
@@ -324,35 +325,11 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const selectedNode = props.selectedNodeId ? nodeById.get(props.selectedNodeId) : undefined;
   const selectedSchema = selectedNode ? getModuleSchema(selectedNode.typeId) : undefined;
 
-  const bindMacro = (paramId: string) => {
-    if (!selectedNode || !selectedSchema || props.structureLocked) {
+  const exposeMacro = (paramId: string, suggestedName: string) => {
+    if (!selectedNode || props.structureLocked) {
       return;
     }
-
-    let macroId = props.patch.ui.macros[0]?.id;
-    if (!macroId) {
-      macroId = createId("macro");
-      props.onApplyOp({ type: "addMacro", macroId, name: "Macro 1" });
-    }
-
-    const paramSchema = selectedSchema.params.find((p) => p.id === paramId);
-    let min = 0;
-    let max = 1;
-    if (paramSchema?.type === "float") {
-      min = paramSchema.range.min;
-      max = paramSchema.range.max;
-    }
-
-    props.onApplyOp({
-      type: "bindMacro",
-      macroId,
-      bindingId: createId("bind"),
-      nodeId: selectedNode.id,
-      paramId,
-      map: "linear",
-      min,
-      max
-    });
+    props.onExposeMacro(selectedNode.id, paramId, suggestedName);
   };
 
   return (
@@ -421,6 +398,14 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
               </h4>
               {selectedSchema.params.map((param) => {
                 const value = selectedNode.params[param.id] ?? param.default;
+                const boundMacros = props.patch.ui.macros.filter((macro) =>
+                  macro.bindings.some((binding) => binding.nodeId === selectedNode.id && binding.paramId === param.id)
+                );
+                const isExposed = boundMacros.length > 0;
+                const exposedLabel =
+                  boundMacros.length === 1
+                    ? `Exposed as '${boundMacros[0].name}'`
+                    : `Exposed as ${boundMacros.map((macro) => `'${macro.name}'`).join(", ")}`;
                 return (
                   <label key={param.id} className="param-row">
                     <span>{param.label}</span>
@@ -480,9 +465,19 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
                         }
                       />
                     )}
-                    <button type="button" disabled={props.structureLocked} onClick={() => bindMacro(param.id)}>
-                      Expose Macro
-                    </button>
+                    {isExposed ? (
+                      <button type="button" className="macro-binding-pill" disabled title={exposedLabel}>
+                        {exposedLabel}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={props.structureLocked}
+                        onClick={() => exposeMacro(param.id, param.label)}
+                      >
+                        Expose Macro
+                      </button>
+                    )}
                   </label>
                 );
               })}

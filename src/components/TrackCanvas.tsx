@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MacroPanel } from "@/components/MacroPanel";
 import { createId } from "@/lib/ids";
+import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
 import { snapToGrid } from "@/lib/musicTiming";
 import { Project, Note, Track } from "@/types/music";
@@ -144,6 +145,20 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const selectedPatch = selectedTrack
     ? props.project.patches.find((patch) => patch.id === selectedTrack.instrumentPatchId) ?? null
     : null;
+
+  const getPatchOptionLabel = useCallback((patch: Project["patches"][number]) => {
+    const presetStatus = resolvePatchPresetStatus(patch);
+    if (presetStatus === "legacy_preset") {
+      return `${patch.name} (Legacy Preset)`;
+    }
+    if (presetStatus === "preset_update_available") {
+      return `${patch.name} (Preset Update Available)`;
+    }
+    if (resolvePatchSource(patch) === "custom") {
+      return `${patch.name} (Custom)`;
+    }
+    return `${patch.name} (Preset)`;
+  }, []);
 
   const totalBeats = useMemo(() => {
     const maxEnd = props.project.tracks.flatMap((track) => track.notes).reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);
@@ -638,7 +653,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
           >
             {project.patches.map((patch) => (
               <option key={patch.id} value={patch.id}>
-                {patch.name}
+                {getPatchOptionLabel(patch)}
               </option>
             ))}
           </select>

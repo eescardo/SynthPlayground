@@ -14,11 +14,13 @@ interface InstrumentEditorProps {
   onRenamePatch: (name: string) => void;
   onDuplicatePatch: () => void;
   onUpdatePreset: () => void;
+  canRemovePatch: boolean;
   onRequestRemovePatch: () => void;
   onOpenPreviewPitchPicker: () => void;
   onPreviewNow: () => void;
   onSelectNode: (nodeId?: string) => void;
   onApplyOp: (op: PatchOp) => void;
+  onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
 }
 
 export function InstrumentEditor(props: InstrumentEditorProps) {
@@ -60,7 +62,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
           <button type="button" onClick={props.onDuplicatePatch}>
             Duplicate Instrument Patch
           </button>
-          <button type="button" disabled={structureLocked} onClick={props.onRequestRemovePatch}>
+          <button type="button" disabled={!props.canRemovePatch} onClick={props.onRequestRemovePatch}>
             Remove Instrument
           </button>
         </div>
@@ -87,6 +89,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
         structureLocked={structureLocked}
         onSelectNode={props.onSelectNode}
         onApplyOp={props.onApplyOp}
+        onExposeMacro={props.onExposeMacro}
       />
     </section>
   );

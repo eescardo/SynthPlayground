@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { exportProjectToJson, importProjectFromJson, normalizeProject } from "@/lib/projectSerde";
 import { createDefaultProject } from "@/lib/patch/presets";
+import { getBundledPresetLineage } from "@/lib/patch/source";
 
 describe("projectSerde", () => {
   it("normalizeProject upgrades legacy preset metadata and track macro defaults", () => {
@@ -26,8 +27,9 @@ describe("projectSerde", () => {
   const normalized = normalizeProject(legacy);
   for (const patch of normalized.patches) {
     if (patch.meta.source === "preset") {
+      const bundledLineage = getBundledPresetLineage(patch.id);
       expect(patch.meta.presetId).toBe(patch.id);
-      expect(patch.meta.presetVersion).toBe(1);
+      expect(patch.meta.presetVersion).toBe(bundledLineage?.presetVersion ?? 1);
     }
   }
   for (const track of normalized.tracks) {

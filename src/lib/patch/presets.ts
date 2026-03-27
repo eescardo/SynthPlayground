@@ -176,6 +176,7 @@ export const padPatch = (): Patch => {
   const lfo = "lfo1";
   const mix = "mix1";
   const env = "env1";
+  const vcf = "vcf1";
   const vca = "vca1";
   const out = "out1";
 
@@ -183,30 +184,41 @@ export const padPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_pad",
     name: "Pad",
-    meta: { source: "preset", presetId: "preset_pad", presetVersion: 1 },
+    meta: { source: "preset", presetId: "preset_pad", presetVersion: 4 },
     nodes: [
       {
         id: vco1,
         typeId: "VCO",
-        params: { ...createDefaultParamsForType("VCO"), wave: "triangle", fineTuneCents: -4 }
+        params: { ...createDefaultParamsForType("VCO"), wave: "saw", fineTuneCents: -7 }
       },
       {
         id: vco2,
         typeId: "VCO",
-        params: { ...createDefaultParamsForType("VCO"), wave: "saw", fineTuneCents: 4 }
+        params: {
+          ...createDefaultParamsForType("VCO"),
+          wave: "square",
+          pulseWidth: 0.42,
+          pwmAmount: 0.18,
+          fineTuneCents: 7
+        }
       },
-      { id: lfo, typeId: "LFO", params: { ...createDefaultParamsForType("LFO"), freqHz: 0.3 } },
-      { id: mix, typeId: "Mixer4", params: { ...createDefaultParamsForType("Mixer4"), gain1: 0.5, gain2: 0.5 } },
+      { id: lfo, typeId: "LFO", params: { ...createDefaultParamsForType("LFO"), wave: "triangle", freqHz: 0.18 } },
+      { id: mix, typeId: "Mixer4", params: { ...createDefaultParamsForType("Mixer4"), gain1: 0.46, gain2: 0.4 } },
       {
         id: env,
         typeId: "ADSR",
         params: {
           ...createDefaultParamsForType("ADSR"),
-          attack: 0.8,
-          decay: 0.5,
-          sustain: 0.75,
-          release: 1.8
+          attack: 1.1,
+          decay: 0.9,
+          sustain: 0.78,
+          release: 1.2
         }
+      },
+      {
+        id: vcf,
+        typeId: "VCF",
+        params: { ...createDefaultParamsForType("VCF"), cutoffHz: 1450, resonance: 0.16, cutoffModAmountOct: 1.6 }
       },
       { id: vca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), bias: 0, gain: 1 } },
       outputNode(out)
@@ -215,26 +227,39 @@ export const padPatch = (): Patch => {
       { id: "c1", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: vco1, portId: "pitch" } },
       { id: "c2", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: vco2, portId: "pitch" } },
       { id: "c3", from: { nodeId: noteCore.gate, portId: "out" }, to: { nodeId: env, portId: "gate" } },
-      { id: "c4", from: { nodeId: lfo, portId: "out" }, to: { nodeId: vco1, portId: "pwm" } },
+      { id: "c4", from: { nodeId: lfo, portId: "out" }, to: { nodeId: vco2, portId: "pwm" } },
       { id: "c5", from: { nodeId: vco1, portId: "out" }, to: { nodeId: mix, portId: "in1" } },
       { id: "c6", from: { nodeId: vco2, portId: "out" }, to: { nodeId: mix, portId: "in2" } },
-      { id: "c7", from: { nodeId: mix, portId: "out" }, to: { nodeId: vca, portId: "in" } },
-      { id: "c8", from: { nodeId: env, portId: "out" }, to: { nodeId: vca, portId: "gainCV" } },
-      { id: "c9", from: { nodeId: vca, portId: "out" }, to: { nodeId: out, portId: "in" } }
+      { id: "c7", from: { nodeId: lfo, portId: "out" }, to: { nodeId: vcf, portId: "cutoffCV" } },
+      { id: "c8", from: { nodeId: mix, portId: "out" }, to: { nodeId: vcf, portId: "in" } },
+      { id: "c9", from: { nodeId: vcf, portId: "out" }, to: { nodeId: vca, portId: "in" } },
+      { id: "c10", from: { nodeId: env, portId: "out" }, to: { nodeId: vca, portId: "gainCV" } },
+      { id: "c11", from: { nodeId: vca, portId: "out" }, to: { nodeId: out, portId: "in" } }
     ],
     ui: {
       macros: [
         {
           id: "macro_attack",
           name: "Attack",
-          defaultNormalized: 0.28,
-          bindings: [{ id: "b1", nodeId: env, paramId: "attack", map: "linear", min: 0.02, max: 2.8 }]
+          defaultNormalized: 0.34,
+          bindings: [{ id: "b1", nodeId: env, paramId: "attack", map: "linear", min: 0.05, max: 3.2 }]
+        },
+        {
+          id: "macro_release",
+          name: "Release",
+          defaultNormalized: 0.32,
+          bindings: [{ id: "b6", nodeId: env, paramId: "release", map: "linear", min: 0.15, max: 2.4 }]
         },
         {
           id: "macro_motion",
           name: "Motion",
-          defaultNormalized: 0.39,
-          bindings: [{ id: "b2", nodeId: lfo, paramId: "freqHz", map: "exp", min: 0.05, max: 8 }]
+          defaultNormalized: 0.46,
+          bindings: [
+            { id: "b2", nodeId: lfo, paramId: "freqHz", map: "exp", min: 0.04, max: 4.5 },
+            { id: "b3", nodeId: vco2, paramId: "pwmAmount", map: "linear", min: 0.03, max: 0.42 },
+            { id: "b4", nodeId: vcf, paramId: "cutoffModAmountOct", map: "linear", min: 0.4, max: 2.5 },
+            { id: "b5", nodeId: vcf, paramId: "cutoffHz", map: "exp", min: 700, max: 3600 }
+          ]
         }
       ]
     },
@@ -245,8 +270,9 @@ export const padPatch = (): Patch => {
         { nodeId: lfo, x: 2, y: 10 },
         { nodeId: mix, x: 7, y: 4 },
         { nodeId: env, x: 7, y: 10 },
-        { nodeId: vca, x: 11, y: 4 },
-        { nodeId: out, x: 15, y: 4 }
+        { nodeId: vcf, x: 11, y: 4 },
+        { nodeId: vca, x: 15, y: 4 },
+        { nodeId: out, x: 19, y: 4 }
       ]
     },
     io: { audioOutNodeId: out, audioOutPortId: "in" }
@@ -254,65 +280,108 @@ export const padPatch = (): Patch => {
 };
 
 export const pluckPatch = (): Patch => {
+  const vco = "vco1";
   const noise = "noise1";
-  const env = "env1";
-  const vca = "vca1";
+  const ampEnv = "env1";
+  const pickEnv = "env2";
+  const pickVca = "vca1";
+  const mix = "mix1";
   const filter = "vcf1";
+  const ampVca = "vca2";
   const out = "out1";
 
   return {
     schemaVersion: 1,
     id: "preset_pluck",
     name: "Pluck",
-    meta: { source: "preset", presetId: "preset_pluck", presetVersion: 1 },
+    meta: { source: "preset", presetId: "preset_pluck", presetVersion: 3 },
     nodes: [
-      { id: noise, typeId: "Noise", params: { ...createDefaultParamsForType("Noise"), gain: 0.65 } },
       {
-        id: env,
+        id: vco,
+        typeId: "VCO",
+        params: { ...createDefaultParamsForType("VCO"), wave: "saw", fineTuneCents: -3 }
+      },
+      { id: noise, typeId: "Noise", params: { ...createDefaultParamsForType("Noise"), color: "white", gain: 0.12 } },
+      {
+        id: ampEnv,
         typeId: "ADSR",
         params: {
           ...createDefaultParamsForType("ADSR"),
           attack: 0,
-          decay: 0.16,
+          decay: 0.3,
           sustain: 0,
-          release: 0.12
+          release: 0.24
         }
       },
-      { id: filter, typeId: "VCF", params: { ...createDefaultParamsForType("VCF"), cutoffHz: 1400, resonance: 0.4 } },
-      { id: vca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), bias: 0, gain: 1 } },
+      {
+        id: pickEnv,
+        typeId: "ADSR",
+        params: {
+          ...createDefaultParamsForType("ADSR"),
+          attack: 0,
+          decay: 0.035,
+          sustain: 0,
+          release: 0.025
+        }
+      },
+      { id: pickVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), bias: 0, gain: 0.75 } },
+      {
+        id: mix,
+        typeId: "Mixer4",
+        params: { ...createDefaultParamsForType("Mixer4"), gain1: 0.95, gain2: 0.1, gain3: 0, gain4: 0 }
+      },
+      {
+        id: filter,
+        typeId: "VCF",
+        params: { ...createDefaultParamsForType("VCF"), cutoffHz: 1450, resonance: 0.14, cutoffModAmountOct: 1.1 }
+      },
+      { id: ampVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), bias: 0, gain: 1 } },
       outputNode(out)
     ],
     connections: [
-      { id: "c1", from: { nodeId: noteCore.gate, portId: "out" }, to: { nodeId: env, portId: "gate" } },
-      { id: "c2", from: { nodeId: noise, portId: "out" }, to: { nodeId: filter, portId: "in" } },
-      { id: "c3", from: { nodeId: env, portId: "out" }, to: { nodeId: vca, portId: "gainCV" } },
-      { id: "c4", from: { nodeId: filter, portId: "out" }, to: { nodeId: vca, portId: "in" } },
-      { id: "c5", from: { nodeId: env, portId: "out" }, to: { nodeId: filter, portId: "cutoffCV" } },
-      { id: "c6", from: { nodeId: vca, portId: "out" }, to: { nodeId: out, portId: "in" } }
+      { id: "c1", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: vco, portId: "pitch" } },
+      { id: "c2", from: { nodeId: noteCore.gate, portId: "out" }, to: { nodeId: ampEnv, portId: "gate" } },
+      { id: "c3", from: { nodeId: noteCore.gate, portId: "out" }, to: { nodeId: pickEnv, portId: "gate" } },
+      { id: "c4", from: { nodeId: noise, portId: "out" }, to: { nodeId: pickVca, portId: "in" } },
+      { id: "c5", from: { nodeId: pickEnv, portId: "out" }, to: { nodeId: pickVca, portId: "gainCV" } },
+      { id: "c6", from: { nodeId: vco, portId: "out" }, to: { nodeId: mix, portId: "in1" } },
+      { id: "c7", from: { nodeId: pickVca, portId: "out" }, to: { nodeId: mix, portId: "in2" } },
+      { id: "c8", from: { nodeId: mix, portId: "out" }, to: { nodeId: filter, portId: "in" } },
+      { id: "c9", from: { nodeId: ampEnv, portId: "out" }, to: { nodeId: filter, portId: "cutoffCV" } },
+      { id: "c10", from: { nodeId: filter, portId: "out" }, to: { nodeId: ampVca, portId: "in" } },
+      { id: "c11", from: { nodeId: ampEnv, portId: "out" }, to: { nodeId: ampVca, portId: "gainCV" } },
+      { id: "c12", from: { nodeId: ampVca, portId: "out" }, to: { nodeId: out, portId: "in" } }
     ],
     ui: {
       macros: [
         {
           id: "macro_tone",
           name: "Tone",
-          defaultNormalized: 0.47,
-          bindings: [{ id: "b1", nodeId: filter, paramId: "cutoffHz", map: "exp", min: 250, max: 8000 }]
+          defaultNormalized: 0.46,
+          bindings: [{ id: "b1", nodeId: filter, paramId: "cutoffHz", map: "exp", min: 280, max: 5200 }]
         },
         {
           id: "macro_decay",
           name: "Decay",
-          defaultNormalized: 0.15,
-          bindings: [{ id: "b2", nodeId: env, paramId: "decay", map: "linear", min: 0.05, max: 0.8 }]
+          defaultNormalized: 0.28,
+          bindings: [
+            { id: "b2", nodeId: ampEnv, paramId: "decay", map: "linear", min: 0.08, max: 1.05 },
+            { id: "b3", nodeId: ampEnv, paramId: "release", map: "linear", min: 0.06, max: 0.65 }
+          ]
         }
       ]
     },
     layout: {
       nodes: [
-        { nodeId: noise, x: 2, y: 4 },
-        { nodeId: env, x: 2, y: 9 },
-        { nodeId: filter, x: 7, y: 4 },
-        { nodeId: vca, x: 12, y: 4 },
-        { nodeId: out, x: 16, y: 4 }
+        { nodeId: vco, x: 2, y: 3 },
+        { nodeId: noise, x: 2, y: 8 },
+        { nodeId: ampEnv, x: 2, y: 13 },
+        { nodeId: pickEnv, x: 6, y: 13 },
+        { nodeId: pickVca, x: 6, y: 8 },
+        { nodeId: mix, x: 10, y: 5 },
+        { nodeId: filter, x: 14, y: 5 },
+        { nodeId: ampVca, x: 18, y: 5 },
+        { nodeId: out, x: 22, y: 5 }
       ]
     },
     io: { audioOutNodeId: out, audioOutPortId: "in" }
@@ -433,52 +502,122 @@ export const brassPatch = (): Patch => {
 };
 
 export const drumPatch = (): Patch => {
+  const vco = "vco1";
   const noise = "noise1";
-  const env = "env1";
-  const vca = "vca1";
+  const bodyEnv = "env1";
+  const noiseEnv = "env2";
+  const noiseFilter = "vcf1";
+  const bodyVca = "vca1";
+  const noiseVca = "vca2";
+  const mix = "mix1";
   const sat = "sat1";
   const out = "out1";
 
   return {
     schemaVersion: 1,
-    id: "preset_drum",
+    id: "preset_drumish",
     name: "Drum-ish",
-    meta: { source: "preset", presetId: "preset_drum", presetVersion: 1 },
+    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 5 },
     nodes: [
-      { id: noise, typeId: "Noise", params: { ...createDefaultParamsForType("Noise"), color: "white", gain: 0.9 } },
       {
-        id: env,
-        typeId: "ADSR",
-        params: { ...createDefaultParamsForType("ADSR"), attack: 0, decay: 0.08, sustain: 0, release: 0.05 }
+        id: vco,
+        typeId: "VCO",
+        params: { ...createDefaultParamsForType("VCO"), wave: "sine", baseTuneCents: -2200, fineTuneCents: -4 }
       },
-      { id: vca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 1, bias: 0 } },
-      { id: sat, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), gainDb: 24, mix: 0.6 } },
+      { id: noise, typeId: "Noise", params: { ...createDefaultParamsForType("Noise"), color: "white", gain: 1 } },
+      {
+        id: bodyEnv,
+        typeId: "ADSR",
+        params: { ...createDefaultParamsForType("ADSR"), attack: 0, decay: 0.06, sustain: 0, release: 0.04 }
+      },
+      {
+        id: noiseEnv,
+        typeId: "ADSR",
+        params: { ...createDefaultParamsForType("ADSR"), attack: 0, decay: 0.06, sustain: 0, release: 0.04 }
+      },
+      {
+        id: noiseFilter,
+        typeId: "VCF",
+        params: { ...createDefaultParamsForType("VCF"), type: "bandpass", cutoffHz: 4200, resonance: 0.62, cutoffModAmountOct: 0.25 }
+      },
+      { id: bodyVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.34, bias: 0 } },
+      { id: noiseVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.82, bias: 0 } },
+      { id: mix, typeId: "Mixer4", params: { ...createDefaultParamsForType("Mixer4"), gain1: 0.62, gain2: 0.92 } },
+      { id: sat, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), gainDb: 6, mix: 0.14 } },
       outputNode(out)
     ],
     connections: [
-      { id: "c1", from: { nodeId: noteCore.gate, portId: "out" }, to: { nodeId: env, portId: "gate" } },
-      { id: "c2", from: { nodeId: noise, portId: "out" }, to: { nodeId: vca, portId: "in" } },
-      { id: "c3", from: { nodeId: env, portId: "out" }, to: { nodeId: vca, portId: "gainCV" } },
-      { id: "c4", from: { nodeId: vca, portId: "out" }, to: { nodeId: sat, portId: "in" } },
-      { id: "c5", from: { nodeId: sat, portId: "out" }, to: { nodeId: out, portId: "in" } }
+      { id: "c1", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: vco, portId: "pitch" } },
+      { id: "c2", from: { nodeId: noteCore.gate, portId: "out" }, to: { nodeId: bodyEnv, portId: "gate" } },
+      { id: "c3", from: { nodeId: noteCore.gate, portId: "out" }, to: { nodeId: noiseEnv, portId: "gate" } },
+      { id: "c4", from: { nodeId: vco, portId: "out" }, to: { nodeId: bodyVca, portId: "in" } },
+      { id: "c5", from: { nodeId: bodyEnv, portId: "out" }, to: { nodeId: bodyVca, portId: "gainCV" } },
+      { id: "c6", from: { nodeId: noise, portId: "out" }, to: { nodeId: noiseFilter, portId: "in" } },
+      { id: "c7", from: { nodeId: noiseEnv, portId: "out" }, to: { nodeId: noiseFilter, portId: "cutoffCV" } },
+      { id: "c8", from: { nodeId: noiseFilter, portId: "out" }, to: { nodeId: noiseVca, portId: "in" } },
+      { id: "c9", from: { nodeId: noiseEnv, portId: "out" }, to: { nodeId: noiseVca, portId: "gainCV" } },
+      { id: "c10", from: { nodeId: bodyVca, portId: "out" }, to: { nodeId: mix, portId: "in1" } },
+      { id: "c11", from: { nodeId: noiseVca, portId: "out" }, to: { nodeId: mix, portId: "in2" } },
+      { id: "c12", from: { nodeId: mix, portId: "out" }, to: { nodeId: sat, portId: "in" } },
+      { id: "c13", from: { nodeId: sat, portId: "out" }, to: { nodeId: out, portId: "in" } }
     ],
     ui: {
       macros: [
         {
-          id: "macro_body",
-          name: "Body",
+          id: "macro_shell",
+          name: "Shell",
+          defaultNormalized: 0.34,
+          bindings: [
+            { id: "b1", nodeId: bodyEnv, paramId: "decay", map: "linear", min: 0.03, max: 0.24 },
+            { id: "b2", nodeId: bodyEnv, paramId: "release", map: "linear", min: 0.015, max: 0.16 },
+            { id: "b3", nodeId: bodyVca, paramId: "gain", map: "linear", min: 0.38, max: 0.82 }
+          ]
+        },
+        {
+          id: "macro_shell_level",
+          name: "Shell Level",
+          defaultNormalized: 0.46,
+          bindings: [
+            { id: "b10", nodeId: mix, paramId: "gain1", map: "linear", min: 0.18, max: 1 },
+            { id: "b12", nodeId: bodyVca, paramId: "gain", map: "linear", min: 0.12, max: 0.9 }
+          ]
+        },
+        {
+          id: "macro_rattle",
+          name: "Rattle",
+          defaultNormalized: 0.46,
+          bindings: [
+            { id: "b4", nodeId: noiseVca, paramId: "gain", map: "linear", min: 0.08, max: 0.95 },
+            { id: "b5", nodeId: noiseEnv, paramId: "decay", map: "linear", min: 0.03, max: 0.22 },
+            { id: "b6", nodeId: noiseEnv, paramId: "release", map: "linear", min: 0.01, max: 0.18 },
+            { id: "b7", nodeId: noiseFilter, paramId: "cutoffHz", map: "exp", min: 2400, max: 4800 },
+            { id: "b8", nodeId: noiseFilter, paramId: "resonance", map: "linear", min: 0.28, max: 0.58 },
+            { id: "b9", nodeId: sat, paramId: "mix", map: "linear", min: 0.04, max: 0.18 }
+          ]
+        },
+        {
+          id: "macro_rattle_level",
+          name: "Rattle Level",
           defaultNormalized: 0.5,
-          bindings: [{ id: "b1", nodeId: sat, paramId: "mix", map: "linear", min: 0.2, max: 1 }]
+          bindings: [
+            { id: "b11", nodeId: mix, paramId: "gain2", map: "linear", min: 0, max: 1 },
+            { id: "b13", nodeId: noiseVca, paramId: "gain", map: "linear", min: 0, max: 0.95 }
+          ]
         }
       ]
     },
     layout: {
       nodes: [
-        { nodeId: noise, x: 2, y: 4 },
-        { nodeId: env, x: 2, y: 9 },
-        { nodeId: vca, x: 8, y: 4 },
-        { nodeId: sat, x: 12, y: 4 },
-        { nodeId: out, x: 16, y: 4 }
+        { nodeId: vco, x: 2, y: 2 },
+        { nodeId: noise, x: 2, y: 7 },
+        { nodeId: bodyEnv, x: 7, y: 2 },
+        { nodeId: noiseEnv, x: 7, y: 8 },
+        { nodeId: noiseFilter, x: 12, y: 8 },
+        { nodeId: bodyVca, x: 12, y: 2 },
+        { nodeId: noiseVca, x: 17, y: 8 },
+        { nodeId: mix, x: 17, y: 4 },
+        { nodeId: sat, x: 21, y: 4 },
+        { nodeId: out, x: 25, y: 4 }
       ]
     },
     io: { audioOutNodeId: out, audioOutPortId: "in" }

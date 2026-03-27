@@ -1,4 +1,5 @@
 import { createId } from "@/lib/ids";
+import { presetPatches } from "@/lib/patch/presets";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
 import { validatePatch } from "@/lib/patch/validation";
 import { Project, TrackFxSettings } from "@/types/music";
@@ -164,7 +165,14 @@ export const normalizeProject = (raw: unknown): Project => {
   }
 
   const patchesRaw = Array.isArray(raw.patches) ? raw.patches : [];
-  const patches = patchesRaw.map(sanitizePatch);
+  const normalizedPatches = patchesRaw.map(sanitizePatch);
+  const existingPatchIds = new Set(normalizedPatches.map((patch) => patch.id));
+  const patches = [
+    ...normalizedPatches,
+    ...presetPatches
+      .filter((patch) => !existingPatchIds.has(patch.id))
+      .map((patch) => structuredClone(patch))
+  ];
   if (patches.length === 0) {
     throw new Error("Project must include at least one patch");
   }

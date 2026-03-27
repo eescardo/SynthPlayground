@@ -402,6 +402,17 @@ select {
   font-size: 0.86rem;
 }
 
+.macro-binding-pill {
+  background: rgba(255, 243, 221, 0.16);
+  border: 1px solid rgba(255, 214, 153, 0.38);
+  color: #ffe2b2;
+}
+
+.macro-binding-pill:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
 .conn-row {
   display: flex;
   align-items: center;

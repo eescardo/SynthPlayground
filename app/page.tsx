@@ -10,10 +10,11 @@ import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
 import { clearProject, loadProject, saveProject } from "@/lib/persistence";
 import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
+import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { createDefaultProject } from "@/lib/patch/presets";
-import { getBundledPresetPatch, resolvePatchSource } from "@/lib/patch/source";
+import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { importProjectFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
 import { snapToGrid } from "@/lib/musicTiming";
@@ -459,6 +460,63 @@ export default function HomePage() {
     }
   };
 
+  const exposePatchMacro = useCallback((nodeId: string, paramId: string, suggestedName: string) => {
+    if (!selectedPatch || resolvePatchSource(selectedPatch) === "preset") {
+      return;
+    }
+
+    commitProjectChange((current) => {
+      const currentPatch = current.patches.find((patch) => patch.id === selectedPatch.id);
+      if (!currentPatch) {
+        return current;
+      }
+
+      const node = currentPatch.nodes.find((entry) => entry.id === nodeId);
+      if (!node) {
+        return current;
+      }
+
+      const moduleSchema = getModuleSchema(node.typeId);
+      const paramSchema = moduleSchema?.params.find((param) => param.id === paramId);
+      if (!moduleSchema || !paramSchema) {
+        return current;
+      }
+
+      let nextPatch = currentPatch;
+      const existingMacro = currentPatch.ui.macros.find((macro) =>
+        macro.bindings.some((binding) => binding.nodeId === nodeId && binding.paramId === paramId)
+      );
+      if (existingMacro) {
+        return current;
+      }
+
+      const macroId = createId("macro");
+      nextPatch = applyPatchGraphOp(nextPatch, {
+        type: "addMacro",
+        macroId,
+        name: suggestedName
+      });
+
+      const min = paramSchema.type === "float" ? paramSchema.range.min : 0;
+      const max = paramSchema.type === "float" ? paramSchema.range.max : 1;
+      nextPatch = applyPatchGraphOp(nextPatch, {
+        type: "bindMacro",
+        macroId,
+        bindingId: createId("bind"),
+        nodeId,
+        paramId,
+        map: "linear",
+        min,
+        max
+      });
+
+      return {
+        ...current,
+        patches: current.patches.map((patch) => (patch.id === selectedPatch.id ? nextPatch : patch))
+      };
+    }, { actionKey: `patch:${selectedPatch.id}:expose-macro:${nodeId}:${paramId}` });
+  }, [commitProjectChange, selectedPatch]);
+
   const resetSelectedPatchMacros = useCallback(() => {
     if (!selectedPatch || !selectedTrack) {
       return;
@@ -682,7 +740,8 @@ export default function HomePage() {
   };
 
   const requestRemoveSelectedPatch = useCallback(() => {
-    if (!selectedPatch || resolvePatchSource(selectedPatch) !== "custom") {
+    const patchStatus = selectedPatch ? resolvePatchPresetStatus(selectedPatch) : "custom";
+    if (!selectedPatch || (resolvePatchSource(selectedPatch) !== "custom" && patchStatus !== "legacy_preset")) {
       return;
     }
     const affectedTracks = project.tracks.filter((track) => track.instrumentPatchId === selectedPatch.id);
@@ -883,11 +942,13 @@ export default function HomePage() {
         onRenamePatch={renameSelectedPatch}
         onDuplicatePatch={duplicatePatchForSelectedTrack}
         onUpdatePreset={updatePresetToLatest}
+        canRemovePatch={resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset"}
         onRequestRemovePatch={requestRemoveSelectedPatch}
         onOpenPreviewPitchPicker={() => setPreviewPitchPickerOpen(true)}
         onPreviewNow={() => previewSelectedPatchNow()}
         onSelectNode={setSelectedNodeId}
         onApplyOp={applyPatchOp}
+        onExposeMacro={exposePatchMacro}
       />
 
       {helpOpen && (

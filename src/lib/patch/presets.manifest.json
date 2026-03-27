@@ -17,11 +17,14 @@
     ]
   },
   {
-    "presetId": "preset_drum",
-    "presetVersion": 1,
+    "presetId": "preset_drumish",
+    "presetVersion": 5,
     "name": "Drum-ish",
     "macroIds": [
-      "macro_body"
+      "macro_shell",
+      "macro_shell_level",
+      "macro_rattle",
+      "macro_rattle_level"
     ]
   },
   {
@@ -34,16 +37,17 @@
   },
   {
     "presetId": "preset_pad",
-    "presetVersion": 1,
+    "presetVersion": 4,
     "name": "Pad",
     "macroIds": [
       "macro_attack",
+      "macro_release",
       "macro_motion"
     ]
   },
   {
     "presetId": "preset_pluck",
-    "presetVersion": 1,
+    "presetVersion": 3,
     "name": "Pluck",
     "macroIds": [
       "macro_tone",
