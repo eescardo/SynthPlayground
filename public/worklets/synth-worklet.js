@@ -936,8 +936,10 @@ class TrackRuntime {
   }
 
   // Mix all active voices for this track into a temporary track buffer, apply track
-  // FX once, then accumulate into the master buffer if the track is not muted.
-  processTrackFrames(targetBuffer, startFrame, endFrame) {
+  // FX once, then accumulate into the master buffer. Normal transport respects track
+  // mute, but instrument preview bypasses mute so auditioning still works.
+  processTrackFrames(targetBuffer, startFrame, endFrame, options = {}) {
+    const ignoreMute = Boolean(options.ignoreMute);
     this.trackBuffer.fill(0, startFrame, endFrame);
 
     for (const voice of this.voices) {
@@ -950,7 +952,7 @@ class TrackRuntime {
     }
 
     this.applyTrackFxRange(this.trackBuffer, startFrame, endFrame);
-    if (this.track.mute) {
+    if (this.track.mute && !ignoreMute) {
       return;
     }
 
@@ -1165,7 +1167,7 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
 
     if (this.playing || this.previewing) {
       for (const track of this.trackRuntimes) {
-        track.processTrackFrames(this.masterBuffer, startFrame, endFrame);
+        track.processTrackFrames(this.masterBuffer, startFrame, endFrame, { ignoreMute: this.previewing });
       }
     }
 

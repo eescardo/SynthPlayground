@@ -17,11 +17,14 @@
     ]
   },
   {
-    "presetId": "preset_drum",
-    "presetVersion": 1,
+    "presetId": "preset_drumish",
+    "presetVersion": 5,
     "name": "Drum-ish",
     "macroIds": [
-      "macro_body"
+      "macro_shell",
+      "macro_shell_level",
+      "macro_rattle",
+      "macro_rattle_level"
     ]
   },
   {

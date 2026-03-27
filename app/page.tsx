@@ -14,7 +14,7 @@ import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { createDefaultProject } from "@/lib/patch/presets";
-import { getBundledPresetPatch, resolvePatchSource } from "@/lib/patch/source";
+import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { importProjectFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
 import { snapToGrid } from "@/lib/musicTiming";
@@ -740,7 +740,8 @@ export default function HomePage() {
   };
 
   const requestRemoveSelectedPatch = useCallback(() => {
-    if (!selectedPatch || resolvePatchSource(selectedPatch) !== "custom") {
+    const patchStatus = selectedPatch ? resolvePatchPresetStatus(selectedPatch) : "custom";
+    if (!selectedPatch || (resolvePatchSource(selectedPatch) !== "custom" && patchStatus !== "legacy_preset")) {
       return;
     }
     const affectedTracks = project.tracks.filter((track) => track.instrumentPatchId === selectedPatch.id);
@@ -941,6 +942,7 @@ export default function HomePage() {
         onRenamePatch={renameSelectedPatch}
         onDuplicatePatch={duplicatePatchForSelectedTrack}
         onUpdatePreset={updatePresetToLatest}
+        canRemovePatch={resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset"}
         onRequestRemovePatch={requestRemoveSelectedPatch}
         onOpenPreviewPitchPicker={() => setPreviewPitchPickerOpen(true)}
         onPreviewNow={() => previewSelectedPatchNow()}

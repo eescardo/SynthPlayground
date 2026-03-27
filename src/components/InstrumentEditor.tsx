@@ -14,6 +14,7 @@ interface InstrumentEditorProps {
   onRenamePatch: (name: string) => void;
   onDuplicatePatch: () => void;
   onUpdatePreset: () => void;
+  canRemovePatch: boolean;
   onRequestRemovePatch: () => void;
   onOpenPreviewPitchPicker: () => void;
   onPreviewNow: () => void;
@@ -61,7 +62,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
           <button type="button" onClick={props.onDuplicatePatch}>
             Duplicate Instrument Patch
           </button>
-          <button type="button" disabled={structureLocked} onClick={props.onRequestRemovePatch}>
+          <button type="button" disabled={!props.canRemovePatch} onClick={props.onRequestRemovePatch}>
             Remove Instrument
           </button>
         </div>
