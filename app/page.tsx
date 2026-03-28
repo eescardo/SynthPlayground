@@ -18,6 +18,7 @@ import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } f
 import { importProjectFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
 import { snapToGrid } from "@/lib/musicTiming";
+import { removeTrackFromProject, renameTrackInProject } from "@/lib/trackEdits";
 import { Project, Note } from "@/types/music";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -722,6 +723,21 @@ export default function HomePage() {
     setSelectedTrackId(trackId);
   };
 
+  const renameTrack = useCallback((trackId: string, name: string) => {
+    commitProjectChange((current) => renameTrackInProject(current, trackId, name), { actionKey: `track:${trackId}:rename` });
+  }, [commitProjectChange]);
+
+  const removeSelectedTrack = useCallback(() => {
+    if (!selectedTrack || project.tracks.length <= 1) {
+      return;
+    }
+
+    const remainingTracks = project.tracks.filter((track) => track.id !== selectedTrack.id);
+    commitProjectChange((current) => removeTrackFromProject(current, selectedTrack.id), { actionKey: `track:${selectedTrack.id}:remove` });
+    setSelectedTrackId(remainingTracks[0]?.id);
+    setSelectedNodeId(undefined);
+  }, [commitProjectChange, project.tracks, selectedTrack]);
+
   const duplicatePatchForSelectedTrack = () => {
     if (!selectedPatch || !selectedTrack) return;
 
@@ -885,6 +901,9 @@ export default function HomePage() {
 
       <section className="top-actions">
         <button onClick={addTrack}>Add Track</button>
+        <button disabled={project.tracks.length <= 1} onClick={removeSelectedTrack}>
+          Remove Track
+        </button>
         <button onClick={() => setHelpOpen(true)}>Help (?)</button>
         <button onClick={exportJson}>Export Project JSON</button>
         <button onClick={() => importInputRef.current?.click()}>Import Project JSON</button>
@@ -922,6 +941,7 @@ export default function HomePage() {
         playheadBeat={playheadBeat}
         onSetPlayheadBeat={setPlayheadFromUser}
         onSelectTrack={setSelectedTrackId}
+        onRenameTrack={renameTrack}
         onToggleTrackMute={toggleTrackMute}
         onUpdateTrackPatch={updateTrackPatch}
         onToggleTrackMacroPanel={toggleTrackMacroPanel}

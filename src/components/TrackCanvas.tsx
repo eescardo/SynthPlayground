@@ -28,6 +28,7 @@ interface TrackCanvasProps {
   playheadBeat: number;
   onSetPlayheadBeat: (beat: number) => void;
   onSelectTrack: (trackId: string) => void;
+  onRenameTrack: (trackId: string, name: string) => void;
   onToggleTrackMute: (trackId: string) => void;
   onUpdateTrackPatch: (trackId: string, patchId: string) => void;
   onToggleTrackMacroPanel: (trackId: string) => void;
@@ -139,6 +140,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const [hoveredPitch, setHoveredPitch] = useState<{ trackId: string; noteId: string } | null>(null);
   const [speakerIconsReady, setSpeakerIconsReady] = useState(false);
   const [canvasCursor, setCanvasCursor] = useState<CanvasCursor>("default");
+  const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
+  const [editingTrackName, setEditingTrackName] = useState("");
 
   const meterBeats = props.project.global.meter === "4/4" ? 4 : 3;
   const selectedTrack = props.project.tracks.find((track) => track.id === props.selectedTrackId) ?? null;
@@ -169,6 +172,20 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const height = RULER_HEIGHT + props.project.tracks.length * TRACK_HEIGHT;
 
   const beatFromX = (x: number) => (x - HEADER_WIDTH) / BEAT_WIDTH;
+
+  const getCanvasPoint = (clientX: number, clientY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return { x: 0, y: 0 };
+    }
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+    const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
+    };
+  };
 
   const getTrackAtY = (y: number): Track | null => {
     if (y < RULER_HEIGHT) return null;
@@ -248,7 +265,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
     noteRectsRef.current = [];
     muteRectsRef.current = [];
     pitchRectsRef.current = [];
-
     props.project.tracks.forEach((track, index) => {
       const y = RULER_HEIGHT + index * TRACK_HEIGHT;
       const isSelected = track.id === props.selectedTrackId;
@@ -420,10 +436,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const { x, y } = getCanvasPoint(event.clientX, event.clientY);
 
     if (y <= RULER_HEIGHT && x >= HEADER_WIDTH) {
       const beat = Math.max(0, snapToGrid(beatFromX(x), props.project.global.gridBeats));
@@ -497,13 +510,21 @@ export function TrackCanvas(props: TrackCanvasProps) {
     canvas.setPointerCapture(event.pointerId);
   };
 
+  useEffect(() => {
+    if (!editingTrackId) {
+      return;
+    }
+    const trackStillExists = props.project.tracks.some((track) => track.id === editingTrackId);
+    if (!trackStillExists) {
+      setEditingTrackId(null);
+      setEditingTrackName("");
+    }
+  }, [editingTrackId, props.project.tracks]);
+
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const { x, y } = getCanvasPoint(event.clientX, event.clientY);
     const hitPitch = findPitchRect(x, y);
     setHoveredPitch((prev) => {
       const next = hitPitch ? { trackId: hitPitch.trackId, noteId: hitPitch.noteId } : null;
@@ -558,9 +579,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       setCanvasCursor("default");
       return;
     }
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const { x, y } = getCanvasPoint(event.clientX, event.clientY);
     setCanvasCursor(getCursorForPosition(x, y));
   };
 
@@ -589,9 +608,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
     const onWheelNative = (event: WheelEvent) => {
       const now = performance.now();
-      const rect = canvas.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
+      const { x, y } = getCanvasPoint(event.clientX, event.clientY);
       const hitPitch = findPitchRect(x, y);
       const shouldLockScroll = now < wheelPitchLockUntilRef.current;
       if (!hitPitch && !shouldLockScroll) return;
@@ -643,20 +660,65 @@ export function TrackCanvas(props: TrackCanvasProps) {
     <div className="track-canvas-shell" ref={wrapperRef}>
       <div className="track-header-overlays">
         {project.tracks.map((track, index) => (
-          <select
-            key={track.id}
-            className="track-patch-select"
-            value={track.instrumentPatchId}
-            style={{ top: `${RULER_HEIGHT + index * TRACK_HEIGHT + 44}px` }}
-            onChange={(event) => props.onUpdateTrackPatch(track.id, event.target.value)}
-            onPointerDown={(event) => event.stopPropagation()}
-          >
-            {project.patches.map((patch) => (
-              <option key={patch.id} value={patch.id}>
-                {getPatchOptionLabel(patch)}
-              </option>
-            ))}
-          </select>
+          <div key={track.id}>
+            <button
+              type="button"
+              className="track-name-button"
+              aria-label={`Rename track ${track.name}`}
+              style={{
+                top: `${RULER_HEIGHT + index * TRACK_HEIGHT + 8}px`,
+                cursor: props.selectedTrackId === track.id ? "text" : "default"
+              }}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (props.selectedTrackId === track.id) {
+                  setEditingTrackId(track.id);
+                  setEditingTrackName(track.name);
+                } else {
+                  props.onSelectTrack(track.id);
+                }
+              }}
+            />
+            {editingTrackId === track.id && (
+              <input
+                className="track-name-input"
+                value={editingTrackName}
+                style={{ top: `${RULER_HEIGHT + index * TRACK_HEIGHT + 8}px` }}
+                autoFocus
+                onChange={(event) => setEditingTrackName(event.target.value)}
+                onBlur={() => {
+                  const nextName = editingTrackName.trim();
+                  if (nextName) {
+                    props.onRenameTrack(track.id, nextName);
+                  }
+                  setEditingTrackId(null);
+                  setEditingTrackName("");
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.currentTarget.blur();
+                  } else if (event.key === "Escape") {
+                    setEditingTrackId(null);
+                    setEditingTrackName("");
+                  }
+                }}
+                onPointerDown={(event) => event.stopPropagation()}
+              />
+            )}
+            <select
+              className="track-patch-select"
+              value={track.instrumentPatchId}
+              style={{ top: `${RULER_HEIGHT + index * TRACK_HEIGHT + 44}px` }}
+              onChange={(event) => props.onUpdateTrackPatch(track.id, event.target.value)}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              {project.patches.map((patch) => (
+                <option key={patch.id} value={patch.id}>
+                  {getPatchOptionLabel(patch)}
+                </option>
+              ))}
+            </select>
+          </div>
         ))}
       </div>
       <canvas
