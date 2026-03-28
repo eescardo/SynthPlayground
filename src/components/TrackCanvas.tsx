@@ -29,7 +29,6 @@ interface TrackCanvasProps {
   onSetPlayheadBeat: (beat: number) => void;
   onSelectTrack: (trackId: string) => void;
   onRenameTrack: (trackId: string, name: string) => void;
-  onRemoveTrack: (trackId: string) => void;
   onToggleTrackMute: (trackId: string) => void;
   onUpdateTrackPatch: (trackId: string, patchId: string) => void;
   onToggleTrackMacroPanel: (trackId: string) => void;
@@ -69,14 +68,6 @@ interface MuteRect {
 interface PitchRect {
   trackId: string;
   noteId: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-interface NameRect {
-  trackId: string;
   x: number;
   y: number;
   w: number;
@@ -138,7 +129,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const noteRectsRef = useRef<NoteRect[]>([]);
   const muteRectsRef = useRef<MuteRect[]>([]);
   const pitchRectsRef = useRef<PitchRect[]>([]);
-  const nameRectsRef = useRef<NameRect[]>([]);
   const speakerIconsRef = useRef<{ normal: HTMLImageElement | null; muted: HTMLImageElement | null }>({
     normal: null,
     muted: null
@@ -275,8 +265,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
     noteRectsRef.current = [];
     muteRectsRef.current = [];
     pitchRectsRef.current = [];
-    nameRectsRef.current = [];
-
     props.project.tracks.forEach((track, index) => {
       const y = RULER_HEIGHT + index * TRACK_HEIGHT;
       const isSelected = track.id === props.selectedTrackId;
@@ -290,13 +278,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
       ctx.fillStyle = COLOR_TRACK_NAME;
       ctx.font = "13px 'Trebuchet MS', 'Segoe UI', sans-serif";
       ctx.fillText(track.name, 12, y + 24);
-      nameRectsRef.current.push({
-        trackId: track.id,
-        x: 10,
-        y: y + 8,
-        w: 108,
-        h: 22
-      });
       const muteX = 126;
       const muteY = y + 29;
       const speakerIcon = track.mute ? speakerIconsRef.current.muted : speakerIconsRef.current.normal;
@@ -439,15 +420,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
     return null;
   };
 
-  const findNameRect = (x: number, y: number): NameRect | null => {
-    for (const rect of nameRectsRef.current) {
-      if (x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h) {
-        return rect;
-      }
-    }
-    return null;
-  };
-
   const getCursorForPosition = (x: number, y: number): CanvasCursor => {
     if (findMuteRect(x, y) || findPitchRect(x, y)) {
       return "pointer";
@@ -475,15 +447,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     const track = getTrackAtY(y);
     if (!track) return;
 
-    const wasSelected = track.id === props.selectedTrackId;
     props.onSelectTrack(track.id);
-
-    const nameRect = findNameRect(x, y);
-    if (nameRect && wasSelected) {
-      setEditingTrackId(track.id);
-      setEditingTrackName(track.name);
-      return;
-    }
 
     const muteRect = findMuteRect(x, y);
     if (muteRect) {

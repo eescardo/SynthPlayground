@@ -18,6 +18,7 @@ import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } f
 import { importProjectFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
 import { snapToGrid } from "@/lib/musicTiming";
+import { removeTrackFromProject, renameTrackInProject } from "@/lib/trackEdits";
 import { Project, Note } from "@/types/music";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -723,14 +724,7 @@ export default function HomePage() {
   };
 
   const renameTrack = useCallback((trackId: string, name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      return;
-    }
-    commitProjectChange((current) => ({
-      ...current,
-      tracks: current.tracks.map((track) => (track.id === trackId ? { ...track, name: trimmed } : track))
-    }), { actionKey: `track:${trackId}:rename` });
+    commitProjectChange((current) => renameTrackInProject(current, trackId, name), { actionKey: `track:${trackId}:rename` });
   }, [commitProjectChange]);
 
   const removeSelectedTrack = useCallback(() => {
@@ -739,10 +733,7 @@ export default function HomePage() {
     }
 
     const remainingTracks = project.tracks.filter((track) => track.id !== selectedTrack.id);
-    commitProjectChange((current) => ({
-      ...current,
-      tracks: current.tracks.filter((track) => track.id !== selectedTrack.id)
-    }), { actionKey: `track:${selectedTrack.id}:remove` });
+    commitProjectChange((current) => removeTrackFromProject(current, selectedTrack.id), { actionKey: `track:${selectedTrack.id}:remove` });
     setSelectedTrackId(remainingTracks[0]?.id);
     setSelectedNodeId(undefined);
   }, [commitProjectChange, project.tracks, selectedTrack]);
@@ -951,7 +942,6 @@ export default function HomePage() {
         onSetPlayheadBeat={setPlayheadFromUser}
         onSelectTrack={setSelectedTrackId}
         onRenameTrack={renameTrack}
-        onRemoveTrack={removeSelectedTrack}
         onToggleTrackMute={toggleTrackMute}
         onUpdateTrackPatch={updateTrackPatch}
         onToggleTrackMacroPanel={toggleTrackMacroPanel}
