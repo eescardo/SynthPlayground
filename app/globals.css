@@ -170,6 +170,29 @@ select {
   padding: 0.2rem 0.3rem;
 }
 
+.track-name-button {
+  position: absolute;
+  left: 10px;
+  width: 108px;
+  height: 22px;
+  pointer-events: auto;
+  z-index: 2;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: text;
+}
+
+.track-name-input {
+  position: absolute;
+  left: 10px;
+  width: 108px;
+  pointer-events: auto;
+  z-index: 3;
+  font-size: 0.8rem;
+  padding: 0.18rem 0.28rem;
+}
+
 .track-macro-panel-shell {
   border-top: 1px solid var(--border);
   background: rgba(8, 15, 23, 0.94);

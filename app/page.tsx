@@ -722,6 +722,31 @@ export default function HomePage() {
     setSelectedTrackId(trackId);
   };
 
+  const renameTrack = useCallback((trackId: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      return;
+    }
+    commitProjectChange((current) => ({
+      ...current,
+      tracks: current.tracks.map((track) => (track.id === trackId ? { ...track, name: trimmed } : track))
+    }), { actionKey: `track:${trackId}:rename` });
+  }, [commitProjectChange]);
+
+  const removeSelectedTrack = useCallback(() => {
+    if (!selectedTrack || project.tracks.length <= 1) {
+      return;
+    }
+
+    const remainingTracks = project.tracks.filter((track) => track.id !== selectedTrack.id);
+    commitProjectChange((current) => ({
+      ...current,
+      tracks: current.tracks.filter((track) => track.id !== selectedTrack.id)
+    }), { actionKey: `track:${selectedTrack.id}:remove` });
+    setSelectedTrackId(remainingTracks[0]?.id);
+    setSelectedNodeId(undefined);
+  }, [commitProjectChange, project.tracks, selectedTrack]);
+
   const duplicatePatchForSelectedTrack = () => {
     if (!selectedPatch || !selectedTrack) return;
 
@@ -885,6 +910,9 @@ export default function HomePage() {
 
       <section className="top-actions">
         <button onClick={addTrack}>Add Track</button>
+        <button disabled={project.tracks.length <= 1} onClick={removeSelectedTrack}>
+          Remove Track
+        </button>
         <button onClick={() => setHelpOpen(true)}>Help (?)</button>
         <button onClick={exportJson}>Export Project JSON</button>
         <button onClick={() => importInputRef.current?.click()}>Import Project JSON</button>
@@ -922,6 +950,8 @@ export default function HomePage() {
         playheadBeat={playheadBeat}
         onSetPlayheadBeat={setPlayheadFromUser}
         onSelectTrack={setSelectedTrackId}
+        onRenameTrack={renameTrack}
+        onRemoveTrack={removeSelectedTrack}
         onToggleTrackMute={toggleTrackMute}
         onUpdateTrackPatch={updateTrackPatch}
         onToggleTrackMacroPanel={toggleTrackMacroPanel}
