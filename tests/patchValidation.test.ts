@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { pluckPatch } from "@/lib/patch/presets";
+import { drumPatch, pluckPatch } from "@/lib/patch/presets";
 import { validatePatch } from "@/lib/patch/validation";
 import { Patch } from "@/types/patch";
 
@@ -47,6 +47,14 @@ describe("patch validation", () => {
 
   it("accepts bundled pluck preset with non-overlapping macro targets", () => {
     const patch: Patch = pluckPatch();
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("accepts bundled drum preset with non-overlapping macro targets", () => {
+    const patch: Patch = drumPatch();
 
     const result = validatePatch(patch);
 
