@@ -325,6 +325,22 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const selectedNode = props.selectedNodeId ? nodeById.get(props.selectedNodeId) : undefined;
   const selectedSchema = selectedNode ? getModuleSchema(selectedNode.typeId) : undefined;
 
+  const formatBindingValue = (value: number) => {
+    if (!Number.isFinite(value)) {
+      return "0";
+    }
+    if (Math.abs(value) >= 100) {
+      return value.toFixed(0);
+    }
+    if (Math.abs(value) >= 10) {
+      return value.toFixed(1);
+    }
+    if (Math.abs(value) >= 1) {
+      return value.toFixed(2);
+    }
+    return value.toFixed(3);
+  };
+
   const exposeMacro = (paramId: string, suggestedName: string) => {
     if (!selectedNode || props.structureLocked) {
       return;
@@ -409,7 +425,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
                 return (
                   <label key={param.id} className="param-row">
                     <span>{param.label}</span>
-                    {param.type === "float" && (
+                    {!isExposed && param.type === "float" && (
                       <input
                         type="range"
                         min={param.range.min}
@@ -428,7 +444,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
                         }
                       />
                     )}
-                    {param.type === "enum" && (
+                    {!isExposed && param.type === "enum" && (
                       <select
                         value={String(value)}
                         disabled={props.structureLocked}
@@ -449,7 +465,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
                         ))}
                       </select>
                     )}
-                    {param.type === "bool" && (
+                    {!isExposed && param.type === "bool" && (
                       <input
                         type="checkbox"
                         checked={Boolean(value)}
@@ -466,9 +482,40 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
                       />
                     )}
                     {isExposed ? (
-                      <button type="button" className="macro-binding-pill" disabled title={exposedLabel}>
+                      <>
+                        <button type="button" className="macro-binding-pill" disabled title={exposedLabel}>
                         {exposedLabel}
                       </button>
+                      <div className="macro-binding-details">
+                        {boundMacros.map((macro) =>
+                          macro.bindings
+                              .filter((binding) => binding.nodeId === selectedNode.id && binding.paramId === param.id)
+                              .map((binding) => (
+                                <div key={binding.id} className="macro-binding-detail-card">
+                                  <div className="macro-binding-detail-mode">
+                                    {binding.map === "piecewise" ? "Keyframed" : binding.map === "exp" ? "Exponential" : "Linear"}
+                                  </div>
+                                  {binding.map === "piecewise" && binding.points && binding.points.length >= 2 ? (
+                                    <>
+                                      <div className="macro-binding-points">
+                                        {binding.points.map((point, index) => (
+                                          <span key={`${binding.id}_${point.x}_${index}`} className="macro-binding-point-chip">
+                                            {point.x.toFixed(2)}:{formatBindingValue(point.y)}
+                                          </span>
+                                        ))}
+                                      </div>
+                                      <div className="macro-binding-segments">Segments: linear interpolation</div>
+                                    </>
+                                  ) : (
+                                    <div className="macro-binding-range">
+                                      Range: {formatBindingValue(binding.min ?? 0)} → {formatBindingValue(binding.max ?? 1)}
+                                    </div>
+                                  )}
+                                </div>
+                              ))
+                          )}
+                        </div>
+                      </>
                     ) : (
                       <button
                         type="button"
