@@ -1,11 +1,12 @@
 // Scheduler/worklet message contracts and event payload types for audio transport.
 export type SchedulerEventType = "NoteOn" | "NoteOff" | "ParamChange";
+export type SchedulerEventSource = "timeline" | "live_input" | "preview" | "automation";
 
 export interface BaseSchedulerEvent {
   id: string;
   type: SchedulerEventType;
   sampleTime: number;
-  live?: boolean;
+  source: SchedulerEventSource;
 }
 
 export interface NoteOnEvent extends BaseSchedulerEvent {

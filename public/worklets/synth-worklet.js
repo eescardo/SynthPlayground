@@ -1232,7 +1232,7 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
       return;
     }
 
-    if (this.recordingTrackId && event.trackId === this.recordingTrackId && !event.live) {
+    if (this.recordingTrackId && event.trackId === this.recordingTrackId && event.source === "timeline") {
       return;
     }
 

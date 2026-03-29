@@ -20,6 +20,32 @@ interface TransportBarProps {
   onGridChange: (value: number) => void;
 }
 
+interface RecordButtonProps {
+  recordEnabled: boolean;
+  recordPhase?: "idle" | "count_in" | "recording";
+  countInLabel?: string | null;
+  onToggleRecord: () => void;
+}
+
+function RecordButton(props: RecordButtonProps) {
+  return (
+    <div className="record-button-wrap">
+      {props.recordPhase === "count_in" && props.countInLabel && (
+        <div className="record-countdown-badge" aria-live="polite">
+          {props.countInLabel}
+        </div>
+      )}
+      <button
+        className={props.recordEnabled ? "armed toggle-active" : ""}
+        aria-pressed={props.recordEnabled}
+        onClick={props.onToggleRecord}
+      >
+        Record
+      </button>
+    </div>
+  );
+}
+
 export function TransportBar(props: TransportBarProps) {
   const onTempoInput = (event: ChangeEvent<HTMLInputElement>) => {
     const next = Number(event.target.value);
@@ -40,20 +66,12 @@ export function TransportBar(props: TransportBarProps) {
         <button onClick={props.onStop} disabled={!props.isPlaying || props.recordEnabled}>
           Stop
         </button>
-        <div className="record-button-wrap">
-          {props.recordPhase === "count_in" && props.countInLabel && (
-            <div className="record-countdown-badge" aria-live="polite">
-              {props.countInLabel}
-            </div>
-          )}
-          <button
-            className={props.recordEnabled ? "armed toggle-active" : ""}
-            aria-pressed={props.recordEnabled}
-            onClick={props.onToggleRecord}
-          >
-            Record
-          </button>
-        </div>
+        <RecordButton
+          recordEnabled={props.recordEnabled}
+          recordPhase={props.recordPhase}
+          countInLabel={props.countInLabel}
+          onToggleRecord={props.onToggleRecord}
+        />
         <span className="playhead">Beat {formatBeatName(props.playheadBeat, props.gridBeats)}</span>
       </div>
 

@@ -63,6 +63,7 @@ export const collectEventsInWindow = (project: Project, window: SchedulerWindow)
         events.push({
           id: ids.onEventId,
           type: "NoteOn",
+          source: "timeline",
           sampleTime: range.startSample,
           trackId: track.id,
           pitchVoct: voct,
@@ -75,6 +76,7 @@ export const collectEventsInWindow = (project: Project, window: SchedulerWindow)
         events.push({
           id: ids.offEventId,
           type: "NoteOff",
+          source: "timeline",
           sampleTime: range.endSample,
           trackId: track.id,
           pitchVoct: voct,

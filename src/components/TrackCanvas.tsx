@@ -107,6 +107,48 @@ interface PitchRect {
   h: number;
 }
 
+function drawGhostPlayhead(
+  ctx: CanvasRenderingContext2D,
+  ghostPlayheadBeat: number | undefined,
+  countInLabel: string | undefined,
+  height: number
+) {
+  if (typeof ghostPlayheadBeat !== "number" || !Number.isFinite(ghostPlayheadBeat)) {
+    return;
+  }
+
+  const ghostX = HEADER_WIDTH + ghostPlayheadBeat * BEAT_WIDTH;
+  ctx.strokeStyle = TRACK_CANVAS_COLORS.ghostPlayhead;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([7, 6]);
+  ctx.beginPath();
+  ctx.moveTo(ghostX, 0);
+  ctx.lineTo(ghostX, height);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  if (!countInLabel) {
+    return;
+  }
+
+  const badgeWidth = 34;
+  const badgeHeight = 24;
+  const badgeX = ghostX - badgeWidth * 0.5;
+  const badgeY = 6;
+  ctx.fillStyle = TRACK_CANVAS_COLORS.countInBadge;
+  ctx.strokeStyle = TRACK_CANVAS_COLORS.countInBadgeBorder;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 8);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = TRACK_CANVAS_COLORS.countInText;
+  ctx.font = "bold 14px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.textAlign = "center";
+  ctx.fillText(countInLabel, ghostX, badgeY + 16);
+  ctx.textAlign = "start";
+}
+
 const findTrackOverlaps = (notes: Note[]): {
   overlapNoteIds: Set<string>;
   overlapRanges: Array<{ startBeat: number; endBeat: number }>;
@@ -373,37 +415,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     ctx.moveTo(playheadX, 0);
     ctx.lineTo(playheadX, height);
     ctx.stroke();
-
-    if (typeof props.ghostPlayheadBeat === "number" && Number.isFinite(props.ghostPlayheadBeat)) {
-      const ghostX = HEADER_WIDTH + props.ghostPlayheadBeat * BEAT_WIDTH;
-      ctx.strokeStyle = TRACK_CANVAS_COLORS.ghostPlayhead;
-      ctx.lineWidth = 2;
-      ctx.setLineDash([7, 6]);
-      ctx.beginPath();
-      ctx.moveTo(ghostX, 0);
-      ctx.lineTo(ghostX, height);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      if (props.countInLabel) {
-        const badgeWidth = 34;
-        const badgeHeight = 24;
-        const badgeX = ghostX - badgeWidth * 0.5;
-        const badgeY = 6;
-        ctx.fillStyle = TRACK_CANVAS_COLORS.countInBadge;
-        ctx.strokeStyle = TRACK_CANVAS_COLORS.countInBadgeBorder;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 8);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = TRACK_CANVAS_COLORS.countInText;
-        ctx.font = "bold 14px ui-monospace, SFMono-Regular, Menlo, monospace";
-        ctx.textAlign = "center";
-        ctx.fillText(props.countInLabel, ghostX, badgeY + 16);
-        ctx.textAlign = "start";
-      }
-    }
+    drawGhostPlayhead(ctx, props.ghostPlayheadBeat, props.countInLabel, height);
   }, [
     props.countInLabel,
     props.ghostPlayheadBeat,

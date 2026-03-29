@@ -273,12 +273,12 @@ export class AudioEngine {
         {
           id: `${noteId}_live_on`,
           type: "NoteOn",
+          source: "live_input",
           sampleTime,
           trackId,
           pitchVoct,
           velocity,
-          noteId,
-          live: true
+          noteId
         }
       ]
     });
@@ -298,11 +298,11 @@ export class AudioEngine {
         {
           id: `${noteId}_live_off`,
           type: "NoteOff",
+          source: "live_input",
           sampleTime,
           trackId,
           pitchVoct,
-          noteId,
-          live: true
+          noteId
         }
       ]
     });
@@ -325,6 +325,7 @@ export class AudioEngine {
       {
         id: `${previewId}_on`,
         type: "NoteOn",
+        source: "preview",
         sampleTime: 0,
         trackId,
         pitchVoct,
@@ -334,6 +335,7 @@ export class AudioEngine {
       {
         id: `${previewId}_off`,
         type: "NoteOff",
+        source: "preview",
         sampleTime: durationSamples,
         trackId,
         pitchVoct,
