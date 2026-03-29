@@ -71,7 +71,16 @@ describe("projectSerde", () => {
   expect(presetPatch.meta.source).toBe("preset");
   if (presetPatch.meta.source === "preset") {
     expect(presetPatch.meta.presetId).toBe("preset_bass");
-    expect(presetPatch.meta.presetVersion).toBe(1);
+    expect(presetPatch.meta.presetVersion).toBe(7);
   }
+  const popSlapMacro = presetPatch.ui.macros.find((macro) => macro.id === "macro_decay");
+  expect(popSlapMacro?.name).toBe("Pop/Slap");
+  const attackBinding = popSlapMacro?.bindings.find((binding) => binding.paramId === "attack");
+  expect(attackBinding?.map).toBe("piecewise");
+  expect(attackBinding?.points).toEqual([
+    { x: 0, y: 0.0032 },
+    { x: 0.5, y: 0.0075 },
+    { x: 1, y: 0.0035 }
+  ]);
   });
 });

@@ -393,12 +393,26 @@ select {
   gap: 0.7rem;
 }
 
-.patch-layout canvas {
-  width: 100%;
+.patch-canvas-shell {
+  min-width: 0;
+}
+
+.patch-canvas-scroll {
   max-width: 100%;
-  height: auto;
+  max-height: 640px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid #223749;
   border-radius: 8px;
+  background: #0b1118;
+}
+
+.patch-layout canvas {
+  display: block;
+  width: 1400px;
+  height: auto;
+  max-width: none;
   background: #0b1118;
 }
 
@@ -434,6 +448,50 @@ select {
 .macro-binding-pill:disabled {
   opacity: 1;
   cursor: default;
+}
+
+.macro-binding-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.macro-binding-detail-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(131, 173, 216, 0.28);
+  background: rgba(143, 196, 245, 0.1);
+}
+
+.macro-binding-detail-mode {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #d7e5f4;
+}
+
+.macro-binding-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.macro-binding-point-chip {
+  padding: 0.12rem 0.38rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.72rem;
+  color: #f2f7fb;
+}
+
+.macro-binding-segments,
+.macro-binding-range {
+  font-size: 0.72rem;
+  color: #9fb4c9;
 }
 
 .conn-row {

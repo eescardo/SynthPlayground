@@ -9,7 +9,11 @@ const HOST_NODES = {
 };
 
 const PARAM_SMOOTHING_MS = {
+  CVTranspose: { octaves: 10, semitones: 10, cents: 10 },
+  CVScaler: { scale: 10 },
+  CVMixer2: { gain1: 10, gain2: 10 },
   VCO: { pulseWidth: 20, baseTuneCents: 10, fineTuneCents: 10, pwmAmount: 20 },
+  KarplusStrong: { decay: 20, damping: 20, brightness: 20 },
   LFO: { freqHz: 50, pulseWidth: 20 },
   ADSR: { attack: 10, decay: 10, sustain: 10, release: 10 },
   VCA: { bias: 10, gain: 10 },
@@ -30,7 +34,11 @@ const PORTS_IN_BY_TYPE = {
   NoteGate: [],
   NoteVelocity: [],
   ModWheel: [],
+  CVTranspose: ["in"],
+  CVScaler: ["in"],
+  CVMixer2: ["in1", "in2"],
   VCO: ["pitch", "fm", "pwm"],
+  KarplusStrong: ["pitch", "gate", "excite"],
   LFO: ["fm"],
   ADSR: ["gate"],
   VCA: ["in", "gainCV"],
@@ -397,7 +405,24 @@ class TrackRuntime {
     const n = clamp(normalized, 0, 1);
     for (const binding of macro.bindings) {
       let value;
-      if (binding.map === "exp") {
+      if (binding.map === "piecewise" && Array.isArray(binding.points) && binding.points.length >= 2) {
+        const points = binding.points;
+        if (n <= points[0].x) {
+          value = points[0].y;
+        } else if (n >= points[points.length - 1].x) {
+          value = points[points.length - 1].y;
+        } else {
+          let segmentIndex = 1;
+          while (segmentIndex < points.length && n > points[segmentIndex].x) {
+            segmentIndex += 1;
+          }
+          const left = points[segmentIndex - 1];
+          const right = points[segmentIndex];
+          const span = Math.max(right.x - left.x, 0.000001);
+          const segmentNorm = (n - left.x) / span;
+          value = left.y + (right.y - left.y) * segmentNorm;
+        }
+      } else if (binding.map === "exp") {
         const min = Math.max(binding.min, 0.000001);
         value = min * Math.pow(binding.max / min, n);
       } else {
@@ -491,6 +516,48 @@ class TrackRuntime {
         out.fill(voice.host.modWheel, startFrame, endFrame);
         return;
 
+      case "CVTranspose": {
+        const input = read("in");
+        const octavesParam = this.fillNumericParamBuffer(voice, id, typeId, "octaves", Number(params.octaves ?? 0), startFrame, endFrame);
+        const semitonesParam = this.fillNumericParamBuffer(
+          voice,
+          id,
+          typeId,
+          "semitones",
+          Number(params.semitones ?? 0),
+          startFrame,
+          endFrame
+        );
+        const centsParam = this.fillNumericParamBuffer(voice, id, typeId, "cents", Number(params.cents ?? 0), startFrame, endFrame);
+
+        for (let i = startFrame; i < endFrame; i += 1) {
+          out[i] = input[i] + octavesParam[i] + semitonesParam[i] / 12 + centsParam[i] / 1200;
+        }
+        return;
+      }
+
+      case "CVScaler": {
+        const input = read("in");
+        const scaleParam = this.fillNumericParamBuffer(voice, id, typeId, "scale", Number(params.scale ?? 1), startFrame, endFrame);
+
+        for (let i = startFrame; i < endFrame; i += 1) {
+          out[i] = input[i] * scaleParam[i];
+        }
+        return;
+      }
+
+      case "CVMixer2": {
+        const input1 = read("in1");
+        const input2 = read("in2");
+        const gain1Param = this.fillNumericParamBuffer(voice, id, typeId, "gain1", Number(params.gain1 ?? 1), startFrame, endFrame);
+        const gain2Param = this.fillNumericParamBuffer(voice, id, typeId, "gain2", Number(params.gain2 ?? 1), startFrame, endFrame);
+
+        for (let i = startFrame; i < endFrame; i += 1) {
+          out[i] = input1[i] * gain1Param[i] + input2[i] * gain2Param[i];
+        }
+        return;
+      }
+
       case "VCO": {
         const phaseState = voice.nodeState.get(id) || { phase: 0 };
         const pitch = read("pitch", hostPitchBuffer);
@@ -510,6 +577,57 @@ class TrackRuntime {
           out[i] = waveformSample(wave, phaseState.phase, pulseWidth);
         }
         voice.nodeState.set(id, phaseState);
+        return;
+      }
+
+      case "KarplusStrong": {
+        const pitch = read("pitch", hostPitchBuffer);
+        const gate = read("gate", hostGateBuffer);
+        const excite = read("excite");
+        const decayParam = this.fillNumericParamBuffer(voice, id, typeId, "decay", Number(params.decay ?? 0.94), startFrame, endFrame);
+        const dampingParam = this.fillNumericParamBuffer(voice, id, typeId, "damping", Number(params.damping ?? 0.28), startFrame, endFrame);
+        const brightnessParam = this.fillNumericParamBuffer(voice, id, typeId, "brightness", Number(params.brightness ?? 0.72), startFrame, endFrame);
+        const excitation = this.getParamValue(id, "excitation", params.excitation || "noise");
+        const state =
+          voice.nodeState.get(id) || {
+            buf: new Float32Array(this.sampleRate * 2),
+            write: 0,
+            currentDelay: 64,
+            last: 0,
+            lastGate: 0
+          };
+
+        for (let i = startFrame; i < endFrame; i += 1) {
+          const gateValue = gate[i];
+          const hz = clamp(voctToHz(pitch[i]), 20, this.sampleRate * 0.45);
+          const delaySamples = clamp(Math.floor(this.sampleRate / hz), 2, state.buf.length - 1);
+
+          if (gateValue >= 0.5 && state.lastGate < 0.5) {
+            state.currentDelay = delaySamples;
+            for (let j = 0; j < delaySamples; j += 1) {
+              let source = excite[i];
+              if (source === 0) {
+                source = excitation === "impulse" ? (j === 0 ? 1 : 0) : Math.random() * 2 - 1;
+              }
+              const bright = brightnessParam[i];
+              const shaped = source * (0.25 + bright * 0.75);
+              state.buf[(state.write + j) % state.buf.length] = shaped;
+            }
+          }
+
+          const readIdx = (state.write - state.currentDelay + state.buf.length) % state.buf.length;
+          const delayed = state.buf[readIdx];
+          const decay = clamp(decayParam[i], 0.7, 0.999);
+          const damping = clamp(dampingParam[i], 0, 1);
+          const filtered = delayed * (1 - damping) + state.last * damping;
+          state.last = filtered;
+          state.buf[state.write] = filtered * decay;
+          state.write = (state.write + 1) % state.buf.length;
+          out[i] = delayed;
+          state.lastGate = gateValue;
+        }
+
+        voice.nodeState.set(id, state);
         return;
       }
 

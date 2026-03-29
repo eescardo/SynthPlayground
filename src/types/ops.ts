@@ -49,9 +49,10 @@ export type PatchOp =
       bindingId: string;
       nodeId: string;
       paramId: string;
-      map: "linear" | "exp";
-      min: number;
-      max: number;
+      map: "linear" | "exp" | "piecewise";
+      min?: number;
+      max?: number;
+      points?: Array<{ x: number; y: number }>;
     }
   | {
       type: "unbindMacro";

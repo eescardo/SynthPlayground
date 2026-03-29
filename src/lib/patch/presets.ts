@@ -21,25 +21,67 @@ const noteCore = {
 
 export const bassPatch = (): Patch => {
   const patchId = "preset_bass";
-  const vcoId = "vco1";
+  const pitchTrackId = "cvscale1";
+  const subTransposeId = "cvtranspose1";
+  const cutoffMixId = "cvmix1";
+  const mainVcoId = "vco1";
+  const subVcoId = "vco2";
   const envId = "env1";
+  const filterEnvId = "env2";
+  const mixId = "mix1";
   const vcaId = "vca1";
   const vcfId = "vcf1";
+  const satId = "sat1";
   const outId = "out1";
 
   return {
     schemaVersion: 1,
     id: patchId,
     name: "Bass",
-    meta: { source: "preset", presetId: "preset_bass", presetVersion: 1 },
+    meta: { source: "preset", presetId: "preset_bass", presetVersion: 7 },
     nodes: [
       {
-        id: vcoId,
+        id: pitchTrackId,
+        typeId: "CVScaler",
+        params: {
+          ...createDefaultParamsForType("CVScaler"),
+          scale: 0.32
+        }
+      },
+      {
+        id: subTransposeId,
+        typeId: "CVTranspose",
+        params: {
+          ...createDefaultParamsForType("CVTranspose"),
+          octaves: -1
+        }
+      },
+      {
+        id: cutoffMixId,
+        typeId: "CVMixer2",
+        params: {
+          ...createDefaultParamsForType("CVMixer2"),
+          gain1: 1,
+          gain2: 1
+        }
+      },
+      {
+        id: mainVcoId,
         typeId: "VCO",
         params: {
           ...createDefaultParamsForType("VCO"),
           wave: "saw",
-          fineTuneCents: -6
+          fineTuneCents: -4
+        }
+      },
+      {
+        id: subVcoId,
+        typeId: "VCO",
+        params: {
+          ...createDefaultParamsForType("VCO"),
+          wave: "square",
+          pulseWidth: 0.42,
+          fineTuneCents: 2
         }
       },
       {
@@ -48,9 +90,29 @@ export const bassPatch = (): Patch => {
         params: {
           ...createDefaultParamsForType("ADSR"),
           attack: 0.01,
-          decay: 0.18,
-          sustain: 0.45,
-          release: 0.2
+          decay: 0.22,
+          sustain: 0.52,
+          release: 0.26
+        }
+      },
+      {
+        id: filterEnvId,
+        typeId: "ADSR",
+        params: {
+          ...createDefaultParamsForType("ADSR"),
+          attack: 0.004,
+          decay: 0.08,
+          sustain: 0,
+          release: 0.02
+        }
+      },
+      {
+        id: mixId,
+        typeId: "Mixer4",
+        params: {
+          ...createDefaultParamsForType("Mixer4"),
+          gain1: 0,
+          gain2: 0.74
         }
       },
       {
@@ -68,9 +130,19 @@ export const bassPatch = (): Patch => {
         params: {
           ...createDefaultParamsForType("VCF"),
           type: "lowpass",
-          cutoffHz: 180,
-          resonance: 0.3,
-          cutoffModAmountOct: 2.5
+          cutoffHz: 320,
+          resonance: 0.22,
+          cutoffModAmountOct: 1.8
+        }
+      },
+      {
+        id: satId,
+        typeId: "Saturation",
+        params: {
+          ...createDefaultParamsForType("Saturation"),
+          driveDb: 5,
+          mix: 0.22,
+          type: "tanh"
         }
       },
       outputNode(outId)
@@ -79,36 +151,81 @@ export const bassPatch = (): Patch => {
       {
         id: "c1",
         from: { nodeId: noteCore.pitch, portId: "out" },
-        to: { nodeId: vcoId, portId: "pitch" }
+        to: { nodeId: mainVcoId, portId: "pitch" }
       },
       {
         id: "c2",
+        from: { nodeId: noteCore.pitch, portId: "out" },
+        to: { nodeId: subTransposeId, portId: "in" }
+      },
+      {
+        id: "c3",
+        from: { nodeId: subTransposeId, portId: "out" },
+        to: { nodeId: subVcoId, portId: "pitch" }
+      },
+      {
+        id: "c4",
+        from: { nodeId: noteCore.pitch, portId: "out" },
+        to: { nodeId: pitchTrackId, portId: "in" }
+      },
+      {
+        id: "c5",
         from: { nodeId: noteCore.gate, portId: "out" },
         to: { nodeId: envId, portId: "gate" }
       },
       {
-        id: "c3",
-        from: { nodeId: vcoId, portId: "out" },
+        id: "c5a",
+        from: { nodeId: noteCore.gate, portId: "out" },
+        to: { nodeId: filterEnvId, portId: "gate" }
+      },
+      {
+        id: "c6",
+        from: { nodeId: mainVcoId, portId: "out" },
+        to: { nodeId: mixId, portId: "in1" }
+      },
+      {
+        id: "c7",
+        from: { nodeId: subVcoId, portId: "out" },
+        to: { nodeId: mixId, portId: "in2" }
+      },
+      {
+        id: "c8",
+        from: { nodeId: mixId, portId: "out" },
         to: { nodeId: vcfId, portId: "in" }
       },
       {
-        id: "c4",
+        id: "c9",
+        from: { nodeId: pitchTrackId, portId: "out" },
+        to: { nodeId: cutoffMixId, portId: "in1" }
+      },
+      {
+        id: "c9a",
+        from: { nodeId: filterEnvId, portId: "out" },
+        to: { nodeId: cutoffMixId, portId: "in2" }
+      },
+      {
+        id: "c9b",
+        from: { nodeId: cutoffMixId, portId: "out" },
+        to: { nodeId: vcfId, portId: "cutoffCV" }
+      },
+      {
+        id: "c10",
         from: { nodeId: envId, portId: "out" },
         to: { nodeId: vcaId, portId: "gainCV" }
       },
       {
-        id: "c5",
+        id: "c11",
         from: { nodeId: vcfId, portId: "out" },
         to: { nodeId: vcaId, portId: "in" }
       },
       {
-        id: "c6",
-        from: { nodeId: envId, portId: "out" },
-        to: { nodeId: vcfId, portId: "cutoffCV" }
+        id: "c12",
+        from: { nodeId: vcaId, portId: "out" },
+        to: { nodeId: satId, portId: "in" }
       },
       {
-        id: "c7",
-        from: { nodeId: vcaId, portId: "out" },
+        id: "c13",
+        from: { nodeId: satId, portId: "out" },
         to: { nodeId: outId, portId: "in" }
       }
     ],
@@ -117,38 +234,165 @@ export const bassPatch = (): Patch => {
         {
           id: "macro_cutoff",
           name: "Cutoff",
-          defaultNormalized: 0.22,
+          defaultNormalized: 0.28,
           bindings: [
             {
               id: "b1",
               nodeId: vcfId,
               paramId: "cutoffHz",
               map: "exp",
-              min: 80,
-              max: 3200
+              min: 120,
+              max: 4200
             }
           ]
         },
         {
           id: "macro_decay",
-          name: "Decay",
-          defaultNormalized: 0.2,
+          name: "Pop/Slap",
+          defaultNormalized: 0.5,
           bindings: [
             {
               id: "b2",
               nodeId: envId,
-              paramId: "decay",
-              map: "linear",
-              min: 0.05,
-              max: 0.7
+              paramId: "attack",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.0032 },
+                { x: 0.5, y: 0.0075 },
+                { x: 1, y: 0.0035 }
+              ]
             },
             {
               id: "b3",
               nodeId: envId,
+              paramId: "decay",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.0035 },
+                { x: 0.5, y: 0.14 },
+                { x: 1, y: 0.032 }
+              ]
+            },
+            {
+              id: "b4",
+              nodeId: envId,
+              paramId: "sustain",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.48 },
+                { x: 0.5, y: 0.72 },
+                { x: 1, y: 0.32 }
+              ]
+            },
+            {
+              id: "b5",
+              nodeId: envId,
               paramId: "release",
-              map: "linear",
-              min: 0.05,
-              max: 0.8
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.003 },
+                { x: 0.5, y: 0.028 },
+                { x: 1, y: 0.012 }
+              ]
+            },
+            {
+              id: "b6",
+              nodeId: mixId,
+              paramId: "gain1",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.5 },
+                { x: 0.5, y: 0 },
+                { x: 1, y: 0.66 }
+              ]
+            },
+            {
+              id: "b7",
+              nodeId: mixId,
+              paramId: "gain2",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.66 },
+                { x: 0.5, y: 0.92 },
+                { x: 1, y: 0.34 }
+              ]
+            },
+            {
+              id: "b8",
+              nodeId: filterEnvId,
+              paramId: "attack",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.002 },
+                { x: 0.5, y: 0.004 },
+                { x: 1, y: 0.0025 }
+              ]
+            },
+            {
+              id: "b9",
+              nodeId: filterEnvId,
+              paramId: "decay",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.02 },
+                { x: 0.5, y: 0.11 },
+                { x: 1, y: 0.24 }
+              ]
+            },
+            {
+              id: "b10",
+              nodeId: cutoffMixId,
+              paramId: "gain2",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.18 },
+                { x: 0.5, y: 0.52 },
+                { x: 1, y: 1.15 }
+              ]
+            },
+            {
+              id: "b11",
+              nodeId: vcfId,
+              paramId: "cutoffModAmountOct",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.38 },
+                { x: 0.5, y: 1.9 },
+                { x: 1, y: 3.4 }
+              ]
+            },
+            {
+              id: "b12",
+              nodeId: vcfId,
+              paramId: "resonance",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.06 },
+                { x: 0.5, y: 0.16 },
+                { x: 1, y: 0.28 }
+              ]
+            },
+            {
+              id: "b13",
+              nodeId: satId,
+              paramId: "driveDb",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 2.5 },
+                { x: 0.5, y: 2.2 },
+                { x: 1, y: 10.5 }
+              ]
+            },
+            {
+              id: "b14",
+              nodeId: satId,
+              paramId: "mix",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.12 },
+                { x: 0.5, y: 0.06 },
+                { x: 1, y: 0.34 }
+              ]
             }
           ]
         }
@@ -156,11 +400,18 @@ export const bassPatch = (): Patch => {
     },
     layout: {
       nodes: [
-        { nodeId: vcoId, x: 2, y: 2 },
-        { nodeId: envId, x: 2, y: 6 },
-        { nodeId: vcfId, x: 6, y: 2 },
-        { nodeId: vcaId, x: 10, y: 2 },
-        { nodeId: outId, x: 14, y: 2 }
+        { nodeId: pitchTrackId, x: 2, y: 2 },
+        { nodeId: subTransposeId, x: 2, y: 6 },
+        { nodeId: cutoffMixId, x: 6, y: 10 },
+        { nodeId: mainVcoId, x: 6, y: 1 },
+        { nodeId: subVcoId, x: 6, y: 5 },
+        { nodeId: envId, x: 10, y: 9 },
+        { nodeId: filterEnvId, x: 10, y: 13 },
+        { nodeId: mixId, x: 14, y: 3 },
+        { nodeId: vcfId, x: 18, y: 3 },
+        { nodeId: vcaId, x: 22, y: 3 },
+        { nodeId: satId, x: 26, y: 3 },
+        { nodeId: outId, x: 30, y: 3 }
       ]
     },
     io: {

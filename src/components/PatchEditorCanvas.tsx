@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createId } from "@/lib/ids";
 import { getModuleSchema, modulePalette } from "@/lib/patch/moduleRegistry";
 import { makeConnectOp } from "@/lib/patch/ops";
-import { PatchValidationIssue, Patch, PortSchema } from "@/types/patch";
+import { PatchValidationIssue, Patch, PortSchema, ParamSchema, ParamValue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 
 const GRID = 24;
@@ -57,6 +57,106 @@ interface PatchEditorCanvasProps {
 function getCapabilityColor(port: PortSchema): string {
   const first = port.capabilities[0];
   return CAPABILITY_COLORS[first] ?? COLOR_CAPABILITY_FALLBACK;
+}
+
+function formatBindingValue(value: number) {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+  if (Math.abs(value) >= 100) {
+    return value.toFixed(0);
+  }
+  if (Math.abs(value) >= 10) {
+    return value.toFixed(1);
+  }
+  if (Math.abs(value) >= 1) {
+    return value.toFixed(2);
+  }
+  return value.toFixed(3);
+}
+
+function MacroBindingDetails(props: {
+  patch: Patch;
+  nodeId: string;
+  paramId: string;
+  exposedLabel: string;
+  boundMacroIds: string[];
+}) {
+  const boundMacros = props.patch.ui.macros.filter((macro) => props.boundMacroIds.includes(macro.id));
+
+  return (
+    <>
+      <button type="button" className="macro-binding-pill" disabled title={props.exposedLabel}>
+        {props.exposedLabel}
+      </button>
+      <div className="macro-binding-details">
+        {boundMacros.map((macro) =>
+          macro.bindings
+            .filter((binding) => binding.nodeId === props.nodeId && binding.paramId === props.paramId)
+            .map((binding) => (
+              <div key={binding.id} className="macro-binding-detail-card">
+                <div className="macro-binding-detail-mode">
+                  {binding.map === "piecewise" ? "Keyframed" : binding.map === "exp" ? "Exponential" : "Linear"}
+                </div>
+                {binding.map === "piecewise" && binding.points && binding.points.length >= 2 ? (
+                  <>
+                    <div className="macro-binding-points">
+                      {binding.points.map((point, index) => (
+                        <span key={`${binding.id}_${point.x}_${index}`} className="macro-binding-point-chip">
+                          {point.x.toFixed(2)}:{formatBindingValue(point.y)}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="macro-binding-segments">Segments: linear interpolation</div>
+                  </>
+                ) : (
+                  <div className="macro-binding-range">
+                    Range: {formatBindingValue(binding.min ?? 0)} → {formatBindingValue(binding.max ?? 1)}
+                  </div>
+                )}
+              </div>
+            ))
+        )}
+      </div>
+    </>
+  );
+}
+
+function ParamValueControl(props: {
+  param: ParamSchema;
+  value: ParamValue;
+  disabled?: boolean;
+  onChange: (value: ParamValue) => void;
+}) {
+  const { param, value, disabled, onChange } = props;
+
+  if (param.type === "float") {
+    return (
+      <input
+        type="range"
+        min={param.range.min}
+        max={param.range.max}
+        step={(param.range.max - param.range.min) / 500}
+        value={Number(value)}
+        disabled={disabled}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    );
+  }
+
+  if (param.type === "enum") {
+    return (
+      <select value={String(value)} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
+        {param.options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  return <input type="checkbox" checked={Boolean(value)} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />;
 }
 
 export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
@@ -371,21 +471,25 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       </div>
 
       <div className="patch-layout">
-        <canvas
-          ref={canvasRef}
-          width={1400}
-          height={640}
-          style={{
-            cursor: dragNodeId ? MOVE_CURSOR_ACTIVE : hoveredNodeId ? MOVE_CURSOR : "default"
-          }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerLeave={(event) => {
-            onPointerUp(event);
-            setHoveredNodeId(null);
-          }}
-        />
+        <div className="patch-canvas-shell">
+          <div className="patch-canvas-scroll">
+            <canvas
+              ref={canvasRef}
+              width={1400}
+              height={640}
+              style={{
+                cursor: dragNodeId ? MOVE_CURSOR_ACTIVE : hoveredNodeId ? MOVE_CURSOR : "default"
+              }}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerLeave={(event) => {
+                onPointerUp(event);
+                setHoveredNodeId(null);
+              }}
+            />
+          </div>
+        </div>
 
         <aside className="patch-inspector">
           <h3>Inspector</h3>
@@ -409,66 +513,30 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
                 return (
                   <label key={param.id} className="param-row">
                     <span>{param.label}</span>
-                    {param.type === "float" && (
-                      <input
-                        type="range"
-                        min={param.range.min}
-                        max={param.range.max}
-                        step={(param.range.max - param.range.min) / 500}
-                        value={Number(value)}
+                    {!isExposed && (
+                      <ParamValueControl
+                        param={param}
+                        value={value}
                         disabled={props.structureLocked}
-                        onChange={(event) =>
+                        onChange={(nextValue) =>
                           !props.structureLocked &&
                           props.onApplyOp({
                             type: "setParam",
                             nodeId: selectedNode.id,
                             paramId: param.id,
-                            value: Number(event.target.value)
-                          })
-                        }
-                      />
-                    )}
-                    {param.type === "enum" && (
-                      <select
-                        value={String(value)}
-                        disabled={props.structureLocked}
-                        onChange={(event) =>
-                          !props.structureLocked &&
-                          props.onApplyOp({
-                            type: "setParam",
-                            nodeId: selectedNode.id,
-                            paramId: param.id,
-                            value: event.target.value
-                          })
-                        }
-                      >
-                        {param.options.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    {param.type === "bool" && (
-                      <input
-                        type="checkbox"
-                        checked={Boolean(value)}
-                        disabled={props.structureLocked}
-                        onChange={(event) =>
-                          !props.structureLocked &&
-                          props.onApplyOp({
-                            type: "setParam",
-                            nodeId: selectedNode.id,
-                            paramId: param.id,
-                            value: event.target.checked
+                            value: nextValue
                           })
                         }
                       />
                     )}
                     {isExposed ? (
-                      <button type="button" className="macro-binding-pill" disabled title={exposedLabel}>
-                        {exposedLabel}
-                      </button>
+                      <MacroBindingDetails
+                        patch={props.patch}
+                        nodeId={selectedNode.id}
+                        paramId={param.id}
+                        exposedLabel={exposedLabel}
+                        boundMacroIds={boundMacros.map((macro) => macro.id)}
+                      />
                     ) : (
                       <button
                         type="button"
