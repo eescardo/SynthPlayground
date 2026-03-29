@@ -21,7 +21,7 @@ import { removeTrackFromProject, renameTrackInProject } from "@/lib/trackEdits";
 import { useNoteEditor } from "@/hooks/useNoteEditor";
 import { usePlaybackController } from "@/hooks/usePlaybackController";
 import { useRecordingController } from "@/hooks/useRecordingController";
-import { Project, Note } from "@/types/music";
+import { Project } from "@/types/music";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 
@@ -64,6 +64,7 @@ export default function HomePage() {
   const [previewPitch, setPreviewPitch] = useState("C4");
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
   const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
+  const [exportingAudio, setExportingAudio] = useState(false);
   const [patchRemovalDialog, setPatchRemovalDialog] = useState<{
     patchId: string;
     rows: Array<{ trackId: string; mode: "fallback" | "remove"; fallbackPatchId: string }>;
@@ -262,6 +263,24 @@ export default function HomePage() {
       ...current,
       tracks: current.tracks.map((track) => (track.id === trackId ? { ...track, mute: !track.mute } : track))
     }), { actionKey: `track:${trackId}:mute` });
+  }, [commitProjectChange]);
+
+  const setTrackVolume = useCallback((trackId: string, volume: number, options?: { commit?: boolean }) => {
+    commitProjectChange((current) => ({
+      ...current,
+      tracks: current.tracks.map((track) =>
+        track.id === trackId
+          ? {
+              ...track,
+              volume: Math.max(0, Math.min(2, volume)),
+              mute: volume <= 0 ? true : false
+            }
+          : track
+      )
+    }), {
+      actionKey: `track:${trackId}:volume`,
+      coalesce: options?.commit === false
+    });
   }, [commitProjectChange]);
 
   const setPlayheadFromUser = useCallback((beat: number) => {
@@ -537,6 +556,26 @@ export default function HomePage() {
     URL.revokeObjectURL(url);
   };
 
+  const exportAudio = useCallback(async () => {
+    if (!audioEngineRef.current || exportingAudio) {
+      return;
+    }
+    setExportingAudio(true);
+    try {
+      const blob = await audioEngineRef.current.exportProjectAudio(project);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${project.name.replace(/\s+/g, "_").toLowerCase()}.wav`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setRuntimeError((error as Error).message);
+    } finally {
+      setExportingAudio(false);
+    }
+  }, [exportingAudio, project]);
+
   const importJson = async (file: File) => {
     const text = await file.text();
     try {
@@ -565,6 +604,7 @@ export default function HomePage() {
           notes: [],
           macroValues: {},
           macroPanelExpanded: true,
+          volume: 1,
           fx: {
             delayEnabled: false,
             reverbEnabled: false,
@@ -751,6 +791,10 @@ export default function HomePage() {
           playback.stopPlayback(true);
           void recording.startRecordMode();
         }}
+        onExportAudio={() => {
+          void exportAudio();
+        }}
+        exportAudioDisabled={exportingAudio}
         onTempoChange={(tempo) =>
           commitProjectChange((current) => ({ ...current, global: { ...current.global, tempo } }), {
             actionKey: "global:tempo"
@@ -816,6 +860,7 @@ export default function HomePage() {
         onSelectTrack={setSelectedTrackId}
         onRenameTrack={renameTrack}
         onToggleTrackMute={toggleTrackMute}
+        onSetTrackVolume={setTrackVolume}
         onUpdateTrackPatch={updateTrackPatch}
         onToggleTrackMacroPanel={toggleTrackMacroPanel}
         onChangeTrackMacro={changeTrackMacro}

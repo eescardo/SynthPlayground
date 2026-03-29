@@ -15,6 +15,8 @@ interface TransportBarProps {
   onPlay: () => void;
   onStop: () => void;
   onToggleRecord: () => void;
+  onExportAudio: () => void;
+  exportAudioDisabled?: boolean;
   onTempoChange: (value: number) => void;
   onMeterChange: (value: "4/4" | "3/4") => void;
   onGridChange: (value: number) => void;
@@ -98,6 +100,10 @@ export function TransportBar(props: TransportBarProps) {
             <option value={0.125}>1/32</option>
           </select>
         </label>
+
+        <button className="transport-export-button" onClick={props.onExportAudio} disabled={props.exportAudioDisabled}>
+          Export audio...
+        </button>
       </div>
     </div>
   );

@@ -27,6 +27,7 @@ export interface Track {
   notes: Note[];
   macroValues: Record<string, number>;
   macroPanelExpanded: boolean;
+  volume: number;
   mute?: boolean;
   solo?: boolean;
   fx: TrackFxSettings;

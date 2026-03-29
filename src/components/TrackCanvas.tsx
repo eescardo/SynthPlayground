@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MacroPanel } from "@/components/MacroPanel";
+import { TrackVolumePopover } from "@/components/TrackVolumePopover";
 import { createId } from "@/lib/ids";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
@@ -14,6 +15,8 @@ const TRACK_HEIGHT = 72;
 const BEAT_WIDTH = 72;
 const MUTE_ICON_SIZE = 16;
 const NOTE_RESIZE_HANDLE_WIDTH = 8;
+const SPEAKER_X = 126;
+const SPEAKER_Y_OFFSET = 29;
 const SPEAKER_ICON_SRC = "/icons/speaker.svg";
 const SPEAKER_MUTED_ICON_SRC = "/icons/speaker-muted.svg";
 const MOVE_CURSOR = "move";
@@ -63,6 +66,7 @@ interface TrackCanvasProps {
   onSelectTrack: (trackId: string) => void;
   onRenameTrack: (trackId: string, name: string) => void;
   onToggleTrackMute: (trackId: string) => void;
+  onSetTrackVolume: (trackId: string, volume: number, options?: { commit?: boolean }) => void;
   onUpdateTrackPatch: (trackId: string, patchId: string) => void;
   onToggleTrackMacroPanel: (trackId: string) => void;
   onChangeTrackMacro: (trackId: string, macroId: string, normalized: number, options?: { commit?: boolean }) => void;
@@ -212,11 +216,14 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const wheelLockedScrollTopRef = useRef(0);
   const wheelLockedScrollLeftRef = useRef(0);
   const wheelLockTimerRef = useRef<number | null>(null);
+  const volumeOpenTimerRef = useRef<number | null>(null);
+  const volumeDismissTimerRef = useRef<number | null>(null);
   const [hoveredPitch, setHoveredPitch] = useState<{ trackId: string; noteId: string } | null>(null);
   const [speakerIconsReady, setSpeakerIconsReady] = useState(false);
   const [canvasCursor, setCanvasCursor] = useState<CanvasCursor>("default");
   const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
   const [editingTrackName, setEditingTrackName] = useState("");
+  const [volumePopoverTrackId, setVolumePopoverTrackId] = useState<string | null>(null);
 
   const meterBeats = props.project.global.meter === "4/4" ? 4 : 3;
   const selectedTrack = props.project.tracks.find((track) => track.id === props.selectedTrackId) ?? null;
@@ -247,6 +254,50 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const height = RULER_HEIGHT + props.project.tracks.length * TRACK_HEIGHT;
 
   const beatFromX = (x: number) => (x - HEADER_WIDTH) / BEAT_WIDTH;
+  const isTrackSilenced = useCallback((track: Track) => track.mute || track.volume <= 0, []);
+
+  const openVolumePopover = useCallback((trackId: string) => {
+    if (volumeOpenTimerRef.current !== null) {
+      window.clearTimeout(volumeOpenTimerRef.current);
+      volumeOpenTimerRef.current = null;
+    }
+    if (volumeDismissTimerRef.current !== null) {
+      window.clearTimeout(volumeDismissTimerRef.current);
+      volumeDismissTimerRef.current = null;
+    }
+    setVolumePopoverTrackId(trackId);
+  }, []);
+
+  const scheduleVolumePopoverOpen = useCallback((trackId: string) => {
+    if (volumeOpenTimerRef.current !== null) {
+      window.clearTimeout(volumeOpenTimerRef.current);
+    }
+    volumeOpenTimerRef.current = window.setTimeout(() => {
+      setVolumePopoverTrackId(trackId);
+      volumeOpenTimerRef.current = null;
+    }, 1000);
+  }, []);
+
+  const scheduleVolumePopoverDismiss = useCallback(() => {
+    if (volumeDismissTimerRef.current !== null) {
+      window.clearTimeout(volumeDismissTimerRef.current);
+    }
+    volumeDismissTimerRef.current = window.setTimeout(() => {
+      setVolumePopoverTrackId(null);
+      volumeDismissTimerRef.current = null;
+    }, 2000);
+  }, []);
+
+  const cancelVolumePopoverTimers = useCallback(() => {
+    if (volumeOpenTimerRef.current !== null) {
+      window.clearTimeout(volumeOpenTimerRef.current);
+      volumeOpenTimerRef.current = null;
+    }
+    if (volumeDismissTimerRef.current !== null) {
+      window.clearTimeout(volumeDismissTimerRef.current);
+      volumeDismissTimerRef.current = null;
+    }
+  }, []);
 
   const getCanvasPoint = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
@@ -343,16 +394,16 @@ export function TrackCanvas(props: TrackCanvasProps) {
       ctx.fillStyle = trackPatchInvalid ? TRACK_CANVAS_COLORS.trackInvalidName : TRACK_CANVAS_COLORS.trackName;
       ctx.font = "13px 'Trebuchet MS', 'Segoe UI', sans-serif";
       ctx.fillText(track.name, 12, y + 24);
-      const muteX = 126;
       const muteY = y + 29;
-      const speakerIcon = track.mute ? speakerIconsRef.current.muted : speakerIconsRef.current.normal;
+      const trackSilenced = isTrackSilenced(track);
+      const speakerIcon = trackSilenced ? speakerIconsRef.current.muted : speakerIconsRef.current.normal;
       if (speakerIconsReady && speakerIcon) {
-        ctx.drawImage(speakerIcon, muteX, muteY, MUTE_ICON_SIZE, MUTE_ICON_SIZE);
+        ctx.drawImage(speakerIcon, SPEAKER_X, muteY, MUTE_ICON_SIZE, MUTE_ICON_SIZE);
       } else {
-        ctx.fillStyle = track.mute ? TRACK_CANVAS_COLORS.muteIconFallback : TRACK_CANVAS_COLORS.unmuteIconFallback;
-        ctx.fillRect(muteX + 2, muteY + 2, 12, 12);
+        ctx.fillStyle = trackSilenced ? TRACK_CANVAS_COLORS.muteIconFallback : TRACK_CANVAS_COLORS.unmuteIconFallback;
+        ctx.fillRect(SPEAKER_X + 2, muteY + 2, 12, 12);
       }
-      muteRectsRef.current.push({ trackId: track.id, x: muteX, y: muteY, w: MUTE_ICON_SIZE, h: MUTE_ICON_SIZE });
+      muteRectsRef.current.push({ trackId: track.id, x: SPEAKER_X, y: muteY, w: MUTE_ICON_SIZE, h: MUTE_ICON_SIZE });
 
       for (const note of track.notes) {
         const activeRecord = activeRecordedNoteById.get(`${track.id}:${note.id}`);
@@ -366,10 +417,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const overlaps = overlapNoteIds.has(note.id);
 
         ctx.fillStyle = overlaps
-          ? track.mute
+          ? trackSilenced
             ? TRACK_CANVAS_COLORS.noteOverlapMuted
             : TRACK_CANVAS_COLORS.noteOverlap
-          : track.mute
+          : trackSilenced
             ? TRACK_CANVAS_COLORS.noteMuted
             : TRACK_CANVAS_COLORS.note;
         ctx.fillRect(noteX, noteY, noteW, noteH);
@@ -421,6 +472,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     props.ghostPlayheadBeat,
     height,
     hoveredPitch,
+    isTrackSilenced,
     meterBeats,
     props.activeRecordedNotes,
     props.invalidPatchIds,
@@ -595,6 +647,31 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
   }, [editingTrackId, props.project.tracks]);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setVolumePopoverTrackId(null);
+        cancelVolumePopoverTimers();
+      }
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest(".track-volume-button, .track-volume-popover")) {
+        return;
+      }
+      setVolumePopoverTrackId(null);
+      cancelVolumePopoverTimers();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [cancelVolumePopoverTimers]);
+
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -730,10 +807,20 @@ export function TrackCanvas(props: TrackCanvasProps) {
     };
   }, [onUpdateNote, project.tracks]);
 
+  useEffect(() => {
+    return () => {
+      cancelVolumePopoverTimers();
+    };
+  }, [cancelVolumePopoverTimers]);
+
   return (
     <div className="track-canvas-shell" ref={wrapperRef}>
       <div className="track-header-overlays">
-        {project.tracks.map((track, index) => (
+        {project.tracks.map((track, index) => {
+          const effectiveVolume = track.mute ? 0 : track.volume;
+          const rememberedVolume = track.volume;
+
+          return (
           <div key={track.id}>
             <button
               type="button"
@@ -753,6 +840,39 @@ export function TrackCanvas(props: TrackCanvasProps) {
                 }
               }}
             />
+            <button
+              type="button"
+              className="track-volume-button"
+              aria-label={`Track volume for ${track.name}`}
+              aria-expanded={volumePopoverTrackId === track.id}
+              style={{
+                top: `${RULER_HEIGHT + index * TRACK_HEIGHT + SPEAKER_Y_OFFSET}px`
+              }}
+              onMouseEnter={() => scheduleVolumePopoverOpen(track.id)}
+              onMouseLeave={() => scheduleVolumePopoverDismiss()}
+              onClick={(event) => {
+                event.stopPropagation();
+                props.onToggleTrackMute(track.id);
+                openVolumePopover(track.id);
+              }}
+            />
+            {volumePopoverTrackId === track.id && (
+              <TrackVolumePopover
+                trackName={track.name}
+                effectiveVolume={effectiveVolume}
+                rememberedVolume={rememberedVolume}
+                muted={Boolean(track.mute)}
+                top={`${RULER_HEIGHT + index * TRACK_HEIGHT + 6}px`}
+                onMouseEnter={() => {
+                  if (volumeDismissTimerRef.current !== null) {
+                    window.clearTimeout(volumeDismissTimerRef.current);
+                    volumeDismissTimerRef.current = null;
+                  }
+                }}
+                onMouseLeave={() => scheduleVolumePopoverDismiss()}
+                onVolumeChange={(volume, options) => props.onSetTrackVolume(track.id, volume, options)}
+              />
+            )}
             {editingTrackId === track.id && (
               <input
                 className="track-name-input"
@@ -793,7 +913,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
               ))}
             </select>
           </div>
-        ))}
+          );
+        })}
       </div>
       <canvas
         ref={canvasRef}

@@ -229,6 +229,7 @@ export const normalizeProject = (raw: unknown): Project => {
         notes,
         macroValues: sanitizeMacroValueMap(track.macroValues),
         macroPanelExpanded: track.macroPanelExpanded !== false,
+        volume: clamp(asFiniteNumber(track.volume, 1), 0, 2),
         mute: Boolean(track.mute),
         solo: Boolean(track.solo),
         fx: {
