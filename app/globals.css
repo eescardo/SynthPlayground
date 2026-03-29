@@ -170,6 +170,11 @@ select {
   padding: 0.2rem 0.3rem;
 }
 
+.track-patch-select.invalid {
+  border-color: #b54a4a;
+  box-shadow: 0 0 0 1px rgba(181, 74, 74, 0.4);
+}
+
 .track-name-button {
   position: absolute;
   left: 10px;
@@ -229,6 +234,11 @@ select {
   padding: 0.8rem;
 }
 
+.instrument-editor.invalid {
+  border-color: #b54a4a;
+  box-shadow: inset 0 0 0 1px rgba(181, 74, 74, 0.18);
+}
+
 .instrument-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -277,6 +287,12 @@ select {
   color: #d7c7ff;
   border-color: #65577f;
   background: rgba(101, 87, 127, 0.22);
+}
+
+.prominent-action {
+  border-color: #5f8fc9;
+  background: linear-gradient(180deg, #2f5f94, #234d79);
+  box-shadow: 0 0 0 1px rgba(145, 192, 255, 0.2);
 }
 
 .instrument-identity {

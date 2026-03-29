@@ -1,7 +1,6 @@
 import { createId } from "@/lib/ids";
 import { presetPatches } from "@/lib/patch/presets";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
-import { validatePatch } from "@/lib/patch/validation";
 import { Project, TrackFxSettings } from "@/types/music";
 import { Patch, PatchConnection, PatchMacro, PatchMeta, PatchNode } from "@/types/patch";
 
@@ -186,13 +185,6 @@ export const normalizeProject = (raw: unknown): Project => {
   ];
   if (patches.length === 0) {
     throw new Error("Project must include at least one patch");
-  }
-
-  for (const patch of patches) {
-    const validation = validatePatch(patch);
-    if (!validation.ok) {
-      throw new Error(`Invalid patch "${patch.name}": ${validation.issues.map((issue) => issue.message).join("; ")}`);
-    }
   }
 
   const globalRaw = isObject(raw.global) ? raw.global : {};

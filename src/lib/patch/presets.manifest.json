@@ -47,11 +47,12 @@
   },
   {
     "presetId": "preset_pluck",
-    "presetVersion": 3,
+    "presetVersion": 24,
     "name": "Pluck",
     "macroIds": [
       "macro_tone",
-      "macro_decay"
+      "macro_decay",
+      "macro_material"
     ]
   }
 ]

@@ -10,6 +10,9 @@ export const patchHasNode = (patch: Patch, nodeId: string): boolean => patch.nod
 
 export const validatePatch = (patch: Patch): PatchValidationResult => {
   const issues: PatchValidationIssue[] = [];
+  const macroIds = new Set<string>();
+  const macroBindingIds = new Set<string>();
+  const macroTargetToMacroId = new Map<string, string>();
 
   const uniqueNodeIds = new Set<string>();
   for (const node of patch.nodes) {
@@ -29,6 +32,62 @@ export const validatePatch = (patch: Patch): PatchValidationResult => {
   }
   for (const hostId of SOURCE_HOST_NODE_IDS) {
     allNodeTypes.set(hostId, SOURCE_HOST_NODE_TYPE_BY_ID[hostId]);
+  }
+
+  for (const macro of patch.ui.macros) {
+    if (macroIds.has(macro.id)) {
+      pushError(issues, `Duplicate macro id: ${macro.id}`, { macroId: macro.id });
+    }
+    macroIds.add(macro.id);
+
+    for (const binding of macro.bindings) {
+      if (macroBindingIds.has(binding.id)) {
+        pushError(issues, `Duplicate macro binding id: ${binding.id}`, { bindingId: binding.id, macroId: macro.id });
+      }
+      macroBindingIds.add(binding.id);
+
+      const node = patch.nodes.find((entry) => entry.id === binding.nodeId);
+      if (!node) {
+        pushError(issues, `Macro binding references missing node`, {
+          macroId: macro.id,
+          bindingId: binding.id,
+          nodeId: binding.nodeId,
+          paramId: binding.paramId
+        });
+        continue;
+      }
+
+      const schema = getModuleSchema(node.typeId);
+      const paramSchema = schema?.params.find((param) => param.id === binding.paramId);
+      if (!schema || !paramSchema) {
+        pushError(issues, `Macro binding references invalid parameter`, {
+          macroId: macro.id,
+          bindingId: binding.id,
+          nodeId: binding.nodeId,
+          paramId: binding.paramId
+        });
+        continue;
+      }
+
+      const targetKey = `${binding.nodeId}:${binding.paramId}`;
+      const existingMacroId = macroTargetToMacroId.get(targetKey);
+      if (existingMacroId && existingMacroId !== macro.id) {
+        pushError(issues, `Conflicting macro bindings target the same parameter`, {
+          nodeId: binding.nodeId,
+          paramId: binding.paramId,
+          macroId: macro.id,
+          conflictingMacroId: existingMacroId
+        });
+      } else if (existingMacroId === macro.id) {
+        pushError(issues, `Macro binds the same parameter more than once`, {
+          nodeId: binding.nodeId,
+          paramId: binding.paramId,
+          macroId: macro.id
+        });
+      } else {
+        macroTargetToMacroId.set(targetKey, macro.id);
+      }
+    }
   }
 
   const incomingByPort = new Map<string, number>();

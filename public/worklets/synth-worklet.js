@@ -604,6 +604,7 @@ class TrackRuntime {
 
           if (gateValue >= 0.5 && state.lastGate < 0.5) {
             state.currentDelay = delaySamples;
+            const exciteStart = (state.write - delaySamples + state.buf.length) % state.buf.length;
             for (let j = 0; j < delaySamples; j += 1) {
               let source = excite[i];
               if (source === 0) {
@@ -611,7 +612,7 @@ class TrackRuntime {
               }
               const bright = brightnessParam[i];
               const shaped = source * (0.25 + bright * 0.75);
-              state.buf[(state.write + j) % state.buf.length] = shaped;
+              state.buf[(exciteStart + j) % state.buf.length] = shaped;
             }
           }
 
