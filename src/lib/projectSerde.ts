@@ -87,13 +87,24 @@ const sanitizePatchMacro = (raw: unknown, index: number): PatchMacro => {
     defaultNormalized: clamp(asFiniteNumber(macro.defaultNormalized, 0.5), 0, 1),
     bindings: bindingsRaw.map((binding, bindingIndex) => {
       const item = isObject(binding) ? binding : {};
+      const pointsRaw = Array.isArray(item.points) ? item.points : [];
+      const points = pointsRaw
+        .map((point) => {
+          const entry = isObject(point) ? point : {};
+          return {
+            x: clamp(asFiniteNumber(entry.x, 0), 0, 1),
+            y: asFiniteNumber(entry.y, 0)
+          };
+        })
+        .sort((left, right) => left.x - right.x);
       return {
         id: asString(item.id, `binding_${bindingIndex}`),
         nodeId: asString(item.nodeId, ""),
         paramId: asString(item.paramId, ""),
-        map: item.map === "exp" ? "exp" : "linear",
+        map: item.map === "exp" ? "exp" : item.map === "piecewise" && points.length >= 2 ? "piecewise" : "linear",
         min: asFiniteNumber(item.min, 0),
-        max: asFiniteNumber(item.max, 1)
+        max: asFiniteNumber(item.max, 1),
+        points: points.length >= 2 ? points : undefined
       };
     })
   };

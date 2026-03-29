@@ -212,8 +212,30 @@ export const applyMacroValue = (patch: Patch, macroId: string, normalized: numbe
       continue;
     }
 
-    const resolved =
-      binding.map === "exp" ? binding.min * Math.pow(binding.max / Math.max(binding.min, 0.000001), norm) : binding.min + (binding.max - binding.min) * norm;
+    let resolved: number;
+    if (binding.map === "piecewise" && binding.points && binding.points.length >= 2) {
+      const points = binding.points;
+      if (norm <= points[0].x) {
+        resolved = points[0].y;
+      } else if (norm >= points[points.length - 1].x) {
+        resolved = points[points.length - 1].y;
+      } else {
+        const segmentIndex = points.findIndex((point, index) => index > 0 && norm <= point.x);
+        const right = points[segmentIndex];
+        const left = points[segmentIndex - 1];
+        const segmentSpan = Math.max(right.x - left.x, 0.000001);
+        const segmentNorm = (norm - left.x) / segmentSpan;
+        resolved = left.y + (right.y - left.y) * segmentNorm;
+      }
+    } else if (binding.map === "exp") {
+      const min = Math.max(binding.min ?? 0, 0.000001);
+      const max = binding.max ?? min;
+      resolved = min * Math.pow(max / min, norm);
+    } else {
+      const min = binding.min ?? 0;
+      const max = binding.max ?? 1;
+      resolved = min + (max - min) * norm;
+    }
 
     node.params[binding.paramId] = resolved;
   }

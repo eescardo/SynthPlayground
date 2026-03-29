@@ -88,6 +88,54 @@ export const moduleRegistry: ModuleTypeSchema[] = [
     portsOut: [port("out", "Out", ["CV"], "Per-voice modulation wheel")]
   },
   {
+    typeId: "CVTranspose",
+    doc: { summary: "Transposes a pitch CV by octaves, semitones, and cents." },
+    params: [
+      floatParam("octaves", "Octaves", -4, 4, "VperOct", "Pitch offset in octaves", {
+        default: 0,
+        smoothingMs: 10
+      }),
+      floatParam("semitones", "Semitones", -12, 12, "semitones", "Pitch offset in semitones", {
+        default: 0,
+        smoothingMs: 10
+      }),
+      floatParam("cents", "Cents", -100, 100, "cents", "Fine pitch offset in cents", {
+        default: 0,
+        smoothingMs: 10
+      })
+    ],
+    portsIn: [port("in", "In", ["CV"], "Input CV")],
+    portsOut: [port("out", "Out", ["CV"], "Transposed CV")]
+  },
+  {
+    typeId: "CVScaler",
+    doc: { summary: "Scales or inverts a CV signal." },
+    params: [
+      floatParam("scale", "Scale", -2, 2, "linear", "Scale amount; negative values invert", {
+        default: 1,
+        smoothingMs: 10
+      })
+    ],
+    portsIn: [port("in", "In", ["CV"], "Input CV")],
+    portsOut: [port("out", "Out", ["CV"], "Scaled CV")]
+  },
+  {
+    typeId: "CVMixer2",
+    doc: { summary: "Sums two CV sources with independent gains." },
+    params: [
+      floatParam("gain1", "Gain 1", -2, 2, "linear", "Gain for input 1", {
+        default: 1,
+        smoothingMs: 10
+      }),
+      floatParam("gain2", "Gain 2", -2, 2, "linear", "Gain for input 2", {
+        default: 1,
+        smoothingMs: 10
+      })
+    ],
+    portsIn: [port("in1", "In 1", ["CV"], "First CV input"), port("in2", "In 2", ["CV"], "Second CV input")],
+    portsOut: [port("out", "Out", ["CV"], "Mixed CV output")]
+  },
+  {
     typeId: "VCO",
     doc: { summary: "Waveform oscillator controlled by V/Oct pitch and optional FM/PWM." },
     params: [
@@ -115,6 +163,31 @@ export const moduleRegistry: ModuleTypeSchema[] = [
       port("pwm", "PWM", ["CV"], "Pulse width modulation")
     ],
     portsOut: [port("out", "Out", ["AUDIO"], "Oscillator output")]
+  },
+  {
+    typeId: "KarplusStrong",
+    doc: { summary: "Plucked-string resonator with internal delay and feedback." },
+    params: [
+      floatParam("decay", "Decay", 0.7, 0.999, "linear", "Feedback decay amount", {
+        default: 0.94,
+        smoothingMs: 20
+      }),
+      floatParam("damping", "Damping", 0, 1, "linear", "High-frequency damping in the feedback path", {
+        default: 0.28,
+        smoothingMs: 20
+      }),
+      floatParam("brightness", "Brightness", 0, 1, "linear", "Excitation brightness", {
+        default: 0.72,
+        smoothingMs: 20
+      }),
+      enumParam("excitation", "Excitation", ["noise", "impulse"], "noise", "Excitation source when no input is patched")
+    ],
+    portsIn: [
+      port("pitch", "Pitch", ["CV"], "Pitch V/Oct"),
+      port("gate", "Gate", ["GATE"], "Excitation trigger"),
+      port("excite", "Excite", ["AUDIO", "CV"], "Optional external excitation")
+    ],
+    portsOut: [port("out", "Out", ["AUDIO"], "Resonated output")]
   },
   {
     typeId: "LFO",

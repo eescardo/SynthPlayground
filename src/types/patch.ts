@@ -70,13 +70,19 @@ export interface PatchConnection {
   to: { nodeId: string; portId: string };
 }
 
+export interface MacroCurvePoint {
+  x: number;
+  y: number;
+}
+
 export interface MacroBinding {
   id: string;
   nodeId: string;
   paramId: string;
-  map: "linear" | "exp";
-  min: number;
-  max: number;
+  map: "linear" | "exp" | "piecewise";
+  min?: number;
+  max?: number;
+  points?: MacroCurvePoint[];
 }
 
 export interface PatchMacro {
