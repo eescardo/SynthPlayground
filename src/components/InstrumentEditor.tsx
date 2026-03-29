@@ -24,6 +24,96 @@ interface InstrumentEditorProps {
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
 }
 
+interface InstrumentToolbarProps {
+  patch: Patch;
+  invalid?: boolean;
+  presetStatus: ReturnType<typeof resolvePatchPresetStatus>;
+  previewPitch: string;
+  onRenamePatch: (name: string) => void;
+  onDuplicatePatch: () => void;
+  onUpdatePreset: () => void;
+  canRemovePatch: boolean;
+  onRequestRemovePatch: () => void;
+  onOpenPreviewPitchPicker: () => void;
+  onPreviewNow: () => void;
+}
+
+interface InstrumentToolbarActionsProps {
+  invalid?: boolean;
+  presetStatus: ReturnType<typeof resolvePatchPresetStatus>;
+  onUpdatePreset: () => void;
+  onDuplicatePatch: () => void;
+  canRemovePatch: boolean;
+  onRequestRemovePatch: () => void;
+}
+
+function InstrumentToolbarActions(props: InstrumentToolbarActionsProps) {
+  return (
+    <div className="instrument-toolbar-actions">
+      {props.presetStatus === "preset_update_available" && (
+        <button type="button" className={props.invalid ? "prominent-action" : undefined} onClick={props.onUpdatePreset}>
+          Update Preset
+        </button>
+      )}
+      <button type="button" onClick={props.onDuplicatePatch}>
+        Duplicate Instrument Patch
+      </button>
+      <button type="button" disabled={!props.canRemovePatch} onClick={props.onRequestRemovePatch}>
+        Remove Instrument
+      </button>
+    </div>
+  );
+}
+
+function InstrumentToolbar(props: InstrumentToolbarProps) {
+  return (
+    <div className="instrument-toolbar">
+      <div className="instrument-toolbar-main">
+        <div className="instrument-toolbar-heading">
+          <h3>Instrument</h3>
+          {props.presetStatus === "preset" && <span className="instrument-source-badge preset">Preset</span>}
+          {props.presetStatus === "preset_update_available" && (
+            <span className="instrument-source-badge preset-update">Preset Update Available</span>
+          )}
+          {props.presetStatus === "legacy_preset" && (
+            <span className="instrument-source-badge legacy-preset">Legacy Preset</span>
+          )}
+          <code className="instrument-title-id">({props.patch.id})</code>
+        </div>
+        <div className="instrument-identity">
+          <input
+            className="instrument-name-input"
+            aria-label="Instrument name"
+            value={props.patch.name}
+            onChange={(event) => props.onRenamePatch(event.target.value)}
+          />
+        </div>
+      </div>
+
+      <InstrumentToolbarActions
+        invalid={props.invalid}
+        presetStatus={props.presetStatus}
+        onUpdatePreset={props.onUpdatePreset}
+        onDuplicatePatch={props.onDuplicatePatch}
+        canRemovePatch={props.canRemovePatch}
+        onRequestRemovePatch={props.onRequestRemovePatch}
+      />
+
+      <div className="instrument-toolbar-separator" />
+
+      <div className="instrument-preview">
+        <span className="instrument-preview-label">Preview</span>
+        <button type="button" className="preview-pitch-button" onClick={props.onOpenPreviewPitchPicker}>
+          {props.previewPitch}
+        </button>
+        <button type="button" onClick={props.onPreviewNow}>
+          Play
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function InstrumentEditor(props: InstrumentEditorProps) {
   const patchSource = resolvePatchSource(props.patch);
   const presetStatus = resolvePatchPresetStatus(props.patch);
@@ -31,55 +121,19 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
 
   return (
     <section className={`instrument-editor${props.invalid ? " invalid" : ""}`}>
-      <div className="instrument-toolbar">
-        <div className="instrument-toolbar-main">
-          <div className="instrument-toolbar-heading">
-            <h3>Instrument</h3>
-            {presetStatus === "preset" && <span className="instrument-source-badge preset">Preset</span>}
-            {presetStatus === "preset_update_available" && (
-              <span className="instrument-source-badge preset-update">Preset Update Available</span>
-            )}
-            {presetStatus === "legacy_preset" && (
-              <span className="instrument-source-badge legacy-preset">Legacy Preset</span>
-            )}
-            <code className="instrument-title-id">({props.patch.id})</code>
-          </div>
-          <div className="instrument-identity">
-            <input
-              className="instrument-name-input"
-              aria-label="Instrument name"
-              value={props.patch.name}
-              onChange={(event) => props.onRenamePatch(event.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="instrument-toolbar-actions">
-          {presetStatus === "preset_update_available" && (
-            <button type="button" className={props.invalid ? "prominent-action" : undefined} onClick={props.onUpdatePreset}>
-              Update Preset
-            </button>
-          )}
-          <button type="button" onClick={props.onDuplicatePatch}>
-            Duplicate Instrument Patch
-          </button>
-          <button type="button" disabled={!props.canRemovePatch} onClick={props.onRequestRemovePatch}>
-            Remove Instrument
-          </button>
-        </div>
-
-        <div className="instrument-toolbar-separator" />
-
-        <div className="instrument-preview">
-          <span className="instrument-preview-label">Preview</span>
-          <button type="button" className="preview-pitch-button" onClick={props.onOpenPreviewPitchPicker}>
-            {props.previewPitch}
-          </button>
-          <button type="button" onClick={props.onPreviewNow}>
-            Play
-          </button>
-        </div>
-      </div>
+      <InstrumentToolbar
+        patch={props.patch}
+        invalid={props.invalid}
+        presetStatus={presetStatus}
+        previewPitch={props.previewPitch}
+        onRenamePatch={props.onRenamePatch}
+        onDuplicatePatch={props.onDuplicatePatch}
+        onUpdatePreset={props.onUpdatePreset}
+        canRemovePatch={props.canRemovePatch}
+        onRequestRemovePatch={props.onRequestRemovePatch}
+        onOpenPreviewPitchPicker={props.onOpenPreviewPitchPicker}
+        onPreviewNow={props.onPreviewNow}
+      />
 
       {props.migrationNotice && <p className="warn">{props.migrationNotice}</p>}
       {props.invalid && (
