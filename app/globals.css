@@ -224,6 +224,39 @@ select {
   gap: 0.5rem;
 }
 
+.recording-dock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.8rem;
+  border: 1px solid rgba(255, 120, 140, 0.28);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(58, 17, 26, 0.86), rgba(20, 12, 18, 0.94)),
+    radial-gradient(circle at 10% 0%, rgba(255, 151, 113, 0.18), transparent 36%);
+  box-shadow: inset 0 0 0 1px rgba(255, 179, 179, 0.06);
+}
+
+.recording-dock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.recording-dock-subtitle {
+  display: block;
+  margin-top: 0.14rem;
+  color: #f0b7c3;
+  font-size: 0.84rem;
+}
+
+.recording-dock-status {
+  color: #ffd8b2;
+  font-size: 0.84rem;
+  text-align: right;
+}
+
 .instrument-editor {
   display: flex;
   flex-direction: column;
@@ -698,6 +731,15 @@ kbd {
   .transport {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .recording-dock-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .recording-dock-status {
+    text-align: left;
   }
 
   .macro-row {

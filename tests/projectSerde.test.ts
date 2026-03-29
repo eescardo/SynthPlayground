@@ -91,29 +91,29 @@ describe("projectSerde", () => {
   });
 
   it("preserves invalid preset snapshots so UI can surface validation failures", () => {
-  const project = createDefaultProject();
-  const pluck = project.patches.find((patch) => patch.id === "preset_pluck");
-  if (!pluck || pluck.meta.source !== "preset") {
-    throw new Error("Expected preset_pluck preset patch");
-  }
+    const project = createDefaultProject();
+    const pluck = project.patches.find((patch) => patch.id === "preset_pluck");
+    if (!pluck || pluck.meta.source !== "preset") {
+      throw new Error("Expected preset_pluck preset patch");
+    }
 
-  pluck.ui.macros[0].bindings.push({
-    id: "invalid_conflict_binding",
-    nodeId: "vcf1",
-    paramId: "cutoffHz",
-    map: "linear",
-    min: 100,
-    max: 200
-  });
+    pluck.ui.macros[0].bindings.push({
+      id: "invalid_conflict_binding",
+      nodeId: "vcf1",
+      paramId: "cutoffHz",
+      map: "linear",
+      min: 100,
+      max: 200
+    });
 
-  const normalized = normalizeProject(project);
-  const repairedPluck = normalized.patches.find((patch) => patch.id === "preset_pluck");
-  expect(repairedPluck).toBeDefined();
-  if (!repairedPluck || repairedPluck.meta.source !== "preset") {
-    throw new Error("Expected invalid preset_pluck patch to remain present");
-  }
-  const validation = validatePatch(repairedPluck);
-  expect(validation.ok).toBe(false);
-  expect(validation.issues.some((issue) => issue.message.includes("Macro binds the same parameter more than once"))).toBe(true);
+    const normalized = normalizeProject(project);
+    const repairedPluck = normalized.patches.find((patch) => patch.id === "preset_pluck");
+    expect(repairedPluck).toBeDefined();
+    if (!repairedPluck || repairedPluck.meta.source !== "preset") {
+      throw new Error("Expected invalid preset_pluck patch to remain present");
+    }
+    const validation = validatePatch(repairedPluck);
+    expect(validation.ok).toBe(false);
+    expect(validation.issues.some((issue) => issue.message.includes("Macro binds the same parameter more than once"))).toBe(true);
   });
 });

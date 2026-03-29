@@ -57,19 +57,93 @@ export const midiToPitch = (midi: number): string => {
   return `${names[semitone]}${octave}`;
 };
 
-const QWERTY_ORDER = "QWERTYUIOPASDFGHJKLZXCVBNM";
-const QWERTY_START_MIDI = 48; // C3
+const PHYSICAL_KEY_SEQUENCE = [
+  "`",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "0",
+  "-",
+  "=",
+  "q",
+  "w",
+  "e",
+  "r",
+  "t",
+  "y",
+  "u",
+  "i",
+  "o",
+  "p",
+  "[",
+  "]",
+  "a",
+  "s",
+  "d",
+  "f",
+  "g",
+  "h",
+  "j",
+  "k",
+  "l",
+  ";",
+  "'",
+  "z",
+  "x",
+  "c",
+  "v",
+  "b",
+  "n",
+  "m",
+  ",",
+  ".",
+  "/"
+] as const;
 
-export const QWERTY_PITCH_MAP: Record<string, string> = Object.fromEntries(
-  QWERTY_ORDER.split("").map((char, index) => [char.toLowerCase(), midiToPitch(QWERTY_START_MIDI + index)])
-);
+const SHIFTED_KEY_ALIASES: Record<string, string> = {
+  "~": "`",
+  "!": "1",
+  "@": "2",
+  "#": "3",
+  "$": "4",
+  "%": "5",
+  "^": "6",
+  "&": "7",
+  "*": "8",
+  "(": "9",
+  ")": "0",
+  "_": "-",
+  "+": "=",
+  "{": "[",
+  "}": "]",
+  ":": ";",
+  "\"": "'",
+  "<": ",",
+  ">": ".",
+  "?": "/"
+};
 
-export const keyToPitch = (key: string): string | undefined => QWERTY_PITCH_MAP[key.toLowerCase()];
+const QWERTY_START_MIDI = 36; // C2
+
+const qwertyEntries = PHYSICAL_KEY_SEQUENCE.map((key, index) => [key, midiToPitch(QWERTY_START_MIDI + index)] as const);
+
+export const QWERTY_PITCH_MAP: Record<string, string> = Object.fromEntries(qwertyEntries);
+
+export const keyToPitch = (key: string): string | undefined => {
+  const normalized = SHIFTED_KEY_ALIASES[key] ?? key.toLowerCase();
+  return QWERTY_PITCH_MAP[normalized];
+};
 
 export const qwertyKeyForPitch = (pitchStr: string): string | undefined => {
-  for (const [key, pitch] of Object.entries(QWERTY_PITCH_MAP)) {
+  for (const [key, pitch] of qwertyEntries) {
     if (pitch === pitchStr) {
-      return key.toUpperCase();
+      return key === "`" ? "~" : key.toUpperCase();
     }
   }
   return undefined;

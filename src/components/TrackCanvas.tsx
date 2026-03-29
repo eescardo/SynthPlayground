@@ -52,6 +52,8 @@ interface TrackCanvasProps {
   invalidPatchIds?: Set<string>;
   selectedTrackId?: string;
   playheadBeat: number;
+  ghostPlayheadBeat?: number;
+  countInLabel?: string;
   onSetPlayheadBeat: (beat: number) => void;
   onSelectTrack: (trackId: string) => void;
   onRenameTrack: (trackId: string, name: string) => void;
@@ -359,7 +361,40 @@ export function TrackCanvas(props: TrackCanvasProps) {
     ctx.moveTo(playheadX, 0);
     ctx.lineTo(playheadX, height);
     ctx.stroke();
+
+    if (typeof props.ghostPlayheadBeat === "number" && Number.isFinite(props.ghostPlayheadBeat)) {
+      const ghostX = HEADER_WIDTH + props.ghostPlayheadBeat * BEAT_WIDTH;
+      ctx.strokeStyle = COLOR_GHOST_PLAYHEAD;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([7, 6]);
+      ctx.beginPath();
+      ctx.moveTo(ghostX, 0);
+      ctx.lineTo(ghostX, height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (props.countInLabel) {
+        const badgeWidth = 34;
+        const badgeHeight = 24;
+        const badgeX = ghostX - badgeWidth * 0.5;
+        const badgeY = 6;
+        ctx.fillStyle = COLOR_COUNT_IN_BADGE;
+        ctx.strokeStyle = COLOR_COUNT_IN_BADGE_BORDER;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = COLOR_COUNT_IN_TEXT;
+        ctx.font = "bold 14px ui-monospace, SFMono-Regular, Menlo, monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(props.countInLabel, ghostX, badgeY + 16);
+        ctx.textAlign = "start";
+      }
+    }
   }, [
+    props.countInLabel,
+    props.ghostPlayheadBeat,
     height,
     hoveredPitch,
     meterBeats,

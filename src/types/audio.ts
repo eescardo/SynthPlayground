@@ -5,6 +5,7 @@ export interface BaseSchedulerEvent {
   id: string;
   type: SchedulerEventType;
   sampleTime: number;
+  live?: boolean;
 }
 
 export interface NoteOnEvent extends BaseSchedulerEvent {
@@ -70,10 +71,16 @@ export interface WorkletTransportMessage {
   sessionId?: number;
 }
 
+export interface WorkletRecordingMessage {
+  type: "RECORDING";
+  trackId: string | null;
+}
+
 export type WorkletInboundMessage =
   | WorkletInitMessage
   | WorkletSetProjectMessage
   | WorkletEventsMessage
   | WorkletMacroMessage
   | WorkletPreviewMessage
+  | WorkletRecordingMessage
   | WorkletTransportMessage;
