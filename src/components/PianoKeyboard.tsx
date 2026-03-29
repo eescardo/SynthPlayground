@@ -79,8 +79,8 @@ export function PianoKeyboard({
                 onPointerLeave={() => onPressEnd?.(key.pitch)}
                 onPointerCancel={() => onPressEnd?.(key.pitch)}
               >
-                <span className="pitch-label">{key.pitch}</span>
                 {qwerty && <span className="qwerty-label">{qwerty}</span>}
+                <span className="pitch-label">{key.pitch}</span>
               </button>
             );
           })}
@@ -102,8 +102,8 @@ export function PianoKeyboard({
                 onPointerLeave={() => onPressEnd?.(blackKey.pitch)}
                 onPointerCancel={() => onPressEnd?.(blackKey.pitch)}
               >
-                <span className="pitch-label">{blackKey.pitch}</span>
                 {qwerty && <span className="qwerty-label">{qwerty}</span>}
+                <span className="pitch-label">{blackKey.pitch}</span>
               </button>
             );
           })}

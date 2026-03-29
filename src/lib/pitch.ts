@@ -143,7 +143,7 @@ export const keyToPitch = (key: string): string | undefined => {
 export const qwertyKeyForPitch = (pitchStr: string): string | undefined => {
   for (const [key, pitch] of qwertyEntries) {
     if (pitch === pitchStr) {
-      return key === "`" ? "~" : key.toUpperCase();
+      return key === "`" ? "`" : key.toUpperCase();
     }
   }
   return undefined;

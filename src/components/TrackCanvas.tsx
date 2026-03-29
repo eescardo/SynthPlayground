@@ -5,7 +5,7 @@ import { MacroPanel } from "@/components/MacroPanel";
 import { createId } from "@/lib/ids";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
-import { snapToGrid } from "@/lib/musicTiming";
+import { formatBeatName, snapToGrid } from "@/lib/musicTiming";
 import { Project, Note, Track } from "@/types/music";
 
 const HEADER_WIDTH = 170;
@@ -41,6 +41,10 @@ const TRACK_CANVAS_COLORS = {
   noteLabel: "#ecf5ff",
   overlapRange: "rgba(255, 35, 35, 0.52)",
   playhead: "#ff5a7b",
+  ghostPlayhead: "rgba(121, 201, 255, 0.82)",
+  countInBadge: "rgba(255, 208, 113, 0.18)",
+  countInBadgeBorder: "rgba(255, 208, 113, 0.48)",
+  countInText: "#ffe5a9",
   muteIconFallback: "#ff8092",
   unmuteIconFallback: "#a7c8eb"
 } as const;
@@ -52,6 +56,7 @@ interface TrackCanvasProps {
   invalidPatchIds?: Set<string>;
   selectedTrackId?: string;
   playheadBeat: number;
+  activeRecordedNotes?: Array<{ trackId: string; noteId: string; startBeat: number }>;
   ghostPlayheadBeat?: number;
   countInLabel?: string;
   onSetPlayheadBeat: (beat: number) => void;
@@ -258,7 +263,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       if (isBeat) {
         ctx.fillStyle = TRACK_CANVAS_COLORS.rulerText;
         ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
-        ctx.fillText(String(beat + 1), x + 4, 18);
+        ctx.fillText(formatBeatName(beat, props.project.global.gridBeats), x + 4, 18);
       }
     }
 
@@ -275,6 +280,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
     noteRectsRef.current = [];
     muteRectsRef.current = [];
     pitchRectsRef.current = [];
+    const activeRecordedNoteById = new Map(
+      (props.activeRecordedNotes ?? []).map((entry) => [`${entry.trackId}:${entry.noteId}`, entry] as const)
+    );
     props.project.tracks.forEach((track, index) => {
       const y = RULER_HEIGHT + index * TRACK_HEIGHT;
       const isSelected = track.id === props.selectedTrackId;
@@ -305,8 +313,12 @@ export function TrackCanvas(props: TrackCanvasProps) {
       muteRectsRef.current.push({ trackId: track.id, x: muteX, y: muteY, w: MUTE_ICON_SIZE, h: MUTE_ICON_SIZE });
 
       for (const note of track.notes) {
+        const activeRecord = activeRecordedNoteById.get(`${track.id}:${note.id}`);
+        const visualDurationBeats = activeRecord
+          ? Math.max(note.durationBeats, props.playheadBeat - activeRecord.startBeat, props.project.global.gridBeats)
+          : note.durationBeats;
         const noteX = HEADER_WIDTH + note.startBeat * BEAT_WIDTH;
-        const noteW = Math.max(8, note.durationBeats * BEAT_WIDTH);
+        const noteW = Math.max(8, visualDurationBeats * BEAT_WIDTH);
         const noteY = y + 14;
         const noteH = TRACK_HEIGHT - 28;
         const overlaps = overlapNoteIds.has(note.id);
@@ -364,7 +376,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
     if (typeof props.ghostPlayheadBeat === "number" && Number.isFinite(props.ghostPlayheadBeat)) {
       const ghostX = HEADER_WIDTH + props.ghostPlayheadBeat * BEAT_WIDTH;
-      ctx.strokeStyle = COLOR_GHOST_PLAYHEAD;
+      ctx.strokeStyle = TRACK_CANVAS_COLORS.ghostPlayhead;
       ctx.lineWidth = 2;
       ctx.setLineDash([7, 6]);
       ctx.beginPath();
@@ -378,14 +390,14 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const badgeHeight = 24;
         const badgeX = ghostX - badgeWidth * 0.5;
         const badgeY = 6;
-        ctx.fillStyle = COLOR_COUNT_IN_BADGE;
-        ctx.strokeStyle = COLOR_COUNT_IN_BADGE_BORDER;
+        ctx.fillStyle = TRACK_CANVAS_COLORS.countInBadge;
+        ctx.strokeStyle = TRACK_CANVAS_COLORS.countInBadgeBorder;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 8);
         ctx.fill();
         ctx.stroke();
-        ctx.fillStyle = COLOR_COUNT_IN_TEXT;
+        ctx.fillStyle = TRACK_CANVAS_COLORS.countInText;
         ctx.font = "bold 14px ui-monospace, SFMono-Regular, Menlo, monospace";
         ctx.textAlign = "center";
         ctx.fillText(props.countInLabel, ghostX, badgeY + 16);
@@ -398,6 +410,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     height,
     hoveredPitch,
     meterBeats,
+    props.activeRecordedNotes,
     props.invalidPatchIds,
     props.playheadBeat,
     props.project.global.gridBeats,

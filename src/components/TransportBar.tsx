@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent } from "react";
+import { formatBeatName } from "@/lib/musicTiming";
 
 interface TransportBarProps {
   tempo: number;
@@ -8,6 +9,8 @@ interface TransportBarProps {
   gridBeats: number;
   isPlaying: boolean;
   recordEnabled: boolean;
+  recordPhase?: "idle" | "count_in" | "recording";
+  countInLabel?: string | null;
   playheadBeat: number;
   onPlay: () => void;
   onStop: () => void;
@@ -31,16 +34,27 @@ export function TransportBar(props: TransportBarProps) {
   return (
     <div className="transport">
       <div className="transport-left">
-        <button onClick={props.onPlay} disabled={props.isPlaying}>
+        <button onClick={props.onPlay} disabled={props.isPlaying || props.recordEnabled}>
           Play
         </button>
-        <button onClick={props.onStop} disabled={!props.isPlaying}>
+        <button onClick={props.onStop} disabled={!props.isPlaying || props.recordEnabled}>
           Stop
         </button>
-        <button className={props.recordEnabled ? "armed" : ""} onClick={props.onToggleRecord}>
-          Record
-        </button>
-        <span className="playhead">Beat {(props.playheadBeat + 1).toFixed(2)}</span>
+        <div className="record-button-wrap">
+          {props.recordPhase === "count_in" && props.countInLabel && (
+            <div className="record-countdown-badge" aria-live="polite">
+              {props.countInLabel}
+            </div>
+          )}
+          <button
+            className={props.recordEnabled ? "armed toggle-active" : ""}
+            aria-pressed={props.recordEnabled}
+            onClick={props.onToggleRecord}
+          >
+            Record
+          </button>
+        </div>
+        <span className="playhead">Beat {formatBeatName(props.playheadBeat, props.gridBeats)}</span>
       </div>
 
       <div className="transport-right">
