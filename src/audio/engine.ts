@@ -22,6 +22,20 @@ export class AudioEngine {
   private playSessionId = 0;
   private recordingTrackId: string | null = null;
 
+  private async disposeContext(): Promise<void> {
+    this.worklet?.disconnect();
+    this.worklet = null;
+    if (this.context) {
+      const context = this.context;
+      this.context = null;
+      try {
+        await context.close();
+      } catch {
+        // ignore close failures during recovery
+      }
+    }
+  }
+
   private computeStaticScheduleEndSample(startSample: number, lookaheadSamples: number): number {
     if (!this.project) {
       return startSample + lookaheadSamples;
@@ -39,27 +53,46 @@ export class AudioEngine {
       return;
     }
 
-    this.context = new AudioContext({ sampleRate: FIXED_SAMPLE_RATE, latencyHint: "interactive" });
-    await this.context.audioWorklet.addModule("/worklets/synth-worklet.js");
+    await this.disposeContext();
 
-    this.worklet = new AudioWorkletNode(this.context, "synth-worklet-processor", {
-      numberOfInputs: 0,
-      numberOfOutputs: 1,
-      outputChannelCount: [2]
-    });
+    const context = new AudioContext({ sampleRate: FIXED_SAMPLE_RATE, latencyHint: "interactive" });
+    const workletUrl =
+      process.env.NODE_ENV === "development"
+        ? `/worklets/synth-worklet.js?v=${Date.now()}`
+        : "/worklets/synth-worklet.js";
 
-    this.worklet.connect(this.context.destination);
-    this.worklet.port.postMessage({
-      type: "INIT",
-      sampleRate: FIXED_SAMPLE_RATE,
-      blockSize: BLOCK_SIZE
-    });
+    try {
+      await context.audioWorklet.addModule(workletUrl);
 
-    if (this.project) {
-      this.worklet.port.postMessage({
-        type: "SET_PROJECT",
-        project: this.project
+      const worklet = new AudioWorkletNode(context, "synth-worklet-processor", {
+        numberOfInputs: 0,
+        numberOfOutputs: 1,
+        outputChannelCount: [2]
       });
+
+      worklet.connect(context.destination);
+      worklet.port.postMessage({
+        type: "INIT",
+        sampleRate: FIXED_SAMPLE_RATE,
+        blockSize: BLOCK_SIZE
+      });
+
+      if (this.project) {
+        worklet.port.postMessage({
+          type: "SET_PROJECT",
+          project: this.project
+        });
+      }
+
+      this.context = context;
+      this.worklet = worklet;
+    } catch (error) {
+      try {
+        await context.close();
+      } catch {
+        // ignore cleanup failures after init error
+      }
+      throw new Error(`Failed to initialize audio worklet: ${(error as Error).message}`);
     }
   }
 
