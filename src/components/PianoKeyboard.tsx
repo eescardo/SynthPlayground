@@ -6,7 +6,10 @@ interface PianoKeyboardProps {
   minPitch?: string;
   maxPitch?: string;
   selectedPitch?: string;
+  pressedPitches?: string[];
   onSelectPitch: (pitch: string) => void;
+  onPressStart?: (pitch: string) => void;
+  onPressEnd?: (pitch: string) => void;
 }
 
 interface KeyDef {
@@ -38,8 +41,12 @@ export function PianoKeyboard({
   minPitch = "C1",
   maxPitch = "C7",
   selectedPitch,
-  onSelectPitch
+  pressedPitches = [],
+  onSelectPitch,
+  onPressStart,
+  onPressEnd
 }: PianoKeyboardProps) {
+  const pressedPitchSet = new Set(pressedPitches);
   const keys = buildKeys(minPitch, maxPitch);
   const whiteKeys = keys.filter((key) => !key.black);
   const keybedWidth = whiteKeys.length * WHITE_KEY_WIDTH + Math.max(0, whiteKeys.length - 1) * WHITE_KEY_GAP;
@@ -59,7 +66,7 @@ export function PianoKeyboard({
       <div className="piano-keys-wrap" style={{ width: `${keybedWidth}px` }}>
         <div className="piano-white-row">
           {whiteKeys.map((key) => {
-            const selected = key.pitch === selectedPitch;
+            const selected = key.pitch === selectedPitch || pressedPitchSet.has(key.pitch);
             const qwerty = qwertyKeyForPitch(key.pitch);
             return (
               <button
@@ -67,9 +74,13 @@ export function PianoKeyboard({
                 type="button"
                 className={selected ? "piano-key white selected" : "piano-key white"}
                 onClick={() => onSelectPitch(key.pitch)}
+                onPointerDown={() => onPressStart?.(key.pitch)}
+                onPointerUp={() => onPressEnd?.(key.pitch)}
+                onPointerLeave={() => onPressEnd?.(key.pitch)}
+                onPointerCancel={() => onPressEnd?.(key.pitch)}
               >
-                <span className="pitch-label">{key.pitch}</span>
                 {qwerty && <span className="qwerty-label">{qwerty}</span>}
+                <span className="pitch-label">{key.pitch}</span>
               </button>
             );
           })}
@@ -77,7 +88,7 @@ export function PianoKeyboard({
 
         <div className="piano-black-row" aria-hidden>
           {blackKeys.map((blackKey) => {
-            const selected = blackKey.pitch === selectedPitch;
+            const selected = blackKey.pitch === selectedPitch || pressedPitchSet.has(blackKey.pitch);
             const qwerty = qwertyKeyForPitch(blackKey.pitch);
             return (
               <button
@@ -86,9 +97,13 @@ export function PianoKeyboard({
                 className={selected ? "piano-key black selected" : "piano-key black"}
                 style={{ left: `${blackKey.left}px` }}
                 onClick={() => onSelectPitch(blackKey.pitch)}
+                onPointerDown={() => onPressStart?.(blackKey.pitch)}
+                onPointerUp={() => onPressEnd?.(blackKey.pitch)}
+                onPointerLeave={() => onPressEnd?.(blackKey.pitch)}
+                onPointerCancel={() => onPressEnd?.(blackKey.pitch)}
               >
-                <span className="pitch-label">{blackKey.pitch}</span>
                 {qwerty && <span className="qwerty-label">{qwerty}</span>}
+                <span className="pitch-label">{blackKey.pitch}</span>
               </button>
             );
           })}

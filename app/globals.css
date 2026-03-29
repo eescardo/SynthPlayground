@@ -85,6 +85,13 @@ select {
   gap: 0.55rem;
 }
 
+.record-button-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  z-index: 20;
+}
+
 .transport label {
   display: inline-flex;
   align-items: center;
@@ -102,6 +109,44 @@ select {
 .armed {
   border-color: #ff708d;
   color: #ffd5dd;
+}
+
+.toggle-active {
+  background: linear-gradient(180deg, #b33043, #7c1829);
+  border-color: #ff7f93;
+  color: #fff3f5;
+  box-shadow: 0 0 0 1px rgba(255, 156, 171, 0.24), 0 8px 18px rgba(124, 24, 41, 0.28);
+}
+
+.record-countdown-badge {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 0.45rem);
+  transform: translateX(-50%);
+  min-width: 2.2rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(166, 45, 59, 0.88);
+  border: 1px solid rgba(255, 177, 177, 0.42);
+  color: #ffe6e6;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.82rem;
+  line-height: 1;
+  box-shadow: 0 10px 22px rgba(67, 11, 20, 0.32);
+  pointer-events: none;
+  z-index: 30;
+}
+
+.record-countdown-badge::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translateX(-50%);
+  border-width: 0 5px 6px;
+  border-style: solid;
+  border-color: transparent transparent rgba(166, 45, 59, 0.88);
 }
 
 .top-actions {
@@ -222,6 +267,41 @@ select {
 .track-macro-panel-actions {
   display: flex;
   gap: 0.5rem;
+}
+
+.recording-dock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: min(980px, calc(100vw - 1.6rem));
+  margin: 0 auto;
+  padding: 0.8rem;
+  border: 1px solid rgba(255, 120, 140, 0.28);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(58, 17, 26, 0.86), rgba(20, 12, 18, 0.94)),
+    radial-gradient(circle at 10% 0%, rgba(255, 151, 113, 0.18), transparent 36%);
+  box-shadow: inset 0 0 0 1px rgba(255, 179, 179, 0.06);
+}
+
+.recording-dock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.recording-dock-subtitle {
+  display: block;
+  margin-top: 0.14rem;
+  color: #f0b7c3;
+  font-size: 0.84rem;
+}
+
+.recording-dock-status {
+  color: #ffd8b2;
+  font-size: 0.84rem;
+  text-align: right;
 }
 
 .instrument-editor {
@@ -601,7 +681,7 @@ kbd {
 
 .piano-shell {
   position: relative;
-  margin-top: 0.5rem;
+  margin: 0.5rem auto 0;
   border: 1px solid #2f4f6d;
   border-radius: 8px;
   background: #0b141e;
@@ -619,13 +699,13 @@ kbd {
 }
 
 .piano-key {
+  position: relative;
   border-radius: 0 0 6px 6px;
   border: 1px solid #314a61;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.12rem;
+  justify-content: flex-start;
   padding: 0.2rem;
   cursor: pointer;
 }
@@ -663,9 +743,14 @@ kbd {
 }
 
 .piano-key .pitch-label {
+  position: absolute;
+  left: 50%;
+  bottom: 0.28rem;
+  transform: translateX(-50%);
   font-size: 0.48rem;
   line-height: 1;
   color: #101b28;
+  white-space: nowrap;
 }
 
 .piano-key.black .pitch-label {
@@ -673,7 +758,11 @@ kbd {
 }
 
 .piano-key .qwerty-label {
-  display: inline-block;
+  position: absolute;
+  left: 50%;
+  bottom: 1.15rem;
+  transform: translateX(-50%);
+  display: inline-flex;
   font-size: 0.42rem;
   line-height: 1;
   padding: 0.04rem 0.12rem;
@@ -682,6 +771,11 @@ kbd {
   color: #ffe7e7;
   border: 1px solid #cf4a4a;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap;
+}
+
+.piano-key.black .qwerty-label {
+  bottom: 1rem;
 }
 
 @media (max-width: 1100px) {
@@ -698,6 +792,15 @@ kbd {
   .transport {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .recording-dock-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .recording-dock-status {
+    text-align: left;
   }
 
   .macro-row {

@@ -1095,6 +1095,7 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
     this.sampleCounter = 0;
     this.songSampleCounter = 0;
     this.transportSessionId = 0;
+    this.recordingTrackId = null;
     this.masterCompressorEnv = 0;
     this.masterBuffer = new Float32Array(this.blockSize);
 
@@ -1141,6 +1142,7 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
         this.playing = false;
         this.previewing = false;
         this.previewRemainingSamples = 0;
+        this.recordingTrackId = null;
         this.transportSessionId = Number.isFinite(message.sessionId) ? message.sessionId : this.transportSessionId + 1;
         this.songSampleCounter = Math.max(0, message.songStartSample || 0);
         this.eventQueue.length = 0;
@@ -1155,6 +1157,20 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
           }
         }
         this.playing = Boolean(message.isPlaying);
+        break;
+      case "RECORDING":
+        this.recordingTrackId = typeof message.trackId === "string" ? message.trackId : null;
+        if (this.recordingTrackId) {
+          const track = this.trackRuntimes.find((entry) => entry.track.id === this.recordingTrackId);
+          if (track) {
+            for (const voice of track.voices) {
+              voice.active = false;
+              voice.noteId = null;
+              voice.host.gate = 0;
+              voice.rms = 0;
+            }
+          }
+        }
         break;
       case "PREVIEW":
         this.previewing = false;
@@ -1213,6 +1229,10 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
 
     const track = this.trackRuntimes.find((entry) => entry.track.id === event.trackId);
     if (!track) {
+      return;
+    }
+
+    if (this.recordingTrackId && event.trackId === this.recordingTrackId && event.source === "timeline") {
       return;
     }
 

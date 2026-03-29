@@ -1,10 +1,12 @@
 // Scheduler/worklet message contracts and event payload types for audio transport.
 export type SchedulerEventType = "NoteOn" | "NoteOff" | "ParamChange";
+export type SchedulerEventSource = "timeline" | "live_input" | "preview" | "automation";
 
 export interface BaseSchedulerEvent {
   id: string;
   type: SchedulerEventType;
   sampleTime: number;
+  source: SchedulerEventSource;
 }
 
 export interface NoteOnEvent extends BaseSchedulerEvent {
@@ -70,10 +72,16 @@ export interface WorkletTransportMessage {
   sessionId?: number;
 }
 
+export interface WorkletRecordingMessage {
+  type: "RECORDING";
+  trackId: string | null;
+}
+
 export type WorkletInboundMessage =
   | WorkletInitMessage
   | WorkletSetProjectMessage
   | WorkletEventsMessage
   | WorkletMacroMessage
   | WorkletPreviewMessage
+  | WorkletRecordingMessage
   | WorkletTransportMessage;

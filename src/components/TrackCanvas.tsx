@@ -5,7 +5,7 @@ import { MacroPanel } from "@/components/MacroPanel";
 import { createId } from "@/lib/ids";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
-import { snapToGrid } from "@/lib/musicTiming";
+import { formatBeatName, snapToGrid } from "@/lib/musicTiming";
 import { Project, Note, Track } from "@/types/music";
 
 const HEADER_WIDTH = 170;
@@ -41,6 +41,10 @@ const TRACK_CANVAS_COLORS = {
   noteLabel: "#ecf5ff",
   overlapRange: "rgba(255, 35, 35, 0.52)",
   playhead: "#ff5a7b",
+  ghostPlayhead: "rgba(121, 201, 255, 0.82)",
+  countInBadge: "rgba(255, 208, 113, 0.18)",
+  countInBadgeBorder: "rgba(255, 208, 113, 0.48)",
+  countInText: "#ffe5a9",
   muteIconFallback: "#ff8092",
   unmuteIconFallback: "#a7c8eb"
 } as const;
@@ -52,6 +56,9 @@ interface TrackCanvasProps {
   invalidPatchIds?: Set<string>;
   selectedTrackId?: string;
   playheadBeat: number;
+  activeRecordedNotes?: Array<{ trackId: string; noteId: string; startBeat: number }>;
+  ghostPlayheadBeat?: number;
+  countInLabel?: string;
   onSetPlayheadBeat: (beat: number) => void;
   onSelectTrack: (trackId: string) => void;
   onRenameTrack: (trackId: string, name: string) => void;
@@ -98,6 +105,48 @@ interface PitchRect {
   y: number;
   w: number;
   h: number;
+}
+
+function drawGhostPlayhead(
+  ctx: CanvasRenderingContext2D,
+  ghostPlayheadBeat: number | undefined,
+  countInLabel: string | undefined,
+  height: number
+) {
+  if (typeof ghostPlayheadBeat !== "number" || !Number.isFinite(ghostPlayheadBeat)) {
+    return;
+  }
+
+  const ghostX = HEADER_WIDTH + ghostPlayheadBeat * BEAT_WIDTH;
+  ctx.strokeStyle = TRACK_CANVAS_COLORS.ghostPlayhead;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([7, 6]);
+  ctx.beginPath();
+  ctx.moveTo(ghostX, 0);
+  ctx.lineTo(ghostX, height);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  if (!countInLabel) {
+    return;
+  }
+
+  const badgeWidth = 34;
+  const badgeHeight = 24;
+  const badgeX = ghostX - badgeWidth * 0.5;
+  const badgeY = 6;
+  ctx.fillStyle = TRACK_CANVAS_COLORS.countInBadge;
+  ctx.strokeStyle = TRACK_CANVAS_COLORS.countInBadgeBorder;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 8);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = TRACK_CANVAS_COLORS.countInText;
+  ctx.font = "bold 14px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.textAlign = "center";
+  ctx.fillText(countInLabel, ghostX, badgeY + 16);
+  ctx.textAlign = "start";
 }
 
 const findTrackOverlaps = (notes: Note[]): {
@@ -256,7 +305,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       if (isBeat) {
         ctx.fillStyle = TRACK_CANVAS_COLORS.rulerText;
         ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
-        ctx.fillText(String(beat + 1), x + 4, 18);
+        ctx.fillText(formatBeatName(beat, props.project.global.gridBeats), x + 4, 18);
       }
     }
 
@@ -273,6 +322,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
     noteRectsRef.current = [];
     muteRectsRef.current = [];
     pitchRectsRef.current = [];
+    const activeRecordedNoteById = new Map(
+      (props.activeRecordedNotes ?? []).map((entry) => [`${entry.trackId}:${entry.noteId}`, entry] as const)
+    );
     props.project.tracks.forEach((track, index) => {
       const y = RULER_HEIGHT + index * TRACK_HEIGHT;
       const isSelected = track.id === props.selectedTrackId;
@@ -303,8 +355,12 @@ export function TrackCanvas(props: TrackCanvasProps) {
       muteRectsRef.current.push({ trackId: track.id, x: muteX, y: muteY, w: MUTE_ICON_SIZE, h: MUTE_ICON_SIZE });
 
       for (const note of track.notes) {
+        const activeRecord = activeRecordedNoteById.get(`${track.id}:${note.id}`);
+        const visualDurationBeats = activeRecord
+          ? Math.max(note.durationBeats, props.playheadBeat - activeRecord.startBeat, props.project.global.gridBeats)
+          : note.durationBeats;
         const noteX = HEADER_WIDTH + note.startBeat * BEAT_WIDTH;
-        const noteW = Math.max(8, note.durationBeats * BEAT_WIDTH);
+        const noteW = Math.max(8, visualDurationBeats * BEAT_WIDTH);
         const noteY = y + 14;
         const noteH = TRACK_HEIGHT - 28;
         const overlaps = overlapNoteIds.has(note.id);
@@ -359,10 +415,14 @@ export function TrackCanvas(props: TrackCanvasProps) {
     ctx.moveTo(playheadX, 0);
     ctx.lineTo(playheadX, height);
     ctx.stroke();
+    drawGhostPlayhead(ctx, props.ghostPlayheadBeat, props.countInLabel, height);
   }, [
+    props.countInLabel,
+    props.ghostPlayheadBeat,
     height,
     hoveredPitch,
     meterBeats,
+    props.activeRecordedNotes,
     props.invalidPatchIds,
     props.playheadBeat,
     props.project.global.gridBeats,

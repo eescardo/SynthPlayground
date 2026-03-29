@@ -20,6 +20,21 @@ export class AudioEngine {
   private isPlaying = false;
   private project: Project | null = null;
   private playSessionId = 0;
+  private recordingTrackId: string | null = null;
+
+  private async disposeContext(): Promise<void> {
+    this.worklet?.disconnect();
+    this.worklet = null;
+    if (this.context) {
+      const context = this.context;
+      this.context = null;
+      try {
+        await context.close();
+      } catch {
+        // ignore close failures during recovery
+      }
+    }
+  }
 
   private computeStaticScheduleEndSample(startSample: number, lookaheadSamples: number): number {
     if (!this.project) {
@@ -38,27 +53,46 @@ export class AudioEngine {
       return;
     }
 
-    this.context = new AudioContext({ sampleRate: FIXED_SAMPLE_RATE, latencyHint: "interactive" });
-    await this.context.audioWorklet.addModule("/worklets/synth-worklet.js");
+    await this.disposeContext();
 
-    this.worklet = new AudioWorkletNode(this.context, "synth-worklet-processor", {
-      numberOfInputs: 0,
-      numberOfOutputs: 1,
-      outputChannelCount: [2]
-    });
+    const context = new AudioContext({ sampleRate: FIXED_SAMPLE_RATE, latencyHint: "interactive" });
+    const workletUrl =
+      process.env.NODE_ENV === "development"
+        ? `/worklets/synth-worklet.js?v=${Date.now()}`
+        : "/worklets/synth-worklet.js";
 
-    this.worklet.connect(this.context.destination);
-    this.worklet.port.postMessage({
-      type: "INIT",
-      sampleRate: FIXED_SAMPLE_RATE,
-      blockSize: BLOCK_SIZE
-    });
+    try {
+      await context.audioWorklet.addModule(workletUrl);
 
-    if (this.project) {
-      this.worklet.port.postMessage({
-        type: "SET_PROJECT",
-        project: this.project
+      const worklet = new AudioWorkletNode(context, "synth-worklet-processor", {
+        numberOfInputs: 0,
+        numberOfOutputs: 1,
+        outputChannelCount: [2]
       });
+
+      worklet.connect(context.destination);
+      worklet.port.postMessage({
+        type: "INIT",
+        sampleRate: FIXED_SAMPLE_RATE,
+        blockSize: BLOCK_SIZE
+      });
+
+      if (this.project) {
+        worklet.port.postMessage({
+          type: "SET_PROJECT",
+          project: this.project
+        });
+      }
+
+      this.context = context;
+      this.worklet = worklet;
+    } catch (error) {
+      try {
+        await context.close();
+      } catch {
+        // ignore cleanup failures after init error
+      }
+      throw new Error(`Failed to initialize audio worklet: ${(error as Error).message}`);
     }
   }
 
@@ -130,11 +164,16 @@ export class AudioEngine {
 
   stop(): void {
     this.isPlaying = false;
+    this.recordingTrackId = null;
     if (this.scheduler !== null) {
       window.clearInterval(this.scheduler);
       this.scheduler = null;
     }
 
+    this.worklet?.port.postMessage({
+      type: "RECORDING",
+      trackId: null
+    });
     this.worklet?.port.postMessage({
       type: "TRANSPORT",
       isPlaying: false,
@@ -196,6 +235,11 @@ export class AudioEngine {
     return Math.max(0, Math.round((this.context.currentTime - this.songStartContextTime) * FIXED_SAMPLE_RATE));
   }
 
+  private getSafeLiveSampleTime(leadSamples = BLOCK_SIZE * 2): number {
+    const currentSample = this.getCurrentSongSample();
+    return currentSample + leadSamples;
+  }
+
   sendParamChanges(events: SchedulerEvent[]): void {
     if (!this.worklet || events.length === 0) {
       return;
@@ -205,6 +249,64 @@ export class AudioEngine {
 
   setMacroValue(trackId: string, macroId: string, normalized: number): void {
     this.worklet?.port.postMessage({ type: "MACRO", trackId, macroId, normalized });
+  }
+
+  setRecordingTrack(trackId: string | null): void {
+    this.recordingTrackId = trackId;
+    this.worklet?.port.postMessage({
+      type: "RECORDING",
+      trackId
+    });
+  }
+
+  async recordNoteOn(trackId: string, noteId: string, pitchVoct: number, velocity = 0.9): Promise<number> {
+    await this.ensureRunning();
+    if (!this.worklet || !this.isPlaying) {
+      return 0;
+    }
+
+    const sampleTime = this.getSafeLiveSampleTime();
+    this.worklet.port.postMessage({
+      type: "EVENTS",
+      sessionId: this.playSessionId,
+      events: [
+        {
+          id: `${noteId}_live_on`,
+          type: "NoteOn",
+          source: "live_input",
+          sampleTime,
+          trackId,
+          pitchVoct,
+          velocity,
+          noteId
+        }
+      ]
+    });
+    return sampleTime;
+  }
+
+  recordNoteOff(trackId: string, noteId: string, pitchVoct: number): number {
+    if (!this.worklet || !this.isPlaying) {
+      return 0;
+    }
+
+    const sampleTime = this.getSafeLiveSampleTime();
+    this.worklet.port.postMessage({
+      type: "EVENTS",
+      sessionId: this.playSessionId,
+      events: [
+        {
+          id: `${noteId}_live_off`,
+          type: "NoteOff",
+          source: "live_input",
+          sampleTime,
+          trackId,
+          pitchVoct,
+          noteId
+        }
+      ]
+    });
+    return sampleTime;
   }
 
   async previewNote(trackId: string, pitchVoct: number, durationBeats: number, velocity = 0.9): Promise<void> {
@@ -223,6 +325,7 @@ export class AudioEngine {
       {
         id: `${previewId}_on`,
         type: "NoteOn",
+        source: "preview",
         sampleTime: 0,
         trackId,
         pitchVoct,
@@ -232,6 +335,7 @@ export class AudioEngine {
       {
         id: `${previewId}_off`,
         type: "NoteOff",
+        source: "preview",
         sampleTime: durationSamples,
         trackId,
         pitchVoct,

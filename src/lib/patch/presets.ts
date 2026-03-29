@@ -660,37 +660,80 @@ export const pluckPatch = (): Patch => {
           name: "Tightness",
           defaultNormalized: 0.58,
           bindings: [
-            { id: "b1", nodeId: filter, paramId: "cutoffHz", map: "exp", min: 620, max: 2600 },
-            { id: "b1b", nodeId: string, paramId: "damping", map: "piecewise", points: [
-              { x: 0, y: 0.62 },
-              { x: 0.5, y: 0.492 },
-              { x: 1, y: 0.2 }
-            ] },
-            { id: "b1ba", nodeId: bodyString, paramId: "damping", map: "piecewise", points: [
-              { x: 0, y: 0.68 },
-              { x: 0.5, y: 0.6 },
-              { x: 1, y: 0.34 }
-            ] },
-            { id: "b1bb", nodeId: warmthString, paramId: "damping", map: "piecewise", points: [
-              { x: 0, y: 0.76 },
-              { x: 0.5, y: 0.744 },
-              { x: 1, y: 0.5 }
-            ] },
-            { id: "b1bc", nodeId: shimmerString, paramId: "damping", map: "piecewise", points: [
-              { x: 0, y: 0.74 },
-              { x: 0.5, y: 0.692 },
-              { x: 1, y: 0.42 }
-            ] },
-            { id: "b1c", nodeId: filter, paramId: "cutoffModAmountOct", map: "piecewise", points: [
-              { x: 0, y: 0.2 },
-              { x: 0.5, y: 0.344 },
-              { x: 1, y: 0.82 }
-            ] },
-            { id: "b1d", nodeId: ampVca, paramId: "gain", map: "piecewise", points: [
-              { x: 0, y: 2.8 },
-              { x: 0.5, y: 1.376 },
-              { x: 1, y: 1.14 }
-            ] }
+            {
+              id: "b1",
+              nodeId: filter,
+              paramId: "cutoffHz",
+              map: "exp",
+              min: 620,
+              max: 2600
+            },
+            {
+              id: "b1b",
+              nodeId: string,
+              paramId: "damping",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.62 },
+                { x: 0.5, y: 0.492 },
+                { x: 1, y: 0.2 }
+              ]
+            },
+            {
+              id: "b1ba",
+              nodeId: bodyString,
+              paramId: "damping",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.68 },
+                { x: 0.5, y: 0.6 },
+                { x: 1, y: 0.34 }
+              ]
+            },
+            {
+              id: "b1bb",
+              nodeId: warmthString,
+              paramId: "damping",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.76 },
+                { x: 0.5, y: 0.744 },
+                { x: 1, y: 0.5 }
+              ]
+            },
+            {
+              id: "b1bc",
+              nodeId: shimmerString,
+              paramId: "damping",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.74 },
+                { x: 0.5, y: 0.692 },
+                { x: 1, y: 0.42 }
+              ]
+            },
+            {
+              id: "b1c",
+              nodeId: filter,
+              paramId: "cutoffModAmountOct",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.2 },
+                { x: 0.5, y: 0.344 },
+                { x: 1, y: 0.82 }
+              ]
+            },
+            {
+              id: "b1d",
+              nodeId: ampVca,
+              paramId: "gain",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 2.8 },
+                { x: 0.5, y: 1.376 },
+                { x: 1, y: 1.14 }
+              ]
+            }
           ]
         },
         {
