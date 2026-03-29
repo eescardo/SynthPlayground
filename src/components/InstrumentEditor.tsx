@@ -9,6 +9,7 @@ interface InstrumentEditorProps {
   patch: Patch;
   selectedNodeId?: string;
   validationIssues: PatchValidationIssue[];
+  invalid?: boolean;
   previewPitch: string;
   migrationNotice?: string | null;
   onRenamePatch: (name: string) => void;
@@ -29,7 +30,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
   const structureLocked = patchSource === "preset";
 
   return (
-    <section className="instrument-editor">
+    <section className={`instrument-editor${props.invalid ? " invalid" : ""}`}>
       <div className="instrument-toolbar">
         <div className="instrument-toolbar-main">
           <div className="instrument-toolbar-heading">
@@ -55,7 +56,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
 
         <div className="instrument-toolbar-actions">
           {presetStatus === "preset_update_available" && (
-            <button type="button" onClick={props.onUpdatePreset}>
+            <button type="button" className={props.invalid ? "prominent-action" : undefined} onClick={props.onUpdatePreset}>
               Update Preset
             </button>
           )}
@@ -81,6 +82,11 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
       </div>
 
       {props.migrationNotice && <p className="warn">{props.migrationNotice}</p>}
+      {props.invalid && (
+        <p className="error">
+          This instrument patch is invalid. Track playback may fail until you update the preset or fix the conflicting bindings.
+        </p>
+      )}
 
       <PatchEditorCanvas
         patch={props.patch}

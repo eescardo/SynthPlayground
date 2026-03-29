@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { exportProjectToJson, importProjectFromJson, normalizeProject } from "@/lib/projectSerde";
 import { createDefaultProject } from "@/lib/patch/presets";
 import { getBundledPresetLineage } from "@/lib/patch/source";
+import { validatePatch } from "@/lib/patch/validation";
 
 describe("projectSerde", () => {
   it("normalizeProject upgrades legacy preset metadata and track macro defaults", () => {
@@ -73,6 +74,11 @@ describe("projectSerde", () => {
     expect(presetPatch.meta.presetId).toBe("preset_bass");
     expect(presetPatch.meta.presetVersion).toBe(7);
   }
+  const pluckPatch = roundTrip.patches.find((patch) => patch.id === "preset_pluck");
+  expect(pluckPatch).toBeDefined();
+  if (pluckPatch?.meta.source === "preset") {
+    expect(pluckPatch.meta.presetVersion).toBe(24);
+  }
   const popSlapMacro = presetPatch.ui.macros.find((macro) => macro.id === "macro_decay");
   expect(popSlapMacro?.name).toBe("Pop/Slap");
   const attackBinding = popSlapMacro?.bindings.find((binding) => binding.paramId === "attack");
@@ -82,5 +88,32 @@ describe("projectSerde", () => {
     { x: 0.5, y: 0.0075 },
     { x: 1, y: 0.0035 }
   ]);
+  });
+
+  it("preserves invalid preset snapshots so UI can surface validation failures", () => {
+  const project = createDefaultProject();
+  const pluck = project.patches.find((patch) => patch.id === "preset_pluck");
+  if (!pluck || pluck.meta.source !== "preset") {
+    throw new Error("Expected preset_pluck preset patch");
+  }
+
+  pluck.ui.macros[0].bindings.push({
+    id: "invalid_conflict_binding",
+    nodeId: "vcf1",
+    paramId: "cutoffHz",
+    map: "linear",
+    min: 100,
+    max: 200
+  });
+
+  const normalized = normalizeProject(project);
+  const repairedPluck = normalized.patches.find((patch) => patch.id === "preset_pluck");
+  expect(repairedPluck).toBeDefined();
+  if (!repairedPluck || repairedPluck.meta.source !== "preset") {
+    throw new Error("Expected invalid preset_pluck patch to remain present");
+  }
+  const validation = validatePatch(repairedPluck);
+  expect(validation.ok).toBe(false);
+  expect(validation.issues.some((issue) => issue.message.includes("Macro binds the same parameter more than once"))).toBe(true);
   });
 });

@@ -24,6 +24,7 @@ type CanvasCursor = "default" | "pointer" | "move" | "move-active" | "resize";
 
 interface TrackCanvasProps {
   project: Project;
+  invalidPatchIds?: Set<string>;
   selectedTrackId?: string;
   playheadBeat: number;
   onSetPlayheadBeat: (beat: number) => void;
@@ -268,14 +269,19 @@ export function TrackCanvas(props: TrackCanvasProps) {
     props.project.tracks.forEach((track, index) => {
       const y = RULER_HEIGHT + index * TRACK_HEIGHT;
       const isSelected = track.id === props.selectedTrackId;
+      const trackPatchInvalid = props.invalidPatchIds?.has(track.instrumentPatchId) ?? false;
       const { overlapNoteIds, overlapRanges } = findTrackOverlaps(track.notes);
 
       if (isSelected) {
         ctx.fillStyle = COLOR_SELECTED_TRACK_OVERLAY;
         ctx.fillRect(0, y, width, TRACK_HEIGHT);
       }
+      if (trackPatchInvalid) {
+        ctx.fillStyle = "rgba(214, 76, 76, 0.18)";
+        ctx.fillRect(0, y, HEADER_WIDTH, TRACK_HEIGHT);
+      }
 
-      ctx.fillStyle = COLOR_TRACK_NAME;
+      ctx.fillStyle = trackPatchInvalid ? "#ffb1b1" : COLOR_TRACK_NAME;
       ctx.font = "13px 'Trebuchet MS', 'Segoe UI', sans-serif";
       ctx.fillText(track.name, 12, y + 24);
       const muteX = 126;
@@ -350,6 +356,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     height,
     hoveredPitch,
     meterBeats,
+    props.invalidPatchIds,
     props.playheadBeat,
     props.project.global.gridBeats,
     props.project.tracks,
@@ -706,7 +713,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
               />
             )}
             <select
-              className="track-patch-select"
+              className={`track-patch-select${(props.invalidPatchIds?.has(track.instrumentPatchId) ?? false) ? " invalid" : ""}`}
               value={track.instrumentPatchId}
               style={{ top: `${RULER_HEIGHT + index * TRACK_HEIGHT + 44}px` }}
               onChange={(event) => props.onUpdateTrackPatch(track.id, event.target.value)}

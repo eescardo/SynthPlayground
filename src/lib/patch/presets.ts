@@ -531,11 +531,12 @@ export const padPatch = (): Patch => {
 };
 
 export const pluckPatch = (): Patch => {
-  const vco = "vco1";
-  const noise = "noise1";
+  const string = "karplus1";
+  const bodyTranspose = "cvtranspose1";
+  const bodyString = "karplus2";
+  const warmthString = "karplus3";
+  const shimmerString = "karplus4";
   const ampEnv = "env1";
-  const pickEnv = "env2";
-  const pickVca = "vca1";
   const mix = "mix1";
   const filter = "vcf1";
   const ampVca = "vca2";
@@ -545,58 +546,107 @@ export const pluckPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_pluck",
     name: "Pluck",
-    meta: { source: "preset", presetId: "preset_pluck", presetVersion: 3 },
+    meta: { source: "preset", presetId: "preset_pluck", presetVersion: 24 },
     nodes: [
       {
-        id: vco,
-        typeId: "VCO",
-        params: { ...createDefaultParamsForType("VCO"), wave: "saw", fineTuneCents: -3 }
+        id: string,
+        typeId: "KarplusStrong",
+        params: {
+          ...createDefaultParamsForType("KarplusStrong"),
+          decay: 0.996,
+          damping: 0.42,
+          brightness: 0.46,
+          excitation: "noise"
+        }
       },
-      { id: noise, typeId: "Noise", params: { ...createDefaultParamsForType("Noise"), color: "white", gain: 0.12 } },
+      {
+        id: bodyTranspose,
+        typeId: "CVTranspose",
+        params: {
+          ...createDefaultParamsForType("CVTranspose"),
+          octaves: -1,
+          semitones: 0,
+          cents: 3
+        }
+      },
+      {
+        id: bodyString,
+        typeId: "KarplusStrong",
+        params: {
+          ...createDefaultParamsForType("KarplusStrong"),
+          decay: 0.997,
+          damping: 0.62,
+          brightness: 0.18,
+          excitation: "noise"
+        }
+      },
+      {
+        id: warmthString,
+        typeId: "KarplusStrong",
+        params: {
+          ...createDefaultParamsForType("KarplusStrong"),
+          decay: 0.9983,
+          damping: 0.74,
+          brightness: 0.08,
+          excitation: "noise"
+        }
+      },
+      {
+        id: shimmerString,
+        typeId: "KarplusStrong",
+        params: {
+          ...createDefaultParamsForType("KarplusStrong"),
+          decay: 0.9976,
+          damping: 0.66,
+          brightness: 0.16,
+          excitation: "noise"
+        }
+      },
       {
         id: ampEnv,
         typeId: "ADSR",
         params: {
           ...createDefaultParamsForType("ADSR"),
           attack: 0,
-          decay: 0.3,
-          sustain: 0,
-          release: 0.24
+          decay: 0.04,
+          sustain: 1,
+          release: 0.32
         }
       },
-      {
-        id: pickEnv,
-        typeId: "ADSR",
-        params: {
-          ...createDefaultParamsForType("ADSR"),
-          attack: 0,
-          decay: 0.035,
-          sustain: 0,
-          release: 0.025
-        }
-      },
-      { id: pickVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), bias: 0, gain: 0.75 } },
       {
         id: mix,
         typeId: "Mixer4",
-        params: { ...createDefaultParamsForType("Mixer4"), gain1: 0.95, gain2: 0.1, gain3: 0, gain4: 0 }
+        params: {
+          ...createDefaultParamsForType("Mixer4"),
+          gain1: 0.98,
+          gain2: 0.24,
+          gain3: 0,
+          gain4: 0
+        }
       },
       {
         id: filter,
         typeId: "VCF",
-        params: { ...createDefaultParamsForType("VCF"), cutoffHz: 1450, resonance: 0.14, cutoffModAmountOct: 1.1 }
+        params: { ...createDefaultParamsForType("VCF"), cutoffHz: 980, resonance: 0.06, cutoffModAmountOct: 0.45 }
       },
       { id: ampVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), bias: 0, gain: 1 } },
       outputNode(out)
     ],
     connections: [
-      { id: "c1", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: vco, portId: "pitch" } },
+      { id: "c1", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: string, portId: "pitch" } },
+      { id: "c1b", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: bodyTranspose, portId: "in" } },
+      { id: "c1c", from: { nodeId: bodyTranspose, portId: "out" }, to: { nodeId: bodyString, portId: "pitch" } },
+      { id: "c1d", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: warmthString, portId: "pitch" } },
+      { id: "c1e", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: shimmerString, portId: "pitch" } },
       { id: "c2", from: { nodeId: noteCore.gate, portId: "out" }, to: { nodeId: ampEnv, portId: "gate" } },
-      { id: "c3", from: { nodeId: noteCore.gate, portId: "out" }, to: { nodeId: pickEnv, portId: "gate" } },
-      { id: "c4", from: { nodeId: noise, portId: "out" }, to: { nodeId: pickVca, portId: "in" } },
-      { id: "c5", from: { nodeId: pickEnv, portId: "out" }, to: { nodeId: pickVca, portId: "gainCV" } },
-      { id: "c6", from: { nodeId: vco, portId: "out" }, to: { nodeId: mix, portId: "in1" } },
-      { id: "c7", from: { nodeId: pickVca, portId: "out" }, to: { nodeId: mix, portId: "in2" } },
+      { id: "c5a", from: { nodeId: noteCore.gate, portId: "out" }, to: { nodeId: string, portId: "gate" } },
+      { id: "c5b", from: { nodeId: noteCore.gate, portId: "out" }, to: { nodeId: bodyString, portId: "gate" } },
+      { id: "c5c", from: { nodeId: noteCore.gate, portId: "out" }, to: { nodeId: warmthString, portId: "gate" } },
+      { id: "c5d", from: { nodeId: noteCore.gate, portId: "out" }, to: { nodeId: shimmerString, portId: "gate" } },
+      { id: "c7", from: { nodeId: string, portId: "out" }, to: { nodeId: mix, portId: "in1" } },
+      { id: "c7b", from: { nodeId: bodyString, portId: "out" }, to: { nodeId: mix, portId: "in2" } },
+      { id: "c7c", from: { nodeId: warmthString, portId: "out" }, to: { nodeId: mix, portId: "in3" } },
+      { id: "c7d", from: { nodeId: shimmerString, portId: "out" }, to: { nodeId: mix, portId: "in4" } },
       { id: "c8", from: { nodeId: mix, portId: "out" }, to: { nodeId: filter, portId: "in" } },
       { id: "c9", from: { nodeId: ampEnv, portId: "out" }, to: { nodeId: filter, portId: "cutoffCV" } },
       { id: "c10", from: { nodeId: filter, portId: "out" }, to: { nodeId: ampVca, portId: "in" } },
@@ -607,32 +657,196 @@ export const pluckPatch = (): Patch => {
       macros: [
         {
           id: "macro_tone",
-          name: "Tone",
-          defaultNormalized: 0.46,
-          bindings: [{ id: "b1", nodeId: filter, paramId: "cutoffHz", map: "exp", min: 280, max: 5200 }]
+          name: "Tightness",
+          defaultNormalized: 0.58,
+          bindings: [
+            { id: "b1", nodeId: filter, paramId: "cutoffHz", map: "exp", min: 620, max: 2600 },
+            { id: "b1b", nodeId: string, paramId: "damping", map: "piecewise", points: [
+              { x: 0, y: 0.62 },
+              { x: 0.5, y: 0.492 },
+              { x: 1, y: 0.2 }
+            ] },
+            { id: "b1ba", nodeId: bodyString, paramId: "damping", map: "piecewise", points: [
+              { x: 0, y: 0.68 },
+              { x: 0.5, y: 0.6 },
+              { x: 1, y: 0.34 }
+            ] },
+            { id: "b1bb", nodeId: warmthString, paramId: "damping", map: "piecewise", points: [
+              { x: 0, y: 0.76 },
+              { x: 0.5, y: 0.744 },
+              { x: 1, y: 0.5 }
+            ] },
+            { id: "b1bc", nodeId: shimmerString, paramId: "damping", map: "piecewise", points: [
+              { x: 0, y: 0.74 },
+              { x: 0.5, y: 0.692 },
+              { x: 1, y: 0.42 }
+            ] },
+            { id: "b1c", nodeId: filter, paramId: "cutoffModAmountOct", map: "piecewise", points: [
+              { x: 0, y: 0.2 },
+              { x: 0.5, y: 0.344 },
+              { x: 1, y: 0.82 }
+            ] },
+            { id: "b1d", nodeId: ampVca, paramId: "gain", map: "piecewise", points: [
+              { x: 0, y: 2.8 },
+              { x: 0.5, y: 1.376 },
+              { x: 1, y: 1.14 }
+            ] }
+          ]
         },
         {
           id: "macro_decay",
           name: "Decay",
-          defaultNormalized: 0.28,
+          defaultNormalized: 0.62,
           bindings: [
-            { id: "b2", nodeId: ampEnv, paramId: "decay", map: "linear", min: 0.08, max: 1.05 },
-            { id: "b3", nodeId: ampEnv, paramId: "release", map: "linear", min: 0.06, max: 0.65 }
+            { id: "b2", nodeId: string, paramId: "decay", map: "linear", min: 0.97, max: 0.9985 },
+            { id: "b2b", nodeId: bodyString, paramId: "decay", map: "linear", min: 0.982, max: 0.9992 },
+            { id: "b2c", nodeId: warmthString, paramId: "decay", map: "linear", min: 0.992, max: 0.9996 },
+            { id: "b2d", nodeId: shimmerString, paramId: "decay", map: "linear", min: 0.988, max: 0.9993 },
+            { id: "b3", nodeId: ampEnv, paramId: "release", map: "linear", min: 0.18, max: 0.72 }
+          ]
+        },
+        {
+          id: "macro_material",
+          name: "Material",
+          defaultNormalized: 0.5,
+          bindings: [
+            {
+              id: "b6",
+              nodeId: string,
+              paramId: "brightness",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 1 },
+                { x: 0.5, y: 0.22 },
+                { x: 1, y: 0.772 }
+              ]
+            },
+            {
+              id: "b7",
+              nodeId: bodyString,
+              paramId: "brightness",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.03 },
+                { x: 0.5, y: 0.18 },
+                { x: 1, y: 0.468 }
+              ]
+            },
+            {
+              id: "b7b",
+              nodeId: warmthString,
+              paramId: "brightness",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.03 },
+                { x: 0.5, y: 0.06 },
+                { x: 1, y: 0.18 }
+              ]
+            },
+            {
+              id: "b7c",
+              nodeId: shimmerString,
+              paramId: "brightness",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.02 },
+                { x: 0.5, y: 0.08 },
+                { x: 1, y: 0.28 }
+              ]
+            },
+            {
+              id: "b8",
+              nodeId: filter,
+              paramId: "resonance",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.305 },
+                { x: 0.5, y: 0.05 },
+                { x: 1, y: 0.122 }
+              ]
+            },
+            {
+              id: "b8b",
+              nodeId: mix,
+              paramId: "gain1",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 1.27 },
+                { x: 0.5, y: 0.88 },
+                { x: 1, y: 0.688 }
+              ]
+            },
+            {
+              id: "b8c",
+              nodeId: mix,
+              paramId: "gain2",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0 },
+                { x: 0.5, y: 0.22 },
+                { x: 1, y: 1 }
+              ]
+            },
+            {
+              id: "b8d",
+              nodeId: mix,
+              paramId: "gain3",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0 },
+                { x: 0.5, y: 0.08 },
+                { x: 1, y: 0.8 }
+              ]
+            },
+            {
+              id: "b8e",
+              nodeId: mix,
+              paramId: "gain4",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0 },
+                { x: 0.5, y: 0.02 },
+                { x: 1, y: 0.28 }
+              ]
+            },
+            {
+              id: "b9",
+              nodeId: ampEnv,
+              paramId: "decay",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.0025 },
+                { x: 0.5, y: 0.04 },
+                { x: 1, y: 0.106 }
+              ]
+            },
+            {
+              id: "b10",
+              nodeId: ampEnv,
+              paramId: "sustain",
+              map: "piecewise",
+              points: [
+                { x: 0, y: 0.85 },
+                { x: 0.5, y: 1 },
+                { x: 1, y: 1 }
+              ]
+            }
           ]
         }
       ]
     },
     layout: {
       nodes: [
-        { nodeId: vco, x: 2, y: 3 },
-        { nodeId: noise, x: 2, y: 8 },
+        { nodeId: string, x: 2, y: 3 },
+        { nodeId: bodyTranspose, x: 2, y: 8 },
+        { nodeId: bodyString, x: 6, y: 8 },
+        { nodeId: warmthString, x: 2, y: 18 },
+        { nodeId: shimmerString, x: 6, y: 18 },
         { nodeId: ampEnv, x: 2, y: 13 },
-        { nodeId: pickEnv, x: 6, y: 13 },
-        { nodeId: pickVca, x: 6, y: 8 },
-        { nodeId: mix, x: 10, y: 5 },
-        { nodeId: filter, x: 14, y: 5 },
-        { nodeId: ampVca, x: 18, y: 5 },
-        { nodeId: out, x: 22, y: 5 }
+        { nodeId: mix, x: 7, y: 5 },
+        { nodeId: filter, x: 11, y: 5 },
+        { nodeId: ampVca, x: 15, y: 5 },
+        { nodeId: out, x: 19, y: 5 }
       ]
     },
     io: { audioOutNodeId: out, audioOutPortId: "in" }
@@ -828,10 +1042,7 @@ export const drumPatch = (): Patch => {
           id: "macro_shell_level",
           name: "Shell Level",
           defaultNormalized: 0.46,
-          bindings: [
-            { id: "b10", nodeId: mix, paramId: "gain1", map: "linear", min: 0.18, max: 1 },
-            { id: "b12", nodeId: bodyVca, paramId: "gain", map: "linear", min: 0.12, max: 0.9 }
-          ]
+          bindings: [{ id: "b10", nodeId: mix, paramId: "gain1", map: "linear", min: 0.18, max: 1 }]
         },
         {
           id: "macro_rattle",
@@ -850,10 +1061,7 @@ export const drumPatch = (): Patch => {
           id: "macro_rattle_level",
           name: "Rattle Level",
           defaultNormalized: 0.5,
-          bindings: [
-            { id: "b11", nodeId: mix, paramId: "gain2", map: "linear", min: 0, max: 1 },
-            { id: "b13", nodeId: noiseVca, paramId: "gain", map: "linear", min: 0, max: 0.95 }
-          ]
+          bindings: [{ id: "b11", nodeId: mix, paramId: "gain2", map: "linear", min: 0, max: 1 }]
         }
       ]
     },
@@ -935,7 +1143,7 @@ export const createDefaultProject = (): Project => {
         { id: createId("note"), pitchStr: "A4", startBeat: 1.5, durationBeats: 0.25, velocity: 0.88 }
       ])
     ],
-    patches: presetPatches,
+    patches: presetPatches.map((patch) => structuredClone(patch)),
     masterFx: {
       compressorEnabled: false,
       limiterEnabled: true,

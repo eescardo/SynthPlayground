@@ -66,7 +66,6 @@ export default function HomePage() {
   const [userCueBeat, setUserCueBeat] = useState(0);
   const [selectedTrackId, setSelectedTrackId] = useState<string | undefined>(undefined);
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(undefined);
-  const [validationIssues, setValidationIssues] = useState<PatchValidationIssue[]>([]);
   const [helpOpen, setHelpOpen] = useState(false);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [strictWasmReady, setStrictWasmReady] = useState(process.env.NEXT_PUBLIC_STRICT_WASM !== "1");
@@ -123,6 +122,29 @@ export default function HomePage() {
     [project.patches, selectedTrack?.instrumentPatchId]
   );
 
+  const patchValidationById = useMemo(() => {
+    const next = new Map<string, PatchValidationIssue[]>();
+    for (const patch of project.patches) {
+      next.set(patch.id, validatePatch(patch).issues);
+    }
+    return next;
+  }, [project.patches]);
+
+  const validationIssues = useMemo(
+    () => (selectedPatch ? patchValidationById.get(selectedPatch.id) ?? [] : []),
+    [patchValidationById, selectedPatch]
+  );
+  const selectedPatchHasErrors = validationIssues.some((issue) => issue.level === "error");
+  const invalidPatchIds = useMemo(
+    () =>
+      new Set(
+        project.patches
+          .filter((patch) => (patchValidationById.get(patch.id) ?? []).some((issue) => issue.level === "error"))
+          .map((patch) => patch.id)
+      ),
+    [patchValidationById, project.patches]
+  );
+
   const commitProjectChange = useCallback(
     (
       updater: (current: Project) => Project,
@@ -152,15 +174,13 @@ export default function HomePage() {
   }, [project.global.meter, project.tracks]);
 
   useEffect(() => {
-    if (!selectedPatch) return;
-    const result = validatePatch(selectedPatch);
-    setValidationIssues(result.issues);
+    if (!selectedPatch || selectedPatchHasErrors) return;
     try {
       compilePatchPlan(selectedPatch);
     } catch {
       // compile errors are reflected by validation issues
     }
-  }, [selectedPatch]);
+  }, [selectedPatch, selectedPatchHasErrors, validationIssues]);
 
   useEffect(() => {
     setMigrationNotice(null);
@@ -432,17 +452,14 @@ export default function HomePage() {
     try {
       nextPatch = applyPatchGraphOp(selectedPatch, op);
     } catch (error) {
-      setValidationIssues([{ level: "error", message: (error as Error).message }]);
+      setRuntimeError((error as Error).message);
       return;
     }
 
     const validation = validatePatch(nextPatch);
     if (op.type === "connect" && validation.issues.some((issue) => issue.level === "error")) {
-      setValidationIssues(validation.issues);
       return;
     }
-
-    setValidationIssues(validation.issues);
     commitProjectChange(
       (current) => ({
         ...current,
@@ -687,7 +704,7 @@ export default function HomePage() {
       setSelectedTrackId(imported.tracks[0]?.id);
       audioEngineRef.current?.setProject(imported);
     } catch (error) {
-      setValidationIssues([{ level: "error", message: (error as Error).message }]);
+      setRuntimeError((error as Error).message);
     }
   };
 
@@ -937,6 +954,7 @@ export default function HomePage() {
 
       <TrackCanvas
         project={project}
+        invalidPatchIds={invalidPatchIds}
         selectedTrackId={selectedTrack.id}
         playheadBeat={playheadBeat}
         onSetPlayheadBeat={setPlayheadFromUser}
@@ -959,6 +977,7 @@ export default function HomePage() {
         migrationNotice={migrationNotice}
         selectedNodeId={selectedNodeId}
         validationIssues={validationIssues}
+        invalid={selectedPatchHasErrors}
         onRenamePatch={renameSelectedPatch}
         onDuplicatePatch={duplicatePatchForSelectedTrack}
         onUpdatePreset={updatePresetToLatest}
