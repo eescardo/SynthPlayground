@@ -18,20 +18,12 @@ import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } f
 import { importProjectFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
 import { removeTrackFromProject, renameTrackInProject } from "@/lib/trackEdits";
+import { useNoteEditor } from "@/hooks/useNoteEditor";
+import { usePlaybackController } from "@/hooks/usePlaybackController";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { Project, Note } from "@/types/music";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
-
-const notesOverlap = (a: Note, b: Note): boolean => {
-  const epsilon = 1e-9;
-  const aEnd = a.startBeat + a.durationBeats;
-  const bEnd = b.startBeat + b.durationBeats;
-  return a.startBeat < bEnd - epsilon && aEnd > b.startBeat + epsilon;
-};
-
-const hasOverlapWithOthers = (candidate: Note, notes: Note[]): boolean =>
-  notes.some((other) => other.id !== candidate.id && notesOverlap(candidate, other));
 
 const isAudiblePatchOp = (op: PatchOp): boolean =>
   op.type !== "moveNode" && op.type !== "addMacro" && op.type !== "removeMacro" && op.type !== "bindMacro" && op.type !== "unbindMacro" && op.type !== "renameMacro";
@@ -79,7 +71,6 @@ export default function HomePage() {
   const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
 
   const audioEngineRef = useRef<AudioEngine | null>(null);
-  const rafRef = useRef<number | null>(null);
   const recordingStopSessionRef = useRef<(finalBeat?: number) => void>(() => {});
   const recordingHandleBeatRef = useRef<(beat: number) => void>(() => {});
   const importInputRef = useRef<HTMLInputElement | null>(null);
@@ -226,112 +217,21 @@ export default function HomePage() {
       });
   }, [ready]);
 
-  const upsertNote = useCallback((trackId: string, note: Note, options?: { actionKey?: string; coalesce?: boolean }) => {
-    commitProjectChange(
-      (current) => {
-        let changed = false;
-        const tracks = current.tracks.map((track) => {
-          if (track.id !== trackId) {
-            return track;
-          }
-          const existing = track.notes.find((entry) => entry.id === note.id);
-          let nextNotes = track.notes;
-          if (existing) {
-            if (hasOverlapWithOthers(note, track.notes)) {
-              return track;
-            }
-            nextNotes = track.notes.map((entry) => (entry.id === note.id ? note : entry));
-          } else {
-            if (hasOverlapWithOthers(note, track.notes)) {
-              return track;
-            }
-            nextNotes = [...track.notes, note].sort((a, b) => a.startBeat - b.startBeat);
-          }
-          if (nextNotes === track.notes) {
-            return track;
-          }
-          changed = true;
-          return { ...track, notes: nextNotes };
-        });
-        return changed ? { ...current, tracks } : current;
-      },
-      options
-    );
-  }, [commitProjectChange]);
+  const { upsertNote, updateNote, deleteNote } = useNoteEditor({ commitProjectChange });
 
-  const updateNote = useCallback((trackId: string, noteId: string, patch: Partial<Note>, options?: { actionKey?: string; coalesce?: boolean }) => {
-    commitProjectChange(
-      (current) => {
-        let changed = false;
-        const tracks = current.tracks.map((track) => {
-          if (track.id !== trackId) {
-            return track;
-          }
-          const nextNotes = track.notes.map((note) => {
-            if (note.id !== noteId) {
-              return note;
-            }
-            const nextNote = { ...note, ...patch };
-            if (hasOverlapWithOthers(nextNote, track.notes)) {
-              return note;
-            }
-            if (
-              nextNote.pitchStr === note.pitchStr &&
-              nextNote.startBeat === note.startBeat &&
-              nextNote.durationBeats === note.durationBeats &&
-              nextNote.velocity === note.velocity
-            ) {
-              return note;
-            }
-            changed = true;
-            return nextNote;
-          });
-          return changed ? { ...track, notes: nextNotes } : track;
-        });
-        return changed ? { ...current, tracks } : current;
-      },
-      options
-    );
-  }, [commitProjectChange]);
-
-  const stopPlayback = useCallback((resetToCue = false) => {
-    recordingStopSessionRef.current();
-    audioEngineRef.current?.stop();
-    setPlaying(false);
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    if (resetToCue) {
-      setPlayheadBeat(userCueBeat);
-    }
-  }, [userCueBeat]);
-
-  const tickPlayhead = useCallback(() => {
-    if (!audioEngineRef.current) return;
-    const beat = audioEngineRef.current.getPlayheadBeat();
-    setPlayheadBeat(beat);
-    recordingHandleBeatRef.current(beat);
-
-    if (playbackEndBeat > 0 && beat >= playbackEndBeat - 0.0001) {
-      stopPlayback(true);
-      return;
-    }
-
-    rafRef.current = window.requestAnimationFrame(tickPlayhead);
-  }, [playbackEndBeat, stopPlayback]);
-
-  const beginPlaybackAtBeat = useCallback(async (cueBeat: number) => {
-    if (!audioEngineRef.current) {
-      audioEngineRef.current = new AudioEngine();
-    }
-    audioEngineRef.current.setProject(project, { syncToWorklet: true });
-    await audioEngineRef.current.play(cueBeat);
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-    }
-    rafRef.current = requestAnimationFrame(tickPlayhead);
-  }, [project, tickPlayhead]);
+  const playback = usePlaybackController({
+    project,
+    playbackEndBeat,
+    userCueBeat,
+    playheadBeat,
+    strictWasmReady,
+    audioEngineRef,
+    setPlaying,
+    setPlayheadBeat,
+    setRuntimeError,
+    onStopRecordingSession: (finalBeat: number | undefined) => recordingStopSessionRef.current(finalBeat),
+    onHandleRecordingBeat: (beat: number) => recordingHandleBeatRef.current(beat)
+  });
 
   const recording = useRecordingController({
     project,
@@ -349,49 +249,13 @@ export default function HomePage() {
     setPlayheadBeat,
     setRuntimeError,
     onBeginRecordingPlayback: async (trackId, cueBeat) => {
-      await beginPlaybackAtBeat(cueBeat);
+      await playback.beginPlaybackAtBeat(cueBeat);
       audioEngineRef.current?.setRecordingTrack(trackId);
     }
   });
 
   recordingStopSessionRef.current = recording.stopRecordSession;
   recordingHandleBeatRef.current = recording.handlePlayheadBeat;
-
-  const startPlayback = async () => {
-    if (process.env.NEXT_PUBLIC_STRICT_WASM === "1" && !strictWasmReady) {
-      setRuntimeError("Strict WASM mode is enabled and WASM is not ready. Run `npm run dev:wasm:strict`.");
-      return;
-    }
-    setPlaying(true);
-    await beginPlaybackAtBeat(playheadBeat);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-      }
-      audioEngineRef.current?.stop();
-    };
-  }, []);
-
-  const deleteNote = useCallback((trackId: string, noteId: string) => {
-    commitProjectChange((current) => {
-      let changed = false;
-      const tracks = current.tracks.map((track) => {
-        if (track.id !== trackId) {
-          return track;
-        }
-        const nextNotes = track.notes.filter((note) => note.id !== noteId);
-        if (nextNotes.length === track.notes.length) {
-          return track;
-        }
-        changed = true;
-        return { ...track, notes: nextNotes };
-      });
-      return changed ? { ...current, tracks } : current;
-    }, { actionKey: `track:${trackId}:delete-note:${noteId}` });
-  }, [commitProjectChange]);
 
   const toggleTrackMute = useCallback((trackId: string) => {
     commitProjectChange((current) => ({
@@ -877,14 +741,14 @@ export default function HomePage() {
         recordPhase={recording.recordPhase}
         countInLabel={recording.countInLabel}
         playheadBeat={playheadBeat}
-        onPlay={startPlayback}
-        onStop={stopPlayback}
+        onPlay={playback.startPlayback}
+        onStop={playback.stopPlayback}
         onToggleRecord={() => {
           if (recording.recordEnabled || recording.recordPhase !== "idle") {
-            stopPlayback(true);
+            playback.stopPlayback(true);
             return;
           }
-          stopPlayback(true);
+          playback.stopPlayback(true);
           void recording.startRecordMode();
         }}
         onTempoChange={(tempo) =>
@@ -914,7 +778,7 @@ export default function HomePage() {
         <button onClick={() => importInputRef.current?.click()}>Import Project JSON</button>
         <button
           onClick={async () => {
-            stopPlayback();
+            playback.stopPlayback();
             await clearProject();
             const fresh = createDefaultProject();
             resetProjectHistory(fresh);
