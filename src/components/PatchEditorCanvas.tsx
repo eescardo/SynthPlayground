@@ -387,21 +387,25 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       </div>
 
       <div className="patch-layout">
-        <canvas
-          ref={canvasRef}
-          width={1400}
-          height={640}
-          style={{
-            cursor: dragNodeId ? MOVE_CURSOR_ACTIVE : hoveredNodeId ? MOVE_CURSOR : "default"
-          }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerLeave={(event) => {
-            onPointerUp(event);
-            setHoveredNodeId(null);
-          }}
-        />
+        <div className="patch-canvas-shell">
+          <div className="patch-canvas-scroll">
+            <canvas
+              ref={canvasRef}
+              width={1400}
+              height={640}
+              style={{
+                cursor: dragNodeId ? MOVE_CURSOR_ACTIVE : hoveredNodeId ? MOVE_CURSOR : "default"
+              }}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerLeave={(event) => {
+                onPointerUp(event);
+                setHoveredNodeId(null);
+              }}
+            />
+          </div>
+        </div>
 
         <aside className="patch-inspector">
           <h3>Inspector</h3>

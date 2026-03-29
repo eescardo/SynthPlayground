@@ -393,12 +393,26 @@ select {
   gap: 0.7rem;
 }
 
-.patch-layout canvas {
-  width: 100%;
+.patch-canvas-shell {
+  min-width: 0;
+}
+
+.patch-canvas-scroll {
   max-width: 100%;
-  height: auto;
+  max-height: 640px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid #223749;
   border-radius: 8px;
+  background: #0b1118;
+}
+
+.patch-layout canvas {
+  display: block;
+  width: 1400px;
+  height: auto;
+  max-width: none;
   background: #0b1118;
 }
 
