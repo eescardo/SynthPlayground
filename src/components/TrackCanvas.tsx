@@ -705,6 +705,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
       return;
     }
 
+    if (x < HEADER_WIDTH) {
+      return;
+    }
+
     const pitchRect = findPitchRect(x, y);
     if (pitchRect && event.button === 0) {
       props.onOpenPitchPicker(pitchRect.trackId, pitchRect.noteId);
@@ -890,13 +894,13 @@ export function TrackCanvas(props: TrackCanvasProps) {
         wheelLockedScrollTopRef.current = wrapper.scrollTop;
         wheelLockedScrollLeftRef.current = wrapper.scrollLeft;
       }
-      wrapper.style.overflow = "hidden";
+      wrapper.style.overflowX = "hidden";
 
       if (wheelLockTimerRef.current !== null) {
         window.clearTimeout(wheelLockTimerRef.current);
       }
       wheelLockTimerRef.current = window.setTimeout(() => {
-        wrapper.style.overflow = "auto";
+        wrapper.style.overflowX = "auto";
         wheelLockTimerRef.current = null;
       }, 440);
     };
@@ -947,7 +951,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         window.clearTimeout(wheelLockTimerRef.current);
         wheelLockTimerRef.current = null;
       }
-      wrapper.style.overflow = "auto";
+      wrapper.style.overflowX = "auto";
     };
   }, [onUpdateNote, project.tracks]);
 

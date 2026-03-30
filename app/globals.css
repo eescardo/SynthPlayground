@@ -197,8 +197,10 @@ select {
   background: rgba(9, 17, 26, 0.8);
   border: 1px solid var(--border);
   border-radius: 10px;
-  overflow: auto;
-  overscroll-behavior: contain;
+  overflow-x: auto;
+  overflow-y: visible;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
   max-width: 100%;
 }
 
