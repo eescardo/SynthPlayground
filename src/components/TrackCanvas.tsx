@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MacroPanel } from "@/components/MacroPanel";
 import { TrackVolumePopover } from "@/components/TrackVolumePopover";
+import { useVolumePopover } from "@/hooks/useVolumePopover";
 import { createId } from "@/lib/ids";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
@@ -216,14 +217,19 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const wheelLockedScrollTopRef = useRef(0);
   const wheelLockedScrollLeftRef = useRef(0);
   const wheelLockTimerRef = useRef<number | null>(null);
-  const volumeOpenTimerRef = useRef<number | null>(null);
-  const volumeDismissTimerRef = useRef<number | null>(null);
   const [hoveredPitch, setHoveredPitch] = useState<{ trackId: string; noteId: string } | null>(null);
   const [speakerIconsReady, setSpeakerIconsReady] = useState(false);
   const [canvasCursor, setCanvasCursor] = useState<CanvasCursor>("default");
   const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
   const [editingTrackName, setEditingTrackName] = useState("");
-  const [volumePopoverTrackId, setVolumePopoverTrackId] = useState<string | null>(null);
+  const {
+    volumePopoverTrackId,
+    openVolumePopover,
+    closeVolumePopover,
+    scheduleVolumePopoverOpen,
+    scheduleVolumePopoverDismiss,
+    cancelScheduledVolumePopoverDismiss
+  } = useVolumePopover();
 
   const meterBeats = props.project.global.meter === "4/4" ? 4 : 3;
   const selectedTrack = props.project.tracks.find((track) => track.id === props.selectedTrackId) ?? null;
@@ -255,49 +261,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
   const beatFromX = (x: number) => (x - HEADER_WIDTH) / BEAT_WIDTH;
   const isTrackSilenced = useCallback((track: Track) => track.mute || track.volume <= 0, []);
-
-  const openVolumePopover = useCallback((trackId: string) => {
-    if (volumeOpenTimerRef.current !== null) {
-      window.clearTimeout(volumeOpenTimerRef.current);
-      volumeOpenTimerRef.current = null;
-    }
-    if (volumeDismissTimerRef.current !== null) {
-      window.clearTimeout(volumeDismissTimerRef.current);
-      volumeDismissTimerRef.current = null;
-    }
-    setVolumePopoverTrackId(trackId);
-  }, []);
-
-  const scheduleVolumePopoverOpen = useCallback((trackId: string) => {
-    if (volumeOpenTimerRef.current !== null) {
-      window.clearTimeout(volumeOpenTimerRef.current);
-    }
-    volumeOpenTimerRef.current = window.setTimeout(() => {
-      setVolumePopoverTrackId(trackId);
-      volumeOpenTimerRef.current = null;
-    }, 1000);
-  }, []);
-
-  const scheduleVolumePopoverDismiss = useCallback(() => {
-    if (volumeDismissTimerRef.current !== null) {
-      window.clearTimeout(volumeDismissTimerRef.current);
-    }
-    volumeDismissTimerRef.current = window.setTimeout(() => {
-      setVolumePopoverTrackId(null);
-      volumeDismissTimerRef.current = null;
-    }, 2000);
-  }, []);
-
-  const cancelVolumePopoverTimers = useCallback(() => {
-    if (volumeOpenTimerRef.current !== null) {
-      window.clearTimeout(volumeOpenTimerRef.current);
-      volumeOpenTimerRef.current = null;
-    }
-    if (volumeDismissTimerRef.current !== null) {
-      window.clearTimeout(volumeDismissTimerRef.current);
-      volumeDismissTimerRef.current = null;
-    }
-  }, []);
 
   const getCanvasPoint = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
@@ -650,8 +613,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setVolumePopoverTrackId(null);
-        cancelVolumePopoverTimers();
+        closeVolumePopover();
       }
     };
 
@@ -660,8 +622,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       if (target?.closest(".track-volume-button, .track-volume-popover")) {
         return;
       }
-      setVolumePopoverTrackId(null);
-      cancelVolumePopoverTimers();
+      closeVolumePopover();
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -670,7 +631,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("pointerdown", onPointerDown);
     };
-  }, [cancelVolumePopoverTimers]);
+  }, [closeVolumePopover]);
 
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -807,12 +768,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
     };
   }, [onUpdateNote, project.tracks]);
 
-  useEffect(() => {
-    return () => {
-      cancelVolumePopoverTimers();
-    };
-  }, [cancelVolumePopoverTimers]);
-
   return (
     <div className="track-canvas-shell" ref={wrapperRef}>
       <div className="track-header-overlays">
@@ -863,12 +818,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
                 rememberedVolume={rememberedVolume}
                 muted={Boolean(track.mute)}
                 top={`${RULER_HEIGHT + index * TRACK_HEIGHT + 6}px`}
-                onMouseEnter={() => {
-                  if (volumeDismissTimerRef.current !== null) {
-                    window.clearTimeout(volumeDismissTimerRef.current);
-                    volumeDismissTimerRef.current = null;
-                  }
-                }}
+                onMouseEnter={() => cancelScheduledVolumePopoverDismiss()}
                 onMouseLeave={() => scheduleVolumePopoverDismiss()}
                 onVolumeChange={(volume, options) => props.onSetTrackVolume(track.id, volume, options)}
               />
