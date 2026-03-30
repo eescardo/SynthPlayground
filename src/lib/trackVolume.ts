@@ -17,11 +17,14 @@ export const isTrackVolumeMuted = (volume: number): boolean => volume <= TRACK_V
 export const trackVolumeToPercent = (volume: number): number =>
   clampTrackVolume(volume) / TRACK_VOLUME_MAX * TRACK_VOLUME_ARIA_MAX;
 
+export const trackVolumeToSliderPercent = (volume: number): number =>
+  clampTrackVolume(volume) / TRACK_VOLUME_MAX * 100;
+
 export const trackVolumeToPercentLabel = (volume: number): string =>
   `${Math.round(trackVolumeToPercent(volume))}%`;
 
 export const trackVolumePercentToCss = (volume: number): string =>
-  `${trackVolumeToPercent(volume)}%`;
+  `${trackVolumeToSliderPercent(volume)}%`;
 
 export const trackVolumeFromClientY = (clientY: number, element: HTMLElement): number => {
   const rect = element.getBoundingClientRect();
