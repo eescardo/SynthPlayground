@@ -13,7 +13,6 @@ import { createId } from "@/lib/ids";
 import {
   DEFAULT_LOOP_REPEAT_COUNT,
   findLoopBoundaryConflicts,
-  findMatchingLoopStart,
   getSanitizedLoopMarkers,
   sanitizeLoopSettings,
   splitProjectNotesAtLoopBoundaries
@@ -333,21 +332,15 @@ export default function HomePage() {
               beat: loopPopover.beat
             }
           ]
-        : (() => {
-            const matchingStart = findMatchingLoopStart(currentMarkers, loopPopover.beat);
-            if (!matchingStart) {
-              return currentMarkers;
+        : [
+            ...currentMarkers,
+            {
+              id: createId("loop_marker"),
+              kind: "end" as const,
+              beat: loopPopover.beat,
+              repeatCount: repeatCount ?? DEFAULT_LOOP_REPEAT_COUNT
             }
-            return [
-              ...currentMarkers,
-              {
-                id: createId("loop_marker"),
-                kind: "end" as const,
-                beat: loopPopover.beat,
-                repeatCount: repeatCount ?? DEFAULT_LOOP_REPEAT_COUNT
-              }
-            ];
-          })();
+          ];
     applyLoopSettings(nextLoop);
   }, [applyLoopSettings, loopPopover, project.global.loop]);
 
