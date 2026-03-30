@@ -1161,11 +1161,7 @@ export const createDefaultProject = (): Project => {
       tempo: 122,
       meter: "4/4",
       gridBeats: 0.25,
-      loop: {
-        startBeat: 0,
-        endBeat: 8,
-        enabled: false
-      }
+      loop: []
     },
     tracks: [
       makeTrack("Bass", "preset_bass", [

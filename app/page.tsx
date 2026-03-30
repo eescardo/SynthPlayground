@@ -4,10 +4,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AudioEngine } from "@/audio/engine";
 import { loadDspWasm } from "@/audio/wasmBridge";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
+import { LoopConflictDialog } from "@/components/LoopConflictDialog";
+import { LoopPopover } from "@/components/LoopPopover";
 import { PianoKeyboard } from "@/components/PianoKeyboard";
-import { TrackCanvas } from "@/components/TrackCanvas";
+import { LoopPopoverRequest, TrackCanvas } from "@/components/TrackCanvas";
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
+import {
+  canAddLoopEndAtBeat,
+  DEFAULT_LOOP_REPEAT_COUNT,
+  findLoopBoundaryConflicts,
+  findMatchingLoopStart,
+  getSanitizedLoopMarkers,
+  sanitizeLoopSettings,
+  splitProjectNotesAtLoopBoundaries
+} from "@/lib/looping";
 import { clearProject, loadProject, saveProject } from "@/lib/persistence";
 import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
@@ -64,6 +75,11 @@ export default function HomePage() {
   const [pitchPicker, setPitchPicker] = useState<{ trackId: string; noteId: string } | null>(null);
   const [previewPitch, setPreviewPitch] = useState("C4");
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
+  const [loopPopover, setLoopPopover] = useState<LoopPopoverRequest | null>(null);
+  const [loopConflictDialog, setLoopConflictDialog] = useState<{
+    nextLoop: Project["global"]["loop"];
+    conflicts: ReturnType<typeof findLoopBoundaryConflicts>;
+  } | null>(null);
   const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
   const [patchRemovalDialog, setPatchRemovalDialog] = useState<{
     patchId: string;
@@ -275,6 +291,102 @@ export default function HomePage() {
     setUserCueBeat(beat);
     setPlayheadBeat(beat);
   }, []);
+
+  const applyLoopSettings = useCallback((nextLoop: Project["global"]["loop"], options?: { autoSplit?: boolean }) => {
+    const sanitizedLoop = sanitizeLoopSettings(nextLoop);
+    const candidateProject = {
+      ...project,
+      global: {
+        ...project.global,
+        loop: sanitizedLoop
+      }
+    };
+    const conflicts = findLoopBoundaryConflicts(candidateProject, sanitizedLoop);
+    if (conflicts.length > 0 && !options?.autoSplit) {
+      setLoopConflictDialog({ nextLoop: sanitizedLoop, conflicts });
+      setLoopPopover(null);
+      return;
+    }
+
+    const nextProject = conflicts.length > 0 ? splitProjectNotesAtLoopBoundaries(candidateProject, sanitizedLoop) : candidateProject;
+    commitProjectChange(() => nextProject, { actionKey: "global:loop" });
+    setLoopConflictDialog(null);
+    setLoopPopover(null);
+  }, [commitProjectChange, project]);
+
+  const removeLoopBoundary = useCallback((markerId: string) => {
+    const nextLoop = getSanitizedLoopMarkers(project.global.loop).filter((marker) => marker.id !== markerId);
+    applyLoopSettings(nextLoop);
+  }, [applyLoopSettings, project.global.loop]);
+
+  const upsertLoopBoundaryAtPopoverBeat = useCallback((boundary: "start" | "end", repeatCount?: number) => {
+    if (!loopPopover) {
+      return;
+    }
+    const currentMarkers = getSanitizedLoopMarkers(project.global.loop);
+    const nextLoop =
+      boundary === "start"
+        ? [
+            ...currentMarkers,
+            {
+              id: createId("loop_marker"),
+              kind: "start" as const,
+              beat: loopPopover.beat
+            }
+          ]
+        : (() => {
+            const matchingStart = findMatchingLoopStart(currentMarkers, loopPopover.beat);
+            if (!matchingStart) {
+              return currentMarkers;
+            }
+            return [
+              ...currentMarkers,
+              {
+                id: createId("loop_marker"),
+                kind: "end" as const,
+                beat: loopPopover.beat,
+                repeatCount: repeatCount ?? DEFAULT_LOOP_REPEAT_COUNT
+              }
+            ];
+          })();
+    applyLoopSettings(nextLoop);
+  }, [applyLoopSettings, loopPopover, project.global.loop]);
+
+  useEffect(() => {
+    if (!loopPopover) {
+      return;
+    }
+
+    let active = false;
+    const activateTimer = window.setTimeout(() => {
+      active = true;
+    }, 0);
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setLoopPopover(null);
+      }
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (!active) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (target?.closest(".loop-popover")) {
+        return;
+      }
+      setLoopPopover(null);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      window.clearTimeout(activateTimer);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [loopPopover]);
 
   const openPitchPicker = useCallback((trackId: string, noteId: string) => {
     setPitchPicker({ trackId, noteId });
@@ -824,7 +936,9 @@ export default function HomePage() {
         activeRecordedNotes={recording.activeRecordedNotes}
         ghostPlayheadBeat={recording.ghostPlayheadBeat ?? undefined}
         countInLabel={recording.countInLabel ?? undefined}
+        loopPopoverTarget={loopPopover?.target ?? null}
         onSetPlayheadBeat={setPlayheadFromUser}
+        onRequestLoopPopover={setLoopPopover}
         onSelectTrack={setSelectedTrackId}
         onRenameTrack={renameTrack}
         onToggleTrackMute={toggleTrackMute}
@@ -838,6 +952,43 @@ export default function HomePage() {
         onUpdateNote={updateNote}
         onDeleteNote={deleteNote}
       />
+
+      {loopPopover && (
+        <LoopPopover
+          left={loopPopover.clientX}
+          top={loopPopover.clientY + 12}
+          target={loopPopover.target}
+          repeatCount={getSanitizedLoopMarkers(project.global.loop).find((marker) => marker.id === loopPopover.markerId)?.repeatCount}
+          canAddEnd={canAddLoopEndAtBeat(project.global.loop, loopPopover.beat)}
+          onAddStart={() => upsertLoopBoundaryAtPopoverBeat("start")}
+          onAddEnd={() => upsertLoopBoundaryAtPopoverBeat("end")}
+          onUpdateRepeatCount={(repeatCount) => {
+            const nextLoop = getSanitizedLoopMarkers(project.global.loop).map((marker) =>
+              marker.id === loopPopover.markerId && marker.kind === "end" ? { ...marker, repeatCount } : marker
+            );
+            applyLoopSettings(nextLoop);
+          }}
+          onRemoveStart={() => {
+            if (loopPopover.markerId) {
+              removeLoopBoundary(loopPopover.markerId);
+            }
+          }}
+          onRemoveEnd={() => {
+            if (loopPopover.markerId) {
+              removeLoopBoundary(loopPopover.markerId);
+            }
+          }}
+          onClose={() => setLoopPopover(null)}
+        />
+      )}
+
+      {loopConflictDialog && (
+        <LoopConflictDialog
+          conflicts={loopConflictDialog.conflicts}
+          onCancel={() => setLoopConflictDialog(null)}
+          onSplit={() => applyLoopSettings(loopConflictDialog.nextLoop, { autoSplit: true })}
+        />
+      )}
 
       {recording.recordEnabled && activeRecordingTrack && (
         <section className="recording-dock">
