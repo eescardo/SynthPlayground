@@ -57,6 +57,11 @@ const PORTS_IN_BY_TYPE = {
 const clamp = (x, min, max) => Math.max(min, Math.min(max, x));
 const dbToGain = (db) => Math.pow(10, db / 20);
 const onePoleStep = (current, target, alpha) => current + (target - current) * (1 - alpha);
+const TRACK_VOLUME_RANGE = {
+  MIN: 0,
+  DEFAULT: 1,
+  MAX: 2
+};
 
 const smoothingAlpha = (timeMs, sampleRate) => {
   if (!timeMs || timeMs <= 0) {
@@ -1076,8 +1081,10 @@ class TrackRuntime {
       return;
     }
 
-    const trackVolume = ignoreVolume ? 1 : clamp(Number(this.track.volume ?? 1), 0, 2);
-    if (trackVolume <= 0) {
+    const trackVolume = ignoreVolume
+      ? TRACK_VOLUME_RANGE.DEFAULT
+      : clamp(Number(this.track.volume ?? TRACK_VOLUME_RANGE.DEFAULT), TRACK_VOLUME_RANGE.MIN, TRACK_VOLUME_RANGE.MAX);
+    if (trackVolume <= TRACK_VOLUME_RANGE.MIN) {
       return;
     }
 

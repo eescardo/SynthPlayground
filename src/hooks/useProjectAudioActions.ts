@@ -2,6 +2,7 @@
 
 import { MutableRefObject, useCallback, useState } from "react";
 import { AudioEngine } from "@/audio/engine";
+import { clampTrackVolume, isTrackVolumeMuted } from "@/lib/trackVolume";
 import { Project } from "@/types/music";
 
 interface CommitProjectChange {
@@ -35,8 +36,8 @@ export function useProjectAudioActions(options: UseProjectAudioActionsOptions) {
         track.id === trackId
           ? {
               ...track,
-              volume: Math.max(0, Math.min(2, volume)),
-              mute: volume <= 0 ? true : false
+              volume: clampTrackVolume(volume),
+              mute: isTrackVolumeMuted(volume) ? true : false
             }
           : track
       )

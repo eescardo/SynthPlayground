@@ -1,6 +1,12 @@
 "use client";
 
 import { TrackVolumeSlider } from "@/components/TrackVolumeSlider";
+import {
+  TRACK_VOLUME_DEFAULT_LABEL,
+  TRACK_VOLUME_MAX_LABEL,
+  TRACK_VOLUME_MIN_LABEL,
+  trackVolumeToPercentLabel
+} from "@/lib/trackVolume";
 
 interface TrackVolumePopoverProps {
   trackName: string;
@@ -22,7 +28,7 @@ export function TrackVolumePopover(props: TrackVolumePopoverProps) {
       onMouseLeave={props.onMouseLeave}
       onPointerDown={(event) => event.stopPropagation()}
     >
-      <span className="track-volume-popover-label">{Math.round(props.effectiveVolume * 100)}%</span>
+      <span className="track-volume-popover-label">{trackVolumeToPercentLabel(props.effectiveVolume)}</span>
       <TrackVolumeSlider
         trackName={props.trackName}
         effectiveVolume={props.effectiveVolume}
@@ -31,9 +37,9 @@ export function TrackVolumePopover(props: TrackVolumePopoverProps) {
         onVolumeChange={props.onVolumeChange}
       />
       <div className="track-volume-scale">
-        <span>200%</span>
-        <span>100%</span>
-        <span>0%</span>
+        <span>{TRACK_VOLUME_MAX_LABEL}</span>
+        <span>{TRACK_VOLUME_DEFAULT_LABEL}</span>
+        <span>{TRACK_VOLUME_MIN_LABEL}</span>
       </div>
     </div>
   );

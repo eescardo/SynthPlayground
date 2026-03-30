@@ -6,6 +6,7 @@ import { TrackVolumePopover } from "@/components/TrackVolumePopover";
 import { useVolumePopover } from "@/hooks/useVolumePopover";
 import { createId } from "@/lib/ids";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
+import { isTrackVolumeMuted } from "@/lib/trackVolume";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
 import { formatBeatName, snapToGrid } from "@/lib/musicTiming";
 import { Project, Note, Track } from "@/types/music";
@@ -260,7 +261,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const height = RULER_HEIGHT + props.project.tracks.length * TRACK_HEIGHT;
 
   const beatFromX = (x: number) => (x - HEADER_WIDTH) / BEAT_WIDTH;
-  const isTrackSilenced = useCallback((track: Track) => track.mute || track.volume <= 0, []);
+  const isTrackSilenced = useCallback((track: Track) => track.mute || isTrackVolumeMuted(track.volume), []);
 
   const getCanvasPoint = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
