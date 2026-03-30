@@ -11,7 +11,6 @@ import { LoopPopoverRequest, TrackCanvas } from "@/components/TrackCanvas";
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
 import {
-  canAddLoopEndAtBeat,
   DEFAULT_LOOP_REPEAT_COUNT,
   findLoopBoundaryConflicts,
   findMatchingLoopStart,
@@ -959,7 +958,6 @@ export default function HomePage() {
           top={loopPopover.clientY + 12}
           target={loopPopover.target}
           repeatCount={getSanitizedLoopMarkers(project.global.loop).find((marker) => marker.id === loopPopover.markerId)?.repeatCount}
-          canAddEnd={canAddLoopEndAtBeat(project.global.loop, loopPopover.beat)}
           onAddStart={() => upsertLoopBoundaryAtPopoverBeat("start")}
           onAddEnd={() => upsertLoopBoundaryAtPopoverBeat("end")}
           onUpdateRepeatCount={(repeatCount) => {

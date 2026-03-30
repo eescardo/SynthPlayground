@@ -5,7 +5,6 @@ interface LoopPopoverProps {
   top: number;
   target: "playhead" | "start" | "end";
   repeatCount?: number;
-  canAddEnd: boolean;
   onAddStart: () => void;
   onAddEnd: () => void;
   onUpdateRepeatCount: (repeatCount: number) => void;
@@ -30,7 +29,7 @@ export function LoopPopover(props: LoopPopoverProps) {
           <button type="button" onClick={props.onAddStart}>
             Add Loop Start
           </button>
-          <button type="button" onClick={props.onAddEnd} disabled={!props.canAddEnd}>
+          <button type="button" onClick={props.onAddEnd}>
             Add Loop End
           </button>
         </>

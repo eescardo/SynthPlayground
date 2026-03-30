@@ -188,11 +188,6 @@ export const findMatchingLoopStart = (
   return stack[stack.length - 1] ?? null;
 };
 
-export const canAddLoopEndAtBeat = (
-  loop: ProjectGlobalSettings["loop"] | undefined,
-  beat: number
-): boolean => findMatchingLoopStart(loop, beat) !== null;
-
 const getSequencePlaybackLength = (startBeat: number, endBeat: number, children: LoopPair[]): number => {
   let total = 0;
   let cursor = startBeat;
