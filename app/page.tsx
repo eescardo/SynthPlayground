@@ -20,8 +20,9 @@ import { keyToPitch, pitchToVoct } from "@/lib/pitch";
 import { removeTrackFromProject, renameTrackInProject } from "@/lib/trackEdits";
 import { useNoteEditor } from "@/hooks/useNoteEditor";
 import { usePlaybackController } from "@/hooks/usePlaybackController";
+import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
 import { useRecordingController } from "@/hooks/useRecordingController";
-import { Project, Note } from "@/types/music";
+import { Project } from "@/types/music";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 
@@ -263,6 +264,12 @@ export default function HomePage() {
       tracks: current.tracks.map((track) => (track.id === trackId ? { ...track, mute: !track.mute } : track))
     }), { actionKey: `track:${trackId}:mute` });
   }, [commitProjectChange]);
+  const { exportingAudio, exportAudio, setTrackVolume } = useProjectAudioActions({
+    project,
+    audioEngineRef,
+    commitProjectChange,
+    setRuntimeError
+  });
 
   const setPlayheadFromUser = useCallback((beat: number) => {
     setUserCueBeat(beat);
@@ -565,6 +572,7 @@ export default function HomePage() {
           notes: [],
           macroValues: {},
           macroPanelExpanded: true,
+          volume: 1,
           fx: {
             delayEnabled: false,
             reverbEnabled: false,
@@ -751,6 +759,10 @@ export default function HomePage() {
           playback.stopPlayback(true);
           void recording.startRecordMode();
         }}
+        onExportAudio={() => {
+          void exportAudio();
+        }}
+        exportAudioDisabled={exportingAudio}
         onTempoChange={(tempo) =>
           commitProjectChange((current) => ({ ...current, global: { ...current.global, tempo } }), {
             actionKey: "global:tempo"
@@ -816,6 +828,7 @@ export default function HomePage() {
         onSelectTrack={setSelectedTrackId}
         onRenameTrack={renameTrack}
         onToggleTrackMute={toggleTrackMute}
+        onSetTrackVolume={setTrackVolume}
         onUpdateTrackPatch={updateTrackPatch}
         onToggleTrackMacroPanel={toggleTrackMacroPanel}
         onChangeTrackMacro={changeTrackMacro}

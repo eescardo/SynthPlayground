@@ -1146,6 +1146,7 @@ const makeTrack = (name: string, instrumentPatchId: string, notes: Track["notes"
   notes,
   macroValues: {},
   macroPanelExpanded: true,
+  volume: 1,
   fx: defaultTrackFx()
 });
 

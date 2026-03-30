@@ -1,6 +1,7 @@
 import { createId } from "@/lib/ids";
 import { presetPatches } from "@/lib/patch/presets";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
+import { TRACK_VOLUME_DEFAULT, TRACK_VOLUME_MAX, TRACK_VOLUME_MIN } from "@/lib/trackVolume";
 import { Project, TrackFxSettings } from "@/types/music";
 import { Patch, PatchConnection, PatchMacro, PatchMeta, PatchNode } from "@/types/patch";
 
@@ -229,6 +230,7 @@ export const normalizeProject = (raw: unknown): Project => {
         notes,
         macroValues: sanitizeMacroValueMap(track.macroValues),
         macroPanelExpanded: track.macroPanelExpanded !== false,
+        volume: clamp(asFiniteNumber(track.volume, TRACK_VOLUME_DEFAULT), TRACK_VOLUME_MIN, TRACK_VOLUME_MAX),
         mute: Boolean(track.mute),
         solo: Boolean(track.solo),
         fx: {

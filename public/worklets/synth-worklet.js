@@ -57,6 +57,11 @@ const PORTS_IN_BY_TYPE = {
 const clamp = (x, min, max) => Math.max(min, Math.min(max, x));
 const dbToGain = (db) => Math.pow(10, db / 20);
 const onePoleStep = (current, target, alpha) => current + (target - current) * (1 - alpha);
+const TRACK_VOLUME_RANGE = {
+  MIN: 0,
+  DEFAULT: 1,
+  MAX: 2
+};
 
 const smoothingAlpha = (timeMs, sampleRate) => {
   if (!timeMs || timeMs <= 0) {
@@ -1059,6 +1064,7 @@ class TrackRuntime {
   // mute, but instrument preview bypasses mute so auditioning still works.
   processTrackFrames(targetBuffer, startFrame, endFrame, options = {}) {
     const ignoreMute = Boolean(options.ignoreMute);
+    const ignoreVolume = Boolean(options.ignoreVolume);
     this.trackBuffer.fill(0, startFrame, endFrame);
 
     for (const voice of this.voices) {
@@ -1075,14 +1081,21 @@ class TrackRuntime {
       return;
     }
 
+    const trackVolume = ignoreVolume
+      ? TRACK_VOLUME_RANGE.DEFAULT
+      : clamp(Number(this.track.volume ?? TRACK_VOLUME_RANGE.DEFAULT), TRACK_VOLUME_RANGE.MIN, TRACK_VOLUME_RANGE.MAX);
+    if (trackVolume <= TRACK_VOLUME_RANGE.MIN) {
+      return;
+    }
+
     for (let i = startFrame; i < endFrame; i += 1) {
-      targetBuffer[i] += this.trackBuffer[i];
+      targetBuffer[i] += this.trackBuffer[i] * trackVolume;
     }
   }
 }
 
 class SynthWorkletProcessor extends AudioWorkletProcessor {
-  constructor() {
+  constructor(options) {
     super();
     this.sampleRateInternal = DEFAULT_SAMPLE_RATE;
     this.blockSize = 128;
@@ -1100,6 +1113,60 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
     this.masterBuffer = new Float32Array(this.blockSize);
 
     this.port.onmessage = (event) => this.onMessage(event.data);
+
+    const processorOptions = options && options.processorOptions ? options.processorOptions : null;
+    if (processorOptions) {
+      this.applyInit(processorOptions);
+      if (processorOptions.project) {
+        this.applyProject(processorOptions.project);
+      }
+      if (processorOptions.transport) {
+        this.applyTransport(processorOptions.transport);
+      }
+    }
+  }
+
+  applyInit(message) {
+    this.sampleRateInternal = message.sampleRate || DEFAULT_SAMPLE_RATE;
+    this.blockSize = message.blockSize || 128;
+    this.masterBuffer = new Float32Array(this.blockSize);
+  }
+
+  applyProject(project) {
+    this.project = project;
+    this.trackRuntimes = [];
+    for (const track of this.project.tracks || []) {
+      const patch = (this.project.patches || []).find((entry) => entry.id === track.instrumentPatchId);
+      if (!patch) {
+        continue;
+      }
+      try {
+        this.trackRuntimes.push(new TrackRuntime(track, patch, this.sampleRateInternal, this.blockSize));
+      } catch {
+        // Invalid patch graphs are rejected and skipped for runtime safety.
+      }
+    }
+  }
+
+  applyTransport(message) {
+    this.playing = false;
+    this.previewing = false;
+    this.previewRemainingSamples = 0;
+    this.recordingTrackId = null;
+    this.transportSessionId = Number.isFinite(message.sessionId) ? message.sessionId : this.transportSessionId + 1;
+    this.songSampleCounter = Math.max(0, message.songStartSample || 0);
+    this.eventQueue.length = 0;
+    if (Array.isArray(message.events)) {
+      this.enqueueEvents(message.events);
+    }
+    for (const track of this.trackRuntimes) {
+      for (const voice of track.voices) {
+        voice.active = false;
+        voice.host.gate = 0;
+        voice.rms = 0;
+      }
+    }
+    this.playing = Boolean(message.isPlaying);
   }
 
   // Scheduler messages arrive ahead of playback and are kept ordered by absolute
@@ -1119,44 +1186,13 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
   onMessage(message) {
     switch (message.type) {
       case "INIT":
-        this.sampleRateInternal = message.sampleRate || DEFAULT_SAMPLE_RATE;
-        this.blockSize = message.blockSize || 128;
-        this.masterBuffer = new Float32Array(this.blockSize);
+        this.applyInit(message);
         break;
       case "SET_PROJECT":
-        this.project = message.project;
-        this.trackRuntimes = [];
-        for (const track of this.project.tracks || []) {
-          const patch = (this.project.patches || []).find((entry) => entry.id === track.instrumentPatchId);
-          if (!patch) {
-            continue;
-          }
-          try {
-            this.trackRuntimes.push(new TrackRuntime(track, patch, this.sampleRateInternal, this.blockSize));
-          } catch {
-            // Invalid patch graphs are rejected and skipped for runtime safety.
-          }
-        }
+        this.applyProject(message.project);
         break;
       case "TRANSPORT":
-        this.playing = false;
-        this.previewing = false;
-        this.previewRemainingSamples = 0;
-        this.recordingTrackId = null;
-        this.transportSessionId = Number.isFinite(message.sessionId) ? message.sessionId : this.transportSessionId + 1;
-        this.songSampleCounter = Math.max(0, message.songStartSample || 0);
-        this.eventQueue.length = 0;
-        if (Array.isArray(message.events)) {
-          this.enqueueEvents(message.events);
-        }
-        for (const track of this.trackRuntimes) {
-          for (const voice of track.voices) {
-            voice.active = false;
-            voice.host.gate = 0;
-            voice.rms = 0;
-          }
-        }
-        this.playing = Boolean(message.isPlaying);
+        this.applyTransport(message);
         break;
       case "RECORDING":
         this.recordingTrackId = typeof message.trackId === "string" ? message.trackId : null;
@@ -1306,7 +1342,10 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
 
     if (this.playing || this.previewing) {
       for (const track of this.trackRuntimes) {
-        track.processTrackFrames(this.masterBuffer, startFrame, endFrame, { ignoreMute: this.previewing });
+        track.processTrackFrames(this.masterBuffer, startFrame, endFrame, {
+          ignoreMute: this.previewing,
+          ignoreVolume: this.previewing
+        });
       }
     }
 

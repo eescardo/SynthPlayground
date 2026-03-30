@@ -1,6 +1,6 @@
 "use client";
 
-import { MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MutableRefObject, useCallback, useEffect, useRef, useState } from "react";
 import { AudioEngine } from "@/audio/engine";
 import { createId } from "@/lib/ids";
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
@@ -413,19 +413,12 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
   }, [audioEngineRef, finishActiveRecordedNotes, pitchPickerOpen, playheadBeat, previewPitchPickerOpen, recordPhase, startRecordedNote, stopRecordedInput]);
 
   const activeRecordingTrackId = recordingTrackId ?? recordCountIn?.trackId ?? (recordEnabled ? selectedTrack?.id ?? null : null);
-  const pressedRecordingPitches = useMemo(
-    () => Array.from(activeRecordKeys.current.values()).map((entry) => entry.pitchStr),
-    [recordPhase, recordCountIn, recordingTrackId, recordEnabled, playheadBeat]
-  );
-  const activeRecordedNotes = useMemo(
-    () =>
-      Array.from(activeRecordKeys.current.values()).map((entry) => ({
-        trackId: entry.trackId,
-        noteId: entry.noteId,
-        startBeat: entry.startBeat
-      })),
-    [recordPhase, recordCountIn, recordingTrackId, recordEnabled, playheadBeat]
-  );
+  const pressedRecordingPitches = Array.from(activeRecordKeys.current.values()).map((entry) => entry.pitchStr);
+  const activeRecordedNotes = Array.from(activeRecordKeys.current.values()).map((entry) => ({
+    trackId: entry.trackId,
+    noteId: entry.noteId,
+    startBeat: entry.startBeat
+  }));
   const countInProgressBeats =
     recordCountIn
       ? Math.min(
