@@ -38,7 +38,7 @@ export interface ProjectGlobalSettings {
   tempo: number;
   meter: "4/4" | "3/4";
   gridBeats: number;
-  loop?: Array<{
+  loop: Array<{
     id: string;
     kind: "start" | "end";
     beat: number;

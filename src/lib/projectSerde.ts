@@ -194,7 +194,7 @@ export const normalizeProject = (raw: unknown): Project => {
   const globalRaw = isObject(raw.global) ? raw.global : {};
   const meter = globalRaw.meter === "3/4" ? "3/4" : "4/4";
   const gridBeats = asFiniteNumber(globalRaw.gridBeats, 0.25);
-  const loopRaw = Array.isArray(globalRaw.loop) ? globalRaw.loop : isObject(globalRaw.loop) ? [globalRaw.loop] : null;
+  const loopRaw = Array.isArray(globalRaw.loop) ? globalRaw.loop : isObject(globalRaw.loop) ? [globalRaw.loop] : [];
 
   const patchIds = new Set(patches.map((patch) => patch.id));
   const fallbackPatchId = patches[0].id;
@@ -264,46 +264,43 @@ export const normalizeProject = (raw: unknown): Project => {
       tempo: clamp(asFiniteNumber(globalRaw.tempo, 120), 20, 400),
       meter,
       gridBeats: gridBeats > 0 ? gridBeats : 0.25,
-      loop: loopRaw
-        ? loopRaw
-            .flatMap((entry, index) => {
-              const marker = isObject(entry) ? entry : {};
-              const kind = marker.kind === "start" || marker.kind === "end" ? marker.kind : null;
-              const beatRaw = asOptionalFiniteNumber(marker.beat);
-              if (kind && beatRaw !== undefined) {
-                return [{
-                  id: asString(marker.id, createId(`loop_marker_${index}`)),
-                  kind,
-                  beat: Math.max(0, beatRaw),
-                  repeatCount: kind === "end" ? Math.max(1, Math.min(16, Math.round(asFiniteNumber(marker.repeatCount, 1)))) : undefined
-                }];
-              }
+      loop: loopRaw.flatMap((entry, index) => {
+        const marker = isObject(entry) ? entry : {};
+        const kind = marker.kind === "start" || marker.kind === "end" ? marker.kind : null;
+        const beatRaw = asOptionalFiniteNumber(marker.beat);
+        if (kind && beatRaw !== undefined) {
+          return [{
+            id: asString(marker.id, createId(`loop_marker_${index}`)),
+            kind,
+            beat: Math.max(0, beatRaw),
+            repeatCount: kind === "end" ? Math.max(1, Math.min(16, Math.round(asFiniteNumber(marker.repeatCount, 1)))) : undefined
+          }];
+        }
 
-              const startBeatRaw = asOptionalFiniteNumber(marker.startBeat);
-              if (startBeatRaw === undefined) {
-                return [];
-              }
-              const endBeatRaw = asOptionalFiniteNumber(marker.endBeat);
-              const repeatCount = Math.max(1, Math.min(16, Math.round(asFiniteNumber(marker.repeatCount, 1))));
-              const markerIdBase = asString(marker.id, createId(`loop_region_${index}`));
-              return [
-                {
-                  id: `${markerIdBase}_start`,
-                  kind: "start" as const,
-                  beat: Math.max(0, startBeatRaw),
-                  repeatCount: undefined
-                },
-                ...(endBeatRaw === undefined
-                  ? []
-                  : [{
-                      id: `${markerIdBase}_end`,
-                      kind: "end" as const,
-                      beat: Math.max(0, endBeatRaw),
-                      repeatCount
-                    }])
-              ];
-            })
-        : undefined
+        const startBeatRaw = asOptionalFiniteNumber(marker.startBeat);
+        if (startBeatRaw === undefined) {
+          return [];
+        }
+        const endBeatRaw = asOptionalFiniteNumber(marker.endBeat);
+        const repeatCount = Math.max(1, Math.min(16, Math.round(asFiniteNumber(marker.repeatCount, 1))));
+        const markerIdBase = asString(marker.id, createId(`loop_region_${index}`));
+        return [
+          {
+            id: `${markerIdBase}_start`,
+            kind: "start" as const,
+            beat: Math.max(0, startBeatRaw),
+            repeatCount: undefined
+          },
+          ...(endBeatRaw === undefined
+            ? []
+            : [{
+                id: `${markerIdBase}_end`,
+                kind: "end" as const,
+                beat: Math.max(0, endBeatRaw),
+                repeatCount
+              }])
+        ];
+      })
     },
     tracks,
     patches,

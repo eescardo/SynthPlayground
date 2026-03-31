@@ -43,7 +43,7 @@ interface LoopPair {
 const EPSILON = 1e-9;
 export const DEFAULT_LOOP_REPEAT_COUNT = 1;
 
-type LoopMarkerInput = NonNullable<ProjectGlobalSettings["loop"]>[number];
+type LoopMarkerInput = ProjectGlobalSettings["loop"][number];
 
 const clampRepeatCount = (repeatCount: unknown): number =>
   typeof repeatCount === "number" && Number.isFinite(repeatCount)
@@ -82,21 +82,13 @@ const sanitizeMarker = (marker: LoopMarkerInput, index: number): SanitizedLoopMa
 };
 
 export const sanitizeLoopSettings = (
-  loop: ProjectGlobalSettings["loop"] | undefined
-): ProjectGlobalSettings["loop"] | undefined => {
-  if (!Array.isArray(loop)) {
-    return undefined;
-  }
-
+  loop: ProjectGlobalSettings["loop"]
+): ProjectGlobalSettings["loop"] => {
   const markers = sortMarkers(
     loop
       .map((marker, index) => sanitizeMarker(marker, index))
       .filter((marker): marker is SanitizedLoopMarker => Boolean(marker))
   );
-
-  if (markers.length === 0) {
-    return undefined;
-  }
 
   return markers.map((marker) => ({
     id: marker.id,
@@ -107,10 +99,10 @@ export const sanitizeLoopSettings = (
 };
 
 export const getSanitizedLoopMarkers = (
-  loop: ProjectGlobalSettings["loop"] | undefined
-): SanitizedLoopMarker[] => sanitizeLoopSettings(loop) ?? [];
+  loop: ProjectGlobalSettings["loop"]
+): SanitizedLoopMarker[] => sanitizeLoopSettings(loop);
 
-const buildLoopPairs = (loop: ProjectGlobalSettings["loop"] | undefined) => {
+const buildLoopPairs = (loop: ProjectGlobalSettings["loop"]) => {
   const markers = getSanitizedLoopMarkers(loop);
   const states: LoopMarkerState[] = markers.map((marker) => ({
     markerId: marker.id,
@@ -166,11 +158,11 @@ const buildLoopPairs = (loop: ProjectGlobalSettings["loop"] | undefined) => {
 };
 
 export const getLoopMarkerStates = (
-  loop: ProjectGlobalSettings["loop"] | undefined
+  loop: ProjectGlobalSettings["loop"]
 ): LoopMarkerState[] => buildLoopPairs(loop).markerStates;
 
 export const findMatchingLoopStart = (
-  loop: ProjectGlobalSettings["loop"] | undefined,
+  loop: ProjectGlobalSettings["loop"],
   beat: number
 ): SanitizedLoopMarker | null => {
   const markers = getSanitizedLoopMarkers(loop);
@@ -256,7 +248,7 @@ const collectPlaybackBeatsInSequence = (
 export const getLoopedPlaybackBeatsForSongBeat = (
   songBeat: number,
   cueBeat: number,
-  loop: ProjectGlobalSettings["loop"] | undefined
+  loop: ProjectGlobalSettings["loop"]
 ): number[] => {
   if (songBeat < cueBeat - EPSILON) {
     return [];
@@ -270,7 +262,7 @@ export const getLoopedPlaybackBeatsForSongBeat = (
 export const getPlaybackBeatForSongBeat = (
   songBeat: number,
   cueBeat: number,
-  loop: ProjectGlobalSettings["loop"] | undefined
+  loop: ProjectGlobalSettings["loop"]
 ): number => getLoopedPlaybackBeatsForSongBeat(songBeat, cueBeat, loop)[0] ?? Math.max(0, songBeat - cueBeat);
 
 const mapPlaybackBeatInSequence = (
@@ -307,7 +299,7 @@ const mapPlaybackBeatInSequence = (
 export const getSongBeatForPlaybackBeat = (
   playbackBeat: number,
   cueBeat: number,
-  loop: ProjectGlobalSettings["loop"] | undefined
+  loop: ProjectGlobalSettings["loop"]
 ): number => {
   const { pairs } = buildLoopPairs(loop);
   return mapPlaybackBeatInSequence(playbackBeat, cueBeat, Number.POSITIVE_INFINITY, pairs);
@@ -325,7 +317,7 @@ const noteCrossesBoundary = (note: Note, boundaryBeat: number): boolean => {
 
 export const findLoopBoundaryConflicts = (
   project: Project,
-  loop: ProjectGlobalSettings["loop"] | undefined
+  loop: ProjectGlobalSettings["loop"]
 ): LoopBoundaryConflict[] => {
   const markers = getSanitizedLoopMarkers(loop);
   if (markers.length === 0) {
@@ -383,7 +375,7 @@ const splitTrackNotesAtBoundary = (track: Track, boundaryBeat: number): Track =>
 
 export const splitProjectNotesAtLoopBoundaries = (
   project: Project,
-  loop: ProjectGlobalSettings["loop"] | undefined
+  loop: ProjectGlobalSettings["loop"]
 ): Project => {
   const boundaryBeats = getSanitizedLoopMarkers(loop)
     .map((marker) => marker.beat)

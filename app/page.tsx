@@ -10,13 +10,7 @@ import { PianoKeyboard } from "@/components/PianoKeyboard";
 import { LoopPopoverRequest, TrackCanvas } from "@/components/TrackCanvas";
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
-import {
-  DEFAULT_LOOP_REPEAT_COUNT,
-  findLoopBoundaryConflicts,
-  getSanitizedLoopMarkers,
-  sanitizeLoopSettings,
-  splitProjectNotesAtLoopBoundaries
-} from "@/lib/looping";
+import { getSanitizedLoopMarkers } from "@/lib/looping";
 import { clearProject, loadProject, saveProject } from "@/lib/persistence";
 import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
@@ -28,6 +22,7 @@ import { importProjectFromJson, exportProjectToJson, normalizeProject } from "@/
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
 import { removeTrackFromProject, renameTrackInProject } from "@/lib/trackEdits";
 import { useNoteEditor } from "@/hooks/useNoteEditor";
+import { useLoopSettings } from "@/hooks/useLoopSettings";
 import { usePlaybackController } from "@/hooks/usePlaybackController";
 import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
 import { useRecordingController } from "@/hooks/useRecordingController";
@@ -74,10 +69,6 @@ export default function HomePage() {
   const [previewPitch, setPreviewPitch] = useState("C4");
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
   const [loopPopover, setLoopPopover] = useState<LoopPopoverRequest | null>(null);
-  const [loopConflictDialog, setLoopConflictDialog] = useState<{
-    nextLoop: Project["global"]["loop"];
-    conflicts: ReturnType<typeof findLoopBoundaryConflicts>;
-  } | null>(null);
   const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
   const [patchRemovalDialog, setPatchRemovalDialog] = useState<{
     patchId: string;
@@ -289,60 +280,12 @@ export default function HomePage() {
     setUserCueBeat(beat);
     setPlayheadBeat(beat);
   }, []);
-
-  const applyLoopSettings = useCallback((nextLoop: Project["global"]["loop"], options?: { autoSplit?: boolean }) => {
-    const sanitizedLoop = sanitizeLoopSettings(nextLoop);
-    const candidateProject = {
-      ...project,
-      global: {
-        ...project.global,
-        loop: sanitizedLoop
-      }
-    };
-    const conflicts = findLoopBoundaryConflicts(candidateProject, sanitizedLoop);
-    if (conflicts.length > 0 && !options?.autoSplit) {
-      setLoopConflictDialog({ nextLoop: sanitizedLoop, conflicts });
-      setLoopPopover(null);
-      return;
-    }
-
-    const nextProject = conflicts.length > 0 ? splitProjectNotesAtLoopBoundaries(candidateProject, sanitizedLoop) : candidateProject;
-    commitProjectChange(() => nextProject, { actionKey: "global:loop" });
-    setLoopConflictDialog(null);
-    setLoopPopover(null);
-  }, [commitProjectChange, project]);
-
-  const removeLoopBoundary = useCallback((markerId: string) => {
-    const nextLoop = getSanitizedLoopMarkers(project.global.loop).filter((marker) => marker.id !== markerId);
-    applyLoopSettings(nextLoop);
-  }, [applyLoopSettings, project.global.loop]);
-
-  const upsertLoopBoundaryAtPopoverBeat = useCallback((boundary: "start" | "end", repeatCount?: number) => {
-    if (!loopPopover) {
-      return;
-    }
-    const currentMarkers = getSanitizedLoopMarkers(project.global.loop);
-    const nextLoop =
-      boundary === "start"
-        ? [
-            ...currentMarkers,
-            {
-              id: createId("loop_marker"),
-              kind: "start" as const,
-              beat: loopPopover.beat
-            }
-          ]
-        : [
-            ...currentMarkers,
-            {
-              id: createId("loop_marker"),
-              kind: "end" as const,
-              beat: loopPopover.beat,
-              repeatCount: repeatCount ?? DEFAULT_LOOP_REPEAT_COUNT
-            }
-          ];
-    applyLoopSettings(nextLoop);
-  }, [applyLoopSettings, loopPopover, project.global.loop]);
+  const { applyLoopSettings, addLoopBoundary, updateLoopRepeatCount, removeLoopBoundary, loopConflictDialog, clearLoopConflictDialog } =
+    useLoopSettings({
+      project,
+      commitProjectChange,
+      onCloseLoopPopover: () => setLoopPopover(null)
+    });
 
   useEffect(() => {
     if (!loopPopover) {
@@ -951,13 +894,12 @@ export default function HomePage() {
           top={loopPopover.clientY + 12}
           target={loopPopover.target}
           repeatCount={getSanitizedLoopMarkers(project.global.loop).find((marker) => marker.id === loopPopover.markerId)?.repeatCount}
-          onAddStart={() => upsertLoopBoundaryAtPopoverBeat("start")}
-          onAddEnd={() => upsertLoopBoundaryAtPopoverBeat("end")}
+          onAddStart={() => addLoopBoundary(loopPopover.beat, "start")}
+          onAddEnd={() => addLoopBoundary(loopPopover.beat, "end")}
           onUpdateRepeatCount={(repeatCount) => {
-            const nextLoop = getSanitizedLoopMarkers(project.global.loop).map((marker) =>
-              marker.id === loopPopover.markerId && marker.kind === "end" ? { ...marker, repeatCount } : marker
-            );
-            applyLoopSettings(nextLoop);
+            if (loopPopover.markerId) {
+              updateLoopRepeatCount(loopPopover.markerId, repeatCount);
+            }
           }}
           onRemoveStart={() => {
             if (loopPopover.markerId) {
@@ -976,7 +918,7 @@ export default function HomePage() {
       {loopConflictDialog && (
         <LoopConflictDialog
           conflicts={loopConflictDialog.conflicts}
-          onCancel={() => setLoopConflictDialog(null)}
+          onCancel={clearLoopConflictDialog}
           onSplit={() => applyLoopSettings(loopConflictDialog.nextLoop, { autoSplit: true })}
         />
       )}

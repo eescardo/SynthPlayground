@@ -3,7 +3,7 @@ import { beatRangeToSampleRange } from "@/lib/musicTiming";
 import { pitchToVoct } from "@/lib/pitch";
 import { createId } from "@/lib/ids";
 import { Project } from "@/types/music";
-import { SchedulerEvent } from "@/types/audio";
+import { SchedulerEvent, SchedulerEventType } from "@/types/audio";
 
 interface SchedulerWindow {
   fromSample: number;
@@ -18,6 +18,22 @@ interface NoteEventCache {
   onEventId: string;
   offEventId: string;
 }
+
+enum SchedulerEventSortPriority {
+  NoteOff = 0,
+  ParamChange = 1,
+  NoteOn = 2
+}
+
+// When multiple events land on the same sample, we need deterministic ordering.
+// NoteOff runs first so a note ending exactly on a boundary releases before any
+// same-sample retrigger. Param changes land before NoteOn so fresh note attacks
+// see the latest parameter targets for that sample.
+const SCHEDULER_EVENT_SORT_PRIORITY: Record<SchedulerEventType, SchedulerEventSortPriority> = {
+  NoteOff: SchedulerEventSortPriority.NoteOff,
+  ParamChange: SchedulerEventSortPriority.ParamChange,
+  NoteOn: SchedulerEventSortPriority.NoteOn
+};
 
 const stableNoteEventIds = new Map<string, NoteEventCache>();
 
@@ -108,14 +124,9 @@ export const collectEventsInWindow = (project: Project, window: SchedulerWindow,
     if (a.sampleTime !== b.sampleTime) {
       return a.sampleTime - b.sampleTime;
     }
-    if (a.type === b.type) {
-      return a.id.localeCompare(b.id);
-    }
-    if (a.type === "NoteOff") {
-      return -1;
-    }
-    if (b.type === "NoteOff") {
-      return 1;
+    const priorityDelta = SCHEDULER_EVENT_SORT_PRIORITY[a.type] - SCHEDULER_EVENT_SORT_PRIORITY[b.type];
+    if (priorityDelta !== 0) {
+      return priorityDelta;
     }
     return a.id.localeCompare(b.id);
   });
