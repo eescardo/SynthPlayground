@@ -55,7 +55,7 @@ function usePitchPickerHotkeys(enabled: boolean, onSelectPitch: (pitch: string) 
 }
 
 export default function HomePage() {
-  const [projectHistory, setProjectHistory] = useState<HistoryState<Project>>(() => createHistory(createDefaultProject()));
+  const [projectHistory, setProjectHistory] = useState<HistoryState<Project>>(() => createHistory(createEmptyProject()));
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [playheadBeat, setPlayheadBeat] = useState(0);
@@ -83,20 +83,40 @@ export default function HomePage() {
   const project = projectHistory.current;
 
   useEffect(() => {
+    let cancelled = false;
+
     const boot = async () => {
-      const saved = await loadProject();
-      const loadedProject = saved ? normalizeProject(saved) : createDefaultProject();
-      if (saved) {
-        saveProject(loadedProject).catch(() => {
-          // ignore migration save failures
-        });
+      try {
+        const saved = await loadProject();
+        const loadedProject = saved ? normalizeProject(saved) : createDefaultProject();
+        if (cancelled) {
+          return;
+        }
+        if (saved) {
+          saveProject(loadedProject).catch(() => {
+            // ignore migration save failures
+          });
+        }
+        setProjectHistory(createHistory(loadedProject));
+        setSelectedTrackId(loadedProject.tracks[0]?.id);
+        setReady(true);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        const fallbackProject = createDefaultProject();
+        setProjectHistory(createHistory(fallbackProject));
+        setSelectedTrackId(fallbackProject.tracks[0]?.id);
+        setRuntimeError(`Failed to load the saved project. Loaded the default project instead. ${(error as Error).message}`);
+        setReady(true);
       }
-      setProjectHistory(createHistory(loadedProject));
-      setSelectedTrackId(loadedProject.tracks[0]?.id);
-      setReady(true);
     };
 
-    boot();
+    void boot();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
