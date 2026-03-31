@@ -1,0 +1,3793 @@
+{
+  "id": "project_default",
+  "name": "New Synth Playground Project",
+  "global": {
+    "sampleRate": 48000,
+    "tempo": 122,
+    "meter": "4/4",
+    "gridBeats": 0.25,
+    "loop": [
+      {
+        "id": "loop_marker_mncr9mi2_vac301",
+        "kind": "start",
+        "beat": 16
+      },
+      {
+        "id": "loop_marker_mndeopp4_s0w7uu",
+        "kind": "end",
+        "beat": 24,
+        "repeatCount": 16
+      }
+    ]
+  },
+  "tracks": [
+    {
+      "id": "track_mnckyv2s_grj054",
+      "name": "Pop Cutoff Base",
+      "instrumentPatchId": "preset_bass",
+      "notes": [
+        {
+          "id": "note_mnclrpd3_r0u31o",
+          "pitchStr": "D3",
+          "startBeat": 0,
+          "durationBeats": 0.25,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnclrpk1_mw6z6l",
+          "pitchStr": "D3",
+          "startBeat": 0.5,
+          "durationBeats": 0.25,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnclrprn_vtappp",
+          "pitchStr": "D3",
+          "startBeat": 1,
+          "durationBeats": 0.25,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnclrpz1_s055bp",
+          "pitchStr": "D3",
+          "startBeat": 1.5,
+          "durationBeats": 0.25,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnclrq2z_1gk2oo",
+          "pitchStr": "D#3",
+          "startBeat": 1.75,
+          "durationBeats": 0.75,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnclrqg2_yzfzz6",
+          "pitchStr": "E3",
+          "startBeat": 2.5,
+          "durationBeats": 0.5,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnclrqsg_ledyjl",
+          "pitchStr": "F3",
+          "startBeat": 3.25,
+          "durationBeats": 0.5,
+          "velocity": 0.9
+        }
+      ],
+      "macroValues": {
+        "macro_decay": 0.11,
+        "macro_cutoff": 0.275
+      },
+      "macroPanelExpanded": true,
+      "volume": 1,
+      "mute": false,
+      "solo": false,
+      "fx": {
+        "delayEnabled": false,
+        "reverbEnabled": false,
+        "saturationEnabled": false,
+        "compressorEnabled": false,
+        "delayMix": 0.2,
+        "reverbMix": 0.2,
+        "drive": 0.2,
+        "compression": 0.4
+      }
+    },
+    {
+      "id": "track_mncp1chs_nv4sfl",
+      "name": "Pop Cutoff 2",
+      "instrumentPatchId": "preset_bass",
+      "notes": [
+        {
+          "id": "note_mncp31lu_ja1wi6",
+          "pitchStr": "D3",
+          "startBeat": 4,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncp37pa_d9enj4",
+          "pitchStr": "D3",
+          "startBeat": 4.5,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncp3f4b_bgmlaz",
+          "pitchStr": "D3",
+          "startBeat": 5,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncp3l5a_dkmje7",
+          "pitchStr": "D3",
+          "startBeat": 5.5,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncp3v4n_j87drq",
+          "pitchStr": "D#3",
+          "startBeat": 5.75,
+          "durationBeats": 0.75,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncp4inl_d9gtoo",
+          "pitchStr": "E3",
+          "startBeat": 6.5,
+          "durationBeats": 0.5,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncp4qpg_d0mo44",
+          "pitchStr": "F3",
+          "startBeat": 7.25,
+          "durationBeats": 0.5,
+          "velocity": 0.85
+        }
+      ],
+      "macroValues": {
+        "macro_decay": 0.137,
+        "macro_cutoff": 0.383
+      },
+      "macroPanelExpanded": true,
+      "volume": 1,
+      "mute": false,
+      "solo": false,
+      "fx": {
+        "delayEnabled": false,
+        "reverbEnabled": false,
+        "saturationEnabled": false,
+        "compressorEnabled": false,
+        "delayMix": 0.2,
+        "reverbMix": 0.2,
+        "drive": 0.2,
+        "compression": 0.4
+      }
+    },
+    {
+      "id": "track_mncp1coe_qzupef",
+      "name": "Pop Cutoff 3",
+      "instrumentPatchId": "preset_bass",
+      "notes": [
+        {
+          "id": "note_mncp4xan_24k74i",
+          "pitchStr": "D3",
+          "startBeat": 8,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncp4xz0_4dcnbk",
+          "pitchStr": "D3",
+          "startBeat": 8.5,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncp505p_6y9f19",
+          "pitchStr": "D3",
+          "startBeat": 9,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncp51lj_2wzkvn",
+          "pitchStr": "D3",
+          "startBeat": 9.5,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncp5j2k_cvtjhs",
+          "pitchStr": "D#3",
+          "startBeat": 9.75,
+          "durationBeats": 0.75,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncp52ak_n0eqcx",
+          "pitchStr": "E3",
+          "startBeat": 10.5,
+          "durationBeats": 0.5,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncp52ta_ravpuf",
+          "pitchStr": "F3",
+          "startBeat": 11.25,
+          "durationBeats": 0.5,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncpcah0_5awh2g",
+          "pitchStr": "E3",
+          "startBeat": 14.5,
+          "durationBeats": 0.5,
+          "velocity": 0.85
+        }
+      ],
+      "macroValues": {
+        "macro_decay": 0.181,
+        "macro_cutoff": 0.524
+      },
+      "macroPanelExpanded": true,
+      "volume": 1,
+      "mute": false,
+      "solo": false,
+      "fx": {
+        "delayEnabled": false,
+        "reverbEnabled": false,
+        "saturationEnabled": false,
+        "compressorEnabled": false,
+        "delayMix": 0.2,
+        "reverbMix": 0.2,
+        "drive": 0.2,
+        "compression": 0.4
+      }
+    },
+    {
+      "id": "track_mncp1d0f_c5elm8",
+      "name": "Pop Cutoff 4",
+      "instrumentPatchId": "preset_bass",
+      "notes": [
+        {
+          "id": "note_mncpaeft_ifj77a",
+          "pitchStr": "D3",
+          "startBeat": 12,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncpaf76_5uymcy",
+          "pitchStr": "D3",
+          "startBeat": 12.5,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncpafv7_xs6fsr",
+          "pitchStr": "D3",
+          "startBeat": 13,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncpag9s_vwigm6",
+          "pitchStr": "D3",
+          "startBeat": 13.5,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncpapna_i7c2h8",
+          "pitchStr": "D#3",
+          "startBeat": 13.75,
+          "durationBeats": 0.75,
+          "velocity": 0.85
+        }
+      ],
+      "macroValues": {
+        "macro_decay": 0.29,
+        "macro_cutoff": 0.761
+      },
+      "macroPanelExpanded": true,
+      "volume": 1,
+      "mute": false,
+      "solo": false,
+      "fx": {
+        "delayEnabled": false,
+        "reverbEnabled": false,
+        "saturationEnabled": false,
+        "compressorEnabled": false,
+        "delayMix": 0.2,
+        "reverbMix": 0.2,
+        "drive": 0.2,
+        "compression": 0.4
+      }
+    },
+    {
+      "id": "track_mncp1dau_p7cvax",
+      "name": "Track 5",
+      "instrumentPatchId": "preset_bass",
+      "notes": [
+        {
+          "id": "note_mncpbpwy_aj1ttv",
+          "pitchStr": "F3",
+          "startBeat": 15.25,
+          "durationBeats": 0.5,
+          "velocity": 0.85
+        }
+      ],
+      "macroValues": {
+        "macro_cutoff": 0.995,
+        "macro_decay": 0.795
+      },
+      "macroPanelExpanded": true,
+      "volume": 1,
+      "mute": false,
+      "solo": false,
+      "fx": {
+        "delayEnabled": false,
+        "reverbEnabled": false,
+        "saturationEnabled": false,
+        "compressorEnabled": false,
+        "delayMix": 0.2,
+        "reverbMix": 0.2,
+        "drive": 0.2,
+        "compression": 0.4
+      }
+    },
+    {
+      "id": "track_mncpf9ak_joaofr",
+      "name": "Pop Cutoff Base Low",
+      "instrumentPatchId": "preset_bass",
+      "notes": [
+        {
+          "id": "note_mncpgb5e_dbwmy5",
+          "pitchStr": "D3",
+          "startBeat": 16,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncpgca2_r0w8iq",
+          "pitchStr": "D3",
+          "startBeat": 16.5,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncpgd0l_frfw17",
+          "pitchStr": "D3",
+          "startBeat": 17,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncpgdo0_fsdjre",
+          "pitchStr": "D3",
+          "startBeat": 17.5,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncpggdm_qxbtue",
+          "pitchStr": "D#3",
+          "startBeat": 17.75,
+          "durationBeats": 0.75,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncph68o_f0h97m",
+          "pitchStr": "E3",
+          "startBeat": 18.5,
+          "durationBeats": 0.5,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncphfbj_n4vpoa",
+          "pitchStr": "F3",
+          "startBeat": 19.25,
+          "durationBeats": 0.5,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncpiosi_gbk29k",
+          "pitchStr": "D3",
+          "startBeat": 20,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncpipif_ikugnt",
+          "pitchStr": "D3",
+          "startBeat": 20.5,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncpiq23_m9tbpu",
+          "pitchStr": "D3",
+          "startBeat": 21,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncpiqkc_bvgvse",
+          "pitchStr": "D3",
+          "startBeat": 21.5,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncpiqzh_m7zmy6",
+          "pitchStr": "D#3",
+          "startBeat": 21.75,
+          "durationBeats": 0.75,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncpje3h_u4qhh1",
+          "pitchStr": "E3",
+          "startBeat": 22.5,
+          "durationBeats": 0.5,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncpjhuj_xvi95o",
+          "pitchStr": "F3",
+          "startBeat": 23.25,
+          "durationBeats": 0.5,
+          "velocity": 0.85
+        }
+      ],
+      "macroValues": {
+        "macro_cutoff": 0.273,
+        "macro_decay": 0.121
+      },
+      "macroPanelExpanded": true,
+      "volume": 0.6904296875,
+      "mute": false,
+      "solo": false,
+      "fx": {
+        "delayEnabled": false,
+        "reverbEnabled": false,
+        "saturationEnabled": false,
+        "compressorEnabled": false,
+        "delayMix": 0.2,
+        "reverbMix": 0.2,
+        "drive": 0.2,
+        "compression": 0.4
+      }
+    },
+    {
+      "id": "track_mncpkwsj_qocq9k",
+      "name": "Bass Drum",
+      "instrumentPatchId": "preset_bassdrum",
+      "notes": [
+        {
+          "id": "note_mncpl8zp_kjd0fb",
+          "pitchStr": "C4",
+          "startBeat": 16,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncr9o76_vlducf",
+          "pitchStr": "C4",
+          "startBeat": 16.25,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncra737_gu6w1u",
+          "pitchStr": "C4",
+          "startBeat": 16.75,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncraywn_4vruey",
+          "pitchStr": "C4",
+          "startBeat": 18,
+          "durationBeats": 0.5,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncrb1bo_h8uqp6",
+          "pitchStr": "C4",
+          "startBeat": 18.75,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncrb9cc_jgo7qt",
+          "pitchStr": "C4",
+          "startBeat": 20,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncrbcnn_s2b23b",
+          "pitchStr": "C4",
+          "startBeat": 20.25,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncrbfr7_nhdpvp",
+          "pitchStr": "C4",
+          "startBeat": 20.75,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncrbjfg_udkvie",
+          "pitchStr": "C4",
+          "startBeat": 22,
+          "durationBeats": 0.5,
+          "velocity": 0.85
+        }
+      ],
+      "macroValues": {
+        "macro_body": 0.429,
+        "macro_drive": 0.388,
+        "macro_click": 0.089
+      },
+      "macroPanelExpanded": true,
+      "volume": 0.6885416666666666,
+      "mute": false,
+      "solo": false,
+      "fx": {
+        "delayEnabled": false,
+        "reverbEnabled": false,
+        "saturationEnabled": false,
+        "compressorEnabled": false,
+        "delayMix": 0.2,
+        "reverbMix": 0.2,
+        "drive": 0.2,
+        "compression": 0.4
+      }
+    },
+    {
+      "id": "track_mncrckn4_r2ng2l",
+      "name": "Snare",
+      "instrumentPatchId": "preset_drumish",
+      "notes": [
+        {
+          "id": "note_mncre0is_grq28u",
+          "pitchStr": "C5",
+          "startBeat": 17.25,
+          "durationBeats": 0.5,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncreu5b_ux4hs3",
+          "pitchStr": "C5",
+          "startBeat": 19.25,
+          "durationBeats": 0.5,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncrewj9_xiwzpq",
+          "pitchStr": "C5",
+          "startBeat": 21.25,
+          "durationBeats": 0.5,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncrhn2g_f4at7h",
+          "pitchStr": "C5",
+          "startBeat": 22.75,
+          "durationBeats": 0.25,
+          "velocity": 0.85
+        },
+        {
+          "id": "note_mncrf4m5_msm6ms",
+          "pitchStr": "C5",
+          "startBeat": 23.25,
+          "durationBeats": 0.5,
+          "velocity": 0.85
+        }
+      ],
+      "macroValues": {
+        "macro_rattle": 0.457,
+        "macro_rattle_level": 1,
+        "macro_shell": 0.117,
+        "macro_shell_level": 1
+      },
+      "macroPanelExpanded": true,
+      "volume": 0.9939453125,
+      "mute": false,
+      "solo": false,
+      "fx": {
+        "delayEnabled": false,
+        "reverbEnabled": false,
+        "saturationEnabled": false,
+        "compressorEnabled": false,
+        "delayMix": 0.2,
+        "reverbMix": 0.2,
+        "drive": 0.2,
+        "compression": 0.4
+      }
+    }
+  ],
+  "patches": [
+    {
+      "schemaVersion": 1,
+      "id": "preset_bass",
+      "name": "Bass",
+      "meta": {
+        "source": "preset",
+        "presetId": "preset_bass",
+        "presetVersion": 9
+      },
+      "nodes": [
+        {
+          "id": "cvscale1",
+          "typeId": "CVScaler",
+          "params": {
+            "scale": 0.32
+          }
+        },
+        {
+          "id": "cvtranspose1",
+          "typeId": "CVTranspose",
+          "params": {
+            "octaves": -1,
+            "semitones": 0,
+            "cents": 0
+          }
+        },
+        {
+          "id": "cvmix1",
+          "typeId": "CVMixer2",
+          "params": {
+            "gain1": 1,
+            "gain2": 1
+          }
+        },
+        {
+          "id": "vco1",
+          "typeId": "VCO",
+          "params": {
+            "wave": "saw",
+            "pulseWidth": 0.5,
+            "baseTuneCents": 0,
+            "fineTuneCents": -4,
+            "pwmAmount": 0
+          }
+        },
+        {
+          "id": "vco2",
+          "typeId": "VCO",
+          "params": {
+            "wave": "square",
+            "pulseWidth": 0.42,
+            "baseTuneCents": 0,
+            "fineTuneCents": 2,
+            "pwmAmount": 0
+          }
+        },
+        {
+          "id": "env1",
+          "typeId": "ADSR",
+          "params": {
+            "attack": 0.01,
+            "decay": 0.22,
+            "sustain": 0.52,
+            "release": 0.26,
+            "mode": "retrigger_from_current"
+          }
+        },
+        {
+          "id": "env2",
+          "typeId": "ADSR",
+          "params": {
+            "attack": 0.004,
+            "decay": 0.08,
+            "sustain": 0,
+            "release": 0.02,
+            "mode": "retrigger_from_current"
+          }
+        },
+        {
+          "id": "mix1",
+          "typeId": "Mixer4",
+          "params": {
+            "gain1": 0,
+            "gain2": 0.74,
+            "gain3": 1,
+            "gain4": 1
+          }
+        },
+        {
+          "id": "vca1",
+          "typeId": "VCA",
+          "params": {
+            "bias": 0,
+            "gain": 1
+          }
+        },
+        {
+          "id": "vcf1",
+          "typeId": "VCF",
+          "params": {
+            "type": "lowpass",
+            "cutoffHz": 320,
+            "resonance": 0.22,
+            "cutoffModAmountOct": 1.8
+          }
+        },
+        {
+          "id": "sat1",
+          "typeId": "Saturation",
+          "params": {
+            "driveDb": 5,
+            "mix": 0.22,
+            "type": "tanh"
+          }
+        },
+        {
+          "id": "out1",
+          "typeId": "Output",
+          "params": {
+            "gainDb": -6,
+            "limiter": true
+          }
+        }
+      ],
+      "connections": [
+        {
+          "id": "c1",
+          "from": {
+            "nodeId": "$host.pitch",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vco1",
+            "portId": "pitch"
+          }
+        },
+        {
+          "id": "c2",
+          "from": {
+            "nodeId": "$host.pitch",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "cvtranspose1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c3",
+          "from": {
+            "nodeId": "cvtranspose1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vco2",
+            "portId": "pitch"
+          }
+        },
+        {
+          "id": "c4",
+          "from": {
+            "nodeId": "$host.pitch",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "cvscale1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c5",
+          "from": {
+            "nodeId": "$host.gate",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "env1",
+            "portId": "gate"
+          }
+        },
+        {
+          "id": "c5a",
+          "from": {
+            "nodeId": "$host.gate",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "env2",
+            "portId": "gate"
+          }
+        },
+        {
+          "id": "c6",
+          "from": {
+            "nodeId": "vco1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "mix1",
+            "portId": "in1"
+          }
+        },
+        {
+          "id": "c7",
+          "from": {
+            "nodeId": "vco2",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "mix1",
+            "portId": "in2"
+          }
+        },
+        {
+          "id": "c8",
+          "from": {
+            "nodeId": "mix1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vcf1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c9",
+          "from": {
+            "nodeId": "cvscale1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "cvmix1",
+            "portId": "in1"
+          }
+        },
+        {
+          "id": "c9a",
+          "from": {
+            "nodeId": "env2",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "cvmix1",
+            "portId": "in2"
+          }
+        },
+        {
+          "id": "c9b",
+          "from": {
+            "nodeId": "cvmix1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vcf1",
+            "portId": "cutoffCV"
+          }
+        },
+        {
+          "id": "c10",
+          "from": {
+            "nodeId": "env1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vca1",
+            "portId": "gainCV"
+          }
+        },
+        {
+          "id": "c11",
+          "from": {
+            "nodeId": "vcf1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vca1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c12",
+          "from": {
+            "nodeId": "vca1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "sat1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c13",
+          "from": {
+            "nodeId": "sat1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "out1",
+            "portId": "in"
+          }
+        }
+      ],
+      "ui": {
+        "macros": [
+          {
+            "id": "macro_cutoff",
+            "name": "Cutoff",
+            "defaultNormalized": 0.28,
+            "bindings": [
+              {
+                "id": "b1",
+                "nodeId": "vcf1",
+                "paramId": "cutoffHz",
+                "map": "exp",
+                "min": 120,
+                "max": 4200
+              }
+            ]
+          },
+          {
+            "id": "macro_decay",
+            "name": "Pop/Slap",
+            "defaultNormalized": 0.5,
+            "bindings": [
+              {
+                "id": "b2",
+                "nodeId": "env1",
+                "paramId": "attack",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.0032
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.0075
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.0035
+                  }
+                ]
+              },
+              {
+                "id": "b3",
+                "nodeId": "env1",
+                "paramId": "decay",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.0035
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.14
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.032
+                  }
+                ]
+              },
+              {
+                "id": "b4",
+                "nodeId": "env1",
+                "paramId": "sustain",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.48
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.72
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.32
+                  }
+                ]
+              },
+              {
+                "id": "b5",
+                "nodeId": "env1",
+                "paramId": "release",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.003
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.028
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.012
+                  }
+                ]
+              },
+              {
+                "id": "b6",
+                "nodeId": "mix1",
+                "paramId": "gain1",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.5
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.66
+                  }
+                ]
+              },
+              {
+                "id": "b7",
+                "nodeId": "mix1",
+                "paramId": "gain2",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.66
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.92
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.34
+                  }
+                ]
+              },
+              {
+                "id": "b8",
+                "nodeId": "env2",
+                "paramId": "attack",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.002
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.004
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.0025
+                  }
+                ]
+              },
+              {
+                "id": "b9",
+                "nodeId": "env2",
+                "paramId": "decay",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.02
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.11
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.24
+                  }
+                ]
+              },
+              {
+                "id": "b10",
+                "nodeId": "cvmix1",
+                "paramId": "gain2",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.18
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.52
+                  },
+                  {
+                    "x": 1,
+                    "y": 1.15
+                  }
+                ]
+              },
+              {
+                "id": "b11",
+                "nodeId": "vcf1",
+                "paramId": "cutoffModAmountOct",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.38
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 1.9
+                  },
+                  {
+                    "x": 1,
+                    "y": 3.4
+                  }
+                ]
+              },
+              {
+                "id": "b12",
+                "nodeId": "vcf1",
+                "paramId": "resonance",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.06
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.16
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.28
+                  }
+                ]
+              },
+              {
+                "id": "b13",
+                "nodeId": "sat1",
+                "paramId": "driveDb",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 2.5
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 2.2
+                  },
+                  {
+                    "x": 1,
+                    "y": 10.5
+                  }
+                ]
+              },
+              {
+                "id": "b14",
+                "nodeId": "sat1",
+                "paramId": "mix",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.12
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.06
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.34
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "layout": {
+        "nodes": [
+          {
+            "nodeId": "cvscale1",
+            "x": 1,
+            "y": 11
+          },
+          {
+            "nodeId": "cvtranspose1",
+            "x": 1,
+            "y": 5
+          },
+          {
+            "nodeId": "cvmix1",
+            "x": 18,
+            "y": 14
+          },
+          {
+            "nodeId": "vco1",
+            "x": 10,
+            "y": 1
+          },
+          {
+            "nodeId": "vco2",
+            "x": 10,
+            "y": 6
+          },
+          {
+            "nodeId": "env1",
+            "x": 29,
+            "y": 11
+          },
+          {
+            "nodeId": "env2",
+            "x": 1,
+            "y": 16
+          },
+          {
+            "nodeId": "mix1",
+            "x": 19,
+            "y": 3
+          },
+          {
+            "nodeId": "vcf1",
+            "x": 29,
+            "y": 3
+          },
+          {
+            "nodeId": "vca1",
+            "x": 38,
+            "y": 3
+          },
+          {
+            "nodeId": "sat1",
+            "x": 46,
+            "y": 3
+          },
+          {
+            "nodeId": "out1",
+            "x": 54,
+            "y": 3
+          }
+        ]
+      },
+      "io": {
+        "audioOutNodeId": "out1",
+        "audioOutPortId": "in"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "id": "preset_brass",
+      "name": "Brass-ish",
+      "meta": {
+        "source": "preset",
+        "presetId": "preset_brass",
+        "presetVersion": 1
+      },
+      "nodes": [
+        {
+          "id": "vco1",
+          "typeId": "VCO",
+          "params": {
+            "wave": "square",
+            "pulseWidth": 0.35,
+            "baseTuneCents": 0,
+            "fineTuneCents": 0,
+            "pwmAmount": 0
+          }
+        },
+        {
+          "id": "lfo1",
+          "typeId": "LFO",
+          "params": {
+            "wave": "sine",
+            "freqHz": 5,
+            "pulseWidth": 0.5,
+            "bipolar": true
+          }
+        },
+        {
+          "id": "env1",
+          "typeId": "ADSR",
+          "params": {
+            "attack": 0.06,
+            "decay": 0.2,
+            "sustain": 0.7,
+            "release": 0.4,
+            "mode": "retrigger_from_current"
+          }
+        },
+        {
+          "id": "vcf1",
+          "typeId": "VCF",
+          "params": {
+            "type": "lowpass",
+            "cutoffHz": 900,
+            "resonance": 0.2,
+            "cutoffModAmountOct": 1
+          }
+        },
+        {
+          "id": "vca1",
+          "typeId": "VCA",
+          "params": {
+            "bias": 0,
+            "gain": 1
+          }
+        },
+        {
+          "id": "out1",
+          "typeId": "Output",
+          "params": {
+            "gainDb": -6,
+            "limiter": true
+          }
+        }
+      ],
+      "connections": [
+        {
+          "id": "c1",
+          "from": {
+            "nodeId": "$host.pitch",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vco1",
+            "portId": "pitch"
+          }
+        },
+        {
+          "id": "c2",
+          "from": {
+            "nodeId": "$host.gate",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "env1",
+            "portId": "gate"
+          }
+        },
+        {
+          "id": "c3",
+          "from": {
+            "nodeId": "lfo1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vco1",
+            "portId": "fm"
+          }
+        },
+        {
+          "id": "c4",
+          "from": {
+            "nodeId": "vco1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vcf1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c5",
+          "from": {
+            "nodeId": "env1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vcf1",
+            "portId": "cutoffCV"
+          }
+        },
+        {
+          "id": "c6",
+          "from": {
+            "nodeId": "vcf1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vca1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c7",
+          "from": {
+            "nodeId": "env1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vca1",
+            "portId": "gainCV"
+          }
+        },
+        {
+          "id": "c8",
+          "from": {
+            "nodeId": "vca1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "out1",
+            "portId": "in"
+          }
+        }
+      ],
+      "ui": {
+        "macros": [
+          {
+            "id": "macro_bite",
+            "name": "Bite",
+            "defaultNormalized": 0.18,
+            "bindings": [
+              {
+                "id": "b1",
+                "nodeId": "vcf1",
+                "paramId": "resonance",
+                "map": "linear",
+                "min": 0.05,
+                "max": 0.9
+              }
+            ]
+          }
+        ]
+      },
+      "layout": {
+        "nodes": [
+          {
+            "nodeId": "vco1",
+            "x": 2,
+            "y": 4
+          },
+          {
+            "nodeId": "lfo1",
+            "x": 2,
+            "y": 9
+          },
+          {
+            "nodeId": "env1",
+            "x": 7,
+            "y": 9
+          },
+          {
+            "nodeId": "vcf1",
+            "x": 7,
+            "y": 4
+          },
+          {
+            "nodeId": "vca1",
+            "x": 12,
+            "y": 4
+          },
+          {
+            "nodeId": "out1",
+            "x": 16,
+            "y": 4
+          }
+        ]
+      },
+      "io": {
+        "audioOutNodeId": "out1",
+        "audioOutPortId": "in"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "id": "preset_keys",
+      "name": "Simple Piano-ish",
+      "meta": {
+        "source": "preset",
+        "presetId": "preset_keys",
+        "presetVersion": 1
+      },
+      "nodes": [
+        {
+          "id": "vco1",
+          "typeId": "VCO",
+          "params": {
+            "wave": "triangle",
+            "pulseWidth": 0.5,
+            "baseTuneCents": 0,
+            "fineTuneCents": 0,
+            "pwmAmount": 0
+          }
+        },
+        {
+          "id": "env1",
+          "typeId": "ADSR",
+          "params": {
+            "attack": 0.001,
+            "decay": 0.25,
+            "sustain": 0.1,
+            "release": 0.3,
+            "mode": "retrigger_from_current"
+          }
+        },
+        {
+          "id": "vca1",
+          "typeId": "VCA",
+          "params": {
+            "bias": 0,
+            "gain": 1
+          }
+        },
+        {
+          "id": "sat1",
+          "typeId": "Saturation",
+          "params": {
+            "driveDb": 6,
+            "mix": 0.25,
+            "type": "tanh"
+          }
+        },
+        {
+          "id": "out1",
+          "typeId": "Output",
+          "params": {
+            "gainDb": -6,
+            "limiter": true
+          }
+        }
+      ],
+      "connections": [
+        {
+          "id": "c1",
+          "from": {
+            "nodeId": "$host.pitch",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vco1",
+            "portId": "pitch"
+          }
+        },
+        {
+          "id": "c2",
+          "from": {
+            "nodeId": "$host.gate",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "env1",
+            "portId": "gate"
+          }
+        },
+        {
+          "id": "c3",
+          "from": {
+            "nodeId": "vco1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vca1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c4",
+          "from": {
+            "nodeId": "env1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vca1",
+            "portId": "gainCV"
+          }
+        },
+        {
+          "id": "c5",
+          "from": {
+            "nodeId": "vca1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "sat1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c6",
+          "from": {
+            "nodeId": "sat1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "out1",
+            "portId": "in"
+          }
+        }
+      ],
+      "ui": {
+        "macros": [
+          {
+            "id": "macro_brightness",
+            "name": "Brightness",
+            "defaultNormalized": 0.33,
+            "bindings": [
+              {
+                "id": "b1",
+                "nodeId": "sat1",
+                "paramId": "driveDb",
+                "map": "linear",
+                "min": 0,
+                "max": 18
+              }
+            ]
+          }
+        ]
+      },
+      "layout": {
+        "nodes": [
+          {
+            "nodeId": "vco1",
+            "x": 2,
+            "y": 4
+          },
+          {
+            "nodeId": "env1",
+            "x": 2,
+            "y": 9
+          },
+          {
+            "nodeId": "vca1",
+            "x": 8,
+            "y": 4
+          },
+          {
+            "nodeId": "sat1",
+            "x": 12,
+            "y": 4
+          },
+          {
+            "nodeId": "out1",
+            "x": 16,
+            "y": 4
+          }
+        ]
+      },
+      "io": {
+        "audioOutNodeId": "out1",
+        "audioOutPortId": "in"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "id": "preset_pad",
+      "name": "Pad",
+      "meta": {
+        "source": "preset",
+        "presetId": "preset_pad",
+        "presetVersion": 4
+      },
+      "nodes": [
+        {
+          "id": "vco1",
+          "typeId": "VCO",
+          "params": {
+            "wave": "saw",
+            "pulseWidth": 0.5,
+            "baseTuneCents": 0,
+            "fineTuneCents": -7,
+            "pwmAmount": 0
+          }
+        },
+        {
+          "id": "vco2",
+          "typeId": "VCO",
+          "params": {
+            "wave": "square",
+            "pulseWidth": 0.42,
+            "baseTuneCents": 0,
+            "fineTuneCents": 7,
+            "pwmAmount": 0.18
+          }
+        },
+        {
+          "id": "lfo1",
+          "typeId": "LFO",
+          "params": {
+            "wave": "triangle",
+            "freqHz": 0.18,
+            "pulseWidth": 0.5,
+            "bipolar": true
+          }
+        },
+        {
+          "id": "mix1",
+          "typeId": "Mixer4",
+          "params": {
+            "gain1": 0.46,
+            "gain2": 0.4,
+            "gain3": 1,
+            "gain4": 1
+          }
+        },
+        {
+          "id": "env1",
+          "typeId": "ADSR",
+          "params": {
+            "attack": 1.1,
+            "decay": 0.9,
+            "sustain": 0.78,
+            "release": 1.2,
+            "mode": "retrigger_from_current"
+          }
+        },
+        {
+          "id": "vcf1",
+          "typeId": "VCF",
+          "params": {
+            "type": "lowpass",
+            "cutoffHz": 1450,
+            "resonance": 0.16,
+            "cutoffModAmountOct": 1.6
+          }
+        },
+        {
+          "id": "vca1",
+          "typeId": "VCA",
+          "params": {
+            "bias": 0,
+            "gain": 1
+          }
+        },
+        {
+          "id": "out1",
+          "typeId": "Output",
+          "params": {
+            "gainDb": -6,
+            "limiter": true
+          }
+        }
+      ],
+      "connections": [
+        {
+          "id": "c1",
+          "from": {
+            "nodeId": "$host.pitch",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vco1",
+            "portId": "pitch"
+          }
+        },
+        {
+          "id": "c2",
+          "from": {
+            "nodeId": "$host.pitch",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vco2",
+            "portId": "pitch"
+          }
+        },
+        {
+          "id": "c3",
+          "from": {
+            "nodeId": "$host.gate",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "env1",
+            "portId": "gate"
+          }
+        },
+        {
+          "id": "c4",
+          "from": {
+            "nodeId": "lfo1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vco2",
+            "portId": "pwm"
+          }
+        },
+        {
+          "id": "c5",
+          "from": {
+            "nodeId": "vco1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "mix1",
+            "portId": "in1"
+          }
+        },
+        {
+          "id": "c6",
+          "from": {
+            "nodeId": "vco2",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "mix1",
+            "portId": "in2"
+          }
+        },
+        {
+          "id": "c7",
+          "from": {
+            "nodeId": "lfo1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vcf1",
+            "portId": "cutoffCV"
+          }
+        },
+        {
+          "id": "c8",
+          "from": {
+            "nodeId": "mix1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vcf1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c9",
+          "from": {
+            "nodeId": "vcf1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vca1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c10",
+          "from": {
+            "nodeId": "env1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vca1",
+            "portId": "gainCV"
+          }
+        },
+        {
+          "id": "c11",
+          "from": {
+            "nodeId": "vca1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "out1",
+            "portId": "in"
+          }
+        }
+      ],
+      "ui": {
+        "macros": [
+          {
+            "id": "macro_attack",
+            "name": "Attack",
+            "defaultNormalized": 0.34,
+            "bindings": [
+              {
+                "id": "b1",
+                "nodeId": "env1",
+                "paramId": "attack",
+                "map": "linear",
+                "min": 0.05,
+                "max": 3.2
+              }
+            ]
+          },
+          {
+            "id": "macro_release",
+            "name": "Release",
+            "defaultNormalized": 0.32,
+            "bindings": [
+              {
+                "id": "b6",
+                "nodeId": "env1",
+                "paramId": "release",
+                "map": "linear",
+                "min": 0.15,
+                "max": 2.4
+              }
+            ]
+          },
+          {
+            "id": "macro_motion",
+            "name": "Motion",
+            "defaultNormalized": 0.46,
+            "bindings": [
+              {
+                "id": "b2",
+                "nodeId": "lfo1",
+                "paramId": "freqHz",
+                "map": "exp",
+                "min": 0.04,
+                "max": 4.5
+              },
+              {
+                "id": "b3",
+                "nodeId": "vco2",
+                "paramId": "pwmAmount",
+                "map": "linear",
+                "min": 0.03,
+                "max": 0.42
+              },
+              {
+                "id": "b4",
+                "nodeId": "vcf1",
+                "paramId": "cutoffModAmountOct",
+                "map": "linear",
+                "min": 0.4,
+                "max": 2.5
+              },
+              {
+                "id": "b5",
+                "nodeId": "vcf1",
+                "paramId": "cutoffHz",
+                "map": "exp",
+                "min": 700,
+                "max": 3600
+              }
+            ]
+          }
+        ]
+      },
+      "layout": {
+        "nodes": [
+          {
+            "nodeId": "vco1",
+            "x": 2,
+            "y": 2
+          },
+          {
+            "nodeId": "vco2",
+            "x": 2,
+            "y": 6
+          },
+          {
+            "nodeId": "lfo1",
+            "x": 2,
+            "y": 10
+          },
+          {
+            "nodeId": "mix1",
+            "x": 7,
+            "y": 4
+          },
+          {
+            "nodeId": "env1",
+            "x": 7,
+            "y": 10
+          },
+          {
+            "nodeId": "vcf1",
+            "x": 11,
+            "y": 4
+          },
+          {
+            "nodeId": "vca1",
+            "x": 15,
+            "y": 4
+          },
+          {
+            "nodeId": "out1",
+            "x": 19,
+            "y": 4
+          }
+        ]
+      },
+      "io": {
+        "audioOutNodeId": "out1",
+        "audioOutPortId": "in"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "id": "preset_pluck",
+      "name": "Pluck",
+      "meta": {
+        "source": "preset",
+        "presetId": "preset_pluck",
+        "presetVersion": 24
+      },
+      "nodes": [
+        {
+          "id": "karplus1",
+          "typeId": "KarplusStrong",
+          "params": {
+            "decay": 0.996,
+            "damping": 0.42,
+            "brightness": 0.46,
+            "excitation": "noise"
+          }
+        },
+        {
+          "id": "cvtranspose1",
+          "typeId": "CVTranspose",
+          "params": {
+            "octaves": -1,
+            "semitones": 0,
+            "cents": 3
+          }
+        },
+        {
+          "id": "karplus2",
+          "typeId": "KarplusStrong",
+          "params": {
+            "decay": 0.997,
+            "damping": 0.62,
+            "brightness": 0.18,
+            "excitation": "noise"
+          }
+        },
+        {
+          "id": "karplus3",
+          "typeId": "KarplusStrong",
+          "params": {
+            "decay": 0.9983,
+            "damping": 0.74,
+            "brightness": 0.08,
+            "excitation": "noise"
+          }
+        },
+        {
+          "id": "karplus4",
+          "typeId": "KarplusStrong",
+          "params": {
+            "decay": 0.9976,
+            "damping": 0.66,
+            "brightness": 0.16,
+            "excitation": "noise"
+          }
+        },
+        {
+          "id": "env1",
+          "typeId": "ADSR",
+          "params": {
+            "attack": 0,
+            "decay": 0.04,
+            "sustain": 1,
+            "release": 0.32,
+            "mode": "retrigger_from_current"
+          }
+        },
+        {
+          "id": "mix1",
+          "typeId": "Mixer4",
+          "params": {
+            "gain1": 0.98,
+            "gain2": 0.24,
+            "gain3": 0,
+            "gain4": 0
+          }
+        },
+        {
+          "id": "vcf1",
+          "typeId": "VCF",
+          "params": {
+            "type": "lowpass",
+            "cutoffHz": 980,
+            "resonance": 0.06,
+            "cutoffModAmountOct": 0.45
+          }
+        },
+        {
+          "id": "vca2",
+          "typeId": "VCA",
+          "params": {
+            "bias": 0,
+            "gain": 1
+          }
+        },
+        {
+          "id": "out1",
+          "typeId": "Output",
+          "params": {
+            "gainDb": -6,
+            "limiter": true
+          }
+        }
+      ],
+      "connections": [
+        {
+          "id": "c1",
+          "from": {
+            "nodeId": "$host.pitch",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "karplus1",
+            "portId": "pitch"
+          }
+        },
+        {
+          "id": "c1b",
+          "from": {
+            "nodeId": "$host.pitch",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "cvtranspose1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c1c",
+          "from": {
+            "nodeId": "cvtranspose1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "karplus2",
+            "portId": "pitch"
+          }
+        },
+        {
+          "id": "c1d",
+          "from": {
+            "nodeId": "$host.pitch",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "karplus3",
+            "portId": "pitch"
+          }
+        },
+        {
+          "id": "c1e",
+          "from": {
+            "nodeId": "$host.pitch",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "karplus4",
+            "portId": "pitch"
+          }
+        },
+        {
+          "id": "c2",
+          "from": {
+            "nodeId": "$host.gate",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "env1",
+            "portId": "gate"
+          }
+        },
+        {
+          "id": "c5a",
+          "from": {
+            "nodeId": "$host.gate",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "karplus1",
+            "portId": "gate"
+          }
+        },
+        {
+          "id": "c5b",
+          "from": {
+            "nodeId": "$host.gate",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "karplus2",
+            "portId": "gate"
+          }
+        },
+        {
+          "id": "c5c",
+          "from": {
+            "nodeId": "$host.gate",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "karplus3",
+            "portId": "gate"
+          }
+        },
+        {
+          "id": "c5d",
+          "from": {
+            "nodeId": "$host.gate",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "karplus4",
+            "portId": "gate"
+          }
+        },
+        {
+          "id": "c7",
+          "from": {
+            "nodeId": "karplus1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "mix1",
+            "portId": "in1"
+          }
+        },
+        {
+          "id": "c7b",
+          "from": {
+            "nodeId": "karplus2",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "mix1",
+            "portId": "in2"
+          }
+        },
+        {
+          "id": "c7c",
+          "from": {
+            "nodeId": "karplus3",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "mix1",
+            "portId": "in3"
+          }
+        },
+        {
+          "id": "c7d",
+          "from": {
+            "nodeId": "karplus4",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "mix1",
+            "portId": "in4"
+          }
+        },
+        {
+          "id": "c8",
+          "from": {
+            "nodeId": "mix1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vcf1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c9",
+          "from": {
+            "nodeId": "env1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vcf1",
+            "portId": "cutoffCV"
+          }
+        },
+        {
+          "id": "c10",
+          "from": {
+            "nodeId": "vcf1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vca2",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c11",
+          "from": {
+            "nodeId": "env1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vca2",
+            "portId": "gainCV"
+          }
+        },
+        {
+          "id": "c12",
+          "from": {
+            "nodeId": "vca2",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "out1",
+            "portId": "in"
+          }
+        }
+      ],
+      "ui": {
+        "macros": [
+          {
+            "id": "macro_tone",
+            "name": "Tightness",
+            "defaultNormalized": 0.58,
+            "bindings": [
+              {
+                "id": "b1",
+                "nodeId": "vcf1",
+                "paramId": "cutoffHz",
+                "map": "exp",
+                "min": 620,
+                "max": 2600
+              },
+              {
+                "id": "b1b",
+                "nodeId": "karplus1",
+                "paramId": "damping",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.62
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.492
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.2
+                  }
+                ]
+              },
+              {
+                "id": "b1ba",
+                "nodeId": "karplus2",
+                "paramId": "damping",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.68
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.6
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.34
+                  }
+                ]
+              },
+              {
+                "id": "b1bb",
+                "nodeId": "karplus3",
+                "paramId": "damping",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.76
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.744
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.5
+                  }
+                ]
+              },
+              {
+                "id": "b1bc",
+                "nodeId": "karplus4",
+                "paramId": "damping",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.74
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.692
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.42
+                  }
+                ]
+              },
+              {
+                "id": "b1c",
+                "nodeId": "vcf1",
+                "paramId": "cutoffModAmountOct",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.2
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.344
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.82
+                  }
+                ]
+              },
+              {
+                "id": "b1d",
+                "nodeId": "vca2",
+                "paramId": "gain",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 2.8
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 1.376
+                  },
+                  {
+                    "x": 1,
+                    "y": 1.14
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "macro_decay",
+            "name": "Decay",
+            "defaultNormalized": 0.62,
+            "bindings": [
+              {
+                "id": "b2",
+                "nodeId": "karplus1",
+                "paramId": "decay",
+                "map": "linear",
+                "min": 0.97,
+                "max": 0.9985
+              },
+              {
+                "id": "b2b",
+                "nodeId": "karplus2",
+                "paramId": "decay",
+                "map": "linear",
+                "min": 0.982,
+                "max": 0.9992
+              },
+              {
+                "id": "b2c",
+                "nodeId": "karplus3",
+                "paramId": "decay",
+                "map": "linear",
+                "min": 0.992,
+                "max": 0.9996
+              },
+              {
+                "id": "b2d",
+                "nodeId": "karplus4",
+                "paramId": "decay",
+                "map": "linear",
+                "min": 0.988,
+                "max": 0.9993
+              },
+              {
+                "id": "b3",
+                "nodeId": "env1",
+                "paramId": "release",
+                "map": "linear",
+                "min": 0.18,
+                "max": 0.72
+              }
+            ]
+          },
+          {
+            "id": "macro_material",
+            "name": "Material",
+            "defaultNormalized": 0.5,
+            "bindings": [
+              {
+                "id": "b6",
+                "nodeId": "karplus1",
+                "paramId": "brightness",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.22
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.772
+                  }
+                ]
+              },
+              {
+                "id": "b7",
+                "nodeId": "karplus2",
+                "paramId": "brightness",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.03
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.18
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.468
+                  }
+                ]
+              },
+              {
+                "id": "b7b",
+                "nodeId": "karplus3",
+                "paramId": "brightness",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.03
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.06
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.18
+                  }
+                ]
+              },
+              {
+                "id": "b7c",
+                "nodeId": "karplus4",
+                "paramId": "brightness",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.02
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.08
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.28
+                  }
+                ]
+              },
+              {
+                "id": "b8",
+                "nodeId": "vcf1",
+                "paramId": "resonance",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.305
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.05
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.122
+                  }
+                ]
+              },
+              {
+                "id": "b8b",
+                "nodeId": "mix1",
+                "paramId": "gain1",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 1.27
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.88
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.688
+                  }
+                ]
+              },
+              {
+                "id": "b8c",
+                "nodeId": "mix1",
+                "paramId": "gain2",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.22
+                  },
+                  {
+                    "x": 1,
+                    "y": 1
+                  }
+                ]
+              },
+              {
+                "id": "b8d",
+                "nodeId": "mix1",
+                "paramId": "gain3",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.08
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.8
+                  }
+                ]
+              },
+              {
+                "id": "b8e",
+                "nodeId": "mix1",
+                "paramId": "gain4",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.02
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.28
+                  }
+                ]
+              },
+              {
+                "id": "b9",
+                "nodeId": "env1",
+                "paramId": "decay",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.0025
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 0.04
+                  },
+                  {
+                    "x": 1,
+                    "y": 0.106
+                  }
+                ]
+              },
+              {
+                "id": "b10",
+                "nodeId": "env1",
+                "paramId": "sustain",
+                "map": "piecewise",
+                "min": 0,
+                "max": 1,
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 0.85
+                  },
+                  {
+                    "x": 0.5,
+                    "y": 1
+                  },
+                  {
+                    "x": 1,
+                    "y": 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "layout": {
+        "nodes": [
+          {
+            "nodeId": "karplus1",
+            "x": 2,
+            "y": 3
+          },
+          {
+            "nodeId": "cvtranspose1",
+            "x": 2,
+            "y": 8
+          },
+          {
+            "nodeId": "karplus2",
+            "x": 6,
+            "y": 8
+          },
+          {
+            "nodeId": "karplus3",
+            "x": 2,
+            "y": 18
+          },
+          {
+            "nodeId": "karplus4",
+            "x": 6,
+            "y": 18
+          },
+          {
+            "nodeId": "env1",
+            "x": 2,
+            "y": 13
+          },
+          {
+            "nodeId": "mix1",
+            "x": 7,
+            "y": 5
+          },
+          {
+            "nodeId": "vcf1",
+            "x": 11,
+            "y": 5
+          },
+          {
+            "nodeId": "vca2",
+            "x": 15,
+            "y": 5
+          },
+          {
+            "nodeId": "out1",
+            "x": 19,
+            "y": 5
+          }
+        ]
+      },
+      "io": {
+        "audioOutNodeId": "out1",
+        "audioOutPortId": "in"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "id": "preset_drumish",
+      "name": "Drum-ish",
+      "meta": {
+        "source": "preset",
+        "presetId": "preset_drumish",
+        "presetVersion": 8
+      },
+      "nodes": [
+        {
+          "id": "vco1",
+          "typeId": "VCO",
+          "params": {
+            "wave": "sine",
+            "pulseWidth": 0.5,
+            "baseTuneCents": -2200,
+            "fineTuneCents": -4,
+            "pwmAmount": 0
+          }
+        },
+        {
+          "id": "noise1",
+          "typeId": "Noise",
+          "params": {
+            "color": "white",
+            "gain": 1
+          }
+        },
+        {
+          "id": "env1",
+          "typeId": "ADSR",
+          "params": {
+            "attack": 0,
+            "decay": 0.06,
+            "sustain": 0,
+            "release": 0.04,
+            "mode": "retrigger_from_current"
+          }
+        },
+        {
+          "id": "env2",
+          "typeId": "ADSR",
+          "params": {
+            "attack": 0,
+            "decay": 0.06,
+            "sustain": 0,
+            "release": 0.04,
+            "mode": "retrigger_from_current"
+          }
+        },
+        {
+          "id": "vcf1",
+          "typeId": "VCF",
+          "params": {
+            "type": "bandpass",
+            "cutoffHz": 4200,
+            "resonance": 0.62,
+            "cutoffModAmountOct": 0.25
+          }
+        },
+        {
+          "id": "vca1",
+          "typeId": "VCA",
+          "params": {
+            "bias": 0,
+            "gain": 0.34
+          }
+        },
+        {
+          "id": "vca2",
+          "typeId": "VCA",
+          "params": {
+            "bias": 0,
+            "gain": 0.82
+          }
+        },
+        {
+          "id": "mix1",
+          "typeId": "Mixer4",
+          "params": {
+            "gain1": 0.62,
+            "gain2": 0.92,
+            "gain3": 1,
+            "gain4": 1
+          }
+        },
+        {
+          "id": "sat1",
+          "typeId": "Overdrive",
+          "params": {
+            "gainDb": 6,
+            "tone": 0.5,
+            "mix": 0.14,
+            "mode": "overdrive"
+          }
+        },
+        {
+          "id": "out1",
+          "typeId": "Output",
+          "params": {
+            "gainDb": -6,
+            "limiter": true
+          }
+        }
+      ],
+      "connections": [
+        {
+          "id": "c1",
+          "from": {
+            "nodeId": "$host.pitch",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vco1",
+            "portId": "pitch"
+          }
+        },
+        {
+          "id": "c2",
+          "from": {
+            "nodeId": "$host.gate",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "env1",
+            "portId": "gate"
+          }
+        },
+        {
+          "id": "c3",
+          "from": {
+            "nodeId": "$host.gate",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "env2",
+            "portId": "gate"
+          }
+        },
+        {
+          "id": "c4",
+          "from": {
+            "nodeId": "vco1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vca1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c5",
+          "from": {
+            "nodeId": "env1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vca1",
+            "portId": "gainCV"
+          }
+        },
+        {
+          "id": "c6",
+          "from": {
+            "nodeId": "noise1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vcf1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c7",
+          "from": {
+            "nodeId": "env2",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vcf1",
+            "portId": "cutoffCV"
+          }
+        },
+        {
+          "id": "c8",
+          "from": {
+            "nodeId": "vcf1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vca2",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c9",
+          "from": {
+            "nodeId": "env2",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vca2",
+            "portId": "gainCV"
+          }
+        },
+        {
+          "id": "c10",
+          "from": {
+            "nodeId": "vca1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "mix1",
+            "portId": "in1"
+          }
+        },
+        {
+          "id": "c11",
+          "from": {
+            "nodeId": "vca2",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "mix1",
+            "portId": "in2"
+          }
+        },
+        {
+          "id": "c12",
+          "from": {
+            "nodeId": "mix1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "sat1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c13",
+          "from": {
+            "nodeId": "sat1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "out1",
+            "portId": "in"
+          }
+        }
+      ],
+      "ui": {
+        "macros": [
+          {
+            "id": "macro_shell",
+            "name": "Shell",
+            "defaultNormalized": 0.34,
+            "bindings": [
+              {
+                "id": "b1",
+                "nodeId": "env1",
+                "paramId": "decay",
+                "map": "linear",
+                "min": 0.03,
+                "max": 0.24
+              },
+              {
+                "id": "b2",
+                "nodeId": "env1",
+                "paramId": "release",
+                "map": "linear",
+                "min": 0.015,
+                "max": 0.16
+              },
+              {
+                "id": "b3",
+                "nodeId": "vca1",
+                "paramId": "gain",
+                "map": "linear",
+                "min": 0.38,
+                "max": 0.82
+              }
+            ]
+          },
+          {
+            "id": "macro_shell_level",
+            "name": "Shell Level",
+            "defaultNormalized": 0.46,
+            "bindings": [
+              {
+                "id": "b10",
+                "nodeId": "mix1",
+                "paramId": "gain1",
+                "map": "linear",
+                "min": 0.18,
+                "max": 1
+              }
+            ]
+          },
+          {
+            "id": "macro_rattle",
+            "name": "Rattle",
+            "defaultNormalized": 0.46,
+            "bindings": [
+              {
+                "id": "b4",
+                "nodeId": "vca2",
+                "paramId": "gain",
+                "map": "linear",
+                "min": 0.08,
+                "max": 0.95
+              },
+              {
+                "id": "b5",
+                "nodeId": "env2",
+                "paramId": "decay",
+                "map": "linear",
+                "min": 0.03,
+                "max": 0.22
+              },
+              {
+                "id": "b6",
+                "nodeId": "env2",
+                "paramId": "release",
+                "map": "linear",
+                "min": 0.01,
+                "max": 0.18
+              },
+              {
+                "id": "b7",
+                "nodeId": "vcf1",
+                "paramId": "cutoffHz",
+                "map": "exp",
+                "min": 2400,
+                "max": 4800
+              },
+              {
+                "id": "b8",
+                "nodeId": "vcf1",
+                "paramId": "resonance",
+                "map": "linear",
+                "min": 0.28,
+                "max": 0.58
+              },
+              {
+                "id": "b9",
+                "nodeId": "sat1",
+                "paramId": "mix",
+                "map": "linear",
+                "min": 0.04,
+                "max": 0.18
+              }
+            ]
+          },
+          {
+            "id": "macro_rattle_level",
+            "name": "Rattle Level",
+            "defaultNormalized": 0.5,
+            "bindings": [
+              {
+                "id": "b11",
+                "nodeId": "mix1",
+                "paramId": "gain2",
+                "map": "linear",
+                "min": 0,
+                "max": 1
+              }
+            ]
+          }
+        ]
+      },
+      "layout": {
+        "nodes": [
+          {
+            "nodeId": "vco1",
+            "x": 1,
+            "y": 1
+          },
+          {
+            "nodeId": "noise1",
+            "x": 1,
+            "y": 12
+          },
+          {
+            "nodeId": "env1",
+            "x": 1,
+            "y": 6
+          },
+          {
+            "nodeId": "env2",
+            "x": 1,
+            "y": 18
+          },
+          {
+            "nodeId": "vcf1",
+            "x": 12,
+            "y": 10
+          },
+          {
+            "nodeId": "vca1",
+            "x": 21,
+            "y": 2
+          },
+          {
+            "nodeId": "vca2",
+            "x": 21,
+            "y": 15
+          },
+          {
+            "nodeId": "mix1",
+            "x": 31,
+            "y": 4
+          },
+          {
+            "nodeId": "sat1",
+            "x": 39,
+            "y": 4
+          },
+          {
+            "nodeId": "out1",
+            "x": 47,
+            "y": 4
+          }
+        ]
+      },
+      "io": {
+        "audioOutNodeId": "out1",
+        "audioOutPortId": "in"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "id": "preset_bassdrum",
+      "name": "Bass Drum",
+      "meta": {
+        "source": "preset",
+        "presetId": "preset_bassdrum",
+        "presetVersion": 9
+      },
+      "nodes": [
+        {
+          "id": "vco1",
+          "typeId": "VCO",
+          "params": {
+            "wave": "sine",
+            "pulseWidth": 0.5,
+            "baseTuneCents": -3000,
+            "fineTuneCents": 0,
+            "pwmAmount": 0
+          }
+        },
+        {
+          "id": "cvtranspose1",
+          "typeId": "CVTranspose",
+          "params": {
+            "octaves": -1,
+            "semitones": 0,
+            "cents": 0
+          }
+        },
+        {
+          "id": "vco2",
+          "typeId": "VCO",
+          "params": {
+            "wave": "sine",
+            "pulseWidth": 0.5,
+            "baseTuneCents": -3000,
+            "fineTuneCents": 0,
+            "pwmAmount": 0
+          }
+        },
+        {
+          "id": "noise1",
+          "typeId": "Noise",
+          "params": {
+            "color": "white",
+            "gain": 1
+          }
+        },
+        {
+          "id": "env1",
+          "typeId": "ADSR",
+          "params": {
+            "attack": 0,
+            "decay": 0.12,
+            "sustain": 0,
+            "release": 0.045,
+            "mode": "retrigger_from_current"
+          }
+        },
+        {
+          "id": "env2",
+          "typeId": "ADSR",
+          "params": {
+            "attack": 0,
+            "decay": 0.015,
+            "sustain": 0,
+            "release": 0.012,
+            "mode": "retrigger_from_current"
+          }
+        },
+        {
+          "id": "vcf1",
+          "typeId": "VCF",
+          "params": {
+            "type": "bandpass",
+            "cutoffHz": 3200,
+            "resonance": 0.34,
+            "cutoffModAmountOct": 0.12
+          }
+        },
+        {
+          "id": "mix0",
+          "typeId": "Mixer4",
+          "params": {
+            "gain1": 1,
+            "gain2": 1,
+            "gain3": 0,
+            "gain4": 1
+          }
+        },
+        {
+          "id": "vca1",
+          "typeId": "VCA",
+          "params": {
+            "bias": 0,
+            "gain": 1
+          }
+        },
+        {
+          "id": "vca2",
+          "typeId": "VCA",
+          "params": {
+            "bias": 0,
+            "gain": 0.34
+          }
+        },
+        {
+          "id": "mix1",
+          "typeId": "Mixer4",
+          "params": {
+            "gain1": 1,
+            "gain2": 0.34,
+            "gain3": 0,
+            "gain4": 1
+          }
+        },
+        {
+          "id": "sat1",
+          "typeId": "Overdrive",
+          "params": {
+            "gainDb": 20,
+            "tone": 0.5,
+            "mix": 0.34,
+            "mode": "overdrive"
+          }
+        },
+        {
+          "id": "out1",
+          "typeId": "Output",
+          "params": {
+            "gainDb": 6,
+            "limiter": true
+          }
+        }
+      ],
+      "connections": [
+        {
+          "id": "c1",
+          "from": {
+            "nodeId": "$host.pitch",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vco1",
+            "portId": "pitch"
+          }
+        },
+        {
+          "id": "c1a",
+          "from": {
+            "nodeId": "$host.pitch",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "cvtranspose1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c1b",
+          "from": {
+            "nodeId": "cvtranspose1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vco2",
+            "portId": "pitch"
+          }
+        },
+        {
+          "id": "c2",
+          "from": {
+            "nodeId": "$host.gate",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "env1",
+            "portId": "gate"
+          }
+        },
+        {
+          "id": "c3",
+          "from": {
+            "nodeId": "$host.gate",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "env2",
+            "portId": "gate"
+          }
+        },
+        {
+          "id": "c4",
+          "from": {
+            "nodeId": "vco1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "mix0",
+            "portId": "in1"
+          }
+        },
+        {
+          "id": "c4b",
+          "from": {
+            "nodeId": "vco2",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "mix0",
+            "portId": "in2"
+          }
+        },
+        {
+          "id": "c4c",
+          "from": {
+            "nodeId": "mix0",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vca1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c5",
+          "from": {
+            "nodeId": "env1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vca1",
+            "portId": "gainCV"
+          }
+        },
+        {
+          "id": "c6",
+          "from": {
+            "nodeId": "noise1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vcf1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c7",
+          "from": {
+            "nodeId": "env2",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vcf1",
+            "portId": "cutoffCV"
+          }
+        },
+        {
+          "id": "c8",
+          "from": {
+            "nodeId": "vcf1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vca2",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c9",
+          "from": {
+            "nodeId": "env2",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "vca2",
+            "portId": "gainCV"
+          }
+        },
+        {
+          "id": "c10",
+          "from": {
+            "nodeId": "vca1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "mix1",
+            "portId": "in1"
+          }
+        },
+        {
+          "id": "c11",
+          "from": {
+            "nodeId": "vca2",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "mix1",
+            "portId": "in2"
+          }
+        },
+        {
+          "id": "c12",
+          "from": {
+            "nodeId": "mix1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "sat1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "c13",
+          "from": {
+            "nodeId": "sat1",
+            "portId": "out"
+          },
+          "to": {
+            "nodeId": "out1",
+            "portId": "in"
+          }
+        }
+      ],
+      "ui": {
+        "macros": [
+          {
+            "id": "macro_body",
+            "name": "Body",
+            "defaultNormalized": 0.76,
+            "bindings": [
+              {
+                "id": "b1",
+                "nodeId": "env1",
+                "paramId": "decay",
+                "map": "linear",
+                "min": 0.045,
+                "max": 0.18
+              },
+              {
+                "id": "b2",
+                "nodeId": "env1",
+                "paramId": "release",
+                "map": "linear",
+                "min": 0.015,
+                "max": 0.075
+              },
+              {
+                "id": "b3",
+                "nodeId": "vca1",
+                "paramId": "gain",
+                "map": "linear",
+                "min": 0.9,
+                "max": 1
+              },
+              {
+                "id": "b3b",
+                "nodeId": "mix0",
+                "paramId": "gain2",
+                "map": "linear",
+                "min": 0.82,
+                "max": 1
+              }
+            ]
+          },
+          {
+            "id": "macro_click",
+            "name": "Click",
+            "defaultNormalized": 0.2,
+            "bindings": [
+              {
+                "id": "b4",
+                "nodeId": "vca2",
+                "paramId": "gain",
+                "map": "linear",
+                "min": 0.08,
+                "max": 0.58
+              },
+              {
+                "id": "b5",
+                "nodeId": "env2",
+                "paramId": "decay",
+                "map": "linear",
+                "min": 0.005,
+                "max": 0.05
+              },
+              {
+                "id": "b6",
+                "nodeId": "vcf1",
+                "paramId": "cutoffHz",
+                "map": "exp",
+                "min": 1800,
+                "max": 5200
+              }
+            ]
+          },
+          {
+            "id": "macro_drive",
+            "name": "Drive",
+            "defaultNormalized": 0.42,
+            "bindings": [
+              {
+                "id": "b7",
+                "nodeId": "sat1",
+                "paramId": "gainDb",
+                "map": "linear",
+                "min": 12,
+                "max": 24
+              },
+              {
+                "id": "b8",
+                "nodeId": "sat1",
+                "paramId": "mix",
+                "map": "linear",
+                "min": 0.18,
+                "max": 0.5
+              }
+            ]
+          }
+        ]
+      },
+      "layout": {
+        "nodes": [
+          {
+            "nodeId": "vco1",
+            "x": 1,
+            "y": 0
+          },
+          {
+            "nodeId": "cvtranspose1",
+            "x": 1,
+            "y": 5
+          },
+          {
+            "nodeId": "vco2",
+            "x": 10,
+            "y": 5
+          },
+          {
+            "nodeId": "noise1",
+            "x": 1,
+            "y": 10
+          },
+          {
+            "nodeId": "env1",
+            "x": 19,
+            "y": 5
+          },
+          {
+            "nodeId": "env2",
+            "x": 1,
+            "y": 15
+          },
+          {
+            "nodeId": "mix0",
+            "x": 19,
+            "y": 0
+          },
+          {
+            "nodeId": "vcf1",
+            "x": 11,
+            "y": 10
+          },
+          {
+            "nodeId": "vca1",
+            "x": 28,
+            "y": 1
+          },
+          {
+            "nodeId": "vca2",
+            "x": 23,
+            "y": 13
+          },
+          {
+            "nodeId": "mix1",
+            "x": 37,
+            "y": 4
+          },
+          {
+            "nodeId": "sat1",
+            "x": 45,
+            "y": 4
+          },
+          {
+            "nodeId": "out1",
+            "x": 53,
+            "y": 4
+          }
+        ]
+      },
+      "io": {
+        "audioOutNodeId": "out1",
+        "audioOutPortId": "in"
+      }
+    }
+  ],
+  "masterFx": {
+    "compressorEnabled": false,
+    "limiterEnabled": true,
+    "makeupGain": 0
+  },
+  "createdAt": 1774838416852,
+  "updatedAt": 1774982136371
+}

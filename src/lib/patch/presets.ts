@@ -1,7 +1,7 @@
 import { createDefaultParamsForType } from "@/lib/patch/moduleRegistry";
 import { HOST_NODE_IDS } from "@/lib/patch/constants";
-import { createId } from "@/lib/ids";
-import { Project, Track } from "@/types/music";
+import { createDefaultProjectFromTemplate } from "@/lib/defaultProjectTemplate";
+import { Project } from "@/types/music";
 import { Patch } from "@/types/patch";
 
 const outputNode = (id: string) => ({
@@ -1268,68 +1268,10 @@ export const bassDrumPatch = (): Patch => {
 
 export const presetPatches = [bassPatch(), brassPatch(), keysPatch(), padPatch(), pluckPatch(), drumPatch(), bassDrumPatch()];
 
-const defaultTrackFx = () => ({
-  delayEnabled: false,
-  reverbEnabled: false,
-  saturationEnabled: false,
-  compressorEnabled: false,
-  delayMix: 0.2,
-  reverbMix: 0.2,
-  drive: 0.2,
-  compression: 0.4
-});
-
-const makeTrack = (name: string, instrumentPatchId: string, notes: Track["notes"]): Track => ({
-  id: createId("track"),
-  name,
-  instrumentPatchId,
-  notes,
-  macroValues: {},
-  macroPanelExpanded: true,
-  volume: 1,
-  fx: defaultTrackFx()
-});
-
+// Build a fresh default project from the checked-in song template while always
+// sourcing preset patches from the latest bundled definitions. Template layouts
+// are overlaid by nodeId, so preset graph drift keeps current modules/params
+// but preserves matching editor placement where possible.
 export const createDefaultProject = (): Project => {
-  const now = Date.now();
-
-  return {
-    id: "project_default",
-    name: "New Synth Playground Project",
-    global: {
-      sampleRate: 48000,
-      tempo: 122,
-      meter: "4/4",
-      gridBeats: 0.25,
-      loop: []
-    },
-    tracks: [
-      makeTrack("Bass", "preset_bass", [
-        { id: createId("note"), pitchStr: "C2", startBeat: 0, durationBeats: 1, velocity: 0.92 },
-        { id: createId("note"), pitchStr: "C2", startBeat: 1.5, durationBeats: 0.5, velocity: 0.88 },
-        { id: createId("note"), pitchStr: "G1", startBeat: 2, durationBeats: 1, velocity: 0.89 },
-        { id: createId("note"), pitchStr: "A#1", startBeat: 3, durationBeats: 1, velocity: 0.85 },
-        { id: createId("note"), pitchStr: "C2", startBeat: 4, durationBeats: 1, velocity: 0.9 }
-      ]),
-      makeTrack("Pad", "preset_pad", [
-        { id: createId("note"), pitchStr: "C4", startBeat: 0, durationBeats: 2, velocity: 0.8 },
-        { id: createId("note"), pitchStr: "G4", startBeat: 2, durationBeats: 2, velocity: 0.8 },
-        { id: createId("note"), pitchStr: "A#4", startBeat: 4, durationBeats: 2, velocity: 0.78 }
-      ]),
-      makeTrack("Pluck", "preset_pluck", [
-        { id: createId("note"), pitchStr: "C5", startBeat: 0, durationBeats: 0.25, velocity: 0.9 },
-        { id: createId("note"), pitchStr: "D5", startBeat: 0.5, durationBeats: 0.25, velocity: 0.85 },
-        { id: createId("note"), pitchStr: "G4", startBeat: 1, durationBeats: 0.25, velocity: 0.85 },
-        { id: createId("note"), pitchStr: "A4", startBeat: 1.5, durationBeats: 0.25, velocity: 0.88 }
-      ])
-    ],
-    patches: presetPatches.map((patch) => structuredClone(patch)),
-    masterFx: {
-      compressorEnabled: false,
-      limiterEnabled: true,
-      makeupGain: 0
-    },
-    createdAt: now,
-    updatedAt: now
-  };
+  return createDefaultProjectFromTemplate(presetPatches);
 };

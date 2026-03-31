@@ -11,14 +11,12 @@ export interface SanitizedLoopMarker {
 
 export interface LoopBoundaryConflict {
   trackId: string;
-  trackName: string;
   noteId: string;
   pitchStr: string;
   startBeat: number;
   endBeat: number;
   boundaryBeat: number;
   boundary: "start" | "end";
-  loopId: string;
 }
 
 export interface LoopMarkerState {
@@ -27,7 +25,6 @@ export interface LoopMarkerState {
   beat: number;
   repeatCount?: number;
   matched: boolean;
-  loopId?: string;
 }
 
 interface LoopPair {
@@ -138,9 +135,7 @@ const buildLoopPairs = (loop: ProjectGlobalSettings["loop"]) => {
     };
 
     stateById.get(open.marker.id)!.matched = true;
-    stateById.get(open.marker.id)!.loopId = pair.id;
     stateById.get(marker.id)!.matched = true;
-    stateById.get(marker.id)!.loopId = pair.id;
 
     const parent = stack[stack.length - 1];
     if (parent) {
@@ -151,7 +146,6 @@ const buildLoopPairs = (loop: ProjectGlobalSettings["loop"]) => {
   }
 
   return {
-    markers,
     markerStates: states,
     pairs: pairs.sort((left, right) => left.startBeat - right.startBeat)
   };
@@ -160,25 +154,6 @@ const buildLoopPairs = (loop: ProjectGlobalSettings["loop"]) => {
 export const getLoopMarkerStates = (
   loop: ProjectGlobalSettings["loop"]
 ): LoopMarkerState[] => buildLoopPairs(loop).markerStates;
-
-export const findMatchingLoopStart = (
-  loop: ProjectGlobalSettings["loop"],
-  beat: number
-): SanitizedLoopMarker | null => {
-  const markers = getSanitizedLoopMarkers(loop);
-  const stack: SanitizedLoopMarker[] = [];
-  for (const marker of markers) {
-    if (marker.beat >= beat - EPSILON) {
-      break;
-    }
-    if (marker.kind === "start") {
-      stack.push(marker);
-    } else if (stack.length > 0) {
-      stack.pop();
-    }
-  }
-  return stack[stack.length - 1] ?? null;
-};
 
 const getSequencePlaybackLength = (startBeat: number, endBeat: number, children: LoopPair[]): number => {
   let total = 0;
@@ -259,12 +234,6 @@ export const getLoopedPlaybackBeatsForSongBeat = (
   return results.sort((left, right) => left - right);
 };
 
-export const getPlaybackBeatForSongBeat = (
-  songBeat: number,
-  cueBeat: number,
-  loop: ProjectGlobalSettings["loop"]
-): number => getLoopedPlaybackBeatsForSongBeat(songBeat, cueBeat, loop)[0] ?? Math.max(0, songBeat - cueBeat);
-
 const mapPlaybackBeatInSequence = (
   playbackBeat: number,
   startBeat: number,
@@ -334,14 +303,12 @@ export const findLoopBoundaryConflicts = (
         }
         conflicts.push({
           trackId: track.id,
-          trackName: track.name,
           noteId: note.id,
           pitchStr: note.pitchStr,
           startBeat: note.startBeat,
           endBeat,
           boundaryBeat: marker.beat,
-          boundary: marker.kind,
-          loopId: marker.id
+          boundary: marker.kind
         });
       }
     }
@@ -390,11 +357,6 @@ export const splitProjectNotesAtLoopBoundaries = (
   }
   return nextProject;
 };
-
-export interface PlaybackLoopWindow {
-  startPlaybackSample: number;
-  endPlaybackSample: number;
-}
 
 export const getExpandedPlaybackEndSample = (
   project: Project,

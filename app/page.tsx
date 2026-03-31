@@ -114,6 +114,8 @@ export default function HomePage() {
     [project.tracks, selectedTrackId]
   );
 
+  const trackNameById = useMemo(() => new Map(project.tracks.map((track) => [track.id, track.name] as const)), [project.tracks]);
+
   const selectedPatch = useMemo(
     () => project.patches.find((patch) => patch.id === selectedTrack?.instrumentPatchId) ?? project.patches[0],
     [project.patches, selectedTrack?.instrumentPatchId]
@@ -918,6 +920,7 @@ export default function HomePage() {
       {loopConflictDialog && (
         <LoopConflictDialog
           conflicts={loopConflictDialog.conflicts}
+          trackNameById={trackNameById}
           onCancel={clearLoopConflictDialog}
           onSplit={() => applyLoopSettings(loopConflictDialog.nextLoop, { autoSplit: true })}
         />
