@@ -3,8 +3,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MacroPanel } from "@/components/MacroPanel";
 import { TrackVolumePopover } from "@/components/TrackVolumePopover";
+import {
+  CanvasCursor,
+  findMuteRect,
+  findPitchRect,
+  findLoopMarkerRect,
+  getCursorForPosition,
+  isOverPlayhead,
+  LOOP_MARKER_BAR_WIDTH,
+  LOOP_MARKER_DOT_OFFSET_Y,
+  LOOP_MARKER_DOT_RADIUS,
+  LOOP_MARKER_HOVER_RING_RADIUS,
+  LoopMarkerRect,
+  MuteRect,
+  PitchRect,
+  PLAYHEAD_HIT_HALF_WIDTH
+} from "@/components/trackCanvasGeometry";
 import { useVolumePopover } from "@/hooks/useVolumePopover";
 import { createId } from "@/lib/ids";
+import { getLoopMarkerStates } from "@/lib/looping";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
@@ -51,10 +68,13 @@ const TRACK_CANVAS_COLORS = {
   countInBadgeBorder: "rgba(255, 208, 113, 0.48)",
   countInText: "#ffe5a9",
   muteIconFallback: "#ff8092",
-  unmuteIconFallback: "#a7c8eb"
+  unmuteIconFallback: "#a7c8eb",
+  loopStart: "#6ddb84",
+  loopEnd: "#6edec6",
+  loopUnmatched: "#e27a7a",
+  loopGhost: "rgba(255, 90, 123, 0.35)",
+  loopMarkerText: "#07281e"
 } as const;
-
-type CanvasCursor = "default" | "pointer" | "move" | "move-active" | "resize";
 
 interface TrackCanvasProps {
   project: Project;
@@ -64,7 +84,9 @@ interface TrackCanvasProps {
   activeRecordedNotes?: Array<{ trackId: string; noteId: string; startBeat: number }>;
   ghostPlayheadBeat?: number;
   countInLabel?: string;
+  loopPopoverTarget?: "playhead" | "start" | "end" | null;
   onSetPlayheadBeat: (beat: number) => void;
+  onRequestLoopPopover: (request: LoopPopoverRequest) => void;
   onSelectTrack: (trackId: string) => void;
   onRenameTrack: (trackId: string, name: string) => void;
   onToggleTrackMute: (trackId: string) => void;
@@ -96,21 +118,18 @@ interface NoteRect {
   h: number;
 }
 
-interface MuteRect {
-  trackId: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
+export interface LoopPopoverRequest {
+  markerId?: string;
+  target: "playhead" | "start" | "end";
+  beat: number;
+  clientX: number;
+  clientY: number;
 }
 
-interface PitchRect {
-  trackId: string;
-  noteId: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
+interface HoveredLoopMarker {
+  markerId: string;
+  kind: "start" | "end";
+  beat: number;
 }
 
 function drawGhostPlayhead(
@@ -153,6 +172,55 @@ function drawGhostPlayhead(
   ctx.textAlign = "center";
   ctx.fillText(countInLabel, ghostX, badgeY + 16);
   ctx.textAlign = "start";
+}
+
+function drawLoopMarker(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  height: number,
+  kind: "start" | "end",
+  color: string,
+  hovered: boolean,
+  repeatCount?: number
+) {
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = color;
+  ctx.fillRect(x - LOOP_MARKER_BAR_WIDTH * 0.5, 0, LOOP_MARKER_BAR_WIDTH, height);
+
+  const dotX = kind === "start" ? x + 10 : x - 10;
+  const topDotY = RULER_HEIGHT * 0.5 - LOOP_MARKER_DOT_OFFSET_Y;
+  const bottomDotY = RULER_HEIGHT * 0.5 + LOOP_MARKER_DOT_OFFSET_Y;
+  ctx.beginPath();
+  ctx.arc(dotX, topDotY, LOOP_MARKER_DOT_RADIUS, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(dotX, bottomDotY, LOOP_MARKER_DOT_RADIUS, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (hovered) {
+    ctx.globalAlpha = 0.3;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x - LOOP_MARKER_BAR_WIDTH * 0.5 - 1, 0, LOOP_MARKER_BAR_WIDTH + 2, height);
+    ctx.beginPath();
+    ctx.arc(dotX, topDotY, LOOP_MARKER_HOVER_RING_RADIUS, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(dotX, bottomDotY, LOOP_MARKER_HOVER_RING_RADIUS, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  if (kind === "end" && repeatCount !== undefined) {
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = TRACK_CANVAS_COLORS.loopMarkerText;
+    ctx.font = "bold 11px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(String(repeatCount), x, 16);
+    ctx.textAlign = "start";
+  }
+
+  ctx.restore();
 }
 
 const findTrackOverlaps = (notes: Note[]): {
@@ -210,6 +278,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const noteRectsRef = useRef<NoteRect[]>([]);
   const muteRectsRef = useRef<MuteRect[]>([]);
   const pitchRectsRef = useRef<PitchRect[]>([]);
+  const loopMarkerRectsRef = useRef<LoopMarkerRect[]>([]);
   const speakerIconsRef = useRef<{ normal: HTMLImageElement | null; muted: HTMLImageElement | null }>({
     normal: null,
     muted: null
@@ -219,6 +288,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const wheelLockedScrollLeftRef = useRef(0);
   const wheelLockTimerRef = useRef<number | null>(null);
   const [hoveredPitch, setHoveredPitch] = useState<{ trackId: string; noteId: string } | null>(null);
+  const [hoveredLoopMarker, setHoveredLoopMarker] = useState<HoveredLoopMarker | null>(null);
+  const [hoveredPlayhead, setHoveredPlayhead] = useState(false);
   const [speakerIconsReady, setSpeakerIconsReady] = useState(false);
   const [canvasCursor, setCanvasCursor] = useState<CanvasCursor>("default");
   const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
@@ -337,6 +408,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     noteRectsRef.current = [];
     muteRectsRef.current = [];
     pitchRectsRef.current = [];
+    loopMarkerRectsRef.current = [];
     const activeRecordedNoteById = new Map(
       (props.activeRecordedNotes ?? []).map((entry) => [`${entry.trackId}:${entry.noteId}`, entry] as const)
     );
@@ -424,24 +496,55 @@ export function TrackCanvas(props: TrackCanvasProps) {
     });
 
     const playheadX = HEADER_WIDTH + props.playheadBeat * BEAT_WIDTH;
+    if (hoveredPlayhead && !props.loopPopoverTarget) {
+      ctx.strokeStyle = TRACK_CANVAS_COLORS.loopGhost;
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.moveTo(playheadX, 0);
+      ctx.lineTo(playheadX, height);
+      ctx.stroke();
+    }
     ctx.strokeStyle = TRACK_CANVAS_COLORS.playhead;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(playheadX, 0);
     ctx.lineTo(playheadX, height);
     ctx.stroke();
+
+    const loopMarkers = getLoopMarkerStates(props.project.global.loop);
+    for (const marker of loopMarkers) {
+      const color =
+        marker.kind === "start"
+          ? marker.matched
+            ? TRACK_CANVAS_COLORS.loopStart
+            : TRACK_CANVAS_COLORS.loopUnmatched
+          : marker.matched
+            ? TRACK_CANVAS_COLORS.loopEnd
+            : TRACK_CANVAS_COLORS.loopUnmatched;
+      const markerX = HEADER_WIDTH + marker.beat * BEAT_WIDTH;
+      const isHovered =
+        hoveredLoopMarker?.markerId === marker.markerId &&
+        hoveredLoopMarker.kind === marker.kind &&
+        hoveredLoopMarker.beat === marker.beat;
+      drawLoopMarker(ctx, markerX, height, marker.kind, color, isHovered, marker.repeatCount);
+      loopMarkerRectsRef.current.push({ markerId: marker.markerId, kind: marker.kind, beat: marker.beat, x: markerX - 18, y: 0, w: 30, h: height });
+    }
     drawGhostPlayhead(ctx, props.ghostPlayheadBeat, props.countInLabel, height);
   }, [
     props.countInLabel,
     props.ghostPlayheadBeat,
+    props.loopPopoverTarget,
     height,
+    hoveredPlayhead,
     hoveredPitch,
+    hoveredLoopMarker,
     isTrackSilenced,
     meterBeats,
     props.activeRecordedNotes,
     props.invalidPatchIds,
     props.playheadBeat,
     props.project.global.gridBeats,
+    props.project.global.loop,
     props.project.tracks,
     props.selectedTrackId,
     speakerIconsReady,
@@ -492,41 +595,34 @@ export function TrackCanvas(props: TrackCanvasProps) {
     return null;
   };
 
-  const findMuteRect = (x: number, y: number): MuteRect | null => {
-    for (const rect of muteRectsRef.current) {
-      if (x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h) {
-        return rect;
-      }
-    }
-    return null;
-  };
-
-  const findPitchRect = (x: number, y: number): PitchRect | null => {
-    for (const rect of pitchRectsRef.current) {
-      if (x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h) {
-        return rect;
-      }
-    }
-    return null;
-  };
-
-  const getCursorForPosition = (x: number, y: number): CanvasCursor => {
-    if (findMuteRect(x, y) || findPitchRect(x, y)) {
-      return "pointer";
-    }
-
-    const hitNote = findNoteRect(x, y);
-    if (!hitNote) {
-      return "default";
-    }
-
-    return x > hitNote.x + hitNote.w - NOTE_RESIZE_HANDLE_WIDTH ? "resize" : "move";
-  };
-
   const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const { x, y } = getCanvasPoint(event.clientX, event.clientY);
+
+    const loopMarker = findLoopMarkerRect(loopMarkerRectsRef.current, x, y);
+    if (loopMarker) {
+      props.onRequestLoopPopover({
+        target: loopMarker.kind,
+        markerId: loopMarker.markerId,
+        beat: loopMarker.beat,
+        clientX: event.clientX,
+        clientY: event.clientY
+      });
+      setCanvasCursor("pointer");
+      return;
+    }
+
+    if (isOverPlayhead(x, props.playheadBeat, HEADER_WIDTH, BEAT_WIDTH, PLAYHEAD_HIT_HALF_WIDTH)) {
+      props.onRequestLoopPopover({
+        target: "playhead",
+        beat: props.playheadBeat,
+        clientX: event.clientX,
+        clientY: event.clientY
+      });
+      setCanvasCursor("pointer");
+      return;
+    }
 
     if (y <= RULER_HEIGHT && x >= HEADER_WIDTH) {
       const beat = Math.max(0, snapToGrid(beatFromX(x), props.project.global.gridBeats));
@@ -539,14 +635,18 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
     props.onSelectTrack(track.id);
 
-    const muteRect = findMuteRect(x, y);
+    const muteRect = findMuteRect(muteRectsRef.current, x, y);
     if (muteRect) {
       props.onToggleTrackMute(muteRect.trackId);
       setCanvasCursor("pointer");
       return;
     }
 
-    const pitchRect = findPitchRect(x, y);
+    if (x < HEADER_WIDTH) {
+      return;
+    }
+
+    const pitchRect = findPitchRect(pitchRectsRef.current, x, y);
     if (pitchRect && event.button === 0) {
       props.onOpenPitchPicker(pitchRect.trackId, pitchRect.noteId);
       setCanvasCursor("pointer");
@@ -638,7 +738,22 @@ export function TrackCanvas(props: TrackCanvasProps) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const { x, y } = getCanvasPoint(event.clientX, event.clientY);
-    const hitPitch = findPitchRect(x, y);
+    setHoveredPlayhead(isOverPlayhead(x, props.playheadBeat, HEADER_WIDTH, BEAT_WIDTH, PLAYHEAD_HIT_HALF_WIDTH));
+    const hitLoopMarker = findLoopMarkerRect(loopMarkerRectsRef.current, x, y);
+    setHoveredLoopMarker((prev) => {
+      const next = hitLoopMarker
+        ? { markerId: hitLoopMarker.markerId, kind: hitLoopMarker.kind, beat: hitLoopMarker.beat }
+        : null;
+      if (
+        prev?.markerId === next?.markerId &&
+        prev?.kind === next?.kind &&
+        prev?.beat === next?.beat
+      ) {
+        return prev;
+      }
+      return next;
+    });
+    const hitPitch = findPitchRect(pitchRectsRef.current, x, y);
     setHoveredPitch((prev) => {
       const next = hitPitch ? { trackId: hitPitch.trackId, noteId: hitPitch.noteId } : null;
       if (prev?.trackId === next?.trackId && prev?.noteId === next?.noteId) {
@@ -649,7 +764,17 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
     const drag = dragRef.current;
     if (!drag) {
-      setCanvasCursor(getCursorForPosition(x, y));
+      setCanvasCursor(
+        getCursorForPosition({
+          hasMuteHit: Boolean(findMuteRect(muteRectsRef.current, x, y)),
+          hasPitchHit: Boolean(findPitchRect(pitchRectsRef.current, x, y)),
+          hasLoopMarkerHit: Boolean(findLoopMarkerRect(loopMarkerRectsRef.current, x, y)),
+          hasPlayheadHit: isOverPlayhead(x, props.playheadBeat, HEADER_WIDTH, BEAT_WIDTH, PLAYHEAD_HIT_HALF_WIDTH),
+          noteRect: findNoteRect(x, y),
+          x,
+          noteResizeHandleWidth: NOTE_RESIZE_HANDLE_WIDTH
+        })
+      );
       return;
     }
 
@@ -693,7 +818,25 @@ export function TrackCanvas(props: TrackCanvasProps) {
       return;
     }
     const { x, y } = getCanvasPoint(event.clientX, event.clientY);
-    setCanvasCursor(getCursorForPosition(x, y));
+    setCanvasCursor(
+      getCursorForPosition({
+        hasMuteHit: Boolean(findMuteRect(muteRectsRef.current, x, y)),
+        hasPitchHit: Boolean(findPitchRect(pitchRectsRef.current, x, y)),
+        hasLoopMarkerHit: Boolean(findLoopMarkerRect(loopMarkerRectsRef.current, x, y)),
+        hasPlayheadHit: isOverPlayhead(x, props.playheadBeat, HEADER_WIDTH, BEAT_WIDTH, PLAYHEAD_HIT_HALF_WIDTH),
+        noteRect: findNoteRect(x, y),
+        x,
+        noteResizeHandleWidth: NOTE_RESIZE_HANDLE_WIDTH
+      })
+    );
+  };
+
+  const onPointerLeave = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    onPointerUp(event);
+    setHoveredPitch(null);
+    setHoveredLoopMarker(null);
+    setHoveredPlayhead(false);
+    setCanvasCursor("default");
   };
 
   useEffect(() => {
@@ -708,13 +851,13 @@ export function TrackCanvas(props: TrackCanvasProps) {
         wheelLockedScrollTopRef.current = wrapper.scrollTop;
         wheelLockedScrollLeftRef.current = wrapper.scrollLeft;
       }
-      wrapper.style.overflow = "hidden";
+      wrapper.style.overflowX = "hidden";
 
       if (wheelLockTimerRef.current !== null) {
         window.clearTimeout(wheelLockTimerRef.current);
       }
       wheelLockTimerRef.current = window.setTimeout(() => {
-        wrapper.style.overflow = "auto";
+        wrapper.style.overflowX = "auto";
         wheelLockTimerRef.current = null;
       }, 440);
     };
@@ -722,7 +865,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     const onWheelNative = (event: WheelEvent) => {
       const now = performance.now();
       const { x, y } = getCanvasPoint(event.clientX, event.clientY);
-      const hitPitch = findPitchRect(x, y);
+      const hitPitch = findPitchRect(pitchRectsRef.current, x, y);
       const shouldLockScroll = now < wheelPitchLockUntilRef.current;
       if (!hitPitch && !shouldLockScroll) return;
 
@@ -765,7 +908,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         window.clearTimeout(wheelLockTimerRef.current);
         wheelLockTimerRef.current = null;
       }
-      wrapper.style.overflow = "auto";
+      wrapper.style.overflowX = "auto";
     };
   }, [onUpdateNote, project.tracks]);
 
@@ -884,11 +1027,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerLeave={(event) => {
-          onPointerUp(event);
-          setHoveredPitch(null);
-          setCanvasCursor("default");
-        }}
+        onPointerLeave={onPointerLeave}
         onContextMenu={(event) => event.preventDefault()}
       />
       {selectedTrack && selectedPatch && (

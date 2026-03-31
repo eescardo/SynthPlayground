@@ -1,4 +1,5 @@
 import { createId } from "@/lib/ids";
+import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping";
 import { presetPatches } from "@/lib/patch/presets";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
 import { TRACK_VOLUME_DEFAULT, TRACK_VOLUME_MAX, TRACK_VOLUME_MIN } from "@/lib/trackVolume";
@@ -14,6 +15,9 @@ const asFiniteNumber = (value: unknown, fallback: number): number =>
 const asString = (value: unknown, fallback: string): string => (typeof value === "string" ? value : fallback);
 
 const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
+
+const asOptionalFiniteNumber = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
 const defaultTrackFx = (): TrackFxSettings => ({
   delayEnabled: false,
@@ -191,7 +195,7 @@ export const normalizeProject = (raw: unknown): Project => {
   const globalRaw = isObject(raw.global) ? raw.global : {};
   const meter = globalRaw.meter === "3/4" ? "3/4" : "4/4";
   const gridBeats = asFiniteNumber(globalRaw.gridBeats, 0.25);
-  const loopRaw = isObject(globalRaw.loop) ? globalRaw.loop : null;
+  const loopRaw = Array.isArray(globalRaw.loop) ? globalRaw.loop : isObject(globalRaw.loop) ? [globalRaw.loop] : [];
 
   const patchIds = new Set(patches.map((patch) => patch.id));
   const fallbackPatchId = patches[0].id;
@@ -261,13 +265,52 @@ export const normalizeProject = (raw: unknown): Project => {
       tempo: clamp(asFiniteNumber(globalRaw.tempo, 120), 20, 400),
       meter,
       gridBeats: gridBeats > 0 ? gridBeats : 0.25,
-      loop: loopRaw
-        ? {
-            startBeat: Math.max(0, asFiniteNumber(loopRaw.startBeat, 0)),
-            endBeat: Math.max(0, asFiniteNumber(loopRaw.endBeat, 8)),
-            enabled: Boolean(loopRaw.enabled)
-          }
-        : undefined
+      loop: loopRaw.flatMap((entry, index) => {
+        const marker = isObject(entry) ? entry : {};
+        const kind = marker.kind === "start" || marker.kind === "end" ? marker.kind : null;
+        const beatRaw = asOptionalFiniteNumber(marker.beat);
+        if (kind && beatRaw !== undefined) {
+          return [{
+            id: asString(marker.id, createId(`loop_marker_${index}`)),
+            kind,
+            beat: Math.max(0, beatRaw),
+            repeatCount:
+              kind === "end"
+                ? Math.max(
+                    DEFAULT_LOOP_REPEAT_COUNT,
+                    Math.min(MAX_LOOP_REPEAT_COUNT, Math.round(asFiniteNumber(marker.repeatCount, DEFAULT_LOOP_REPEAT_COUNT)))
+                  )
+                : undefined
+          }];
+        }
+
+        const startBeatRaw = asOptionalFiniteNumber(marker.startBeat);
+        if (startBeatRaw === undefined) {
+          return [];
+        }
+        const endBeatRaw = asOptionalFiniteNumber(marker.endBeat);
+        const repeatCount = Math.max(
+          DEFAULT_LOOP_REPEAT_COUNT,
+          Math.min(MAX_LOOP_REPEAT_COUNT, Math.round(asFiniteNumber(marker.repeatCount, DEFAULT_LOOP_REPEAT_COUNT)))
+        );
+        const markerIdBase = asString(marker.id, createId(`loop_region_${index}`));
+        return [
+          {
+            id: `${markerIdBase}_start`,
+            kind: "start" as const,
+            beat: Math.max(0, startBeatRaw),
+            repeatCount: undefined
+          },
+          ...(endBeatRaw === undefined
+            ? []
+            : [{
+                id: `${markerIdBase}_end`,
+                kind: "end" as const,
+                beat: Math.max(0, endBeatRaw),
+                repeatCount
+              }])
+        ];
+      })
     },
     tracks,
     patches,

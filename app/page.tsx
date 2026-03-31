@@ -4,21 +4,25 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AudioEngine } from "@/audio/engine";
 import { loadDspWasm } from "@/audio/wasmBridge";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
+import { LoopConflictDialog } from "@/components/LoopConflictDialog";
+import { LoopPopover } from "@/components/LoopPopover";
 import { PianoKeyboard } from "@/components/PianoKeyboard";
-import { TrackCanvas } from "@/components/TrackCanvas";
+import { LoopPopoverRequest, TrackCanvas } from "@/components/TrackCanvas";
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
+import { getSanitizedLoopMarkers } from "@/lib/looping";
 import { clearProject, loadProject, saveProject } from "@/lib/persistence";
 import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
-import { createDefaultProject } from "@/lib/patch/presets";
+import { createDefaultProject, createEmptyProject } from "@/lib/patch/presets";
 import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { importProjectFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
 import { removeTrackFromProject, renameTrackInProject } from "@/lib/trackEdits";
 import { useNoteEditor } from "@/hooks/useNoteEditor";
+import { useLoopSettings } from "@/hooks/useLoopSettings";
 import { usePlaybackController } from "@/hooks/usePlaybackController";
 import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
 import { useRecordingController } from "@/hooks/useRecordingController";
@@ -51,7 +55,7 @@ function usePitchPickerHotkeys(enabled: boolean, onSelectPitch: (pitch: string) 
 }
 
 export default function HomePage() {
-  const [projectHistory, setProjectHistory] = useState<HistoryState<Project>>(() => createHistory(createDefaultProject()));
+  const [projectHistory, setProjectHistory] = useState<HistoryState<Project>>(() => createHistory(createEmptyProject()));
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [playheadBeat, setPlayheadBeat] = useState(0);
@@ -64,6 +68,7 @@ export default function HomePage() {
   const [pitchPicker, setPitchPicker] = useState<{ trackId: string; noteId: string } | null>(null);
   const [previewPitch, setPreviewPitch] = useState("C4");
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
+  const [loopPopover, setLoopPopover] = useState<LoopPopoverRequest | null>(null);
   const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
   const [patchRemovalDialog, setPatchRemovalDialog] = useState<{
     patchId: string;
@@ -78,20 +83,40 @@ export default function HomePage() {
   const project = projectHistory.current;
 
   useEffect(() => {
+    let cancelled = false;
+
     const boot = async () => {
-      const saved = await loadProject();
-      const loadedProject = saved ? normalizeProject(saved) : createDefaultProject();
-      if (saved) {
-        saveProject(loadedProject).catch(() => {
-          // ignore migration save failures
-        });
+      try {
+        const saved = await loadProject();
+        const loadedProject = saved ? normalizeProject(saved) : createDefaultProject();
+        if (cancelled) {
+          return;
+        }
+        if (saved) {
+          saveProject(loadedProject).catch(() => {
+            // ignore migration save failures
+          });
+        }
+        setProjectHistory(createHistory(loadedProject));
+        setSelectedTrackId(loadedProject.tracks[0]?.id);
+        setReady(true);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        const fallbackProject = createDefaultProject();
+        setProjectHistory(createHistory(fallbackProject));
+        setSelectedTrackId(fallbackProject.tracks[0]?.id);
+        setRuntimeError(`Failed to load the saved project. Loaded the default project instead. ${(error as Error).message}`);
+        setReady(true);
       }
-      setProjectHistory(createHistory(loadedProject));
-      setSelectedTrackId(loadedProject.tracks[0]?.id);
-      setReady(true);
     };
 
-    boot();
+    void boot();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -108,6 +133,8 @@ export default function HomePage() {
     () => project.tracks.find((track) => track.id === selectedTrackId) ?? project.tracks[0],
     [project.tracks, selectedTrackId]
   );
+
+  const trackNameById = useMemo(() => new Map(project.tracks.map((track) => [track.id, track.name] as const)), [project.tracks]);
 
   const selectedPatch = useMemo(
     () => project.patches.find((patch) => patch.id === selectedTrack?.instrumentPatchId) ?? project.patches[0],
@@ -275,6 +302,48 @@ export default function HomePage() {
     setUserCueBeat(beat);
     setPlayheadBeat(beat);
   }, []);
+  const { applyLoopSettings, addLoopBoundary, updateLoopRepeatCount, removeLoopBoundary, loopConflictDialog, clearLoopConflictDialog } =
+    useLoopSettings({
+      project,
+      commitProjectChange,
+      onCloseLoopPopover: () => setLoopPopover(null)
+    });
+
+  useEffect(() => {
+    if (!loopPopover) {
+      return;
+    }
+
+    let active = false;
+    const activateTimer = window.setTimeout(() => {
+      active = true;
+    }, 0);
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setLoopPopover(null);
+      }
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (!active) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (target?.closest(".loop-popover")) {
+        return;
+      }
+      setLoopPopover(null);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      window.clearTimeout(activateTimer);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [loopPopover]);
 
   const openPitchPicker = useCallback((trackId: string, noteId: string) => {
     setPitchPicker({ trackId, noteId });
@@ -792,12 +861,24 @@ export default function HomePage() {
           onClick={async () => {
             playback.stopPlayback();
             await clearProject();
+            const fresh = createEmptyProject();
+            resetProjectHistory(fresh);
+            setSelectedTrackId(fresh.tracks[0]?.id);
+          }}
+        >
+          Clear Project
+        </button>
+        <button
+          className="secondary-action"
+          onClick={async () => {
+            playback.stopPlayback();
+            await clearProject();
             const fresh = createDefaultProject();
             resetProjectHistory(fresh);
             setSelectedTrackId(fresh.tracks[0]?.id);
           }}
         >
-          Reset Project
+          Reset To Default Project
         </button>
         <input
           ref={importInputRef}
@@ -824,7 +905,9 @@ export default function HomePage() {
         activeRecordedNotes={recording.activeRecordedNotes}
         ghostPlayheadBeat={recording.ghostPlayheadBeat ?? undefined}
         countInLabel={recording.countInLabel ?? undefined}
+        loopPopoverTarget={loopPopover?.target ?? null}
         onSetPlayheadBeat={setPlayheadFromUser}
+        onRequestLoopPopover={setLoopPopover}
         onSelectTrack={setSelectedTrackId}
         onRenameTrack={renameTrack}
         onToggleTrackMute={toggleTrackMute}
@@ -838,6 +921,42 @@ export default function HomePage() {
         onUpdateNote={updateNote}
         onDeleteNote={deleteNote}
       />
+
+      {loopPopover && (
+        <LoopPopover
+          left={loopPopover.clientX}
+          top={loopPopover.clientY + 12}
+          target={loopPopover.target}
+          repeatCount={getSanitizedLoopMarkers(project.global.loop).find((marker) => marker.id === loopPopover.markerId)?.repeatCount}
+          onAddStart={() => addLoopBoundary(loopPopover.beat, "start")}
+          onAddEnd={() => addLoopBoundary(loopPopover.beat, "end")}
+          onUpdateRepeatCount={(repeatCount) => {
+            if (loopPopover.markerId) {
+              updateLoopRepeatCount(loopPopover.markerId, repeatCount);
+            }
+          }}
+          onRemoveStart={() => {
+            if (loopPopover.markerId) {
+              removeLoopBoundary(loopPopover.markerId);
+            }
+          }}
+          onRemoveEnd={() => {
+            if (loopPopover.markerId) {
+              removeLoopBoundary(loopPopover.markerId);
+            }
+          }}
+          onClose={() => setLoopPopover(null)}
+        />
+      )}
+
+      {loopConflictDialog && (
+        <LoopConflictDialog
+          conflicts={loopConflictDialog.conflicts}
+          trackNameById={trackNameById}
+          onCancel={clearLoopConflictDialog}
+          onSplit={() => applyLoopSettings(loopConflictDialog.nextLoop, { autoSplit: true })}
+        />
+      )}
 
       {recording.recordEnabled && activeRecordingTrack && (
         <section className="recording-dock">

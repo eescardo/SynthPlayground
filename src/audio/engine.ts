@@ -1,6 +1,7 @@
 "use client";
 
 import { collectEventsInWindow } from "@/audio/scheduler";
+import { getLoopPlaybackEndBeat, getSongBeatForPlaybackBeat } from "@/lib/looping";
 import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
 import { createId } from "@/lib/ids";
 import { Project } from "@/types/music";
@@ -64,6 +65,7 @@ export class AudioEngine {
   private project: Project | null = null;
   private playSessionId = 0;
   private recordingTrackId: string | null = null;
+  private cueBeat = 0;
 
   private async disposeContext(): Promise<void> {
     this.worklet?.disconnect();
@@ -79,16 +81,17 @@ export class AudioEngine {
     }
   }
 
-  private computeStaticScheduleEndSample(startSample: number, lookaheadSamples: number): number {
+  private computeStaticScheduleEndSample(startBeat: number, lookaheadSamples: number): number {
     if (!this.project) {
-      return startSample + lookaheadSamples;
+      return lookaheadSamples;
     }
 
     const maxNoteEndBeat = this.project.tracks
       .flatMap((track) => track.notes)
       .reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);
-    const maxNoteEndSample = beatToSample(maxNoteEndBeat, FIXED_SAMPLE_RATE, this.project.global.tempo);
-    return Math.max(startSample + lookaheadSamples, maxNoteEndSample + 1);
+    const playbackEndBeat = getLoopPlaybackEndBeat(this.project, startBeat, Math.max(16, maxNoteEndBeat));
+    const maxPlaybackSamples = Math.max(1, beatToSample(playbackEndBeat - startBeat, FIXED_SAMPLE_RATE, this.project.global.tempo) + 1);
+    return Math.max(lookaheadSamples, maxPlaybackSamples);
   }
 
   async init(): Promise<void> {
@@ -166,21 +169,17 @@ export class AudioEngine {
       return;
     }
 
+    this.cueBeat = startBeat;
     this.playSessionId += 1;
     const sessionId = this.playSessionId;
 
-    const secondsAtBeat = (startBeat * 60) / this.project.global.tempo;
-    this.songStartContextTime = this.context.currentTime - secondsAtBeat;
-    const startSample = Math.max(0, beatToSample(startBeat, FIXED_SAMPLE_RATE, this.project.global.tempo));
+    this.songStartContextTime = this.context.currentTime;
     const lookaheadSamples = Math.round((LOOKAHEAD_MS / 1000) * FIXED_SAMPLE_RATE);
-    const primedToSample =
-      this.project.global.loop?.enabled
-        ? startSample + lookaheadSamples
-        : this.computeStaticScheduleEndSample(startSample, lookaheadSamples);
+    const primedToSample = this.computeStaticScheduleEndSample(startBeat, lookaheadSamples);
     const primedEvents = collectEventsInWindow(this.project, {
-      fromSample: startSample,
+      fromSample: 0,
       toSample: primedToSample
-    });
+    }, { cueBeat: startBeat });
 
     this.scheduledUntilSample = primedToSample;
     this.isPlaying = true;
@@ -193,7 +192,7 @@ export class AudioEngine {
     this.worklet.port.postMessage({
       type: "TRANSPORT",
       isPlaying: true,
-      songStartSample: startSample,
+      songStartSample: 0,
       events: primedEvents,
       sessionId
     });
@@ -239,20 +238,7 @@ export class AudioEngine {
       return;
     }
 
-    const loop = this.project.global.loop;
-    if (loop?.enabled) {
-      const loopStartSample = beatToSample(loop.startBeat, FIXED_SAMPLE_RATE, this.project.global.tempo);
-      const loopEndSample = beatToSample(loop.endBeat, FIXED_SAMPLE_RATE, this.project.global.tempo);
-
-      if (currentSongSample >= loopEndSample) {
-        const loopDuration = loopEndSample - loopStartSample;
-        this.songStartContextTime += loopDuration / FIXED_SAMPLE_RATE;
-        this.scheduledUntilSample = loopStartSample;
-        return;
-      }
-    }
-
-    const events = collectEventsInWindow(this.project, { fromSample, toSample });
+    const events = collectEventsInWindow(this.project, { fromSample, toSample }, { cueBeat: this.cueBeat });
     if (events.length > 0) {
       this.worklet.port.postMessage({ type: "EVENTS", events, sessionId: this.playSessionId });
     }
@@ -263,8 +249,10 @@ export class AudioEngine {
     if (!this.context || !this.project || !this.isPlaying) {
       return 0;
     }
-    const sample = Math.max(0, Math.round((this.context.currentTime - this.songStartContextTime) * FIXED_SAMPLE_RATE));
-    return sample / samplesPerBeat(FIXED_SAMPLE_RATE, this.project.global.tempo);
+    const elapsedPlaybackBeat =
+      Math.max(0, Math.round((this.context.currentTime - this.songStartContextTime) * FIXED_SAMPLE_RATE)) /
+      samplesPerBeat(FIXED_SAMPLE_RATE, this.project.global.tempo);
+    return getSongBeatForPlaybackBeat(elapsedPlaybackBeat, this.cueBeat, this.project.global.loop);
   }
 
   getSampleRate(): number {
@@ -276,6 +264,14 @@ export class AudioEngine {
       return 0;
     }
     return Math.max(0, Math.round((this.context.currentTime - this.songStartContextTime) * FIXED_SAMPLE_RATE));
+  }
+
+  getElapsedPlaybackBeat(): number {
+    if (!this.context || !this.isPlaying) {
+      return 0;
+    }
+    return Math.max(0, Math.round((this.context.currentTime - this.songStartContextTime) * FIXED_SAMPLE_RATE)) /
+      samplesPerBeat(FIXED_SAMPLE_RATE, this.project?.global.tempo ?? 120);
   }
 
   private getSafeLiveSampleTime(leadSamples = BLOCK_SIZE * 2): number {
@@ -398,8 +394,9 @@ export class AudioEngine {
       .flatMap((track) => track.notes)
       .reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);
     const renderEndBeat = Math.max(EXPORT_TAIL_BEATS, maxNoteEndBeat + EXPORT_TAIL_BEATS);
-    const totalSamples = Math.max(BLOCK_SIZE, beatToSample(renderEndBeat, FIXED_SAMPLE_RATE, project.global.tempo) + BLOCK_SIZE);
-    const initialEvents = collectEventsInWindow(project, { fromSample: 0, toSample: totalSamples });
+    const playbackEndBeat = getLoopPlaybackEndBeat(project, 0, renderEndBeat);
+    const totalSamples = Math.max(BLOCK_SIZE, beatToSample(playbackEndBeat, FIXED_SAMPLE_RATE, project.global.tempo) + BLOCK_SIZE);
+    const initialEvents = collectEventsInWindow(project, { fromSample: 0, toSample: totalSamples }, { cueBeat: 0 });
 
     const context = new OfflineAudioContext({
       numberOfChannels: 2,

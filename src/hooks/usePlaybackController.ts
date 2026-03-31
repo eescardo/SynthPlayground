@@ -2,6 +2,7 @@
 
 import { MutableRefObject, useCallback, useEffect, useRef } from "react";
 import { AudioEngine } from "@/audio/engine";
+import { getLoopPlaybackEndBeat } from "@/lib/looping";
 import { Project } from "@/types/music";
 
 interface UsePlaybackControllerArgs {
@@ -59,13 +60,14 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
     setPlayheadBeat(beat);
     handleRecordingBeatRef.current(beat);
 
-    if (playbackEndBeat > 0 && beat >= playbackEndBeat - 0.0001) {
+    const playbackStopBeat = getLoopPlaybackEndBeat(project, userCueBeat, playbackEndBeat) - userCueBeat;
+    if (playbackStopBeat > 0 && audioEngineRef.current.getElapsedPlaybackBeat() >= playbackStopBeat - 0.0001) {
       stopPlayback(true);
       return;
     }
 
     rafRef.current = window.requestAnimationFrame(tickPlayhead);
-  }, [audioEngineRef, playbackEndBeat, setPlayheadBeat, stopPlayback]);
+  }, [audioEngineRef, playbackEndBeat, project, setPlayheadBeat, stopPlayback, userCueBeat]);
 
   const beginPlaybackAtBeat = useCallback(async (cueBeat: number) => {
     if (!audioEngineRef.current) {

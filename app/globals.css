@@ -47,6 +47,17 @@ button:disabled {
   cursor: not-allowed;
 }
 
+button.secondary-action {
+  background: rgba(13, 23, 34, 0.72);
+  color: var(--muted);
+  border-color: rgba(38, 66, 92, 0.75);
+}
+
+button.secondary-action:hover {
+  color: var(--ink);
+  border-color: var(--border);
+}
+
 input,
 select {
   background: #0b131d;
@@ -197,8 +208,10 @@ select {
   background: rgba(9, 17, 26, 0.8);
   border: 1px solid var(--border);
   border-radius: 10px;
-  overflow: auto;
-  overscroll-behavior: contain;
+  overflow-x: auto;
+  overflow-y: visible;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
   max-width: 100%;
 }
 
@@ -262,6 +275,33 @@ select {
   font-size: 0.72rem;
   color: var(--ink);
   font-family: "Courier New", monospace;
+}
+
+.loop-popover {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 180px;
+  padding: 0.7rem;
+  border-radius: 10px;
+  border: 1px solid rgba(125, 220, 173, 0.4);
+  background: rgba(8, 22, 17, 0.95);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.28);
+  z-index: 70;
+}
+
+.loop-popover-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.loop-conflict-list {
+  max-height: 240px;
+  overflow: auto;
 }
 
 .track-volume-slider-shell {

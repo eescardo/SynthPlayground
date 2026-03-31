@@ -38,11 +38,12 @@ export interface ProjectGlobalSettings {
   tempo: number;
   meter: "4/4" | "3/4";
   gridBeats: number;
-  loop?: {
-    startBeat: number;
-    endBeat: number;
-    enabled: boolean;
-  };
+  loop: Array<{
+    id: string;
+    kind: "start" | "end";
+    beat: number;
+    repeatCount?: number;
+  }>;
 }
 
 export interface MasterFxSettings {

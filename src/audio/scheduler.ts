@@ -1,18 +1,39 @@
+import { getLoopedPlaybackBeatsForSongBeat } from "@/lib/looping";
 import { beatRangeToSampleRange } from "@/lib/musicTiming";
 import { pitchToVoct } from "@/lib/pitch";
 import { createId } from "@/lib/ids";
 import { Project } from "@/types/music";
-import { SchedulerEvent } from "@/types/audio";
+import { SchedulerEvent, SchedulerEventType } from "@/types/audio";
 
 interface SchedulerWindow {
   fromSample: number;
   toSample: number;
 }
 
+interface CollectEventsOptions {
+  cueBeat?: number;
+}
+
 interface NoteEventCache {
   onEventId: string;
   offEventId: string;
 }
+
+enum SchedulerEventSortPriority {
+  NoteOff = 0,
+  ParamChange = 1,
+  NoteOn = 2
+}
+
+// When multiple events land on the same sample, we need deterministic ordering.
+// NoteOff runs first so a note ending exactly on a boundary releases before any
+// same-sample retrigger. Param changes land before NoteOn so fresh note attacks
+// see the latest parameter targets for that sample.
+const SCHEDULER_EVENT_SORT_PRIORITY: Record<SchedulerEventType, SchedulerEventSortPriority> = {
+  NoteOff: SchedulerEventSortPriority.NoteOff,
+  ParamChange: SchedulerEventSortPriority.ParamChange,
+  NoteOn: SchedulerEventSortPriority.NoteOn
+};
 
 const stableNoteEventIds = new Map<string, NoteEventCache>();
 
@@ -45,9 +66,15 @@ const noteEventCacheFor = (trackId: string, noteId: string): NoteEventCache => {
   return created;
 };
 
-export const collectEventsInWindow = (project: Project, window: SchedulerWindow): SchedulerEvent[] => {
+const getLoopedEventSampleTimes = (songBeat: number, cueBeat: number, project: Project): number[] => {
+  const playbackBeatTimes = getLoopedPlaybackBeatsForSongBeat(songBeat, cueBeat, project.global.loop);
+  return playbackBeatTimes.map((beatOffset) => beatRangeToSampleRange(beatOffset, 0, project.global.sampleRate, project.global.tempo).startSample);
+};
+
+export const collectEventsInWindow = (project: Project, window: SchedulerWindow, options?: CollectEventsOptions): SchedulerEvent[] => {
   pruneStaleNoteEventIds(project);
   const events: SchedulerEvent[] = [];
+  const cueBeat = Math.max(0, options?.cueBeat ?? 0);
 
   for (const track of project.tracks) {
     if (track.mute) {
@@ -56,36 +83,52 @@ export const collectEventsInWindow = (project: Project, window: SchedulerWindow)
 
     for (const note of track.notes) {
       const voct = pitchToVoct(note.pitchStr);
-      const range = beatRangeToSampleRange(note.startBeat, note.durationBeats, project.global.sampleRate, project.global.tempo);
       const ids = noteEventCacheFor(track.id, note.id);
+      const startBeatTimes = getLoopedEventSampleTimes(note.startBeat, cueBeat, project);
+      const endBeatTimes = getLoopedEventSampleTimes(note.startBeat + note.durationBeats, cueBeat, project);
 
-      if (range.startSample >= window.fromSample && range.startSample < window.toSample) {
+      startBeatTimes.forEach((sampleTime, index) => {
+        if (sampleTime < window.fromSample || sampleTime >= window.toSample) {
+          return;
+        }
         events.push({
-          id: ids.onEventId,
+          id: index === 0 ? ids.onEventId : `${ids.onEventId}_loop_${index}`,
           type: "NoteOn",
           source: "timeline",
-          sampleTime: range.startSample,
+          sampleTime,
           trackId: track.id,
           pitchVoct: voct,
           velocity: note.velocity,
           noteId: note.id
         });
-      }
+      });
 
-      if (range.endSample >= window.fromSample && range.endSample < window.toSample) {
+      endBeatTimes.forEach((sampleTime, index) => {
+        if (sampleTime < window.fromSample || sampleTime >= window.toSample) {
+          return;
+        }
         events.push({
-          id: ids.offEventId,
+          id: index === 0 ? ids.offEventId : `${ids.offEventId}_loop_${index}`,
           type: "NoteOff",
           source: "timeline",
-          sampleTime: range.endSample,
+          sampleTime,
           trackId: track.id,
           pitchVoct: voct,
           noteId: note.id
         });
-      }
+      });
     }
   }
 
-  events.sort((a, b) => a.sampleTime - b.sampleTime);
+  events.sort((a, b) => {
+    if (a.sampleTime !== b.sampleTime) {
+      return a.sampleTime - b.sampleTime;
+    }
+    const priorityDelta = SCHEDULER_EVENT_SORT_PRIORITY[a.type] - SCHEDULER_EVENT_SORT_PRIORITY[b.type];
+    if (priorityDelta !== 0) {
+      return priorityDelta;
+    }
+    return a.id.localeCompare(b.id);
+  });
   return events;
 };
