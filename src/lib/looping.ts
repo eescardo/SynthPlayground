@@ -39,12 +39,13 @@ interface LoopPair {
 
 const EPSILON = 1e-9;
 export const DEFAULT_LOOP_REPEAT_COUNT = 1;
+export const MAX_LOOP_REPEAT_COUNT = 16;
 
 type LoopMarkerInput = ProjectGlobalSettings["loop"][number];
 
 const clampRepeatCount = (repeatCount: unknown): number =>
   typeof repeatCount === "number" && Number.isFinite(repeatCount)
-    ? Math.max(1, Math.min(16, Math.round(repeatCount)))
+    ? Math.max(DEFAULT_LOOP_REPEAT_COUNT, Math.min(MAX_LOOP_REPEAT_COUNT, Math.round(repeatCount)))
     : DEFAULT_LOOP_REPEAT_COUNT;
 
 const sortMarkers = (markers: SanitizedLoopMarker[]): SanitizedLoopMarker[] =>

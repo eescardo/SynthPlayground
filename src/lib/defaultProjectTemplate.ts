@@ -1,5 +1,6 @@
 import defaultProjectTemplateData from "@/lib/defaultProjectTemplateData.json";
 import { createId } from "@/lib/ids";
+import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping";
 import { Project, Track } from "@/types/music";
 import { Patch } from "@/types/patch";
 
@@ -166,7 +167,13 @@ export const createDefaultProjectFromTemplate = (bundledPresetPatches: Patch[]):
             id: createId("loop_marker"),
             kind,
             beat: Math.max(0, beat),
-            repeatCount: kind === "end" ? Math.max(1, Math.min(16, Math.round(asFiniteNumber(marker.repeatCount, 1)))) : undefined
+            repeatCount:
+              kind === "end"
+                ? Math.max(
+                    DEFAULT_LOOP_REPEAT_COUNT,
+                    Math.min(MAX_LOOP_REPEAT_COUNT, Math.round(asFiniteNumber(marker.repeatCount, DEFAULT_LOOP_REPEAT_COUNT)))
+                  )
+                : undefined
           }
         ];
       })
@@ -177,6 +184,54 @@ export const createDefaultProjectFromTemplate = (bundledPresetPatches: Patch[]):
       compressorEnabled: Boolean(masterFx.compressorEnabled),
       limiterEnabled: masterFx.limiterEnabled !== false,
       makeupGain: asFiniteNumber(masterFx.makeupGain, 0)
+    },
+    createdAt: now,
+    updatedAt: now
+  };
+};
+
+export const createEmptyProjectFromPresets = (bundledPresetPatches: Patch[]): Project => {
+  const now = Date.now();
+  const firstPresetId = bundledPresetPatches[0]?.id ?? "preset_bass";
+
+  return {
+    id: "project_default",
+    name: "New Synth Playground Project",
+    global: {
+      sampleRate: 48000,
+      tempo: 122,
+      meter: "4/4",
+      gridBeats: 0.25,
+      loop: []
+    },
+    tracks: [
+      {
+        id: createId("track"),
+        name: "Track 1",
+        instrumentPatchId: firstPresetId,
+        notes: [],
+        macroValues: {},
+        macroPanelExpanded: true,
+        volume: 1,
+        mute: false,
+        solo: false,
+        fx: {
+          delayEnabled: false,
+          reverbEnabled: false,
+          saturationEnabled: false,
+          compressorEnabled: false,
+          delayMix: 0.2,
+          reverbMix: 0.2,
+          drive: 0.2,
+          compression: 0.4
+        }
+      }
+    ],
+    patches: bundledPresetPatches.map((patch) => structuredClone(patch)),
+    masterFx: {
+      compressorEnabled: false,
+      limiterEnabled: true,
+      makeupGain: 0
     },
     createdAt: now,
     updatedAt: now

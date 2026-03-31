@@ -1,5 +1,7 @@
 "use client";
 
+import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping";
+
 interface LoopPopoverProps {
   left: number;
   top: number;
@@ -14,7 +16,7 @@ interface LoopPopoverProps {
 }
 
 export function LoopPopover(props: LoopPopoverProps) {
-  const repeatCount = props.repeatCount ?? 1;
+  const repeatCount = props.repeatCount ?? DEFAULT_LOOP_REPEAT_COUNT;
 
   return (
     <div
@@ -49,8 +51,8 @@ export function LoopPopover(props: LoopPopoverProps) {
             Loop Repeats
             <input
               type="number"
-              min={1}
-              max={16}
+              min={DEFAULT_LOOP_REPEAT_COUNT}
+              max={MAX_LOOP_REPEAT_COUNT}
               value={repeatCount}
               onChange={(event) => props.onUpdateRepeatCount(Number(event.target.value))}
             />

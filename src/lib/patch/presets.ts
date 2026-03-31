@@ -1,6 +1,6 @@
 import { createDefaultParamsForType } from "@/lib/patch/moduleRegistry";
 import { HOST_NODE_IDS } from "@/lib/patch/constants";
-import { createDefaultProjectFromTemplate } from "@/lib/defaultProjectTemplate";
+import { createDefaultProjectFromTemplate, createEmptyProjectFromPresets } from "@/lib/defaultProjectTemplate";
 import { Project } from "@/types/music";
 import { Patch } from "@/types/patch";
 
@@ -1274,4 +1274,8 @@ export const presetPatches = [bassPatch(), brassPatch(), keysPatch(), padPatch()
 // but preserves matching editor placement where possible.
 export const createDefaultProject = (): Project => {
   return createDefaultProjectFromTemplate(presetPatches);
+};
+
+export const createEmptyProject = (): Project => {
+  return createEmptyProjectFromPresets(presetPatches);
 };

@@ -16,7 +16,7 @@ import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } fr
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
-import { createDefaultProject } from "@/lib/patch/presets";
+import { createDefaultProject, createEmptyProject } from "@/lib/patch/presets";
 import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { importProjectFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
@@ -841,12 +841,24 @@ export default function HomePage() {
           onClick={async () => {
             playback.stopPlayback();
             await clearProject();
+            const fresh = createEmptyProject();
+            resetProjectHistory(fresh);
+            setSelectedTrackId(fresh.tracks[0]?.id);
+          }}
+        >
+          Clear Project
+        </button>
+        <button
+          className="secondary-action"
+          onClick={async () => {
+            playback.stopPlayback();
+            await clearProject();
             const fresh = createDefaultProject();
             resetProjectHistory(fresh);
             setSelectedTrackId(fresh.tracks[0]?.id);
           }}
         >
-          Reset Project
+          Reset To Default Project
         </button>
         <input
           ref={importInputRef}

@@ -1,4 +1,5 @@
 import { createId } from "@/lib/ids";
+import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping";
 import { presetPatches } from "@/lib/patch/presets";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
 import { TRACK_VOLUME_DEFAULT, TRACK_VOLUME_MAX, TRACK_VOLUME_MIN } from "@/lib/trackVolume";
@@ -273,7 +274,13 @@ export const normalizeProject = (raw: unknown): Project => {
             id: asString(marker.id, createId(`loop_marker_${index}`)),
             kind,
             beat: Math.max(0, beatRaw),
-            repeatCount: kind === "end" ? Math.max(1, Math.min(16, Math.round(asFiniteNumber(marker.repeatCount, 1)))) : undefined
+            repeatCount:
+              kind === "end"
+                ? Math.max(
+                    DEFAULT_LOOP_REPEAT_COUNT,
+                    Math.min(MAX_LOOP_REPEAT_COUNT, Math.round(asFiniteNumber(marker.repeatCount, DEFAULT_LOOP_REPEAT_COUNT)))
+                  )
+                : undefined
           }];
         }
 
@@ -282,7 +289,10 @@ export const normalizeProject = (raw: unknown): Project => {
           return [];
         }
         const endBeatRaw = asOptionalFiniteNumber(marker.endBeat);
-        const repeatCount = Math.max(1, Math.min(16, Math.round(asFiniteNumber(marker.repeatCount, 1))));
+        const repeatCount = Math.max(
+          DEFAULT_LOOP_REPEAT_COUNT,
+          Math.min(MAX_LOOP_REPEAT_COUNT, Math.round(asFiniteNumber(marker.repeatCount, DEFAULT_LOOP_REPEAT_COUNT)))
+        );
         const markerIdBase = asString(marker.id, createId(`loop_region_${index}`));
         return [
           {
