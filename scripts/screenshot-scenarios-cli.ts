@@ -7,6 +7,7 @@ import {
 const emitGithubOutput = (result: {
   enabled: boolean;
   value: string;
+  resolved: string;
   grep: string;
   display: string;
   error: string;
@@ -14,6 +15,7 @@ const emitGithubOutput = (result: {
   const lines = [
     `enabled=${result.enabled ? "true" : "false"}`,
     `value=${result.value}`,
+    `resolved=${result.resolved ?? ""}`,
     `grep=${result.grep ?? ""}`,
     `display=${result.display}`,
     `error=${result.error ?? ""}`

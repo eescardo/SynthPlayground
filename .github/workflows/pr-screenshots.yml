@@ -21,7 +21,7 @@ on:
       - unlabeled
 
 permissions:
-  contents: read
+  contents: write
   issues: write
   pull-requests: write
 
@@ -36,6 +36,7 @@ jobs:
       base_ref: ${{ steps.pr.outputs.base_ref }}
       head_ref: ${{ steps.pr.outputs.head_ref }}
       scenarios: ${{ steps.scenarios.outputs.value }}
+      resolved: ${{ steps.scenarios.outputs.resolved }}
       grep: ${{ steps.scenarios.outputs.grep }}
       display: ${{ steps.scenarios.outputs.display }}
     steps:
@@ -181,6 +182,72 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  publish-previews:
+    name: Publish Screenshot Previews
+    runs-on: ubuntu-latest
+    needs:
+      - pr-context
+      - capture-before
+      - capture-after
+    if: needs.pr-context.outputs.scenarios != ''
+    outputs:
+      preview_branch: ${{ steps.publish.outputs.preview_branch }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download before screenshots
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-${{ needs.pr-context.outputs.pr_number }}-screenshots-before
+          path: ${{ runner.temp }}/screenshots-before
+
+      - name: Download after screenshots
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-${{ needs.pr-context.outputs.pr_number }}-screenshots-after
+          path: ${{ runner.temp }}/screenshots-after
+
+      - name: Publish preview images to branch
+        id: publish
+        env:
+          PREVIEW_BRANCH: pr-screenshot-previews
+          PR_NUMBER: ${{ needs.pr-context.outputs.pr_number }}
+          BEFORE_DIR: ${{ runner.temp }}/screenshots-before
+          AFTER_DIR: ${{ runner.temp }}/screenshots-after
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git ls-remote --exit-code --heads origin "$PREVIEW_BRANCH" >/dev/null 2>&1; then
+            git fetch origin "$PREVIEW_BRANCH"
+            git switch --create "$PREVIEW_BRANCH" --track "origin/$PREVIEW_BRANCH" 2>/dev/null || git switch "$PREVIEW_BRANCH"
+            git reset --hard "origin/$PREVIEW_BRANCH"
+          else
+            git switch --orphan "$PREVIEW_BRANCH"
+            git rm -rf . >/dev/null 2>&1 || true
+            find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          fi
+
+          mkdir -p "pr-$PR_NUMBER/before" "pr-$PR_NUMBER/after"
+          rm -rf "pr-$PR_NUMBER/before"/* "pr-$PR_NUMBER/after"/*
+          cp -R "$BEFORE_DIR"/. "pr-$PR_NUMBER/before/"
+          cp -R "$AFTER_DIR"/. "pr-$PR_NUMBER/after/"
+          touch .nojekyll
+
+          git add .nojekyll "pr-$PR_NUMBER"
+          if git diff --cached --quiet; then
+            echo "preview_branch=$PREVIEW_BRANCH" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git commit -m "Update PR $PR_NUMBER screenshot previews"
+          git push origin "$PREVIEW_BRANCH"
+          echo "preview_branch=$PREVIEW_BRANCH" >> "$GITHUB_OUTPUT"
+
   skip:
     name: Skip Screenshot Run
     runs-on: ubuntu-latest
@@ -197,6 +264,7 @@ jobs:
       - pr-context
       - capture-before
       - capture-after
+      - publish-previews
     if: needs.pr-context.outputs.scenarios != ''
     steps:
       - name: Upsert screenshot comment
@@ -204,21 +272,40 @@ jobs:
         env:
           PR_NUMBER: ${{ needs.pr-context.outputs.pr_number }}
           SCENARIOS: ${{ needs.pr-context.outputs.display }}
+          RESOLVED_SCENARIOS: ${{ needs.pr-context.outputs.resolved }}
           BASE_REF: ${{ needs.pr-context.outputs.base_ref }}
           HEAD_REF: ${{ needs.pr-context.outputs.head_ref }}
           BEFORE_URL: ${{ needs.capture-before.outputs.artifact_url }}
           AFTER_URL: ${{ needs.capture-after.outputs.artifact_url }}
+          PREVIEW_BRANCH: ${{ needs.publish-previews.outputs.preview_branch }}
         with:
           script: |
             const prNumber = Number(process.env.PR_NUMBER);
             const marker = "<!-- pr-screenshots -->";
+            const repo = `${context.repo.owner}/${context.repo.repo}`;
+            const previewBranch = process.env.PREVIEW_BRANCH;
+            const scenarios = process.env.RESOLVED_SCENARIOS.split(",").filter(Boolean);
+            const imageUrl = (phase, scenario) =>
+              `https://github.com/${repo}/raw/${previewBranch}/pr-${prNumber}/${phase}/${scenario}.png`;
+            const rows = scenarios
+              .map(
+                (scenario) =>
+                  `| \`${scenario}\` | <img src="${imageUrl("before", scenario)}" alt="${scenario} before" width="360" /> | <img src="${imageUrl("after", scenario)}" alt="${scenario} after" width="360" /> |`
+              )
+              .join("\n");
             const body = `${marker}
             ## Screenshots
 
             Generated screenshot artifacts for ${process.env.SCENARIOS}.
 
-            - Before (${process.env.BASE_REF}): [download artifact](${process.env.BEFORE_URL})
-            - After (${process.env.HEAD_REF}): [download artifact](${process.env.AFTER_URL})
+            | Scenario | Before (${process.env.BASE_REF}) | After (${process.env.HEAD_REF}) |
+            | --- | --- | --- |
+            ${rows}
+
+            Artifact downloads:
+
+            - Before artifact: [download](${process.env.BEFORE_URL})
+            - After artifact: [download](${process.env.AFTER_URL})
 
             Artifact contents are organized as:
 
