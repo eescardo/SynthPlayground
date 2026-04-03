@@ -116,7 +116,7 @@ jobs:
         shell: bash
         run: |
           if [[ -n "$GREP_PATTERN" ]]; then
-            pnpm exec playwright test tests/ui/screenshot-scenarios.spec.ts --grep "$GREP_PATTERN"
+            node --import tsx scripts/ui-screenshots/capture.ts $(echo "$GREP_PATTERN" | tr '|' '\n' | sed 's/^@//')
           else
             pnpm run test:ui:capture
           fi
@@ -167,7 +167,7 @@ jobs:
         shell: bash
         run: |
           if [[ -n "$GREP_PATTERN" ]]; then
-            pnpm exec playwright test tests/ui/screenshot-scenarios.spec.ts --grep "$GREP_PATTERN"
+            node --import tsx scripts/ui-screenshots/capture.ts $(echo "$GREP_PATTERN" | tr '|' '\n' | sed 's/^@//')
           else
             pnpm run test:ui:capture
           fi

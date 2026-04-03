@@ -24,6 +24,7 @@ Named scenarios currently include:
 - `patch-editor`
 
 These names are defined once in `scripts/screenshotScenarios.ts` and reused by both the Playwright tests and the GitHub workflow helpers.
+The actual capture behavior for each scenario lives in `scripts/ui-screenshots/`.
 
 ## GitHub Workflow
 
