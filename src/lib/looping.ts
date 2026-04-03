@@ -234,6 +234,9 @@ const collectPlaybackBeatsInSequence = (
 
     const childStartBeat = Math.max(cursorSong, child.startBeat);
     if (songBeat < childStartBeat - EPSILON) {
+      // The target beat lands before the next loop body begins in the audible
+      // sequence. It can either belong to the plain gap we are currently walking,
+      // or to a later repeated pass of a loop that started before the cue point.
       if (songBeat >= cursorSong - EPSILON && songBeat < childStartBeat - EPSILON) {
         results.push(cursorPlayback + (songBeat - cursorSong));
         return;
@@ -253,6 +256,9 @@ const collectPlaybackBeatsInSequence = (
     }
 
     if (songBeat <= child.endBeat + EPSILON) {
+      // The target beat belongs to this loop body. First collect where it lands in
+      // the currently audible pass, then mirror that same musical position into any
+      // later repeated passes of the same loop body.
       const { currentPassLength, repeatedPassLength } = getLoopPassLengths(child, childStartBeat);
       const currentPassOffsets: number[] = [];
       collectPlaybackBeatsInSequence(songBeat, childStartBeat, child.endBeat, child.children, 0, currentPassOffsets);
@@ -267,6 +273,8 @@ const collectPlaybackBeatsInSequence = (
       return;
     }
 
+    // This loop body is completely before the target beat in song time, so advance
+    // both cursors by the audible length of its current pass plus any repeats.
     const { currentPassLength, repeatedPassLength } = getLoopPassLengths(child, childStartBeat);
     cursorPlayback += currentPassLength + repeatedPassLength * child.repeatCount;
     cursorSong = child.endBeat;
