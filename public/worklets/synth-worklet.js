@@ -62,6 +62,11 @@ const TRACK_VOLUME_RANGE = {
   DEFAULT: 1,
   MAX: 2
 };
+const EVENT_SORT_PRIORITY = {
+  NoteOff: 0,
+  ParamChange: 1,
+  NoteOn: 2
+};
 
 const smoothingAlpha = (timeMs, sampleRate) => {
   if (!timeMs || timeMs <= 0) {
@@ -1178,7 +1183,16 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
       }
       this.eventQueue.push(evt);
     }
-    this.eventQueue.sort((a, b) => a.sampleTime - b.sampleTime);
+    this.eventQueue.sort((a, b) => {
+      if (a.sampleTime !== b.sampleTime) {
+        return a.sampleTime - b.sampleTime;
+      }
+      const priorityDelta = (EVENT_SORT_PRIORITY[a.type] ?? 99) - (EVENT_SORT_PRIORITY[b.type] ?? 99);
+      if (priorityDelta !== 0) {
+        return priorityDelta;
+      }
+      return String(a.id).localeCompare(String(b.id));
+    });
   }
 
   // Main-thread control plane: initializes the processor, swaps in a project,
