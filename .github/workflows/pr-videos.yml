@@ -162,6 +162,16 @@ jobs:
           name: pr-${{ needs.pr-context.outputs.pr_number }}-videos-after
           path: ${{ runner.temp }}/videos-after
 
+      - name: Ensure ffmpeg is available
+        shell: bash
+        run: |
+          if command -v ffmpeg >/dev/null 2>&1; then
+            ffmpeg -version | head -n 1
+            exit 0
+          fi
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
       - name: Publish preview videos to branch
         id: publish
         env:
@@ -186,6 +196,10 @@ jobs:
           mkdir -p "pr-$PR_NUMBER"
           rm -rf "pr-$PR_NUMBER"/*
           cp -R "$AFTER_DIR"/. "pr-$PR_NUMBER/"
+          find "pr-$PR_NUMBER" -type f -name '*.webm' | while IFS= read -r webm; do
+            mp4="${webm%.webm}.mp4"
+            ffmpeg -y -loglevel error -i "$webm" -movflags +faststart -pix_fmt yuv420p "$mp4"
+          done
           touch .nojekyll
 
           git add .nojekyll "pr-$PR_NUMBER"
@@ -233,7 +247,7 @@ jobs:
             const previewBranch = process.env.PREVIEW_BRANCH;
             const scenarios = process.env.RESOLVED_SCENARIOS.split(",").filter(Boolean);
             const videoBlobUrl = (scenario) =>
-              `https://github.com/${repo}/blob/${previewBranch}/pr-${prNumber}/${scenario}.webm`;
+              `https://github.com/${repo}/blob/${previewBranch}/pr-${prNumber}/${scenario}.mp4`;
             const posterUrl = (scenario) =>
               `https://github.com/${repo}/raw/${previewBranch}/pr-${prNumber}/${scenario}.png`;
             const rows = scenarios
@@ -260,7 +274,7 @@ jobs:
             - \`artifacts/videos/after/<scenario>.webm\`
             - \`artifacts/videos/after/<scenario>.png\`
 
-            Hosted preview files are published to the \`pr-video-previews\` utility branch. Click any thumbnail above to open the hosted video page in GitHub.`;
+            Hosted preview files are published to the \`pr-video-previews\` utility branch. Click any thumbnail above to open the hosted \`.mp4\` preview page in GitHub.`;
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,

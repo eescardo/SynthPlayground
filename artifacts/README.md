@@ -74,11 +74,12 @@ The `PR Videos` workflow can generate PR-head video artifacts for a PR branch.
 - PR label `videos:<scenario>`: run only that scenario
 - Multiple `videos:<scenario>` labels can be combined
 
-The workflow uploads an `after` artifact bundle and leaves a PR comment with embedded poster images linking to hosted video pages, plus download links.
+The workflow uploads an `after` artifact bundle and leaves a PR comment with embedded poster images linking to hosted `.mp4` preview pages, plus download links.
 
 Current implementation detail:
 
 - Hosted PR video preview files are published to a dedicated utility branch named `pr-video-previews`.
+- The workflow keeps the captured `.webm` files in the artifact bundle and also generates hosted `.mp4` preview copies for browser-friendly playback from the PR comment.
 - That branch is reusable scratch space for generated preview assets and may grow over time.
 - If the branch is deleted, the workflow will recreate it on the next run.
 
