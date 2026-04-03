@@ -232,12 +232,14 @@ jobs:
             const repo = `${context.repo.owner}/${context.repo.repo}`;
             const previewBranch = process.env.PREVIEW_BRANCH;
             const scenarios = process.env.RESOLVED_SCENARIOS.split(",").filter(Boolean);
-            const previewUrl = (scenario) =>
-              `https://github.com/${repo}/raw/${previewBranch}/pr-${prNumber}/${scenario}.webm`;
+            const videoBlobUrl = (scenario) =>
+              `https://github.com/${repo}/blob/${previewBranch}/pr-${prNumber}/${scenario}.webm`;
+            const posterUrl = (scenario) =>
+              `https://github.com/${repo}/raw/${previewBranch}/pr-${prNumber}/${scenario}.png`;
             const rows = scenarios
               .map(
                 (scenario) =>
-                  `| \`${scenario}\` | [view hosted preview](${previewUrl(scenario)}) |`
+                  `| \`${scenario}\` | [<img src="${posterUrl(scenario)}" alt="${scenario} video poster" width="360" />](${videoBlobUrl(scenario)}) |`
               )
               .join("\n");
             const body = `${marker}
@@ -256,8 +258,9 @@ jobs:
             Artifact contents are organized as:
 
             - \`artifacts/videos/after/<scenario>.webm\`
+            - \`artifacts/videos/after/<scenario>.png\`
 
-            Hosted preview files are published to the \`pr-video-previews\` utility branch for lightweight review links.`;
+            Hosted preview files are published to the \`pr-video-previews\` utility branch. Click any thumbnail above to open the hosted video page in GitHub.`;
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,

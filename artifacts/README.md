@@ -74,7 +74,7 @@ The `PR Videos` workflow can generate PR-head video artifacts for a PR branch.
 - PR label `videos:<scenario>`: run only that scenario
 - Multiple `videos:<scenario>` labels can be combined
 
-The workflow uploads an `after` artifact bundle and leaves a PR comment with hosted preview links plus download links.
+The workflow uploads an `after` artifact bundle and leaves a PR comment with embedded poster images linking to hosted video pages, plus download links.
 
 Current implementation detail:
 

@@ -33,12 +33,16 @@ describe.sequential("ui video capture", () => {
         VIDEO_RECORD_CYCLES: "2",
         VIDEO_POST_ACTION_SETTLE_MS: "100"
       },
+      maxBuffer: 16 * 1024 * 1024,
       stdio: "pipe"
     });
 
-    const outputPath = path.join(repoRoot, "artifacts", "videos", label, `${scenario}.webm`);
-    expect(fs.existsSync(outputPath)).toBe(true);
-    expect(fs.statSync(outputPath).size).toBeGreaterThan(0);
+    const videoOutputPath = path.join(repoRoot, "artifacts", "videos", label, `${scenario}.webm`);
+    const posterOutputPath = path.join(repoRoot, "artifacts", "videos", label, `${scenario}.png`);
+    expect(fs.existsSync(videoOutputPath)).toBe(true);
+    expect(fs.statSync(videoOutputPath).size).toBeGreaterThan(0);
+    expect(fs.existsSync(posterOutputPath)).toBe(true);
+    expect(fs.statSync(posterOutputPath).size).toBeGreaterThan(0);
   }, 120_000);
 });
 

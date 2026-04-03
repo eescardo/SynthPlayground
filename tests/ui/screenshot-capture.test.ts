@@ -27,6 +27,7 @@ describe.sequential("ui screenshot capture", () => {
         SCREENSHOT_LABEL: label,
         PLAYWRIGHT_PORT: portForScenario(scenario)
       },
+      maxBuffer: 16 * 1024 * 1024,
       stdio: "pipe"
     });
 

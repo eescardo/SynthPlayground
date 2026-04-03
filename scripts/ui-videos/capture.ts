@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { chromium } from "@playwright/test";
-import { ensureArtifactDir, startDevServer, waitForServer } from "../ui-capture/common";
+import { ensureArtifactDir, savePageScreenshot, startDevServer, waitForServer } from "../ui-capture/common";
 import { assertVideoRegistryAligned, getVideoScenarioDefinition, saveRecordedVideo } from "./registry";
 import { resolveSpecificVideoScenarios, VIDEO_SCENARIOS, VideoScenario } from "./scenarios";
 
@@ -35,8 +35,9 @@ const run = async () => {
     try {
       for (const scenario of requestedScenarios) {
         const definition = getVideoScenarioDefinition(scenario);
-        const outputPath = path.join(videoRoot, `${scenario}.webm`);
-        ensureArtifactDir(outputPath);
+        const videoOutputPath = path.join(videoRoot, `${scenario}.webm`);
+        const posterOutputPath = path.join(videoRoot, `${scenario}.png`);
+        ensureArtifactDir(videoOutputPath);
         const tempVideoDir = fs.mkdtempSync(path.join(os.tmpdir(), "synth-playground-video-"));
         const context = await browser.newContext({
           baseURL,
@@ -50,11 +51,12 @@ const run = async () => {
         const recordedVideo = page.video();
         try {
           await definition.capture(page);
+          await savePageScreenshot(page, posterOutputPath);
         } finally {
           await context.close();
         }
         try {
-          await saveRecordedVideo(recordedVideo, outputPath);
+          await saveRecordedVideo(recordedVideo, videoOutputPath);
         } finally {
           fs.rmSync(tempVideoDir, { recursive: true, force: true });
         }
