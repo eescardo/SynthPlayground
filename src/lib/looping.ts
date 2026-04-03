@@ -212,7 +212,7 @@ const collectPlaybackBeatsInSequence = (
       cursorSong = childStartBeat;
     }
 
-    if (songBeat < child.endBeat - EPSILON) {
+    if (songBeat <= child.endBeat + EPSILON) {
       const currentPassLength = getSequencePlaybackLength(childStartBeat, child.endBeat, child.children);
       const currentPassOffsets: number[] = [];
       collectPlaybackBeatsInSequence(songBeat, childStartBeat, child.endBeat, child.children, 0, currentPassOffsets);

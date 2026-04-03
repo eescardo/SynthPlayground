@@ -128,6 +128,16 @@ describe("looping", () => {
     expect(getLoopedPlaybackBeatsForSongBeat(6, 4, loop)).toEqual([2, 10]);
   });
 
+  it("includes exact loop-end boundaries in every pass for event scheduling", () => {
+    const loop = [
+      { id: "start_outer", kind: "start" as const, beat: 0 },
+      { id: "end_outer", kind: "end" as const, beat: 4, repeatCount: 1 }
+    ];
+
+    expect(getLoopedPlaybackBeatsForSongBeat(0, 0, loop)).toEqual([0, 4]);
+    expect(getLoopedPlaybackBeatsForSongBeat(4, 0, loop)).toEqual([4, 8]);
+  });
+
   it("finds note conflicts at loop boundaries and can split them", () => {
     const project = createProject();
     const loop = [{ id: "loop_start", kind: "start" as const, beat: 4 }];
