@@ -80,6 +80,12 @@ For visual or interaction changes, automated validation is necessary but not suf
 - If you change shared utilities, update tests in `src/lib/tests/` when behavior changes.
 - If a UI change has weak automated coverage, say that explicitly rather than implying the repo is fully protected by tests.
 
+## Refactors
+
+- If a file grows beyond 1000 lines, treat that as a prompt to refactor when doing so is practical and improves readability.
+- Prefer extracting cohesive modules or helpers over letting one file continue to absorb unrelated responsibilities.
+- If the file is already above that threshold and a safe refactor is out of scope for the current task, call that out in the handoff.
+
 ## Parallel Work
 
 Parallelization works best when tasks have mostly independent write scopes.
