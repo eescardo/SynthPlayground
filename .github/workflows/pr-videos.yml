@@ -180,6 +180,7 @@ jobs:
           AFTER_DIR: ${{ runner.temp }}/videos-after
         shell: bash
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
@@ -196,7 +197,12 @@ jobs:
           mkdir -p "pr-$PR_NUMBER"
           rm -rf "pr-$PR_NUMBER"/*
           cp -R "$AFTER_DIR"/. "pr-$PR_NUMBER/"
-          find "pr-$PR_NUMBER" -type f -name '*.webm' | while IFS= read -r webm; do
+          mapfile -d '' -t webm_files < <(find "pr-$PR_NUMBER" -type f -name '*.webm' -print0)
+          if [[ ${#webm_files[@]} -eq 0 ]]; then
+            echo "No .webm preview files were found under pr-$PR_NUMBER"
+            exit 1
+          fi
+          for webm in "${webm_files[@]}"; do
             mp4="${webm%.webm}.mp4"
             ffmpeg -y -loglevel error -i "$webm" -movflags +faststart -pix_fmt yuv420p "$mp4"
           done
