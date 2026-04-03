@@ -70,16 +70,22 @@ Typical order:
 For visual or interaction changes, automated validation is necessary but not sufficient.
 
 - Add before and after screenshots to the PR.
+- Add video captures for changes that affect record mode, transport/playback flows, instrument presets, or anything else that could change playback behavior in ways a short motion capture helps review.
 - `Before` screenshots mean captures generated from the PR base revision, typically `origin/main`.
 - `After` screenshots mean captures generated from the task branch / PR head revision.
 - Save screenshots under `artifacts/screenshots/`
 - Save browser traces under `artifacts/traces/`
 - Save videos under `artifacts/videos/`
-- Update the Playwright-based screenshot scripts in `scripts/ui-screenshots/` and keep `tests/ui/` validation aligned when UI changes affect captured states, selectors, or relevant user flows.
+- Update the Playwright-based capture scripts in `scripts/ui-screenshots/` and `scripts/ui-videos/` and keep `tests/ui/` validation aligned when UI changes affect captured states, selectors, or relevant user flows.
 - To attach screenshots to a PR, use the `PR Screenshots` GitHub workflow:
   - add PR label `screenshots` to capture all supported scenarios, or
   - add one or more `screenshots:<scenario>` labels such as `screenshots:main-view` or `screenshots:patch-editor`
-- Those labels trigger the workflow to generate `before` screenshots from the PR base revision and `after` screenshots from the PR branch, upload both artifacts, and post or update a sticky PR comment with download links.
+- Those labels trigger the workflow to generate `before` screenshots from the PR base revision and `after` screenshots from the PR branch, upload both artifacts, and post or update a sticky PR comment with previews and download links.
+- To attach videos to a PR, use the `PR Videos` GitHub workflow:
+  - add PR label `videos` to capture all supported video scenarios, or
+  - add one or more `videos:<scenario>` labels such as `videos:play-from-start-5s` or `videos:record-from-start-8s`
+- Those labels trigger the workflow to capture PR-head videos from the task branch only, upload the artifact bundle, and post or update a sticky PR comment with hosted preview links and downloads.
+- Video captures are useful for motion and flow review, but they are not a substitute for manual audio listening when the change is primarily about sound.
 - If capture tooling is not available yet, include a short manual verification checklist in the handoff.
 - PR descriptions for UI changes should say what changed visually and what to inspect.
 

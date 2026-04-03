@@ -1,6 +1,5 @@
-import fs from "node:fs";
-import path from "node:path";
 import { expect, Page } from "@playwright/test";
+import { openApp, savePageScreenshot } from "../ui-capture/common";
 import { SCREENSHOT_SCENARIO, SCREENSHOT_SCENARIOS, ScreenshotScenario } from "./scenarios";
 
 export interface ScreenshotScenarioDefinition {
@@ -8,34 +7,6 @@ export interface ScreenshotScenarioDefinition {
   description: string;
   capture: (page: Page, outputPath: string) => Promise<void>;
 }
-
-const clearPersistedProject = async (page: Page) => {
-  await page.addInitScript(() => {
-    window.localStorage.clear();
-    window.sessionStorage.clear();
-    void indexedDB.deleteDatabase("synth-playground");
-  });
-};
-
-const openApp = async (page: Page) => {
-  await clearPersistedProject(page);
-  await page.goto("/");
-  await expect(page.getByRole("button", { name: "Add Track" })).toBeVisible();
-  await expect(page.locator(".track-canvas-shell")).toBeVisible();
-};
-
-const ensureScreenshotDir = (outputPath: string) => {
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-};
-
-const savePageScreenshot = async (page: Page, outputPath: string, locator?: string) => {
-  ensureScreenshotDir(outputPath);
-  if (locator) {
-    await page.locator(locator).screenshot({ path: outputPath });
-    return;
-  }
-  await page.screenshot({ path: outputPath, fullPage: true });
-};
 
 export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, ScreenshotScenarioDefinition> = {
   [SCREENSHOT_SCENARIO.MAIN_VIEW]: {

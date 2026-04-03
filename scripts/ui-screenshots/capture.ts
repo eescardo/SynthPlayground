@@ -1,7 +1,7 @@
 import path from "node:path";
-import { spawn } from "node:child_process";
 import process from "node:process";
 import { chromium } from "@playwright/test";
+import { startDevServer, waitForServer } from "../ui-capture/common";
 import {
   SCREENSHOT_SCENARIOS,
   ScreenshotScenario,
@@ -26,30 +26,10 @@ const parseRequestedScenarios = (): ScreenshotScenario[] => {
   return selection.value.split(",") as ScreenshotScenario[];
 };
 
-const waitForServer = async (url: string, timeoutMs: number) => {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const response = await fetch(url);
-      if (response.ok) {
-        return;
-      }
-    } catch {
-      // server still starting
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  throw new Error(`Timed out waiting for dev server at ${url}`);
-};
-
 const run = async () => {
   assertScenarioRegistryAligned();
   const requestedScenarios = parseRequestedScenarios();
-  const devServer = spawn("pnpm", ["exec", "next", "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
-    cwd: process.cwd(),
-    stdio: "inherit",
-    env: { ...process.env }
-  });
+  const devServer = startDevServer(port);
 
   try {
     await waitForServer(baseURL, 120_000);
