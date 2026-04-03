@@ -71,6 +71,7 @@ For visual or interaction changes, automated validation is necessary but not suf
 - Save screenshots under `artifacts/screenshots/`
 - Save browser traces under `artifacts/traces/`
 - Save videos under `artifacts/videos/`
+- Update Playwright screenshot scenarios in `tests/ui/` when UI changes affect captured states, selectors, or relevant user flows.
 - If capture tooling is not available yet, include a short manual verification checklist in the handoff.
 - PR descriptions for UI changes should say what changed visually and what to inspect.
 
