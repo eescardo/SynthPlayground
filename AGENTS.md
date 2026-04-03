@@ -32,8 +32,9 @@ When asked to make code changes, aim for end-to-end delivery, not just a patch.
 - Make the change.
 - Run the narrowest relevant checks while iterating.
 - Before handoff, run `pnpm run validate` if the change is ready to land.
-- If validation is green and the change does not affect UI or UX, it is reasonable to commit and open/update a PR.
-- If the change affects UI or UX, do not treat green automated checks as sufficient by themselves. Include review artifacts or a manual verification checklist before merge.
+- If validation is green, commit and open or update a PR.
+- PR title format: `[Agent PR] <Task summary name>`
+- PR body should include a `## Summary` section with bullet points for each feature, fix, or cleanup included in the task.
 
 ## Task Branch and PR Workflow
 
@@ -41,6 +42,11 @@ Treat each substantial user request as either:
 
 - a new task that should get its own branch and PR, or
 - a follow-up to an existing unlanded task branch / PR
+
+Never commit or push directly to `main` / `origin/main`.
+
+- Always work on a task-specific branch.
+- After pushing the task branch to the remote, open or update a PR.
 
 When the mapping is clear from context, proceed. When it is ambiguous, ask a short clarifying question before making branch or PR changes.
 
@@ -61,11 +67,12 @@ Typical order:
 
 For visual or interaction changes, automated validation is necessary but not sufficient.
 
+- Add before and after screenshots to the PR.
 - Save screenshots under `artifacts/screenshots/`
 - Save browser traces under `artifacts/traces/`
 - Save videos under `artifacts/videos/`
 - If capture tooling is not available yet, include a short manual verification checklist in the handoff.
-- PR descriptions for UI changes should say what changed visually, what to inspect, and whether screenshots or videos are attached.
+- PR descriptions for UI changes should say what changed visually and what to inspect.
 
 ## Tests
 
@@ -79,7 +86,7 @@ Parallelization works best when tasks have mostly independent write scopes.
 
 - Prefer splitting work by owned files or modules, not by vague feature labels.
 - If multiple tasks need the same shared file, keep that integration in one place instead of having multiple agents edit it in parallel.
-- Before starting broad refactors or shared-plumbing edits, pause and check whether another task is already likely to touch the same area.
+- Before starting broad refactors or shared-plumbing edits, check whether another task is already likely to touch the same area.
 - There is no built-in ad-hoc work-in-flight manifest in this repo yet, so be conservative around shared orchestration files and top-level docs.
 
 ## Audio Notes
