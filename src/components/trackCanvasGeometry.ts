@@ -5,6 +5,7 @@ export const LOOP_MARKER_DOT_OFFSET_Y = 6;
 export const LOOP_MARKER_HOVER_RING_RADIUS = 4.5;
 
 export type CanvasCursor = "default" | "pointer" | "move" | "move-active" | "resize";
+export type TrackCanvasHoverTarget = "mute" | "pitch" | "note" | "loop-marker" | "playhead" | "empty";
 
 export interface LoopMarkerRect {
   markerId: string;
@@ -88,11 +89,49 @@ export const getCursorForPosition = ({
   x: number;
   noteResizeHandleWidth: number;
 }): CanvasCursor => {
-  if (hasMuteHit || hasPitchHit || hasLoopMarkerHit || hasPlayheadHit) {
+  const hoverTarget = getHoverTarget({
+    hasMuteHit,
+    hasPitchHit,
+    hasLoopMarkerHit,
+    hasPlayheadHit,
+    noteRect
+  });
+  if (hoverTarget === "mute" || hoverTarget === "pitch" || hoverTarget === "loop-marker" || hoverTarget === "playhead") {
     return "pointer";
   }
-  if (!noteRect) {
+  if (hoverTarget !== "note" || !noteRect) {
     return "default";
   }
   return x > noteRect.x + noteRect.w - noteResizeHandleWidth ? "resize" : "move";
+};
+
+export const getHoverTarget = ({
+  hasMuteHit,
+  hasPitchHit,
+  hasLoopMarkerHit,
+  hasPlayheadHit,
+  noteRect
+}: {
+  hasMuteHit: boolean;
+  hasPitchHit: boolean;
+  hasLoopMarkerHit: boolean;
+  hasPlayheadHit: boolean;
+  noteRect: { x: number; w: number } | null;
+}): TrackCanvasHoverTarget => {
+  if (hasMuteHit) {
+    return "mute";
+  }
+  if (hasPitchHit) {
+    return "pitch";
+  }
+  if (noteRect) {
+    return "note";
+  }
+  if (hasLoopMarkerHit) {
+    return "loop-marker";
+  }
+  if (hasPlayheadHit) {
+    return "playhead";
+  }
+  return "empty";
 };
