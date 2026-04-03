@@ -161,11 +161,19 @@ const getSequencePlaybackLength = (startBeat: number, endBeat: number, children:
   let cursor = startBeat;
 
   for (const child of children) {
-    if (child.startBeat > cursor + EPSILON) {
-      total += child.startBeat - cursor;
+    if (child.endBeat <= cursor + EPSILON) {
+      continue;
     }
-    const childBodyLength = getSequencePlaybackLength(child.startBeat, child.endBeat, child.children);
-    total += childBodyLength * (child.repeatCount + 1);
+
+    const childStartBeat = Math.max(cursor, child.startBeat);
+    if (childStartBeat > cursor + EPSILON) {
+      total += childStartBeat - cursor;
+    }
+
+    const currentPassLength = getSequencePlaybackLength(childStartBeat, child.endBeat, child.children);
+    const repeatedPassLength = getSequencePlaybackLength(child.startBeat, child.endBeat, child.children);
+    total += currentPassLength;
+    total += repeatedPassLength * child.repeatCount;
     cursor = child.endBeat;
   }
 
@@ -187,32 +195,48 @@ const collectPlaybackBeatsInSequence = (
   let cursorPlayback = playbackStart;
 
   for (const child of children) {
-    if (songBeat < child.startBeat - EPSILON) {
-      if (songBeat >= cursorSong - EPSILON && songBeat < child.startBeat - EPSILON) {
+    if (child.endBeat <= cursorSong + EPSILON) {
+      continue;
+    }
+
+    const childStartBeat = Math.max(cursorSong, child.startBeat);
+    if (songBeat < childStartBeat - EPSILON) {
+      if (songBeat >= cursorSong - EPSILON && songBeat < childStartBeat - EPSILON) {
         results.push(cursorPlayback + (songBeat - cursorSong));
       }
       return;
     }
 
-    if (child.startBeat > cursorSong + EPSILON) {
-      cursorPlayback += child.startBeat - cursorSong;
-      cursorSong = child.startBeat;
+    if (childStartBeat > cursorSong + EPSILON) {
+      cursorPlayback += childStartBeat - cursorSong;
+      cursorSong = childStartBeat;
     }
 
     if (songBeat < child.endBeat - EPSILON) {
-      const bodyLength = getSequencePlaybackLength(child.startBeat, child.endBeat, child.children);
-      const bodyOffsets: number[] = [];
-      collectPlaybackBeatsInSequence(songBeat, child.startBeat, child.endBeat, child.children, 0, bodyOffsets);
-      for (let passIndex = 0; passIndex <= child.repeatCount; passIndex += 1) {
-        const passPlaybackStart = cursorPlayback + passIndex * bodyLength;
-        for (const bodyOffset of bodyOffsets) {
-          results.push(passPlaybackStart + bodyOffset);
+      const currentPassLength = getSequencePlaybackLength(childStartBeat, child.endBeat, child.children);
+      const currentPassOffsets: number[] = [];
+      collectPlaybackBeatsInSequence(songBeat, childStartBeat, child.endBeat, child.children, 0, currentPassOffsets);
+      for (const bodyOffset of currentPassOffsets) {
+        results.push(cursorPlayback + bodyOffset);
+      }
+
+      if (child.repeatCount > 0) {
+        const repeatedPassLength = getSequencePlaybackLength(child.startBeat, child.endBeat, child.children);
+        const repeatedPassOffsets: number[] = [];
+        collectPlaybackBeatsInSequence(songBeat, child.startBeat, child.endBeat, child.children, 0, repeatedPassOffsets);
+        for (let passIndex = 0; passIndex < child.repeatCount; passIndex += 1) {
+          const passPlaybackStart = cursorPlayback + currentPassLength + passIndex * repeatedPassLength;
+          for (const bodyOffset of repeatedPassOffsets) {
+            results.push(passPlaybackStart + bodyOffset);
+          }
         }
       }
       return;
     }
 
-    cursorPlayback += getSequencePlaybackLength(child.startBeat, child.endBeat, child.children) * (child.repeatCount + 1);
+    const currentPassLength = getSequencePlaybackLength(childStartBeat, child.endBeat, child.children);
+    const repeatedPassLength = getSequencePlaybackLength(child.startBeat, child.endBeat, child.children);
+    cursorPlayback += currentPassLength + repeatedPassLength * child.repeatCount;
     cursorSong = child.endBeat;
   }
 
@@ -245,21 +269,38 @@ const mapPlaybackBeatInSequence = (
   let cursorSong = startBeat;
 
   for (const child of children) {
-    const gap = Math.max(0, child.startBeat - cursorSong);
+    if (child.endBeat <= cursorSong + EPSILON) {
+      continue;
+    }
+
+    const childStartBeat = Math.max(cursorSong, child.startBeat);
+    const gap = Math.max(0, childStartBeat - cursorSong);
     if (remaining < gap - EPSILON) {
       return cursorSong + remaining;
     }
     remaining -= gap;
-    cursorSong = child.startBeat;
+    cursorSong = childStartBeat;
 
-    const bodyLength = getSequencePlaybackLength(child.startBeat, child.endBeat, child.children);
-    const totalLength = bodyLength * (child.repeatCount + 1);
-    if (remaining < totalLength - EPSILON || Math.abs(remaining - totalLength) <= EPSILON) {
-      const passOffset = bodyLength <= EPSILON ? 0 : remaining % bodyLength;
+    const currentPassLength = getSequencePlaybackLength(childStartBeat, child.endBeat, child.children);
+    if (remaining < currentPassLength - EPSILON) {
+      return mapPlaybackBeatInSequence(remaining, childStartBeat, child.endBeat, child.children);
+    }
+    if (Math.abs(remaining - currentPassLength) <= EPSILON) {
+      remaining = 0;
+      cursorSong = child.endBeat;
+      continue;
+    }
+
+    remaining -= currentPassLength;
+
+    const repeatedPassLength = getSequencePlaybackLength(child.startBeat, child.endBeat, child.children);
+    const repeatedPassesLength = repeatedPassLength * child.repeatCount;
+    if (repeatedPassLength > EPSILON && remaining < repeatedPassesLength - EPSILON) {
+      const passOffset = remaining % repeatedPassLength;
       return mapPlaybackBeatInSequence(passOffset, child.startBeat, child.endBeat, child.children);
     }
 
-    remaining -= totalLength;
+    remaining -= repeatedPassesLength;
     cursorSong = child.endBeat;
   }
 
