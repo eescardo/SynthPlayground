@@ -9,6 +9,7 @@ Prefer the GitHub MCP connector for remote GitHub operations when available.
 - Use MCP to create branches, commits, and pull requests when local SSH push is unavailable or unnecessary.
 - Do not assume local SSH credentials are present or correctly configured.
 - If local git push works, it is fine to use it. If it fails due to auth or network constraints, fall back to MCP rather than blocking on SSH setup.
+- If `gh` is available and authenticated, it may be used for GitHub operations that are not exposed through MCP, such as workflow dispatch.
 
 ## Status Checks
 

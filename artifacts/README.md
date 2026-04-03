@@ -29,6 +29,9 @@ The `PR Screenshots` workflow can generate before and after screenshot artifacts
 
 - Input `pr_number`: target PR number
 - Input `scenarios`: `all` or a comma-separated list such as `main-view,patch-editor`
+- PR label `screenshots`: run all scenarios
+- PR label `screenshots:<scenario>`: run only that scenario
+- Multiple `screenshots:<scenario>` labels can be combined
 
 The workflow uploads separate `before` and `after` artifacts and leaves a PR comment with download links.
 

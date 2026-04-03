@@ -8,10 +8,17 @@ on:
         required: true
         type: string
       scenarios:
-        description: "Comma-separated scenarios or 'all' (main-view, help-modal, record-mode, patch-editor)"
+        description: "Comma-separated scenarios or 'all' from the shared screenshot scenario set"
         required: true
         default: "all"
         type: string
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
 
 permissions:
   contents: read
@@ -23,24 +30,29 @@ jobs:
     name: Resolve PR Context
     runs-on: ubuntu-latest
     outputs:
+      pr_number: ${{ steps.pr.outputs.pr_number }}
       base_sha: ${{ steps.pr.outputs.base_sha }}
       head_sha: ${{ steps.pr.outputs.head_sha }}
       base_ref: ${{ steps.pr.outputs.base_ref }}
       head_ref: ${{ steps.pr.outputs.head_ref }}
       scenarios: ${{ steps.scenarios.outputs.value }}
       grep: ${{ steps.scenarios.outputs.grep }}
+      display: ${{ steps.scenarios.outputs.display }}
     steps:
       - name: Load PR details
         id: pr
         uses: actions/github-script@v7
         with:
           script: |
-            const prNumber = Number(core.getInput("pr_number", { required: true }));
+            const prNumber = context.eventName === "workflow_dispatch"
+              ? Number(core.getInput("pr_number", { required: true }))
+              : context.payload.pull_request.number;
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: prNumber,
             });
+            core.setOutput("pr_number", String(pr.number));
             core.setOutput("base_sha", pr.base.sha);
             core.setOutput("head_sha", pr.head.sha);
             core.setOutput("base_ref", pr.base.ref);
@@ -50,21 +62,28 @@ jobs:
         id: scenarios
         shell: bash
         run: |
-          RAW_INPUT="${{ github.event.inputs.scenarios }}"
-          NORMALIZED="$(echo "$RAW_INPUT" | tr '[:upper:]' '[:lower:]' | tr ',' '\n' | sed 's/^ *//; s/ *$//' | sed '/^$/d' | sort -u | paste -sd',' -)"
-          if [[ -z "$NORMALIZED" || "$NORMALIZED" == "all" ]]; then
-            echo "value=all" >> "$GITHUB_OUTPUT"
-            echo "grep=" >> "$GITHUB_OUTPUT"
-            exit 0
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            while IFS= read -r line; do
+              echo "$line" >> "$GITHUB_OUTPUT"
+            done < <(node scripts/screenshot-scenarios.mjs github-output-input "${{ github.event.inputs.scenarios }}")
+          else
+            while IFS= read -r line; do
+              echo "$line" >> "$GITHUB_OUTPUT"
+            done < <(node scripts/screenshot-scenarios.mjs github-output-labels ${{ join(github.event.pull_request.labels.*.name, ' ') }})
           fi
-          GREP_PATTERN="$(echo "$NORMALIZED" | tr ',' '\n' | sed 's#^#@#' | paste -sd'|' -)"
-          echo "value=$NORMALIZED" >> "$GITHUB_OUTPUT"
-          echo "grep=$GREP_PATTERN" >> "$GITHUB_OUTPUT"
+
+      - name: Validate scenario selection
+        if: steps.scenarios.outputs.error != ''
+        shell: bash
+        run: |
+          echo "${{ steps.scenarios.outputs.error }}"
+          exit 1
 
   capture-before:
     name: Capture Before Screenshots
     runs-on: ubuntu-latest
     needs: pr-context
+    if: needs.pr-context.outputs.scenarios != ''
     outputs:
       artifact_url: ${{ steps.upload.outputs.artifact-url }}
     steps:
@@ -106,7 +125,7 @@ jobs:
         id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: pr-${{ github.event.inputs.pr_number }}-screenshots-before
+          name: pr-${{ needs.pr-context.outputs.pr_number }}-screenshots-before
           path: artifacts/screenshots/before/
           if-no-files-found: error
           retention-days: 14
@@ -115,6 +134,7 @@ jobs:
     name: Capture After Screenshots
     runs-on: ubuntu-latest
     needs: pr-context
+    if: needs.pr-context.outputs.scenarios != ''
     outputs:
       artifact_url: ${{ steps.upload.outputs.artifact-url }}
     steps:
@@ -156,10 +176,19 @@ jobs:
         id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: pr-${{ github.event.inputs.pr_number }}-screenshots-after
+          name: pr-${{ needs.pr-context.outputs.pr_number }}-screenshots-after
           path: artifacts/screenshots/after/
           if-no-files-found: error
           retention-days: 14
+
+  skip:
+    name: Skip Screenshot Run
+    runs-on: ubuntu-latest
+    needs: pr-context
+    if: needs.pr-context.outputs.scenarios == ''
+    steps:
+      - name: No screenshot labels present
+        run: echo "No screenshot labels selected; skipping screenshot capture."
 
   comment:
     name: Comment On PR
@@ -168,12 +197,13 @@ jobs:
       - pr-context
       - capture-before
       - capture-after
+    if: needs.pr-context.outputs.scenarios != ''
     steps:
       - name: Upsert screenshot comment
         uses: actions/github-script@v7
         env:
-          PR_NUMBER: ${{ github.event.inputs.pr_number }}
-          SCENARIOS: ${{ needs.pr-context.outputs.scenarios }}
+          PR_NUMBER: ${{ needs.pr-context.outputs.pr_number }}
+          SCENARIOS: ${{ needs.pr-context.outputs.display }}
           BASE_REF: ${{ needs.pr-context.outputs.base_ref }}
           HEAD_REF: ${{ needs.pr-context.outputs.head_ref }}
           BEFORE_URL: ${{ needs.capture-before.outputs.artifact_url }}
@@ -182,13 +212,10 @@ jobs:
           script: |
             const prNumber = Number(process.env.PR_NUMBER);
             const marker = "<!-- pr-screenshots -->";
-            const scenarios = process.env.SCENARIOS === "all"
-              ? "`main-view`, `help-modal`, `record-mode`, `patch-editor`"
-              : process.env.SCENARIOS.split(",").map((value) => `\`${value}\``).join(", ");
             const body = `${marker}
             ## Screenshots
 
-            Generated screenshot artifacts for ${scenarios}.
+            Generated screenshot artifacts for ${process.env.SCENARIOS}.
 
             - Before (${process.env.BASE_REF}): [download artifact](${process.env.BEFORE_URL})
             - After (${process.env.HEAD_REF}): [download artifact](${process.env.AFTER_URL})
