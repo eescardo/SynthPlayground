@@ -23,4 +23,13 @@ Named scenarios currently include:
 - `record-mode`
 - `patch-editor`
 
+## GitHub Workflow
+
+The `PR Screenshots` workflow can generate before and after screenshot artifacts for a PR branch.
+
+- Input `pr_number`: target PR number
+- Input `scenarios`: `all` or a comma-separated list such as `main-view,patch-editor`
+
+The workflow uploads separate `before` and `after` artifacts and leaves a PR comment with download links.
+
 These artifacts are for review and debugging, not source control history. The directories are ignored by git except for this README.
