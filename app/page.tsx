@@ -937,7 +937,7 @@ export default function HomePage() {
           left={timelineActionsPopover.clientX}
           top={timelineActionsPopover.clientY + 12}
           showAddStart={!startMarkerAtTimelineBeat}
-          showAddEnd={!endMarkerAtTimelineBeat}
+          showAddEnd={timelineActionsPopover.beat > 0 && !endMarkerAtTimelineBeat}
           startMarkerId={startMarkerAtTimelineBeat?.id}
           endMarkerId={endMarkerAtTimelineBeat?.id}
           endRepeatCount={endMarkerAtTimelineBeat?.repeatCount}
