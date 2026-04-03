@@ -9,6 +9,9 @@
     "build": "pnpm run check:presets:manifest && next build",
     "start": "next start",
     "lint": "pnpm run check:presets:manifest && next lint",
+    "validate": "pnpm run typecheck && pnpm run test:unit && pnpm run lint && pnpm run build",
+    "test:ui:capture": "node --import tsx scripts/ui-screenshots/capture.ts",
+    "test:ui:verify": "vitest run --config vitest.ui.config.ts",
     "presets:manifest": "node --import tsx scripts/generate-preset-manifest.ts --write",
     "check:presets:manifest": "node --import tsx scripts/check-preset-manifest.ts",
     "check:presets:compat": "node scripts/check-preset-compatibility.mjs",
@@ -24,6 +27,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
