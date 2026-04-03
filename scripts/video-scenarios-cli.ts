@@ -1,6 +1,7 @@
 import {
   resolveVideoScenariosFromInput,
   resolveVideoScenariosFromLabels,
+  resolveVideoScenariosFromLabelsJson,
   VIDEO_SCENARIOS
 } from "./ui-videos/scenarios";
 
@@ -38,10 +39,16 @@ if (mode === "github-output-labels") {
   process.exit(0);
 }
 
+if (mode === "github-output-labels-json") {
+  emitGithubOutput(resolveVideoScenariosFromLabelsJson(process.argv[3] ?? "[]"));
+  process.exit(0);
+}
+
 process.stderr.write(
   "Usage:\n" +
     "  node --import tsx scripts/video-scenarios-cli.ts list\n" +
     "  node --import tsx scripts/video-scenarios-cli.ts github-output-input <csv-or-all>\n" +
-    "  node --import tsx scripts/video-scenarios-cli.ts github-output-labels <label>...\n"
+    "  node --import tsx scripts/video-scenarios-cli.ts github-output-labels <label>...\n" +
+    "  node --import tsx scripts/video-scenarios-cli.ts github-output-labels-json <json-array>\n"
 );
 process.exit(1);

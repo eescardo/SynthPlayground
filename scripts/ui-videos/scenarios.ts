@@ -80,3 +80,16 @@ export const resolveVideoScenariosFromLabels = (labels: string[]): VideoSelectio
     .map((label) => label.slice(VIDEO_LABEL_PREFIX.length));
   return resolveSpecificVideoScenarios(scenarios);
 };
+
+export const resolveVideoScenariosFromLabelsJson = (raw: string): VideoSelection => {
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return invalidResult("Video labels payload must be a JSON array.");
+    }
+    const labels = parsed.flatMap((entry) => (typeof entry === "string" ? [entry] : []));
+    return resolveVideoScenariosFromLabels(labels);
+  } catch {
+    return invalidResult("Video labels payload must be valid JSON.");
+  }
+};
