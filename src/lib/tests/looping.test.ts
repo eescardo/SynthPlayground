@@ -128,6 +128,16 @@ describe("looping", () => {
     expect(getLoopedPlaybackBeatsForSongBeat(6, 4, loop)).toEqual([2, 10]);
   });
 
+  it("schedules cue-earlier beats on later repeated passes when cueing inside a loop", () => {
+    const loop = [
+      { id: "start_outer", kind: "start" as const, beat: 0 },
+      { id: "end_outer", kind: "end" as const, beat: 4, repeatCount: 1 }
+    ];
+
+    expect(getLoopedPlaybackBeatsForSongBeat(0, 2.25, loop)).toEqual([1.75]);
+    expect(getLoopedPlaybackBeatsForSongBeat(0.75, 2.25, loop)).toEqual([2.5]);
+  });
+
   it("includes exact loop-end boundaries in every pass for event scheduling", () => {
     const loop = [
       { id: "start_outer", kind: "start" as const, beat: 0 },

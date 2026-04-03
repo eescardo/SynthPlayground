@@ -203,6 +203,20 @@ const collectPlaybackBeatsInSequence = (
     if (songBeat < childStartBeat - EPSILON) {
       if (songBeat >= cursorSong - EPSILON && songBeat < childStartBeat - EPSILON) {
         results.push(cursorPlayback + (songBeat - cursorSong));
+        return;
+      }
+
+      if (songBeat >= child.startBeat - EPSILON && songBeat <= child.endBeat + EPSILON && child.repeatCount > 0) {
+        const currentPassLength = getSequencePlaybackLength(childStartBeat, child.endBeat, child.children);
+        const repeatedPassLength = getSequencePlaybackLength(child.startBeat, child.endBeat, child.children);
+        const repeatedPassOffsets: number[] = [];
+        collectPlaybackBeatsInSequence(songBeat, child.startBeat, child.endBeat, child.children, 0, repeatedPassOffsets);
+        for (let passIndex = 0; passIndex < child.repeatCount; passIndex += 1) {
+          const passPlaybackStart = cursorPlayback + currentPassLength + passIndex * repeatedPassLength;
+          for (const bodyOffset of repeatedPassOffsets) {
+            results.push(passPlaybackStart + bodyOffset);
+          }
+        }
       }
       return;
     }
@@ -250,9 +264,6 @@ export const getLoopedPlaybackBeatsForSongBeat = (
   cueBeat: number,
   loop: ProjectGlobalSettings["loop"]
 ): number[] => {
-  if (songBeat < cueBeat - EPSILON) {
-    return [];
-  }
   const { pairs } = buildLoopPairs(loop);
   const results: number[] = [];
   collectPlaybackBeatsInSequence(songBeat, cueBeat, Number.POSITIVE_INFINITY, pairs, 0, results);
