@@ -23,7 +23,7 @@ Named scenarios currently include:
 - `record-mode`
 - `patch-editor`
 
-These names are defined once in `scripts/screenshotScenarios.ts` and reused by both the Playwright tests and the GitHub workflow helpers.
+These names are defined once in `scripts/ui-screenshots/scenarios.ts` and reused by both the screenshot scripts and the GitHub workflow helpers.
 The actual capture behavior for each scenario lives in `scripts/ui-screenshots/`.
 
 ## GitHub Workflow

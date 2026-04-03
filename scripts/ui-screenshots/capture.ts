@@ -5,9 +5,8 @@ import { chromium } from "@playwright/test";
 import {
   SCREENSHOT_SCENARIOS,
   ScreenshotScenario,
-  resolveAllScreenshotScenarios,
   resolveSpecificScreenshotScenarios
-} from "../screenshotScenarios";
+} from "./scenarios";
 import { assertScenarioRegistryAligned, getScenarioDefinition } from "./registry";
 
 const screenshotLabel = process.env.SCREENSHOT_LABEL ?? "local";
@@ -61,16 +60,16 @@ const run = async () => {
         viewport: { width: 1440, height: 1400 }
       });
       try {
-      for (const scenario of requestedScenarios) {
-        const page = await context.newPage();
-        try {
-          const definition = getScenarioDefinition(scenario);
-          const outputPath = path.join(screenshotRoot, `${scenario}.png`);
-          await definition.capture(page, outputPath);
-        } finally {
-          await page.close();
+        for (const scenario of requestedScenarios) {
+          const page = await context.newPage();
+          try {
+            const definition = getScenarioDefinition(scenario);
+            const outputPath = path.join(screenshotRoot, `${scenario}.png`);
+            await definition.capture(page, outputPath);
+          } finally {
+            await page.close();
+          }
         }
-      }
       } finally {
         await context.close();
       }

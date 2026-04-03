@@ -2,7 +2,7 @@ import {
   SCREENSHOT_SCENARIOS,
   resolveScreenshotScenariosFromInput,
   resolveScreenshotScenariosFromLabels
-} from "./screenshotScenarios";
+} from "./ui-screenshots/scenarios";
 
 const emitGithubOutput = (result: {
   enabled: boolean;

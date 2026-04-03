@@ -15,6 +15,7 @@
     "test:ui:capture:help-modal": "node --import tsx scripts/ui-screenshots/capture.ts help-modal",
     "test:ui:capture:record-mode": "node --import tsx scripts/ui-screenshots/capture.ts record-mode",
     "test:ui:capture:patch-editor": "node --import tsx scripts/ui-screenshots/capture.ts patch-editor",
+    "test:ui:verify": "vitest run --config vitest.ui.config.ts",
     "presets:manifest": "node --import tsx scripts/generate-preset-manifest.ts --write",
     "check:presets:manifest": "node --import tsx scripts/check-preset-manifest.ts",
     "check:presets:compat": "node scripts/check-preset-compatibility.mjs",

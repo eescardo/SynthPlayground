@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, Page } from "@playwright/test";
-import { SCREENSHOT_SCENARIOS, ScreenshotScenario } from "../screenshotScenarios";
+import { SCREENSHOT_SCENARIOS, ScreenshotScenario } from "./scenarios";
 
 export interface ScreenshotScenarioDefinition {
   name: ScreenshotScenario;
