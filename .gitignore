@@ -25,3 +25,8 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# local review artifacts
+/artifacts/screenshots/
+/artifacts/traces/
+/artifacts/videos/

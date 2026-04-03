@@ -9,6 +9,7 @@
     "build": "pnpm run check:presets:manifest && next build",
     "start": "next start",
     "lint": "pnpm run check:presets:manifest && next lint",
+    "validate": "pnpm run typecheck && pnpm run test:unit && pnpm run lint && pnpm run build",
     "presets:manifest": "node --import tsx scripts/generate-preset-manifest.ts --write",
     "check:presets:manifest": "node --import tsx scripts/check-preset-manifest.ts",
     "check:presets:compat": "node scripts/check-preset-compatibility.mjs",
