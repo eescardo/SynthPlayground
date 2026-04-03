@@ -345,6 +345,11 @@ class TrackRuntime {
       existing.lastTriggeredSampleTime = sampleTime;
       existing.host.pitchVoct = event.pitchVoct;
       existing.host.velocity = event.velocity;
+      // Exact-boundary loop retriggers can deliver NoteOff and NoteOn for the same
+      // note on the same sample. Treat that as a fresh attack so envelopes and
+      // oscillators restart instead of silently reusing the released voice state.
+      existing.nodeState.clear();
+      existing.paramState.clear();
       existing.host.gate = 1;
       return;
     }
