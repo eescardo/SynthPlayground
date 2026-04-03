@@ -23,6 +23,8 @@ Named scenarios currently include:
 - `record-mode`
 - `patch-editor`
 
+These names are defined once in `scripts/screenshotScenarios.ts` and reused by both the Playwright tests and the GitHub workflow helpers.
+
 ## GitHub Workflow
 
 The `PR Screenshots` workflow can generate before and after screenshot artifacts for a PR branch.

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, Page, test } from "@playwright/test";
+import { SCREENSHOT_SCENARIOS } from "../../scripts/screenshotScenarios";
 
 const screenshotLabel = process.env.SCREENSHOT_LABEL ?? "local";
 const screenshotRoot = path.join(process.cwd(), "artifacts", "screenshots", screenshotLabel);
@@ -31,6 +32,8 @@ const saveScreenshot = async (page: Page, scenarioName: string, locator?: string
   return outputPath;
 };
 
+const EXPECTED_SCENARIOS = ["main-view", "help-modal", "record-mode", "patch-editor"] satisfies Array<(typeof SCREENSHOT_SCENARIOS)[number]>;
+
 test("main-view @main-view", async ({ page }) => {
   await openApp(page);
   await saveScreenshot(page, "main-view");
@@ -54,4 +57,8 @@ test("patch-editor @patch-editor", async ({ page }) => {
   await openApp(page);
   await expect(page.getByRole("heading", { name: "Instrument" })).toBeVisible();
   await saveScreenshot(page, "patch-editor", ".instrument-editor");
+});
+
+test("scenario registry stays aligned", async () => {
+  expect([...SCREENSHOT_SCENARIOS]).toEqual(EXPECTED_SCENARIOS);
 });

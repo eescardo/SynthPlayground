@@ -65,11 +65,11 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             while IFS= read -r line; do
               echo "$line" >> "$GITHUB_OUTPUT"
-            done < <(node scripts/screenshot-scenarios.mjs github-output-input "${{ github.event.inputs.scenarios }}")
+            done < <(node --import tsx scripts/screenshot-scenarios-cli.ts github-output-input "${{ github.event.inputs.scenarios }}")
           else
             while IFS= read -r line; do
               echo "$line" >> "$GITHUB_OUTPUT"
-            done < <(node scripts/screenshot-scenarios.mjs github-output-labels ${{ join(github.event.pull_request.labels.*.name, ' ') }})
+            done < <(node --import tsx scripts/screenshot-scenarios-cli.ts github-output-labels ${{ join(github.event.pull_request.labels.*.name, ' ') }})
           fi
 
       - name: Validate scenario selection
