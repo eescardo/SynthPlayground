@@ -14,6 +14,7 @@ export const SCREENSHOT_LABEL_PREFIX = "screenshots:";
 export interface ScreenshotSelection {
   enabled: boolean;
   value: string;
+  resolved: string;
   grep: string;
   display: string;
   error: string;
@@ -29,6 +30,7 @@ const grepFor = (scenarios: string[]) => scenarios.map((value) => `@${value}`).j
 const invalidResult = (message: string): ScreenshotSelection => ({
   enabled: false,
   value: "",
+  resolved: "",
   grep: "",
   display: "",
   error: message
@@ -37,6 +39,7 @@ const invalidResult = (message: string): ScreenshotSelection => ({
 export const resolveAllScreenshotScenarios = (): ScreenshotSelection => ({
   enabled: true,
   value: "all",
+  resolved: SCREENSHOT_SCENARIOS.join(","),
   grep: "",
   display: formatDisplay([...SCREENSHOT_SCENARIOS]),
   error: ""
@@ -52,6 +55,7 @@ export const resolveSpecificScreenshotScenarios = (scenarios: string[]): Screens
     return {
       enabled: false,
       value: "",
+      resolved: "",
       grep: "",
       display: "",
       error: ""
@@ -60,6 +64,7 @@ export const resolveSpecificScreenshotScenarios = (scenarios: string[]): Screens
   return {
     enabled: true,
     value: normalized.join(","),
+    resolved: normalized.join(","),
     grep: grepFor(normalized),
     display: formatDisplay(normalized),
     error: ""
