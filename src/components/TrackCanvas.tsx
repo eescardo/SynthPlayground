@@ -90,9 +90,9 @@ interface TrackCanvasProps {
   activeRecordedNotes?: Array<{ trackId: string; noteId: string; startBeat: number }>;
   ghostPlayheadBeat?: number;
   countInLabel?: string;
-  loopPopoverTarget?: "playhead" | "start" | "end" | null;
+  timelineActionsPopoverOpen?: boolean;
   onSetPlayheadBeat: (beat: number) => void;
-  onRequestLoopPopover: (request: LoopPopoverRequest) => void;
+  onRequestTimelineActionsPopover: (request: TimelineActionsPopoverRequest) => void;
   onSelectTrack: (trackId: string) => void;
   onRenameTrack: (trackId: string, name: string) => void;
   onToggleTrackMute: (trackId: string) => void;
@@ -124,9 +124,7 @@ interface NoteRect {
   h: number;
 }
 
-export interface LoopPopoverRequest {
-  markerId?: string;
-  target: "playhead" | "start" | "end";
+export interface TimelineActionsPopoverRequest {
   beat: number;
   clientX: number;
   clientY: number;
@@ -542,7 +540,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     });
 
     const playheadX = HEADER_WIDTH + props.playheadBeat * BEAT_WIDTH;
-    if (hoveredPlayhead && !props.loopPopoverTarget) {
+    if (hoveredPlayhead && !props.timelineActionsPopoverOpen) {
       ctx.strokeStyle = TRACK_CANVAS_COLORS.loopGhost;
       ctx.lineWidth = 8;
       ctx.beginPath();
@@ -579,7 +577,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   }, [
     props.countInLabel,
     props.ghostPlayheadBeat,
-    props.loopPopoverTarget,
+    props.timelineActionsPopoverOpen,
     height,
     hoveredPlayhead,
     hoveredPitch,
@@ -649,9 +647,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
     const targets = resolvePointerTargets(x, y);
 
     if (targets.hoverTarget === "loop-marker" && targets.loopMarkerRect) {
-      props.onRequestLoopPopover({
-        target: targets.loopMarkerRect.kind,
-        markerId: targets.loopMarkerRect.markerId,
+      props.onSetPlayheadBeat(targets.loopMarkerRect.beat);
+      props.onRequestTimelineActionsPopover({
         beat: targets.loopMarkerRect.beat,
         clientX: event.clientX,
         clientY: event.clientY
@@ -661,8 +658,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
 
     if (targets.hoverTarget === "playhead") {
-      props.onRequestLoopPopover({
-        target: "playhead",
+      props.onRequestTimelineActionsPopover({
         beat: props.playheadBeat,
         clientX: event.clientX,
         clientY: event.clientY
