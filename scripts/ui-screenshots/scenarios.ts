@@ -90,3 +90,16 @@ export const resolveScreenshotScenariosFromLabels = (labels: string[]): Screensh
     .map((label) => label.slice(SCREENSHOT_LABEL_PREFIX.length));
   return resolveSpecificScreenshotScenarios(scenarios);
 };
+
+export const resolveScreenshotScenariosFromLabelsJson = (raw: string): ScreenshotSelection => {
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return invalidResult("Screenshot labels payload must be a JSON array.");
+    }
+    const labels = parsed.flatMap((entry) => (typeof entry === "string" ? [entry] : []));
+    return resolveScreenshotScenariosFromLabels(labels);
+  } catch {
+    return invalidResult("Screenshot labels payload must be valid JSON.");
+  }
+};

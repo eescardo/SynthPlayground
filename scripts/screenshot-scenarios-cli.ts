@@ -1,7 +1,8 @@
 import {
   SCREENSHOT_SCENARIOS,
   resolveScreenshotScenariosFromInput,
-  resolveScreenshotScenariosFromLabels
+  resolveScreenshotScenariosFromLabels,
+  resolveScreenshotScenariosFromLabelsJson
 } from "./ui-screenshots/scenarios";
 
 const emitGithubOutput = (result: {
@@ -40,10 +41,16 @@ if (mode === "github-output-labels") {
   process.exit(0);
 }
 
+if (mode === "github-output-labels-json") {
+  emitGithubOutput(resolveScreenshotScenariosFromLabelsJson(process.argv[3] ?? "[]"));
+  process.exit(0);
+}
+
 process.stderr.write(
   "Usage:\n" +
     "  node --import tsx scripts/screenshot-scenarios-cli.ts list\n" +
     "  node --import tsx scripts/screenshot-scenarios-cli.ts github-output-input <csv-or-all>\n" +
-    "  node --import tsx scripts/screenshot-scenarios-cli.ts github-output-labels <label>...\n"
+    "  node --import tsx scripts/screenshot-scenarios-cli.ts github-output-labels <label>...\n" +
+    "  node --import tsx scripts/screenshot-scenarios-cli.ts github-output-labels-json <json-array>\n"
 );
 process.exit(1);
