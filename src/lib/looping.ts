@@ -37,6 +37,11 @@ interface LoopPair {
   children: LoopPair[];
 }
 
+interface LoopPassLengths {
+  currentPassLength: number;
+  repeatedPassLength: number;
+}
+
 const EPSILON = 1e-9;
 export const DEFAULT_LOOP_REPEAT_COUNT = 1;
 export const MAX_LOOP_REPEAT_COUNT = 16;
@@ -156,16 +161,52 @@ export const getLoopMarkerStates = (
   loop: ProjectGlobalSettings["loop"]
 ): LoopMarkerState[] => buildLoopPairs(loop).markerStates;
 
+const getLoopPassLengths = (pair: LoopPair, currentPassStartBeat: number): LoopPassLengths => ({
+  currentPassLength: getSequencePlaybackLength(currentPassStartBeat, pair.endBeat, pair.children),
+  repeatedPassLength: getSequencePlaybackLength(pair.startBeat, pair.endBeat, pair.children)
+});
+
+const collectRepeatedPassOffsets = (
+  songBeat: number,
+  pair: LoopPair
+): number[] => {
+  const offsets: number[] = [];
+  collectPlaybackBeatsInSequence(songBeat, pair.startBeat, pair.endBeat, pair.children, 0, offsets);
+  return offsets;
+};
+
+const pushRepeatedPassResults = (
+  results: number[],
+  offsets: number[],
+  firstPlaybackBeat: number,
+  repeatedPassLength: number,
+  repeatCount: number
+): void => {
+  for (let passIndex = 0; passIndex < repeatCount; passIndex += 1) {
+    const passPlaybackStart = firstPlaybackBeat + passIndex * repeatedPassLength;
+    for (const bodyOffset of offsets) {
+      results.push(passPlaybackStart + bodyOffset);
+    }
+  }
+};
+
 const getSequencePlaybackLength = (startBeat: number, endBeat: number, children: LoopPair[]): number => {
   let total = 0;
   let cursor = startBeat;
 
   for (const child of children) {
-    if (child.startBeat > cursor + EPSILON) {
-      total += child.startBeat - cursor;
+    if (child.endBeat <= cursor + EPSILON) {
+      continue;
     }
-    const childBodyLength = getSequencePlaybackLength(child.startBeat, child.endBeat, child.children);
-    total += childBodyLength * (child.repeatCount + 1);
+
+    const childStartBeat = Math.max(cursor, child.startBeat);
+    if (childStartBeat > cursor + EPSILON) {
+      total += childStartBeat - cursor;
+    }
+
+    const { currentPassLength, repeatedPassLength } = getLoopPassLengths(child, childStartBeat);
+    total += currentPassLength;
+    total += repeatedPassLength * child.repeatCount;
     cursor = child.endBeat;
   }
 
@@ -187,32 +228,55 @@ const collectPlaybackBeatsInSequence = (
   let cursorPlayback = playbackStart;
 
   for (const child of children) {
-    if (songBeat < child.startBeat - EPSILON) {
-      if (songBeat >= cursorSong - EPSILON && songBeat < child.startBeat - EPSILON) {
+    if (child.endBeat <= cursorSong + EPSILON) {
+      continue;
+    }
+
+    const childStartBeat = Math.max(cursorSong, child.startBeat);
+    if (songBeat < childStartBeat - EPSILON) {
+      // The target beat lands before the next loop body begins in the audible
+      // sequence. It can either belong to the plain gap we are currently walking,
+      // or to a later repeated pass of a loop that started before the cue point.
+      if (songBeat >= cursorSong - EPSILON && songBeat < childStartBeat - EPSILON) {
         results.push(cursorPlayback + (songBeat - cursorSong));
+        return;
+      }
+
+      if (songBeat >= child.startBeat - EPSILON && songBeat <= child.endBeat + EPSILON && child.repeatCount > 0) {
+        const { currentPassLength, repeatedPassLength } = getLoopPassLengths(child, childStartBeat);
+        const repeatedPassOffsets = collectRepeatedPassOffsets(songBeat, child);
+        pushRepeatedPassResults(results, repeatedPassOffsets, cursorPlayback + currentPassLength, repeatedPassLength, child.repeatCount);
       }
       return;
     }
 
-    if (child.startBeat > cursorSong + EPSILON) {
-      cursorPlayback += child.startBeat - cursorSong;
-      cursorSong = child.startBeat;
+    if (childStartBeat > cursorSong + EPSILON) {
+      cursorPlayback += childStartBeat - cursorSong;
+      cursorSong = childStartBeat;
     }
 
-    if (songBeat < child.endBeat - EPSILON) {
-      const bodyLength = getSequencePlaybackLength(child.startBeat, child.endBeat, child.children);
-      const bodyOffsets: number[] = [];
-      collectPlaybackBeatsInSequence(songBeat, child.startBeat, child.endBeat, child.children, 0, bodyOffsets);
-      for (let passIndex = 0; passIndex <= child.repeatCount; passIndex += 1) {
-        const passPlaybackStart = cursorPlayback + passIndex * bodyLength;
-        for (const bodyOffset of bodyOffsets) {
-          results.push(passPlaybackStart + bodyOffset);
-        }
+    if (songBeat <= child.endBeat + EPSILON) {
+      // The target beat belongs to this loop body. First collect where it lands in
+      // the currently audible pass, then mirror that same musical position into any
+      // later repeated passes of the same loop body.
+      const { currentPassLength, repeatedPassLength } = getLoopPassLengths(child, childStartBeat);
+      const currentPassOffsets: number[] = [];
+      collectPlaybackBeatsInSequence(songBeat, childStartBeat, child.endBeat, child.children, 0, currentPassOffsets);
+      for (const bodyOffset of currentPassOffsets) {
+        results.push(cursorPlayback + bodyOffset);
+      }
+
+      if (child.repeatCount > 0) {
+        const repeatedPassOffsets = collectRepeatedPassOffsets(songBeat, child);
+        pushRepeatedPassResults(results, repeatedPassOffsets, cursorPlayback + currentPassLength, repeatedPassLength, child.repeatCount);
       }
       return;
     }
 
-    cursorPlayback += getSequencePlaybackLength(child.startBeat, child.endBeat, child.children) * (child.repeatCount + 1);
+    // This loop body is completely before the target beat in song time, so advance
+    // both cursors by the audible length of its current pass plus any repeats.
+    const { currentPassLength, repeatedPassLength } = getLoopPassLengths(child, childStartBeat);
+    cursorPlayback += currentPassLength + repeatedPassLength * child.repeatCount;
     cursorSong = child.endBeat;
   }
 
@@ -226,9 +290,6 @@ export const getLoopedPlaybackBeatsForSongBeat = (
   cueBeat: number,
   loop: ProjectGlobalSettings["loop"]
 ): number[] => {
-  if (songBeat < cueBeat - EPSILON) {
-    return [];
-  }
   const { pairs } = buildLoopPairs(loop);
   const results: number[] = [];
   collectPlaybackBeatsInSequence(songBeat, cueBeat, Number.POSITIVE_INFINITY, pairs, 0, results);
@@ -245,21 +306,37 @@ const mapPlaybackBeatInSequence = (
   let cursorSong = startBeat;
 
   for (const child of children) {
-    const gap = Math.max(0, child.startBeat - cursorSong);
+    if (child.endBeat <= cursorSong + EPSILON) {
+      continue;
+    }
+
+    const childStartBeat = Math.max(cursorSong, child.startBeat);
+    const gap = Math.max(0, childStartBeat - cursorSong);
     if (remaining < gap - EPSILON) {
       return cursorSong + remaining;
     }
     remaining -= gap;
-    cursorSong = child.startBeat;
+    cursorSong = childStartBeat;
 
-    const bodyLength = getSequencePlaybackLength(child.startBeat, child.endBeat, child.children);
-    const totalLength = bodyLength * (child.repeatCount + 1);
-    if (remaining < totalLength - EPSILON || Math.abs(remaining - totalLength) <= EPSILON) {
-      const passOffset = bodyLength <= EPSILON ? 0 : remaining % bodyLength;
+    const { currentPassLength, repeatedPassLength } = getLoopPassLengths(child, childStartBeat);
+    if (remaining < currentPassLength - EPSILON) {
+      return mapPlaybackBeatInSequence(remaining, childStartBeat, child.endBeat, child.children);
+    }
+    if (Math.abs(remaining - currentPassLength) <= EPSILON) {
+      remaining = 0;
+      cursorSong = child.endBeat;
+      continue;
+    }
+
+    remaining -= currentPassLength;
+
+    const repeatedPassesLength = repeatedPassLength * child.repeatCount;
+    if (repeatedPassLength > EPSILON && remaining < repeatedPassesLength - EPSILON) {
+      const passOffset = remaining % repeatedPassLength;
       return mapPlaybackBeatInSequence(passOffset, child.startBeat, child.endBeat, child.children);
     }
 
-    remaining -= totalLength;
+    remaining -= repeatedPassesLength;
     cursorSong = child.endBeat;
   }
 
