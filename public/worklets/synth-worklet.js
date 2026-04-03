@@ -68,6 +68,17 @@ const EVENT_SORT_PRIORITY = {
   NoteOn: 2
 };
 
+const compareScheduledEvents = (a, b) => {
+  if (a.sampleTime !== b.sampleTime) {
+    return a.sampleTime - b.sampleTime;
+  }
+  const priorityDelta = (EVENT_SORT_PRIORITY[a.type] ?? 99) - (EVENT_SORT_PRIORITY[b.type] ?? 99);
+  if (priorityDelta !== 0) {
+    return priorityDelta;
+  }
+  return String(a.id).localeCompare(String(b.id));
+};
+
 const smoothingAlpha = (timeMs, sampleRate) => {
   if (!timeMs || timeMs <= 0) {
     return 0;
@@ -339,18 +350,24 @@ class TrackRuntime {
 
   // NoteOn updates host control values for the selected voice and resets its DSP
   // state so envelopes and oscillators restart from a known state.
+  restartVoice(voice, event, sampleTime) {
+    voice.active = true;
+    voice.noteId = event.noteId;
+    voice.lastTriggeredSampleTime = sampleTime;
+    voice.host.pitchVoct = event.pitchVoct;
+    voice.host.velocity = event.velocity;
+    voice.host.gate = 1;
+    voice.nodeState.clear();
+    voice.paramState.clear();
+  }
+
   noteOn(event, sampleTime) {
     const existing = this.voices.find((voice) => voice.active && voice.noteId === event.noteId);
     if (existing) {
-      existing.lastTriggeredSampleTime = sampleTime;
-      existing.host.pitchVoct = event.pitchVoct;
-      existing.host.velocity = event.velocity;
       // Exact-boundary loop retriggers can deliver NoteOff and NoteOn for the same
       // note on the same sample. Treat that as a fresh attack so envelopes and
       // oscillators restart instead of silently reusing the released voice state.
-      existing.nodeState.clear();
-      existing.paramState.clear();
-      existing.host.gate = 1;
+      this.restartVoice(existing, event, sampleTime);
       return;
     }
 
@@ -368,14 +385,7 @@ class TrackRuntime {
       }
     }
 
-    voice.active = true;
-    voice.noteId = event.noteId;
-    voice.lastTriggeredSampleTime = sampleTime;
-    voice.host.pitchVoct = event.pitchVoct;
-    voice.host.velocity = event.velocity;
-    voice.host.gate = 1;
-    voice.nodeState.clear();
-    voice.paramState.clear();
+    this.restartVoice(voice, event, sampleTime);
   }
 
   // NoteOff only drops the host gate. Release behavior is then driven entirely by
@@ -1188,16 +1198,7 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
       }
       this.eventQueue.push(evt);
     }
-    this.eventQueue.sort((a, b) => {
-      if (a.sampleTime !== b.sampleTime) {
-        return a.sampleTime - b.sampleTime;
-      }
-      const priorityDelta = (EVENT_SORT_PRIORITY[a.type] ?? 99) - (EVENT_SORT_PRIORITY[b.type] ?? 99);
-      if (priorityDelta !== 0) {
-        return priorityDelta;
-      }
-      return String(a.id).localeCompare(String(b.id));
-    });
+    this.eventQueue.sort(compareScheduledEvents);
   }
 
   // Main-thread control plane: initializes the processor, swaps in a project,

@@ -37,6 +37,11 @@ interface LoopPair {
   children: LoopPair[];
 }
 
+interface LoopPassLengths {
+  currentPassLength: number;
+  repeatedPassLength: number;
+}
+
 const EPSILON = 1e-9;
 export const DEFAULT_LOOP_REPEAT_COUNT = 1;
 export const MAX_LOOP_REPEAT_COUNT = 16;
@@ -156,6 +161,35 @@ export const getLoopMarkerStates = (
   loop: ProjectGlobalSettings["loop"]
 ): LoopMarkerState[] => buildLoopPairs(loop).markerStates;
 
+const getLoopPassLengths = (pair: LoopPair, currentPassStartBeat: number): LoopPassLengths => ({
+  currentPassLength: getSequencePlaybackLength(currentPassStartBeat, pair.endBeat, pair.children),
+  repeatedPassLength: getSequencePlaybackLength(pair.startBeat, pair.endBeat, pair.children)
+});
+
+const collectRepeatedPassOffsets = (
+  songBeat: number,
+  pair: LoopPair
+): number[] => {
+  const offsets: number[] = [];
+  collectPlaybackBeatsInSequence(songBeat, pair.startBeat, pair.endBeat, pair.children, 0, offsets);
+  return offsets;
+};
+
+const pushRepeatedPassResults = (
+  results: number[],
+  offsets: number[],
+  firstPlaybackBeat: number,
+  repeatedPassLength: number,
+  repeatCount: number
+): void => {
+  for (let passIndex = 0; passIndex < repeatCount; passIndex += 1) {
+    const passPlaybackStart = firstPlaybackBeat + passIndex * repeatedPassLength;
+    for (const bodyOffset of offsets) {
+      results.push(passPlaybackStart + bodyOffset);
+    }
+  }
+};
+
 const getSequencePlaybackLength = (startBeat: number, endBeat: number, children: LoopPair[]): number => {
   let total = 0;
   let cursor = startBeat;
@@ -170,8 +204,7 @@ const getSequencePlaybackLength = (startBeat: number, endBeat: number, children:
       total += childStartBeat - cursor;
     }
 
-    const currentPassLength = getSequencePlaybackLength(childStartBeat, child.endBeat, child.children);
-    const repeatedPassLength = getSequencePlaybackLength(child.startBeat, child.endBeat, child.children);
+    const { currentPassLength, repeatedPassLength } = getLoopPassLengths(child, childStartBeat);
     total += currentPassLength;
     total += repeatedPassLength * child.repeatCount;
     cursor = child.endBeat;
@@ -207,16 +240,9 @@ const collectPlaybackBeatsInSequence = (
       }
 
       if (songBeat >= child.startBeat - EPSILON && songBeat <= child.endBeat + EPSILON && child.repeatCount > 0) {
-        const currentPassLength = getSequencePlaybackLength(childStartBeat, child.endBeat, child.children);
-        const repeatedPassLength = getSequencePlaybackLength(child.startBeat, child.endBeat, child.children);
-        const repeatedPassOffsets: number[] = [];
-        collectPlaybackBeatsInSequence(songBeat, child.startBeat, child.endBeat, child.children, 0, repeatedPassOffsets);
-        for (let passIndex = 0; passIndex < child.repeatCount; passIndex += 1) {
-          const passPlaybackStart = cursorPlayback + currentPassLength + passIndex * repeatedPassLength;
-          for (const bodyOffset of repeatedPassOffsets) {
-            results.push(passPlaybackStart + bodyOffset);
-          }
-        }
+        const { currentPassLength, repeatedPassLength } = getLoopPassLengths(child, childStartBeat);
+        const repeatedPassOffsets = collectRepeatedPassOffsets(songBeat, child);
+        pushRepeatedPassResults(results, repeatedPassOffsets, cursorPlayback + currentPassLength, repeatedPassLength, child.repeatCount);
       }
       return;
     }
@@ -227,7 +253,7 @@ const collectPlaybackBeatsInSequence = (
     }
 
     if (songBeat <= child.endBeat + EPSILON) {
-      const currentPassLength = getSequencePlaybackLength(childStartBeat, child.endBeat, child.children);
+      const { currentPassLength, repeatedPassLength } = getLoopPassLengths(child, childStartBeat);
       const currentPassOffsets: number[] = [];
       collectPlaybackBeatsInSequence(songBeat, childStartBeat, child.endBeat, child.children, 0, currentPassOffsets);
       for (const bodyOffset of currentPassOffsets) {
@@ -235,21 +261,13 @@ const collectPlaybackBeatsInSequence = (
       }
 
       if (child.repeatCount > 0) {
-        const repeatedPassLength = getSequencePlaybackLength(child.startBeat, child.endBeat, child.children);
-        const repeatedPassOffsets: number[] = [];
-        collectPlaybackBeatsInSequence(songBeat, child.startBeat, child.endBeat, child.children, 0, repeatedPassOffsets);
-        for (let passIndex = 0; passIndex < child.repeatCount; passIndex += 1) {
-          const passPlaybackStart = cursorPlayback + currentPassLength + passIndex * repeatedPassLength;
-          for (const bodyOffset of repeatedPassOffsets) {
-            results.push(passPlaybackStart + bodyOffset);
-          }
-        }
+        const repeatedPassOffsets = collectRepeatedPassOffsets(songBeat, child);
+        pushRepeatedPassResults(results, repeatedPassOffsets, cursorPlayback + currentPassLength, repeatedPassLength, child.repeatCount);
       }
       return;
     }
 
-    const currentPassLength = getSequencePlaybackLength(childStartBeat, child.endBeat, child.children);
-    const repeatedPassLength = getSequencePlaybackLength(child.startBeat, child.endBeat, child.children);
+    const { currentPassLength, repeatedPassLength } = getLoopPassLengths(child, childStartBeat);
     cursorPlayback += currentPassLength + repeatedPassLength * child.repeatCount;
     cursorSong = child.endBeat;
   }
@@ -292,7 +310,7 @@ const mapPlaybackBeatInSequence = (
     remaining -= gap;
     cursorSong = childStartBeat;
 
-    const currentPassLength = getSequencePlaybackLength(childStartBeat, child.endBeat, child.children);
+    const { currentPassLength, repeatedPassLength } = getLoopPassLengths(child, childStartBeat);
     if (remaining < currentPassLength - EPSILON) {
       return mapPlaybackBeatInSequence(remaining, childStartBeat, child.endBeat, child.children);
     }
@@ -304,7 +322,6 @@ const mapPlaybackBeatInSequence = (
 
     remaining -= currentPassLength;
 
-    const repeatedPassLength = getSequencePlaybackLength(child.startBeat, child.endBeat, child.children);
     const repeatedPassesLength = repeatedPassLength * child.repeatCount;
     if (repeatedPassLength > EPSILON && remaining < repeatedPassesLength - EPSILON) {
       const passOffset = remaining % repeatedPassLength;
