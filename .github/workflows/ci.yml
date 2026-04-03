@@ -11,7 +11,7 @@ on:
 
 jobs:
   validate-build:
-    name: Validate Build
+    name: validate_build
     runs-on: ubuntu-latest
 
     steps:
@@ -42,7 +42,7 @@ jobs:
         run: pnpm run build
 
   test:
-    name: Test
+    name: test
     runs-on: ubuntu-latest
 
     steps:
