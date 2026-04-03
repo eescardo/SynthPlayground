@@ -5,9 +5,9 @@ import { AudioEngine } from "@/audio/engine";
 import { loadDspWasm } from "@/audio/wasmBridge";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
-import { LoopPopover } from "@/components/LoopPopover";
 import { PianoKeyboard } from "@/components/PianoKeyboard";
-import { LoopPopoverRequest, TrackCanvas } from "@/components/TrackCanvas";
+import { TimelineActionsPopover } from "@/components/TimelineActionsPopover";
+import { TimelineActionsPopoverRequest, TrackCanvas } from "@/components/TrackCanvas";
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
 import { getSanitizedLoopMarkers } from "@/lib/looping";
@@ -68,7 +68,7 @@ export default function HomePage() {
   const [pitchPicker, setPitchPicker] = useState<{ trackId: string; noteId: string } | null>(null);
   const [previewPitch, setPreviewPitch] = useState("C4");
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
-  const [loopPopover, setLoopPopover] = useState<LoopPopoverRequest | null>(null);
+  const [timelineActionsPopover, setTimelineActionsPopover] = useState<TimelineActionsPopoverRequest | null>(null);
   const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
   const [patchRemovalDialog, setPatchRemovalDialog] = useState<{
     patchId: string;
@@ -306,11 +306,11 @@ export default function HomePage() {
     useLoopSettings({
       project,
       commitProjectChange,
-      onCloseLoopPopover: () => setLoopPopover(null)
+      onCloseLoopPopover: () => setTimelineActionsPopover(null)
     });
 
   useEffect(() => {
-    if (!loopPopover) {
+    if (!timelineActionsPopover) {
       return;
     }
 
@@ -321,7 +321,7 @@ export default function HomePage() {
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setLoopPopover(null);
+        setTimelineActionsPopover(null);
       }
     };
 
@@ -330,10 +330,10 @@ export default function HomePage() {
         return;
       }
       const target = event.target as HTMLElement | null;
-      if (target?.closest(".loop-popover")) {
+      if (target?.closest(".timeline-actions-popover")) {
         return;
       }
-      setLoopPopover(null);
+      setTimelineActionsPopover(null);
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -343,7 +343,17 @@ export default function HomePage() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("pointerdown", onPointerDown);
     };
-  }, [loopPopover]);
+  }, [timelineActionsPopover]);
+
+  const timelineMarkersAtBeat = useMemo(
+    () =>
+      timelineActionsPopover
+        ? getSanitizedLoopMarkers(project.global.loop).filter((marker) => Math.abs(marker.beat - timelineActionsPopover.beat) < 1e-9)
+        : [],
+    [project.global.loop, timelineActionsPopover]
+  );
+  const startMarkerAtTimelineBeat = timelineMarkersAtBeat.find((marker) => marker.kind === "start");
+  const endMarkerAtTimelineBeat = timelineMarkersAtBeat.find((marker) => marker.kind === "end");
 
   const openPitchPicker = useCallback((trackId: string, noteId: string) => {
     setPitchPicker({ trackId, noteId });
@@ -905,9 +915,9 @@ export default function HomePage() {
         activeRecordedNotes={recording.activeRecordedNotes}
         ghostPlayheadBeat={recording.ghostPlayheadBeat ?? undefined}
         countInLabel={recording.countInLabel ?? undefined}
-        loopPopoverTarget={loopPopover?.target ?? null}
+        timelineActionsPopoverOpen={Boolean(timelineActionsPopover)}
         onSetPlayheadBeat={setPlayheadFromUser}
-        onRequestLoopPopover={setLoopPopover}
+        onRequestTimelineActionsPopover={setTimelineActionsPopover}
         onSelectTrack={setSelectedTrackId}
         onRenameTrack={renameTrack}
         onToggleTrackMute={toggleTrackMute}
@@ -922,30 +932,33 @@ export default function HomePage() {
         onDeleteNote={deleteNote}
       />
 
-      {loopPopover && (
-        <LoopPopover
-          left={loopPopover.clientX}
-          top={loopPopover.clientY + 12}
-          target={loopPopover.target}
-          repeatCount={getSanitizedLoopMarkers(project.global.loop).find((marker) => marker.id === loopPopover.markerId)?.repeatCount}
-          onAddStart={() => addLoopBoundary(loopPopover.beat, "start")}
-          onAddEnd={() => addLoopBoundary(loopPopover.beat, "end")}
+      {timelineActionsPopover && (
+        <TimelineActionsPopover
+          left={timelineActionsPopover.clientX}
+          top={timelineActionsPopover.clientY + 12}
+          showAddStart={!startMarkerAtTimelineBeat}
+          showAddEnd={timelineActionsPopover.beat > 0 && !endMarkerAtTimelineBeat}
+          startMarkerId={startMarkerAtTimelineBeat?.id}
+          endMarkerId={endMarkerAtTimelineBeat?.id}
+          endRepeatCount={endMarkerAtTimelineBeat?.repeatCount}
+          onAddStart={() => addLoopBoundary(timelineActionsPopover.beat, "start")}
+          onAddEnd={() => addLoopBoundary(timelineActionsPopover.beat, "end")}
           onUpdateRepeatCount={(repeatCount) => {
-            if (loopPopover.markerId) {
-              updateLoopRepeatCount(loopPopover.markerId, repeatCount);
+            if (endMarkerAtTimelineBeat) {
+              updateLoopRepeatCount(endMarkerAtTimelineBeat.id, repeatCount);
             }
           }}
           onRemoveStart={() => {
-            if (loopPopover.markerId) {
-              removeLoopBoundary(loopPopover.markerId);
+            if (startMarkerAtTimelineBeat) {
+              removeLoopBoundary(startMarkerAtTimelineBeat.id);
             }
           }}
           onRemoveEnd={() => {
-            if (loopPopover.markerId) {
-              removeLoopBoundary(loopPopover.markerId);
+            if (endMarkerAtTimelineBeat) {
+              removeLoopBoundary(endMarkerAtTimelineBeat.id);
             }
           }}
-          onClose={() => setLoopPopover(null)}
+          onClose={() => setTimelineActionsPopover(null)}
         />
       )}
 

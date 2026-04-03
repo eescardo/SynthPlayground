@@ -277,7 +277,7 @@ select {
   font-family: "Courier New", monospace;
 }
 
-.loop-popover {
+.timeline-actions-popover {
   position: fixed;
   display: flex;
   flex-direction: column;
@@ -291,12 +291,18 @@ select {
   z-index: 70;
 }
 
-.loop-popover-label {
+.timeline-actions-popover-label {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+.timeline-actions-popover-divider {
+  height: 1px;
+  margin: 0.1rem 0;
+  background: rgba(125, 220, 173, 0.3);
 }
 
 .loop-conflict-list {

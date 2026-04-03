@@ -48,6 +48,7 @@ Never commit or push directly to `main` / `origin/main`.
 - Before creating a new task branch, update the local checkout from `origin/main` and rebase or realign so new work starts from current main.
 - Always work on a task-specific branch.
 - After pushing the task branch to the remote, open or update a PR.
+- PRs should be opened as ready for review by default, unless explicitly requested otherwise.
 
 When the mapping is clear from context, proceed. When it is ambiguous, ask a short clarifying question before making branch or PR changes.
 

@@ -46,6 +46,17 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
       await savePageScreenshot(page, outputPath);
     }
   },
+  [SCREENSHOT_SCENARIO.TRACK_NOTE_HOVER]: {
+    name: SCREENSHOT_SCENARIO.TRACK_NOTE_HOVER,
+    description: "Hovered note remains highlighted even when overlapping the playhead hit area",
+    capture: async (page, outputPath) => {
+      await openApp(page);
+      await page.locator(".track-canvas-shell > canvas").hover({
+        position: { x: 172, y: 64 }
+      });
+      await savePageScreenshot(page, outputPath, ".track-canvas-shell");
+    }
+  },
   [SCREENSHOT_SCENARIO.HELP_MODAL]: {
     name: SCREENSHOT_SCENARIO.HELP_MODAL,
     description: "Quick help modal open over the main view",
