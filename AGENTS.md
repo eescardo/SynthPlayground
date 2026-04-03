@@ -109,7 +109,11 @@ Parallelization works best when tasks have mostly independent write scopes.
 
 ## Handoff
 
-When finishing a task, report:
+When finishing a task, report the following in the final chat response. Include the same information in the PR body when it is relevant.
+
+A task here means the current user request being implemented on a task branch. A task may result in a new PR or an update to an existing unlanded PR.
+
+Report:
 
 - files changed
 - commands run
