@@ -15,7 +15,7 @@ const baseURL = `http://127.0.0.1:${port}`;
 const screenshotRoot = path.join(process.cwd(), "artifacts", "screenshots", screenshotLabel);
 
 const parseRequestedScenarios = (): ScreenshotScenario[] => {
-  const args = process.argv.slice(2);
+  const args = process.argv.slice(2).filter((arg) => arg !== "--");
   if (args.length === 0 || args.includes("all")) {
     return [...SCREENSHOT_SCENARIOS];
   }

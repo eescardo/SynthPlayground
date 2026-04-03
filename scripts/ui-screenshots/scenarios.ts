@@ -1,4 +1,11 @@
-export const SCREENSHOT_SCENARIOS = ["main-view", "help-modal", "record-mode", "patch-editor"] as const;
+export const SCREENSHOT_SCENARIO = {
+  MAIN_VIEW: "main-view",
+  HELP_MODAL: "help-modal",
+  RECORD_MODE: "record-mode",
+  PATCH_EDITOR: "patch-editor"
+} as const;
+
+export const SCREENSHOT_SCENARIOS = Object.values(SCREENSHOT_SCENARIO);
 
 export type ScreenshotScenario = (typeof SCREENSHOT_SCENARIOS)[number];
 

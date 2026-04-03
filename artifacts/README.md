@@ -13,8 +13,8 @@ Use this directory for temporary review artifacts produced during agent work, es
 Playwright screenshot capture stores files under `artifacts/screenshots/<label>/`.
 
 - Default label: `local`
-- Example before capture: `SCREENSHOT_LABEL=before pnpm run test:ui:capture:main-view`
-- Example after capture: `SCREENSHOT_LABEL=after pnpm run test:ui:capture:main-view`
+- Example before capture: `SCREENSHOT_LABEL=before pnpm run test:ui:capture -- main-view`
+- Example after capture: `SCREENSHOT_LABEL=after pnpm run test:ui:capture -- main-view`
 
 Named scenarios currently include:
 

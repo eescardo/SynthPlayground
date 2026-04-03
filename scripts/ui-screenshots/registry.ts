@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, Page } from "@playwright/test";
-import { SCREENSHOT_SCENARIOS, ScreenshotScenario } from "./scenarios";
+import { SCREENSHOT_SCENARIO, SCREENSHOT_SCENARIOS, ScreenshotScenario } from "./scenarios";
 
 export interface ScreenshotScenarioDefinition {
   name: ScreenshotScenario;
@@ -38,16 +38,16 @@ const savePageScreenshot = async (page: Page, outputPath: string, locator?: stri
 };
 
 export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, ScreenshotScenarioDefinition> = {
-  "main-view": {
-    name: "main-view",
+  [SCREENSHOT_SCENARIO.MAIN_VIEW]: {
+    name: SCREENSHOT_SCENARIO.MAIN_VIEW,
     description: "Full main composition view",
     capture: async (page, outputPath) => {
       await openApp(page);
       await savePageScreenshot(page, outputPath);
     }
   },
-  "help-modal": {
-    name: "help-modal",
+  [SCREENSHOT_SCENARIO.HELP_MODAL]: {
+    name: SCREENSHOT_SCENARIO.HELP_MODAL,
     description: "Quick help modal open over the main view",
     capture: async (page, outputPath) => {
       await openApp(page);
@@ -56,8 +56,8 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
       await savePageScreenshot(page, outputPath);
     }
   },
-  "record-mode": {
-    name: "record-mode",
+  [SCREENSHOT_SCENARIO.RECORD_MODE]: {
+    name: SCREENSHOT_SCENARIO.RECORD_MODE,
     description: "Recording dock visible after arming record mode",
     capture: async (page, outputPath) => {
       await openApp(page);
@@ -66,8 +66,8 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
       await savePageScreenshot(page, outputPath);
     }
   },
-  "patch-editor": {
-    name: "patch-editor",
+  [SCREENSHOT_SCENARIO.PATCH_EDITOR]: {
+    name: SCREENSHOT_SCENARIO.PATCH_EDITOR,
     description: "Instrument editor and patch area",
     capture: async (page, outputPath) => {
       await openApp(page);
