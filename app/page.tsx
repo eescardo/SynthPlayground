@@ -11,6 +11,14 @@ import { TimelineActionsPopoverRequest, TrackCanvas } from "@/components/TrackCa
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
 import { getSanitizedLoopMarkers } from "@/lib/looping";
+import {
+  applyNoteClipboardPaste,
+  buildNoteClipboardPayload,
+  getNoteSelectionKey,
+  parseNoteSelectionKey,
+  parseNoteClipboardPayload,
+  serializeNoteClipboardPayload
+} from "@/lib/noteClipboard";
 import { clearProject, loadProject, saveProject } from "@/lib/persistence";
 import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
@@ -65,6 +73,7 @@ export default function HomePage() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [strictWasmReady, setStrictWasmReady] = useState(process.env.NEXT_PUBLIC_STRICT_WASM !== "1");
+  const [selectedNoteKeys, setSelectedNoteKeys] = useState<string[]>([]);
   const [pitchPicker, setPitchPicker] = useState<{ trackId: string; noteId: string } | null>(null);
   const [previewPitch, setPreviewPitch] = useState("C4");
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
@@ -133,6 +142,7 @@ export default function HomePage() {
     () => project.tracks.find((track) => track.id === selectedTrackId) ?? project.tracks[0],
     [project.tracks, selectedTrackId]
   );
+  const selectedNoteKeySet = useMemo(() => new Set(selectedNoteKeys), [selectedNoteKeys]);
 
   const trackNameById = useMemo(() => new Map(project.tracks.map((track) => [track.id, track.name] as const)), [project.tracks]);
 
@@ -212,6 +222,13 @@ export default function HomePage() {
     }
     audioEngineRef.current.setProject(project, { syncToWorklet: !playing });
   }, [playing, project, ready]);
+
+  useEffect(() => {
+    const existingSelectionKeys = new Set(
+      project.tracks.flatMap((track) => track.notes.map((note) => getNoteSelectionKey(track.id, note.id)))
+    );
+    setSelectedNoteKeys((current) => current.filter((selectionKey) => existingSelectionKeys.has(selectionKey)));
+  }, [project.tracks]);
 
   useEffect(() => {
     if (!ready || !pendingPreview || playing || !selectedTrack) {
@@ -559,6 +576,40 @@ export default function HomePage() {
     setProjectHistory((prev) => redoHistory(prev));
   }, []);
 
+  const deleteSelectedNotes = useCallback((selectionKeys: string[]) => {
+    if (selectionKeys.length === 0) {
+      return;
+    }
+
+    const noteIdsByTrackId = new Map<string, Set<string>>();
+    for (const selectionKey of selectionKeys) {
+      const parsed = parseNoteSelectionKey(selectionKey);
+      if (!parsed) {
+        continue;
+      }
+      const noteIds = noteIdsByTrackId.get(parsed.trackId) ?? new Set<string>();
+      noteIds.add(parsed.noteId);
+      noteIdsByTrackId.set(parsed.trackId, noteIds);
+    }
+
+    if (noteIdsByTrackId.size === 0) {
+      return;
+    }
+
+    commitProjectChange((current) => ({
+      ...current,
+      tracks: current.tracks.map((track) => {
+        const noteIds = noteIdsByTrackId.get(track.id);
+        if (!noteIds) {
+          return track;
+        }
+        const nextNotes = track.notes.filter((note) => !noteIds.has(note.id));
+        return nextNotes.length === track.notes.length ? track : { ...track, notes: nextNotes };
+      })
+    }), { actionKey: "notes:cut-selection" });
+    setSelectedNoteKeys([]);
+  }, [commitProjectChange]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -575,6 +626,7 @@ export default function HomePage() {
         setPitchPicker(null);
         setPreviewPitchPickerOpen(false);
         setPatchRemovalDialog(null);
+        setSelectedNoteKeys([]);
       }
 
       const isUndo = (event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "z";
@@ -597,6 +649,79 @@ export default function HomePage() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [redoProject, undoProject]);
+
+  useEffect(() => {
+    const onCopy = (event: ClipboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const editingText = target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA");
+      if (editingText || selectedNoteKeys.length === 0 || !event.clipboardData) {
+        return;
+      }
+
+      const payload = buildNoteClipboardPayload(project, selectedNoteKeys);
+      if (!payload) {
+        return;
+      }
+
+      const serialized = serializeNoteClipboardPayload(payload);
+      event.preventDefault();
+      event.clipboardData.setData("text/plain", serialized.plainText);
+      event.clipboardData.setData("text/html", serialized.html);
+    };
+
+    const onCut = (event: ClipboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const editingText = target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA");
+      if (editingText || selectedNoteKeys.length === 0 || !event.clipboardData) {
+        return;
+      }
+
+      const payload = buildNoteClipboardPayload(project, selectedNoteKeys);
+      if (!payload) {
+        return;
+      }
+
+      const serialized = serializeNoteClipboardPayload(payload);
+      event.preventDefault();
+      event.clipboardData.setData("text/plain", serialized.plainText);
+      event.clipboardData.setData("text/html", serialized.html);
+      deleteSelectedNotes(selectedNoteKeys);
+    };
+
+    const onPaste = (event: ClipboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const editingText = target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA");
+      if (editingText || !selectedTrack?.id || !event.clipboardData) {
+        return;
+      }
+
+      const payload = parseNoteClipboardPayload(
+        event.clipboardData.getData("text/html"),
+        event.clipboardData.getData("text/plain")
+      );
+      if (!payload) {
+        return;
+      }
+
+      let nextSelectionKeys: string[] = [];
+      event.preventDefault();
+      commitProjectChange((current) => {
+        const applied = applyNoteClipboardPaste(current, payload, selectedTrack.id, playheadBeat);
+        nextSelectionKeys = applied.selectionKeys;
+        return applied.project;
+      }, { actionKey: `track:${selectedTrack.id}:paste-notes` });
+      setSelectedNoteKeys(nextSelectionKeys);
+    };
+
+    window.addEventListener("copy", onCopy);
+    window.addEventListener("cut", onCut);
+    window.addEventListener("paste", onPaste);
+    return () => {
+      window.removeEventListener("copy", onCopy);
+      window.removeEventListener("cut", onCut);
+      window.removeEventListener("paste", onPaste);
+    };
+  }, [commitProjectChange, deleteSelectedNotes, playheadBeat, project, selectedNoteKeys, selectedTrack?.id]);
 
   usePitchPickerHotkeys(Boolean(pitchPicker), useCallback((pitch: string) => {
     if (!pitchPicker) return;
@@ -911,6 +1036,7 @@ export default function HomePage() {
         project={project}
         invalidPatchIds={invalidPatchIds}
         selectedTrackId={selectedTrack.id}
+        selectedNoteKeys={selectedNoteKeySet}
         playheadBeat={playheadBeat}
         activeRecordedNotes={recording.activeRecordedNotes}
         ghostPlayheadBeat={recording.ghostPlayheadBeat ?? undefined}
@@ -930,6 +1056,7 @@ export default function HomePage() {
         onUpsertNote={upsertNote}
         onUpdateNote={updateNote}
         onDeleteNote={deleteNote}
+        onSetNoteSelection={setSelectedNoteKeys}
       />
 
       {timelineActionsPopover && (
@@ -1022,6 +1149,15 @@ export default function HomePage() {
             <h3>Quick Help</h3>
             <p>
               <strong>Add note:</strong> Left-click an empty spot in a track lane.
+            </p>
+            <p>
+              <strong>Select notes:</strong> Drag across track lanes to marquee-select notes, or click a single note to select it.
+            </p>
+            <p>
+              <strong>Copy and paste notes:</strong> Use <kbd>Cmd</kbd>+<kbd>C</kbd> and <kbd>Cmd</kbd>+<kbd>V</kbd> to copy the selection and paste it at the playhead onto the selected track.
+            </p>
+            <p>
+              <strong>Cut notes:</strong> Use <kbd>Cmd</kbd>+<kbd>X</kbd> to copy the selection and remove the original notes.
             </p>
             <p>
               <strong>Move note:</strong> Drag a note block horizontally.

@@ -17,12 +17,15 @@ const recordGapMs = Number(process.env.VIDEO_RECORD_GAP_MS ?? 500);
 const recordCycles = Number(process.env.VIDEO_RECORD_CYCLES ?? 5);
 const postActionSettleMs = Number(process.env.VIDEO_POST_ACTION_SETTLE_MS ?? 300);
 const reviewZoom = Number(process.env.VIDEO_REVIEW_ZOOM ?? 0.82);
+const marqueeHoldMs = Number(process.env.VIDEO_MARQUEE_HOLD_MS ?? 250);
 
 const getTransportButton = (page: Page, name: "Play" | "Stop" | "Record") =>
   page.locator(".transport").getByRole("button", { name });
 
 const getRecordingKey = (page: Page, pitch = "C4"): Locator =>
   page.locator(".recording-dock").getByRole("button", { name: new RegExp(`\\b${pitch}\\b`, "i") }).first();
+
+const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canvas");
 
 const playQuarterPattern = async (page: Page, key: Locator) => {
   for (let cycle = 0; cycle < recordCycles; cycle += 1) {
@@ -38,6 +41,25 @@ const applyReviewFraming = async (page: Page) => {
     document.documentElement.style.zoom = String(zoom);
     window.scrollTo(0, 0);
   }, reviewZoom);
+};
+
+const dragCanvasRegion = async (
+  page: Page,
+  canvas: Locator,
+  start: { x: number; y: number },
+  end: { x: number; y: number }
+) => {
+  const box = await canvas.boundingBox();
+  if (!box) {
+    throw new Error("Could not determine track canvas bounds.");
+  }
+
+  await page.mouse.move(box.x + start.x, box.y + start.y);
+  await page.mouse.down();
+  await page.waitForTimeout(marqueeHoldMs);
+  await page.mouse.move(box.x + end.x, box.y + end.y, { steps: 18 });
+  await page.waitForTimeout(marqueeHoldMs);
+  await page.mouse.up();
 };
 
 export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefinition> = {
@@ -67,6 +89,30 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await playQuarterPattern(page, key);
       await getTransportButton(page, "Record").click();
       await page.waitForTimeout(postActionSettleMs);
+    }
+  },
+  [VIDEO_SCENARIO.SELECTION_CUT_PASTE]: {
+    name: VIDEO_SCENARIO.SELECTION_CUT_PASTE,
+    description: "Marquee-select notes, cut them, then paste them later onto a different track.",
+    capture: async (page) => {
+      await openApp(page);
+      await applyReviewFraming(page);
+
+      const canvas = getTrackCanvas(page);
+      await dragCanvasRegion(page, canvas, { x: 230, y: 56 }, { x: 540, y: 160 });
+      await page.waitForTimeout(postActionSettleMs);
+
+      await page.keyboard.press("ControlOrMeta+X");
+      await page.waitForTimeout(postActionSettleMs);
+
+      await canvas.click({ position: { x: 80, y: 270 } });
+      await page.waitForTimeout(postActionSettleMs);
+
+      await canvas.click({ position: { x: 760, y: 12 } });
+      await page.waitForTimeout(postActionSettleMs);
+
+      await page.keyboard.press("ControlOrMeta+V");
+      await page.waitForTimeout(postActionSettleMs * 2);
     }
   }
 };
