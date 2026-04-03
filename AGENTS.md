@@ -35,6 +35,28 @@ When asked to make code changes, aim for end-to-end delivery, not just a patch.
 - If validation is green and the change does not affect UI or UX, it is reasonable to commit and open/update a PR.
 - If the change affects UI or UX, do not treat green automated checks as sufficient by themselves. Include review artifacts or a manual verification checklist before merge.
 
+## Task Branch and PR Workflow
+
+Treat each substantial user request as either:
+
+- a new task that should get its own branch and PR, or
+- a follow-up to an existing unlanded task branch / PR
+
+When the mapping is clear from context, proceed. When it is ambiguous, ask a short clarifying question before making branch or PR changes.
+
+Examples of ambiguity:
+
+- the user asks for "one more cleanup" after a previous PR exists, but does not say whether to stack onto it or start fresh
+- the current branch already has an open PR and the new request looks unrelated
+
+Typical order:
+
+1. create or switch to the task branch
+2. make the change
+3. run relevant validation
+4. commit locally
+5. update the existing PR if this is the same task, otherwise open a new PR
+
 ## UI Changes
 
 For visual or interaction changes, automated validation is necessary but not sufficient.
