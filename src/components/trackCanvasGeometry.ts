@@ -1,4 +1,4 @@
-export const PLAYHEAD_HIT_HALF_WIDTH = 3;
+export const PLAYHEAD_HIT_HALF_WIDTH = 5;
 export const LOOP_MARKER_BAR_WIDTH = 8;
 export const LOOP_MARKER_DOT_RADIUS = 3;
 export const LOOP_MARKER_DOT_OFFSET_Y = 6;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getHoverTarget } from "@/components/trackCanvasGeometry";
+import { getHoverTarget, isOverPlayhead, PLAYHEAD_HIT_HALF_WIDTH } from "@/components/trackCanvasGeometry";
 
 describe("getHoverTarget", () => {
   it("keeps track notes above playhead and loop markers when they overlap", () => {
@@ -36,5 +36,11 @@ describe("getHoverTarget", () => {
         noteRect: null
       })
     ).toBe("playhead");
+  });
+
+  it("keeps a forgiving standalone playhead hit band", () => {
+    expect(isOverPlayhead(170 + PLAYHEAD_HIT_HALF_WIDTH, 0, 170, 72)).toBe(true);
+    expect(isOverPlayhead(170 - PLAYHEAD_HIT_HALF_WIDTH, 0, 170, 72)).toBe(true);
+    expect(isOverPlayhead(170 + PLAYHEAD_HIT_HALF_WIDTH + 1, 0, 170, 72)).toBe(false);
   });
 });
