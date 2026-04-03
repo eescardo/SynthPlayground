@@ -36,6 +36,17 @@ The `PR Screenshots` workflow can generate before and after screenshot artifacts
 - PR label `screenshots:<scenario>`: run only that scenario
 - Multiple `screenshots:<scenario>` labels can be combined
 
-The workflow uploads separate `before` and `after` artifacts and leaves a PR comment with download links.
+The workflow uploads separate `before` and `after` artifacts and leaves a PR comment with inline image previews plus download links.
+
+Current implementation detail:
+
+- The inline PR comment images are published to a dedicated utility branch named `pr-screenshot-previews`.
+- That branch is reusable scratch space for generated preview assets and may grow over time.
+- If the branch is deleted, the workflow will recreate it on the next run.
+
+Future improvements to consider:
+
+- switch to GitHub Pages or another ephemeral image-hosting approach
+- post images via uploaded issue comment assets instead, if we want to avoid the preview branch model entirely
 
 These artifacts are for review and debugging, not source control history. The directories are ignored by git except for this README.
