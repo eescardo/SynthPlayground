@@ -28,11 +28,11 @@ import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } f
 import { importProjectFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
 import { removeTrackFromProject, renameTrackInProject } from "@/lib/trackEdits";
-import { useCompatibleClipboard } from "@/hooks/useCompatibleClipboard";
 import { useNoteEditor } from "@/hooks/useNoteEditor";
 import { useLoopSettings } from "@/hooks/useLoopSettings";
 import { useEditorClipboardEvents } from "@/hooks/useEditorClipboardEvents";
 import { useEditorKeyboardShortcuts } from "@/hooks/useEditorKeyboardShortcuts";
+import { useNoteClipboard } from "@/hooks/useNoteClipboard";
 import { usePlatformShortcuts } from "@/hooks/usePlatformShortcuts";
 import { usePlaybackController } from "@/hooks/usePlaybackController";
 import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
@@ -97,12 +97,12 @@ export default function HomePage() {
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const project = projectHistory.current;
   const {
-    compatibleClipboardPayload,
-    setCompatibleClipboardPayload,
+    noteClipboardPayload,
+    setNoteClipboardPayload,
     writeClipboardPayload,
-    clearCompatibleClipboard,
-    syncCompatibleClipboardPayload
-  } = useCompatibleClipboard();
+    clearNoteClipboard,
+    syncNoteClipboardPayload
+  } = useNoteClipboard();
   const {
     allTracksModifierLabel,
     deleteKeyLabel,
@@ -406,10 +406,10 @@ export default function HomePage() {
     deleteSelectedNoteSelection,
     deleteSelectedNotes
   } = useSelectionClipboardActions({
-    clearCompatibleClipboard,
+    clearNoteClipboard,
     closeTimelineActionsPopover: () => setTimelineActionsPopover(null),
     commitProjectChange,
-    compatibleClipboardPayload,
+    noteClipboardPayload,
     project,
     selectedNoteKeys,
     selectedTrackId: selectedTrack?.id,
@@ -474,8 +474,8 @@ export default function HomePage() {
   const requestTimelineActionsPopover = useCallback((request: TimelineActionsPopoverRequest) => {
     setTimelineActionsPopover(request);
     setSelectionActionScopePreview("source");
-    void syncCompatibleClipboardPayload();
-  }, [syncCompatibleClipboardPayload]);
+    void syncNoteClipboardPayload();
+  }, [syncNoteClipboardPayload]);
 
   const openPitchPicker = useCallback((trackId: string, noteId: string) => {
     setPitchPicker({ trackId, noteId });
@@ -717,7 +717,7 @@ export default function HomePage() {
     project,
     selectedNoteKeys,
     selectedTrackId: selectedTrack?.id,
-    setCompatibleClipboardPayload,
+    setNoteClipboardPayload,
     setSelectedNoteKeys
   });
 
@@ -1082,7 +1082,7 @@ export default function HomePage() {
         <TimelineActionsPopover
           left={timelineActionsPopover.clientX}
           top={timelineActionsPopover.clientY + 12}
-          showPasteActions={Boolean(compatibleClipboardPayload)}
+          showPasteActions={Boolean(noteClipboardPayload)}
           showAddStart={!startMarkerAtTimelineBeat}
           showAddEnd={timelineActionsPopover.beat > 0 && !endMarkerAtTimelineBeat}
           startMarkerId={startMarkerAtTimelineBeat?.id}

@@ -20,10 +20,10 @@ type CommitProjectChange = (
 ) => void;
 
 interface UseSelectionClipboardActionsParams {
-  clearCompatibleClipboard: () => Promise<void>;
+  clearNoteClipboard: () => Promise<void>;
   closeTimelineActionsPopover: () => void;
   commitProjectChange: CommitProjectChange;
-  compatibleClipboardPayload: NoteClipboardPayload | null;
+  noteClipboardPayload: NoteClipboardPayload | null;
   project: Project;
   selectedNoteKeys: string[];
   selectedTrackId?: string;
@@ -34,10 +34,10 @@ interface UseSelectionClipboardActionsParams {
 }
 
 export function useSelectionClipboardActions({
-  clearCompatibleClipboard,
+  clearNoteClipboard,
   closeTimelineActionsPopover,
   commitProjectChange,
-  compatibleClipboardPayload,
+  noteClipboardPayload,
   project,
   selectedNoteKeys,
   selectedTrackId,
@@ -134,15 +134,15 @@ export function useSelectionClipboardActions({
     if (!selectionBeatRange) {
       return;
     }
-    void clearCompatibleClipboard();
+    void clearNoteClipboard();
     commitProjectChange((current) => cutBeatRangeAcrossAllTracks(current, selectionBeatRange), {
       actionKey: "timeline:delete-all-tracks"
     });
     setSelectedNoteKeys([]);
-  }, [clearCompatibleClipboard, commitProjectChange, selectionBeatRange, setSelectedNoteKeys]);
+  }, [clearNoteClipboard, commitProjectChange, selectionBeatRange, setSelectedNoteKeys]);
 
   const applyCompatiblePaste = useCallback((mode: "paste" | "paste-all-tracks" | "insert" | "insert-all-tracks", beat: number) => {
-    if (!compatibleClipboardPayload || !selectedTrackId) {
+    if (!noteClipboardPayload || !selectedTrackId) {
       return;
     }
 
@@ -152,12 +152,12 @@ export function useSelectionClipboardActions({
         const firstTrackId = current.tracks[0]?.id;
         const applied =
           mode === "insert"
-            ? applyNoteClipboardInsert(current, compatibleClipboardPayload, selectedTrackId, beat)
+            ? applyNoteClipboardInsert(current, noteClipboardPayload, selectedTrackId, beat)
             : mode === "paste-all-tracks" && firstTrackId
-              ? applyNoteClipboardPaste(current, compatibleClipboardPayload, firstTrackId, beat)
+              ? applyNoteClipboardPaste(current, noteClipboardPayload, firstTrackId, beat)
               : mode === "insert-all-tracks"
-                ? applyNoteClipboardInsertAllTracks(current, compatibleClipboardPayload, beat)
-                : applyNoteClipboardPaste(current, compatibleClipboardPayload, selectedTrackId, beat);
+                ? applyNoteClipboardInsertAllTracks(current, noteClipboardPayload, beat)
+                : applyNoteClipboardPaste(current, noteClipboardPayload, selectedTrackId, beat);
         nextSelectionKeys = applied.selectionKeys;
         return applied.project;
       },
@@ -178,7 +178,7 @@ export function useSelectionClipboardActions({
   }, [
     closeTimelineActionsPopover,
     commitProjectChange,
-    compatibleClipboardPayload,
+    noteClipboardPayload,
     selectedTrackId,
     setPlayheadFromUser,
     setSelectedNoteKeys

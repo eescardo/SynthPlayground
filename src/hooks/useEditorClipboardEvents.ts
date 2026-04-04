@@ -26,7 +26,7 @@ interface UseEditorClipboardEventsParams {
   project: Project;
   selectedNoteKeys: string[];
   selectedTrackId?: string;
-  setCompatibleClipboardPayload: (payload: ReturnType<typeof parseNoteClipboardPayload>) => void;
+  setNoteClipboardPayload: (payload: ReturnType<typeof parseNoteClipboardPayload>) => void;
   setSelectedNoteKeys: (selectionKeys: string[]) => void;
 }
 
@@ -37,7 +37,7 @@ export function useEditorClipboardEvents({
   project,
   selectedNoteKeys,
   selectedTrackId,
-  setCompatibleClipboardPayload,
+  setNoteClipboardPayload,
   setSelectedNoteKeys
 }: UseEditorClipboardEventsParams) {
   useEffect(() => {
@@ -51,7 +51,7 @@ export function useEditorClipboardEvents({
         return;
       }
 
-      setCompatibleClipboardPayload(payload);
+      setNoteClipboardPayload(payload);
       const serialized = serializeNoteClipboardPayload(payload);
       event.preventDefault();
       event.clipboardData.setData("text/plain", serialized.plainText);
@@ -68,7 +68,7 @@ export function useEditorClipboardEvents({
         return;
       }
 
-      setCompatibleClipboardPayload(payload);
+      setNoteClipboardPayload(payload);
       const serialized = serializeNoteClipboardPayload(payload);
       event.preventDefault();
       event.clipboardData.setData("text/plain", serialized.plainText);
@@ -90,7 +90,7 @@ export function useEditorClipboardEvents({
       }
 
       let nextSelectionKeys: string[] = [];
-      setCompatibleClipboardPayload(payload);
+      setNoteClipboardPayload(payload);
       event.preventDefault();
       commitProjectChange((current) => {
         const applied = applyNoteClipboardPaste(current, payload, selectedTrackId, playheadBeat);
@@ -115,7 +115,7 @@ export function useEditorClipboardEvents({
     project,
     selectedNoteKeys,
     selectedTrackId,
-    setCompatibleClipboardPayload,
+    setNoteClipboardPayload,
     setSelectedNoteKeys
   ]);
 }

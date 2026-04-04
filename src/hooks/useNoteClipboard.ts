@@ -7,12 +7,12 @@ import {
   serializeNoteClipboardPayload
 } from "@/lib/noteClipboard";
 
-export function useCompatibleClipboard() {
-  const [compatibleClipboardPayload, setCompatibleClipboardPayload] = useState<NoteClipboardPayload | null>(null);
+export function useNoteClipboard() {
+  const [noteClipboardPayload, setNoteClipboardPayload] = useState<NoteClipboardPayload | null>(null);
 
   const writeClipboardPayload = useCallback(async (payload: NoteClipboardPayload) => {
     const serialized = serializeNoteClipboardPayload(payload);
-    setCompatibleClipboardPayload(payload);
+    setNoteClipboardPayload(payload);
 
     if (typeof navigator === "undefined" || !navigator.clipboard) {
       return;
@@ -34,8 +34,8 @@ export function useCompatibleClipboard() {
     }
   }, []);
 
-  const clearCompatibleClipboard = useCallback(async () => {
-    setCompatibleClipboardPayload(null);
+  const clearNoteClipboard = useCallback(async () => {
+    setNoteClipboardPayload(null);
 
     if (typeof navigator === "undefined" || !navigator.clipboard) {
       return;
@@ -57,7 +57,7 @@ export function useCompatibleClipboard() {
     }
   }, []);
 
-  const syncCompatibleClipboardPayload = useCallback(async () => {
+  const syncNoteClipboardPayload = useCallback(async () => {
     if (typeof navigator === "undefined" || !navigator.clipboard) {
       return;
     }
@@ -82,17 +82,17 @@ export function useCompatibleClipboard() {
         text = await navigator.clipboard.readText();
       }
 
-      setCompatibleClipboardPayload(parseNoteClipboardPayload(html, text));
+      setNoteClipboardPayload(parseNoteClipboardPayload(html, text));
     } catch {
       // Permission to read the clipboard is browser-dependent; keep the last known compatible payload.
     }
   }, []);
 
   return {
-    compatibleClipboardPayload,
-    setCompatibleClipboardPayload,
-    writeClipboardPayload,
-    clearCompatibleClipboard,
-    syncCompatibleClipboardPayload
+    clearNoteClipboard,
+    noteClipboardPayload,
+    setNoteClipboardPayload,
+    syncNoteClipboardPayload,
+    writeClipboardPayload
   };
 }
