@@ -165,6 +165,10 @@ export default function HomePage() {
     }
     return selectionSourceTrackId;
   }, [project.tracks, selectionActionScopePreview, selectionSourceTrackId]);
+  const selectionIndicatorTrackName = useMemo(
+    () => project.tracks.find((track) => track.id === selectionIndicatorTrackId)?.name ?? selectionSourceTrackName,
+    [project.tracks, selectionIndicatorTrackId, selectionSourceTrackName]
+  );
 
   const trackNameById = useMemo(() => new Map(project.tracks.map((track) => [track.id, track.name] as const)), [project.tracks]);
 
@@ -1271,7 +1275,7 @@ export default function HomePage() {
         selectedNoteKeys={selectedNoteKeySet}
         selectionBeatRange={selectionBeatRange}
         selectionSourceTrackId={selectionSourceTrackId ?? undefined}
-        selectionSourceTrackName={selectionSourceTrackName}
+        selectionSourceTrackName={selectionIndicatorTrackName}
         selectionIndicatorTrackId={selectionIndicatorTrackId ?? undefined}
         playheadBeat={playheadBeat}
         activeRecordedNotes={recording.activeRecordedNotes}
