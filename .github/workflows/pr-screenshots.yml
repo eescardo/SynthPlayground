@@ -114,6 +114,7 @@ jobs:
       - name: Overlay screenshot tooling from PR head
         run: |
           git checkout "${{ needs.pr-context.outputs.head_sha }}" -- \
+            scripts/ui-capture \
             scripts/ui-screenshots \
             scripts/screenshot-scenarios-cli.ts
 
