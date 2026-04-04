@@ -15,6 +15,7 @@ import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopR
 import { getProjectTimelineEndBeat } from "@/lib/macroAutomation";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import {
+  BeatRange,
   getNoteSelectionKey,
   getSelectionSourceTrackId,
   getSelectionBeatRange,
@@ -80,6 +81,7 @@ export default function HomePage() {
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [strictWasmReady, setStrictWasmReady] = useState(process.env.NEXT_PUBLIC_STRICT_WASM !== "1");
   const [selectedNoteKeys, setSelectedNoteKeys] = useState<string[]>([]);
+  const [timelineSelectionBeatRange, setTimelineSelectionBeatRange] = useState<BeatRange | null>(null);
   const [selectionMarqueeActive, setSelectionMarqueeActive] = useState(false);
   const [selectionActionScopePreview, setSelectionActionScopePreview] = useState<"source" | "all-tracks">("source");
   const [pitchPicker, setPitchPicker] = useState<{ trackId: string; noteId: string } | null>(null);
@@ -169,22 +171,23 @@ export default function HomePage() {
     [project.tracks, selectedTrackId]
   );
   const selectedNoteKeySet = useMemo(() => new Set(selectedNoteKeys), [selectedNoteKeys]);
-  const selectionBeatRange = useMemo(() => getSelectionBeatRange(project, selectedNoteKeys), [project, selectedNoteKeys]);
-  const selectionSourceTrackId = useMemo(() => getSelectionSourceTrackId(project, selectedNoteKeys), [project, selectedNoteKeys]);
+  const noteSelectionBeatRange = useMemo(() => getSelectionBeatRange(project, selectedNoteKeys), [project, selectedNoteKeys]);
+  const hasTimelineRangeSelection = Boolean(timelineSelectionBeatRange);
+  const selectionBeatRange = timelineSelectionBeatRange ?? noteSelectionBeatRange;
+  const selectionSourceTrackId = useMemo(
+    () => (hasTimelineRangeSelection ? project.tracks[0]?.id ?? null : getSelectionSourceTrackId(project, selectedNoteKeys)),
+    [hasTimelineRangeSelection, project, selectedNoteKeys]
+  );
   const selectionSourceTrackName = useMemo(
-    () => project.tracks.find((track) => track.id === selectionSourceTrackId)?.name ?? "Track 1",
-    [project.tracks, selectionSourceTrackId]
+    () => (hasTimelineRangeSelection ? "All Tracks" : project.tracks.find((track) => track.id === selectionSourceTrackId)?.name ?? "Track 1"),
+    [hasTimelineRangeSelection, project.tracks, selectionSourceTrackId]
   );
   const selectionIndicatorTrackId = useMemo(() => {
-    if (selectionActionScopePreview === "all-tracks") {
+    if (hasTimelineRangeSelection || selectionActionScopePreview === "all-tracks") {
       return project.tracks[0]?.id ?? null;
     }
     return selectionSourceTrackId;
-  }, [project.tracks, selectionActionScopePreview, selectionSourceTrackId]);
-  const selectionIndicatorTrackName = useMemo(
-    () => project.tracks.find((track) => track.id === selectionIndicatorTrackId)?.name ?? selectionSourceTrackName,
-    [project.tracks, selectionIndicatorTrackId, selectionSourceTrackName]
-  );
+  }, [hasTimelineRangeSelection, project.tracks, selectionActionScopePreview, selectionSourceTrackId]);
 
   const trackNameById = useMemo(() => new Map(project.tracks.map((track) => [track.id, track.name] as const)), [project.tracks]);
 
@@ -285,11 +288,17 @@ export default function HomePage() {
   }, [project.tracks]);
 
   useEffect(() => {
-    if (!selectionSourceTrackId || selectionMarqueeActive || pitchPicker) {
+    if (selectedNoteKeys.length > 0 && timelineSelectionBeatRange) {
+      setTimelineSelectionBeatRange(null);
+    }
+  }, [selectedNoteKeys.length, timelineSelectionBeatRange]);
+
+  useEffect(() => {
+    if (!selectionSourceTrackId || selectionMarqueeActive || pitchPicker || hasTimelineRangeSelection) {
       return;
     }
     setSelectedTrackId((current) => (current === selectionSourceTrackId ? current : selectionSourceTrackId));
-  }, [pitchPicker, selectionMarqueeActive, selectionSourceTrackId]);
+  }, [hasTimelineRangeSelection, pitchPicker, selectionMarqueeActive, selectionSourceTrackId]);
 
   useEffect(() => {
     if (!selectionBeatRange) {
@@ -298,8 +307,12 @@ export default function HomePage() {
   }, [selectionBeatRange]);
 
   useEffect(() => {
+    if (hasTimelineRangeSelection) {
+      setSelectionActionScopePreview("all-tracks");
+      return;
+    }
     setSelectionActionScopePreview("source");
-  }, [selectionSourceTrackId]);
+  }, [hasTimelineRangeSelection, selectionSourceTrackId]);
 
   useEffect(() => {
     if (!ready || !pendingPreview || playing || !selectedTrack) {
@@ -406,6 +419,7 @@ export default function HomePage() {
     setUserCueBeat(beat);
     setPlayheadBeat(beat);
     setSelectedNoteKeys([]);
+    setTimelineSelectionBeatRange(null);
     setSelectionMarqueeActive(false);
     setSelectionActionScopePreview("source");
     setPitchPicker(null);
@@ -518,7 +532,15 @@ export default function HomePage() {
 
   const setNoteSelectionFromCanvas = useCallback((selectionKeys: string[]) => {
     setTimelineActionsPopover(null);
+    setTimelineSelectionBeatRange(null);
     setSelectedNoteKeys(selectionKeys);
+  }, []);
+
+  const setTimelineSelectionFromCanvas = useCallback((range: BeatRange | null) => {
+    setTimelineActionsPopover(null);
+    setPitchPicker(null);
+    setSelectedNoteKeys([]);
+    setTimelineSelectionBeatRange(range);
   }, []);
 
   const schedulePatchPreview = useCallback((patchId: string) => {
@@ -721,8 +743,9 @@ export default function HomePage() {
     applyNoteClipboardPaste,
     copyAllTracksInSelection,
     cutAllTracksInSelection,
+    deletePrimarySelection: hasTimelineRangeSelection ? deleteAllTracksInSelection : deleteSelectedNoteSelection,
     deleteAllTracksInSelection,
-    deleteSelectedNoteSelection,
+    hasPrimarySelection: hasTimelineRangeSelection || selectedNoteKeys.length > 0,
     isDeleteShortcutKey,
     onCloseTransientUi: () => {
       closeHelp();
@@ -731,20 +754,23 @@ export default function HomePage() {
       setPatchRemovalDialog(null);
       setTimelineActionsPopover(null);
       setSelectedNoteKeys([]);
+      setTimelineSelectionBeatRange(null);
     },
     onOpenHelp: openHelp,
     playheadBeat,
     redoProject,
-    selectedNoteCount: selectedNoteKeys.length,
     undoProject
   });
 
   useEditorClipboardEvents({
     commitProjectChange,
+    cutAllTracksInSelection,
     deleteSelectedNotes,
+    hasTimelineRangeSelection,
     playheadBeat,
     project,
     selectedNoteKeys,
+    selectionBeatRange,
     selectedTrackId: selectedTrack?.id,
     setNoteClipboardPayload,
     setSelectedNoteKeys
@@ -1075,7 +1101,7 @@ export default function HomePage() {
         selectedNoteKeys={selectedNoteKeySet}
         selectionBeatRange={selectionBeatRange}
         selectionSourceTrackId={selectionSourceTrackId ?? undefined}
-        selectionSourceTrackName={selectionIndicatorTrackName}
+        selectionSourceTrackName={selectionSourceTrackName}
         selectionIndicatorTrackId={selectionIndicatorTrackId ?? undefined}
         playheadBeat={playheadBeat}
         activeRecordedNotes={recording.activeRecordedNotes}
@@ -1107,15 +1133,22 @@ export default function HomePage() {
         onUpdateNote={updateNote}
         onDeleteNote={deleteNote}
         onSetNoteSelection={setNoteSelectionFromCanvas}
+        onSetTimelineSelectionBeatRange={setTimelineSelectionFromCanvas}
         onSetSelectionMarqueeActive={setSelectionMarqueeActive}
         onPreviewSelectionActionScopeChange={setSelectionActionScopePreview}
         onCopySelection={() => {
-          void copySelectedNotes();
+          void (hasTimelineRangeSelection ? copyAllTracksInSelection() : copySelectedNotes());
         }}
         onCutSelection={() => {
-          void cutSelectedNotes();
+          void (hasTimelineRangeSelection ? cutAllTracksInSelection() : cutSelectedNotes());
         }}
-        onDeleteSelection={deleteSelectedNoteSelection}
+        onDeleteSelection={() => {
+          if (hasTimelineRangeSelection) {
+            deleteAllTracksInSelection();
+            return;
+          }
+          deleteSelectedNoteSelection();
+        }}
         onCopyAllTracksInSelection={() => {
           void copyAllTracksInSelection();
         }}

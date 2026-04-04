@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import {
   applyNoteClipboardPaste,
+  buildAllTracksClipboardPayload,
   buildNoteClipboardPayload,
   parseNoteClipboardPayload,
   serializeNoteClipboardPayload
@@ -21,10 +22,13 @@ const isTextEditingTarget = (target: EventTarget | null) => {
 
 interface UseEditorClipboardEventsParams {
   commitProjectChange: CommitProjectChange;
+  cutAllTracksInSelection: () => Promise<void>;
   deleteSelectedNotes: (selectionKeys: string[]) => void;
+  hasTimelineRangeSelection: boolean;
   playheadBeat: number;
   project: Project;
   selectedNoteKeys: string[];
+  selectionBeatRange: { startBeat: number; endBeat: number; beatSpan: number } | null;
   selectedTrackId?: string;
   setNoteClipboardPayload: (payload: ReturnType<typeof parseNoteClipboardPayload>) => void;
   setSelectedNoteKeys: (selectionKeys: string[]) => void;
@@ -32,21 +36,26 @@ interface UseEditorClipboardEventsParams {
 
 export function useEditorClipboardEvents({
   commitProjectChange,
+  cutAllTracksInSelection,
   deleteSelectedNotes,
+  hasTimelineRangeSelection,
   playheadBeat,
   project,
   selectedNoteKeys,
+  selectionBeatRange,
   selectedTrackId,
   setNoteClipboardPayload,
   setSelectedNoteKeys
 }: UseEditorClipboardEventsParams) {
   useEffect(() => {
     const onCopy = (event: ClipboardEvent) => {
-      if (isTextEditingTarget(event.target) || selectedNoteKeys.length === 0 || !event.clipboardData) {
+      if (isTextEditingTarget(event.target) || !event.clipboardData) {
         return;
       }
 
-      const payload = buildNoteClipboardPayload(project, selectedNoteKeys);
+      const payload = hasTimelineRangeSelection && selectionBeatRange
+        ? buildAllTracksClipboardPayload(project, selectionBeatRange)
+        : buildNoteClipboardPayload(project, selectedNoteKeys);
       if (!payload) {
         return;
       }
@@ -59,11 +68,13 @@ export function useEditorClipboardEvents({
     };
 
     const onCut = (event: ClipboardEvent) => {
-      if (isTextEditingTarget(event.target) || selectedNoteKeys.length === 0 || !event.clipboardData) {
+      if (isTextEditingTarget(event.target) || !event.clipboardData) {
         return;
       }
 
-      const payload = buildNoteClipboardPayload(project, selectedNoteKeys);
+      const payload = hasTimelineRangeSelection && selectionBeatRange
+        ? buildAllTracksClipboardPayload(project, selectionBeatRange)
+        : buildNoteClipboardPayload(project, selectedNoteKeys);
       if (!payload) {
         return;
       }
@@ -73,7 +84,11 @@ export function useEditorClipboardEvents({
       event.preventDefault();
       event.clipboardData.setData("text/plain", serialized.plainText);
       event.clipboardData.setData("text/html", serialized.html);
-      deleteSelectedNotes(selectedNoteKeys);
+      if (hasTimelineRangeSelection) {
+        void cutAllTracksInSelection();
+      } else {
+        deleteSelectedNotes(selectedNoteKeys);
+      }
     };
 
     const onPaste = (event: ClipboardEvent) => {
@@ -110,10 +125,13 @@ export function useEditorClipboardEvents({
     };
   }, [
     commitProjectChange,
+    cutAllTracksInSelection,
     deleteSelectedNotes,
+    hasTimelineRangeSelection,
     playheadBeat,
     project,
     selectedNoteKeys,
+    selectionBeatRange,
     selectedTrackId,
     setNoteClipboardPayload,
     setSelectedNoteKeys

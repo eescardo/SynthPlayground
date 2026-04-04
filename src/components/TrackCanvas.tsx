@@ -175,6 +175,7 @@ interface TrackCanvasProps {
   onUpdateNote: (trackId: string, noteId: string, patch: Partial<Note>, options?: { actionKey?: string; coalesce?: boolean }) => void;
   onDeleteNote: (trackId: string, noteId: string) => void;
   onSetNoteSelection: (selectionKeys: string[]) => void;
+  onSetTimelineSelectionBeatRange: (range: { startBeat: number; endBeat: number; beatSpan: number } | null) => void;
   onSetSelectionMarqueeActive: (active: boolean) => void;
   onPreviewSelectionActionScopeChange: (scope: "source" | "all-tracks") => void;
   onCopySelection: () => void;
@@ -209,13 +210,20 @@ interface SelectionRect {
   endY: number;
 }
 
-interface PendingCanvasAction {
-  trackId: string;
-  startX: number;
-  startY: number;
-  beat: number;
-  pointerId: number;
-}
+type PendingCanvasAction =
+  | {
+      kind: "track";
+      trackId: string;
+      startX: number;
+      startY: number;
+      beat: number;
+      pointerId: number;
+    }
+  | {
+      kind: "ruler";
+      startBeat: number;
+      pointerId: number;
+    };
 
 interface AutomationLaneLayout {
   macroId: string;
@@ -594,6 +602,18 @@ export function TrackCanvas(props: TrackCanvasProps) {
       .filter((rect) => rect.x < right && rect.x + rect.w > left && rect.y < bottom && rect.y + rect.h > top)
       .map((rect) => getNoteSelectionKey(rect.trackId, rect.noteId));
     props.onSetNoteSelection(selectedKeys);
+  }, [props]);
+
+  const updateTimelineSelectionFromRuler = useCallback((startBeat: number, endBeat: number) => {
+    const orderedStartBeat = Math.min(startBeat, endBeat);
+    const orderedEndBeat = Math.max(startBeat, endBeat);
+    const beatSpan = orderedEndBeat - orderedStartBeat;
+    props.onSetSelectionMarqueeActive(beatSpan > 0);
+    props.onSetTimelineSelectionBeatRange(
+      beatSpan > 0
+        ? { startBeat: orderedStartBeat, endBeat: orderedEndBeat, beatSpan }
+        : null
+    );
   }, [props]);
 
   const draw = useCallback(() => {
@@ -1035,6 +1055,19 @@ export function TrackCanvas(props: TrackCanvasProps) {
         return;
       }
 
+      if (event.button === 0) {
+        props.onSetNoteSelection([]);
+        props.onSetTimelineSelectionBeatRange(null);
+        pendingCanvasActionRef.current = {
+          kind: "ruler",
+          startBeat: Math.max(0, snapToGrid(beatFromX(x), props.project.global.gridBeats)),
+          pointerId: event.pointerId
+        };
+        props.onSetSelectionMarqueeActive(false);
+        canvas.setPointerCapture(event.pointerId);
+        return;
+      }
+
       const beat = Math.max(0, snapToGrid(beatFromX(x), props.project.global.gridBeats));
       props.onSetPlayheadBeat(beat);
       return;
@@ -1156,6 +1189,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
 
     pendingCanvasActionRef.current = {
+      kind: "track",
       trackId: track.id,
       startX: x,
       startY: y,
@@ -1281,16 +1315,25 @@ export function TrackCanvas(props: TrackCanvasProps) {
       return;
     }
     if (!drag && pendingAction) {
-      const movedFarEnough =
-        Math.abs(x - pendingAction.startX) >= 4 || Math.abs(y - pendingAction.startY) >= 4;
-      if (movedFarEnough) {
-        updateSelectionFromRect({
-          startX: pendingAction.startX,
-          startY: pendingAction.startY,
-          endX: x,
-          endY: y
-        });
-        setCanvasCursor("default");
+      if (pendingAction.kind === "track") {
+        const movedFarEnough =
+          Math.abs(x - pendingAction.startX) >= 4 || Math.abs(y - pendingAction.startY) >= 4;
+        if (movedFarEnough) {
+          updateSelectionFromRect({
+            startX: pendingAction.startX,
+            startY: pendingAction.startY,
+            endX: x,
+            endY: y
+          });
+          setCanvasCursor("default");
+        }
+      } else {
+        const startX = HEADER_WIDTH + pendingAction.startBeat * BEAT_WIDTH;
+        if (Math.abs(x - startX) >= 4) {
+          const currentBeat = Math.max(0, snapToGrid(beatFromX(x), props.project.global.gridBeats));
+          updateTimelineSelectionFromRuler(pendingAction.startBeat, currentBeat);
+          setCanvasCursor("default");
+        }
       }
       return;
     }
@@ -1378,6 +1421,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     const hadAutomationDrag = Boolean(automationDrag);
     const pendingAction = pendingCanvasActionRef.current;
     const pendingAutomationAction = pendingAutomationActionRef.current;
+    const { x, y } = getCanvasPoint(event.clientX, event.clientY);
     if (canvasRef.current && (dragRef.current || pendingAction || automationDragRef.current || pendingAutomationAction)) {
       try {
         canvasRef.current.releasePointerCapture(event.pointerId);
@@ -1393,10 +1437,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
       setCanvasCursor("default");
       return;
     }
-    const { x, y } = getCanvasPoint(event.clientX, event.clientY);
 
     const hadSelectionRect = Boolean(selectionRect);
-    if (pendingAction && !hadSelectionRect) {
+    if (pendingAction?.kind === "track" && !hadSelectionRect) {
       const newNote = createDefaultPlacedNote(pendingAction.beat, props.project.global.gridBeats);
       props.onUpsertNote(pendingAction.trackId, newNote, {
         actionKey: `track:${pendingAction.trackId}:note:${newNote.id}:create`
@@ -1448,6 +1491,15 @@ export function TrackCanvas(props: TrackCanvasProps) {
           finalValue,
           { retrigger: true }
         );
+      }
+    }
+
+    if (pendingAction?.kind === "ruler") {
+      const beat = Math.max(0, snapToGrid(beatFromX(x), props.project.global.gridBeats));
+      if (!props.selectionBeatRange) {
+        props.onSetPlayheadBeat(beat);
+      } else {
+        props.onPreviewSelectionActionScopeChange("all-tracks");
       }
     }
 
@@ -1702,7 +1754,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         <SelectionActionPopover
           left={selectionPopoverLeft}
           top={selectionPopoverTop}
-          sourceTrackName={props.selectionSourceTrackName ?? "Track 1"}
+          selectionLabel={props.selectionSourceTrackName ?? "Track 1"}
           onPreviewScopeChange={props.onPreviewSelectionActionScopeChange}
           onCut={props.onCutSelection}
           onCopy={props.onCopySelection}
