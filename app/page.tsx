@@ -397,7 +397,7 @@ export default function HomePage() {
     setPitchPicker(null);
   }, []);
   const {
-    applyCompatiblePaste,
+    applyNoteClipboardPaste,
     copyAllTracksInSelection,
     copySelectedNotes,
     cutAllTracksInSelection,
@@ -689,7 +689,7 @@ export default function HomePage() {
   }, []);
 
   useEditorKeyboardShortcuts({
-    applyCompatiblePaste,
+    applyNoteClipboardPaste,
     copyAllTracksInSelection,
     cutAllTracksInSelection,
     deleteAllTracksInSelection,
@@ -1088,10 +1088,10 @@ export default function HomePage() {
           startMarkerId={startMarkerAtTimelineBeat?.id}
           endMarkerId={endMarkerAtTimelineBeat?.id}
           endRepeatCount={endMarkerAtTimelineBeat?.repeatCount}
-          onPaste={() => applyCompatiblePaste("paste", timelineActionsPopover.beat)}
-          onPasteAllTracks={() => applyCompatiblePaste("paste-all-tracks", timelineActionsPopover.beat)}
-          onInsert={() => applyCompatiblePaste("insert", timelineActionsPopover.beat)}
-          onInsertAllTracks={() => applyCompatiblePaste("insert-all-tracks", timelineActionsPopover.beat)}
+          onPaste={() => applyNoteClipboardPaste("paste", timelineActionsPopover.beat)}
+          onPasteAllTracks={() => applyNoteClipboardPaste("paste-all-tracks", timelineActionsPopover.beat)}
+          onInsert={() => applyNoteClipboardPaste("insert", timelineActionsPopover.beat)}
+          onInsertAllTracks={() => applyNoteClipboardPaste("insert-all-tracks", timelineActionsPopover.beat)}
           onAddStart={() => addLoopBoundary(timelineActionsPopover.beat, "start")}
           onAddEnd={() => addLoopBoundary(timelineActionsPopover.beat, "end")}
           onUpdateRepeatCount={(repeatCount) => {

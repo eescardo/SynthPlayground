@@ -9,7 +9,7 @@ const isTextEditingTarget = (target: EventTarget | null) => {
 };
 
 interface UseEditorKeyboardShortcutsParams {
-  applyCompatiblePaste: (pasteAction: NoteClipboardPasteAction, beat: number) => void;
+  applyNoteClipboardPaste: (pasteAction: NoteClipboardPasteAction, beat: number) => void;
   copyAllTracksInSelection: () => Promise<void>;
   cutAllTracksInSelection: () => Promise<void>;
   deleteAllTracksInSelection: () => void;
@@ -24,7 +24,7 @@ interface UseEditorKeyboardShortcutsParams {
 }
 
 export function useEditorKeyboardShortcuts({
-  applyCompatiblePaste,
+  applyNoteClipboardPaste,
   copyAllTracksInSelection,
   cutAllTracksInSelection,
   deleteAllTracksInSelection,
@@ -87,13 +87,13 @@ export function useEditorKeyboardShortcuts({
 
       if (primaryModifier && event.altKey && !event.shiftKey && lowerKey === "v") {
         event.preventDefault();
-        applyCompatiblePaste("paste-all-tracks", playheadBeat);
+        applyNoteClipboardPaste("paste-all-tracks", playheadBeat);
         return;
       }
 
       if (primaryModifier && event.altKey && !event.shiftKey && lowerKey === "i") {
         event.preventDefault();
-        applyCompatiblePaste("insert-all-tracks", playheadBeat);
+        applyNoteClipboardPaste("insert-all-tracks", playheadBeat);
         return;
       }
 
@@ -105,7 +105,7 @@ export function useEditorKeyboardShortcuts({
 
       if (primaryModifier && !event.altKey && !event.shiftKey && lowerKey === "i") {
         event.preventDefault();
-        applyCompatiblePaste("insert", playheadBeat);
+        applyNoteClipboardPaste("insert", playheadBeat);
         return;
       }
 
@@ -118,7 +118,7 @@ export function useEditorKeyboardShortcuts({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
-    applyCompatiblePaste,
+    applyNoteClipboardPaste,
     copyAllTracksInSelection,
     cutAllTracksInSelection,
     deleteAllTracksInSelection,

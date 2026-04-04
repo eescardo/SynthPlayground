@@ -84,7 +84,7 @@ export function useNoteClipboard() {
 
       setNoteClipboardPayload(parseNoteClipboardPayload(html, text));
     } catch {
-      // Permission to read the clipboard is browser-dependent; keep the last known compatible payload.
+      // Permission to read the clipboard is browser-dependent; keep the last known note clipboard payload.
     }
   }, []);
 

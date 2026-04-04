@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import {
   applyNoteClipboardInsert,
   applyNoteClipboardInsertAllTracks,
-  applyNoteClipboardPaste,
+  applyNoteClipboardPaste as applyNoteClipboardPasteToProject,
   BeatRange,
   buildAllTracksClipboardPayload,
   buildNoteClipboardPayload,
@@ -143,7 +143,7 @@ export function useSelectionClipboardActions({
     setSelectedNoteKeys([]);
   }, [clearNoteClipboard, commitProjectChange, selectionBeatRange, setSelectedNoteKeys]);
 
-  const applyCompatiblePaste = useCallback((pasteAction: NoteClipboardPasteAction, beat: number) => {
+  const applyNoteClipboardPaste = useCallback((pasteAction: NoteClipboardPasteAction, beat: number) => {
     if (!noteClipboardPayload || !selectedTrackId) {
       return;
     }
@@ -156,10 +156,10 @@ export function useSelectionClipboardActions({
           pasteAction === "insert"
             ? applyNoteClipboardInsert(current, noteClipboardPayload, selectedTrackId, beat)
             : pasteAction === "paste-all-tracks" && firstTrackId
-              ? applyNoteClipboardPaste(current, noteClipboardPayload, firstTrackId, beat)
+              ? applyNoteClipboardPasteToProject(current, noteClipboardPayload, firstTrackId, beat)
               : pasteAction === "insert-all-tracks"
                 ? applyNoteClipboardInsertAllTracks(current, noteClipboardPayload, beat)
-                : applyNoteClipboardPaste(current, noteClipboardPayload, selectedTrackId, beat);
+                : applyNoteClipboardPasteToProject(current, noteClipboardPayload, selectedTrackId, beat);
         nextSelectionKeys = applied.selectionKeys;
         return applied.project;
       },
@@ -187,7 +187,7 @@ export function useSelectionClipboardActions({
   ]);
 
   return {
-    applyCompatiblePaste,
+    applyNoteClipboardPaste,
     copyAllTracksInSelection,
     copySelectedNotes,
     cutAllTracksInSelection,
