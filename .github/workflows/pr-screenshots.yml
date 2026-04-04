@@ -156,7 +156,11 @@ jobs:
         id: detect
         shell: bash
         run: |
-          captured_scenarios="$(find artifacts/screenshots/before -name '*.png' -exec basename {} .png \; 2>/dev/null | sort -u | paste -sd, -)"
+          if [[ -d artifacts/screenshots/before ]]; then
+            captured_scenarios="$(find artifacts/screenshots/before -name '*.png' -exec basename {} .png \; 2>/dev/null | sort -u | paste -sd, -)"
+          else
+            captured_scenarios=""
+          fi
           if [[ -n "$captured_scenarios" ]]; then
             echo "has_artifact=true" >> "$GITHUB_OUTPUT"
             echo "captured_scenarios=$captured_scenarios" >> "$GITHUB_OUTPUT"
@@ -227,7 +231,11 @@ jobs:
         id: detect
         shell: bash
         run: |
-          captured_scenarios="$(find artifacts/screenshots/after -name '*.png' -exec basename {} .png \; 2>/dev/null | sort -u | paste -sd, -)"
+          if [[ -d artifacts/screenshots/after ]]; then
+            captured_scenarios="$(find artifacts/screenshots/after -name '*.png' -exec basename {} .png \; 2>/dev/null | sort -u | paste -sd, -)"
+          else
+            captured_scenarios=""
+          fi
           if [[ -n "$captured_scenarios" ]]; then
             echo "has_artifact=true" >> "$GITHUB_OUTPUT"
             echo "captured_scenarios=$captured_scenarios" >> "$GITHUB_OUTPUT"
