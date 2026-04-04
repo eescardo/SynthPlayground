@@ -8,6 +8,33 @@ export interface ScreenshotScenarioDefinition {
   capture: (page: Page, outputPath: string) => Promise<void>;
 }
 
+const dragSelectionPopoverIntoView = async (page: Page) => {
+  const canvas = page.locator(".track-canvas-shell > canvas");
+  const box = await canvas.boundingBox();
+  if (!box) {
+    throw new Error("Could not determine track canvas bounds.");
+  }
+
+  const attempts = [
+    { start: { x: 188, y: 42 }, end: { x: 840, y: 168 }, steps: 24 },
+    { start: { x: 220, y: 54 }, end: { x: 920, y: 196 }, steps: 28 }
+  ];
+
+  for (const attempt of attempts) {
+    await page.mouse.move(box.x + attempt.start.x, box.y + attempt.start.y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + attempt.end.x, box.y + attempt.end.y, { steps: attempt.steps });
+    await page.mouse.up();
+    await page.waitForTimeout(350);
+
+    if (await page.locator(".selection-actions-popover").isVisible()) {
+      return;
+    }
+  }
+
+  throw new Error("Selection actions popover did not appear after marquee selection attempts.");
+};
+
 export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, ScreenshotScenarioDefinition> = {
   [SCREENSHOT_SCENARIO.MAIN_VIEW]: {
     name: SCREENSHOT_SCENARIO.MAIN_VIEW,
@@ -22,18 +49,7 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
     description: "Main view with a marquee selection and the selection actions popover visible",
     capture: async (page, outputPath) => {
       await openApp(page);
-      const canvas = page.locator(".track-canvas-shell > canvas");
-      const box = await canvas.boundingBox();
-      if (!box) {
-        throw new Error("Could not determine track canvas bounds.");
-      }
-
-      await page.mouse.move(box.x + 188, box.y + 42);
-      await page.mouse.down();
-      await page.mouse.move(box.x + 840, box.y + 168, { steps: 24 });
-      await page.mouse.up();
-      await page.waitForTimeout(300);
-
+      await dragSelectionPopoverIntoView(page);
       await expect(page.locator(".selection-actions-popover")).toBeVisible();
       await savePageScreenshot(page, outputPath);
     }
