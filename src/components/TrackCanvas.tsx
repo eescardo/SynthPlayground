@@ -124,6 +124,7 @@ interface TrackCanvasProps {
   onPreviewSelectionActionScopeChange: (scope: "source" | "all-tracks") => void;
   onCopySelection: () => void;
   onCutSelection: () => void;
+  onDeleteSelection: () => void;
   onCopyAllTracksInSelection: () => void;
   onCutAllTracksInSelection: () => void;
   onDeleteAllTracksInSelection: () => void;
@@ -1253,6 +1254,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
           onPreviewScopeChange={props.onPreviewSelectionActionScopeChange}
           onCut={props.onCutSelection}
           onCopy={props.onCopySelection}
+          onDelete={props.onDeleteSelection}
           onCutAllTracks={props.onCutAllTracksInSelection}
           onCopyAllTracks={props.onCopyAllTracksInSelection}
           onDeleteAllTracks={props.onDeleteAllTracksInSelection}

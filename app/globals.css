@@ -869,6 +869,43 @@ select {
   line-height: 1.35;
 }
 
+.quick-help-modal {
+  width: min(860px, 100%);
+}
+
+.quick-help-section {
+  margin-top: 1rem;
+}
+
+.quick-help-section h4 {
+  margin: 0 0 0.55rem;
+}
+
+.quick-help-shortcuts {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.quick-help-shortcut-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(51, 81, 113, 0.35);
+}
+
+.quick-help-shortcut-action {
+  color: #d8e8fa;
+}
+
+.quick-help-shortcut-keys {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 kbd {
   background: #111e2d;
   border: 1px solid #335171;

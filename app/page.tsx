@@ -80,6 +80,7 @@ export default function HomePage() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [strictWasmReady, setStrictWasmReady] = useState(process.env.NEXT_PUBLIC_STRICT_WASM !== "1");
+  const [isMacPlatform, setIsMacPlatform] = useState(false);
   const [selectedNoteKeys, setSelectedNoteKeys] = useState<string[]>([]);
   const [selectionMarqueeActive, setSelectionMarqueeActive] = useState(false);
   const [selectionActionScopePreview, setSelectionActionScopePreview] = useState<"source" | "all-tracks">("source");
@@ -136,6 +137,10 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    setIsMacPlatform(typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform));
   }, []);
 
   useEffect(() => {
@@ -515,6 +520,7 @@ export default function HomePage() {
 
   const requestTimelineActionsPopover = useCallback((request: TimelineActionsPopoverRequest) => {
     setTimelineActionsPopover(request);
+    setSelectionActionScopePreview("source");
     void syncCompatibleClipboardPayload();
   }, [syncCompatibleClipboardPayload]);
 
@@ -526,6 +532,11 @@ export default function HomePage() {
 
   const closePitchPicker = useCallback(() => {
     setPitchPicker(null);
+  }, []);
+
+  const setNoteSelectionFromCanvas = useCallback((selectionKeys: string[]) => {
+    setTimelineActionsPopover(null);
+    setSelectedNoteKeys(selectionKeys);
   }, []);
 
   const schedulePatchPreview = useCallback((patchId: string) => {
@@ -775,6 +786,10 @@ export default function HomePage() {
     deleteSelectedNotes(selectedNoteKeys);
   }, [deleteSelectedNotes, project, selectedNoteKeys, writeClipboardPayload]);
 
+  const deleteSelectedNoteSelection = useCallback(() => {
+    deleteSelectedNotes(selectedNoteKeys);
+  }, [deleteSelectedNotes, selectedNoteKeys]);
+
   const copyAllTracksInSelection = useCallback(async () => {
     if (!selectionBeatRange) {
       return;
@@ -813,16 +828,19 @@ export default function HomePage() {
     setSelectedNoteKeys([]);
   }, [clearCompatibleClipboard, commitProjectChange, selectionBeatRange]);
 
-  const applyCompatiblePaste = useCallback((mode: "paste" | "insert" | "insert-all-tracks", beat: number) => {
+  const applyCompatiblePaste = useCallback((mode: "paste" | "paste-all-tracks" | "insert" | "insert-all-tracks", beat: number) => {
     if (!compatibleClipboardPayload || !selectedTrack?.id) {
       return;
     }
 
     let nextSelectionKeys: string[] = [];
     commitProjectChange((current) => {
+      const firstTrackId = current.tracks[0]?.id;
       const applied =
         mode === "insert"
           ? applyNoteClipboardInsert(current, compatibleClipboardPayload, selectedTrack.id, beat)
+          : mode === "paste-all-tracks" && firstTrackId
+            ? applyNoteClipboardPaste(current, compatibleClipboardPayload, firstTrackId, beat)
           : mode === "insert-all-tracks"
             ? applyNoteClipboardInsertAllTracks(current, compatibleClipboardPayload, beat)
             : applyNoteClipboardPaste(current, compatibleClipboardPayload, selectedTrack.id, beat);
@@ -832,6 +850,8 @@ export default function HomePage() {
       actionKey:
         mode === "insert"
           ? `track:${selectedTrack.id}:insert-notes`
+          : mode === "paste-all-tracks"
+            ? "timeline:paste-all-tracks"
           : mode === "insert-all-tracks"
             ? "timeline:insert-all-tracks"
             : `track:${selectedTrack.id}:paste-notes`
@@ -845,6 +865,9 @@ export default function HomePage() {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const editingText = target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA");
+      const primaryModifier = event.metaKey || event.ctrlKey;
+      const lowerKey = event.key.toLowerCase();
+      const isDeleteKey = event.key === "Delete" || (isMacPlatform && event.key === "Backspace");
 
       const isHelpKey = event.key === "?" || (event.key === "/" && event.shiftKey);
       if (isHelpKey && !editingText) {
@@ -875,12 +898,69 @@ export default function HomePage() {
       if (!editingText && isUndo) {
         event.preventDefault();
         undoProject();
+        return;
+      }
+
+      if (editingText) {
+        return;
+      }
+
+      if (primaryModifier && event.altKey && !event.shiftKey && lowerKey === "x") {
+        event.preventDefault();
+        void cutAllTracksInSelection();
+        return;
+      }
+
+      if (primaryModifier && event.altKey && !event.shiftKey && lowerKey === "c") {
+        event.preventDefault();
+        void copyAllTracksInSelection();
+        return;
+      }
+
+      if (primaryModifier && event.altKey && !event.shiftKey && lowerKey === "v") {
+        event.preventDefault();
+        applyCompatiblePaste("paste-all-tracks", playheadBeat);
+        return;
+      }
+
+      if (primaryModifier && event.altKey && !event.shiftKey && lowerKey === "i") {
+        event.preventDefault();
+        applyCompatiblePaste("insert-all-tracks", playheadBeat);
+        return;
+      }
+
+      if (primaryModifier && event.altKey && !event.shiftKey && isDeleteKey) {
+        event.preventDefault();
+        deleteAllTracksInSelection();
+        return;
+      }
+
+      if (primaryModifier && !event.altKey && !event.shiftKey && lowerKey === "i") {
+        event.preventDefault();
+        applyCompatiblePaste("insert", playheadBeat);
+        return;
+      }
+
+      if (!primaryModifier && !event.altKey && !event.shiftKey && isDeleteKey && selectedNoteKeys.length > 0) {
+        event.preventDefault();
+        deleteSelectedNoteSelection();
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [redoProject, undoProject]);
+  }, [
+    applyCompatiblePaste,
+    copyAllTracksInSelection,
+    cutAllTracksInSelection,
+    deleteAllTracksInSelection,
+    deleteSelectedNoteSelection,
+    isMacPlatform,
+    playheadBeat,
+    redoProject,
+    selectedNoteKeys.length,
+    undoProject
+  ]);
 
   useEffect(() => {
     const onCopy = (event: ClipboardEvent) => {
@@ -1177,6 +1257,23 @@ export default function HomePage() {
   const pitchPickerNote = pitchPickerTrack?.notes.find((note) => note.id === pitchPicker?.noteId);
   const activeRecordingTrackId = recording.activeRecordingTrackId;
   const activeRecordingTrack = activeRecordingTrackId ? project.tracks.find((track) => track.id === activeRecordingTrackId) : undefined;
+  const primaryModifierLabel = isMacPlatform ? "Cmd" : "Ctrl";
+  const deleteKeyLabel = isMacPlatform ? "Backspace" : "Delete";
+  const allTracksModifierLabel = isMacPlatform ? "Cmd+Opt" : "Ctrl+Alt";
+  const keyboardShortcuts = [
+    { action: "Help", shortcut: "?" },
+    { action: "Cut Selection", shortcut: `${primaryModifierLabel}+X` },
+    { action: "Copy Selection", shortcut: `${primaryModifierLabel}+C` },
+    { action: "Paste To Selected Track", shortcut: `${primaryModifierLabel}+V` },
+    { action: "Delete Selection", shortcut: deleteKeyLabel },
+    { action: "Insert At Playhead", shortcut: `${primaryModifierLabel}+I` },
+    { action: "Cut All Tracks", shortcut: `${allTracksModifierLabel}+X` },
+    { action: "Copy All Tracks", shortcut: `${allTracksModifierLabel}+C` },
+    { action: "Paste All Tracks", shortcut: `${allTracksModifierLabel}+V` },
+    { action: "Delete All Tracks", shortcut: `${allTracksModifierLabel}+${deleteKeyLabel}` },
+    { action: "Insert All Tracks", shortcut: `${allTracksModifierLabel}+I` },
+    { action: "Close Dialogs / Clear Selection", shortcut: "Esc" }
+  ];
 
   return (
     <main className="app">
@@ -1282,7 +1379,7 @@ export default function HomePage() {
         ghostPlayheadBeat={recording.ghostPlayheadBeat ?? undefined}
         countInLabel={recording.countInLabel ?? undefined}
         timelineActionsPopoverOpen={Boolean(timelineActionsPopover)}
-        hideSelectionActionPopover={Boolean(pitchPicker)}
+        hideSelectionActionPopover={Boolean(pitchPicker) || Boolean(timelineActionsPopover)}
         onSetPlayheadBeat={setPlayheadFromUser}
         onRequestTimelineActionsPopover={requestTimelineActionsPopover}
         onSelectTrack={setSelectedTrackId}
@@ -1297,7 +1394,7 @@ export default function HomePage() {
         onUpsertNote={upsertNote}
         onUpdateNote={updateNote}
         onDeleteNote={deleteNote}
-        onSetNoteSelection={setSelectedNoteKeys}
+        onSetNoteSelection={setNoteSelectionFromCanvas}
         onSetSelectionMarqueeActive={setSelectionMarqueeActive}
         onPreviewSelectionActionScopeChange={setSelectionActionScopePreview}
         onCopySelection={() => {
@@ -1306,6 +1403,7 @@ export default function HomePage() {
         onCutSelection={() => {
           void cutSelectedNotes();
         }}
+        onDeleteSelection={deleteSelectedNoteSelection}
         onCopyAllTracksInSelection={() => {
           void copyAllTracksInSelection();
         }}
@@ -1326,6 +1424,7 @@ export default function HomePage() {
           endMarkerId={endMarkerAtTimelineBeat?.id}
           endRepeatCount={endMarkerAtTimelineBeat?.repeatCount}
           onPaste={() => applyCompatiblePaste("paste", timelineActionsPopover.beat)}
+          onPasteAllTracks={() => applyCompatiblePaste("paste-all-tracks", timelineActionsPopover.beat)}
           onInsert={() => applyCompatiblePaste("insert", timelineActionsPopover.beat)}
           onInsertAllTracks={() => applyCompatiblePaste("insert-all-tracks", timelineActionsPopover.beat)}
           onAddStart={() => addLoopBoundary(timelineActionsPopover.beat, "start")}
@@ -1405,38 +1504,33 @@ export default function HomePage() {
 
       {helpOpen && (
         <div className="help-modal-backdrop" role="dialog" aria-modal="true" onClick={() => setHelpOpen(false)}>
-          <div className="help-modal" onClick={(event) => event.stopPropagation()}>
+          <div className="help-modal quick-help-modal" onClick={(event) => event.stopPropagation()}>
             <h3>Quick Help</h3>
-            <p>
-              <strong>Add note:</strong> Left-click an empty spot in a track lane.
-            </p>
-            <p>
-              <strong>Select notes:</strong> Drag across track lanes to marquee-select notes, or click a single note to select it.
-            </p>
-            <p>
-              <strong>Copy and paste notes:</strong> Use <kbd>Cmd</kbd>+<kbd>C</kbd> and <kbd>Cmd</kbd>+<kbd>V</kbd> to copy the selection and paste it at the playhead onto the selected track.
-            </p>
-            <p>
-              <strong>Cut notes:</strong> Use <kbd>Cmd</kbd>+<kbd>X</kbd> to copy the selection and remove the original notes.
-            </p>
-            <p>
-              <strong>Selection actions:</strong> Use the selection popover for cut/copy and all-track timeline edits, or open the timeline popover for paste and insert options when the clipboard is compatible.
-            </p>
-            <p>
-              <strong>Move note:</strong> Drag a note block horizontally.
-            </p>
-            <p>
-              <strong>Resize note:</strong> Drag near the right edge of a note block.
-            </p>
-            <p>
-              <strong>Delete note:</strong> Right-click a note block.
-            </p>
-            <p>
-              <strong>Change note pitch:</strong> Hover the pitch label (for example <code>C4</code>) and use mouse wheel (up/down = +/- semitone).
-            </p>
-            <p>
-              <strong>Record mode:</strong> Arm Record, press Play, watch the 3..2..1 count-in, then play notes from the docked keyboard or your typing keyboard.
-            </p>
+            <div className="quick-help-section">
+              <h4>Mouse</h4>
+              <p><strong>Add note:</strong> Click an empty track lane when nothing is selected.</p>
+              <p><strong>Select notes:</strong> Drag a marquee across notes, or click an existing note.</p>
+              <p><strong>Move note:</strong> Drag a note block horizontally.</p>
+              <p><strong>Resize note:</strong> Drag near the right edge of a note block.</p>
+              <p><strong>Delete note:</strong> Right-click a note block.</p>
+              <p><strong>Change note pitch:</strong> Hover the pitch label and use the mouse wheel.</p>
+              <p><strong>Timeline actions:</strong> Click the playhead or a loop marker to open timeline actions.</p>
+            </div>
+            <div className="quick-help-section">
+              <h4>Keyboard</h4>
+              <div className="quick-help-shortcuts" role="table" aria-label="Keyboard shortcuts">
+                {keyboardShortcuts.map((entry) => (
+                  <div key={entry.action} className="quick-help-shortcut-row" role="row">
+                    <div className="quick-help-shortcut-action" role="cell">{entry.action}</div>
+                    <div className="quick-help-shortcut-keys" role="cell">
+                      {entry.shortcut.split("+").map((part) => (
+                        <kbd key={`${entry.action}-${part}`}>{part}</kbd>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
             <p className="muted">Press <kbd>Esc</kbd> to close this help panel.</p>
           </div>
         </div>

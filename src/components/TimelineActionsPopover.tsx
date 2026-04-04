@@ -12,6 +12,7 @@ interface TimelineActionsPopoverProps {
   endMarkerId?: string;
   endRepeatCount?: number;
   onPaste?: () => void;
+  onPasteAllTracks?: () => void;
   onInsert?: () => void;
   onInsertAllTracks?: () => void;
   onAddStart: () => void;
@@ -41,6 +42,12 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
       {props.showPasteActions && props.onPaste && (
         <button type="button" onClick={props.onPaste}>
           Paste
+        </button>
+      )}
+
+      {props.showPasteActions && props.onPasteAllTracks && (
+        <button type="button" onClick={props.onPasteAllTracks}>
+          Paste All Tracks
         </button>
       )}
 
