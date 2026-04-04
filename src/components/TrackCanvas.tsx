@@ -37,6 +37,8 @@ const TRACK_HEIGHT = 72;
 const BEAT_WIDTH = 72;
 const MUTE_ICON_SIZE = 16;
 const NOTE_RESIZE_HANDLE_WIDTH = 8;
+const NOTE_CORNER_RADIUS = 8;
+const NOTE_EDGE_GRADIENT_WIDTH = 3;
 const SPEAKER_X = 126;
 const SPEAKER_Y_OFFSET = 29;
 const SPEAKER_ICON_SRC = "/icons/speaker.svg";
@@ -172,6 +174,118 @@ interface HoveredLoopMarker {
   markerId: string;
   kind: "start" | "end";
   beat: number;
+}
+
+function roundedRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+) {
+  const clampedRadius = Math.max(0, Math.min(radius, width * 0.5, height * 0.5));
+  ctx.beginPath();
+  ctx.moveTo(x + clampedRadius, y);
+  ctx.lineTo(x + width - clampedRadius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + clampedRadius);
+  ctx.lineTo(x + width, y + height - clampedRadius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - clampedRadius, y + height);
+  ctx.lineTo(x + clampedRadius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - clampedRadius);
+  ctx.lineTo(x, y + clampedRadius);
+  ctx.quadraticCurveTo(x, y, x + clampedRadius, y);
+  ctx.closePath();
+}
+
+function darkenHexColor(color: string, factor: number) {
+  const normalized = color.trim();
+  if (!/^#[0-9a-fA-F]{6}$/.test(normalized)) {
+    return color;
+  }
+
+  const channel = (offset: number) => {
+    const value = Number.parseInt(normalized.slice(offset, offset + 2), 16);
+    const darkened = Math.max(0, Math.min(255, Math.round(value * (1 - factor))));
+    return darkened.toString(16).padStart(2, "0");
+  };
+
+  return `#${channel(1)}${channel(3)}${channel(5)}`;
+}
+
+function fillRoundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+  fillStyle: string | CanvasGradient
+) {
+  roundedRectPath(ctx, x, y, width, height, radius);
+  ctx.fillStyle = fillStyle;
+  ctx.fill();
+}
+
+function strokeRoundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+  strokeStyle: string | CanvasGradient,
+  lineWidth: number
+) {
+  roundedRectPath(ctx, x, y, width, height, radius);
+  ctx.strokeStyle = strokeStyle;
+  ctx.lineWidth = lineWidth;
+  ctx.stroke();
+}
+
+function drawNoteBody(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  fillColor: string
+) {
+  const radius = Math.min(NOTE_CORNER_RADIUS, width * 0.5, height * 0.5);
+  const edgeShade = darkenHexColor(fillColor, 0.32);
+  const gradientWidth = Math.max(2, Math.min(NOTE_EDGE_GRADIENT_WIDTH, width * 0.35, height * 0.35));
+
+  fillRoundedRect(ctx, x, y, width, height, radius, fillColor);
+
+  ctx.save();
+  roundedRectPath(ctx, x, y, width, height, radius);
+  ctx.clip();
+
+  const topGradient = ctx.createLinearGradient(x, y, x, y + gradientWidth);
+  topGradient.addColorStop(0, edgeShade);
+  topGradient.addColorStop(1, fillColor);
+  ctx.fillStyle = topGradient;
+  ctx.fillRect(x, y, width, gradientWidth);
+
+  const leftGradient = ctx.createLinearGradient(x, y, x + gradientWidth, y);
+  leftGradient.addColorStop(0, edgeShade);
+  leftGradient.addColorStop(1, fillColor);
+  ctx.fillStyle = leftGradient;
+  ctx.fillRect(x, y, gradientWidth, height);
+
+  const rightGradient = ctx.createLinearGradient(x + width - gradientWidth, y, x + width, y);
+  rightGradient.addColorStop(0, fillColor);
+  rightGradient.addColorStop(1, edgeShade);
+  ctx.fillStyle = rightGradient;
+  ctx.fillRect(x + width - gradientWidth, y, gradientWidth, height);
+
+  const bottomGradient = ctx.createLinearGradient(x, y + height - gradientWidth, x, y + height);
+  bottomGradient.addColorStop(0, fillColor);
+  bottomGradient.addColorStop(1, edgeShade);
+  ctx.fillStyle = bottomGradient;
+  ctx.fillRect(x, y + height - gradientWidth, width, gradientWidth);
+
+  ctx.restore();
 }
 
 function drawGhostPlayhead(
@@ -543,7 +657,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const isHovered = hoveredNote?.trackId === track.id && hoveredNote.noteId === note.id;
         const noteSelected = props.selectedNoteKeys?.has(getNoteSelectionKey(track.id, note.id)) ?? false;
 
-        ctx.fillStyle = overlaps
+        const noteFill = overlaps
           ? trackSilenced
             ? isHovered
               ? TRACK_CANVAS_COLORS.noteOverlapMutedHover
@@ -558,15 +672,19 @@ export function TrackCanvas(props: TrackCanvasProps) {
             : isHovered
               ? TRACK_CANVAS_COLORS.noteHover
               : TRACK_CANVAS_COLORS.note;
-        ctx.fillRect(noteX, noteY, noteW, noteH);
+        drawNoteBody(ctx, noteX, noteY, noteW, noteH, noteFill);
 
         if (isHovered) {
-          ctx.strokeStyle = TRACK_CANVAS_COLORS.noteHoverBorder;
-          ctx.lineWidth = 2;
-          ctx.strokeRect(noteX + 1, noteY + 1, Math.max(0, noteW - 2), Math.max(0, noteH - 2));
-        } else {
-          ctx.fillStyle = TRACK_CANVAS_COLORS.noteEdgeHighlight;
-          ctx.fillRect(noteX, noteY, noteW, 2);
+          strokeRoundedRect(
+            ctx,
+            noteX + 1,
+            noteY + 1,
+            Math.max(0, noteW - 2),
+            Math.max(0, noteH - 2),
+            Math.max(0, NOTE_CORNER_RADIUS - 1),
+            TRACK_CANVAS_COLORS.noteHoverBorder,
+            2
+          );
         }
 
         if (noteSelected) {
@@ -583,8 +701,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const labelY = noteY + 16;
         const labelWidth = Math.max(14, ctx.measureText(note.pitchStr).width);
         if (hoveredPitch?.trackId === track.id && hoveredPitch.noteId === note.id) {
-          ctx.fillStyle = TRACK_CANVAS_COLORS.notePitchHover;
-          ctx.fillRect(labelX - 3, labelY - 10, labelWidth + 6, 13);
+          fillRoundedRect(ctx, labelX - 3, labelY - 10, labelWidth + 6, 13, 5, TRACK_CANVAS_COLORS.notePitchHover);
         }
 
         ctx.fillStyle = TRACK_CANVAS_COLORS.noteLabel;
