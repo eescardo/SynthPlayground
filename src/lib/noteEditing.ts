@@ -6,8 +6,12 @@ export interface BeatRange {
   endBeat: number;
 }
 
+// Keep note arrays in ascending start-beat order so timeline rendering and editing code
+// can assume a stable chronological sequence after splitting, trimming, or shifting notes.
 export const sortNotes = (notes: Note[]) => notes.slice().sort((a, b) => a.startBeat - b.startBeat);
 
+// Remove any note content that overlaps the given beat range while preserving content outside
+// the range. Notes that cross the range boundary are trimmed or split into surviving pieces.
 export function eraseNotesInBeatRange(
   notes: Note[],
   startBeat: number,
@@ -53,6 +57,8 @@ export function eraseNotesInBeatRange(
     .sort((a, b) => a.startBeat - b.startBeat);
 }
 
+// Return the portion of each note that lies inside the requested beat range.
+// A note that partially overlaps the range is clipped to the window rather than discarded.
 export function sliceNotesInBeatRange(notes: Note[], startBeat: number, endBeat: number): Note[] {
   if (endBeat <= startBeat) {
     return [];
@@ -77,6 +83,8 @@ export function sliceNotesInBeatRange(notes: Note[], startBeat: number, endBeat:
   return sortNotes(nextNotes);
 }
 
+// Delete the requested beat range from the timeline and pull everything to the right leftward
+// to close the gap. Notes crossing the removed range are trimmed or split as needed.
 export function removeBeatRangeAndCloseGap(notes: Note[], startBeat: number, endBeat: number): Note[] {
   if (endBeat <= startBeat) {
     return notes;
@@ -120,6 +128,8 @@ export function removeBeatRangeAndCloseGap(notes: Note[], startBeat: number, end
   return sortNotes(nextNotes.filter((note) => note.durationBeats > 0));
 }
 
+// Insert empty time into the timeline at the requested beat. Notes fully after the insertion
+// point shift right, while notes crossing the insertion point are split around the gap.
 export function insertBeatGap(notes: Note[], atBeat: number, gapBeats: number): Note[] {
   if (gapBeats <= 0) {
     return notes;
