@@ -21,6 +21,12 @@ import {
   PitchRect,
   PLAYHEAD_HIT_HALF_WIDTH
 } from "@/components/trackCanvasGeometry";
+import {
+  drawNoteBody,
+  fillRoundedRect,
+  NOTE_CORNER_RADIUS,
+  strokeRoundedRect
+} from "@/components/trackCanvasNoteGeometry";
 import { useVolumePopover } from "@/hooks/useVolumePopover";
 import { getLoopMarkerStates } from "@/lib/looping";
 import { createDefaultPlacedNote } from "@/lib/noteDefaults";
@@ -543,7 +549,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const isHovered = hoveredNote?.trackId === track.id && hoveredNote.noteId === note.id;
         const noteSelected = props.selectedNoteKeys?.has(getNoteSelectionKey(track.id, note.id)) ?? false;
 
-        ctx.fillStyle = overlaps
+        const noteFill = overlaps
           ? trackSilenced
             ? isHovered
               ? TRACK_CANVAS_COLORS.noteOverlapMutedHover
@@ -558,24 +564,42 @@ export function TrackCanvas(props: TrackCanvasProps) {
             : isHovered
               ? TRACK_CANVAS_COLORS.noteHover
               : TRACK_CANVAS_COLORS.note;
-        ctx.fillRect(noteX, noteY, noteW, noteH);
+        drawNoteBody(ctx, noteX, noteY, noteW, noteH, noteFill);
 
         if (isHovered) {
-          ctx.strokeStyle = TRACK_CANVAS_COLORS.noteHoverBorder;
-          ctx.lineWidth = 2;
-          ctx.strokeRect(noteX + 1, noteY + 1, Math.max(0, noteW - 2), Math.max(0, noteH - 2));
-        } else {
-          ctx.fillStyle = TRACK_CANVAS_COLORS.noteEdgeHighlight;
-          ctx.fillRect(noteX, noteY, noteW, 2);
+          strokeRoundedRect(
+            ctx,
+            noteX + 1,
+            noteY + 1,
+            Math.max(0, noteW - 2),
+            Math.max(0, noteH - 2),
+            Math.max(0, NOTE_CORNER_RADIUS - 1),
+            TRACK_CANVAS_COLORS.noteHoverBorder,
+            2
+          );
         }
 
         if (noteSelected) {
-          ctx.fillStyle = TRACK_CANVAS_COLORS.noteSelectedOverlay;
-          ctx.fillRect(noteX, noteY, noteW, noteH);
-          ctx.strokeStyle = TRACK_CANVAS_COLORS.noteSelectedBorder;
-          ctx.lineWidth = 2;
+          fillRoundedRect(
+            ctx,
+            noteX,
+            noteY,
+            noteW,
+            noteH,
+            NOTE_CORNER_RADIUS,
+            TRACK_CANVAS_COLORS.noteSelectedOverlay
+          );
           ctx.setLineDash([5, 3]);
-          ctx.strokeRect(noteX + 1, noteY + 1, Math.max(0, noteW - 2), Math.max(0, noteH - 2));
+          strokeRoundedRect(
+            ctx,
+            noteX + 1,
+            noteY + 1,
+            Math.max(0, noteW - 2),
+            Math.max(0, noteH - 2),
+            Math.max(0, NOTE_CORNER_RADIUS - 1),
+            TRACK_CANVAS_COLORS.noteSelectedBorder,
+            2
+          );
           ctx.setLineDash([]);
         }
 
@@ -583,8 +607,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const labelY = noteY + 16;
         const labelWidth = Math.max(14, ctx.measureText(note.pitchStr).width);
         if (hoveredPitch?.trackId === track.id && hoveredPitch.noteId === note.id) {
-          ctx.fillStyle = TRACK_CANVAS_COLORS.notePitchHover;
-          ctx.fillRect(labelX - 3, labelY - 10, labelWidth + 6, 13);
+          fillRoundedRect(ctx, labelX - 3, labelY - 10, labelWidth + 6, 13, 5, TRACK_CANVAS_COLORS.notePitchHover);
         }
 
         ctx.fillStyle = TRACK_CANVAS_COLORS.noteLabel;
