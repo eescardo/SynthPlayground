@@ -21,9 +21,9 @@ import {
   getNoteSelectionKey,
   getSelectionSourceTrackId,
   getSelectionBeatRange,
-  NoteClipboardPayload,
   parseNoteSelectionKey,
-  parseNoteClipboardPayload,
+  parseNoteClipboardPayload
+  ,
   serializeNoteClipboardPayload
 } from "@/lib/noteClipboard";
 import { clearProject, loadProject, saveProject } from "@/lib/persistence";
@@ -36,6 +36,7 @@ import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } f
 import { importProjectFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
 import { removeTrackFromProject, renameTrackInProject } from "@/lib/trackEdits";
+import { useCompatibleClipboard } from "@/hooks/useCompatibleClipboard";
 import { useNoteEditor } from "@/hooks/useNoteEditor";
 import { useLoopSettings } from "@/hooks/useLoopSettings";
 import { usePlaybackController } from "@/hooks/usePlaybackController";
@@ -84,7 +85,6 @@ export default function HomePage() {
   const [selectedNoteKeys, setSelectedNoteKeys] = useState<string[]>([]);
   const [selectionMarqueeActive, setSelectionMarqueeActive] = useState(false);
   const [selectionActionScopePreview, setSelectionActionScopePreview] = useState<"source" | "all-tracks">("source");
-  const [compatibleClipboardPayload, setCompatibleClipboardPayload] = useState<NoteClipboardPayload | null>(null);
   const [pitchPicker, setPitchPicker] = useState<{ trackId: string; noteId: string } | null>(null);
   const [previewPitch, setPreviewPitch] = useState("C4");
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
@@ -101,6 +101,13 @@ export default function HomePage() {
   const recordingHandleBeatRef = useRef<(beat: number) => void>(() => {});
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const project = projectHistory.current;
+  const {
+    compatibleClipboardPayload,
+    setCompatibleClipboardPayload,
+    writeClipboardPayload,
+    clearCompatibleClipboard,
+    syncCompatibleClipboardPayload
+  } = useCompatibleClipboard();
 
   useEffect(() => {
     let cancelled = false;
@@ -439,84 +446,6 @@ export default function HomePage() {
   );
   const startMarkerAtTimelineBeat = timelineMarkersAtBeat.find((marker) => marker.kind === "start");
   const endMarkerAtTimelineBeat = timelineMarkersAtBeat.find((marker) => marker.kind === "end");
-
-  const writeClipboardPayload = useCallback(async (payload: NoteClipboardPayload) => {
-    const serialized = serializeNoteClipboardPayload(payload);
-    setCompatibleClipboardPayload(payload);
-
-    if (typeof navigator === "undefined" || !navigator.clipboard) {
-      return;
-    }
-
-    try {
-      if (typeof ClipboardItem !== "undefined" && navigator.clipboard.write) {
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            "text/plain": new Blob([serialized.plainText], { type: "text/plain" }),
-            "text/html": new Blob([serialized.html], { type: "text/html" })
-          })
-        ]);
-        return;
-      }
-      await navigator.clipboard.writeText(serialized.plainText);
-    } catch {
-      // Best effort. Keyboard-driven copy/cut paths still populate the system clipboard.
-    }
-  }, []);
-
-  const clearCompatibleClipboard = useCallback(async () => {
-    setCompatibleClipboardPayload(null);
-
-    if (typeof navigator === "undefined" || !navigator.clipboard) {
-      return;
-    }
-
-    try {
-      if (typeof ClipboardItem !== "undefined" && navigator.clipboard.write) {
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            "text/plain": new Blob([""], { type: "text/plain" }),
-            "text/html": new Blob([""], { type: "text/html" })
-          })
-        ]);
-        return;
-      }
-      await navigator.clipboard.writeText("");
-    } catch {
-      // Best effort only; some browsers restrict clipboard writes outside explicit gestures.
-    }
-  }, []);
-
-  const syncCompatibleClipboardPayload = useCallback(async () => {
-    if (typeof navigator === "undefined" || !navigator.clipboard) {
-      return;
-    }
-
-    try {
-      let html: string | null = null;
-      let text = "";
-
-      if (navigator.clipboard.read) {
-        const items = await navigator.clipboard.read();
-        for (const item of items) {
-          if (!html && item.types.includes("text/html")) {
-            html = await (await item.getType("text/html")).text();
-          }
-          if (!text && item.types.includes("text/plain")) {
-            text = await (await item.getType("text/plain")).text();
-          }
-        }
-      }
-
-      if (!text && navigator.clipboard.readText) {
-        text = await navigator.clipboard.readText();
-      }
-
-      setCompatibleClipboardPayload(parseNoteClipboardPayload(html, text));
-    } catch {
-      // Permission to read the clipboard is browser-dependent; keep the last known compatible payload.
-    }
-  }, []);
 
   const requestTimelineActionsPopover = useCallback((request: TimelineActionsPopoverRequest) => {
     setTimelineActionsPopover(request);
@@ -1036,7 +965,7 @@ export default function HomePage() {
       window.removeEventListener("cut", onCut);
       window.removeEventListener("paste", onPaste);
     };
-  }, [commitProjectChange, deleteSelectedNotes, playheadBeat, project, selectedNoteKeys, selectedTrack?.id]);
+  }, [commitProjectChange, deleteSelectedNotes, playheadBeat, project, selectedNoteKeys, selectedTrack?.id, setCompatibleClipboardPayload]);
 
   usePitchPickerHotkeys(Boolean(pitchPicker), useCallback((pitch: string) => {
     if (!pitchPicker) return;

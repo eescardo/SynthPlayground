@@ -8,7 +8,7 @@ export interface ScreenshotScenarioDefinition {
   capture: (page: Page, outputPath: string) => Promise<void>;
 }
 
-const dragSelectionPopoverIntoView = async (page: Page) => {
+const selectNotePopoverIntoView = async (page: Page) => {
   const canvas = page.locator(".track-canvas-shell > canvas");
   await expect(page.locator(".track-name-button").first()).toBeVisible();
   await page.waitForTimeout(500);
@@ -18,24 +18,22 @@ const dragSelectionPopoverIntoView = async (page: Page) => {
   }
 
   const attempts = [
-    { start: { x: 190, y: 46 }, end: { x: 980, y: 170 }, steps: 28 },
-    { start: { x: 220, y: 54 }, end: { x: 1100, y: 210 }, steps: 30 },
-    { start: { x: 260, y: 64 }, end: { x: 1240, y: 260 }, steps: 34 }
+    { x: 210, y: 62 },
+    { x: 246, y: 62 },
+    { x: 282, y: 62 },
+    { x: 390, y: 134 }
   ];
 
   for (const attempt of attempts) {
-    await page.mouse.move(box.x + attempt.start.x, box.y + attempt.start.y);
-    await page.mouse.down();
-    await page.mouse.move(box.x + attempt.end.x, box.y + attempt.end.y, { steps: attempt.steps });
-    await page.mouse.up();
-    await page.waitForTimeout(350);
+    await page.mouse.click(box.x + attempt.x, box.y + attempt.y);
+    await page.waitForTimeout(250);
 
     if (await page.locator(".selection-actions-popover").isVisible()) {
       return;
     }
   }
 
-  throw new Error("Selection actions popover did not appear after marquee selection attempts.");
+  throw new Error("Selection actions popover did not appear after note selection attempts.");
 };
 
 export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, ScreenshotScenarioDefinition> = {
@@ -49,10 +47,10 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
   },
   [SCREENSHOT_SCENARIO.SELECTION_POPOVER]: {
     name: SCREENSHOT_SCENARIO.SELECTION_POPOVER,
-    description: "Main view with a marquee selection and the selection actions popover visible",
+    description: "Main view with a note selected and the selection actions popover visible",
     capture: async (page, outputPath) => {
       await openApp(page);
-      await dragSelectionPopoverIntoView(page);
+      await selectNotePopoverIntoView(page);
       await expect(page.locator(".selection-actions-popover")).toBeVisible();
       await savePageScreenshot(page, outputPath);
     }
