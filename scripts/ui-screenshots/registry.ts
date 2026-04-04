@@ -1,5 +1,6 @@
 import { expect, Page } from "@playwright/test";
 import { openApp, savePageScreenshot } from "../ui-capture/common";
+import { applySelectionReviewFraming, showSelectionActionsPopover } from "../ui-capture/selectionCapture";
 import { SCREENSHOT_SCENARIO, SCREENSHOT_SCENARIOS, ScreenshotScenario } from "./scenarios";
 
 export interface ScreenshotScenarioDefinition {
@@ -7,46 +8,6 @@ export interface ScreenshotScenarioDefinition {
   description: string;
   capture: (page: Page, outputPath: string) => Promise<void>;
 }
-
-const screenshotReviewZoom = Number(process.env.SCREENSHOT_REVIEW_ZOOM ?? 0.82);
-
-const applyScreenshotReviewFraming = async (page: Page) => {
-  await page.evaluate((zoom) => {
-    document.documentElement.style.zoom = String(zoom);
-    window.scrollTo(0, 0);
-  }, screenshotReviewZoom);
-};
-
-const dragSelectionPopoverIntoView = async (page: Page) => {
-  const canvas = page.locator(".track-canvas-shell > canvas");
-  await expect(page.locator(".track-name-button").first()).toBeVisible();
-  await page.waitForTimeout(500);
-  const box = await canvas.boundingBox();
-  if (!box) {
-    throw new Error("Could not determine track canvas bounds.");
-  }
-
-  const attempts = [
-    { start: { x: 188, y: 42 }, end: { x: 840, y: 168 }, steps: 24 },
-    { start: { x: 220, y: 54 }, end: { x: 980, y: 210 }, steps: 28 }
-  ];
-
-  for (const attempt of attempts) {
-    await page.mouse.move(box.x + attempt.start.x, box.y + attempt.start.y);
-    await page.mouse.down();
-    await page.waitForTimeout(250);
-    await page.mouse.move(box.x + attempt.end.x, box.y + attempt.end.y, { steps: attempt.steps });
-    await page.waitForTimeout(250);
-    await page.mouse.up();
-    await page.waitForTimeout(350);
-
-    if (await page.locator(".selection-actions-popover").isVisible()) {
-      return;
-    }
-  }
-
-  throw new Error("Selection actions popover did not appear after marquee selection attempts.");
-};
 
 export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, ScreenshotScenarioDefinition> = {
   [SCREENSHOT_SCENARIO.MAIN_VIEW]: {
@@ -62,8 +23,8 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
     description: "Main view with a marquee selection and the selection actions popover visible",
     capture: async (page, outputPath) => {
       await openApp(page);
-      await applyScreenshotReviewFraming(page);
-      await dragSelectionPopoverIntoView(page);
+      await applySelectionReviewFraming(page);
+      await showSelectionActionsPopover(page, page.locator(".track-canvas-shell > canvas"));
       await expect(page.locator(".selection-actions-popover")).toBeVisible();
       await savePageScreenshot(page, outputPath);
     }

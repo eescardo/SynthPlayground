@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { expect, Locator, Page, Video } from "@playwright/test";
 import { holdLocatorFor, openApp } from "../ui-capture/common";
+import { applySelectionReviewFraming, showSelectionActionsPopover } from "../ui-capture/selectionCapture";
 import { VIDEO_SCENARIO, VIDEO_SCENARIOS, VideoScenario } from "./scenarios";
 
 export interface VideoScenarioDefinition {
@@ -16,9 +17,6 @@ const recordHoldMs = Number(process.env.VIDEO_RECORD_HOLD_MS ?? 500);
 const recordGapMs = Number(process.env.VIDEO_RECORD_GAP_MS ?? 500);
 const recordCycles = Number(process.env.VIDEO_RECORD_CYCLES ?? 5);
 const postActionSettleMs = Number(process.env.VIDEO_POST_ACTION_SETTLE_MS ?? 300);
-const reviewZoom = Number(process.env.VIDEO_REVIEW_ZOOM ?? 0.82);
-const marqueeHoldMs = Number(process.env.VIDEO_MARQUEE_HOLD_MS ?? 250);
-
 const getTransportButton = (page: Page, name: "Play" | "Stop" | "Record") =>
   page.locator(".transport").getByRole("button", { name });
 
@@ -36,39 +34,13 @@ const playQuarterPattern = async (page: Page, key: Locator) => {
   }
 };
 
-const applyReviewFraming = async (page: Page) => {
-  await page.evaluate((zoom) => {
-    document.documentElement.style.zoom = String(zoom);
-    window.scrollTo(0, 0);
-  }, reviewZoom);
-};
-
-const dragCanvasRegion = async (
-  page: Page,
-  canvas: Locator,
-  start: { x: number; y: number },
-  end: { x: number; y: number }
-) => {
-  const box = await canvas.boundingBox();
-  if (!box) {
-    throw new Error("Could not determine track canvas bounds.");
-  }
-
-  await page.mouse.move(box.x + start.x, box.y + start.y);
-  await page.mouse.down();
-  await page.waitForTimeout(marqueeHoldMs);
-  await page.mouse.move(box.x + end.x, box.y + end.y, { steps: 18 });
-  await page.waitForTimeout(marqueeHoldMs);
-  await page.mouse.up();
-};
-
 export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefinition> = {
   [VIDEO_SCENARIO.PLAY_FROM_START_5S]: {
     name: VIDEO_SCENARIO.PLAY_FROM_START_5S,
     description: "Start playback from beat 0 and capture five seconds of motion.",
     capture: async (page) => {
       await openApp(page);
-      await applyReviewFraming(page);
+      await applySelectionReviewFraming(page);
       await getTransportButton(page, "Play").click();
       await page.waitForTimeout(playbackDurationMs);
       await getTransportButton(page, "Stop").click();
@@ -80,7 +52,7 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
     description: "Arm record mode at beat 0, wait through count-in, then record alternating quarter-note presses.",
     capture: async (page) => {
       await openApp(page);
-      await applyReviewFraming(page);
+      await applySelectionReviewFraming(page);
       await getTransportButton(page, "Record").click();
       await expect(page.locator(".recording-dock")).toBeVisible();
       await page.waitForTimeout(recordCountInMs);
@@ -96,10 +68,10 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
     description: "Marquee-select notes, copy them, then paste them later onto a different track.",
     capture: async (page) => {
       await openApp(page);
-      await applyReviewFraming(page);
+      await applySelectionReviewFraming(page);
 
       const canvas = getTrackCanvas(page);
-      await dragCanvasRegion(page, canvas, { x: 188, y: 42 }, { x: 840, y: 168 });
+      await showSelectionActionsPopover(page, canvas);
       const selectionPopover = page.locator(".selection-actions-popover");
       await expect(selectionPopover).toBeVisible();
       await page.waitForTimeout(postActionSettleMs * 2);
