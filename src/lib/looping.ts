@@ -552,6 +552,8 @@ export const expandLoopRegionToNotes = (
     };
   }
 
+  // Exploding a loop flattens the full audible subtree for that region, so any
+  // nested loop markers inside the selected pair become redundant and are removed too.
   const removedMarkerIds = collectLoopPairMarkerIds(targetPair);
   const nextLoop = sanitizeLoopSettings(
     project.global.loop
