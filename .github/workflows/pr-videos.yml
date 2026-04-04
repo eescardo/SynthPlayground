@@ -196,14 +196,20 @@ jobs:
             echo "No video scenarios were resolved for PR $PR_NUMBER"
             exit 1
           fi
-          for scenario in "${SCENARIOS[@]}"; do
-            cat > "pr-$PR_NUMBER/${scenario}.html" <<EOF
-<!doctype html>
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const prNumber = process.env.PR_NUMBER;
+            const scenarios = (process.env.RESOLVED_SCENARIOS ?? "").split(",").filter(Boolean);
+            const baseDir = `pr-${prNumber}`;
+            for (const scenario of scenarios) {
+              fs.writeFileSync(
+                `${baseDir}/${scenario}.html`,
+                `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PR $PR_NUMBER · ${scenario}</title>
+    <title>PR ${prNumber} · ${scenario}</title>
     <style>
       :root { color-scheme: dark; }
       body {
@@ -224,7 +230,7 @@ jobs:
   </head>
   <body>
     <main>
-      <h1>PR $PR_NUMBER · ${scenario}</h1>
+      <h1>PR ${prNumber} · ${scenario}</h1>
       <p><a href="./${scenario}.webm">Download original webm</a></p>
       <video controls autoplay preload="metadata" poster="./${scenario}.png">
         <source src="./${scenario}.webm" type="video/webm" />
@@ -233,15 +239,20 @@ jobs:
     </main>
   </body>
 </html>
-EOF
-          done
-          cat > "pr-$PR_NUMBER/index.html" <<EOF
-<!doctype html>
+`
+              );
+            }
+            const items = scenarios
+              .map((scenario) => `        <li><a href="./${scenario}.html">${scenario}</a></li>`)
+              .join("\n");
+            fs.writeFileSync(
+              `${baseDir}/index.html`,
+              `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PR $PR_NUMBER video previews</title>
+    <title>PR ${prNumber} video previews</title>
     <style>
       :root { color-scheme: dark; }
       body { margin: 0; background: #0a1118; color: #f4f7fb; font-family: ui-sans-serif, system-ui, sans-serif; }
@@ -252,14 +263,16 @@ EOF
   </head>
   <body>
     <main>
-      <h1>PR $PR_NUMBER video previews</h1>
+      <h1>PR ${prNumber} video previews</h1>
       <ul>
-$(printf '%s\n' "${SCENARIOS[@]}" | sed 's/.*/        <li><a href=".\/&.html">&<\/a><\/li>/')
+${items}
       </ul>
     </main>
   </body>
 </html>
-EOF
+`
+            );
+          '
           touch .nojekyll
 
           git add .nojekyll "pr-$PR_NUMBER"
