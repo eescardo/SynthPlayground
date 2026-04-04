@@ -1,5 +1,5 @@
 import { createId } from "@/lib/ids";
-import { eraseNotesInBeatRange, insertBeatGap, removeBeatRangeAndCloseGap, sliceNotesInBeatRange, sortNotes } from "@/lib/noteEditing";
+import { clipNotesToBeatRange, eraseNotesInBeatRange, insertBeatGap, removeBeatRangeAndCloseGap, sortNotes } from "@/lib/noteEditing";
 import { sanitizeLoopSettings } from "@/lib/looping";
 import { Note, Project, Track } from "@/types/music";
 
@@ -231,7 +231,7 @@ export function buildAllTracksClipboardPayload(project: Project, range: BeatRang
     beatSpan: range.beatSpan,
     tracks: project.tracks.map((track, index) => ({
       sourceTrackIndex: index,
-      notes: sliceNotesInBeatRange(track.notes, range.startBeat, range.endBeat).map((note) => ({
+      notes: clipNotesToBeatRange(track.notes, range.startBeat, range.endBeat).map((note) => ({
         pitchStr: note.pitchStr,
         startBeat: note.startBeat - range.startBeat,
         durationBeats: note.durationBeats,

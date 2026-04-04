@@ -59,7 +59,7 @@ export function eraseNotesInBeatRange(
 
 // Return the portion of each note that lies inside the requested beat range.
 // A note that partially overlaps the range is clipped to the window rather than discarded.
-export function sliceNotesInBeatRange(notes: Note[], startBeat: number, endBeat: number): Note[] {
+export function clipNotesToBeatRange(notes: Note[], startBeat: number, endBeat: number): Note[] {
   if (endBeat <= startBeat) {
     return [];
   }
