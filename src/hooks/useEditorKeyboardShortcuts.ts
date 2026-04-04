@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { NoteClipboardPasteAction } from "@/hooks/useSelectionClipboardActions";
 
 const isTextEditingTarget = (target: EventTarget | null) => {
   const element = target as HTMLElement | null;
@@ -8,7 +9,7 @@ const isTextEditingTarget = (target: EventTarget | null) => {
 };
 
 interface UseEditorKeyboardShortcutsParams {
-  applyCompatiblePaste: (mode: "paste" | "paste-all-tracks" | "insert" | "insert-all-tracks", beat: number) => void;
+  applyCompatiblePaste: (pasteAction: NoteClipboardPasteAction, beat: number) => void;
   copyAllTracksInSelection: () => Promise<void>;
   cutAllTracksInSelection: () => Promise<void>;
   deleteAllTracksInSelection: () => void;

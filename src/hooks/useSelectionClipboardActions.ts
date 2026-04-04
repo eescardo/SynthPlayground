@@ -19,6 +19,8 @@ type CommitProjectChange = (
   options?: { actionKey?: string; coalesce?: boolean }
 ) => void;
 
+export type NoteClipboardPasteAction = "paste" | "paste-all-tracks" | "insert" | "insert-all-tracks";
+
 interface UseSelectionClipboardActionsParams {
   clearNoteClipboard: () => Promise<void>;
   closeTimelineActionsPopover: () => void;
@@ -141,7 +143,7 @@ export function useSelectionClipboardActions({
     setSelectedNoteKeys([]);
   }, [clearNoteClipboard, commitProjectChange, selectionBeatRange, setSelectedNoteKeys]);
 
-  const applyCompatiblePaste = useCallback((mode: "paste" | "paste-all-tracks" | "insert" | "insert-all-tracks", beat: number) => {
+  const applyCompatiblePaste = useCallback((pasteAction: NoteClipboardPasteAction, beat: number) => {
     if (!noteClipboardPayload || !selectedTrackId) {
       return;
     }
@@ -151,11 +153,11 @@ export function useSelectionClipboardActions({
       (current) => {
         const firstTrackId = current.tracks[0]?.id;
         const applied =
-          mode === "insert"
+          pasteAction === "insert"
             ? applyNoteClipboardInsert(current, noteClipboardPayload, selectedTrackId, beat)
-            : mode === "paste-all-tracks" && firstTrackId
+            : pasteAction === "paste-all-tracks" && firstTrackId
               ? applyNoteClipboardPaste(current, noteClipboardPayload, firstTrackId, beat)
-              : mode === "insert-all-tracks"
+              : pasteAction === "insert-all-tracks"
                 ? applyNoteClipboardInsertAllTracks(current, noteClipboardPayload, beat)
                 : applyNoteClipboardPaste(current, noteClipboardPayload, selectedTrackId, beat);
         nextSelectionKeys = applied.selectionKeys;
@@ -163,11 +165,11 @@ export function useSelectionClipboardActions({
       },
       {
         actionKey:
-          mode === "insert"
+          pasteAction === "insert"
             ? `track:${selectedTrackId}:insert-notes`
-            : mode === "paste-all-tracks"
+            : pasteAction === "paste-all-tracks"
               ? "timeline:paste-all-tracks"
-              : mode === "insert-all-tracks"
+              : pasteAction === "insert-all-tracks"
                 ? "timeline:insert-all-tracks"
                 : `track:${selectedTrackId}:paste-notes`
       }
