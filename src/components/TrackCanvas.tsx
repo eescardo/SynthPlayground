@@ -762,6 +762,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     if (!canvas) return;
     const { x, y } = getCanvasPoint(event.clientX, event.clientY);
     const targets = resolvePointerTargets(x, y);
+    const hasActiveSelection = Boolean(props.selectedNoteKeys?.size);
 
     if (targets.hoverTarget === "loop-marker" && targets.loopMarkerRect) {
       props.onSetPlayheadBeat(targets.loopMarkerRect.beat);
@@ -837,6 +838,17 @@ export function TrackCanvas(props: TrackCanvasProps) {
       canvas.setPointerCapture(event.pointerId);
       return;
     }
+
+    if (hasActiveSelection) {
+      props.onSetNoteSelection([]);
+      props.onPreviewSelectionActionScopeChange("source");
+      setSelectionRect(null);
+      props.onSetSelectionMarqueeActive(false);
+      pendingCanvasActionRef.current = null;
+      setCanvasCursor("default");
+      return;
+    }
+
     pendingCanvasActionRef.current = {
       trackId: track.id,
       startX: x,
@@ -1010,7 +1022,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
       props.onUpsertNote(pendingAction.trackId, newNote, {
         actionKey: `track:${pendingAction.trackId}:note:${newNote.id}:create`
       });
-      props.onSetNoteSelection([getNoteSelectionKey(pendingAction.trackId, newNote.id)]);
     }
 
     pendingCanvasActionRef.current = null;
