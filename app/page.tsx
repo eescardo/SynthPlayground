@@ -404,6 +404,29 @@ export default function HomePage() {
     }
   }, []);
 
+  const clearCompatibleClipboard = useCallback(async () => {
+    setCompatibleClipboardPayload(null);
+
+    if (typeof navigator === "undefined" || !navigator.clipboard) {
+      return;
+    }
+
+    try {
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/plain": new Blob([""], { type: "text/plain" }),
+            "text/html": new Blob([""], { type: "text/html" })
+          })
+        ]);
+        return;
+      }
+      await navigator.clipboard.writeText("");
+    } catch {
+      // Best effort only; some browsers restrict clipboard writes outside explicit gestures.
+    }
+  }, []);
+
   const syncCompatibleClipboardPayload = useCallback(async () => {
     if (typeof navigator === "undefined" || !navigator.clipboard) {
       return;
@@ -725,11 +748,13 @@ export default function HomePage() {
     if (!selectionBeatRange) {
       return;
     }
-    commitProjectChange((current) => cutBeatRangeAcrossAllTracks(current, selectionBeatRange), {
-      actionKey: "timeline:delete-all-tracks"
-    });
+    void clearCompatibleClipboard();
+    commitProjectChange(
+      (current) => cutBeatRangeAcrossAllTracks(current, selectionBeatRange),
+      { actionKey: "timeline:delete-all-tracks" }
+    );
     setSelectedNoteKeys([]);
-  }, [commitProjectChange, selectionBeatRange]);
+  }, [clearCompatibleClipboard, commitProjectChange, selectionBeatRange]);
 
   const applyCompatiblePaste = useCallback((mode: "paste" | "insert" | "insert-all-tracks", beat: number) => {
     if (!compatibleClipboardPayload || !selectedTrack?.id) {
