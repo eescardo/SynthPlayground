@@ -10,14 +10,17 @@ export interface ScreenshotScenarioDefinition {
 
 const dragSelectionPopoverIntoView = async (page: Page) => {
   const canvas = page.locator(".track-canvas-shell > canvas");
+  await expect(page.locator(".track-name-button").first()).toBeVisible();
+  await page.waitForTimeout(500);
   const box = await canvas.boundingBox();
   if (!box) {
     throw new Error("Could not determine track canvas bounds.");
   }
 
   const attempts = [
-    { start: { x: 188, y: 42 }, end: { x: 840, y: 168 }, steps: 24 },
-    { start: { x: 220, y: 54 }, end: { x: 920, y: 196 }, steps: 28 }
+    { start: { x: 190, y: 46 }, end: { x: 980, y: 170 }, steps: 28 },
+    { start: { x: 220, y: 54 }, end: { x: 1100, y: 210 }, steps: 30 },
+    { start: { x: 260, y: 64 }, end: { x: 1240, y: 260 }, steps: 34 }
   ];
 
   for (const attempt of attempts) {
