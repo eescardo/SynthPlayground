@@ -22,7 +22,11 @@ const createProject = (): Project => ({
     tempo: 120,
     meter: "4/4",
     gridBeats: 1,
-    loop: []
+    loop: [
+      { id: "loop_start_before", kind: "start", beat: 0 },
+      { id: "loop_start_inside", kind: "start", beat: 2 },
+      { id: "loop_end_after", kind: "end", beat: 8, repeatCount: 2 }
+    ]
   },
   tracks: [
     {
@@ -209,6 +213,10 @@ describe("noteClipboard", () => {
       startBeat: 5,
       durationBeats: 1
     });
+    expect(next.global.loop).toEqual([
+      { id: "loop_start_before", kind: "start", beat: 0, repeatCount: undefined },
+      { id: "loop_end_after", kind: "end", beat: 5, repeatCount: 2 }
+    ]);
   });
 
   it("inserts clipboard contents by shifting later notes to the right", () => {
@@ -250,6 +258,11 @@ describe("noteClipboard", () => {
       startBeat: 11,
       durationBeats: 1
     });
+    expect(applied.project.global.loop).toEqual([
+      { id: "loop_start_before", kind: "start", beat: 0, repeatCount: undefined },
+      { id: "loop_start_inside", kind: "start", beat: 2, repeatCount: undefined },
+      { id: "loop_end_after", kind: "end", beat: 11, repeatCount: 2 }
+    ]);
   });
 
   it("inserts clipboard contents across all tracks starting at the first track", () => {
@@ -271,5 +284,10 @@ describe("noteClipboard", () => {
       startBeat: 5,
       durationBeats: 2
     });
+    expect(applied.project.global.loop).toEqual([
+      { id: "loop_start_before", kind: "start", beat: 0, repeatCount: undefined },
+      { id: "loop_start_inside", kind: "start", beat: 2, repeatCount: undefined },
+      { id: "loop_end_after", kind: "end", beat: 11, repeatCount: 2 }
+    ]);
   });
 });

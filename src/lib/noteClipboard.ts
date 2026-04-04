@@ -1,5 +1,6 @@
 import { createId } from "@/lib/ids";
 import { eraseNotesInBeatRange, insertBeatGap, removeBeatRangeAndCloseGap, sliceNotesInBeatRange, sortNotes } from "@/lib/noteEditing";
+import { sanitizeLoopSettings } from "@/lib/looping";
 import { Note, Project, Track } from "@/types/music";
 
 const NOTE_CLIPBOARD_TYPE = "synth-playground/note-selection";
@@ -276,6 +277,42 @@ const buildInsertedNotes = (track: Track, playheadBeat: number, copiedTrack: Cli
   };
 };
 
+const shiftLoopMarkersForInsertedGap = (project: Project, atBeat: number, gapBeats: number) => ({
+  ...project,
+  global: {
+    ...project.global,
+    loop: sanitizeLoopSettings(
+      project.global.loop.map((marker) => ({
+        ...marker,
+        beat: marker.beat >= atBeat ? marker.beat + gapBeats : marker.beat
+      }))
+    )
+  }
+});
+
+const shiftLoopMarkersForRemovedRange = (project: Project, startBeat: number, endBeat: number) => {
+  const gap = endBeat - startBeat;
+  return {
+    ...project,
+    global: {
+      ...project.global,
+      loop: sanitizeLoopSettings(
+        project.global.loop.flatMap((marker) => {
+          if (marker.beat < startBeat) {
+            return [marker];
+          }
+
+          if (marker.beat >= endBeat) {
+            return [{ ...marker, beat: marker.beat - gap }];
+          }
+
+          return [];
+        })
+      )
+    }
+  };
+};
+
 export function applyNoteClipboardPaste(
   project: Project,
   payload: NoteClipboardPayload,
@@ -328,13 +365,13 @@ export function applyNoteClipboardInsert(
   selectedTrackId: string,
   playheadBeat: number
 ): AppliedNoteClipboardPaste {
-  const shiftedProject = {
+  const shiftedProject = shiftLoopMarkersForInsertedGap({
     ...project,
     tracks: project.tracks.map((track) => ({
       ...track,
       notes: insertBeatGap(track.notes, playheadBeat, payload.beatSpan)
     }))
-  };
+  }, playheadBeat, payload.beatSpan);
   return applyNoteClipboardPaste(shiftedProject, payload, selectedTrackId, playheadBeat);
 }
 
@@ -347,22 +384,22 @@ export function applyNoteClipboardInsertAllTracks(
   if (!firstTrackId) {
     return { project, selectionKeys: [] };
   }
-  const shiftedProject = {
+  const shiftedProject = shiftLoopMarkersForInsertedGap({
     ...project,
     tracks: project.tracks.map((track) => ({
       ...track,
       notes: insertBeatGap(track.notes, playheadBeat, payload.beatSpan)
     }))
-  };
+  }, playheadBeat, payload.beatSpan);
   return applyNoteClipboardPaste(shiftedProject, payload, firstTrackId, playheadBeat);
 }
 
 export function cutBeatRangeAcrossAllTracks(project: Project, range: BeatRange): Project {
-  return {
+  return shiftLoopMarkersForRemovedRange({
     ...project,
     tracks: project.tracks.map((track) => ({
       ...track,
       notes: removeBeatRangeAndCloseGap(track.notes, range.startBeat, range.endBeat)
     }))
-  };
+  }, range.startBeat, range.endBeat);
 }
