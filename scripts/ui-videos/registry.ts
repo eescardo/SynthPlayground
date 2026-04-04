@@ -102,16 +102,18 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await dragCanvasRegion(page, canvas, { x: 160, y: 48 }, { x: 520, y: 96 });
       await page.waitForTimeout(postActionSettleMs * 2);
 
-      await page.keyboard.press("ControlOrMeta+X");
+      await page.locator(".selection-actions-popover").getByRole("button", { name: "Cut", exact: true }).click();
       await page.waitForTimeout(postActionSettleMs);
 
-      await page.getByRole("button", { name: "Rename track Track 5" }).click({ force: true });
+      await page.locator(".track-name-button").nth(4).click({ force: true });
       await page.waitForTimeout(postActionSettleMs);
 
       await canvas.click({ position: { x: 760, y: 12 } });
       await page.waitForTimeout(postActionSettleMs);
+      await canvas.click({ position: { x: 760, y: 12 } });
+      await page.waitForTimeout(postActionSettleMs);
 
-      await page.keyboard.press("ControlOrMeta+V");
+      await page.locator(".timeline-actions-popover").getByRole("button", { name: "Paste", exact: true }).click();
       await page.waitForTimeout(postActionSettleMs * 3);
     }
   }

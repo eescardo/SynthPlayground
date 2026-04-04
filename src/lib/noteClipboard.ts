@@ -1,5 +1,5 @@
 import { createId } from "@/lib/ids";
-import { eraseNotesInBeatRange } from "@/lib/noteEditing";
+import { eraseNotesInBeatRange, insertBeatGap, removeBeatRangeAndCloseGap, sliceNotesInBeatRange, sortNotes } from "@/lib/noteEditing";
 import { Note, Project, Track } from "@/types/music";
 
 const NOTE_CLIPBOARD_TYPE = "synth-playground/note-selection";
@@ -13,6 +13,7 @@ interface ClipboardNoteData {
 }
 
 interface ClipboardTrackData {
+  sourceTrackIndex?: number;
   notes: ClipboardNoteData[];
 }
 
@@ -31,6 +32,12 @@ export interface SerializedNoteClipboardPayload {
 export interface AppliedNoteClipboardPaste {
   project: Project;
   selectionKeys: string[];
+}
+
+export interface BeatRange {
+  startBeat: number;
+  endBeat: number;
+  beatSpan: number;
 }
 
 export function getNoteSelectionKey(trackId: string, noteId: string) {
@@ -114,7 +121,7 @@ const isNoteClipboardPayload = (value: unknown): value is NoteClipboardPayload =
   );
 };
 
-export function buildNoteClipboardPayload(project: Project, selectionKeys: Iterable<string>): NoteClipboardPayload | null {
+export function getSelectionBeatRange(project: Project, selectionKeys: Iterable<string>): BeatRange | null {
   const noteIdsByTrackId = new Map<string, Set<string>>();
   for (const selectionKey of selectionKeys) {
     const parsed = parseNoteSelectionKey(selectionKey);
@@ -145,19 +152,77 @@ export function buildNoteClipboardPayload(project: Project, selectionKeys: Itera
   const endBeat = Math.max(...selectedTracks.flatMap((entry) => entry.notes.map((note) => note.startBeat + note.durationBeats)));
 
   return {
+    startBeat,
+    endBeat,
+    beatSpan: endBeat - startBeat
+  };
+}
+
+export function buildNoteClipboardPayload(project: Project, selectionKeys: Iterable<string>): NoteClipboardPayload | null {
+  const noteIdsByTrackId = new Map<string, Set<string>>();
+  for (const selectionKey of selectionKeys) {
+    const parsed = parseNoteSelectionKey(selectionKey);
+    if (!parsed) {
+      continue;
+    }
+    const trackSelection = noteIdsByTrackId.get(parsed.trackId) ?? new Set<string>();
+    trackSelection.add(parsed.noteId);
+    noteIdsByTrackId.set(parsed.trackId, trackSelection);
+  }
+
+  if (noteIdsByTrackId.size === 0) {
+    return null;
+  }
+
+  const selectedTracks = project.tracks
+    .map((track, index) => ({
+      index,
+      track,
+      notes: track.notes.filter((note) => noteIdsByTrackId.get(track.id)?.has(note.id))
+    }))
+    .filter((entry) => entry.notes.length > 0);
+
+  const range = getSelectionBeatRange(project, selectionKeys);
+  if (!range) {
+    return null;
+  }
+
+  return {
     type: NOTE_CLIPBOARD_TYPE,
     version: NOTE_CLIPBOARD_VERSION,
-    beatSpan: endBeat - startBeat,
+    beatSpan: range.beatSpan,
     tracks: selectedTracks.map((entry) => ({
+      sourceTrackIndex: entry.index,
       notes: entry.notes
         .slice()
         .sort((a, b) => a.startBeat - b.startBeat)
         .map((note) => ({
           pitchStr: note.pitchStr,
-          startBeat: note.startBeat - startBeat,
+          startBeat: note.startBeat - range.startBeat,
           durationBeats: note.durationBeats,
           velocity: note.velocity
         }))
+    }))
+  };
+}
+
+export function buildAllTracksClipboardPayload(project: Project, range: BeatRange): NoteClipboardPayload | null {
+  if (range.beatSpan <= 0) {
+    return null;
+  }
+
+  return {
+    type: NOTE_CLIPBOARD_TYPE,
+    version: NOTE_CLIPBOARD_VERSION,
+    beatSpan: range.beatSpan,
+    tracks: project.tracks.map((track, index) => ({
+      sourceTrackIndex: index,
+      notes: sliceNotesInBeatRange(track.notes, range.startBeat, range.endBeat).map((note) => ({
+        pitchStr: note.pitchStr,
+        startBeat: note.startBeat - range.startBeat,
+        durationBeats: note.durationBeats,
+        velocity: note.velocity
+      }))
     }))
   };
 }
@@ -195,8 +260,6 @@ export function parseNoteClipboardPayload(html: string | null | undefined, plain
     return null;
   }
 }
-
-const sortNotes = (notes: Note[]) => notes.slice().sort((a, b) => a.startBeat - b.startBeat);
 
 const buildInsertedNotes = (track: Track, playheadBeat: number, copiedTrack: ClipboardTrackData) => {
   const insertedNotes: Note[] = copiedTrack.notes.map((note) => ({
@@ -256,5 +319,50 @@ export function applyNoteClipboardPaste(
       tracks
     },
     selectionKeys
+  };
+}
+
+export function applyNoteClipboardInsert(
+  project: Project,
+  payload: NoteClipboardPayload,
+  selectedTrackId: string,
+  playheadBeat: number
+): AppliedNoteClipboardPaste {
+  const shiftedProject = {
+    ...project,
+    tracks: project.tracks.map((track) => ({
+      ...track,
+      notes: insertBeatGap(track.notes, playheadBeat, payload.beatSpan)
+    }))
+  };
+  return applyNoteClipboardPaste(shiftedProject, payload, selectedTrackId, playheadBeat);
+}
+
+export function applyNoteClipboardInsertAllTracks(
+  project: Project,
+  payload: NoteClipboardPayload,
+  playheadBeat: number
+): AppliedNoteClipboardPaste {
+  const firstTrackId = project.tracks[0]?.id;
+  if (!firstTrackId) {
+    return { project, selectionKeys: [] };
+  }
+  const shiftedProject = {
+    ...project,
+    tracks: project.tracks.map((track) => ({
+      ...track,
+      notes: insertBeatGap(track.notes, playheadBeat, payload.beatSpan)
+    }))
+  };
+  return applyNoteClipboardPaste(shiftedProject, payload, firstTrackId, playheadBeat);
+}
+
+export function cutBeatRangeAcrossAllTracks(project: Project, range: BeatRange): Project {
+  return {
+    ...project,
+    tracks: project.tracks.map((track) => ({
+      ...track,
+      notes: removeBeatRangeAndCloseGap(track.notes, range.startBeat, range.endBeat)
+    }))
   };
 }

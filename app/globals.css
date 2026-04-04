@@ -291,6 +291,20 @@ select {
   z-index: 70;
 }
 
+.selection-actions-popover {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 190px;
+  padding: 0.7rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 145, 171, 0.42);
+  background: rgba(27, 11, 18, 0.95);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.28);
+  z-index: 6;
+}
+
 .timeline-actions-popover-label {
   display: flex;
   flex-direction: column;

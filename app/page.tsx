@@ -13,8 +13,14 @@ import { createId } from "@/lib/ids";
 import { getSanitizedLoopMarkers } from "@/lib/looping";
 import {
   applyNoteClipboardPaste,
+  applyNoteClipboardInsert,
+  applyNoteClipboardInsertAllTracks,
+  buildAllTracksClipboardPayload,
   buildNoteClipboardPayload,
+  cutBeatRangeAcrossAllTracks,
   getNoteSelectionKey,
+  getSelectionBeatRange,
+  NoteClipboardPayload,
   parseNoteSelectionKey,
   parseNoteClipboardPayload,
   serializeNoteClipboardPayload
@@ -74,6 +80,7 @@ export default function HomePage() {
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [strictWasmReady, setStrictWasmReady] = useState(process.env.NEXT_PUBLIC_STRICT_WASM !== "1");
   const [selectedNoteKeys, setSelectedNoteKeys] = useState<string[]>([]);
+  const [compatibleClipboardPayload, setCompatibleClipboardPayload] = useState<NoteClipboardPayload | null>(null);
   const [pitchPicker, setPitchPicker] = useState<{ trackId: string; noteId: string } | null>(null);
   const [previewPitch, setPreviewPitch] = useState("C4");
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
@@ -143,6 +150,7 @@ export default function HomePage() {
     [project.tracks, selectedTrackId]
   );
   const selectedNoteKeySet = useMemo(() => new Set(selectedNoteKeys), [selectedNoteKeys]);
+  const selectionBeatRange = useMemo(() => getSelectionBeatRange(project, selectedNoteKeys), [project, selectedNoteKeys]);
 
   const trackNameById = useMemo(() => new Map(project.tracks.map((track) => [track.id, track.name] as const)), [project.tracks]);
 
@@ -371,6 +379,66 @@ export default function HomePage() {
   );
   const startMarkerAtTimelineBeat = timelineMarkersAtBeat.find((marker) => marker.kind === "start");
   const endMarkerAtTimelineBeat = timelineMarkersAtBeat.find((marker) => marker.kind === "end");
+
+  const writeClipboardPayload = useCallback(async (payload: NoteClipboardPayload) => {
+    const serialized = serializeNoteClipboardPayload(payload);
+    setCompatibleClipboardPayload(payload);
+
+    if (typeof navigator === "undefined" || !navigator.clipboard) {
+      return;
+    }
+
+    try {
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/plain": new Blob([serialized.plainText], { type: "text/plain" }),
+            "text/html": new Blob([serialized.html], { type: "text/html" })
+          })
+        ]);
+        return;
+      }
+      await navigator.clipboard.writeText(serialized.plainText);
+    } catch {
+      // Best effort. Keyboard-driven copy/cut paths still populate the system clipboard.
+    }
+  }, []);
+
+  const syncCompatibleClipboardPayload = useCallback(async () => {
+    if (typeof navigator === "undefined" || !navigator.clipboard) {
+      return;
+    }
+
+    try {
+      let html: string | null = null;
+      let text = "";
+
+      if (navigator.clipboard.read) {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          if (!html && item.types.includes("text/html")) {
+            html = await (await item.getType("text/html")).text();
+          }
+          if (!text && item.types.includes("text/plain")) {
+            text = await (await item.getType("text/plain")).text();
+          }
+        }
+      }
+
+      if (!text && navigator.clipboard.readText) {
+        text = await navigator.clipboard.readText();
+      }
+
+      setCompatibleClipboardPayload(parseNoteClipboardPayload(html, text));
+    } catch {
+      // Permission to read the clipboard is browser-dependent; keep the last known compatible payload.
+    }
+  }, []);
+
+  const requestTimelineActionsPopover = useCallback((request: TimelineActionsPopoverRequest) => {
+    setTimelineActionsPopover(request);
+    void syncCompatibleClipboardPayload();
+  }, [syncCompatibleClipboardPayload]);
 
   const openPitchPicker = useCallback((trackId: string, noteId: string) => {
     setPitchPicker({ trackId, noteId });
@@ -610,6 +678,87 @@ export default function HomePage() {
     setSelectedNoteKeys([]);
   }, [commitProjectChange]);
 
+  const copySelectedNotes = useCallback(async () => {
+    const payload = buildNoteClipboardPayload(project, selectedNoteKeys);
+    if (!payload) {
+      return;
+    }
+    await writeClipboardPayload(payload);
+  }, [project, selectedNoteKeys, writeClipboardPayload]);
+
+  const cutSelectedNotes = useCallback(async () => {
+    const payload = buildNoteClipboardPayload(project, selectedNoteKeys);
+    if (!payload) {
+      return;
+    }
+    await writeClipboardPayload(payload);
+    deleteSelectedNotes(selectedNoteKeys);
+  }, [deleteSelectedNotes, project, selectedNoteKeys, writeClipboardPayload]);
+
+  const copyAllTracksInSelection = useCallback(async () => {
+    if (!selectionBeatRange) {
+      return;
+    }
+    const payload = buildAllTracksClipboardPayload(project, selectionBeatRange);
+    if (!payload) {
+      return;
+    }
+    await writeClipboardPayload(payload);
+  }, [project, selectionBeatRange, writeClipboardPayload]);
+
+  const cutAllTracksInSelection = useCallback(async () => {
+    if (!selectionBeatRange) {
+      return;
+    }
+    const payload = buildAllTracksClipboardPayload(project, selectionBeatRange);
+    if (!payload) {
+      return;
+    }
+    await writeClipboardPayload(payload);
+    commitProjectChange((current) => cutBeatRangeAcrossAllTracks(current, selectionBeatRange), {
+      actionKey: "timeline:cut-all-tracks"
+    });
+    setSelectedNoteKeys([]);
+  }, [commitProjectChange, project, selectionBeatRange, writeClipboardPayload]);
+
+  const deleteAllTracksInSelection = useCallback(() => {
+    if (!selectionBeatRange) {
+      return;
+    }
+    commitProjectChange((current) => cutBeatRangeAcrossAllTracks(current, selectionBeatRange), {
+      actionKey: "timeline:delete-all-tracks"
+    });
+    setSelectedNoteKeys([]);
+  }, [commitProjectChange, selectionBeatRange]);
+
+  const applyCompatiblePaste = useCallback((mode: "paste" | "insert" | "insert-all-tracks", beat: number) => {
+    if (!compatibleClipboardPayload || !selectedTrack?.id) {
+      return;
+    }
+
+    let nextSelectionKeys: string[] = [];
+    commitProjectChange((current) => {
+      const applied =
+        mode === "insert"
+          ? applyNoteClipboardInsert(current, compatibleClipboardPayload, selectedTrack.id, beat)
+          : mode === "insert-all-tracks"
+            ? applyNoteClipboardInsertAllTracks(current, compatibleClipboardPayload, beat)
+            : applyNoteClipboardPaste(current, compatibleClipboardPayload, selectedTrack.id, beat);
+      nextSelectionKeys = applied.selectionKeys;
+      return applied.project;
+    }, {
+      actionKey:
+        mode === "insert"
+          ? `track:${selectedTrack.id}:insert-notes`
+          : mode === "insert-all-tracks"
+            ? "timeline:insert-all-tracks"
+            : `track:${selectedTrack.id}:paste-notes`
+    });
+    setPlayheadFromUser(beat);
+    setSelectedNoteKeys(nextSelectionKeys);
+    setTimelineActionsPopover(null);
+  }, [commitProjectChange, compatibleClipboardPayload, selectedTrack?.id, setPlayheadFromUser]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -626,6 +775,7 @@ export default function HomePage() {
         setPitchPicker(null);
         setPreviewPitchPickerOpen(false);
         setPatchRemovalDialog(null);
+        setTimelineActionsPopover(null);
         setSelectedNoteKeys([]);
       }
 
@@ -663,6 +813,7 @@ export default function HomePage() {
         return;
       }
 
+      setCompatibleClipboardPayload(payload);
       const serialized = serializeNoteClipboardPayload(payload);
       event.preventDefault();
       event.clipboardData.setData("text/plain", serialized.plainText);
@@ -681,6 +832,7 @@ export default function HomePage() {
         return;
       }
 
+      setCompatibleClipboardPayload(payload);
       const serialized = serializeNoteClipboardPayload(payload);
       event.preventDefault();
       event.clipboardData.setData("text/plain", serialized.plainText);
@@ -704,6 +856,7 @@ export default function HomePage() {
       }
 
       let nextSelectionKeys: string[] = [];
+      setCompatibleClipboardPayload(payload);
       event.preventDefault();
       commitProjectChange((current) => {
         const applied = applyNoteClipboardPaste(current, payload, selectedTrack.id, playheadBeat);
@@ -1037,13 +1190,14 @@ export default function HomePage() {
         invalidPatchIds={invalidPatchIds}
         selectedTrackId={selectedTrack.id}
         selectedNoteKeys={selectedNoteKeySet}
+        selectionBeatRange={selectionBeatRange}
         playheadBeat={playheadBeat}
         activeRecordedNotes={recording.activeRecordedNotes}
         ghostPlayheadBeat={recording.ghostPlayheadBeat ?? undefined}
         countInLabel={recording.countInLabel ?? undefined}
         timelineActionsPopoverOpen={Boolean(timelineActionsPopover)}
         onSetPlayheadBeat={setPlayheadFromUser}
-        onRequestTimelineActionsPopover={setTimelineActionsPopover}
+        onRequestTimelineActionsPopover={requestTimelineActionsPopover}
         onSelectTrack={setSelectedTrackId}
         onRenameTrack={renameTrack}
         onToggleTrackMute={toggleTrackMute}
@@ -1057,17 +1211,34 @@ export default function HomePage() {
         onUpdateNote={updateNote}
         onDeleteNote={deleteNote}
         onSetNoteSelection={setSelectedNoteKeys}
+        onCopySelection={() => {
+          void copySelectedNotes();
+        }}
+        onCutSelection={() => {
+          void cutSelectedNotes();
+        }}
+        onCopyAllTracksInSelection={() => {
+          void copyAllTracksInSelection();
+        }}
+        onCutAllTracksInSelection={() => {
+          void cutAllTracksInSelection();
+        }}
+        onDeleteAllTracksInSelection={deleteAllTracksInSelection}
       />
 
       {timelineActionsPopover && (
         <TimelineActionsPopover
           left={timelineActionsPopover.clientX}
           top={timelineActionsPopover.clientY + 12}
+          showPasteActions={Boolean(compatibleClipboardPayload)}
           showAddStart={!startMarkerAtTimelineBeat}
           showAddEnd={timelineActionsPopover.beat > 0 && !endMarkerAtTimelineBeat}
           startMarkerId={startMarkerAtTimelineBeat?.id}
           endMarkerId={endMarkerAtTimelineBeat?.id}
           endRepeatCount={endMarkerAtTimelineBeat?.repeatCount}
+          onPaste={() => applyCompatiblePaste("paste", timelineActionsPopover.beat)}
+          onInsert={() => applyCompatiblePaste("insert", timelineActionsPopover.beat)}
+          onInsertAllTracks={() => applyCompatiblePaste("insert-all-tracks", timelineActionsPopover.beat)}
           onAddStart={() => addLoopBoundary(timelineActionsPopover.beat, "start")}
           onAddEnd={() => addLoopBoundary(timelineActionsPopover.beat, "end")}
           onUpdateRepeatCount={(repeatCount) => {
@@ -1158,6 +1329,9 @@ export default function HomePage() {
             </p>
             <p>
               <strong>Cut notes:</strong> Use <kbd>Cmd</kbd>+<kbd>X</kbd> to copy the selection and remove the original notes.
+            </p>
+            <p>
+              <strong>Selection actions:</strong> Use the selection popover for cut/copy and all-track timeline edits, or open the timeline popover for paste and insert options when the clipboard is compatible.
             </p>
             <p>
               <strong>Move note:</strong> Drag a note block horizontally.

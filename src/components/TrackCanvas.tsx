@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MacroPanel } from "@/components/MacroPanel";
+import { SelectionActionPopover } from "@/components/SelectionActionPopover";
 import { TrackVolumePopover } from "@/components/TrackVolumePopover";
 import {
   CanvasCursor,
@@ -70,6 +71,7 @@ const TRACK_CANVAS_COLORS = {
   noteLabel: "#ecf5ff",
   noteSelectedOverlay: "rgba(210, 234, 255, 0.16)",
   noteSelectedBorder: "#d4ecff",
+  selectionBoundary: "rgba(255, 123, 151, 0.58)",
   selectionFill: "rgba(79, 184, 255, 0.2)",
   selectionBorder: "rgba(183, 228, 255, 0.95)",
   overlapRange: "rgba(255, 35, 35, 0.52)",
@@ -97,6 +99,7 @@ interface TrackCanvasProps {
   countInLabel?: string;
   timelineActionsPopoverOpen?: boolean;
   selectedNoteKeys?: ReadonlySet<string>;
+  selectionBeatRange?: { startBeat: number; endBeat: number } | null;
   onSetPlayheadBeat: (beat: number) => void;
   onRequestTimelineActionsPopover: (request: TimelineActionsPopoverRequest) => void;
   onSelectTrack: (trackId: string) => void;
@@ -112,6 +115,11 @@ interface TrackCanvasProps {
   onUpdateNote: (trackId: string, noteId: string, patch: Partial<Note>, options?: { actionKey?: string; coalesce?: boolean }) => void;
   onDeleteNote: (trackId: string, noteId: string) => void;
   onSetNoteSelection: (selectionKeys: string[]) => void;
+  onCopySelection: () => void;
+  onCutSelection: () => void;
+  onCopyAllTracksInSelection: () => void;
+  onCutAllTracksInSelection: () => void;
+  onDeleteAllTracksInSelection: () => void;
 }
 
 interface DragState {
@@ -337,6 +345,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const selectedPatch = selectedTrack
     ? props.project.patches.find((patch) => patch.id === selectedTrack.instrumentPatchId) ?? null
     : null;
+  const selectionPopoverLeft = props.selectionBeatRange
+    ? HEADER_WIDTH + props.selectionBeatRange.endBeat * BEAT_WIDTH + 14
+    : 0;
+  const selectionPopoverTop = 10;
 
   const getPatchOptionLabel = useCallback((patch: Project["patches"][number]) => {
     const presetStatus = resolvePatchPresetStatus(patch);
@@ -625,6 +637,19 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
     drawGhostPlayhead(ctx, props.ghostPlayheadBeat, props.countInLabel, height);
 
+    if (props.selectionBeatRange) {
+      const startX = HEADER_WIDTH + props.selectionBeatRange.startBeat * BEAT_WIDTH;
+      const endX = HEADER_WIDTH + props.selectionBeatRange.endBeat * BEAT_WIDTH;
+      ctx.strokeStyle = TRACK_CANVAS_COLORS.selectionBoundary;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(startX, 0);
+      ctx.lineTo(startX, height);
+      ctx.moveTo(endX, 0);
+      ctx.lineTo(endX, height);
+      ctx.stroke();
+    }
+
     if (selectionRect) {
       const left = Math.min(selectionRect.startX, selectionRect.endX);
       const top = Math.min(selectionRect.startY, selectionRect.endY);
@@ -655,6 +680,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     props.project.global.gridBeats,
     props.project.global.loop,
     props.project.tracks,
+    props.selectionBeatRange,
     props.selectedNoteKeys,
     props.selectedTrackId,
     selectionRect,
@@ -1181,6 +1207,17 @@ export function TrackCanvas(props: TrackCanvasProps) {
         onPointerLeave={onPointerLeave}
         onContextMenu={(event) => event.preventDefault()}
       />
+      {props.selectionBeatRange && !selectionRect && (
+        <SelectionActionPopover
+          left={selectionPopoverLeft}
+          top={selectionPopoverTop}
+          onCut={props.onCutSelection}
+          onCopy={props.onCopySelection}
+          onCutAllTracks={props.onCutAllTracksInSelection}
+          onCopyAllTracks={props.onCopyAllTracksInSelection}
+          onDeleteAllTracks={props.onDeleteAllTracksInSelection}
+        />
+      )}
       {selectedTrack && selectedPatch && (
         <div className="track-macro-panel-shell">
           <div className="track-macro-panel-header">

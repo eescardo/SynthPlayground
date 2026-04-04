@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyNoteClipboardInsert,
+  applyNoteClipboardInsertAllTracks,
   applyNoteClipboardPaste,
+  buildAllTracksClipboardPayload,
   buildNoteClipboardPayload,
+  cutBeatRangeAcrossAllTracks,
   getNoteSelectionKey,
+  getSelectionBeatRange,
   parseNoteClipboardPayload,
   serializeNoteClipboardPayload
 } from "@/lib/noteClipboard";
@@ -157,6 +162,114 @@ describe("noteClipboard", () => {
       pitchStr: "B3",
       startBeat: 8,
       durationBeats: 1
+    });
+  });
+
+  it("copies the full selected time span across all tracks", () => {
+    const project = createProject();
+    const range = getSelectionBeatRange(project, [
+      getNoteSelectionKey("track_1", "note_a"),
+      getNoteSelectionKey("track_2", "note_c")
+    ]);
+
+    const payload = buildAllTracksClipboardPayload(project, range!);
+
+    expect(payload?.beatSpan).toBe(3);
+    expect(payload?.tracks).toHaveLength(3);
+    expect(payload?.tracks[0].notes).toHaveLength(1);
+    expect(payload?.tracks[1].notes).toHaveLength(1);
+    expect(payload?.tracks[2].notes[0]).toMatchObject({
+      pitchStr: "A3",
+      startBeat: 2,
+      durationBeats: 1
+    });
+  });
+
+  it("cuts the selected span across all tracks and closes the gap", () => {
+    const project = createProject();
+    const next = cutBeatRangeAcrossAllTracks(project, {
+      startBeat: 1,
+      endBeat: 4,
+      beatSpan: 3
+    });
+
+    expect(next.tracks[0].notes[0]).toMatchObject({
+      pitchStr: "E4",
+      startBeat: 2,
+      durationBeats: 1
+    });
+    expect(next.tracks[1].notes).toHaveLength(0);
+    expect(next.tracks[2].notes[0]).toMatchObject({
+      pitchStr: "A3",
+      startBeat: 1,
+      durationBeats: 3
+    });
+    expect(next.tracks[2].notes[1]).toMatchObject({
+      pitchStr: "B3",
+      startBeat: 5,
+      durationBeats: 1
+    });
+  });
+
+  it("inserts clipboard contents by shifting later notes to the right", () => {
+    const project = createProject();
+    const payload = buildNoteClipboardPayload(project, [
+      getNoteSelectionKey("track_1", "note_a"),
+      getNoteSelectionKey("track_2", "note_c")
+    ]);
+
+    const applied = applyNoteClipboardInsert(project, payload!, "track_2", 4);
+
+    expect(applied.project.tracks[0].notes[1]).toMatchObject({
+      pitchStr: "E4",
+      startBeat: 8,
+      durationBeats: 1
+    });
+    expect(applied.project.tracks[1].notes[1]).toMatchObject({
+      pitchStr: "C4",
+      startBeat: 4,
+      durationBeats: 2
+    });
+    expect(applied.project.tracks[2].notes[0]).toMatchObject({
+      pitchStr: "A3",
+      startBeat: 3,
+      durationBeats: 1
+    });
+    expect(applied.project.tracks[2].notes[1]).toMatchObject({
+      pitchStr: "G4",
+      startBeat: 5,
+      durationBeats: 2
+    });
+    expect(applied.project.tracks[2].notes[2]).toMatchObject({
+      pitchStr: "A3",
+      startBeat: 7,
+      durationBeats: 3
+    });
+    expect(applied.project.tracks[2].notes[3]).toMatchObject({
+      pitchStr: "B3",
+      startBeat: 11,
+      durationBeats: 1
+    });
+  });
+
+  it("inserts clipboard contents across all tracks starting at the first track", () => {
+    const project = createProject();
+    const payload = buildNoteClipboardPayload(project, [
+      getNoteSelectionKey("track_1", "note_a"),
+      getNoteSelectionKey("track_2", "note_c")
+    ]);
+
+    const applied = applyNoteClipboardInsertAllTracks(project, payload!, 4);
+
+    expect(applied.project.tracks[0].notes[1]).toMatchObject({
+      pitchStr: "C4",
+      startBeat: 4,
+      durationBeats: 2
+    });
+    expect(applied.project.tracks[1].notes[1]).toMatchObject({
+      pitchStr: "G4",
+      startBeat: 5,
+      durationBeats: 2
     });
   });
 });
