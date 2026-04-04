@@ -8,6 +8,7 @@ interface TimelineActionsPopoverProps {
   showPasteActions?: boolean;
   showAddStart: boolean;
   showAddEnd: boolean;
+  showExpandLoopToNotes?: boolean;
   startMarkerId?: string;
   endMarkerId?: string;
   endRepeatCount?: number;
@@ -17,6 +18,7 @@ interface TimelineActionsPopoverProps {
   onInsertAllTracks?: () => void;
   onAddStart: () => void;
   onAddEnd: () => void;
+  onExpandLoopToNotes: () => void;
   onUpdateRepeatCount: (repeatCount: number) => void;
   onRemoveStart: () => void;
   onRemoveEnd: () => void;
@@ -26,7 +28,7 @@ interface TimelineActionsPopoverProps {
 export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
   const repeatCount = props.endRepeatCount ?? DEFAULT_LOOP_REPEAT_COUNT;
   const hasPasteActions = Boolean(props.showPasteActions);
-  const hasPlayheadActions = props.showAddStart || props.showAddEnd;
+  const hasPlayheadActions = props.showAddStart || props.showAddEnd || props.showExpandLoopToNotes;
   const hasLoopMarkerActions = Boolean(props.startMarkerId || props.endMarkerId);
   const showFirstDivider = hasPasteActions && (hasPlayheadActions || hasLoopMarkerActions);
   const showSecondDivider = !showFirstDivider && hasPlayheadActions && hasLoopMarkerActions;
@@ -76,6 +78,12 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
       {props.showAddEnd && (
         <button type="button" onClick={props.onAddEnd}>
           Add Loop End
+        </button>
+      )}
+
+      {props.showExpandLoopToNotes && (
+        <button type="button" onClick={props.onExpandLoopToNotes}>
+          Explode Loop
         </button>
       )}
 

@@ -1,5 +1,6 @@
 import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
 import { createId } from "@/lib/ids";
+import { insertBeatGap, sortNotes } from "@/lib/noteEditing";
 import { Note, Project, ProjectGlobalSettings, Track } from "@/types/music";
 
 export interface SanitizedLoopMarker {
@@ -25,6 +26,14 @@ export interface LoopMarkerState {
   beat: number;
   repeatCount?: number;
   matched: boolean;
+}
+
+export interface MatchedLoopRegion {
+  startMarkerId: string;
+  endMarkerId: string;
+  startBeat: number;
+  endBeat: number;
+  repeatCount: number;
 }
 
 interface LoopPair {
@@ -160,6 +169,33 @@ const buildLoopPairs = (loop: ProjectGlobalSettings["loop"]) => {
 export const getLoopMarkerStates = (
   loop: ProjectGlobalSettings["loop"]
 ): LoopMarkerState[] => buildLoopPairs(loop).markerStates;
+
+const toMatchedLoopRegion = (pair: LoopPair): MatchedLoopRegion => ({
+  startMarkerId: pair.startMarkerId,
+  endMarkerId: pair.endMarkerId,
+  startBeat: pair.startBeat,
+  endBeat: pair.endBeat,
+  repeatCount: pair.repeatCount
+});
+
+const flattenLoopPairs = (pairs: LoopPair[]): LoopPair[] =>
+  pairs.flatMap((pair) => [pair, ...flattenLoopPairs(pair.children)]);
+
+export const getMatchedLoopRegionsAtBeat = (
+  loop: ProjectGlobalSettings["loop"],
+  beat: number
+): MatchedLoopRegion[] =>
+  flattenLoopPairs(buildLoopPairs(loop).pairs)
+    .filter((pair) => Math.abs(pair.startBeat - beat) < EPSILON || Math.abs(pair.endBeat - beat) < EPSILON)
+    .map(toMatchedLoopRegion);
+
+export const getUniqueMatchedLoopRegionAtBeat = (
+  loop: ProjectGlobalSettings["loop"],
+  beat: number
+): MatchedLoopRegion | null => {
+  const matches = getMatchedLoopRegionsAtBeat(loop, beat);
+  return matches.length === 1 ? matches[0] : null;
+};
 
 const getLoopPassLengths = (pair: LoopPair, currentPassStartBeat: number): LoopPassLengths => ({
   currentPassLength: getSequencePlaybackLength(currentPassStartBeat, pair.endBeat, pair.children),
@@ -450,4 +486,137 @@ export const getSongBeatFromPlaybackSample = (
 ): number => {
   const playbackBeat = playbackSample / samplesPerBeat(project.global.sampleRate, project.global.tempo);
   return getSongBeatForPlaybackBeat(playbackBeat, cueBeat, project.global.loop);
+};
+
+const findLoopPairByMarkerId = (pairs: LoopPair[], markerId: string): LoopPair | null => {
+  for (const pair of pairs) {
+    if (pair.startMarkerId === markerId || pair.endMarkerId === markerId) {
+      return pair;
+    }
+    const childMatch = findLoopPairByMarkerId(pair.children, markerId);
+    if (childMatch) {
+      return childMatch;
+    }
+  }
+  return null;
+};
+
+const collectLoopPairMarkerIds = (pair: LoopPair): Set<string> => {
+  const markerIds = new Set<string>([pair.startMarkerId, pair.endMarkerId]);
+  for (const child of pair.children) {
+    for (const markerId of collectLoopPairMarkerIds(child)) {
+      markerIds.add(markerId);
+    }
+  }
+  return markerIds;
+};
+
+const filterPlaybackBeatsInRange = (beats: number[], totalExpandedLength: number, includeEndBoundary: boolean): number[] =>
+  beats.filter((beat) =>
+    includeEndBoundary
+      ? beat >= -EPSILON && beat <= totalExpandedLength + EPSILON
+      : beat >= -EPSILON && beat < totalExpandedLength - EPSILON
+  );
+
+export const expandLoopRegionToNotes = (
+  project: Project,
+  region: MatchedLoopRegion
+): Project => {
+  const { pairs } = buildLoopPairs(project.global.loop);
+  const targetPair = findLoopPairByMarkerId(pairs, region.startMarkerId);
+  if (
+    !targetPair ||
+    targetPair.endMarkerId !== region.endMarkerId ||
+    Math.abs(targetPair.startBeat - region.startBeat) >= EPSILON ||
+    Math.abs(targetPair.endBeat - region.endBeat) >= EPSILON
+  ) {
+    return project;
+  }
+
+  const loopBodyPlaybackLength = getSequencePlaybackLength(targetPair.startBeat, targetPair.endBeat, targetPair.children);
+  const totalExpandedLength = loopBodyPlaybackLength * (targetPair.repeatCount + 1);
+  const rawLoopLength = targetPair.endBeat - targetPair.startBeat;
+  const shiftAmount = totalExpandedLength - rawLoopLength;
+
+  if (shiftAmount <= EPSILON) {
+    return {
+      ...project,
+      global: {
+        ...project.global,
+        loop: sanitizeLoopSettings(
+          project.global.loop.filter(
+            (marker) => marker.id !== targetPair.startMarkerId && marker.id !== targetPair.endMarkerId
+          )
+        )
+      }
+    };
+  }
+
+  // Exploding a loop flattens the full audible subtree for that region, so any
+  // nested loop markers inside the selected pair become redundant and are removed too.
+  const removedMarkerIds = collectLoopPairMarkerIds(targetPair);
+  const nextLoop = sanitizeLoopSettings(
+    project.global.loop
+      .filter((marker) => {
+        if (removedMarkerIds.has(marker.id)) {
+          return false;
+        }
+        return marker.beat <= targetPair.startBeat + EPSILON || marker.beat >= targetPair.endBeat - EPSILON;
+      })
+      .map((marker) =>
+        marker.beat >= targetPair.endBeat - EPSILON
+          ? { ...marker, beat: marker.beat + shiftAmount }
+          : marker
+      )
+  );
+
+  return {
+    ...project,
+    global: {
+      ...project.global,
+      loop: nextLoop
+    },
+    tracks: project.tracks.map((track) => {
+      const beforeLoop = track.notes.filter((note) => note.startBeat < targetPair.startBeat - EPSILON);
+      const insideLoop = track.notes.filter(
+        (note) => note.startBeat >= targetPair.startBeat - EPSILON && note.startBeat < targetPair.endBeat - EPSILON
+      );
+      const afterLoop = insertBeatGap(
+        track.notes.filter((note) => note.startBeat >= targetPair.endBeat - EPSILON),
+        targetPair.endBeat,
+        shiftAmount
+      );
+
+      const expandedNotes = insideLoop.flatMap((note) => {
+        const startOffsets = filterPlaybackBeatsInRange(
+          getLoopedPlaybackBeatsForSongBeat(note.startBeat, targetPair.startBeat, project.global.loop),
+          totalExpandedLength,
+          false
+        );
+        const endOffsets = filterPlaybackBeatsInRange(
+          getLoopedPlaybackBeatsForSongBeat(note.startBeat + note.durationBeats, targetPair.startBeat, project.global.loop),
+          totalExpandedLength,
+          true
+        );
+
+        return startOffsets.map((startOffset, index) => {
+          const endOffset = endOffsets[index];
+          if (typeof endOffset !== "number" || endOffset <= startOffset + EPSILON) {
+            return null;
+          }
+          return {
+            ...note,
+            id: index === 0 ? note.id : createId("note"),
+            startBeat: targetPair.startBeat + startOffset,
+            durationBeats: endOffset - startOffset
+          };
+        }).filter((note): note is Note => Boolean(note));
+      });
+
+      return {
+        ...track,
+        notes: sortNotes([...beforeLoop, ...expandedNotes, ...afterLoop])
+      };
+    })
+  };
 };

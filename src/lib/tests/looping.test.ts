@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  expandLoopRegionToNotes,
   findLoopBoundaryConflicts,
   getLoopMarkerStates,
   getLoopPlaybackEndBeat,
   getSongBeatForPlaybackBeat,
   getLoopedPlaybackBeatsForSongBeat,
+  getUniqueMatchedLoopRegionAtBeat,
   sanitizeLoopSettings,
   splitProjectNotesAtLoopBoundaries
 } from "@/lib/looping";
@@ -177,5 +179,74 @@ describe("looping", () => {
       durationBeats: 1.5,
       pitchStr: "C4"
     });
+  });
+
+  it("finds a unique matched loop region at a selected boundary beat", () => {
+    const loop = [
+      { id: "start_outer", kind: "start" as const, beat: 0 },
+      { id: "end_outer", kind: "end" as const, beat: 4, repeatCount: 2 }
+    ];
+
+    expect(getUniqueMatchedLoopRegionAtBeat(loop, 0)).toEqual({
+      startMarkerId: "start_outer",
+      endMarkerId: "end_outer",
+      startBeat: 0,
+      endBeat: 4,
+      repeatCount: 2
+    });
+    expect(getUniqueMatchedLoopRegionAtBeat(loop, 2)).toBeNull();
+  });
+
+  it("expands a matched loop into explicit notes across tracks and shifts later content", () => {
+    const project = createProject();
+    project.global.loop = [
+      { id: "loop_start", kind: "start", beat: 9 },
+      { id: "loop_end", kind: "end", beat: 11, repeatCount: 3 }
+    ];
+    project.tracks = [
+      {
+        ...project.tracks[0],
+        id: "track_1",
+        notes: [
+          { id: "t1_a", pitchStr: "C4", startBeat: 9, durationBeats: 0.5, velocity: 0.9 },
+          { id: "t1_b", pitchStr: "E4", startBeat: 10, durationBeats: 1, velocity: 0.8 },
+          { id: "t1_c", pitchStr: "G4", startBeat: 11, durationBeats: 0.5, velocity: 0.7 }
+        ]
+      },
+      {
+        ...project.tracks[0],
+        id: "track_2",
+        name: "Track 2",
+        notes: [
+          { id: "t2_a", pitchStr: "A3", startBeat: 9.5, durationBeats: 0.5, velocity: 0.6 },
+          { id: "t2_b", pitchStr: "B3", startBeat: 12, durationBeats: 0.5, velocity: 0.6 }
+        ]
+      }
+    ];
+
+    const region = getUniqueMatchedLoopRegionAtBeat(project.global.loop, 9);
+    expect(region).not.toBeNull();
+
+    const expanded = expandLoopRegionToNotes(project, region!);
+
+    expect(expanded.global.loop).toEqual([]);
+    expect(expanded.tracks[0].notes.map((note) => [note.pitchStr, note.startBeat, note.durationBeats])).toEqual([
+      ["C4", 9, 0.5],
+      ["E4", 10, 1],
+      ["C4", 11, 0.5],
+      ["E4", 12, 1],
+      ["C4", 13, 0.5],
+      ["E4", 14, 1],
+      ["C4", 15, 0.5],
+      ["E4", 16, 1],
+      ["G4", 17, 0.5]
+    ]);
+    expect(expanded.tracks[1].notes.map((note) => [note.pitchStr, note.startBeat, note.durationBeats])).toEqual([
+      ["A3", 9.5, 0.5],
+      ["A3", 11.5, 0.5],
+      ["A3", 13.5, 0.5],
+      ["A3", 15.5, 0.5],
+      ["B3", 18, 0.5]
+    ]);
   });
 });
