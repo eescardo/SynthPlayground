@@ -72,6 +72,7 @@ const TRACK_CANVAS_COLORS = {
   noteSelectedOverlay: "rgba(210, 234, 255, 0.16)",
   noteSelectedBorder: "#d4ecff",
   selectionBoundary: "rgba(255, 123, 151, 0.58)",
+  selectionSourceIndicator: "rgba(255, 112, 112, 0.92)",
   selectionFill: "rgba(79, 184, 255, 0.2)",
   selectionBorder: "rgba(183, 228, 255, 0.95)",
   overlapRange: "rgba(255, 35, 35, 0.52)",
@@ -100,6 +101,9 @@ interface TrackCanvasProps {
   timelineActionsPopoverOpen?: boolean;
   selectedNoteKeys?: ReadonlySet<string>;
   selectionBeatRange?: { startBeat: number; endBeat: number } | null;
+  selectionSourceTrackId?: string;
+  selectionSourceTrackName?: string;
+  selectionIndicatorTrackId?: string;
   hideSelectionActionPopover?: boolean;
   onSetPlayheadBeat: (beat: number) => void;
   onRequestTimelineActionsPopover: (request: TimelineActionsPopoverRequest) => void;
@@ -116,6 +120,8 @@ interface TrackCanvasProps {
   onUpdateNote: (trackId: string, noteId: string, patch: Partial<Note>, options?: { actionKey?: string; coalesce?: boolean }) => void;
   onDeleteNote: (trackId: string, noteId: string) => void;
   onSetNoteSelection: (selectionKeys: string[]) => void;
+  onSetSelectionMarqueeActive: (active: boolean) => void;
+  onPreviewSelectionActionScopeChange: (scope: "source" | "all-tracks") => void;
   onCopySelection: () => void;
   onCutSelection: () => void;
   onCopyAllTracksInSelection: () => void;
@@ -421,6 +427,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
   const updateSelectionFromRect = useCallback((nextRect: SelectionRect | null) => {
     setSelectionRect(nextRect);
+    props.onSetSelectionMarqueeActive(Boolean(nextRect));
     if (!nextRect) {
       return;
     }
@@ -651,6 +658,21 @@ export function TrackCanvas(props: TrackCanvasProps) {
       ctx.stroke();
     }
 
+    if (props.selectionBeatRange && !selectionRect && !props.hideSelectionActionPopover && props.selectionIndicatorTrackId) {
+      const indicatorTrackIndex = props.project.tracks.findIndex((track) => track.id === props.selectionIndicatorTrackId);
+      if (indicatorTrackIndex >= 0) {
+        const indicatorY = RULER_HEIGHT + indicatorTrackIndex * TRACK_HEIGHT;
+        ctx.strokeStyle = TRACK_CANVAS_COLORS.selectionSourceIndicator;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(0, indicatorY + 0.5);
+        ctx.lineTo(width, indicatorY + 0.5);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
     if (selectionRect) {
       const left = Math.min(selectionRect.startX, selectionRect.endX);
       const top = Math.min(selectionRect.startY, selectionRect.endY);
@@ -667,6 +689,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   }, [
     props.countInLabel,
     props.ghostPlayheadBeat,
+    props.hideSelectionActionPopover,
     props.timelineActionsPopoverOpen,
     height,
     hoveredPlayhead,
@@ -682,6 +705,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     props.project.global.loop,
     props.project.tracks,
     props.selectionBeatRange,
+    props.selectionIndicatorTrackId,
     props.selectedNoteKeys,
     props.selectedTrackId,
     selectionRect,
@@ -821,6 +845,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       pointerId: event.pointerId
     };
     setSelectionRect(null);
+    props.onSetSelectionMarqueeActive(false);
     canvas.setPointerCapture(event.pointerId);
   };
 
@@ -990,6 +1015,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
     pendingCanvasActionRef.current = null;
     setSelectionRect(null);
+    props.onSetSelectionMarqueeActive(false);
     const { x, y } = getCanvasPoint(event.clientX, event.clientY);
     const targets = resolvePointerTargets(x, y);
     setCanvasCursor(
@@ -1212,6 +1238,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
         <SelectionActionPopover
           left={selectionPopoverLeft}
           top={selectionPopoverTop}
+          sourceTrackName={props.selectionSourceTrackName ?? "Track 1"}
+          onPreviewScopeChange={props.onPreviewSelectionActionScopeChange}
           onCut={props.onCutSelection}
           onCopy={props.onCopySelection}
           onCutAllTracks={props.onCutAllTracksInSelection}

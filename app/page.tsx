@@ -19,6 +19,7 @@ import {
   buildNoteClipboardPayload,
   cutBeatRangeAcrossAllTracks,
   getNoteSelectionKey,
+  getSelectionSourceTrackId,
   getSelectionBeatRange,
   NoteClipboardPayload,
   parseNoteSelectionKey,
@@ -80,6 +81,8 @@ export default function HomePage() {
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [strictWasmReady, setStrictWasmReady] = useState(process.env.NEXT_PUBLIC_STRICT_WASM !== "1");
   const [selectedNoteKeys, setSelectedNoteKeys] = useState<string[]>([]);
+  const [selectionMarqueeActive, setSelectionMarqueeActive] = useState(false);
+  const [selectionActionScopePreview, setSelectionActionScopePreview] = useState<"source" | "all-tracks">("source");
   const [compatibleClipboardPayload, setCompatibleClipboardPayload] = useState<NoteClipboardPayload | null>(null);
   const [pitchPicker, setPitchPicker] = useState<{ trackId: string; noteId: string } | null>(null);
   const [previewPitch, setPreviewPitch] = useState("C4");
@@ -151,6 +154,17 @@ export default function HomePage() {
   );
   const selectedNoteKeySet = useMemo(() => new Set(selectedNoteKeys), [selectedNoteKeys]);
   const selectionBeatRange = useMemo(() => getSelectionBeatRange(project, selectedNoteKeys), [project, selectedNoteKeys]);
+  const selectionSourceTrackId = useMemo(() => getSelectionSourceTrackId(project, selectedNoteKeys), [project, selectedNoteKeys]);
+  const selectionSourceTrackName = useMemo(
+    () => project.tracks.find((track) => track.id === selectionSourceTrackId)?.name ?? "Track 1",
+    [project.tracks, selectionSourceTrackId]
+  );
+  const selectionIndicatorTrackId = useMemo(() => {
+    if (selectionActionScopePreview === "all-tracks") {
+      return project.tracks[0]?.id ?? null;
+    }
+    return selectionSourceTrackId;
+  }, [project.tracks, selectionActionScopePreview, selectionSourceTrackId]);
 
   const trackNameById = useMemo(() => new Map(project.tracks.map((track) => [track.id, track.name] as const)), [project.tracks]);
 
@@ -237,6 +251,23 @@ export default function HomePage() {
     );
     setSelectedNoteKeys((current) => current.filter((selectionKey) => existingSelectionKeys.has(selectionKey)));
   }, [project.tracks]);
+
+  useEffect(() => {
+    if (!selectionSourceTrackId || selectionMarqueeActive || pitchPicker) {
+      return;
+    }
+    setSelectedTrackId((current) => (current === selectionSourceTrackId ? current : selectionSourceTrackId));
+  }, [pitchPicker, selectionMarqueeActive, selectionSourceTrackId]);
+
+  useEffect(() => {
+    if (!selectionBeatRange) {
+      setSelectionActionScopePreview("source");
+    }
+  }, [selectionBeatRange]);
+
+  useEffect(() => {
+    setSelectionActionScopePreview("source");
+  }, [selectionSourceTrackId]);
 
   useEffect(() => {
     if (!ready || !pendingPreview || playing || !selectedTrack) {
@@ -343,6 +374,8 @@ export default function HomePage() {
     setUserCueBeat(beat);
     setPlayheadBeat(beat);
     setSelectedNoteKeys([]);
+    setSelectionMarqueeActive(false);
+    setSelectionActionScopePreview("source");
     setPitchPicker(null);
   }, []);
   const { applyLoopSettings, addLoopBoundary, updateLoopRepeatCount, removeLoopBoundary, loopConflictDialog, clearLoopConflictDialog } =
@@ -1237,6 +1270,9 @@ export default function HomePage() {
         selectedTrackId={selectedTrack.id}
         selectedNoteKeys={selectedNoteKeySet}
         selectionBeatRange={selectionBeatRange}
+        selectionSourceTrackId={selectionSourceTrackId ?? undefined}
+        selectionSourceTrackName={selectionSourceTrackName}
+        selectionIndicatorTrackId={selectionIndicatorTrackId ?? undefined}
         playheadBeat={playheadBeat}
         activeRecordedNotes={recording.activeRecordedNotes}
         ghostPlayheadBeat={recording.ghostPlayheadBeat ?? undefined}
@@ -1258,6 +1294,8 @@ export default function HomePage() {
         onUpdateNote={updateNote}
         onDeleteNote={deleteNote}
         onSetNoteSelection={setSelectedNoteKeys}
+        onSetSelectionMarqueeActive={setSelectionMarqueeActive}
+        onPreviewSelectionActionScopeChange={setSelectionActionScopePreview}
         onCopySelection={() => {
           void copySelectedNotes();
         }}

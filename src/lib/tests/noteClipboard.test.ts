@@ -8,6 +8,7 @@ import {
   buildNoteClipboardPayload,
   cutBeatRangeAcrossAllTracks,
   getNoteSelectionKey,
+  getSelectionSourceTrackId,
   getSelectionBeatRange,
   parseNoteClipboardPayload,
   serializeNoteClipboardPayload
@@ -187,6 +188,15 @@ describe("noteClipboard", () => {
       startBeat: 2,
       durationBeats: 1
     });
+  });
+
+  it("resolves the source track as the first selected track in song order", () => {
+    const project = createProject();
+
+    expect(getSelectionSourceTrackId(project, [
+      getNoteSelectionKey("track_3", "note_d"),
+      getNoteSelectionKey("track_2", "note_c")
+    ])).toBe("track_2");
   });
 
   it("cuts the selected span across all tracks and closes the gap", () => {

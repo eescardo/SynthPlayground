@@ -159,6 +159,19 @@ export function getSelectionBeatRange(project: Project, selectionKeys: Iterable<
   };
 }
 
+export function getSelectionSourceTrackId(project: Project, selectionKeys: Iterable<string>): string | null {
+  const selectedNoteKeySet = new Set(selectionKeys);
+  if (selectedNoteKeySet.size === 0) {
+    return null;
+  }
+
+  const sourceTrack = project.tracks.find((track) =>
+    track.notes.some((note) => selectedNoteKeySet.has(getNoteSelectionKey(track.id, note.id)))
+  );
+
+  return sourceTrack?.id ?? null;
+}
+
 export function buildNoteClipboardPayload(project: Project, selectionKeys: Iterable<string>): NoteClipboardPayload | null {
   const noteIdsByTrackId = new Map<string, Set<string>>();
   for (const selectionKey of selectionKeys) {
