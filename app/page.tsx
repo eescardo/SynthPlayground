@@ -6,19 +6,16 @@ import { loadDspWasm } from "@/audio/wasmBridge";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import { PianoKeyboard } from "@/components/PianoKeyboard";
+import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { TimelineActionsPopover } from "@/components/TimelineActionsPopover";
 import { TimelineActionsPopoverRequest, TrackCanvas } from "@/components/TrackCanvas";
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
 import { getSanitizedLoopMarkers } from "@/lib/looping";
 import {
-  applyNoteClipboardPaste,
-  buildNoteClipboardPayload,
   getNoteSelectionKey,
   getSelectionSourceTrackId,
   getSelectionBeatRange,
-  parseNoteClipboardPayload,
-  serializeNoteClipboardPayload
 } from "@/lib/noteClipboard";
 import { clearProject, loadProject, saveProject } from "@/lib/persistence";
 import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
@@ -33,9 +30,12 @@ import { removeTrackFromProject, renameTrackInProject } from "@/lib/trackEdits";
 import { useCompatibleClipboard } from "@/hooks/useCompatibleClipboard";
 import { useNoteEditor } from "@/hooks/useNoteEditor";
 import { useLoopSettings } from "@/hooks/useLoopSettings";
+import { useEditorClipboardEvents } from "@/hooks/useEditorClipboardEvents";
+import { useEditorKeyboardShortcuts } from "@/hooks/useEditorKeyboardShortcuts";
 import { usePlatformShortcuts } from "@/hooks/usePlatformShortcuts";
 import { usePlaybackController } from "@/hooks/usePlaybackController";
 import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
+import { useQuickHelpDialog } from "@/hooks/useQuickHelpDialog";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
 import { Project } from "@/types/music";
@@ -74,7 +74,6 @@ export default function HomePage() {
   const [userCueBeat, setUserCueBeat] = useState(0);
   const [selectedTrackId, setSelectedTrackId] = useState<string | undefined>(undefined);
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(undefined);
-  const [helpOpen, setHelpOpen] = useState(false);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [strictWasmReady, setStrictWasmReady] = useState(process.env.NEXT_PUBLIC_STRICT_WASM !== "1");
   const [selectedNoteKeys, setSelectedNoteKeys] = useState<string[]>([]);
@@ -109,6 +108,11 @@ export default function HomePage() {
     isDeleteShortcutKey,
     primaryModifierLabel
   } = usePlatformShortcuts();
+  const { closeHelp, helpOpen, keyboardShortcuts, openHelp } = useQuickHelpDialog({
+    allTracksModifierLabel,
+    deleteKeyLabel,
+    primaryModifierLabel
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -683,182 +687,38 @@ export default function HomePage() {
     setProjectHistory((prev) => redoHistory(prev));
   }, []);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const editingText = target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA");
-      const primaryModifier = event.metaKey || event.ctrlKey;
-      const lowerKey = event.key.toLowerCase();
-      const isDeleteKey = isDeleteShortcutKey(event.key);
-
-      const isHelpKey = event.key === "?" || (event.key === "/" && event.shiftKey);
-      if (isHelpKey && !editingText) {
-        event.preventDefault();
-        setHelpOpen(true);
-      }
-
-      if (event.key === "Escape") {
-        setHelpOpen(false);
-        setPitchPicker(null);
-        setPreviewPitchPickerOpen(false);
-        setPatchRemovalDialog(null);
-        setTimelineActionsPopover(null);
-        setSelectedNoteKeys([]);
-      }
-
-      const isUndo = (event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "z";
-      const isRedo =
-        ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "z") ||
-        ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "y");
-
-      if (!editingText && isRedo) {
-        event.preventDefault();
-        redoProject();
-        return;
-      }
-
-      if (!editingText && isUndo) {
-        event.preventDefault();
-        undoProject();
-        return;
-      }
-
-      if (editingText) {
-        return;
-      }
-
-      if (primaryModifier && event.altKey && !event.shiftKey && lowerKey === "x") {
-        event.preventDefault();
-        void cutAllTracksInSelection();
-        return;
-      }
-
-      if (primaryModifier && event.altKey && !event.shiftKey && lowerKey === "c") {
-        event.preventDefault();
-        void copyAllTracksInSelection();
-        return;
-      }
-
-      if (primaryModifier && event.altKey && !event.shiftKey && lowerKey === "v") {
-        event.preventDefault();
-        applyCompatiblePaste("paste-all-tracks", playheadBeat);
-        return;
-      }
-
-      if (primaryModifier && event.altKey && !event.shiftKey && lowerKey === "i") {
-        event.preventDefault();
-        applyCompatiblePaste("insert-all-tracks", playheadBeat);
-        return;
-      }
-
-      if (primaryModifier && event.altKey && !event.shiftKey && isDeleteKey) {
-        event.preventDefault();
-        deleteAllTracksInSelection();
-        return;
-      }
-
-      if (primaryModifier && !event.altKey && !event.shiftKey && lowerKey === "i") {
-        event.preventDefault();
-        applyCompatiblePaste("insert", playheadBeat);
-        return;
-      }
-
-      if (!primaryModifier && !event.altKey && !event.shiftKey && isDeleteKey && selectedNoteKeys.length > 0) {
-        event.preventDefault();
-        deleteSelectedNoteSelection();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [
+  useEditorKeyboardShortcuts({
     applyCompatiblePaste,
     copyAllTracksInSelection,
     cutAllTracksInSelection,
     deleteAllTracksInSelection,
     deleteSelectedNoteSelection,
     isDeleteShortcutKey,
+    onCloseTransientUi: () => {
+      closeHelp();
+      setPitchPicker(null);
+      setPreviewPitchPickerOpen(false);
+      setPatchRemovalDialog(null);
+      setTimelineActionsPopover(null);
+      setSelectedNoteKeys([]);
+    },
+    onOpenHelp: openHelp,
     playheadBeat,
     redoProject,
-    selectedNoteKeys.length,
+    selectedNoteCount: selectedNoteKeys.length,
     undoProject
-  ]);
+  });
 
-  useEffect(() => {
-    const onCopy = (event: ClipboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const editingText = target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA");
-      if (editingText || selectedNoteKeys.length === 0 || !event.clipboardData) {
-        return;
-      }
-
-      const payload = buildNoteClipboardPayload(project, selectedNoteKeys);
-      if (!payload) {
-        return;
-      }
-
-      setCompatibleClipboardPayload(payload);
-      const serialized = serializeNoteClipboardPayload(payload);
-      event.preventDefault();
-      event.clipboardData.setData("text/plain", serialized.plainText);
-      event.clipboardData.setData("text/html", serialized.html);
-    };
-
-    const onCut = (event: ClipboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const editingText = target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA");
-      if (editingText || selectedNoteKeys.length === 0 || !event.clipboardData) {
-        return;
-      }
-
-      const payload = buildNoteClipboardPayload(project, selectedNoteKeys);
-      if (!payload) {
-        return;
-      }
-
-      setCompatibleClipboardPayload(payload);
-      const serialized = serializeNoteClipboardPayload(payload);
-      event.preventDefault();
-      event.clipboardData.setData("text/plain", serialized.plainText);
-      event.clipboardData.setData("text/html", serialized.html);
-      deleteSelectedNotes(selectedNoteKeys);
-    };
-
-    const onPaste = (event: ClipboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const editingText = target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA");
-      if (editingText || !selectedTrack?.id || !event.clipboardData) {
-        return;
-      }
-
-      const payload = parseNoteClipboardPayload(
-        event.clipboardData.getData("text/html"),
-        event.clipboardData.getData("text/plain")
-      );
-      if (!payload) {
-        return;
-      }
-
-      let nextSelectionKeys: string[] = [];
-      setCompatibleClipboardPayload(payload);
-      event.preventDefault();
-      commitProjectChange((current) => {
-        const applied = applyNoteClipboardPaste(current, payload, selectedTrack.id, playheadBeat);
-        nextSelectionKeys = applied.selectionKeys;
-        return applied.project;
-      }, { actionKey: `track:${selectedTrack.id}:paste-notes` });
-      setSelectedNoteKeys(nextSelectionKeys);
-    };
-
-    window.addEventListener("copy", onCopy);
-    window.addEventListener("cut", onCut);
-    window.addEventListener("paste", onPaste);
-    return () => {
-      window.removeEventListener("copy", onCopy);
-      window.removeEventListener("cut", onCut);
-      window.removeEventListener("paste", onPaste);
-    };
-  }, [commitProjectChange, deleteSelectedNotes, playheadBeat, project, selectedNoteKeys, selectedTrack?.id, setCompatibleClipboardPayload]);
+  useEditorClipboardEvents({
+    commitProjectChange,
+    deleteSelectedNotes,
+    playheadBeat,
+    project,
+    selectedNoteKeys,
+    selectedTrackId: selectedTrack?.id,
+    setCompatibleClipboardPayload,
+    setSelectedNoteKeys
+  });
 
   usePitchPickerHotkeys(Boolean(pitchPicker), useCallback((pitch: string) => {
     if (!pitchPicker) return;
@@ -1079,21 +939,6 @@ export default function HomePage() {
   const pitchPickerNote = pitchPickerTrack?.notes.find((note) => note.id === pitchPicker?.noteId);
   const activeRecordingTrackId = recording.activeRecordingTrackId;
   const activeRecordingTrack = activeRecordingTrackId ? project.tracks.find((track) => track.id === activeRecordingTrackId) : undefined;
-  const keyboardShortcuts = [
-    { action: "Help", shortcut: "?" },
-    { action: "Cut Selection", shortcut: `${primaryModifierLabel}+X` },
-    { action: "Copy Selection", shortcut: `${primaryModifierLabel}+C` },
-    { action: "Paste To Selected Track", shortcut: `${primaryModifierLabel}+V` },
-    { action: "Delete Selection", shortcut: deleteKeyLabel },
-    { action: "Insert At Playhead", shortcut: `${primaryModifierLabel}+I` },
-    { action: "Cut All Tracks", shortcut: `${allTracksModifierLabel}+X` },
-    { action: "Copy All Tracks", shortcut: `${allTracksModifierLabel}+C` },
-    { action: "Paste All Tracks", shortcut: `${allTracksModifierLabel}+V` },
-    { action: "Delete All Tracks", shortcut: `${allTracksModifierLabel}+${deleteKeyLabel}` },
-    { action: "Insert All Tracks", shortcut: `${allTracksModifierLabel}+I` },
-    { action: "Close Dialogs / Clear Selection", shortcut: "Esc" }
-  ];
-
   return (
     <main className="app">
       <TransportBar
@@ -1141,7 +986,7 @@ export default function HomePage() {
         <button disabled={recording.recordEnabled || project.tracks.length <= 1} onClick={removeSelectedTrack}>
           Remove Track
         </button>
-        <button onClick={() => setHelpOpen(true)}>Help (?)</button>
+        <button onClick={openHelp}>Help (?)</button>
         <button onClick={exportJson}>Export Project JSON</button>
         <button onClick={() => importInputRef.current?.click()}>Import Project JSON</button>
         <button
@@ -1321,41 +1166,7 @@ export default function HomePage() {
         onExposeMacro={exposePatchMacro}
       />
 
-      {helpOpen && (
-        <div className="help-modal-backdrop" role="dialog" aria-modal="true" onClick={() => setHelpOpen(false)}>
-          <div className="help-modal quick-help-modal" onClick={(event) => event.stopPropagation()}>
-            <h3>Quick Help</h3>
-            <div className="quick-help-grid">
-              <div className="quick-help-section">
-                <h4>Mouse</h4>
-                <p><strong>Add note:</strong> Click an empty track lane when nothing is selected.</p>
-                <p><strong>Select notes:</strong> Drag a marquee across notes, or click an existing note.</p>
-                <p><strong>Move note:</strong> Drag a note block horizontally.</p>
-                <p><strong>Resize note:</strong> Drag near the right edge of a note block.</p>
-                <p><strong>Delete note:</strong> Right-click a note block.</p>
-                <p><strong>Change note pitch:</strong> Hover the pitch label and use the mouse wheel.</p>
-                <p><strong>Timeline actions:</strong> Click the playhead or a loop marker to open timeline actions.</p>
-              </div>
-              <div className="quick-help-section">
-                <h4>Keyboard</h4>
-                <div className="quick-help-shortcuts" role="table" aria-label="Keyboard shortcuts">
-                  {keyboardShortcuts.map((entry) => (
-                    <div key={entry.action} className="quick-help-shortcut-row" role="row">
-                      <div className="quick-help-shortcut-action" role="cell">{entry.action}</div>
-                      <div className="quick-help-shortcut-keys" role="cell">
-                        {entry.shortcut.split("+").map((part) => (
-                          <kbd key={`${entry.action}-${part}`}>{part}</kbd>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <p className="muted">Press <kbd>Esc</kbd> to close this help panel.</p>
-          </div>
-        </div>
-      )}
+      <QuickHelpDialog keyboardShortcuts={keyboardShortcuts} onClose={closeHelp} open={helpOpen} />
 
       {pitchPicker && pitchPickerNote && (
         <div className="help-modal-backdrop" role="dialog" aria-modal="true" onClick={closePitchPicker}>
