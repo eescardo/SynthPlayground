@@ -11,7 +11,7 @@ import { TimelineActionsPopover } from "@/components/TimelineActionsPopover";
 import { TimelineActionsPopoverRequest, TrackCanvas } from "@/components/TrackCanvas";
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
-import { getSanitizedLoopMarkers } from "@/lib/looping";
+import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import {
   getNoteSelectionKey,
@@ -470,6 +470,21 @@ export default function HomePage() {
   );
   const startMarkerAtTimelineBeat = timelineMarkersAtBeat.find((marker) => marker.kind === "start");
   const endMarkerAtTimelineBeat = timelineMarkersAtBeat.find((marker) => marker.kind === "end");
+  const expandableLoopRegion = useMemo(
+    () => (timelineActionsPopover ? getUniqueMatchedLoopRegionAtBeat(project.global.loop, timelineActionsPopover.beat) : null),
+    [project.global.loop, timelineActionsPopover]
+  );
+
+  const expandSelectedLoopToNotes = useCallback(() => {
+    if (!expandableLoopRegion) {
+      return;
+    }
+    commitProjectChange(
+      (current) => expandLoopRegionToNotes(current, expandableLoopRegion),
+      { actionKey: `global:loop:expand:${expandableLoopRegion.startMarkerId}` }
+    );
+    setTimelineActionsPopover(null);
+  }, [commitProjectChange, expandableLoopRegion]);
 
   const requestTimelineActionsPopover = useCallback((request: TimelineActionsPopoverRequest) => {
     setTimelineActionsPopover(request);
@@ -1085,6 +1100,7 @@ export default function HomePage() {
           showPasteActions={Boolean(noteClipboardPayload)}
           showAddStart={!startMarkerAtTimelineBeat}
           showAddEnd={timelineActionsPopover.beat > 0 && !endMarkerAtTimelineBeat}
+          showExpandLoopToNotes={Boolean(expandableLoopRegion)}
           startMarkerId={startMarkerAtTimelineBeat?.id}
           endMarkerId={endMarkerAtTimelineBeat?.id}
           endRepeatCount={endMarkerAtTimelineBeat?.repeatCount}
@@ -1094,6 +1110,7 @@ export default function HomePage() {
           onInsertAllTracks={() => applyNoteClipboardPaste("insert-all-tracks", timelineActionsPopover.beat)}
           onAddStart={() => addLoopBoundary(timelineActionsPopover.beat, "start")}
           onAddEnd={() => addLoopBoundary(timelineActionsPopover.beat, "end")}
+          onExpandLoopToNotes={expandSelectedLoopToNotes}
           onUpdateRepeatCount={(repeatCount) => {
             if (endMarkerAtTimelineBeat) {
               updateLoopRepeatCount(endMarkerAtTimelineBeat.id, repeatCount);
