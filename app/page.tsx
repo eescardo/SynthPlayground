@@ -323,9 +323,27 @@ export default function HomePage() {
     setRuntimeError
   });
 
+  const previewNoteForPitchPicker = useCallback((trackId: string, noteId: string, pitch: string) => {
+    if (playing) {
+      return;
+    }
+
+    const track = project.tracks.find((entry) => entry.id === trackId);
+    const note = track?.notes.find((entry) => entry.id === noteId);
+    if (!track || !note) {
+      return;
+    }
+
+    audioEngineRef.current
+      ?.previewNote(trackId, pitchToVoct(pitch), note.durationBeats, note.velocity)
+      .catch((error) => setRuntimeError((error as Error).message));
+  }, [playing, project.tracks]);
+
   const setPlayheadFromUser = useCallback((beat: number) => {
     setUserCueBeat(beat);
     setPlayheadBeat(beat);
+    setSelectedNoteKeys([]);
+    setPitchPicker(null);
   }, []);
   const { applyLoopSettings, addLoopBoundary, updateLoopRepeatCount, removeLoopBoundary, loopConflictDialog, clearLoopConflictDialog } =
     useLoopSettings({
@@ -465,7 +483,9 @@ export default function HomePage() {
 
   const openPitchPicker = useCallback((trackId: string, noteId: string) => {
     setPitchPicker({ trackId, noteId });
-  }, []);
+    const notePitch = project.tracks.find((track) => track.id === trackId)?.notes.find((note) => note.id === noteId)?.pitchStr;
+    previewNoteForPitchPicker(trackId, noteId, notePitch ?? "C4");
+  }, [previewNoteForPitchPicker, project.tracks]);
 
   const closePitchPicker = useCallback(() => {
     setPitchPicker(null);
@@ -906,8 +926,9 @@ export default function HomePage() {
     updateNote(pitchPicker.trackId, pitchPicker.noteId, { pitchStr: pitch }, {
       actionKey: `track:${pitchPicker.trackId}:pitch:${pitchPicker.noteId}`
     });
+    previewNoteForPitchPicker(pitchPicker.trackId, pitchPicker.noteId, pitch);
     closePitchPicker();
-  }, [closePitchPicker, pitchPicker, updateNote]));
+  }, [closePitchPicker, pitchPicker, previewNoteForPitchPicker, updateNote]));
 
   usePitchPickerHotkeys(previewPitchPickerOpen, useCallback((pitch: string) => {
     setPreviewPitch(pitch);
@@ -1221,6 +1242,7 @@ export default function HomePage() {
         ghostPlayheadBeat={recording.ghostPlayheadBeat ?? undefined}
         countInLabel={recording.countInLabel ?? undefined}
         timelineActionsPopoverOpen={Boolean(timelineActionsPopover)}
+        hideSelectionActionPopover={Boolean(pitchPicker)}
         onSetPlayheadBeat={setPlayheadFromUser}
         onRequestTimelineActionsPopover={requestTimelineActionsPopover}
         onSelectTrack={setSelectedTrackId}
@@ -1393,6 +1415,7 @@ export default function HomePage() {
                 updateNote(pitchPicker.trackId, pitchPicker.noteId, { pitchStr: pitch }, {
                   actionKey: `track:${pitchPicker.trackId}:pitch:${pitchPicker.noteId}`
                 });
+                previewNoteForPitchPicker(pitchPicker.trackId, pitchPicker.noteId, pitch);
                 closePitchPicker();
               }}
             />

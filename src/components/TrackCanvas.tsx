@@ -100,6 +100,7 @@ interface TrackCanvasProps {
   timelineActionsPopoverOpen?: boolean;
   selectedNoteKeys?: ReadonlySet<string>;
   selectionBeatRange?: { startBeat: number; endBeat: number } | null;
+  hideSelectionActionPopover?: boolean;
   onSetPlayheadBeat: (beat: number) => void;
   onRequestTimelineActionsPopover: (request: TimelineActionsPopoverRequest) => void;
   onSelectTrack: (trackId: string) => void;
@@ -1207,7 +1208,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         onPointerLeave={onPointerLeave}
         onContextMenu={(event) => event.preventDefault()}
       />
-      {props.selectionBeatRange && !selectionRect && (
+      {props.selectionBeatRange && !selectionRect && !props.hideSelectionActionPopover && (
         <SelectionActionPopover
           left={selectionPopoverLeft}
           top={selectionPopoverTop}
