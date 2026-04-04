@@ -191,7 +191,7 @@ jobs:
           mkdir -p "pr-$PR_NUMBER"
           rm -rf "pr-$PR_NUMBER"/*
           cp -R "$AFTER_DIR"/. "pr-$PR_NUMBER/"
-          VIDEO_PAGES_DIR="pr-$PR_NUMBER" node --import tsx scripts/ui-videos/generate-pages-site.ts
+          VIDEO_PAGES_DIR="pr-$PR_NUMBER" node scripts/ui-videos/generate-pages-site.mjs
           touch .nojekyll
 
           git add .nojekyll "pr-$PR_NUMBER"
