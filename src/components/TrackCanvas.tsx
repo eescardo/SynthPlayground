@@ -141,8 +141,10 @@ interface TrackCanvasProps {
     options?: { keyframeId?: string; commit?: boolean }
   ) => void;
   onDeleteTrackMacroAutomationKeyframe: (trackId: string, macroId: string, keyframeId: string) => void;
+  onPreviewTrackMacroAutomation: (trackId: string, macroId: string, normalized: number, options?: { retrigger?: boolean }) => void;
   onResetTrackMacros: (trackId: string) => void;
   onOpenPitchPicker: (trackId: string, noteId: string) => void;
+  onPreviewPlacedNote: (trackId: string, note: Note) => void;
   onUpsertNote: (trackId: string, note: Note, options?: { actionKey?: string; coalesce?: boolean }) => void;
   onUpdateNote: (trackId: string, noteId: string, patch: Partial<Note>, options?: { actionKey?: string; coalesce?: boolean }) => void;
   onDeleteNote: (trackId: string, noteId: string) => void;
@@ -1086,6 +1088,12 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
 
     if (automationKeyframe) {
+      props.onPreviewTrackMacroAutomation(
+        automationKeyframe.trackId,
+        automationKeyframe.macroId,
+        automationKeyframe.value,
+        { retrigger: true }
+      );
       automationDragRef.current = {
         trackId: automationKeyframe.trackId,
         macroId: automationKeyframe.macroId,
@@ -1099,11 +1107,15 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
 
     if (automationLaneHit) {
+      const previewValue = automationValueFromY(y, automationLaneHit.lane.y, automationLaneHit.lane.height);
+      props.onPreviewTrackMacroAutomation(automationLaneHit.track.id, automationLaneHit.lane.macroId, previewValue, {
+        retrigger: true
+      });
       pendingAutomationActionRef.current = {
         trackId: automationLaneHit.track.id,
         macroId: automationLaneHit.lane.macroId,
         beat: Math.max(0, snapToGrid(beatFromX(x), props.project.global.gridBeats)),
-        value: automationValueFromY(y, automationLaneHit.lane.y, automationLaneHit.lane.height),
+        value: previewValue,
         pointerId: event.pointerId
       };
       canvas.setPointerCapture(event.pointerId);
@@ -1249,10 +1261,12 @@ export function TrackCanvas(props: TrackCanvasProps) {
       if (!lane) {
         return;
       }
+      const nextValue = automationValueFromY(y, lane.y, lane.height);
       pendingAutomationActionRef.current = {
         ...pendingAutomationAction,
-        value: automationValueFromY(y, lane.y, lane.height)
+        value: nextValue
       };
+      props.onPreviewTrackMacroAutomation(pendingAutomationAction.trackId, pendingAutomationAction.macroId, nextValue);
       setCanvasCursor("ns-resize");
       return;
     }
@@ -1279,11 +1293,13 @@ export function TrackCanvas(props: TrackCanvasProps) {
       if (!lane) {
         return;
       }
+      const nextValue = automationValueFromY(y, lane.y, lane.height);
+      props.onPreviewTrackMacroAutomation(automationDrag.trackId, automationDrag.macroId, nextValue);
       props.onUpsertTrackMacroAutomationKeyframe(
         automationDrag.trackId,
         automationDrag.macroId,
         automationDrag.beat,
-        automationValueFromY(y, lane.y, lane.height),
+        nextValue,
         {
           keyframeId: automationDrag.boundary ? undefined : automationDrag.keyframeId,
           commit: false
@@ -1365,6 +1381,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       props.onUpsertNote(pendingAction.trackId, newNote, {
         actionKey: `track:${pendingAction.trackId}:note:${newNote.id}:create`
       });
+      props.onPreviewPlacedNote(pendingAction.trackId, newNote);
     }
 
     if (pendingAutomationAction) {

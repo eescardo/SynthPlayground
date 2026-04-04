@@ -953,6 +953,22 @@ export default function HomePage() {
     }
   }, [commitProjectChange, project.patches, project.tracks, schedulePatchPreview]);
 
+  const previewTrackMacroAutomation = useCallback((trackId: string, macroId: string, normalized: number, options?: { retrigger?: boolean }) => {
+    audioEngineRef.current?.setMacroValue(trackId, macroId, normalized);
+    if (!options?.retrigger) {
+      return;
+    }
+    audioEngineRef.current
+      ?.previewNote(trackId, pitchToVoct(previewPitch), 2)
+      .catch((error) => setRuntimeError((error as Error).message));
+  }, [previewPitch]);
+
+  const previewPlacedNote = useCallback((trackId: string, note: Project["tracks"][number]["notes"][number]) => {
+    audioEngineRef.current
+      ?.previewNote(trackId, pitchToVoct(note.pitchStr), note.durationBeats, note.velocity)
+      .catch((error) => setRuntimeError((error as Error).message));
+  }, []);
+
   const promoteTrackMacroToAutomation = useCallback((trackId: string, macroId: string, initialValue: number) => {
     commitProjectChange(
       (current) => ({
@@ -1221,8 +1237,10 @@ export default function HomePage() {
         onToggleTrackMacroAutomationLane={toggleTrackMacroAutomationLane}
         onUpsertTrackMacroAutomationKeyframe={upsertTrackMacroAutomationKeyframe}
         onDeleteTrackMacroAutomationKeyframe={deleteTrackMacroAutomationKeyframe}
+        onPreviewTrackMacroAutomation={previewTrackMacroAutomation}
         onResetTrackMacros={resetSelectedPatchMacros}
         onOpenPitchPicker={openPitchPicker}
+        onPreviewPlacedNote={previewPlacedNote}
         onUpsertNote={upsertNote}
         onUpdateNote={updateNote}
         onDeleteNote={deleteNote}
