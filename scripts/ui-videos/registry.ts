@@ -105,7 +105,7 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await page.keyboard.press("ControlOrMeta+X");
       await page.waitForTimeout(postActionSettleMs);
 
-      await canvas.click({ position: { x: 80, y: 270 } });
+      await page.getByRole("button", { name: "Rename track Track 5" }).click({ force: true });
       await page.waitForTimeout(postActionSettleMs);
 
       await canvas.click({ position: { x: 760, y: 12 } });
