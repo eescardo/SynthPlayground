@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MacroPanel } from "@/components/MacroPanel";
+import { SelectionActionPopover } from "@/components/SelectionActionPopover";
 import { TrackVolumePopover } from "@/components/TrackVolumePopover";
 import {
   CanvasCursor,
@@ -21,9 +22,10 @@ import {
   PLAYHEAD_HIT_HALF_WIDTH
 } from "@/components/trackCanvasGeometry";
 import { useVolumePopover } from "@/hooks/useVolumePopover";
-import { createId } from "@/lib/ids";
 import { getLoopMarkerStates } from "@/lib/looping";
+import { createDefaultPlacedNote } from "@/lib/noteDefaults";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
+import { getNoteSelectionKey } from "@/lib/noteClipboard";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
 import { formatBeatName, snapToGrid } from "@/lib/musicTiming";
@@ -67,6 +69,12 @@ const TRACK_CANVAS_COLORS = {
   noteHoverBorder: "rgba(214, 238, 255, 0.95)",
   notePitchHover: "rgba(255, 219, 120, 0.26)",
   noteLabel: "#ecf5ff",
+  noteSelectedOverlay: "rgba(210, 234, 255, 0.16)",
+  noteSelectedBorder: "#d4ecff",
+  selectionBoundary: "rgba(255, 123, 151, 0.58)",
+  selectionSourceIndicator: "rgba(255, 112, 112, 0.92)",
+  selectionFill: "rgba(79, 184, 255, 0.2)",
+  selectionBorder: "rgba(183, 228, 255, 0.95)",
   overlapRange: "rgba(255, 35, 35, 0.52)",
   playhead: "#ff5a7b",
   ghostPlayhead: "rgba(121, 201, 255, 0.82)",
@@ -91,6 +99,12 @@ interface TrackCanvasProps {
   ghostPlayheadBeat?: number;
   countInLabel?: string;
   timelineActionsPopoverOpen?: boolean;
+  selectedNoteKeys?: ReadonlySet<string>;
+  selectionBeatRange?: { startBeat: number; endBeat: number } | null;
+  selectionSourceTrackId?: string;
+  selectionSourceTrackName?: string;
+  selectionIndicatorTrackId?: string;
+  hideSelectionActionPopover?: boolean;
   onSetPlayheadBeat: (beat: number) => void;
   onRequestTimelineActionsPopover: (request: TimelineActionsPopoverRequest) => void;
   onSelectTrack: (trackId: string) => void;
@@ -105,6 +119,15 @@ interface TrackCanvasProps {
   onUpsertNote: (trackId: string, note: Note, options?: { actionKey?: string; coalesce?: boolean }) => void;
   onUpdateNote: (trackId: string, noteId: string, patch: Partial<Note>, options?: { actionKey?: string; coalesce?: boolean }) => void;
   onDeleteNote: (trackId: string, noteId: string) => void;
+  onSetNoteSelection: (selectionKeys: string[]) => void;
+  onSetSelectionMarqueeActive: (active: boolean) => void;
+  onPreviewSelectionActionScopeChange: (scope: "source" | "all-tracks") => void;
+  onCopySelection: () => void;
+  onCutSelection: () => void;
+  onDeleteSelection: () => void;
+  onCopyAllTracksInSelection: () => void;
+  onCutAllTracksInSelection: () => void;
+  onDeleteAllTracksInSelection: () => void;
 }
 
 interface DragState {
@@ -122,6 +145,21 @@ interface NoteRect {
   y: number;
   w: number;
   h: number;
+}
+
+interface SelectionRect {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}
+
+interface PendingCanvasAction {
+  trackId: string;
+  startX: number;
+  startY: number;
+  beat: number;
+  pointerId: number;
 }
 
 export interface TimelineActionsPopoverRequest {
@@ -279,6 +317,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
+  const pendingCanvasActionRef = useRef<PendingCanvasAction | null>(null);
   const noteRectsRef = useRef<NoteRect[]>([]);
   const muteRectsRef = useRef<MuteRect[]>([]);
   const pitchRectsRef = useRef<PitchRect[]>([]);
@@ -299,6 +338,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const [canvasCursor, setCanvasCursor] = useState<CanvasCursor>("default");
   const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
   const [editingTrackName, setEditingTrackName] = useState("");
+  const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
   const {
     volumePopoverTrackId,
     openVolumePopover,
@@ -313,6 +353,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const selectedPatch = selectedTrack
     ? props.project.patches.find((patch) => patch.id === selectedTrack.instrumentPatchId) ?? null
     : null;
+  const selectionPopoverLeft = props.selectionBeatRange
+    ? HEADER_WIDTH + props.selectionBeatRange.endBeat * BEAT_WIDTH + 14
+    : 0;
+  const selectionPopoverTop = 10;
 
   const getPatchOptionLabel = useCallback((patch: Project["patches"][number]) => {
     const presetStatus = resolvePatchPresetStatus(patch);
@@ -381,6 +425,23 @@ export function TrackCanvas(props: TrackCanvasProps) {
       hoverTarget
     };
   }, [props.playheadBeat]);
+
+  const updateSelectionFromRect = useCallback((nextRect: SelectionRect | null) => {
+    setSelectionRect(nextRect);
+    props.onSetSelectionMarqueeActive(Boolean(nextRect));
+    if (!nextRect) {
+      return;
+    }
+
+    const left = Math.min(nextRect.startX, nextRect.endX);
+    const right = Math.max(nextRect.startX, nextRect.endX);
+    const top = Math.min(nextRect.startY, nextRect.endY);
+    const bottom = Math.max(nextRect.startY, nextRect.endY);
+    const selectedKeys = noteRectsRef.current
+      .filter((rect) => rect.x < right && rect.x + rect.w > left && rect.y < bottom && rect.y + rect.h > top)
+      .map((rect) => getNoteSelectionKey(rect.trackId, rect.noteId));
+    props.onSetNoteSelection(selectedKeys);
+  }, [props]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -479,8 +540,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const noteY = y + 14;
         const noteH = TRACK_HEIGHT - 28;
         const overlaps = overlapNoteIds.has(note.id);
-        const isHovered =
-          hoveredNote?.trackId === track.id && hoveredNote.noteId === note.id;
+        const isHovered = hoveredNote?.trackId === track.id && hoveredNote.noteId === note.id;
+        const noteSelected = props.selectedNoteKeys?.has(getNoteSelectionKey(track.id, note.id)) ?? false;
 
         ctx.fillStyle = overlaps
           ? trackSilenced
@@ -506,6 +567,16 @@ export function TrackCanvas(props: TrackCanvasProps) {
         } else {
           ctx.fillStyle = TRACK_CANVAS_COLORS.noteEdgeHighlight;
           ctx.fillRect(noteX, noteY, noteW, 2);
+        }
+
+        if (noteSelected) {
+          ctx.fillStyle = TRACK_CANVAS_COLORS.noteSelectedOverlay;
+          ctx.fillRect(noteX, noteY, noteW, noteH);
+          ctx.strokeStyle = TRACK_CANVAS_COLORS.noteSelectedBorder;
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 3]);
+          ctx.strokeRect(noteX + 1, noteY + 1, Math.max(0, noteW - 2), Math.max(0, noteH - 2));
+          ctx.setLineDash([]);
         }
 
         const labelX = noteX + 6;
@@ -574,9 +645,52 @@ export function TrackCanvas(props: TrackCanvasProps) {
       loopMarkerRectsRef.current.push({ markerId: marker.markerId, kind: marker.kind, beat: marker.beat, x: markerX - 18, y: 0, w: 30, h: height });
     }
     drawGhostPlayhead(ctx, props.ghostPlayheadBeat, props.countInLabel, height);
+
+    if (props.selectionBeatRange) {
+      const startX = HEADER_WIDTH + props.selectionBeatRange.startBeat * BEAT_WIDTH;
+      const endX = HEADER_WIDTH + props.selectionBeatRange.endBeat * BEAT_WIDTH;
+      ctx.strokeStyle = TRACK_CANVAS_COLORS.selectionBoundary;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(startX, 0);
+      ctx.lineTo(startX, height);
+      ctx.moveTo(endX, 0);
+      ctx.lineTo(endX, height);
+      ctx.stroke();
+    }
+
+    if (props.selectionBeatRange && !selectionRect && !props.hideSelectionActionPopover && props.selectionIndicatorTrackId) {
+      const indicatorTrackIndex = props.project.tracks.findIndex((track) => track.id === props.selectionIndicatorTrackId);
+      if (indicatorTrackIndex >= 0) {
+        const indicatorY = RULER_HEIGHT + indicatorTrackIndex * TRACK_HEIGHT;
+        ctx.strokeStyle = TRACK_CANVAS_COLORS.selectionSourceIndicator;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(0, indicatorY + 0.5);
+        ctx.lineTo(width, indicatorY + 0.5);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    if (selectionRect) {
+      const left = Math.min(selectionRect.startX, selectionRect.endX);
+      const top = Math.min(selectionRect.startY, selectionRect.endY);
+      const widthRect = Math.abs(selectionRect.endX - selectionRect.startX);
+      const heightRect = Math.abs(selectionRect.endY - selectionRect.startY);
+      ctx.fillStyle = TRACK_CANVAS_COLORS.selectionFill;
+      ctx.fillRect(left, top, widthRect, heightRect);
+      ctx.strokeStyle = TRACK_CANVAS_COLORS.selectionBorder;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 4]);
+      ctx.strokeRect(left + 0.5, top + 0.5, Math.max(0, widthRect - 1), Math.max(0, heightRect - 1));
+      ctx.setLineDash([]);
+    }
   }, [
     props.countInLabel,
     props.ghostPlayheadBeat,
+    props.hideSelectionActionPopover,
     props.timelineActionsPopoverOpen,
     height,
     hoveredPlayhead,
@@ -591,7 +705,11 @@ export function TrackCanvas(props: TrackCanvasProps) {
     props.project.global.gridBeats,
     props.project.global.loop,
     props.project.tracks,
+    props.selectionBeatRange,
+    props.selectionIndicatorTrackId,
+    props.selectedNoteKeys,
     props.selectedTrackId,
+    selectionRect,
     speakerIconsReady,
     totalBeats,
     width
@@ -645,6 +763,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     if (!canvas) return;
     const { x, y } = getCanvasPoint(event.clientX, event.clientY);
     const targets = resolvePointerTargets(x, y);
+    const hasActiveSelection = Boolean(props.selectedNoteKeys?.size);
 
     if (targets.hoverTarget === "loop-marker" && targets.loopMarkerRect) {
       props.onSetPlayheadBeat(targets.loopMarkerRect.beat);
@@ -689,6 +808,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
 
     if (targets.hoverTarget === "pitch" && targets.pitchRect && event.button === 0) {
+      props.onSetNoteSelection([getNoteSelectionKey(targets.pitchRect.trackId, targets.pitchRect.noteId)]);
       props.onOpenPitchPicker(targets.pitchRect.trackId, targets.pitchRect.noteId);
       setCanvasCursor("pointer");
       return;
@@ -705,6 +825,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       const note = track.notes.find((entry) => entry.id === targets.noteRect?.noteId);
       if (!note) return;
 
+      props.onSetNoteSelection([getNoteSelectionKey(targets.noteRect.trackId, targets.noteRect.noteId)]);
       const beat = beatFromX(x);
       const nearRightEdge = x > targets.noteRect.x + targets.noteRect.w - NOTE_RESIZE_HANDLE_WIDTH;
       dragRef.current = {
@@ -719,24 +840,25 @@ export function TrackCanvas(props: TrackCanvasProps) {
       return;
     }
 
-    const snappedStart = Math.max(0, snapToGrid(beatFromX(x), props.project.global.gridBeats));
-    const newNote: Note = {
-      id: createId("note"),
-      pitchStr: "C4",
-      startBeat: snappedStart,
-      durationBeats: Math.max(props.project.global.gridBeats, props.project.global.gridBeats * 2),
-      velocity: 0.85
-    };
-    props.onUpsertNote(track.id, newNote, { actionKey: `track:${track.id}:note:${newNote.id}:create` });
+    if (hasActiveSelection) {
+      props.onSetNoteSelection([]);
+      props.onPreviewSelectionActionScopeChange("source");
+      setSelectionRect(null);
+      props.onSetSelectionMarqueeActive(false);
+      pendingCanvasActionRef.current = null;
+      setCanvasCursor("default");
+      return;
+    }
 
-    dragRef.current = {
+    pendingCanvasActionRef.current = {
       trackId: track.id,
-      noteId: newNote.id,
-      mode: "move",
-      offsetBeats: 0,
-      noteStartBeats: snappedStart
+      startX: x,
+      startY: y,
+      beat: Math.max(0, snapToGrid(beatFromX(x), props.project.global.gridBeats)),
+      pointerId: event.pointerId
     };
-    setCanvasCursor("move-active");
+    setSelectionRect(null);
+    props.onSetSelectionMarqueeActive(false);
     canvas.setPointerCapture(event.pointerId);
   };
 
@@ -815,6 +937,22 @@ export function TrackCanvas(props: TrackCanvasProps) {
     });
 
     const drag = dragRef.current;
+    const pendingAction = pendingCanvasActionRef.current;
+    if (!drag && pendingAction) {
+      const movedFarEnough =
+        Math.abs(x - pendingAction.startX) >= 4 || Math.abs(y - pendingAction.startY) >= 4;
+      if (movedFarEnough) {
+        updateSelectionFromRect({
+          startX: pendingAction.startX,
+          startY: pendingAction.startY,
+          endX: x,
+          endY: y
+        });
+        setCanvasCursor("default");
+      }
+      return;
+    }
+
     if (!drag) {
       setCanvasCursor(
         getCursorForPosition({
@@ -857,7 +995,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
   const onPointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    if (canvasRef.current && dragRef.current) {
+    const hadDrag = Boolean(dragRef.current);
+    const pendingAction = pendingCanvasActionRef.current;
+    if (canvasRef.current && (dragRef.current || pendingAction)) {
       try {
         canvasRef.current.releasePointerCapture(event.pointerId);
       } catch {
@@ -866,9 +1006,22 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
     dragRef.current = null;
     if (!canvas) {
+      pendingCanvasActionRef.current = null;
       setCanvasCursor("default");
       return;
     }
+
+    const hadSelectionRect = Boolean(selectionRect);
+    if (pendingAction && !hadSelectionRect) {
+      const newNote = createDefaultPlacedNote(pendingAction.beat, props.project.global.gridBeats);
+      props.onUpsertNote(pendingAction.trackId, newNote, {
+        actionKey: `track:${pendingAction.trackId}:note:${newNote.id}:create`
+      });
+    }
+
+    pendingCanvasActionRef.current = null;
+    setSelectionRect(null);
+    props.onSetSelectionMarqueeActive(false);
     const { x, y } = getCanvasPoint(event.clientX, event.clientY);
     const targets = resolvePointerTargets(x, y);
     setCanvasCursor(
@@ -882,6 +1035,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
         noteResizeHandleWidth: NOTE_RESIZE_HANDLE_WIDTH
       })
     );
+    if (hadDrag) {
+      return;
+    }
   };
 
   const onPointerLeave = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1084,6 +1240,20 @@ export function TrackCanvas(props: TrackCanvasProps) {
         onPointerLeave={onPointerLeave}
         onContextMenu={(event) => event.preventDefault()}
       />
+      {props.selectionBeatRange && !selectionRect && !props.hideSelectionActionPopover && (
+        <SelectionActionPopover
+          left={selectionPopoverLeft}
+          top={selectionPopoverTop}
+          sourceTrackName={props.selectionSourceTrackName ?? "Track 1"}
+          onPreviewScopeChange={props.onPreviewSelectionActionScopeChange}
+          onCut={props.onCutSelection}
+          onCopy={props.onCopySelection}
+          onDelete={props.onDeleteSelection}
+          onCutAllTracks={props.onCutAllTracksInSelection}
+          onCopyAllTracks={props.onCopyAllTracksInSelection}
+          onDeleteAllTracks={props.onDeleteAllTracksInSelection}
+        />
+      )}
       {selectedTrack && selectedPatch && (
         <div className="track-macro-panel-shell">
           <div className="track-macro-panel-header">

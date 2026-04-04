@@ -6,11 +6,18 @@ import { loadDspWasm } from "@/audio/wasmBridge";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import { PianoKeyboard } from "@/components/PianoKeyboard";
+import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { TimelineActionsPopover } from "@/components/TimelineActionsPopover";
 import { TimelineActionsPopoverRequest, TrackCanvas } from "@/components/TrackCanvas";
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
 import { getSanitizedLoopMarkers } from "@/lib/looping";
+import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
+import {
+  getNoteSelectionKey,
+  getSelectionSourceTrackId,
+  getSelectionBeatRange,
+} from "@/lib/noteClipboard";
 import { clearProject, loadProject, saveProject } from "@/lib/persistence";
 import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
@@ -23,9 +30,15 @@ import { keyToPitch, pitchToVoct } from "@/lib/pitch";
 import { removeTrackFromProject, renameTrackInProject } from "@/lib/trackEdits";
 import { useNoteEditor } from "@/hooks/useNoteEditor";
 import { useLoopSettings } from "@/hooks/useLoopSettings";
+import { useEditorClipboardEvents } from "@/hooks/useEditorClipboardEvents";
+import { useEditorKeyboardShortcuts } from "@/hooks/useEditorKeyboardShortcuts";
+import { useNoteClipboard } from "@/hooks/useNoteClipboard";
+import { usePlatformShortcuts } from "@/hooks/usePlatformShortcuts";
 import { usePlaybackController } from "@/hooks/usePlaybackController";
 import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
+import { useQuickHelpDialog } from "@/hooks/useQuickHelpDialog";
 import { useRecordingController } from "@/hooks/useRecordingController";
+import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
 import { Project } from "@/types/music";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -62,11 +75,13 @@ export default function HomePage() {
   const [userCueBeat, setUserCueBeat] = useState(0);
   const [selectedTrackId, setSelectedTrackId] = useState<string | undefined>(undefined);
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(undefined);
-  const [helpOpen, setHelpOpen] = useState(false);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [strictWasmReady, setStrictWasmReady] = useState(process.env.NEXT_PUBLIC_STRICT_WASM !== "1");
+  const [selectedNoteKeys, setSelectedNoteKeys] = useState<string[]>([]);
+  const [selectionMarqueeActive, setSelectionMarqueeActive] = useState(false);
+  const [selectionActionScopePreview, setSelectionActionScopePreview] = useState<"source" | "all-tracks">("source");
   const [pitchPicker, setPitchPicker] = useState<{ trackId: string; noteId: string } | null>(null);
-  const [previewPitch, setPreviewPitch] = useState("C4");
+  const [previewPitch, setPreviewPitch] = useState(DEFAULT_NOTE_PITCH);
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
   const [timelineActionsPopover, setTimelineActionsPopover] = useState<TimelineActionsPopoverRequest | null>(null);
   const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
@@ -81,6 +96,24 @@ export default function HomePage() {
   const recordingHandleBeatRef = useRef<(beat: number) => void>(() => {});
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const project = projectHistory.current;
+  const {
+    noteClipboardPayload,
+    setNoteClipboardPayload,
+    writeClipboardPayload,
+    clearNoteClipboard,
+    syncNoteClipboardPayload
+  } = useNoteClipboard();
+  const {
+    allTracksModifierLabel,
+    deleteKeyLabel,
+    isDeleteShortcutKey,
+    primaryModifierLabel
+  } = usePlatformShortcuts();
+  const { closeHelp, helpOpen, keyboardShortcuts, openHelp } = useQuickHelpDialog({
+    allTracksModifierLabel,
+    deleteKeyLabel,
+    primaryModifierLabel
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -132,6 +165,23 @@ export default function HomePage() {
   const selectedTrack = useMemo(
     () => project.tracks.find((track) => track.id === selectedTrackId) ?? project.tracks[0],
     [project.tracks, selectedTrackId]
+  );
+  const selectedNoteKeySet = useMemo(() => new Set(selectedNoteKeys), [selectedNoteKeys]);
+  const selectionBeatRange = useMemo(() => getSelectionBeatRange(project, selectedNoteKeys), [project, selectedNoteKeys]);
+  const selectionSourceTrackId = useMemo(() => getSelectionSourceTrackId(project, selectedNoteKeys), [project, selectedNoteKeys]);
+  const selectionSourceTrackName = useMemo(
+    () => project.tracks.find((track) => track.id === selectionSourceTrackId)?.name ?? "Track 1",
+    [project.tracks, selectionSourceTrackId]
+  );
+  const selectionIndicatorTrackId = useMemo(() => {
+    if (selectionActionScopePreview === "all-tracks") {
+      return project.tracks[0]?.id ?? null;
+    }
+    return selectionSourceTrackId;
+  }, [project.tracks, selectionActionScopePreview, selectionSourceTrackId]);
+  const selectionIndicatorTrackName = useMemo(
+    () => project.tracks.find((track) => track.id === selectionIndicatorTrackId)?.name ?? selectionSourceTrackName,
+    [project.tracks, selectionIndicatorTrackId, selectionSourceTrackName]
   );
 
   const trackNameById = useMemo(() => new Map(project.tracks.map((track) => [track.id, track.name] as const)), [project.tracks]);
@@ -212,6 +262,30 @@ export default function HomePage() {
     }
     audioEngineRef.current.setProject(project, { syncToWorklet: !playing });
   }, [playing, project, ready]);
+
+  useEffect(() => {
+    const existingSelectionKeys = new Set(
+      project.tracks.flatMap((track) => track.notes.map((note) => getNoteSelectionKey(track.id, note.id)))
+    );
+    setSelectedNoteKeys((current) => current.filter((selectionKey) => existingSelectionKeys.has(selectionKey)));
+  }, [project.tracks]);
+
+  useEffect(() => {
+    if (!selectionSourceTrackId || selectionMarqueeActive || pitchPicker) {
+      return;
+    }
+    setSelectedTrackId((current) => (current === selectionSourceTrackId ? current : selectionSourceTrackId));
+  }, [pitchPicker, selectionMarqueeActive, selectionSourceTrackId]);
+
+  useEffect(() => {
+    if (!selectionBeatRange) {
+      setSelectionActionScopePreview("source");
+    }
+  }, [selectionBeatRange]);
+
+  useEffect(() => {
+    setSelectionActionScopePreview("source");
+  }, [selectionSourceTrackId]);
 
   useEffect(() => {
     if (!ready || !pendingPreview || playing || !selectedTrack) {
@@ -298,10 +372,52 @@ export default function HomePage() {
     setRuntimeError
   });
 
+  const previewNoteForPitchPicker = useCallback((trackId: string, noteId: string, pitch: string) => {
+    if (playing) {
+      return;
+    }
+
+    const track = project.tracks.find((entry) => entry.id === trackId);
+    const note = track?.notes.find((entry) => entry.id === noteId);
+    if (!track || !note) {
+      return;
+    }
+
+    audioEngineRef.current
+      ?.previewNote(trackId, pitchToVoct(pitch), note.durationBeats, note.velocity)
+      .catch((error) => setRuntimeError((error as Error).message));
+  }, [playing, project.tracks]);
+
   const setPlayheadFromUser = useCallback((beat: number) => {
     setUserCueBeat(beat);
     setPlayheadBeat(beat);
+    setSelectedNoteKeys([]);
+    setSelectionMarqueeActive(false);
+    setSelectionActionScopePreview("source");
+    setPitchPicker(null);
   }, []);
+  const {
+    applyNoteClipboardPaste,
+    copyAllTracksInSelection,
+    copySelectedNotes,
+    cutAllTracksInSelection,
+    cutSelectedNotes,
+    deleteAllTracksInSelection,
+    deleteSelectedNoteSelection,
+    deleteSelectedNotes
+  } = useSelectionClipboardActions({
+    clearNoteClipboard,
+    closeTimelineActionsPopover: () => setTimelineActionsPopover(null),
+    commitProjectChange,
+    noteClipboardPayload,
+    project,
+    selectedNoteKeys,
+    selectedTrackId: selectedTrack?.id,
+    selectionBeatRange,
+    setPlayheadFromUser,
+    setSelectedNoteKeys,
+    writeClipboardPayload
+  });
   const { applyLoopSettings, addLoopBoundary, updateLoopRepeatCount, removeLoopBoundary, loopConflictDialog, clearLoopConflictDialog } =
     useLoopSettings({
       project,
@@ -355,12 +471,25 @@ export default function HomePage() {
   const startMarkerAtTimelineBeat = timelineMarkersAtBeat.find((marker) => marker.kind === "start");
   const endMarkerAtTimelineBeat = timelineMarkersAtBeat.find((marker) => marker.kind === "end");
 
+  const requestTimelineActionsPopover = useCallback((request: TimelineActionsPopoverRequest) => {
+    setTimelineActionsPopover(request);
+    setSelectionActionScopePreview("source");
+    void syncNoteClipboardPayload();
+  }, [syncNoteClipboardPayload]);
+
   const openPitchPicker = useCallback((trackId: string, noteId: string) => {
     setPitchPicker({ trackId, noteId });
-  }, []);
+    const notePitch = project.tracks.find((track) => track.id === trackId)?.notes.find((note) => note.id === noteId)?.pitchStr;
+    previewNoteForPitchPicker(trackId, noteId, notePitch ?? DEFAULT_NOTE_PITCH);
+  }, [previewNoteForPitchPicker, project.tracks]);
 
   const closePitchPicker = useCallback(() => {
     setPitchPicker(null);
+  }, []);
+
+  const setNoteSelectionFromCanvas = useCallback((selectionKeys: string[]) => {
+    setTimelineActionsPopover(null);
+    setSelectedNoteKeys(selectionKeys);
   }, []);
 
   const schedulePatchPreview = useCallback((patchId: string) => {
@@ -559,52 +688,47 @@ export default function HomePage() {
     setProjectHistory((prev) => redoHistory(prev));
   }, []);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const editingText = target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA");
+  useEditorKeyboardShortcuts({
+    applyNoteClipboardPaste,
+    copyAllTracksInSelection,
+    cutAllTracksInSelection,
+    deleteAllTracksInSelection,
+    deleteSelectedNoteSelection,
+    isDeleteShortcutKey,
+    onCloseTransientUi: () => {
+      closeHelp();
+      setPitchPicker(null);
+      setPreviewPitchPickerOpen(false);
+      setPatchRemovalDialog(null);
+      setTimelineActionsPopover(null);
+      setSelectedNoteKeys([]);
+    },
+    onOpenHelp: openHelp,
+    playheadBeat,
+    redoProject,
+    selectedNoteCount: selectedNoteKeys.length,
+    undoProject
+  });
 
-      const isHelpKey = event.key === "?" || (event.key === "/" && event.shiftKey);
-      if (isHelpKey && !editingText) {
-        event.preventDefault();
-        setHelpOpen(true);
-      }
-
-      if (event.key === "Escape") {
-        setHelpOpen(false);
-        setPitchPicker(null);
-        setPreviewPitchPickerOpen(false);
-        setPatchRemovalDialog(null);
-      }
-
-      const isUndo = (event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "z";
-      const isRedo =
-        ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "z") ||
-        ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "y");
-
-      if (!editingText && isRedo) {
-        event.preventDefault();
-        redoProject();
-        return;
-      }
-
-      if (!editingText && isUndo) {
-        event.preventDefault();
-        undoProject();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [redoProject, undoProject]);
+  useEditorClipboardEvents({
+    commitProjectChange,
+    deleteSelectedNotes,
+    playheadBeat,
+    project,
+    selectedNoteKeys,
+    selectedTrackId: selectedTrack?.id,
+    setNoteClipboardPayload,
+    setSelectedNoteKeys
+  });
 
   usePitchPickerHotkeys(Boolean(pitchPicker), useCallback((pitch: string) => {
     if (!pitchPicker) return;
     updateNote(pitchPicker.trackId, pitchPicker.noteId, { pitchStr: pitch }, {
       actionKey: `track:${pitchPicker.trackId}:pitch:${pitchPicker.noteId}`
     });
+    previewNoteForPitchPicker(pitchPicker.trackId, pitchPicker.noteId, pitch);
     closePitchPicker();
-  }, [closePitchPicker, pitchPicker, updateNote]));
+  }, [closePitchPicker, pitchPicker, previewNoteForPitchPicker, updateNote]));
 
   usePitchPickerHotkeys(previewPitchPickerOpen, useCallback((pitch: string) => {
     setPreviewPitch(pitch);
@@ -816,7 +940,6 @@ export default function HomePage() {
   const pitchPickerNote = pitchPickerTrack?.notes.find((note) => note.id === pitchPicker?.noteId);
   const activeRecordingTrackId = recording.activeRecordingTrackId;
   const activeRecordingTrack = activeRecordingTrackId ? project.tracks.find((track) => track.id === activeRecordingTrackId) : undefined;
-
   return (
     <main className="app">
       <TransportBar
@@ -864,7 +987,7 @@ export default function HomePage() {
         <button disabled={recording.recordEnabled || project.tracks.length <= 1} onClick={removeSelectedTrack}>
           Remove Track
         </button>
-        <button onClick={() => setHelpOpen(true)}>Help (?)</button>
+        <button onClick={openHelp}>Help (?)</button>
         <button onClick={exportJson}>Export Project JSON</button>
         <button onClick={() => importInputRef.current?.click()}>Import Project JSON</button>
         <button
@@ -911,13 +1034,19 @@ export default function HomePage() {
         project={project}
         invalidPatchIds={invalidPatchIds}
         selectedTrackId={selectedTrack.id}
+        selectedNoteKeys={selectedNoteKeySet}
+        selectionBeatRange={selectionBeatRange}
+        selectionSourceTrackId={selectionSourceTrackId ?? undefined}
+        selectionSourceTrackName={selectionIndicatorTrackName}
+        selectionIndicatorTrackId={selectionIndicatorTrackId ?? undefined}
         playheadBeat={playheadBeat}
         activeRecordedNotes={recording.activeRecordedNotes}
         ghostPlayheadBeat={recording.ghostPlayheadBeat ?? undefined}
         countInLabel={recording.countInLabel ?? undefined}
         timelineActionsPopoverOpen={Boolean(timelineActionsPopover)}
+        hideSelectionActionPopover={Boolean(pitchPicker) || Boolean(timelineActionsPopover)}
         onSetPlayheadBeat={setPlayheadFromUser}
-        onRequestTimelineActionsPopover={setTimelineActionsPopover}
+        onRequestTimelineActionsPopover={requestTimelineActionsPopover}
         onSelectTrack={setSelectedTrackId}
         onRenameTrack={renameTrack}
         onToggleTrackMute={toggleTrackMute}
@@ -930,17 +1059,39 @@ export default function HomePage() {
         onUpsertNote={upsertNote}
         onUpdateNote={updateNote}
         onDeleteNote={deleteNote}
+        onSetNoteSelection={setNoteSelectionFromCanvas}
+        onSetSelectionMarqueeActive={setSelectionMarqueeActive}
+        onPreviewSelectionActionScopeChange={setSelectionActionScopePreview}
+        onCopySelection={() => {
+          void copySelectedNotes();
+        }}
+        onCutSelection={() => {
+          void cutSelectedNotes();
+        }}
+        onDeleteSelection={deleteSelectedNoteSelection}
+        onCopyAllTracksInSelection={() => {
+          void copyAllTracksInSelection();
+        }}
+        onCutAllTracksInSelection={() => {
+          void cutAllTracksInSelection();
+        }}
+        onDeleteAllTracksInSelection={deleteAllTracksInSelection}
       />
 
       {timelineActionsPopover && (
         <TimelineActionsPopover
           left={timelineActionsPopover.clientX}
           top={timelineActionsPopover.clientY + 12}
+          showPasteActions={Boolean(noteClipboardPayload)}
           showAddStart={!startMarkerAtTimelineBeat}
           showAddEnd={timelineActionsPopover.beat > 0 && !endMarkerAtTimelineBeat}
           startMarkerId={startMarkerAtTimelineBeat?.id}
           endMarkerId={endMarkerAtTimelineBeat?.id}
           endRepeatCount={endMarkerAtTimelineBeat?.repeatCount}
+          onPaste={() => applyNoteClipboardPaste("paste", timelineActionsPopover.beat)}
+          onPasteAllTracks={() => applyNoteClipboardPaste("paste-all-tracks", timelineActionsPopover.beat)}
+          onInsert={() => applyNoteClipboardPaste("insert", timelineActionsPopover.beat)}
+          onInsertAllTracks={() => applyNoteClipboardPaste("insert-all-tracks", timelineActionsPopover.beat)}
           onAddStart={() => addLoopBoundary(timelineActionsPopover.beat, "start")}
           onAddEnd={() => addLoopBoundary(timelineActionsPopover.beat, "end")}
           onUpdateRepeatCount={(repeatCount) => {
@@ -1016,32 +1167,7 @@ export default function HomePage() {
         onExposeMacro={exposePatchMacro}
       />
 
-      {helpOpen && (
-        <div className="help-modal-backdrop" role="dialog" aria-modal="true" onClick={() => setHelpOpen(false)}>
-          <div className="help-modal" onClick={(event) => event.stopPropagation()}>
-            <h3>Quick Help</h3>
-            <p>
-              <strong>Add note:</strong> Left-click an empty spot in a track lane.
-            </p>
-            <p>
-              <strong>Move note:</strong> Drag a note block horizontally.
-            </p>
-            <p>
-              <strong>Resize note:</strong> Drag near the right edge of a note block.
-            </p>
-            <p>
-              <strong>Delete note:</strong> Right-click a note block.
-            </p>
-            <p>
-              <strong>Change note pitch:</strong> Hover the pitch label (for example <code>C4</code>) and use mouse wheel (up/down = +/- semitone).
-            </p>
-            <p>
-              <strong>Record mode:</strong> Arm Record, press Play, watch the 3..2..1 count-in, then play notes from the docked keyboard or your typing keyboard.
-            </p>
-            <p className="muted">Press <kbd>Esc</kbd> to close this help panel.</p>
-          </div>
-        </div>
-      )}
+      <QuickHelpDialog keyboardShortcuts={keyboardShortcuts} onClose={closeHelp} open={helpOpen} />
 
       {pitchPicker && pitchPickerNote && (
         <div className="help-modal-backdrop" role="dialog" aria-modal="true" onClick={closePitchPicker}>
@@ -1058,6 +1184,7 @@ export default function HomePage() {
                 updateNote(pitchPicker.trackId, pitchPicker.noteId, { pitchStr: pitch }, {
                   actionKey: `track:${pitchPicker.trackId}:pitch:${pitchPicker.noteId}`
                 });
+                previewNoteForPitchPicker(pitchPicker.trackId, pitchPicker.noteId, pitch);
                 closePitchPicker();
               }}
             />

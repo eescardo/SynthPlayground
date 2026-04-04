@@ -1,6 +1,7 @@
 export const VIDEO_SCENARIO = {
   PLAY_FROM_START_5S: "play-from-start-5s",
-  RECORD_FROM_START_8S: "record-from-start-8s"
+  RECORD_FROM_START_8S: "record-from-start-8s",
+  SELECTION_CUT_PASTE: "selection-cut-paste"
 } as const;
 
 export const VIDEO_SCENARIOS = Object.values(VIDEO_SCENARIO);

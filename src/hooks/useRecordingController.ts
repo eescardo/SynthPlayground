@@ -4,6 +4,7 @@ import { MutableRefObject, useCallback, useEffect, useRef, useState } from "reac
 import { AudioEngine } from "@/audio/engine";
 import { createId } from "@/lib/ids";
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
+import { eraseNotesInBeatRange } from "@/lib/noteEditing";
 import { formatBeatName, snapToGrid } from "@/lib/musicTiming";
 import { Note, Project, Track } from "@/types/music";
 
@@ -25,51 +26,6 @@ interface ActiveRecordNote {
 }
 
 const COUNT_IN_BEATS = 3;
-
-const eraseNotesInBeatRange = (
-  notes: Note[],
-  startBeat: number,
-  endBeat: number,
-  protectedNoteIds: Set<string>
-): Note[] => {
-  if (endBeat <= startBeat) {
-    return notes;
-  }
-
-  const nextNotes: Note[] = [];
-  for (const note of notes) {
-    if (protectedNoteIds.has(note.id)) {
-      nextNotes.push(note);
-      continue;
-    }
-
-    const noteEnd = note.startBeat + note.durationBeats;
-    if (noteEnd <= startBeat || note.startBeat >= endBeat) {
-      nextNotes.push(note);
-      continue;
-    }
-
-    if (note.startBeat < startBeat) {
-      nextNotes.push({
-        ...note,
-        durationBeats: startBeat - note.startBeat
-      });
-    }
-
-    if (noteEnd > endBeat) {
-      nextNotes.push({
-        ...note,
-        id: createId("note"),
-        startBeat: endBeat,
-        durationBeats: noteEnd - endBeat
-      });
-    }
-  }
-
-  return nextNotes
-    .filter((note) => note.durationBeats > 0)
-    .sort((a, b) => a.startBeat - b.startBeat);
-};
 
 interface UseRecordingControllerArgs {
   project: Project;

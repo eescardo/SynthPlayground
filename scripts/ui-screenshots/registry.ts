@@ -1,5 +1,6 @@
 import { expect, Page } from "@playwright/test";
 import { openApp, savePageScreenshot } from "../ui-capture/common";
+import { applySelectionReviewFraming, showSelectionActionsPopover } from "../ui-capture/selectionCapture";
 import { SCREENSHOT_SCENARIO, SCREENSHOT_SCENARIOS, ScreenshotScenario } from "./scenarios";
 
 export interface ScreenshotScenarioDefinition {
@@ -14,6 +15,17 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
     description: "Full main composition view",
     capture: async (page, outputPath) => {
       await openApp(page);
+      await savePageScreenshot(page, outputPath);
+    }
+  },
+  [SCREENSHOT_SCENARIO.SELECTION_POPOVER]: {
+    name: SCREENSHOT_SCENARIO.SELECTION_POPOVER,
+    description: "Main view with a marquee selection and the selection actions popover visible",
+    capture: async (page, outputPath) => {
+      await openApp(page);
+      await applySelectionReviewFraming(page);
+      await showSelectionActionsPopover(page, page.locator(".track-canvas-shell > canvas"));
+      await expect(page.locator(".selection-actions-popover")).toBeVisible();
       await savePageScreenshot(page, outputPath);
     }
   },

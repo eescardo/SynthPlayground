@@ -291,6 +291,20 @@ select {
   z-index: 70;
 }
 
+.selection-actions-popover {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 190px;
+  padding: 0.7rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 145, 171, 0.42);
+  background: rgba(27, 11, 18, 0.95);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.28);
+  z-index: 6;
+}
+
 .timeline-actions-popover-label {
   display: flex;
   flex-direction: column;
@@ -853,6 +867,57 @@ select {
 .help-modal p {
   margin: 0.45rem 0;
   line-height: 1.35;
+}
+
+.quick-help-modal {
+  width: min(860px, 100%);
+}
+
+.quick-help-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 1.4rem;
+  align-items: start;
+}
+
+.quick-help-section {
+  margin-top: 1rem;
+}
+
+.quick-help-section h4 {
+  margin: 0 0 0.55rem;
+}
+
+.quick-help-shortcuts {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.quick-help-shortcut-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(51, 81, 113, 0.35);
+}
+
+.quick-help-shortcut-action {
+  color: #d8e8fa;
+}
+
+.quick-help-shortcut-keys {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 860px) {
+  .quick-help-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
 }
 
 kbd {

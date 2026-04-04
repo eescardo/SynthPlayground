@@ -5,11 +5,16 @@ import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping"
 interface TimelineActionsPopoverProps {
   left: number;
   top: number;
+  showPasteActions?: boolean;
   showAddStart: boolean;
   showAddEnd: boolean;
   startMarkerId?: string;
   endMarkerId?: string;
   endRepeatCount?: number;
+  onPaste?: () => void;
+  onPasteAllTracks?: () => void;
+  onInsert?: () => void;
+  onInsertAllTracks?: () => void;
   onAddStart: () => void;
   onAddEnd: () => void;
   onUpdateRepeatCount: (repeatCount: number) => void;
@@ -20,8 +25,11 @@ interface TimelineActionsPopoverProps {
 
 export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
   const repeatCount = props.endRepeatCount ?? DEFAULT_LOOP_REPEAT_COUNT;
+  const hasPasteActions = Boolean(props.showPasteActions);
   const hasPlayheadActions = props.showAddStart || props.showAddEnd;
   const hasLoopMarkerActions = Boolean(props.startMarkerId || props.endMarkerId);
+  const showFirstDivider = hasPasteActions && (hasPlayheadActions || hasLoopMarkerActions);
+  const showSecondDivider = !showFirstDivider && hasPlayheadActions && hasLoopMarkerActions;
 
   return (
     <div
@@ -31,6 +39,34 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
       style={{ left: props.left, top: props.top }}
       onPointerDown={(event) => event.stopPropagation()}
     >
+      {props.showPasteActions && props.onPaste && (
+        <button type="button" onClick={props.onPaste}>
+          Paste
+        </button>
+      )}
+
+      {props.showPasteActions && props.onPasteAllTracks && (
+        <button type="button" onClick={props.onPasteAllTracks}>
+          Paste All Tracks
+        </button>
+      )}
+
+      {props.showPasteActions && props.onInsert && (
+        <button type="button" onClick={props.onInsert}>
+          Insert
+        </button>
+      )}
+
+      {props.showPasteActions && props.onInsertAllTracks && (
+        <button type="button" onClick={props.onInsertAllTracks}>
+          Insert All Tracks
+        </button>
+      )}
+
+      {showFirstDivider && (
+        <div className="timeline-actions-popover-divider" aria-hidden="true" />
+      )}
+
       {props.showAddStart && (
         <button type="button" onClick={props.onAddStart}>
           Add Loop Start
@@ -43,7 +79,7 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
         </button>
       )}
 
-      {hasPlayheadActions && hasLoopMarkerActions && (
+      {showSecondDivider && (
         <div className="timeline-actions-popover-divider" aria-hidden="true" />
       )}
 

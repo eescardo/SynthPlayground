@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { expect, Locator, Page, Video } from "@playwright/test";
 import { holdLocatorFor, openApp } from "../ui-capture/common";
+import { applySelectionReviewFraming, showSelectionActionsPopover } from "../ui-capture/selectionCapture";
 import { VIDEO_SCENARIO, VIDEO_SCENARIOS, VideoScenario } from "./scenarios";
 
 export interface VideoScenarioDefinition {
@@ -16,13 +17,13 @@ const recordHoldMs = Number(process.env.VIDEO_RECORD_HOLD_MS ?? 500);
 const recordGapMs = Number(process.env.VIDEO_RECORD_GAP_MS ?? 500);
 const recordCycles = Number(process.env.VIDEO_RECORD_CYCLES ?? 5);
 const postActionSettleMs = Number(process.env.VIDEO_POST_ACTION_SETTLE_MS ?? 300);
-const reviewZoom = Number(process.env.VIDEO_REVIEW_ZOOM ?? 0.82);
-
 const getTransportButton = (page: Page, name: "Play" | "Stop" | "Record") =>
   page.locator(".transport").getByRole("button", { name });
 
 const getRecordingKey = (page: Page, pitch = "C4"): Locator =>
   page.locator(".recording-dock").getByRole("button", { name: new RegExp(`\\b${pitch}\\b`, "i") }).first();
+
+const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canvas");
 
 const playQuarterPattern = async (page: Page, key: Locator) => {
   for (let cycle = 0; cycle < recordCycles; cycle += 1) {
@@ -33,20 +34,13 @@ const playQuarterPattern = async (page: Page, key: Locator) => {
   }
 };
 
-const applyReviewFraming = async (page: Page) => {
-  await page.evaluate((zoom) => {
-    document.documentElement.style.zoom = String(zoom);
-    window.scrollTo(0, 0);
-  }, reviewZoom);
-};
-
 export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefinition> = {
   [VIDEO_SCENARIO.PLAY_FROM_START_5S]: {
     name: VIDEO_SCENARIO.PLAY_FROM_START_5S,
     description: "Start playback from beat 0 and capture five seconds of motion.",
     capture: async (page) => {
       await openApp(page);
-      await applyReviewFraming(page);
+      await applySelectionReviewFraming(page);
       await getTransportButton(page, "Play").click();
       await page.waitForTimeout(playbackDurationMs);
       await getTransportButton(page, "Stop").click();
@@ -58,7 +52,7 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
     description: "Arm record mode at beat 0, wait through count-in, then record alternating quarter-note presses.",
     capture: async (page) => {
       await openApp(page);
-      await applyReviewFraming(page);
+      await applySelectionReviewFraming(page);
       await getTransportButton(page, "Record").click();
       await expect(page.locator(".recording-dock")).toBeVisible();
       await page.waitForTimeout(recordCountInMs);
@@ -67,6 +61,34 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await playQuarterPattern(page, key);
       await getTransportButton(page, "Record").click();
       await page.waitForTimeout(postActionSettleMs);
+    }
+  },
+  [VIDEO_SCENARIO.SELECTION_CUT_PASTE]: {
+    name: VIDEO_SCENARIO.SELECTION_CUT_PASTE,
+    description: "Marquee-select notes, copy them, then paste them later onto a different track.",
+    capture: async (page) => {
+      await openApp(page);
+      await applySelectionReviewFraming(page);
+
+      const canvas = getTrackCanvas(page);
+      await showSelectionActionsPopover(page, canvas);
+      const selectionPopover = page.locator(".selection-actions-popover");
+      await expect(selectionPopover).toBeVisible();
+      await page.waitForTimeout(postActionSettleMs * 2);
+
+      await selectionPopover.getByRole("button", { name: "Copy", exact: true }).click();
+      await page.waitForTimeout(postActionSettleMs);
+
+      await page.locator(".track-name-button").nth(4).click({ force: true });
+      await page.waitForTimeout(postActionSettleMs);
+
+      await canvas.click({ position: { x: 760, y: 12 } });
+      await page.waitForTimeout(postActionSettleMs);
+      await canvas.click({ position: { x: 760, y: 12 } });
+      await page.waitForTimeout(postActionSettleMs);
+
+      await page.locator(".timeline-actions-popover").getByRole("button", { name: "Paste", exact: true }).click();
+      await page.waitForTimeout(postActionSettleMs * 4);
     }
   }
 };

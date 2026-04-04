@@ -103,6 +103,9 @@ jobs:
     needs: pr-context
     if: needs.pr-context.outputs.scenarios != ''
     outputs:
+      capture_status: ${{ steps.capture.outcome }}
+      has_artifact: ${{ steps.detect.outputs.has_artifact }}
+      captured_scenarios: ${{ steps.detect.outputs.captured_scenarios }}
       artifact_url: ${{ steps.upload.outputs.artifact-url }}
     steps:
       - name: Check out base revision
@@ -114,6 +117,7 @@ jobs:
       - name: Overlay screenshot tooling from PR head
         run: |
           git checkout "${{ needs.pr-context.outputs.head_sha }}" -- \
+            scripts/ui-capture \
             scripts/ui-screenshots \
             scripts/screenshot-scenarios-cli.ts
 
@@ -135,6 +139,8 @@ jobs:
         run: pnpm exec playwright install chromium
 
       - name: Capture screenshots
+        id: capture
+        continue-on-error: true
         env:
           SCREENSHOT_LABEL: before
           GREP_PATTERN: ${{ needs.pr-context.outputs.grep }}
@@ -146,13 +152,27 @@ jobs:
             pnpm run test:ui:capture
           fi
 
+      - name: Detect before screenshots
+        id: detect
+        shell: bash
+        run: |
+          captured_scenarios="$(find artifacts/screenshots/before -name '*.png' -exec basename {} .png \; 2>/dev/null | sort -u | paste -sd, -)"
+          if [[ -n "$captured_scenarios" ]]; then
+            echo "has_artifact=true" >> "$GITHUB_OUTPUT"
+            echo "captured_scenarios=$captured_scenarios" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_artifact=false" >> "$GITHUB_OUTPUT"
+            echo "captured_scenarios=" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Upload before screenshots
         id: upload
+        if: steps.detect.outputs.has_artifact == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: pr-${{ needs.pr-context.outputs.pr_number }}-screenshots-before
           path: artifacts/screenshots/before/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
 
   capture-after:
@@ -161,6 +181,9 @@ jobs:
     needs: pr-context
     if: needs.pr-context.outputs.scenarios != ''
     outputs:
+      capture_status: ${{ steps.capture.outcome }}
+      has_artifact: ${{ steps.detect.outputs.has_artifact }}
+      captured_scenarios: ${{ steps.detect.outputs.captured_scenarios }}
       artifact_url: ${{ steps.upload.outputs.artifact-url }}
     steps:
       - name: Check out PR head revision
@@ -187,6 +210,8 @@ jobs:
         run: pnpm exec playwright install chromium
 
       - name: Capture screenshots
+        id: capture
+        continue-on-error: true
         env:
           SCREENSHOT_LABEL: after
           GREP_PATTERN: ${{ needs.pr-context.outputs.grep }}
@@ -198,13 +223,27 @@ jobs:
             pnpm run test:ui:capture
           fi
 
+      - name: Detect after screenshots
+        id: detect
+        shell: bash
+        run: |
+          captured_scenarios="$(find artifacts/screenshots/after -name '*.png' -exec basename {} .png \; 2>/dev/null | sort -u | paste -sd, -)"
+          if [[ -n "$captured_scenarios" ]]; then
+            echo "has_artifact=true" >> "$GITHUB_OUTPUT"
+            echo "captured_scenarios=$captured_scenarios" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_artifact=false" >> "$GITHUB_OUTPUT"
+            echo "captured_scenarios=" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Upload after screenshots
         id: upload
+        if: steps.detect.outputs.has_artifact == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: pr-${{ needs.pr-context.outputs.pr_number }}-screenshots-after
           path: artifacts/screenshots/after/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
 
   publish-previews:
@@ -223,13 +262,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Prepare preview directories
+        run: |
+          mkdir -p "${{ runner.temp }}/screenshots-before" "${{ runner.temp }}/screenshots-after"
+
       - name: Download before screenshots
+        if: needs.capture-before.outputs.has_artifact == 'true'
         uses: actions/download-artifact@v4
         with:
           name: pr-${{ needs.pr-context.outputs.pr_number }}-screenshots-before
           path: ${{ runner.temp }}/screenshots-before
 
       - name: Download after screenshots
+        if: needs.capture-after.outputs.has_artifact == 'true'
         uses: actions/download-artifact@v4
         with:
           name: pr-${{ needs.pr-context.outputs.pr_number }}-screenshots-after
@@ -259,8 +304,12 @@ jobs:
 
           mkdir -p "pr-$PR_NUMBER/before" "pr-$PR_NUMBER/after"
           rm -rf "pr-$PR_NUMBER/before"/* "pr-$PR_NUMBER/after"/*
-          cp -R "$BEFORE_DIR"/. "pr-$PR_NUMBER/before/"
-          cp -R "$AFTER_DIR"/. "pr-$PR_NUMBER/after/"
+          if find "$BEFORE_DIR" -mindepth 1 -print -quit | grep -q .; then
+            cp -R "$BEFORE_DIR"/. "pr-$PR_NUMBER/before/"
+          fi
+          if find "$AFTER_DIR" -mindepth 1 -print -quit | grep -q .; then
+            cp -R "$AFTER_DIR"/. "pr-$PR_NUMBER/after/"
+          fi
           touch .nojekyll
 
           git add .nojekyll "pr-$PR_NUMBER"
@@ -302,6 +351,10 @@ jobs:
           HEAD_REF: ${{ needs.pr-context.outputs.head_ref }}
           BEFORE_URL: ${{ needs.capture-before.outputs.artifact_url }}
           AFTER_URL: ${{ needs.capture-after.outputs.artifact_url }}
+          BEFORE_AVAILABLE: ${{ needs.capture-before.outputs.has_artifact }}
+          AFTER_AVAILABLE: ${{ needs.capture-after.outputs.has_artifact }}
+          BEFORE_CAPTURED_SCENARIOS: ${{ needs.capture-before.outputs.captured_scenarios }}
+          AFTER_CAPTURED_SCENARIOS: ${{ needs.capture-after.outputs.captured_scenarios }}
           PREVIEW_BRANCH: ${{ needs.publish-previews.outputs.preview_branch }}
         with:
           script: |
@@ -310,12 +363,20 @@ jobs:
             const repo = `${context.repo.owner}/${context.repo.repo}`;
             const previewBranch = process.env.PREVIEW_BRANCH;
             const scenarios = process.env.RESOLVED_SCENARIOS.split(",").filter(Boolean);
+            const beforeAvailable = process.env.BEFORE_AVAILABLE === "true";
+            const afterAvailable = process.env.AFTER_AVAILABLE === "true";
+            const beforeCaptured = new Set((process.env.BEFORE_CAPTURED_SCENARIOS || "").split(",").filter(Boolean));
+            const afterCaptured = new Set((process.env.AFTER_CAPTURED_SCENARIOS || "").split(",").filter(Boolean));
             const imageUrl = (phase, scenario) =>
               `https://github.com/${repo}/raw/${previewBranch}/pr-${prNumber}/${phase}/${scenario}.png`;
+            const renderCell = (phase, scenario, available, captured) =>
+              available && captured.has(scenario) && previewBranch
+                ? `<img src="${imageUrl(phase, scenario)}" alt="${scenario} ${phase}" width="360" />`
+                : "_unable to capture_";
             const rows = scenarios
               .map(
                 (scenario) =>
-                  `| \`${scenario}\` | <img src="${imageUrl("before", scenario)}" alt="${scenario} before" width="360" /> | <img src="${imageUrl("after", scenario)}" alt="${scenario} after" width="360" /> |`
+                  `| \`${scenario}\` | ${renderCell("before", scenario, beforeAvailable, beforeCaptured)} | ${renderCell("after", scenario, afterAvailable, afterCaptured)} |`
               )
               .join("\n");
             const body = `${marker}
@@ -329,8 +390,8 @@ jobs:
 
             Artifact downloads:
 
-            - Before artifact: [download](${process.env.BEFORE_URL})
-            - After artifact: [download](${process.env.AFTER_URL})
+            - Before artifact: ${beforeAvailable && process.env.BEFORE_URL ? `[download](${process.env.BEFORE_URL})` : "unavailable"}
+            - After artifact: ${afterAvailable && process.env.AFTER_URL ? `[download](${process.env.AFTER_URL})` : "unavailable"}
 
             Artifact contents are organized as:
 
