@@ -17,6 +17,27 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
       await savePageScreenshot(page, outputPath);
     }
   },
+  [SCREENSHOT_SCENARIO.SELECTION_POPOVER]: {
+    name: SCREENSHOT_SCENARIO.SELECTION_POPOVER,
+    description: "Main view with a marquee selection and the selection actions popover visible",
+    capture: async (page, outputPath) => {
+      await openApp(page);
+      const canvas = page.locator(".track-canvas-shell > canvas");
+      const box = await canvas.boundingBox();
+      if (!box) {
+        throw new Error("Could not determine track canvas bounds.");
+      }
+
+      await page.mouse.move(box.x + 188, box.y + 42);
+      await page.mouse.down();
+      await page.mouse.move(box.x + 840, box.y + 168, { steps: 24 });
+      await page.mouse.up();
+      await page.waitForTimeout(300);
+
+      await expect(page.locator(".selection-actions-popover")).toBeVisible();
+      await savePageScreenshot(page, outputPath);
+    }
+  },
   [SCREENSHOT_SCENARIO.TRACK_NOTE_HOVER]: {
     name: SCREENSHOT_SCENARIO.TRACK_NOTE_HOVER,
     description: "Hovered note remains highlighted even when overlapping the playhead hit area",

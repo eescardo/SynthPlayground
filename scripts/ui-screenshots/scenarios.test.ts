@@ -6,10 +6,10 @@ import {
 
 describe("resolveScreenshotScenariosFromLabels", () => {
   it("enables a specific screenshot scenario label", () => {
-    expect(resolveScreenshotScenariosFromLabels(["screenshots:track-note-hover"])).toMatchObject({
+    expect(resolveScreenshotScenariosFromLabels(["screenshots:selection-popover"])).toMatchObject({
       enabled: true,
-      value: "track-note-hover",
-      grep: "@track-note-hover",
+      value: "selection-popover",
+      grep: "@selection-popover",
       error: ""
     });
   });
@@ -26,10 +26,10 @@ describe("resolveScreenshotScenariosFromLabels", () => {
 
 describe("resolveScreenshotScenariosFromLabelsJson", () => {
   it("parses labels from a JSON payload", () => {
-    expect(resolveScreenshotScenariosFromLabelsJson('["bug","screenshots:track-note-hover"]')).toMatchObject({
+    expect(resolveScreenshotScenariosFromLabelsJson('["bug","screenshots:selection-popover"]')).toMatchObject({
       enabled: true,
-      value: "track-note-hover",
-      grep: "@track-note-hover",
+      value: "selection-popover",
+      grep: "@selection-popover",
       error: ""
     });
   });

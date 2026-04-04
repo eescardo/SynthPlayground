@@ -93,7 +93,7 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
   },
   [VIDEO_SCENARIO.SELECTION_CUT_PASTE]: {
     name: VIDEO_SCENARIO.SELECTION_CUT_PASTE,
-    description: "Marquee-select notes, cut them, then paste them later onto a different track.",
+    description: "Marquee-select notes, copy them, then paste them later onto a different track.",
     capture: async (page) => {
       await openApp(page);
       await applyReviewFraming(page);
@@ -102,7 +102,7 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await dragCanvasRegion(page, canvas, { x: 160, y: 48 }, { x: 520, y: 96 });
       await page.waitForTimeout(postActionSettleMs * 2);
 
-      await page.locator(".selection-actions-popover").getByRole("button", { name: "Cut", exact: true }).click();
+      await page.locator(".selection-actions-popover").getByRole("button", { name: "Copy", exact: true }).click();
       await page.waitForTimeout(postActionSettleMs);
 
       await page.locator(".track-name-button").nth(4).click({ force: true });
@@ -114,7 +114,7 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await page.waitForTimeout(postActionSettleMs);
 
       await page.locator(".timeline-actions-popover").getByRole("button", { name: "Paste", exact: true }).click();
-      await page.waitForTimeout(postActionSettleMs * 3);
+      await page.waitForTimeout(postActionSettleMs * 4);
     }
   }
 };
