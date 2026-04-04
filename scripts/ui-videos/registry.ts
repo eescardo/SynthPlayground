@@ -99,8 +99,8 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await applyReviewFraming(page);
 
       const canvas = getTrackCanvas(page);
-      await dragCanvasRegion(page, canvas, { x: 230, y: 56 }, { x: 540, y: 160 });
-      await page.waitForTimeout(postActionSettleMs);
+      await dragCanvasRegion(page, canvas, { x: 160, y: 48 }, { x: 520, y: 96 });
+      await page.waitForTimeout(postActionSettleMs * 2);
 
       await page.keyboard.press("ControlOrMeta+X");
       await page.waitForTimeout(postActionSettleMs);
@@ -112,7 +112,7 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await page.waitForTimeout(postActionSettleMs);
 
       await page.keyboard.press("ControlOrMeta+V");
-      await page.waitForTimeout(postActionSettleMs * 2);
+      await page.waitForTimeout(postActionSettleMs * 3);
     }
   }
 };
