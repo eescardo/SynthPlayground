@@ -873,6 +873,13 @@ select {
   width: min(860px, 100%);
 }
 
+.quick-help-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 1.4rem;
+  align-items: start;
+}
+
 .quick-help-section {
   margin-top: 1rem;
 }
@@ -904,6 +911,13 @@ select {
   gap: 0.35rem;
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+
+@media (max-width: 860px) {
+  .quick-help-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
 }
 
 kbd {
