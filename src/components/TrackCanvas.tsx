@@ -580,12 +580,26 @@ export function TrackCanvas(props: TrackCanvasProps) {
         }
 
         if (noteSelected) {
-          ctx.fillStyle = TRACK_CANVAS_COLORS.noteSelectedOverlay;
-          ctx.fillRect(noteX, noteY, noteW, noteH);
-          ctx.strokeStyle = TRACK_CANVAS_COLORS.noteSelectedBorder;
-          ctx.lineWidth = 2;
+          fillRoundedRect(
+            ctx,
+            noteX,
+            noteY,
+            noteW,
+            noteH,
+            NOTE_CORNER_RADIUS,
+            TRACK_CANVAS_COLORS.noteSelectedOverlay
+          );
           ctx.setLineDash([5, 3]);
-          ctx.strokeRect(noteX + 1, noteY + 1, Math.max(0, noteW - 2), Math.max(0, noteH - 2));
+          strokeRoundedRect(
+            ctx,
+            noteX + 1,
+            noteY + 1,
+            Math.max(0, noteW - 2),
+            Math.max(0, noteH - 2),
+            Math.max(0, NOTE_CORNER_RADIUS - 1),
+            TRACK_CANVAS_COLORS.noteSelectedBorder,
+            2
+          );
           ctx.setLineDash([]);
         }
 
