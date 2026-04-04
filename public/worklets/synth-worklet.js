@@ -65,7 +65,8 @@ const TRACK_VOLUME_RANGE = {
 const EVENT_SORT_PRIORITY = {
   NoteOff: 0,
   ParamChange: 1,
-  NoteOn: 2
+  MacroChange: 2,
+  NoteOn: 3
 };
 
 const compareScheduledEvents = (a, b) => {
