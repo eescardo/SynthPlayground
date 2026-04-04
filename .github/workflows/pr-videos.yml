@@ -178,13 +178,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          SOURCE_DIR="$RUNNER_TEMP/video-pages-source"
-          rm -rf "$SOURCE_DIR" "$SITE_DIR"
-          mkdir -p "$SOURCE_DIR/pr-$PR_NUMBER" "$SITE_DIR"
-          cp -R "$AFTER_DIR"/. "$SOURCE_DIR/pr-$PR_NUMBER/"
-          VIDEO_PAGES_DIR="$SOURCE_DIR/pr-$PR_NUMBER" node scripts/ui-videos/generate-pages-site.mjs
-          touch "$SOURCE_DIR/.nojekyll"
-
           if git ls-remote --exit-code --heads origin "$PREVIEW_BRANCH" >/dev/null 2>&1; then
             git fetch origin "$PREVIEW_BRANCH"
             git switch --create "$PREVIEW_BRANCH" --track "origin/$PREVIEW_BRANCH" 2>/dev/null || git switch "$PREVIEW_BRANCH"
@@ -197,17 +190,22 @@ jobs:
 
           mkdir -p "pr-$PR_NUMBER"
           rm -rf "pr-$PR_NUMBER"/*
-          cp -R "$SOURCE_DIR"/. .
+          cp -R "$AFTER_DIR"/. "pr-$PR_NUMBER/"
+          VIDEO_PAGES_DIR="pr-$PR_NUMBER" node scripts/ui-videos/generate-pages-site.mjs
+          touch .nojekyll
 
           git add .nojekyll "pr-$PR_NUMBER"
           if git diff --cached --quiet; then
             echo "preview_branch=$PREVIEW_BRANCH" >> "$GITHUB_OUTPUT"
-          else
-            git commit -m "Update PR $PR_NUMBER video previews"
-            git push origin "$PREVIEW_BRANCH"
-            echo "preview_branch=$PREVIEW_BRANCH" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
+          git commit -m "Update PR $PR_NUMBER video previews"
+          git push origin "$PREVIEW_BRANCH"
+          echo "preview_branch=$PREVIEW_BRANCH" >> "$GITHUB_OUTPUT"
+
+          rm -rf "$SITE_DIR"
+          mkdir -p "$SITE_DIR"
           find . -mindepth 1 -maxdepth 1 ! -name .git -exec cp -R {} "$SITE_DIR"/ \;
 
       - name: Configure GitHub Pages
