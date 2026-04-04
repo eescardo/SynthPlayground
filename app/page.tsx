@@ -13,17 +13,11 @@ import { createId } from "@/lib/ids";
 import { getSanitizedLoopMarkers } from "@/lib/looping";
 import {
   applyNoteClipboardPaste,
-  applyNoteClipboardInsert,
-  applyNoteClipboardInsertAllTracks,
-  buildAllTracksClipboardPayload,
   buildNoteClipboardPayload,
-  cutBeatRangeAcrossAllTracks,
   getNoteSelectionKey,
   getSelectionSourceTrackId,
   getSelectionBeatRange,
-  parseNoteSelectionKey,
-  parseNoteClipboardPayload
-  ,
+  parseNoteClipboardPayload,
   serializeNoteClipboardPayload
 } from "@/lib/noteClipboard";
 import { clearProject, loadProject, saveProject } from "@/lib/persistence";
@@ -39,9 +33,11 @@ import { removeTrackFromProject, renameTrackInProject } from "@/lib/trackEdits";
 import { useCompatibleClipboard } from "@/hooks/useCompatibleClipboard";
 import { useNoteEditor } from "@/hooks/useNoteEditor";
 import { useLoopSettings } from "@/hooks/useLoopSettings";
+import { usePlatformShortcuts } from "@/hooks/usePlatformShortcuts";
 import { usePlaybackController } from "@/hooks/usePlaybackController";
 import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
 import { useRecordingController } from "@/hooks/useRecordingController";
+import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
 import { Project } from "@/types/music";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -81,7 +77,6 @@ export default function HomePage() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [strictWasmReady, setStrictWasmReady] = useState(process.env.NEXT_PUBLIC_STRICT_WASM !== "1");
-  const [isMacPlatform, setIsMacPlatform] = useState(false);
   const [selectedNoteKeys, setSelectedNoteKeys] = useState<string[]>([]);
   const [selectionMarqueeActive, setSelectionMarqueeActive] = useState(false);
   const [selectionActionScopePreview, setSelectionActionScopePreview] = useState<"source" | "all-tracks">("source");
@@ -108,6 +103,12 @@ export default function HomePage() {
     clearCompatibleClipboard,
     syncCompatibleClipboardPayload
   } = useCompatibleClipboard();
+  const {
+    allTracksModifierLabel,
+    deleteKeyLabel,
+    isDeleteShortcutKey,
+    primaryModifierLabel
+  } = usePlatformShortcuts();
 
   useEffect(() => {
     let cancelled = false;
@@ -144,10 +145,6 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  useEffect(() => {
-    setIsMacPlatform(typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform));
   }, []);
 
   useEffect(() => {
@@ -394,6 +391,28 @@ export default function HomePage() {
     setSelectionActionScopePreview("source");
     setPitchPicker(null);
   }, []);
+  const {
+    applyCompatiblePaste,
+    copyAllTracksInSelection,
+    copySelectedNotes,
+    cutAllTracksInSelection,
+    cutSelectedNotes,
+    deleteAllTracksInSelection,
+    deleteSelectedNoteSelection,
+    deleteSelectedNotes
+  } = useSelectionClipboardActions({
+    clearCompatibleClipboard,
+    closeTimelineActionsPopover: () => setTimelineActionsPopover(null),
+    commitProjectChange,
+    compatibleClipboardPayload,
+    project,
+    selectedNoteKeys,
+    selectedTrackId: selectedTrack?.id,
+    selectionBeatRange,
+    setPlayheadFromUser,
+    setSelectedNoteKeys,
+    writeClipboardPayload
+  });
   const { applyLoopSettings, addLoopBoundary, updateLoopRepeatCount, removeLoopBoundary, loopConflictDialog, clearLoopConflictDialog } =
     useLoopSettings({
       project,
@@ -664,139 +683,13 @@ export default function HomePage() {
     setProjectHistory((prev) => redoHistory(prev));
   }, []);
 
-  const deleteSelectedNotes = useCallback((selectionKeys: string[]) => {
-    if (selectionKeys.length === 0) {
-      return;
-    }
-
-    const noteIdsByTrackId = new Map<string, Set<string>>();
-    for (const selectionKey of selectionKeys) {
-      const parsed = parseNoteSelectionKey(selectionKey);
-      if (!parsed) {
-        continue;
-      }
-      const noteIds = noteIdsByTrackId.get(parsed.trackId) ?? new Set<string>();
-      noteIds.add(parsed.noteId);
-      noteIdsByTrackId.set(parsed.trackId, noteIds);
-    }
-
-    if (noteIdsByTrackId.size === 0) {
-      return;
-    }
-
-    commitProjectChange((current) => ({
-      ...current,
-      tracks: current.tracks.map((track) => {
-        const noteIds = noteIdsByTrackId.get(track.id);
-        if (!noteIds) {
-          return track;
-        }
-        const nextNotes = track.notes.filter((note) => !noteIds.has(note.id));
-        return nextNotes.length === track.notes.length ? track : { ...track, notes: nextNotes };
-      })
-    }), { actionKey: "notes:cut-selection" });
-    setSelectedNoteKeys([]);
-  }, [commitProjectChange]);
-
-  const copySelectedNotes = useCallback(async () => {
-    const payload = buildNoteClipboardPayload(project, selectedNoteKeys);
-    if (!payload) {
-      return;
-    }
-    await writeClipboardPayload(payload);
-  }, [project, selectedNoteKeys, writeClipboardPayload]);
-
-  const cutSelectedNotes = useCallback(async () => {
-    const payload = buildNoteClipboardPayload(project, selectedNoteKeys);
-    if (!payload) {
-      return;
-    }
-    await writeClipboardPayload(payload);
-    deleteSelectedNotes(selectedNoteKeys);
-  }, [deleteSelectedNotes, project, selectedNoteKeys, writeClipboardPayload]);
-
-  const deleteSelectedNoteSelection = useCallback(() => {
-    deleteSelectedNotes(selectedNoteKeys);
-  }, [deleteSelectedNotes, selectedNoteKeys]);
-
-  const copyAllTracksInSelection = useCallback(async () => {
-    if (!selectionBeatRange) {
-      return;
-    }
-    const payload = buildAllTracksClipboardPayload(project, selectionBeatRange);
-    if (!payload) {
-      return;
-    }
-    await writeClipboardPayload(payload);
-  }, [project, selectionBeatRange, writeClipboardPayload]);
-
-  const cutAllTracksInSelection = useCallback(async () => {
-    if (!selectionBeatRange) {
-      return;
-    }
-    const payload = buildAllTracksClipboardPayload(project, selectionBeatRange);
-    if (!payload) {
-      return;
-    }
-    await writeClipboardPayload(payload);
-    commitProjectChange((current) => cutBeatRangeAcrossAllTracks(current, selectionBeatRange), {
-      actionKey: "timeline:cut-all-tracks"
-    });
-    setSelectedNoteKeys([]);
-  }, [commitProjectChange, project, selectionBeatRange, writeClipboardPayload]);
-
-  const deleteAllTracksInSelection = useCallback(() => {
-    if (!selectionBeatRange) {
-      return;
-    }
-    void clearCompatibleClipboard();
-    commitProjectChange(
-      (current) => cutBeatRangeAcrossAllTracks(current, selectionBeatRange),
-      { actionKey: "timeline:delete-all-tracks" }
-    );
-    setSelectedNoteKeys([]);
-  }, [clearCompatibleClipboard, commitProjectChange, selectionBeatRange]);
-
-  const applyCompatiblePaste = useCallback((mode: "paste" | "paste-all-tracks" | "insert" | "insert-all-tracks", beat: number) => {
-    if (!compatibleClipboardPayload || !selectedTrack?.id) {
-      return;
-    }
-
-    let nextSelectionKeys: string[] = [];
-    commitProjectChange((current) => {
-      const firstTrackId = current.tracks[0]?.id;
-      const applied =
-        mode === "insert"
-          ? applyNoteClipboardInsert(current, compatibleClipboardPayload, selectedTrack.id, beat)
-          : mode === "paste-all-tracks" && firstTrackId
-            ? applyNoteClipboardPaste(current, compatibleClipboardPayload, firstTrackId, beat)
-          : mode === "insert-all-tracks"
-            ? applyNoteClipboardInsertAllTracks(current, compatibleClipboardPayload, beat)
-            : applyNoteClipboardPaste(current, compatibleClipboardPayload, selectedTrack.id, beat);
-      nextSelectionKeys = applied.selectionKeys;
-      return applied.project;
-    }, {
-      actionKey:
-        mode === "insert"
-          ? `track:${selectedTrack.id}:insert-notes`
-          : mode === "paste-all-tracks"
-            ? "timeline:paste-all-tracks"
-          : mode === "insert-all-tracks"
-            ? "timeline:insert-all-tracks"
-            : `track:${selectedTrack.id}:paste-notes`
-    });
-    setPlayheadFromUser(beat);
-    setSelectedNoteKeys(nextSelectionKeys);
-    setTimelineActionsPopover(null);
-  }, [commitProjectChange, compatibleClipboardPayload, selectedTrack?.id, setPlayheadFromUser]);
-
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const editingText = target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA");
       const primaryModifier = event.metaKey || event.ctrlKey;
       const lowerKey = event.key.toLowerCase();
-      const isDeleteKey = event.key === "Delete" || (isMacPlatform && event.key === "Backspace");
+      const isDeleteKey = isDeleteShortcutKey(event.key);
 
       const isHelpKey = event.key === "?" || (event.key === "/" && event.shiftKey);
       if (isHelpKey && !editingText) {
@@ -884,7 +777,7 @@ export default function HomePage() {
     cutAllTracksInSelection,
     deleteAllTracksInSelection,
     deleteSelectedNoteSelection,
-    isMacPlatform,
+    isDeleteShortcutKey,
     playheadBeat,
     redoProject,
     selectedNoteKeys.length,
@@ -1186,9 +1079,6 @@ export default function HomePage() {
   const pitchPickerNote = pitchPickerTrack?.notes.find((note) => note.id === pitchPicker?.noteId);
   const activeRecordingTrackId = recording.activeRecordingTrackId;
   const activeRecordingTrack = activeRecordingTrackId ? project.tracks.find((track) => track.id === activeRecordingTrackId) : undefined;
-  const primaryModifierLabel = isMacPlatform ? "Cmd" : "Ctrl";
-  const deleteKeyLabel = isMacPlatform ? "Backspace" : "Delete";
-  const allTracksModifierLabel = isMacPlatform ? "Cmd+Opt" : "Ctrl+Alt";
   const keyboardShortcuts = [
     { action: "Help", shortcut: "?" },
     { action: "Cut Selection", shortcut: `${primaryModifierLabel}+X` },
