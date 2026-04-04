@@ -99,10 +99,12 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await applyReviewFraming(page);
 
       const canvas = getTrackCanvas(page);
-      await dragCanvasRegion(page, canvas, { x: 160, y: 48 }, { x: 520, y: 96 });
+      await dragCanvasRegion(page, canvas, { x: 188, y: 42 }, { x: 840, y: 168 });
+      const selectionPopover = page.locator(".selection-actions-popover");
+      await expect(selectionPopover).toBeVisible();
       await page.waitForTimeout(postActionSettleMs * 2);
 
-      await page.locator(".selection-actions-popover").getByRole("button", { name: "Copy", exact: true }).click();
+      await selectionPopover.getByRole("button", { name: "Copy", exact: true }).click();
       await page.waitForTimeout(postActionSettleMs);
 
       await page.locator(".track-name-button").nth(4).click({ force: true });
