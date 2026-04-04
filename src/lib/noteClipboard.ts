@@ -18,6 +18,9 @@ interface ClipboardTrackData {
   notes: ClipboardNoteData[];
 }
 
+// Clipboard payloads always store notes grouped by track, normalized so each note start is
+// relative to the copied beat window. A regular note selection includes only tracks that contain
+// selected notes, while an "all tracks" selection includes every track, including empty ones.
 export interface NoteClipboardPayload {
   type: typeof NOTE_CLIPBOARD_TYPE;
   version: typeof NOTE_CLIPBOARD_VERSION;
