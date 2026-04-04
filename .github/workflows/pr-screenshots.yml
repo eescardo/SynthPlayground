@@ -105,6 +105,7 @@ jobs:
     outputs:
       capture_status: ${{ steps.capture.outcome }}
       has_artifact: ${{ steps.detect.outputs.has_artifact }}
+      captured_scenarios: ${{ steps.detect.outputs.captured_scenarios }}
       artifact_url: ${{ steps.upload.outputs.artifact-url }}
     steps:
       - name: Check out base revision
@@ -155,10 +156,13 @@ jobs:
         id: detect
         shell: bash
         run: |
-          if find artifacts/screenshots/before -name '*.png' -print -quit 2>/dev/null | grep -q .; then
+          captured_scenarios="$(find artifacts/screenshots/before -name '*.png' -exec basename {} .png \; 2>/dev/null | sort -u | paste -sd, -)"
+          if [[ -n "$captured_scenarios" ]]; then
             echo "has_artifact=true" >> "$GITHUB_OUTPUT"
+            echo "captured_scenarios=$captured_scenarios" >> "$GITHUB_OUTPUT"
           else
             echo "has_artifact=false" >> "$GITHUB_OUTPUT"
+            echo "captured_scenarios=" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Upload before screenshots
@@ -179,6 +183,7 @@ jobs:
     outputs:
       capture_status: ${{ steps.capture.outcome }}
       has_artifact: ${{ steps.detect.outputs.has_artifact }}
+      captured_scenarios: ${{ steps.detect.outputs.captured_scenarios }}
       artifact_url: ${{ steps.upload.outputs.artifact-url }}
     steps:
       - name: Check out PR head revision
@@ -222,10 +227,13 @@ jobs:
         id: detect
         shell: bash
         run: |
-          if find artifacts/screenshots/after -name '*.png' -print -quit 2>/dev/null | grep -q .; then
+          captured_scenarios="$(find artifacts/screenshots/after -name '*.png' -exec basename {} .png \; 2>/dev/null | sort -u | paste -sd, -)"
+          if [[ -n "$captured_scenarios" ]]; then
             echo "has_artifact=true" >> "$GITHUB_OUTPUT"
+            echo "captured_scenarios=$captured_scenarios" >> "$GITHUB_OUTPUT"
           else
             echo "has_artifact=false" >> "$GITHUB_OUTPUT"
+            echo "captured_scenarios=" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Upload after screenshots
@@ -345,6 +353,8 @@ jobs:
           AFTER_URL: ${{ needs.capture-after.outputs.artifact_url }}
           BEFORE_AVAILABLE: ${{ needs.capture-before.outputs.has_artifact }}
           AFTER_AVAILABLE: ${{ needs.capture-after.outputs.has_artifact }}
+          BEFORE_CAPTURED_SCENARIOS: ${{ needs.capture-before.outputs.captured_scenarios }}
+          AFTER_CAPTURED_SCENARIOS: ${{ needs.capture-after.outputs.captured_scenarios }}
           PREVIEW_BRANCH: ${{ needs.publish-previews.outputs.preview_branch }}
         with:
           script: |
@@ -355,16 +365,18 @@ jobs:
             const scenarios = process.env.RESOLVED_SCENARIOS.split(",").filter(Boolean);
             const beforeAvailable = process.env.BEFORE_AVAILABLE === "true";
             const afterAvailable = process.env.AFTER_AVAILABLE === "true";
+            const beforeCaptured = new Set((process.env.BEFORE_CAPTURED_SCENARIOS || "").split(",").filter(Boolean));
+            const afterCaptured = new Set((process.env.AFTER_CAPTURED_SCENARIOS || "").split(",").filter(Boolean));
             const imageUrl = (phase, scenario) =>
               `https://github.com/${repo}/raw/${previewBranch}/pr-${prNumber}/${phase}/${scenario}.png`;
-            const renderCell = (phase, scenario, available) =>
-              available && previewBranch
+            const renderCell = (phase, scenario, available, captured) =>
+              available && captured.has(scenario) && previewBranch
                 ? `<img src="${imageUrl(phase, scenario)}" alt="${scenario} ${phase}" width="360" />`
                 : "_unable to capture_";
             const rows = scenarios
               .map(
                 (scenario) =>
-                  `| \`${scenario}\` | ${renderCell("before", scenario, beforeAvailable)} | ${renderCell("after", scenario, afterAvailable)} |`
+                  `| \`${scenario}\` | ${renderCell("before", scenario, beforeAvailable, beforeCaptured)} | ${renderCell("after", scenario, afterAvailable, afterCaptured)} |`
               )
               .join("\n");
             const body = `${marker}
