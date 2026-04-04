@@ -38,6 +38,7 @@ const createProject = (): Project => ({
         }
       ],
       macroValues: {},
+      macroAutomations: {},
       macroPanelExpanded: true,
       volume: 1,
       mute: false,

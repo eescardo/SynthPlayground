@@ -4,7 +4,7 @@ export const LOOP_MARKER_DOT_RADIUS = 3;
 export const LOOP_MARKER_DOT_OFFSET_Y = 6;
 export const LOOP_MARKER_HOVER_RING_RADIUS = 4.5;
 
-export type CanvasCursor = "default" | "pointer" | "move" | "move-active" | "resize";
+export type CanvasCursor = "default" | "pointer" | "move" | "move-active" | "resize" | "crosshair" | "ns-resize";
 export type TrackCanvasHoverTarget = "mute" | "pitch" | "note" | "loop-marker" | "playhead" | "empty";
 
 export interface LoopMarkerRect {

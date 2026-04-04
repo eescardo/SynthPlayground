@@ -20,12 +20,27 @@ export interface TrackFxSettings {
   compression: number;
 }
 
+export interface TrackMacroAutomationKeyframe {
+  id: string;
+  beat: number;
+  value: number;
+}
+
+export interface TrackMacroAutomationLane {
+  macroId: string;
+  expanded: boolean;
+  startValue: number;
+  endValue: number;
+  keyframes: TrackMacroAutomationKeyframe[];
+}
+
 export interface Track {
   id: string;
   name: string;
   instrumentPatchId: string;
   notes: Note[];
   macroValues: Record<string, number>;
+  macroAutomations: Record<string, TrackMacroAutomationLane>;
   macroPanelExpanded: boolean;
   volume: number;
   mute?: boolean;

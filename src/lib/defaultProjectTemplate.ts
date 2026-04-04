@@ -1,6 +1,7 @@
 import defaultProjectTemplateData from "@/lib/defaultProjectTemplateData.json";
 import { createId } from "@/lib/ids";
 import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping";
+import { sanitizeMacroAutomationMap } from "@/lib/macroAutomation";
 import { Project, Track } from "@/types/music";
 import { Patch } from "@/types/patch";
 
@@ -9,6 +10,7 @@ type RawTemplateTrack = {
   instrumentPatchId?: unknown;
   notes?: unknown;
   macroValues?: unknown;
+  macroAutomations?: unknown;
   macroPanelExpanded?: unknown;
   volume?: unknown;
   mute?: unknown;
@@ -79,6 +81,7 @@ const sanitizeTemplateTrack = (track: RawTemplateTrack, index: number): Track =>
       ];
     }),
     macroValues,
+    macroAutomations: sanitizeMacroAutomationMap(track.macroAutomations),
     macroPanelExpanded: track.macroPanelExpanded !== false,
     volume: clamp(asFiniteNumber(track.volume, 1), 0, 2),
     mute: Boolean(track.mute),
@@ -211,6 +214,7 @@ export const createEmptyProjectFromPresets = (bundledPresetPatches: Patch[]): Pr
         instrumentPatchId: firstPresetId,
         notes: [],
         macroValues: {},
+        macroAutomations: {},
         macroPanelExpanded: true,
         volume: 1,
         mute: false,

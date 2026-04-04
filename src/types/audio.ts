@@ -1,5 +1,5 @@
 // Scheduler/worklet message contracts and event payload types for audio transport.
-export type SchedulerEventType = "NoteOn" | "NoteOff" | "ParamChange";
+export type SchedulerEventType = "NoteOn" | "NoteOff" | "ParamChange" | "MacroChange";
 export type SchedulerEventSource = "timeline" | "live_input" | "preview" | "automation";
 
 export interface BaseSchedulerEvent {
@@ -32,7 +32,14 @@ export interface ParamChangeEvent extends BaseSchedulerEvent {
   value: number | string | boolean;
 }
 
-export type SchedulerEvent = NoteOnEvent | NoteOffEvent | ParamChangeEvent;
+export interface MacroChangeEvent extends BaseSchedulerEvent {
+  type: "MacroChange";
+  trackId: string;
+  macroId: string;
+  normalized: number;
+}
+
+export type SchedulerEvent = NoteOnEvent | NoteOffEvent | ParamChangeEvent | MacroChangeEvent;
 
 export interface WorkletInitMessage {
   type: "INIT";

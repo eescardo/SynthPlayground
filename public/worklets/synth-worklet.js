@@ -1283,6 +1283,15 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
       return;
     }
 
+    if (event.type === "MacroChange") {
+      for (const track of this.trackRuntimes) {
+        if (track.track.id === event.trackId) {
+          track.applyMacro(event.macroId, event.normalized);
+        }
+      }
+      return;
+    }
+
     const track = this.trackRuntimes.find((entry) => entry.track.id === event.trackId);
     if (!track) {
       return;
