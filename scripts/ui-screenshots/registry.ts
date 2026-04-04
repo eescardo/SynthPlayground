@@ -9,6 +9,22 @@ export interface ScreenshotScenarioDefinition {
   capture: (page: Page, outputPath: string) => Promise<void>;
 }
 
+const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canvas");
+
+const setupMacroAutomationLane = async (page: Page) => {
+  await openApp(page);
+  const macroPanel = page.locator(".macro-panel");
+  await expect(macroPanel).toBeVisible();
+  await macroPanel.getByRole("button", { name: "Automate" }).first().click();
+  const collapseLane = macroPanel.getByRole("button", { name: "Collapse lane" }).first();
+  await expect(collapseLane).toBeVisible();
+
+  const canvas = getTrackCanvas(page);
+  await canvas.click({ position: { x: 430, y: 118 } });
+  await canvas.click({ position: { x: 770, y: 148 } });
+  return { canvas };
+};
+
 export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, ScreenshotScenarioDefinition> = {
   [SCREENSHOT_SCENARIO.MAIN_VIEW]: {
     name: SCREENSHOT_SCENARIO.MAIN_VIEW,
@@ -67,6 +83,14 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
       await openApp(page);
       await expect(page.getByRole("heading", { name: "Instrument" })).toBeVisible();
       await savePageScreenshot(page, outputPath, ".instrument-editor");
+    }
+  },
+  [SCREENSHOT_SCENARIO.MACRO_AUTOMATION_LANE]: {
+    name: SCREENSHOT_SCENARIO.MACRO_AUTOMATION_LANE,
+    description: "Track canvas with an automated macro lane and interpolated keyframes visible",
+    capture: async (page, outputPath) => {
+      await setupMacroAutomationLane(page);
+      await savePageScreenshot(page, outputPath, ".track-canvas-shell");
     }
   }
 };

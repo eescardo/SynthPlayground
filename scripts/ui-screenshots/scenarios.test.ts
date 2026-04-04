@@ -34,6 +34,15 @@ describe("resolveScreenshotScenariosFromLabelsJson", () => {
     });
   });
 
+  it("parses the macro automation lane label", () => {
+    expect(resolveScreenshotScenariosFromLabels(["screenshots:macro-automation-lane"])).toMatchObject({
+      enabled: true,
+      value: "macro-automation-lane",
+      grep: "@macro-automation-lane",
+      error: ""
+    });
+  });
+
   it("returns a validation error for malformed JSON", () => {
     expect(resolveScreenshotScenariosFromLabelsJson("not-json")).toMatchObject({
       enabled: false,

@@ -4,7 +4,8 @@ export const SCREENSHOT_SCENARIO = {
   TRACK_NOTE_HOVER: "track-note-hover",
   HELP_MODAL: "help-modal",
   RECORD_MODE: "record-mode",
-  PATCH_EDITOR: "patch-editor"
+  PATCH_EDITOR: "patch-editor",
+  MACRO_AUTOMATION_LANE: "macro-automation-lane"
 } as const;
 
 export const SCREENSHOT_SCENARIOS = Object.values(SCREENSHOT_SCENARIO);
