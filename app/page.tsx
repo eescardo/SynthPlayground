@@ -12,6 +12,7 @@ import { TimelineActionsPopoverRequest, TrackCanvas } from "@/components/TrackCa
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
 import { getSanitizedLoopMarkers } from "@/lib/looping";
+import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import {
   getNoteSelectionKey,
   getSelectionSourceTrackId,
@@ -80,7 +81,7 @@ export default function HomePage() {
   const [selectionMarqueeActive, setSelectionMarqueeActive] = useState(false);
   const [selectionActionScopePreview, setSelectionActionScopePreview] = useState<"source" | "all-tracks">("source");
   const [pitchPicker, setPitchPicker] = useState<{ trackId: string; noteId: string } | null>(null);
-  const [previewPitch, setPreviewPitch] = useState("C4");
+  const [previewPitch, setPreviewPitch] = useState(DEFAULT_NOTE_PITCH);
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
   const [timelineActionsPopover, setTimelineActionsPopover] = useState<TimelineActionsPopoverRequest | null>(null);
   const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
@@ -479,7 +480,7 @@ export default function HomePage() {
   const openPitchPicker = useCallback((trackId: string, noteId: string) => {
     setPitchPicker({ trackId, noteId });
     const notePitch = project.tracks.find((track) => track.id === trackId)?.notes.find((note) => note.id === noteId)?.pitchStr;
-    previewNoteForPitchPicker(trackId, noteId, notePitch ?? "C4");
+    previewNoteForPitchPicker(trackId, noteId, notePitch ?? DEFAULT_NOTE_PITCH);
   }, [previewNoteForPitchPicker, project.tracks]);
 
   const closePitchPicker = useCallback(() => {

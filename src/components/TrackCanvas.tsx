@@ -22,8 +22,8 @@ import {
   PLAYHEAD_HIT_HALF_WIDTH
 } from "@/components/trackCanvasGeometry";
 import { useVolumePopover } from "@/hooks/useVolumePopover";
-import { createId } from "@/lib/ids";
 import { getLoopMarkerStates } from "@/lib/looping";
+import { createDefaultPlacedNote } from "@/lib/noteDefaults";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { getNoteSelectionKey } from "@/lib/noteClipboard";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
@@ -1013,13 +1013,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
     const hadSelectionRect = Boolean(selectionRect);
     if (pendingAction && !hadSelectionRect) {
-      const newNote: Note = {
-        id: createId("note"),
-        pitchStr: "C4",
-        startBeat: pendingAction.beat,
-        durationBeats: Math.max(props.project.global.gridBeats, props.project.global.gridBeats * 2),
-        velocity: 0.85
-      };
+      const newNote = createDefaultPlacedNote(pendingAction.beat, props.project.global.gridBeats);
       props.onUpsertNote(pendingAction.trackId, newNote, {
         actionKey: `track:${pendingAction.trackId}:note:${newNote.id}:create`
       });
