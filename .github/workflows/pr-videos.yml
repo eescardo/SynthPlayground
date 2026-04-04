@@ -24,8 +24,6 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
-  pages: write
-  id-token: write
 
 jobs:
   pr-context:
@@ -143,15 +141,15 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  prepare-pages-content:
-    name: Prepare Video Preview Site
+  publish-previews:
+    name: Publish Video Previews
     runs-on: ubuntu-latest
     needs:
       - pr-context
       - capture-after
     if: needs.pr-context.outputs.scenarios != ''
     outputs:
-      preview_branch: ${{ steps.prepare.outputs.preview_branch }}
+      preview_branch: ${{ steps.publish.outputs.preview_branch }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -164,14 +162,22 @@ jobs:
           name: pr-${{ needs.pr-context.outputs.pr_number }}-videos-after
           path: ${{ runner.temp }}/videos-after
 
-      - name: Prepare preview site content
-        id: prepare
+      - name: Ensure ffmpeg is available
+        shell: bash
+        run: |
+          if command -v ffmpeg >/dev/null 2>&1; then
+            ffmpeg -version | head -n 1
+            exit 0
+          fi
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Publish preview videos to branch
+        id: publish
         env:
           PREVIEW_BRANCH: pr-video-previews
           PR_NUMBER: ${{ needs.pr-context.outputs.pr_number }}
           AFTER_DIR: ${{ runner.temp }}/videos-after
-          RESOLVED_SCENARIOS: ${{ needs.pr-context.outputs.resolved }}
-          SITE_DIR: ${{ runner.temp }}/pages-site
         shell: bash
         run: |
           set -euo pipefail
@@ -191,75 +197,15 @@ jobs:
           mkdir -p "pr-$PR_NUMBER"
           rm -rf "pr-$PR_NUMBER"/*
           cp -R "$AFTER_DIR"/. "pr-$PR_NUMBER/"
-          IFS=',' read -ra SCENARIOS <<< "$RESOLVED_SCENARIOS"
-          if [[ ${#SCENARIOS[@]} -eq 0 ]]; then
-            echo "No video scenarios were resolved for PR $PR_NUMBER"
+          mapfile -d '' -t webm_files < <(find "pr-$PR_NUMBER" -type f -name '*.webm' -print0)
+          if [[ ${#webm_files[@]} -eq 0 ]]; then
+            echo "No .webm preview files were found under pr-$PR_NUMBER"
             exit 1
           fi
-          for scenario in "${SCENARIOS[@]}"; do
-            cat > "pr-$PR_NUMBER/${scenario}.html" <<EOF
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PR $PR_NUMBER · ${scenario}</title>
-    <style>
-      :root { color-scheme: dark; }
-      body {
-        margin: 0;
-        background: #0a1118;
-        color: #f4f7fb;
-        font-family: ui-sans-serif, system-ui, sans-serif;
-        display: grid;
-        min-height: 100vh;
-        place-items: center;
-      }
-      main { width: min(96vw, 1280px); padding: 24px; }
-      h1 { font-size: 20px; margin: 0 0 8px; }
-      p { margin: 0 0 16px; color: #b8c4d6; }
-      video { width: 100%; max-height: 80vh; background: #000; border-radius: 12px; }
-      a { color: #8cc8ff; }
-    </style>
-  </head>
-  <body>
-    <main>
-      <h1>PR $PR_NUMBER · ${scenario}</h1>
-      <p><a href="./${scenario}.webm">Download original webm</a></p>
-      <video controls autoplay preload="metadata" poster="./${scenario}.png">
-        <source src="./${scenario}.webm" type="video/webm" />
-        Your browser does not support embedded webm playback.
-      </video>
-    </main>
-  </body>
-</html>
-EOF
+          for webm in "${webm_files[@]}"; do
+            mp4="${webm%.webm}.mp4"
+            ffmpeg -y -loglevel error -i "$webm" -movflags +faststart -pix_fmt yuv420p "$mp4"
           done
-          cat > "pr-$PR_NUMBER/index.html" <<EOF
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PR $PR_NUMBER video previews</title>
-    <style>
-      :root { color-scheme: dark; }
-      body { margin: 0; background: #0a1118; color: #f4f7fb; font-family: ui-sans-serif, system-ui, sans-serif; }
-      main { width: min(96vw, 1100px); margin: 0 auto; padding: 24px; }
-      ul { line-height: 1.9; }
-      a { color: #8cc8ff; }
-    </style>
-  </head>
-  <body>
-    <main>
-      <h1>PR $PR_NUMBER video previews</h1>
-      <ul>
-$(printf '%s\n' "${SCENARIOS[@]}" | sed 's/.*/        <li><a href=".\/&.html">&<\/a><\/li>/')
-      </ul>
-    </main>
-  </body>
-</html>
-EOF
           touch .nojekyll
 
           git add .nojekyll "pr-$PR_NUMBER"
@@ -271,35 +217,6 @@ EOF
           git commit -m "Update PR $PR_NUMBER video previews"
           git push origin "$PREVIEW_BRANCH"
           echo "preview_branch=$PREVIEW_BRANCH" >> "$GITHUB_OUTPUT"
-
-          rm -rf "$SITE_DIR"
-          mkdir -p "$SITE_DIR"
-          find . -mindepth 1 -maxdepth 1 ! -name .git -exec cp -R {} "$SITE_DIR"/ \;
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload GitHub Pages artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: ${{ runner.temp }}/pages-site
-
-  deploy-pages:
-    name: Deploy Video Preview Pages
-    runs-on: ubuntu-latest
-    needs:
-      - pr-context
-      - prepare-pages-content
-    if: needs.pr-context.outputs.scenarios != ''
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    outputs:
-      page_url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
 
   skip:
     name: Skip Video Run
@@ -316,8 +233,7 @@ EOF
     needs:
       - pr-context
       - capture-after
-      - prepare-pages-content
-      - deploy-pages
+      - publish-previews
     if: needs.pr-context.outputs.scenarios != ''
     steps:
       - name: Upsert video comment
@@ -328,21 +244,22 @@ EOF
           RESOLVED_SCENARIOS: ${{ needs.pr-context.outputs.resolved }}
           HEAD_REF: ${{ needs.pr-context.outputs.head_ref }}
           AFTER_URL: ${{ needs.capture-after.outputs.artifact_url }}
-          PAGES_URL: ${{ needs.deploy-pages.outputs.page_url }}
+          PREVIEW_BRANCH: ${{ needs.publish-previews.outputs.preview_branch }}
         with:
           script: |
             const prNumber = Number(process.env.PR_NUMBER);
             const marker = "<!-- pr-videos -->";
+            const repo = `${context.repo.owner}/${context.repo.repo}`;
+            const previewBranch = process.env.PREVIEW_BRANCH;
             const scenarios = process.env.RESOLVED_SCENARIOS.split(",").filter(Boolean);
-            const pagesUrl = (process.env.PAGES_URL || "").replace(/\/$/, "");
-            const videoPageUrl = (scenario) =>
-              `${pagesUrl}/pr-${prNumber}/${scenario}.html`;
+            const videoBlobUrl = (scenario) =>
+              `https://github.com/${repo}/blob/${previewBranch}/pr-${prNumber}/${scenario}.mp4`;
             const posterUrl = (scenario) =>
-              `${pagesUrl}/pr-${prNumber}/${scenario}.png`;
+              `https://github.com/${repo}/raw/${previewBranch}/pr-${prNumber}/${scenario}.png`;
             const rows = scenarios
               .map(
                 (scenario) =>
-                  `| \`${scenario}\` | [<img src="${posterUrl(scenario)}" alt="${scenario} video poster" width="360" />](${videoPageUrl(scenario)}) |`
+                  `| \`${scenario}\` | [<img src="${posterUrl(scenario)}" alt="${scenario} video poster" width="360" />](${videoBlobUrl(scenario)}) |`
               )
               .join("\n");
             const body = `${marker}
@@ -363,7 +280,7 @@ EOF
             - \`artifacts/videos/after/<scenario>.webm\`
             - \`artifacts/videos/after/<scenario>.png\`
 
-            Hosted preview files are published through GitHub Pages. Click any thumbnail above to open the player page in a new tab.`;
+            Hosted preview files are published to the \`pr-video-previews\` utility branch. Click any thumbnail above to open the hosted \`.mp4\` preview page in GitHub.`;
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
