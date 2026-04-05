@@ -13,14 +13,9 @@ import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
 import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
 import {
-  AutomationKeyframeSide,
   createTrackMacroAutomationLane,
   getProjectTimelineEndBeat,
-  getTrackMacroLane,
-  removeAutomationLaneKeyframeSide,
-  splitAutomationLaneKeyframe,
-  updateAutomationLaneKeyframeSide,
-  upsertAutomationLaneKeyframe
+  getTrackMacroLane
 } from "@/lib/macroAutomation";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import {
@@ -49,6 +44,7 @@ import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
 import { useQuickHelpDialog } from "@/hooks/useQuickHelpDialog";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
+import { useTrackMacroAutomationActions } from "@/hooks/useTrackMacroAutomationActions";
 import { Project } from "@/types/music";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -247,6 +243,13 @@ export default function HomePage() {
   const playbackEndBeat = useMemo(() => {
     return getProjectTimelineEndBeat(project);
   }, [project]);
+
+  const {
+    upsertTrackMacroAutomationKeyframe,
+    splitTrackMacroAutomationKeyframe,
+    updateTrackMacroAutomationKeyframeSide,
+    deleteTrackMacroAutomationKeyframeSide
+  } = useTrackMacroAutomationActions({ commitProjectChange });
 
   useEffect(() => {
     if (!selectedPatch || selectedPatchHasErrors) return;
@@ -1044,95 +1047,6 @@ export default function HomePage() {
       { actionKey: `track:${trackId}:macro:${macroId}:toggle-lane` }
     );
   }, [commitProjectChange]);
-
-  const commitTrackMacroAutomationLaneChange = useCallback((
-    trackId: string,
-    macroId: string,
-    updateLane: (lane: NonNullable<ReturnType<typeof getTrackMacroLane>>, current: Project) => NonNullable<ReturnType<typeof getTrackMacroLane>>,
-    history: { actionKey: string; coalesce?: boolean }
-  ) => {
-    commitProjectChange(
-      (current) => ({
-        ...current,
-        tracks: current.tracks.map((track) => {
-          if (track.id !== trackId) {
-            return track;
-          }
-          const lane = getTrackMacroLane(track, macroId);
-          if (!lane) {
-            return track;
-          }
-          const nextLane = updateLane(lane, current);
-          return {
-            ...track,
-            macroAutomations: {
-              ...track.macroAutomations,
-              [macroId]: nextLane
-            },
-            macroValues: {
-              ...track.macroValues,
-              [macroId]: nextLane.startValue
-            }
-          };
-        })
-      }),
-      history
-    );
-  }, [commitProjectChange]);
-
-  const upsertTrackMacroAutomationKeyframe = useCallback((
-    trackId: string,
-    macroId: string,
-    beat: number,
-    value: number,
-    options?: { keyframeId?: string; commit?: boolean }
-  ) => {
-    commitTrackMacroAutomationLaneChange(
-      trackId,
-      macroId,
-      (lane, current) => upsertAutomationLaneKeyframe(lane, beat, value, getProjectTimelineEndBeat(current), options?.keyframeId),
-      { actionKey: `track:${trackId}:macro:${macroId}:keyframe`, coalesce: !options?.commit }
-    );
-  }, [commitTrackMacroAutomationLaneChange]);
-
-  const splitTrackMacroAutomationKeyframe = useCallback((trackId: string, macroId: string, keyframeId: string) => {
-    commitTrackMacroAutomationLaneChange(
-      trackId,
-      macroId,
-      (lane) => splitAutomationLaneKeyframe(lane, keyframeId),
-      { actionKey: `track:${trackId}:macro:${macroId}:split-keyframe` }
-    );
-  }, [commitTrackMacroAutomationLaneChange]);
-
-  const updateTrackMacroAutomationKeyframeSide = useCallback((
-    trackId: string,
-    macroId: string,
-    keyframeId: string,
-    side: AutomationKeyframeSide,
-    value: number,
-    options?: { commit?: boolean }
-  ) => {
-    commitTrackMacroAutomationLaneChange(
-      trackId,
-      macroId,
-      (lane) => updateAutomationLaneKeyframeSide(lane, keyframeId, side, value),
-      { actionKey: `track:${trackId}:macro:${macroId}:keyframe:${keyframeId}:${side}`, coalesce: !options?.commit }
-    );
-  }, [commitTrackMacroAutomationLaneChange]);
-
-  const deleteTrackMacroAutomationKeyframeSide = useCallback((
-    trackId: string,
-    macroId: string,
-    keyframeId: string,
-    side: AutomationKeyframeSide
-  ) => {
-    commitTrackMacroAutomationLaneChange(
-      trackId,
-      macroId,
-      (lane) => removeAutomationLaneKeyframeSide(lane, keyframeId, side),
-      { actionKey: `track:${trackId}:macro:${macroId}:delete-keyframe:${side}` }
-    );
-  }, [commitTrackMacroAutomationLaneChange]);
 
   if (!ready || !selectedTrack || !selectedPatch) {
     return <main className="loading">Loading...</main>;
