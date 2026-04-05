@@ -1198,6 +1198,27 @@ export function TrackCanvas(props: TrackCanvasProps) {
       return;
     }
 
+    if (targets.hoverTarget === "loop-marker" && targets.loopMarkerRect) {
+      props.onSetPlayheadBeat(targets.loopMarkerRect.beat);
+      props.onRequestTimelineActionsPopover({
+        beat: targets.loopMarkerRect.beat,
+        clientX: event.clientX,
+        clientY: event.clientY
+      });
+      setCanvasCursor("pointer");
+      return;
+    }
+
+    if (targets.hoverTarget === "playhead") {
+      props.onRequestTimelineActionsPopover({
+        beat: props.playheadBeat,
+        clientX: event.clientX,
+        clientY: event.clientY
+      });
+      setCanvasCursor("pointer");
+      return;
+    }
+
     if (targets.hoverTarget === "pitch" && targets.pitchRect && event.button === 0) {
       props.onSetNoteSelection([getNoteSelectionKey(targets.pitchRect.trackId, targets.pitchRect.noteId)]);
       props.onOpenPitchPicker(targets.pitchRect.trackId, targets.pitchRect.noteId);
@@ -1222,10 +1243,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
 
     if (automationKeyframe) {
-      if (event.button === 0 && event.detail >= 2 && automationKeyframe.boundary === null && automationKeyframe.side === "single") {
-        props.onSplitTrackMacroAutomationKeyframe(automationKeyframe.trackId, automationKeyframe.macroId, automationKeyframe.keyframeId);
-        return;
-      }
       props.onPreviewTrackMacroAutomation(
         automationKeyframe.trackId,
         automationKeyframe.macroId,
@@ -1621,6 +1638,22 @@ export function TrackCanvas(props: TrackCanvasProps) {
     setCanvasCursor("default");
   };
 
+  const onDoubleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+    const { x, y } = getCanvasPoint(event.clientX, event.clientY);
+    const automationKeyframe = findAutomationKeyframeRect(x, y);
+    if (!automationKeyframe || automationKeyframe.boundary !== null || automationKeyframe.side !== "single") {
+      return;
+    }
+    props.onSplitTrackMacroAutomationKeyframe(
+      automationKeyframe.trackId,
+      automationKeyframe.macroId,
+      automationKeyframe.keyframeId
+    );
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const wrapper = wrapperRef.current;
@@ -1814,6 +1847,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerLeave}
+        onDoubleClick={onDoubleClick}
         onContextMenu={(event) => event.preventDefault()}
       />
       {props.selectionBeatRange && !selectionRect && !props.hideSelectionActionPopover && (

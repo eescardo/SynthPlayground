@@ -471,6 +471,9 @@ const expandTrackAutomationInLoopRegion = (
   const nextAutomations: Track["macroAutomations"] = {};
 
   for (const [macroId, lane] of Object.entries(track.macroAutomations)) {
+    const restartIncomingValue = getTrackMacroValueAtBeat(track, macroId, lane.startValue, targetPair.endBeat, timelineEndBeat);
+    const restartOutgoingValue = getTrackMacroValueAtBeat(track, macroId, lane.startValue, targetPair.startBeat, timelineEndBeat);
+    const hasRestartJump = Math.abs(restartIncomingValue - restartOutgoingValue) > EPSILON;
     const beforeLoop = lane.keyframes.filter((keyframe) => keyframe.beat < targetPair.startBeat - EPSILON);
     const insideLoop = lane.keyframes.filter(
       (keyframe) => keyframe.beat >= targetPair.startBeat - EPSILON && keyframe.beat < targetPair.endBeat - EPSILON
@@ -488,27 +491,34 @@ const expandTrackAutomationInLoopRegion = (
         totalExpandedLength,
         false
       );
-      return offsets.map((offset, offsetIndex) =>
-        cloneAutomationKeyframeAtBeat(
-          keyframe,
-          targetPair.startBeat + offset,
-          index === 0 && offsetIndex === 0 ? keyframe.id : createId("automation_keyframe")
-        )
-      );
+      return offsets.flatMap((offset, offsetIndex) => {
+        const isRepeatedLoopStart =
+          hasRestartJump &&
+          Math.abs(keyframe.beat - targetPair.startBeat) <= EPSILON &&
+          offset > EPSILON;
+        if (isRepeatedLoopStart) {
+          return [];
+        }
+        return [
+          cloneAutomationKeyframeAtBeat(
+            keyframe,
+            targetPair.startBeat + offset,
+            index === 0 && offsetIndex === 0 ? keyframe.id : createId("automation_keyframe")
+          )
+        ];
+      });
     });
 
     const restartSplitKeyframes = Array.from({ length: targetPair.repeatCount }, (_, repeatIndex) => {
       const restartBeat = targetPair.startBeat + loopBodyPlaybackLength * (repeatIndex + 1);
-      const incomingValue = getTrackMacroValueAtBeat(track, macroId, lane.startValue, targetPair.endBeat, timelineEndBeat);
-      const outgoingValue = getTrackMacroValueAtBeat(track, macroId, lane.startValue, targetPair.startBeat, timelineEndBeat);
-      if (Math.abs(incomingValue - outgoingValue) <= EPSILON) {
+      if (!hasRestartJump) {
         return null;
       }
       return {
         id: createId("automation_keyframe"),
         beat: restartBeat,
-        incomingValue,
-        outgoingValue
+        incomingValue: restartIncomingValue,
+        outgoingValue: restartOutgoingValue
       };
     }).filter((keyframe): keyframe is NonNullable<typeof keyframe> => Boolean(keyframe));
 
