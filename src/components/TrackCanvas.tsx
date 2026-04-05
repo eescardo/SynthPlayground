@@ -104,6 +104,7 @@ const TRACK_CANVAS_COLORS = {
   loopMarkerText: "#07281e",
   automationLaneBg: "rgba(18, 35, 51, 0.92)",
   automationLaneBorder: "rgba(103, 157, 219, 0.38)",
+  automationLaneTimelineVeil: "rgba(12, 24, 35, 0.5)",
   automationFill: "rgba(45, 140, 255, 0.22)",
   automationLine: "#84c0ff",
   automationHandle: "#d8ecff",
@@ -700,6 +701,172 @@ export function TrackCanvas(props: TrackCanvasProps) {
     const activeRecordedNoteById = new Map(
       (props.activeRecordedNotes ?? []).map((entry) => [`${entry.trackId}:${entry.noteId}`, entry] as const)
     );
+    const renderAutomationLane = (
+      track: Track,
+      automationLayout: AutomationLaneLayout,
+      trackPatch: Project["patches"][number] | undefined,
+      options?: { veilTimeline?: boolean; registerHitTargets?: boolean }
+    ) => {
+      const lane = getTrackMacroLane(track, automationLayout.macroId);
+      const macro = trackPatch?.ui.macros.find((entry) => entry.id === automationLayout.macroId);
+      if (!lane || !macro) {
+        return;
+      }
+      const laneY = automationLayout.y;
+      const laneHeight = automationLayout.height;
+      const laneBottom = laneY + laneHeight;
+      const registerHitTargets = options?.registerHitTargets !== false;
+
+      ctx.fillStyle = options?.veilTimeline ? TRACK_CANVAS_COLORS.automationLaneTimelineVeil : TRACK_CANVAS_COLORS.automationLaneBg;
+      ctx.fillRect(HEADER_WIDTH, laneY, width - HEADER_WIDTH, laneHeight);
+      ctx.strokeStyle = TRACK_CANVAS_COLORS.automationLaneBorder;
+      ctx.strokeRect(HEADER_WIDTH + 0.5, laneY + 0.5, width - HEADER_WIDTH - 1, laneHeight - 1);
+      ctx.fillStyle = TRACK_CANVAS_COLORS.automationLabel;
+      ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.fillText(`${macro.name} automation`, 12, laneY + Math.min(16, laneHeight - 6));
+
+      const points = getTrackAutomationPoints(lane, totalBeats);
+      if (automationLayout.expanded) {
+        ctx.beginPath();
+        ctx.moveTo(HEADER_WIDTH + points[0].beat * BEAT_WIDTH, laneBottom);
+        ctx.lineTo(HEADER_WIDTH + points[0].beat * BEAT_WIDTH, automationYFromValue(points[0].rightValue, laneY, laneHeight));
+        for (let pointIndex = 1; pointIndex < points.length; pointIndex += 1) {
+          const point = points[pointIndex];
+          const pointX = HEADER_WIDTH + point.beat * BEAT_WIDTH;
+          const leftY = automationYFromValue(point.leftValue, laneY, laneHeight);
+          const rightY = automationYFromValue(point.rightValue, laneY, laneHeight);
+          ctx.lineTo(pointX, leftY);
+          if (Math.abs(point.leftValue - point.rightValue) > 1e-9) {
+            ctx.lineTo(pointX, rightY);
+          }
+        }
+        ctx.lineTo(HEADER_WIDTH + points[points.length - 1].beat * BEAT_WIDTH, laneBottom);
+        ctx.closePath();
+        ctx.fillStyle = TRACK_CANVAS_COLORS.automationFill;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(HEADER_WIDTH + points[0].beat * BEAT_WIDTH, automationYFromValue(points[0].rightValue, laneY, laneHeight));
+        for (let pointIndex = 1; pointIndex < points.length; pointIndex += 1) {
+          const point = points[pointIndex];
+          const pointX = HEADER_WIDTH + point.beat * BEAT_WIDTH;
+          const leftY = automationYFromValue(point.leftValue, laneY, laneHeight);
+          const rightY = automationYFromValue(point.rightValue, laneY, laneHeight);
+          ctx.lineTo(pointX, leftY);
+          if (Math.abs(point.leftValue - point.rightValue) > 1e-9) {
+            ctx.lineTo(pointX, rightY);
+          }
+        }
+        ctx.strokeStyle = TRACK_CANVAS_COLORS.automationLine;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      for (const point of points) {
+        const pointX = HEADER_WIDTH + point.beat * BEAT_WIDTH;
+        const incomingY = automationYFromValue(point.leftValue, laneY, laneHeight);
+        const outgoingY = automationYFromValue(point.rightValue, laneY, laneHeight);
+        if (automationLayout.expanded) {
+          ctx.strokeStyle = TRACK_CANVAS_COLORS.automationLine;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(pointX, laneBottom - 4);
+          ctx.lineTo(pointX, outgoingY);
+          ctx.stroke();
+          if (Math.abs(point.leftValue - point.rightValue) > 1e-9) {
+            ctx.beginPath();
+            ctx.moveTo(pointX, incomingY);
+            ctx.lineTo(pointX, outgoingY);
+            ctx.stroke();
+          }
+        }
+        ctx.strokeStyle = TRACK_CANVAS_COLORS.automationHandleBorder;
+        ctx.lineWidth = 2;
+        if (point.kind === "split") {
+          const incomingX = pointX - AUTOMATION_SPLIT_CENTER_OFFSET;
+          const outgoingX = pointX + AUTOMATION_SPLIT_CENTER_OFFSET;
+          ctx.fillStyle =
+            hoveredAutomationKeyframe?.trackId === track.id &&
+            hoveredAutomationKeyframe.macroId === automationLayout.macroId &&
+            hoveredAutomationKeyframe.keyframeId === point.id &&
+            hoveredAutomationKeyframe.side === "incoming"
+              ? TRACK_CANVAS_COLORS.noteHoverBorder
+              : TRACK_CANVAS_COLORS.automationHandle;
+          drawAutomationTriangle(ctx, incomingX, incomingY, "incoming");
+          ctx.fillStyle =
+            hoveredAutomationKeyframe?.trackId === track.id &&
+            hoveredAutomationKeyframe.macroId === automationLayout.macroId &&
+            hoveredAutomationKeyframe.keyframeId === point.id &&
+            hoveredAutomationKeyframe.side === "outgoing"
+              ? TRACK_CANVAS_COLORS.noteHoverBorder
+              : TRACK_CANVAS_COLORS.automationHandle;
+          drawAutomationTriangle(ctx, outgoingX, outgoingY, "outgoing");
+          if (registerHitTargets) {
+            automationKeyframeRectsRef.current.push({
+              trackId: track.id,
+              macroId: automationLayout.macroId,
+              keyframeId: point.id,
+              beat: point.beat,
+              value: point.leftValue,
+              side: "incoming",
+              kind: point.kind,
+              x: incomingX,
+              y: incomingY,
+              hitLeft: pointX - AUTOMATION_SPLIT_HALF_WIDTH - AUTOMATION_SPLIT_CENTER_OFFSET - 4,
+              hitRight: pointX + 1,
+              hitTop: incomingY - AUTOMATION_SPLIT_HALF_HEIGHT - 5,
+              hitBottom: incomingY + AUTOMATION_SPLIT_HALF_HEIGHT + 5,
+              boundary: point.boundary
+            });
+            automationKeyframeRectsRef.current.push({
+              trackId: track.id,
+              macroId: automationLayout.macroId,
+              keyframeId: point.id,
+              beat: point.beat,
+              value: point.rightValue,
+              side: "outgoing",
+              kind: point.kind,
+              x: outgoingX,
+              y: outgoingY,
+              hitLeft: pointX - 1,
+              hitRight: pointX + AUTOMATION_SPLIT_HALF_WIDTH + AUTOMATION_SPLIT_CENTER_OFFSET + 4,
+              hitTop: outgoingY - AUTOMATION_SPLIT_HALF_HEIGHT - 5,
+              hitBottom: outgoingY + AUTOMATION_SPLIT_HALF_HEIGHT + 5,
+              boundary: point.boundary
+            });
+          }
+        } else {
+          ctx.fillStyle =
+            hoveredAutomationKeyframe?.trackId === track.id &&
+            hoveredAutomationKeyframe.macroId === automationLayout.macroId &&
+            hoveredAutomationKeyframe.keyframeId === point.id
+              ? TRACK_CANVAS_COLORS.noteHoverBorder
+              : TRACK_CANVAS_COLORS.automationHandle;
+          ctx.beginPath();
+          ctx.arc(pointX, outgoingY, AUTOMATION_SINGLE_RADIUS, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          if (registerHitTargets) {
+            automationKeyframeRectsRef.current.push({
+              trackId: track.id,
+              macroId: automationLayout.macroId,
+              keyframeId: point.id,
+              beat: point.beat,
+              value: point.rightValue,
+              side: "single",
+              kind: point.kind,
+              x: pointX,
+              y: outgoingY,
+              hitLeft: pointX - 7,
+              hitRight: pointX + 7,
+              hitTop: outgoingY - 7,
+              hitBottom: outgoingY + 7,
+              boundary: point.boundary
+            });
+          }
+        }
+      }
+    };
     props.project.tracks.forEach((track) => {
       const layout = trackLayouts.find((entry) => entry.trackId === track.id);
       if (!layout) {
@@ -831,159 +998,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       }
 
       for (const automationLayout of layout.automationLanes) {
-        const lane = getTrackMacroLane(track, automationLayout.macroId);
-        const macro = trackPatch?.ui.macros.find((entry) => entry.id === automationLayout.macroId);
-        if (!lane || !macro) {
-          continue;
-        }
-        const laneY = automationLayout.y;
-        const laneHeight = automationLayout.height;
-        const laneBottom = laneY + laneHeight;
-        ctx.fillStyle = TRACK_CANVAS_COLORS.automationLaneBg;
-        ctx.fillRect(HEADER_WIDTH, laneY, width - HEADER_WIDTH, laneHeight);
-        ctx.strokeStyle = TRACK_CANVAS_COLORS.automationLaneBorder;
-        ctx.strokeRect(HEADER_WIDTH + 0.5, laneY + 0.5, width - HEADER_WIDTH - 1, laneHeight - 1);
-        ctx.fillStyle = TRACK_CANVAS_COLORS.automationLabel;
-        ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
-        ctx.fillText(`${macro.name} automation`, 12, laneY + Math.min(16, laneHeight - 6));
-
-        const points = getTrackAutomationPoints(lane, totalBeats);
-        if (automationLayout.expanded) {
-          ctx.beginPath();
-          ctx.moveTo(HEADER_WIDTH + points[0].beat * BEAT_WIDTH, laneBottom);
-          ctx.lineTo(HEADER_WIDTH + points[0].beat * BEAT_WIDTH, automationYFromValue(points[0].rightValue, laneY, laneHeight));
-          for (let pointIndex = 1; pointIndex < points.length; pointIndex += 1) {
-            const point = points[pointIndex];
-            const pointX = HEADER_WIDTH + point.beat * BEAT_WIDTH;
-            const leftY = automationYFromValue(point.leftValue, laneY, laneHeight);
-            const rightY = automationYFromValue(point.rightValue, laneY, laneHeight);
-            ctx.lineTo(pointX, leftY);
-            if (Math.abs(point.leftValue - point.rightValue) > 1e-9) {
-              ctx.lineTo(pointX, rightY);
-            }
-          }
-          ctx.lineTo(HEADER_WIDTH + points[points.length - 1].beat * BEAT_WIDTH, laneBottom);
-          ctx.closePath();
-          ctx.fillStyle = TRACK_CANVAS_COLORS.automationFill;
-          ctx.fill();
-
-          ctx.beginPath();
-          ctx.moveTo(HEADER_WIDTH + points[0].beat * BEAT_WIDTH, automationYFromValue(points[0].rightValue, laneY, laneHeight));
-          for (let pointIndex = 1; pointIndex < points.length; pointIndex += 1) {
-            const point = points[pointIndex];
-            const pointX = HEADER_WIDTH + point.beat * BEAT_WIDTH;
-            const leftY = automationYFromValue(point.leftValue, laneY, laneHeight);
-            const rightY = automationYFromValue(point.rightValue, laneY, laneHeight);
-            ctx.lineTo(pointX, leftY);
-            if (Math.abs(point.leftValue - point.rightValue) > 1e-9) {
-              ctx.lineTo(pointX, rightY);
-            }
-          }
-          ctx.strokeStyle = TRACK_CANVAS_COLORS.automationLine;
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
-
-        for (const point of points) {
-          const pointX = HEADER_WIDTH + point.beat * BEAT_WIDTH;
-          const incomingY = automationYFromValue(point.leftValue, laneY, laneHeight);
-          const outgoingY = automationYFromValue(point.rightValue, laneY, laneHeight);
-          if (automationLayout.expanded) {
-            ctx.strokeStyle = TRACK_CANVAS_COLORS.automationLine;
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(pointX, laneBottom - 4);
-            ctx.lineTo(pointX, outgoingY);
-            ctx.stroke();
-            if (Math.abs(point.leftValue - point.rightValue) > 1e-9) {
-              ctx.beginPath();
-              ctx.moveTo(pointX, incomingY);
-              ctx.lineTo(pointX, outgoingY);
-              ctx.stroke();
-            }
-          }
-          ctx.strokeStyle = TRACK_CANVAS_COLORS.automationHandleBorder;
-          ctx.lineWidth = 2;
-          if (point.kind === "split") {
-            const incomingX = pointX - AUTOMATION_SPLIT_CENTER_OFFSET;
-            const outgoingX = pointX + AUTOMATION_SPLIT_CENTER_OFFSET;
-            ctx.fillStyle =
-              hoveredAutomationKeyframe?.trackId === track.id &&
-              hoveredAutomationKeyframe.macroId === automationLayout.macroId &&
-              hoveredAutomationKeyframe.keyframeId === point.id &&
-              hoveredAutomationKeyframe.side === "incoming"
-                ? TRACK_CANVAS_COLORS.noteHoverBorder
-                : TRACK_CANVAS_COLORS.automationHandle;
-            drawAutomationTriangle(ctx, incomingX, incomingY, "incoming");
-            ctx.fillStyle =
-              hoveredAutomationKeyframe?.trackId === track.id &&
-              hoveredAutomationKeyframe.macroId === automationLayout.macroId &&
-              hoveredAutomationKeyframe.keyframeId === point.id &&
-              hoveredAutomationKeyframe.side === "outgoing"
-                ? TRACK_CANVAS_COLORS.noteHoverBorder
-                : TRACK_CANVAS_COLORS.automationHandle;
-            drawAutomationTriangle(ctx, outgoingX, outgoingY, "outgoing");
-            automationKeyframeRectsRef.current.push({
-              trackId: track.id,
-              macroId: automationLayout.macroId,
-              keyframeId: point.id,
-              beat: point.beat,
-              value: point.leftValue,
-              side: "incoming",
-              kind: point.kind,
-              x: incomingX,
-              y: incomingY,
-              hitLeft: pointX - AUTOMATION_SPLIT_HALF_WIDTH - AUTOMATION_SPLIT_CENTER_OFFSET - 4,
-              hitRight: pointX + 1,
-              hitTop: incomingY - AUTOMATION_SPLIT_HALF_HEIGHT - 5,
-              hitBottom: incomingY + AUTOMATION_SPLIT_HALF_HEIGHT + 5,
-              boundary: point.boundary
-            });
-            automationKeyframeRectsRef.current.push({
-              trackId: track.id,
-              macroId: automationLayout.macroId,
-              keyframeId: point.id,
-              beat: point.beat,
-              value: point.rightValue,
-              side: "outgoing",
-              kind: point.kind,
-              x: outgoingX,
-              y: outgoingY,
-              hitLeft: pointX - 1,
-              hitRight: pointX + AUTOMATION_SPLIT_HALF_WIDTH + AUTOMATION_SPLIT_CENTER_OFFSET + 4,
-              hitTop: outgoingY - AUTOMATION_SPLIT_HALF_HEIGHT - 5,
-              hitBottom: outgoingY + AUTOMATION_SPLIT_HALF_HEIGHT + 5,
-              boundary: point.boundary
-            });
-          } else {
-            ctx.fillStyle =
-              hoveredAutomationKeyframe?.trackId === track.id &&
-              hoveredAutomationKeyframe.macroId === automationLayout.macroId &&
-              hoveredAutomationKeyframe.keyframeId === point.id
-                ? TRACK_CANVAS_COLORS.noteHoverBorder
-                : TRACK_CANVAS_COLORS.automationHandle;
-            ctx.beginPath();
-            ctx.arc(pointX, outgoingY, AUTOMATION_SINGLE_RADIUS, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-            automationKeyframeRectsRef.current.push({
-              trackId: track.id,
-              macroId: automationLayout.macroId,
-              keyframeId: point.id,
-              beat: point.beat,
-              value: point.rightValue,
-              side: "single",
-              kind: point.kind,
-              x: pointX,
-              y: outgoingY,
-              hitLeft: pointX - 7,
-              hitRight: pointX + 7,
-              hitTop: outgoingY - 7,
-              hitBottom: outgoingY + 7,
-              boundary: point.boundary
-            });
-          }
-        }
+        renderAutomationLane(track, automationLayout, trackPatch, { registerHitTargets: true });
       }
     });
 
@@ -1022,6 +1037,20 @@ export function TrackCanvas(props: TrackCanvasProps) {
       loopMarkerRectsRef.current.push({ markerId: marker.markerId, kind: marker.kind, beat: marker.beat, x: markerX - 18, y: 0, w: 30, h: height });
     }
     drawGhostPlayhead(ctx, props.ghostPlayheadBeat, props.countInLabel, height);
+
+    props.project.tracks.forEach((track) => {
+      const layout = trackLayouts.find((entry) => entry.trackId === track.id);
+      const trackPatch = props.project.patches.find((entry) => entry.id === track.instrumentPatchId);
+      if (!layout) {
+        return;
+      }
+      for (const automationLayout of layout.automationLanes) {
+        renderAutomationLane(track, automationLayout, trackPatch, {
+          veilTimeline: true,
+          registerHitTargets: false
+        });
+      }
+    });
 
     if (props.selectionBeatRange) {
       const startX = HEADER_WIDTH + props.selectionBeatRange.startBeat * BEAT_WIDTH;
