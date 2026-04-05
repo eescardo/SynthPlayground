@@ -23,7 +23,9 @@ export interface TrackFxSettings {
 export interface TrackMacroAutomationKeyframe {
   id: string;
   beat: number;
-  value: number;
+  value?: number;
+  incomingValue?: number;
+  outgoingValue?: number;
 }
 
 export interface TrackMacroAutomationLane {

@@ -250,4 +250,45 @@ describe("looping", () => {
       ["B3", 18, 0.5]
     ]);
   });
+
+  it("explodes looped automation and preserves restart jumps with split keyframes", () => {
+    const project = createProject();
+    project.global.loop = [
+      { id: "loop_start", kind: "start", beat: 9 },
+      { id: "loop_end", kind: "end", beat: 11, repeatCount: 1 }
+    ];
+    project.tracks[0] = {
+      ...project.tracks[0],
+      notes: [
+        { id: "note_a", pitchStr: "C4", startBeat: 9, durationBeats: 1, velocity: 0.8 },
+        { id: "note_b", pitchStr: "C4", startBeat: 11, durationBeats: 1, velocity: 0.8 }
+      ],
+      macroValues: {
+        macro_cutoff: 0.2
+      },
+      macroAutomations: {
+        macro_cutoff: {
+          macroId: "macro_cutoff",
+          expanded: true,
+          startValue: 0.2,
+          endValue: 0.6,
+          keyframes: [
+            { id: "cutoff_mid", beat: 10, value: 0.8 }
+          ]
+        }
+      }
+    };
+
+    const region = getUniqueMatchedLoopRegionAtBeat(project.global.loop, 9);
+    expect(region).not.toBeNull();
+
+    const expanded = expandLoopRegionToNotes(project, region!);
+    const lane = expanded.tracks[0]!.macroAutomations.macro_cutoff;
+
+    expect(lane.keyframes[0]).toEqual(expect.objectContaining({ id: "cutoff_mid", beat: 10, value: 0.8 }));
+    expect(lane.keyframes[1]).toEqual(expect.objectContaining({ beat: 11 }));
+    expect(lane.keyframes[1]!.incomingValue).toBeCloseTo(0.7666666667);
+    expect(lane.keyframes[1]!.outgoingValue).toBeCloseTo(0.74);
+    expect(lane.keyframes[2]).toEqual(expect.objectContaining({ beat: 12, value: 0.8 }));
+  });
 });

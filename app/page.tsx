@@ -13,10 +13,13 @@ import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
 import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
 import {
+  AutomationKeyframeSide,
   createTrackMacroAutomationLane,
   getProjectTimelineEndBeat,
   getTrackMacroLane,
-  removeAutomationLaneKeyframe,
+  removeAutomationLaneKeyframeSide,
+  splitAutomationLaneKeyframe,
+  updateAutomationLaneKeyframeSide,
   upsertAutomationLaneKeyframe
 } from "@/lib/macroAutomation";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
@@ -1097,7 +1100,7 @@ export default function HomePage() {
             ...track,
             macroAutomations: {
               ...track.macroAutomations,
-              [macroId]: removeAutomationLaneKeyframe(lane, keyframeId)
+              [macroId]: removeAutomationLaneKeyframeSide(lane, keyframeId, "single")
             },
             macroValues: {
               ...track.macroValues,
@@ -1107,6 +1110,108 @@ export default function HomePage() {
         })
       }),
       { actionKey: `track:${trackId}:macro:${macroId}:delete-keyframe` }
+    );
+  }, [commitProjectChange]);
+
+  const splitTrackMacroAutomationKeyframe = useCallback((trackId: string, macroId: string, keyframeId: string) => {
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        tracks: current.tracks.map((track) => {
+          if (track.id !== trackId) {
+            return track;
+          }
+          const lane = getTrackMacroLane(track, macroId);
+          if (!lane) {
+            return track;
+          }
+          const nextLane = splitAutomationLaneKeyframe(lane, keyframeId);
+          return {
+            ...track,
+            macroAutomations: {
+              ...track.macroAutomations,
+              [macroId]: nextLane
+            },
+            macroValues: {
+              ...track.macroValues,
+              [macroId]: nextLane.startValue
+            }
+          };
+        })
+      }),
+      { actionKey: `track:${trackId}:macro:${macroId}:split-keyframe` }
+    );
+  }, [commitProjectChange]);
+
+  const updateTrackMacroAutomationKeyframeSide = useCallback((
+    trackId: string,
+    macroId: string,
+    keyframeId: string,
+    side: AutomationKeyframeSide,
+    value: number,
+    options?: { commit?: boolean }
+  ) => {
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        tracks: current.tracks.map((track) => {
+          if (track.id !== trackId) {
+            return track;
+          }
+          const lane = getTrackMacroLane(track, macroId);
+          if (!lane) {
+            return track;
+          }
+          const nextLane = updateAutomationLaneKeyframeSide(lane, keyframeId, side, value);
+          return {
+            ...track,
+            macroAutomations: {
+              ...track.macroAutomations,
+              [macroId]: nextLane
+            },
+            macroValues: {
+              ...track.macroValues,
+              [macroId]: nextLane.startValue
+            }
+          };
+        })
+      }),
+      { actionKey: `track:${trackId}:macro:${macroId}:keyframe:${keyframeId}:${side}`, coalesce: !options?.commit }
+    );
+  }, [commitProjectChange]);
+
+  const deleteTrackMacroAutomationKeyframeSide = useCallback((
+    trackId: string,
+    macroId: string,
+    keyframeId: string,
+    side: AutomationKeyframeSide
+  ) => {
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        tracks: current.tracks.map((track) => {
+          if (track.id !== trackId) {
+            return track;
+          }
+          const lane = getTrackMacroLane(track, macroId);
+          if (!lane) {
+            return track;
+          }
+          const nextLane = removeAutomationLaneKeyframeSide(lane, keyframeId, side);
+          return {
+            ...track,
+            macroAutomations: {
+              ...track.macroAutomations,
+              [macroId]: nextLane
+            },
+            macroValues: {
+              ...track.macroValues,
+              [macroId]: nextLane.startValue
+            }
+          };
+        })
+      }),
+      { actionKey: `track:${trackId}:macro:${macroId}:delete-keyframe:${side}` }
     );
   }, [commitProjectChange]);
 
@@ -1237,6 +1342,9 @@ export default function HomePage() {
         onToggleTrackMacroAutomationLane={toggleTrackMacroAutomationLane}
         onUpsertTrackMacroAutomationKeyframe={upsertTrackMacroAutomationKeyframe}
         onDeleteTrackMacroAutomationKeyframe={deleteTrackMacroAutomationKeyframe}
+        onSplitTrackMacroAutomationKeyframe={splitTrackMacroAutomationKeyframe}
+        onUpdateTrackMacroAutomationKeyframeSide={updateTrackMacroAutomationKeyframeSide}
+        onDeleteTrackMacroAutomationKeyframeSide={deleteTrackMacroAutomationKeyframeSide}
         onPreviewTrackMacroAutomation={previewTrackMacroAutomation}
         onResetTrackMacros={resetSelectedPatchMacros}
         onOpenPitchPicker={openPitchPicker}
