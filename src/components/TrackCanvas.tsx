@@ -1157,6 +1157,27 @@ export function TrackCanvas(props: TrackCanvasProps) {
     const hasActiveSelection = Boolean(props.selectedNoteKeys?.size);
 
     if (y <= RULER_HEIGHT && x >= HEADER_WIDTH) {
+      if (targets.hoverTarget === "loop-marker" && targets.loopMarkerRect) {
+        props.onSetPlayheadBeat(targets.loopMarkerRect.beat);
+        props.onRequestTimelineActionsPopover({
+          beat: targets.loopMarkerRect.beat,
+          clientX: event.clientX,
+          clientY: event.clientY
+        });
+        setCanvasCursor("pointer");
+        return;
+      }
+
+      if (targets.hoverTarget === "playhead") {
+        props.onRequestTimelineActionsPopover({
+          beat: props.playheadBeat,
+          clientX: event.clientX,
+          clientY: event.clientY
+        });
+        setCanvasCursor("pointer");
+        return;
+      }
+
       const beat = Math.max(0, snapToGrid(beatFromX(x), props.project.global.gridBeats));
       props.onSetPlayheadBeat(beat);
       return;
@@ -1221,27 +1242,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
       };
       canvas.setPointerCapture(event.pointerId);
       setCanvasCursor("ns-resize");
-      return;
-    }
-
-    if (targets.hoverTarget === "loop-marker" && targets.loopMarkerRect) {
-      props.onSetPlayheadBeat(targets.loopMarkerRect.beat);
-      props.onRequestTimelineActionsPopover({
-        beat: targets.loopMarkerRect.beat,
-        clientX: event.clientX,
-        clientY: event.clientY
-      });
-      setCanvasCursor("pointer");
-      return;
-    }
-
-    if (targets.hoverTarget === "playhead") {
-      props.onRequestTimelineActionsPopover({
-        beat: props.playheadBeat,
-        clientX: event.clientX,
-        clientY: event.clientY
-      });
-      setCanvasCursor("pointer");
       return;
     }
 
