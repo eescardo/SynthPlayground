@@ -146,7 +146,6 @@ interface TrackCanvasProps {
     value: number,
     options?: { keyframeId?: string; commit?: boolean }
   ) => void;
-  onDeleteTrackMacroAutomationKeyframe: (trackId: string, macroId: string, keyframeId: string) => void;
   onSplitTrackMacroAutomationKeyframe: (trackId: string, macroId: string, keyframeId: string) => void;
   onUpdateTrackMacroAutomationKeyframeSide: (
     trackId: string,

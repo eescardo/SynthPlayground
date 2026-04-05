@@ -1045,47 +1045,13 @@ export default function HomePage() {
     );
   }, [commitProjectChange]);
 
-  const upsertTrackMacroAutomationKeyframe = useCallback((
+  const commitTrackMacroAutomationLaneChange = useCallback((
     trackId: string,
     macroId: string,
-    beat: number,
-    value: number,
-    options?: { keyframeId?: string; commit?: boolean }
+    updateLane: (lane: NonNullable<ReturnType<typeof getTrackMacroLane>>, current: Project) => NonNullable<ReturnType<typeof getTrackMacroLane>>,
+    history: { actionKey: string; coalesce?: boolean }
   ) => {
     commitProjectChange(
-      (current) => {
-        const timelineEndBeat = getProjectTimelineEndBeat(current);
-        return {
-          ...current,
-          tracks: current.tracks.map((track) => {
-            if (track.id !== trackId) {
-              return track;
-            }
-            const lane = getTrackMacroLane(track, macroId);
-            if (!lane) {
-              return track;
-            }
-            const nextLane = upsertAutomationLaneKeyframe(lane, beat, value, timelineEndBeat, options?.keyframeId);
-            return {
-              ...track,
-              macroAutomations: {
-                ...track.macroAutomations,
-                [macroId]: nextLane
-              },
-              macroValues: {
-                ...track.macroValues,
-                [macroId]: nextLane.startValue
-              }
-            };
-          })
-        };
-      },
-      { actionKey: `track:${trackId}:macro:${macroId}:keyframe`, coalesce: !options?.commit }
-    );
-  }, [commitProjectChange]);
-
-  const deleteTrackMacroAutomationKeyframe = useCallback((trackId: string, macroId: string, keyframeId: string) => {
-    commitProjectChange(
       (current) => ({
         ...current,
         tracks: current.tracks.map((track) => {
@@ -1096,36 +1062,7 @@ export default function HomePage() {
           if (!lane) {
             return track;
           }
-          return {
-            ...track,
-            macroAutomations: {
-              ...track.macroAutomations,
-              [macroId]: removeAutomationLaneKeyframeSide(lane, keyframeId, "single")
-            },
-            macroValues: {
-              ...track.macroValues,
-              [macroId]: lane.startValue
-            }
-          };
-        })
-      }),
-      { actionKey: `track:${trackId}:macro:${macroId}:delete-keyframe` }
-    );
-  }, [commitProjectChange]);
-
-  const splitTrackMacroAutomationKeyframe = useCallback((trackId: string, macroId: string, keyframeId: string) => {
-    commitProjectChange(
-      (current) => ({
-        ...current,
-        tracks: current.tracks.map((track) => {
-          if (track.id !== trackId) {
-            return track;
-          }
-          const lane = getTrackMacroLane(track, macroId);
-          if (!lane) {
-            return track;
-          }
-          const nextLane = splitAutomationLaneKeyframe(lane, keyframeId);
+          const nextLane = updateLane(lane, current);
           return {
             ...track,
             macroAutomations: {
@@ -1139,9 +1076,33 @@ export default function HomePage() {
           };
         })
       }),
-      { actionKey: `track:${trackId}:macro:${macroId}:split-keyframe` }
+      history
     );
   }, [commitProjectChange]);
+
+  const upsertTrackMacroAutomationKeyframe = useCallback((
+    trackId: string,
+    macroId: string,
+    beat: number,
+    value: number,
+    options?: { keyframeId?: string; commit?: boolean }
+  ) => {
+    commitTrackMacroAutomationLaneChange(
+      trackId,
+      macroId,
+      (lane, current) => upsertAutomationLaneKeyframe(lane, beat, value, getProjectTimelineEndBeat(current), options?.keyframeId),
+      { actionKey: `track:${trackId}:macro:${macroId}:keyframe`, coalesce: !options?.commit }
+    );
+  }, [commitTrackMacroAutomationLaneChange]);
+
+  const splitTrackMacroAutomationKeyframe = useCallback((trackId: string, macroId: string, keyframeId: string) => {
+    commitTrackMacroAutomationLaneChange(
+      trackId,
+      macroId,
+      (lane) => splitAutomationLaneKeyframe(lane, keyframeId),
+      { actionKey: `track:${trackId}:macro:${macroId}:split-keyframe` }
+    );
+  }, [commitTrackMacroAutomationLaneChange]);
 
   const updateTrackMacroAutomationKeyframeSide = useCallback((
     trackId: string,
@@ -1151,34 +1112,13 @@ export default function HomePage() {
     value: number,
     options?: { commit?: boolean }
   ) => {
-    commitProjectChange(
-      (current) => ({
-        ...current,
-        tracks: current.tracks.map((track) => {
-          if (track.id !== trackId) {
-            return track;
-          }
-          const lane = getTrackMacroLane(track, macroId);
-          if (!lane) {
-            return track;
-          }
-          const nextLane = updateAutomationLaneKeyframeSide(lane, keyframeId, side, value);
-          return {
-            ...track,
-            macroAutomations: {
-              ...track.macroAutomations,
-              [macroId]: nextLane
-            },
-            macroValues: {
-              ...track.macroValues,
-              [macroId]: nextLane.startValue
-            }
-          };
-        })
-      }),
+    commitTrackMacroAutomationLaneChange(
+      trackId,
+      macroId,
+      (lane) => updateAutomationLaneKeyframeSide(lane, keyframeId, side, value),
       { actionKey: `track:${trackId}:macro:${macroId}:keyframe:${keyframeId}:${side}`, coalesce: !options?.commit }
     );
-  }, [commitProjectChange]);
+  }, [commitTrackMacroAutomationLaneChange]);
 
   const deleteTrackMacroAutomationKeyframeSide = useCallback((
     trackId: string,
@@ -1186,34 +1126,13 @@ export default function HomePage() {
     keyframeId: string,
     side: AutomationKeyframeSide
   ) => {
-    commitProjectChange(
-      (current) => ({
-        ...current,
-        tracks: current.tracks.map((track) => {
-          if (track.id !== trackId) {
-            return track;
-          }
-          const lane = getTrackMacroLane(track, macroId);
-          if (!lane) {
-            return track;
-          }
-          const nextLane = removeAutomationLaneKeyframeSide(lane, keyframeId, side);
-          return {
-            ...track,
-            macroAutomations: {
-              ...track.macroAutomations,
-              [macroId]: nextLane
-            },
-            macroValues: {
-              ...track.macroValues,
-              [macroId]: nextLane.startValue
-            }
-          };
-        })
-      }),
+    commitTrackMacroAutomationLaneChange(
+      trackId,
+      macroId,
+      (lane) => removeAutomationLaneKeyframeSide(lane, keyframeId, side),
       { actionKey: `track:${trackId}:macro:${macroId}:delete-keyframe:${side}` }
     );
-  }, [commitProjectChange]);
+  }, [commitTrackMacroAutomationLaneChange]);
 
   if (!ready || !selectedTrack || !selectedPatch) {
     return <main className="loading">Loading...</main>;
@@ -1341,7 +1260,6 @@ export default function HomePage() {
         onDemoteTrackMacroFromAutomation={demoteTrackMacroFromAutomation}
         onToggleTrackMacroAutomationLane={toggleTrackMacroAutomationLane}
         onUpsertTrackMacroAutomationKeyframe={upsertTrackMacroAutomationKeyframe}
-        onDeleteTrackMacroAutomationKeyframe={deleteTrackMacroAutomationKeyframe}
         onSplitTrackMacroAutomationKeyframe={splitTrackMacroAutomationKeyframe}
         onUpdateTrackMacroAutomationKeyframeSide={updateTrackMacroAutomationKeyframeSide}
         onDeleteTrackMacroAutomationKeyframeSide={deleteTrackMacroAutomationKeyframeSide}

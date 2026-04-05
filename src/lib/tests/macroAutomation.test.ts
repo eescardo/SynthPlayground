@@ -4,6 +4,7 @@ import {
   createTrackMacroAutomationLane,
   getTrackAutomationPoints,
   getTrackMacroValueAtBeat,
+  removeAutomationLaneKeyframeSide,
   splitAutomationLaneKeyframe,
   updateAutomationLaneKeyframeSide,
   upsertAutomationLaneKeyframe
@@ -90,6 +91,24 @@ describe("macroAutomation", () => {
         id: keyframeId,
         beat: 4,
         value: 0.55
+      })
+    ]);
+  });
+
+  it("collapses a split keyframe back to a single point when one side is deleted", () => {
+    let lane = createTrackMacroAutomationLane("macro_cutoff", 0.2);
+    lane = upsertAutomationLaneKeyframe(lane, 4, 0.6, 8);
+    const keyframeId = lane.keyframes[0]!.id;
+    lane = splitAutomationLaneKeyframe(lane, keyframeId);
+    lane = updateAutomationLaneKeyframeSide(lane, keyframeId, "incoming", 0.35);
+    lane = updateAutomationLaneKeyframeSide(lane, keyframeId, "outgoing", 0.8);
+    lane = removeAutomationLaneKeyframeSide(lane, keyframeId, "incoming");
+
+    expect(lane.keyframes).toEqual([
+      expect.objectContaining({
+        id: keyframeId,
+        beat: 4,
+        value: 0.8
       })
     ]);
   });

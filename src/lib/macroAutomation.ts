@@ -336,9 +336,6 @@ export const removeAutomationLaneKeyframeSide = (
   return replaceKeyframe(lane, makeSingleKeyframe(keyframe.id, keyframe.beat, remainingValue));
 };
 
-export const removeAutomationLaneKeyframe = (lane: TrackMacroAutomationLane, keyframeId: string): TrackMacroAutomationLane =>
-  removeAutomationLaneKeyframeSide(lane, keyframeId, "single");
-
 export const cloneAutomationKeyframeAtBeat = (
   keyframe: TrackMacroAutomationKeyframe,
   beat: number,
