@@ -12,11 +12,7 @@ import { TimelineActionsPopoverRequest, TrackCanvas } from "@/components/TrackCa
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
 import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
-import {
-  createTrackMacroAutomationLane,
-  getProjectTimelineEndBeat,
-  getTrackMacroLane
-} from "@/lib/macroAutomation";
+import { getProjectTimelineEndBeat } from "@/lib/macroAutomation";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import {
   getNoteSelectionKey,
@@ -245,11 +241,20 @@ export default function HomePage() {
   }, [project]);
 
   const {
+    bindTrackMacroToAutomation,
+    unbindTrackMacroFromAutomation,
+    toggleTrackMacroAutomationLane,
     upsertTrackMacroAutomationKeyframe,
     splitTrackMacroAutomationKeyframe,
     updateTrackMacroAutomationKeyframeSide,
-    deleteTrackMacroAutomationKeyframeSide
-  } = useTrackMacroAutomationActions({ commitProjectChange });
+    deleteTrackMacroAutomationKeyframeSide,
+    previewTrackMacroAutomation
+  } = useTrackMacroAutomationActions({
+    audioEngineRef,
+    commitProjectChange,
+    previewPitch,
+    setRuntimeError
+  });
 
   useEffect(() => {
     if (!selectedPatch || selectedPatchHasErrors) return;
@@ -959,94 +964,11 @@ export default function HomePage() {
     }
   }, [commitProjectChange, project.patches, project.tracks, schedulePatchPreview]);
 
-  const previewTrackMacroAutomation = useCallback((trackId: string, macroId: string, normalized: number, options?: { retrigger?: boolean }) => {
-    audioEngineRef.current?.setMacroValue(trackId, macroId, normalized);
-    if (!options?.retrigger) {
-      return;
-    }
-    audioEngineRef.current
-      ?.previewNote(trackId, pitchToVoct(previewPitch), 1)
-      .catch((error) => setRuntimeError((error as Error).message));
-  }, [previewPitch]);
-
   const previewPlacedNote = useCallback((trackId: string, note: Project["tracks"][number]["notes"][number]) => {
     audioEngineRef.current
       ?.previewNote(trackId, pitchToVoct(note.pitchStr), note.durationBeats, note.velocity)
       .catch((error) => setRuntimeError((error as Error).message));
   }, []);
-
-  const promoteTrackMacroToAutomation = useCallback((trackId: string, macroId: string, initialValue: number) => {
-    commitProjectChange(
-      (current) => ({
-        ...current,
-        tracks: current.tracks.map((track) =>
-          track.id === trackId
-            ? {
-                ...track,
-                macroValues: { ...track.macroValues, [macroId]: initialValue },
-                macroAutomations: {
-                  ...track.macroAutomations,
-                  [macroId]: createTrackMacroAutomationLane(macroId, initialValue)
-                }
-              }
-            : track
-        )
-      }),
-      { actionKey: `track:${trackId}:macro:${macroId}:promote-automation` }
-    );
-  }, [commitProjectChange]);
-
-  const demoteTrackMacroFromAutomation = useCallback((trackId: string, macroId: string) => {
-    commitProjectChange(
-      (current) => ({
-        ...current,
-        tracks: current.tracks.map((track) => {
-          if (track.id !== trackId) {
-            return track;
-          }
-          const nextAutomations = { ...track.macroAutomations };
-          const currentLane = nextAutomations[macroId];
-          delete nextAutomations[macroId];
-          return {
-            ...track,
-            macroAutomations: nextAutomations,
-            macroValues: currentLane
-              ? { ...track.macroValues, [macroId]: currentLane.startValue }
-              : track.macroValues
-          };
-        })
-      }),
-      { actionKey: `track:${trackId}:macro:${macroId}:demote-automation` }
-    );
-  }, [commitProjectChange]);
-
-  const toggleTrackMacroAutomationLane = useCallback((trackId: string, macroId: string) => {
-    commitProjectChange(
-      (current) => ({
-        ...current,
-        tracks: current.tracks.map((track) => {
-          if (track.id !== trackId) {
-            return track;
-          }
-          const lane = getTrackMacroLane(track, macroId);
-          if (!lane) {
-            return track;
-          }
-          return {
-            ...track,
-            macroAutomations: {
-              ...track.macroAutomations,
-              [macroId]: {
-                ...lane,
-                expanded: !lane.expanded
-              }
-            }
-          };
-        })
-      }),
-      { actionKey: `track:${trackId}:macro:${macroId}:toggle-lane` }
-    );
-  }, [commitProjectChange]);
 
   if (!ready || !selectedTrack || !selectedPatch) {
     return <main className="loading">Loading...</main>;
@@ -1170,8 +1092,8 @@ export default function HomePage() {
         onUpdateTrackPatch={updateTrackPatch}
         onToggleTrackMacroPanel={toggleTrackMacroPanel}
         onChangeTrackMacro={changeTrackMacro}
-        onPromoteTrackMacroToAutomation={promoteTrackMacroToAutomation}
-        onDemoteTrackMacroFromAutomation={demoteTrackMacroFromAutomation}
+        onBindTrackMacroToAutomation={bindTrackMacroToAutomation}
+        onUnbindTrackMacroFromAutomation={unbindTrackMacroFromAutomation}
         onToggleTrackMacroAutomationLane={toggleTrackMacroAutomationLane}
         onUpsertTrackMacroAutomationKeyframe={upsertTrackMacroAutomationKeyframe}
         onSplitTrackMacroAutomationKeyframe={splitTrackMacroAutomationKeyframe}

@@ -9,8 +9,8 @@ interface MacroPanelProps {
   automationExpandedByMacroId: ReadonlyMap<string, boolean>;
   onMacroChange: (macroId: string, normalized: number) => void;
   onMacroCommit?: (macroId: string, normalized: number) => void;
-  onPromoteMacroToAutomation: (macroId: string, normalized: number) => void;
-  onDemoteMacroFromAutomation: (macroId: string) => void;
+  onBindMacroToAutomation: (macroId: string, normalized: number) => void;
+  onUnbindMacroFromAutomation: (macroId: string) => void;
   onToggleMacroAutomationLane: (macroId: string) => void;
 }
 
@@ -21,8 +21,8 @@ export function MacroPanel({
   automationExpandedByMacroId,
   onMacroChange,
   onMacroCommit,
-  onPromoteMacroToAutomation,
-  onDemoteMacroFromAutomation,
+  onBindMacroToAutomation,
+  onUnbindMacroFromAutomation,
   onToggleMacroAutomationLane
 }: MacroPanelProps) {
   return (
@@ -58,7 +58,7 @@ export function MacroPanel({
             <button
               type="button"
               className="macro-binding-pill"
-              onClick={() => (automated ? onDemoteMacroFromAutomation(macro.id) : onPromoteMacroToAutomation(macro.id, value))}
+              onClick={() => (automated ? onUnbindMacroFromAutomation(macro.id) : onBindMacroToAutomation(macro.id, value))}
             >
               {automated ? "Use fixed value" : "Automate"}
             </button>

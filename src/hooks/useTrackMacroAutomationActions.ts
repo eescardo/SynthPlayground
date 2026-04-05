@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback } from "react";
+import { RefObject, useCallback } from "react";
+import { AudioEngine } from "@/audio/engine";
 import {
   AutomationKeyframeSide,
+  createTrackMacroAutomationLane,
   getProjectTimelineEndBeat,
   getTrackMacroLane,
   removeAutomationLaneKeyframeSide,
@@ -10,6 +12,7 @@ import {
   updateAutomationLaneKeyframeSide,
   upsertAutomationLaneKeyframe
 } from "@/lib/macroAutomation";
+import { pitchToVoct } from "@/lib/pitch";
 import { Project } from "@/types/music";
 
 type CommitProjectChange = (
@@ -18,11 +21,17 @@ type CommitProjectChange = (
 ) => void;
 
 interface UseTrackMacroAutomationActionsParams {
+  audioEngineRef: RefObject<AudioEngine | null>;
   commitProjectChange: CommitProjectChange;
+  previewPitch: string;
+  setRuntimeError: (message: string | null) => void;
 }
 
 export function useTrackMacroAutomationActions({
-  commitProjectChange
+  audioEngineRef,
+  commitProjectChange,
+  previewPitch,
+  setRuntimeError
 }: UseTrackMacroAutomationActionsParams) {
   const commitTrackMacroAutomationLaneChange = useCallback((
     trackId: string,
@@ -59,6 +68,89 @@ export function useTrackMacroAutomationActions({
         })
       }),
       history
+    );
+  }, [commitProjectChange]);
+
+  const previewTrackMacroAutomation = useCallback((trackId: string, macroId: string, normalized: number, options?: { retrigger?: boolean }) => {
+    audioEngineRef.current?.setMacroValue(trackId, macroId, normalized);
+    if (!options?.retrigger) {
+      return;
+    }
+    audioEngineRef.current
+      ?.previewNote(trackId, pitchToVoct(previewPitch), 1)
+      .catch((error) => setRuntimeError((error as Error).message));
+  }, [audioEngineRef, previewPitch, setRuntimeError]);
+
+  const bindTrackMacroToAutomation = useCallback((trackId: string, macroId: string, initialValue: number) => {
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        tracks: current.tracks.map((track) =>
+          track.id === trackId
+            ? {
+                ...track,
+                macroValues: { ...track.macroValues, [macroId]: initialValue },
+                macroAutomations: {
+                  ...track.macroAutomations,
+                  [macroId]: createTrackMacroAutomationLane(macroId, initialValue)
+                }
+              }
+            : track
+        )
+      }),
+      { actionKey: `track:${trackId}:macro:${macroId}:bind-automation` }
+    );
+  }, [commitProjectChange]);
+
+  const unbindTrackMacroFromAutomation = useCallback((trackId: string, macroId: string) => {
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        tracks: current.tracks.map((track) => {
+          if (track.id !== trackId) {
+            return track;
+          }
+          const nextAutomations = { ...track.macroAutomations };
+          const currentLane = nextAutomations[macroId];
+          delete nextAutomations[macroId];
+          return {
+            ...track,
+            macroAutomations: nextAutomations,
+            macroValues: currentLane
+              ? { ...track.macroValues, [macroId]: currentLane.startValue }
+              : track.macroValues
+          };
+        })
+      }),
+      { actionKey: `track:${trackId}:macro:${macroId}:unbind-automation` }
+    );
+  }, [commitProjectChange]);
+
+  const toggleTrackMacroAutomationLane = useCallback((trackId: string, macroId: string) => {
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        tracks: current.tracks.map((track) => {
+          if (track.id !== trackId) {
+            return track;
+          }
+          const lane = getTrackMacroLane(track, macroId);
+          if (!lane) {
+            return track;
+          }
+          return {
+            ...track,
+            macroAutomations: {
+              ...track.macroAutomations,
+              [macroId]: {
+                ...lane,
+                expanded: !lane.expanded
+              }
+            }
+          };
+        })
+      }),
+      { actionKey: `track:${trackId}:macro:${macroId}:toggle-lane` }
     );
   }, [commitProjectChange]);
 
@@ -117,9 +209,13 @@ export function useTrackMacroAutomationActions({
   }, [commitTrackMacroAutomationLaneChange]);
 
   return {
+    bindTrackMacroToAutomation,
+    unbindTrackMacroFromAutomation,
+    toggleTrackMacroAutomationLane,
     upsertTrackMacroAutomationKeyframe,
     splitTrackMacroAutomationKeyframe,
     updateTrackMacroAutomationKeyframeSide,
-    deleteTrackMacroAutomationKeyframeSide
+    deleteTrackMacroAutomationKeyframeSide,
+    previewTrackMacroAutomation
   };
 }

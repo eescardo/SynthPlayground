@@ -142,8 +142,8 @@ interface TrackCanvasProps {
   onUpdateTrackPatch: (trackId: string, patchId: string) => void;
   onToggleTrackMacroPanel: (trackId: string) => void;
   onChangeTrackMacro: (trackId: string, macroId: string, normalized: number, options?: { commit?: boolean }) => void;
-  onPromoteTrackMacroToAutomation: (trackId: string, macroId: string, normalized: number) => void;
-  onDemoteTrackMacroFromAutomation: (trackId: string, macroId: string) => void;
+  onBindTrackMacroToAutomation: (trackId: string, macroId: string, normalized: number) => void;
+  onUnbindTrackMacroFromAutomation: (trackId: string, macroId: string) => void;
   onToggleTrackMacroAutomationLane: (trackId: string, macroId: string) => void;
   onUpsertTrackMacroAutomationKeyframe: (
     trackId: string,
@@ -1745,10 +1745,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
               onMacroCommit={(macroId, normalized) =>
                 props.onChangeTrackMacro(selectedTrack.id, macroId, normalized, { commit: true })
               }
-              onPromoteMacroToAutomation={(macroId, normalized) =>
-                props.onPromoteTrackMacroToAutomation(selectedTrack.id, macroId, normalized)
+              onBindMacroToAutomation={(macroId, normalized) =>
+                props.onBindTrackMacroToAutomation(selectedTrack.id, macroId, normalized)
               }
-              onDemoteMacroFromAutomation={(macroId) => props.onDemoteTrackMacroFromAutomation(selectedTrack.id, macroId)}
+              onUnbindMacroFromAutomation={(macroId) => props.onUnbindTrackMacroFromAutomation(selectedTrack.id, macroId)}
               onToggleMacroAutomationLane={(macroId) =>
                 props.onToggleTrackMacroAutomationLane(selectedTrack.id, macroId)
               }
