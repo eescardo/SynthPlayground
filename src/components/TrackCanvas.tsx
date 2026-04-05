@@ -1356,7 +1356,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const onPointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     const hadDrag = Boolean(dragRef.current);
-    const hadAutomationDrag = Boolean(automationDragRef.current);
+    const automationDrag = automationDragRef.current;
+    const hadAutomationDrag = Boolean(automationDrag);
     const pendingAction = pendingCanvasActionRef.current;
     const pendingAutomationAction = pendingAutomationActionRef.current;
     if (canvasRef.current && (dragRef.current || pendingAction || automationDragRef.current || pendingAutomationAction)) {
@@ -1374,6 +1375,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       setCanvasCursor("default");
       return;
     }
+    const { x, y } = getCanvasPoint(event.clientX, event.clientY);
 
     const hadSelectionRect = Boolean(selectionRect);
     if (pendingAction && !hadSelectionRect) {
@@ -1392,13 +1394,31 @@ export function TrackCanvas(props: TrackCanvasProps) {
         pendingAutomationAction.value,
         { commit: true }
       );
+      props.onPreviewTrackMacroAutomation(
+        pendingAutomationAction.trackId,
+        pendingAutomationAction.macroId,
+        pendingAutomationAction.value,
+        { retrigger: true }
+      );
+    } else if (automationDrag) {
+      const lane = trackLayouts
+        .find((layout) => layout.trackId === automationDrag.trackId)
+        ?.automationLanes.find((entry) => entry.macroId === automationDrag.macroId);
+      if (lane) {
+        const finalValue = automationValueFromY(y, lane.y, lane.height);
+        props.onPreviewTrackMacroAutomation(
+          automationDrag.trackId,
+          automationDrag.macroId,
+          finalValue,
+          { retrigger: true }
+        );
+      }
     }
 
     pendingCanvasActionRef.current = null;
     pendingAutomationActionRef.current = null;
     setSelectionRect(null);
     props.onSetSelectionMarqueeActive(false);
-    const { x, y } = getCanvasPoint(event.clientX, event.clientY);
     const targets = resolvePointerTargets(x, y);
     setCanvasCursor(
       getCursorForPosition({
