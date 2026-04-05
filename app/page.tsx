@@ -959,7 +959,7 @@ export default function HomePage() {
       return;
     }
     audioEngineRef.current
-      ?.previewNote(trackId, pitchToVoct(previewPitch), 2)
+      ?.previewNote(trackId, pitchToVoct(previewPitch), 1)
       .catch((error) => setRuntimeError((error as Error).message));
   }, [previewPitch]);
 
