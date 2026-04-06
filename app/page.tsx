@@ -34,6 +34,7 @@ import { useNoteEditor } from "@/hooks/useNoteEditor";
 import { useLoopSettings } from "@/hooks/useLoopSettings";
 import { useEditorClipboardEvents } from "@/hooks/useEditorClipboardEvents";
 import { useEditorKeyboardShortcuts } from "@/hooks/useEditorKeyboardShortcuts";
+import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { useNoteClipboard } from "@/hooks/useNoteClipboard";
 import { usePlatformShortcuts } from "@/hooks/usePlatformShortcuts";
 import { usePlaybackController } from "@/hooks/usePlaybackController";
@@ -88,6 +89,7 @@ export default function HomePage() {
   const [previewPitch, setPreviewPitch] = useState(DEFAULT_NOTE_PITCH);
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
   const [timelineActionsPopover, setTimelineActionsPopover] = useState<TimelineActionsPopoverRequest | null>(null);
+  const [selectionActionPopoverMode, setSelectionActionPopoverMode] = useState<"expanded" | "collapsed">("expanded");
   const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
   const [patchRemovalDialog, setPatchRemovalDialog] = useState<{
     patchId: string;
@@ -335,9 +337,21 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!selectionBeatRange) {
+      setSelectionActionPopoverMode("expanded");
       setSelectionActionScopePreview("source");
     }
   }, [selectionBeatRange]);
+
+  useEffect(() => {
+    setSelectionActionPopoverMode("expanded");
+  }, [selectedNoteKeys]);
+
+  useEffect(() => {
+    if (!timelineSelectionBeatRange) {
+      return;
+    }
+    setSelectionActionPopoverMode("expanded");
+  }, [timelineSelectionBeatRange]);
 
   useEffect(() => {
     if (canvasSelection.kind === "timeline") {
@@ -486,41 +500,31 @@ export default function HomePage() {
       onCloseLoopPopover: () => setTimelineActionsPopover(null)
     });
 
-  useEffect(() => {
-    if (!timelineActionsPopover) {
-      return;
-    }
+  useDismissiblePopover({
+    active: Boolean(timelineActionsPopover),
+    popoverSelector: ".timeline-actions-popover",
+    onDismiss: useCallback(() => setTimelineActionsPopover(null), [])
+  });
 
-    let active = false;
-    const activateTimer = window.setTimeout(() => {
-      active = true;
-    }, 0);
+  const selectionActionPopoverAvailable = Boolean(
+    selectionBeatRange &&
+    !selectionMarqueeActive &&
+    !pitchPicker &&
+    !timelineActionsPopover
+  );
+  const selectionActionPopoverVisible = selectionActionPopoverAvailable;
+  const selectionActionPopoverCollapsed = selectionActionPopoverMode === "collapsed";
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setTimelineActionsPopover(null);
-      }
-    };
+  const collapseSelectionActionPopover = useCallback(() => {
+    setSelectionActionPopoverMode("collapsed");
+    setSelectionActionScopePreview("source");
+  }, []);
 
-    const onPointerDown = (event: PointerEvent) => {
-      if (!active) {
-        return;
-      }
-      const target = event.target as HTMLElement | null;
-      if (target?.closest(".timeline-actions-popover")) {
-        return;
-      }
-      setTimelineActionsPopover(null);
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("pointerdown", onPointerDown);
-    return () => {
-      window.clearTimeout(activateTimer);
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("pointerdown", onPointerDown);
-    };
-  }, [timelineActionsPopover]);
+  useDismissiblePopover({
+    active: selectionActionPopoverAvailable && !selectionActionPopoverCollapsed,
+    popoverSelector: ".selection-actions-popover",
+    onDismiss: collapseSelectionActionPopover
+  });
 
   const timelineMarkersAtBeat = useMemo(
     () =>
@@ -561,6 +565,13 @@ export default function HomePage() {
 
   const closePitchPicker = useCallback(() => {
     setPitchPicker(null);
+  }, []);
+
+  const clearCanvasSelection = useCallback(() => {
+    setSelectedNoteKeys([]);
+    setTimelineSelectionBeatRange(null);
+    setSelectionActionPopoverMode("expanded");
+    setSelectionActionScopePreview("source");
   }, []);
 
   const setNoteSelectionFromCanvas = useCallback((selectionKeys: string[]) => {
@@ -1137,7 +1148,7 @@ export default function HomePage() {
         ghostPlayheadBeat={recording.ghostPlayheadBeat ?? undefined}
         countInLabel={recording.countInLabel ?? undefined}
         timelineActionsPopoverOpen={Boolean(timelineActionsPopover)}
-        hideSelectionActionPopover={Boolean(pitchPicker) || Boolean(timelineActionsPopover)}
+        hideSelectionActionPopover={!selectionActionPopoverVisible}
         onSetPlayheadBeat={setPlayheadFromUser}
         onRequestTimelineActionsPopover={requestTimelineActionsPopover}
         onSelectTrack={setSelectedTrackId}
@@ -1165,6 +1176,9 @@ export default function HomePage() {
         onSetTimelineSelectionBeatRange={setTimelineSelectionFromCanvas}
         onSetSelectionMarqueeActive={setSelectionMarqueeActive}
         onPreviewSelectionActionScopeChange={setSelectionActionScopePreview}
+        selectionActionPopoverCollapsed={selectionActionPopoverCollapsed}
+        onExpandSelectionActionPopover={() => setSelectionActionPopoverMode("expanded")}
+        onDismissSelectionActionPopover={clearCanvasSelection}
         onCopySelection={() => {
           void (hasTimelineRangeSelection ? copyAllTracksInSelection() : copySelectedNotes());
         }}
