@@ -35,7 +35,7 @@ export function MacroPanel({
         const automated = automatedMacroIds.has(macro.id);
         const laneExpanded = automationExpandedByMacroId.get(macro.id) !== false;
         return (
-          <label key={macro.id} className="macro-row">
+          <label key={macro.id} className={`macro-row${automated ? " automated" : ""}`}>
             <span>
               {macro.name}
               {automated ? " (Automated)" : ""}
@@ -50,8 +50,9 @@ export function MacroPanel({
                 value={value}
                 disabled={automated}
                 onChange={(event) => onMacroChange(macro.id, Number(event.target.value))}
-                onPointerUp={(event) => onMacroCommit?.(macro.id, Number((event.target as HTMLInputElement).value))}
-                onKeyUp={(event) => onMacroCommit?.(macro.id, Number((event.target as HTMLInputElement).value))}
+                aria-disabled={automated}
+                onPointerUp={automated ? undefined : (event) => onMacroCommit?.(macro.id, Number((event.target as HTMLInputElement).value))}
+                onKeyUp={automated ? undefined : (event) => onMacroCommit?.(macro.id, Number((event.target as HTMLInputElement).value))}
               />
             </div>
             <strong>{Math.round(value * 100)}%</strong>

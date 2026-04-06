@@ -662,6 +662,10 @@ select {
   margin-bottom: 0.4rem;
 }
 
+.macro-row.automated {
+  color: rgba(207, 222, 238, 0.82);
+}
+
 .macro-slider-wrap {
   position: relative;
   display: flex;
@@ -670,6 +674,19 @@ select {
 
 .macro-slider-wrap input[type="range"] {
   width: 100%;
+}
+
+.macro-row.automated .macro-slider-wrap {
+  opacity: 0.58;
+}
+
+.macro-row.automated .macro-slider-wrap input[type="range"] {
+  cursor: not-allowed;
+  filter: saturate(0.55) brightness(0.72);
+}
+
+.macro-row.automated .macro-default-marker {
+  opacity: 0.5;
 }
 
 .macro-default-marker {
