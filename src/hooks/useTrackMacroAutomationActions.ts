@@ -72,13 +72,17 @@ export function useTrackMacroAutomationActions({
   }, [commitProjectChange]);
 
   const previewTrackMacroAutomation = useCallback((trackId: string, macroId: string, normalized: number, options?: { retrigger?: boolean }) => {
-    audioEngineRef.current?.setMacroValue(trackId, macroId, normalized);
     if (!options?.retrigger) {
+      audioEngineRef.current?.setMacroValue(trackId, macroId, normalized);
       return;
     }
-    audioEngineRef.current
-      ?.previewNote(trackId, pitchToVoct(previewPitch), 1)
-      .catch((error) => setRuntimeError((error as Error).message));
+
+    window.setTimeout(() => {
+      audioEngineRef.current?.setMacroValue(trackId, macroId, normalized);
+      audioEngineRef.current
+        ?.previewNote(trackId, pitchToVoct(previewPitch), 1)
+        .catch((error) => setRuntimeError((error as Error).message));
+    }, 0);
   }, [audioEngineRef, previewPitch, setRuntimeError]);
 
   const bindTrackMacroToAutomation = useCallback((trackId: string, macroId: string, initialValue: number) => {
