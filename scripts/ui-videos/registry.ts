@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, Locator, Page, Video } from "@playwright/test";
-import { holdLocatorFor, openApp } from "../ui-capture/common";
+import { holdLocatorFor, openApp, setupMacroAutomationLane } from "../ui-capture/common";
 import { applySelectionReviewFraming, showSelectionActionsPopover } from "../ui-capture/selectionCapture";
 import { VIDEO_SCENARIO, VIDEO_SCENARIOS, VideoScenario } from "./scenarios";
 
@@ -89,6 +89,19 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
 
       await page.locator(".timeline-actions-popover").getByRole("button", { name: "Paste", exact: true }).click();
       await page.waitForTimeout(postActionSettleMs * 4);
+    }
+  },
+  [VIDEO_SCENARIO.MACRO_AUTOMATION_EDIT]: {
+    name: VIDEO_SCENARIO.MACRO_AUTOMATION_EDIT,
+    description: "Promote a macro to automation, add keyframes, then play back the edited lane.",
+    capture: async (page) => {
+      const { canvas } = await setupMacroAutomationLane(page, { settleMs: postActionSettleMs });
+      await canvas.click({ position: { x: 600, y: 128 } });
+      await page.waitForTimeout(postActionSettleMs);
+      await getTransportButton(page, "Play").click();
+      await page.waitForTimeout(playbackDurationMs);
+      await getTransportButton(page, "Stop").click();
+      await page.waitForTimeout(postActionSettleMs);
     }
   }
 };

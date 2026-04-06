@@ -39,6 +39,7 @@ const createProject = (): Project => ({
         { id: "note_b", pitchStr: "E4", startBeat: 5, durationBeats: 1, velocity: 0.7 }
       ],
       macroValues: {},
+      macroAutomations: {},
       macroPanelExpanded: true,
       volume: 1,
       fx: {
@@ -60,6 +61,7 @@ const createProject = (): Project => ({
         { id: "note_c", pitchStr: "G4", startBeat: 2, durationBeats: 2, velocity: 0.9 }
       ],
       macroValues: {},
+      macroAutomations: {},
       macroPanelExpanded: true,
       volume: 1,
       fx: {
@@ -82,6 +84,7 @@ const createProject = (): Project => ({
         { id: "note_e", pitchStr: "B3", startBeat: 8, durationBeats: 1, velocity: 0.5 }
       ],
       macroValues: {},
+      macroAutomations: {},
       macroPanelExpanded: true,
       volume: 1,
       fx: {

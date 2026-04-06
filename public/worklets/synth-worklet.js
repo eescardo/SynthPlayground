@@ -65,7 +65,8 @@ const TRACK_VOLUME_RANGE = {
 const EVENT_SORT_PRIORITY = {
   NoteOff: 0,
   ParamChange: 1,
-  NoteOn: 2
+  MacroChange: 2,
+  NoteOn: 3
 };
 
 const compareScheduledEvents = (a, b) => {
@@ -1278,6 +1279,15 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
       for (const track of this.trackRuntimes) {
         if (track.patch.id === event.patchId) {
           track.setParam(event.nodeId, event.paramId, event.value);
+        }
+      }
+      return;
+    }
+
+    if (event.type === "MacroChange") {
+      for (const track of this.trackRuntimes) {
+        if (track.track.id === event.trackId) {
+          track.applyMacro(event.macroId, event.normalized);
         }
       }
       return;

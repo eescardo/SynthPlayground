@@ -156,7 +156,11 @@ jobs:
         id: detect
         shell: bash
         run: |
-          captured_scenarios="$(find artifacts/screenshots/before -name '*.png' -exec basename {} .png \; 2>/dev/null | sort -u | paste -sd, -)"
+          if [[ -d artifacts/screenshots/before ]]; then
+            captured_scenarios="$(find artifacts/screenshots/before -name '*.png' -exec basename {} .png \; 2>/dev/null | sort -u | paste -sd, -)"
+          else
+            captured_scenarios=""
+          fi
           if [[ -n "$captured_scenarios" ]]; then
             echo "has_artifact=true" >> "$GITHUB_OUTPUT"
             echo "captured_scenarios=$captured_scenarios" >> "$GITHUB_OUTPUT"
@@ -227,7 +231,11 @@ jobs:
         id: detect
         shell: bash
         run: |
-          captured_scenarios="$(find artifacts/screenshots/after -name '*.png' -exec basename {} .png \; 2>/dev/null | sort -u | paste -sd, -)"
+          if [[ -d artifacts/screenshots/after ]]; then
+            captured_scenarios="$(find artifacts/screenshots/after -name '*.png' -exec basename {} .png \; 2>/dev/null | sort -u | paste -sd, -)"
+          else
+            captured_scenarios=""
+          fi
           if [[ -n "$captured_scenarios" ]]; then
             echo "has_artifact=true" >> "$GITHUB_OUTPUT"
             echo "captured_scenarios=$captured_scenarios" >> "$GITHUB_OUTPUT"
@@ -322,6 +330,32 @@ jobs:
           git push origin "$PREVIEW_BRANCH"
           echo "preview_branch=$PREVIEW_BRANCH" >> "$GITHUB_OUTPUT"
 
+  validate-capture-results:
+    name: Validate Screenshot Results
+    runs-on: ubuntu-latest
+    needs:
+      - pr-context
+      - capture-before
+      - capture-after
+    if: needs.pr-context.outputs.scenarios != ''
+    steps:
+      - name: Require at least one capture side
+        shell: bash
+        env:
+          BEFORE_AVAILABLE: ${{ needs.capture-before.outputs.has_artifact }}
+          AFTER_AVAILABLE: ${{ needs.capture-after.outputs.has_artifact }}
+          BEFORE_STATUS: ${{ needs.capture-before.outputs.capture_status }}
+          AFTER_STATUS: ${{ needs.capture-after.outputs.capture_status }}
+        run: |
+          if [[ "$BEFORE_AVAILABLE" == "true" || "$AFTER_AVAILABLE" == "true" ]]; then
+            exit 0
+          fi
+
+          echo "Screenshot capture failed for both before and after revisions."
+          echo "Before capture status: ${BEFORE_STATUS:-unknown}"
+          echo "After capture status: ${AFTER_STATUS:-unknown}"
+          exit 1
+
   skip:
     name: Skip Screenshot Run
     runs-on: ubuntu-latest
@@ -339,6 +373,7 @@ jobs:
       - capture-before
       - capture-after
       - publish-previews
+      - validate-capture-results
     if: needs.pr-context.outputs.scenarios != ''
     steps:
       - name: Upsert screenshot comment

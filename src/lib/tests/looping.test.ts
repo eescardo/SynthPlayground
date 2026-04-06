@@ -11,6 +11,7 @@ import {
   sanitizeLoopSettings,
   splitProjectNotesAtLoopBoundaries
 } from "@/lib/looping";
+import { isSplitAutomationKeyframe } from "@/lib/macroAutomation";
 import { Project } from "@/types/music";
 
 const createProject = (): Project => ({
@@ -38,6 +39,7 @@ const createProject = (): Project => ({
         }
       ],
       macroValues: {},
+      macroAutomations: {},
       macroPanelExpanded: true,
       volume: 1,
       mute: false,
@@ -247,6 +249,99 @@ describe("looping", () => {
       ["A3", 13.5, 0.5],
       ["A3", 15.5, 0.5],
       ["B3", 18, 0.5]
+    ]);
+  });
+
+  it("explodes looped automation and preserves restart jumps with split keyframes", () => {
+    const project = createProject();
+    project.global.loop = [
+      { id: "loop_start", kind: "start", beat: 9 },
+      { id: "loop_end", kind: "end", beat: 11, repeatCount: 1 }
+    ];
+    project.tracks[0] = {
+      ...project.tracks[0],
+      notes: [
+        { id: "note_a", pitchStr: "C4", startBeat: 9, durationBeats: 1, velocity: 0.8 },
+        { id: "note_b", pitchStr: "C4", startBeat: 11, durationBeats: 1, velocity: 0.8 }
+      ],
+      macroValues: {
+        macro_cutoff: 0.2
+      },
+      macroAutomations: {
+        macro_cutoff: {
+          macroId: "macro_cutoff",
+          expanded: true,
+          startValue: 0.2,
+          endValue: 0.6,
+          keyframes: [
+            { id: "cutoff_mid", beat: 10, type: "whole", value: 0.8 }
+          ]
+        }
+      }
+    };
+
+    const region = getUniqueMatchedLoopRegionAtBeat(project.global.loop, 9);
+    expect(region).not.toBeNull();
+
+    const expanded = expandLoopRegionToNotes(project, region!);
+    const lane = expanded.tracks[0]!.macroAutomations.macro_cutoff;
+
+    expect(lane.keyframes[0]).toEqual(expect.objectContaining({ id: "cutoff_mid", beat: 10, type: "whole", value: 0.8 }));
+    expect(lane.keyframes[1]).toEqual(expect.objectContaining({ beat: 11, type: "split" }));
+    expect(isSplitAutomationKeyframe(lane.keyframes[1]!)).toBe(true);
+    if (!isSplitAutomationKeyframe(lane.keyframes[1]!)) {
+      throw new Error("expected restart keyframe to be split");
+    }
+    expect(lane.keyframes[1].incomingValue).toBeCloseTo(0.7666666667);
+    expect(lane.keyframes[1].outgoingValue).toBeCloseTo(0.74);
+    expect(lane.keyframes[2]).toEqual(expect.objectContaining({ beat: 12, type: "whole", value: 0.8 }));
+  });
+
+  it("prefers split restart boundaries over duplicated start keyframes when exploding a saw loop", () => {
+    const project = createProject();
+    project.global.gridBeats = 0.5;
+    project.global.loop = [
+      { id: "loop_start", kind: "start", beat: 8 },
+      { id: "loop_end", kind: "end", beat: 8.5, repeatCount: 3 }
+    ];
+    project.tracks[0] = {
+      ...project.tracks[0],
+      notes: [
+        { id: "note_a", pitchStr: "B3", startBeat: 8, durationBeats: 0.5, velocity: 0.8 },
+        { id: "note_tail", pitchStr: "B3", startBeat: 12, durationBeats: 0.5, velocity: 0.8 }
+      ],
+      macroValues: {
+        macro_cutoff: 0.1
+      },
+      macroAutomations: {
+        macro_cutoff: {
+          macroId: "macro_cutoff",
+          expanded: true,
+          startValue: 0.1,
+          endValue: 0.9,
+          keyframes: [
+            { id: "loop_start_value", beat: 8, type: "whole", value: 0.1 },
+            { id: "loop_end_value", beat: 8.5, type: "whole", value: 0.9 }
+          ]
+        }
+      }
+    };
+
+    const region = getUniqueMatchedLoopRegionAtBeat(project.global.loop, 8);
+    expect(region).not.toBeNull();
+
+    const expanded = expandLoopRegionToNotes(project, region!);
+    const keyframes = expanded.tracks[0]!.macroAutomations.macro_cutoff.keyframes;
+
+    expect(keyframes.filter((keyframe) => Math.abs(keyframe.beat - 8) <= 1e-9)).toHaveLength(1);
+    expect(keyframes.filter((keyframe) => Math.abs(keyframe.beat - 8.5) <= 1e-9)).toEqual([
+      expect.objectContaining({ type: "split", incomingValue: 0.9, outgoingValue: 0.1 })
+    ]);
+    expect(keyframes.filter((keyframe) => Math.abs(keyframe.beat - 9) <= 1e-9)).toEqual([
+      expect.objectContaining({ type: "split", incomingValue: 0.9, outgoingValue: 0.1 })
+    ]);
+    expect(keyframes.filter((keyframe) => Math.abs(keyframe.beat - 9.5) <= 1e-9)).toEqual([
+      expect.objectContaining({ type: "split", incomingValue: 0.9, outgoingValue: 0.1 })
     ]);
   });
 });

@@ -1,5 +1,5 @@
 import { expect, Page } from "@playwright/test";
-import { openApp, savePageScreenshot } from "../ui-capture/common";
+import { openApp, savePageScreenshot, setupMacroAutomationLane } from "../ui-capture/common";
 import { applySelectionReviewFraming, showSelectionActionsPopover } from "../ui-capture/selectionCapture";
 import { SCREENSHOT_SCENARIO, SCREENSHOT_SCENARIOS, ScreenshotScenario } from "./scenarios";
 
@@ -67,6 +67,14 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
       await openApp(page);
       await expect(page.getByRole("heading", { name: "Instrument" })).toBeVisible();
       await savePageScreenshot(page, outputPath, ".instrument-editor");
+    }
+  },
+  [SCREENSHOT_SCENARIO.MACRO_AUTOMATION_LANE]: {
+    name: SCREENSHOT_SCENARIO.MACRO_AUTOMATION_LANE,
+    description: "Track canvas with an automated macro lane and interpolated keyframes visible",
+    capture: async (page, outputPath) => {
+      await setupMacroAutomationLane(page);
+      await savePageScreenshot(page, outputPath, ".track-canvas-shell");
     }
   }
 };

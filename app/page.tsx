@@ -12,6 +12,7 @@ import { TimelineActionsPopoverRequest, TrackCanvas } from "@/components/TrackCa
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
 import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
+import { getProjectTimelineEndBeat } from "@/lib/macroAutomation";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import {
   getNoteSelectionKey,
@@ -39,6 +40,7 @@ import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
 import { useQuickHelpDialog } from "@/hooks/useQuickHelpDialog";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
+import { useTrackMacroAutomationActions } from "@/hooks/useTrackMacroAutomationActions";
 import { Project } from "@/types/music";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -235,12 +237,24 @@ export default function HomePage() {
   }, []);
 
   const playbackEndBeat = useMemo(() => {
-    const maxNoteEnd = project.tracks
-      .flatMap((track) => track.notes)
-      .reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);
-    const meterBeats = project.global.meter === "4/4" ? 4 : 3;
-    return Math.max(16, Math.ceil(maxNoteEnd + meterBeats));
-  }, [project.global.meter, project.tracks]);
+    return getProjectTimelineEndBeat(project);
+  }, [project]);
+
+  const {
+    bindTrackMacroToAutomation,
+    unbindTrackMacroFromAutomation,
+    toggleTrackMacroAutomationLane,
+    upsertTrackMacroAutomationKeyframe,
+    splitTrackMacroAutomationKeyframe,
+    updateTrackMacroAutomationKeyframeSide,
+    deleteTrackMacroAutomationKeyframeSide,
+    previewTrackMacroAutomation
+  } = useTrackMacroAutomationActions({
+    audioEngineRef,
+    commitProjectChange,
+    previewPitch,
+    setRuntimeError
+  });
 
   useEffect(() => {
     if (!selectedPatch || selectedPatchHasErrors) return;
@@ -675,7 +689,7 @@ export default function HomePage() {
         ...current,
         tracks: current.tracks.map((track) =>
           track.id === selectedTrack.id
-            ? { ...track, macroValues: nextMacroValues }
+            ? { ...track, macroValues: nextMacroValues, macroAutomations: {} }
             : track
         )
       }),
@@ -789,6 +803,7 @@ export default function HomePage() {
           instrumentPatchId: fallbackPatch.id,
           notes: [],
           macroValues: {},
+          macroAutomations: {},
           macroPanelExpanded: true,
           volume: 1,
           fx: {
@@ -908,7 +923,9 @@ export default function HomePage() {
     commitProjectChange((current) => ({
       ...current,
       tracks: current.tracks.map((track) =>
-        track.id === trackId ? { ...track, instrumentPatchId: patchId, macroValues: {}, macroPanelExpanded: true } : track
+        track.id === trackId
+          ? { ...track, instrumentPatchId: patchId, macroValues: {}, macroAutomations: {}, macroPanelExpanded: true }
+          : track
       )
     }), { actionKey: `track:${trackId}:patch` });
     setSelectedNodeId(undefined);
@@ -946,6 +963,12 @@ export default function HomePage() {
       }
     }
   }, [commitProjectChange, project.patches, project.tracks, schedulePatchPreview]);
+
+  const previewPlacedNote = useCallback((trackId: string, note: Project["tracks"][number]["notes"][number]) => {
+    audioEngineRef.current
+      ?.previewNote(trackId, pitchToVoct(note.pitchStr), note.durationBeats, note.velocity)
+      .catch((error) => setRuntimeError((error as Error).message));
+  }, []);
 
   if (!ready || !selectedTrack || !selectedPatch) {
     return <main className="loading">Loading...</main>;
@@ -1069,8 +1092,17 @@ export default function HomePage() {
         onUpdateTrackPatch={updateTrackPatch}
         onToggleTrackMacroPanel={toggleTrackMacroPanel}
         onChangeTrackMacro={changeTrackMacro}
+        onBindTrackMacroToAutomation={bindTrackMacroToAutomation}
+        onUnbindTrackMacroFromAutomation={unbindTrackMacroFromAutomation}
+        onToggleTrackMacroAutomationLane={toggleTrackMacroAutomationLane}
+        onUpsertTrackMacroAutomationKeyframe={upsertTrackMacroAutomationKeyframe}
+        onSplitTrackMacroAutomationKeyframe={splitTrackMacroAutomationKeyframe}
+        onUpdateTrackMacroAutomationKeyframeSide={updateTrackMacroAutomationKeyframeSide}
+        onDeleteTrackMacroAutomationKeyframeSide={deleteTrackMacroAutomationKeyframeSide}
+        onPreviewTrackMacroAutomation={previewTrackMacroAutomation}
         onResetTrackMacros={resetSelectedPatchMacros}
         onOpenPitchPicker={openPitchPicker}
+        onPreviewPlacedNote={previewPlacedNote}
         onUpsertNote={upsertNote}
         onUpdateNote={updateNote}
         onDeleteNote={deleteNote}

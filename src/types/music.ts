@@ -20,12 +20,40 @@ export interface TrackFxSettings {
   compression: number;
 }
 
+export interface WholeTrackMacroAutomationKeyframe {
+  id: string;
+  beat: number;
+  type: "whole";
+  value: number;
+}
+
+export interface SplitTrackMacroAutomationKeyframe {
+  id: string;
+  beat: number;
+  type: "split";
+  incomingValue: number;
+  outgoingValue: number;
+}
+
+export type TrackMacroAutomationKeyframe =
+  | WholeTrackMacroAutomationKeyframe
+  | SplitTrackMacroAutomationKeyframe;
+
+export interface TrackMacroAutomationLane {
+  macroId: string;
+  expanded: boolean;
+  startValue: number;
+  endValue: number;
+  keyframes: TrackMacroAutomationKeyframe[];
+}
+
 export interface Track {
   id: string;
   name: string;
   instrumentPatchId: string;
   notes: Note[];
   macroValues: Record<string, number>;
+  macroAutomations: Record<string, TrackMacroAutomationLane>;
   macroPanelExpanded: boolean;
   volume: number;
   mute?: boolean;

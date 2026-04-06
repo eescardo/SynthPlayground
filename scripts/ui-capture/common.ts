@@ -22,6 +22,28 @@ export const openApp = async (page: Page) => {
   await expect(page.locator(".track-canvas-shell")).toBeVisible();
 };
 
+const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canvas");
+
+export const setupMacroAutomationLane = async (page: Page, options?: { settleMs?: number }) => {
+  await openApp(page);
+  const settleMs = options?.settleMs ?? 0;
+  const macroPanel = page.locator(".macro-panel");
+  await expect(macroPanel).toBeVisible();
+  await macroPanel.getByRole("button", { name: "Automate" }).first().click();
+  await expect(macroPanel.getByRole("button", { name: "Collapse lane" }).first()).toBeVisible();
+
+  const canvas = getTrackCanvas(page);
+  await canvas.click({ position: { x: 430, y: 118 } });
+  if (settleMs > 0) {
+    await page.waitForTimeout(settleMs);
+  }
+  await canvas.click({ position: { x: 770, y: 148 } });
+  if (settleMs > 0) {
+    await page.waitForTimeout(settleMs);
+  }
+  return { canvas };
+};
+
 export const waitForServer = async (url: string, timeoutMs: number) => {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {

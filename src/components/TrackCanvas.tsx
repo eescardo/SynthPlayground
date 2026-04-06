@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MacroPanel } from "@/components/MacroPanel";
 import { SelectionActionPopover } from "@/components/SelectionActionPopover";
+import {
+  automationValueFromY,
+  AutomationKeyframeRect,
+  findAutomationKeyframeRect,
+  renderAutomationLane
+} from "@/components/trackCanvasAutomationLane";
 import { TrackVolumePopover } from "@/components/TrackVolumePopover";
 import {
   CanvasCursor,
@@ -29,6 +35,12 @@ import {
 } from "@/components/trackCanvasNoteGeometry";
 import { useVolumePopover } from "@/hooks/useVolumePopover";
 import { getLoopMarkerStates } from "@/lib/looping";
+import {
+  AutomationKeyframeSide,
+  getProjectTimelineEndBeat,
+  getTrackAutomationPoints,
+  getTrackMacroLane
+} from "@/lib/macroAutomation";
 import { createDefaultPlacedNote } from "@/lib/noteDefaults";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { getNoteSelectionKey } from "@/lib/noteClipboard";
@@ -40,6 +52,8 @@ import { Project, Note, Track } from "@/types/music";
 const HEADER_WIDTH = 170;
 const RULER_HEIGHT = 28;
 const TRACK_HEIGHT = 72;
+const AUTOMATION_LANE_HEIGHT = 56;
+const AUTOMATION_LANE_COLLAPSED_HEIGHT = 22;
 const BEAT_WIDTH = 72;
 const MUTE_ICON_SIZE = 16;
 const NOTE_RESIZE_HANDLE_WIDTH = 8;
@@ -93,7 +107,15 @@ const TRACK_CANVAS_COLORS = {
   loopEnd: "#6edec6",
   loopUnmatched: "#e27a7a",
   loopGhost: "rgba(255, 90, 123, 0.35)",
-  loopMarkerText: "#07281e"
+  loopMarkerText: "#07281e",
+  automationLaneBg: "rgba(18, 35, 51, 0.92)",
+  automationLaneBorder: "rgba(103, 157, 219, 0.38)",
+  automationLaneTimelineVeil: "rgba(12, 24, 35, 0.5)",
+  automationFill: "rgba(45, 140, 255, 0.22)",
+  automationLine: "#84c0ff",
+  automationHandle: "#d8ecff",
+  automationHandleBorder: "#0d2944",
+  automationLabel: "#9ec8f5"
 } as const;
 
 interface TrackCanvasProps {
@@ -120,8 +142,35 @@ interface TrackCanvasProps {
   onUpdateTrackPatch: (trackId: string, patchId: string) => void;
   onToggleTrackMacroPanel: (trackId: string) => void;
   onChangeTrackMacro: (trackId: string, macroId: string, normalized: number, options?: { commit?: boolean }) => void;
+  onBindTrackMacroToAutomation: (trackId: string, macroId: string, normalized: number) => void;
+  onUnbindTrackMacroFromAutomation: (trackId: string, macroId: string) => void;
+  onToggleTrackMacroAutomationLane: (trackId: string, macroId: string) => void;
+  onUpsertTrackMacroAutomationKeyframe: (
+    trackId: string,
+    macroId: string,
+    beat: number,
+    value: number,
+    options?: { keyframeId?: string; commit?: boolean }
+  ) => void;
+  onSplitTrackMacroAutomationKeyframe: (trackId: string, macroId: string, keyframeId: string) => void;
+  onUpdateTrackMacroAutomationKeyframeSide: (
+    trackId: string,
+    macroId: string,
+    keyframeId: string,
+    side: AutomationKeyframeSide,
+    value: number,
+    options?: { commit?: boolean }
+  ) => void;
+  onDeleteTrackMacroAutomationKeyframeSide: (
+    trackId: string,
+    macroId: string,
+    keyframeId: string,
+    side: AutomationKeyframeSide
+  ) => void;
+  onPreviewTrackMacroAutomation: (trackId: string, macroId: string, normalized: number, options?: { retrigger?: boolean }) => void;
   onResetTrackMacros: (trackId: string) => void;
   onOpenPitchPicker: (trackId: string, noteId: string) => void;
+  onPreviewPlacedNote: (trackId: string, note: Note) => void;
   onUpsertNote: (trackId: string, note: Note, options?: { actionKey?: string; coalesce?: boolean }) => void;
   onUpdateNote: (trackId: string, noteId: string, patch: Partial<Note>, options?: { actionKey?: string; coalesce?: boolean }) => void;
   onDeleteNote: (trackId: string, noteId: string) => void;
@@ -166,6 +215,39 @@ interface PendingCanvasAction {
   startY: number;
   beat: number;
   pointerId: number;
+}
+
+interface AutomationLaneLayout {
+  macroId: string;
+  name: string;
+  y: number;
+  height: number;
+  expanded: boolean;
+}
+
+interface TrackLayout {
+  trackId: string;
+  index: number;
+  y: number;
+  height: number;
+  automationLanes: AutomationLaneLayout[];
+}
+
+interface PendingAutomationAction {
+  trackId: string;
+  macroId: string;
+  beat: number;
+  value: number;
+  pointerId: number;
+}
+
+interface AutomationDragState {
+  trackId: string;
+  macroId: string;
+  keyframeId: string;
+  beat: number;
+  side: AutomationKeyframeSide;
+  boundary: "start" | "end" | null;
 }
 
 export interface TimelineActionsPopoverRequest {
@@ -318,13 +400,17 @@ const findTrackOverlaps = (notes: Note[]): {
   return { overlapNoteIds, overlapRanges: merged };
 };
 
+
 export function TrackCanvas(props: TrackCanvasProps) {
   const { onUpdateNote, project } = props;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const pendingCanvasActionRef = useRef<PendingCanvasAction | null>(null);
+  const automationDragRef = useRef<AutomationDragState | null>(null);
+  const pendingAutomationActionRef = useRef<PendingAutomationAction | null>(null);
   const noteRectsRef = useRef<NoteRect[]>([]);
+  const automationKeyframeRectsRef = useRef<AutomationKeyframeRect[]>([]);
   const muteRectsRef = useRef<MuteRect[]>([]);
   const pitchRectsRef = useRef<PitchRect[]>([]);
   const loopMarkerRectsRef = useRef<LoopMarkerRect[]>([]);
@@ -338,6 +424,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const wheelLockTimerRef = useRef<number | null>(null);
   const [hoveredPitch, setHoveredPitch] = useState<{ trackId: string; noteId: string } | null>(null);
   const [hoveredNote, setHoveredNote] = useState<{ trackId: string; noteId: string } | null>(null);
+  const [hoveredAutomationKeyframe, setHoveredAutomationKeyframe] = useState<{ trackId: string; macroId: string; keyframeId: string; side: AutomationKeyframeSide } | null>(null);
   const [hoveredLoopMarker, setHoveredLoopMarker] = useState<HoveredLoopMarker | null>(null);
   const [hoveredPlayhead, setHoveredPlayhead] = useState(false);
   const [speakerIconsReady, setSpeakerIconsReady] = useState(false);
@@ -379,12 +466,43 @@ export function TrackCanvas(props: TrackCanvasProps) {
   }, []);
 
   const totalBeats = useMemo(() => {
-    const maxEnd = props.project.tracks.flatMap((track) => track.notes).reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);
-    return Math.max(16, Math.ceil(maxEnd + meterBeats));
-  }, [meterBeats, props.project.tracks]);
+    return getProjectTimelineEndBeat(props.project);
+  }, [props.project]);
 
   const width = HEADER_WIDTH + totalBeats * BEAT_WIDTH;
-  const height = RULER_HEIGHT + props.project.tracks.length * TRACK_HEIGHT;
+  const trackLayouts = useMemo<TrackLayout[]>(() => {
+    let currentY = RULER_HEIGHT;
+    return props.project.tracks.map((track, index) => {
+      const trackY = currentY;
+      const patch = props.project.patches.find((entry) => entry.id === track.instrumentPatchId);
+      let laneY = trackY + TRACK_HEIGHT;
+      const automationLanes = patch?.ui.macros.flatMap((macro) => {
+        const lane = getTrackMacroLane(track, macro.id);
+        if (!lane) {
+          return [];
+        }
+        const layout: AutomationLaneLayout = {
+          macroId: macro.id,
+          name: macro.name,
+          y: laneY,
+          height: lane.expanded ? AUTOMATION_LANE_HEIGHT : AUTOMATION_LANE_COLLAPSED_HEIGHT,
+          expanded: lane.expanded
+        };
+        laneY += layout.height;
+        return [layout];
+      }) ?? [];
+      const occupiedHeight = TRACK_HEIGHT + automationLanes.reduce((acc, lane) => acc + lane.height, 0);
+      currentY += occupiedHeight;
+      return {
+        trackId: track.id,
+        index,
+        y: trackY,
+        height: occupiedHeight,
+        automationLanes
+      };
+    });
+  }, [props.project.patches, props.project.tracks]);
+  const height = trackLayouts.at(-1) ? trackLayouts[trackLayouts.length - 1].y + trackLayouts[trackLayouts.length - 1].height : RULER_HEIGHT;
 
   const beatFromX = (x: number) => (x - HEADER_WIDTH) / BEAT_WIDTH;
   const isTrackSilenced = useCallback((track: Track) => track.mute || isTrackVolumeMuted(track.volume), []);
@@ -403,18 +521,46 @@ export function TrackCanvas(props: TrackCanvasProps) {
     };
   };
 
+  const getTrackLayoutAtY = useCallback((y: number): TrackLayout | null => {
+    if (y < RULER_HEIGHT) {
+      return null;
+    }
+    return trackLayouts.find((layout) => y >= layout.y && y <= layout.y + layout.height) ?? null;
+  }, [trackLayouts]);
+
   const getTrackAtY = (y: number): Track | null => {
-    if (y < RULER_HEIGHT) return null;
-    const idx = Math.floor((y - RULER_HEIGHT) / TRACK_HEIGHT);
-    return props.project.tracks[idx] ?? null;
+    const layout = getTrackLayoutAtY(y);
+    if (!layout) {
+      return null;
+    }
+    return props.project.tracks.find((track) => track.id === layout.trackId) ?? null;
   };
 
+  const getAutomationLaneAtPoint = useCallback((x: number, y: number): { track: Track; lane: AutomationLaneLayout } | null => {
+    if (x < HEADER_WIDTH) {
+      return null;
+    }
+    const layout = getTrackLayoutAtY(y);
+    if (!layout) {
+      return null;
+    }
+    const lane = layout.automationLanes.find((entry) => y >= entry.y && y <= entry.y + entry.height);
+    if (!lane) {
+      return null;
+    }
+    const track = props.project.tracks.find((entry) => entry.id === layout.trackId);
+    return track ? { track, lane } : null;
+  }, [getTrackLayoutAtY, props.project.tracks]);
+
   const resolvePointerTargets = useCallback((x: number, y: number) => {
+    const automationLaneHit = getAutomationLaneAtPoint(x, y);
     const muteRect = findMuteRect(muteRectsRef.current, x, y);
     const pitchRect = findPitchRect(pitchRectsRef.current, x, y);
     const noteRect = findNoteRect(x, y);
-    const loopMarkerRect = findLoopMarkerRect(loopMarkerRectsRef.current, x, y);
-    const playheadHit = isOverPlayhead(x, props.playheadBeat, HEADER_WIDTH, BEAT_WIDTH, PLAYHEAD_HIT_HALF_WIDTH);
+    const loopMarkerRect = automationLaneHit ? null : findLoopMarkerRect(loopMarkerRectsRef.current, x, y);
+    const playheadHit = automationLaneHit
+      ? false
+      : isOverPlayhead(x, props.playheadBeat, HEADER_WIDTH, BEAT_WIDTH, PLAYHEAD_HIT_HALF_WIDTH);
     const hoverTarget = getHoverTarget({
       hasMuteHit: Boolean(muteRect),
       hasPitchHit: Boolean(pitchRect),
@@ -426,11 +572,12 @@ export function TrackCanvas(props: TrackCanvasProps) {
       muteRect,
       pitchRect,
       noteRect,
+      automationLaneHit,
       loopMarkerRect,
       playheadHit,
       hoverTarget
     };
-  }, [props.playheadBeat]);
+  }, [getAutomationLaneAtPoint, props.playheadBeat]);
 
   const updateSelectionFromRect = useCallback((nextRect: SelectionRect | null) => {
     setSelectionRect(nextRect);
@@ -492,8 +639,11 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
     ctx.strokeStyle = TRACK_CANVAS_COLORS.rowSeparator;
     ctx.lineWidth = 1;
-    for (let i = 0; i <= props.project.tracks.length; i += 1) {
-      const y = RULER_HEIGHT + i * TRACK_HEIGHT;
+    ctx.beginPath();
+    ctx.moveTo(0, RULER_HEIGHT);
+    ctx.lineTo(width, RULER_HEIGHT);
+    for (const layout of trackLayouts) {
+      const y = layout.y + layout.height;
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(width, y);
@@ -501,21 +651,27 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
 
     noteRectsRef.current = [];
+    automationKeyframeRectsRef.current = [];
     muteRectsRef.current = [];
     pitchRectsRef.current = [];
     loopMarkerRectsRef.current = [];
     const activeRecordedNoteById = new Map(
       (props.activeRecordedNotes ?? []).map((entry) => [`${entry.trackId}:${entry.noteId}`, entry] as const)
     );
-    props.project.tracks.forEach((track, index) => {
-      const y = RULER_HEIGHT + index * TRACK_HEIGHT;
+    props.project.tracks.forEach((track) => {
+      const layout = trackLayouts.find((entry) => entry.trackId === track.id);
+      if (!layout) {
+        return;
+      }
+      const y = layout.y;
       const isSelected = track.id === props.selectedTrackId;
       const trackPatchInvalid = props.invalidPatchIds?.has(track.instrumentPatchId) ?? false;
       const { overlapNoteIds, overlapRanges } = findTrackOverlaps(track.notes);
+      const trackPatch = props.project.patches.find((entry) => entry.id === track.instrumentPatchId);
 
       if (isSelected) {
         ctx.fillStyle = TRACK_CANVAS_COLORS.selectedTrackOverlay;
-        ctx.fillRect(0, y, width, TRACK_HEIGHT);
+        ctx.fillRect(0, y, width, layout.height);
       }
       if (trackPatchInvalid) {
         ctx.fillStyle = TRACK_CANVAS_COLORS.trackInvalidOverlay;
@@ -631,6 +787,31 @@ export function TrackCanvas(props: TrackCanvasProps) {
         ctx.fillStyle = TRACK_CANVAS_COLORS.overlapRange;
         ctx.fillRect(overlapX, y + 14, overlapW, TRACK_HEIGHT - 28);
       }
+
+      for (const automationLayout of layout.automationLanes) {
+        const lane = getTrackMacroLane(track, automationLayout.macroId);
+        const macro = trackPatch?.ui.macros.find((entry) => entry.id === automationLayout.macroId);
+        if (!lane || !macro) {
+          continue;
+        }
+        renderAutomationLane({
+          automationKeyframeRects: automationKeyframeRectsRef.current,
+          beatWidth: BEAT_WIDTH,
+          colors: TRACK_CANVAS_COLORS,
+          ctx,
+          expanded: automationLayout.expanded,
+          headerWidth: HEADER_WIDTH,
+          height: automationLayout.height,
+          hoveredAutomationKeyframe,
+          laneY: automationLayout.y,
+          macroId: automationLayout.macroId,
+          macroName: macro.name,
+          points: getTrackAutomationPoints(lane, totalBeats),
+          registerHitTargets: true,
+          trackId: track.id,
+          width
+        });
+      }
     });
 
     const playheadX = HEADER_WIDTH + props.playheadBeat * BEAT_WIDTH;
@@ -669,6 +850,39 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
     drawGhostPlayhead(ctx, props.ghostPlayheadBeat, props.countInLabel, height);
 
+    props.project.tracks.forEach((track) => {
+      const layout = trackLayouts.find((entry) => entry.trackId === track.id);
+      const trackPatch = props.project.patches.find((entry) => entry.id === track.instrumentPatchId);
+      if (!layout) {
+        return;
+      }
+      for (const automationLayout of layout.automationLanes) {
+        const lane = getTrackMacroLane(track, automationLayout.macroId);
+        const macro = trackPatch?.ui.macros.find((entry) => entry.id === automationLayout.macroId);
+        if (!lane || !macro) {
+          continue;
+        }
+        renderAutomationLane({
+          automationKeyframeRects: automationKeyframeRectsRef.current,
+          beatWidth: BEAT_WIDTH,
+          colors: TRACK_CANVAS_COLORS,
+          ctx,
+          expanded: automationLayout.expanded,
+          headerWidth: HEADER_WIDTH,
+          height: automationLayout.height,
+          hoveredAutomationKeyframe,
+          laneY: automationLayout.y,
+          macroId: automationLayout.macroId,
+          macroName: macro.name,
+          points: getTrackAutomationPoints(lane, totalBeats),
+          registerHitTargets: false,
+          trackId: track.id,
+          veilTimeline: true,
+          width
+        });
+      }
+    });
+
     if (props.selectionBeatRange) {
       const startX = HEADER_WIDTH + props.selectionBeatRange.startBeat * BEAT_WIDTH;
       const endX = HEADER_WIDTH + props.selectionBeatRange.endBeat * BEAT_WIDTH;
@@ -683,9 +897,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
 
     if (props.selectionBeatRange && !selectionRect && !props.hideSelectionActionPopover && props.selectionIndicatorTrackId) {
-      const indicatorTrackIndex = props.project.tracks.findIndex((track) => track.id === props.selectionIndicatorTrackId);
-      if (indicatorTrackIndex >= 0) {
-        const indicatorY = RULER_HEIGHT + indicatorTrackIndex * TRACK_HEIGHT;
+      const indicatorTrackLayout = trackLayouts.find((track) => track.trackId === props.selectionIndicatorTrackId);
+      if (indicatorTrackLayout) {
+        const indicatorY = indicatorTrackLayout.y;
         ctx.strokeStyle = TRACK_CANVAS_COLORS.selectionSourceIndicator;
         ctx.lineWidth = 2;
         ctx.setLineDash([6, 4]);
@@ -719,6 +933,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     hoveredPlayhead,
     hoveredPitch,
     hoveredNote,
+    hoveredAutomationKeyframe,
     hoveredLoopMarker,
     isTrackSilenced,
     meterBeats,
@@ -727,6 +942,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     props.playheadBeat,
     props.project.global.gridBeats,
     props.project.global.loop,
+    props.project.patches,
     props.project.tracks,
     props.selectionBeatRange,
     props.selectionIndicatorTrackId,
@@ -735,6 +951,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     selectionRect,
     speakerIconsReady,
     totalBeats,
+    trackLayouts,
     width
   ]);
 
@@ -786,7 +1003,57 @@ export function TrackCanvas(props: TrackCanvasProps) {
     if (!canvas) return;
     const { x, y } = getCanvasPoint(event.clientX, event.clientY);
     const targets = resolvePointerTargets(x, y);
+    const automationKeyframe = findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y);
+    const automationLaneHit = targets.automationLaneHit;
     const hasActiveSelection = Boolean(props.selectedNoteKeys?.size);
+
+    // TODO: If TrackCanvas keeps growing, extract a dedicated canvas interaction layer
+    // that centralizes hit resolution, cursor selection, and primary-pointer dispatch.
+    // Right now those concerns are interleaved across pointer handlers, which makes
+    // small duplicated action branches easy to miss when interaction rules change.
+    // A good next step would be plain helpers or a hook, not React components.
+
+    if (y <= RULER_HEIGHT && x >= HEADER_WIDTH) {
+      if (targets.hoverTarget === "loop-marker" && targets.loopMarkerRect) {
+        props.onSetPlayheadBeat(targets.loopMarkerRect.beat);
+        props.onRequestTimelineActionsPopover({
+          beat: targets.loopMarkerRect.beat,
+          clientX: event.clientX,
+          clientY: event.clientY
+        });
+        setCanvasCursor("pointer");
+        return;
+      }
+
+      if (targets.hoverTarget === "playhead") {
+        props.onRequestTimelineActionsPopover({
+          beat: props.playheadBeat,
+          clientX: event.clientX,
+          clientY: event.clientY
+        });
+        setCanvasCursor("pointer");
+        return;
+      }
+
+      const beat = Math.max(0, snapToGrid(beatFromX(x), props.project.global.gridBeats));
+      props.onSetPlayheadBeat(beat);
+      return;
+    }
+
+    const track = getTrackAtY(y);
+    if (!track) return;
+
+    props.onSelectTrack(track.id);
+
+    if (targets.hoverTarget === "mute" && targets.muteRect) {
+      props.onToggleTrackMute(targets.muteRect.trackId);
+      setCanvasCursor("pointer");
+      return;
+    }
+
+    if (x < HEADER_WIDTH) {
+      return;
+    }
 
     if (targets.hoverTarget === "loop-marker" && targets.loopMarkerRect) {
       props.onSetPlayheadBeat(targets.loopMarkerRect.beat);
@@ -809,27 +1076,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
       return;
     }
 
-    if (y <= RULER_HEIGHT && x >= HEADER_WIDTH) {
-      const beat = Math.max(0, snapToGrid(beatFromX(x), props.project.global.gridBeats));
-      props.onSetPlayheadBeat(beat);
-      return;
-    }
-
-    const track = getTrackAtY(y);
-    if (!track) return;
-
-    props.onSelectTrack(track.id);
-
-    if (targets.hoverTarget === "mute" && targets.muteRect) {
-      props.onToggleTrackMute(targets.muteRect.trackId);
-      setCanvasCursor("pointer");
-      return;
-    }
-
-    if (x < HEADER_WIDTH) {
-      return;
-    }
-
     if (targets.hoverTarget === "pitch" && targets.pitchRect && event.button === 0) {
       props.onSetNoteSelection([getNoteSelectionKey(targets.pitchRect.trackId, targets.pitchRect.noteId)]);
       props.onOpenPitchPicker(targets.pitchRect.trackId, targets.pitchRect.noteId);
@@ -838,9 +1084,45 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
 
     if (event.button === 2) {
+      if (automationKeyframe && automationKeyframe.boundary === null) {
+        props.onDeleteTrackMacroAutomationKeyframeSide(
+          automationKeyframe.trackId,
+          automationKeyframe.macroId,
+          automationKeyframe.keyframeId,
+          automationKeyframe.side
+        );
+        return;
+      }
       if (targets.noteRect) {
         props.onDeleteNote(targets.noteRect.trackId, targets.noteRect.noteId);
       }
+      return;
+    }
+
+    if (automationKeyframe) {
+      automationDragRef.current = {
+        trackId: automationKeyframe.trackId,
+        macroId: automationKeyframe.macroId,
+        keyframeId: automationKeyframe.keyframeId,
+        beat: automationKeyframe.beat,
+        side: automationKeyframe.side,
+        boundary: automationKeyframe.boundary
+      };
+      canvas.setPointerCapture(event.pointerId);
+      setCanvasCursor("ns-resize");
+      return;
+    }
+
+    if (automationLaneHit) {
+      const previewValue = automationValueFromY(y, automationLaneHit.lane.y, automationLaneHit.lane.height);
+      pendingAutomationActionRef.current = {
+        trackId: automationLaneHit.track.id,
+        macroId: automationLaneHit.lane.macroId,
+        beat: Math.max(0, snapToGrid(beatFromX(x), props.project.global.gridBeats)),
+        value: previewValue,
+        pointerId: event.pointerId
+      };
+      canvas.setPointerCapture(event.pointerId);
       return;
     }
 
@@ -924,9 +1206,11 @@ export function TrackCanvas(props: TrackCanvasProps) {
     if (!canvas) return;
     const { x, y } = getCanvasPoint(event.clientX, event.clientY);
     const targets = resolvePointerTargets(x, y);
-    setHoveredPlayhead(targets.hoverTarget === "playhead");
+    const automationKeyframe = findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y);
+    const automationLaneHit = targets.automationLaneHit;
+    setHoveredPlayhead(automationLaneHit ? false : targets.hoverTarget === "playhead");
     setHoveredLoopMarker((prev) => {
-      const next = targets.hoverTarget === "loop-marker" && targets.loopMarkerRect
+      const next = !automationLaneHit && targets.hoverTarget === "loop-marker" && targets.loopMarkerRect
         ? { markerId: targets.loopMarkerRect.markerId, kind: targets.loopMarkerRect.kind, beat: targets.loopMarkerRect.beat }
         : null;
       if (
@@ -958,9 +1242,44 @@ export function TrackCanvas(props: TrackCanvasProps) {
       }
       return next;
     });
+    setHoveredAutomationKeyframe((prev) => {
+      const next = automationKeyframe
+        ? {
+            trackId: automationKeyframe.trackId,
+            macroId: automationKeyframe.macroId,
+            keyframeId: automationKeyframe.keyframeId,
+            side: automationKeyframe.side
+          }
+        : null;
+      if (
+        prev?.trackId === next?.trackId &&
+        prev?.macroId === next?.macroId &&
+        prev?.keyframeId === next?.keyframeId &&
+        prev?.side === next?.side
+      ) {
+        return prev;
+      }
+      return next;
+    });
 
     const drag = dragRef.current;
     const pendingAction = pendingCanvasActionRef.current;
+    const automationDrag = automationDragRef.current;
+    const pendingAutomationAction = pendingAutomationActionRef.current;
+    if (!drag && !automationDrag && pendingAutomationAction) {
+      const lane = automationLaneHit?.lane;
+      if (!lane) {
+        return;
+      }
+      const nextValue = automationValueFromY(y, lane.y, lane.height);
+      pendingAutomationActionRef.current = {
+        ...pendingAutomationAction,
+        value: nextValue
+      };
+      props.onPreviewTrackMacroAutomation(pendingAutomationAction.trackId, pendingAutomationAction.macroId, nextValue);
+      setCanvasCursor("ns-resize");
+      return;
+    }
     if (!drag && pendingAction) {
       const movedFarEnough =
         Math.abs(x - pendingAction.startX) >= 4 || Math.abs(y - pendingAction.startY) >= 4;
@@ -976,7 +1295,43 @@ export function TrackCanvas(props: TrackCanvasProps) {
       return;
     }
 
+    if (automationDrag) {
+      const lane = automationLaneHit?.lane ??
+        trackLayouts
+          .find((layout) => layout.trackId === automationDrag.trackId)
+          ?.automationLanes.find((entry) => entry.macroId === automationDrag.macroId);
+      if (!lane) {
+        return;
+      }
+      const nextValue = automationValueFromY(y, lane.y, lane.height);
+      props.onPreviewTrackMacroAutomation(automationDrag.trackId, automationDrag.macroId, nextValue);
+      if (automationDrag.boundary) {
+        props.onUpsertTrackMacroAutomationKeyframe(
+          automationDrag.trackId,
+          automationDrag.macroId,
+          automationDrag.beat,
+          nextValue,
+          { commit: false }
+        );
+      } else {
+        props.onUpdateTrackMacroAutomationKeyframeSide(
+          automationDrag.trackId,
+          automationDrag.macroId,
+          automationDrag.keyframeId,
+          automationDrag.side,
+          nextValue,
+          { commit: false }
+        );
+      }
+      setCanvasCursor("ns-resize");
+      return;
+    }
+
     if (!drag) {
+      if (automationKeyframe || automationLaneHit) {
+        setCanvasCursor("crosshair");
+        return;
+      }
       setCanvasCursor(
         getCursorForPosition({
           hasMuteHit: Boolean(targets.muteRect),
@@ -1019,8 +1374,11 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const onPointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     const hadDrag = Boolean(dragRef.current);
+    const automationDrag = automationDragRef.current;
+    const hadAutomationDrag = Boolean(automationDrag);
     const pendingAction = pendingCanvasActionRef.current;
-    if (canvasRef.current && (dragRef.current || pendingAction)) {
+    const pendingAutomationAction = pendingAutomationActionRef.current;
+    if (canvasRef.current && (dragRef.current || pendingAction || automationDragRef.current || pendingAutomationAction)) {
       try {
         canvasRef.current.releasePointerCapture(event.pointerId);
       } catch {
@@ -1028,11 +1386,14 @@ export function TrackCanvas(props: TrackCanvasProps) {
       }
     }
     dragRef.current = null;
+    automationDragRef.current = null;
     if (!canvas) {
       pendingCanvasActionRef.current = null;
+      pendingAutomationActionRef.current = null;
       setCanvasCursor("default");
       return;
     }
+    const { x, y } = getCanvasPoint(event.clientX, event.clientY);
 
     const hadSelectionRect = Boolean(selectionRect);
     if (pendingAction && !hadSelectionRect) {
@@ -1040,25 +1401,77 @@ export function TrackCanvas(props: TrackCanvasProps) {
       props.onUpsertNote(pendingAction.trackId, newNote, {
         actionKey: `track:${pendingAction.trackId}:note:${newNote.id}:create`
       });
+      props.onPreviewPlacedNote(pendingAction.trackId, newNote);
+    }
+
+    if (pendingAutomationAction) {
+      props.onUpsertTrackMacroAutomationKeyframe(
+        pendingAutomationAction.trackId,
+        pendingAutomationAction.macroId,
+        pendingAutomationAction.beat,
+        pendingAutomationAction.value,
+        { commit: true }
+      );
+      props.onPreviewTrackMacroAutomation(
+        pendingAutomationAction.trackId,
+        pendingAutomationAction.macroId,
+        pendingAutomationAction.value,
+        { retrigger: true }
+      );
+    } else if (automationDrag) {
+      const lane = trackLayouts
+        .find((layout) => layout.trackId === automationDrag.trackId)
+        ?.automationLanes.find((entry) => entry.macroId === automationDrag.macroId);
+      if (lane) {
+        const finalValue = automationValueFromY(y, lane.y, lane.height);
+        if (automationDrag.boundary) {
+          props.onUpsertTrackMacroAutomationKeyframe(
+            automationDrag.trackId,
+            automationDrag.macroId,
+            automationDrag.beat,
+            finalValue,
+            { commit: true }
+          );
+        } else {
+          props.onUpdateTrackMacroAutomationKeyframeSide(
+            automationDrag.trackId,
+            automationDrag.macroId,
+            automationDrag.keyframeId,
+            automationDrag.side,
+            finalValue,
+            { commit: true }
+          );
+        }
+        props.onPreviewTrackMacroAutomation(
+          automationDrag.trackId,
+          automationDrag.macroId,
+          finalValue,
+          { retrigger: true }
+        );
+      }
     }
 
     pendingCanvasActionRef.current = null;
+    pendingAutomationActionRef.current = null;
     setSelectionRect(null);
     props.onSetSelectionMarqueeActive(false);
-    const { x, y } = getCanvasPoint(event.clientX, event.clientY);
     const targets = resolvePointerTargets(x, y);
-    setCanvasCursor(
-      getCursorForPosition({
-        hasMuteHit: Boolean(targets.muteRect),
-        hasPitchHit: Boolean(targets.pitchRect),
-        hasLoopMarkerHit: Boolean(targets.loopMarkerRect),
-        hasPlayheadHit: targets.playheadHit,
-        noteRect: targets.noteRect,
-        x,
-        noteResizeHandleWidth: NOTE_RESIZE_HANDLE_WIDTH
-      })
-    );
-    if (hadDrag) {
+    if (targets.automationLaneHit || findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y)) {
+      setCanvasCursor("crosshair");
+    } else {
+      setCanvasCursor(
+        getCursorForPosition({
+          hasMuteHit: Boolean(targets.muteRect),
+          hasPitchHit: Boolean(targets.pitchRect),
+          hasLoopMarkerHit: Boolean(targets.loopMarkerRect),
+          hasPlayheadHit: targets.playheadHit,
+          noteRect: targets.noteRect,
+          x,
+          noteResizeHandleWidth: NOTE_RESIZE_HANDLE_WIDTH
+        })
+      );
+    }
+    if (hadDrag || hadAutomationDrag) {
       return;
     }
   };
@@ -1067,9 +1480,26 @@ export function TrackCanvas(props: TrackCanvasProps) {
     onPointerUp(event);
     setHoveredPitch(null);
     setHoveredNote(null);
+    setHoveredAutomationKeyframe(null);
     setHoveredLoopMarker(null);
     setHoveredPlayhead(false);
     setCanvasCursor("default");
+  };
+
+  const onDoubleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+    const { x, y } = getCanvasPoint(event.clientX, event.clientY);
+    const automationKeyframe = findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y);
+    if (!automationKeyframe || automationKeyframe.boundary !== null || automationKeyframe.side !== "single") {
+      return;
+    }
+    props.onSplitTrackMacroAutomationKeyframe(
+      automationKeyframe.trackId,
+      automationKeyframe.macroId,
+      automationKeyframe.keyframeId
+    );
   };
 
   useEffect(() => {
@@ -1148,7 +1578,11 @@ export function TrackCanvas(props: TrackCanvasProps) {
   return (
     <div className="track-canvas-shell" ref={wrapperRef}>
       <div className="track-header-overlays">
-        {project.tracks.map((track, index) => {
+        {project.tracks.map((track) => {
+          const layout = trackLayouts.find((entry) => entry.trackId === track.id);
+          if (!layout) {
+            return null;
+          }
           const effectiveVolume = track.mute ? 0 : track.volume;
           const rememberedVolume = track.volume;
 
@@ -1159,7 +1593,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
               className="track-name-button"
               aria-label={`Rename track ${track.name}`}
               style={{
-                top: `${RULER_HEIGHT + index * TRACK_HEIGHT + 8}px`,
+                top: `${layout.y + 8}px`,
                 cursor: props.selectedTrackId === track.id ? "text" : "default"
               }}
               onClick={(event) => {
@@ -1178,7 +1612,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
               aria-label={`Track volume for ${track.name}`}
               aria-expanded={volumePopoverTrackId === track.id}
               style={{
-                top: `${RULER_HEIGHT + index * TRACK_HEIGHT + SPEAKER_Y_OFFSET}px`
+                top: `${layout.y + SPEAKER_Y_OFFSET}px`
               }}
               onMouseEnter={() => scheduleVolumePopoverOpen(track.id)}
               onMouseLeave={() => scheduleVolumePopoverDismiss()}
@@ -1194,7 +1628,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
                 effectiveVolume={effectiveVolume}
                 rememberedVolume={rememberedVolume}
                 muted={Boolean(track.mute)}
-                top={`${RULER_HEIGHT + index * TRACK_HEIGHT + 6}px`}
+                top={`${layout.y + 6}px`}
                 onMouseEnter={() => cancelScheduledVolumePopoverDismiss()}
                 onMouseLeave={() => scheduleVolumePopoverDismiss()}
                 onVolumeChange={(volume, options) => props.onSetTrackVolume(track.id, volume, options)}
@@ -1204,7 +1638,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
               <input
                 className="track-name-input"
                 value={editingTrackName}
-                style={{ top: `${RULER_HEIGHT + index * TRACK_HEIGHT + 8}px` }}
+                style={{ top: `${layout.y + 8}px` }}
                 autoFocus
                 onChange={(event) => setEditingTrackName(event.target.value)}
                 onBlur={() => {
@@ -1229,7 +1663,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
             <select
               className={`track-patch-select${(props.invalidPatchIds?.has(track.instrumentPatchId) ?? false) ? " invalid" : ""}`}
               value={track.instrumentPatchId}
-              style={{ top: `${RULER_HEIGHT + index * TRACK_HEIGHT + 44}px` }}
+              style={{ top: `${layout.y + 44}px` }}
               onChange={(event) => props.onUpdateTrackPatch(track.id, event.target.value)}
               onPointerDown={(event) => event.stopPropagation()}
             >
@@ -1261,6 +1695,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerLeave}
+        onDoubleClick={onDoubleClick}
         onContextMenu={(event) => event.preventDefault()}
       />
       {props.selectionBeatRange && !selectionRect && !props.hideSelectionActionPopover && (
@@ -1299,9 +1734,20 @@ export function TrackCanvas(props: TrackCanvasProps) {
             <MacroPanel
               patch={selectedPatch}
               macroValues={selectedTrack.macroValues}
+              automatedMacroIds={new Set(Object.keys(selectedTrack.macroAutomations))}
+              automationExpandedByMacroId={new Map(
+                Object.values(selectedTrack.macroAutomations).map((lane) => [lane.macroId, lane.expanded] as const)
+              )}
               onMacroChange={(macroId, normalized) => props.onChangeTrackMacro(selectedTrack.id, macroId, normalized)}
               onMacroCommit={(macroId, normalized) =>
                 props.onChangeTrackMacro(selectedTrack.id, macroId, normalized, { commit: true })
+              }
+              onBindMacroToAutomation={(macroId, normalized) =>
+                props.onBindTrackMacroToAutomation(selectedTrack.id, macroId, normalized)
+              }
+              onUnbindMacroFromAutomation={(macroId) => props.onUnbindTrackMacroFromAutomation(selectedTrack.id, macroId)}
+              onToggleMacroAutomationLane={(macroId) =>
+                props.onToggleTrackMacroAutomationLane(selectedTrack.id, macroId)
               }
             />
           )}

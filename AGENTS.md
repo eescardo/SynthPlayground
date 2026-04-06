@@ -94,6 +94,7 @@ For visual or interaction changes, automated validation is necessary but not suf
 - If you change `src/lib/patch/*`, update tests in `src/lib/patch/tests/` when behavior changes.
 - If you change shared utilities, update tests in `src/lib/tests/` when behavior changes.
 - If a UI change has weak automated coverage, say that explicitly rather than implying the repo is fully protected by tests.
+- After iterating on a complex feature with the user, do a deliberate cleanup pass before handoff: look for dead code introduced during iteration and add targeted unit tests for the trickiest regression-prone behavior.
 
 ## Refactors
 

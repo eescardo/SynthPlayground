@@ -1,4 +1,5 @@
 import { getLoopedPlaybackBeatsForSongBeat } from "@/lib/looping";
+import { getProjectTimelineEndBeat, getTrackMacroValueAtBeat, isTrackMacroAutomated } from "@/lib/macroAutomation";
 import { beatRangeToSampleRange } from "@/lib/musicTiming";
 import { pitchToVoct } from "@/lib/pitch";
 import { createId } from "@/lib/ids";
@@ -22,7 +23,8 @@ interface NoteEventCache {
 enum SchedulerEventSortPriority {
   NoteOff = 0,
   ParamChange = 1,
-  NoteOn = 2
+  MacroChange = 2,
+  NoteOn = 3
 }
 
 // When multiple events land on the same sample, we need deterministic ordering.
@@ -32,6 +34,7 @@ enum SchedulerEventSortPriority {
 const SCHEDULER_EVENT_SORT_PRIORITY: Record<SchedulerEventType, SchedulerEventSortPriority> = {
   NoteOff: SchedulerEventSortPriority.NoteOff,
   ParamChange: SchedulerEventSortPriority.ParamChange,
+  MacroChange: SchedulerEventSortPriority.MacroChange,
   NoteOn: SchedulerEventSortPriority.NoteOn
 };
 
@@ -75,10 +78,39 @@ export const collectEventsInWindow = (project: Project, window: SchedulerWindow,
   pruneStaleNoteEventIds(project);
   const events: SchedulerEvent[] = [];
   const cueBeat = Math.max(0, options?.cueBeat ?? 0);
+  const timelineEndBeat = getProjectTimelineEndBeat(project);
+  const automationStepBeats = 0.125;
 
   for (const track of project.tracks) {
     if (track.mute) {
       continue;
+    }
+
+    const patch = project.patches.find((entry) => entry.id === track.instrumentPatchId);
+    if (patch) {
+      for (const macro of patch.ui.macros) {
+        if (!isTrackMacroAutomated(track, macro.id)) {
+          continue;
+        }
+        for (let beat = 0; beat <= timelineEndBeat + 1e-9; beat += automationStepBeats) {
+          const sampleTimes = getLoopedEventSampleTimes(beat, cueBeat, project);
+          const normalized = getTrackMacroValueAtBeat(track, macro.id, macro.defaultNormalized ?? 0.5, beat, timelineEndBeat);
+          sampleTimes.forEach((sampleTime, index) => {
+            if (sampleTime < window.fromSample || sampleTime >= window.toSample) {
+              return;
+            }
+            events.push({
+              id: `${track.id}:${macro.id}:automation:${beat.toFixed(4)}:${index}`,
+              type: "MacroChange",
+              source: "automation",
+              sampleTime,
+              trackId: track.id,
+              macroId: macro.id,
+              normalized
+            });
+          });
+        }
+      }
     }
 
     for (const note of track.notes) {

@@ -1,5 +1,10 @@
 import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
 import { createId } from "@/lib/ids";
+import {
+  cloneAutomationKeyframeAtBeat,
+  getProjectTimelineEndBeat,
+  getTrackMacroValueAtBeat
+} from "@/lib/macroAutomation";
 import { insertBeatGap, sortNotes } from "@/lib/noteEditing";
 import { Note, Project, ProjectGlobalSettings, Track } from "@/types/music";
 
@@ -454,6 +459,79 @@ const splitTrackNotesAtBoundary = (track: Track, boundaryBeat: number): Track =>
   notes: track.notes.flatMap((note) => splitNoteAtBeat(note, boundaryBeat)).sort((a, b) => a.startBeat - b.startBeat)
 });
 
+const expandTrackAutomationInLoopRegion = (
+  track: Track,
+  project: Project,
+  targetPair: LoopPair,
+  totalExpandedLength: number,
+  loopBodyPlaybackLength: number,
+  shiftAmount: number
+): Track["macroAutomations"] => {
+  const timelineEndBeat = getProjectTimelineEndBeat(project);
+  const nextAutomations: Track["macroAutomations"] = {};
+
+  for (const [macroId, lane] of Object.entries(track.macroAutomations)) {
+    const restartIncomingValue = getTrackMacroValueAtBeat(track, macroId, lane.startValue, targetPair.endBeat, timelineEndBeat);
+    const restartOutgoingValue = getTrackMacroValueAtBeat(track, macroId, lane.startValue, targetPair.startBeat, timelineEndBeat);
+    const hasRestartJump = Math.abs(restartIncomingValue - restartOutgoingValue) > EPSILON;
+    const beforeLoop = lane.keyframes.filter((keyframe) => keyframe.beat < targetPair.startBeat - EPSILON);
+    const insideLoop = lane.keyframes.filter(
+      (keyframe) => keyframe.beat >= targetPair.startBeat - EPSILON && keyframe.beat < targetPair.endBeat - EPSILON
+    );
+    const afterLoop = lane.keyframes
+      .filter((keyframe) => keyframe.beat >= targetPair.endBeat - EPSILON)
+      .map((keyframe) => ({
+        ...keyframe,
+        beat: keyframe.beat + shiftAmount
+      }));
+
+    const expandedLoopKeyframes = insideLoop.flatMap((keyframe, index) => {
+      const offsets = filterPlaybackBeatsInRange(
+        getLoopedPlaybackBeatsForSongBeat(keyframe.beat, targetPair.startBeat, project.global.loop),
+        totalExpandedLength,
+        false
+      );
+      return offsets.flatMap((offset, offsetIndex) => {
+        const isRepeatedLoopStart =
+          hasRestartJump &&
+          Math.abs(keyframe.beat - targetPair.startBeat) <= EPSILON &&
+          offset > EPSILON;
+        if (isRepeatedLoopStart) {
+          return [];
+        }
+        return [
+          cloneAutomationKeyframeAtBeat(
+            keyframe,
+            targetPair.startBeat + offset,
+            index === 0 && offsetIndex === 0 ? keyframe.id : createId("automation_keyframe")
+          )
+        ];
+      });
+    });
+
+    const restartSplitKeyframes = Array.from({ length: targetPair.repeatCount }, (_, repeatIndex) => {
+      const restartBeat = targetPair.startBeat + loopBodyPlaybackLength * (repeatIndex + 1);
+      if (!hasRestartJump) {
+        return null;
+      }
+      return {
+        id: createId("automation_keyframe"),
+        beat: restartBeat,
+        type: "split" as const,
+        incomingValue: restartIncomingValue,
+        outgoingValue: restartOutgoingValue
+      };
+    }).filter((keyframe): keyframe is NonNullable<typeof keyframe> => Boolean(keyframe));
+
+    nextAutomations[macroId] = {
+      ...lane,
+      keyframes: [...beforeLoop, ...expandedLoopKeyframes, ...restartSplitKeyframes, ...afterLoop].sort((a, b) => a.beat - b.beat)
+    };
+  }
+
+  return nextAutomations;
+};
+
 export const splitProjectNotesAtLoopBoundaries = (
   project: Project,
   loop: ProjectGlobalSettings["loop"]
@@ -615,7 +693,15 @@ export const expandLoopRegionToNotes = (
 
       return {
         ...track,
-        notes: sortNotes([...beforeLoop, ...expandedNotes, ...afterLoop])
+        notes: sortNotes([...beforeLoop, ...expandedNotes, ...afterLoop]),
+        macroAutomations: expandTrackAutomationInLoopRegion(
+          track,
+          project,
+          targetPair,
+          totalExpandedLength,
+          loopBodyPlaybackLength,
+          shiftAmount
+        )
       };
     })
   };
