@@ -517,6 +517,7 @@ const expandTrackAutomationInLoopRegion = (
       return {
         id: createId("automation_keyframe"),
         beat: restartBeat,
+        type: "split" as const,
         incomingValue: restartIncomingValue,
         outgoingValue: restartOutgoingValue
       };

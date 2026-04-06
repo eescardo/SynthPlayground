@@ -20,13 +20,24 @@ export interface TrackFxSettings {
   compression: number;
 }
 
-export interface TrackMacroAutomationKeyframe {
+export interface WholeTrackMacroAutomationKeyframe {
   id: string;
   beat: number;
-  value?: number;
-  incomingValue?: number;
-  outgoingValue?: number;
+  type: "whole";
+  value: number;
 }
+
+export interface SplitTrackMacroAutomationKeyframe {
+  id: string;
+  beat: number;
+  type: "split";
+  incomingValue: number;
+  outgoingValue: number;
+}
+
+export type TrackMacroAutomationKeyframe =
+  | WholeTrackMacroAutomationKeyframe
+  | SplitTrackMacroAutomationKeyframe;
 
 export interface TrackMacroAutomationLane {
   macroId: string;

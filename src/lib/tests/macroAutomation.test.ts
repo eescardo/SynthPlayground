@@ -90,6 +90,7 @@ describe("macroAutomation", () => {
       expect.objectContaining({
         id: keyframeId,
         beat: 4,
+        type: "whole",
         value: 0.55
       })
     ]);
@@ -108,6 +109,7 @@ describe("macroAutomation", () => {
       expect.objectContaining({
         id: keyframeId,
         beat: 4,
+        type: "whole",
         value: 0.8
       })
     ]);

@@ -1,5 +1,11 @@
 import { createId } from "@/lib/ids";
-import { Project, Track, TrackMacroAutomationKeyframe, TrackMacroAutomationLane } from "@/types/music";
+import {
+  Project,
+  SplitTrackMacroAutomationKeyframe,
+  Track,
+  TrackMacroAutomationKeyframe,
+  TrackMacroAutomationLane
+} from "@/types/music";
 
 const clampNormalized = (value: number): number => Math.max(0, Math.min(1, value));
 const EPSILON = 1e-9;
@@ -19,35 +25,20 @@ export interface AutomationPoint {
 const sortKeyframes = (keyframes: TrackMacroAutomationKeyframe[]): TrackMacroAutomationKeyframe[] =>
   [...keyframes].sort((left, right) => left.beat - right.beat || left.id.localeCompare(right.id));
 
-export const isSplitAutomationKeyframe = (keyframe: TrackMacroAutomationKeyframe): boolean =>
-  typeof keyframe.incomingValue === "number" && Number.isFinite(keyframe.incomingValue) &&
-  typeof keyframe.outgoingValue === "number" && Number.isFinite(keyframe.outgoingValue);
+export const isSplitAutomationKeyframe = (
+  keyframe: TrackMacroAutomationKeyframe
+): keyframe is SplitTrackMacroAutomationKeyframe =>
+  keyframe.type === "split";
 
 export const getAutomationKeyframeIncomingValue = (keyframe: TrackMacroAutomationKeyframe): number =>
-  {
-    let value = 0.5;
-    if (isSplitAutomationKeyframe(keyframe)) {
-      value = keyframe.incomingValue!;
-    } else if (typeof keyframe.value === "number" && Number.isFinite(keyframe.value)) {
-      value = keyframe.value;
-    } else if (typeof keyframe.outgoingValue === "number" && Number.isFinite(keyframe.outgoingValue)) {
-      value = keyframe.outgoingValue;
-    }
-    return clampNormalized(value);
-  };
+  isSplitAutomationKeyframe(keyframe)
+    ? clampNormalized(keyframe.incomingValue)
+    : clampNormalized(keyframe.value);
 
 export const getAutomationKeyframeOutgoingValue = (keyframe: TrackMacroAutomationKeyframe): number =>
-  {
-    let value = 0.5;
-    if (isSplitAutomationKeyframe(keyframe)) {
-      value = keyframe.outgoingValue!;
-    } else if (typeof keyframe.value === "number" && Number.isFinite(keyframe.value)) {
-      value = keyframe.value;
-    } else if (typeof keyframe.incomingValue === "number" && Number.isFinite(keyframe.incomingValue)) {
-      value = keyframe.incomingValue;
-    }
-    return clampNormalized(value);
-  };
+  isSplitAutomationKeyframe(keyframe)
+    ? clampNormalized(keyframe.outgoingValue)
+    : clampNormalized(keyframe.value);
 
 export const getAutomationKeyframeSideValue = (keyframe: TrackMacroAutomationKeyframe, side: AutomationKeyframeSide): number =>
   side === "incoming"
@@ -59,12 +50,14 @@ export const getAutomationKeyframeSideValue = (keyframe: TrackMacroAutomationKey
 const makeSingleKeyframe = (id: string, beat: number, value: number): TrackMacroAutomationKeyframe => ({
   id,
   beat,
+  type: "whole",
   value: clampNormalized(value)
 });
 
 const makeSplitKeyframe = (id: string, beat: number, incomingValue: number, outgoingValue: number): TrackMacroAutomationKeyframe => ({
   id,
   beat,
+  type: "split",
   incomingValue: clampNormalized(incomingValue),
   outgoingValue: clampNormalized(outgoingValue)
 });
@@ -103,6 +96,7 @@ export const sanitizeMacroAutomationLane = (raw: unknown): TrackMacroAutomationL
         const keyframe = entry as {
           id?: unknown;
           beat?: unknown;
+          type?: unknown;
           value?: unknown;
           incomingValue?: unknown;
           outgoingValue?: unknown;
@@ -112,6 +106,7 @@ export const sanitizeMacroAutomationLane = (raw: unknown): TrackMacroAutomationL
         }
         const id = typeof keyframe.id === "string" && keyframe.id ? keyframe.id : `automation_keyframe_${index}`;
         if (
+          keyframe.type === "split" &&
           typeof keyframe.incomingValue === "number" &&
           Number.isFinite(keyframe.incomingValue) &&
           typeof keyframe.outgoingValue === "number" &&
@@ -119,8 +114,20 @@ export const sanitizeMacroAutomationLane = (raw: unknown): TrackMacroAutomationL
         ) {
           return [maybeMergeKeyframe(makeSplitKeyframe(id, Math.max(0, keyframe.beat), keyframe.incomingValue, keyframe.outgoingValue))];
         }
-        if (typeof keyframe.value === "number" && Number.isFinite(keyframe.value)) {
+        if (
+          (keyframe.type === "whole" || typeof keyframe.type !== "string") &&
+          typeof keyframe.value === "number" &&
+          Number.isFinite(keyframe.value)
+        ) {
           return [makeSingleKeyframe(id, Math.max(0, keyframe.beat), keyframe.value)];
+        }
+        if (
+          typeof keyframe.incomingValue === "number" &&
+          Number.isFinite(keyframe.incomingValue) &&
+          typeof keyframe.outgoingValue === "number" &&
+          Number.isFinite(keyframe.outgoingValue)
+        ) {
+          return [maybeMergeKeyframe(makeSplitKeyframe(id, Math.max(0, keyframe.beat), keyframe.incomingValue, keyframe.outgoingValue))];
         }
         return [];
       })

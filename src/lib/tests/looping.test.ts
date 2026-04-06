@@ -11,6 +11,7 @@ import {
   sanitizeLoopSettings,
   splitProjectNotesAtLoopBoundaries
 } from "@/lib/looping";
+import { isSplitAutomationKeyframe } from "@/lib/macroAutomation";
 import { Project } from "@/types/music";
 
 const createProject = (): Project => ({
@@ -273,7 +274,7 @@ describe("looping", () => {
           startValue: 0.2,
           endValue: 0.6,
           keyframes: [
-            { id: "cutoff_mid", beat: 10, value: 0.8 }
+            { id: "cutoff_mid", beat: 10, type: "whole", value: 0.8 }
           ]
         }
       }
@@ -285,11 +286,15 @@ describe("looping", () => {
     const expanded = expandLoopRegionToNotes(project, region!);
     const lane = expanded.tracks[0]!.macroAutomations.macro_cutoff;
 
-    expect(lane.keyframes[0]).toEqual(expect.objectContaining({ id: "cutoff_mid", beat: 10, value: 0.8 }));
-    expect(lane.keyframes[1]).toEqual(expect.objectContaining({ beat: 11 }));
-    expect(lane.keyframes[1]!.incomingValue).toBeCloseTo(0.7666666667);
-    expect(lane.keyframes[1]!.outgoingValue).toBeCloseTo(0.74);
-    expect(lane.keyframes[2]).toEqual(expect.objectContaining({ beat: 12, value: 0.8 }));
+    expect(lane.keyframes[0]).toEqual(expect.objectContaining({ id: "cutoff_mid", beat: 10, type: "whole", value: 0.8 }));
+    expect(lane.keyframes[1]).toEqual(expect.objectContaining({ beat: 11, type: "split" }));
+    expect(isSplitAutomationKeyframe(lane.keyframes[1]!)).toBe(true);
+    if (!isSplitAutomationKeyframe(lane.keyframes[1]!)) {
+      throw new Error("expected restart keyframe to be split");
+    }
+    expect(lane.keyframes[1].incomingValue).toBeCloseTo(0.7666666667);
+    expect(lane.keyframes[1].outgoingValue).toBeCloseTo(0.74);
+    expect(lane.keyframes[2]).toEqual(expect.objectContaining({ beat: 12, type: "whole", value: 0.8 }));
   });
 
   it("prefers split restart boundaries over duplicated start keyframes when exploding a saw loop", () => {
@@ -315,8 +320,8 @@ describe("looping", () => {
           startValue: 0.1,
           endValue: 0.9,
           keyframes: [
-            { id: "loop_start_value", beat: 8, value: 0.1 },
-            { id: "loop_end_value", beat: 8.5, value: 0.9 }
+            { id: "loop_start_value", beat: 8, type: "whole", value: 0.1 },
+            { id: "loop_end_value", beat: 8.5, type: "whole", value: 0.9 }
           ]
         }
       }
@@ -330,13 +335,13 @@ describe("looping", () => {
 
     expect(keyframes.filter((keyframe) => Math.abs(keyframe.beat - 8) <= 1e-9)).toHaveLength(1);
     expect(keyframes.filter((keyframe) => Math.abs(keyframe.beat - 8.5) <= 1e-9)).toEqual([
-      expect.objectContaining({ incomingValue: 0.9, outgoingValue: 0.1 })
+      expect.objectContaining({ type: "split", incomingValue: 0.9, outgoingValue: 0.1 })
     ]);
     expect(keyframes.filter((keyframe) => Math.abs(keyframe.beat - 9) <= 1e-9)).toEqual([
-      expect.objectContaining({ incomingValue: 0.9, outgoingValue: 0.1 })
+      expect.objectContaining({ type: "split", incomingValue: 0.9, outgoingValue: 0.1 })
     ]);
     expect(keyframes.filter((keyframe) => Math.abs(keyframe.beat - 9.5) <= 1e-9)).toEqual([
-      expect.objectContaining({ incomingValue: 0.9, outgoingValue: 0.1 })
+      expect.objectContaining({ type: "split", incomingValue: 0.9, outgoingValue: 0.1 })
     ]);
   });
 });
