@@ -88,6 +88,7 @@ export default function HomePage() {
   const [previewPitch, setPreviewPitch] = useState(DEFAULT_NOTE_PITCH);
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
   const [timelineActionsPopover, setTimelineActionsPopover] = useState<TimelineActionsPopoverRequest | null>(null);
+  const [selectionActionPopoverDismissed, setSelectionActionPopoverDismissed] = useState(false);
   const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
   const [patchRemovalDialog, setPatchRemovalDialog] = useState<{
     patchId: string;
@@ -335,9 +336,14 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!selectionBeatRange) {
+      setSelectionActionPopoverDismissed(false);
       setSelectionActionScopePreview("source");
     }
   }, [selectionBeatRange]);
+
+  useEffect(() => {
+    setSelectionActionPopoverDismissed(false);
+  }, [selectedNoteKeys]);
 
   useEffect(() => {
     if (canvasSelection.kind === "timeline") {
@@ -521,6 +527,52 @@ export default function HomePage() {
       window.removeEventListener("pointerdown", onPointerDown);
     };
   }, [timelineActionsPopover]);
+
+  const selectionActionPopoverVisible = Boolean(
+    selectionBeatRange &&
+    !selectionMarqueeActive &&
+    !pitchPicker &&
+    !timelineActionsPopover &&
+    !selectionActionPopoverDismissed
+  );
+
+  useEffect(() => {
+    if (!selectionActionPopoverVisible) {
+      return;
+    }
+
+    let active = false;
+    const activateTimer = window.setTimeout(() => {
+      active = true;
+    }, 0);
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSelectionActionPopoverDismissed(true);
+        setSelectionActionScopePreview("source");
+      }
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (!active) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (target?.closest(".selection-actions-popover")) {
+        return;
+      }
+      setSelectionActionPopoverDismissed(true);
+      setSelectionActionScopePreview("source");
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      window.clearTimeout(activateTimer);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [selectionActionPopoverVisible]);
 
   const timelineMarkersAtBeat = useMemo(
     () =>
@@ -1137,7 +1189,7 @@ export default function HomePage() {
         ghostPlayheadBeat={recording.ghostPlayheadBeat ?? undefined}
         countInLabel={recording.countInLabel ?? undefined}
         timelineActionsPopoverOpen={Boolean(timelineActionsPopover)}
-        hideSelectionActionPopover={Boolean(pitchPicker) || Boolean(timelineActionsPopover)}
+        hideSelectionActionPopover={!selectionActionPopoverVisible}
         onSetPlayheadBeat={setPlayheadFromUser}
         onRequestTimelineActionsPopover={requestTimelineActionsPopover}
         onSelectTrack={setSelectedTrackId}
