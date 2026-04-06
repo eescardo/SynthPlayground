@@ -30,3 +30,7 @@ yarn-error.log*
 /artifacts/screenshots/
 /artifacts/traces/
 /artifacts/videos/
+
+# generated worklet runtime artifacts
+/public/worklets/synth-worklet-runtime.js
+/public/worklets/synth-worklet-runtime.d.ts
