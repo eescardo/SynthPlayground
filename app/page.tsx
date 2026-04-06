@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AudioEngine } from "@/audio/engine";
+import { PatchRemovalDialogModal, PatchRemovalDialogState } from "@/components/home/PatchRemovalDialogModal";
+import { PitchPickerModal } from "@/components/home/PitchPickerModal";
+import { ProjectActionsBar } from "@/components/home/ProjectActionsBar";
+import { RecordingDock } from "@/components/home/RecordingDock";
 import { loadDspWasm } from "@/audio/wasmBridge";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
-import { PianoKeyboard } from "@/components/PianoKeyboard";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { TimelineActionsPopover } from "@/components/TimelineActionsPopover";
 import { TimelineActionsPopoverRequest, TrackCanvas, TrackCanvasSelection } from "@/components/TrackCanvas";
@@ -28,7 +31,7 @@ import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { createDefaultProject, createEmptyProject } from "@/lib/patch/presets";
 import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { importProjectFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
-import { keyToPitch, pitchToVoct } from "@/lib/pitch";
+import { pitchToVoct } from "@/lib/pitch";
 import { removeTrackFromProject, renameTrackInProject } from "@/lib/trackEdits";
 import { useNoteEditor } from "@/hooks/useNoteEditor";
 import { useLoopSettings } from "@/hooks/useLoopSettings";
@@ -42,6 +45,7 @@ import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
 import { useQuickHelpDialog } from "@/hooks/useQuickHelpDialog";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
+import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
 import { useTrackMacroAutomationActions } from "@/hooks/useTrackMacroAutomationActions";
 import { Project } from "@/types/music";
 import { PatchValidationIssue, Patch } from "@/types/patch";
@@ -49,27 +53,6 @@ import { PatchOp } from "@/types/ops";
 
 const isAudiblePatchOp = (op: PatchOp): boolean =>
   op.type !== "moveNode" && op.type !== "addMacro" && op.type !== "removeMacro" && op.type !== "bindMacro" && op.type !== "unbindMacro" && op.type !== "renameMacro";
-
-function usePitchPickerHotkeys(enabled: boolean, onSelectPitch: (pitch: string) => void) {
-  useEffect(() => {
-    if (!enabled) return;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const editingText = target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA");
-      if (editingText) return;
-
-      const pitch = keyToPitch(event.key);
-      if (!pitch) return;
-
-      event.preventDefault();
-      onSelectPitch(pitch);
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [enabled, onSelectPitch]);
-}
 
 export default function HomePage() {
   const [projectHistory, setProjectHistory] = useState<HistoryState<Project>>(() => createHistory(createEmptyProject()));
@@ -91,10 +74,7 @@ export default function HomePage() {
   const [timelineActionsPopover, setTimelineActionsPopover] = useState<TimelineActionsPopoverRequest | null>(null);
   const [selectionActionPopoverMode, setSelectionActionPopoverMode] = useState<"expanded" | "collapsed">("expanded");
   const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
-  const [patchRemovalDialog, setPatchRemovalDialog] = useState<{
-    patchId: string;
-    rows: Array<{ trackId: string; mode: "fallback" | "remove"; fallbackPatchId: string }>;
-  } | null>(null);
+  const [patchRemovalDialog, setPatchRemovalDialog] = useState<PatchRemovalDialogState | null>(null);
   const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
 
   const audioEngineRef = useRef<AudioEngine | null>(null);
@@ -1048,6 +1028,68 @@ export default function HomePage() {
   const pitchPickerNote = pitchPickerTrack?.notes.find((note) => note.id === pitchPicker?.noteId);
   const activeRecordingTrackId = recording.activeRecordingTrackId;
   const activeRecordingTrack = activeRecordingTrackId ? project.tracks.find((track) => track.id === activeRecordingTrackId) : undefined;
+  const resetToProject = async (nextProject: Project) => {
+    playback.stopPlayback();
+    await clearProject();
+    resetProjectHistory(nextProject);
+    setSelectedTrackId(nextProject.tracks[0]?.id);
+  };
+  const trackCanvasTrackActions = {
+    onSelectTrack: setSelectedTrackId,
+    onRenameTrack: renameTrack,
+    onToggleTrackMute: toggleTrackMute,
+    onSetTrackVolume: setTrackVolume,
+    onUpdateTrackPatch: updateTrackPatch,
+    onToggleTrackMacroPanel: toggleTrackMacroPanel,
+    onResetTrackMacros: resetSelectedPatchMacros
+  };
+  const trackCanvasAutomationActions = {
+    onChangeTrackMacro: changeTrackMacro,
+    onBindTrackMacroToAutomation: bindTrackMacroToAutomation,
+    onUnbindTrackMacroFromAutomation: unbindTrackMacroFromAutomation,
+    onToggleTrackMacroAutomationLane: toggleTrackMacroAutomationLane,
+    onUpsertTrackMacroAutomationKeyframe: upsertTrackMacroAutomationKeyframe,
+    onSplitTrackMacroAutomationKeyframe: splitTrackMacroAutomationKeyframe,
+    onUpdateTrackMacroAutomationKeyframeSide: updateTrackMacroAutomationKeyframeSide,
+    onDeleteTrackMacroAutomationKeyframeSide: deleteTrackMacroAutomationKeyframeSide,
+    onPreviewTrackMacroAutomation: previewTrackMacroAutomation
+  };
+  const trackCanvasNoteActions = {
+    onOpenPitchPicker: openPitchPicker,
+    onPreviewPlacedNote: previewPlacedNote,
+    onUpsertNote: upsertNote,
+    onUpdateNote: updateNote,
+    onDeleteNote: deleteNote
+  };
+  const trackCanvasSelectionActions = {
+    onSetNoteSelection: setNoteSelectionFromCanvas,
+    onSetTimelineSelectionBeatRange: setTimelineSelectionFromCanvas,
+    onSetSelectionMarqueeActive: setSelectionMarqueeActive,
+    onPreviewSelectionActionScopeChange: setSelectionActionScopePreview,
+    selectionActionPopoverCollapsed,
+    onExpandSelectionActionPopover: () => setSelectionActionPopoverMode("expanded"),
+    onDismissSelectionActionPopover: clearCanvasSelection,
+    onCopySelection: () => {
+      void (hasTimelineRangeSelection ? copyAllTracksInSelection() : copySelectedNotes());
+    },
+    onCutSelection: () => {
+      void (hasTimelineRangeSelection ? cutAllTracksInSelection() : cutSelectedNotes());
+    },
+    onDeleteSelection: () => {
+      if (hasTimelineRangeSelection) {
+        deleteAllTracksInSelection();
+        return;
+      }
+      deleteSelectedNoteSelection();
+    },
+    onCopyAllTracksInSelection: () => {
+      void copyAllTracksInSelection();
+    },
+    onCutAllTracksInSelection: () => {
+      void cutAllTracksInSelection();
+    },
+    onDeleteAllTracksInSelection: deleteAllTracksInSelection
+  };
   return (
     <main className="app">
       <TransportBar
@@ -1090,51 +1132,21 @@ export default function HomePage() {
         }
       />
 
-      <section className="top-actions">
-        <button disabled={recording.recordEnabled} onClick={addTrack}>Add Track</button>
-        <button disabled={recording.recordEnabled || project.tracks.length <= 1} onClick={removeSelectedTrack}>
-          Remove Track
-        </button>
-        <button onClick={openHelp}>Help (?)</button>
-        <button onClick={exportJson}>Export Project JSON</button>
-        <button onClick={() => importInputRef.current?.click()}>Import Project JSON</button>
-        <button
-          onClick={async () => {
-            playback.stopPlayback();
-            await clearProject();
-            const fresh = createEmptyProject();
-            resetProjectHistory(fresh);
-            setSelectedTrackId(fresh.tracks[0]?.id);
-          }}
-        >
-          Clear Project
-        </button>
-        <button
-          className="secondary-action"
-          onClick={async () => {
-            playback.stopPlayback();
-            await clearProject();
-            const fresh = createDefaultProject();
-            resetProjectHistory(fresh);
-            setSelectedTrackId(fresh.tracks[0]?.id);
-          }}
-        >
-          Reset To Default Project
-        </button>
-        <input
-          ref={importInputRef}
-          type="file"
-          accept="application/json"
-          hidden
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) {
-              importJson(file);
-            }
-            event.currentTarget.value = "";
-          }}
-        />
-      </section>
+      <ProjectActionsBar
+        recordingDisabled={recording.recordEnabled}
+        canRemoveTrack={project.tracks.length > 1}
+        onAddTrack={addTrack}
+        onRemoveTrack={removeSelectedTrack}
+        onOpenHelp={openHelp}
+        onExportJson={exportJson}
+        onImportJson={() => importInputRef.current?.click()}
+        onClearProject={() => void resetToProject(createEmptyProject())}
+        onResetToDefaultProject={() => void resetToProject(createDefaultProject())}
+        importInputRef={importInputRef}
+        onImportFile={(file) => {
+          void importJson(file);
+        }}
+      />
 
       {runtimeError && <p className="error">{runtimeError}</p>}
 
@@ -1151,54 +1163,10 @@ export default function HomePage() {
         hideSelectionActionPopover={!selectionActionPopoverVisible}
         onSetPlayheadBeat={setPlayheadFromUser}
         onRequestTimelineActionsPopover={requestTimelineActionsPopover}
-        onSelectTrack={setSelectedTrackId}
-        onRenameTrack={renameTrack}
-        onToggleTrackMute={toggleTrackMute}
-        onSetTrackVolume={setTrackVolume}
-        onUpdateTrackPatch={updateTrackPatch}
-        onToggleTrackMacroPanel={toggleTrackMacroPanel}
-        onChangeTrackMacro={changeTrackMacro}
-        onBindTrackMacroToAutomation={bindTrackMacroToAutomation}
-        onUnbindTrackMacroFromAutomation={unbindTrackMacroFromAutomation}
-        onToggleTrackMacroAutomationLane={toggleTrackMacroAutomationLane}
-        onUpsertTrackMacroAutomationKeyframe={upsertTrackMacroAutomationKeyframe}
-        onSplitTrackMacroAutomationKeyframe={splitTrackMacroAutomationKeyframe}
-        onUpdateTrackMacroAutomationKeyframeSide={updateTrackMacroAutomationKeyframeSide}
-        onDeleteTrackMacroAutomationKeyframeSide={deleteTrackMacroAutomationKeyframeSide}
-        onPreviewTrackMacroAutomation={previewTrackMacroAutomation}
-        onResetTrackMacros={resetSelectedPatchMacros}
-        onOpenPitchPicker={openPitchPicker}
-        onPreviewPlacedNote={previewPlacedNote}
-        onUpsertNote={upsertNote}
-        onUpdateNote={updateNote}
-        onDeleteNote={deleteNote}
-        onSetNoteSelection={setNoteSelectionFromCanvas}
-        onSetTimelineSelectionBeatRange={setTimelineSelectionFromCanvas}
-        onSetSelectionMarqueeActive={setSelectionMarqueeActive}
-        onPreviewSelectionActionScopeChange={setSelectionActionScopePreview}
-        selectionActionPopoverCollapsed={selectionActionPopoverCollapsed}
-        onExpandSelectionActionPopover={() => setSelectionActionPopoverMode("expanded")}
-        onDismissSelectionActionPopover={clearCanvasSelection}
-        onCopySelection={() => {
-          void (hasTimelineRangeSelection ? copyAllTracksInSelection() : copySelectedNotes());
-        }}
-        onCutSelection={() => {
-          void (hasTimelineRangeSelection ? cutAllTracksInSelection() : cutSelectedNotes());
-        }}
-        onDeleteSelection={() => {
-          if (hasTimelineRangeSelection) {
-            deleteAllTracksInSelection();
-            return;
-          }
-          deleteSelectedNoteSelection();
-        }}
-        onCopyAllTracksInSelection={() => {
-          void copyAllTracksInSelection();
-        }}
-        onCutAllTracksInSelection={() => {
-          void cutAllTracksInSelection();
-        }}
-        onDeleteAllTracksInSelection={deleteAllTracksInSelection}
+        trackActions={trackCanvasTrackActions}
+        automationActions={trackCanvasAutomationActions}
+        noteActions={trackCanvasNoteActions}
+        selectionActions={trackCanvasSelectionActions}
       />
 
       {timelineActionsPopover && (
@@ -1247,31 +1215,19 @@ export default function HomePage() {
         />
       )}
 
-      {recording.recordEnabled && activeRecordingTrack && (
-        <section className="recording-dock">
-          <div className="recording-dock-header">
-            <div>
-              <strong>{recording.recordPhase === "count_in" ? "Record Count-In" : "Recording"}</strong>
-              <span className="recording-dock-subtitle">
-                {activeRecordingTrack.name} · {activeRecordingTrack.instrumentPatchId.replace("preset_", "")}
-              </span>
-            </div>
-            <div className="recording-dock-status">{recording.recordStatusText}</div>
-          </div>
-          <PianoKeyboard
-            minPitch="C2"
-            maxPitch="C7"
-            pressedPitches={recording.pressedRecordingPitches}
-            onSelectPitch={() => {}}
-            onPressStart={(pitch) => {
-              if (recording.recordPhase === "recording") {
-                recording.startRecordedNote(`pointer:${pitch}`, pitch);
-              }
-            }}
-            onPressEnd={(pitch) => recording.stopRecordedInput(`pointer:${pitch}`)}
-          />
-        </section>
-      )}
+      <RecordingDock
+        open={recording.recordEnabled}
+        track={activeRecordingTrack}
+        title={recording.recordPhase === "count_in" ? "Record Count-In" : "Recording"}
+        statusText={recording.recordStatusText}
+        pressedPitches={recording.pressedRecordingPitches}
+        onPressStart={(pitch) => {
+          if (recording.recordPhase === "recording") {
+            recording.startRecordedNote(`pointer:${pitch}`, pitch);
+          }
+        }}
+        onPressEnd={(pitch) => recording.stopRecordedInput(`pointer:${pitch}`)}
+      />
 
       <InstrumentEditor
         patch={selectedPatch}
@@ -1294,125 +1250,43 @@ export default function HomePage() {
 
       <QuickHelpDialog keyboardShortcuts={keyboardShortcuts} onClose={closeHelp} open={helpOpen} />
 
-      {pitchPicker && pitchPickerNote && (
-        <div className="help-modal-backdrop" role="dialog" aria-modal="true" onClick={closePitchPicker}>
-          <div className="help-modal pitch-picker-modal" onClick={(event) => event.stopPropagation()}>
-            <h3>Pick Pitch</h3>
-            <p className="muted">
-              Select a key from C1 to C7. QWERTY-mapped keys are shown on each note.
-            </p>
-            <PianoKeyboard
-              minPitch="C1"
-              maxPitch="C7"
-              selectedPitch={pitchPickerNote.pitchStr}
-              onSelectPitch={(pitch) => {
-                updateNote(pitchPicker.trackId, pitchPicker.noteId, { pitchStr: pitch }, {
-                  actionKey: `track:${pitchPicker.trackId}:pitch:${pitchPicker.noteId}`
-                });
-                previewNoteForPitchPicker(pitchPicker.trackId, pitchPicker.noteId, pitch);
-                closePitchPicker();
-              }}
-            />
-            <div className="pitch-picker-actions">
-              <button type="button" onClick={closePitchPicker}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PitchPickerModal
+        open={Boolean(pitchPicker && pitchPickerNote)}
+        title="Pick Pitch"
+        description="Select a key from C1 to C7. QWERTY-mapped keys are shown on each note."
+        selectedPitch={pitchPickerNote?.pitchStr ?? previewPitch}
+        onClose={closePitchPicker}
+        onSelectPitch={(pitch) => {
+          if (!pitchPicker) {
+            return;
+          }
+          updateNote(pitchPicker.trackId, pitchPicker.noteId, { pitchStr: pitch }, {
+            actionKey: `track:${pitchPicker.trackId}:pitch:${pitchPicker.noteId}`
+          });
+          previewNoteForPitchPicker(pitchPicker.trackId, pitchPicker.noteId, pitch);
+          closePitchPicker();
+        }}
+      />
 
-      {previewPitchPickerOpen && (
-        <div className="help-modal-backdrop" role="dialog" aria-modal="true" onClick={() => setPreviewPitchPickerOpen(false)}>
-          <div className="help-modal pitch-picker-modal" onClick={(event) => event.stopPropagation()}>
-            <h3>Preview Pitch</h3>
-            <p className="muted">Select the pitch used for auto-preview when an instrument sound changes.</p>
-            <PianoKeyboard
-              minPitch="C1"
-              maxPitch="C7"
-              selectedPitch={previewPitch}
-              onSelectPitch={(pitch) => {
-                setPreviewPitch(pitch);
-                setPreviewPitchPickerOpen(false);
-                previewSelectedPatchNow(pitch);
-              }}
-            />
-            <div className="pitch-picker-actions">
-              <button type="button" onClick={() => setPreviewPitchPickerOpen(false)}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PitchPickerModal
+        open={previewPitchPickerOpen}
+        title="Preview Pitch"
+        description="Select the pitch used for auto-preview when an instrument sound changes."
+        selectedPitch={previewPitch}
+        onClose={() => setPreviewPitchPickerOpen(false)}
+        onSelectPitch={(pitch) => {
+          setPreviewPitch(pitch);
+          setPreviewPitchPickerOpen(false);
+          previewSelectedPatchNow(pitch);
+        }}
+      />
 
-      {patchRemovalDialog && (
-        <div className="help-modal-backdrop" role="dialog" aria-modal="true" onClick={() => setPatchRemovalDialog(null)}>
-          <div className="help-modal" onClick={(event) => event.stopPropagation()}>
-            <h3>Remove Instrument</h3>
-            <p className="muted">Choose how tracks using this custom instrument should be handled before removal.</p>
-            {patchRemovalDialog.rows.length === 0 && <p>No tracks currently use this instrument.</p>}
-            {patchRemovalDialog.rows.map((row) => {
-              const track = project.tracks.find((entry) => entry.id === row.trackId);
-              return (
-                <div key={row.trackId} className="patch-removal-row">
-                  <strong>{track?.name ?? row.trackId}</strong>
-                  <select
-                    value={row.mode}
-                    onChange={(event) =>
-                      setPatchRemovalDialog((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              rows: prev.rows.map((entry) =>
-                                entry.trackId === row.trackId ? { ...entry, mode: event.target.value as "fallback" | "remove" } : entry
-                              )
-                            }
-                          : prev
-                      )
-                    }
-                  >
-                    <option value="fallback">Fallback to instrument</option>
-                    <option value="remove">Remove track</option>
-                  </select>
-                  <select
-                    value={row.fallbackPatchId}
-                    disabled={row.mode !== "fallback"}
-                    onChange={(event) =>
-                      setPatchRemovalDialog((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              rows: prev.rows.map((entry) =>
-                                entry.trackId === row.trackId ? { ...entry, fallbackPatchId: event.target.value } : entry
-                              )
-                            }
-                          : prev
-                      )
-                    }
-                  >
-                    {project.patches
-                      .filter((patch) => patch.id !== patchRemovalDialog.patchId)
-                      .map((patch) => (
-                        <option key={patch.id} value={patch.id}>
-                          {patch.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              );
-            })}
-            <div className="pitch-picker-actions">
-              <button type="button" onClick={() => setPatchRemovalDialog(null)}>
-                Cancel
-              </button>
-              <button type="button" onClick={confirmRemovePatch}>
-                Remove Instrument
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PatchRemovalDialogModal
+        dialog={patchRemovalDialog}
+        project={project}
+        setDialog={setPatchRemovalDialog}
+        onConfirm={confirmRemovePatch}
+      />
     </main>
   );
 }
