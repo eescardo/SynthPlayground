@@ -1007,6 +1007,12 @@ export function TrackCanvas(props: TrackCanvasProps) {
     const automationLaneHit = targets.automationLaneHit;
     const hasActiveSelection = Boolean(props.selectedNoteKeys?.size);
 
+    // TODO: If TrackCanvas keeps growing, extract a dedicated canvas interaction layer
+    // that centralizes hit resolution, cursor selection, and primary-pointer dispatch.
+    // Right now those concerns are interleaved across pointer handlers, which makes
+    // small duplicated action branches easy to miss when interaction rules change.
+    // A good next step would be plain helpers or a hook, not React components.
+
     if (y <= RULER_HEIGHT && x >= HEADER_WIDTH) {
       if (targets.hoverTarget === "loop-marker" && targets.loopMarkerRect) {
         props.onSetPlayheadBeat(targets.loopMarkerRect.beat);
