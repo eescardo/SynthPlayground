@@ -41,6 +41,7 @@ import {
   getTrackAutomationPoints,
   getTrackMacroLane
 } from "@/lib/macroAutomation";
+import { PRIMARY_POINTER_BUTTON, SECONDARY_POINTER_BUTTON } from "@/lib/inputConstants";
 import { createDefaultPlacedNote } from "@/lib/noteDefaults";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { getNoteSelectionKey } from "@/lib/noteClipboard";
@@ -1055,7 +1056,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         return;
       }
 
-      if (event.button === 0) {
+      if (event.button === PRIMARY_POINTER_BUTTON) {
         props.onSetNoteSelection([]);
         props.onSetTimelineSelectionBeatRange(null);
         pendingCanvasActionRef.current = {
@@ -1109,14 +1110,14 @@ export function TrackCanvas(props: TrackCanvasProps) {
       return;
     }
 
-    if (targets.hoverTarget === "pitch" && targets.pitchRect && event.button === 0) {
+    if (targets.hoverTarget === "pitch" && targets.pitchRect && event.button === PRIMARY_POINTER_BUTTON) {
       props.onSetNoteSelection([getNoteSelectionKey(targets.pitchRect.trackId, targets.pitchRect.noteId)]);
       props.onOpenPitchPicker(targets.pitchRect.trackId, targets.pitchRect.noteId);
       setCanvasCursor("pointer");
       return;
     }
 
-    if (event.button === 2) {
+    if (event.button === SECONDARY_POINTER_BUTTON) {
       if (automationKeyframe && automationKeyframe.boundary === null) {
         props.onDeleteTrackMacroAutomationKeyframeSide(
           automationKeyframe.trackId,
@@ -1539,7 +1540,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   };
 
   const onDoubleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (event.button !== 0) {
+    if (event.button !== PRIMARY_POINTER_BUTTON) {
       return;
     }
     const { x, y } = getCanvasPoint(event.clientX, event.clientY);
