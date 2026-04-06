@@ -4,6 +4,7 @@ import {
   createTrackMacroAutomationLane,
   getTrackAutomationPoints,
   getTrackMacroValueAtBeat,
+  isSplitAutomationKeyframe,
   removeAutomationLaneKeyframeSide,
   splitAutomationLaneKeyframe,
   updateAutomationLaneKeyframeSide,
@@ -57,6 +58,23 @@ describe("macroAutomation", () => {
     ]);
   });
 
+  it("represents a split keyframe as an explicit split variant", () => {
+    let lane = createTrackMacroAutomationLane("macro_cutoff", 0.2);
+    lane = upsertAutomationLaneKeyframe(lane, 4, 0.6, 8);
+    const keyframeId = lane.keyframes[0]!.id;
+    lane = splitAutomationLaneKeyframe(lane, keyframeId);
+
+    expect(lane.keyframes).toEqual([
+      expect.objectContaining({
+        id: keyframeId,
+        beat: 4,
+        type: "split",
+        incomingValue: 0.5,
+        outgoingValue: 0.7
+      })
+    ]);
+  });
+
   it("interpolates through split keyframes with an instantaneous jump at the beat", () => {
     const track = createTrack();
     let lane = createTrackMacroAutomationLane("macro_cutoff", 0.1);
@@ -76,6 +94,29 @@ describe("macroAutomation", () => {
     expect(getTrackMacroValueAtBeat(track, "macro_cutoff", 0.25, 4, 8)).toBeCloseTo(0.9);
     expect(getTrackMacroValueAtBeat(track, "macro_cutoff", 0.25, 6, 8)).toBeCloseTo(0.7);
     expect(getTrackMacroValueAtBeat(track, "macro_cutoff", 0.25, 8, 8)).toBeCloseTo(0.5);
+  });
+
+  it("keeps the split variant while editing incoming and outgoing sides independently", () => {
+    let lane = createTrackMacroAutomationLane("macro_cutoff", 0.2);
+    lane = upsertAutomationLaneKeyframe(lane, 4, 0.6, 8);
+    const keyframeId = lane.keyframes[0]!.id;
+    lane = splitAutomationLaneKeyframe(lane, keyframeId);
+    lane = updateAutomationLaneKeyframeSide(lane, keyframeId, "incoming", 0.3);
+    lane = updateAutomationLaneKeyframeSide(lane, keyframeId, "outgoing", 0.85);
+
+    expect(isSplitAutomationKeyframe(lane.keyframes[0]!)).toBe(true);
+    if (!isSplitAutomationKeyframe(lane.keyframes[0]!)) {
+      throw new Error("expected edited keyframe to remain split");
+    }
+    expect(lane.keyframes[0]).toEqual(
+      expect.objectContaining({
+        id: keyframeId,
+        beat: 4,
+        type: "split",
+        incomingValue: 0.3,
+        outgoingValue: 0.85
+      })
+    );
   });
 
   it("auto-merges a split keyframe back to a single point when both sides match", () => {
