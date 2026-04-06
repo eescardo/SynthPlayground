@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Track, Project } from "@/types/music";
+import type { Patch } from "@/types/patch";
 
 type RuntimeModule = typeof import("../../../public/worklets/synth-worklet-runtime.js");
 type WorkletGlobal = typeof globalThis & {
@@ -6,7 +8,7 @@ type WorkletGlobal = typeof globalThis & {
   registerProcessor?: (name: string, processorCtor: unknown) => void;
 };
 
-function createPatch(overrides: Record<string, unknown> = {}) {
+function createPatch(overrides: Partial<Patch> = {}): Patch {
   return {
     schemaVersion: 1,
     id: "patch_1",
@@ -27,10 +29,10 @@ function createPatch(overrides: Record<string, unknown> = {}) {
     layout: { nodes: [] },
     io: { audioOutNodeId: "out", audioOutPortId: "out" },
     ...overrides
-  };
+  } satisfies Patch;
 }
 
-function createTrack(overrides: Record<string, unknown> = {}) {
+function createTrack(overrides: Partial<Track> = {}): Track {
   return {
     id: "track_1",
     name: "Track 1",
@@ -52,14 +54,14 @@ function createTrack(overrides: Record<string, unknown> = {}) {
       compression: 0.4
     },
     ...overrides
-  };
+  } satisfies Track;
 }
 
 function createProject(options: {
-  patch?: ReturnType<typeof createPatch>;
-  track?: ReturnType<typeof createTrack>;
-  masterFx?: Record<string, unknown>;
-} = {}) {
+  patch?: Patch;
+  track?: Track;
+  masterFx?: Partial<Project["masterFx"]>;
+} = {}): Project {
   const { patch = createPatch(), track = createTrack(), masterFx = {} } = options;
   return {
     id: "project_1",
@@ -81,7 +83,7 @@ function createProject(options: {
     },
     createdAt: 0,
     updatedAt: 0
-  };
+  } satisfies Project;
 }
 
 async function loadRuntimeModule(): Promise<RuntimeModule> {

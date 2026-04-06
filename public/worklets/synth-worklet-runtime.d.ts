@@ -1,7 +1,10 @@
+import type { Track } from "@/types/music";
+import type { Patch } from "@/types/patch";
+
 export const compareScheduledEvents: (a: any, b: any) => number;
 
 export class TrackRuntime {
-  constructor(track: any, patch: any, sampleRate: number, blockSize: number);
+  constructor(track: Track, patch: Patch, sampleRate: number, blockSize: number);
   compiled: {
     paramTargets: Map<string, Map<string, number>>;
   };

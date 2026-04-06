@@ -1,7 +1,10 @@
+import type { Track } from "@/types/music";
+import type { Patch } from "@/types/patch";
+
 declare module "../../../public/worklets/synth-worklet-runtime.js" {
   export const compareScheduledEvents: (a: unknown, b: unknown) => number;
   export class TrackRuntime {
-    constructor(track: unknown, patch: unknown, sampleRate: number, blockSize: number);
+    constructor(track: Track, patch: Patch, sampleRate: number, blockSize: number);
     compiled: {
       paramTargets: Map<string, Map<string, number>>;
     };
