@@ -1094,12 +1094,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
 
     if (automationKeyframe) {
-      props.onPreviewTrackMacroAutomation(
-        automationKeyframe.trackId,
-        automationKeyframe.macroId,
-        automationKeyframe.value,
-        { retrigger: true }
-      );
       automationDragRef.current = {
         trackId: automationKeyframe.trackId,
         macroId: automationKeyframe.macroId,
@@ -1115,9 +1109,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
     if (automationLaneHit) {
       const previewValue = automationValueFromY(y, automationLaneHit.lane.y, automationLaneHit.lane.height);
-      props.onPreviewTrackMacroAutomation(automationLaneHit.track.id, automationLaneHit.lane.macroId, previewValue, {
-        retrigger: true
-      });
       pendingAutomationActionRef.current = {
         trackId: automationLaneHit.track.id,
         macroId: automationLaneHit.lane.macroId,
