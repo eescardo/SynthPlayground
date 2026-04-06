@@ -623,6 +623,13 @@ export default function HomePage() {
     setPitchPicker(null);
   }, []);
 
+  const clearCanvasSelection = useCallback(() => {
+    setSelectedNoteKeys([]);
+    setTimelineSelectionBeatRange(null);
+    setSelectionActionPopoverMode("expanded");
+    setSelectionActionScopePreview("source");
+  }, []);
+
   const setNoteSelectionFromCanvas = useCallback((selectionKeys: string[]) => {
     setTimelineActionsPopover(null);
     setTimelineSelectionBeatRange(null);
@@ -1227,7 +1234,7 @@ export default function HomePage() {
         onPreviewSelectionActionScopeChange={setSelectionActionScopePreview}
         selectionActionPopoverCollapsed={selectionActionPopoverCollapsed}
         onExpandSelectionActionPopover={() => setSelectionActionPopoverMode("expanded")}
-        onDismissSelectionActionPopover={() => setSelectionActionPopoverMode("hidden")}
+        onDismissSelectionActionPopover={clearCanvasSelection}
         onCopySelection={() => {
           void (hasTimelineRangeSelection ? copyAllTracksInSelection() : copySelectedNotes());
         }}
