@@ -130,6 +130,7 @@ interface TrackCanvasProps {
   timelineActionsPopoverOpen?: boolean;
   selection: TrackCanvasSelection;
   hideSelectionActionPopover?: boolean;
+  selectionActionPopoverCollapsed?: boolean;
   onSetPlayheadBeat: (beat: number) => void;
   onRequestTimelineActionsPopover: (request: TimelineActionsPopoverRequest) => void;
   onSelectTrack: (trackId: string) => void;
@@ -175,6 +176,8 @@ interface TrackCanvasProps {
   onSetTimelineSelectionBeatRange: (range: { startBeat: number; endBeat: number; beatSpan: number } | null) => void;
   onSetSelectionMarqueeActive: (active: boolean) => void;
   onPreviewSelectionActionScopeChange: (scope: "source" | "all-tracks") => void;
+  onExpandSelectionActionPopover?: () => void;
+  onDismissSelectionActionPopover?: () => void;
   onCopySelection: () => void;
   onCutSelection: () => void;
   onDeleteSelection: () => void;
@@ -1775,7 +1778,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
           left={selectionPopoverLeft}
           top={selectionPopoverTop}
           selectionLabel={selectionLabel ?? (props.selection.kind === "timeline" ? "All Tracks" : "Track 1")}
+          collapsed={props.selectionActionPopoverCollapsed}
           onPreviewScopeChange={props.onPreviewSelectionActionScopeChange}
+          onExpand={props.onExpandSelectionActionPopover}
+          onDismiss={props.onDismissSelectionActionPopover}
           onCut={props.onCutSelection}
           onCopy={props.onCopySelection}
           onDelete={props.onDeleteSelection}

@@ -88,7 +88,7 @@ export default function HomePage() {
   const [previewPitch, setPreviewPitch] = useState(DEFAULT_NOTE_PITCH);
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
   const [timelineActionsPopover, setTimelineActionsPopover] = useState<TimelineActionsPopoverRequest | null>(null);
-  const [selectionActionPopoverDismissed, setSelectionActionPopoverDismissed] = useState(false);
+  const [selectionActionPopoverMode, setSelectionActionPopoverMode] = useState<"expanded" | "collapsed" | "hidden">("expanded");
   const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
   const [patchRemovalDialog, setPatchRemovalDialog] = useState<{
     patchId: string;
@@ -336,14 +336,21 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!selectionBeatRange) {
-      setSelectionActionPopoverDismissed(false);
+      setSelectionActionPopoverMode("expanded");
       setSelectionActionScopePreview("source");
     }
   }, [selectionBeatRange]);
 
   useEffect(() => {
-    setSelectionActionPopoverDismissed(false);
+    setSelectionActionPopoverMode("expanded");
   }, [selectedNoteKeys]);
+
+  useEffect(() => {
+    if (!timelineSelectionBeatRange) {
+      return;
+    }
+    setSelectionActionPopoverMode("expanded");
+  }, [timelineSelectionBeatRange]);
 
   useEffect(() => {
     if (canvasSelection.kind === "timeline") {
@@ -528,16 +535,17 @@ export default function HomePage() {
     };
   }, [timelineActionsPopover]);
 
-  const selectionActionPopoverVisible = Boolean(
+  const selectionActionPopoverAvailable = Boolean(
     selectionBeatRange &&
     !selectionMarqueeActive &&
     !pitchPicker &&
-    !timelineActionsPopover &&
-    !selectionActionPopoverDismissed
+    !timelineActionsPopover
   );
+  const selectionActionPopoverVisible = selectionActionPopoverAvailable && selectionActionPopoverMode !== "hidden";
+  const selectionActionPopoverCollapsed = selectionActionPopoverMode === "collapsed";
 
   useEffect(() => {
-    if (!selectionActionPopoverVisible) {
+    if (!selectionActionPopoverAvailable || selectionActionPopoverCollapsed) {
       return;
     }
 
@@ -548,7 +556,7 @@ export default function HomePage() {
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setSelectionActionPopoverDismissed(true);
+        setSelectionActionPopoverMode("collapsed");
         setSelectionActionScopePreview("source");
       }
     };
@@ -561,7 +569,7 @@ export default function HomePage() {
       if (target?.closest(".selection-actions-popover")) {
         return;
       }
-      setSelectionActionPopoverDismissed(true);
+      setSelectionActionPopoverMode("collapsed");
       setSelectionActionScopePreview("source");
     };
 
@@ -572,7 +580,7 @@ export default function HomePage() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("pointerdown", onPointerDown);
     };
-  }, [selectionActionPopoverVisible]);
+  }, [selectionActionPopoverAvailable, selectionActionPopoverCollapsed]);
 
   const timelineMarkersAtBeat = useMemo(
     () =>
@@ -1217,6 +1225,9 @@ export default function HomePage() {
         onSetTimelineSelectionBeatRange={setTimelineSelectionFromCanvas}
         onSetSelectionMarqueeActive={setSelectionMarqueeActive}
         onPreviewSelectionActionScopeChange={setSelectionActionScopePreview}
+        selectionActionPopoverCollapsed={selectionActionPopoverCollapsed}
+        onExpandSelectionActionPopover={() => setSelectionActionPopoverMode("expanded")}
+        onDismissSelectionActionPopover={() => setSelectionActionPopoverMode("hidden")}
         onCopySelection={() => {
           void (hasTimelineRangeSelection ? copyAllTracksInSelection() : copySelectedNotes());
         }}
