@@ -128,11 +128,7 @@ interface TrackCanvasProps {
   ghostPlayheadBeat?: number;
   countInLabel?: string;
   timelineActionsPopoverOpen?: boolean;
-  selectedNoteKeys?: ReadonlySet<string>;
-  selectionBeatRange?: { startBeat: number; endBeat: number } | null;
-  selectionSourceTrackId?: string;
-  selectionSourceTrackName?: string;
-  selectionIndicatorTrackId?: string;
+  selection: TrackCanvasSelection;
   hideSelectionActionPopover?: boolean;
   onSetPlayheadBeat: (beat: number) => void;
   onRequestTimelineActionsPopover: (request: TimelineActionsPopoverRequest) => void;
@@ -186,6 +182,24 @@ interface TrackCanvasProps {
   onCutAllTracksInSelection: () => void;
   onDeleteAllTracksInSelection: () => void;
 }
+
+type SelectionBeatRange = { startBeat: number; endBeat: number; beatSpan: number };
+
+export type TrackCanvasSelection =
+  | { kind: "none" }
+  | {
+      kind: "note";
+      selectedNoteKeys: ReadonlySet<string>;
+      beatRange: SelectionBeatRange;
+      label: string;
+      markerTrackId: string;
+    }
+  | {
+      kind: "timeline";
+      beatRange: SelectionBeatRange;
+      label: string;
+      markerTrackId: string;
+    };
 
 interface DragState {
   trackId: string;
@@ -451,12 +465,16 @@ export function TrackCanvas(props: TrackCanvasProps) {
   } = useVolumePopover();
 
   const meterBeats = props.project.global.meter === "4/4" ? 4 : 3;
+  const selectionBeatRange = props.selection.kind === "none" ? null : props.selection.beatRange;
+  const selectionLabel = props.selection.kind === "none" ? null : props.selection.label;
+  const selectionMarkerTrackId = props.selection.kind === "none" ? null : props.selection.markerTrackId;
+  const selectedNoteKeys = props.selection.kind === "note" ? props.selection.selectedNoteKeys : undefined;
   const selectedTrack = props.project.tracks.find((track) => track.id === props.selectedTrackId) ?? null;
   const selectedPatch = selectedTrack
     ? props.project.patches.find((patch) => patch.id === selectedTrack.instrumentPatchId) ?? null
     : null;
-  const selectionPopoverLeft = props.selectionBeatRange
-    ? HEADER_WIDTH + props.selectionBeatRange.endBeat * BEAT_WIDTH + 14
+  const selectionPopoverLeft = selectionBeatRange
+    ? HEADER_WIDTH + selectionBeatRange.endBeat * BEAT_WIDTH + 14
     : 0;
   const selectionPopoverTop = 10;
 
@@ -724,7 +742,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const noteH = TRACK_HEIGHT - 28;
         const overlaps = overlapNoteIds.has(note.id);
         const isHovered = hoveredNote?.trackId === track.id && hoveredNote.noteId === note.id;
-        const noteSelected = props.selectedNoteKeys?.has(getNoteSelectionKey(track.id, note.id)) ?? false;
+        const noteSelected = selectedNoteKeys?.has(getNoteSelectionKey(track.id, note.id)) ?? false;
 
         const noteFill = overlaps
           ? trackSilenced
@@ -904,9 +922,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
       }
     });
 
-    if (props.selectionBeatRange) {
-      const startX = HEADER_WIDTH + props.selectionBeatRange.startBeat * BEAT_WIDTH;
-      const endX = HEADER_WIDTH + props.selectionBeatRange.endBeat * BEAT_WIDTH;
+    if (selectionBeatRange) {
+      const startX = HEADER_WIDTH + selectionBeatRange.startBeat * BEAT_WIDTH;
+      const endX = HEADER_WIDTH + selectionBeatRange.endBeat * BEAT_WIDTH;
       ctx.strokeStyle = TRACK_CANVAS_COLORS.selectionBoundary;
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -917,8 +935,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
       ctx.stroke();
     }
 
-    if (props.selectionBeatRange && !selectionRect && !props.hideSelectionActionPopover && props.selectionIndicatorTrackId) {
-      const indicatorTrackLayout = trackLayouts.find((track) => track.trackId === props.selectionIndicatorTrackId);
+    if (selectionBeatRange && !selectionRect && !props.hideSelectionActionPopover && selectionMarkerTrackId) {
+      const indicatorTrackLayout = trackLayouts.find((track) => track.trackId === selectionMarkerTrackId);
       if (indicatorTrackLayout) {
         const indicatorY = indicatorTrackLayout.y;
         ctx.strokeStyle = TRACK_CANVAS_COLORS.selectionSourceIndicator;
@@ -965,9 +983,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
     props.project.global.loop,
     props.project.patches,
     props.project.tracks,
-    props.selectionBeatRange,
-    props.selectionIndicatorTrackId,
-    props.selectedNoteKeys,
+    props.selection.kind,
+    selectedNoteKeys,
+    selectionBeatRange,
+    selectionMarkerTrackId,
     props.selectedTrackId,
     selectionRect,
     speakerIconsReady,
@@ -1026,7 +1045,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     const targets = resolvePointerTargets(x, y);
     const automationKeyframe = findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y);
     const automationLaneHit = targets.automationLaneHit;
-    const hasActiveSelection = Boolean(props.selectedNoteKeys?.size);
+    const hasActiveSelection = Boolean(selectedNoteKeys?.size) || props.selection.kind === "timeline";
 
     // TODO: If TrackCanvas keeps growing, extract a dedicated canvas interaction layer
     // that centralizes hit resolution, cursor selection, and primary-pointer dispatch.
@@ -1497,7 +1516,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
     if (pendingAction?.kind === "ruler") {
       const beat = Math.max(0, snapToGrid(beatFromX(x), props.project.global.gridBeats));
-      if (!props.selectionBeatRange) {
+      if (!selectionBeatRange) {
         props.onSetPlayheadBeat(beat);
       } else {
         props.onPreviewSelectionActionScopeChange("all-tracks");
@@ -1751,11 +1770,11 @@ export function TrackCanvas(props: TrackCanvasProps) {
         onDoubleClick={onDoubleClick}
         onContextMenu={(event) => event.preventDefault()}
       />
-      {props.selectionBeatRange && !selectionRect && !props.hideSelectionActionPopover && (
+      {selectionBeatRange && !selectionRect && !props.hideSelectionActionPopover && (
         <SelectionActionPopover
           left={selectionPopoverLeft}
           top={selectionPopoverTop}
-          selectionLabel={props.selectionSourceTrackName ?? "Track 1"}
+          selectionLabel={selectionLabel ?? (props.selection.kind === "timeline" ? "All Tracks" : "Track 1")}
           onPreviewScopeChange={props.onPreviewSelectionActionScopeChange}
           onCut={props.onCutSelection}
           onCopy={props.onCopySelection}

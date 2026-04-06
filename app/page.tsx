@@ -8,7 +8,7 @@ import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import { PianoKeyboard } from "@/components/PianoKeyboard";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { TimelineActionsPopover } from "@/components/TimelineActionsPopover";
-import { TimelineActionsPopoverRequest, TrackCanvas } from "@/components/TrackCanvas";
+import { TimelineActionsPopoverRequest, TrackCanvas, TrackCanvasSelection } from "@/components/TrackCanvas";
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
 import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
@@ -173,21 +173,41 @@ export default function HomePage() {
   const selectedNoteKeySet = useMemo(() => new Set(selectedNoteKeys), [selectedNoteKeys]);
   const noteSelectionBeatRange = useMemo(() => getSelectionBeatRange(project, selectedNoteKeys), [project, selectedNoteKeys]);
   const hasTimelineRangeSelection = Boolean(timelineSelectionBeatRange);
-  const selectionBeatRange = timelineSelectionBeatRange ?? noteSelectionBeatRange;
-  const selectionSourceTrackId = useMemo(
-    () => (hasTimelineRangeSelection ? project.tracks[0]?.id ?? null : getSelectionSourceTrackId(project, selectedNoteKeys)),
-    [hasTimelineRangeSelection, project, selectedNoteKeys]
+  const noteSelectionSourceTrackId = useMemo(
+    () => getSelectionSourceTrackId(project, selectedNoteKeys),
+    [project, selectedNoteKeys]
   );
-  const selectionSourceTrackName = useMemo(
-    () => (hasTimelineRangeSelection ? "All Tracks" : project.tracks.find((track) => track.id === selectionSourceTrackId)?.name ?? "Track 1"),
-    [hasTimelineRangeSelection, project.tracks, selectionSourceTrackId]
-  );
-  const selectionIndicatorTrackId = useMemo(() => {
-    if (hasTimelineRangeSelection || selectionActionScopePreview === "all-tracks") {
-      return project.tracks[0]?.id ?? null;
+  const canvasSelection = useMemo<TrackCanvasSelection>(() => {
+    if (timelineSelectionBeatRange) {
+      return {
+        kind: "timeline",
+        beatRange: timelineSelectionBeatRange,
+        label: "All Tracks",
+        markerTrackId: project.tracks[0]?.id ?? ""
+      };
     }
-    return selectionSourceTrackId;
-  }, [hasTimelineRangeSelection, project.tracks, selectionActionScopePreview, selectionSourceTrackId]);
+    if (noteSelectionBeatRange && noteSelectionSourceTrackId) {
+      return {
+        kind: "note",
+        selectedNoteKeys: selectedNoteKeySet,
+        beatRange: noteSelectionBeatRange,
+        label: project.tracks.find((track) => track.id === noteSelectionSourceTrackId)?.name ?? "Track 1",
+        markerTrackId:
+          selectionActionScopePreview === "all-tracks"
+            ? project.tracks[0]?.id ?? noteSelectionSourceTrackId
+            : noteSelectionSourceTrackId
+      };
+    }
+    return { kind: "none" };
+  }, [
+    noteSelectionBeatRange,
+    noteSelectionSourceTrackId,
+    project.tracks,
+    selectedNoteKeySet,
+    selectionActionScopePreview,
+    timelineSelectionBeatRange
+  ]);
+  const selectionBeatRange = canvasSelection.kind === "none" ? null : canvasSelection.beatRange;
 
   const trackNameById = useMemo(() => new Map(project.tracks.map((track) => [track.id, track.name] as const)), [project.tracks]);
 
@@ -294,11 +314,11 @@ export default function HomePage() {
   }, [selectedNoteKeys.length, timelineSelectionBeatRange]);
 
   useEffect(() => {
-    if (!selectionSourceTrackId || selectionMarqueeActive || pitchPicker || hasTimelineRangeSelection) {
+    if (!noteSelectionSourceTrackId || selectionMarqueeActive || pitchPicker || canvasSelection.kind === "timeline") {
       return;
     }
-    setSelectedTrackId((current) => (current === selectionSourceTrackId ? current : selectionSourceTrackId));
-  }, [hasTimelineRangeSelection, pitchPicker, selectionMarqueeActive, selectionSourceTrackId]);
+    setSelectedTrackId((current) => (current === noteSelectionSourceTrackId ? current : noteSelectionSourceTrackId));
+  }, [canvasSelection.kind, noteSelectionSourceTrackId, pitchPicker, selectionMarqueeActive]);
 
   useEffect(() => {
     if (!selectionBeatRange) {
@@ -307,12 +327,12 @@ export default function HomePage() {
   }, [selectionBeatRange]);
 
   useEffect(() => {
-    if (hasTimelineRangeSelection) {
+    if (canvasSelection.kind === "timeline") {
       setSelectionActionScopePreview("all-tracks");
       return;
     }
     setSelectionActionScopePreview("source");
-  }, [hasTimelineRangeSelection, selectionSourceTrackId]);
+  }, [canvasSelection.kind, noteSelectionSourceTrackId]);
 
   useEffect(() => {
     if (!ready || !pendingPreview || playing || !selectedTrack) {
@@ -1098,11 +1118,7 @@ export default function HomePage() {
         project={project}
         invalidPatchIds={invalidPatchIds}
         selectedTrackId={selectedTrack.id}
-        selectedNoteKeys={selectedNoteKeySet}
-        selectionBeatRange={selectionBeatRange}
-        selectionSourceTrackId={selectionSourceTrackId ?? undefined}
-        selectionSourceTrackName={selectionSourceTrackName}
-        selectionIndicatorTrackId={selectionIndicatorTrackId ?? undefined}
+        selection={canvasSelection}
         playheadBeat={playheadBeat}
         activeRecordedNotes={recording.activeRecordedNotes}
         ghostPlayheadBeat={recording.ghostPlayheadBeat ?? undefined}
