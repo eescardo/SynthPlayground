@@ -1,4 +1,3 @@
-// Generated from src/audio/worklets/synth-worklet-runtime.js by scripts/worklets/sync-worklet-runtime.mjs.
 const BaseAudioWorkletProcessor = globalThis.AudioWorkletProcessor || class {
   constructor() {
     this.port = {

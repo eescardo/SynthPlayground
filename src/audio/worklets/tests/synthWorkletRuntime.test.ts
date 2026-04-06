@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Track, Project } from "@/types/music";
+import type { Project, Track } from "@/types/music";
 import type { Patch } from "@/types/patch";
 
-type RuntimeModule = typeof import("../../../public/worklets/synth-worklet-runtime.js");
+type RuntimeModule = typeof import("../synth-worklet-runtime.js");
 type WorkletGlobal = typeof globalThis & {
   AudioWorkletProcessor?: new () => { port: { onmessage: ((event: unknown) => void) | null; postMessage: (...args: unknown[]) => void } };
   registerProcessor?: (name: string, processorCtor: unknown) => void;
@@ -93,7 +93,7 @@ async function loadRuntimeModule(): Promise<RuntimeModule> {
     port = { onmessage: null, postMessage() {} };
   };
   workletGlobal.registerProcessor = vi.fn();
-  return import("../../../public/worklets/synth-worklet-runtime.js");
+  return import("../synth-worklet-runtime.js");
 }
 
 function renderProcessorBlock(
