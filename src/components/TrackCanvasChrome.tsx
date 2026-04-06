@@ -6,7 +6,7 @@ import { TrackLayout, TrackCanvasAutomationActions, TrackCanvasTrackActions } fr
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { Project, Track } from "@/types/music";
 
-interface TrackHeaderOverlaysProps {
+interface TrackHeaderChromeProps {
   project: Project;
   trackLayouts: TrackLayout[];
   selectedTrackId?: string;
@@ -44,7 +44,7 @@ const getPatchOptionLabel = (patch: Project["patches"][number]) => {
   return `${patch.name} (Preset)`;
 };
 
-export function TrackHeaderOverlays({
+export function TrackHeaderChrome({
   project,
   trackLayouts,
   selectedTrackId,
@@ -59,7 +59,7 @@ export function TrackHeaderOverlays({
   scheduleVolumePopoverDismiss,
   cancelScheduledVolumePopoverDismiss,
   trackActions
-}: TrackHeaderOverlaysProps) {
+}: TrackHeaderChromeProps) {
   return (
     <div className="track-header-overlays">
       {project.tracks.map((track) => {

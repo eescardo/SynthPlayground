@@ -13,6 +13,8 @@ This repo is a browser-based music composition and synthesis playground built wi
 - Build: `pnpm run build`
 - Full validation before handoff: `pnpm run validate`
 
+Keep `pnpm run clean` aligned with the repo's generated/build outputs. When adding new generated artifacts, caches, or emitted files, update the clean script and ignore rules in the same task so a clean checkout can be rebuilt predictably.
+
 ## Repo Shape
 
 - App shell and top-level orchestration: `app/`

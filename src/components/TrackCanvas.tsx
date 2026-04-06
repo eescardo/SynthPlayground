@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SelectionActionPopover } from "@/components/SelectionActionPopover";
-import { TrackHeaderOverlays, TrackMacroPanel } from "@/components/TrackCanvasOverlays";
+import { TrackHeaderChrome, TrackMacroPanel } from "@/components/TrackCanvasChrome";
 import {
   automationValueFromY,
   AutomationKeyframeRect,
@@ -1467,7 +1467,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
   return (
     <div className="track-canvas-shell" ref={wrapperRef}>
-      <TrackHeaderOverlays
+      <TrackHeaderChrome
         project={project}
         trackLayouts={trackLayouts}
         selectedTrackId={selectedTrackId}
