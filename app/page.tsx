@@ -34,6 +34,7 @@ import { useNoteEditor } from "@/hooks/useNoteEditor";
 import { useLoopSettings } from "@/hooks/useLoopSettings";
 import { useEditorClipboardEvents } from "@/hooks/useEditorClipboardEvents";
 import { useEditorKeyboardShortcuts } from "@/hooks/useEditorKeyboardShortcuts";
+import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { useNoteClipboard } from "@/hooks/useNoteClipboard";
 import { usePlatformShortcuts } from "@/hooks/usePlatformShortcuts";
 import { usePlaybackController } from "@/hooks/usePlaybackController";
@@ -88,7 +89,7 @@ export default function HomePage() {
   const [previewPitch, setPreviewPitch] = useState(DEFAULT_NOTE_PITCH);
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
   const [timelineActionsPopover, setTimelineActionsPopover] = useState<TimelineActionsPopoverRequest | null>(null);
-  const [selectionActionPopoverMode, setSelectionActionPopoverMode] = useState<"expanded" | "collapsed" | "hidden">("expanded");
+  const [selectionActionPopoverMode, setSelectionActionPopoverMode] = useState<"expanded" | "collapsed">("expanded");
   const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
   const [patchRemovalDialog, setPatchRemovalDialog] = useState<{
     patchId: string;
@@ -499,41 +500,11 @@ export default function HomePage() {
       onCloseLoopPopover: () => setTimelineActionsPopover(null)
     });
 
-  useEffect(() => {
-    if (!timelineActionsPopover) {
-      return;
-    }
-
-    let active = false;
-    const activateTimer = window.setTimeout(() => {
-      active = true;
-    }, 0);
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setTimelineActionsPopover(null);
-      }
-    };
-
-    const onPointerDown = (event: PointerEvent) => {
-      if (!active) {
-        return;
-      }
-      const target = event.target as HTMLElement | null;
-      if (target?.closest(".timeline-actions-popover")) {
-        return;
-      }
-      setTimelineActionsPopover(null);
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("pointerdown", onPointerDown);
-    return () => {
-      window.clearTimeout(activateTimer);
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("pointerdown", onPointerDown);
-    };
-  }, [timelineActionsPopover]);
+  useDismissiblePopover({
+    active: Boolean(timelineActionsPopover),
+    popoverSelector: ".timeline-actions-popover",
+    onDismiss: useCallback(() => setTimelineActionsPopover(null), [])
+  });
 
   const selectionActionPopoverAvailable = Boolean(
     selectionBeatRange &&
@@ -541,46 +512,19 @@ export default function HomePage() {
     !pitchPicker &&
     !timelineActionsPopover
   );
-  const selectionActionPopoverVisible = selectionActionPopoverAvailable && selectionActionPopoverMode !== "hidden";
+  const selectionActionPopoverVisible = selectionActionPopoverAvailable;
   const selectionActionPopoverCollapsed = selectionActionPopoverMode === "collapsed";
 
-  useEffect(() => {
-    if (!selectionActionPopoverAvailable || selectionActionPopoverCollapsed) {
-      return;
-    }
+  const collapseSelectionActionPopover = useCallback(() => {
+    setSelectionActionPopoverMode("collapsed");
+    setSelectionActionScopePreview("source");
+  }, []);
 
-    let active = false;
-    const activateTimer = window.setTimeout(() => {
-      active = true;
-    }, 0);
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setSelectionActionPopoverMode("collapsed");
-        setSelectionActionScopePreview("source");
-      }
-    };
-
-    const onPointerDown = (event: PointerEvent) => {
-      if (!active) {
-        return;
-      }
-      const target = event.target as HTMLElement | null;
-      if (target?.closest(".selection-actions-popover")) {
-        return;
-      }
-      setSelectionActionPopoverMode("collapsed");
-      setSelectionActionScopePreview("source");
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("pointerdown", onPointerDown);
-    return () => {
-      window.clearTimeout(activateTimer);
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("pointerdown", onPointerDown);
-    };
-  }, [selectionActionPopoverAvailable, selectionActionPopoverCollapsed]);
+  useDismissiblePopover({
+    active: selectionActionPopoverAvailable && !selectionActionPopoverCollapsed,
+    popoverSelector: ".selection-actions-popover",
+    onDismiss: collapseSelectionActionPopover
+  });
 
   const timelineMarkersAtBeat = useMemo(
     () =>
