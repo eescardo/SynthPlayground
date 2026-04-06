@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, Locator, Page, Video } from "@playwright/test";
-import { holdLocatorFor, openApp } from "../ui-capture/common";
+import { holdLocatorFor, openApp, setupMacroAutomationLane } from "../ui-capture/common";
 import { applySelectionReviewFraming, showSelectionActionsPopover } from "../ui-capture/selectionCapture";
 import { VIDEO_SCENARIO, VIDEO_SCENARIOS, VideoScenario } from "./scenarios";
 
@@ -24,20 +24,6 @@ const getRecordingKey = (page: Page, pitch = "C4"): Locator =>
   page.locator(".recording-dock").getByRole("button", { name: new RegExp(`\\b${pitch}\\b`, "i") }).first();
 
 const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canvas");
-
-const setupMacroAutomationLane = async (page: Page) => {
-  await openApp(page);
-  const macroPanel = page.locator(".macro-panel");
-  await expect(macroPanel).toBeVisible();
-  await macroPanel.getByRole("button", { name: "Automate" }).first().click();
-  await expect(macroPanel.getByRole("button", { name: "Collapse lane" }).first()).toBeVisible();
-  const canvas = getTrackCanvas(page);
-  await canvas.click({ position: { x: 430, y: 118 } });
-  await page.waitForTimeout(postActionSettleMs);
-  await canvas.click({ position: { x: 770, y: 148 } });
-  await page.waitForTimeout(postActionSettleMs);
-  return { canvas };
-};
 
 const playQuarterPattern = async (page: Page, key: Locator) => {
   for (let cycle = 0; cycle < recordCycles; cycle += 1) {
@@ -109,7 +95,7 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
     name: VIDEO_SCENARIO.MACRO_AUTOMATION_EDIT,
     description: "Promote a macro to automation, add keyframes, then play back the edited lane.",
     capture: async (page) => {
-      const { canvas } = await setupMacroAutomationLane(page);
+      const { canvas } = await setupMacroAutomationLane(page, { settleMs: postActionSettleMs });
       await canvas.click({ position: { x: 600, y: 128 } });
       await page.waitForTimeout(postActionSettleMs);
       await getTransportButton(page, "Play").click();

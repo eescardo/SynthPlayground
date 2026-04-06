@@ -1,5 +1,5 @@
 import { expect, Page } from "@playwright/test";
-import { openApp, savePageScreenshot } from "../ui-capture/common";
+import { openApp, savePageScreenshot, setupMacroAutomationLane } from "../ui-capture/common";
 import { applySelectionReviewFraming, showSelectionActionsPopover } from "../ui-capture/selectionCapture";
 import { SCREENSHOT_SCENARIO, SCREENSHOT_SCENARIOS, ScreenshotScenario } from "./scenarios";
 
@@ -8,22 +8,6 @@ export interface ScreenshotScenarioDefinition {
   description: string;
   capture: (page: Page, outputPath: string) => Promise<void>;
 }
-
-const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canvas");
-
-const setupMacroAutomationLane = async (page: Page) => {
-  await openApp(page);
-  const macroPanel = page.locator(".macro-panel");
-  await expect(macroPanel).toBeVisible();
-  await macroPanel.getByRole("button", { name: "Automate" }).first().click();
-  const collapseLane = macroPanel.getByRole("button", { name: "Collapse lane" }).first();
-  await expect(collapseLane).toBeVisible();
-
-  const canvas = getTrackCanvas(page);
-  await canvas.click({ position: { x: 430, y: 118 } });
-  await canvas.click({ position: { x: 770, y: 148 } });
-  return { canvas };
-};
 
 export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, ScreenshotScenarioDefinition> = {
   [SCREENSHOT_SCENARIO.MAIN_VIEW]: {
