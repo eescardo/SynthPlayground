@@ -986,7 +986,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
     props.project.global.loop,
     props.project.patches,
     props.project.tracks,
-    props.selection.kind,
     selectedNoteKeys,
     selectionBeatRange,
     selectionMarkerTrackId,
