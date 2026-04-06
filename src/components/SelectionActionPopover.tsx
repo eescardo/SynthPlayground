@@ -3,7 +3,7 @@
 interface SelectionActionPopoverProps {
   left: number;
   top: number;
-  sourceTrackName: string;
+  selectionLabel: string;
   onPreviewScopeChange?: (scope: "source" | "all-tracks") => void;
   onCut: () => void;
   onCopy: () => void;
@@ -23,7 +23,7 @@ export function SelectionActionPopover(props: SelectionActionPopoverProps) {
       onPointerDown={(event) => event.stopPropagation()}
       onPointerLeave={() => props.onPreviewScopeChange?.("source")}
     >
-      <div className="timeline-actions-popover-label">Source Track: {props.sourceTrackName}</div>
+      <div className="timeline-actions-popover-label">Selection: {props.selectionLabel}</div>
       <button
         type="button"
         onPointerEnter={() => props.onPreviewScopeChange?.("source")}

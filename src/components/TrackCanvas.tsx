@@ -41,6 +41,7 @@ import {
   getTrackAutomationPoints,
   getTrackMacroLane
 } from "@/lib/macroAutomation";
+import { PRIMARY_POINTER_BUTTON, SECONDARY_POINTER_BUTTON } from "@/lib/inputConstants";
 import { createDefaultPlacedNote } from "@/lib/noteDefaults";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { getNoteSelectionKey } from "@/lib/noteClipboard";
@@ -127,11 +128,7 @@ interface TrackCanvasProps {
   ghostPlayheadBeat?: number;
   countInLabel?: string;
   timelineActionsPopoverOpen?: boolean;
-  selectedNoteKeys?: ReadonlySet<string>;
-  selectionBeatRange?: { startBeat: number; endBeat: number } | null;
-  selectionSourceTrackId?: string;
-  selectionSourceTrackName?: string;
-  selectionIndicatorTrackId?: string;
+  selection: TrackCanvasSelection;
   hideSelectionActionPopover?: boolean;
   onSetPlayheadBeat: (beat: number) => void;
   onRequestTimelineActionsPopover: (request: TimelineActionsPopoverRequest) => void;
@@ -175,6 +172,7 @@ interface TrackCanvasProps {
   onUpdateNote: (trackId: string, noteId: string, patch: Partial<Note>, options?: { actionKey?: string; coalesce?: boolean }) => void;
   onDeleteNote: (trackId: string, noteId: string) => void;
   onSetNoteSelection: (selectionKeys: string[]) => void;
+  onSetTimelineSelectionBeatRange: (range: { startBeat: number; endBeat: number; beatSpan: number } | null) => void;
   onSetSelectionMarqueeActive: (active: boolean) => void;
   onPreviewSelectionActionScopeChange: (scope: "source" | "all-tracks") => void;
   onCopySelection: () => void;
@@ -184,6 +182,24 @@ interface TrackCanvasProps {
   onCutAllTracksInSelection: () => void;
   onDeleteAllTracksInSelection: () => void;
 }
+
+type SelectionBeatRange = { startBeat: number; endBeat: number; beatSpan: number };
+
+export type TrackCanvasSelection =
+  | { kind: "none" }
+  | {
+      kind: "note";
+      selectedNoteKeys: ReadonlySet<string>;
+      beatRange: SelectionBeatRange;
+      label: string;
+      markerTrackId: string;
+    }
+  | {
+      kind: "timeline";
+      beatRange: SelectionBeatRange;
+      label: string;
+      markerTrackId: string;
+    };
 
 interface DragState {
   trackId: string;
@@ -209,13 +225,20 @@ interface SelectionRect {
   endY: number;
 }
 
-interface PendingCanvasAction {
-  trackId: string;
-  startX: number;
-  startY: number;
-  beat: number;
-  pointerId: number;
-}
+type PendingCanvasAction =
+  | {
+      kind: "track";
+      trackId: string;
+      startX: number;
+      startY: number;
+      beat: number;
+      pointerId: number;
+    }
+  | {
+      kind: "ruler";
+      startBeat: number;
+      pointerId: number;
+    };
 
 interface AutomationLaneLayout {
   macroId: string;
@@ -442,12 +465,16 @@ export function TrackCanvas(props: TrackCanvasProps) {
   } = useVolumePopover();
 
   const meterBeats = props.project.global.meter === "4/4" ? 4 : 3;
+  const selectionBeatRange = props.selection.kind === "none" ? null : props.selection.beatRange;
+  const selectionLabel = props.selection.kind === "none" ? null : props.selection.label;
+  const selectionMarkerTrackId = props.selection.kind === "none" ? null : props.selection.markerTrackId;
+  const selectedNoteKeys = props.selection.kind === "note" ? props.selection.selectedNoteKeys : undefined;
   const selectedTrack = props.project.tracks.find((track) => track.id === props.selectedTrackId) ?? null;
   const selectedPatch = selectedTrack
     ? props.project.patches.find((patch) => patch.id === selectedTrack.instrumentPatchId) ?? null
     : null;
-  const selectionPopoverLeft = props.selectionBeatRange
-    ? HEADER_WIDTH + props.selectionBeatRange.endBeat * BEAT_WIDTH + 14
+  const selectionPopoverLeft = selectionBeatRange
+    ? HEADER_WIDTH + selectionBeatRange.endBeat * BEAT_WIDTH + 14
     : 0;
   const selectionPopoverTop = 10;
 
@@ -596,6 +623,18 @@ export function TrackCanvas(props: TrackCanvasProps) {
     props.onSetNoteSelection(selectedKeys);
   }, [props]);
 
+  const updateTimelineSelectionFromRuler = useCallback((startBeat: number, endBeat: number) => {
+    const orderedStartBeat = Math.min(startBeat, endBeat);
+    const orderedEndBeat = Math.max(startBeat, endBeat);
+    const beatSpan = orderedEndBeat - orderedStartBeat;
+    props.onSetSelectionMarqueeActive(beatSpan > 0);
+    props.onSetTimelineSelectionBeatRange(
+      beatSpan > 0
+        ? { startBeat: orderedStartBeat, endBeat: orderedEndBeat, beatSpan }
+        : null
+    );
+  }, [props]);
+
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -703,7 +742,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const noteH = TRACK_HEIGHT - 28;
         const overlaps = overlapNoteIds.has(note.id);
         const isHovered = hoveredNote?.trackId === track.id && hoveredNote.noteId === note.id;
-        const noteSelected = props.selectedNoteKeys?.has(getNoteSelectionKey(track.id, note.id)) ?? false;
+        const noteSelected = selectedNoteKeys?.has(getNoteSelectionKey(track.id, note.id)) ?? false;
 
         const noteFill = overlaps
           ? trackSilenced
@@ -883,9 +922,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
       }
     });
 
-    if (props.selectionBeatRange) {
-      const startX = HEADER_WIDTH + props.selectionBeatRange.startBeat * BEAT_WIDTH;
-      const endX = HEADER_WIDTH + props.selectionBeatRange.endBeat * BEAT_WIDTH;
+    if (selectionBeatRange) {
+      const startX = HEADER_WIDTH + selectionBeatRange.startBeat * BEAT_WIDTH;
+      const endX = HEADER_WIDTH + selectionBeatRange.endBeat * BEAT_WIDTH;
       ctx.strokeStyle = TRACK_CANVAS_COLORS.selectionBoundary;
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -896,8 +935,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
       ctx.stroke();
     }
 
-    if (props.selectionBeatRange && !selectionRect && !props.hideSelectionActionPopover && props.selectionIndicatorTrackId) {
-      const indicatorTrackLayout = trackLayouts.find((track) => track.trackId === props.selectionIndicatorTrackId);
+    if (selectionBeatRange && !selectionRect && !props.hideSelectionActionPopover && selectionMarkerTrackId) {
+      const indicatorTrackLayout = trackLayouts.find((track) => track.trackId === selectionMarkerTrackId);
       if (indicatorTrackLayout) {
         const indicatorY = indicatorTrackLayout.y;
         ctx.strokeStyle = TRACK_CANVAS_COLORS.selectionSourceIndicator;
@@ -944,9 +983,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
     props.project.global.loop,
     props.project.patches,
     props.project.tracks,
-    props.selectionBeatRange,
-    props.selectionIndicatorTrackId,
-    props.selectedNoteKeys,
+    props.selection.kind,
+    selectedNoteKeys,
+    selectionBeatRange,
+    selectionMarkerTrackId,
     props.selectedTrackId,
     selectionRect,
     speakerIconsReady,
@@ -1005,7 +1045,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     const targets = resolvePointerTargets(x, y);
     const automationKeyframe = findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y);
     const automationLaneHit = targets.automationLaneHit;
-    const hasActiveSelection = Boolean(props.selectedNoteKeys?.size);
+    const hasActiveSelection = Boolean(selectedNoteKeys?.size) || props.selection.kind === "timeline";
 
     // TODO: If TrackCanvas keeps growing, extract a dedicated canvas interaction layer
     // that centralizes hit resolution, cursor selection, and primary-pointer dispatch.
@@ -1032,6 +1072,19 @@ export function TrackCanvas(props: TrackCanvasProps) {
           clientY: event.clientY
         });
         setCanvasCursor("pointer");
+        return;
+      }
+
+      if (event.button === PRIMARY_POINTER_BUTTON) {
+        props.onSetNoteSelection([]);
+        props.onSetTimelineSelectionBeatRange(null);
+        pendingCanvasActionRef.current = {
+          kind: "ruler",
+          startBeat: Math.max(0, snapToGrid(beatFromX(x), props.project.global.gridBeats)),
+          pointerId: event.pointerId
+        };
+        props.onSetSelectionMarqueeActive(false);
+        canvas.setPointerCapture(event.pointerId);
         return;
       }
 
@@ -1076,14 +1129,14 @@ export function TrackCanvas(props: TrackCanvasProps) {
       return;
     }
 
-    if (targets.hoverTarget === "pitch" && targets.pitchRect && event.button === 0) {
+    if (targets.hoverTarget === "pitch" && targets.pitchRect && event.button === PRIMARY_POINTER_BUTTON) {
       props.onSetNoteSelection([getNoteSelectionKey(targets.pitchRect.trackId, targets.pitchRect.noteId)]);
       props.onOpenPitchPicker(targets.pitchRect.trackId, targets.pitchRect.noteId);
       setCanvasCursor("pointer");
       return;
     }
 
-    if (event.button === 2) {
+    if (event.button === SECONDARY_POINTER_BUTTON) {
       if (automationKeyframe && automationKeyframe.boundary === null) {
         props.onDeleteTrackMacroAutomationKeyframeSide(
           automationKeyframe.trackId,
@@ -1156,6 +1209,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
 
     pendingCanvasActionRef.current = {
+      kind: "track",
       trackId: track.id,
       startX: x,
       startY: y,
@@ -1281,16 +1335,25 @@ export function TrackCanvas(props: TrackCanvasProps) {
       return;
     }
     if (!drag && pendingAction) {
-      const movedFarEnough =
-        Math.abs(x - pendingAction.startX) >= 4 || Math.abs(y - pendingAction.startY) >= 4;
-      if (movedFarEnough) {
-        updateSelectionFromRect({
-          startX: pendingAction.startX,
-          startY: pendingAction.startY,
-          endX: x,
-          endY: y
-        });
-        setCanvasCursor("default");
+      if (pendingAction.kind === "track") {
+        const movedFarEnough =
+          Math.abs(x - pendingAction.startX) >= 4 || Math.abs(y - pendingAction.startY) >= 4;
+        if (movedFarEnough) {
+          updateSelectionFromRect({
+            startX: pendingAction.startX,
+            startY: pendingAction.startY,
+            endX: x,
+            endY: y
+          });
+          setCanvasCursor("default");
+        }
+      } else {
+        const startX = HEADER_WIDTH + pendingAction.startBeat * BEAT_WIDTH;
+        if (Math.abs(x - startX) >= 4) {
+          const currentBeat = Math.max(0, snapToGrid(beatFromX(x), props.project.global.gridBeats));
+          updateTimelineSelectionFromRuler(pendingAction.startBeat, currentBeat);
+          setCanvasCursor("default");
+        }
       }
       return;
     }
@@ -1378,6 +1441,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     const hadAutomationDrag = Boolean(automationDrag);
     const pendingAction = pendingCanvasActionRef.current;
     const pendingAutomationAction = pendingAutomationActionRef.current;
+    const { x, y } = getCanvasPoint(event.clientX, event.clientY);
     if (canvasRef.current && (dragRef.current || pendingAction || automationDragRef.current || pendingAutomationAction)) {
       try {
         canvasRef.current.releasePointerCapture(event.pointerId);
@@ -1393,10 +1457,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
       setCanvasCursor("default");
       return;
     }
-    const { x, y } = getCanvasPoint(event.clientX, event.clientY);
 
     const hadSelectionRect = Boolean(selectionRect);
-    if (pendingAction && !hadSelectionRect) {
+    if (pendingAction?.kind === "track" && !hadSelectionRect) {
       const newNote = createDefaultPlacedNote(pendingAction.beat, props.project.global.gridBeats);
       props.onUpsertNote(pendingAction.trackId, newNote, {
         actionKey: `track:${pendingAction.trackId}:note:${newNote.id}:create`
@@ -1451,6 +1514,15 @@ export function TrackCanvas(props: TrackCanvasProps) {
       }
     }
 
+    if (pendingAction?.kind === "ruler") {
+      const beat = Math.max(0, snapToGrid(beatFromX(x), props.project.global.gridBeats));
+      if (!selectionBeatRange) {
+        props.onSetPlayheadBeat(beat);
+      } else {
+        props.onPreviewSelectionActionScopeChange("all-tracks");
+      }
+    }
+
     pendingCanvasActionRef.current = null;
     pendingAutomationActionRef.current = null;
     setSelectionRect(null);
@@ -1487,7 +1559,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   };
 
   const onDoubleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (event.button !== 0) {
+    if (event.button !== PRIMARY_POINTER_BUTTON) {
       return;
     }
     const { x, y } = getCanvasPoint(event.clientX, event.clientY);
@@ -1698,11 +1770,11 @@ export function TrackCanvas(props: TrackCanvasProps) {
         onDoubleClick={onDoubleClick}
         onContextMenu={(event) => event.preventDefault()}
       />
-      {props.selectionBeatRange && !selectionRect && !props.hideSelectionActionPopover && (
+      {selectionBeatRange && !selectionRect && !props.hideSelectionActionPopover && (
         <SelectionActionPopover
           left={selectionPopoverLeft}
           top={selectionPopoverTop}
-          sourceTrackName={props.selectionSourceTrackName ?? "Track 1"}
+          selectionLabel={selectionLabel ?? (props.selection.kind === "timeline" ? "All Tracks" : "Track 1")}
           onPreviewScopeChange={props.onPreviewSelectionActionScopeChange}
           onCut={props.onCutSelection}
           onCopy={props.onCopySelection}

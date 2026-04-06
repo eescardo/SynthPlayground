@@ -12,14 +12,14 @@ interface UseEditorKeyboardShortcutsParams {
   applyNoteClipboardPaste: (pasteAction: NoteClipboardPasteAction, beat: number) => void;
   copyAllTracksInSelection: () => Promise<void>;
   cutAllTracksInSelection: () => Promise<void>;
+  deletePrimarySelection: () => void;
   deleteAllTracksInSelection: () => void;
-  deleteSelectedNoteSelection: () => void;
+  hasPrimarySelection: boolean;
   isDeleteShortcutKey: (key: string) => boolean;
   onCloseTransientUi: () => void;
   onOpenHelp: () => void;
   playheadBeat: number;
   redoProject: () => void;
-  selectedNoteCount: number;
   undoProject: () => void;
 }
 
@@ -27,14 +27,14 @@ export function useEditorKeyboardShortcuts({
   applyNoteClipboardPaste,
   copyAllTracksInSelection,
   cutAllTracksInSelection,
+  deletePrimarySelection,
   deleteAllTracksInSelection,
-  deleteSelectedNoteSelection,
+  hasPrimarySelection,
   isDeleteShortcutKey,
   onCloseTransientUi,
   onOpenHelp,
   playheadBeat,
   redoProject,
-  selectedNoteCount,
   undoProject
 }: UseEditorKeyboardShortcutsParams) {
   useEffect(() => {
@@ -109,9 +109,9 @@ export function useEditorKeyboardShortcuts({
         return;
       }
 
-      if (!primaryModifier && !event.altKey && !event.shiftKey && isDeleteKey && selectedNoteCount > 0) {
+      if (!primaryModifier && !event.altKey && !event.shiftKey && isDeleteKey && hasPrimarySelection) {
         event.preventDefault();
-        deleteSelectedNoteSelection();
+        deletePrimarySelection();
       }
     };
 
@@ -121,14 +121,14 @@ export function useEditorKeyboardShortcuts({
     applyNoteClipboardPaste,
     copyAllTracksInSelection,
     cutAllTracksInSelection,
+    deletePrimarySelection,
     deleteAllTracksInSelection,
-    deleteSelectedNoteSelection,
+    hasPrimarySelection,
     isDeleteShortcutKey,
     onCloseTransientUi,
     onOpenHelp,
     playheadBeat,
     redoProject,
-    selectedNoteCount,
     undoProject
   ]);
 }

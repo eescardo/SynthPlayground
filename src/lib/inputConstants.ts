@@ -1,0 +1,3 @@
+export const PRIMARY_POINTER_BUTTON = 0;
+export const MIDDLE_POINTER_BUTTON = 1;
+export const SECONDARY_POINTER_BUTTON = 2;
