@@ -297,6 +297,7 @@ select {
   flex-direction: column;
   gap: 0.45rem;
   min-width: 190px;
+  max-width: 240px;
   padding: 0.7rem;
   border-radius: 10px;
   border: 1px solid rgba(255, 145, 171, 0.42);
@@ -311,6 +312,8 @@ select {
   gap: 0.35rem;
   color: var(--muted);
   font-size: 0.85rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .timeline-actions-popover-divider {

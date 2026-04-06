@@ -173,6 +173,18 @@ export default function HomePage() {
   const selectedNoteKeySet = useMemo(() => new Set(selectedNoteKeys), [selectedNoteKeys]);
   const noteSelectionBeatRange = useMemo(() => getSelectionBeatRange(project, selectedNoteKeys), [project, selectedNoteKeys]);
   const hasTimelineRangeSelection = Boolean(timelineSelectionBeatRange);
+  const noteSelectionTrackLabel = useMemo(() => {
+    const selectedTrackIds = project.tracks
+      .filter((track) => track.notes.some((note) => selectedNoteKeySet.has(getNoteSelectionKey(track.id, note.id))))
+      .map((track) => track.name);
+    if (selectedTrackIds.length === 0) {
+      return "Track 1";
+    }
+    if (selectedTrackIds.length === 1) {
+      return selectedTrackIds[0];
+    }
+    return `${selectedTrackIds[0]}-${selectedTrackIds[selectedTrackIds.length - 1]}`;
+  }, [project.tracks, selectedNoteKeySet]);
   const noteSelectionSourceTrackId = useMemo(
     () => getSelectionSourceTrackId(project, selectedNoteKeys),
     [project, selectedNoteKeys]
@@ -191,7 +203,7 @@ export default function HomePage() {
         kind: "note",
         selectedNoteKeys: selectedNoteKeySet,
         beatRange: noteSelectionBeatRange,
-        label: project.tracks.find((track) => track.id === noteSelectionSourceTrackId)?.name ?? "Track 1",
+        label: noteSelectionTrackLabel,
         markerTrackId:
           selectionActionScopePreview === "all-tracks"
             ? project.tracks[0]?.id ?? noteSelectionSourceTrackId
@@ -201,6 +213,7 @@ export default function HomePage() {
     return { kind: "none" };
   }, [
     noteSelectionBeatRange,
+    noteSelectionTrackLabel,
     noteSelectionSourceTrackId,
     project.tracks,
     selectedNoteKeySet,
