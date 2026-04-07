@@ -51,6 +51,7 @@ import {
   TrackLayout
 } from "@/components/trackCanvasTypes";
 import { useTrackCanvasLayout } from "@/components/useTrackCanvasLayout";
+import { useTrackCanvasWheelPitchEditing } from "@/components/useTrackCanvasWheelPitchEditing";
 import { useVolumePopover } from "@/hooks/useVolumePopover";
 import { getLoopMarkerStates } from "@/lib/looping";
 import {
@@ -63,7 +64,6 @@ import { PRIMARY_POINTER_BUTTON, SECONDARY_POINTER_BUTTON } from "@/lib/inputCon
 import { createDefaultPlacedNote } from "@/lib/noteDefaults";
 import { getNoteSelectionKey } from "@/lib/noteClipboard";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
-import { midiToPitch, pitchToMidi } from "@/lib/pitch";
 import { formatBeatName, snapToGrid } from "@/lib/musicTiming";
 import { Note, Track } from "@/types/music";
 export type { TimelineActionsPopoverRequest, TrackCanvasProps, TrackCanvasSelection } from "@/components/trackCanvasTypes";
@@ -294,10 +294,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
     normal: null,
     muted: null
   });
-  const wheelPitchLockUntilRef = useRef(0);
-  const wheelLockedScrollTopRef = useRef(0);
-  const wheelLockedScrollLeftRef = useRef(0);
-  const wheelLockTimerRef = useRef<number | null>(null);
   const [hoveredPitch, setHoveredPitch] = useState<{ trackId: string; noteId: string } | null>(null);
   const [hoveredNote, setHoveredNote] = useState<{ trackId: string; noteId: string } | null>(null);
   const [hoveredAutomationKeyframe, setHoveredAutomationKeyframe] = useState<{ trackId: string; macroId: string; keyframeId: string; side: AutomationKeyframeSide } | null>(null);
@@ -353,7 +349,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const beatFromX = (x: number) => (x - HEADER_WIDTH) / BEAT_WIDTH;
   const isTrackSilenced = useCallback((track: Track) => track.mute || isTrackVolumeMuted(track.volume), []);
 
-  const getCanvasPoint = (clientX: number, clientY: number) => {
+  const getCanvasPoint = useCallback((clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
     if (!canvas) {
       return { x: 0, y: 0 };
@@ -365,7 +361,15 @@ export function TrackCanvas(props: TrackCanvasProps) {
       x: (clientX - rect.left) * scaleX,
       y: (clientY - rect.top) * scaleY
     };
-  };
+  }, []);
+
+  useTrackCanvasWheelPitchEditing({
+    wrapperRef,
+    pitchRectsRef,
+    tracks: project.tracks,
+    getCanvasPoint,
+    onUpdateNote
+  });
 
   const getTrackLayoutAtY = useCallback((y: number): TrackLayout | null => {
     if (y < RULER_HEIGHT) {
@@ -1391,79 +1395,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
       automationKeyframe.keyframeId
     );
   };
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const wrapper = wrapperRef.current;
-    if (!canvas || !wrapper) return;
-
-    const engageWheelLock = (now: number) => {
-      const wasUnlocked = now >= wheelPitchLockUntilRef.current;
-      wheelPitchLockUntilRef.current = now + 420;
-      if (wasUnlocked) {
-        wheelLockedScrollTopRef.current = wrapper.scrollTop;
-        wheelLockedScrollLeftRef.current = wrapper.scrollLeft;
-      }
-      wrapper.style.overflowX = "hidden";
-
-      if (wheelLockTimerRef.current !== null) {
-        window.clearTimeout(wheelLockTimerRef.current);
-      }
-      wheelLockTimerRef.current = window.setTimeout(() => {
-        wrapper.style.overflowX = "auto";
-        wheelLockTimerRef.current = null;
-      }, 440);
-    };
-
-    const onWheelNative = (event: WheelEvent) => {
-      const now = performance.now();
-      const { x, y } = getCanvasPoint(event.clientX, event.clientY);
-      const hitPitch = findPitchRect(pitchRectsRef.current, x, y);
-      const shouldLockScroll = now < wheelPitchLockUntilRef.current;
-      if (!hitPitch && !shouldLockScroll) return;
-
-      event.stopPropagation();
-      engageWheelLock(now);
-      wrapper.scrollTop = wheelLockedScrollTopRef.current;
-      wrapper.scrollLeft = wheelLockedScrollLeftRef.current;
-      if (!hitPitch) return;
-
-      const track = project.tracks.find((entry) => entry.id === hitPitch.trackId);
-      const note = track?.notes.find((entry) => entry.id === hitPitch.noteId);
-      if (!note) return;
-
-      let midi = 60;
-      try {
-        midi = pitchToMidi(note.pitchStr);
-      } catch {
-        return;
-      }
-      const semitone = event.deltaY < 0 ? 1 : -1;
-      const nextPitch = midiToPitch(Math.max(21, Math.min(108, midi + semitone)));
-      onUpdateNote(hitPitch.trackId, hitPitch.noteId, { pitchStr: nextPitch }, {
-        actionKey: `track:${hitPitch.trackId}:pitch:${hitPitch.noteId}`
-      });
-    };
-
-    const onScrollNative = () => {
-      if (performance.now() < wheelPitchLockUntilRef.current) {
-        wrapper.scrollTop = wheelLockedScrollTopRef.current;
-        wrapper.scrollLeft = wheelLockedScrollLeftRef.current;
-      }
-    };
-
-    wrapper.addEventListener("wheel", onWheelNative, { passive: false, capture: true });
-    wrapper.addEventListener("scroll", onScrollNative, { capture: true });
-    return () => {
-      wrapper.removeEventListener("wheel", onWheelNative, true);
-      wrapper.removeEventListener("scroll", onScrollNative, true);
-      if (wheelLockTimerRef.current !== null) {
-        window.clearTimeout(wheelLockTimerRef.current);
-        wheelLockTimerRef.current = null;
-      }
-      wrapper.style.overflowX = "auto";
-    };
-  }, [onUpdateNote, project.tracks]);
 
   return (
     <div className="track-canvas-shell" ref={wrapperRef}>
