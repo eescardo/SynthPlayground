@@ -8,7 +8,7 @@ import {
   TRACK_VOLUME_RANGE
 } from "./synth-worklet-constants.js";
 import { clamp, dbToGain, onePoleStep, smoothingAlpha } from "./synth-worklet-math.js";
-import { NODE_PROCESSORS, processDefaultNode } from "./synth-worklet-node-processors.js";
+import { getNodeProcessor } from "./synth-worklet-node-processors.js";
 
 const BaseAudioWorkletProcessor = globalThis.AudioWorkletProcessor || class {
   constructor() {
@@ -59,6 +59,18 @@ export class TrackRuntime {
     this.zeroBuffer = new Float32Array(blockSize);
     this.compiled = this.compilePatch(patch);
     this.voices = new Array(MAX_VOICES).fill(0).map(() => new VoiceState(this.compiled.signalCount, blockSize));
+    this.nodeRenderContext = {
+      runtime: this,
+      voice: null,
+      runtimeNode: null,
+      signalBuffers: null,
+      startFrame: 0,
+      endFrame: 0,
+      out: null,
+      read: null,
+      hostPitchBuffer: null,
+      hostGateBuffer: null
+    };
     this.trackBuffer = new Float32Array(blockSize);
     this.delayState = {
       buf: new Float32Array(sampleRate * 3),
@@ -174,36 +186,20 @@ export class TrackRuntime {
     const fallbackOutputSignalIndex = ensureOutputIndex(outputNodeId, "out");
     const outputSignalIndex = outputPortId === "out" ? fallbackOutputSignalIndex : -1;
     const outputInputSourceSignalIndex = inputSourceByDestKey.get(`${outputNodeId}:${outputPortId}`) ?? -1;
+    const createRuntimeNode = (id, typeId, params, outIndex, inputs) => ({
+      id,
+      typeId,
+      params,
+      outIndex,
+      inputs,
+      processor: getNodeProcessor(typeId)
+    });
 
     const nodeRuntimes = [
-      {
-        id: "$host.pitch",
-        typeId: "NotePitch",
-        params: {},
-        outIndex: hostSignalIndices.pitch,
-        inputs: {}
-      },
-      {
-        id: "$host.gate",
-        typeId: "NoteGate",
-        params: {},
-        outIndex: hostSignalIndices.gate,
-        inputs: {}
-      },
-      {
-        id: "$host.velocity",
-        typeId: "NoteVelocity",
-        params: {},
-        outIndex: hostSignalIndices.velocity,
-        inputs: {}
-      },
-      {
-        id: "$host.modwheel",
-        typeId: "ModWheel",
-        params: {},
-        outIndex: hostSignalIndices.modWheel,
-        inputs: {}
-      }
+      createRuntimeNode("$host.pitch", "NotePitch", {}, hostSignalIndices.pitch, {}),
+      createRuntimeNode("$host.gate", "NoteGate", {}, hostSignalIndices.gate, {}),
+      createRuntimeNode("$host.velocity", "NoteVelocity", {}, hostSignalIndices.velocity, {}),
+      createRuntimeNode("$host.modwheel", "ModWheel", {}, hostSignalIndices.modWheel, {})
     ];
     for (const nodeId of nodeOrder) {
       const node = nodeById.get(nodeId);
@@ -213,13 +209,13 @@ export class TrackRuntime {
       for (const portId of portsIn) {
         inputIndices[portId] = inputSourceByDestKey.get(`${node.id}:${portId}`) ?? -1;
       }
-      nodeRuntimes.push({
-        id: node.id,
-        typeId: node.typeId,
-        params: node.params || {},
-        outIndex: outputIndexByKey.get(`${node.id}:out`) ?? -1,
-        inputs: inputIndices
-      });
+      nodeRuntimes.push(createRuntimeNode(
+        node.id,
+        node.typeId,
+        node.params || {},
+        outputIndexByKey.get(`${node.id}:out`) ?? -1,
+        inputIndices
+      ));
     }
 
     const paramTargets = new Map();
@@ -441,26 +437,21 @@ export class TrackRuntime {
   // Render one runtime node across a contiguous frame range. Every port read is just
   // a typed-array access into the preallocated signal buffer set for this voice.
   processNodeFrames(voice, runtimeNode, signalBuffers, startFrame, endFrame) {
-    const { typeId, outIndex, inputs } = runtimeNode;
+    const { outIndex, inputs, processor } = runtimeNode;
     const out = signalBuffers[outIndex];
     const hostSignalIndices = this.compiled.hostSignalIndices;
     const read = (portId, fallbackBuffer) => this.getInputBufferOr(signalBuffers, inputs[portId] ?? -1, fallbackBuffer);
-    const processor = NODE_PROCESSORS[typeId];
-    if (!processor) {
-      throw new Error(`No synth worklet processor registered for node type: ${typeId}`);
-    }
-    processor({
-      runtime: this,
-      voice,
-      runtimeNode,
-      signalBuffers,
-      startFrame,
-      endFrame,
-      out,
-      read,
-      hostPitchBuffer: signalBuffers[hostSignalIndices.pitch],
-      hostGateBuffer: signalBuffers[hostSignalIndices.gate]
-    });
+    const context = this.nodeRenderContext;
+    context.voice = voice;
+    context.runtimeNode = runtimeNode;
+    context.signalBuffers = signalBuffers;
+    context.startFrame = startFrame;
+    context.endFrame = endFrame;
+    context.out = out;
+    context.read = read;
+    context.hostPitchBuffer = signalBuffers[hostSignalIndices.pitch];
+    context.hostGateBuffer = signalBuffers[hostSignalIndices.gate];
+    processor(context);
   }
 
   // Render a single voice for the requested frame range by running the compiled node

@@ -106,6 +106,8 @@ function renderProcessorBlock(
   return { left, right };
 }
 
+const sumAbs = (buffer: Float32Array) => buffer.reduce((sum, sample) => sum + Math.abs(sample), 0);
+
 beforeEach(() => {
   const workletGlobal = globalThis as WorkletGlobal;
   delete workletGlobal.AudioWorkletProcessor;
@@ -161,7 +163,7 @@ describe("synth worklet runtime", () => {
     expect(oscParams?.get("pulseWidth")).toBeCloseTo(0.6, 5);
   });
 
-  it("throws when a compiled node type has no registered DSP processor", async () => {
+  it("throws during runtime compilation when a node type has no registered DSP processor", async () => {
     const { TrackRuntime } = await loadRuntimeModule();
 
     const patch = createPatch({
@@ -178,13 +180,74 @@ describe("synth worklet runtime", () => {
       ]
     });
 
-    const runtime = new TrackRuntime(createTrack(), patch, 48000, 128);
-    const mysteryNode = runtime.compiled.nodeRuntimes.find((node) => node.typeId === "MysteryNode");
-
-    expect(mysteryNode).toBeTruthy();
-    expect(() => runtime.processNodeFrames(runtime.voices[0], mysteryNode!, runtime.voices[0].signalBuffers, 0, 1)).toThrow(
+    expect(() => new TrackRuntime(createTrack(), patch, 48000, 128)).toThrow(
       "No synth worklet processor registered for node type: MysteryNode"
     );
+  });
+
+  it("scales track output by track volume and can bypass mute and volume when requested", async () => {
+    const { TrackRuntime } = await loadRuntimeModule();
+
+    const event = { noteId: "note_1", pitchVoct: 0, velocity: 1 };
+    const fullRuntime = new TrackRuntime(createTrack({ volume: 1 }), createPatch(), 48000, 128);
+    const halfRuntime = new TrackRuntime(createTrack({ volume: 0.5 }), createPatch(), 48000, 128);
+    const ignoredRuntime = new TrackRuntime(createTrack({ mute: true, volume: 0.25 }), createPatch(), 48000, 128);
+
+    fullRuntime.noteOn(event, 0);
+    halfRuntime.noteOn(event, 0);
+    ignoredRuntime.noteOn(event, 0);
+
+    const fullBuffer = new Float32Array(128);
+    const halfBuffer = new Float32Array(128);
+    const ignoredBuffer = new Float32Array(128);
+    const bypassedBuffer = new Float32Array(128);
+
+    fullRuntime.processTrackFrames(fullBuffer, 0, 128);
+    halfRuntime.processTrackFrames(halfBuffer, 0, 128);
+    ignoredRuntime.processTrackFrames(ignoredBuffer, 0, 128);
+    ignoredRuntime.processTrackFrames(bypassedBuffer, 0, 128, { ignoreMute: true, ignoreVolume: true });
+
+    expect(sumAbs(fullBuffer)).toBeGreaterThan(0.001);
+    expect(sumAbs(halfBuffer)).toBeCloseTo(sumAbs(fullBuffer) * 0.5, 4);
+    expect(sumAbs(ignoredBuffer)).toBe(0);
+    expect(sumAbs(bypassedBuffer)).toBeGreaterThan(0.001);
+  });
+
+  it("follows ADSR release through the rendered track pipeline", async () => {
+    const { TrackRuntime } = await loadRuntimeModule();
+
+    const patch = createPatch({
+      nodes: [
+        { id: "osc", typeId: "VCO", params: { wave: "sine" } },
+        { id: "env", typeId: "ADSR", params: { attack: 0.001, decay: 0.01, sustain: 0.4, release: 0.02 } },
+        { id: "amp", typeId: "VCA", params: { bias: 0, gain: 1 } },
+        { id: "out", typeId: "Output", params: { gainDb: 0, limiter: false } }
+      ],
+      connections: [
+        { id: "conn_1", from: { nodeId: "osc", portId: "out" }, to: { nodeId: "amp", portId: "in" } },
+        { id: "conn_2", from: { nodeId: "env", portId: "out" }, to: { nodeId: "amp", portId: "gainCV" } },
+        { id: "conn_3", from: { nodeId: "amp", portId: "out" }, to: { nodeId: "out", portId: "in" } }
+      ]
+    });
+
+    const runtime = new TrackRuntime(createTrack(), patch, 48000, 128);
+    runtime.noteOn({ noteId: "note_1", pitchVoct: 0, velocity: 1 }, 0);
+
+    const attackBuffer = new Float32Array(128);
+    runtime.processTrackFrames(attackBuffer, 0, 128);
+
+    runtime.noteOff({ noteId: "note_1" });
+    const releaseBuffers = Array.from({ length: 48 }, () => new Float32Array(128));
+    for (const buffer of releaseBuffers) {
+      runtime.processTrackFrames(buffer, 0, 128);
+    }
+
+    const firstReleaseEnergy = sumAbs(releaseBuffers[0]);
+    const finalReleaseEnergy = sumAbs(releaseBuffers[releaseBuffers.length - 1]);
+
+    expect(sumAbs(attackBuffer)).toBeGreaterThan(0.001);
+    expect(firstReleaseEnergy).toBeGreaterThan(finalReleaseEnergy);
+    expect(finalReleaseEnergy).toBeLessThan(firstReleaseEnergy * 0.05);
   });
 
   it("preview rendering bypasses mute and track volume so auditioning still produces audio", async () => {

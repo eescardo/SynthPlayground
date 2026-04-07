@@ -481,8 +481,10 @@ export const NODE_PROCESSORS = {
   Output: processOutput
 };
 
-export const processDefaultNode = (context) => {
-  const { out, read, startFrame, endFrame } = context;
-  const input = read("in");
-  out.set(input.subarray(startFrame, endFrame), startFrame);
+export const getNodeProcessor = (typeId) => {
+  const processor = NODE_PROCESSORS[typeId];
+  if (!processor) {
+    throw new Error(`No synth worklet processor registered for node type: ${typeId}`);
+  }
+  return processor;
 };
