@@ -32,25 +32,80 @@ const parsePlayheadBeat = (value: string | null): number => {
   return match ? Number(match[1]) : Number.NaN;
 };
 
+const collectPlaybackDiagnostics = async (page: Page) => {
+  const [playheadLabel, runtimeErrors, playDisabled, stopDisabled, nextIssueCount, nextToastText, pageState] = await Promise.all([
+    getPlayhead(page).textContent(),
+    page.locator(".error").allTextContents(),
+    getTransportButton(page, "Play").isDisabled(),
+    getTransportButton(page, "Stop").isDisabled(),
+    page
+      .evaluate(() => {
+        const root = document.querySelector("nextjs-portal")?.shadowRoot;
+        const issues = root?.querySelector("[data-issues-open]");
+        return issues?.textContent?.trim() ?? null;
+      })
+      .catch(() => null),
+    page
+      .evaluate(() => {
+        const root = document.querySelector("nextjs-portal")?.shadowRoot;
+        const toast = root?.querySelector("[data-nextjs-toast]");
+        return toast?.textContent?.trim() ?? null;
+      })
+      .catch(() => null),
+    page.evaluate(() => ({
+      visibilityState: document.visibilityState,
+      hasFocus: document.hasFocus(),
+      userAgent: navigator.userAgent
+    }))
+  ]);
+
+  return {
+    playheadLabel,
+    runtimeErrors,
+    playDisabled,
+    stopDisabled,
+    nextIssueCount,
+    nextToastText,
+    pageState
+  };
+};
+
 const waitForPlaybackToAdvance = async (page: Page) => {
   const initialLabel = await getPlayhead(page).textContent();
   const initialBeat = parsePlayheadBeat(initialLabel);
-  await expect
-    .poll(
-      async () => {
-        const currentLabel = await getPlayhead(page).textContent();
-        const currentBeat = parsePlayheadBeat(currentLabel);
-        if (!Number.isFinite(initialBeat) || !Number.isFinite(currentBeat)) {
-          return false;
+  try {
+    await expect
+      .poll(
+        async () => {
+          const currentLabel = await getPlayhead(page).textContent();
+          const currentBeat = parsePlayheadBeat(currentLabel);
+          if (!Number.isFinite(initialBeat) || !Number.isFinite(currentBeat)) {
+            return false;
+          }
+          return currentBeat > initialBeat + 0.25;
+        },
+        {
+          timeout: playbackStartTimeoutMs,
+          message: `Playback did not advance within ${playbackStartTimeoutMs}ms after pressing Play.`
         }
-        return currentBeat > initialBeat + 0.25;
-      },
-      {
-        timeout: playbackStartTimeoutMs,
-        message: `Playback did not advance within ${playbackStartTimeoutMs}ms after pressing Play.`
-      }
-    )
-    .toBe(true);
+      )
+      .toBe(true);
+  } catch (error) {
+    const diagnostics = await collectPlaybackDiagnostics(page);
+    throw new Error(
+      [
+        (error as Error).message,
+        `Playback diagnostics: ${JSON.stringify(
+          {
+            initialLabel,
+            ...diagnostics
+          },
+          null,
+          2
+        )}`
+      ].join("\n\n")
+    );
+  }
 };
 
 const playQuarterPattern = async (page: Page, key: Locator) => {
