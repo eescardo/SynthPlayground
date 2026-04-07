@@ -27,11 +27,18 @@ const parseRequestedScenarios = (): VideoScenario[] => {
 const run = async () => {
   assertVideoRegistryAligned();
   const requestedScenarios = parseRequestedScenarios();
-  const devServer = startDevServer(port);
+  const devServer = startDevServer(port, {
+    NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO: "1"
+  });
 
   try {
     await waitForServer(baseURL, 120_000);
-    const browser = await chromium.launch({ headless: true });
+    const browser = await chromium.launch({
+      headless: true,
+      // CI video capture runs in headless Chromium, where autoplay policy can
+      // leave Web Audio suspended even after our scripted transport click.
+      args: ["--autoplay-policy=no-user-gesture-required"]
+    });
     try {
       for (const scenario of requestedScenarios) {
         const definition = getVideoScenarioDefinition(scenario);

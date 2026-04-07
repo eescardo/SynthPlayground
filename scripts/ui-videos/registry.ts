@@ -17,6 +17,7 @@ const recordHoldMs = Number(process.env.VIDEO_RECORD_HOLD_MS ?? 500);
 const recordGapMs = Number(process.env.VIDEO_RECORD_GAP_MS ?? 500);
 const recordCycles = Number(process.env.VIDEO_RECORD_CYCLES ?? 5);
 const postActionSettleMs = Number(process.env.VIDEO_POST_ACTION_SETTLE_MS ?? 300);
+const playbackStartTimeoutMs = Number(process.env.VIDEO_PLAYBACK_START_TIMEOUT_MS ?? 2_000);
 const getTransportButton = (page: Page, name: "Play" | "Stop" | "Record") =>
   page.locator(".transport").getByRole("button", { name });
 
@@ -24,6 +25,88 @@ const getRecordingKey = (page: Page, pitch = "C4"): Locator =>
   page.locator(".recording-dock").getByRole("button", { name: new RegExp(`\\b${pitch}\\b`, "i") }).first();
 
 const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canvas");
+const getPlayhead = (page: Page) => page.locator(".playhead");
+
+const parsePlayheadBeat = (value: string | null): number => {
+  const match = value?.match(/Beat\s+([0-9]+(?:\.[0-9]+)?)/i);
+  return match ? Number(match[1]) : Number.NaN;
+};
+
+const collectPlaybackDiagnostics = async (page: Page) => {
+  const [playheadLabel, runtimeErrors, playDisabled, stopDisabled, nextIssueCount, nextToastText, pageState] = await Promise.all([
+    getPlayhead(page).textContent(),
+    page.locator(".error").allTextContents(),
+    getTransportButton(page, "Play").isDisabled(),
+    getTransportButton(page, "Stop").isDisabled(),
+    page
+      .evaluate(() => {
+        const root = document.querySelector("nextjs-portal")?.shadowRoot;
+        const issues = root?.querySelector("[data-issues-open]");
+        return issues?.textContent?.trim() ?? null;
+      })
+      .catch(() => null),
+    page
+      .evaluate(() => {
+        const root = document.querySelector("nextjs-portal")?.shadowRoot;
+        const toast = root?.querySelector("[data-nextjs-toast]");
+        return toast?.textContent?.trim() ?? null;
+      })
+      .catch(() => null),
+    page.evaluate(() => ({
+      visibilityState: document.visibilityState,
+      hasFocus: document.hasFocus(),
+      userAgent: navigator.userAgent
+    }))
+  ]);
+
+  return {
+    playheadLabel,
+    runtimeErrors,
+    playDisabled,
+    stopDisabled,
+    nextIssueCount,
+    nextToastText,
+    pageState
+  };
+};
+
+const waitForPlaybackToAdvance = async (page: Page) => {
+  const initialLabel = await getPlayhead(page).textContent();
+  const initialBeat = parsePlayheadBeat(initialLabel);
+  try {
+    await expect
+      .poll(
+        async () => {
+          const currentLabel = await getPlayhead(page).textContent();
+          const currentBeat = parsePlayheadBeat(currentLabel);
+          if (!Number.isFinite(initialBeat) || !Number.isFinite(currentBeat)) {
+            return false;
+          }
+          return currentBeat > initialBeat + 0.25;
+        },
+        {
+          timeout: playbackStartTimeoutMs,
+          message: `Playback did not advance within ${playbackStartTimeoutMs}ms after pressing Play.`
+        }
+      )
+      .toBe(true);
+  } catch (error) {
+    const diagnostics = await collectPlaybackDiagnostics(page);
+    throw new Error(
+      [
+        (error as Error).message,
+        `Playback diagnostics: ${JSON.stringify(
+          {
+            initialLabel,
+            ...diagnostics
+          },
+          null,
+          2
+        )}`
+      ].join("\n\n")
+    );
+  }
+};
 
 const playQuarterPattern = async (page: Page, key: Locator) => {
   for (let cycle = 0; cycle < recordCycles; cycle += 1) {
@@ -42,9 +125,8 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await openApp(page);
       await applySelectionReviewFraming(page);
       await getTransportButton(page, "Play").click();
+      await waitForPlaybackToAdvance(page);
       await page.waitForTimeout(playbackDurationMs);
-      await getTransportButton(page, "Stop").click();
-      await page.waitForTimeout(postActionSettleMs);
     }
   },
   [VIDEO_SCENARIO.RECORD_FROM_START_8S]: {
@@ -99,9 +181,8 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await canvas.click({ position: { x: 600, y: 128 } });
       await page.waitForTimeout(postActionSettleMs);
       await getTransportButton(page, "Play").click();
+      await waitForPlaybackToAdvance(page);
       await page.waitForTimeout(playbackDurationMs);
-      await getTransportButton(page, "Stop").click();
-      await page.waitForTimeout(postActionSettleMs);
     }
   }
 };
