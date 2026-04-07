@@ -7,6 +7,7 @@ import {
   buildAllTracksClipboardPayload,
   buildNoteClipboardPayload,
   cutBeatRangeAcrossAllTracks,
+  eraseAutomationInRangeForTracks,
   getNoteSelectionKey,
   getSelectionSourceTrackId,
   getSelectionBeatRange,
@@ -38,8 +39,19 @@ const createProject = (): Project => ({
         { id: "note_a", pitchStr: "C4", startBeat: 1, durationBeats: 2, velocity: 0.8 },
         { id: "note_b", pitchStr: "E4", startBeat: 5, durationBeats: 1, velocity: 0.7 }
       ],
-      macroValues: {},
-      macroAutomations: {},
+      macroValues: { macro_cutoff: 0.2 },
+      macroAutomations: {
+        macro_cutoff: {
+          macroId: "macro_cutoff",
+          expanded: true,
+          startValue: 0.2,
+          endValue: 0.3,
+          keyframes: [
+            { id: "cutoff_a", beat: 2, type: "whole", value: 0.5 },
+            { id: "cutoff_b", beat: 5, type: "whole", value: 0.8 }
+          ]
+        }
+      },
       macroPanelExpanded: true,
       volume: 1,
       fx: {
@@ -60,8 +72,19 @@ const createProject = (): Project => ({
       notes: [
         { id: "note_c", pitchStr: "G4", startBeat: 2, durationBeats: 2, velocity: 0.9 }
       ],
-      macroValues: {},
-      macroAutomations: {},
+      macroValues: { macro_cutoff: 0.4 },
+      macroAutomations: {
+        macro_cutoff: {
+          macroId: "macro_cutoff",
+          expanded: true,
+          startValue: 0.4,
+          endValue: 0.6,
+          keyframes: [
+            { id: "cutoff_c", beat: 3, type: "whole", value: 0.7 },
+            { id: "cutoff_d", beat: 6, type: "whole", value: 0.2 }
+          ]
+        }
+      },
       macroPanelExpanded: true,
       volume: 1,
       fx: {
@@ -122,6 +145,11 @@ describe("noteClipboard", () => {
     expect(payload?.tracks).toHaveLength(2);
     expect(payload?.tracks[0].notes[0]).toMatchObject({ pitchStr: "C4", startBeat: 0, durationBeats: 2 });
     expect(payload?.tracks[1].notes[0]).toMatchObject({ pitchStr: "G4", startBeat: 1, durationBeats: 2 });
+    expect(payload?.tracks[0].automationLanes[0]).toMatchObject({
+      macroId: "macro_cutoff",
+      startValue: 0.35,
+      endValue: 0.7
+    });
 
     const serialized = serializeNoteClipboardPayload(payload!);
     expect(serialized.html).toContain("data-synth=");
@@ -171,6 +199,12 @@ describe("noteClipboard", () => {
       startBeat: 8,
       durationBeats: 1
     });
+    expect(destinationTrack.macroAutomations.macro_cutoff.keyframes).toEqual([
+      expect.objectContaining({ beat: 3, type: "whole", value: 0.7 }),
+      expect.objectContaining({ beat: 4, type: "split", incomingValue: 0.5333333333333333, outgoingValue: 0.35 }),
+      expect.objectContaining({ beat: 5, type: "whole", value: 0.5 }),
+      expect.objectContaining({ beat: 7, type: "split", incomingValue: 0.7, outgoingValue: 0.3333333333333333 })
+    ]);
   });
 
   it("copies the full selected time span across all tracks", () => {
@@ -230,6 +264,30 @@ describe("noteClipboard", () => {
       { id: "loop_start_before", kind: "start", beat: 0, repeatCount: undefined },
       { id: "loop_end_after", kind: "end", beat: 5, repeatCount: 2 }
     ]);
+    expect(next.tracks[0]!.macroAutomations.macro_cutoff.keyframes).toEqual([
+      expect.objectContaining({ beat: 1, type: "split", incomingValue: 0.35, outgoingValue: 0.7 }),
+      expect.objectContaining({ beat: 2, type: "whole", value: 0.8 })
+    ]);
+    expect(next.tracks[1]!.macroAutomations.macro_cutoff.keyframes).toEqual([
+      expect.objectContaining({ beat: 1, type: "split", incomingValue: 0.5, outgoingValue: 0.5333333333333333 }),
+      expect.objectContaining({ beat: 3, type: "whole", value: 0.2 })
+    ]);
+  });
+
+  it("erases automation in-place for selected note tracks without closing the timeline gap", () => {
+    const project = createProject();
+    const next = eraseAutomationInRangeForTracks(project, {
+      startBeat: 1,
+      endBeat: 4,
+      beatSpan: 3
+    }, ["track_1"]);
+
+    expect(next.tracks[0]!.macroAutomations.macro_cutoff.keyframes).toEqual([
+      expect.objectContaining({ beat: 1, type: "whole", value: 0.35 }),
+      expect.objectContaining({ beat: 4, type: "whole", value: 0.7 }),
+      expect.objectContaining({ beat: 5, type: "whole", value: 0.8 })
+    ]);
+    expect(next.tracks[1]!.macroAutomations.macro_cutoff.keyframes).toEqual(project.tracks[1]!.macroAutomations.macro_cutoff.keyframes);
   });
 
   it("inserts clipboard contents by shifting later notes to the right", () => {

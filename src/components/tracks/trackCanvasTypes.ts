@@ -8,6 +8,7 @@ export type TrackCanvasSelection =
   | {
       kind: "note";
       selectedNoteKeys: ReadonlySet<string>;
+      selectedAutomationKeyframeKeys: ReadonlySet<string>;
       beatRange: SelectionBeatRange;
       label: string;
       markerTrackId: string;
@@ -82,7 +83,7 @@ export interface TrackCanvasNoteActions {
 }
 
 export interface TrackCanvasSelectionActions {
-  onSetNoteSelection: (selectionKeys: string[]) => void;
+  onSetContentSelection: (noteSelectionKeys: string[], automationSelectionKeys: string[]) => void;
   onSetTimelineSelectionBeatRange: (range: SelectionBeatRange | null) => void;
   onSetSelectionMarqueeActive: (active: boolean) => void;
   onPreviewSelectionActionScopeChange: (scope: "source" | "all-tracks") => void;

@@ -9,6 +9,8 @@ import {
   buildAllTracksClipboardPayload,
   buildNoteClipboardPayload,
   cutBeatRangeAcrossAllTracks,
+  deleteSelectedAutomationKeyframes,
+  eraseAutomationInRangeForTracks,
   NoteClipboardPayload,
   parseNoteSelectionKey
 } from "@/lib/noteClipboard";
@@ -27,10 +29,12 @@ interface UseSelectionClipboardActionsParams {
   commitProjectChange: CommitProjectChange;
   noteClipboardPayload: NoteClipboardPayload | null;
   project: Project;
+  selectedAutomationKeyframeKeys: string[];
   selectedNoteKeys: string[];
   selectedTrackId?: string;
   selectionBeatRange: BeatRange | null;
   setPlayheadFromUser: (beat: number) => void;
+  setSelectedAutomationKeyframeKeys: (selectionKeys: string[]) => void;
   setSelectedNoteKeys: (selectionKeys: string[]) => void;
   writeClipboardPayload: (payload: NoteClipboardPayload) => Promise<void>;
 }
@@ -41,20 +45,26 @@ export function useSelectionClipboardActions({
   commitProjectChange,
   noteClipboardPayload,
   project,
+  selectedAutomationKeyframeKeys,
   selectedNoteKeys,
   selectedTrackId,
   selectionBeatRange,
   setPlayheadFromUser,
+  setSelectedAutomationKeyframeKeys,
   setSelectedNoteKeys,
   writeClipboardPayload
 }: UseSelectionClipboardActionsParams) {
-  const deleteSelectedNotes = useCallback((selectionKeys: string[]) => {
-    if (selectionKeys.length === 0) {
+  const deleteSelectedNotes = useCallback((
+    noteSelectionKeys: string[],
+    automationSelectionKeys: string[] = [],
+    options?: { eraseAutomationRange?: BeatRange }
+  ) => {
+    if (noteSelectionKeys.length === 0 && automationSelectionKeys.length === 0) {
       return;
     }
 
     const noteIdsByTrackId = new Map<string, Set<string>>();
-    for (const selectionKey of selectionKeys) {
+    for (const selectionKey of noteSelectionKeys) {
       const parsed = parseNoteSelectionKey(selectionKey);
       if (!parsed) {
         continue;
@@ -64,47 +74,63 @@ export function useSelectionClipboardActions({
       noteIdsByTrackId.set(parsed.trackId, noteIds);
     }
 
-    if (noteIdsByTrackId.size === 0) {
-      return;
-    }
-
     commitProjectChange(
-      (current) => ({
-        ...current,
-        tracks: current.tracks.map((track) => {
-          const noteIds = noteIdsByTrackId.get(track.id);
-          if (!noteIds) {
-            return track;
-          }
-          const nextNotes = track.notes.filter((note) => !noteIds.has(note.id));
-          return nextNotes.length === track.notes.length ? track : { ...track, notes: nextNotes };
-        })
-      }),
+      (current) => {
+        let nextProject = current;
+        if (noteIdsByTrackId.size > 0) {
+          nextProject = {
+            ...nextProject,
+            tracks: nextProject.tracks.map((track) => {
+              const noteIds = noteIdsByTrackId.get(track.id);
+              if (!noteIds) {
+                return track;
+              }
+              const nextNotes = track.notes.filter((note) => !noteIds.has(note.id));
+              return nextNotes.length === track.notes.length ? track : { ...track, notes: nextNotes };
+            })
+          };
+        }
+
+        if (options?.eraseAutomationRange && noteIdsByTrackId.size > 0) {
+          nextProject = eraseAutomationInRangeForTracks(nextProject, options.eraseAutomationRange, noteIdsByTrackId.keys());
+        }
+
+        if (automationSelectionKeys.length > 0) {
+          nextProject = deleteSelectedAutomationKeyframes(nextProject, automationSelectionKeys);
+        }
+
+        return nextProject;
+      },
       { actionKey: "notes:cut-selection" }
     );
     setSelectedNoteKeys([]);
-  }, [commitProjectChange, setSelectedNoteKeys]);
+    setSelectedAutomationKeyframeKeys([]);
+  }, [commitProjectChange, setSelectedAutomationKeyframeKeys, setSelectedNoteKeys]);
 
   const copySelectedNotes = useCallback(async () => {
-    const payload = buildNoteClipboardPayload(project, selectedNoteKeys);
+    const payload = buildNoteClipboardPayload(project, selectedNoteKeys, selectedAutomationKeyframeKeys);
     if (!payload) {
       return;
     }
     await writeClipboardPayload(payload);
-  }, [project, selectedNoteKeys, writeClipboardPayload]);
+  }, [project, selectedAutomationKeyframeKeys, selectedNoteKeys, writeClipboardPayload]);
 
   const cutSelectedNotes = useCallback(async () => {
-    const payload = buildNoteClipboardPayload(project, selectedNoteKeys);
+    const payload = buildNoteClipboardPayload(project, selectedNoteKeys, selectedAutomationKeyframeKeys);
     if (!payload) {
       return;
     }
     await writeClipboardPayload(payload);
-    deleteSelectedNotes(selectedNoteKeys);
-  }, [deleteSelectedNotes, project, selectedNoteKeys, writeClipboardPayload]);
+    deleteSelectedNotes(
+      selectedNoteKeys,
+      selectedAutomationKeyframeKeys,
+      selectedNoteKeys.length > 0 && selectionBeatRange ? { eraseAutomationRange: selectionBeatRange } : undefined
+    );
+  }, [deleteSelectedNotes, project, selectedAutomationKeyframeKeys, selectedNoteKeys, selectionBeatRange, writeClipboardPayload]);
 
   const deleteSelectedNoteSelection = useCallback(() => {
-    deleteSelectedNotes(selectedNoteKeys);
-  }, [deleteSelectedNotes, selectedNoteKeys]);
+    deleteSelectedNotes(selectedNoteKeys, selectedAutomationKeyframeKeys);
+  }, [deleteSelectedNotes, selectedAutomationKeyframeKeys, selectedNoteKeys]);
 
   const copyAllTracksInSelection = useCallback(async () => {
     if (!selectionBeatRange) {
@@ -130,7 +156,8 @@ export function useSelectionClipboardActions({
       actionKey: "timeline:cut-all-tracks"
     });
     setSelectedNoteKeys([]);
-  }, [commitProjectChange, project, selectionBeatRange, setSelectedNoteKeys, writeClipboardPayload]);
+    setSelectedAutomationKeyframeKeys([]);
+  }, [commitProjectChange, project, selectionBeatRange, setSelectedAutomationKeyframeKeys, setSelectedNoteKeys, writeClipboardPayload]);
 
   const deleteAllTracksInSelection = useCallback(() => {
     if (!selectionBeatRange) {
@@ -141,7 +168,8 @@ export function useSelectionClipboardActions({
       actionKey: "timeline:delete-all-tracks"
     });
     setSelectedNoteKeys([]);
-  }, [clearNoteClipboard, commitProjectChange, selectionBeatRange, setSelectedNoteKeys]);
+    setSelectedAutomationKeyframeKeys([]);
+  }, [clearNoteClipboard, commitProjectChange, selectionBeatRange, setSelectedAutomationKeyframeKeys, setSelectedNoteKeys]);
 
   const applyNoteClipboardPaste = useCallback((pasteAction: NoteClipboardPasteAction, beat: number) => {
     if (!noteClipboardPayload || !selectedTrackId) {
@@ -176,12 +204,14 @@ export function useSelectionClipboardActions({
     );
     setPlayheadFromUser(beat);
     setSelectedNoteKeys(nextSelectionKeys);
+    setSelectedAutomationKeyframeKeys([]);
     closeTimelineActionsPopover();
   }, [
     closeTimelineActionsPopover,
     commitProjectChange,
     noteClipboardPayload,
     selectedTrackId,
+    setSelectedAutomationKeyframeKeys,
     setPlayheadFromUser,
     setSelectedNoteKeys
   ]);

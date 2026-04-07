@@ -52,7 +52,6 @@ import { formatBeatName } from "@/lib/musicTiming";
 import { Note, Track } from "@/types/music";
 export type { TimelineActionsPopoverRequest, TrackCanvasProps, TrackCanvasSelection } from "@/components/tracks/trackCanvasTypes";
 
-
 function drawGhostPlayhead(
   ctx: CanvasRenderingContext2D,
   ghostPlayheadBeat: number | undefined,
@@ -243,6 +242,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const selectionLabel = selection.kind === "none" ? null : selection.label;
   const selectionMarkerTrackId = selection.kind === "none" ? null : selection.markerTrackId;
   const selectedNoteKeys = selection.kind === "note" ? selection.selectedNoteKeys : undefined;
+  const selectedAutomationKeyframeKeys = selection.kind === "note" ? selection.selectedAutomationKeyframeKeys : undefined;
   const selectionPopoverLeft = selectionBeatRange
     ? HEADER_WIDTH + selectionBeatRange.endBeat * BEAT_WIDTH + 14
     : 0;
@@ -312,6 +312,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     gridBeats,
     selection,
     selectedNoteKeys,
+    selectedAutomationKeyframeKeys,
     noteActions,
     automationActions,
     selectionActions,
@@ -534,6 +535,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
           {
             hoveredAutomationKeyframe,
             registerHitTargets: true,
+            selectedAutomationKeyframeKeys,
             trackId: track.id,
             width
           },
@@ -595,6 +597,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
           {
             hoveredAutomationKeyframe,
             registerHitTargets: false,
+            selectedAutomationKeyframeKeys,
             trackId: track.id,
             veilTimeline: true,
             width
@@ -666,6 +669,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     project.patches,
     project.tracks,
     selectedNoteKeys,
+    selectedAutomationKeyframeKeys,
     selectionBeatRange,
     selectionMarkerTrackId,
     selectedTrackId,
@@ -709,7 +713,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
   useEffect(() => {
     draw();
   }, [draw]);
-
   useEffect(() => {
     if (!editingTrackId) {
       return;
@@ -743,7 +746,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
       window.removeEventListener("pointerdown", onPointerDown);
     };
   }, [closeVolumePopover]);
-
 
   return (
     <div className="track-canvas-shell" ref={wrapperRef}>

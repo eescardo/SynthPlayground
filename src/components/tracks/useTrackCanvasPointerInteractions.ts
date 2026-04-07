@@ -39,6 +39,7 @@ import { createDefaultPlacedNote } from "@/lib/noteDefaults";
 import { getNoteSelectionKey } from "@/lib/noteClipboard";
 import { snapToGrid } from "@/lib/musicTiming";
 import { Project, Track } from "@/types/music";
+import { resolveTrackCanvasSelectionFromRect } from "@/components/tracks/trackCanvasSelection";
 
 interface DragState {
   trackId: string;
@@ -86,6 +87,8 @@ type PendingLaneAction =
       macroId: string;
       beat: number;
       value: number;
+      startX: number;
+      startY: number;
       pointerId: number;
     }
   | {
@@ -118,6 +121,7 @@ interface UseTrackCanvasPointerInteractionsParams {
   gridBeats: number;
   selection: TrackCanvasSelection;
   selectedNoteKeys: ReadonlySet<string> | undefined;
+  selectedAutomationKeyframeKeys: ReadonlySet<string> | undefined;
   noteActions: TrackCanvasNoteActions;
   automationActions: TrackCanvasAutomationActions;
   selectionActions: TrackCanvasSelectionActions;
@@ -145,6 +149,7 @@ export function useTrackCanvasPointerInteractions({
   gridBeats,
   selection,
   selectedNoteKeys,
+  selectedAutomationKeyframeKeys,
   noteActions,
   automationActions,
   selectionActions,
@@ -250,15 +255,14 @@ export function useTrackCanvasPointerInteractions({
       return;
     }
 
-    const left = Math.min(nextRect.startX, nextRect.endX);
-    const right = Math.max(nextRect.startX, nextRect.endX);
-    const top = Math.min(nextRect.startY, nextRect.endY);
-    const bottom = Math.max(nextRect.startY, nextRect.endY);
-    const selectedKeys = noteRectsRef.current
-      .filter((rect) => rect.x < right && rect.x + rect.w > left && rect.y < bottom && rect.y + rect.h > top)
-      .map((rect) => getNoteSelectionKey(rect.trackId, rect.noteId));
-    selectionActions.onSetNoteSelection(selectedKeys);
-  }, [noteRectsRef, selectionActions]);
+    const resolved = resolveTrackCanvasSelectionFromRect(
+      nextRect,
+      noteRectsRef.current,
+      automationKeyframeRectsRef.current,
+      trackLayouts
+    );
+    selectionActions.onSetContentSelection(resolved.noteSelectionKeys, resolved.automationSelectionKeys);
+  }, [automationKeyframeRectsRef, noteRectsRef, selectionActions, trackLayouts]);
 
   const updateTimelineSelectionFromRuler = useCallback((startBeat: number, endBeat: number) => {
     const orderedStartBeat = Math.min(startBeat, endBeat);
@@ -279,7 +283,10 @@ export function useTrackCanvasPointerInteractions({
     const targets = resolvePointerTargets(x, y);
     const automationKeyframe = findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y);
     const automationLaneHit = targets.automationLaneHit;
-    const hasActiveSelection = Boolean(selectedNoteKeys?.size) || selection.kind === "timeline";
+    const hasActiveSelection =
+      Boolean(selectedNoteKeys?.size) ||
+      Boolean(selectedAutomationKeyframeKeys?.size) ||
+      selection.kind === "timeline";
 
     if (y <= RULER_HEIGHT && x >= headerWidth) {
       if (targets.hoverTarget === "loop-marker" && targets.loopMarkerRect) {
@@ -304,7 +311,7 @@ export function useTrackCanvasPointerInteractions({
       }
 
       if (event.button === PRIMARY_POINTER_BUTTON) {
-        selectionActions.onSetNoteSelection([]);
+        selectionActions.onSetContentSelection([], []);
         selectionActions.onSetTimelineSelectionBeatRange(null);
         pendingCanvasActionRef.current = {
           kind: "ruler",
@@ -357,7 +364,7 @@ export function useTrackCanvasPointerInteractions({
     }
 
     if (targets.hoverTarget === "pitch" && targets.pitchRect && event.button === PRIMARY_POINTER_BUTTON) {
-      selectionActions.onSetNoteSelection([getNoteSelectionKey(targets.pitchRect.trackId, targets.pitchRect.noteId)]);
+      selectionActions.onSetContentSelection([getNoteSelectionKey(targets.pitchRect.trackId, targets.pitchRect.noteId)], []);
       noteActions.onOpenPitchPicker(targets.pitchRect.trackId, targets.pitchRect.noteId);
       setCanvasCursor("pointer");
       return;
@@ -400,6 +407,8 @@ export function useTrackCanvasPointerInteractions({
         macroId: automationLaneHit.lane.laneId,
         beat: Math.max(0, snapToGrid(beatFromX(x), gridBeats)),
         value: automationValueFromY(y, automationLaneHit.lane.y, automationLaneHit.lane.height),
+        startX: x,
+        startY: y,
         pointerId: event.pointerId
       };
       canvas.setPointerCapture(event.pointerId);
@@ -426,7 +435,7 @@ export function useTrackCanvasPointerInteractions({
       const note = track.notes.find((entry) => entry.id === targets.noteRect?.noteId);
       if (!note) return;
 
-      selectionActions.onSetNoteSelection([getNoteSelectionKey(targets.noteRect.trackId, targets.noteRect.noteId)]);
+      selectionActions.onSetContentSelection([getNoteSelectionKey(targets.noteRect.trackId, targets.noteRect.noteId)], []);
       const beat = beatFromX(x);
       const nearRightEdge = x > targets.noteRect.x + targets.noteRect.w - noteResizeHandleWidth;
       dragRef.current = {
@@ -442,7 +451,7 @@ export function useTrackCanvasPointerInteractions({
     }
 
     if (hasActiveSelection) {
-      selectionActions.onSetNoteSelection([]);
+      selectionActions.onSetContentSelection([], []);
       selectionActions.onPreviewSelectionActionScopeChange("source");
       setSelectionRect(null);
       selectionActions.onSetSelectionMarqueeActive(false);
@@ -478,6 +487,7 @@ export function useTrackCanvasPointerInteractions({
     onSetPlayheadBeat,
     playheadBeat,
     resolvePointerTargets,
+    selectedAutomationKeyframeKeys,
     selectedNoteKeys,
     selection,
     selectionActions,
@@ -536,6 +546,20 @@ export function useTrackCanvasPointerInteractions({
       return;
     }
     if (!drag && !automationDrag && pendingLaneAction?.kind === "automation-keyframe") {
+      if (
+        Math.abs(x - pendingLaneAction.startX) >= POINTER_DRAG_THRESHOLD_PX ||
+        Math.abs(y - pendingLaneAction.startY) >= POINTER_DRAG_THRESHOLD_PX
+      ) {
+        updateSelectionFromRect({
+          startX: pendingLaneAction.startX,
+          startY: pendingLaneAction.startY,
+          endX: x,
+          endY: y
+        });
+        setCanvasCursor("default");
+      } else {
+        setCanvasCursor("crosshair");
+      }
       const lane = automationLaneHit?.lane;
       if (!lane) {
         return;
@@ -702,19 +726,23 @@ export function useTrackCanvasPointerInteractions({
     }
 
     if (pendingLaneAction?.kind === "automation-keyframe") {
-      automationActions.onUpsertTrackMacroAutomationKeyframe(
-        pendingLaneAction.trackId,
-        pendingLaneAction.macroId,
-        pendingLaneAction.beat,
-        pendingLaneAction.value,
-        { commit: true }
-      );
-      automationActions.onPreviewTrackMacroAutomation(
-        pendingLaneAction.trackId,
-        pendingLaneAction.macroId,
-        pendingLaneAction.value,
-        { beat: pendingLaneAction.beat, retrigger: true }
-      );
+      if (!hadSelectionRect) {
+        automationActions.onUpsertTrackMacroAutomationKeyframe(
+          pendingLaneAction.trackId,
+          pendingLaneAction.macroId,
+          pendingLaneAction.beat,
+          pendingLaneAction.value,
+          { commit: true }
+        );
+        automationActions.onPreviewTrackMacroAutomation(
+          pendingLaneAction.trackId,
+          pendingLaneAction.macroId,
+          pendingLaneAction.value,
+          { beat: pendingLaneAction.beat, retrigger: true }
+        );
+      } else {
+        selectionActions.onPreviewSelectionActionScopeChange("source");
+      }
     } else if (pendingLaneAction?.kind === "fixed-slider") {
       automationActions.onChangeTrackMacro(pendingLaneAction.trackId, pendingLaneAction.macroId, fixedLaneValueFromX(x), { commit: true });
     } else if (automationDrag) {
