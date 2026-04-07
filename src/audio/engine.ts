@@ -56,10 +56,12 @@ const audioBufferToWavBlob = (buffer: AudioBuffer): Blob => {
 };
 
 export class AudioEngine {
+  private readonly captureFakeAudio = process.env.NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO === "1";
   private context: AudioContext | null = null;
   private worklet: AudioWorkletNode | null = null;
   private scheduler: number | null = null;
   private songStartContextTime = 0;
+  private fakeSongStartTimeMs = 0;
   private scheduledUntilSample = 0;
   private isPlaying = false;
   private project: Project | null = null;
@@ -95,6 +97,9 @@ export class AudioEngine {
   }
 
   async init(): Promise<void> {
+    if (this.captureFakeAudio) {
+      return;
+    }
     if (this.context && this.worklet) {
       return;
     }
@@ -144,6 +149,9 @@ export class AudioEngine {
 
   async ensureRunning(): Promise<void> {
     await this.init();
+    if (this.captureFakeAudio) {
+      return;
+    }
     if (!this.context) {
       return;
     }
@@ -165,7 +173,17 @@ export class AudioEngine {
 
   async play(startBeat = 0): Promise<void> {
     await this.ensureRunning();
-    if (!this.context || !this.worklet || !this.project) {
+    if (!this.project) {
+      return;
+    }
+    if (this.captureFakeAudio) {
+      this.cueBeat = startBeat;
+      this.playSessionId += 1;
+      this.fakeSongStartTimeMs = performance.now();
+      this.isPlaying = true;
+      return;
+    }
+    if (!this.context || !this.worklet) {
       return;
     }
 
@@ -207,6 +225,9 @@ export class AudioEngine {
   stop(): void {
     this.isPlaying = false;
     this.recordingTrackId = null;
+    if (this.captureFakeAudio) {
+      return;
+    }
     if (this.scheduler !== null) {
       window.clearInterval(this.scheduler);
       this.scheduler = null;
@@ -246,7 +267,13 @@ export class AudioEngine {
   }
 
   getPlayheadBeat(): number {
-    if (!this.context || !this.project || !this.isPlaying) {
+    if (!this.project || !this.isPlaying) {
+      return 0;
+    }
+    if (this.captureFakeAudio) {
+      return getSongBeatForPlaybackBeat(this.getElapsedPlaybackBeat(), this.cueBeat, this.project.global.loop);
+    }
+    if (!this.context) {
       return 0;
     }
     const elapsedPlaybackBeat =
@@ -260,14 +287,26 @@ export class AudioEngine {
   }
 
   getCurrentSongSample(): number {
-    if (!this.context || !this.isPlaying) {
+    if (!this.isPlaying) {
+      return 0;
+    }
+    if (this.captureFakeAudio) {
+      return Math.max(0, Math.round(((performance.now() - this.fakeSongStartTimeMs) / 1000) * FIXED_SAMPLE_RATE));
+    }
+    if (!this.context) {
       return 0;
     }
     return Math.max(0, Math.round((this.context.currentTime - this.songStartContextTime) * FIXED_SAMPLE_RATE));
   }
 
   getElapsedPlaybackBeat(): number {
-    if (!this.context || !this.isPlaying) {
+    if (!this.isPlaying) {
+      return 0;
+    }
+    if (this.captureFakeAudio) {
+      return ((performance.now() - this.fakeSongStartTimeMs) / 1000) / (60 / (this.project?.global.tempo ?? 120));
+    }
+    if (!this.context) {
       return 0;
     }
     return Math.max(0, Math.round((this.context.currentTime - this.songStartContextTime) * FIXED_SAMPLE_RATE)) /
@@ -280,6 +319,9 @@ export class AudioEngine {
   }
 
   sendParamChanges(events: SchedulerEvent[]): void {
+    if (this.captureFakeAudio) {
+      return;
+    }
     if (!this.worklet || events.length === 0) {
       return;
     }
@@ -287,11 +329,17 @@ export class AudioEngine {
   }
 
   setMacroValue(trackId: string, macroId: string, normalized: number): void {
+    if (this.captureFakeAudio) {
+      return;
+    }
     this.worklet?.port.postMessage({ type: "MACRO", trackId, macroId, normalized });
   }
 
   setRecordingTrack(trackId: string | null): void {
     this.recordingTrackId = trackId;
+    if (this.captureFakeAudio) {
+      return;
+    }
     this.worklet?.port.postMessage({
       type: "RECORDING",
       trackId
@@ -300,6 +348,9 @@ export class AudioEngine {
 
   async recordNoteOn(trackId: string, noteId: string, pitchVoct: number, velocity = 0.9): Promise<number> {
     await this.ensureRunning();
+    if (this.captureFakeAudio) {
+      return this.getSafeLiveSampleTime();
+    }
     if (!this.worklet || !this.isPlaying) {
       return 0;
     }
@@ -325,6 +376,9 @@ export class AudioEngine {
   }
 
   recordNoteOff(trackId: string, noteId: string, pitchVoct: number): number {
+    if (this.captureFakeAudio) {
+      return this.getSafeLiveSampleTime();
+    }
     if (!this.worklet || !this.isPlaying) {
       return 0;
     }
@@ -354,6 +408,9 @@ export class AudioEngine {
     }
 
     await this.ensureRunning();
+    if (this.captureFakeAudio) {
+      return;
+    }
     if (!this.worklet) {
       return;
     }

@@ -127,8 +127,6 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await getTransportButton(page, "Play").click();
       await waitForPlaybackToAdvance(page);
       await page.waitForTimeout(playbackDurationMs);
-      await getTransportButton(page, "Stop").click();
-      await page.waitForTimeout(postActionSettleMs);
     }
   },
   [VIDEO_SCENARIO.RECORD_FROM_START_8S]: {
@@ -185,8 +183,6 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await getTransportButton(page, "Play").click();
       await waitForPlaybackToAdvance(page);
       await page.waitForTimeout(playbackDurationMs);
-      await getTransportButton(page, "Stop").click();
-      await page.waitForTimeout(postActionSettleMs);
     }
   }
 };

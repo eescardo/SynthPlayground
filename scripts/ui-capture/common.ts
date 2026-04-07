@@ -60,11 +60,11 @@ export const waitForServer = async (url: string, timeoutMs: number) => {
   throw new Error(`Timed out waiting for dev server at ${url}`);
 };
 
-export const startDevServer = (port: number): ChildProcess =>
+export const startDevServer = (port: number, envOverrides?: Record<string, string>): ChildProcess =>
   spawn("pnpm", ["exec", "next", "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
     cwd: process.cwd(),
     stdio: "inherit",
-    env: { ...process.env }
+    env: { ...process.env, ...envOverrides }
   });
 
 export const savePageScreenshot = async (page: Page, outputPath: string, locator?: string) => {

@@ -27,7 +27,9 @@ const parseRequestedScenarios = (): VideoScenario[] => {
 const run = async () => {
   assertVideoRegistryAligned();
   const requestedScenarios = parseRequestedScenarios();
-  const devServer = startDevServer(port);
+  const devServer = startDevServer(port, {
+    NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO: "1"
+  });
 
   try {
     await waitForServer(baseURL, 120_000);
