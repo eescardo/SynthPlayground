@@ -16,8 +16,21 @@ export class TrackRuntime {
   constructor(track: Track, patch: Patch, sampleRate: number, blockSize: number);
   compiled: {
     paramTargets: Map<string, Map<string, number>>;
+    nodeRuntimes: Array<{
+      typeId: string;
+    }>;
   };
+  voices: Array<{
+    signalBuffers: Float32Array[];
+  }>;
   applyMacro(macroId: string, normalized: number): void;
+  processNodeFrames(
+    voice: { signalBuffers: Float32Array[] },
+    runtimeNode: { typeId: string },
+    signalBuffers: Float32Array[],
+    startFrame: number,
+    endFrame: number
+  ): void;
 }
 
 export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {

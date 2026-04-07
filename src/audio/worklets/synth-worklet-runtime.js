@@ -445,7 +445,10 @@ export class TrackRuntime {
     const out = signalBuffers[outIndex];
     const hostSignalIndices = this.compiled.hostSignalIndices;
     const read = (portId, fallbackBuffer) => this.getInputBufferOr(signalBuffers, inputs[portId] ?? -1, fallbackBuffer);
-    const processor = NODE_PROCESSORS[typeId] || processDefaultNode;
+    const processor = NODE_PROCESSORS[typeId];
+    if (!processor) {
+      throw new Error(`No synth worklet processor registered for node type: ${typeId}`);
+    }
     processor({
       runtime: this,
       voice,

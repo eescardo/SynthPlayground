@@ -161,6 +161,32 @@ describe("synth worklet runtime", () => {
     expect(oscParams?.get("pulseWidth")).toBeCloseTo(0.6, 5);
   });
 
+  it("throws when a compiled node type has no registered DSP processor", async () => {
+    const { TrackRuntime } = await loadRuntimeModule();
+
+    const patch = createPatch({
+      nodes: [
+        { id: "mystery", typeId: "MysteryNode", params: {} },
+        { id: "out", typeId: "Output", params: { gainDb: 0, limiter: false } }
+      ],
+      connections: [
+        {
+          id: "conn_1",
+          from: { nodeId: "mystery", portId: "out" },
+          to: { nodeId: "out", portId: "in" }
+        }
+      ]
+    });
+
+    const runtime = new TrackRuntime(createTrack(), patch, 48000, 128);
+    const mysteryNode = runtime.compiled.nodeRuntimes.find((node) => node.typeId === "MysteryNode");
+
+    expect(mysteryNode).toBeTruthy();
+    expect(() => runtime.processNodeFrames(runtime.voices[0], mysteryNode!, runtime.voices[0].signalBuffers, 0, 1)).toThrow(
+      "No synth worklet processor registered for node type: MysteryNode"
+    );
+  });
+
   it("preview rendering bypasses mute and track volume so auditioning still produces audio", async () => {
     const { SynthWorkletProcessor } = await loadRuntimeModule();
 
