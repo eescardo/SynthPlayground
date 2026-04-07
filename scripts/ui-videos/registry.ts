@@ -17,6 +17,7 @@ const recordHoldMs = Number(process.env.VIDEO_RECORD_HOLD_MS ?? 500);
 const recordGapMs = Number(process.env.VIDEO_RECORD_GAP_MS ?? 500);
 const recordCycles = Number(process.env.VIDEO_RECORD_CYCLES ?? 5);
 const postActionSettleMs = Number(process.env.VIDEO_POST_ACTION_SETTLE_MS ?? 300);
+const playbackStartTimeoutMs = Number(process.env.VIDEO_PLAYBACK_START_TIMEOUT_MS ?? 2_000);
 const getTransportButton = (page: Page, name: "Play" | "Stop" | "Record") =>
   page.locator(".transport").getByRole("button", { name });
 
@@ -24,6 +25,33 @@ const getRecordingKey = (page: Page, pitch = "C4"): Locator =>
   page.locator(".recording-dock").getByRole("button", { name: new RegExp(`\\b${pitch}\\b`, "i") }).first();
 
 const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canvas");
+const getPlayhead = (page: Page) => page.locator(".playhead");
+
+const parsePlayheadBeat = (value: string | null): number => {
+  const match = value?.match(/Beat\s+([0-9]+(?:\.[0-9]+)?)/i);
+  return match ? Number(match[1]) : Number.NaN;
+};
+
+const waitForPlaybackToAdvance = async (page: Page) => {
+  const initialLabel = await getPlayhead(page).textContent();
+  const initialBeat = parsePlayheadBeat(initialLabel);
+  await expect
+    .poll(
+      async () => {
+        const currentLabel = await getPlayhead(page).textContent();
+        const currentBeat = parsePlayheadBeat(currentLabel);
+        if (!Number.isFinite(initialBeat) || !Number.isFinite(currentBeat)) {
+          return false;
+        }
+        return currentBeat > initialBeat + 0.25;
+      },
+      {
+        timeout: playbackStartTimeoutMs,
+        message: `Playback did not advance within ${playbackStartTimeoutMs}ms after pressing Play.`
+      }
+    )
+    .toBe(true);
+};
 
 const playQuarterPattern = async (page: Page, key: Locator) => {
   for (let cycle = 0; cycle < recordCycles; cycle += 1) {
@@ -42,6 +70,7 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await openApp(page);
       await applySelectionReviewFraming(page);
       await getTransportButton(page, "Play").click();
+      await waitForPlaybackToAdvance(page);
       await page.waitForTimeout(playbackDurationMs);
       await getTransportButton(page, "Stop").click();
       await page.waitForTimeout(postActionSettleMs);
@@ -99,6 +128,7 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await canvas.click({ position: { x: 600, y: 128 } });
       await page.waitForTimeout(postActionSettleMs);
       await getTransportButton(page, "Play").click();
+      await waitForPlaybackToAdvance(page);
       await page.waitForTimeout(playbackDurationMs);
       await getTransportButton(page, "Stop").click();
       await page.waitForTimeout(postActionSettleMs);
