@@ -8,12 +8,12 @@
     "gridBeats": 0.25,
     "loop": [
       {
-        "id": "loop_marker_mncr9mi2_vac301",
+        "id": "loop_marker_mnnwst4q_i5bm4j",
         "kind": "start",
         "beat": 16
       },
       {
-        "id": "loop_marker_mndeopp4_s0w7uu",
+        "id": "loop_marker_mnnwqztt_g65deh",
         "kind": "end",
         "beat": 24,
         "repeatCount": 16
@@ -22,56 +22,203 @@
   },
   "tracks": [
     {
-      "id": "track_mnckyv2s_grj054",
+      "id": "track_mnnwqztt_nrmj69",
       "name": "Pop Cutoff Base",
       "instrumentPatchId": "preset_bass",
       "notes": [
         {
-          "id": "note_mnclrpd3_r0u31o",
+          "id": "note_mnnwqztt_pz8tkn",
           "pitchStr": "D3",
           "startBeat": 0,
           "durationBeats": 0.25,
           "velocity": 0.9
         },
         {
-          "id": "note_mnclrpk1_mw6z6l",
+          "id": "note_mnnwqztt_aspz8v",
           "pitchStr": "D3",
           "startBeat": 0.5,
           "durationBeats": 0.25,
           "velocity": 0.9
         },
         {
-          "id": "note_mnclrprn_vtappp",
+          "id": "note_mnnwqztt_6r0vk2",
           "pitchStr": "D3",
           "startBeat": 1,
           "durationBeats": 0.25,
           "velocity": 0.9
         },
         {
-          "id": "note_mnclrpz1_s055bp",
+          "id": "note_mnnwqztt_mlt94h",
           "pitchStr": "D3",
           "startBeat": 1.5,
           "durationBeats": 0.25,
           "velocity": 0.9
         },
         {
-          "id": "note_mnclrq2z_1gk2oo",
+          "id": "note_mnnwqztt_o0dozq",
           "pitchStr": "D#3",
           "startBeat": 1.75,
           "durationBeats": 0.75,
           "velocity": 0.9
         },
         {
-          "id": "note_mnclrqg2_yzfzz6",
+          "id": "note_mnnwqztt_tctvcm",
           "pitchStr": "E3",
           "startBeat": 2.5,
           "durationBeats": 0.5,
           "velocity": 0.9
         },
         {
-          "id": "note_mnclrqsg_ledyjl",
+          "id": "note_mnnwqztt_3geq8k",
           "pitchStr": "F3",
           "startBeat": 3.25,
+          "durationBeats": 0.5,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_5zkdau",
+          "pitchStr": "D3",
+          "startBeat": 4,
+          "durationBeats": 0.25,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_uso0ye",
+          "pitchStr": "D3",
+          "startBeat": 4.5,
+          "durationBeats": 0.25,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_s4sq82",
+          "pitchStr": "D3",
+          "startBeat": 5,
+          "durationBeats": 0.25,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_qm999k",
+          "pitchStr": "D3",
+          "startBeat": 5.5,
+          "durationBeats": 0.25,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_s8p673",
+          "pitchStr": "D#3",
+          "startBeat": 5.75,
+          "durationBeats": 0.75,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_k3ei1y",
+          "pitchStr": "E3",
+          "startBeat": 6.5,
+          "durationBeats": 0.5,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_vzeq4c",
+          "pitchStr": "F3",
+          "startBeat": 7.25,
+          "durationBeats": 0.5,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_2hejbw",
+          "pitchStr": "D3",
+          "startBeat": 8,
+          "durationBeats": 0.25,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_b0l2g1",
+          "pitchStr": "D3",
+          "startBeat": 8.5,
+          "durationBeats": 0.25,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_mk6b04",
+          "pitchStr": "D3",
+          "startBeat": 9,
+          "durationBeats": 0.25,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_fr7zrk",
+          "pitchStr": "D3",
+          "startBeat": 9.5,
+          "durationBeats": 0.25,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_mmeyvk",
+          "pitchStr": "D#3",
+          "startBeat": 9.75,
+          "durationBeats": 0.75,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_uxfkh0",
+          "pitchStr": "E3",
+          "startBeat": 10.5,
+          "durationBeats": 0.5,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_1a7muc",
+          "pitchStr": "F3",
+          "startBeat": 11.25,
+          "durationBeats": 0.5,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_shpcra",
+          "pitchStr": "D3",
+          "startBeat": 12,
+          "durationBeats": 0.25,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_197me3",
+          "pitchStr": "D3",
+          "startBeat": 12.5,
+          "durationBeats": 0.25,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_lot8he",
+          "pitchStr": "D3",
+          "startBeat": 13,
+          "durationBeats": 0.25,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_ihmlxf",
+          "pitchStr": "D3",
+          "startBeat": 13.5,
+          "durationBeats": 0.25,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_vsckit",
+          "pitchStr": "D#3",
+          "startBeat": 13.75,
+          "durationBeats": 0.75,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_dt9an9",
+          "pitchStr": "E3",
+          "startBeat": 14.5,
+          "durationBeats": 0.5,
+          "velocity": 0.9
+        },
+        {
+          "id": "note_mnnwsnha_mogbbu",
+          "pitchStr": "F3",
+          "startBeat": 15.25,
           "durationBeats": 0.5,
           "velocity": 0.9
         }
@@ -80,79 +227,62 @@
         "macro_decay": 0.11,
         "macro_cutoff": 0.275
       },
-      "macroPanelExpanded": true,
-      "volume": 1,
-      "mute": false,
-      "solo": false,
-      "fx": {
-        "delayEnabled": false,
-        "reverbEnabled": false,
-        "saturationEnabled": false,
-        "compressorEnabled": false,
-        "delayMix": 0.2,
-        "reverbMix": 0.2,
-        "drive": 0.2,
-        "compression": 0.4
-      }
-    },
-    {
-      "id": "track_mncp1chs_nv4sfl",
-      "name": "Pop Cutoff 2",
-      "instrumentPatchId": "preset_bass",
-      "notes": [
-        {
-          "id": "note_mncp31lu_ja1wi6",
-          "pitchStr": "D3",
-          "startBeat": 4,
-          "durationBeats": 0.25,
-          "velocity": 0.85
+      "macroAutomations": {
+        "macro_cutoff": {
+          "macroId": "macro_cutoff",
+          "expanded": true,
+          "startValue": 0.275,
+          "endValue": 0.275,
+          "keyframes": [
+            {
+              "id": "automation_keyframe_mnnwtcis_oqes8f",
+              "beat": 4,
+              "type": "whole",
+              "value": 0.45640980113636365
+            },
+            {
+              "id": "automation_keyframe_mnnwtfta_a8yqns",
+              "beat": 8,
+              "type": "whole",
+              "value": 0.6927379261363636
+            },
+            {
+              "id": "automation_keyframe_mnnwtied_r9k1af",
+              "beat": 12,
+              "type": "whole",
+              "value": 0.8829900568181819
+            },
+            {
+              "id": "automation_keyframe_mnnwtl5a_xt7w4d",
+              "beat": 14.5,
+              "type": "split",
+              "incomingValue": 0.8748224431818181,
+              "outgoingValue": 0.5762606534090908
+            },
+            {
+              "id": "automation_keyframe_mnnwtuwc_239le9",
+              "beat": 15.25,
+              "type": "split",
+              "incomingValue": 0.7251420454545454,
+              "outgoingValue": 0.9675071022727273
+            }
+          ]
         },
-        {
-          "id": "note_mncp37pa_d9enj4",
-          "pitchStr": "D3",
-          "startBeat": 4.5,
-          "durationBeats": 0.25,
-          "velocity": 0.85
-        },
-        {
-          "id": "note_mncp3f4b_bgmlaz",
-          "pitchStr": "D3",
-          "startBeat": 5,
-          "durationBeats": 0.25,
-          "velocity": 0.85
-        },
-        {
-          "id": "note_mncp3l5a_dkmje7",
-          "pitchStr": "D3",
-          "startBeat": 5.5,
-          "durationBeats": 0.25,
-          "velocity": 0.85
-        },
-        {
-          "id": "note_mncp3v4n_j87drq",
-          "pitchStr": "D#3",
-          "startBeat": 5.75,
-          "durationBeats": 0.75,
-          "velocity": 0.85
-        },
-        {
-          "id": "note_mncp4inl_d9gtoo",
-          "pitchStr": "E3",
-          "startBeat": 6.5,
-          "durationBeats": 0.5,
-          "velocity": 0.85
-        },
-        {
-          "id": "note_mncp4qpg_d0mo44",
-          "pitchStr": "F3",
-          "startBeat": 7.25,
-          "durationBeats": 0.5,
-          "velocity": 0.85
+        "macro_decay": {
+          "macroId": "macro_decay",
+          "expanded": true,
+          "startValue": 0.11,
+          "endValue": 0.11,
+          "keyframes": [
+            {
+              "id": "automation_keyframe_mnnwu41m_85zqg6",
+              "beat": 15,
+              "type": "split",
+              "incomingValue": 0.0888671875,
+              "outgoingValue": 0.8100142045454546
+            }
+          ]
         }
-      ],
-      "macroValues": {
-        "macro_decay": 0.137,
-        "macro_cutoff": 0.383
       },
       "macroPanelExpanded": true,
       "volume": 1,
@@ -170,276 +300,103 @@
       }
     },
     {
-      "id": "track_mncp1coe_qzupef",
-      "name": "Pop Cutoff 3",
-      "instrumentPatchId": "preset_bass",
-      "notes": [
-        {
-          "id": "note_mncp4xan_24k74i",
-          "pitchStr": "D3",
-          "startBeat": 8,
-          "durationBeats": 0.25,
-          "velocity": 0.85
-        },
-        {
-          "id": "note_mncp4xz0_4dcnbk",
-          "pitchStr": "D3",
-          "startBeat": 8.5,
-          "durationBeats": 0.25,
-          "velocity": 0.85
-        },
-        {
-          "id": "note_mncp505p_6y9f19",
-          "pitchStr": "D3",
-          "startBeat": 9,
-          "durationBeats": 0.25,
-          "velocity": 0.85
-        },
-        {
-          "id": "note_mncp51lj_2wzkvn",
-          "pitchStr": "D3",
-          "startBeat": 9.5,
-          "durationBeats": 0.25,
-          "velocity": 0.85
-        },
-        {
-          "id": "note_mncp5j2k_cvtjhs",
-          "pitchStr": "D#3",
-          "startBeat": 9.75,
-          "durationBeats": 0.75,
-          "velocity": 0.85
-        },
-        {
-          "id": "note_mncp52ak_n0eqcx",
-          "pitchStr": "E3",
-          "startBeat": 10.5,
-          "durationBeats": 0.5,
-          "velocity": 0.85
-        },
-        {
-          "id": "note_mncp52ta_ravpuf",
-          "pitchStr": "F3",
-          "startBeat": 11.25,
-          "durationBeats": 0.5,
-          "velocity": 0.85
-        },
-        {
-          "id": "note_mncpcah0_5awh2g",
-          "pitchStr": "E3",
-          "startBeat": 14.5,
-          "durationBeats": 0.5,
-          "velocity": 0.85
-        }
-      ],
-      "macroValues": {
-        "macro_decay": 0.181,
-        "macro_cutoff": 0.524
-      },
-      "macroPanelExpanded": true,
-      "volume": 1,
-      "mute": false,
-      "solo": false,
-      "fx": {
-        "delayEnabled": false,
-        "reverbEnabled": false,
-        "saturationEnabled": false,
-        "compressorEnabled": false,
-        "delayMix": 0.2,
-        "reverbMix": 0.2,
-        "drive": 0.2,
-        "compression": 0.4
-      }
-    },
-    {
-      "id": "track_mncp1d0f_c5elm8",
-      "name": "Pop Cutoff 4",
-      "instrumentPatchId": "preset_bass",
-      "notes": [
-        {
-          "id": "note_mncpaeft_ifj77a",
-          "pitchStr": "D3",
-          "startBeat": 12,
-          "durationBeats": 0.25,
-          "velocity": 0.85
-        },
-        {
-          "id": "note_mncpaf76_5uymcy",
-          "pitchStr": "D3",
-          "startBeat": 12.5,
-          "durationBeats": 0.25,
-          "velocity": 0.85
-        },
-        {
-          "id": "note_mncpafv7_xs6fsr",
-          "pitchStr": "D3",
-          "startBeat": 13,
-          "durationBeats": 0.25,
-          "velocity": 0.85
-        },
-        {
-          "id": "note_mncpag9s_vwigm6",
-          "pitchStr": "D3",
-          "startBeat": 13.5,
-          "durationBeats": 0.25,
-          "velocity": 0.85
-        },
-        {
-          "id": "note_mncpapna_i7c2h8",
-          "pitchStr": "D#3",
-          "startBeat": 13.75,
-          "durationBeats": 0.75,
-          "velocity": 0.85
-        }
-      ],
-      "macroValues": {
-        "macro_decay": 0.29,
-        "macro_cutoff": 0.761
-      },
-      "macroPanelExpanded": true,
-      "volume": 1,
-      "mute": false,
-      "solo": false,
-      "fx": {
-        "delayEnabled": false,
-        "reverbEnabled": false,
-        "saturationEnabled": false,
-        "compressorEnabled": false,
-        "delayMix": 0.2,
-        "reverbMix": 0.2,
-        "drive": 0.2,
-        "compression": 0.4
-      }
-    },
-    {
-      "id": "track_mncp1dau_p7cvax",
-      "name": "Track 5",
-      "instrumentPatchId": "preset_bass",
-      "notes": [
-        {
-          "id": "note_mncpbpwy_aj1ttv",
-          "pitchStr": "F3",
-          "startBeat": 15.25,
-          "durationBeats": 0.5,
-          "velocity": 0.85
-        }
-      ],
-      "macroValues": {
-        "macro_cutoff": 0.995,
-        "macro_decay": 0.795
-      },
-      "macroPanelExpanded": true,
-      "volume": 1,
-      "mute": false,
-      "solo": false,
-      "fx": {
-        "delayEnabled": false,
-        "reverbEnabled": false,
-        "saturationEnabled": false,
-        "compressorEnabled": false,
-        "delayMix": 0.2,
-        "reverbMix": 0.2,
-        "drive": 0.2,
-        "compression": 0.4
-      }
-    },
-    {
-      "id": "track_mncpf9ak_joaofr",
+      "id": "track_mnnwqztt_4mkjkb",
       "name": "Pop Cutoff Base Low",
       "instrumentPatchId": "preset_bass",
       "notes": [
         {
-          "id": "note_mncpgb5e_dbwmy5",
+          "id": "note_mnnwqztt_vuf9ji",
           "pitchStr": "D3",
           "startBeat": 16,
           "durationBeats": 0.25,
           "velocity": 0.85
         },
         {
-          "id": "note_mncpgca2_r0w8iq",
+          "id": "note_mnnwqztt_xe44oq",
           "pitchStr": "D3",
           "startBeat": 16.5,
           "durationBeats": 0.25,
           "velocity": 0.85
         },
         {
-          "id": "note_mncpgd0l_frfw17",
+          "id": "note_mnnwqztt_qiryn2",
           "pitchStr": "D3",
           "startBeat": 17,
           "durationBeats": 0.25,
           "velocity": 0.85
         },
         {
-          "id": "note_mncpgdo0_fsdjre",
+          "id": "note_mnnwqztt_utqvk2",
           "pitchStr": "D3",
           "startBeat": 17.5,
           "durationBeats": 0.25,
           "velocity": 0.85
         },
         {
-          "id": "note_mncpggdm_qxbtue",
+          "id": "note_mnnwqztt_lzc3gr",
           "pitchStr": "D#3",
           "startBeat": 17.75,
           "durationBeats": 0.75,
           "velocity": 0.85
         },
         {
-          "id": "note_mncph68o_f0h97m",
+          "id": "note_mnnwqztt_kmsiml",
           "pitchStr": "E3",
           "startBeat": 18.5,
           "durationBeats": 0.5,
           "velocity": 0.85
         },
         {
-          "id": "note_mncphfbj_n4vpoa",
+          "id": "note_mnnwqztt_qtvxb3",
           "pitchStr": "F3",
           "startBeat": 19.25,
           "durationBeats": 0.5,
           "velocity": 0.85
         },
         {
-          "id": "note_mncpiosi_gbk29k",
+          "id": "note_mnnwqztt_8t24my",
           "pitchStr": "D3",
           "startBeat": 20,
           "durationBeats": 0.25,
           "velocity": 0.85
         },
         {
-          "id": "note_mncpipif_ikugnt",
+          "id": "note_mnnwqztt_muj4or",
           "pitchStr": "D3",
           "startBeat": 20.5,
           "durationBeats": 0.25,
           "velocity": 0.85
         },
         {
-          "id": "note_mncpiq23_m9tbpu",
+          "id": "note_mnnwqztt_xfr01r",
           "pitchStr": "D3",
           "startBeat": 21,
           "durationBeats": 0.25,
           "velocity": 0.85
         },
         {
-          "id": "note_mncpiqkc_bvgvse",
+          "id": "note_mnnwqztt_tw7x85",
           "pitchStr": "D3",
           "startBeat": 21.5,
           "durationBeats": 0.25,
           "velocity": 0.85
         },
         {
-          "id": "note_mncpiqzh_m7zmy6",
+          "id": "note_mnnwqztt_ksmfcr",
           "pitchStr": "D#3",
           "startBeat": 21.75,
           "durationBeats": 0.75,
           "velocity": 0.85
         },
         {
-          "id": "note_mncpje3h_u4qhh1",
+          "id": "note_mnnwqztt_mcburm",
           "pitchStr": "E3",
           "startBeat": 22.5,
           "durationBeats": 0.5,
           "velocity": 0.85
         },
         {
-          "id": "note_mncpjhuj_xvi95o",
+          "id": "note_mnnwqztt_95pca2",
           "pitchStr": "F3",
           "startBeat": 23.25,
           "durationBeats": 0.5,
@@ -450,6 +407,7 @@
         "macro_cutoff": 0.273,
         "macro_decay": 0.121
       },
+      "macroAutomations": {},
       "macroPanelExpanded": true,
       "volume": 0.6904296875,
       "mute": false,
@@ -466,68 +424,68 @@
       }
     },
     {
-      "id": "track_mncpkwsj_qocq9k",
+      "id": "track_mnnwqztt_dpnqcf",
       "name": "Bass Drum",
       "instrumentPatchId": "preset_bassdrum",
       "notes": [
         {
-          "id": "note_mncpl8zp_kjd0fb",
+          "id": "note_mnnwqztt_w6qn7s",
           "pitchStr": "C4",
           "startBeat": 16,
           "durationBeats": 0.25,
           "velocity": 0.85
         },
         {
-          "id": "note_mncr9o76_vlducf",
+          "id": "note_mnnwqztt_5epk1o",
           "pitchStr": "C4",
           "startBeat": 16.25,
           "durationBeats": 0.25,
           "velocity": 0.85
         },
         {
-          "id": "note_mncra737_gu6w1u",
+          "id": "note_mnnwqztt_thk7oo",
           "pitchStr": "C4",
           "startBeat": 16.75,
           "durationBeats": 0.25,
           "velocity": 0.85
         },
         {
-          "id": "note_mncraywn_4vruey",
+          "id": "note_mnnwqztt_tkjy8v",
           "pitchStr": "C4",
           "startBeat": 18,
           "durationBeats": 0.5,
           "velocity": 0.85
         },
         {
-          "id": "note_mncrb1bo_h8uqp6",
+          "id": "note_mnnwqztt_kerg9e",
           "pitchStr": "C4",
           "startBeat": 18.75,
           "durationBeats": 0.25,
           "velocity": 0.85
         },
         {
-          "id": "note_mncrb9cc_jgo7qt",
+          "id": "note_mnnwqztt_6oukyo",
           "pitchStr": "C4",
           "startBeat": 20,
           "durationBeats": 0.25,
           "velocity": 0.85
         },
         {
-          "id": "note_mncrbcnn_s2b23b",
+          "id": "note_mnnwqztt_1h0zsw",
           "pitchStr": "C4",
           "startBeat": 20.25,
           "durationBeats": 0.25,
           "velocity": 0.85
         },
         {
-          "id": "note_mncrbfr7_nhdpvp",
+          "id": "note_mnnwqztt_7abl3l",
           "pitchStr": "C4",
           "startBeat": 20.75,
           "durationBeats": 0.25,
           "velocity": 0.85
         },
         {
-          "id": "note_mncrbjfg_udkvie",
+          "id": "note_mnnwqztt_9zpfke",
           "pitchStr": "C4",
           "startBeat": 22,
           "durationBeats": 0.5,
@@ -539,6 +497,7 @@
         "macro_drive": 0.388,
         "macro_click": 0.089
       },
+      "macroAutomations": {},
       "macroPanelExpanded": true,
       "volume": 0.6885416666666666,
       "mute": false,
@@ -555,40 +514,40 @@
       }
     },
     {
-      "id": "track_mncrckn4_r2ng2l",
+      "id": "track_mnnwqztt_fdfoed",
       "name": "Snare",
       "instrumentPatchId": "preset_drumish",
       "notes": [
         {
-          "id": "note_mncre0is_grq28u",
+          "id": "note_mnnwqztt_d2w5y5",
           "pitchStr": "C5",
           "startBeat": 17.25,
           "durationBeats": 0.5,
           "velocity": 0.85
         },
         {
-          "id": "note_mncreu5b_ux4hs3",
+          "id": "note_mnnwqztt_fwlvhq",
           "pitchStr": "C5",
           "startBeat": 19.25,
           "durationBeats": 0.5,
           "velocity": 0.85
         },
         {
-          "id": "note_mncrewj9_xiwzpq",
+          "id": "note_mnnwqztt_ccl1ts",
           "pitchStr": "C5",
           "startBeat": 21.25,
           "durationBeats": 0.5,
           "velocity": 0.85
         },
         {
-          "id": "note_mncrhn2g_f4at7h",
+          "id": "note_mnnwqztt_aebeis",
           "pitchStr": "C5",
           "startBeat": 22.75,
           "durationBeats": 0.25,
           "velocity": 0.85
         },
         {
-          "id": "note_mncrf4m5_msm6ms",
+          "id": "note_mnnwqztt_pmx7t4",
           "pitchStr": "C5",
           "startBeat": 23.25,
           "durationBeats": 0.5,
@@ -601,6 +560,7 @@
         "macro_shell": 0.117,
         "macro_shell_level": 1
       },
+      "macroAutomations": {},
       "macroPanelExpanded": true,
       "volume": 0.9939453125,
       "mute": false,
@@ -947,8 +907,6 @@
                 "nodeId": "env1",
                 "paramId": "attack",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -969,8 +927,6 @@
                 "nodeId": "env1",
                 "paramId": "decay",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -991,8 +947,6 @@
                 "nodeId": "env1",
                 "paramId": "sustain",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -1013,8 +967,6 @@
                 "nodeId": "env1",
                 "paramId": "release",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -1035,8 +987,6 @@
                 "nodeId": "mix1",
                 "paramId": "gain1",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -1057,8 +1007,6 @@
                 "nodeId": "mix1",
                 "paramId": "gain2",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -1079,8 +1027,6 @@
                 "nodeId": "env2",
                 "paramId": "attack",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -1101,8 +1047,6 @@
                 "nodeId": "env2",
                 "paramId": "decay",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -1123,8 +1067,6 @@
                 "nodeId": "cvmix1",
                 "paramId": "gain2",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -1145,8 +1087,6 @@
                 "nodeId": "vcf1",
                 "paramId": "cutoffModAmountOct",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -1167,8 +1107,6 @@
                 "nodeId": "vcf1",
                 "paramId": "resonance",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -1189,8 +1127,6 @@
                 "nodeId": "sat1",
                 "paramId": "driveDb",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -1211,8 +1147,6 @@
                 "nodeId": "sat1",
                 "paramId": "mix",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -2370,8 +2304,6 @@
                 "nodeId": "karplus1",
                 "paramId": "damping",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -2392,8 +2324,6 @@
                 "nodeId": "karplus2",
                 "paramId": "damping",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -2414,8 +2344,6 @@
                 "nodeId": "karplus3",
                 "paramId": "damping",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -2436,8 +2364,6 @@
                 "nodeId": "karplus4",
                 "paramId": "damping",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -2458,8 +2384,6 @@
                 "nodeId": "vcf1",
                 "paramId": "cutoffModAmountOct",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -2480,8 +2404,6 @@
                 "nodeId": "vca2",
                 "paramId": "gain",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -2556,8 +2478,6 @@
                 "nodeId": "karplus1",
                 "paramId": "brightness",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -2578,8 +2498,6 @@
                 "nodeId": "karplus2",
                 "paramId": "brightness",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -2600,8 +2518,6 @@
                 "nodeId": "karplus3",
                 "paramId": "brightness",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -2622,8 +2538,6 @@
                 "nodeId": "karplus4",
                 "paramId": "brightness",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -2644,8 +2558,6 @@
                 "nodeId": "vcf1",
                 "paramId": "resonance",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -2666,8 +2578,6 @@
                 "nodeId": "mix1",
                 "paramId": "gain1",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -2688,8 +2598,6 @@
                 "nodeId": "mix1",
                 "paramId": "gain2",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -2710,8 +2618,6 @@
                 "nodeId": "mix1",
                 "paramId": "gain3",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -2732,8 +2638,6 @@
                 "nodeId": "mix1",
                 "paramId": "gain4",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -2754,8 +2658,6 @@
                 "nodeId": "env1",
                 "paramId": "decay",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -2776,8 +2678,6 @@
                 "nodeId": "env1",
                 "paramId": "sustain",
                 "map": "piecewise",
-                "min": 0,
-                "max": 1,
                 "points": [
                   {
                     "x": 0,
@@ -3788,6 +3688,6 @@
     "limiterEnabled": true,
     "makeupGain": 0
   },
-  "createdAt": 1774838416852,
-  "updatedAt": 1774982136371
+  "createdAt": 1775523333088,
+  "updatedAt": 1775523333088
 }
