@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getHoverTarget, isOverPlayhead, PLAYHEAD_HIT_HALF_WIDTH } from "@/components/trackCanvasGeometry";
+import { getHoverTarget, isOverPlayhead, PLAYHEAD_HIT_HALF_WIDTH } from "@/components/tracks/trackCanvasGeometry";
 
 describe("getHoverTarget", () => {
   it("keeps track notes above playhead and loop markers when they overlap", () => {

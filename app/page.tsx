@@ -11,7 +11,7 @@ import { InstrumentEditor } from "@/components/InstrumentEditor";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { TimelineActionsPopover } from "@/components/TimelineActionsPopover";
-import { TimelineActionsPopoverRequest, TrackCanvas, TrackCanvasSelection } from "@/components/TrackCanvas";
+import { TimelineActionsPopoverRequest, TrackCanvas, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
 import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";

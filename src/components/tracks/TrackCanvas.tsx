@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SelectionActionPopover } from "@/components/SelectionActionPopover";
-import { TrackHeaderChrome, TrackMacroPanel } from "@/components/TrackCanvasChrome";
+import { TrackHeaderChrome, TrackMacroPanel } from "@/components/tracks/TrackCanvasChrome";
 import {
   automationValueFromY,
   AutomationKeyframeRect,
   findAutomationKeyframeRect,
   renderAutomationLane
-} from "@/components/trackCanvasAutomationLane";
+} from "@/components/tracks/trackCanvasAutomationLane";
 import {
   BEAT_WIDTH,
   HEADER_WIDTH,
@@ -21,7 +21,7 @@ import {
   SPEAKER_X,
   TRACK_CANVAS_COLORS,
   TRACK_HEIGHT
-} from "@/components/trackCanvasConstants";
+} from "@/components/tracks/trackCanvasConstants";
 import {
   CanvasCursor,
   findMuteRect,
@@ -38,20 +38,20 @@ import {
   MuteRect,
   PitchRect,
   PLAYHEAD_HIT_HALF_WIDTH
-} from "@/components/trackCanvasGeometry";
+} from "@/components/tracks/trackCanvasGeometry";
 import {
   drawNoteBody,
   fillRoundedRect,
   NOTE_CORNER_RADIUS,
   strokeRoundedRect
-} from "@/components/trackCanvasNoteGeometry";
+} from "@/components/tracks/trackCanvasNoteGeometry";
 import {
   AutomationLaneLayout,
   TrackCanvasProps,
   TrackLayout
-} from "@/components/trackCanvasTypes";
-import { useTrackCanvasLayout } from "@/components/useTrackCanvasLayout";
-import { useTrackCanvasWheelPitchEditing } from "@/components/useTrackCanvasWheelPitchEditing";
+} from "@/components/tracks/trackCanvasTypes";
+import { useTrackCanvasLayout } from "@/components/tracks/useTrackCanvasLayout";
+import { useTrackCanvasWheelPitchEditing } from "@/components/tracks/useTrackCanvasWheelPitchEditing";
 import { useVolumePopover } from "@/hooks/useVolumePopover";
 import { getLoopMarkerStates } from "@/lib/looping";
 import {
@@ -66,7 +66,7 @@ import { getNoteSelectionKey } from "@/lib/noteClipboard";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
 import { formatBeatName, snapToGrid } from "@/lib/musicTiming";
 import { Note, Track } from "@/types/music";
-export type { TimelineActionsPopoverRequest, TrackCanvasProps, TrackCanvasSelection } from "@/components/trackCanvasTypes";
+export type { TimelineActionsPopoverRequest, TrackCanvasProps, TrackCanvasSelection } from "@/components/tracks/trackCanvasTypes";
 
 interface DragState {
   trackId: string;

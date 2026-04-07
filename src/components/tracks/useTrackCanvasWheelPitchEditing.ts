@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
-import { findPitchRect, PitchRect } from "@/components/trackCanvasGeometry";
+import { findPitchRect, PitchRect } from "@/components/tracks/trackCanvasGeometry";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
 import type { Track } from "@/types/music";
 
