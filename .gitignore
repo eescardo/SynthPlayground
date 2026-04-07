@@ -32,5 +32,6 @@ yarn-error.log*
 /artifacts/videos/
 
 # generated worklet runtime artifacts
-/public/worklets/synth-worklet-runtime.js
-/public/worklets/synth-worklet-runtime.d.ts
+/public/worklets/synth-worklet-*.js
+!/public/worklets/synth-worklet.js
+/public/worklets/synth-worklet-*.d.ts

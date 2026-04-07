@@ -1,4 +1,4 @@
-import { CanvasCursor } from "@/components/trackCanvasGeometry";
+import { CanvasCursor } from "@/components/tracks/trackCanvasGeometry";
 
 export const HEADER_WIDTH = 170;
 export const RULER_HEIGHT = 28;

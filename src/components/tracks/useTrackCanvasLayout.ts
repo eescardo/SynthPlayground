@@ -4,8 +4,8 @@ import {
   AUTOMATION_LANE_HEIGHT,
   RULER_HEIGHT,
   TRACK_HEIGHT
-} from "@/components/trackCanvasConstants";
-import { TrackLayout } from "@/components/trackCanvasTypes";
+} from "@/components/tracks/trackCanvasConstants";
+import { TrackLayout } from "@/components/tracks/trackCanvasTypes";
 import { getTrackMacroLane } from "@/lib/macroAutomation";
 import { Project } from "@/types/music";
 

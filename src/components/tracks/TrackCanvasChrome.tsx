@@ -1,8 +1,8 @@
 import { Dispatch, SetStateAction } from "react";
 import { MacroPanel } from "@/components/MacroPanel";
 import { TrackVolumePopover } from "@/components/TrackVolumePopover";
-import { SPEAKER_Y_OFFSET } from "@/components/trackCanvasConstants";
-import { TrackLayout, TrackCanvasAutomationActions, TrackCanvasTrackActions } from "@/components/trackCanvasTypes";
+import { SPEAKER_Y_OFFSET } from "@/components/tracks/trackCanvasConstants";
+import { TrackLayout, TrackCanvasAutomationActions, TrackCanvasTrackActions } from "@/components/tracks/trackCanvasTypes";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { Project, Track } from "@/types/music";
 
