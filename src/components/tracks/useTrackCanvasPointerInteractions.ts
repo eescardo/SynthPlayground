@@ -29,6 +29,7 @@ import {
   PitchRect,
   PLAYHEAD_HIT_HALF_WIDTH
 } from "@/components/tracks/trackCanvasGeometry";
+import { RULER_HEIGHT } from "@/components/tracks/trackCanvasConstants";
 import { PRIMARY_POINTER_BUTTON, SECONDARY_POINTER_BUTTON } from "@/lib/inputConstants";
 import { createDefaultPlacedNote } from "@/lib/noteDefaults";
 import { getNoteSelectionKey } from "@/lib/noteClipboard";
@@ -274,7 +275,7 @@ export function useTrackCanvasPointerInteractions({
     const automationLaneHit = targets.automationLaneHit;
     const hasActiveSelection = Boolean(selectedNoteKeys?.size) || selection.kind === "timeline";
 
-    if (y <= 28 && x >= headerWidth) {
+    if (y <= RULER_HEIGHT && x >= headerWidth) {
       if (targets.hoverTarget === "loop-marker" && targets.loopMarkerRect) {
         onSetPlayheadBeat(targets.loopMarkerRect.beat);
         onRequestTimelineActionsPopover({
