@@ -7,6 +7,7 @@ import {
   createTrackMacroAutomationLane,
   getProjectTimelineEndBeat,
   getTrackMacroLane,
+  getTrackPreviewStateAtBeat,
   TRACK_VOLUME_AUTOMATION_ID,
   removeAutomationLaneKeyframeSide,
   splitAutomationLaneKeyframe,
@@ -24,6 +25,7 @@ type CommitProjectChange = (
 interface UseTrackMacroAutomationActionsParams {
   audioEngineRef: RefObject<AudioEngine | null>;
   commitProjectChange: CommitProjectChange;
+  project: Project;
   previewPitch: string;
   setRuntimeError: (message: string | null) => void;
 }
@@ -31,6 +33,7 @@ interface UseTrackMacroAutomationActionsParams {
 export function useTrackMacroAutomationActions({
   audioEngineRef,
   commitProjectChange,
+  project,
   previewPitch,
   setRuntimeError
 }: UseTrackMacroAutomationActionsParams) {
@@ -72,19 +75,60 @@ export function useTrackMacroAutomationActions({
     );
   }, [commitProjectChange]);
 
-  const previewTrackMacroAutomation = useCallback((trackId: string, macroId: string, normalized: number, options?: { retrigger?: boolean }) => {
+  const applyPreviewState = useCallback((trackId: string, macroId: string, normalized: number, beat?: number) => {
+    const engine = audioEngineRef.current;
+    if (!engine) {
+      return;
+    }
+
+    if (beat === undefined) {
+      engine.setMacroValue(trackId, macroId, normalized);
+      return;
+    }
+
+    const track = project.tracks.find((entry) => entry.id === trackId);
+    if (!track) {
+      engine.setMacroValue(trackId, macroId, normalized);
+      return;
+    }
+    const patch = project.patches.find((entry) => entry.id === track.instrumentPatchId);
+    if (!patch) {
+      engine.setMacroValue(trackId, macroId, normalized);
+      return;
+    }
+
+    const previewState = getTrackPreviewStateAtBeat(
+      track,
+      patch,
+      beat,
+      getProjectTimelineEndBeat(project),
+      { macroId, normalized }
+    );
+
+    for (const [previewMacroId, previewNormalized] of Object.entries(previewState.macroValues)) {
+      engine.setMacroValue(trackId, previewMacroId, previewNormalized);
+    }
+    engine.setMacroValue(trackId, TRACK_VOLUME_AUTOMATION_ID, previewState.volumeNormalized);
+  }, [audioEngineRef, project]);
+
+  const previewTrackMacroAutomation = useCallback((
+    trackId: string,
+    macroId: string,
+    normalized: number,
+    options?: { retrigger?: boolean; beat?: number }
+  ) => {
     if (!options?.retrigger) {
-      audioEngineRef.current?.setMacroValue(trackId, macroId, normalized);
+      applyPreviewState(trackId, macroId, normalized, options?.beat);
       return;
     }
 
     window.setTimeout(() => {
-      audioEngineRef.current?.setMacroValue(trackId, macroId, normalized);
+      applyPreviewState(trackId, macroId, normalized, options?.beat);
       audioEngineRef.current
         ?.previewNote(trackId, pitchToVoct(previewPitch), 1, 0.9, { ignoreVolume: macroId !== TRACK_VOLUME_AUTOMATION_ID })
         .catch((error) => setRuntimeError((error as Error).message));
     }, 0);
-  }, [audioEngineRef, previewPitch, setRuntimeError]);
+  }, [applyPreviewState, audioEngineRef, previewPitch, setRuntimeError]);
 
   const bindTrackMacroToAutomation = useCallback((trackId: string, macroId: string, initialValue: number) => {
     commitProjectChange(

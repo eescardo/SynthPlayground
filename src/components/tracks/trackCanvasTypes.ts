@@ -65,7 +65,12 @@ export interface TrackCanvasAutomationActions {
     keyframeId: string,
     side: AutomationKeyframeSide
   ) => void;
-  onPreviewTrackMacroAutomation: (trackId: string, macroId: string, normalized: number, options?: { retrigger?: boolean }) => void;
+  onPreviewTrackMacroAutomation: (
+    trackId: string,
+    macroId: string,
+    normalized: number,
+    options?: { retrigger?: boolean; beat?: number }
+  ) => void;
 }
 
 export interface TrackCanvasNoteActions {

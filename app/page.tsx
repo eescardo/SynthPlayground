@@ -271,6 +271,7 @@ export default function HomePage() {
   } = useTrackMacroAutomationActions({
     audioEngineRef,
     commitProjectChange,
+    project,
     previewPitch,
     setRuntimeError
   });

@@ -4,13 +4,16 @@ import {
   createTrackMacroAutomationLane,
   getTrackAutomationPoints,
   getTrackMacroValueAtBeat,
+  getTrackPreviewStateAtBeat,
   isSplitAutomationKeyframe,
+  TRACK_VOLUME_AUTOMATION_ID,
   removeAutomationLaneKeyframeSide,
   splitAutomationLaneKeyframe,
   updateAutomationLaneKeyframeSide,
   upsertAutomationLaneKeyframe
 } from "@/lib/macroAutomation";
 import { Track } from "@/types/music";
+import { Patch } from "@/types/patch";
 
 const createTrack = (): Track => ({
   id: "track_1",
@@ -35,6 +38,23 @@ const createTrack = (): Track => ({
     drive: 0.2,
     compression: 0.4
   }
+});
+
+const createPatch = (): Patch => ({
+  schemaVersion: 1,
+  id: "patch_1",
+  name: "Patch",
+  meta: { source: "custom" },
+  nodes: [],
+  connections: [],
+  ui: {
+    macros: [
+      { id: "macro_cutoff", name: "Cutoff", defaultNormalized: 0.5, bindings: [] },
+      { id: "macro_resonance", name: "Resonance", defaultNormalized: 0.3, bindings: [] }
+    ]
+  },
+  layout: { nodes: [] },
+  io: { audioOutNodeId: "out", audioOutPortId: "out" }
 });
 
 describe("macroAutomation", () => {
@@ -94,6 +114,51 @@ describe("macroAutomation", () => {
     expect(getTrackMacroValueAtBeat(track, "macro_cutoff", 0.25, 4, 8)).toBeCloseTo(0.9);
     expect(getTrackMacroValueAtBeat(track, "macro_cutoff", 0.25, 6, 8)).toBeCloseTo(0.7);
     expect(getTrackMacroValueAtBeat(track, "macro_cutoff", 0.25, 8, 8)).toBeCloseTo(0.5);
+  });
+
+  it("derives preview state for all macros at a beat while overriding the edited lane", () => {
+    const track = createTrack();
+    const patch = createPatch();
+    track.macroValues.macro_resonance = 0.15;
+    track.macroAutomations.macro_cutoff = {
+      ...createTrackMacroAutomationLane("macro_cutoff", 0.2),
+      endValue: 0.8
+    };
+    track.macroAutomations.macro_resonance = {
+      ...createTrackMacroAutomationLane("macro_resonance", 0.1),
+      endValue: 0.5
+    };
+
+    const preview = getTrackPreviewStateAtBeat(track, patch, 8, 8, {
+      macroId: "macro_cutoff",
+      normalized: 0.65
+    });
+
+    expect(preview.macroValues).toEqual({
+      macro_cutoff: 0.65,
+      macro_resonance: 0.5
+    });
+    expect(preview.volumeNormalized).toBeCloseTo(0.5);
+  });
+
+  it("overrides volume separately from patch macro preview values", () => {
+    const track = createTrack();
+    const patch = createPatch();
+    track.macroAutomations[TRACK_VOLUME_AUTOMATION_ID] = {
+      ...createTrackMacroAutomationLane(TRACK_VOLUME_AUTOMATION_ID, 0.4),
+      endValue: 0.7
+    };
+
+    const preview = getTrackPreviewStateAtBeat(track, patch, 8, 8, {
+      macroId: TRACK_VOLUME_AUTOMATION_ID,
+      normalized: 0.2
+    });
+
+    expect(preview.macroValues).toEqual({
+      macro_cutoff: 0.25,
+      macro_resonance: 0.3
+    });
+    expect(preview.volumeNormalized).toBeCloseTo(0.2);
   });
 
   it("keeps the split variant while editing incoming and outgoing sides independently", () => {
