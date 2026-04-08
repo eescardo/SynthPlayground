@@ -268,7 +268,7 @@ export function TrackHeaderChrome({
                         )}
                         <button
                           type="button"
-                          className="track-inspector-action-button"
+                          className={`track-inspector-action-button${lane ? "" : " placeholder"}`}
                           title={lane ? (lane.expanded ? "Collapse lane" : "Expand lane") : "Expand lane"}
                           aria-label={lane ? (lane.expanded ? "Collapse lane" : "Expand lane") : "Expand lane"}
                           disabled={!lane}

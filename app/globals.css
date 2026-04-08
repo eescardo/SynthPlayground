@@ -299,6 +299,7 @@ select {
   align-items: stretch;
   justify-content: center;
   gap: 0.4rem;
+  margin-bottom: 0.18rem;
 }
 
 .track-volume-automation-button {
@@ -611,6 +612,14 @@ select {
 .track-inspector-action-button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.track-inspector-action-button.placeholder {
+  opacity: 0;
+  border-color: transparent;
+  background: transparent;
+  cursor: default;
+  pointer-events: none;
 }
 
 .track-name-input {
