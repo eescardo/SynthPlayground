@@ -211,7 +211,10 @@ export function TrackHeaderChrome({
                   />
                 )}
                 {volumeLane && (
-                  <div className="track-inspector-row icon-only" style={{ top: `${layout.y + 72}px` }}>
+                  <div
+                    className="track-inspector-row icon-only"
+                    style={{ top: `${layout.y + 72 + Math.max(0, (AUTOMATION_LANE_COLLAPSED_HEIGHT - 20) / 2)}px` }}
+                  >
                     <div className="track-inspector-row-actions">
                       <button
                         type="button"
@@ -238,7 +241,7 @@ export function TrackHeaderChrome({
                   if (!laneLayout) {
                     return null;
                   }
-                  const top = laneLayout.y + 1;
+                  const top = laneLayout.y + Math.max(0, (laneLayout.height - 20) / 2);
                   return (
                     <div key={macro.id} className="track-inspector-row icon-only" style={{ top: `${top}px` }}>
                       <div className="track-inspector-row-actions">

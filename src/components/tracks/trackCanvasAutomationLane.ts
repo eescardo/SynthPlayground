@@ -137,13 +137,15 @@ export function renderAutomationLane({
   ctx.strokeRect(headerWidth + 0.5, laneY + 0.5, width - headerWidth - 1, height - 1);
   ctx.fillStyle = colors.automationLabel;
   ctx.font = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
-  const labelY = laneY + Math.min(16, height - 6);
+  const labelY = laneY + height * 0.5;
   const stateLabel = "auto";
+  ctx.textBaseline = "middle";
   ctx.fillText(macroName, LANE_LABEL_X, labelY);
   const macroNameWidth = ctx.measureText(macroName).width;
   ctx.fillStyle = colors.noteHoverBorder;
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.fillText(stateLabel, LANE_LABEL_X + macroNameWidth + 8, labelY);
+  ctx.textBaseline = "alphabetic";
 
   if (expanded) {
     ctx.beginPath();
@@ -315,12 +317,14 @@ export function renderFixedLane({
   ctx.strokeRect(headerWidth + 0.5, laneY + 0.5, width - headerWidth - 1, height - 1);
   ctx.fillStyle = colors.automationLabel;
   ctx.font = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
-  const labelY = laneY + Math.min(16, height - 6);
+  const labelY = laneY + height * 0.5;
+  ctx.textBaseline = "middle";
   ctx.fillText(name, LANE_LABEL_X, labelY);
   const nameWidth = ctx.measureText(name).width;
   ctx.fillStyle = colors.noteHoverBorder;
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.fillText("fixed", LANE_LABEL_X + nameWidth + 8, labelY);
+  ctx.textBaseline = "alphabetic";
 
   ctx.strokeStyle = colors.automationLaneBorder;
   ctx.lineWidth = 2;

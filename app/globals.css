@@ -517,8 +517,8 @@ select {
 
 .track-inspector-panel {
   position: absolute;
-  left: 10px;
-  width: 150px;
+  left: 8px;
+  width: 154px;
   pointer-events: none;
   z-index: 2;
   border: 1px solid rgba(148, 179, 213, 0.38);
@@ -542,8 +542,8 @@ select {
 
 .track-inspector-row {
   position: absolute;
-  left: 10px;
-  width: 150px;
+  left: 12px;
+  width: 146px;
   min-height: 20px;
   display: flex;
   align-items: center;
@@ -551,7 +551,7 @@ select {
   gap: 0.35rem;
   pointer-events: auto;
   z-index: 3;
-  padding: 0 0.25rem 0 0.45rem;
+  padding: 0 0.35rem 0 0.55rem;
 }
 
 .track-inspector-row.icon-only {
