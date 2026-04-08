@@ -29,7 +29,11 @@ import {
   PitchRect,
   PLAYHEAD_HIT_HALF_WIDTH
 } from "@/components/tracks/trackCanvasGeometry";
-import { RULER_HEIGHT } from "@/components/tracks/trackCanvasConstants";
+import {
+  BEAT_WIDTH,
+  POINTER_DRAG_THRESHOLD_PX,
+  RULER_HEIGHT
+} from "@/components/tracks/trackCanvasConstants";
 import { PRIMARY_POINTER_BUTTON, SECONDARY_POINTER_BUTTON } from "@/lib/inputConstants";
 import { createDefaultPlacedNote } from "@/lib/noteDefaults";
 import { getNoteSelectionKey } from "@/lib/noteClipboard";
@@ -218,7 +222,7 @@ export function useTrackCanvasPointerInteractions({
     const loopMarkerRect = automationLaneHit ? null : findLoopMarkerRect(loopMarkerRectsRef.current, x, y);
     const playheadHit = automationLaneHit
       ? false
-      : isOverPlayhead(x, playheadBeat, headerWidth, 72, PLAYHEAD_HIT_HALF_WIDTH);
+      : isOverPlayhead(x, playheadBeat, headerWidth, BEAT_WIDTH, PLAYHEAD_HIT_HALF_WIDTH);
     const hoverTarget = getHoverTarget({
       hasMuteHit: Boolean(muteRect),
       hasPitchHit: Boolean(pitchRect),
@@ -542,7 +546,10 @@ export function useTrackCanvasPointerInteractions({
     }
     if (!drag && pendingAction) {
       if (pendingAction.kind === "track") {
-        if (Math.abs(x - pendingAction.startX) >= 4 || Math.abs(y - pendingAction.startY) >= 4) {
+        if (
+          Math.abs(x - pendingAction.startX) >= POINTER_DRAG_THRESHOLD_PX ||
+          Math.abs(y - pendingAction.startY) >= POINTER_DRAG_THRESHOLD_PX
+        ) {
           updateSelectionFromRect({
             startX: pendingAction.startX,
             startY: pendingAction.startY,
@@ -552,8 +559,8 @@ export function useTrackCanvasPointerInteractions({
           setCanvasCursor("default");
         }
       } else {
-        const startX = headerWidth + pendingAction.startBeat * 72;
-        if (Math.abs(x - startX) >= 4) {
+        const startX = headerWidth + pendingAction.startBeat * BEAT_WIDTH;
+        if (Math.abs(x - startX) >= POINTER_DRAG_THRESHOLD_PX) {
           updateTimelineSelectionFromRuler(pendingAction.startBeat, Math.max(0, snapToGrid(beatFromX(x), gridBeats)));
           setCanvasCursor("default");
         }

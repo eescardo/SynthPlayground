@@ -6,6 +6,7 @@ export const TRACK_HEIGHT = 72;
 export const AUTOMATION_LANE_HEIGHT = 56;
 export const AUTOMATION_LANE_COLLAPSED_HEIGHT = 22;
 export const BEAT_WIDTH = 72;
+export const POINTER_DRAG_THRESHOLD_PX = 4;
 export const MUTE_ICON_SIZE = 16;
 export const NOTE_RESIZE_HANDLE_WIDTH = 8;
 export const SPEAKER_X = 142;
