@@ -45,7 +45,9 @@ const getPatchOptionLabel = (patch: Project["patches"][number]) => {
   return `${patch.name} (Preset)`;
 };
 
-const TRACK_INSPECTOR_PANEL_VERTICAL_PADDING = 8;
+const TRACK_INSPECTOR_PANEL_VERTICAL_PADDING = 4;
+const TRACK_INSPECTOR_PANEL_MARGIN_TOP = 6;
+const TRACK_INSPECTOR_PANEL_MARGIN_BOTTOM = 6;
 const TRACK_INSPECTOR_ROW_HEIGHT = 20;
 
 export function TrackHeaderChrome({
@@ -259,8 +261,18 @@ export function TrackHeaderChrome({
             </select>
             {selected && track.macroPanelExpanded && (
               <MacroPanel
-                panelTop={macroPanelTop !== null ? macroPanelTop - TRACK_INSPECTOR_PANEL_VERTICAL_PADDING : null}
-                panelHeight={macroPanelHeight + TRACK_INSPECTOR_PANEL_VERTICAL_PADDING * 2}
+                panelTop={
+                  macroPanelTop !== null
+                    ? macroPanelTop - TRACK_INSPECTOR_PANEL_VERTICAL_PADDING + TRACK_INSPECTOR_PANEL_MARGIN_TOP
+                    : null
+                }
+                panelHeight={Math.max(
+                  20,
+                  macroPanelHeight +
+                    TRACK_INSPECTOR_PANEL_VERTICAL_PADDING * 2 -
+                    TRACK_INSPECTOR_PANEL_MARGIN_TOP -
+                    TRACK_INSPECTOR_PANEL_MARGIN_BOTTOM
+                )}
                 rows={macroPanelRows}
               />
             )}
