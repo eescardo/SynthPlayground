@@ -96,6 +96,19 @@ interface RenderAutomationLaneParams {
   width: number;
 }
 
+interface RenderFixedLaneParams {
+  beatWidth: number;
+  colors: TrackCanvasAutomationLaneColors;
+  ctx: CanvasRenderingContext2D;
+  headerWidth: number;
+  height: number;
+  laneY: number;
+  name: string;
+  value: number;
+  veilTimeline?: boolean;
+  width: number;
+}
+
 export function renderAutomationLane({
   automationKeyframeRects,
   beatWidth,
@@ -264,4 +277,56 @@ export function renderAutomationLane({
       }
     }
   }
+}
+
+export function renderFixedLane({
+  beatWidth,
+  colors,
+  ctx,
+  headerWidth,
+  height,
+  laneY,
+  name,
+  value,
+  veilTimeline = false,
+  width
+}: RenderFixedLaneParams) {
+  const laneBottom = laneY + height;
+  const sliderStartX = headerWidth + Math.min(beatWidth * 0.25, 18);
+  const sliderEndX = Math.min(width - 10, sliderStartX + beatWidth * 2.4);
+  const sliderCenterY = laneY + height * 0.5;
+  const normalized = Math.max(0, Math.min(1, value));
+  const thumbX = sliderStartX + (sliderEndX - sliderStartX) * normalized;
+
+  ctx.fillStyle = veilTimeline ? colors.automationLaneTimelineVeil : colors.automationLaneBg;
+  ctx.fillRect(headerWidth, laneY, width - headerWidth, height);
+  ctx.strokeStyle = colors.automationLaneBorder;
+  ctx.strokeRect(headerWidth + 0.5, laneY + 0.5, width - headerWidth - 1, height - 1);
+  ctx.fillStyle = colors.automationLabel;
+  ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillText(`${name} fixed`, 12, laneY + Math.min(16, height - 6));
+
+  ctx.strokeStyle = colors.automationLaneBorder;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(sliderStartX, sliderCenterY);
+  ctx.lineTo(sliderEndX, sliderCenterY);
+  ctx.stroke();
+
+  const fillWidth = Math.max(0, thumbX - sliderStartX);
+  ctx.fillStyle = colors.automationFill;
+  ctx.fillRect(sliderStartX, sliderCenterY - 2, fillWidth, 4);
+
+  ctx.fillStyle = colors.automationHandle;
+  ctx.strokeStyle = colors.automationHandleBorder;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(thumbX, sliderCenterY, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  const percent = Math.round(normalized * 100);
+  ctx.fillStyle = colors.automationLabel;
+  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillText(`${percent}%`, sliderEndX + 8, Math.min(laneBottom - 6, sliderCenterY + 4));
 }

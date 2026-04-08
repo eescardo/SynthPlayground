@@ -60,6 +60,8 @@ export const TRACK_VOLUME_RANGE = {
   MAX: 2
 };
 
+export const TRACK_VOLUME_AUTOMATION_ID = "__track_volume__";
+
 export const EVENT_SORT_PRIORITY = {
   NoteOff: 0,
   ParamChange: 1,

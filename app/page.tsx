@@ -15,7 +15,7 @@ import { TimelineActionsPopoverRequest, TrackCanvas, TrackCanvasSelection } from
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
 import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
-import { getProjectTimelineEndBeat } from "@/lib/macroAutomation";
+import { createTrackVolumeAutomationLane, getProjectTimelineEndBeat, TRACK_VOLUME_AUTOMATION_ID } from "@/lib/macroAutomation";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import {
   BeatRange,
@@ -854,7 +854,7 @@ export default function HomePage() {
           notes: [],
           macroValues: {},
           macroAutomations: {},
-          macroPanelExpanded: true,
+          macroPanelExpanded: false,
           volume: 1,
           fx: {
             delayEnabled: false,
@@ -974,7 +974,7 @@ export default function HomePage() {
       ...current,
       tracks: current.tracks.map((track) =>
         track.id === trackId
-          ? { ...track, instrumentPatchId: patchId, macroValues: {}, macroAutomations: {}, macroPanelExpanded: true }
+          ? { ...track, instrumentPatchId: patchId, macroValues: {}, macroAutomations: {}, macroPanelExpanded: false }
           : track
       )
     }), { actionKey: `track:${trackId}:patch` });
@@ -1014,6 +1014,76 @@ export default function HomePage() {
     }
   }, [commitProjectChange, project.patches, project.tracks, schedulePatchPreview]);
 
+  const bindTrackVolumeToAutomation = useCallback((trackId: string, initialValue: number) => {
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        tracks: current.tracks.map((track) =>
+          track.id === trackId
+            ? {
+                ...track,
+                macroAutomations: {
+                  ...track.macroAutomations,
+                  [TRACK_VOLUME_AUTOMATION_ID]: createTrackVolumeAutomationLane(initialValue)
+                }
+              }
+            : track
+        )
+      }),
+      { actionKey: `track:${trackId}:volume:bind-automation` }
+    );
+  }, [commitProjectChange]);
+
+  const unbindTrackVolumeFromAutomation = useCallback((trackId: string) => {
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        tracks: current.tracks.map((track) => {
+          if (track.id !== trackId) {
+            return track;
+          }
+          const nextAutomations = { ...track.macroAutomations };
+          const lane = nextAutomations[TRACK_VOLUME_AUTOMATION_ID];
+          delete nextAutomations[TRACK_VOLUME_AUTOMATION_ID];
+          return {
+            ...track,
+            macroAutomations: nextAutomations,
+            volume: lane ? lane.startValue * 2 : track.volume
+          };
+        })
+      }),
+      { actionKey: `track:${trackId}:volume:unbind-automation` }
+    );
+  }, [commitProjectChange]);
+
+  const toggleTrackVolumeAutomationLane = useCallback((trackId: string) => {
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        tracks: current.tracks.map((track) => {
+          if (track.id !== trackId) {
+            return track;
+          }
+          const lane = track.macroAutomations[TRACK_VOLUME_AUTOMATION_ID];
+          if (!lane) {
+            return track;
+          }
+          return {
+            ...track,
+            macroAutomations: {
+              ...track.macroAutomations,
+              [TRACK_VOLUME_AUTOMATION_ID]: {
+                ...lane,
+                expanded: !lane.expanded
+              }
+            }
+          };
+        })
+      }),
+      { actionKey: `track:${trackId}:volume:toggle-lane` }
+    );
+  }, [commitProjectChange]);
+
   const previewPlacedNote = useCallback((trackId: string, note: Project["tracks"][number]["notes"][number]) => {
     audioEngineRef.current
       ?.previewNote(trackId, pitchToVoct(note.pitchStr), note.durationBeats, note.velocity)
@@ -1039,6 +1109,9 @@ export default function HomePage() {
     onRenameTrack: renameTrack,
     onToggleTrackMute: toggleTrackMute,
     onSetTrackVolume: setTrackVolume,
+    onBindTrackVolumeToAutomation: bindTrackVolumeToAutomation,
+    onUnbindTrackVolumeFromAutomation: unbindTrackVolumeFromAutomation,
+    onToggleTrackVolumeAutomationLane: toggleTrackVolumeAutomationLane,
     onUpdateTrackPatch: updateTrackPatch,
     onToggleTrackMacroPanel: toggleTrackMacroPanel,
     onResetTrackMacros: resetSelectedPatchMacros

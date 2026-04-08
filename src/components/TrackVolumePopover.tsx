@@ -13,10 +13,13 @@ interface TrackVolumePopoverProps {
   effectiveVolume: number;
   rememberedVolume: number;
   muted: boolean;
+  automated: boolean;
   top: string;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
   onVolumeChange: (volume: number, options?: { commit?: boolean }) => void;
+  onBindToAutomation: () => void;
+  onUnbindFromAutomation: () => void;
 }
 
 export function TrackVolumePopover(props: TrackVolumePopoverProps) {
@@ -34,8 +37,16 @@ export function TrackVolumePopover(props: TrackVolumePopoverProps) {
         effectiveVolume={props.effectiveVolume}
         rememberedVolume={props.rememberedVolume}
         muted={props.muted}
+        disabled={props.automated}
         onVolumeChange={props.onVolumeChange}
       />
+      <button
+        type="button"
+        className="track-volume-automation-button"
+        onClick={props.automated ? props.onUnbindFromAutomation : props.onBindToAutomation}
+      >
+        {props.automated ? "◉ Use fixed value" : "◎ Automate in timeline"}
+      </button>
       <div className="track-volume-scale">
         <span>{TRACK_VOLUME_MAX_LABEL}</span>
         <span>{TRACK_VOLUME_DEFAULT_LABEL}</span>

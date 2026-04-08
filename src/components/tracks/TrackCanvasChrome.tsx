@@ -1,10 +1,10 @@
 import { Dispatch, SetStateAction } from "react";
-import { MacroPanel } from "@/components/MacroPanel";
 import { TrackVolumePopover } from "@/components/TrackVolumePopover";
-import { SPEAKER_Y_OFFSET } from "@/components/tracks/trackCanvasConstants";
+import { MACRO_PANEL_TOGGLE_Y_OFFSET, SPEAKER_Y_OFFSET } from "@/components/tracks/trackCanvasConstants";
 import { TrackLayout, TrackCanvasAutomationActions, TrackCanvasTrackActions } from "@/components/tracks/trackCanvasTypes";
+import { getTrackMacroLane, getTrackVolumeLane } from "@/lib/macroAutomation";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
-import { Project, Track } from "@/types/music";
+import { Project } from "@/types/music";
 
 interface TrackHeaderChromeProps {
   project: Project;
@@ -20,12 +20,6 @@ interface TrackHeaderChromeProps {
   scheduleVolumePopoverOpen: (trackId: string) => void;
   scheduleVolumePopoverDismiss: () => void;
   cancelScheduledVolumePopoverDismiss: () => void;
-  trackActions: TrackCanvasTrackActions;
-}
-
-interface TrackMacroPanelProps {
-  selectedTrack: Track | null;
-  selectedPatch: Project["patches"][number] | null;
   trackActions: TrackCanvasTrackActions;
   automationActions: TrackCanvasAutomationActions;
 }
@@ -58,7 +52,8 @@ export function TrackHeaderChrome({
   scheduleVolumePopoverOpen,
   scheduleVolumePopoverDismiss,
   cancelScheduledVolumePopoverDismiss,
-  trackActions
+  trackActions,
+  automationActions
 }: TrackHeaderChromeProps) {
   return (
     <div className="track-header-overlays">
@@ -67,6 +62,9 @@ export function TrackHeaderChrome({
         if (!layout) {
           return null;
         }
+        const trackPatch = project.patches.find((entry) => entry.id === track.instrumentPatchId);
+        const volumeLane = getTrackVolumeLane(track);
+        const selected = selectedTrackId === track.id;
         const effectiveVolume = track.mute ? 0 : track.volume;
         const rememberedVolume = track.volume;
 
@@ -106,16 +104,36 @@ export function TrackHeaderChrome({
                 openVolumePopover(track.id);
               }}
             />
+            {selected && (
+              <button
+                type="button"
+                className="track-macro-toggle-button"
+                aria-label={track.macroPanelExpanded ? "Collapse macro lanes" : "Expand macro lanes"}
+                title={track.macroPanelExpanded ? "Collapse macro lanes" : "Expand macro lanes"}
+                style={{
+                  top: `${layout.y + MACRO_PANEL_TOGGLE_Y_OFFSET}px`
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  trackActions.onToggleTrackMacroPanel(track.id);
+                }}
+              >
+                {track.macroPanelExpanded ? "⌄" : "⌃"}
+              </button>
+            )}
             {volumePopoverTrackId === track.id && (
               <TrackVolumePopover
                 trackName={track.name}
                 effectiveVolume={effectiveVolume}
                 rememberedVolume={rememberedVolume}
                 muted={Boolean(track.mute)}
+                automated={Boolean(volumeLane)}
                 top={`${layout.y + 6}px`}
                 onMouseEnter={() => cancelScheduledVolumePopoverDismiss()}
                 onMouseLeave={() => scheduleVolumePopoverDismiss()}
                 onVolumeChange={(volume, options) => trackActions.onSetTrackVolume(track.id, volume, options)}
+                onBindToAutomation={() => trackActions.onBindTrackVolumeToAutomation(track.id, track.volume / 2)}
+                onUnbindFromAutomation={() => trackActions.onUnbindTrackVolumeFromAutomation(track.id)}
               />
             )}
             {editingTrackId === track.id && (
@@ -157,66 +175,91 @@ export function TrackHeaderChrome({
                 </option>
               ))}
             </select>
+            {selected && track.macroPanelExpanded && (
+              <>
+                {volumeLane && (
+                  <div className="track-inspector-row" style={{ top: `${layout.y + 72}px` }}>
+                    <span className="track-inspector-row-label">Volume</span>
+                    <div className="track-inspector-row-actions">
+                      <button
+                        type="button"
+                        className="track-inspector-action-button"
+                        title="Use fixed value"
+                        aria-label="Use fixed value"
+                        onClick={() => trackActions.onUnbindTrackVolumeFromAutomation(track.id)}
+                      >
+                        ◉
+                      </button>
+                      <button
+                        type="button"
+                        className="track-inspector-action-button"
+                        title={volumeLane.expanded ? "Collapse lane" : "Expand lane"}
+                        aria-label={volumeLane.expanded ? "Collapse lane" : "Expand lane"}
+                        onClick={() => trackActions.onToggleTrackVolumeAutomationLane(track.id)}
+                      >
+                        {volumeLane.expanded ? "⌄" : "⌃"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {trackPatch?.ui.macros.map((macro) => {
+                  const lane = getTrackMacroLane(track, macro.id);
+                  const laneLayout = layout.automationLanes.find((entry) => entry.macroId === macro.id);
+                  if (!laneLayout) {
+                    return null;
+                  }
+                  const top = laneLayout.y + 1;
+                  return (
+                    <div key={macro.id} className="track-inspector-row" style={{ top: `${top}px` }}>
+                      <span className="track-inspector-row-label" title={macro.name}>{macro.name}</span>
+                      <div className="track-inspector-row-actions">
+                        {lane ? (
+                          <button
+                            type="button"
+                            className="track-inspector-action-button"
+                            title="Use fixed value"
+                            aria-label="Use fixed value"
+                            onClick={() => automationActions.onUnbindTrackMacroFromAutomation(track.id, macro.id)}
+                          >
+                            ◉
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="track-inspector-action-button"
+                            title="Automate in timeline"
+                            aria-label="Automate in timeline"
+                            onClick={() =>
+                              automationActions.onBindTrackMacroToAutomation(
+                                track.id,
+                                macro.id,
+                                track.macroValues[macro.id] ?? macro.defaultNormalized ?? 0.5
+                              )
+                            }
+                          >
+                            ◎
+                          </button>
+                        )}
+                        {lane && (
+                          <button
+                            type="button"
+                            className="track-inspector-action-button"
+                            title={lane.expanded ? "Collapse lane" : "Expand lane"}
+                            aria-label={lane.expanded ? "Collapse lane" : "Expand lane"}
+                            onClick={() => automationActions.onToggleTrackMacroAutomationLane(track.id, macro.id)}
+                          >
+                            {lane.expanded ? "⌄" : "⌃"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
           </div>
         );
       })}
-    </div>
-  );
-}
-
-export function TrackMacroPanel({
-  selectedTrack,
-  selectedPatch,
-  trackActions,
-  automationActions
-}: TrackMacroPanelProps) {
-  if (!selectedTrack || !selectedPatch) {
-    return null;
-  }
-
-  return (
-    <div className="track-macro-panel-shell">
-      <div className="track-macro-panel-header">
-        <div>
-          <strong>Track Macros</strong>
-          <span className="track-macro-panel-subtitle">
-            {selectedTrack.name} · {selectedPatch.name}
-          </span>
-        </div>
-        <div className="track-macro-panel-actions">
-          <button type="button" onClick={() => trackActions.onResetTrackMacros(selectedTrack.id)}>
-            Reset
-          </button>
-          <button type="button" onClick={() => trackActions.onToggleTrackMacroPanel(selectedTrack.id)}>
-            {selectedTrack.macroPanelExpanded ? "Collapse" : "Expand"}
-          </button>
-        </div>
-      </div>
-      {selectedTrack.macroPanelExpanded && (
-        <MacroPanel
-          patch={selectedPatch}
-          macroValues={selectedTrack.macroValues}
-          automatedMacroIds={new Set(Object.keys(selectedTrack.macroAutomations))}
-          automationExpandedByMacroId={new Map(
-            Object.values(selectedTrack.macroAutomations).map((lane) => [lane.macroId, lane.expanded] as const)
-          )}
-          onMacroChange={(macroId, normalized) =>
-            automationActions.onChangeTrackMacro(selectedTrack.id, macroId, normalized)
-          }
-          onMacroCommit={(macroId, normalized) =>
-            automationActions.onChangeTrackMacro(selectedTrack.id, macroId, normalized, { commit: true })
-          }
-          onBindMacroToAutomation={(macroId, normalized) =>
-            automationActions.onBindTrackMacroToAutomation(selectedTrack.id, macroId, normalized)
-          }
-          onUnbindMacroFromAutomation={(macroId) =>
-            automationActions.onUnbindTrackMacroFromAutomation(selectedTrack.id, macroId)
-          }
-          onToggleMacroAutomationLane={(macroId) =>
-            automationActions.onToggleTrackMacroAutomationLane(selectedTrack.id, macroId)
-          }
-        />
-      )}
     </div>
   );
 }

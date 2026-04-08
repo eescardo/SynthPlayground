@@ -215,7 +215,7 @@ export const createEmptyProjectFromPresets = (bundledPresetPatches: Patch[]): Pr
         notes: [],
         macroValues: {},
         macroAutomations: {},
-        macroPanelExpanded: true,
+        macroPanelExpanded: false,
         volume: 1,
         mute: false,
         solo: false,

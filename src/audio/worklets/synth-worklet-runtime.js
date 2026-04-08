@@ -5,6 +5,7 @@ import {
   MAX_VOICES,
   PARAM_SMOOTHING_MS,
   PORTS_IN_BY_TYPE,
+  TRACK_VOLUME_AUTOMATION_ID,
   TRACK_VOLUME_RANGE
 } from "./synth-worklet-constants.js";
 import { clamp, dbToGain, onePoleStep, smoothingAlpha } from "./synth-worklet-math.js";
@@ -342,6 +343,10 @@ export class TrackRuntime {
   // Macros stay as UI-facing normalized controls and are expanded here into the
   // concrete node parameter values that the DSP graph consumes.
   applyMacro(macroId, normalized) {
+    if (macroId === TRACK_VOLUME_AUTOMATION_ID) {
+      this.track.volume = clamp(normalized, 0, 1) * TRACK_VOLUME_RANGE.MAX;
+      return;
+    }
     const macro = this.compiled.macroById.get(macroId);
     if (!macro) {
       return;
