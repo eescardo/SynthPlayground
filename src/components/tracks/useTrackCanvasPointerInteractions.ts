@@ -198,7 +198,7 @@ export function useTrackCanvasPointerInteractions({
     return project.tracks.find((track) => track.id === layout.trackId) ?? null;
   }, [getTrackLayoutAtY, project.tracks]);
 
-  const getAutomationLaneAtPoint = useCallback((x: number, y: number): { track: Track; lane: AutomationLaneLayout } | null => {
+  const getLaneAtPoint = useCallback((x: number, y: number): { track: Track; lane: AutomationLaneLayout } | null => {
     if (x < headerWidth) {
       return null;
     }
@@ -206,7 +206,7 @@ export function useTrackCanvasPointerInteractions({
     if (!layout) {
       return null;
     }
-    const lane = layout.automationLanes.find((entry) => entry.automated && y >= entry.y && y <= entry.y + entry.height);
+    const lane = layout.automationLanes.find((entry) => y >= entry.y && y <= entry.y + entry.height);
     if (!lane) {
       return null;
     }
@@ -215,12 +215,13 @@ export function useTrackCanvasPointerInteractions({
   }, [getTrackLayoutAtY, headerWidth, project.tracks]);
 
   const resolvePointerTargets = useCallback((x: number, y: number) => {
-    const automationLaneHit = getAutomationLaneAtPoint(x, y);
+    const laneHit = getLaneAtPoint(x, y);
+    const automationLaneHit = laneHit?.lane.automated ? laneHit : null;
     const muteRect = findMuteRect(muteRectsRef.current, x, y);
     const pitchRect = findPitchRect(pitchRectsRef.current, x, y);
     const noteRect = findNoteRect(x, y);
-    const loopMarkerRect = automationLaneHit ? null : findLoopMarkerRect(loopMarkerRectsRef.current, x, y);
-    const playheadHit = automationLaneHit
+    const loopMarkerRect = laneHit ? null : findLoopMarkerRect(loopMarkerRectsRef.current, x, y);
+    const playheadHit = laneHit
       ? false
       : isOverPlayhead(x, playheadBeat, headerWidth, BEAT_WIDTH, PLAYHEAD_HIT_HALF_WIDTH);
     const hoverTarget = getHoverTarget({
@@ -234,12 +235,13 @@ export function useTrackCanvasPointerInteractions({
       muteRect,
       pitchRect,
       noteRect,
+      laneHit,
       automationLaneHit,
       loopMarkerRect,
       playheadHit,
       hoverTarget
     };
-  }, [findNoteRect, getAutomationLaneAtPoint, headerWidth, loopMarkerRectsRef, muteRectsRef, pitchRectsRef, playheadBeat]);
+  }, [findNoteRect, getLaneAtPoint, headerWidth, loopMarkerRectsRef, muteRectsRef, pitchRectsRef, playheadBeat]);
 
   const updateSelectionFromRect = useCallback((nextRect: SelectionRect | null) => {
     setSelectionRect(nextRect);
@@ -490,9 +492,9 @@ export function useTrackCanvasPointerInteractions({
     const targets = resolvePointerTargets(x, y);
     const automationKeyframe = findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y);
     const automationLaneHit = targets.automationLaneHit;
-    setHoveredPlayhead(automationLaneHit ? false : targets.hoverTarget === "playhead");
+    setHoveredPlayhead(targets.laneHit ? false : targets.hoverTarget === "playhead");
     setHoveredLoopMarker((prev) => {
-      const next = !automationLaneHit && targets.hoverTarget === "loop-marker" && targets.loopMarkerRect
+      const next = !targets.laneHit && targets.hoverTarget === "loop-marker" && targets.loopMarkerRect
         ? { markerId: targets.loopMarkerRect.markerId, kind: targets.loopMarkerRect.kind, beat: targets.loopMarkerRect.beat }
         : null;
       return prev?.markerId === next?.markerId && prev?.kind === next?.kind && prev?.beat === next?.beat ? prev : next;
@@ -743,6 +745,8 @@ export function useTrackCanvasPointerInteractions({
     const targets = resolvePointerTargets(x, y);
     if (targets.automationLaneHit || findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y)) {
       setCanvasCursor("crosshair");
+    } else if (targets.laneHit) {
+      setCanvasCursor("resize");
     } else {
       setCanvasCursor(
         getCursorForPosition({
