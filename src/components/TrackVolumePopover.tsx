@@ -32,14 +32,21 @@ export function TrackVolumePopover(props: TrackVolumePopoverProps) {
       onPointerDown={(event) => event.stopPropagation()}
     >
       <span className="track-volume-popover-label">{trackVolumeToPercentLabel(props.effectiveVolume)}</span>
-      <TrackVolumeSlider
-        trackName={props.trackName}
-        effectiveVolume={props.effectiveVolume}
-        rememberedVolume={props.rememberedVolume}
-        muted={props.muted}
-        disabled={props.automated}
-        onVolumeChange={props.onVolumeChange}
-      />
+      <div className="track-volume-body">
+        <TrackVolumeSlider
+          trackName={props.trackName}
+          effectiveVolume={props.effectiveVolume}
+          rememberedVolume={props.rememberedVolume}
+          muted={props.muted}
+          disabled={props.automated}
+          onVolumeChange={props.onVolumeChange}
+        />
+        <div className="track-volume-scale">
+          <span>{TRACK_VOLUME_MAX_LABEL}</span>
+          <span>{TRACK_VOLUME_DEFAULT_LABEL}</span>
+          <span>{TRACK_VOLUME_MIN_LABEL}</span>
+        </div>
+      </div>
       <button
         type="button"
         className="track-volume-automation-button"
@@ -47,11 +54,6 @@ export function TrackVolumePopover(props: TrackVolumePopoverProps) {
       >
         {props.automated ? "◉ Use fixed value" : "◎ Automate"}
       </button>
-      <div className="track-volume-scale">
-        <span>{TRACK_VOLUME_MAX_LABEL}</span>
-        <span>{TRACK_VOLUME_DEFAULT_LABEL}</span>
-        <span>{TRACK_VOLUME_MIN_LABEL}</span>
-      </div>
     </div>
   );
 }

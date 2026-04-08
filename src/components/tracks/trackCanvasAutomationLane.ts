@@ -40,6 +40,7 @@ const AUTOMATION_SINGLE_RADIUS = 5;
 const AUTOMATION_SPLIT_HALF_WIDTH = 4;
 const AUTOMATION_SPLIT_HALF_HEIGHT = 4;
 const AUTOMATION_SPLIT_CENTER_OFFSET = 3;
+const LANE_LABEL_X = 18;
 
 export const automationValueFromY = (y: number, laneY: number, laneHeight: number): number =>
   Math.max(0, Math.min(1, 1 - (y - (laneY + 6)) / Math.max(1, laneHeight - 12)));
@@ -138,11 +139,11 @@ export function renderAutomationLane({
   ctx.font = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
   const labelY = laneY + Math.min(16, height - 6);
   const stateLabel = "auto";
-  ctx.fillText(macroName, 12, labelY);
+  ctx.fillText(macroName, LANE_LABEL_X, labelY);
   const macroNameWidth = ctx.measureText(macroName).width;
   ctx.fillStyle = colors.noteHoverBorder;
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.fillText(stateLabel, 12 + macroNameWidth + 8, labelY);
+  ctx.fillText(stateLabel, LANE_LABEL_X + macroNameWidth + 8, labelY);
 
   if (expanded) {
     ctx.beginPath();
@@ -315,11 +316,11 @@ export function renderFixedLane({
   ctx.fillStyle = colors.automationLabel;
   ctx.font = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
   const labelY = laneY + Math.min(16, height - 6);
-  ctx.fillText(name, 12, labelY);
+  ctx.fillText(name, LANE_LABEL_X, labelY);
   const nameWidth = ctx.measureText(name).width;
   ctx.fillStyle = colors.noteHoverBorder;
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.fillText("fixed", 12 + nameWidth + 8, labelY);
+  ctx.fillText("fixed", LANE_LABEL_X + nameWidth + 8, labelY);
 
   ctx.strokeStyle = colors.automationLaneBorder;
   ctx.lineWidth = 2;
