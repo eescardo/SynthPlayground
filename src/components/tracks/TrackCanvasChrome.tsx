@@ -118,7 +118,7 @@ export function TrackHeaderChrome({
                   trackActions.onToggleTrackMacroPanel(track.id);
                 }}
               >
-                {track.macroPanelExpanded ? "⌄" : "⌃"}
+                {track.macroPanelExpanded ? "^" : "v"}
               </button>
             )}
             {volumePopoverTrackId === track.id && (
