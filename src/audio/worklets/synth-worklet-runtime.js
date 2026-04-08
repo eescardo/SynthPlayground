@@ -604,7 +604,6 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     this.playing = false;
     this.previewing = false;
     this.previewRemainingSamples = 0;
-    this.previewIgnoreMute = true;
     this.previewIgnoreVolume = true;
     this.sampleCounter = 0;
     this.songSampleCounter = 0;
@@ -671,7 +670,6 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     this.playing = false;
     this.previewing = false;
     this.previewRemainingSamples = 0;
-    this.previewIgnoreMute = true;
     this.previewIgnoreVolume = true;
     this.recordingTrackId = null;
     this.transportSessionId = Number.isFinite(message.sessionId) ? message.sessionId : this.transportSessionId + 1;
@@ -728,7 +726,6 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         }
         this.resetAllTrackVoices();
         this.previewRemainingSamples = Math.max(0, message.durationSamples || 0);
-        this.previewIgnoreMute = message.ignoreMute !== false;
         this.previewIgnoreVolume = message.ignoreVolume !== false;
         this.previewing = this.previewRemainingSamples > 0;
         break;
@@ -858,7 +855,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     if (this.playing || this.previewing) {
       for (const track of this.trackRuntimes) {
         track.processTrackFrames(this.masterBuffer, startFrame, endFrame, {
-          ignoreMute: this.previewing ? this.previewIgnoreMute : false,
+          ignoreMute: this.previewing,
           ignoreVolume: this.previewing ? this.previewIgnoreVolume : false
         });
       }

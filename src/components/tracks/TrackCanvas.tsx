@@ -7,6 +7,7 @@ import {
   automationValueFromY,
   AutomationKeyframeRect,
   findAutomationKeyframeRect,
+  HoveredAutomationKeyframe,
   renderAutomationLane,
   renderFixedLane
 } from "@/components/tracks/trackCanvasAutomationLane";
@@ -68,7 +69,7 @@ import { createDefaultPlacedNote } from "@/lib/noteDefaults";
 import { getNoteSelectionKey } from "@/lib/noteClipboard";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
 import { formatBeatName, snapToGrid } from "@/lib/musicTiming";
-import { Note, Track } from "@/types/music";
+import { Note, Project, Track } from "@/types/music";
 export type { TimelineActionsPopoverRequest, TrackCanvasProps, TrackCanvasSelection } from "@/components/tracks/trackCanvasTypes";
 
 interface DragState {
@@ -110,19 +111,21 @@ type PendingCanvasAction =
       pointerId: number;
     };
 
-interface PendingAutomationAction {
-  trackId: string;
-  macroId: string;
-  beat: number;
-  value: number;
-  pointerId: number;
-}
-
-interface PendingFixedLaneAction {
-  trackId: string;
-  macroId: string;
-  pointerId: number;
-}
+type PendingLaneAction =
+  | {
+      kind: "automation-keyframe";
+      trackId: string;
+      macroId: string;
+      beat: number;
+      value: number;
+      pointerId: number;
+    }
+  | {
+      kind: "fixed-slider";
+      trackId: string;
+      macroId: string;
+      pointerId: number;
+    };
 
 interface AutomationDragState {
   trackId: string;
@@ -137,6 +140,124 @@ interface HoveredLoopMarker {
   markerId: string;
   kind: "start" | "end";
   beat: number;
+}
+
+interface AutomatedLaneRenderSpec {
+  kind: "automated";
+  laneId: string;
+  name: string;
+  points: ReturnType<typeof getTrackAutomationPoints>;
+  expanded: boolean;
+  y: number;
+  height: number;
+}
+
+interface FixedLaneRenderSpec {
+  kind: "fixed";
+  macroId: string;
+  name: string;
+  defaultValue: number;
+  value: number;
+  y: number;
+  height: number;
+}
+
+type LaneRenderSpec = AutomatedLaneRenderSpec | FixedLaneRenderSpec;
+
+const resolveAutomatedTrackLane = (track: Track, automationLayout: AutomationLaneLayout) =>
+  automationLayout.laneType === "volume"
+    ? getTrackVolumeLane(track)
+    : automationLayout.macroId
+      ? getTrackMacroLane(track, automationLayout.macroId)
+      : null;
+
+const resolveLaneRenderSpec = (
+  track: Track,
+  trackPatch: Project["patches"][number] | undefined,
+  automationLayout: AutomationLaneLayout,
+  totalBeats: number
+): LaneRenderSpec | null => {
+  if (automationLayout.automated) {
+    const lane = resolveAutomatedTrackLane(track, automationLayout);
+    if (!lane) {
+      return null;
+    }
+    return {
+      kind: "automated",
+      laneId: automationLayout.laneId,
+      name: automationLayout.name,
+      points: getTrackAutomationPoints(lane, totalBeats),
+      expanded: automationLayout.expanded,
+      y: automationLayout.y,
+      height: automationLayout.height
+    };
+  }
+
+  if (!automationLayout.macroId) {
+    return null;
+  }
+  const macro = trackPatch?.ui.macros.find((entry: Project["patches"][number]["ui"]["macros"][number]) => entry.id === automationLayout.macroId);
+  if (!macro) {
+    return null;
+  }
+  return {
+    kind: "fixed",
+    macroId: macro.id,
+    name: macro.name,
+    defaultValue: macro.defaultNormalized ?? 0.5,
+    value: track.macroValues[macro.id] ?? macro.defaultNormalized ?? 0.5,
+    y: automationLayout.y,
+    height: automationLayout.height
+  };
+};
+
+function renderLaneSpec(
+  ctx: CanvasRenderingContext2D,
+  spec: LaneRenderSpec,
+  options: {
+    hoveredAutomationKeyframe: HoveredAutomationKeyframe | null;
+    registerHitTargets: boolean;
+    trackId: string;
+    veilTimeline?: boolean;
+    width: number;
+  },
+  automationKeyframeRects: AutomationKeyframeRect[]
+) {
+  if (spec.kind === "automated") {
+    renderAutomationLane({
+      automationKeyframeRects,
+      beatWidth: BEAT_WIDTH,
+      colors: TRACK_CANVAS_COLORS,
+      ctx,
+      expanded: spec.expanded,
+      headerWidth: HEADER_WIDTH,
+      height: spec.height,
+      hoveredAutomationKeyframe: options.hoveredAutomationKeyframe,
+      laneY: spec.y,
+      macroId: spec.laneId,
+      macroName: spec.name,
+      points: spec.points,
+      registerHitTargets: options.registerHitTargets,
+      trackId: options.trackId,
+      veilTimeline: options.veilTimeline,
+      width: options.width
+    });
+    return;
+  }
+
+  renderFixedLane({
+    beatWidth: BEAT_WIDTH,
+    colors: TRACK_CANVAS_COLORS,
+    ctx,
+    headerWidth: HEADER_WIDTH,
+    height: spec.height,
+    laneY: spec.y,
+    name: spec.name,
+    defaultValue: spec.defaultValue,
+    value: spec.value,
+    veilTimeline: options.veilTimeline,
+    width: options.width
+  });
 }
 
 function drawGhostPlayhead(
@@ -293,8 +414,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const dragRef = useRef<DragState | null>(null);
   const pendingCanvasActionRef = useRef<PendingCanvasAction | null>(null);
   const automationDragRef = useRef<AutomationDragState | null>(null);
-  const pendingAutomationActionRef = useRef<PendingAutomationAction | null>(null);
-  const pendingFixedLaneActionRef = useRef<PendingFixedLaneAction | null>(null);
+  const pendingLaneActionRef = useRef<PendingLaneAction | null>(null);
   const noteRectsRef = useRef<NoteRect[]>([]);
   const automationKeyframeRectsRef = useRef<AutomationKeyframeRect[]>([]);
   const muteRectsRef = useRef<MuteRect[]>([]);
@@ -662,56 +782,21 @@ export function TrackCanvas(props: TrackCanvasProps) {
       }
 
       for (const automationLayout of layout.automationLanes) {
-        if (automationLayout.automated) {
-          const lane =
-            automationLayout.laneType === "volume"
-              ? getTrackVolumeLane(track)
-              : automationLayout.macroId
-                ? getTrackMacroLane(track, automationLayout.macroId)
-                : null;
-          if (!lane) {
-            continue;
-          }
-          renderAutomationLane({
-            automationKeyframeRects: automationKeyframeRectsRef.current,
-            beatWidth: BEAT_WIDTH,
-            colors: TRACK_CANVAS_COLORS,
-            ctx,
-            expanded: automationLayout.expanded,
-            headerWidth: HEADER_WIDTH,
-            height: automationLayout.height,
+        const spec = resolveLaneRenderSpec(track, trackPatch, automationLayout, totalBeats);
+        if (!spec) {
+          continue;
+        }
+        renderLaneSpec(
+          ctx,
+          spec,
+          {
             hoveredAutomationKeyframe,
-            laneY: automationLayout.y,
-            macroId: automationLayout.laneId,
-            macroName: automationLayout.name,
-            points: getTrackAutomationPoints(lane, totalBeats),
             registerHitTargets: true,
             trackId: track.id,
             width
-          });
-          continue;
-        }
-
-        if (!automationLayout.macroId) {
-          continue;
-        }
-        const macro = trackPatch?.ui.macros.find((entry) => entry.id === automationLayout.macroId);
-        if (!macro) {
-          continue;
-        }
-        const manualValue = track.macroValues[macro.id] ?? macro.defaultNormalized ?? 0.5;
-        renderFixedLane({
-          beatWidth: BEAT_WIDTH,
-          colors: TRACK_CANVAS_COLORS,
-          ctx,
-          headerWidth: HEADER_WIDTH,
-          height: automationLayout.height,
-          laneY: automationLayout.y,
-          name: macro.name,
-          defaultValue: macro.defaultNormalized ?? 0.5,
-          value: manualValue,
-          width
-        });
+          },
+          automationKeyframeRectsRef.current
+        );
       }
     });
 
@@ -758,58 +843,22 @@ export function TrackCanvas(props: TrackCanvasProps) {
         return;
       }
       for (const automationLayout of layout.automationLanes) {
-        if (automationLayout.automated) {
-          const lane =
-            automationLayout.laneType === "volume"
-              ? getTrackVolumeLane(track)
-              : automationLayout.macroId
-                ? getTrackMacroLane(track, automationLayout.macroId)
-                : null;
-          if (!lane) {
-            continue;
-          }
-          renderAutomationLane({
-            automationKeyframeRects: automationKeyframeRectsRef.current,
-            beatWidth: BEAT_WIDTH,
-            colors: TRACK_CANVAS_COLORS,
-            ctx,
-            expanded: automationLayout.expanded,
-            headerWidth: HEADER_WIDTH,
-            height: automationLayout.height,
+        const spec = resolveLaneRenderSpec(track, trackPatch, automationLayout, totalBeats);
+        if (!spec) {
+          continue;
+        }
+        renderLaneSpec(
+          ctx,
+          spec,
+          {
             hoveredAutomationKeyframe,
-            laneY: automationLayout.y,
-            macroId: automationLayout.laneId,
-            macroName: automationLayout.name,
-            points: getTrackAutomationPoints(lane, totalBeats),
             registerHitTargets: false,
             trackId: track.id,
             veilTimeline: true,
             width
-          });
-          continue;
-        }
-
-        if (!automationLayout.macroId) {
-          continue;
-        }
-        const macro = trackPatch?.ui.macros.find((entry) => entry.id === automationLayout.macroId);
-        if (!macro) {
-          continue;
-        }
-        const manualValue = track.macroValues[macro.id] ?? macro.defaultNormalized ?? 0.5;
-        renderFixedLane({
-          beatWidth: BEAT_WIDTH,
-          colors: TRACK_CANVAS_COLORS,
-          ctx,
-          headerWidth: HEADER_WIDTH,
-          height: automationLayout.height,
-          laneY: automationLayout.y,
-          name: macro.name,
-          defaultValue: macro.defaultNormalized ?? 0.5,
-          value: manualValue,
-          veilTimeline: true,
-          width
-        });
+          },
+          automationKeyframeRectsRef.current
+        );
       }
     });
 
@@ -1058,7 +1107,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
     if (automationLaneHit) {
       const previewValue = automationValueFromY(y, automationLaneHit.lane.y, automationLaneHit.lane.height);
-      pendingAutomationActionRef.current = {
+      pendingLaneActionRef.current = {
+        kind: "automation-keyframe",
         trackId: automationLaneHit.track.id,
         macroId: automationLaneHit.lane.laneId,
         beat: Math.max(0, snapToGrid(beatFromX(x), gridBeats)),
@@ -1074,7 +1124,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
       ?.automationLanes.find((entry) => !entry.automated && y >= entry.y && y <= entry.y + entry.height);
     if (fixedLaneHit?.macroId) {
       const nextValue = fixedLaneValueFromX(x);
-      pendingFixedLaneActionRef.current = {
+      pendingLaneActionRef.current = {
+        kind: "fixed-slider",
         trackId: track.id,
         macroId: fixedLaneHit.macroId,
         pointerId: event.pointerId
@@ -1225,29 +1276,28 @@ export function TrackCanvas(props: TrackCanvasProps) {
     const drag = dragRef.current;
     const pendingAction = pendingCanvasActionRef.current;
     const automationDrag = automationDragRef.current;
-    const pendingAutomationAction = pendingAutomationActionRef.current;
-    const pendingFixedLaneAction = pendingFixedLaneActionRef.current;
-    if (!drag && !automationDrag && pendingFixedLaneAction) {
+    const pendingLaneAction = pendingLaneActionRef.current;
+    if (!drag && !automationDrag && pendingLaneAction?.kind === "fixed-slider") {
       const nextValue = fixedLaneValueFromX(x);
       automationActions.onChangeTrackMacro(
-        pendingFixedLaneAction.trackId,
-        pendingFixedLaneAction.macroId,
+        pendingLaneAction.trackId,
+        pendingLaneAction.macroId,
         nextValue
       );
       setCanvasCursor("resize");
       return;
     }
-    if (!drag && !automationDrag && pendingAutomationAction) {
+    if (!drag && !automationDrag && pendingLaneAction?.kind === "automation-keyframe") {
       const lane = automationLaneHit?.lane;
       if (!lane) {
         return;
       }
       const nextValue = automationValueFromY(y, lane.y, lane.height);
-      pendingAutomationActionRef.current = {
-        ...pendingAutomationAction,
+      pendingLaneActionRef.current = {
+        ...pendingLaneAction,
         value: nextValue
       };
-      automationActions.onPreviewTrackMacroAutomation(pendingAutomationAction.trackId, pendingAutomationAction.macroId, nextValue);
+      automationActions.onPreviewTrackMacroAutomation(pendingLaneAction.trackId, pendingLaneAction.macroId, nextValue);
       setCanvasCursor("ns-resize");
       return;
     }
@@ -1364,10 +1414,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
     const automationDrag = automationDragRef.current;
     const hadAutomationDrag = Boolean(automationDrag);
     const pendingAction = pendingCanvasActionRef.current;
-    const pendingAutomationAction = pendingAutomationActionRef.current;
-    const pendingFixedLaneAction = pendingFixedLaneActionRef.current;
+    const pendingLaneAction = pendingLaneActionRef.current;
     const { x, y } = getCanvasPoint(event.clientX, event.clientY);
-    if (canvasRef.current && (dragRef.current || pendingAction || automationDragRef.current || pendingAutomationAction || pendingFixedLaneAction)) {
+    if (canvasRef.current && (dragRef.current || pendingAction || automationDragRef.current || pendingLaneAction)) {
       try {
         canvasRef.current.releasePointerCapture(event.pointerId);
       } catch {
@@ -1378,8 +1427,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     automationDragRef.current = null;
     if (!canvas) {
       pendingCanvasActionRef.current = null;
-      pendingAutomationActionRef.current = null;
-      pendingFixedLaneActionRef.current = null;
+      pendingLaneActionRef.current = null;
       setCanvasCursor("default");
       return;
     }
@@ -1393,24 +1441,24 @@ export function TrackCanvas(props: TrackCanvasProps) {
       noteActions.onPreviewPlacedNote(pendingAction.trackId, newNote);
     }
 
-    if (pendingAutomationAction) {
+    if (pendingLaneAction?.kind === "automation-keyframe") {
       automationActions.onUpsertTrackMacroAutomationKeyframe(
-        pendingAutomationAction.trackId,
-        pendingAutomationAction.macroId,
-        pendingAutomationAction.beat,
-        pendingAutomationAction.value,
+        pendingLaneAction.trackId,
+        pendingLaneAction.macroId,
+        pendingLaneAction.beat,
+        pendingLaneAction.value,
         { commit: true }
       );
       automationActions.onPreviewTrackMacroAutomation(
-        pendingAutomationAction.trackId,
-        pendingAutomationAction.macroId,
-        pendingAutomationAction.value,
+        pendingLaneAction.trackId,
+        pendingLaneAction.macroId,
+        pendingLaneAction.value,
         { retrigger: true }
       );
-    } else if (pendingFixedLaneAction) {
+    } else if (pendingLaneAction?.kind === "fixed-slider") {
       automationActions.onChangeTrackMacro(
-        pendingFixedLaneAction.trackId,
-        pendingFixedLaneAction.macroId,
+        pendingLaneAction.trackId,
+        pendingLaneAction.macroId,
         fixedLaneValueFromX(x),
         { commit: true }
       );
@@ -1457,8 +1505,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
 
     pendingCanvasActionRef.current = null;
-    pendingAutomationActionRef.current = null;
-    pendingFixedLaneActionRef.current = null;
+    pendingLaneActionRef.current = null;
     setSelectionRect(null);
     selectionActions.onSetSelectionMarqueeActive(false);
     const targets = resolvePointerTargets(x, y);

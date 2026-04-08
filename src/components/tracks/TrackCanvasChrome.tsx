@@ -1,4 +1,5 @@
 import { Dispatch, SetStateAction } from "react";
+import { MacroPanel, MacroPanelRow } from "@/components/MacroPanel";
 import { TrackVolumePopover } from "@/components/TrackVolumePopover";
 import {
   AUTOMATION_LANE_COLLAPSED_HEIGHT,
@@ -44,6 +45,7 @@ const getPatchOptionLabel = (patch: Project["patches"][number]) => {
 };
 
 const TRACK_INSPECTOR_PANEL_VERTICAL_PADDING = 4;
+const TRACK_INSPECTOR_ROW_HEIGHT = 20;
 
 export function TrackHeaderChrome({
   project,
@@ -93,6 +95,48 @@ export function TrackHeaderChrome({
               : null;
         const macroPanelHeight =
           macroPanelTop !== null && macroPanelBottom !== null ? Math.max(20, macroPanelBottom - macroPanelTop - 2) : 0;
+        const macroPanelRows: MacroPanelRow[] = [];
+        if (volumeLane) {
+          macroPanelRows.push({
+            id: `${track.id}:volume`,
+            top:
+              (volumeLaneLayout?.y ?? layout.y + 72) +
+              Math.max(0, ((volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT) - TRACK_INSPECTOR_ROW_HEIGHT) / 2),
+            bindTitle: "Use fixed value",
+            bindAriaLabel: "Use fixed value",
+            bindIcon: "◉",
+            onBindToggle: () => trackActions.onUnbindTrackVolumeFromAutomation(track.id),
+            expandTitle: volumeLane.expanded ? "Collapse lane" : "Expand lane",
+            expandAriaLabel: volumeLane.expanded ? "Collapse lane" : "Expand lane",
+            expandIcon: volumeLane.expanded ? "^" : "v",
+            onExpandToggle: () => trackActions.onToggleTrackVolumeAutomationLane(track.id)
+          });
+        }
+        for (const { macro, lane, laneLayout } of macroRows) {
+          if (!laneLayout) {
+            continue;
+          }
+          macroPanelRows.push({
+            id: macro.id,
+            top: laneLayout.y + Math.max(0, (laneLayout.height - TRACK_INSPECTOR_ROW_HEIGHT) / 2),
+            bindTitle: lane ? "Use fixed value" : "Automate in timeline",
+            bindAriaLabel: lane ? "Use fixed value" : "Automate in timeline",
+            bindIcon: lane ? "◉" : "◎",
+            onBindToggle: lane
+              ? () => automationActions.onUnbindTrackMacroFromAutomation(track.id, macro.id)
+              : () =>
+                  automationActions.onBindTrackMacroToAutomation(
+                    track.id,
+                    macro.id,
+                    track.macroValues[macro.id] ?? macro.defaultNormalized ?? 0.5
+                  ),
+            expandTitle: lane ? (lane.expanded ? "Collapse lane" : "Expand lane") : undefined,
+            expandAriaLabel: lane ? (lane.expanded ? "Collapse lane" : "Expand lane") : undefined,
+            expandIcon: lane ? (lane.expanded ? "^" : "v") : undefined,
+            onExpandToggle: lane ? () => automationActions.onToggleTrackMacroAutomationLane(track.id, macro.id) : undefined,
+            expandPlaceholder: !lane
+          });
+        }
 
         return (
           <div key={track.id}>
@@ -208,95 +252,11 @@ export function TrackHeaderChrome({
               ))}
             </select>
             {selected && track.macroPanelExpanded && (
-              <>
-                {macroPanelTop !== null && (
-                  <div
-                    className="track-inspector-panel"
-                    style={{
-                      top: `${macroPanelTop - TRACK_INSPECTOR_PANEL_VERTICAL_PADDING}px`,
-                      height: `${macroPanelHeight + TRACK_INSPECTOR_PANEL_VERTICAL_PADDING * 2}px`
-                    }}
-                  />
-                )}
-                {volumeLane && (
-                  <div
-                    className="track-inspector-row icon-only"
-                    style={{
-                      top: `${(volumeLaneLayout?.y ?? layout.y + 72) + Math.max(0, ((volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT) - 20) / 2)}px`
-                    }}
-                  >
-                    <div className="track-inspector-row-actions">
-                      <button
-                        type="button"
-                        className="track-inspector-action-button"
-                        title="Use fixed value"
-                        aria-label="Use fixed value"
-                        onClick={() => trackActions.onUnbindTrackVolumeFromAutomation(track.id)}
-                      >
-                        ◉
-                      </button>
-                      <button
-                        type="button"
-                        className="track-inspector-action-button"
-                        title={volumeLane.expanded ? "Collapse lane" : "Expand lane"}
-                        aria-label={volumeLane.expanded ? "Collapse lane" : "Expand lane"}
-                        onClick={() => trackActions.onToggleTrackVolumeAutomationLane(track.id)}
-                      >
-                        {volumeLane.expanded ? "^" : "v"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {macroRows.map(({ macro, lane, laneLayout }) => {
-                  if (!laneLayout) {
-                    return null;
-                  }
-                  const top = laneLayout.y + Math.max(0, (laneLayout.height - 20) / 2);
-                  return (
-                    <div key={macro.id} className="track-inspector-row icon-only" style={{ top: `${top}px` }}>
-                      <div className="track-inspector-row-actions">
-                        {lane ? (
-                          <button
-                            type="button"
-                            className="track-inspector-action-button"
-                            title="Use fixed value"
-                            aria-label="Use fixed value"
-                            onClick={() => automationActions.onUnbindTrackMacroFromAutomation(track.id, macro.id)}
-                          >
-                            ◉
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="track-inspector-action-button"
-                            title="Automate in timeline"
-                            aria-label="Automate in timeline"
-                            onClick={() =>
-                              automationActions.onBindTrackMacroToAutomation(
-                                track.id,
-                                macro.id,
-                                track.macroValues[macro.id] ?? macro.defaultNormalized ?? 0.5
-                              )
-                            }
-                          >
-                            ◎
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className={`track-inspector-action-button${lane ? "" : " placeholder"}`}
-                          title={lane ? (lane.expanded ? "Collapse lane" : "Expand lane") : "Expand lane"}
-                          aria-label={lane ? (lane.expanded ? "Collapse lane" : "Expand lane") : "Expand lane"}
-                          disabled={!lane}
-                          onClick={() => lane && automationActions.onToggleTrackMacroAutomationLane(track.id, macro.id)}
-                        >
-                          {lane ? (lane.expanded ? "^" : "v") : " "}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </>
+              <MacroPanel
+                panelTop={macroPanelTop !== null ? macroPanelTop - TRACK_INSPECTOR_PANEL_VERTICAL_PADDING : null}
+                panelHeight={macroPanelHeight + TRACK_INSPECTOR_PANEL_VERTICAL_PADDING * 2}
+                rows={macroPanelRows}
+              />
             )}
           </div>
         );

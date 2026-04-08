@@ -81,10 +81,7 @@ export function useTrackMacroAutomationActions({
     window.setTimeout(() => {
       audioEngineRef.current?.setMacroValue(trackId, macroId, normalized);
       audioEngineRef.current
-        ?.previewNote(trackId, pitchToVoct(previewPitch), 1, 0.9, {
-          ignoreMute: true,
-          ignoreVolume: macroId !== TRACK_VOLUME_AUTOMATION_ID
-        })
+        ?.previewNote(trackId, pitchToVoct(previewPitch), 1, 0.9, { ignoreVolume: macroId !== TRACK_VOLUME_AUTOMATION_ID })
         .catch((error) => setRuntimeError((error as Error).message));
     }, 0);
   }, [audioEngineRef, previewPitch, setRuntimeError]);

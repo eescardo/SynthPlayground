@@ -15,7 +15,7 @@ import { TimelineActionsPopoverRequest, TrackCanvas, TrackCanvasSelection } from
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
 import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
-import { createTrackVolumeAutomationLane, getProjectTimelineEndBeat, TRACK_VOLUME_AUTOMATION_ID } from "@/lib/macroAutomation";
+import { getProjectTimelineEndBeat } from "@/lib/macroAutomation";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import {
   BeatRange,
@@ -47,6 +47,7 @@ import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
 import { useTrackMacroAutomationActions } from "@/hooks/useTrackMacroAutomationActions";
+import { useTrackVolumeAutomationActions } from "@/hooks/useTrackVolumeAutomationActions";
 import { Project } from "@/types/music";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -268,6 +269,17 @@ export default function HomePage() {
     deleteTrackMacroAutomationKeyframeSide,
     previewTrackMacroAutomation
   } = useTrackMacroAutomationActions({
+    audioEngineRef,
+    commitProjectChange,
+    previewPitch,
+    setRuntimeError
+  });
+  const {
+    bindTrackVolumeToAutomation,
+    unbindTrackVolumeFromAutomation,
+    toggleTrackVolumeAutomationLane,
+    previewTrackVolume
+  } = useTrackVolumeAutomationActions({
     audioEngineRef,
     commitProjectChange,
     previewPitch,
@@ -1013,83 +1025,6 @@ export default function HomePage() {
       }
     }
   }, [commitProjectChange, project.patches, project.tracks, schedulePatchPreview]);
-
-  const bindTrackVolumeToAutomation = useCallback((trackId: string, initialValue: number) => {
-    commitProjectChange(
-      (current) => ({
-        ...current,
-        tracks: current.tracks.map((track) =>
-          track.id === trackId
-            ? {
-                ...track,
-                macroAutomations: {
-                  ...track.macroAutomations,
-                  [TRACK_VOLUME_AUTOMATION_ID]: createTrackVolumeAutomationLane(initialValue)
-                }
-              }
-            : track
-        )
-      }),
-      { actionKey: `track:${trackId}:volume:bind-automation` }
-    );
-  }, [commitProjectChange]);
-
-  const unbindTrackVolumeFromAutomation = useCallback((trackId: string) => {
-    commitProjectChange(
-      (current) => ({
-        ...current,
-        tracks: current.tracks.map((track) => {
-          if (track.id !== trackId) {
-            return track;
-          }
-          const nextAutomations = { ...track.macroAutomations };
-          const lane = nextAutomations[TRACK_VOLUME_AUTOMATION_ID];
-          delete nextAutomations[TRACK_VOLUME_AUTOMATION_ID];
-          return {
-            ...track,
-            macroAutomations: nextAutomations,
-            volume: lane ? lane.startValue * 2 : track.volume
-          };
-        })
-      }),
-      { actionKey: `track:${trackId}:volume:unbind-automation` }
-    );
-  }, [commitProjectChange]);
-
-  const toggleTrackVolumeAutomationLane = useCallback((trackId: string) => {
-    commitProjectChange(
-      (current) => ({
-        ...current,
-        tracks: current.tracks.map((track) => {
-          if (track.id !== trackId) {
-            return track;
-          }
-          const lane = track.macroAutomations[TRACK_VOLUME_AUTOMATION_ID];
-          if (!lane) {
-            return track;
-          }
-          return {
-            ...track,
-            macroAutomations: {
-              ...track.macroAutomations,
-              [TRACK_VOLUME_AUTOMATION_ID]: {
-                ...lane,
-                expanded: !lane.expanded
-              }
-            }
-          };
-        })
-      }),
-      { actionKey: `track:${trackId}:volume:toggle-lane` }
-    );
-  }, [commitProjectChange]);
-
-  const previewTrackVolume = useCallback((trackId: string, volume: number) => {
-    audioEngineRef.current?.setMacroValue(trackId, TRACK_VOLUME_AUTOMATION_ID, Math.max(0, Math.min(2, volume)) / 2);
-    audioEngineRef.current
-      ?.previewNote(trackId, pitchToVoct(previewPitch), 1, 0.9, { ignoreMute: true, ignoreVolume: false })
-      .catch((error) => setRuntimeError((error as Error).message));
-  }, [previewPitch]);
 
   const previewPlacedNote = useCallback((trackId: string, note: Project["tracks"][number]["notes"][number]) => {
     audioEngineRef.current

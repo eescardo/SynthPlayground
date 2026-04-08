@@ -307,7 +307,6 @@ describe("synth worklet runtime", () => {
       processor.onMessage({
         type: "PREVIEW",
         durationSamples: 128,
-        ignoreMute: true,
         ignoreVolume: false,
         events: [
           {
