@@ -1,6 +1,6 @@
 "use client";
 
-import { MutableRefObject, useCallback, useState } from "react";
+import { RefObject, useCallback, useState } from "react";
 import { AudioEngine } from "@/audio/engine";
 import { TRACK_VOLUME_AUTOMATION_ID } from "@/lib/macroAutomation";
 import { clampTrackVolume, isTrackVolumeMuted } from "@/lib/trackVolume";
@@ -12,7 +12,7 @@ interface CommitProjectChange {
 
 interface UseProjectAudioActionsOptions {
   project: Project;
-  audioEngineRef: MutableRefObject<AudioEngine | null>;
+  audioEngineRef: RefObject<AudioEngine | null>;
   commitProjectChange: CommitProjectChange;
   setRuntimeError: (message: string | null | ((prev: string | null) => string | null)) => void;
 }

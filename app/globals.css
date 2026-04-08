@@ -631,32 +631,6 @@ select {
   padding: 0.18rem 0.28rem;
 }
 
-.track-macro-panel-shell {
-  border-top: 1px solid var(--border);
-  background: rgba(8, 15, 23, 0.94);
-  padding: 0.7rem 0.8rem 0.8rem;
-}
-
-.track-macro-panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.6rem;
-}
-
-.track-macro-panel-subtitle {
-  display: block;
-  margin-top: 0.1rem;
-  color: var(--muted);
-  font-size: 0.8rem;
-}
-
-.track-macro-panel-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
 .recording-dock {
   display: flex;
   flex-direction: column;
@@ -811,64 +785,6 @@ select {
 
 .preview-pitch-button {
   min-width: 62px;
-}
-
-.macro-panel {
-  background: rgba(9, 17, 26, 0.84);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 0.7rem;
-}
-
-.macro-panel h3 {
-  margin: 0 0 0.4rem;
-}
-
-.macro-row {
-  display: grid;
-  grid-template-columns: 120px 1fr 50px;
-  gap: 0.5rem;
-  align-items: center;
-  margin-bottom: 0.4rem;
-}
-
-.macro-row.automated {
-  color: rgba(207, 222, 238, 0.82);
-}
-
-.macro-slider-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.macro-slider-wrap input[type="range"] {
-  width: 100%;
-}
-
-.macro-row.automated .macro-slider-wrap {
-  opacity: 0.58;
-}
-
-.macro-row.automated .macro-slider-wrap input[type="range"] {
-  cursor: not-allowed;
-  filter: saturate(0.55) brightness(0.72);
-}
-
-.macro-row.automated .macro-default-marker {
-  opacity: 0.5;
-}
-
-.macro-default-marker {
-  position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 2px;
-  height: 60%;
-  border-radius: 999px;
-  background: rgba(255, 213, 151, 0.9);
-  box-shadow: 0 0 0 1px rgba(18, 30, 40, 0.9);
-  pointer-events: none;
 }
 
 .patch-editor {
@@ -1257,10 +1173,6 @@ kbd {
 
   .recording-dock-status {
     text-align: left;
-  }
-
-  .macro-row {
-    grid-template-columns: 1fr;
   }
 
   .param-row {

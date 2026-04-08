@@ -1,6 +1,6 @@
 "use client";
 
-import { MutableRefObject, useCallback, useEffect, useRef, useState } from "react";
+import { RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { AudioEngine } from "@/audio/engine";
 import { createId } from "@/lib/ids";
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
@@ -35,7 +35,7 @@ interface UseRecordingControllerArgs {
   pitchPickerOpen: boolean;
   previewPitchPickerOpen: boolean;
   strictWasmReady: boolean;
-  audioEngineRef: MutableRefObject<AudioEngine | null>;
+  audioEngineRef: RefObject<AudioEngine | null>;
   commitProjectChange: (updater: (current: Project) => Project, options?: { actionKey?: string; coalesce?: boolean }) => void;
   upsertNote: (trackId: string, note: Note, options?: { actionKey?: string; coalesce?: boolean }) => void;
   updateNote: (trackId: string, noteId: string, patch: Partial<Note>, options?: { actionKey?: string; coalesce?: boolean }) => void;

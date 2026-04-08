@@ -1,6 +1,6 @@
 "use client";
 
-import { MutableRefObject, RefObject, useCallback, useRef, useState } from "react";
+import { RefObject, useCallback, useRef, useState } from "react";
 import {
   AutomationKeyframeRect,
   automationValueFromY,
@@ -122,11 +122,11 @@ interface UseTrackCanvasPointerInteractionsParams {
   automationActions: TrackCanvasAutomationActions;
   selectionActions: TrackCanvasSelectionActions;
   trackActions: TrackCanvasTrackActions;
-  noteRectsRef: MutableRefObject<NoteRect[]>;
-  automationKeyframeRectsRef: MutableRefObject<AutomationKeyframeRect[]>;
-  muteRectsRef: MutableRefObject<MuteRect[]>;
-  pitchRectsRef: MutableRefObject<PitchRect[]>;
-  loopMarkerRectsRef: MutableRefObject<LoopMarkerRect[]>;
+  noteRectsRef: RefObject<NoteRect[]>;
+  automationKeyframeRectsRef: RefObject<AutomationKeyframeRect[]>;
+  muteRectsRef: RefObject<MuteRect[]>;
+  pitchRectsRef: RefObject<PitchRect[]>;
+  loopMarkerRectsRef: RefObject<LoopMarkerRect[]>;
   getCanvasPoint: (clientX: number, clientY: number) => { x: number; y: number };
   getTrackLayoutAtY: (y: number) => TrackLayout | null;
   beatFromX: (x: number) => number;

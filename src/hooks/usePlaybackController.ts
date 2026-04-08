@@ -1,6 +1,6 @@
 "use client";
 
-import { MutableRefObject, useCallback, useEffect, useRef } from "react";
+import { RefObject, useCallback, useEffect, useRef } from "react";
 import { AudioEngine } from "@/audio/engine";
 import { getLoopPlaybackEndBeat } from "@/lib/looping";
 import { Project } from "@/types/music";
@@ -11,7 +11,7 @@ interface UsePlaybackControllerArgs {
   userCueBeat: number;
   playheadBeat: number;
   strictWasmReady: boolean;
-  audioEngineRef: MutableRefObject<AudioEngine | null>;
+  audioEngineRef: RefObject<AudioEngine | null>;
   setPlaying: (value: boolean) => void;
   setPlayheadBeat: (value: number) => void;
   setRuntimeError: (value: string | null) => void;
