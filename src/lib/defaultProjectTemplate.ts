@@ -82,7 +82,7 @@ const sanitizeTemplateTrack = (track: RawTemplateTrack, index: number): Track =>
     }),
     macroValues,
     macroAutomations: sanitizeMacroAutomationMap(track.macroAutomations),
-    macroPanelExpanded: track.macroPanelExpanded !== false,
+    macroPanelExpanded: track.macroPanelExpanded === true,
     volume: clamp(asFiniteNumber(track.volume, 1), 0, 2),
     mute: Boolean(track.mute),
     solo: Boolean(track.solo),

@@ -36,7 +36,6 @@ export interface TrackCanvasTrackActions {
   onToggleTrackVolumeAutomationLane: (trackId: string) => void;
   onUpdateTrackPatch: (trackId: string, patchId: string) => void;
   onToggleTrackMacroPanel: (trackId: string) => void;
-  onResetTrackMacros: (trackId: string) => void;
 }
 
 export interface TrackCanvasAutomationActions {

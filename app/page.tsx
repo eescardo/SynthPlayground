@@ -731,31 +731,6 @@ export default function HomePage() {
     }, { actionKey: `patch:${selectedPatch.id}:expose-macro:${nodeId}:${paramId}` });
   }, [commitProjectChange, selectedPatch]);
 
-  const resetSelectedPatchMacros = useCallback(() => {
-    if (!selectedPatch || !selectedTrack) {
-      return;
-    }
-
-    const nextMacroValues = Object.fromEntries(
-      selectedPatch.ui.macros.map((macro) => [macro.id, macro.defaultNormalized ?? 0.5])
-    );
-    for (const [macroId, normalized] of Object.entries(nextMacroValues)) {
-      audioEngineRef.current?.setMacroValue(selectedTrack.id, macroId, normalized);
-    }
-    commitProjectChange(
-      (current) => ({
-        ...current,
-        tracks: current.tracks.map((track) =>
-          track.id === selectedTrack.id
-            ? { ...track, macroValues: nextMacroValues, macroAutomations: {} }
-            : track
-        )
-      }),
-      { actionKey: `track:${selectedTrack.id}:macro-reset` }
-    );
-    schedulePatchPreview(selectedPatch.id);
-  }, [commitProjectChange, schedulePatchPreview, selectedPatch, selectedTrack]);
-
   const renameSelectedPatch = useCallback((name: string) => {
     if (!selectedPatch) return;
     commitProjectChange(
@@ -1056,8 +1031,7 @@ export default function HomePage() {
     onUnbindTrackVolumeFromAutomation: unbindTrackVolumeFromAutomation,
     onToggleTrackVolumeAutomationLane: toggleTrackVolumeAutomationLane,
     onUpdateTrackPatch: updateTrackPatch,
-    onToggleTrackMacroPanel: toggleTrackMacroPanel,
-    onResetTrackMacros: resetSelectedPatchMacros
+    onToggleTrackMacroPanel: toggleTrackMacroPanel
   };
   const trackCanvasAutomationActions = {
     onChangeTrackMacro: changeTrackMacro,
