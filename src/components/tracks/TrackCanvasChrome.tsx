@@ -178,8 +178,7 @@ export function TrackHeaderChrome({
             {selected && track.macroPanelExpanded && (
               <>
                 {volumeLane && (
-                  <div className="track-inspector-row" style={{ top: `${layout.y + 72}px` }}>
-                    <span className="track-inspector-row-label">Volume</span>
+                  <div className="track-inspector-row icon-only" style={{ top: `${layout.y + 72}px` }}>
                     <div className="track-inspector-row-actions">
                       <button
                         type="button"
@@ -197,7 +196,7 @@ export function TrackHeaderChrome({
                         aria-label={volumeLane.expanded ? "Collapse lane" : "Expand lane"}
                         onClick={() => trackActions.onToggleTrackVolumeAutomationLane(track.id)}
                       >
-                        {volumeLane.expanded ? "⌄" : "⌃"}
+                        {volumeLane.expanded ? "^" : "v"}
                       </button>
                     </div>
                   </div>
@@ -210,8 +209,7 @@ export function TrackHeaderChrome({
                   }
                   const top = laneLayout.y + 1;
                   return (
-                    <div key={macro.id} className="track-inspector-row" style={{ top: `${top}px` }}>
-                      <span className="track-inspector-row-label" title={macro.name}>{macro.name}</span>
+                    <div key={macro.id} className="track-inspector-row icon-only" style={{ top: `${top}px` }}>
                       <div className="track-inspector-row-actions">
                         {lane ? (
                           <button
@@ -248,7 +246,7 @@ export function TrackHeaderChrome({
                             aria-label={lane.expanded ? "Collapse lane" : "Expand lane"}
                             onClick={() => automationActions.onToggleTrackMacroAutomationLane(track.id, macro.id)}
                           >
-                            {lane.expanded ? "⌄" : "⌃"}
+                            {lane.expanded ? "^" : "v"}
                           </button>
                         )}
                       </div>

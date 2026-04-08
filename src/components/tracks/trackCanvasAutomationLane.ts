@@ -134,7 +134,7 @@ export function renderAutomationLane({
   ctx.strokeStyle = colors.automationLaneBorder;
   ctx.strokeRect(headerWidth + 0.5, laneY + 0.5, width - headerWidth - 1, height - 1);
   ctx.fillStyle = colors.automationLabel;
-  ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.font = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
   ctx.fillText(`${macroName} automation`, 12, laneY + Math.min(16, height - 6));
 
   if (expanded) {
@@ -303,7 +303,7 @@ export function renderFixedLane({
   ctx.strokeStyle = colors.automationLaneBorder;
   ctx.strokeRect(headerWidth + 0.5, laneY + 0.5, width - headerWidth - 1, height - 1);
   ctx.fillStyle = colors.automationLabel;
-  ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.font = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
   ctx.fillText(`${name} fixed`, 12, laneY + Math.min(16, height - 6));
 
   ctx.strokeStyle = colors.automationLaneBorder;

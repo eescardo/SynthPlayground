@@ -529,6 +529,10 @@ select {
   z-index: 3;
 }
 
+.track-inspector-row.icon-only {
+  justify-content: flex-end;
+}
+
 .track-inspector-row-label {
   min-width: 0;
   flex: 1;
