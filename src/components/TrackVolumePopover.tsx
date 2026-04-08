@@ -15,6 +15,7 @@ interface TrackVolumePopoverProps {
   muted: boolean;
   automated: boolean;
   top: string;
+  left: string;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
   onVolumeChange: (volume: number, options?: { commit?: boolean }) => void;
@@ -26,7 +27,7 @@ export function TrackVolumePopover(props: TrackVolumePopoverProps) {
   return (
     <div
       className="track-volume-popover"
-      style={{ top: props.top }}
+      style={{ top: props.top, left: props.left }}
       onMouseEnter={props.onMouseEnter}
       onMouseLeave={props.onMouseLeave}
       onPointerDown={(event) => event.stopPropagation()}

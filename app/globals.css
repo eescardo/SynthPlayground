@@ -271,8 +271,7 @@ select {
 }
 
 .track-volume-popover {
-  position: absolute;
-  left: 164px;
+  position: fixed;
   width: 96px;
   padding: 0.5rem 0.45rem 0.55rem;
   display: flex;

@@ -2,10 +2,33 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+const VOLUME_POPOVER_WIDTH = 96;
+const VOLUME_POPOVER_HEIGHT = 220;
+const VIEWPORT_MARGIN = 8;
+const POPOVER_GAP = 8;
+
+function getVolumePopoverPosition(anchor: HTMLElement) {
+  const rect = anchor.getBoundingClientRect();
+  const maxLeft = Math.max(VIEWPORT_MARGIN, window.innerWidth - VOLUME_POPOVER_WIDTH - VIEWPORT_MARGIN);
+  const preferredLeft = rect.right + POPOVER_GAP;
+  const fallbackLeft = rect.left - VOLUME_POPOVER_WIDTH - POPOVER_GAP;
+  const left =
+    preferredLeft <= maxLeft
+      ? preferredLeft
+      : Math.max(VIEWPORT_MARGIN, Math.min(fallbackLeft, maxLeft));
+
+  const preferredTop = rect.top - 3;
+  const maxTop = Math.max(VIEWPORT_MARGIN, window.innerHeight - VOLUME_POPOVER_HEIGHT - VIEWPORT_MARGIN);
+  const top = Math.max(VIEWPORT_MARGIN, Math.min(preferredTop, maxTop));
+
+  return { left, top };
+}
+
 export function useVolumePopover() {
   const volumeOpenTimerRef = useRef<number | null>(null);
   const volumeDismissTimerRef = useRef<number | null>(null);
   const [volumePopoverTrackId, setVolumePopoverTrackId] = useState<string | null>(null);
+  const [volumePopoverPosition, setVolumePopoverPosition] = useState<{ left: number; top: number } | null>(null);
 
   const clearOpenTimer = useCallback(() => {
     if (volumeOpenTimerRef.current !== null) {
@@ -28,19 +51,26 @@ export function useVolumePopover() {
 
   const closeVolumePopover = useCallback(() => {
     setVolumePopoverTrackId(null);
+    setVolumePopoverPosition(null);
     cancelVolumePopoverTimers();
   }, [cancelVolumePopoverTimers]);
 
-  const openVolumePopover = useCallback((trackId: string) => {
+  const openVolumePopover = useCallback((trackId: string, anchor?: HTMLElement | null) => {
     clearOpenTimer();
     clearDismissTimer();
     setVolumePopoverTrackId(trackId);
+    if (anchor) {
+      setVolumePopoverPosition(getVolumePopoverPosition(anchor));
+    }
   }, [clearDismissTimer, clearOpenTimer]);
 
-  const scheduleVolumePopoverOpen = useCallback((trackId: string) => {
+  const scheduleVolumePopoverOpen = useCallback((trackId: string, anchor?: HTMLElement | null) => {
     clearOpenTimer();
     volumeOpenTimerRef.current = window.setTimeout(() => {
       setVolumePopoverTrackId(trackId);
+      if (anchor) {
+        setVolumePopoverPosition(getVolumePopoverPosition(anchor));
+      }
       volumeOpenTimerRef.current = null;
     }, 1000);
   }, [clearOpenTimer]);
@@ -61,6 +91,7 @@ export function useVolumePopover() {
 
   return {
     volumePopoverTrackId,
+    volumePopoverPosition,
     openVolumePopover,
     closeVolumePopover,
     scheduleVolumePopoverOpen,

@@ -20,8 +20,9 @@ interface TrackHeaderChromeProps {
   setEditingTrackId: Dispatch<SetStateAction<string | null>>;
   setEditingTrackName: Dispatch<SetStateAction<string>>;
   volumePopoverTrackId: string | null;
-  openVolumePopover: (trackId: string) => void;
-  scheduleVolumePopoverOpen: (trackId: string) => void;
+  volumePopoverPosition: { left: number; top: number } | null;
+  openVolumePopover: (trackId: string, anchor?: HTMLElement | null) => void;
+  scheduleVolumePopoverOpen: (trackId: string, anchor?: HTMLElement | null) => void;
   scheduleVolumePopoverDismiss: () => void;
   cancelScheduledVolumePopoverDismiss: () => void;
   trackActions: TrackCanvasTrackActions;
@@ -52,6 +53,7 @@ export function TrackHeaderChrome({
   setEditingTrackId,
   setEditingTrackName,
   volumePopoverTrackId,
+  volumePopoverPosition,
   openVolumePopover,
   scheduleVolumePopoverOpen,
   scheduleVolumePopoverDismiss,
@@ -117,12 +119,12 @@ export function TrackHeaderChrome({
               style={{
                 top: `${layout.y + SPEAKER_Y_OFFSET}px`
               }}
-              onMouseEnter={() => scheduleVolumePopoverOpen(track.id)}
+              onMouseEnter={(event) => scheduleVolumePopoverOpen(track.id, event.currentTarget)}
               onMouseLeave={() => scheduleVolumePopoverDismiss()}
               onClick={(event) => {
                 event.stopPropagation();
                 trackActions.onToggleTrackMute(track.id);
-                openVolumePopover(track.id);
+                openVolumePopover(track.id, event.currentTarget);
               }}
             />
             {selected && (
@@ -149,7 +151,8 @@ export function TrackHeaderChrome({
                 rememberedVolume={rememberedVolume}
                 muted={Boolean(track.mute)}
                 automated={Boolean(volumeLane)}
-                top={`${layout.y + 6}px`}
+                top={`${volumePopoverPosition?.top ?? layout.y + 6}px`}
+                left={`${volumePopoverPosition?.left ?? 164}px`}
                 onMouseEnter={() => cancelScheduledVolumePopoverDismiss()}
                 onMouseLeave={() => scheduleVolumePopoverDismiss()}
                 onVolumeChange={(volume, options) => trackActions.onSetTrackVolume(track.id, volume, options)}

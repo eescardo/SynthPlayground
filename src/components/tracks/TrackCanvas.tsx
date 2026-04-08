@@ -316,6 +316,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
   const {
     volumePopoverTrackId,
+    volumePopoverPosition,
     openVolumePopover,
     closeVolumePopover,
     scheduleVolumePopoverOpen,
@@ -1519,6 +1520,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         setEditingTrackId={setEditingTrackId}
         setEditingTrackName={setEditingTrackName}
         volumePopoverTrackId={volumePopoverTrackId}
+        volumePopoverPosition={volumePopoverPosition}
         openVolumePopover={openVolumePopover}
         scheduleVolumePopoverOpen={scheduleVolumePopoverOpen}
         scheduleVolumePopoverDismiss={scheduleVolumePopoverDismiss}
