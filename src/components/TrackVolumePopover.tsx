@@ -45,7 +45,7 @@ export function TrackVolumePopover(props: TrackVolumePopoverProps) {
         className="track-volume-automation-button"
         onClick={props.automated ? props.onUnbindFromAutomation : props.onBindToAutomation}
       >
-        {props.automated ? "◉ Use fixed value" : "◎ Automate in timeline"}
+        {props.automated ? "◉ Use fixed value" : "◎ Automate"}
       </button>
       <div className="track-volume-scale">
         <span>{TRACK_VOLUME_MAX_LABEL}</span>

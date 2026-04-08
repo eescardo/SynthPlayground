@@ -20,6 +20,7 @@ import {
   SPEAKER_ICON_SRC,
   SPEAKER_MUTED_ICON_SRC,
   SPEAKER_X,
+  SPEAKER_Y_OFFSET,
   TRACK_CANVAS_COLORS,
   TRACK_HEIGHT
 } from "@/components/tracks/trackCanvasConstants";
@@ -353,7 +354,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
   const beatFromX = (x: number) => (x - HEADER_WIDTH) / BEAT_WIDTH;
   const fixedLaneSliderStartX = HEADER_WIDTH + Math.min(BEAT_WIDTH * 0.25, 18);
-  const fixedLaneSliderEndX = Math.min(width - 10, fixedLaneSliderStartX + BEAT_WIDTH * 2.4);
+  const fixedLaneSliderEndX = Math.min(width - 10, fixedLaneSliderStartX + BEAT_WIDTH * 3.8);
   const fixedLaneValueFromX = (x: number) =>
     Math.max(0, Math.min(1, (x - fixedLaneSliderStartX) / Math.max(1, fixedLaneSliderEndX - fixedLaneSliderStartX)));
   const isTrackSilenced = useCallback((track: Track) => track.mute || isTrackVolumeMuted(track.volume), []);
@@ -552,7 +553,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       ctx.fillStyle = trackPatchInvalid ? TRACK_CANVAS_COLORS.trackInvalidName : TRACK_CANVAS_COLORS.trackName;
       ctx.font = "13px 'Trebuchet MS', 'Segoe UI', sans-serif";
       ctx.fillText(track.name, 12, y + 24);
-      const muteY = y + 29;
+      const muteY = y + SPEAKER_Y_OFFSET;
       const trackSilenced = isTrackSilenced(track);
       const speakerIcon = trackSilenced ? speakerIconsRef.current.muted : speakerIconsRef.current.normal;
       if (speakerIconsReady && speakerIcon) {
@@ -706,6 +707,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
           height: automationLayout.height,
           laneY: automationLayout.y,
           name: macro.name,
+          defaultValue: macro.defaultNormalized ?? 0.5,
           value: manualValue,
           width
         });
@@ -802,6 +804,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
           height: automationLayout.height,
           laneY: automationLayout.y,
           name: macro.name,
+          defaultValue: macro.defaultNormalized ?? 0.5,
           value: manualValue,
           veilTimeline: true,
           width

@@ -1,6 +1,10 @@
 import { Dispatch, SetStateAction } from "react";
 import { TrackVolumePopover } from "@/components/TrackVolumePopover";
-import { MACRO_PANEL_TOGGLE_Y_OFFSET, SPEAKER_Y_OFFSET } from "@/components/tracks/trackCanvasConstants";
+import {
+  AUTOMATION_LANE_COLLAPSED_HEIGHT,
+  MACRO_PANEL_TOGGLE_Y_OFFSET,
+  SPEAKER_Y_OFFSET
+} from "@/components/tracks/trackCanvasConstants";
 import { TrackLayout, TrackCanvasAutomationActions, TrackCanvasTrackActions } from "@/components/tracks/trackCanvasTypes";
 import { getTrackMacroLane, getTrackVolumeLane } from "@/lib/macroAutomation";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
@@ -67,6 +71,23 @@ export function TrackHeaderChrome({
         const selected = selectedTrackId === track.id;
         const effectiveVolume = track.mute ? 0 : track.volume;
         const rememberedVolume = track.volume;
+        const volumeLaneTop = volumeLane ? layout.y + 72 : null;
+        const macroRows = trackPatch?.ui.macros
+          .map((macro) => ({
+            macro,
+            lane: getTrackMacroLane(track, macro.id),
+            laneLayout: layout.automationLanes.find((entry) => entry.macroId === macro.id) ?? null
+          }))
+          .filter((entry) => entry.laneLayout !== null) ?? [];
+        const macroPanelTop = volumeLaneTop ?? macroRows[0]?.laneLayout?.y ?? null;
+        const macroPanelBottom =
+          macroRows.length > 0
+            ? Math.max(...macroRows.map((entry) => (entry.laneLayout ? entry.laneLayout.y + entry.laneLayout.height : 0)))
+            : volumeLane
+              ? layout.y + 72 + AUTOMATION_LANE_COLLAPSED_HEIGHT
+              : null;
+        const macroPanelHeight =
+          macroPanelTop !== null && macroPanelBottom !== null ? Math.max(20, macroPanelBottom - macroPanelTop - 2) : 0;
 
         return (
           <div key={track.id}>
@@ -177,8 +198,21 @@ export function TrackHeaderChrome({
             </select>
             {selected && track.macroPanelExpanded && (
               <>
+                {macroPanelTop !== null && (
+                  <div
+                    className="track-inspector-panel"
+                    style={{
+                      top: `${macroPanelTop}px`,
+                      height: `${macroPanelHeight}px`
+                    }}
+                  />
+                )}
                 {volumeLane && (
-                  <div className="track-inspector-row icon-only" style={{ top: `${layout.y + 72}px` }}>
+                  <div className="track-inspector-row" style={{ top: `${layout.y + 72}px` }}>
+                    <div className="track-inspector-row-label">
+                      <span className="track-inspector-name">Volume</span>
+                      <span className="track-inspector-state">auto</span>
+                    </div>
                     <div className="track-inspector-row-actions">
                       <button
                         type="button"
@@ -201,15 +235,17 @@ export function TrackHeaderChrome({
                     </div>
                   </div>
                 )}
-                {trackPatch?.ui.macros.map((macro) => {
-                  const lane = getTrackMacroLane(track, macro.id);
-                  const laneLayout = layout.automationLanes.find((entry) => entry.macroId === macro.id);
+                {macroRows.map(({ macro, lane, laneLayout }) => {
                   if (!laneLayout) {
                     return null;
                   }
                   const top = laneLayout.y + 1;
                   return (
-                    <div key={macro.id} className="track-inspector-row icon-only" style={{ top: `${top}px` }}>
+                    <div key={macro.id} className="track-inspector-row" style={{ top: `${top}px` }}>
+                      <div className="track-inspector-row-label">
+                        <span className="track-inspector-name">{macro.name}</span>
+                        <span className="track-inspector-state">{lane ? "auto" : "fixed"}</span>
+                      </div>
                       <div className="track-inspector-row-actions">
                         {lane ? (
                           <button
@@ -238,17 +274,16 @@ export function TrackHeaderChrome({
                             ◎
                           </button>
                         )}
-                        {lane && (
-                          <button
-                            type="button"
-                            className="track-inspector-action-button"
-                            title={lane.expanded ? "Collapse lane" : "Expand lane"}
-                            aria-label={lane.expanded ? "Collapse lane" : "Expand lane"}
-                            onClick={() => automationActions.onToggleTrackMacroAutomationLane(track.id, macro.id)}
-                          >
-                            {lane.expanded ? "^" : "v"}
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          className="track-inspector-action-button"
+                          title={lane ? (lane.expanded ? "Collapse lane" : "Expand lane") : "Expand lane"}
+                          aria-label={lane ? (lane.expanded ? "Collapse lane" : "Expand lane") : "Expand lane"}
+                          disabled={!lane}
+                          onClick={() => lane && automationActions.onToggleTrackMacroAutomationLane(track.id, macro.id)}
+                        >
+                          {lane ? (lane.expanded ? "^" : "v") : " "}
+                        </button>
                       </div>
                     </div>
                   );

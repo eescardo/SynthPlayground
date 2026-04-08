@@ -104,6 +104,7 @@ interface RenderFixedLaneParams {
   height: number;
   laneY: number;
   name: string;
+  defaultValue: number;
   value: number;
   veilTimeline?: boolean;
   width: number;
@@ -135,7 +136,13 @@ export function renderAutomationLane({
   ctx.strokeRect(headerWidth + 0.5, laneY + 0.5, width - headerWidth - 1, height - 1);
   ctx.fillStyle = colors.automationLabel;
   ctx.font = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
-  ctx.fillText(`${macroName} automation`, 12, laneY + Math.min(16, height - 6));
+  const labelY = laneY + Math.min(16, height - 6);
+  const stateLabel = "auto";
+  ctx.fillText(macroName, 12, labelY);
+  const macroNameWidth = ctx.measureText(macroName).width;
+  ctx.fillStyle = colors.noteHoverBorder;
+  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillText(stateLabel, 12 + macroNameWidth + 8, labelY);
 
   if (expanded) {
     ctx.beginPath();
@@ -287,16 +294,19 @@ export function renderFixedLane({
   height,
   laneY,
   name,
+  defaultValue,
   value,
   veilTimeline = false,
   width
 }: RenderFixedLaneParams) {
   const laneBottom = laneY + height;
   const sliderStartX = headerWidth + Math.min(beatWidth * 0.25, 18);
-  const sliderEndX = Math.min(width - 10, sliderStartX + beatWidth * 2.4);
+  const sliderEndX = Math.min(width - 10, sliderStartX + beatWidth * 3.8);
   const sliderCenterY = laneY + height * 0.5;
   const normalized = Math.max(0, Math.min(1, value));
   const thumbX = sliderStartX + (sliderEndX - sliderStartX) * normalized;
+  const defaultNormalized = Math.max(0, Math.min(1, defaultValue));
+  const defaultX = sliderStartX + (sliderEndX - sliderStartX) * defaultNormalized;
 
   ctx.fillStyle = veilTimeline ? colors.automationLaneTimelineVeil : colors.automationLaneBg;
   ctx.fillRect(headerWidth, laneY, width - headerWidth, height);
@@ -304,13 +314,25 @@ export function renderFixedLane({
   ctx.strokeRect(headerWidth + 0.5, laneY + 0.5, width - headerWidth - 1, height - 1);
   ctx.fillStyle = colors.automationLabel;
   ctx.font = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
-  ctx.fillText(`${name} fixed`, 12, laneY + Math.min(16, height - 6));
+  const labelY = laneY + Math.min(16, height - 6);
+  ctx.fillText(name, 12, labelY);
+  const nameWidth = ctx.measureText(name).width;
+  ctx.fillStyle = colors.noteHoverBorder;
+  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillText("fixed", 12 + nameWidth + 8, labelY);
 
   ctx.strokeStyle = colors.automationLaneBorder;
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(sliderStartX, sliderCenterY);
   ctx.lineTo(sliderEndX, sliderCenterY);
+  ctx.stroke();
+
+  ctx.strokeStyle = colors.noteHoverBorder;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(defaultX, sliderCenterY - 6);
+  ctx.lineTo(defaultX, sliderCenterY + 6);
   ctx.stroke();
 
   const fillWidth = Math.max(0, thumbX - sliderStartX);
