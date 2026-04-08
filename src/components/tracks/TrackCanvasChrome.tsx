@@ -49,6 +49,7 @@ const TRACK_INSPECTOR_PANEL_VERTICAL_PADDING = 6;
 const TRACK_INSPECTOR_PANEL_MARGIN_TOP = 2;
 const TRACK_INSPECTOR_PANEL_MARGIN_BOTTOM = 6;
 const TRACK_INSPECTOR_ROW_HEIGHT = 20;
+const TRACK_INSPECTOR_ROW_Y_OFFSET = -2;
 
 export function TrackHeaderChrome({
   project,
@@ -104,7 +105,8 @@ export function TrackHeaderChrome({
             id: `${track.id}:volume`,
             top:
               (volumeLaneLayout?.y ?? layout.y + 72) +
-              Math.max(0, ((volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT) - TRACK_INSPECTOR_ROW_HEIGHT) / 2),
+              Math.max(0, ((volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT) - TRACK_INSPECTOR_ROW_HEIGHT) / 2) +
+              TRACK_INSPECTOR_ROW_Y_OFFSET,
             bindTitle: "Use fixed value",
             bindAriaLabel: "Use fixed value",
             bindIcon: "◉",
@@ -121,7 +123,10 @@ export function TrackHeaderChrome({
           }
           macroPanelRows.push({
             id: macro.id,
-            top: laneLayout.y + Math.max(0, (laneLayout.height - TRACK_INSPECTOR_ROW_HEIGHT) / 2),
+            top:
+              laneLayout.y +
+              Math.max(0, (laneLayout.height - TRACK_INSPECTOR_ROW_HEIGHT) / 2) +
+              TRACK_INSPECTOR_ROW_Y_OFFSET,
             bindTitle: lane ? "Use fixed value" : "Automate in timeline",
             bindAriaLabel: lane ? "Use fixed value" : "Automate in timeline",
             bindIcon: lane ? "◉" : "◎",
