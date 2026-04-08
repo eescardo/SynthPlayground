@@ -47,7 +47,7 @@ const getPatchOptionLabel = (patch: Project["patches"][number]) => {
 
 const TRACK_INSPECTOR_PANEL_VERTICAL_PADDING = 6;
 const TRACK_INSPECTOR_PANEL_MARGIN_TOP = 2;
-const TRACK_INSPECTOR_PANEL_MARGIN_BOTTOM = 2;
+const TRACK_INSPECTOR_PANEL_MARGIN_BOTTOM = 6;
 const TRACK_INSPECTOR_ROW_HEIGHT = 20;
 
 export function TrackHeaderChrome({
