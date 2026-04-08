@@ -75,7 +75,8 @@ export function TrackHeaderChrome({
         const selected = selectedTrackId === track.id;
         const effectiveVolume = track.mute ? 0 : track.volume;
         const rememberedVolume = track.volume;
-        const volumeLaneTop = volumeLane ? layout.y + 72 : null;
+        const volumeLaneLayout = layout.automationLanes.find((entry) => entry.laneType === "volume") ?? null;
+        const volumeLaneTop = volumeLaneLayout?.y ?? null;
         const macroRows = trackPatch?.ui.macros
           .map((macro) => ({
             macro,
@@ -88,7 +89,7 @@ export function TrackHeaderChrome({
           macroRows.length > 0
             ? Math.max(...macroRows.map((entry) => (entry.laneLayout ? entry.laneLayout.y + entry.laneLayout.height : 0)))
             : volumeLane
-              ? layout.y + 72 + AUTOMATION_LANE_COLLAPSED_HEIGHT
+              ? (volumeLaneLayout?.y ?? layout.y + 72) + (volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT)
               : null;
         const macroPanelHeight =
           macroPanelTop !== null && macroPanelBottom !== null ? Math.max(20, macroPanelBottom - macroPanelTop - 2) : 0;
@@ -215,7 +216,9 @@ export function TrackHeaderChrome({
                 {volumeLane && (
                   <div
                     className="track-inspector-row icon-only"
-                    style={{ top: `${layout.y + 72 + Math.max(0, (AUTOMATION_LANE_COLLAPSED_HEIGHT - 20) / 2)}px` }}
+                    style={{
+                      top: `${(volumeLaneLayout?.y ?? layout.y + 72) + Math.max(0, ((volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT) - 20) / 2)}px`
+                    }}
                   >
                     <div className="track-inspector-row-actions">
                       <button
