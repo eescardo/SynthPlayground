@@ -4,6 +4,7 @@ import { TrackVolumePopover } from "@/components/TrackVolumePopover";
 import {
   AUTOMATION_LANE_COLLAPSED_HEIGHT,
   MACRO_PANEL_TOGGLE_Y_OFFSET,
+  TRACK_PATCH_CONTROL_SIZE,
   SPEAKER_Y_OFFSET
 } from "@/components/tracks/trackCanvasConstants";
 import { TrackLayout, TrackCanvasAutomationActions, TrackCanvasTrackActions } from "@/components/tracks/trackCanvasTypes";
@@ -44,7 +45,7 @@ const getPatchOptionLabel = (patch: Project["patches"][number]) => {
   return `${patch.name} (Preset)`;
 };
 
-const TRACK_INSPECTOR_PANEL_VERTICAL_PADDING = 4;
+const TRACK_INSPECTOR_PANEL_VERTICAL_PADDING = 8;
 const TRACK_INSPECTOR_ROW_HEIGHT = 20;
 
 export function TrackHeaderChrome({
@@ -181,7 +182,9 @@ export function TrackHeaderChrome({
                 aria-label={track.macroPanelExpanded ? "Collapse macro lanes" : "Expand macro lanes"}
                 title={track.macroPanelExpanded ? "Collapse macro lanes" : "Expand macro lanes"}
                 style={{
-                  top: `${layout.y + MACRO_PANEL_TOGGLE_Y_OFFSET}px`
+                  top: `${layout.y + MACRO_PANEL_TOGGLE_Y_OFFSET}px`,
+                  width: `${TRACK_PATCH_CONTROL_SIZE}px`,
+                  height: `${TRACK_PATCH_CONTROL_SIZE}px`
                 }}
                 onClick={(event) => {
                   event.stopPropagation();
@@ -241,7 +244,10 @@ export function TrackHeaderChrome({
             <select
               className={`track-patch-select${(invalidPatchIds?.has(track.instrumentPatchId) ?? false) ? " invalid" : ""}`}
               value={track.instrumentPatchId}
-              style={{ top: `${layout.y + 44}px` }}
+              style={{
+                top: `${layout.y + MACRO_PANEL_TOGGLE_Y_OFFSET}px`,
+                height: `${TRACK_PATCH_CONTROL_SIZE}px`
+              }}
               onChange={(event) => trackActions.onUpdateTrackPatch(track.id, event.target.value)}
               onPointerDown={(event) => event.stopPropagation()}
             >
