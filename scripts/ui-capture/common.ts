@@ -18,8 +18,8 @@ export const clearPersistedProject = async (page: Page) => {
 export const openApp = async (page: Page) => {
   await clearPersistedProject(page);
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "Add Track" })).toBeVisible();
-  await expect(page.locator(".track-canvas-shell")).toBeVisible();
+  await expect(page.locator(".track-canvas-shell")).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".track-name-button").first()).toBeVisible();
 };
 
 const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canvas");
@@ -27,10 +27,26 @@ const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canva
 export const setupMacroAutomationLane = async (page: Page, options?: { settleMs?: number }) => {
   await openApp(page);
   const settleMs = options?.settleMs ?? 0;
-  const macroPanel = page.locator(".macro-panel");
-  await expect(macroPanel).toBeVisible();
-  await macroPanel.getByRole("button", { name: "Automate" }).first().click();
-  await expect(macroPanel.getByRole("button", { name: "Collapse lane" }).first()).toBeVisible();
+  const trackButtons = page.locator(".track-name-button");
+  const trackCount = await trackButtons.count();
+  let automated = false;
+  for (let index = 0; index < trackCount; index += 1) {
+    await trackButtons.nth(index).click({ force: true });
+    const expandButton = page.getByRole("button", { name: "Expand macro lanes" }).first();
+    if (await expandButton.isVisible().catch(() => false)) {
+      await expandButton.click();
+    }
+    const automateButton = page.locator('.track-inspector-action-button[title="Automate in timeline"]').first();
+    if (await automateButton.isVisible().catch(() => false)) {
+      await automateButton.click();
+      automated = true;
+      break;
+    }
+  }
+  if (!automated) {
+    throw new Error("Could not find a track with macro automation actions for capture setup.");
+  }
+  await expect(page.locator('.track-inspector-action-button[title="Collapse lane"]').first()).toBeVisible();
 
   const canvas = getTrackCanvas(page);
   await canvas.click({ position: { x: 430, y: 118 } });

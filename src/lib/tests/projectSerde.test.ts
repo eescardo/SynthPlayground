@@ -6,7 +6,7 @@ import { getBundledPresetLineage } from "@/lib/patch/source";
 import { validatePatch } from "@/lib/patch/validation";
 
 describe("projectSerde", () => {
-  it("normalizeProject upgrades legacy preset metadata and track macro defaults", () => {
+  it("normalizeProject upgrades legacy preset metadata and defaults macro panel to collapsed", () => {
     const project = createDefaultProject();
     const legacy = structuredClone(project) as unknown as {
       patches: Array<Record<string, unknown>>;
@@ -37,7 +37,7 @@ describe("projectSerde", () => {
     }
     for (const track of normalized.tracks) {
       expect(track.macroValues).toEqual({});
-      expect(track.macroPanelExpanded).toBe(true);
+      expect(track.macroPanelExpanded).toBe(false);
     }
   });
 

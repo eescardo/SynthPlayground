@@ -5,8 +5,8 @@ import {
   RULER_HEIGHT,
   TRACK_HEIGHT
 } from "@/components/tracks/trackCanvasConstants";
-import { TrackLayout } from "@/components/tracks/trackCanvasTypes";
-import { getTrackMacroLane } from "@/lib/macroAutomation";
+import { AutomationLaneLayout, TrackLayout } from "@/components/tracks/trackCanvasTypes";
+import { getTrackMacroLane, getTrackVolumeLane } from "@/lib/macroAutomation";
 import { Project } from "@/types/music";
 
 export function useTrackCanvasLayout(project: Project): { trackLayouts: TrackLayout[]; height: number } {
@@ -16,22 +16,47 @@ export function useTrackCanvasLayout(project: Project): { trackLayouts: TrackLay
       const trackY = currentY;
       const patch = project.patches.find((entry) => entry.id === track.instrumentPatchId);
       let laneY = trackY + TRACK_HEIGHT;
-      const automationLanes =
-        patch?.ui.macros.flatMap((macro) => {
+      const automationLanes: AutomationLaneLayout[] = [];
+
+      if (track.macroPanelExpanded) {
+        const volumeLane = getTrackVolumeLane(track);
+        if (volumeLane) {
+          const volumeLayout = {
+            laneId: volumeLane.macroId,
+            laneType: "volume" as const,
+            macroId: null,
+            name: "Volume",
+            y: laneY,
+            height: volumeLane.expanded ? AUTOMATION_LANE_HEIGHT : AUTOMATION_LANE_COLLAPSED_HEIGHT,
+            expanded: volumeLane.expanded,
+            automated: true
+          };
+          laneY += volumeLayout.height;
+          automationLanes.push(volumeLayout);
+        }
+
+        for (const macro of patch?.ui.macros ?? []) {
           const lane = getTrackMacroLane(track, macro.id);
-          if (!lane) {
-            return [];
-          }
-          const layout = {
+          const automated = Boolean(lane);
+          const macroLayout = {
+            laneId: macro.id,
+            laneType: "macro" as const,
             macroId: macro.id,
             name: macro.name,
             y: laneY,
-            height: lane.expanded ? AUTOMATION_LANE_HEIGHT : AUTOMATION_LANE_COLLAPSED_HEIGHT,
-            expanded: lane.expanded
+            height: automated
+              ? lane?.expanded
+                ? AUTOMATION_LANE_HEIGHT
+                : AUTOMATION_LANE_COLLAPSED_HEIGHT
+              : AUTOMATION_LANE_COLLAPSED_HEIGHT,
+            expanded: automated ? Boolean(lane?.expanded) : false,
+            automated
           };
-          laneY += layout.height;
-          return [layout];
-        }) ?? [];
+          laneY += macroLayout.height;
+          automationLanes.push(macroLayout);
+        }
+      }
+
       const occupiedHeight = TRACK_HEIGHT + automationLanes.reduce((acc, lane) => acc + lane.height, 0);
       currentY += occupiedHeight;
       return {

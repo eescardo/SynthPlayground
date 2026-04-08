@@ -5,6 +5,7 @@ import {
   MAX_VOICES,
   PARAM_SMOOTHING_MS,
   PORTS_IN_BY_TYPE,
+  TRACK_VOLUME_AUTOMATION_ID,
   TRACK_VOLUME_RANGE
 } from "./synth-worklet-constants.js";
 import { clamp, dbToGain, onePoleStep, smoothingAlpha } from "./synth-worklet-math.js";
@@ -342,6 +343,10 @@ export class TrackRuntime {
   // Macros stay as UI-facing normalized controls and are expanded here into the
   // concrete node parameter values that the DSP graph consumes.
   applyMacro(macroId, normalized) {
+    if (macroId === TRACK_VOLUME_AUTOMATION_ID) {
+      this.track.volume = clamp(normalized, 0, 1) * TRACK_VOLUME_RANGE.MAX;
+      return;
+    }
     const macro = this.compiled.macroById.get(macroId);
     if (!macro) {
       return;
@@ -599,6 +604,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     this.playing = false;
     this.previewing = false;
     this.previewRemainingSamples = 0;
+    this.previewIgnoreVolume = true;
     this.sampleCounter = 0;
     this.songSampleCounter = 0;
     this.transportSessionId = 0;
@@ -664,6 +670,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     this.playing = false;
     this.previewing = false;
     this.previewRemainingSamples = 0;
+    this.previewIgnoreVolume = true;
     this.recordingTrackId = null;
     this.transportSessionId = Number.isFinite(message.sessionId) ? message.sessionId : this.transportSessionId + 1;
     this.songSampleCounter = Math.max(0, message.songStartSample || 0);
@@ -719,6 +726,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         }
         this.resetAllTrackVoices();
         this.previewRemainingSamples = Math.max(0, message.durationSamples || 0);
+        this.previewIgnoreVolume = message.ignoreVolume !== false;
         this.previewing = this.previewRemainingSamples > 0;
         break;
       case "EVENTS":
@@ -848,7 +856,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
       for (const track of this.trackRuntimes) {
         track.processTrackFrames(this.masterBuffer, startFrame, endFrame, {
           ignoreMute: this.previewing,
-          ignoreVolume: this.previewing
+          ignoreVolume: this.previewing ? this.previewIgnoreVolume : false
         });
       }
     }

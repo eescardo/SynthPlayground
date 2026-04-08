@@ -10,6 +10,7 @@ import {
 const clampNormalized = (value: number): number => Math.max(0, Math.min(1, value));
 const EPSILON = 1e-9;
 const SPLIT_OFFSET = 0.1;
+export const TRACK_VOLUME_AUTOMATION_ID = "__track_volume__";
 
 export type AutomationKeyframeSide = "single" | "incoming" | "outgoing";
 
@@ -159,8 +160,10 @@ export const sanitizeMacroAutomationMap = (raw: unknown): Record<string, TrackMa
 };
 
 export const getTrackMacroLane = (track: Track, macroId: string): TrackMacroAutomationLane | null => track.macroAutomations[macroId] ?? null;
+export const getTrackVolumeLane = (track: Track): TrackMacroAutomationLane | null => track.macroAutomations[TRACK_VOLUME_AUTOMATION_ID] ?? null;
 
 export const isTrackMacroAutomated = (track: Track, macroId: string): boolean => Boolean(getTrackMacroLane(track, macroId));
+export const isTrackVolumeAutomated = (track: Track): boolean => Boolean(getTrackVolumeLane(track));
 
 export const createTrackMacroAutomationLane = (macroId: string, initialValue: number): TrackMacroAutomationLane => ({
   macroId,
@@ -169,6 +172,9 @@ export const createTrackMacroAutomationLane = (macroId: string, initialValue: nu
   endValue: clampNormalized(initialValue),
   keyframes: []
 });
+
+export const createTrackVolumeAutomationLane = (initialValue: number): TrackMacroAutomationLane =>
+  createTrackMacroAutomationLane(TRACK_VOLUME_AUTOMATION_ID, initialValue);
 
 export const getTrackAutomationPoints = (lane: TrackMacroAutomationLane, endBeat: number): AutomationPoint[] => {
   const points: AutomationPoint[] = [

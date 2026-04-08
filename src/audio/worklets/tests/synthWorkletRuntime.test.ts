@@ -285,6 +285,50 @@ describe("synth worklet runtime", () => {
     expect(left.some((sample) => Math.abs(sample) > 1e-6)).toBe(true);
   });
 
+  it("can preview while respecting track volume", async () => {
+    const { SynthWorkletProcessor } = await loadRuntimeModule();
+
+    const fullVolumeProcessor = new SynthWorkletProcessor({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize: 128,
+        project: createProject({ track: createTrack({ mute: true, volume: 1 }) })
+      }
+    });
+    const quietProcessor = new SynthWorkletProcessor({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize: 128,
+        project: createProject({ track: createTrack({ mute: true, volume: 0.25 }) })
+      }
+    });
+
+    for (const processor of [fullVolumeProcessor, quietProcessor]) {
+      processor.onMessage({
+        type: "PREVIEW",
+        durationSamples: 128,
+        ignoreVolume: false,
+        events: [
+          {
+            id: "preview_on",
+            type: "NoteOn",
+            sampleTime: 0,
+            trackId: "track_1",
+            noteId: "note_1",
+            pitchVoct: 0,
+            velocity: 1
+          }
+        ]
+      });
+    }
+
+    const { left: fullLeft } = renderProcessorBlock(fullVolumeProcessor);
+    const { left: quietLeft } = renderProcessorBlock(quietProcessor);
+
+    expect(sumAbs(fullLeft)).toBeGreaterThan(0.001);
+    expect(sumAbs(quietLeft)).toBeCloseTo(sumAbs(fullLeft) * 0.25, 4);
+  });
+
   it("ignores stale transport event batches from older sessions", async () => {
     const { SynthWorkletProcessor } = await loadRuntimeModule();
 

@@ -1,5 +1,11 @@
 import { getLoopedPlaybackBeatsForSongBeat } from "@/lib/looping";
-import { getProjectTimelineEndBeat, getTrackMacroValueAtBeat, isTrackMacroAutomated } from "@/lib/macroAutomation";
+import {
+  getProjectTimelineEndBeat,
+  getTrackMacroValueAtBeat,
+  isTrackMacroAutomated,
+  isTrackVolumeAutomated,
+  TRACK_VOLUME_AUTOMATION_ID
+} from "@/lib/macroAutomation";
 import { beatRangeToSampleRange } from "@/lib/musicTiming";
 import { pitchToVoct } from "@/lib/pitch";
 import { createId } from "@/lib/ids";
@@ -110,6 +116,33 @@ export const collectEventsInWindow = (project: Project, window: SchedulerWindow,
             });
           });
         }
+      }
+    }
+
+    if (isTrackVolumeAutomated(track)) {
+      for (let beat = 0; beat <= timelineEndBeat + 1e-9; beat += automationStepBeats) {
+        const sampleTimes = getLoopedEventSampleTimes(beat, cueBeat, project);
+        const normalized = getTrackMacroValueAtBeat(
+          track,
+          TRACK_VOLUME_AUTOMATION_ID,
+          track.volume / 2,
+          beat,
+          timelineEndBeat
+        );
+        sampleTimes.forEach((sampleTime, index) => {
+          if (sampleTime < window.fromSample || sampleTime >= window.toSample) {
+            return;
+          }
+          events.push({
+            id: `${track.id}:${TRACK_VOLUME_AUTOMATION_ID}:automation:${beat.toFixed(4)}:${index}`,
+            type: "MacroChange",
+            source: "automation",
+            sampleTime,
+            trackId: track.id,
+            macroId: TRACK_VOLUME_AUTOMATION_ID,
+            normalized
+          });
+        });
       }
     }
 

@@ -161,7 +161,7 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await selectionPopover.getByRole("button", { name: "Copy", exact: true }).click();
       await page.waitForTimeout(postActionSettleMs);
 
-      await page.locator(".track-name-button").nth(4).click({ force: true });
+      await page.locator(".track-name-button").last().click({ force: true });
       await page.waitForTimeout(postActionSettleMs);
 
       await canvas.click({ position: { x: 760, y: 12 } });

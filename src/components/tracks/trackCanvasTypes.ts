@@ -30,9 +30,12 @@ export interface TrackCanvasTrackActions {
   onRenameTrack: (trackId: string, name: string) => void;
   onToggleTrackMute: (trackId: string) => void;
   onSetTrackVolume: (trackId: string, volume: number, options?: { commit?: boolean }) => void;
+  onPreviewTrackVolume: (trackId: string, volume: number) => void;
+  onBindTrackVolumeToAutomation: (trackId: string, initialValue: number) => void;
+  onUnbindTrackVolumeFromAutomation: (trackId: string) => void;
+  onToggleTrackVolumeAutomationLane: (trackId: string) => void;
   onUpdateTrackPatch: (trackId: string, patchId: string) => void;
   onToggleTrackMacroPanel: (trackId: string) => void;
-  onResetTrackMacros: (trackId: string) => void;
 }
 
 export interface TrackCanvasAutomationActions {
@@ -109,11 +112,14 @@ export interface TrackCanvasProps {
 }
 
 export interface AutomationLaneLayout {
-  macroId: string;
+  laneId: string;
+  laneType: "macro" | "volume";
+  macroId: string | null;
   name: string;
   y: number;
   height: number;
   expanded: boolean;
+  automated: boolean;
 }
 
 export interface TrackLayout {

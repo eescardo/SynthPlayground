@@ -284,7 +284,7 @@
           ]
         }
       },
-      "macroPanelExpanded": true,
+      "macroPanelExpanded": false,
       "volume": 1,
       "mute": false,
       "solo": false,
@@ -408,7 +408,7 @@
         "macro_decay": 0.121
       },
       "macroAutomations": {},
-      "macroPanelExpanded": true,
+      "macroPanelExpanded": false,
       "volume": 0.6904296875,
       "mute": false,
       "solo": false,
@@ -498,7 +498,7 @@
         "macro_click": 0.089
       },
       "macroAutomations": {},
-      "macroPanelExpanded": true,
+      "macroPanelExpanded": false,
       "volume": 0.6885416666666666,
       "mute": false,
       "solo": false,
@@ -561,7 +561,7 @@
         "macro_shell_level": 1
       },
       "macroAutomations": {},
-      "macroPanelExpanded": true,
+      "macroPanelExpanded": false,
       "volume": 0.9939453125,
       "mute": false,
       "solo": false,

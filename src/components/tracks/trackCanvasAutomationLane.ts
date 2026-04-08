@@ -40,6 +40,7 @@ const AUTOMATION_SINGLE_RADIUS = 5;
 const AUTOMATION_SPLIT_HALF_WIDTH = 4;
 const AUTOMATION_SPLIT_HALF_HEIGHT = 4;
 const AUTOMATION_SPLIT_CENTER_OFFSET = 3;
+const LANE_LABEL_X = 18;
 
 export const automationValueFromY = (y: number, laneY: number, laneHeight: number): number =>
   Math.max(0, Math.min(1, 1 - (y - (laneY + 6)) / Math.max(1, laneHeight - 12)));
@@ -96,6 +97,20 @@ interface RenderAutomationLaneParams {
   width: number;
 }
 
+interface RenderFixedLaneParams {
+  beatWidth: number;
+  colors: TrackCanvasAutomationLaneColors;
+  ctx: CanvasRenderingContext2D;
+  headerWidth: number;
+  height: number;
+  laneY: number;
+  name: string;
+  defaultValue: number;
+  value: number;
+  veilTimeline?: boolean;
+  width: number;
+}
+
 export function renderAutomationLane({
   automationKeyframeRects,
   beatWidth,
@@ -121,8 +136,16 @@ export function renderAutomationLane({
   ctx.strokeStyle = colors.automationLaneBorder;
   ctx.strokeRect(headerWidth + 0.5, laneY + 0.5, width - headerWidth - 1, height - 1);
   ctx.fillStyle = colors.automationLabel;
-  ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.fillText(`${macroName} automation`, 12, laneY + Math.min(16, height - 6));
+  ctx.font = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
+  const labelY = laneY + height * 0.5;
+  const stateLabel = "auto";
+  ctx.textBaseline = "middle";
+  ctx.fillText(macroName, LANE_LABEL_X, labelY);
+  const macroNameWidth = ctx.measureText(macroName).width;
+  ctx.fillStyle = colors.noteHoverBorder;
+  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillText(stateLabel, LANE_LABEL_X + macroNameWidth + 8, labelY);
+  ctx.textBaseline = "alphabetic";
 
   if (expanded) {
     ctx.beginPath();
@@ -264,4 +287,73 @@ export function renderAutomationLane({
       }
     }
   }
+}
+
+export function renderFixedLane({
+  beatWidth,
+  colors,
+  ctx,
+  headerWidth,
+  height,
+  laneY,
+  name,
+  defaultValue,
+  value,
+  veilTimeline = false,
+  width
+}: RenderFixedLaneParams) {
+  const laneBottom = laneY + height;
+  const sliderStartX = headerWidth + Math.min(beatWidth * 0.25, 18);
+  const sliderEndX = Math.min(width - 10, sliderStartX + beatWidth * 3.8);
+  const sliderCenterY = laneY + height * 0.5;
+  const normalized = Math.max(0, Math.min(1, value));
+  const thumbX = sliderStartX + (sliderEndX - sliderStartX) * normalized;
+  const defaultNormalized = Math.max(0, Math.min(1, defaultValue));
+  const defaultX = sliderStartX + (sliderEndX - sliderStartX) * defaultNormalized;
+
+  ctx.fillStyle = veilTimeline ? colors.automationLaneTimelineVeil : colors.automationLaneBg;
+  ctx.fillRect(headerWidth, laneY, width - headerWidth, height);
+  ctx.strokeStyle = colors.automationLaneBorder;
+  ctx.strokeRect(headerWidth + 0.5, laneY + 0.5, width - headerWidth - 1, height - 1);
+  ctx.fillStyle = colors.automationLabel;
+  ctx.font = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
+  const labelY = laneY + height * 0.5;
+  ctx.textBaseline = "middle";
+  ctx.fillText(name, LANE_LABEL_X, labelY);
+  const nameWidth = ctx.measureText(name).width;
+  ctx.fillStyle = colors.noteHoverBorder;
+  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillText("fixed", LANE_LABEL_X + nameWidth + 8, labelY);
+  ctx.textBaseline = "alphabetic";
+
+  ctx.strokeStyle = colors.automationLaneBorder;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(sliderStartX, sliderCenterY);
+  ctx.lineTo(sliderEndX, sliderCenterY);
+  ctx.stroke();
+
+  ctx.strokeStyle = colors.noteHoverBorder;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(defaultX, sliderCenterY - 6);
+  ctx.lineTo(defaultX, sliderCenterY + 6);
+  ctx.stroke();
+
+  const fillWidth = Math.max(0, thumbX - sliderStartX);
+  ctx.fillStyle = colors.automationFill;
+  ctx.fillRect(sliderStartX, sliderCenterY - 2, fillWidth, 4);
+
+  ctx.fillStyle = colors.automationHandle;
+  ctx.strokeStyle = colors.automationHandleBorder;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(thumbX, sliderCenterY, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  const percent = Math.round(normalized * 100);
+  ctx.fillStyle = colors.automationLabel;
+  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillText(`${percent}%`, sliderEndX + 8, Math.min(laneBottom - 6, sliderCenterY + 4));
 }
