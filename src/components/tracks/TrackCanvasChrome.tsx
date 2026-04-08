@@ -158,7 +158,12 @@ export function TrackHeaderChrome({
                 left={`${volumePopoverPosition?.left ?? 164}px`}
                 onMouseEnter={() => cancelScheduledVolumePopoverDismiss()}
                 onMouseLeave={() => scheduleVolumePopoverDismiss()}
-                onVolumeChange={(volume, options) => trackActions.onSetTrackVolume(track.id, volume, options)}
+                onVolumeChange={(volume, options) => {
+                  trackActions.onSetTrackVolume(track.id, volume, options);
+                  if (options?.commit) {
+                    trackActions.onPreviewTrackVolume(track.id, volume);
+                  }
+                }}
                 onBindToAutomation={() => trackActions.onBindTrackVolumeToAutomation(track.id, track.volume / 2)}
                 onUnbindFromAutomation={() => trackActions.onUnbindTrackVolumeFromAutomation(track.id)}
               />

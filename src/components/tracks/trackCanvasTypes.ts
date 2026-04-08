@@ -30,6 +30,7 @@ export interface TrackCanvasTrackActions {
   onRenameTrack: (trackId: string, name: string) => void;
   onToggleTrackMute: (trackId: string) => void;
   onSetTrackVolume: (trackId: string, volume: number, options?: { commit?: boolean }) => void;
+  onPreviewTrackVolume: (trackId: string, volume: number) => void;
   onBindTrackVolumeToAutomation: (trackId: string, initialValue: number) => void;
   onUnbindTrackVolumeFromAutomation: (trackId: string) => void;
   onToggleTrackVolumeAutomationLane: (trackId: string) => void;

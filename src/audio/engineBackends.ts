@@ -27,7 +27,13 @@ export interface AudioEngineBackend {
   setRecordingTrack(trackId: string | null): void;
   recordNoteOn(trackId: string, noteId: string, pitchVoct: number, velocity?: number): Promise<number>;
   recordNoteOff(trackId: string, noteId: string, pitchVoct: number): number;
-  previewNote(trackId: string, pitchVoct: number, durationBeats: number, velocity?: number): Promise<void>;
+  previewNote(
+    trackId: string,
+    pitchVoct: number,
+    durationBeats: number,
+    velocity?: number,
+    options?: { ignoreMute?: boolean; ignoreVolume?: boolean }
+  ): Promise<void>;
 }
 
 const getWorkletUrl = () =>
@@ -319,7 +325,13 @@ class RealAudioEngineBackend implements AudioEngineBackend {
     return sampleTime;
   }
 
-  async previewNote(trackId: string, pitchVoct: number, durationBeats: number, velocity = 0.9): Promise<void> {
+  async previewNote(
+    trackId: string,
+    pitchVoct: number,
+    durationBeats: number,
+    velocity = 0.9,
+    options?: { ignoreMute?: boolean; ignoreVolume?: boolean }
+  ): Promise<void> {
     if (this.isPlaying || !this.project) {
       return;
     }
@@ -356,7 +368,9 @@ class RealAudioEngineBackend implements AudioEngineBackend {
     this.worklet.port.postMessage({
       type: "PREVIEW",
       events,
-      durationSamples: durationSamples + BLOCK_SIZE
+      durationSamples: durationSamples + BLOCK_SIZE,
+      ignoreMute: options?.ignoreMute !== false,
+      ignoreVolume: options?.ignoreVolume !== false
     });
   }
 }
@@ -451,11 +465,18 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
     return this.getSafeLiveSampleTime();
   }
 
-  async previewNote(trackId: string, pitchVoct: number, durationBeats: number, velocity = 0.9): Promise<void> {
+  async previewNote(
+    trackId: string,
+    pitchVoct: number,
+    durationBeats: number,
+    velocity = 0.9,
+    options?: { ignoreMute?: boolean; ignoreVolume?: boolean }
+  ): Promise<void> {
     void trackId;
     void pitchVoct;
     void durationBeats;
     void velocity;
+    void options;
   }
 }
 

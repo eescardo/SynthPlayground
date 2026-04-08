@@ -113,8 +113,14 @@ export class AudioEngine {
     return this.backend.recordNoteOff(trackId, noteId, pitchVoct);
   }
 
-  previewNote(trackId: string, pitchVoct: number, durationBeats: number, velocity = 0.9): Promise<void> {
-    return this.backend.previewNote(trackId, pitchVoct, durationBeats, velocity);
+  previewNote(
+    trackId: string,
+    pitchVoct: number,
+    durationBeats: number,
+    velocity = 0.9,
+    options?: { ignoreMute?: boolean; ignoreVolume?: boolean }
+  ): Promise<void> {
+    return this.backend.previewNote(trackId, pitchVoct, durationBeats, velocity, options);
   }
 
   async exportProjectAudio(project: Project): Promise<Blob> {

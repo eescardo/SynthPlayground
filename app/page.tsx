@@ -1084,6 +1084,13 @@ export default function HomePage() {
     );
   }, [commitProjectChange]);
 
+  const previewTrackVolume = useCallback((trackId: string, volume: number) => {
+    audioEngineRef.current?.setMacroValue(trackId, TRACK_VOLUME_AUTOMATION_ID, Math.max(0, Math.min(2, volume)) / 2);
+    audioEngineRef.current
+      ?.previewNote(trackId, pitchToVoct(previewPitch), 1, 0.9, { ignoreMute: true, ignoreVolume: false })
+      .catch((error) => setRuntimeError((error as Error).message));
+  }, [previewPitch]);
+
   const previewPlacedNote = useCallback((trackId: string, note: Project["tracks"][number]["notes"][number]) => {
     audioEngineRef.current
       ?.previewNote(trackId, pitchToVoct(note.pitchStr), note.durationBeats, note.velocity)
@@ -1109,6 +1116,7 @@ export default function HomePage() {
     onRenameTrack: renameTrack,
     onToggleTrackMute: toggleTrackMute,
     onSetTrackVolume: setTrackVolume,
+    onPreviewTrackVolume: previewTrackVolume,
     onBindTrackVolumeToAutomation: bindTrackVolumeToAutomation,
     onUnbindTrackVolumeFromAutomation: unbindTrackVolumeFromAutomation,
     onToggleTrackVolumeAutomationLane: toggleTrackVolumeAutomationLane,

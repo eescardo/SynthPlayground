@@ -2,6 +2,7 @@
 
 import { MutableRefObject, useCallback, useState } from "react";
 import { AudioEngine } from "@/audio/engine";
+import { TRACK_VOLUME_AUTOMATION_ID } from "@/lib/macroAutomation";
 import { clampTrackVolume, isTrackVolumeMuted } from "@/lib/trackVolume";
 import { Project } from "@/types/music";
 
@@ -30,13 +31,15 @@ export function useProjectAudioActions(options: UseProjectAudioActionsOptions) {
   const [exportingAudio, setExportingAudio] = useState(false);
 
   const setTrackVolume = useCallback((trackId: string, volume: number, actionOptions?: { commit?: boolean }) => {
+    const clampedVolume = clampTrackVolume(volume);
+    audioEngineRef.current?.setMacroValue(trackId, TRACK_VOLUME_AUTOMATION_ID, clampedVolume / 2);
     commitProjectChange((current) => ({
       ...current,
       tracks: current.tracks.map((track) =>
         track.id === trackId
           ? {
               ...track,
-              volume: clampTrackVolume(volume),
+              volume: clampedVolume,
               mute: isTrackVolumeMuted(volume) ? true : false
             }
           : track
@@ -45,7 +48,7 @@ export function useProjectAudioActions(options: UseProjectAudioActionsOptions) {
       actionKey: `track:${trackId}:volume`,
       coalesce: actionOptions?.commit === false
     });
-  }, [commitProjectChange]);
+  }, [audioEngineRef, commitProjectChange]);
 
   const exportAudio = useCallback(async () => {
     if (!audioEngineRef.current || exportingAudio) {
