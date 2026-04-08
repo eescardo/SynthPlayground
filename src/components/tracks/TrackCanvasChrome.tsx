@@ -43,6 +43,8 @@ const getPatchOptionLabel = (patch: Project["patches"][number]) => {
   return `${patch.name} (Preset)`;
 };
 
+const TRACK_INSPECTOR_PANEL_VERTICAL_PADDING = 4;
+
 export function TrackHeaderChrome({
   project,
   trackLayouts,
@@ -205,8 +207,8 @@ export function TrackHeaderChrome({
                   <div
                     className="track-inspector-panel"
                     style={{
-                      top: `${macroPanelTop}px`,
-                      height: `${macroPanelHeight}px`
+                      top: `${macroPanelTop - TRACK_INSPECTOR_PANEL_VERTICAL_PADDING}px`,
+                      height: `${macroPanelHeight + TRACK_INSPECTOR_PANEL_VERTICAL_PADDING * 2}px`
                     }}
                   />
                 )}
