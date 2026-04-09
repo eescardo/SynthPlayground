@@ -1,14 +1,19 @@
 import { AutomationKeyframeSide } from "@/lib/macroAutomation";
+import { ContentSelection } from "@/lib/noteClipboard";
 import { Note, Project } from "@/types/music";
 
 export type SelectionBeatRange = { startBeat: number; endBeat: number; beatSpan: number };
+
+export interface TrackCanvasContentSelection {
+  noteKeys: ReadonlySet<string>;
+  automationKeyframeKeys: ReadonlySet<string>;
+}
 
 export type TrackCanvasSelection =
   | { kind: "none" }
   | {
       kind: "note";
-      selectedNoteKeys: ReadonlySet<string>;
-      selectedAutomationKeyframeKeys: ReadonlySet<string>;
+      content: TrackCanvasContentSelection;
       beatRange: SelectionBeatRange;
       label: string;
       markerTrackId: string;
@@ -83,7 +88,7 @@ export interface TrackCanvasNoteActions {
 }
 
 export interface TrackCanvasSelectionActions {
-  onSetContentSelection: (noteSelectionKeys: string[], automationSelectionKeys: string[]) => void;
+  onSetContentSelection: (selection: ContentSelection) => void;
   onSetTimelineSelectionBeatRange: (range: SelectionBeatRange | null) => void;
   onSetSelectionMarqueeActive: (active: boolean) => void;
   onPreviewSelectionActionScopeChange: (scope: "source" | "all-tracks") => void;

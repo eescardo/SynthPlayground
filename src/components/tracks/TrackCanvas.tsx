@@ -241,8 +241,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const selectionBeatRange = selection.kind === "none" ? null : selection.beatRange;
   const selectionLabel = selection.kind === "none" ? null : selection.label;
   const selectionMarkerTrackId = selection.kind === "none" ? null : selection.markerTrackId;
-  const selectedNoteKeys = selection.kind === "note" ? selection.selectedNoteKeys : undefined;
-  const selectedAutomationKeyframeKeys = selection.kind === "note" ? selection.selectedAutomationKeyframeKeys : undefined;
+  const selectedNoteKeys = selection.kind === "note" ? selection.content.noteKeys : undefined;
+  const selectedAutomationKeyframeKeys = selection.kind === "note" ? selection.content.automationKeyframeKeys : undefined;
   const selectionPopoverLeft = selectionBeatRange
     ? HEADER_WIDTH + selectionBeatRange.endBeat * BEAT_WIDTH + 14
     : 0;
@@ -311,8 +311,13 @@ export function TrackCanvas(props: TrackCanvasProps) {
     playheadBeat,
     gridBeats,
     selection,
-    selectedNoteKeys,
-    selectedAutomationKeyframeKeys,
+    contentSelection:
+      selection.kind === "note"
+        ? {
+            noteKeys: selection.content.noteKeys,
+            automationKeyframeKeys: selection.content.automationKeyframeKeys
+          }
+        : undefined,
     noteActions,
     automationActions,
     selectionActions,

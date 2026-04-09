@@ -5,6 +5,8 @@ import {
   applyNoteClipboardPaste,
   buildAllTracksClipboardPayload,
   buildNoteClipboardPayload,
+  ContentSelection,
+  EMPTY_CONTENT_SELECTION,
   parseNoteClipboardPayload,
   serializeNoteClipboardPayload
 } from "@/lib/noteClipboard";
@@ -23,33 +25,29 @@ const isTextEditingTarget = (target: EventTarget | null) => {
 interface UseEditorClipboardEventsParams {
   commitProjectChange: CommitProjectChange;
   cutAllTracksInSelection: () => Promise<void>;
-  deleteSelectedNotes: (noteSelectionKeys: string[], automationSelectionKeys?: string[]) => void;
+  contentSelection: ContentSelection;
+  deleteSelectedNotes: (selection: ContentSelection) => void;
   hasTimelineRangeSelection: boolean;
   playheadBeat: number;
   project: Project;
-  selectedAutomationKeyframeKeys: string[];
-  selectedNoteKeys: string[];
   selectionBeatRange: { startBeat: number; endBeat: number; beatSpan: number } | null;
   selectedTrackId?: string;
   setNoteClipboardPayload: (payload: ReturnType<typeof parseNoteClipboardPayload>) => void;
-  setSelectedAutomationKeyframeKeys: (selectionKeys: string[]) => void;
-  setSelectedNoteKeys: (selectionKeys: string[]) => void;
+  setContentSelection: (selection: ContentSelection) => void;
 }
 
 export function useEditorClipboardEvents({
   commitProjectChange,
   cutAllTracksInSelection,
+  contentSelection,
   deleteSelectedNotes,
   hasTimelineRangeSelection,
   playheadBeat,
   project,
-  selectedAutomationKeyframeKeys,
-  selectedNoteKeys,
   selectionBeatRange,
   selectedTrackId,
   setNoteClipboardPayload,
-  setSelectedAutomationKeyframeKeys,
-  setSelectedNoteKeys
+  setContentSelection
 }: UseEditorClipboardEventsParams) {
   useEffect(() => {
     const onCopy = (event: ClipboardEvent) => {
@@ -59,7 +57,7 @@ export function useEditorClipboardEvents({
 
       const payload = hasTimelineRangeSelection && selectionBeatRange
         ? buildAllTracksClipboardPayload(project, selectionBeatRange)
-        : buildNoteClipboardPayload(project, selectedNoteKeys, selectedAutomationKeyframeKeys);
+        : buildNoteClipboardPayload(project, contentSelection.noteKeys, contentSelection.automationKeyframeKeys);
       if (!payload) {
         return;
       }
@@ -78,7 +76,7 @@ export function useEditorClipboardEvents({
 
       const payload = hasTimelineRangeSelection && selectionBeatRange
         ? buildAllTracksClipboardPayload(project, selectionBeatRange)
-        : buildNoteClipboardPayload(project, selectedNoteKeys, selectedAutomationKeyframeKeys);
+        : buildNoteClipboardPayload(project, contentSelection.noteKeys, contentSelection.automationKeyframeKeys);
       if (!payload) {
         return;
       }
@@ -91,7 +89,7 @@ export function useEditorClipboardEvents({
       if (hasTimelineRangeSelection) {
         void cutAllTracksInSelection();
       } else {
-        deleteSelectedNotes(selectedNoteKeys, selectedAutomationKeyframeKeys);
+        deleteSelectedNotes(contentSelection);
       }
     };
 
@@ -108,16 +106,15 @@ export function useEditorClipboardEvents({
         return;
       }
 
-      let nextSelectionKeys: string[] = [];
+      let nextSelection = EMPTY_CONTENT_SELECTION;
       setNoteClipboardPayload(payload);
       event.preventDefault();
       commitProjectChange((current) => {
         const applied = applyNoteClipboardPaste(current, payload, selectedTrackId, playheadBeat);
-        nextSelectionKeys = applied.selectionKeys;
+        nextSelection = applied.selection;
         return applied.project;
       }, { actionKey: `track:${selectedTrackId}:paste-notes` });
-      setSelectedNoteKeys(nextSelectionKeys);
-      setSelectedAutomationKeyframeKeys([]);
+      setContentSelection(nextSelection);
     };
 
     window.addEventListener("copy", onCopy);
@@ -130,17 +127,15 @@ export function useEditorClipboardEvents({
     };
   }, [
     commitProjectChange,
+    contentSelection,
     cutAllTracksInSelection,
     deleteSelectedNotes,
     hasTimelineRangeSelection,
     playheadBeat,
     project,
-    selectedAutomationKeyframeKeys,
-    selectedNoteKeys,
     selectionBeatRange,
     selectedTrackId,
     setNoteClipboardPayload,
-    setSelectedAutomationKeyframeKeys,
-    setSelectedNoteKeys
+    setContentSelection
   ]);
 }

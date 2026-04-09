@@ -1,6 +1,6 @@
 import { AutomationKeyframeRect } from "@/components/tracks/trackCanvasAutomationLane";
 import { TrackLayout } from "@/components/tracks/trackCanvasTypes";
-import { getAutomationSelectionKey, getNoteSelectionKey } from "@/lib/noteClipboard";
+import { ContentSelection, getAutomationSelectionKey, getNoteSelectionKey } from "@/lib/noteClipboard";
 
 export interface TrackCanvasNoteSelectionRect {
   trackId: string;
@@ -18,10 +18,7 @@ export interface TrackCanvasSelectionRect {
   endY: number;
 }
 
-export interface ResolvedTrackCanvasSelection {
-  noteSelectionKeys: string[];
-  automationSelectionKeys: string[];
-}
+export type ResolvedTrackCanvasSelection = ContentSelection;
 
 const rectsIntersect = (
   left: number,
@@ -61,8 +58,8 @@ export function resolveTrackCanvasSelectionFromRect(
 
   if (automationOnlySingleTrack) {
     return {
-      noteSelectionKeys: [],
-      automationSelectionKeys
+      noteKeys: [],
+      automationKeyframeKeys: automationSelectionKeys
     };
   }
 
@@ -71,7 +68,7 @@ export function resolveTrackCanvasSelectionFromRect(
     .map((rect) => getNoteSelectionKey(rect.trackId, rect.noteId));
 
   return {
-    noteSelectionKeys,
-    automationSelectionKeys
+    noteKeys: noteSelectionKeys,
+    automationKeyframeKeys: automationSelectionKeys
   };
 }

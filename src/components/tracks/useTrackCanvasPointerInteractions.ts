@@ -36,7 +36,7 @@ import {
 } from "@/components/tracks/trackCanvasConstants";
 import { PRIMARY_POINTER_BUTTON, SECONDARY_POINTER_BUTTON } from "@/lib/inputConstants";
 import { createDefaultPlacedNote } from "@/lib/noteDefaults";
-import { getNoteSelectionKey } from "@/lib/noteClipboard";
+import { EMPTY_CONTENT_SELECTION, getNoteSelectionKey } from "@/lib/noteClipboard";
 import { snapToGrid } from "@/lib/musicTiming";
 import { Project, Track } from "@/types/music";
 import { resolveTrackCanvasSelectionFromRect } from "@/components/tracks/trackCanvasSelection";
@@ -120,8 +120,12 @@ interface UseTrackCanvasPointerInteractionsParams {
   playheadBeat: number;
   gridBeats: number;
   selection: TrackCanvasSelection;
-  selectedNoteKeys: ReadonlySet<string> | undefined;
-  selectedAutomationKeyframeKeys: ReadonlySet<string> | undefined;
+  contentSelection:
+    | {
+        noteKeys: ReadonlySet<string>;
+        automationKeyframeKeys: ReadonlySet<string>;
+      }
+    | undefined;
   noteActions: TrackCanvasNoteActions;
   automationActions: TrackCanvasAutomationActions;
   selectionActions: TrackCanvasSelectionActions;
@@ -148,8 +152,7 @@ export function useTrackCanvasPointerInteractions({
   playheadBeat,
   gridBeats,
   selection,
-  selectedNoteKeys,
-  selectedAutomationKeyframeKeys,
+  contentSelection,
   noteActions,
   automationActions,
   selectionActions,
@@ -261,7 +264,7 @@ export function useTrackCanvasPointerInteractions({
       automationKeyframeRectsRef.current,
       trackLayouts
     );
-    selectionActions.onSetContentSelection(resolved.noteSelectionKeys, resolved.automationSelectionKeys);
+    selectionActions.onSetContentSelection(resolved);
   }, [automationKeyframeRectsRef, noteRectsRef, selectionActions, trackLayouts]);
 
   const updateTimelineSelectionFromRuler = useCallback((startBeat: number, endBeat: number) => {
@@ -284,8 +287,8 @@ export function useTrackCanvasPointerInteractions({
     const automationKeyframe = findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y);
     const automationLaneHit = targets.automationLaneHit;
     const hasActiveSelection =
-      Boolean(selectedNoteKeys?.size) ||
-      Boolean(selectedAutomationKeyframeKeys?.size) ||
+      Boolean(contentSelection?.noteKeys.size) ||
+      Boolean(contentSelection?.automationKeyframeKeys.size) ||
       selection.kind === "timeline";
 
     if (y <= RULER_HEIGHT && x >= headerWidth) {
@@ -311,7 +314,7 @@ export function useTrackCanvasPointerInteractions({
       }
 
       if (event.button === PRIMARY_POINTER_BUTTON) {
-        selectionActions.onSetContentSelection([], []);
+        selectionActions.onSetContentSelection(EMPTY_CONTENT_SELECTION);
         selectionActions.onSetTimelineSelectionBeatRange(null);
         pendingCanvasActionRef.current = {
           kind: "ruler",
@@ -364,7 +367,10 @@ export function useTrackCanvasPointerInteractions({
     }
 
     if (targets.hoverTarget === "pitch" && targets.pitchRect && event.button === PRIMARY_POINTER_BUTTON) {
-      selectionActions.onSetContentSelection([getNoteSelectionKey(targets.pitchRect.trackId, targets.pitchRect.noteId)], []);
+      selectionActions.onSetContentSelection({
+        noteKeys: [getNoteSelectionKey(targets.pitchRect.trackId, targets.pitchRect.noteId)],
+        automationKeyframeKeys: []
+      });
       noteActions.onOpenPitchPicker(targets.pitchRect.trackId, targets.pitchRect.noteId);
       setCanvasCursor("pointer");
       return;
@@ -435,7 +441,10 @@ export function useTrackCanvasPointerInteractions({
       const note = track.notes.find((entry) => entry.id === targets.noteRect?.noteId);
       if (!note) return;
 
-      selectionActions.onSetContentSelection([getNoteSelectionKey(targets.noteRect.trackId, targets.noteRect.noteId)], []);
+      selectionActions.onSetContentSelection({
+        noteKeys: [getNoteSelectionKey(targets.noteRect.trackId, targets.noteRect.noteId)],
+        automationKeyframeKeys: []
+      });
       const beat = beatFromX(x);
       const nearRightEdge = x > targets.noteRect.x + targets.noteRect.w - noteResizeHandleWidth;
       dragRef.current = {
@@ -451,7 +460,7 @@ export function useTrackCanvasPointerInteractions({
     }
 
     if (hasActiveSelection) {
-      selectionActions.onSetContentSelection([], []);
+      selectionActions.onSetContentSelection(EMPTY_CONTENT_SELECTION);
       selectionActions.onPreviewSelectionActionScopeChange("source");
       setSelectionRect(null);
       selectionActions.onSetSelectionMarqueeActive(false);
@@ -487,8 +496,7 @@ export function useTrackCanvasPointerInteractions({
     onSetPlayheadBeat,
     playheadBeat,
     resolvePointerTargets,
-    selectedAutomationKeyframeKeys,
-    selectedNoteKeys,
+    contentSelection,
     selection,
     selectionActions,
     trackActions,

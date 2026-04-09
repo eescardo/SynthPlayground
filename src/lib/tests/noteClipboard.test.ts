@@ -15,6 +15,32 @@ import {
   serializeNoteClipboardPayload
 } from "@/lib/noteClipboard";
 import { Project } from "@/types/music";
+import { Patch } from "@/types/patch";
+
+const createPatch = (id: string, macroName: string): Patch => ({
+  schemaVersion: 1,
+  id,
+  name: id,
+  meta: { source: "custom" },
+  nodes: [],
+  connections: [],
+  ui: {
+    macros: [
+      {
+        id: "macro_cutoff",
+        name: macroName,
+        bindings: []
+      }
+    ]
+  },
+  layout: {
+    nodes: []
+  },
+  io: {
+    audioOutNodeId: "out",
+    audioOutPortId: "audio"
+  }
+});
 
 const createProject = (): Project => ({
   id: "project_test",
@@ -122,7 +148,7 @@ const createProject = (): Project => ({
       }
     }
   ],
-  patches: [],
+  patches: [createPatch("patch_1", "Cutoff"), createPatch("patch_2", "Decay")],
   masterFx: {
     compressorEnabled: false,
     limiterEnabled: false,
@@ -167,7 +193,7 @@ describe("noteClipboard", () => {
 
     const applied = applyNoteClipboardPaste(project, payload!, "track_2", 4);
 
-    expect(applied.selectionKeys).toHaveLength(2);
+    expect(applied.selection.noteKeys).toHaveLength(2);
 
     const destinationTrack = applied.project.tracks[1];
     expect(destinationTrack.notes).toHaveLength(2);
@@ -359,6 +385,26 @@ describe("noteClipboard", () => {
       { id: "loop_start_before", kind: "start", beat: 0, repeatCount: undefined },
       { id: "loop_start_inside", kind: "start", beat: 2, repeatCount: undefined },
       { id: "loop_end_after", kind: "end", beat: 11, repeatCount: 2 }
+    ]);
+  });
+
+  it("only pastes automation when both the source patch id and macro id match", () => {
+    const project = createProject();
+    project.tracks[1] = {
+      ...project.tracks[1]!,
+      instrumentPatchId: "patch_2"
+    };
+
+    const payload = buildNoteClipboardPayload(project, [getNoteSelectionKey("track_1", "note_a")]);
+    const applied = applyNoteClipboardPaste(project, payload!, "track_2", 4);
+
+    expect(applied.project.tracks[1]!.notes).toEqual([
+      expect.objectContaining({ pitchStr: "G4", startBeat: 2, durationBeats: 2 }),
+      expect.objectContaining({ pitchStr: "C4", startBeat: 4, durationBeats: 2 })
+    ]);
+    expect(applied.project.tracks[1]!.macroAutomations.macro_cutoff.keyframes).toEqual([
+      { id: "cutoff_c", beat: 3, type: "whole", value: 0.7 },
+      { id: "cutoff_d", beat: 6, type: "whole", value: 0.2 }
     ]);
   });
 });
