@@ -371,8 +371,13 @@ describe("noteClipboard", () => {
 
     expect(applied.project.tracks[0].notes[1]).toMatchObject({
       pitchStr: "E4",
-      startBeat: 8,
+      startBeat: 5,
       durationBeats: 1
+    });
+    expect(applied.project.tracks[1].notes[0]).toMatchObject({
+      pitchStr: "G4",
+      startBeat: 2,
+      durationBeats: 2
     });
     expect(applied.project.tracks[1].notes[1]).toMatchObject({
       pitchStr: "C4",
@@ -402,7 +407,7 @@ describe("noteClipboard", () => {
     expect(applied.project.global.loop).toEqual([
       { id: "loop_start_before", kind: "start", beat: 0, repeatCount: undefined },
       { id: "loop_start_inside", kind: "start", beat: 2, repeatCount: undefined },
-      { id: "loop_end_after", kind: "end", beat: 11, repeatCount: 2 }
+      { id: "loop_end_after", kind: "end", beat: 8, repeatCount: 2 }
     ]);
   });
 
