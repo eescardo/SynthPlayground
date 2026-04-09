@@ -19,10 +19,19 @@ import { getProjectTimelineEndBeat, getTrackPreviewStateAtBeat } from "@/lib/mac
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import {
   BeatRange,
-  getNoteSelectionKey,
-  getSelectionSourceTrackId,
-  getSelectionBeatRange,
-} from "@/lib/noteClipboard";
+  clearEditorSelection,
+  ContentSelection,
+  createEmptyEditorSelection,
+  filterEditorSelectionToProject,
+  getContentSelectionLabel,
+  getEditorSelectionBeatRange,
+  getEditorSelectionSourceTrackId,
+  hasContentSelection,
+  setEditorContentSelection,
+  setEditorSelectionActionScopePreview,
+  setEditorSelectionMarqueeActive,
+  setEditorTimelineSelection
+} from "@/lib/clipboard";
 import { clearProject, loadProject, saveProject } from "@/lib/persistence";
 import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
@@ -32,7 +41,7 @@ import { createDefaultProject, createEmptyProject } from "@/lib/patch/presets";
 import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { importProjectFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
 import { pitchToVoct } from "@/lib/pitch";
-import { removeTrackFromProject, renameTrackInProject } from "@/lib/trackEdits";
+import { removeTrackFromProject, renameTrackInProject, switchTrackPatchInProject } from "@/lib/trackEdits";
 import { useNoteEditor } from "@/hooks/useNoteEditor";
 import { useLoopSettings } from "@/hooks/useLoopSettings";
 import { useEditorClipboardEvents } from "@/hooks/useEditorClipboardEvents";
@@ -65,10 +74,7 @@ export default function HomePage() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(undefined);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [strictWasmReady, setStrictWasmReady] = useState(process.env.NEXT_PUBLIC_STRICT_WASM !== "1");
-  const [selectedNoteKeys, setSelectedNoteKeys] = useState<string[]>([]);
-  const [timelineSelectionBeatRange, setTimelineSelectionBeatRange] = useState<BeatRange | null>(null);
-  const [selectionMarqueeActive, setSelectionMarqueeActive] = useState(false);
-  const [selectionActionScopePreview, setSelectionActionScopePreview] = useState<"source" | "all-tracks">("source");
+  const [editorSelection, setEditorSelection] = useState(createEmptyEditorSelection);
   const [pitchPicker, setPitchPicker] = useState<{ trackId: string; noteId: string } | null>(null);
   const [previewPitch, setPreviewPitch] = useState(DEFAULT_NOTE_PITCH);
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
@@ -153,42 +159,42 @@ export default function HomePage() {
     () => project.tracks.find((track) => track.id === selectedTrackId) ?? project.tracks[0],
     [project.tracks, selectedTrackId]
   );
-  const selectedNoteKeySet = useMemo(() => new Set(selectedNoteKeys), [selectedNoteKeys]);
-  const noteSelectionBeatRange = useMemo(() => getSelectionBeatRange(project, selectedNoteKeys), [project, selectedNoteKeys]);
-  const hasTimelineRangeSelection = Boolean(timelineSelectionBeatRange);
-  const noteSelectionTrackLabel = useMemo(() => {
-    const selectedTrackIds = project.tracks
-      .filter((track) => track.notes.some((note) => selectedNoteKeySet.has(getNoteSelectionKey(track.id, note.id))))
-      .map((track) => track.name);
-    if (selectedTrackIds.length === 0) {
-      return "Track 1";
-    }
-    if (selectedTrackIds.length === 1) {
-      return selectedTrackIds[0];
-    }
-    return `${selectedTrackIds[0]}-${selectedTrackIds[selectedTrackIds.length - 1]}`;
-  }, [project.tracks, selectedNoteKeySet]);
+  const selectedContent = editorSelection.content;
+  const selectedNoteKeySet = useMemo(() => new Set(selectedContent.noteKeys), [selectedContent.noteKeys]);
+  const selectedAutomationKeyframeSet = useMemo(
+    () => new Set(selectedContent.automationKeyframeSelectionKeys),
+    [selectedContent.automationKeyframeSelectionKeys]
+  );
+  const noteSelectionBeatRange = useMemo(() => getEditorSelectionBeatRange(project, editorSelection), [editorSelection, project]);
+  const hasTimelineRangeSelection = editorSelection.kind === "timeline";
+  const noteSelectionTrackLabel = useMemo(
+    () => getContentSelectionLabel(project.tracks, selectedContent),
+    [project.tracks, selectedContent]
+  );
   const noteSelectionSourceTrackId = useMemo(
-    () => getSelectionSourceTrackId(project, selectedNoteKeys),
-    [project, selectedNoteKeys]
+    () => getEditorSelectionSourceTrackId(project, editorSelection),
+    [editorSelection, project]
   );
   const canvasSelection = useMemo<TrackCanvasSelection>(() => {
-    if (timelineSelectionBeatRange) {
+    if (editorSelection.kind === "timeline") {
       return {
         kind: "timeline",
-        beatRange: timelineSelectionBeatRange,
+        beatRange: editorSelection.beatRange,
         label: "All Tracks",
         markerTrackId: project.tracks[0]?.id ?? ""
       };
     }
-    if (noteSelectionBeatRange && noteSelectionSourceTrackId) {
+    if (editorSelection.kind === "content" && noteSelectionBeatRange && noteSelectionSourceTrackId) {
       return {
         kind: "note",
-        selectedNoteKeys: selectedNoteKeySet,
+        content: {
+          noteKeys: selectedNoteKeySet,
+          automationKeyframeSelectionKeys: selectedAutomationKeyframeSet
+        },
         beatRange: noteSelectionBeatRange,
         label: noteSelectionTrackLabel,
         markerTrackId:
-          selectionActionScopePreview === "all-tracks"
+          editorSelection.actionScopePreview === "all-tracks"
             ? project.tracks[0]?.id ?? noteSelectionSourceTrackId
             : noteSelectionSourceTrackId
       };
@@ -199,12 +205,11 @@ export default function HomePage() {
     noteSelectionTrackLabel,
     noteSelectionSourceTrackId,
     project.tracks,
+    selectedAutomationKeyframeSet,
     selectedNoteKeySet,
-    selectionActionScopePreview,
-    timelineSelectionBeatRange
+    editorSelection
   ]);
   const selectionBeatRange = canvasSelection.kind === "none" ? null : canvasSelection.beatRange;
-
   const trackNameById = useMemo(() => new Map(project.tracks.map((track) => [track.id, track.name] as const)), [project.tracks]);
 
   const selectedPatch = useMemo(
@@ -325,49 +330,40 @@ export default function HomePage() {
   }, [playing, project, ready]);
 
   useEffect(() => {
-    const existingSelectionKeys = new Set(
-      project.tracks.flatMap((track) => track.notes.map((note) => getNoteSelectionKey(track.id, note.id)))
-    );
-    setSelectedNoteKeys((current) => current.filter((selectionKey) => existingSelectionKeys.has(selectionKey)));
-  }, [project.tracks]);
+    setEditorSelection((current) => filterEditorSelectionToProject(project, current));
+  }, [project]);
 
   useEffect(() => {
-    if (selectedNoteKeys.length > 0 && timelineSelectionBeatRange) {
-      setTimelineSelectionBeatRange(null);
-    }
-  }, [selectedNoteKeys.length, timelineSelectionBeatRange]);
-
-  useEffect(() => {
-    if (!noteSelectionSourceTrackId || selectionMarqueeActive || pitchPicker || canvasSelection.kind === "timeline") {
+    if (!noteSelectionSourceTrackId || editorSelection.marqueeActive || pitchPicker || canvasSelection.kind === "timeline") {
       return;
     }
     setSelectedTrackId((current) => (current === noteSelectionSourceTrackId ? current : noteSelectionSourceTrackId));
-  }, [canvasSelection.kind, noteSelectionSourceTrackId, pitchPicker, selectionMarqueeActive]);
+  }, [canvasSelection.kind, editorSelection.marqueeActive, noteSelectionSourceTrackId, pitchPicker]);
 
   useEffect(() => {
     if (!selectionBeatRange) {
       setSelectionActionPopoverMode("expanded");
-      setSelectionActionScopePreview("source");
+      setEditorSelection((current) => setEditorSelectionActionScopePreview(current, "source"));
     }
   }, [selectionBeatRange]);
 
   useEffect(() => {
     setSelectionActionPopoverMode("expanded");
-  }, [selectedNoteKeys]);
+  }, [selectedContent]);
 
   useEffect(() => {
-    if (!timelineSelectionBeatRange) {
+    if (editorSelection.kind !== "timeline") {
       return;
     }
     setSelectionActionPopoverMode("expanded");
-  }, [timelineSelectionBeatRange]);
+  }, [editorSelection.kind]);
 
   useEffect(() => {
     if (canvasSelection.kind === "timeline") {
-      setSelectionActionScopePreview("all-tracks");
+      setEditorSelection((current) => setEditorSelectionActionScopePreview(current, "all-tracks"));
       return;
     }
-    setSelectionActionScopePreview("source");
+    setEditorSelection((current) => setEditorSelectionActionScopePreview(current, "source"));
   }, [canvasSelection.kind, noteSelectionSourceTrackId]);
 
   useEffect(() => {
@@ -474,10 +470,7 @@ export default function HomePage() {
   const setPlayheadFromUser = useCallback((beat: number) => {
     setUserCueBeat(beat);
     setPlayheadBeat(beat);
-    setSelectedNoteKeys([]);
-    setTimelineSelectionBeatRange(null);
-    setSelectionMarqueeActive(false);
-    setSelectionActionScopePreview("source");
+    setEditorSelection(clearEditorSelection());
     setPitchPicker(null);
   }, []);
   const {
@@ -493,13 +486,15 @@ export default function HomePage() {
     clearNoteClipboard,
     closeTimelineActionsPopover: () => setTimelineActionsPopover(null),
     commitProjectChange,
+    contentSelection: selectedContent,
     noteClipboardPayload,
     project,
-    selectedNoteKeys,
     selectedTrackId: selectedTrack?.id,
     selectionBeatRange,
     setPlayheadFromUser,
-    setSelectedNoteKeys,
+    setContentSelection: (selection: ContentSelection) => {
+      setEditorSelection((current) => setEditorContentSelection(current, selection));
+    },
     writeClipboardPayload
   });
   const { applyLoopSettings, addLoopBoundary, updateLoopRepeatCount, removeLoopBoundary, loopConflictDialog, clearLoopConflictDialog } =
@@ -517,7 +512,7 @@ export default function HomePage() {
 
   const selectionActionPopoverAvailable = Boolean(
     selectionBeatRange &&
-    !selectionMarqueeActive &&
+    !editorSelection.marqueeActive &&
     !pitchPicker &&
     !timelineActionsPopover
   );
@@ -526,7 +521,7 @@ export default function HomePage() {
 
   const collapseSelectionActionPopover = useCallback(() => {
     setSelectionActionPopoverMode("collapsed");
-    setSelectionActionScopePreview("source");
+    setEditorSelection((current) => setEditorSelectionActionScopePreview(current, "source"));
   }, []);
 
   useDismissiblePopover({
@@ -562,7 +557,7 @@ export default function HomePage() {
 
   const requestTimelineActionsPopover = useCallback((request: TimelineActionsPopoverRequest) => {
     setTimelineActionsPopover(request);
-    setSelectionActionScopePreview("source");
+    setEditorSelection((current) => setEditorSelectionActionScopePreview(current, "source"));
     void syncNoteClipboardPayload();
   }, [syncNoteClipboardPayload]);
 
@@ -577,23 +572,19 @@ export default function HomePage() {
   }, []);
 
   const clearCanvasSelection = useCallback(() => {
-    setSelectedNoteKeys([]);
-    setTimelineSelectionBeatRange(null);
+    setEditorSelection(clearEditorSelection());
     setSelectionActionPopoverMode("expanded");
-    setSelectionActionScopePreview("source");
   }, []);
 
-  const setNoteSelectionFromCanvas = useCallback((selectionKeys: string[]) => {
+  const setContentSelectionFromCanvas = useCallback((selection: ContentSelection) => {
     setTimelineActionsPopover(null);
-    setTimelineSelectionBeatRange(null);
-    setSelectedNoteKeys(selectionKeys);
+    setEditorSelection((current) => setEditorContentSelection(current, selection));
   }, []);
 
   const setTimelineSelectionFromCanvas = useCallback((range: BeatRange | null) => {
     setTimelineActionsPopover(null);
     setPitchPicker(null);
-    setSelectedNoteKeys([]);
-    setTimelineSelectionBeatRange(range);
+    setEditorSelection((current) => setEditorTimelineSelection(current, range));
   }, []);
 
   const schedulePatchPreview = useCallback((patchId: string) => {
@@ -773,7 +764,7 @@ export default function HomePage() {
     cutAllTracksInSelection,
     deletePrimarySelection: hasTimelineRangeSelection ? deleteAllTracksInSelection : deleteSelectedNoteSelection,
     deleteAllTracksInSelection,
-    hasPrimarySelection: hasTimelineRangeSelection || selectedNoteKeys.length > 0,
+    hasPrimarySelection: hasTimelineRangeSelection || hasContentSelection(selectedContent),
     isDeleteShortcutKey,
     onCloseTransientUi: () => {
       closeHelp();
@@ -781,8 +772,7 @@ export default function HomePage() {
       setPreviewPitchPickerOpen(false);
       setPatchRemovalDialog(null);
       setTimelineActionsPopover(null);
-      setSelectedNoteKeys([]);
-      setTimelineSelectionBeatRange(null);
+      setEditorSelection(clearEditorSelection());
     },
     onOpenHelp: openHelp,
     playheadBeat,
@@ -792,16 +782,18 @@ export default function HomePage() {
 
   useEditorClipboardEvents({
     commitProjectChange,
+    contentSelection: selectedContent,
     cutAllTracksInSelection,
     deleteSelectedNotes,
     hasTimelineRangeSelection,
     playheadBeat,
     project,
-    selectedNoteKeys,
     selectionBeatRange,
     selectedTrackId: selectedTrack?.id,
     setNoteClipboardPayload,
-    setSelectedNoteKeys
+    setContentSelection: (selection: ContentSelection) => {
+      setEditorSelection((current) => setEditorContentSelection(current, selection));
+    }
   });
 
   usePitchPickerHotkeys(Boolean(pitchPicker), useCallback((pitch: string) => {
@@ -974,14 +966,7 @@ export default function HomePage() {
   }, [commitProjectChange, patchRemovalDialog, project.tracks, selectedTrackId]);
 
   const updateTrackPatch = (trackId: string, patchId: string) => {
-    commitProjectChange((current) => ({
-      ...current,
-      tracks: current.tracks.map((track) =>
-        track.id === trackId
-          ? { ...track, instrumentPatchId: patchId, macroValues: {}, macroAutomations: {}, macroPanelExpanded: false }
-          : track
-      )
-    }), { actionKey: `track:${trackId}:patch` });
+    commitProjectChange((current) => switchTrackPatchInProject(current, trackId, patchId), { actionKey: `track:${trackId}:patch` });
     setSelectedNodeId(undefined);
   };
 
@@ -1069,10 +1054,14 @@ export default function HomePage() {
     onDeleteNote: deleteNote
   };
   const trackCanvasSelectionActions = {
-    onSetNoteSelection: setNoteSelectionFromCanvas,
+    onSetContentSelection: setContentSelectionFromCanvas,
     onSetTimelineSelectionBeatRange: setTimelineSelectionFromCanvas,
-    onSetSelectionMarqueeActive: setSelectionMarqueeActive,
-    onPreviewSelectionActionScopeChange: setSelectionActionScopePreview,
+    onSetSelectionMarqueeActive: (active: boolean) => {
+      setEditorSelection((current) => setEditorSelectionMarqueeActive(current, active));
+    },
+    onPreviewSelectionActionScopeChange: (scope: "source" | "all-tracks") => {
+      setEditorSelection((current) => setEditorSelectionActionScopePreview(current, scope));
+    },
     selectionActionPopoverCollapsed,
     onExpandSelectionActionPopover: () => setSelectionActionPopoverMode("expanded"),
     onDismissSelectionActionPopover: clearCanvasSelection,

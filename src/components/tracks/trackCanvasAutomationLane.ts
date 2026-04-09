@@ -92,6 +92,7 @@ interface RenderAutomationLaneParams {
   macroName: string;
   points: AutomationPoint[];
   registerHitTargets?: boolean;
+  automationKeyframeSelectionKeys?: ReadonlySet<string>;
   trackId: string;
   veilTimeline?: boolean;
   width: number;
@@ -125,6 +126,7 @@ export function renderAutomationLane({
   macroName,
   points,
   registerHitTargets = true,
+  automationKeyframeSelectionKeys,
   trackId,
   veilTimeline = false,
   width
@@ -212,6 +214,8 @@ export function renderAutomationLane({
         hoveredAutomationKeyframe.keyframeId === point.id &&
         hoveredAutomationKeyframe.side === "incoming"
           ? colors.noteHoverBorder
+          : automationKeyframeSelectionKeys?.has(`${trackId}:${macroId}:${point.id}`)
+          ? colors.noteHoverBorder
           : colors.automationHandle;
       drawAutomationTriangle(ctx, incomingX, incomingY, "incoming");
       ctx.fillStyle =
@@ -219,6 +223,8 @@ export function renderAutomationLane({
         hoveredAutomationKeyframe.macroId === macroId &&
         hoveredAutomationKeyframe.keyframeId === point.id &&
         hoveredAutomationKeyframe.side === "outgoing"
+          ? colors.noteHoverBorder
+          : automationKeyframeSelectionKeys?.has(`${trackId}:${macroId}:${point.id}`)
           ? colors.noteHoverBorder
           : colors.automationHandle;
       drawAutomationTriangle(ctx, outgoingX, outgoingY, "outgoing");
@@ -261,6 +267,8 @@ export function renderAutomationLane({
         hoveredAutomationKeyframe?.trackId === trackId &&
         hoveredAutomationKeyframe.macroId === macroId &&
         hoveredAutomationKeyframe.keyframeId === point.id
+          ? colors.noteHoverBorder
+          : automationKeyframeSelectionKeys?.has(`${trackId}:${macroId}:${point.id}`)
           ? colors.noteHoverBorder
           : colors.automationHandle;
       ctx.beginPath();

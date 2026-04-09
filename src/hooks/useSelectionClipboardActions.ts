@@ -8,10 +8,14 @@ import {
   BeatRange,
   buildAllTracksClipboardPayload,
   buildNoteClipboardPayload,
+  ContentSelection,
   cutBeatRangeAcrossAllTracks,
+  deleteSelectedAutomationKeyframes,
+  EMPTY_CONTENT_SELECTION,
+  eraseAutomationInRangeForTracks,
   NoteClipboardPayload,
   parseNoteSelectionKey
-} from "@/lib/noteClipboard";
+} from "@/lib/clipboard";
 import { Project } from "@/types/music";
 
 type CommitProjectChange = (
@@ -25,13 +29,13 @@ interface UseSelectionClipboardActionsParams {
   clearNoteClipboard: () => Promise<void>;
   closeTimelineActionsPopover: () => void;
   commitProjectChange: CommitProjectChange;
+  contentSelection: ContentSelection;
   noteClipboardPayload: NoteClipboardPayload | null;
   project: Project;
-  selectedNoteKeys: string[];
   selectedTrackId?: string;
   selectionBeatRange: BeatRange | null;
   setPlayheadFromUser: (beat: number) => void;
-  setSelectedNoteKeys: (selectionKeys: string[]) => void;
+  setContentSelection: (selection: ContentSelection) => void;
   writeClipboardPayload: (payload: NoteClipboardPayload) => Promise<void>;
 }
 
@@ -39,22 +43,25 @@ export function useSelectionClipboardActions({
   clearNoteClipboard,
   closeTimelineActionsPopover,
   commitProjectChange,
+  contentSelection,
   noteClipboardPayload,
   project,
-  selectedNoteKeys,
   selectedTrackId,
   selectionBeatRange,
   setPlayheadFromUser,
-  setSelectedNoteKeys,
+  setContentSelection,
   writeClipboardPayload
 }: UseSelectionClipboardActionsParams) {
-  const deleteSelectedNotes = useCallback((selectionKeys: string[]) => {
-    if (selectionKeys.length === 0) {
+  const deleteSelectedNotes = useCallback((
+    selection: ContentSelection,
+    options?: { eraseAutomationRange?: BeatRange }
+  ) => {
+    if (selection.noteKeys.length === 0 && selection.automationKeyframeSelectionKeys.length === 0) {
       return;
     }
 
     const noteIdsByTrackId = new Map<string, Set<string>>();
-    for (const selectionKey of selectionKeys) {
+    for (const selectionKey of selection.noteKeys) {
       const parsed = parseNoteSelectionKey(selectionKey);
       if (!parsed) {
         continue;
@@ -64,47 +71,61 @@ export function useSelectionClipboardActions({
       noteIdsByTrackId.set(parsed.trackId, noteIds);
     }
 
-    if (noteIdsByTrackId.size === 0) {
-      return;
-    }
-
     commitProjectChange(
-      (current) => ({
-        ...current,
-        tracks: current.tracks.map((track) => {
-          const noteIds = noteIdsByTrackId.get(track.id);
-          if (!noteIds) {
-            return track;
-          }
-          const nextNotes = track.notes.filter((note) => !noteIds.has(note.id));
-          return nextNotes.length === track.notes.length ? track : { ...track, notes: nextNotes };
-        })
-      }),
+      (current) => {
+        let nextProject = current;
+        if (noteIdsByTrackId.size > 0) {
+          nextProject = {
+            ...nextProject,
+            tracks: nextProject.tracks.map((track) => {
+              const noteIds = noteIdsByTrackId.get(track.id);
+              if (!noteIds) {
+                return track;
+              }
+              const nextNotes = track.notes.filter((note) => !noteIds.has(note.id));
+              return nextNotes.length === track.notes.length ? track : { ...track, notes: nextNotes };
+            })
+          };
+        }
+
+        if (options?.eraseAutomationRange && noteIdsByTrackId.size > 0) {
+          nextProject = eraseAutomationInRangeForTracks(nextProject, options.eraseAutomationRange, noteIdsByTrackId.keys());
+        }
+
+        if (selection.automationKeyframeSelectionKeys.length > 0) {
+          nextProject = deleteSelectedAutomationKeyframes(nextProject, selection.automationKeyframeSelectionKeys);
+        }
+
+        return nextProject;
+      },
       { actionKey: "notes:cut-selection" }
     );
-    setSelectedNoteKeys([]);
-  }, [commitProjectChange, setSelectedNoteKeys]);
+    setContentSelection(EMPTY_CONTENT_SELECTION);
+  }, [commitProjectChange, setContentSelection]);
 
   const copySelectedNotes = useCallback(async () => {
-    const payload = buildNoteClipboardPayload(project, selectedNoteKeys);
+    const payload = buildNoteClipboardPayload(project, contentSelection.noteKeys, contentSelection.automationKeyframeSelectionKeys);
     if (!payload) {
       return;
     }
     await writeClipboardPayload(payload);
-  }, [project, selectedNoteKeys, writeClipboardPayload]);
+  }, [contentSelection.automationKeyframeSelectionKeys, contentSelection.noteKeys, project, writeClipboardPayload]);
 
   const cutSelectedNotes = useCallback(async () => {
-    const payload = buildNoteClipboardPayload(project, selectedNoteKeys);
+    const payload = buildNoteClipboardPayload(project, contentSelection.noteKeys, contentSelection.automationKeyframeSelectionKeys);
     if (!payload) {
       return;
     }
     await writeClipboardPayload(payload);
-    deleteSelectedNotes(selectedNoteKeys);
-  }, [deleteSelectedNotes, project, selectedNoteKeys, writeClipboardPayload]);
+    deleteSelectedNotes(
+      contentSelection,
+      contentSelection.noteKeys.length > 0 && selectionBeatRange ? { eraseAutomationRange: selectionBeatRange } : undefined
+    );
+  }, [contentSelection, deleteSelectedNotes, project, selectionBeatRange, writeClipboardPayload]);
 
   const deleteSelectedNoteSelection = useCallback(() => {
-    deleteSelectedNotes(selectedNoteKeys);
-  }, [deleteSelectedNotes, selectedNoteKeys]);
+    deleteSelectedNotes(contentSelection);
+  }, [contentSelection, deleteSelectedNotes]);
 
   const copyAllTracksInSelection = useCallback(async () => {
     if (!selectionBeatRange) {
@@ -129,8 +150,8 @@ export function useSelectionClipboardActions({
     commitProjectChange((current) => cutBeatRangeAcrossAllTracks(current, selectionBeatRange), {
       actionKey: "timeline:cut-all-tracks"
     });
-    setSelectedNoteKeys([]);
-  }, [commitProjectChange, project, selectionBeatRange, setSelectedNoteKeys, writeClipboardPayload]);
+    setContentSelection(EMPTY_CONTENT_SELECTION);
+  }, [commitProjectChange, project, selectionBeatRange, setContentSelection, writeClipboardPayload]);
 
   const deleteAllTracksInSelection = useCallback(() => {
     if (!selectionBeatRange) {
@@ -140,15 +161,15 @@ export function useSelectionClipboardActions({
     commitProjectChange((current) => cutBeatRangeAcrossAllTracks(current, selectionBeatRange), {
       actionKey: "timeline:delete-all-tracks"
     });
-    setSelectedNoteKeys([]);
-  }, [clearNoteClipboard, commitProjectChange, selectionBeatRange, setSelectedNoteKeys]);
+    setContentSelection(EMPTY_CONTENT_SELECTION);
+  }, [clearNoteClipboard, commitProjectChange, selectionBeatRange, setContentSelection]);
 
   const applyNoteClipboardPaste = useCallback((pasteAction: NoteClipboardPasteAction, beat: number) => {
     if (!noteClipboardPayload || !selectedTrackId) {
       return;
     }
 
-    let nextSelectionKeys: string[] = [];
+    let nextSelection = EMPTY_CONTENT_SELECTION;
     commitProjectChange(
       (current) => {
         const firstTrackId = current.tracks[0]?.id;
@@ -160,7 +181,7 @@ export function useSelectionClipboardActions({
               : pasteAction === "insert-all-tracks"
                 ? applyNoteClipboardInsertAllTracks(current, noteClipboardPayload, beat)
                 : applyNoteClipboardPasteToProject(current, noteClipboardPayload, selectedTrackId, beat);
-        nextSelectionKeys = applied.selectionKeys;
+        nextSelection = applied.selection;
         return applied.project;
       },
       {
@@ -175,15 +196,15 @@ export function useSelectionClipboardActions({
       }
     );
     setPlayheadFromUser(beat);
-    setSelectedNoteKeys(nextSelectionKeys);
+    setContentSelection(nextSelection);
     closeTimelineActionsPopover();
   }, [
     closeTimelineActionsPopover,
     commitProjectChange,
     noteClipboardPayload,
     selectedTrackId,
-    setPlayheadFromUser,
-    setSelectedNoteKeys
+    setContentSelection,
+    setPlayheadFromUser
   ]);
 
   return {

@@ -46,12 +46,11 @@ import { useTrackCanvasWheelPitchEditing } from "@/components/tracks/useTrackCan
 import { useVolumePopover } from "@/hooks/useVolumePopover";
 import { getLoopMarkerStates } from "@/lib/looping";
 import { getProjectTimelineEndBeat } from "@/lib/macroAutomation";
-import { getNoteSelectionKey } from "@/lib/noteClipboard";
+import { getNoteSelectionKey } from "@/lib/clipboard";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
 import { formatBeatName } from "@/lib/musicTiming";
 import { Note, Track } from "@/types/music";
 export type { TimelineActionsPopoverRequest, TrackCanvasProps, TrackCanvasSelection } from "@/components/tracks/trackCanvasTypes";
-
 
 function drawGhostPlayhead(
   ctx: CanvasRenderingContext2D,
@@ -242,7 +241,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const selectionBeatRange = selection.kind === "none" ? null : selection.beatRange;
   const selectionLabel = selection.kind === "none" ? null : selection.label;
   const selectionMarkerTrackId = selection.kind === "none" ? null : selection.markerTrackId;
-  const selectedNoteKeys = selection.kind === "note" ? selection.selectedNoteKeys : undefined;
+  const selectedNoteKeys = selection.kind === "note" ? selection.content.noteKeys : undefined;
+  const automationKeyframeSelectionKeys = selection.kind === "note" ? selection.content.automationKeyframeSelectionKeys : undefined;
   const selectionPopoverLeft = selectionBeatRange
     ? HEADER_WIDTH + selectionBeatRange.endBeat * BEAT_WIDTH + 14
     : 0;
@@ -311,7 +311,13 @@ export function TrackCanvas(props: TrackCanvasProps) {
     playheadBeat,
     gridBeats,
     selection,
-    selectedNoteKeys,
+    contentSelection:
+      selection.kind === "note"
+        ? {
+            noteKeys: selection.content.noteKeys,
+            automationKeyframeSelectionKeys: selection.content.automationKeyframeSelectionKeys
+          }
+        : undefined,
     noteActions,
     automationActions,
     selectionActions,
@@ -534,6 +540,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
           {
             hoveredAutomationKeyframe,
             registerHitTargets: true,
+            automationKeyframeSelectionKeys,
             trackId: track.id,
             width
           },
@@ -595,6 +602,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
           {
             hoveredAutomationKeyframe,
             registerHitTargets: false,
+            automationKeyframeSelectionKeys,
             trackId: track.id,
             veilTimeline: true,
             width
@@ -666,6 +674,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     project.patches,
     project.tracks,
     selectedNoteKeys,
+    automationKeyframeSelectionKeys,
     selectionBeatRange,
     selectionMarkerTrackId,
     selectedTrackId,
@@ -709,7 +718,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
   useEffect(() => {
     draw();
   }, [draw]);
-
   useEffect(() => {
     if (!editingTrackId) {
       return;
@@ -743,7 +751,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
       window.removeEventListener("pointerdown", onPointerDown);
     };
   }, [closeVolumePopover]);
-
 
   return (
     <div className="track-canvas-shell" ref={wrapperRef}>

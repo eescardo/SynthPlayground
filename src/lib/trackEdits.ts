@@ -28,3 +28,22 @@ export const removeTrackFromProject = (project: Project, trackId: string): Proje
     tracks: project.tracks.filter((track) => track.id !== trackId)
   };
 };
+
+export const switchTrackPatchInProject = (project: Project, trackId: string, patchId: string): Project => {
+  let changed = false;
+  const tracks = project.tracks.map((track) => {
+    if (track.id !== trackId || track.instrumentPatchId === patchId) {
+      return track;
+    }
+
+    changed = true;
+    return {
+      ...track,
+      instrumentPatchId: patchId,
+      macroValues: {},
+      macroAutomations: {}
+    };
+  });
+
+  return changed ? { ...project, tracks } : project;
+};
