@@ -58,6 +58,8 @@ export function useTrackCanvasLayout(project: Project): { trackLayouts: TrackLay
         }
 
         if (!volumeLane && patchMacros.length === 0) {
+          // Reserve one collapsed lane so zero-macro patches still expose a stable
+          // macro-panel surface for hover/double-click patch-summary interactions.
           automationLanes.push({
             laneId: `${track.id}:macro-placeholder`,
             laneType: "macro",

@@ -6,7 +6,6 @@ import { Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 
 interface PatchWorkspaceViewProps {
-  selectedTrackName: string;
   patch: Patch;
   previewPitch: string;
   migrationNotice?: string | null;
@@ -37,9 +36,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           </button>
           <div>
             <h2>Patch Workspace</h2>
-            <p className="muted">
-              {props.selectedTrackName} • {props.patch.name}
-            </p>
+            <p className="muted">{props.patch.name}</p>
           </div>
         </div>
         <button type="button" onClick={props.onOpenHelp}>Help</button>

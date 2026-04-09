@@ -34,11 +34,9 @@ import {
 } from "@/lib/clipboard";
 import { clearProject, loadProject, saveProject } from "@/lib/persistence";
 import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
-import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { createDefaultProject, createEmptyProject } from "@/lib/patch/presets";
-import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
+import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { importProjectFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
 import { pitchToVoct } from "@/lib/pitch";
 import { removeTrackFromProject, renameTrackInProject, switchTrackPatchInProject } from "@/lib/trackEdits";
@@ -56,14 +54,11 @@ import { useQuickHelpDialog } from "@/hooks/useQuickHelpDialog";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
+import { usePatchWorkspaceState } from "@/hooks/usePatchWorkspaceState";
 import { useTrackMacroAutomationActions } from "@/hooks/useTrackMacroAutomationActions";
 import { useTrackVolumeAutomationActions } from "@/hooks/useTrackVolumeAutomationActions";
 import { Project } from "@/types/music";
-import { PatchValidationIssue, Patch } from "@/types/patch";
-import { PatchOp } from "@/types/ops";
-
-const isAudiblePatchOp = (op: PatchOp): boolean =>
-  op.type !== "moveNode" && op.type !== "addMacro" && op.type !== "removeMacro" && op.type !== "bindMacro" && op.type !== "unbindMacro" && op.type !== "renameMacro";
+import { PatchValidationIssue } from "@/types/patch";
 
 interface AppRootContextValue {
   composerProps: React.ComponentProps<typeof ComposerView>;
@@ -87,18 +82,13 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const [playheadBeat, setPlayheadBeat] = useState(0);
   const [userCueBeat, setUserCueBeat] = useState(0);
   const [selectedTrackId, setSelectedTrackId] = useState<string | undefined>(undefined);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(undefined);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [strictWasmReady, setStrictWasmReady] = useState(process.env.NEXT_PUBLIC_STRICT_WASM !== "1");
   const [editorSelection, setEditorSelection] = useState(createEmptyEditorSelection);
   const [pitchPicker, setPitchPicker] = useState<{ trackId: string; noteId: string } | null>(null);
-  const [previewPitch, setPreviewPitch] = useState(DEFAULT_NOTE_PITCH);
-  const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
   const [timelineActionsPopover, setTimelineActionsPopover] = useState<TimelineActionsPopoverRequest | null>(null);
   const [selectionActionPopoverMode, setSelectionActionPopoverMode] = useState<"expanded" | "collapsed">("expanded");
-  const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
   const [patchRemovalDialog, setPatchRemovalDialog] = useState<PatchRemovalDialogState | null>(null);
-  const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
 
   const router = useRouter();
   const audioEngineRef = useRef<AudioEngine | null>(null);
@@ -175,6 +165,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
     () => project.tracks.find((track) => track.id === selectedTrackId) ?? project.tracks[0],
     [project.tracks, selectedTrackId]
   );
+  const selectedTrackPatch = useMemo(
+    () => project.patches.find((patch) => patch.id === selectedTrack?.instrumentPatchId) ?? project.patches[0],
+    [project.patches, selectedTrack?.instrumentPatchId]
+  );
   const selectedContent = editorSelection.content;
   const selectedNoteKeySet = useMemo(() => new Set(selectedContent.noteKeys), [selectedContent.noteKeys]);
   const selectedAutomationKeyframeSet = useMemo(
@@ -228,11 +222,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const selectionBeatRange = canvasSelection.kind === "none" ? null : canvasSelection.beatRange;
   const trackNameById = useMemo(() => new Map(project.tracks.map((track) => [track.id, track.name] as const)), [project.tracks]);
 
-  const selectedPatch = useMemo(
-    () => project.patches.find((patch) => patch.id === selectedTrack?.instrumentPatchId) ?? project.patches[0],
-    [project.patches, selectedTrack?.instrumentPatchId]
-  );
-
   const patchValidationById = useMemo(() => {
     const next = new Map<string, PatchValidationIssue[]>();
     for (const patch of project.patches) {
@@ -240,12 +229,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
     }
     return next;
   }, [project.patches]);
-
-  const validationIssues = useMemo(
-    () => (selectedPatch ? patchValidationById.get(selectedPatch.id) ?? [] : []),
-    [patchValidationById, selectedPatch]
-  );
-  const selectedPatchHasErrors = validationIssues.some((issue) => issue.level === "error");
   const invalidPatchIds = useMemo(
     () =>
       new Set(
@@ -275,6 +258,21 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const resetProjectHistory = useCallback((nextProject: Project) => {
     setProjectHistory(createHistory(nextProject));
   }, []);
+
+  const patchWorkspace = usePatchWorkspaceState({
+    project,
+    selectedTrack,
+    validationIssuesByPatchId: patchValidationById,
+    commitProjectChange,
+    audioEngineRef,
+    playing,
+    router,
+    setRuntimeError,
+    setPatchRemovalDialog
+  });
+  const selectedPatch = patchWorkspace.selectedPatch;
+  const validationIssues = patchWorkspace.validationIssues;
+  const selectedPatchHasErrors = patchWorkspace.selectedPatchHasErrors;
 
   const playbackEndBeat = useMemo(() => {
     return getProjectTimelineEndBeat(project);
@@ -308,7 +306,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   } = useTrackMacroAutomationActions({
     audioEngineRef,
     commitProjectChange,
-    previewPitch,
+    previewPitch: patchWorkspace.previewPitch,
     resolveTrackPreviewStateAtBeat,
     setRuntimeError
   });
@@ -320,7 +318,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   } = useTrackVolumeAutomationActions({
     audioEngineRef,
     commitProjectChange,
-    previewPitch,
+    previewPitch: patchWorkspace.previewPitch,
     setRuntimeError
   });
 
@@ -332,10 +330,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
       // compile errors are reflected by validation issues
     }
   }, [selectedPatch, selectedPatchHasErrors, validationIssues]);
-
-  useEffect(() => {
-    setMigrationNotice(null);
-  }, [selectedPatch?.id, selectedTrack?.id]);
 
   useEffect(() => {
     if (!ready) return;
@@ -383,20 +377,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
   }, [canvasSelection.kind, noteSelectionSourceTrackId]);
 
   useEffect(() => {
-    if (!ready || !pendingPreview || playing || !selectedTrack) {
-      return;
-    }
-    if (selectedTrack.instrumentPatchId !== pendingPreview.patchId) {
-      setPendingPreview(null);
-      return;
-    }
-    audioEngineRef.current
-      ?.previewNote(selectedTrack.id, pitchToVoct(previewPitch), 1)
-      .catch((error) => setRuntimeError((error as Error).message));
-    setPendingPreview(null);
-  }, [pendingPreview, playing, previewPitch, ready, selectedTrack]);
-
-  useEffect(() => {
     if (!ready || process.env.NEXT_PUBLIC_STRICT_WASM !== "1") return;
     loadDspWasm()
       .then((exports) => {
@@ -436,7 +416,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     playheadBeat,
     userCueBeat,
     pitchPickerOpen: Boolean(pitchPicker),
-    previewPitchPickerOpen,
+    previewPitchPickerOpen: patchWorkspace.previewPitchPickerOpen,
     strictWasmReady,
     audioEngineRef,
     commitProjectChange,
@@ -637,169 +617,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
     setEditorSelection((current) => setEditorTimelineSelection(current, range));
   }, []);
 
-  const schedulePatchPreview = useCallback((patchId: string) => {
-    setPendingPreview({ patchId, nonce: Date.now() });
-  }, []);
-
-  const updatePresetToLatest = useCallback(() => {
-    if (!selectedPatch || selectedPatch.meta.source !== "preset") {
-      return;
-    }
-
-    const latestPreset = getBundledPresetPatch(selectedPatch.meta.presetId);
-    if (!latestPreset || latestPreset.meta.source !== "preset") {
-      setMigrationNotice("Latest bundled preset snapshot is not available for this instrument.");
-      return;
-    }
-
-    const savedLayoutByNodeId = new Map(selectedPatch.layout.nodes.map((entry) => [entry.nodeId, entry] as const));
-    const nextNodeIds = new Set(latestPreset.nodes.map((node) => node.id));
-    const droppedLayoutCount = selectedPatch.layout.nodes.filter((entry) => !nextNodeIds.has(entry.nodeId)).length;
-    const migratedPatch: Patch = {
-      ...structuredClone(latestPreset),
-      id: selectedPatch.id,
-      name: selectedPatch.name,
-      meta: {
-        source: "preset",
-        presetId: latestPreset.meta.presetId,
-        presetVersion: latestPreset.meta.presetVersion
-      },
-      layout: {
-        nodes: latestPreset.layout.nodes.map((entry) => savedLayoutByNodeId.get(entry.nodeId) ?? entry)
-      }
-    };
-
-    commitProjectChange(
-      (current) => ({
-        ...current,
-        patches: current.patches.map((patch) => (patch.id === selectedPatch.id ? migratedPatch : patch))
-      }),
-      { actionKey: `patch:${selectedPatch.id}:update-preset` }
-    );
-    setSelectedNodeId((currentSelectedNodeId) =>
-      currentSelectedNodeId && nextNodeIds.has(currentSelectedNodeId) ? currentSelectedNodeId : undefined
-    );
-    setMigrationNotice(
-      droppedLayoutCount > 0
-        ? `Preset updated. ${droppedLayoutCount} saved layout position${droppedLayoutCount === 1 ? "" : "s"} were discarded because those nodes changed in the new preset.`
-        : "Preset updated to the latest bundled version."
-    );
-    schedulePatchPreview(selectedPatch.id);
-  }, [commitProjectChange, schedulePatchPreview, selectedPatch]);
-
-  const previewSelectedPatchNow = useCallback((pitch = previewPitch) => {
-    if (!selectedPatch || !selectedTrack || playing) {
-      return;
-    }
-    audioEngineRef.current
-      ?.previewNote(selectedTrack.id, pitchToVoct(pitch), 1)
-      .catch((error) => setRuntimeError((error as Error).message));
-  }, [playing, previewPitch, selectedPatch, selectedTrack]);
-
-  const applyPatchOp = (op: PatchOp) => {
-    if (!selectedPatch) return;
-    if (resolvePatchSource(selectedPatch) === "preset" && op.type !== "moveNode") {
-      return;
-    }
-
-    let nextPatch: Patch;
-    try {
-      nextPatch = applyPatchGraphOp(selectedPatch, op);
-    } catch (error) {
-      setRuntimeError((error as Error).message);
-      return;
-    }
-
-    const validation = validatePatch(nextPatch);
-    if (op.type === "connect" && validation.issues.some((issue) => issue.level === "error")) {
-      return;
-    }
-    commitProjectChange(
-      (current) => ({
-        ...current,
-        patches: current.patches.map((patch) => (patch.id === selectedPatch.id ? nextPatch : patch))
-      }),
-      {
-        actionKey:
-          op.type === "moveNode"
-            ? `patch:${selectedPatch.id}:move-node:${op.nodeId}`
-            : `patch:${selectedPatch.id}:${op.type}`,
-        coalesce: op.type === "moveNode"
-      }
-    );
-    if (isAudiblePatchOp(op)) {
-      schedulePatchPreview(selectedPatch.id);
-    }
-  };
-
-  const exposePatchMacro = useCallback((nodeId: string, paramId: string, suggestedName: string) => {
-    if (!selectedPatch || resolvePatchSource(selectedPatch) === "preset") {
-      return;
-    }
-
-    commitProjectChange((current) => {
-      const currentPatch = current.patches.find((patch) => patch.id === selectedPatch.id);
-      if (!currentPatch) {
-        return current;
-      }
-
-      const node = currentPatch.nodes.find((entry) => entry.id === nodeId);
-      if (!node) {
-        return current;
-      }
-
-      const moduleSchema = getModuleSchema(node.typeId);
-      const paramSchema = moduleSchema?.params.find((param) => param.id === paramId);
-      if (!moduleSchema || !paramSchema) {
-        return current;
-      }
-
-      let nextPatch = currentPatch;
-      const existingMacro = currentPatch.ui.macros.find((macro) =>
-        macro.bindings.some((binding) => binding.nodeId === nodeId && binding.paramId === paramId)
-      );
-      if (existingMacro) {
-        return current;
-      }
-
-      const macroId = createId("macro");
-      nextPatch = applyPatchGraphOp(nextPatch, {
-        type: "addMacro",
-        macroId,
-        name: suggestedName
-      });
-
-      const min = paramSchema.type === "float" ? paramSchema.range.min : 0;
-      const max = paramSchema.type === "float" ? paramSchema.range.max : 1;
-      nextPatch = applyPatchGraphOp(nextPatch, {
-        type: "bindMacro",
-        macroId,
-        bindingId: createId("bind"),
-        nodeId,
-        paramId,
-        map: "linear",
-        min,
-        max
-      });
-
-      return {
-        ...current,
-        patches: current.patches.map((patch) => (patch.id === selectedPatch.id ? nextPatch : patch))
-      };
-    }, { actionKey: `patch:${selectedPatch.id}:expose-macro:${nodeId}:${paramId}` });
-  }, [commitProjectChange, selectedPatch]);
-
-  const renameSelectedPatch = useCallback((name: string) => {
-    if (!selectedPatch) return;
-    commitProjectChange(
-      (current) => ({
-        ...current,
-        patches: current.patches.map((patch) => (patch.id === selectedPatch.id ? { ...patch, name } : patch))
-      }),
-      { actionKey: `patch:${selectedPatch.id}:rename`, coalesce: true }
-    );
-  }, [commitProjectChange, selectedPatch]);
-
   const undoProject = useCallback(() => {
     setProjectHistory((prev) => undoHistory(prev));
   }, []);
@@ -819,7 +636,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     onCloseTransientUi: () => {
       closeHelp();
       setPitchPicker(null);
-      setPreviewPitchPickerOpen(false);
+      patchWorkspace.setPreviewPitchPickerOpen(false);
       setPatchRemovalDialog(null);
       setTimelineActionsPopover(null);
       setEditorSelection(clearEditorSelection());
@@ -855,11 +672,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
     closePitchPicker();
   }, [closePitchPicker, pitchPicker, previewNoteForPitchPicker, updateNote]));
 
-  usePitchPickerHotkeys(previewPitchPickerOpen, useCallback((pitch: string) => {
-    setPreviewPitch(pitch);
-    setPreviewPitchPickerOpen(false);
-    previewSelectedPatchNow(pitch);
-  }, [previewSelectedPatchNow]));
+  usePitchPickerHotkeys(patchWorkspace.previewPitchPickerOpen, useCallback((pitch: string) => {
+    patchWorkspace.setPreviewPitch(pitch);
+    patchWorkspace.setPreviewPitchPickerOpen(false);
+    patchWorkspace.previewSelectedPatchNow(pitch);
+  }, [patchWorkspace]));
 
   const exportJson = () => {
     const payload = exportProjectToJson(project);
@@ -930,15 +747,15 @@ export function AppRoot({ children }: { children: ReactNode }) {
     const remainingTracks = project.tracks.filter((track) => track.id !== selectedTrack.id);
     commitProjectChange((current) => removeTrackFromProject(current, selectedTrack.id), { actionKey: `track:${selectedTrack.id}:remove` });
     setSelectedTrackId(remainingTracks[0]?.id);
-    setSelectedNodeId(undefined);
-  }, [commitProjectChange, project.tracks, selectedTrack]);
+    patchWorkspace.setSelectedNodeId(undefined);
+  }, [commitProjectChange, patchWorkspace, project.tracks, selectedTrack]);
 
   const duplicatePatchForSelectedTrack = () => {
-    if (!selectedPatch || !selectedTrack) return;
+    if (!selectedTrackPatch || !selectedTrack) return;
 
-    const duplicate = structuredClone(selectedPatch);
+    const duplicate = structuredClone(selectedTrackPatch);
     duplicate.id = createId("patch");
-    duplicate.name = `${selectedPatch.name} Copy`;
+    duplicate.name = `${selectedTrackPatch.name} Copy`;
     duplicate.meta = { source: "custom" };
 
     commitProjectChange((current) => ({
@@ -950,22 +767,22 @@ export function AppRoot({ children }: { children: ReactNode }) {
     }), { actionKey: `patch:duplicate:${duplicate.id}` });
   };
 
-  const requestRemoveSelectedPatch = useCallback(() => {
-    const patchStatus = selectedPatch ? resolvePatchPresetStatus(selectedPatch) : "custom";
-    if (!selectedPatch || (resolvePatchSource(selectedPatch) !== "custom" && patchStatus !== "legacy_preset")) {
+  const requestRemoveSelectedTrackPatch = useCallback(() => {
+    const patchStatus = selectedTrackPatch ? resolvePatchPresetStatus(selectedTrackPatch) : "custom";
+    if (!selectedTrackPatch || (resolvePatchSource(selectedTrackPatch) !== "custom" && patchStatus !== "legacy_preset")) {
       return;
     }
-    const affectedTracks = project.tracks.filter((track) => track.instrumentPatchId === selectedPatch.id);
-    const fallbackPatchId = project.patches.find((patch) => patch.id !== selectedPatch.id)?.id ?? "";
+    const affectedTracks = project.tracks.filter((track) => track.instrumentPatchId === selectedTrackPatch.id);
+    const fallbackPatchId = project.patches.find((patch) => patch.id !== selectedTrackPatch.id)?.id ?? "";
     setPatchRemovalDialog({
-      patchId: selectedPatch.id,
+      patchId: selectedTrackPatch.id,
       rows: affectedTracks.map((track) => ({
         trackId: track.id,
         mode: fallbackPatchId ? "fallback" : "remove",
         fallbackPatchId
       }))
     });
-  }, [project.patches, project.tracks, selectedPatch]);
+  }, [project.patches, project.tracks, selectedTrackPatch]);
 
   const confirmRemovePatch = useCallback(() => {
     if (!patchRemovalDialog) {
@@ -1011,13 +828,16 @@ export function AppRoot({ children }: { children: ReactNode }) {
     const survivingSelectedTrack =
       selectedTrackId && nextTrackIds.has(selectedTrackId) ? selectedTrackId : project.tracks.find((track) => nextTrackIds.has(track.id))?.id;
     setSelectedTrackId(survivingSelectedTrack);
+    if (patchWorkspace.selectedPatchId === patchRemovalDialog.patchId) {
+      patchWorkspace.setSelectedPatchId(project.patches.find((patch) => patch.id !== patchRemovalDialog.patchId)?.id);
+    }
     setPatchRemovalDialog(null);
-    setSelectedNodeId(undefined);
-  }, [commitProjectChange, patchRemovalDialog, project.tracks, selectedTrackId]);
+    patchWorkspace.setSelectedNodeId(undefined);
+  }, [commitProjectChange, patchRemovalDialog, patchWorkspace, project.patches, project.tracks, selectedTrackId]);
 
   const updateTrackPatch = (trackId: string, patchId: string) => {
     commitProjectChange((current) => switchTrackPatchInProject(current, trackId, patchId), { actionKey: `track:${trackId}:patch` });
-    setSelectedNodeId(undefined);
+    patchWorkspace.setSelectedNodeId(undefined);
   };
 
   const toggleTrackMacroPanel = useCallback((trackId: string) => {
@@ -1045,27 +865,16 @@ export function AppRoot({ children }: { children: ReactNode }) {
     if (options?.commit) {
       const track = project.tracks.find((entry) => entry.id === trackId);
       if (track) {
-        const patch = project.patches.find((entry) => entry.id === track.instrumentPatchId);
-        if (patch) {
-          schedulePatchPreview(patch.id);
-        }
+        patchWorkspace.previewPatchById(track.instrumentPatchId);
       }
     }
-  }, [commitProjectChange, project.patches, project.tracks, schedulePatchPreview]);
+  }, [commitProjectChange, patchWorkspace, project.tracks]);
 
   const previewPlacedNote = useCallback((trackId: string, note: Project["tracks"][number]["notes"][number]) => {
     audioEngineRef.current
       ?.previewNote(trackId, pitchToVoct(note.pitchStr), note.durationBeats, note.velocity)
       .catch((error) => setRuntimeError((error as Error).message));
   }, []);
-
-  const openPatchWorkspace = useCallback(() => {
-    router.push("/patch-workspace");
-  }, [router]);
-
-  const closePatchWorkspace = useCallback(() => {
-    router.push("/");
-  }, [router]);
 
   if (!ready || !selectedTrack || !selectedPatch) {
     return <main className="loading">Loading...</main>;
@@ -1095,10 +904,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
   };
   const trackCanvasPatchActions = {
     canRemoveSelectedPatch:
-      resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset",
+      resolvePatchSource(selectedTrackPatch) === "custom" || resolvePatchPresetStatus(selectedTrackPatch) === "legacy_preset",
     onDuplicateSelectedPatch: duplicatePatchForSelectedTrack,
-    onRequestRemoveSelectedPatch: requestRemoveSelectedPatch,
-    onOpenSelectedPatchWorkspace: openPatchWorkspace
+    onRequestRemoveSelectedPatch: requestRemoveSelectedTrackPatch,
+    onOpenSelectedPatchWorkspace: () => patchWorkspace.openPatchWorkspace(selectedTrack.instrumentPatchId)
   };
   const trackCanvasAutomationActions = {
     onChangeTrackMacro: changeTrackMacro,
@@ -1238,26 +1047,25 @@ export function AppRoot({ children }: { children: ReactNode }) {
   };
 
   const patchWorkspaceProps: React.ComponentProps<typeof PatchWorkspaceView> = {
-    selectedTrackName: selectedTrack.name,
     patch: selectedPatch,
-    previewPitch,
-    migrationNotice,
-    selectedNodeId,
+    previewPitch: patchWorkspace.previewPitch,
+    migrationNotice: patchWorkspace.migrationNotice,
+    selectedNodeId: patchWorkspace.selectedNodeId,
     validationIssues,
     invalid: selectedPatchHasErrors,
     canRemovePatch:
       resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset",
-    onBackToComposer: closePatchWorkspace,
+    onBackToComposer: patchWorkspace.closePatchWorkspace,
     onOpenHelp: openHelp,
-    onRenamePatch: renameSelectedPatch,
-    onDuplicatePatch: duplicatePatchForSelectedTrack,
-    onUpdatePreset: updatePresetToLatest,
-    onRequestRemovePatch: requestRemoveSelectedPatch,
-    onOpenPreviewPitchPicker: () => setPreviewPitchPickerOpen(true),
-    onPreviewNow: () => previewSelectedPatchNow(),
-    onSelectNode: setSelectedNodeId,
-    onApplyOp: applyPatchOp,
-    onExposeMacro: exposePatchMacro
+    onRenamePatch: patchWorkspace.renameSelectedPatch,
+    onDuplicatePatch: patchWorkspace.duplicateSelectedPatchInWorkspace,
+    onUpdatePreset: patchWorkspace.updatePresetToLatest,
+    onRequestRemovePatch: patchWorkspace.requestRemoveSelectedPatch,
+    onOpenPreviewPitchPicker: () => patchWorkspace.setPreviewPitchPickerOpen(true),
+    onPreviewNow: () => patchWorkspace.previewSelectedPatchNow(),
+    onSelectNode: patchWorkspace.setSelectedNodeId,
+    onApplyOp: patchWorkspace.applyPatchOp,
+    onExposeMacro: patchWorkspace.exposePatchMacro
   };
 
   const contextValue: AppRootContextValue = {
@@ -1319,7 +1127,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
           open={Boolean(pitchPicker && pitchPickerNote)}
           title="Pick Pitch"
           description="Select a key from C1 to C7. QWERTY-mapped keys are shown on each note."
-          selectedPitch={pitchPickerNote?.pitchStr ?? previewPitch}
+          selectedPitch={pitchPickerNote?.pitchStr ?? patchWorkspace.previewPitch}
           onClose={closePitchPicker}
           onSelectPitch={(pitch) => {
             if (!pitchPicker) {
@@ -1334,15 +1142,15 @@ export function AppRoot({ children }: { children: ReactNode }) {
         />
 
         <PitchPickerModal
-          open={previewPitchPickerOpen}
+          open={patchWorkspace.previewPitchPickerOpen}
           title="Preview Pitch"
           description="Select the pitch used for auto-preview when an instrument sound changes."
-          selectedPitch={previewPitch}
-          onClose={() => setPreviewPitchPickerOpen(false)}
+          selectedPitch={patchWorkspace.previewPitch}
+          onClose={() => patchWorkspace.setPreviewPitchPickerOpen(false)}
           onSelectPitch={(pitch) => {
-            setPreviewPitch(pitch);
-            setPreviewPitchPickerOpen(false);
-            previewSelectedPatchNow(pitch);
+            patchWorkspace.setPreviewPitch(pitch);
+            patchWorkspace.setPreviewPitchPickerOpen(false);
+            patchWorkspace.previewSelectedPatchNow(pitch);
           }}
         />
 

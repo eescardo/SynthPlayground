@@ -169,7 +169,7 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await canvas.click({ position: { x: 760, y: 12 } });
       await page.waitForTimeout(postActionSettleMs);
 
-      await page.locator(".timeline-actions-popover").getByRole("button", { name: "Paste", exact: true }).click();
+      await page.locator(".timeline-actions-popover").getByRole("button", { name: "Paste Selected Track(s)", exact: true }).click();
       await page.waitForTimeout(postActionSettleMs * 4);
     }
   },
