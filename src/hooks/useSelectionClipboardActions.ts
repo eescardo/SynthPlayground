@@ -13,6 +13,8 @@ import {
   deleteSelectedAutomationKeyframes,
   EMPTY_CONTENT_SELECTION,
   eraseAutomationInRangeForTracks,
+  explodeNoteClipboardPayload,
+  getSelectionSourceTrackId,
   NoteClipboardPayload,
   parseNoteSelectionKey
 } from "@/lib/clipboard";
@@ -24,6 +26,8 @@ type CommitProjectChange = (
 ) => void;
 
 export type NoteClipboardPasteAction = "paste" | "paste-all-tracks" | "insert" | "insert-all-tracks";
+export type SelectionExplodeScope = "selected-tracks" | "all-tracks";
+export type SelectionExplodeMode = "replace" | "insert";
 
 interface UseSelectionClipboardActionsParams {
   clearNoteClipboard: () => Promise<void>;
@@ -207,6 +211,68 @@ export function useSelectionClipboardActions({
     setPlayheadFromUser
   ]);
 
+  const explodeSelection = useCallback((options: {
+    iterations: number;
+    scope: SelectionExplodeScope;
+    mode: SelectionExplodeMode;
+  }) => {
+    if (!selectionBeatRange) {
+      return;
+    }
+
+    const basePayload =
+      options.scope === "all-tracks" || (contentSelection.noteKeys.length === 0 && contentSelection.automationKeyframeSelectionKeys.length === 0)
+        ? buildAllTracksClipboardPayload(project, selectionBeatRange)
+        : buildNoteClipboardPayload(project, contentSelection.noteKeys, contentSelection.automationKeyframeSelectionKeys);
+    if (!basePayload) {
+      return;
+    }
+
+    const explodedPayload = explodeNoteClipboardPayload(basePayload, options.iterations);
+    if (!explodedPayload) {
+      return;
+    }
+
+    const sourceTrackId =
+      options.scope === "all-tracks"
+        ? project.tracks[0]?.id
+        : getSelectionSourceTrackId(project, contentSelection.noteKeys, contentSelection.automationKeyframeSelectionKeys);
+    if (!sourceTrackId) {
+      return;
+    }
+
+    let nextSelection = EMPTY_CONTENT_SELECTION;
+    commitProjectChange(
+      (current) => {
+        const applied =
+          options.mode === "insert"
+            ? options.scope === "all-tracks"
+              ? applyNoteClipboardInsertAllTracks(current, explodedPayload, selectionBeatRange.startBeat)
+              : applyNoteClipboardInsert(current, explodedPayload, sourceTrackId, selectionBeatRange.startBeat)
+            : options.scope === "all-tracks"
+              ? applyNoteClipboardPasteToProject(current, explodedPayload, current.tracks[0]?.id ?? sourceTrackId, selectionBeatRange.startBeat)
+              : applyNoteClipboardPasteToProject(current, explodedPayload, sourceTrackId, selectionBeatRange.startBeat);
+        nextSelection = applied.selection;
+        return applied.project;
+      },
+      {
+        actionKey: `selection:explode:${options.mode}:${options.scope}`
+      }
+    );
+    setPlayheadFromUser(selectionBeatRange.startBeat);
+    setContentSelection(nextSelection);
+    closeTimelineActionsPopover();
+  }, [
+    closeTimelineActionsPopover,
+    commitProjectChange,
+    contentSelection.automationKeyframeSelectionKeys,
+    contentSelection.noteKeys,
+    project,
+    selectionBeatRange,
+    setContentSelection,
+    setPlayheadFromUser
+  ]);
+
   return {
     applyNoteClipboardPaste,
     copyAllTracksInSelection,
@@ -215,6 +281,7 @@ export function useSelectionClipboardActions({
     cutSelectedNotes,
     deleteAllTracksInSelection,
     deleteSelectedNoteSelection,
-    deleteSelectedNotes
+    deleteSelectedNotes,
+    explodeSelection
   };
 }

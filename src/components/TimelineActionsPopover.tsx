@@ -43,7 +43,7 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
     >
       {props.showPasteActions && props.onPaste && (
         <button type="button" onClick={props.onPaste}>
-          Paste
+          Paste Selected Track(s)
         </button>
       )}
 
@@ -55,7 +55,7 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
 
       {props.showPasteActions && props.onInsert && (
         <button type="button" onClick={props.onInsert}>
-          Insert
+          Insert Selected Track(s)
         </button>
       )}
 

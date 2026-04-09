@@ -800,6 +800,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
           onCut={selectionActions.onCutSelection}
           onCopy={selectionActions.onCopySelection}
           onDelete={selectionActions.onDeleteSelection}
+          onExplode={selectionActions.onOpenExplodeSelectionDialog}
           onCutAllTracks={selectionActions.onCutAllTracksInSelection}
           onCopyAllTracks={selectionActions.onCopyAllTracksInSelection}
           onDeleteAllTracks={selectionActions.onDeleteAllTracksInSelection}

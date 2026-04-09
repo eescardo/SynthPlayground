@@ -1295,6 +1295,52 @@ kbd {
   width: min(980px, 100%);
 }
 
+.explode-selection-modal {
+  width: min(440px, 100%);
+}
+
+.explode-selection-form {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 0.8rem;
+}
+
+.explode-selection-field,
+.explode-selection-fieldset {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.explode-selection-field input[type="text"] {
+  width: 100%;
+}
+
+.explode-selection-fieldset {
+  border: 1px solid rgba(51, 81, 113, 0.5);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.explode-selection-fieldset legend {
+  padding: 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.explode-selection-choice {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+}
+
+.explode-selection-choice:first-of-type {
+  margin-top: 0;
+}
+
 .pitch-picker-actions {
   display: flex;
   justify-content: flex-end;

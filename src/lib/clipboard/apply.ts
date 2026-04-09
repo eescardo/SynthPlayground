@@ -89,18 +89,22 @@ const getProjectTimelineEndBeat = (project: Project, fallbackEndBeat = 0) =>
     fallbackEndBeat
   );
 
+const getDestinationTracks = (project: Project, selectedTrackId: string, trackCount: number) => {
+  const startTrackIndex = project.tracks.findIndex((track) => track.id === selectedTrackId);
+  if (startTrackIndex < 0 || trackCount <= 0) {
+    return [];
+  }
+
+  return project.tracks.slice(startTrackIndex, startTrackIndex + trackCount);
+};
+
 export function applyNoteClipboardPaste(
   project: Project,
   payload: NoteClipboardPayload,
   selectedTrackId: string,
   playheadBeat: number
 ): AppliedNoteClipboardPaste {
-  const startTrackIndex = project.tracks.findIndex((track) => track.id === selectedTrackId);
-  if (startTrackIndex < 0 || payload.tracks.length === 0) {
-    return { project, selection: { noteKeys: [], automationKeyframeSelectionKeys: [] } };
-  }
-
-  const destinationTracks = project.tracks.slice(startTrackIndex, startTrackIndex + payload.tracks.length);
+  const destinationTracks = getDestinationTracks(project, selectedTrackId, payload.tracks.length);
   if (destinationTracks.length === 0) {
     return { project, selection: { noteKeys: [], automationKeyframeSelectionKeys: [] } };
   }
@@ -183,23 +187,28 @@ export function applyNoteClipboardInsert(
   playheadBeat: number
 ): AppliedNoteClipboardPaste {
   const timelineEndBeat = getProjectTimelineEndBeat(project);
-  const shiftedProject = shiftBeatBoundSongStructureForInsertedGap(
-    {
-      ...project,
-      tracks: project.tracks.map((track) => ({
-        ...track,
-        notes: insertBeatGap(track.notes, playheadBeat, payload.beatSpan),
-        macroAutomations: Object.fromEntries(
-          Object.entries(track.macroAutomations).map(([macroId, lane]) => [
-            macroId,
-            insertAutomationLaneGap(lane, playheadBeat, payload.beatSpan, timelineEndBeat)
-          ])
-        )
-      }))
-    },
-    playheadBeat,
-    payload.beatSpan
-  );
+  const destinationTrackIds = new Set(getDestinationTracks(project, selectedTrackId, payload.tracks.length).map((track) => track.id));
+  if (destinationTrackIds.size === 0) {
+    return { project, selection: { noteKeys: [], automationKeyframeSelectionKeys: [] } };
+  }
+
+  const shiftedProject = {
+    ...project,
+    tracks: project.tracks.map((track) =>
+      destinationTrackIds.has(track.id)
+        ? {
+            ...track,
+            notes: insertBeatGap(track.notes, playheadBeat, payload.beatSpan),
+            macroAutomations: Object.fromEntries(
+              Object.entries(track.macroAutomations).map(([macroId, lane]) => [
+                macroId,
+                insertAutomationLaneGap(lane, playheadBeat, payload.beatSpan, timelineEndBeat)
+              ])
+            )
+          }
+        : track
+    )
+  };
   return applyNoteClipboardPaste(shiftedProject, payload, selectedTrackId, playheadBeat);
 }
 

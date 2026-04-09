@@ -30,6 +30,7 @@ export type { NoteClipboardPayload, SerializedNoteClipboardPayload } from "@/lib
 export {
   buildAllTracksClipboardPayload,
   buildNoteClipboardPayload,
+  explodeNoteClipboardPayload,
   parseNoteClipboardPayload,
   serializeNoteClipboardPayload
 } from "@/lib/clipboard/payload";
