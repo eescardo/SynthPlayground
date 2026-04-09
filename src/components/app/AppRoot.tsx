@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AudioEngine } from "@/audio/engine";
 import { PatchRemovalDialogModal, PatchRemovalDialogState } from "@/components/home/PatchRemovalDialogModal";
 import { PitchPickerModal } from "@/components/home/PitchPickerModal";
@@ -64,7 +65,7 @@ import { PatchOp } from "@/types/ops";
 const isAudiblePatchOp = (op: PatchOp): boolean =>
   op.type !== "moveNode" && op.type !== "addMacro" && op.type !== "removeMacro" && op.type !== "bindMacro" && op.type !== "unbindMacro" && op.type !== "renameMacro";
 
-export default function HomePage() {
+export function AppRoot({ mode }: { mode: "composer" | "patch-workspace" }) {
   const [projectHistory, setProjectHistory] = useState<HistoryState<Project>>(() => createHistory(createEmptyProject()));
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -83,8 +84,8 @@ export default function HomePage() {
   const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
   const [patchRemovalDialog, setPatchRemovalDialog] = useState<PatchRemovalDialogState | null>(null);
   const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
-  const [patchWorkspaceOpen, setPatchWorkspaceOpen] = useState(false);
 
+  const router = useRouter();
   const audioEngineRef = useRef<AudioEngine | null>(null);
   const recordingStopSessionRef = useRef<(finalBeat?: number) => void>(() => {});
   const recordingHandleBeatRef = useRef<(beat: number) => void>(() => {});
@@ -108,6 +109,7 @@ export default function HomePage() {
     deleteKeyLabel,
     primaryModifierLabel
   });
+  const patchWorkspaceOpen = mode === "patch-workspace";
 
   useEffect(() => {
     let cancelled = false;
@@ -144,19 +146,6 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    const readWorkspaceState = () => {
-      const params = new URLSearchParams(window.location.search);
-      setPatchWorkspaceOpen(params.get("workspace") === "patch");
-    };
-    readWorkspaceState();
-    window.addEventListener("popstate", readWorkspaceState);
-    return () => window.removeEventListener("popstate", readWorkspaceState);
   }, []);
 
   useEffect(() => {
@@ -1024,26 +1013,12 @@ export default function HomePage() {
   }, []);
 
   const openPatchWorkspace = useCallback(() => {
-    if (typeof window === "undefined") {
-      setPatchWorkspaceOpen(true);
-      return;
-    }
-    const url = new URL(window.location.href);
-    url.searchParams.set("workspace", "patch");
-    window.history.pushState({}, "", url);
-    setPatchWorkspaceOpen(true);
-  }, []);
+    router.push("/patch-workspace");
+  }, [router]);
 
   const closePatchWorkspace = useCallback(() => {
-    if (typeof window === "undefined") {
-      setPatchWorkspaceOpen(false);
-      return;
-    }
-    const url = new URL(window.location.href);
-    url.searchParams.delete("workspace");
-    window.history.pushState({}, "", url);
-    setPatchWorkspaceOpen(false);
-  }, []);
+    router.push("/");
+  }, [router]);
 
   if (!ready || !selectedTrack || !selectedPatch) {
     return <main className="loading">Loading...</main>;
@@ -1131,45 +1106,47 @@ export default function HomePage() {
   };
   return (
     <main className="app">
-      <TransportBar
-        tempo={project.global.tempo}
-        meter={project.global.meter}
-        gridBeats={project.global.gridBeats}
-        isPlaying={playing || recording.recordPhase === "count_in"}
-        recordEnabled={recording.recordEnabled}
-        recordPhase={recording.recordPhase}
-        countInLabel={recording.countInLabel}
-        playheadBeat={playheadBeat}
-        onPlay={playback.startPlayback}
-        onStop={playback.stopPlayback}
-        onToggleRecord={() => {
-          if (recording.recordEnabled || recording.recordPhase !== "idle") {
+      {!patchWorkspaceOpen && (
+        <TransportBar
+          tempo={project.global.tempo}
+          meter={project.global.meter}
+          gridBeats={project.global.gridBeats}
+          isPlaying={playing || recording.recordPhase === "count_in"}
+          recordEnabled={recording.recordEnabled}
+          recordPhase={recording.recordPhase}
+          countInLabel={recording.countInLabel}
+          playheadBeat={playheadBeat}
+          onPlay={playback.startPlayback}
+          onStop={playback.stopPlayback}
+          onToggleRecord={() => {
+            if (recording.recordEnabled || recording.recordPhase !== "idle") {
+              playback.stopPlayback(true);
+              return;
+            }
             playback.stopPlayback(true);
-            return;
+            void recording.startRecordMode();
+          }}
+          onExportAudio={() => {
+            void exportAudio();
+          }}
+          exportAudioDisabled={exportingAudio}
+          onTempoChange={(tempo) =>
+            commitProjectChange((current) => ({ ...current, global: { ...current.global, tempo } }), {
+              actionKey: "global:tempo"
+            })
           }
-          playback.stopPlayback(true);
-          void recording.startRecordMode();
-        }}
-        onExportAudio={() => {
-          void exportAudio();
-        }}
-        exportAudioDisabled={exportingAudio}
-        onTempoChange={(tempo) =>
-          commitProjectChange((current) => ({ ...current, global: { ...current.global, tempo } }), {
-            actionKey: "global:tempo"
-          })
-        }
-        onMeterChange={(meter) =>
-          commitProjectChange((current) => ({ ...current, global: { ...current.global, meter } }), {
-            actionKey: "global:meter"
-          })
-        }
-        onGridChange={(gridBeats) =>
-          commitProjectChange((current) => ({ ...current, global: { ...current.global, gridBeats } }), {
-            actionKey: "global:grid"
-          })
-        }
-      />
+          onMeterChange={(meter) =>
+            commitProjectChange((current) => ({ ...current, global: { ...current.global, meter } }), {
+              actionKey: "global:meter"
+            })
+          }
+          onGridChange={(gridBeats) =>
+            commitProjectChange((current) => ({ ...current, global: { ...current.global, gridBeats } }), {
+              actionKey: "global:grid"
+            })
+          }
+        />
+      )}
 
       {!patchWorkspaceOpen && (
         <ProjectActionsBar

@@ -24,7 +24,7 @@ export const openApp = async (page: Page) => {
 
 export const openPatchWorkspaceApp = async (page: Page) => {
   await clearPersistedProject(page);
-  await page.goto("/?workspace=patch");
+  await page.goto("/patch-workspace");
   await expect(page.locator(".patch-workspace-shell")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("button", { name: "Back to Composer" })).toBeVisible();
 };
