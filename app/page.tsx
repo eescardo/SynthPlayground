@@ -88,6 +88,7 @@ export default function HomePage() {
   const recordingStopSessionRef = useRef<(finalBeat?: number) => void>(() => {});
   const recordingHandleBeatRef = useRef<(beat: number) => void>(() => {});
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const instrumentEditorRef = useRef<HTMLDivElement | null>(null);
   const project = projectHistory.current;
   const {
     noteClipboardPayload,
@@ -1035,6 +1036,13 @@ export default function HomePage() {
     onUpdateTrackPatch: updateTrackPatch,
     onToggleTrackMacroPanel: toggleTrackMacroPanel
   };
+  const trackCanvasPatchActions = {
+    canRemoveSelectedPatch:
+      resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset",
+    onDuplicateSelectedPatch: duplicatePatchForSelectedTrack,
+    onRequestRemoveSelectedPatch: requestRemoveSelectedPatch,
+    onOpenSelectedPatchWorkspace: () => instrumentEditorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  };
   const trackCanvasAutomationActions = {
     onChangeTrackMacro: changeTrackMacro,
     onBindTrackMacroToAutomation: bindTrackMacroToAutomation,
@@ -1160,6 +1168,7 @@ export default function HomePage() {
         onSetPlayheadBeat={setPlayheadFromUser}
         onRequestTimelineActionsPopover={requestTimelineActionsPopover}
         trackActions={trackCanvasTrackActions}
+        patchActions={trackCanvasPatchActions}
         automationActions={trackCanvasAutomationActions}
         noteActions={trackCanvasNoteActions}
         selectionActions={trackCanvasSelectionActions}
@@ -1225,24 +1234,26 @@ export default function HomePage() {
         onPressEnd={(pitch) => recording.stopRecordedInput(`pointer:${pitch}`)}
       />
 
-      <InstrumentEditor
-        patch={selectedPatch}
-        previewPitch={previewPitch}
-        migrationNotice={migrationNotice}
-        selectedNodeId={selectedNodeId}
-        validationIssues={validationIssues}
-        invalid={selectedPatchHasErrors}
-        onRenamePatch={renameSelectedPatch}
-        onDuplicatePatch={duplicatePatchForSelectedTrack}
-        onUpdatePreset={updatePresetToLatest}
-        canRemovePatch={resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset"}
-        onRequestRemovePatch={requestRemoveSelectedPatch}
-        onOpenPreviewPitchPicker={() => setPreviewPitchPickerOpen(true)}
-        onPreviewNow={() => previewSelectedPatchNow()}
-        onSelectNode={setSelectedNodeId}
-        onApplyOp={applyPatchOp}
-        onExposeMacro={exposePatchMacro}
-      />
+      <div ref={instrumentEditorRef}>
+        <InstrumentEditor
+          patch={selectedPatch}
+          previewPitch={previewPitch}
+          migrationNotice={migrationNotice}
+          selectedNodeId={selectedNodeId}
+          validationIssues={validationIssues}
+          invalid={selectedPatchHasErrors}
+          onRenamePatch={renameSelectedPatch}
+          onDuplicatePatch={duplicatePatchForSelectedTrack}
+          onUpdatePreset={updatePresetToLatest}
+          canRemovePatch={resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset"}
+          onRequestRemovePatch={requestRemoveSelectedPatch}
+          onOpenPreviewPitchPicker={() => setPreviewPitchPickerOpen(true)}
+          onPreviewNow={() => previewSelectedPatchNow()}
+          onSelectNode={setSelectedNodeId}
+          onApplyOp={applyPatchOp}
+          onExposeMacro={exposePatchMacro}
+        />
+      </div>
 
       <QuickHelpDialog keyboardShortcuts={keyboardShortcuts} onClose={closeHelp} open={helpOpen} />
 

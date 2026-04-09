@@ -44,6 +44,13 @@ export interface TrackCanvasTrackActions {
   onToggleTrackMacroPanel: (trackId: string) => void;
 }
 
+export interface TrackCanvasPatchActions {
+  canRemoveSelectedPatch: boolean;
+  onDuplicateSelectedPatch: () => void;
+  onRequestRemoveSelectedPatch: () => void;
+  onOpenSelectedPatchWorkspace: () => void;
+}
+
 export interface TrackCanvasAutomationActions {
   onChangeTrackMacro: (trackId: string, macroId: string, normalized: number, options?: { commit?: boolean }) => void;
   onBindTrackMacroToAutomation: (trackId: string, macroId: string, normalized: number) => void;
@@ -117,6 +124,7 @@ export interface TrackCanvasProps {
   onSetPlayheadBeat: (beat: number) => void;
   onRequestTimelineActionsPopover: (request: TimelineActionsPopoverRequest) => void;
   trackActions: TrackCanvasTrackActions;
+  patchActions: TrackCanvasPatchActions;
   automationActions: TrackCanvasAutomationActions;
   noteActions: TrackCanvasNoteActions;
   selectionActions: TrackCanvasSelectionActions;

@@ -195,6 +195,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const {
     automationActions,
     noteActions,
+    patchActions,
     project,
     selection,
     selectionActions,
@@ -416,7 +417,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       }
       if (trackPatchInvalid) {
         ctx.fillStyle = TRACK_CANVAS_COLORS.trackInvalidOverlay;
-        ctx.fillRect(0, y, HEADER_WIDTH, TRACK_HEIGHT);
+        ctx.fillRect(0, y, width, layout.height);
       }
 
       ctx.fillStyle = trackPatchInvalid ? TRACK_CANVAS_COLORS.trackInvalidName : TRACK_CANVAS_COLORS.trackName;
@@ -770,6 +771,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         scheduleVolumePopoverDismiss={scheduleVolumePopoverDismiss}
         cancelScheduledVolumePopoverDismiss={cancelScheduledVolumePopoverDismiss}
         trackActions={trackActions}
+        patchActions={patchActions}
         automationActions={automationActions}
       />
       <canvas
