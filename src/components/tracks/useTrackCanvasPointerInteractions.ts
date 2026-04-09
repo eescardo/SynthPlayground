@@ -556,9 +556,10 @@ export function useTrackCanvasPointerInteractions({
           endX: x,
           endY: y
         });
-        setCanvasCursor("default");
-      } else {
         setCanvasCursor("crosshair");
+        return;
+      } else {
+        setCanvasCursor("pointer");
       }
       const lane = automationLaneHit?.lane;
       if (!lane) {
@@ -633,7 +634,7 @@ export function useTrackCanvasPointerInteractions({
         ? getTrackLayoutAtY(y)?.automationLanes.find((entry) => !entry.automated && y >= entry.y && y <= entry.y + entry.height)
         : null;
       if (automationKeyframe || automationLaneHit) {
-        setCanvasCursor("crosshair");
+        setCanvasCursor("pointer");
         return;
       }
       if (fixedLaneHit) {
@@ -787,7 +788,7 @@ export function useTrackCanvasPointerInteractions({
     selectionActions.onSetSelectionMarqueeActive(false);
     const targets = resolvePointerTargets(x, y);
     if (targets.automationLaneHit || findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y)) {
-      setCanvasCursor("crosshair");
+      setCanvasCursor("pointer");
     } else if (targets.laneHit) {
       setCanvasCursor("resize");
     } else {

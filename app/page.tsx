@@ -1012,7 +1012,7 @@ export default function HomePage() {
       ...current,
       tracks: current.tracks.map((track) =>
         track.id === trackId
-          ? { ...track, instrumentPatchId: patchId, macroValues: {}, macroAutomations: {}, macroPanelExpanded: false }
+          ? { ...track, instrumentPatchId: patchId, macroValues: {}, macroAutomations: {} }
           : track
       )
     }), { actionKey: `track:${trackId}:patch` });
