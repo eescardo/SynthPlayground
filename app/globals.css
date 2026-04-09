@@ -817,16 +817,16 @@ select {
   flex: 0 0 152px;
   display: flex;
   flex-direction: column;
-  justify-content: stretch;
+  justify-content: center;
   gap: 0.42rem;
   min-height: 0;
 }
 
 .track-patch-summary-actions button {
   width: 100%;
-  flex: 1 1 0;
-  min-height: 0;
-  padding: 0.5rem 0.6rem;
+  flex: 0 0 auto;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.6rem;
   font-size: 0.8rem;
   line-height: 1.15;
 }
