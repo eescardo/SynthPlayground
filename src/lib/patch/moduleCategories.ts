@@ -4,8 +4,8 @@ export const PATCH_MODULE_CATEGORY_PRIORITY: PatchModuleCategory[] = [
   "envelope",
   "source",
   "processor",
-  "cv",
   "mix",
+  "cv",
   "host"
 ];
 
