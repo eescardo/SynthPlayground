@@ -1,4 +1,4 @@
-import { ModuleTypeSchema, ParamSchema, PortSchema, Unit } from "@/types/patch";
+import { ModuleTypeSchema, ParamSchema, PatchModuleCategory, PortSchema, Unit } from "@/types/patch";
 
 const floatParam = (
   id: string,
@@ -54,9 +54,12 @@ const port = (
 
 export const HOST_TYPE_IDS = ["NotePitch", "NoteGate", "NoteVelocity", "ModWheel"] as const;
 
+const categories = (...values: PatchModuleCategory[]): PatchModuleCategory[] => values;
+
 export const moduleRegistry: ModuleTypeSchema[] = [
   {
     typeId: "NotePitch",
+    categories: categories("host", "cv"),
     hostOnly: true,
     doc: { summary: "Per-voice pitch in V/Oct (0=C4)." },
     params: [],
@@ -65,6 +68,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "NoteGate",
+    categories: categories("host", "cv"),
     hostOnly: true,
     doc: { summary: "Per-voice gate (1 while note held)." },
     params: [],
@@ -73,6 +77,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "NoteVelocity",
+    categories: categories("host", "cv"),
     hostOnly: true,
     doc: { summary: "Per-voice velocity (0..1)." },
     params: [],
@@ -81,6 +86,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "ModWheel",
+    categories: categories("host", "cv"),
     hostOnly: true,
     doc: { summary: "Per-voice mod wheel (0..1)." },
     params: [],
@@ -89,6 +95,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "CVTranspose",
+    categories: categories("cv"),
     doc: { summary: "Transposes a pitch CV by octaves, semitones, and cents." },
     params: [
       floatParam("octaves", "Octaves", -4, 4, "VperOct", "Pitch offset in octaves", {
@@ -109,6 +116,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "CVScaler",
+    categories: categories("cv"),
     doc: { summary: "Scales or inverts a CV signal." },
     params: [
       floatParam("scale", "Scale", -2, 2, "linear", "Scale amount; negative values invert", {
@@ -121,6 +129,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "CVMixer2",
+    categories: categories("mix", "cv"),
     doc: { summary: "Sums two CV sources with independent gains." },
     params: [
       floatParam("gain1", "Gain 1", -2, 2, "linear", "Gain for input 1", {
@@ -137,6 +146,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "VCO",
+    categories: categories("source"),
     doc: { summary: "Waveform oscillator controlled by V/Oct pitch and optional FM/PWM." },
     params: [
       enumParam("wave", "Wave", ["sine", "triangle", "saw", "square"], "saw", "Oscillator waveform"),
@@ -166,6 +176,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "KarplusStrong",
+    categories: categories("source", "processor"),
     doc: { summary: "Plucked-string resonator with internal delay and feedback." },
     params: [
       floatParam("decay", "Decay", 0.7, 0.999, "linear", "Feedback decay amount", {
@@ -191,6 +202,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "LFO",
+    categories: categories("cv", "source"),
     doc: { summary: "Low-frequency oscillator for modulation." },
     params: [
       enumParam("wave", "Wave", ["sine", "triangle", "saw", "square"], "sine", "LFO waveform"),
@@ -210,6 +222,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "ADSR",
+    categories: categories("envelope", "cv"),
     doc: { summary: "Envelope generator triggered by gate." },
     params: [
       floatParam("attack", "Attack", 0, 10, "s", "Attack time", { default: 0.01, smoothingMs: 10 }),
@@ -229,6 +242,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "VCA",
+    categories: categories("processor", "cv"),
     doc: { summary: "Multiplies input by gain controlled by CV. Use for audio or modulation depth." },
     params: [
       floatParam("bias", "Bias", 0, 1, "linear", "Bias gain", { default: 0, smoothingMs: 10 }),
@@ -242,6 +256,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "VCF",
+    categories: categories("processor"),
     doc: { summary: "Filter with cutoff and resonance; cutoff CV modulates around base cutoff." },
     params: [
       enumParam("type", "Type", ["lowpass", "highpass", "bandpass"], "lowpass", "Filter type"),
@@ -264,6 +279,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "Mixer4",
+    categories: categories("mix"),
     doc: { summary: "Sums up to 4 audio inputs with per-channel gain." },
     params: [
       floatParam("gain1", "Gain 1", 0, 1, "linear", "Input 1 gain", { default: 1, smoothingMs: 10 }),
@@ -281,6 +297,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "SamplePlayer",
+    categories: categories("source"),
     doc: { summary: "Plays a loaded sample. Pitch shifts by resampling (MVP)." },
     params: [
       enumParam("mode", "Mode", ["oneshot", "loop"], "oneshot", "Playback mode"),
@@ -297,6 +314,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "Noise",
+    categories: categories("source"),
     doc: { summary: "Noise generator." },
     params: [
       enumParam("color", "Color", ["white", "pink", "brown"], "white", "Noise color"),
@@ -307,6 +325,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "Delay",
+    categories: categories("processor"),
     doc: { summary: "Delay with feedback and wet/dry mix." },
     params: [
       floatParam("timeMs", "Time", 1, 2000, "ms", "Delay time", { default: 300, map: "exp", smoothingMs: 30 }),
@@ -318,6 +337,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "Reverb",
+    categories: categories("processor"),
     doc: { summary: "Algorithmic reverb (MVP)." },
     params: [
       floatParam("size", "Size", 0, 1, "linear", "Room size", { default: 0.5, smoothingMs: 50 }),
@@ -330,6 +350,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "Saturation",
+    categories: categories("processor"),
     doc: { summary: "Soft saturation/distortion." },
     params: [
       floatParam("driveDb", "Drive", 0, 24, "dB", "Input drive", { default: 6, smoothingMs: 20 }),
@@ -341,6 +362,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "Overdrive",
+    categories: categories("processor"),
     doc: { summary: "Heavier distortion/fuzz-style overdrive." },
     params: [
       floatParam("gainDb", "Gain", 0, 36, "dB", "Drive gain", { default: 12, smoothingMs: 20 }),
@@ -353,6 +375,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "Compressor",
+    categories: categories("processor"),
     doc: { summary: "Dynamics compressor." },
     params: [
       floatParam("thresholdDb", "Threshold", -60, 0, "dB", "Threshold", { default: -24, smoothingMs: 50 }),
@@ -367,6 +390,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "Output",
+    categories: categories("mix"),
     doc: { summary: "Final output sink for instrument patch." },
     params: [
       floatParam("gainDb", "Gain", -60, 6, "dB", "Output gain", { default: -6, smoothingMs: 30 }),

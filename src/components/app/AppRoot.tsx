@@ -1,18 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AudioEngine } from "@/audio/engine";
+import { ComposerView } from "@/components/app/ComposerView";
+import { PatchWorkspaceView } from "@/components/app/PatchWorkspaceView";
 import { PatchRemovalDialogModal, PatchRemovalDialogState } from "@/components/home/PatchRemovalDialogModal";
 import { PitchPickerModal } from "@/components/home/PitchPickerModal";
-import { ProjectActionsBar } from "@/components/home/ProjectActionsBar";
 import { RecordingDock } from "@/components/home/RecordingDock";
 import { loadDspWasm } from "@/audio/wasmBridge";
-import { InstrumentEditor } from "@/components/InstrumentEditor";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
-import { TimelineActionsPopover } from "@/components/TimelineActionsPopover";
-import { TimelineActionsPopoverRequest, TrackCanvas, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
-import { TransportBar } from "@/components/TransportBar";
+import { TimelineActionsPopoverRequest, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { createId } from "@/lib/ids";
 import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
 import { getProjectTimelineEndBeat, getTrackPreviewStateAtBeat } from "@/lib/macroAutomation";
@@ -64,7 +63,22 @@ import { PatchOp } from "@/types/ops";
 const isAudiblePatchOp = (op: PatchOp): boolean =>
   op.type !== "moveNode" && op.type !== "addMacro" && op.type !== "removeMacro" && op.type !== "bindMacro" && op.type !== "unbindMacro" && op.type !== "renameMacro";
 
-export default function HomePage() {
+interface AppRootContextValue {
+  composerProps: React.ComponentProps<typeof ComposerView>;
+  patchWorkspaceProps: React.ComponentProps<typeof PatchWorkspaceView>;
+}
+
+const AppRootContext = createContext<AppRootContextValue | null>(null);
+
+export const useAppRoot = () => {
+  const context = useContext(AppRootContext);
+  if (!context) {
+    throw new Error("useAppRoot must be used within AppRoot.");
+  }
+  return context;
+};
+
+export function AppRoot({ children }: { children: ReactNode }) {
   const [projectHistory, setProjectHistory] = useState<HistoryState<Project>>(() => createHistory(createEmptyProject()));
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -84,6 +98,7 @@ export default function HomePage() {
   const [patchRemovalDialog, setPatchRemovalDialog] = useState<PatchRemovalDialogState | null>(null);
   const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
 
+  const router = useRouter();
   const audioEngineRef = useRef<AudioEngine | null>(null);
   const recordingStopSessionRef = useRef<(finalBeat?: number) => void>(() => {});
   const recordingHandleBeatRef = useRef<(beat: number) => void>(() => {});
@@ -107,7 +122,6 @@ export default function HomePage() {
     deleteKeyLabel,
     primaryModifierLabel
   });
-
   useEffect(() => {
     let cancelled = false;
 
@@ -1009,6 +1023,14 @@ export default function HomePage() {
       .catch((error) => setRuntimeError((error as Error).message));
   }, []);
 
+  const openPatchWorkspace = useCallback(() => {
+    router.push("/patch-workspace");
+  }, [router]);
+
+  const closePatchWorkspace = useCallback(() => {
+    router.push("/");
+  }, [router]);
+
   if (!ready || !selectedTrack || !selectedPatch) {
     return <main className="loading">Loading...</main>;
   }
@@ -1034,6 +1056,13 @@ export default function HomePage() {
     onToggleTrackVolumeAutomationLane: toggleTrackVolumeAutomationLane,
     onUpdateTrackPatch: updateTrackPatch,
     onToggleTrackMacroPanel: toggleTrackMacroPanel
+  };
+  const trackCanvasPatchActions = {
+    canRemoveSelectedPatch:
+      resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset",
+    onDuplicateSelectedPatch: duplicatePatchForSelectedTrack,
+    onRequestRemoveSelectedPatch: requestRemoveSelectedPatch,
+    onOpenSelectedPatchWorkspace: openPatchWorkspace
   };
   const trackCanvasAutomationActions = {
     onChangeTrackMacro: changeTrackMacro,
@@ -1086,203 +1115,188 @@ export default function HomePage() {
     },
     onDeleteAllTracksInSelection: deleteAllTracksInSelection
   };
+
+  const composerProps: React.ComponentProps<typeof ComposerView> = {
+    project,
+    selectedTrackId: selectedTrack.id,
+    invalidPatchIds,
+    canvasSelection,
+    playheadBeat,
+    activeRecordedNotes: recording.activeRecordedNotes,
+    ghostPlayheadBeat: recording.ghostPlayheadBeat ?? undefined,
+    countInLabel: recording.countInLabel ?? undefined,
+    timelineActionsPopover,
+    selectionActionPopoverVisible,
+    noteClipboardPayload,
+    startMarkerAtTimelineBeat,
+    endMarkerAtTimelineBeat,
+    expandableLoopRegion: Boolean(expandableLoopRegion),
+    importInputRef,
+    recordingDisabled: recording.recordEnabled,
+    isPlaying: playing || recording.recordPhase === "count_in",
+    recordEnabled: recording.recordEnabled,
+    recordPhase: recording.recordPhase,
+    exportingAudio,
+    onPlay: playback.startPlayback,
+    onStop: playback.stopPlayback,
+    onToggleRecord: () => {
+      if (recording.recordEnabled || recording.recordPhase !== "idle") {
+        playback.stopPlayback(true);
+        return;
+      }
+      playback.stopPlayback(true);
+      void recording.startRecordMode();
+    },
+    onExportAudio: () => {
+      void exportAudio();
+    },
+    onTempoChange: (tempo) =>
+      commitProjectChange((current) => ({ ...current, global: { ...current.global, tempo } }), {
+        actionKey: "global:tempo"
+      }),
+    onMeterChange: (meter) =>
+      commitProjectChange((current) => ({ ...current, global: { ...current.global, meter } }), {
+        actionKey: "global:meter"
+      }),
+    onGridChange: (gridBeats) =>
+      commitProjectChange((current) => ({ ...current, global: { ...current.global, gridBeats } }), {
+        actionKey: "global:grid"
+      }),
+    onAddTrack: addTrack,
+    onRemoveTrack: removeSelectedTrack,
+    onOpenHelp: openHelp,
+    onExportJson: exportJson,
+    onImportJson: () => importInputRef.current?.click(),
+    onClearProject: () => void resetToProject(createEmptyProject()),
+    onResetToDefaultProject: () => void resetToProject(createDefaultProject()),
+    onImportFile: (file) => {
+      void importJson(file);
+    },
+    onSetPlayheadBeat: setPlayheadFromUser,
+    onRequestTimelineActionsPopover: requestTimelineActionsPopover,
+    onCloseTimelineActionsPopover: () => setTimelineActionsPopover(null),
+    onPasteAtTimeline: (mode, beat) => applyNoteClipboardPaste(mode, beat),
+    onAddLoopBoundary: addLoopBoundary,
+    onExpandLoopToNotes: expandSelectedLoopToNotes,
+    onUpdateLoopRepeatCount: (repeatCount) => {
+      if (endMarkerAtTimelineBeat) {
+        updateLoopRepeatCount(endMarkerAtTimelineBeat.id, repeatCount);
+      }
+    },
+    onRemoveStartLoopBoundary: () => {
+      if (startMarkerAtTimelineBeat) {
+        removeLoopBoundary(startMarkerAtTimelineBeat.id);
+      }
+    },
+    onRemoveEndLoopBoundary: () => {
+      if (endMarkerAtTimelineBeat) {
+        removeLoopBoundary(endMarkerAtTimelineBeat.id);
+      }
+    },
+    trackActions: trackCanvasTrackActions,
+    patchActions: trackCanvasPatchActions,
+    automationActions: trackCanvasAutomationActions,
+    noteActions: trackCanvasNoteActions,
+    selectionActions: trackCanvasSelectionActions
+  };
+
+  const patchWorkspaceProps: React.ComponentProps<typeof PatchWorkspaceView> = {
+    selectedTrackName: selectedTrack.name,
+    patch: selectedPatch,
+    previewPitch,
+    migrationNotice,
+    selectedNodeId,
+    validationIssues,
+    invalid: selectedPatchHasErrors,
+    canRemovePatch:
+      resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset",
+    onBackToComposer: closePatchWorkspace,
+    onOpenHelp: openHelp,
+    onRenamePatch: renameSelectedPatch,
+    onDuplicatePatch: duplicatePatchForSelectedTrack,
+    onUpdatePreset: updatePresetToLatest,
+    onRequestRemovePatch: requestRemoveSelectedPatch,
+    onOpenPreviewPitchPicker: () => setPreviewPitchPickerOpen(true),
+    onPreviewNow: () => previewSelectedPatchNow(),
+    onSelectNode: setSelectedNodeId,
+    onApplyOp: applyPatchOp,
+    onExposeMacro: exposePatchMacro
+  };
+
+  const contextValue: AppRootContextValue = {
+    composerProps,
+    patchWorkspaceProps
+  };
   return (
-    <main className="app">
-      <TransportBar
-        tempo={project.global.tempo}
-        meter={project.global.meter}
-        gridBeats={project.global.gridBeats}
-        isPlaying={playing || recording.recordPhase === "count_in"}
-        recordEnabled={recording.recordEnabled}
-        recordPhase={recording.recordPhase}
-        countInLabel={recording.countInLabel}
-        playheadBeat={playheadBeat}
-        onPlay={playback.startPlayback}
-        onStop={playback.stopPlayback}
-        onToggleRecord={() => {
-          if (recording.recordEnabled || recording.recordPhase !== "idle") {
-            playback.stopPlayback(true);
-            return;
-          }
-          playback.stopPlayback(true);
-          void recording.startRecordMode();
-        }}
-        onExportAudio={() => {
-          void exportAudio();
-        }}
-        exportAudioDisabled={exportingAudio}
-        onTempoChange={(tempo) =>
-          commitProjectChange((current) => ({ ...current, global: { ...current.global, tempo } }), {
-            actionKey: "global:tempo"
-          })
-        }
-        onMeterChange={(meter) =>
-          commitProjectChange((current) => ({ ...current, global: { ...current.global, meter } }), {
-            actionKey: "global:meter"
-          })
-        }
-        onGridChange={(gridBeats) =>
-          commitProjectChange((current) => ({ ...current, global: { ...current.global, gridBeats } }), {
-            actionKey: "global:grid"
-          })
-        }
-      />
+    <AppRootContext.Provider value={contextValue}>
+      <main className="app">
+        {runtimeError && <p className="error">{runtimeError}</p>}
 
-      <ProjectActionsBar
-        recordingDisabled={recording.recordEnabled}
-        canRemoveTrack={project.tracks.length > 1}
-        onAddTrack={addTrack}
-        onRemoveTrack={removeSelectedTrack}
-        onOpenHelp={openHelp}
-        onExportJson={exportJson}
-        onImportJson={() => importInputRef.current?.click()}
-        onClearProject={() => void resetToProject(createEmptyProject())}
-        onResetToDefaultProject={() => void resetToProject(createDefaultProject())}
-        importInputRef={importInputRef}
-        onImportFile={(file) => {
-          void importJson(file);
-        }}
-      />
+        {children}
 
-      {runtimeError && <p className="error">{runtimeError}</p>}
+        {loopConflictDialog && (
+          <LoopConflictDialog
+            conflicts={loopConflictDialog.conflicts}
+            trackNameById={trackNameById}
+            onCancel={clearLoopConflictDialog}
+            onSplit={() => applyLoopSettings(loopConflictDialog.nextLoop, { autoSplit: true })}
+          />
+        )}
 
-      <TrackCanvas
-        project={project}
-        invalidPatchIds={invalidPatchIds}
-        selectedTrackId={selectedTrack.id}
-        selection={canvasSelection}
-        playheadBeat={playheadBeat}
-        activeRecordedNotes={recording.activeRecordedNotes}
-        ghostPlayheadBeat={recording.ghostPlayheadBeat ?? undefined}
-        countInLabel={recording.countInLabel ?? undefined}
-        timelineActionsPopoverOpen={Boolean(timelineActionsPopover)}
-        hideSelectionActionPopover={!selectionActionPopoverVisible}
-        onSetPlayheadBeat={setPlayheadFromUser}
-        onRequestTimelineActionsPopover={requestTimelineActionsPopover}
-        trackActions={trackCanvasTrackActions}
-        automationActions={trackCanvasAutomationActions}
-        noteActions={trackCanvasNoteActions}
-        selectionActions={trackCanvasSelectionActions}
-      />
-
-      {timelineActionsPopover && (
-        <TimelineActionsPopover
-          left={timelineActionsPopover.clientX}
-          top={timelineActionsPopover.clientY + 12}
-          showPasteActions={Boolean(noteClipboardPayload)}
-          showAddStart={!startMarkerAtTimelineBeat}
-          showAddEnd={timelineActionsPopover.beat > 0 && !endMarkerAtTimelineBeat}
-          showExpandLoopToNotes={Boolean(expandableLoopRegion)}
-          startMarkerId={startMarkerAtTimelineBeat?.id}
-          endMarkerId={endMarkerAtTimelineBeat?.id}
-          endRepeatCount={endMarkerAtTimelineBeat?.repeatCount}
-          onPaste={() => applyNoteClipboardPaste("paste", timelineActionsPopover.beat)}
-          onPasteAllTracks={() => applyNoteClipboardPaste("paste-all-tracks", timelineActionsPopover.beat)}
-          onInsert={() => applyNoteClipboardPaste("insert", timelineActionsPopover.beat)}
-          onInsertAllTracks={() => applyNoteClipboardPaste("insert-all-tracks", timelineActionsPopover.beat)}
-          onAddStart={() => addLoopBoundary(timelineActionsPopover.beat, "start")}
-          onAddEnd={() => addLoopBoundary(timelineActionsPopover.beat, "end")}
-          onExpandLoopToNotes={expandSelectedLoopToNotes}
-          onUpdateRepeatCount={(repeatCount) => {
-            if (endMarkerAtTimelineBeat) {
-              updateLoopRepeatCount(endMarkerAtTimelineBeat.id, repeatCount);
+        <RecordingDock
+          open={recording.recordEnabled}
+          track={activeRecordingTrack}
+          title={recording.recordPhase === "count_in" ? "Record Count-In" : "Recording"}
+          statusText={recording.recordStatusText}
+          pressedPitches={recording.pressedRecordingPitches}
+          onPressStart={(pitch) => {
+            if (recording.recordPhase === "recording") {
+              recording.startRecordedNote(`pointer:${pitch}`, pitch);
             }
           }}
-          onRemoveStart={() => {
-            if (startMarkerAtTimelineBeat) {
-              removeLoopBoundary(startMarkerAtTimelineBeat.id);
-            }
-          }}
-          onRemoveEnd={() => {
-            if (endMarkerAtTimelineBeat) {
-              removeLoopBoundary(endMarkerAtTimelineBeat.id);
-            }
-          }}
-          onClose={() => setTimelineActionsPopover(null)}
+          onPressEnd={(pitch) => recording.stopRecordedInput(`pointer:${pitch}`)}
         />
-      )}
 
-      {loopConflictDialog && (
-        <LoopConflictDialog
-          conflicts={loopConflictDialog.conflicts}
-          trackNameById={trackNameById}
-          onCancel={clearLoopConflictDialog}
-          onSplit={() => applyLoopSettings(loopConflictDialog.nextLoop, { autoSplit: true })}
+        <QuickHelpDialog keyboardShortcuts={keyboardShortcuts} onClose={closeHelp} open={helpOpen} />
+
+        <PitchPickerModal
+          open={Boolean(pitchPicker && pitchPickerNote)}
+          title="Pick Pitch"
+          description="Select a key from C1 to C7. QWERTY-mapped keys are shown on each note."
+          selectedPitch={pitchPickerNote?.pitchStr ?? previewPitch}
+          onClose={closePitchPicker}
+          onSelectPitch={(pitch) => {
+            if (!pitchPicker) {
+              return;
+            }
+            updateNote(pitchPicker.trackId, pitchPicker.noteId, { pitchStr: pitch }, {
+              actionKey: `track:${pitchPicker.trackId}:pitch:${pitchPicker.noteId}`
+            });
+            previewNoteForPitchPicker(pitchPicker.trackId, pitchPicker.noteId, pitch);
+            closePitchPicker();
+          }}
         />
-      )}
 
-      <RecordingDock
-        open={recording.recordEnabled}
-        track={activeRecordingTrack}
-        title={recording.recordPhase === "count_in" ? "Record Count-In" : "Recording"}
-        statusText={recording.recordStatusText}
-        pressedPitches={recording.pressedRecordingPitches}
-        onPressStart={(pitch) => {
-          if (recording.recordPhase === "recording") {
-            recording.startRecordedNote(`pointer:${pitch}`, pitch);
-          }
-        }}
-        onPressEnd={(pitch) => recording.stopRecordedInput(`pointer:${pitch}`)}
-      />
+        <PitchPickerModal
+          open={previewPitchPickerOpen}
+          title="Preview Pitch"
+          description="Select the pitch used for auto-preview when an instrument sound changes."
+          selectedPitch={previewPitch}
+          onClose={() => setPreviewPitchPickerOpen(false)}
+          onSelectPitch={(pitch) => {
+            setPreviewPitch(pitch);
+            setPreviewPitchPickerOpen(false);
+            previewSelectedPatchNow(pitch);
+          }}
+        />
 
-      <InstrumentEditor
-        patch={selectedPatch}
-        previewPitch={previewPitch}
-        migrationNotice={migrationNotice}
-        selectedNodeId={selectedNodeId}
-        validationIssues={validationIssues}
-        invalid={selectedPatchHasErrors}
-        onRenamePatch={renameSelectedPatch}
-        onDuplicatePatch={duplicatePatchForSelectedTrack}
-        onUpdatePreset={updatePresetToLatest}
-        canRemovePatch={resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset"}
-        onRequestRemovePatch={requestRemoveSelectedPatch}
-        onOpenPreviewPitchPicker={() => setPreviewPitchPickerOpen(true)}
-        onPreviewNow={() => previewSelectedPatchNow()}
-        onSelectNode={setSelectedNodeId}
-        onApplyOp={applyPatchOp}
-        onExposeMacro={exposePatchMacro}
-      />
-
-      <QuickHelpDialog keyboardShortcuts={keyboardShortcuts} onClose={closeHelp} open={helpOpen} />
-
-      <PitchPickerModal
-        open={Boolean(pitchPicker && pitchPickerNote)}
-        title="Pick Pitch"
-        description="Select a key from C1 to C7. QWERTY-mapped keys are shown on each note."
-        selectedPitch={pitchPickerNote?.pitchStr ?? previewPitch}
-        onClose={closePitchPicker}
-        onSelectPitch={(pitch) => {
-          if (!pitchPicker) {
-            return;
-          }
-          updateNote(pitchPicker.trackId, pitchPicker.noteId, { pitchStr: pitch }, {
-            actionKey: `track:${pitchPicker.trackId}:pitch:${pitchPicker.noteId}`
-          });
-          previewNoteForPitchPicker(pitchPicker.trackId, pitchPicker.noteId, pitch);
-          closePitchPicker();
-        }}
-      />
-
-      <PitchPickerModal
-        open={previewPitchPickerOpen}
-        title="Preview Pitch"
-        description="Select the pitch used for auto-preview when an instrument sound changes."
-        selectedPitch={previewPitch}
-        onClose={() => setPreviewPitchPickerOpen(false)}
-        onSelectPitch={(pitch) => {
-          setPreviewPitch(pitch);
-          setPreviewPitchPickerOpen(false);
-          previewSelectedPatchNow(pitch);
-        }}
-      />
-
-      <PatchRemovalDialogModal
-        dialog={patchRemovalDialog}
-        project={project}
-        setDialog={setPatchRemovalDialog}
-        onConfirm={confirmRemovePatch}
-      />
-    </main>
+        <PatchRemovalDialogModal
+          dialog={patchRemovalDialog}
+          project={project}
+          setDialog={setPatchRemovalDialog}
+          onConfirm={confirmRemovePatch}
+        />
+      </main>
+    </AppRootContext.Provider>
   );
 }

@@ -22,6 +22,13 @@ export const openApp = async (page: Page) => {
   await expect(page.locator(".track-name-button").first()).toBeVisible();
 };
 
+export const openPatchWorkspaceApp = async (page: Page) => {
+  await clearPersistedProject(page);
+  await page.goto("/patch-workspace");
+  await expect(page.locator(".patch-workspace-shell")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("button", { name: "Back to Composer" })).toBeVisible();
+};
+
 const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canvas");
 
 export const setupMacroAutomationLane = async (page: Page, options?: { settleMs?: number }) => {

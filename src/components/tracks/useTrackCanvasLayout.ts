@@ -20,6 +20,7 @@ export function useTrackCanvasLayout(project: Project): { trackLayouts: TrackLay
 
       if (track.macroPanelExpanded) {
         const volumeLane = getTrackVolumeLane(track);
+        const patchMacros = patch?.ui.macros ?? [];
         if (volumeLane) {
           const volumeLayout = {
             laneId: volumeLane.macroId,
@@ -35,7 +36,7 @@ export function useTrackCanvasLayout(project: Project): { trackLayouts: TrackLay
           automationLanes.push(volumeLayout);
         }
 
-        for (const macro of patch?.ui.macros ?? []) {
+        for (const macro of patchMacros) {
           const lane = getTrackMacroLane(track, macro.id);
           const automated = Boolean(lane);
           const macroLayout = {
@@ -54,6 +55,20 @@ export function useTrackCanvasLayout(project: Project): { trackLayouts: TrackLay
           };
           laneY += macroLayout.height;
           automationLanes.push(macroLayout);
+        }
+
+        if (!volumeLane && patchMacros.length === 0) {
+          automationLanes.push({
+            laneId: `${track.id}:macro-placeholder`,
+            laneType: "macro",
+            macroId: null,
+            name: "",
+            y: laneY,
+            height: AUTOMATION_LANE_COLLAPSED_HEIGHT,
+            expanded: false,
+            automated: false
+          });
+          laneY += AUTOMATION_LANE_COLLAPSED_HEIGHT;
         }
       }
 

@@ -18,24 +18,30 @@ interface MacroPanelProps {
   panelTop: number | null;
   panelHeight: number;
   rows: MacroPanelRow[];
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+  onDoubleClick?: () => void;
 }
 
-export function MacroPanel({ panelTop, panelHeight, rows }: MacroPanelProps) {
-  if (panelTop === null || rows.length === 0) {
+export function MacroPanel({ panelTop, panelHeight, rows, onMouseEnter, onMouseLeave, onDoubleClick }: MacroPanelProps) {
+  if (panelTop === null) {
     return null;
   }
 
   return (
-    <>
-      <div
-        className="track-inspector-panel"
-        style={{
-          top: `${panelTop}px`,
-          height: `${panelHeight}px`
-        }}
-      />
+    <div
+      className="track-macro-panel-area"
+      style={{
+        top: `${panelTop}px`,
+        height: `${panelHeight}px`
+      }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onDoubleClick={onDoubleClick}
+    >
+      <div className="track-inspector-panel" />
       {rows.map((row) => (
-        <div key={row.id} className="track-inspector-row icon-only" style={{ top: `${row.top}px` }}>
+        <div key={row.id} className="track-inspector-row icon-only" style={{ top: `${row.top - panelTop}px` }}>
           <div className="track-inspector-row-actions">
             <button
               type="button"
@@ -59,6 +65,6 @@ export function MacroPanel({ panelTop, panelHeight, rows }: MacroPanelProps) {
           </div>
         </div>
       ))}
-    </>
+    </div>
   );
 }

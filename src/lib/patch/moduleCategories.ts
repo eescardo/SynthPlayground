@@ -1,0 +1,80 @@
+import { PatchModuleCategory, SignalCapability } from "@/types/patch";
+
+export const PATCH_MODULE_CATEGORY_PRIORITY: PatchModuleCategory[] = [
+  "envelope",
+  "source",
+  "processor",
+  "cv",
+  "mix",
+  "host"
+];
+
+export const PATCH_MODULE_CATEGORY_COLORS: Record<PatchModuleCategory, string> = {
+  source: "#6fc6ff",
+  mix: "#a8b5c5",
+  cv: "#7ad488",
+  processor: "#b592ff",
+  envelope: "#ffb46c",
+  host: "#89b6da"
+};
+
+export const PATCH_MODULE_CATEGORY_MUTED_COLORS: Record<PatchModuleCategory, { fill: string; stroke: string; accent: string }> = {
+  source: {
+    fill: "#17354a",
+    stroke: "#3f7290",
+    accent: "#70c1f4"
+  },
+  mix: {
+    fill: "#283341",
+    stroke: "#677588",
+    accent: "#b2bdc9"
+  },
+  cv: {
+    fill: "#183723",
+    stroke: "#427858",
+    accent: "#8cdc9d"
+  },
+  processor: {
+    fill: "#2a2340",
+    stroke: "#6b5b8f",
+    accent: "#c2abff"
+  },
+  envelope: {
+    fill: "#422b1f",
+    stroke: "#8e664b",
+    accent: "#ffc07d"
+  },
+  host: {
+    fill: "#213543",
+    stroke: "#5f8096",
+    accent: "#9fc1d8"
+  }
+};
+
+export const resolvePatchModuleCategory = (categories: PatchModuleCategory[] | undefined): PatchModuleCategory | null => {
+  if (!categories || categories.length === 0) {
+    return null;
+  }
+  for (const category of PATCH_MODULE_CATEGORY_PRIORITY) {
+    if (categories.includes(category)) {
+      return category;
+    }
+  }
+  return categories[0] ?? null;
+};
+
+export const resolvePatchModuleCategoryColor = (categories: PatchModuleCategory[] | undefined): string =>
+  PATCH_MODULE_CATEGORY_COLORS[resolvePatchModuleCategory(categories) ?? "host"];
+
+export const resolveMutedPatchModuleColors = (categories: PatchModuleCategory[] | undefined) =>
+  PATCH_MODULE_CATEGORY_MUTED_COLORS[resolvePatchModuleCategory(categories) ?? "host"];
+
+export const getSignalCapabilityColor = (capability: SignalCapability | undefined) => {
+  if (capability === "AUDIO") {
+    return "#6fc6ff";
+  }
+  if (capability === "CV" || capability === "GATE") {
+    return "#7ad488";
+  }
+  return "#9ec7eb";
+};

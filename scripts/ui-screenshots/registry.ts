@@ -1,5 +1,5 @@
 import { expect, Page } from "@playwright/test";
-import { openApp, savePageScreenshot, setupMacroAutomationLane } from "../ui-capture/common";
+import { openApp, openPatchWorkspaceApp, savePageScreenshot, setupMacroAutomationLane } from "../ui-capture/common";
 import { applySelectionReviewFraming, showSelectionActionsPopover } from "../ui-capture/selectionCapture";
 import { SCREENSHOT_SCENARIO, SCREENSHOT_SCENARIOS, ScreenshotScenario } from "./scenarios";
 
@@ -62,11 +62,11 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
   },
   [SCREENSHOT_SCENARIO.PATCH_EDITOR]: {
     name: SCREENSHOT_SCENARIO.PATCH_EDITOR,
-    description: "Instrument editor and patch area",
+    description: "Dedicated patch workspace view",
     capture: async (page, outputPath) => {
-      await openApp(page);
-      await expect(page.getByRole("heading", { name: "Instrument" })).toBeVisible();
-      await savePageScreenshot(page, outputPath, ".instrument-editor");
+      await openPatchWorkspaceApp(page);
+      await expect(page.locator(".patch-workspace-shell .instrument-editor")).toBeVisible();
+      await savePageScreenshot(page, outputPath, ".patch-workspace-shell");
     }
   },
   [SCREENSHOT_SCENARIO.MACRO_AUTOMATION_LANE]: {
