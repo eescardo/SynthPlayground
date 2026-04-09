@@ -121,7 +121,7 @@ export function TrackHeaderChrome({
 
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as HTMLElement | null;
-      if (target?.closest(".track-patch-summary-popover, .track-instrument-selection")) {
+      if (target?.closest(".track-patch-summary-popover, .track-instrument-selection, .track-macro-panel-area")) {
         return;
       }
       closePatchSummaryPopover();
