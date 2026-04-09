@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
+import { Dispatch, SetStateAction } from "react";
 import { MacroPanel, MacroPanelRow } from "@/components/MacroPanel";
 import { PatchSummaryPopover } from "@/components/PatchSummaryPopover";
 import { TrackVolumePopover } from "@/components/TrackVolumePopover";
@@ -14,6 +14,7 @@ import {
   TrackCanvasPatchActions,
   TrackCanvasTrackActions
 } from "@/components/tracks/trackCanvasTypes";
+import { usePatchSummaryPopover } from "@/components/tracks/usePatchSummaryPopover";
 import { getTrackMacroLane, getTrackVolumeLane } from "@/lib/macroAutomation";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { Project } from "@/types/music";
@@ -58,8 +59,6 @@ const TRACK_INSPECTOR_PANEL_MARGIN_BOTTOM = 6;
 const TRACK_INSPECTOR_ROW_HEIGHT = 20;
 const TRACK_INSPECTOR_ROW_Y_OFFSET = -3;
 const PATCH_SUMMARY_POPOVER_GAP = 8;
-const PATCH_SUMMARY_HOVER_DELAY_MS = 900;
-const PATCH_SUMMARY_LEAVE_DELAY_MS = 140;
 const PATCH_SUMMARY_EXPANDED_MIN_HEIGHT = 184;
 
 export function TrackHeaderChrome({
@@ -81,60 +80,14 @@ export function TrackHeaderChrome({
   patchActions,
   automationActions
 }: TrackHeaderChromeProps) {
-  const [patchSummaryPopover, setPatchSummaryPopover] = useState<{ trackId: string; mode: "teaser" | "expanded" } | null>(null);
-  const hoverOpenTimerRef = useRef<number | null>(null);
-  const hoverCloseTimerRef = useRef<number | null>(null);
-
-  const clearHoverTimers = useCallback(() => {
-    if (hoverOpenTimerRef.current !== null) {
-      window.clearTimeout(hoverOpenTimerRef.current);
-      hoverOpenTimerRef.current = null;
-    }
-    if (hoverCloseTimerRef.current !== null) {
-      window.clearTimeout(hoverCloseTimerRef.current);
-      hoverCloseTimerRef.current = null;
-    }
-  }, []);
-
-  const closePatchSummaryPopover = useCallback(() => {
-    clearHoverTimers();
-    setPatchSummaryPopover(null);
-  }, [clearHoverTimers]);
-
-  useEffect(() => () => clearHoverTimers(), [clearHoverTimers]);
-
-  useEffect(() => {
-    if (patchSummaryPopover && patchSummaryPopover.trackId !== selectedTrackId) {
-      closePatchSummaryPopover();
-    }
-  }, [closePatchSummaryPopover, patchSummaryPopover, selectedTrackId]);
-
-  useEffect(() => {
-    if (!patchSummaryPopover) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        closePatchSummaryPopover();
-      }
-    };
-
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target?.closest(".track-patch-summary-popover, .track-instrument-selection, .track-macro-panel-area")) {
-        return;
-      }
-      closePatchSummaryPopover();
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("pointerdown", onPointerDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("pointerdown", onPointerDown);
-    };
-  }, [closePatchSummaryPopover, patchSummaryPopover]);
+  const {
+    patchSummaryPopover,
+    setPatchSummaryPopover,
+    openExpandedPatchSummary,
+    scheduleTeaserPatchSummary,
+    schedulePatchSummaryDismiss,
+    cancelPatchSummaryDismiss
+  } = usePatchSummaryPopover({ selectedTrackId });
 
   return (
     <div className="track-header-overlays">
@@ -191,68 +144,6 @@ export function TrackHeaderChrome({
           patchSummaryAnchorTop + (patchSummaryAnchorHeight - patchSummaryExpandedHeight) * 0.5;
         const patchSummaryLeft = 170 + PATCH_SUMMARY_POPOVER_GAP;
         const patchInvalid = Boolean(invalidPatchIds?.has(track.instrumentPatchId));
-
-        const openExpandedPatchSummary = () => {
-          clearHoverTimers();
-          if (!selected) {
-            trackActions.onSelectTrack(track.id);
-          }
-          if (!track.macroPanelExpanded) {
-            trackActions.onToggleTrackMacroPanel(track.id);
-          }
-          setPatchSummaryPopover({ trackId: track.id, mode: "expanded" });
-        };
-
-        const scheduleTeaserPatchSummary = () => {
-          if (!selected || !track.macroPanelExpanded || patchSummaryPopover?.mode === "expanded") {
-            return;
-          }
-          if (hoverCloseTimerRef.current !== null) {
-            window.clearTimeout(hoverCloseTimerRef.current);
-            hoverCloseTimerRef.current = null;
-          }
-          if (hasPatchSummaryPopover || hoverOpenTimerRef.current !== null) {
-            return;
-          }
-          hoverOpenTimerRef.current = window.setTimeout(() => {
-            hoverOpenTimerRef.current = null;
-            setPatchSummaryPopover((current) =>
-              current && current.trackId === track.id && current.mode === "expanded"
-                ? current
-                : { trackId: track.id, mode: "teaser" }
-            );
-          }, PATCH_SUMMARY_HOVER_DELAY_MS);
-        };
-
-        const schedulePatchSummaryDismiss = () => {
-          if (hoverOpenTimerRef.current !== null) {
-            window.clearTimeout(hoverOpenTimerRef.current);
-            hoverOpenTimerRef.current = null;
-          }
-          if (!hasPatchSummaryPopover || patchSummaryPopover?.mode !== "teaser") {
-            return;
-          }
-          if (hoverCloseTimerRef.current !== null) {
-            window.clearTimeout(hoverCloseTimerRef.current);
-          }
-          hoverCloseTimerRef.current = window.setTimeout(() => {
-            hoverCloseTimerRef.current = null;
-            setPatchSummaryPopover((current) =>
-              current && current.trackId === track.id && current.mode === "teaser" ? null : current
-            );
-          }, PATCH_SUMMARY_LEAVE_DELAY_MS);
-        };
-
-        const cancelPatchSummaryDismiss = () => {
-          if (hoverOpenTimerRef.current !== null) {
-            window.clearTimeout(hoverOpenTimerRef.current);
-            hoverOpenTimerRef.current = null;
-          }
-          if (hoverCloseTimerRef.current !== null) {
-            window.clearTimeout(hoverCloseTimerRef.current);
-            hoverCloseTimerRef.current = null;
-          }
-        };
 
         const macroPanelRows: MacroPanelRow[] = [];
         if (volumeLane) {
@@ -412,7 +303,13 @@ export function TrackHeaderChrome({
               }}
               onClick={() => {
                 if (patchInvalid) {
-                  openExpandedPatchSummary();
+                  openExpandedPatchSummary({
+                    trackId: track.id,
+                    selected,
+                    macroPanelExpanded: track.macroPanelExpanded,
+                    onSelectTrack: trackActions.onSelectTrack,
+                    onToggleTrackMacroPanel: trackActions.onToggleTrackMacroPanel
+                  });
                 }
               }}
               onChange={(event) => trackActions.onUpdateTrackPatch(track.id, event.target.value)}
@@ -429,9 +326,23 @@ export function TrackHeaderChrome({
                 panelTop={macroPanelShellTop}
                 panelHeight={macroPanelShellHeight}
                 rows={macroPanelRows}
-                onMouseEnter={scheduleTeaserPatchSummary}
-                onMouseLeave={schedulePatchSummaryDismiss}
-                onDoubleClick={openExpandedPatchSummary}
+                onMouseEnter={() =>
+                  scheduleTeaserPatchSummary({
+                    trackId: track.id,
+                    selected,
+                    macroPanelExpanded: track.macroPanelExpanded
+                  })
+                }
+                onMouseLeave={() => schedulePatchSummaryDismiss(track.id)}
+                onDoubleClick={() =>
+                  openExpandedPatchSummary({
+                    trackId: track.id,
+                    selected,
+                    macroPanelExpanded: track.macroPanelExpanded,
+                    onSelectTrack: trackActions.onSelectTrack,
+                    onToggleTrackMacroPanel: trackActions.onToggleTrackMacroPanel
+                  })
+                }
               />
             )}
             {selected && track.macroPanelExpanded && trackPatch && hasPatchSummaryPopover && (
@@ -448,7 +359,7 @@ export function TrackHeaderChrome({
                 onRemove={patchActions.onRequestRemoveSelectedPatch}
                 onOpenWorkspace={patchActions.onOpenSelectedPatchWorkspace}
                 onMouseEnter={cancelPatchSummaryDismiss}
-                onMouseLeave={schedulePatchSummaryDismiss}
+                onMouseLeave={() => schedulePatchSummaryDismiss(track.id)}
               />
             )}
           </div>
