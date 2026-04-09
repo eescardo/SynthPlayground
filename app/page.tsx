@@ -15,7 +15,7 @@ import { TimelineActionsPopoverRequest, TrackCanvas, TrackCanvasSelection } from
 import { TransportBar } from "@/components/TransportBar";
 import { createId } from "@/lib/ids";
 import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
-import { getProjectTimelineEndBeat } from "@/lib/macroAutomation";
+import { getProjectTimelineEndBeat, getTrackPreviewStateAtBeat } from "@/lib/macroAutomation";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import {
   BeatRange,
@@ -259,6 +259,22 @@ export default function HomePage() {
     return getProjectTimelineEndBeat(project);
   }, [project]);
 
+  const resolveTrackPreviewStateAtBeat = useCallback((
+    trackId: string,
+    beat: number,
+    override: { macroId: string; normalized: number }
+  ) => {
+    const track = project.tracks.find((entry) => entry.id === trackId);
+    if (!track) {
+      return null;
+    }
+    const patch = project.patches.find((entry) => entry.id === track.instrumentPatchId);
+    if (!patch) {
+      return null;
+    }
+    return getTrackPreviewStateAtBeat(track, patch, beat, playbackEndBeat, override);
+  }, [playbackEndBeat, project.patches, project.tracks]);
+
   const {
     bindTrackMacroToAutomation,
     unbindTrackMacroFromAutomation,
@@ -271,8 +287,8 @@ export default function HomePage() {
   } = useTrackMacroAutomationActions({
     audioEngineRef,
     commitProjectChange,
-    project,
     previewPitch,
+    resolveTrackPreviewStateAtBeat,
     setRuntimeError
   });
   const {

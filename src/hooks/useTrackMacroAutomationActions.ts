@@ -7,7 +7,7 @@ import {
   createTrackMacroAutomationLane,
   getProjectTimelineEndBeat,
   getTrackMacroLane,
-  getTrackPreviewStateAtBeat,
+  TrackPreviewStateAtBeat,
   TRACK_VOLUME_AUTOMATION_ID,
   removeAutomationLaneKeyframeSide,
   splitAutomationLaneKeyframe,
@@ -25,16 +25,20 @@ type CommitProjectChange = (
 interface UseTrackMacroAutomationActionsParams {
   audioEngineRef: RefObject<AudioEngine | null>;
   commitProjectChange: CommitProjectChange;
-  project: Project;
   previewPitch: string;
+  resolveTrackPreviewStateAtBeat: (
+    trackId: string,
+    beat: number,
+    override: { macroId: string; normalized: number }
+  ) => TrackPreviewStateAtBeat | null;
   setRuntimeError: (message: string | null) => void;
 }
 
 export function useTrackMacroAutomationActions({
   audioEngineRef,
   commitProjectChange,
-  project,
   previewPitch,
+  resolveTrackPreviewStateAtBeat,
   setRuntimeError
 }: UseTrackMacroAutomationActionsParams) {
   const commitTrackMacroAutomationLaneChange = useCallback((
@@ -86,30 +90,17 @@ export function useTrackMacroAutomationActions({
       return;
     }
 
-    const track = project.tracks.find((entry) => entry.id === trackId);
-    if (!track) {
+    const previewState = resolveTrackPreviewStateAtBeat(trackId, beat, { macroId, normalized });
+    if (!previewState) {
       engine.setMacroValue(trackId, macroId, normalized);
       return;
     }
-    const patch = project.patches.find((entry) => entry.id === track.instrumentPatchId);
-    if (!patch) {
-      engine.setMacroValue(trackId, macroId, normalized);
-      return;
-    }
-
-    const previewState = getTrackPreviewStateAtBeat(
-      track,
-      patch,
-      beat,
-      getProjectTimelineEndBeat(project),
-      { macroId, normalized }
-    );
 
     for (const [previewMacroId, previewNormalized] of Object.entries(previewState.macroValues)) {
       engine.setMacroValue(trackId, previewMacroId, previewNormalized);
     }
     engine.setMacroValue(trackId, TRACK_VOLUME_AUTOMATION_ID, previewState.volumeNormalized);
-  }, [audioEngineRef, project]);
+  }, [audioEngineRef, resolveTrackPreviewStateAtBeat]);
 
   const previewTrackMacroAutomation = useCallback((
     trackId: string,
