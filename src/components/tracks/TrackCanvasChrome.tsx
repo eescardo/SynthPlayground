@@ -60,6 +60,7 @@ const TRACK_INSPECTOR_ROW_Y_OFFSET = -3;
 const PATCH_SUMMARY_POPOVER_GAP = 8;
 const PATCH_SUMMARY_HOVER_DELAY_MS = 900;
 const PATCH_SUMMARY_LEAVE_DELAY_MS = 140;
+const PATCH_SUMMARY_EXPANDED_MIN_HEIGHT = 248;
 
 export function TrackHeaderChrome({
   project,
@@ -181,9 +182,13 @@ export function TrackHeaderChrome({
             TRACK_INSPECTOR_PANEL_MARGIN_BOTTOM
         );
         const hasPatchSummaryPopover = patchSummaryPopover?.trackId === track.id;
-        const patchSummaryTop = layout.y + 8;
-        const patchSummaryBottom = macroPanelShellTop !== null ? macroPanelShellTop + macroPanelShellHeight : layout.y + 8 + TRACK_PATCH_CONTROL_SIZE;
-        const patchSummaryHeight = Math.max(TRACK_PATCH_CONTROL_SIZE, patchSummaryBottom - patchSummaryTop);
+        const patchSummaryAnchorTop = layout.y + 8;
+        const patchSummaryAnchorBottom =
+          macroPanelShellTop !== null ? macroPanelShellTop + macroPanelShellHeight : layout.y + 8 + TRACK_PATCH_CONTROL_SIZE;
+        const patchSummaryAnchorHeight = Math.max(TRACK_PATCH_CONTROL_SIZE, patchSummaryAnchorBottom - patchSummaryAnchorTop);
+        const patchSummaryExpandedHeight = Math.max(PATCH_SUMMARY_EXPANDED_MIN_HEIGHT, patchSummaryAnchorHeight);
+        const patchSummaryExpandedTop =
+          patchSummaryAnchorTop + (patchSummaryAnchorHeight - patchSummaryExpandedHeight) * 0.5;
         const patchSummaryLeft = 170 + PATCH_SUMMARY_POPOVER_GAP;
         const patchInvalid = Boolean(invalidPatchIds?.has(track.instrumentPatchId));
 
@@ -435,9 +440,9 @@ export function TrackHeaderChrome({
                 invalid={patchInvalid}
                 canRemove={patchActions.canRemoveSelectedPatch}
                 mode={patchSummaryPopover.mode}
-                top={patchSummaryTop}
+                top={patchSummaryPopover.mode === "expanded" ? patchSummaryExpandedTop : patchSummaryAnchorTop}
                 left={patchSummaryLeft}
-                height={patchSummaryHeight}
+                height={patchSummaryPopover.mode === "expanded" ? patchSummaryExpandedHeight : patchSummaryAnchorHeight}
                 onExpand={() => setPatchSummaryPopover({ trackId: track.id, mode: "expanded" })}
                 onDuplicate={patchActions.onDuplicateSelectedPatch}
                 onRemove={patchActions.onRequestRemoveSelectedPatch}
