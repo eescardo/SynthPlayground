@@ -60,7 +60,7 @@ const getConnectionColor = (capability: SignalCapability | undefined) => {
 };
 
 function PatchCircuitThumbnail({ patch }: { patch: Patch }) {
-  const nodes = patch.layout.nodes.slice(0, 10);
+  const nodes = patch.layout.nodes.slice(0, 12);
   if (nodes.length === 0) {
     return <div className="patch-summary-thumbnail-empty">No graph preview</div>;
   }
