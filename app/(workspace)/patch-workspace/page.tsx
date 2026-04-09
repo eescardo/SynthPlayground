@@ -1,3 +1,9 @@
+"use client";
+
+import { useAppRoot } from "@/components/app/AppRoot";
+import { PatchWorkspaceView } from "@/components/app/PatchWorkspaceView";
+
 export default function PatchWorkspacePage() {
-  return null;
+  const { patchWorkspaceProps } = useAppRoot();
+  return <PatchWorkspaceView {...patchWorkspaceProps} />;
 }
