@@ -242,7 +242,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const selectionLabel = selection.kind === "none" ? null : selection.label;
   const selectionMarkerTrackId = selection.kind === "none" ? null : selection.markerTrackId;
   const selectedNoteKeys = selection.kind === "note" ? selection.content.noteKeys : undefined;
-  const selectedAutomationKeyframeKeys = selection.kind === "note" ? selection.content.automationKeyframeKeys : undefined;
+  const automationKeyframeSelectionKeys = selection.kind === "note" ? selection.content.automationKeyframeKeys : undefined;
   const selectionPopoverLeft = selectionBeatRange
     ? HEADER_WIDTH + selectionBeatRange.endBeat * BEAT_WIDTH + 14
     : 0;
@@ -540,7 +540,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
           {
             hoveredAutomationKeyframe,
             registerHitTargets: true,
-            selectedAutomationKeyframeKeys,
+            automationKeyframeSelectionKeys,
             trackId: track.id,
             width
           },
@@ -602,7 +602,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
           {
             hoveredAutomationKeyframe,
             registerHitTargets: false,
-            selectedAutomationKeyframeKeys,
+            automationKeyframeSelectionKeys,
             trackId: track.id,
             veilTimeline: true,
             width
@@ -674,7 +674,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     project.patches,
     project.tracks,
     selectedNoteKeys,
-    selectedAutomationKeyframeKeys,
+    automationKeyframeSelectionKeys,
     selectionBeatRange,
     selectionMarkerTrackId,
     selectedTrackId,

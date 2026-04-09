@@ -86,7 +86,7 @@ export function renderLaneSpec(
   options: {
     hoveredAutomationKeyframe: HoveredAutomationKeyframe | null;
     registerHitTargets: boolean;
-    selectedAutomationKeyframeKeys?: ReadonlySet<string>;
+    automationKeyframeSelectionKeys?: ReadonlySet<string>;
     trackId: string;
     veilTimeline?: boolean;
     width: number;
@@ -108,7 +108,7 @@ export function renderLaneSpec(
       macroName: spec.name,
       points: spec.points,
       registerHitTargets: options.registerHitTargets,
-      selectedAutomationKeyframeKeys: options.selectedAutomationKeyframeKeys,
+      automationKeyframeSelectionKeys: options.automationKeyframeSelectionKeys,
       trackId: options.trackId,
       veilTimeline: options.veilTimeline,
       width: options.width

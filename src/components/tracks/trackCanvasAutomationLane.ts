@@ -92,7 +92,7 @@ interface RenderAutomationLaneParams {
   macroName: string;
   points: AutomationPoint[];
   registerHitTargets?: boolean;
-  selectedAutomationKeyframeKeys?: ReadonlySet<string>;
+  automationKeyframeSelectionKeys?: ReadonlySet<string>;
   trackId: string;
   veilTimeline?: boolean;
   width: number;
@@ -126,7 +126,7 @@ export function renderAutomationLane({
   macroName,
   points,
   registerHitTargets = true,
-  selectedAutomationKeyframeKeys,
+  automationKeyframeSelectionKeys,
   trackId,
   veilTimeline = false,
   width
@@ -214,7 +214,7 @@ export function renderAutomationLane({
         hoveredAutomationKeyframe.keyframeId === point.id &&
         hoveredAutomationKeyframe.side === "incoming"
           ? colors.noteHoverBorder
-          : selectedAutomationKeyframeKeys?.has(`${trackId}:${macroId}:${point.id}`)
+          : automationKeyframeSelectionKeys?.has(`${trackId}:${macroId}:${point.id}`)
           ? colors.noteHoverBorder
           : colors.automationHandle;
       drawAutomationTriangle(ctx, incomingX, incomingY, "incoming");
@@ -224,7 +224,7 @@ export function renderAutomationLane({
         hoveredAutomationKeyframe.keyframeId === point.id &&
         hoveredAutomationKeyframe.side === "outgoing"
           ? colors.noteHoverBorder
-          : selectedAutomationKeyframeKeys?.has(`${trackId}:${macroId}:${point.id}`)
+          : automationKeyframeSelectionKeys?.has(`${trackId}:${macroId}:${point.id}`)
           ? colors.noteHoverBorder
           : colors.automationHandle;
       drawAutomationTriangle(ctx, outgoingX, outgoingY, "outgoing");
@@ -268,7 +268,7 @@ export function renderAutomationLane({
         hoveredAutomationKeyframe.macroId === macroId &&
         hoveredAutomationKeyframe.keyframeId === point.id
           ? colors.noteHoverBorder
-          : selectedAutomationKeyframeKeys?.has(`${trackId}:${macroId}:${point.id}`)
+          : automationKeyframeSelectionKeys?.has(`${trackId}:${macroId}:${point.id}`)
           ? colors.noteHoverBorder
           : colors.automationHandle;
       ctx.beginPath();
