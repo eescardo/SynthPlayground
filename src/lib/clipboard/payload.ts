@@ -10,6 +10,7 @@ import { Project, Track } from "@/types/music";
 
 const NOTE_CLIPBOARD_TYPE = "synth-playground/note-selection";
 const NOTE_CLIPBOARD_VERSION = 1;
+const EPSILON = 1e-9;
 
 interface ClipboardNoteData {
   pitchStr: string;
@@ -173,6 +174,55 @@ const buildClipboardAutomationLanes = (
     .map((lane) => clipAutomationLaneToBeatRange(lane, range.startBeat, range.endBeat, timelineEndBeat))
     .filter((lane): lane is ClipboardAutomationLaneData => Boolean(lane));
 
+const getClipboardKeyframeOutgoingValue = (keyframe: ClipboardAutomationKeyframeData) =>
+  keyframe.type === "split" ? (keyframe.outgoingValue ?? 0) : (keyframe.value ?? keyframe.outgoingValue ?? 0);
+
+const makeClipboardBoundaryKeyframe = (
+  beat: number,
+  incomingValue: number,
+  outgoingValue: number
+): ClipboardAutomationKeyframeData =>
+  Math.abs(incomingValue - outgoingValue) <= EPSILON
+    ? { beat, type: "whole", value: outgoingValue }
+    : { beat, type: "split", incomingValue, outgoingValue };
+
+const explodeClipboardAutomationLane = (
+  lane: ClipboardAutomationLaneData,
+  iterations: number,
+  beatSpan: number
+): ClipboardAutomationLaneData => {
+  const leadingBoundaryKeyframe = lane.keyframes.find((keyframe) => Math.abs(keyframe.beat) <= EPSILON);
+  const keyframes = [];
+
+  for (let passIndex = 0; passIndex < iterations; passIndex += 1) {
+    const offset = beatSpan * passIndex;
+    for (const keyframe of lane.keyframes) {
+      if (passIndex > 0 && Math.abs(keyframe.beat) <= EPSILON) {
+        continue;
+      }
+      keyframes.push({
+        ...keyframe,
+        beat: keyframe.beat + offset
+      });
+    }
+
+    if (passIndex < iterations - 1) {
+      keyframes.push(
+        makeClipboardBoundaryKeyframe(
+          offset + beatSpan,
+          lane.endValue,
+          leadingBoundaryKeyframe ? getClipboardKeyframeOutgoingValue(leadingBoundaryKeyframe) : lane.startValue
+        )
+      );
+    }
+  }
+
+  return {
+    ...lane,
+    keyframes
+  };
+};
+
 export function buildNoteClipboardPayload(
   project: Project,
   noteSelectionKeys: Iterable<string>,
@@ -256,6 +306,43 @@ export function buildAllTracksClipboardPayload(project: Project, range: BeatRang
         velocity: note.velocity
       })),
       automationLanes: buildClipboardAutomationLanes(track, range, timelineEndBeat)
+    }))
+  };
+}
+
+export function explodeNoteClipboardPayload(payload: NoteClipboardPayload, iterations: number): NoteClipboardPayload | null {
+  if (!Number.isInteger(iterations) || iterations <= 0) {
+    return null;
+  }
+
+  if (iterations === 1) {
+    return {
+      ...payload,
+      tracks: payload.tracks.map((track) => ({
+        ...track,
+        notes: track.notes.map((note) => ({ ...note })),
+        automationLanes: track.automationLanes.map((lane) => ({
+          ...lane,
+          keyframes: lane.keyframes.map((keyframe) => ({ ...keyframe }))
+        }))
+      }))
+    };
+  }
+
+  return {
+    ...payload,
+    beatSpan: payload.beatSpan * iterations,
+    tracks: payload.tracks.map((track) => ({
+      ...track,
+      notes: Array.from({ length: iterations }, (_, passIndex) =>
+        track.notes.map((note) => ({
+          ...note,
+          startBeat: note.startBeat + payload.beatSpan * passIndex
+        }))
+      ).flat(),
+      automationLanes: track.automationLanes.map((lane) =>
+        explodeClipboardAutomationLane(lane, iterations, payload.beatSpan)
+      )
     }))
   };
 }

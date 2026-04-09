@@ -8,6 +8,7 @@ import {
   buildNoteClipboardPayload,
   cutBeatRangeAcrossAllTracks,
   eraseAutomationInRangeForTracks,
+  explodeNoteClipboardPayload,
   getNoteSelectionKey,
   getSelectionSourceTrackId,
   getSelectionBeatRange,
@@ -251,6 +252,49 @@ describe("noteClipboard", () => {
       startBeat: 2,
       durationBeats: 1
     });
+  });
+
+  it("explodes a clipboard payload into repeated note and automation segments", () => {
+    const project = createProject();
+    const payload = buildNoteClipboardPayload(project, [getNoteSelectionKey("track_1", "note_a")]);
+
+    const exploded = explodeNoteClipboardPayload(payload!, 3);
+
+    expect(exploded?.beatSpan).toBe(6);
+    expect(exploded?.tracks).toHaveLength(1);
+    expect(exploded?.tracks[0].notes.map((note) => note.startBeat)).toEqual([0, 2, 4]);
+    expect(exploded?.tracks[0].automationLanes[0]).toMatchObject({
+      startValue: 0.35,
+      endValue: 0.6
+    });
+    expect(exploded?.tracks[0].automationLanes[0].keyframes).toEqual([
+      expect.objectContaining({ beat: 1, type: "whole", value: 0.5 }),
+      expect.objectContaining({ beat: 2, type: "split", incomingValue: 0.6, outgoingValue: 0.35 }),
+      expect.objectContaining({ beat: 3, type: "whole", value: 0.5 }),
+      expect.objectContaining({ beat: 4, type: "split", incomingValue: 0.6, outgoingValue: 0.35 }),
+      expect.objectContaining({ beat: 5, type: "whole", value: 0.5 })
+    ]);
+  });
+
+  it("inserts an exploded all-tracks payload by opening a repeated timeline gap", () => {
+    const project = createProject();
+    const payload = buildAllTracksClipboardPayload(project, { startBeat: 1, endBeat: 4, beatSpan: 3 });
+    const exploded = explodeNoteClipboardPayload(payload!, 2);
+
+    const applied = applyNoteClipboardInsertAllTracks(project, exploded!, 1);
+
+    expect(applied.project.tracks[0].notes).toEqual([
+      expect.objectContaining({ pitchStr: "C4", startBeat: 1, durationBeats: 2 }),
+      expect.objectContaining({ pitchStr: "C4", startBeat: 4, durationBeats: 2 }),
+      expect.objectContaining({ pitchStr: "C4", startBeat: 7, durationBeats: 2 }),
+      expect.objectContaining({ pitchStr: "E4", startBeat: 11, durationBeats: 1 })
+    ]);
+    expect(applied.project.tracks[2].notes).toEqual([
+      expect.objectContaining({ pitchStr: "A3", startBeat: 3, durationBeats: 1 }),
+      expect.objectContaining({ pitchStr: "A3", startBeat: 6, durationBeats: 1 }),
+      expect.objectContaining({ pitchStr: "A3", startBeat: 9, durationBeats: 4 }),
+      expect.objectContaining({ pitchStr: "B3", startBeat: 14, durationBeats: 1 })
+    ]);
   });
 
   it("resolves the source track as the first selected track in song order", () => {

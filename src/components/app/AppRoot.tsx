@@ -8,6 +8,7 @@ import { PatchWorkspaceView } from "@/components/app/PatchWorkspaceView";
 import { PatchRemovalDialogModal, PatchRemovalDialogState } from "@/components/home/PatchRemovalDialogModal";
 import { PitchPickerModal } from "@/components/home/PitchPickerModal";
 import { RecordingDock } from "@/components/home/RecordingDock";
+import { ExplodeSelectionDialog } from "@/components/ExplodeSelectionDialog";
 import { loadDspWasm } from "@/audio/wasmBridge";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
@@ -52,7 +53,11 @@ import { usePlaybackController } from "@/hooks/usePlaybackController";
 import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
 import { useQuickHelpDialog } from "@/hooks/useQuickHelpDialog";
 import { useRecordingController } from "@/hooks/useRecordingController";
-import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
+import {
+  SelectionExplodeMode,
+  SelectionExplodeScope,
+  useSelectionClipboardActions
+} from "@/hooks/useSelectionClipboardActions";
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
 import { useTrackMacroAutomationActions } from "@/hooks/useTrackMacroAutomationActions";
 import { useTrackVolumeAutomationActions } from "@/hooks/useTrackVolumeAutomationActions";
@@ -94,6 +99,12 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
   const [timelineActionsPopover, setTimelineActionsPopover] = useState<TimelineActionsPopoverRequest | null>(null);
   const [selectionActionPopoverMode, setSelectionActionPopoverMode] = useState<"expanded" | "collapsed">("expanded");
+  const [explodeSelectionDialogState, setExplodeSelectionDialogState] = useState<{
+    countText: string;
+    mode: SelectionExplodeMode;
+    scope: SelectionExplodeScope;
+    selectionKind: "note" | "timeline";
+  } | null>(null);
   const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
   const [patchRemovalDialog, setPatchRemovalDialog] = useState<PatchRemovalDialogState | null>(null);
   const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
@@ -495,6 +506,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     cutSelectedNotes,
     deleteAllTracksInSelection,
     deleteSelectedNoteSelection,
+    explodeSelection,
     deleteSelectedNotes
   } = useSelectionClipboardActions({
     clearNoteClipboard,
@@ -588,7 +600,44 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const clearCanvasSelection = useCallback(() => {
     setEditorSelection(clearEditorSelection());
     setSelectionActionPopoverMode("expanded");
+    setExplodeSelectionDialogState(null);
   }, []);
+
+  const closeExplodeSelectionDialog = useCallback(() => {
+    setExplodeSelectionDialogState(null);
+  }, []);
+
+  const openExplodeSelectionDialog = useCallback(() => {
+    if (!selectionBeatRange || editorSelection.kind === "none") {
+      return;
+    }
+
+    setSelectionActionPopoverMode("collapsed");
+    setExplodeSelectionDialogState({
+      countText: "2",
+      mode: "insert",
+      scope: editorSelection.kind === "timeline" ? "all-tracks" : "selected-tracks",
+      selectionKind: editorSelection.kind === "timeline" ? "timeline" : "note"
+    });
+  }, [editorSelection.kind, selectionBeatRange]);
+
+  const confirmExplodeSelection = useCallback(() => {
+    if (!explodeSelectionDialogState) {
+      return;
+    }
+
+    const iterations = Number.parseInt(explodeSelectionDialogState.countText, 10);
+    if (!Number.isInteger(iterations) || iterations <= 0) {
+      return;
+    }
+
+    explodeSelection({
+      iterations,
+      mode: explodeSelectionDialogState.mode,
+      scope: explodeSelectionDialogState.selectionKind === "timeline" ? "all-tracks" : explodeSelectionDialogState.scope
+    });
+    setExplodeSelectionDialogState(null);
+  }, [explodeSelection, explodeSelectionDialogState]);
 
   const setContentSelectionFromCanvas = useCallback((selection: ContentSelection) => {
     setTimelineActionsPopover(null);
@@ -1107,6 +1156,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
       }
       deleteSelectedNoteSelection();
     },
+    onOpenExplodeSelectionDialog: openExplodeSelectionDialog,
     onCopyAllTracksInSelection: () => {
       void copyAllTracksInSelection();
     },
@@ -1242,6 +1292,25 @@ export function AppRoot({ children }: { children: ReactNode }) {
             onSplit={() => applyLoopSettings(loopConflictDialog.nextLoop, { autoSplit: true })}
           />
         )}
+
+        <ExplodeSelectionDialog
+          open={Boolean(explodeSelectionDialogState)}
+          selectionKind={explodeSelectionDialogState?.selectionKind ?? "note"}
+          countText={explodeSelectionDialogState?.countText ?? "2"}
+          scope={explodeSelectionDialogState?.scope ?? "selected-tracks"}
+          mode={explodeSelectionDialogState?.mode ?? "insert"}
+          onClose={closeExplodeSelectionDialog}
+          onConfirm={confirmExplodeSelection}
+          onCountTextChange={(countText) =>
+            setExplodeSelectionDialogState((current) => (current ? { ...current, countText } : current))
+          }
+          onScopeChange={(scope) =>
+            setExplodeSelectionDialogState((current) => (current ? { ...current, scope } : current))
+          }
+          onModeChange={(mode) =>
+            setExplodeSelectionDialogState((current) => (current ? { ...current, mode } : current))
+          }
+        />
 
         <RecordingDock
           open={recording.recordEnabled}

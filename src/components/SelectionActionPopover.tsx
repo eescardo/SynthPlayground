@@ -11,6 +11,7 @@ interface SelectionActionPopoverProps {
   onCut: () => void;
   onCopy: () => void;
   onDelete: () => void;
+  onExplode?: () => void;
   onCutAllTracks: () => void;
   onCopyAllTracks: () => void;
   onDeleteAllTracks: () => void;
@@ -91,6 +92,16 @@ export function SelectionActionPopover(props: SelectionActionPopoverProps) {
       >
         Delete
       </button>
+      {props.onExplode && (
+        <button
+          type="button"
+          onPointerEnter={() => props.onPreviewScopeChange?.("source")}
+          onFocus={() => props.onPreviewScopeChange?.("source")}
+          onClick={props.onExplode}
+        >
+          Explode...
+        </button>
+      )}
 
       <div className="timeline-actions-popover-divider" aria-hidden="true" />
 
