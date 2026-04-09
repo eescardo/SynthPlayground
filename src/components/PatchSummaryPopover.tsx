@@ -20,8 +20,11 @@ interface PatchSummaryPopoverProps {
   onMouseLeave?: () => void;
 }
 
-const THUMBNAIL_NODE_SIZE = 8;
-const THUMBNAIL_PADDING = 18;
+const THUMBNAIL_VIEWBOX_WIDTH = 260;
+const THUMBNAIL_VIEWBOX_HEIGHT = 132;
+const THUMBNAIL_NODE_SIZE = 14;
+const THUMBNAIL_PADDING_X = 18;
+const THUMBNAIL_PADDING_Y = 16;
 
 const PATCH_MODULE_COLOR_PRIORITY: PatchModuleCategory[] = ["envelope", "source", "processor", "cv", "mix", "host"];
 
@@ -66,14 +69,28 @@ function PatchCircuitThumbnail({ patch }: { patch: Patch }) {
   const minY = Math.min(...nodes.map((node) => node.y));
   const maxX = Math.max(...nodes.map((node) => node.x));
   const maxY = Math.max(...nodes.map((node) => node.y));
-  const width = Math.max(1, maxX - minX + THUMBNAIL_PADDING * 2 + THUMBNAIL_NODE_SIZE);
-  const height = Math.max(1, maxY - minY + THUMBNAIL_PADDING * 2 + THUMBNAIL_NODE_SIZE);
+  const spanX = Math.max(1, maxX - minX);
+  const spanY = Math.max(1, maxY - minY);
+  const availableWidth = THUMBNAIL_VIEWBOX_WIDTH - THUMBNAIL_PADDING_X * 2 - THUMBNAIL_NODE_SIZE;
+  const availableHeight = THUMBNAIL_VIEWBOX_HEIGHT - THUMBNAIL_PADDING_Y * 2 - THUMBNAIL_NODE_SIZE;
+  const scale = Math.min(availableWidth / spanX, availableHeight / spanY);
+  const offsetX = THUMBNAIL_PADDING_X + (availableWidth - spanX * scale) * 0.5;
+  const offsetY = THUMBNAIL_PADDING_Y + (availableHeight - spanY * scale) * 0.5;
   const nodeById = new Map(nodes.map((node) => [node.nodeId, node] as const));
   const graphNodeById = new Map(patch.nodes.map((node) => [node.id, node] as const));
   const visibleConnections = patch.connections.filter((connection) => nodeById.has(connection.from.nodeId) && nodeById.has(connection.to.nodeId));
+  const projectPoint = (x: number, y: number) => ({
+    x: offsetX + (x - minX) * scale,
+    y: offsetY + (y - minY) * scale
+  });
 
   return (
-    <svg className="patch-summary-thumbnail" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+    <svg
+      className="patch-summary-thumbnail"
+      viewBox={`0 0 ${THUMBNAIL_VIEWBOX_WIDTH} ${THUMBNAIL_VIEWBOX_HEIGHT}`}
+      preserveAspectRatio="xMidYMid meet"
+      aria-hidden="true"
+    >
       {visibleConnections.map((connection) => {
         const from = nodeById.get(connection.from.nodeId);
         const to = nodeById.get(connection.to.nodeId);
@@ -84,13 +101,15 @@ function PatchCircuitThumbnail({ patch }: { patch: Patch }) {
         const fromSchema = fromNode ? getModuleSchema(fromNode.typeId) : undefined;
         const fromPort = fromSchema?.portsOut.find((port) => port.id === connection.from.portId);
         const capability = fromPort?.capabilities[0];
+        const fromPoint = projectPoint(from.x, from.y);
+        const toPoint = projectPoint(to.x, to.y);
         return (
           <line
             key={connection.id}
-            x1={from.x - minX + THUMBNAIL_PADDING + THUMBNAIL_NODE_SIZE * 0.5}
-            y1={from.y - minY + THUMBNAIL_PADDING + THUMBNAIL_NODE_SIZE * 0.5}
-            x2={to.x - minX + THUMBNAIL_PADDING + THUMBNAIL_NODE_SIZE * 0.5}
-            y2={to.y - minY + THUMBNAIL_PADDING + THUMBNAIL_NODE_SIZE * 0.5}
+            x1={fromPoint.x + THUMBNAIL_NODE_SIZE * 0.5}
+            y1={fromPoint.y + THUMBNAIL_NODE_SIZE * 0.5}
+            x2={toPoint.x + THUMBNAIL_NODE_SIZE * 0.5}
+            y2={toPoint.y + THUMBNAIL_NODE_SIZE * 0.5}
             stroke={getConnectionColor(capability)}
             className="patch-summary-thumbnail-connection"
           />
@@ -99,14 +118,15 @@ function PatchCircuitThumbnail({ patch }: { patch: Patch }) {
       {nodes.map((node) => {
         const graphNode = graphNodeById.get(node.nodeId);
         const schema = graphNode ? getModuleSchema(graphNode.typeId) : undefined;
+        const point = projectPoint(node.x, node.y);
         return (
           <rect
             key={node.nodeId}
-            x={node.x - minX + THUMBNAIL_PADDING}
-            y={node.y - minY + THUMBNAIL_PADDING}
+            x={point.x}
+            y={point.y}
             width={THUMBNAIL_NODE_SIZE}
             height={THUMBNAIL_NODE_SIZE}
-            rx="2"
+            rx="3"
             fill={resolveModuleCategoryColor(schema?.categories)}
             className="patch-summary-thumbnail-node"
           />
@@ -118,6 +138,14 @@ function PatchCircuitThumbnail({ patch }: { patch: Patch }) {
 
 export function PatchSummaryPopover(props: PatchSummaryPopoverProps) {
   const presetStatus = resolvePatchPresetStatus(props.patch);
+  const sourceLabel =
+    presetStatus === "custom"
+      ? "Custom"
+      : presetStatus === "legacy_preset"
+        ? "Legacy Preset"
+        : presetStatus === "preset_update_available"
+          ? "Preset"
+          : "Preset";
   if (props.mode === "teaser") {
     return (
       <div
@@ -142,8 +170,10 @@ export function PatchSummaryPopover(props: PatchSummaryPopoverProps) {
       onPointerDown={(event) => event.stopPropagation()}
     >
       <div className="track-patch-summary-header">
-        <div className="track-patch-summary-title">{props.patch.name}</div>
-        <span className={`track-patch-summary-badge ${presetStatus}`}>{presetStatus === "custom" ? "Custom" : "Preset"}</span>
+        <div className="track-patch-summary-title-group">
+          <div className="track-patch-summary-title">{props.patch.name}</div>
+          <span className={`track-patch-summary-badge ${presetStatus}`}>{sourceLabel}</span>
+        </div>
       </div>
       <div className="track-patch-summary-body">
         <div className="track-patch-summary-main">
