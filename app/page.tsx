@@ -83,12 +83,12 @@ export default function HomePage() {
   const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
   const [patchRemovalDialog, setPatchRemovalDialog] = useState<PatchRemovalDialogState | null>(null);
   const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
+  const [patchWorkspaceOpen, setPatchWorkspaceOpen] = useState(false);
 
   const audioEngineRef = useRef<AudioEngine | null>(null);
   const recordingStopSessionRef = useRef<(finalBeat?: number) => void>(() => {});
   const recordingHandleBeatRef = useRef<(beat: number) => void>(() => {});
   const importInputRef = useRef<HTMLInputElement | null>(null);
-  const instrumentEditorRef = useRef<HTMLDivElement | null>(null);
   const project = projectHistory.current;
   const {
     noteClipboardPayload,
@@ -144,6 +144,19 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const readWorkspaceState = () => {
+      const params = new URLSearchParams(window.location.search);
+      setPatchWorkspaceOpen(params.get("workspace") === "patch");
+    };
+    readWorkspaceState();
+    window.addEventListener("popstate", readWorkspaceState);
+    return () => window.removeEventListener("popstate", readWorkspaceState);
   }, []);
 
   useEffect(() => {
@@ -1010,6 +1023,28 @@ export default function HomePage() {
       .catch((error) => setRuntimeError((error as Error).message));
   }, []);
 
+  const openPatchWorkspace = useCallback(() => {
+    if (typeof window === "undefined") {
+      setPatchWorkspaceOpen(true);
+      return;
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set("workspace", "patch");
+    window.history.pushState({}, "", url);
+    setPatchWorkspaceOpen(true);
+  }, []);
+
+  const closePatchWorkspace = useCallback(() => {
+    if (typeof window === "undefined") {
+      setPatchWorkspaceOpen(false);
+      return;
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete("workspace");
+    window.history.pushState({}, "", url);
+    setPatchWorkspaceOpen(false);
+  }, []);
+
   if (!ready || !selectedTrack || !selectedPatch) {
     return <main className="loading">Loading...</main>;
   }
@@ -1041,7 +1076,7 @@ export default function HomePage() {
       resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset",
     onDuplicateSelectedPatch: duplicatePatchForSelectedTrack,
     onRequestRemoveSelectedPatch: requestRemoveSelectedPatch,
-    onOpenSelectedPatchWorkspace: () => instrumentEditorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    onOpenSelectedPatchWorkspace: openPatchWorkspace
   };
   const trackCanvasAutomationActions = {
     onChangeTrackMacro: changeTrackMacro,
@@ -1136,79 +1171,121 @@ export default function HomePage() {
         }
       />
 
-      <ProjectActionsBar
-        recordingDisabled={recording.recordEnabled}
-        canRemoveTrack={project.tracks.length > 1}
-        onAddTrack={addTrack}
-        onRemoveTrack={removeSelectedTrack}
-        onOpenHelp={openHelp}
-        onExportJson={exportJson}
-        onImportJson={() => importInputRef.current?.click()}
-        onClearProject={() => void resetToProject(createEmptyProject())}
-        onResetToDefaultProject={() => void resetToProject(createDefaultProject())}
-        importInputRef={importInputRef}
-        onImportFile={(file) => {
-          void importJson(file);
-        }}
-      />
+      {!patchWorkspaceOpen && (
+        <ProjectActionsBar
+          recordingDisabled={recording.recordEnabled}
+          canRemoveTrack={project.tracks.length > 1}
+          onAddTrack={addTrack}
+          onRemoveTrack={removeSelectedTrack}
+          onOpenHelp={openHelp}
+          onExportJson={exportJson}
+          onImportJson={() => importInputRef.current?.click()}
+          onClearProject={() => void resetToProject(createEmptyProject())}
+          onResetToDefaultProject={() => void resetToProject(createDefaultProject())}
+          importInputRef={importInputRef}
+          onImportFile={(file) => {
+            void importJson(file);
+          }}
+        />
+      )}
 
       {runtimeError && <p className="error">{runtimeError}</p>}
 
-      <TrackCanvas
-        project={project}
-        invalidPatchIds={invalidPatchIds}
-        selectedTrackId={selectedTrack.id}
-        selection={canvasSelection}
-        playheadBeat={playheadBeat}
-        activeRecordedNotes={recording.activeRecordedNotes}
-        ghostPlayheadBeat={recording.ghostPlayheadBeat ?? undefined}
-        countInLabel={recording.countInLabel ?? undefined}
-        timelineActionsPopoverOpen={Boolean(timelineActionsPopover)}
-        hideSelectionActionPopover={!selectionActionPopoverVisible}
-        onSetPlayheadBeat={setPlayheadFromUser}
-        onRequestTimelineActionsPopover={requestTimelineActionsPopover}
-        trackActions={trackCanvasTrackActions}
-        patchActions={trackCanvasPatchActions}
-        automationActions={trackCanvasAutomationActions}
-        noteActions={trackCanvasNoteActions}
-        selectionActions={trackCanvasSelectionActions}
-      />
+      {!patchWorkspaceOpen ? (
+        <>
+          <TrackCanvas
+            project={project}
+            invalidPatchIds={invalidPatchIds}
+            selectedTrackId={selectedTrack.id}
+            selection={canvasSelection}
+            playheadBeat={playheadBeat}
+            activeRecordedNotes={recording.activeRecordedNotes}
+            ghostPlayheadBeat={recording.ghostPlayheadBeat ?? undefined}
+            countInLabel={recording.countInLabel ?? undefined}
+            timelineActionsPopoverOpen={Boolean(timelineActionsPopover)}
+            hideSelectionActionPopover={!selectionActionPopoverVisible}
+            onSetPlayheadBeat={setPlayheadFromUser}
+            onRequestTimelineActionsPopover={requestTimelineActionsPopover}
+            trackActions={trackCanvasTrackActions}
+            patchActions={trackCanvasPatchActions}
+            automationActions={trackCanvasAutomationActions}
+            noteActions={trackCanvasNoteActions}
+            selectionActions={trackCanvasSelectionActions}
+          />
 
-      {timelineActionsPopover && (
-        <TimelineActionsPopover
-          left={timelineActionsPopover.clientX}
-          top={timelineActionsPopover.clientY + 12}
-          showPasteActions={Boolean(noteClipboardPayload)}
-          showAddStart={!startMarkerAtTimelineBeat}
-          showAddEnd={timelineActionsPopover.beat > 0 && !endMarkerAtTimelineBeat}
-          showExpandLoopToNotes={Boolean(expandableLoopRegion)}
-          startMarkerId={startMarkerAtTimelineBeat?.id}
-          endMarkerId={endMarkerAtTimelineBeat?.id}
-          endRepeatCount={endMarkerAtTimelineBeat?.repeatCount}
-          onPaste={() => applyNoteClipboardPaste("paste", timelineActionsPopover.beat)}
-          onPasteAllTracks={() => applyNoteClipboardPaste("paste-all-tracks", timelineActionsPopover.beat)}
-          onInsert={() => applyNoteClipboardPaste("insert", timelineActionsPopover.beat)}
-          onInsertAllTracks={() => applyNoteClipboardPaste("insert-all-tracks", timelineActionsPopover.beat)}
-          onAddStart={() => addLoopBoundary(timelineActionsPopover.beat, "start")}
-          onAddEnd={() => addLoopBoundary(timelineActionsPopover.beat, "end")}
-          onExpandLoopToNotes={expandSelectedLoopToNotes}
-          onUpdateRepeatCount={(repeatCount) => {
-            if (endMarkerAtTimelineBeat) {
-              updateLoopRepeatCount(endMarkerAtTimelineBeat.id, repeatCount);
-            }
-          }}
-          onRemoveStart={() => {
-            if (startMarkerAtTimelineBeat) {
-              removeLoopBoundary(startMarkerAtTimelineBeat.id);
-            }
-          }}
-          onRemoveEnd={() => {
-            if (endMarkerAtTimelineBeat) {
-              removeLoopBoundary(endMarkerAtTimelineBeat.id);
-            }
-          }}
-          onClose={() => setTimelineActionsPopover(null)}
-        />
+          {timelineActionsPopover && (
+            <TimelineActionsPopover
+              left={timelineActionsPopover.clientX}
+              top={timelineActionsPopover.clientY + 12}
+              showPasteActions={Boolean(noteClipboardPayload)}
+              showAddStart={!startMarkerAtTimelineBeat}
+              showAddEnd={timelineActionsPopover.beat > 0 && !endMarkerAtTimelineBeat}
+              showExpandLoopToNotes={Boolean(expandableLoopRegion)}
+              startMarkerId={startMarkerAtTimelineBeat?.id}
+              endMarkerId={endMarkerAtTimelineBeat?.id}
+              endRepeatCount={endMarkerAtTimelineBeat?.repeatCount}
+              onPaste={() => applyNoteClipboardPaste("paste", timelineActionsPopover.beat)}
+              onPasteAllTracks={() => applyNoteClipboardPaste("paste-all-tracks", timelineActionsPopover.beat)}
+              onInsert={() => applyNoteClipboardPaste("insert", timelineActionsPopover.beat)}
+              onInsertAllTracks={() => applyNoteClipboardPaste("insert-all-tracks", timelineActionsPopover.beat)}
+              onAddStart={() => addLoopBoundary(timelineActionsPopover.beat, "start")}
+              onAddEnd={() => addLoopBoundary(timelineActionsPopover.beat, "end")}
+              onExpandLoopToNotes={expandSelectedLoopToNotes}
+              onUpdateRepeatCount={(repeatCount) => {
+                if (endMarkerAtTimelineBeat) {
+                  updateLoopRepeatCount(endMarkerAtTimelineBeat.id, repeatCount);
+                }
+              }}
+              onRemoveStart={() => {
+                if (startMarkerAtTimelineBeat) {
+                  removeLoopBoundary(startMarkerAtTimelineBeat.id);
+                }
+              }}
+              onRemoveEnd={() => {
+                if (endMarkerAtTimelineBeat) {
+                  removeLoopBoundary(endMarkerAtTimelineBeat.id);
+                }
+              }}
+              onClose={() => setTimelineActionsPopover(null)}
+            />
+          )}
+        </>
+      ) : (
+        <section className="patch-workspace-shell">
+          <div className="patch-workspace-header">
+            <div className="patch-workspace-heading">
+              <button type="button" className="patch-workspace-back-button" onClick={closePatchWorkspace}>
+                Back to Composer
+              </button>
+              <div>
+                <h2>Patch Workspace</h2>
+                <p className="muted">
+                  {selectedTrack.name} • {selectedPatch.name}
+                </p>
+              </div>
+            </div>
+            <button type="button" onClick={openHelp}>Help</button>
+          </div>
+
+          <InstrumentEditor
+            patch={selectedPatch}
+            previewPitch={previewPitch}
+            migrationNotice={migrationNotice}
+            selectedNodeId={selectedNodeId}
+            validationIssues={validationIssues}
+            invalid={selectedPatchHasErrors}
+            onRenamePatch={renameSelectedPatch}
+            onDuplicatePatch={duplicatePatchForSelectedTrack}
+            onUpdatePreset={updatePresetToLatest}
+            canRemovePatch={resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset"}
+            onRequestRemovePatch={requestRemoveSelectedPatch}
+            onOpenPreviewPitchPicker={() => setPreviewPitchPickerOpen(true)}
+            onPreviewNow={() => previewSelectedPatchNow()}
+            onSelectNode={setSelectedNodeId}
+            onApplyOp={applyPatchOp}
+            onExposeMacro={exposePatchMacro}
+          />
+        </section>
       )}
 
       {loopConflictDialog && (
@@ -1233,27 +1310,6 @@ export default function HomePage() {
         }}
         onPressEnd={(pitch) => recording.stopRecordedInput(`pointer:${pitch}`)}
       />
-
-      <div ref={instrumentEditorRef}>
-        <InstrumentEditor
-          patch={selectedPatch}
-          previewPitch={previewPitch}
-          migrationNotice={migrationNotice}
-          selectedNodeId={selectedNodeId}
-          validationIssues={validationIssues}
-          invalid={selectedPatchHasErrors}
-          onRenamePatch={renameSelectedPatch}
-          onDuplicatePatch={duplicatePatchForSelectedTrack}
-          onUpdatePreset={updatePresetToLatest}
-          canRemovePatch={resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset"}
-          onRequestRemovePatch={requestRemoveSelectedPatch}
-          onOpenPreviewPitchPicker={() => setPreviewPitchPickerOpen(true)}
-          onPreviewNow={() => previewSelectedPatchNow()}
-          onSelectNode={setSelectedNodeId}
-          onApplyOp={applyPatchOp}
-          onExposeMacro={exposePatchMacro}
-        />
-      </div>
 
       <QuickHelpDialog keyboardShortcuts={keyboardShortcuts} onClose={closeHelp} open={helpOpen} />
 

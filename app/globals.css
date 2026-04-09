@@ -997,6 +997,41 @@ select {
   min-width: 62px;
 }
 
+.patch-workspace-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  min-height: 0;
+}
+
+.patch-workspace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 14px;
+  border: 1px solid rgba(131, 173, 216, 0.24);
+  background:
+    linear-gradient(180deg, rgba(13, 23, 34, 0.94), rgba(9, 17, 26, 0.96)),
+    radial-gradient(circle at 0% 0%, rgba(96, 158, 224, 0.12), transparent 28%);
+}
+
+.patch-workspace-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.patch-workspace-heading h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.patch-workspace-back-button {
+  white-space: nowrap;
+}
+
 .patch-editor {
   background: rgba(9, 17, 26, 0.9);
   border: 1px solid var(--border);
@@ -1050,6 +1085,20 @@ select {
   padding: 0.6rem;
   max-height: 640px;
   overflow: auto;
+}
+
+.patch-workspace-shell .instrument-editor {
+  padding: 0.9rem;
+  border-radius: 16px;
+}
+
+.patch-workspace-shell .patch-layout {
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+
+.patch-workspace-shell .patch-canvas-scroll,
+.patch-workspace-shell .patch-inspector {
+  max-height: calc(100vh - 270px);
 }
 
 .patch-inspector h3,

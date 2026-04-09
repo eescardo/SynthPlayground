@@ -1,8 +1,9 @@
 "use client";
 
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
+import { getSignalCapabilityColor, resolvePatchModuleCategoryColor } from "@/lib/patch/moduleCategories";
 import { resolvePatchPresetStatus } from "@/lib/patch/source";
-import { Patch, PatchModuleCategory, SignalCapability } from "@/types/patch";
+import { Patch } from "@/types/patch";
 
 interface PatchSummaryPopoverProps {
   patch: Patch;
@@ -25,39 +26,6 @@ const THUMBNAIL_VIEWBOX_HEIGHT = 132;
 const THUMBNAIL_NODE_SIZE = 14;
 const THUMBNAIL_PADDING_X = 18;
 const THUMBNAIL_PADDING_Y = 16;
-
-const PATCH_MODULE_COLOR_PRIORITY: PatchModuleCategory[] = ["envelope", "source", "processor", "cv", "mix", "host"];
-
-const PATCH_MODULE_CATEGORY_COLORS: Record<PatchModuleCategory, string> = {
-  source: "#6fc6ff",
-  mix: "#a8b5c5",
-  cv: "#7ad488",
-  processor: "#b592ff",
-  envelope: "#ffb46c",
-  host: "#89b6da"
-};
-
-const resolveModuleCategoryColor = (moduleCategories: PatchModuleCategory[] | undefined) => {
-  if (!moduleCategories || moduleCategories.length === 0) {
-    return "#d6eafb";
-  }
-  for (const category of PATCH_MODULE_COLOR_PRIORITY) {
-    if (moduleCategories.includes(category)) {
-      return PATCH_MODULE_CATEGORY_COLORS[category];
-    }
-  }
-  return "#d6eafb";
-};
-
-const getConnectionColor = (capability: SignalCapability | undefined) => {
-  if (capability === "AUDIO") {
-    return "#6fc6ff";
-  }
-  if (capability === "CV" || capability === "GATE") {
-    return "#7ad488";
-  }
-  return "#9ec7eb";
-};
 
 function PatchCircuitThumbnail({ patch }: { patch: Patch }) {
   const nodes = patch.layout.nodes.slice(0, 12);
@@ -110,7 +78,7 @@ function PatchCircuitThumbnail({ patch }: { patch: Patch }) {
             y1={fromPoint.y + THUMBNAIL_NODE_SIZE * 0.5}
             x2={toPoint.x + THUMBNAIL_NODE_SIZE * 0.5}
             y2={toPoint.y + THUMBNAIL_NODE_SIZE * 0.5}
-            stroke={getConnectionColor(capability)}
+            stroke={getSignalCapabilityColor(capability)}
             className="patch-summary-thumbnail-connection"
           />
         );
@@ -127,7 +95,7 @@ function PatchCircuitThumbnail({ patch }: { patch: Patch }) {
             width={THUMBNAIL_NODE_SIZE}
             height={THUMBNAIL_NODE_SIZE}
             rx="3"
-            fill={resolveModuleCategoryColor(schema?.categories)}
+            fill={resolvePatchModuleCategoryColor(schema?.categories)}
             className="patch-summary-thumbnail-node"
           />
         );

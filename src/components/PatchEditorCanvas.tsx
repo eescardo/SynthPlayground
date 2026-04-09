@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createId } from "@/lib/ids";
+import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
 import { getModuleSchema, modulePalette } from "@/lib/patch/moduleRegistry";
 import { makeConnectOp } from "@/lib/patch/ops";
 import { PatchValidationIssue, Patch, PortSchema, ParamSchema, ParamValue } from "@/types/patch";
@@ -13,28 +14,15 @@ const NODE_H = 96;
 const NODE_HIT_PADDING = 0;
 const MOVE_CURSOR = "move";
 const MOVE_CURSOR_ACTIVE = "grabbing";
-const COLOR_CAPABILITY_FALLBACK = "#9aa8b4";
 const COLOR_CANVAS_BG = "#0c141d";
 const COLOR_GRID_MAJOR = "#1b2835";
 const COLOR_GRID_MINOR = "#121e28";
-const COLOR_NODE_SELECTED_FILL = "#193f69";
-const COLOR_NODE_HOVER_FILL = "#1b3348";
-const COLOR_NODE_FILL = "#16293a";
 const COLOR_NODE_HOVER_OVERLAY = "rgba(91, 183, 255, 0.08)";
-const COLOR_NODE_SELECTED_STROKE = "#5bb7ff";
-const COLOR_NODE_HOVER_STROKE = "#79c5ff";
-const COLOR_NODE_STROKE = "#315270";
 const COLOR_NODE_TITLE = "#e7f3ff";
 const COLOR_NODE_SUBTITLE = "#8cb3d5";
 const COLOR_PORT_LABEL = "#9ec0df";
 const COLOR_CONNECTION_FALLBACK = "#c7d8e8";
 const COLOR_PENDING_PORT = "#ff5d8f";
-
-const CAPABILITY_COLORS: Record<string, string> = {
-  AUDIO: "#4dc0ff",
-  CV: "#64e283",
-  GATE: "#ffbd44"
-};
 
 interface HitPort {
   nodeId: string;
@@ -55,8 +43,7 @@ interface PatchEditorCanvasProps {
 }
 
 function getCapabilityColor(port: PortSchema): string {
-  const first = port.capabilities[0];
-  return CAPABILITY_COLORS[first] ?? COLOR_CAPABILITY_FALLBACK;
+  return getSignalCapabilityColor(port.capabilities[0]);
 }
 
 function formatBindingValue(value: number) {
@@ -217,13 +204,18 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
 
       const selected = props.selectedNodeId === node.id;
       const hovered = hoveredNodeId === node.id;
-      ctx.fillStyle = selected ? COLOR_NODE_SELECTED_FILL : hovered ? COLOR_NODE_HOVER_FILL : COLOR_NODE_FILL;
+      const moduleColors = resolveMutedPatchModuleColors(schema.categories);
+      ctx.fillStyle = moduleColors.fill;
       ctx.fillRect(x, y, NODE_W, NODE_H);
       if (hovered && !selected) {
         ctx.fillStyle = COLOR_NODE_HOVER_OVERLAY;
         ctx.fillRect(x + 2, y + 2, NODE_W - 4, NODE_H - 4);
       }
-      ctx.strokeStyle = selected ? COLOR_NODE_SELECTED_STROKE : hovered ? COLOR_NODE_HOVER_STROKE : COLOR_NODE_STROKE;
+      ctx.fillStyle = moduleColors.accent;
+      ctx.globalAlpha = selected ? 0.24 : hovered ? 0.18 : 0.12;
+      ctx.fillRect(x, y, NODE_W, 22);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = selected ? moduleColors.accent : hovered ? COLOR_NODE_TITLE : moduleColors.stroke;
       ctx.lineWidth = hovered ? 3 : 2;
       ctx.strokeRect(x, y, NODE_W, NODE_H);
 
@@ -268,7 +260,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       if (!from || !to) continue;
 
       const commonCapability = from.schema.capabilities.find((cap) => to.schema.capabilities.includes(cap)) ?? "AUDIO";
-      ctx.strokeStyle = CAPABILITY_COLORS[commonCapability] ?? COLOR_CONNECTION_FALLBACK;
+      ctx.strokeStyle = getSignalCapabilityColor(commonCapability) ?? COLOR_CONNECTION_FALLBACK;
       ctx.lineWidth = 2;
 
       const middleX = Math.round((from.x + to.x) / 2 / GRID) * GRID;
