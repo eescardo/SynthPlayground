@@ -2,7 +2,7 @@
 
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { resolvePatchPresetStatus } from "@/lib/patch/source";
-import { Patch, SignalCapability } from "@/types/patch";
+import { Patch, PatchModuleCategory, SignalCapability } from "@/types/patch";
 
 interface PatchSummaryPopoverProps {
   patch: Patch;
@@ -23,38 +23,27 @@ interface PatchSummaryPopoverProps {
 const THUMBNAIL_NODE_SIZE = 8;
 const THUMBNAIL_PADDING = 18;
 
-const getModuleCategoryColor = (typeId: string) => {
-  switch (typeId) {
-    case "VCO":
-    case "KarplusStrong":
-    case "Noise":
-    case "SamplePlayer":
-      return "#6fc6ff";
-    case "CVMixer2":
-    case "Mixer4":
-    case "Output":
-      return "#a8b5c5";
-    case "CVScaler":
-    case "CVTranspose":
-    case "LFO":
-    case "NotePitch":
-    case "NoteVelocity":
-    case "ModWheel":
-    case "NoteGate":
-      return "#7ad488";
-    case "VCA":
-    case "VCF":
-    case "Saturation":
-    case "Overdrive":
-    case "Compressor":
-    case "Delay":
-    case "Reverb":
-      return "#b592ff";
-    case "ADSR":
-      return "#ffb46c";
-    default:
-      return "#d6eafb";
+const PATCH_MODULE_COLOR_PRIORITY: PatchModuleCategory[] = ["envelope", "source", "processor", "cv", "mix", "host"];
+
+const PATCH_MODULE_CATEGORY_COLORS: Record<PatchModuleCategory, string> = {
+  source: "#6fc6ff",
+  mix: "#a8b5c5",
+  cv: "#7ad488",
+  processor: "#b592ff",
+  envelope: "#ffb46c",
+  host: "#89b6da"
+};
+
+const resolveModuleCategoryColor = (moduleCategories: PatchModuleCategory[] | undefined) => {
+  if (!moduleCategories || moduleCategories.length === 0) {
+    return "#d6eafb";
   }
+  for (const category of PATCH_MODULE_COLOR_PRIORITY) {
+    if (moduleCategories.includes(category)) {
+      return PATCH_MODULE_CATEGORY_COLORS[category];
+    }
+  }
+  return "#d6eafb";
 };
 
 const getConnectionColor = (capability: SignalCapability | undefined) => {
@@ -109,6 +98,7 @@ function PatchCircuitThumbnail({ patch }: { patch: Patch }) {
       })}
       {nodes.map((node) => {
         const graphNode = graphNodeById.get(node.nodeId);
+        const schema = graphNode ? getModuleSchema(graphNode.typeId) : undefined;
         return (
           <rect
             key={node.nodeId}
@@ -117,7 +107,7 @@ function PatchCircuitThumbnail({ patch }: { patch: Patch }) {
             width={THUMBNAIL_NODE_SIZE}
             height={THUMBNAIL_NODE_SIZE}
             rx="2"
-            fill={getModuleCategoryColor(graphNode?.typeId ?? "")}
+            fill={resolveModuleCategoryColor(schema?.categories)}
             className="patch-summary-thumbnail-node"
           />
         );

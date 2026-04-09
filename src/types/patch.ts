@@ -2,6 +2,7 @@
 export type SignalCapability = "AUDIO" | "CV" | "GATE";
 export type ParamType = "float" | "enum" | "bool";
 export type Unit = "Hz" | "s" | "dB" | "ratio" | "cents" | "linear" | "VperOct" | "ms" | "oct" | "semitones";
+export type PatchModuleCategory = "source" | "mix" | "cv" | "processor" | "envelope" | "host";
 
 export interface ParamSmoothing {
   kind: "one_pole";
@@ -49,6 +50,7 @@ export interface PortSchema {
 
 export interface ModuleTypeSchema {
   typeId: string;
+  categories: PatchModuleCategory[];
   doc: { summary: string };
   hostOnly?: boolean;
   params: ParamSchema[];
