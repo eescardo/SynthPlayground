@@ -242,7 +242,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const selectionLabel = selection.kind === "none" ? null : selection.label;
   const selectionMarkerTrackId = selection.kind === "none" ? null : selection.markerTrackId;
   const selectedNoteKeys = selection.kind === "note" ? selection.content.noteKeys : undefined;
-  const automationKeyframeSelectionKeys = selection.kind === "note" ? selection.content.automationKeyframeKeys : undefined;
+  const automationKeyframeSelectionKeys = selection.kind === "note" ? selection.content.automationKeyframeSelectionKeys : undefined;
   const selectionPopoverLeft = selectionBeatRange
     ? HEADER_WIDTH + selectionBeatRange.endBeat * BEAT_WIDTH + 14
     : 0;
@@ -315,7 +315,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       selection.kind === "note"
         ? {
             noteKeys: selection.content.noteKeys,
-            automationKeyframeKeys: selection.content.automationKeyframeKeys
+            automationKeyframeSelectionKeys: selection.content.automationKeyframeSelectionKeys
           }
         : undefined,
     noteActions,

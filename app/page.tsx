@@ -162,8 +162,8 @@ export default function HomePage() {
   const selectedContent = editorSelection.content;
   const selectedNoteKeySet = useMemo(() => new Set(selectedContent.noteKeys), [selectedContent.noteKeys]);
   const selectedAutomationKeyframeSet = useMemo(
-    () => new Set(selectedContent.automationKeyframeKeys),
-    [selectedContent.automationKeyframeKeys]
+    () => new Set(selectedContent.automationKeyframeSelectionKeys),
+    [selectedContent.automationKeyframeSelectionKeys]
   );
   const noteSelectionBeatRange = useMemo(() => getEditorSelectionBeatRange(project, editorSelection), [editorSelection, project]);
   const hasTimelineRangeSelection = editorSelection.kind === "timeline";
@@ -189,7 +189,7 @@ export default function HomePage() {
         kind: "note",
         content: {
           noteKeys: selectedNoteKeySet,
-          automationKeyframeKeys: selectedAutomationKeyframeSet
+          automationKeyframeSelectionKeys: selectedAutomationKeyframeSet
         },
         beatRange: noteSelectionBeatRange,
         label: noteSelectionTrackLabel,

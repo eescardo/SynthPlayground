@@ -57,7 +57,7 @@ export function useEditorClipboardEvents({
 
       const payload = hasTimelineRangeSelection && selectionBeatRange
         ? buildAllTracksClipboardPayload(project, selectionBeatRange)
-        : buildNoteClipboardPayload(project, contentSelection.noteKeys, contentSelection.automationKeyframeKeys);
+        : buildNoteClipboardPayload(project, contentSelection.noteKeys, contentSelection.automationKeyframeSelectionKeys);
       if (!payload) {
         return;
       }
@@ -76,7 +76,7 @@ export function useEditorClipboardEvents({
 
       const payload = hasTimelineRangeSelection && selectionBeatRange
         ? buildAllTracksClipboardPayload(project, selectionBeatRange)
-        : buildNoteClipboardPayload(project, contentSelection.noteKeys, contentSelection.automationKeyframeKeys);
+        : buildNoteClipboardPayload(project, contentSelection.noteKeys, contentSelection.automationKeyframeSelectionKeys);
       if (!payload) {
         return;
       }

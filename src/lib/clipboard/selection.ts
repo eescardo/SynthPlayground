@@ -8,12 +8,12 @@ export interface BeatRange {
 
 export interface ContentSelection {
   noteKeys: string[];
-  automationKeyframeKeys: string[];
+  automationKeyframeSelectionKeys: string[];
 }
 
 export const EMPTY_CONTENT_SELECTION: ContentSelection = {
   noteKeys: [],
-  automationKeyframeKeys: []
+  automationKeyframeSelectionKeys: []
 };
 
 export function getNoteSelectionKey(trackId: string, noteId: string) {
@@ -172,7 +172,7 @@ export const getSelectedTrackIds = (selection: ContentSelection) => {
       trackIds.add(parsed.trackId);
     }
   }
-  for (const key of selection.automationKeyframeKeys) {
+  for (const key of selection.automationKeyframeSelectionKeys) {
     const parsed = parseAutomationSelectionKey(key);
     if (parsed) {
       trackIds.add(parsed.trackId);

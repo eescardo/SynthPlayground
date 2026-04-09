@@ -6,7 +6,7 @@ export type SelectionBeatRange = { startBeat: number; endBeat: number; beatSpan:
 
 export interface TrackCanvasContentSelection {
   noteKeys: ReadonlySet<string>;
-  automationKeyframeKeys: ReadonlySet<string>;
+  automationKeyframeSelectionKeys: ReadonlySet<string>;
 }
 
 export type TrackCanvasSelection =

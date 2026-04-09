@@ -19,7 +19,7 @@ export interface AppliedNoteClipboardPaste {
   project: Project;
   selection: {
     noteKeys: string[];
-    automationKeyframeKeys: string[];
+    automationKeyframeSelectionKeys: string[];
   };
 }
 
@@ -97,12 +97,12 @@ export function applyNoteClipboardPaste(
 ): AppliedNoteClipboardPaste {
   const startTrackIndex = project.tracks.findIndex((track) => track.id === selectedTrackId);
   if (startTrackIndex < 0 || payload.tracks.length === 0) {
-    return { project, selection: { noteKeys: [], automationKeyframeKeys: [] } };
+    return { project, selection: { noteKeys: [], automationKeyframeSelectionKeys: [] } };
   }
 
   const destinationTracks = project.tracks.slice(startTrackIndex, startTrackIndex + payload.tracks.length);
   if (destinationTracks.length === 0) {
-    return { project, selection: { noteKeys: [], automationKeyframeKeys: [] } };
+    return { project, selection: { noteKeys: [], automationKeyframeSelectionKeys: [] } };
   }
 
   const insertedByTrackId = new Map(
@@ -112,7 +112,7 @@ export function applyNoteClipboardPaste(
   const pasteEndBeat = playheadBeat + payload.beatSpan;
   const selection = {
     noteKeys: [] as string[],
-    automationKeyframeKeys: [] as string[]
+    automationKeyframeSelectionKeys: [] as string[]
   };
   const timelineEndBeat = getProjectTimelineEndBeat(project, pasteEndBeat);
 
@@ -210,7 +210,7 @@ export function applyNoteClipboardInsertAllTracks(
 ): AppliedNoteClipboardPaste {
   const firstTrackId = project.tracks[0]?.id;
   if (!firstTrackId) {
-    return { project, selection: { noteKeys: [], automationKeyframeKeys: [] } };
+    return { project, selection: { noteKeys: [], automationKeyframeSelectionKeys: [] } };
   }
   const timelineEndBeat = getProjectTimelineEndBeat(project);
   const shiftedProject = shiftBeatBoundSongStructureForInsertedGap(

@@ -38,7 +38,7 @@ export const createEmptyEditorSelection = (): EditorSelectionState => ({
 });
 
 export const hasContentSelection = (selection: ContentSelection) =>
-  selection.noteKeys.length > 0 || selection.automationKeyframeKeys.length > 0;
+  selection.noteKeys.length > 0 || selection.automationKeyframeSelectionKeys.length > 0;
 
 export const setEditorContentSelection = (
   current: EditorSelectionState,
@@ -96,12 +96,12 @@ export const getEditorSelectionBeatRange = (project: Project, selection: EditorS
   selection.kind === "timeline"
     ? selection.beatRange
     : selection.kind === "content"
-      ? getSelectionBeatRange(project, selection.content.noteKeys, selection.content.automationKeyframeKeys)
+      ? getSelectionBeatRange(project, selection.content.noteKeys, selection.content.automationKeyframeSelectionKeys)
       : null;
 
 export const getEditorSelectionSourceTrackId = (project: Project, selection: EditorSelectionState): string | null =>
   selection.kind === "content"
-    ? getSelectionSourceTrackId(project, selection.content.noteKeys, selection.content.automationKeyframeKeys)
+    ? getSelectionSourceTrackId(project, selection.content.noteKeys, selection.content.automationKeyframeSelectionKeys)
     : null;
 
 export const filterEditorSelectionToProject = (project: Project, selection: EditorSelectionState): EditorSelectionState => {
@@ -118,7 +118,7 @@ export const filterEditorSelectionToProject = (project: Project, selection: Edit
 
   const nextContent: ContentSelection = {
     noteKeys: selection.content.noteKeys.filter((selectionKey) => existingNoteSelectionKeys.has(selectionKey)),
-    automationKeyframeKeys: selection.content.automationKeyframeKeys.filter((selectionKey) =>
+    automationKeyframeSelectionKeys: selection.content.automationKeyframeSelectionKeys.filter((selectionKey) =>
       existingAutomationSelectionKeys.has(selectionKey)
     )
   };

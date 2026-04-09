@@ -53,7 +53,7 @@ describe("trackCanvasSelection", () => {
     );
 
     expect(resolved.noteKeys).toEqual([]);
-    expect(resolved.automationKeyframeKeys).toEqual(["track_1:macro_cutoff:key_a"]);
+    expect(resolved.automationKeyframeSelectionKeys).toEqual(["track_1:macro_cutoff:key_a"]);
   });
 
   it("selects notes as well once the marquee spans more than one track", () => {
@@ -101,7 +101,7 @@ describe("trackCanvasSelection", () => {
     );
 
     expect(resolved.noteKeys).toEqual(["track_2:note_b"]);
-    expect(resolved.automationKeyframeKeys).toEqual([
+    expect(resolved.automationKeyframeSelectionKeys).toEqual([
       "track_1:macro_cutoff:key_a",
       "track_2:macro_cutoff:key_b"
     ]);

@@ -56,7 +56,7 @@ export function useSelectionClipboardActions({
     selection: ContentSelection,
     options?: { eraseAutomationRange?: BeatRange }
   ) => {
-    if (selection.noteKeys.length === 0 && selection.automationKeyframeKeys.length === 0) {
+    if (selection.noteKeys.length === 0 && selection.automationKeyframeSelectionKeys.length === 0) {
       return;
     }
 
@@ -92,8 +92,8 @@ export function useSelectionClipboardActions({
           nextProject = eraseAutomationInRangeForTracks(nextProject, options.eraseAutomationRange, noteIdsByTrackId.keys());
         }
 
-        if (selection.automationKeyframeKeys.length > 0) {
-          nextProject = deleteSelectedAutomationKeyframes(nextProject, selection.automationKeyframeKeys);
+        if (selection.automationKeyframeSelectionKeys.length > 0) {
+          nextProject = deleteSelectedAutomationKeyframes(nextProject, selection.automationKeyframeSelectionKeys);
         }
 
         return nextProject;
@@ -104,15 +104,15 @@ export function useSelectionClipboardActions({
   }, [commitProjectChange, setContentSelection]);
 
   const copySelectedNotes = useCallback(async () => {
-    const payload = buildNoteClipboardPayload(project, contentSelection.noteKeys, contentSelection.automationKeyframeKeys);
+    const payload = buildNoteClipboardPayload(project, contentSelection.noteKeys, contentSelection.automationKeyframeSelectionKeys);
     if (!payload) {
       return;
     }
     await writeClipboardPayload(payload);
-  }, [contentSelection.automationKeyframeKeys, contentSelection.noteKeys, project, writeClipboardPayload]);
+  }, [contentSelection.automationKeyframeSelectionKeys, contentSelection.noteKeys, project, writeClipboardPayload]);
 
   const cutSelectedNotes = useCallback(async () => {
-    const payload = buildNoteClipboardPayload(project, contentSelection.noteKeys, contentSelection.automationKeyframeKeys);
+    const payload = buildNoteClipboardPayload(project, contentSelection.noteKeys, contentSelection.automationKeyframeSelectionKeys);
     if (!payload) {
       return;
     }

@@ -123,7 +123,7 @@ interface UseTrackCanvasPointerInteractionsParams {
   contentSelection:
     | {
         noteKeys: ReadonlySet<string>;
-        automationKeyframeKeys: ReadonlySet<string>;
+        automationKeyframeSelectionKeys: ReadonlySet<string>;
       }
     | undefined;
   noteActions: TrackCanvasNoteActions;
@@ -288,7 +288,7 @@ export function useTrackCanvasPointerInteractions({
     const automationLaneHit = targets.automationLaneHit;
     const hasActiveSelection =
       Boolean(contentSelection?.noteKeys.size) ||
-      Boolean(contentSelection?.automationKeyframeKeys.size) ||
+      Boolean(contentSelection?.automationKeyframeSelectionKeys.size) ||
       selection.kind === "timeline";
 
     if (y <= RULER_HEIGHT && x >= headerWidth) {
@@ -369,7 +369,7 @@ export function useTrackCanvasPointerInteractions({
     if (targets.hoverTarget === "pitch" && targets.pitchRect && event.button === PRIMARY_POINTER_BUTTON) {
       selectionActions.onSetContentSelection({
         noteKeys: [getNoteSelectionKey(targets.pitchRect.trackId, targets.pitchRect.noteId)],
-        automationKeyframeKeys: []
+        automationKeyframeSelectionKeys: []
       });
       noteActions.onOpenPitchPicker(targets.pitchRect.trackId, targets.pitchRect.noteId);
       setCanvasCursor("pointer");
@@ -443,7 +443,7 @@ export function useTrackCanvasPointerInteractions({
 
       selectionActions.onSetContentSelection({
         noteKeys: [getNoteSelectionKey(targets.noteRect.trackId, targets.noteRect.noteId)],
-        automationKeyframeKeys: []
+        automationKeyframeSelectionKeys: []
       });
       const beat = beatFromX(x);
       const nearRightEdge = x > targets.noteRect.x + targets.noteRect.w - noteResizeHandleWidth;

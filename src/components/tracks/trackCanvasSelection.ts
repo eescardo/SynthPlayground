@@ -59,7 +59,7 @@ export function resolveTrackCanvasSelectionFromRect(
   if (automationOnlySingleTrack) {
     return {
       noteKeys: [],
-      automationKeyframeKeys: automationSelectionKeys
+      automationKeyframeSelectionKeys: automationSelectionKeys
     };
   }
 
@@ -69,6 +69,6 @@ export function resolveTrackCanvasSelectionFromRect(
 
   return {
     noteKeys: noteSelectionKeys,
-    automationKeyframeKeys: automationSelectionKeys
+    automationKeyframeSelectionKeys: automationSelectionKeys
   };
 }
