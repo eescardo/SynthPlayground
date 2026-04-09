@@ -13,7 +13,7 @@ import {
   getSelectionBeatRange,
   parseNoteClipboardPayload,
   serializeNoteClipboardPayload
-} from "@/lib/noteClipboard";
+} from "@/lib/clipboard";
 import { Project } from "@/types/music";
 import { Patch } from "@/types/patch";
 

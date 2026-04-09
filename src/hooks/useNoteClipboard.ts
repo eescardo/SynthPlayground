@@ -5,7 +5,7 @@ import {
   NoteClipboardPayload,
   parseNoteClipboardPayload,
   serializeNoteClipboardPayload
-} from "@/lib/noteClipboard";
+} from "@/lib/clipboard";
 
 export function useNoteClipboard() {
   const [noteClipboardPayload, setNoteClipboardPayload] = useState<NoteClipboardPayload | null>(null);

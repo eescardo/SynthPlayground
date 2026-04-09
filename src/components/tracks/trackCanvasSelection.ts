@@ -1,6 +1,6 @@
 import { AutomationKeyframeRect } from "@/components/tracks/trackCanvasAutomationLane";
 import { TrackLayout } from "@/components/tracks/trackCanvasTypes";
-import { ContentSelection, getAutomationSelectionKey, getNoteSelectionKey } from "@/lib/noteClipboard";
+import { ContentSelection, getAutomationSelectionKey, getNoteSelectionKey } from "@/lib/clipboard";
 
 export interface TrackCanvasNoteSelectionRect {
   trackId: string;

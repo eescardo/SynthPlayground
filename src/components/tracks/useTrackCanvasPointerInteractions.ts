@@ -36,7 +36,7 @@ import {
 } from "@/components/tracks/trackCanvasConstants";
 import { PRIMARY_POINTER_BUTTON, SECONDARY_POINTER_BUTTON } from "@/lib/inputConstants";
 import { createDefaultPlacedNote } from "@/lib/noteDefaults";
-import { EMPTY_CONTENT_SELECTION, getNoteSelectionKey } from "@/lib/noteClipboard";
+import { EMPTY_CONTENT_SELECTION, getNoteSelectionKey } from "@/lib/clipboard";
 import { snapToGrid } from "@/lib/musicTiming";
 import { Project, Track } from "@/types/music";
 import { resolveTrackCanvasSelectionFromRect } from "@/components/tracks/trackCanvasSelection";

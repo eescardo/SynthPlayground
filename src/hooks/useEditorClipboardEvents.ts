@@ -9,7 +9,7 @@ import {
   EMPTY_CONTENT_SELECTION,
   parseNoteClipboardPayload,
   serializeNoteClipboardPayload
-} from "@/lib/noteClipboard";
+} from "@/lib/clipboard";
 import { Project } from "@/types/music";
 
 type CommitProjectChange = (

@@ -4,7 +4,7 @@ import {
   getSelectedAutomationIdsByTrackId,
   getSelectedNoteIdsByTrackId,
   getSelectionBeatRange
-} from "@/lib/noteClipboardSelection";
+} from "@/lib/clipboard/selection";
 import { clipAutomationLaneToBeatRange, ClipboardAutomationKeyframeData, ClipboardAutomationLaneData } from "@/lib/automationTimelineEditing";
 import { Project, Track } from "@/types/music";
 

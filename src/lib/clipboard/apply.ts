@@ -11,8 +11,8 @@ import {
   BeatRange,
   getNoteSelectionKey,
   getSelectedAutomationIdsByTrackId
-} from "@/lib/noteClipboardSelection";
-import { NoteClipboardPayload } from "@/lib/noteClipboardPayload";
+} from "@/lib/clipboard/selection";
+import { NoteClipboardPayload } from "@/lib/clipboard/payload";
 import { Note, Project, Track } from "@/types/music";
 
 export interface AppliedNoteClipboardPaste {

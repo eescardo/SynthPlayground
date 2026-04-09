@@ -31,7 +31,7 @@ import {
   setEditorSelectionActionScopePreview,
   setEditorSelectionMarqueeActive,
   setEditorTimelineSelection
-} from "@/lib/noteClipboard";
+} from "@/lib/clipboard";
 import { clearProject, loadProject, saveProject } from "@/lib/persistence";
 import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";

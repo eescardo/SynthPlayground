@@ -24,16 +24,16 @@ export {
   cutBeatRangeAcrossAllTracks,
   deleteSelectedAutomationKeyframes,
   eraseAutomationInRangeForTracks
-} from "@/lib/noteClipboardApply";
-export type { AppliedNoteClipboardPaste } from "@/lib/noteClipboardApply";
-export type { NoteClipboardPayload, SerializedNoteClipboardPayload } from "@/lib/noteClipboardPayload";
+} from "@/lib/clipboard/apply";
+export type { AppliedNoteClipboardPaste } from "@/lib/clipboard/apply";
+export type { NoteClipboardPayload, SerializedNoteClipboardPayload } from "@/lib/clipboard/payload";
 export {
   buildAllTracksClipboardPayload,
   buildNoteClipboardPayload,
   parseNoteClipboardPayload,
   serializeNoteClipboardPayload
-} from "@/lib/noteClipboardPayload";
-export type { BeatRange, ContentSelection } from "@/lib/noteClipboardSelection";
+} from "@/lib/clipboard/payload";
+export type { BeatRange, ContentSelection } from "@/lib/clipboard/selection";
 export {
   EMPTY_CONTENT_SELECTION,
   getAutomationSelectionKey,
@@ -46,4 +46,4 @@ export {
   getSelectionSourceTrackId,
   parseAutomationSelectionKey,
   parseNoteSelectionKey
-} from "@/lib/noteClipboardSelection";
+} from "@/lib/clipboard/selection";

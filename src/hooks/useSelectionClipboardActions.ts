@@ -15,7 +15,7 @@ import {
   eraseAutomationInRangeForTracks,
   NoteClipboardPayload,
   parseNoteSelectionKey
-} from "@/lib/noteClipboard";
+} from "@/lib/clipboard";
 import { Project } from "@/types/music";
 
 type CommitProjectChange = (

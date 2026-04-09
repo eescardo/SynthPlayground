@@ -1,5 +1,5 @@
 import { AutomationKeyframeSide } from "@/lib/macroAutomation";
-import { ContentSelection } from "@/lib/noteClipboard";
+import { ContentSelection } from "@/lib/clipboard";
 import { Note, Project } from "@/types/music";
 
 export type SelectionBeatRange = { startBeat: number; endBeat: number; beatSpan: number };

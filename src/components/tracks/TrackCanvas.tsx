@@ -46,7 +46,7 @@ import { useTrackCanvasWheelPitchEditing } from "@/components/tracks/useTrackCan
 import { useVolumePopover } from "@/hooks/useVolumePopover";
 import { getLoopMarkerStates } from "@/lib/looping";
 import { getProjectTimelineEndBeat } from "@/lib/macroAutomation";
-import { getNoteSelectionKey } from "@/lib/noteClipboard";
+import { getNoteSelectionKey } from "@/lib/clipboard";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
 import { formatBeatName } from "@/lib/musicTiming";
 import { Note, Track } from "@/types/music";

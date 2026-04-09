@@ -4,7 +4,7 @@ import {
   EMPTY_CONTENT_SELECTION,
   getSelectionBeatRange,
   getSelectionSourceTrackId
-} from "@/lib/noteClipboardSelection";
+} from "@/lib/clipboard/selection";
 import { Project } from "@/types/music";
 
 export type SelectionActionScope = "source" | "all-tracks";
