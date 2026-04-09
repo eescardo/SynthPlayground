@@ -44,6 +44,7 @@ import { pitchToVoct } from "@/lib/pitch";
 import { removeTrackFromProject, renameTrackInProject, switchTrackPatchInProject } from "@/lib/trackEdits";
 import { useNoteEditor } from "@/hooks/useNoteEditor";
 import { useLoopSettings } from "@/hooks/useLoopSettings";
+import { useExplodeSelectionDialog } from "@/hooks/useExplodeSelectionDialog";
 import { useEditorClipboardEvents } from "@/hooks/useEditorClipboardEvents";
 import { useEditorKeyboardShortcuts } from "@/hooks/useEditorKeyboardShortcuts";
 import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
@@ -53,11 +54,7 @@ import { usePlaybackController } from "@/hooks/usePlaybackController";
 import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
 import { useQuickHelpDialog } from "@/hooks/useQuickHelpDialog";
 import { useRecordingController } from "@/hooks/useRecordingController";
-import {
-  SelectionExplodeMode,
-  SelectionExplodeScope,
-  useSelectionClipboardActions
-} from "@/hooks/useSelectionClipboardActions";
+import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
 import { useTrackMacroAutomationActions } from "@/hooks/useTrackMacroAutomationActions";
 import { useTrackVolumeAutomationActions } from "@/hooks/useTrackVolumeAutomationActions";
@@ -99,12 +96,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
   const [timelineActionsPopover, setTimelineActionsPopover] = useState<TimelineActionsPopoverRequest | null>(null);
   const [selectionActionPopoverMode, setSelectionActionPopoverMode] = useState<"expanded" | "collapsed">("expanded");
-  const [explodeSelectionDialogState, setExplodeSelectionDialogState] = useState<{
-    countText: string;
-    mode: SelectionExplodeMode;
-    scope: SelectionExplodeScope;
-    selectionKind: "note" | "timeline";
-  } | null>(null);
   const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
   const [patchRemovalDialog, setPatchRemovalDialog] = useState<PatchRemovalDialogState | null>(null);
   const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
@@ -550,6 +541,20 @@ export function AppRoot({ children }: { children: ReactNode }) {
     setEditorSelection((current) => setEditorSelectionActionScopePreview(current, "source"));
   }, []);
 
+  const {
+    explodeSelectionDialogState,
+    setExplodeSelectionDialogState,
+    closeExplodeSelectionDialog,
+    openExplodeSelectionDialog
+  } = useExplodeSelectionDialog({
+    selectionBeatRange,
+    selectionKind:
+      editorSelection.kind === "content"
+        ? "note"
+        : editorSelection.kind,
+    onCollapseSelectionActionPopover: () => setSelectionActionPopoverMode("collapsed")
+  });
+
   useDismissiblePopover({
     active: selectionActionPopoverAvailable && !selectionActionPopoverCollapsed,
     popoverSelector: ".selection-actions-popover",
@@ -600,26 +605,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const clearCanvasSelection = useCallback(() => {
     setEditorSelection(clearEditorSelection());
     setSelectionActionPopoverMode("expanded");
-    setExplodeSelectionDialogState(null);
-  }, []);
-
-  const closeExplodeSelectionDialog = useCallback(() => {
-    setExplodeSelectionDialogState(null);
-  }, []);
-
-  const openExplodeSelectionDialog = useCallback(() => {
-    if (!selectionBeatRange || editorSelection.kind === "none") {
-      return;
-    }
-
-    setSelectionActionPopoverMode("collapsed");
-    setExplodeSelectionDialogState({
-      countText: "2",
-      mode: "insert",
-      scope: editorSelection.kind === "timeline" ? "all-tracks" : "selected-tracks",
-      selectionKind: editorSelection.kind === "timeline" ? "timeline" : "note"
-    });
-  }, [editorSelection.kind, selectionBeatRange]);
+    closeExplodeSelectionDialog();
+  }, [closeExplodeSelectionDialog]);
 
   const confirmExplodeSelection = useCallback(() => {
     if (!explodeSelectionDialogState) {
