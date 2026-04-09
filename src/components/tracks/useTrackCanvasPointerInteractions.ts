@@ -542,7 +542,12 @@ export function useTrackCanvasPointerInteractions({
       }
       const nextValue = automationValueFromY(y, lane.y, lane.height);
       pendingLaneActionRef.current = { ...pendingLaneAction, value: nextValue };
-      automationActions.onPreviewTrackMacroAutomation(pendingLaneAction.trackId, pendingLaneAction.macroId, nextValue);
+      automationActions.onPreviewTrackMacroAutomation(
+        pendingLaneAction.trackId,
+        pendingLaneAction.macroId,
+        nextValue,
+        { beat: pendingLaneAction.beat }
+      );
       setCanvasCursor("ns-resize");
       return;
     }
@@ -577,7 +582,12 @@ export function useTrackCanvasPointerInteractions({
         return;
       }
       const nextValue = automationValueFromY(y, lane.y, lane.height);
-      automationActions.onPreviewTrackMacroAutomation(automationDrag.trackId, automationDrag.macroId, nextValue);
+      automationActions.onPreviewTrackMacroAutomation(
+        automationDrag.trackId,
+        automationDrag.macroId,
+        nextValue,
+        { beat: automationDrag.beat }
+      );
       if (automationDrag.boundary) {
         automationActions.onUpsertTrackMacroAutomationKeyframe(automationDrag.trackId, automationDrag.macroId, automationDrag.beat, nextValue, { commit: false });
       } else {
@@ -703,7 +713,7 @@ export function useTrackCanvasPointerInteractions({
         pendingLaneAction.trackId,
         pendingLaneAction.macroId,
         pendingLaneAction.value,
-        { retrigger: true }
+        { beat: pendingLaneAction.beat, retrigger: true }
       );
     } else if (pendingLaneAction?.kind === "fixed-slider") {
       automationActions.onChangeTrackMacro(pendingLaneAction.trackId, pendingLaneAction.macroId, fixedLaneValueFromX(x), { commit: true });
@@ -725,7 +735,12 @@ export function useTrackCanvasPointerInteractions({
             { commit: true }
           );
         }
-        automationActions.onPreviewTrackMacroAutomation(automationDrag.trackId, automationDrag.macroId, finalValue, { retrigger: true });
+        automationActions.onPreviewTrackMacroAutomation(
+          automationDrag.trackId,
+          automationDrag.macroId,
+          finalValue,
+          { beat: automationDrag.beat, retrigger: true }
+        );
       }
     }
 

@@ -6,6 +6,7 @@ import {
   TrackMacroAutomationKeyframe,
   TrackMacroAutomationLane
 } from "@/types/music";
+import { Patch } from "@/types/patch";
 
 const clampNormalized = (value: number): number => Math.max(0, Math.min(1, value));
 const EPSILON = 1e-9;
@@ -255,6 +256,34 @@ export const getTrackMacroValueAtBeat = (
   }
 
   return clampNormalized(points[points.length - 1]?.rightValue ?? fallbackValue);
+};
+
+export interface TrackPreviewStateAtBeat {
+  macroValues: Record<string, number>;
+  volumeNormalized: number;
+}
+
+export const getTrackPreviewStateAtBeat = (
+  track: Track,
+  patch: Patch,
+  beat: number,
+  timelineEndBeat: number,
+  override?: { macroId: string; normalized: number }
+): TrackPreviewStateAtBeat => {
+  const macroValues = Object.fromEntries(
+    patch.ui.macros.map((macro) => {
+      const normalized = override?.macroId === macro.id
+        ? clampNormalized(override.normalized)
+        : getTrackMacroValueAtBeat(track, macro.id, macro.defaultNormalized ?? 0.5, beat, timelineEndBeat);
+      return [macro.id, normalized];
+    })
+  );
+
+  const volumeNormalized = override?.macroId === TRACK_VOLUME_AUTOMATION_ID
+    ? clampNormalized(override.normalized)
+    : getTrackMacroValueAtBeat(track, TRACK_VOLUME_AUTOMATION_ID, track.volume / 2, beat, timelineEndBeat);
+
+  return { macroValues, volumeNormalized };
 };
 
 const replaceKeyframe = (lane: TrackMacroAutomationLane, nextKeyframe: TrackMacroAutomationKeyframe): TrackMacroAutomationLane => ({
