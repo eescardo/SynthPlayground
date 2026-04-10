@@ -51,7 +51,7 @@ export function useQuickHelpDialog({
   const patchWorkspaceKeyboardShortcuts = useMemo(() => [{ action: "Help", shortcut: "?" }], []);
   const patchWorkspaceMouseHelpItems = useMemo<Array<{ action: string; description: string }>>(
     () => [
-      { action: "Zoom canvas", description: "Use the mouse wheel or a trackpad scroll gesture over the patch canvas." },
+      { action: "Zoom canvas", description: "Use a trackpad pinch or notched mouse wheel over the patch canvas. Two-finger trackpad scroll pans." },
       { action: "Inspect module face", description: "Click a module, or hover on its face briefly, to open the expanded module face." }
     ],
     []

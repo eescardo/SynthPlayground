@@ -33,11 +33,25 @@ const PORT_ROW_GAP = 16;
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 2.5;
 const ZOOM_WHEEL_SENSITIVITY = 0.0012;
+const MOUSE_WHEEL_ZOOM_DELTA_THRESHOLD = 48;
 const FACE_POPOVER_SCALE = 2.5;
 const FACE_HOVER_DELAY_MS = 900;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function shouldZoomFromWheel(event: WheelEvent, isOverCanvasScroll: boolean) {
+  if (event.ctrlKey) {
+    return true;
+  }
+  if (!isOverCanvasScroll) {
+    return false;
+  }
+  if (event.deltaMode !== 0) {
+    return true;
+  }
+  return Math.abs(event.deltaY) >= MOUSE_WHEEL_ZOOM_DELTA_THRESHOLD && Math.abs(event.deltaX) < 2;
 }
 
 interface HitPort {
@@ -716,7 +730,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       const scrollRect = scrollEl.getBoundingClientRect();
       const target = event.target instanceof Node ? event.target : null;
       const isOverCanvasScroll = target ? scrollEl.contains(target) : false;
-      if (!isOverCanvasScroll && !event.ctrlKey) {
+      if (!shouldZoomFromWheel(event, isOverCanvasScroll)) {
         return;
       }
 
