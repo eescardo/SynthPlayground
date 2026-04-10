@@ -760,6 +760,17 @@ export function AppRoot({ children }: { children: ReactNode }) {
     }
     const affectedTracks = project.tracks.filter((track) => track.instrumentPatchId === selectedTrackPatch.id);
     const fallbackPatchId = project.patches.find((patch) => patch.id !== selectedTrackPatch.id)?.id ?? "";
+    if (affectedTracks.length === 0) {
+      commitProjectChange((current) => ({
+        ...current,
+        patches: current.patches.filter((patch) => patch.id !== selectedTrackPatch.id)
+      }), { actionKey: `patch:${selectedTrackPatch.id}:remove` });
+      if (patchWorkspace.selectedPatchId === selectedTrackPatch.id) {
+        patchWorkspace.setSelectedPatchId(fallbackPatchId || project.patches.find((patch) => patch.id !== selectedTrackPatch.id)?.id);
+      }
+      patchWorkspace.setSelectedNodeId(undefined);
+      return;
+    }
     setPatchRemovalDialog({
       patchId: selectedTrackPatch.id,
       rows: affectedTracks.map((track) => ({
@@ -768,7 +779,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         fallbackPatchId
       }))
     });
-  }, [project.patches, project.tracks, selectedTrackPatch]);
+  }, [commitProjectChange, patchWorkspace, project.patches, project.tracks, selectedTrackPatch]);
 
   const confirmRemovePatch = useCallback(() => {
     if (!patchRemovalDialog) {

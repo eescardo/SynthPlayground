@@ -727,9 +727,8 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           Delete Selected
         </button>
         <button
-          disabled={props.structureLocked || props.patch.nodes.length === 0}
+          disabled={props.patch.nodes.length === 0}
           onClick={() =>
-            !props.structureLocked &&
             props.onApplyOp({
               type: "setNodeLayout",
               nodes: resolveAutoLayoutNodes(props.patch)

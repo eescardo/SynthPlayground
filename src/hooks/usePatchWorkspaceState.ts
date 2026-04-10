@@ -361,6 +361,15 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     }
     const affectedTracks = project.tracks.filter((track) => track.instrumentPatchId === selectedPatch.id);
     const fallbackPatchId = project.patches.find((patch) => patch.id !== selectedPatch.id)?.id ?? "";
+    if (affectedTracks.length === 0) {
+      commitProjectChange((current) => ({
+        ...current,
+        patches: current.patches.filter((patch) => patch.id !== selectedPatch.id)
+      }), { actionKey: `patch:${selectedPatch.id}:remove` });
+      setSelectedPatchId(fallbackPatchId || project.patches.find((patch) => patch.id !== selectedPatch.id)?.id);
+      setSelectedNodeId(undefined);
+      return;
+    }
     setPatchRemovalDialog({
       patchId: selectedPatch.id,
       rows: affectedTracks.map((track) => ({
@@ -369,7 +378,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
         fallbackPatchId
       }))
     });
-  }, [project.patches, project.tracks, selectedPatch, setPatchRemovalDialog]);
+  }, [commitProjectChange, project.patches, project.tracks, selectedPatch, setPatchRemovalDialog]);
 
   return {
     selectedPatch,
