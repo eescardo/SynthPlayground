@@ -35,7 +35,6 @@ const MAX_ZOOM = 2.5;
 const ZOOM_WHEEL_SENSITIVITY = 0.0012;
 const MOUSE_WHEEL_ZOOM_DELTA_THRESHOLD = 48;
 const FACE_POPOVER_SCALE = 2.5;
-const FACE_HOVER_DELAY_MS = 900;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -389,7 +388,6 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const hitPortsRef = useRef<HitPort[]>([]);
   const dragLastLayoutRef = useRef<{ x: number; y: number } | null>(null);
   const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
-  const faceHoverTimerRef = useRef<number | null>(null);
   const pointerDownNodeIdRef = useRef<string | null>(null);
   const pointerMovedRef = useRef(false);
   const [newNodeType, setNewNodeType] = useState(modulePalette[0]?.typeId ?? "VCO");
@@ -568,21 +566,6 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     }
     setFacePopoverNodeId(null);
   }, [facePopoverNodeId, nodeById]);
-
-  useEffect(() => {
-    if (!hoveredNodeId || dragNodeId || facePopoverNodeId === hoveredNodeId) {
-      return;
-    }
-    faceHoverTimerRef.current = window.setTimeout(() => {
-      setFacePopoverNodeId(hoveredNodeId);
-    }, FACE_HOVER_DELAY_MS);
-    return () => {
-      if (faceHoverTimerRef.current !== null) {
-        window.clearTimeout(faceHoverTimerRef.current);
-        faceHoverTimerRef.current = null;
-      }
-    };
-  }, [dragNodeId, facePopoverNodeId, hoveredNodeId]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -874,10 +857,6 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
               onPointerLeave={(event) => {
                 onPointerUp(event);
                 setHoveredNodeId(null);
-                if (faceHoverTimerRef.current !== null) {
-                  window.clearTimeout(faceHoverTimerRef.current);
-                  faceHoverTimerRef.current = null;
-                }
               }}
             />
           </div>

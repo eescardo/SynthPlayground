@@ -52,7 +52,7 @@ export function useQuickHelpDialog({
   const patchWorkspaceMouseHelpItems = useMemo<Array<{ action: string; description: string }>>(
     () => [
       { action: "Zoom canvas", description: "Use a trackpad pinch or notched mouse wheel over the patch canvas. Two-finger trackpad scroll pans." },
-      { action: "Inspect module face", description: "Click a module, or hover on its face briefly, to open the expanded module face." }
+      { action: "Inspect module face", description: "Click a module to open the expanded module face." }
     ],
     []
   );
