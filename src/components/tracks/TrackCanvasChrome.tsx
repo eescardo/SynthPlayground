@@ -15,7 +15,7 @@ import {
   TrackCanvasPatchActions,
   TrackCanvasTrackActions
 } from "@/components/tracks/trackCanvasTypes";
-import { usePatchSummaryPopover } from "@/components/tracks/usePatchSummaryPopover";
+import { usePatchSummaryPopover } from "@/hooks/tracks/usePatchSummaryPopover";
 import { getTrackMacroLane, getTrackVolumeLane } from "@/lib/macroAutomation";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { Project } from "@/types/music";

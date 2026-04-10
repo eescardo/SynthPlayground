@@ -20,8 +20,8 @@ import { createId } from "@/lib/ids";
 import { resolveAutoLayoutNodes } from "@/lib/patch/autoLayout";
 import { getModuleSchema, modulePalette } from "@/lib/patch/moduleRegistry";
 import { makeConnectOp } from "@/lib/patch/ops";
-import { usePatchCanvasZoom } from "@/components/patch/usePatchCanvasZoom";
-import { usePatchModuleFacePopover } from "@/components/patch/usePatchModuleFacePopover";
+import { usePatchCanvasZoom } from "@/hooks/patch/usePatchCanvasZoom";
+import { usePatchModuleFacePopover } from "@/hooks/patch/usePatchModuleFacePopover";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 

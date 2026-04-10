@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
-import { usePatchWorkspaceQuickHelpDialog } from "@/hooks/usePatchWorkspaceQuickHelpDialog";
+import { usePatchWorkspaceQuickHelpDialog } from "@/hooks/patch/usePatchWorkspaceQuickHelpDialog";
 import { Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 

@@ -52,9 +52,9 @@ import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
-import { usePatchWorkspaceState } from "@/hooks/usePatchWorkspaceState";
-import { useTrackMacroAutomationActions } from "@/hooks/useTrackMacroAutomationActions";
-import { useTrackVolumeAutomationActions } from "@/hooks/useTrackVolumeAutomationActions";
+import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
+import { useTrackMacroAutomationActions } from "@/hooks/tracks/useTrackMacroAutomationActions";
+import { useTrackVolumeAutomationActions } from "@/hooks/tracks/useTrackVolumeAutomationActions";
 import { Project } from "@/types/music";
 import { PatchValidationIssue } from "@/types/patch";
 
