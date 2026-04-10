@@ -11,7 +11,6 @@ import { RecordingDock } from "@/components/home/RecordingDock";
 import { ExplodeSelectionDialog } from "@/components/ExplodeSelectionDialog";
 import { loadDspWasm } from "@/audio/wasmBridge";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
-import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { TimelineActionsPopoverRequest, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { createId } from "@/lib/ids";
 import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
@@ -50,7 +49,6 @@ import { useNoteClipboard } from "@/hooks/useNoteClipboard";
 import { usePlatformShortcuts } from "@/hooks/usePlatformShortcuts";
 import { usePlaybackController } from "@/hooks/usePlaybackController";
 import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
-import { useQuickHelpDialog } from "@/hooks/useQuickHelpDialog";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
@@ -103,25 +101,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     clearNoteClipboard,
     syncNoteClipboardPayload
   } = useNoteClipboard();
-  const {
-    allTracksModifierLabel,
-    deleteKeyLabel,
-    isDeleteShortcutKey,
-    primaryModifierLabel
-  } = usePlatformShortcuts();
-  const {
-    closeHelp,
-    colorGlossaryItems,
-    helpOpen,
-    keyboardShortcuts,
-    mouseHelpItems,
-    openComposerHelp,
-    openPatchWorkspaceHelp
-  } = useQuickHelpDialog({
-    allTracksModifierLabel,
-    deleteKeyLabel,
-    primaryModifierLabel
-  });
+  const { isDeleteShortcutKey } = usePlatformShortcuts();
   useEffect(() => {
     let cancelled = false;
 
@@ -642,14 +622,12 @@ export function AppRoot({ children }: { children: ReactNode }) {
     hasPrimarySelection: hasTimelineRangeSelection || hasContentSelection(selectedContent),
     isDeleteShortcutKey,
     onCloseTransientUi: () => {
-      closeHelp();
       setPitchPicker(null);
       patchWorkspace.setPreviewPitchPickerOpen(false);
       setPatchRemovalDialog(null);
       setTimelineActionsPopover(null);
       setEditorSelection(clearEditorSelection());
     },
-    onOpenHelp: openComposerHelp,
     playheadBeat,
     redoProject,
     undoProject
@@ -1018,7 +996,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
       }),
     onAddTrack: addTrack,
     onRemoveTrack: removeSelectedTrack,
-    onOpenHelp: openComposerHelp,
     onExportJson: exportJson,
     onImportJson: () => importInputRef.current?.click(),
     onClearProject: () => void resetToProject(createEmptyProject()),
@@ -1065,7 +1042,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
     canRemovePatch:
       resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset",
     onBackToComposer: patchWorkspace.closePatchWorkspace,
-    onOpenHelp: openPatchWorkspaceHelp,
     onRenamePatch: patchWorkspace.renameSelectedPatch,
     onSelectPatch: patchWorkspace.selectPatchInWorkspace,
     onDuplicatePatch: patchWorkspace.duplicateSelectedPatchInWorkspace,
@@ -1129,14 +1105,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
             }
           }}
           onPressEnd={(pitch) => recording.stopRecordedInput(`pointer:${pitch}`)}
-        />
-
-        <QuickHelpDialog
-          colorGlossaryItems={colorGlossaryItems}
-          keyboardShortcuts={keyboardShortcuts}
-          mouseHelpItems={mouseHelpItems}
-          onClose={closeHelp}
-          open={helpOpen}
         />
 
         <PitchPickerModal

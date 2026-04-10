@@ -2,6 +2,8 @@
 
 import type { ComponentProps } from "react";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
+import { QuickHelpDialog } from "@/components/QuickHelpDialog";
+import { usePatchWorkspaceQuickHelpDialog } from "@/hooks/usePatchWorkspaceQuickHelpDialog";
 import { Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 
@@ -15,7 +17,6 @@ interface PatchWorkspaceViewProps {
   invalid?: boolean;
   canRemovePatch: boolean;
   onBackToComposer: () => void;
-  onOpenHelp: () => void;
   onSelectPatch: (patchId: string) => void;
   onRenamePatch: (name: string) => void;
   onDuplicatePatch: () => void;
@@ -29,6 +30,15 @@ interface PatchWorkspaceViewProps {
 }
 
 export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
+  const {
+    closeHelp,
+    colorGlossaryItems,
+    helpOpen,
+    keyboardShortcuts,
+    mouseHelpItems,
+    openHelp
+  } = usePatchWorkspaceQuickHelpDialog();
+
   return (
     <section className="patch-workspace-shell">
       <div className="patch-workspace-header">
@@ -38,7 +48,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           </button>
           <h2>Patch Workspace</h2>
         </div>
-        <button type="button" onClick={props.onOpenHelp}>Help (?)</button>
+        <button type="button" onClick={openHelp}>Help (?)</button>
       </div>
 
       <InstrumentEditor
@@ -60,6 +70,14 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
         onSelectNode={props.onSelectNode}
         onApplyOp={props.onApplyOp}
         onExposeMacro={props.onExposeMacro}
+      />
+
+      <QuickHelpDialog
+        colorGlossaryItems={colorGlossaryItems}
+        keyboardShortcuts={keyboardShortcuts}
+        mouseHelpItems={mouseHelpItems}
+        onClose={closeHelp}
+        open={helpOpen}
       />
     </section>
   );
