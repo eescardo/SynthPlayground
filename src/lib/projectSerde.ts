@@ -1,6 +1,7 @@
 import { createId } from "@/lib/ids";
 import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping";
 import { sanitizeMacroAutomationMap } from "@/lib/macroAutomation";
+import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch/patchCanvasConstants";
 import { ensurePatchLayout } from "@/lib/patch/autoLayout";
 import { presetPatches } from "@/lib/patch/presets";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
@@ -155,7 +156,10 @@ const sanitizePatch = (raw: unknown, index: number): Patch => {
     nodes: (Array.isArray(patch.nodes) ? patch.nodes : []).map(sanitizePatchNode),
     connections: (Array.isArray(patch.connections) ? patch.connections : []).map(sanitizePatchConnection),
     ui: {
-      macros: (Array.isArray(ui.macros) ? ui.macros : []).map(sanitizePatchMacro)
+      macros: (Array.isArray(ui.macros) ? ui.macros : []).map(sanitizePatchMacro),
+      canvasZoom: asOptionalFiniteNumber(ui.canvasZoom) === undefined
+        ? undefined
+        : clamp(asFiniteNumber(ui.canvasZoom, 1), PATCH_CANVAS_MIN_ZOOM, PATCH_CANVAS_MAX_ZOOM)
     },
     layout: {
       nodes: (Array.isArray(layout.nodes) ? layout.nodes : []).map((entry) => {

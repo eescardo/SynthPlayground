@@ -31,11 +31,26 @@ export interface HitPort {
   kind: "in" | "out";
   x: number;
   y: number;
+  width: number;
+  height: number;
 }
 
 export function resolvePatchCanvasSize(layoutNodes: PatchLayoutNode[]) {
   let maxX = PATCH_CANVAS_MIN_WIDTH;
   let maxY = PATCH_CANVAS_MIN_HEIGHT;
+  for (const layout of layoutNodes) {
+    maxX = Math.max(maxX, layout.x * PATCH_CANVAS_GRID + PATCH_NODE_WIDTH + PATCH_CANVAS_PADDING);
+    maxY = Math.max(maxY, layout.y * PATCH_CANVAS_GRID + PATCH_NODE_HEIGHT + PATCH_CANVAS_PADDING);
+  }
+  return { width: maxX, height: maxY };
+}
+
+export function resolvePatchDiagramSize(layoutNodes: PatchLayoutNode[]) {
+  if (layoutNodes.length === 0) {
+    return resolvePatchCanvasSize(layoutNodes);
+  }
+  let maxX = 0;
+  let maxY = 0;
   for (const layout of layoutNodes) {
     maxX = Math.max(maxX, layout.x * PATCH_CANVAS_GRID + PATCH_NODE_WIDTH + PATCH_CANVAS_PADDING);
     maxY = Math.max(maxY, layout.y * PATCH_CANVAS_GRID + PATCH_NODE_HEIGHT + PATCH_CANVAS_PADDING);
@@ -108,9 +123,14 @@ export function findPatchNodeAtPoint(
 }
 
 export function findPatchPortAtPoint(hitPorts: HitPort[], rawX: number, rawY: number): HitPort | null {
+  const padding = 3;
   for (const port of hitPorts) {
-    const dist = Math.hypot(rawX - port.x, rawY - port.y);
-    if (dist <= 7) {
+    if (
+      rawX >= port.x - padding &&
+      rawX <= port.x + port.width + padding &&
+      rawY >= port.y - port.height / 2 - padding &&
+      rawY <= port.y + port.height / 2 + padding
+    ) {
       return port;
     }
   }
