@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ensurePatchLayout, resolveAutoLayoutNodes } from "@/lib/patch/autoLayout";
+import { padPatch } from "@/lib/patch/presets";
 import { Patch } from "@/types/patch";
 
 const makePatch = (layout: Patch["layout"] = { nodes: [] }): Patch => ({
@@ -81,5 +82,13 @@ describe("patch auto layout", () => {
 
     expect(yByNode.get("a")).toBeLessThan(yByNode.get("b") ?? 0);
     expect(yByNode.get("y")).toBeLessThan(yByNode.get("x") ?? 0);
+  });
+
+  it("places pad envelope near the amplifier instead of as a far-left source", () => {
+    const layout = resolveAutoLayoutNodes(padPatch());
+    const xByNode = new Map(layout.map((node) => [node.nodeId, node.x]));
+
+    expect(xByNode.get("env1")).toBeGreaterThan(xByNode.get("mix1") ?? 0);
+    expect(xByNode.get("env1")).toBeLessThanOrEqual(xByNode.get("vca1") ?? 0);
   });
 });

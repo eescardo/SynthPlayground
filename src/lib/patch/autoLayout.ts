@@ -40,23 +40,7 @@ const getConnectionCapability = (patch: Pick<Patch, "nodes">, connection: Patch[
 };
 
 export function resolveAutoLayoutNodes(patch: Pick<Patch, "nodes" | "connections">): PatchLayoutNode[] {
-  const rankByNodeId = new Map<string, number>(patch.nodes.map((node) => [node.id, 0]));
-  for (let pass = 0; pass < patch.nodes.length; pass += 1) {
-    let changed = false;
-    for (const connection of patch.connections) {
-      if (!rankByNodeId.has(connection.from.nodeId) || !rankByNodeId.has(connection.to.nodeId)) {
-        continue;
-      }
-      const nextRank = (rankByNodeId.get(connection.from.nodeId) ?? 0) + 1;
-      if (nextRank > (rankByNodeId.get(connection.to.nodeId) ?? 0)) {
-        rankByNodeId.set(connection.to.nodeId, nextRank);
-        changed = true;
-      }
-    }
-    if (!changed) {
-      break;
-    }
-  }
+  const rankByNodeId = resolveOutputBackedRanks(patch);
 
   const nodesByRank = new Map<number, PatchNode[]>();
   for (const node of patch.nodes) {
@@ -84,6 +68,50 @@ export function resolveAutoLayoutNodes(patch: Pick<Patch, "nodes" | "connections
     });
   }
   return layout;
+}
+
+function resolveOutputBackedRanks(patch: Pick<Patch, "nodes" | "connections">): Map<string, number> {
+  const nodeIds = new Set(patch.nodes.map((node) => node.id));
+  const predecessorsByNodeId = new Map<string, string[]>();
+  const outgoingCountByNodeId = new Map<string, number>(patch.nodes.map((node) => [node.id, 0]));
+  for (const connection of patch.connections) {
+    if (!nodeIds.has(connection.from.nodeId) || !nodeIds.has(connection.to.nodeId)) {
+      continue;
+    }
+    predecessorsByNodeId.set(connection.to.nodeId, [
+      ...(predecessorsByNodeId.get(connection.to.nodeId) ?? []),
+      connection.from.nodeId
+    ]);
+    outgoingCountByNodeId.set(connection.from.nodeId, (outgoingCountByNodeId.get(connection.from.nodeId) ?? 0) + 1);
+  }
+
+  const sinks = patch.nodes.filter((node) => node.typeId === "Output");
+  const outputNodes = sinks.length > 0 ? sinks : patch.nodes.filter((node) => (outgoingCountByNodeId.get(node.id) ?? 0) === 0);
+  const distanceToSinkByNodeId = new Map<string, number>();
+  const queue = outputNodes.map((node) => {
+    distanceToSinkByNodeId.set(node.id, 0);
+    return node.id;
+  });
+
+  for (let index = 0; index < queue.length; index += 1) {
+    const nodeId = queue[index];
+    const nextDistance = (distanceToSinkByNodeId.get(nodeId) ?? 0) + 1;
+    for (const predecessorId of predecessorsByNodeId.get(nodeId) ?? []) {
+      if ((distanceToSinkByNodeId.get(predecessorId) ?? Number.POSITIVE_INFINITY) <= nextDistance) {
+        continue;
+      }
+      distanceToSinkByNodeId.set(predecessorId, nextDistance);
+      queue.push(predecessorId);
+    }
+  }
+
+  const maxDistance = Math.max(0, ...distanceToSinkByNodeId.values());
+  return new Map(
+    patch.nodes.map((node) => [
+      node.id,
+      distanceToSinkByNodeId.has(node.id) ? maxDistance - (distanceToSinkByNodeId.get(node.id) ?? maxDistance) : 0
+    ])
+  );
 }
 
 function reduceColumnCrossings(
@@ -163,10 +191,37 @@ function getNeighborBarycenter(
     }
     const capability = getConnectionCapability(patch, connection);
     const weight = capability === "AUDIO" ? 5 : 1;
-    weightedSum += neighborIndex * weight;
+    weightedSum += (neighborIndex + getNeighborPortOffset(patch, connection, nodeId)) * weight;
     weightSum += weight;
   }
   return weightSum > 0 ? weightedSum / weightSum : Number.POSITIVE_INFINITY;
+}
+
+function getNeighborPortOffset(
+  patch: Pick<Patch, "nodes">,
+  connection: Patch["connections"][number],
+  nodeId: string
+): number {
+  if (connection.from.nodeId === nodeId) {
+    return getPortOrderOffset(patch, connection.to.nodeId, "in", connection.to.portId);
+  }
+  if (connection.to.nodeId === nodeId) {
+    return getPortOrderOffset(patch, connection.from.nodeId, "out", connection.from.portId);
+  }
+  return 0;
+}
+
+function getPortOrderOffset(
+  patch: Pick<Patch, "nodes">,
+  nodeId: string,
+  kind: "in" | "out",
+  portId: string
+): number {
+  const typeId = patch.nodes.find((node) => node.id === nodeId)?.typeId;
+  const schema = typeId ? getModuleSchema(typeId) : undefined;
+  const ports = kind === "in" ? schema?.portsIn : schema?.portsOut;
+  const index = ports?.findIndex((port) => port.id === portId) ?? -1;
+  return index >= 0 ? index * 0.08 : 0;
 }
 
 function getTargetYSlot(
