@@ -902,6 +902,8 @@ select {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  flex: 1 1 520px;
+  min-width: min(520px, 100%);
 }
 
 .instrument-toolbar-heading {
@@ -959,13 +961,14 @@ select {
 
 .instrument-identity {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.5rem;
 }
 
 .instrument-name-input {
-  min-width: min(320px, 100%);
+  flex: 0 1 320px;
+  min-width: 180px;
   font-size: 1rem;
   font-weight: 700;
 }
