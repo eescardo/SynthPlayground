@@ -30,6 +30,15 @@ const COLOR_PENDING_PORT = "#ff5d8f";
 const NODE_BODY_TOP = 34;
 const PORT_START_Y = 46;
 const PORT_ROW_GAP = 16;
+const MIN_ZOOM = 0.2;
+const MAX_ZOOM = 2.5;
+const ZOOM_WHEEL_SENSITIVITY = 0.0012;
+const FACE_POPOVER_SCALE = 2.5;
+const FACE_HOVER_DELAY_MS = 900;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
 
 interface HitPort {
   nodeId: string;
@@ -208,6 +217,73 @@ function drawGenericModuleFace(
   });
 }
 
+function drawModuleCard(
+  ctx: CanvasRenderingContext2D,
+  patch: Patch,
+  node: PatchNode,
+  schema: NonNullable<ReturnType<typeof getModuleSchema>>,
+  x: number,
+  y: number,
+  options: {
+    hovered: boolean;
+    selected: boolean;
+  }
+) {
+  const moduleColors = resolveMutedPatchModuleColors(schema.categories);
+  ctx.fillStyle = moduleColors.fill;
+  ctx.fillRect(x, y, NODE_W, NODE_H);
+  if (options.hovered && !options.selected) {
+    ctx.fillStyle = COLOR_NODE_HOVER_OVERLAY;
+    ctx.fillRect(x + 2, y + 2, NODE_W - 4, NODE_H - 4);
+  }
+  ctx.fillStyle = moduleColors.accent;
+  ctx.globalAlpha = options.selected ? 0.24 : options.hovered ? 0.18 : 0.12;
+  ctx.fillRect(x, y, NODE_W, NODE_BODY_TOP - 8);
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = options.selected ? moduleColors.accent : options.hovered ? COLOR_NODE_TITLE : moduleColors.stroke;
+  ctx.lineWidth = options.hovered ? 3 : 2;
+  ctx.strokeRect(x, y, NODE_W, NODE_H);
+
+  ctx.fillStyle = COLOR_NODE_TITLE;
+  ctx.font = "13px 'Trebuchet MS', 'Segoe UI', sans-serif";
+  ctx.fillText(node.typeId, x + 10, y + 18);
+  const titleWidth = ctx.measureText(node.typeId).width;
+  ctx.fillStyle = COLOR_NODE_SUBTITLE;
+  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillText(node.id, x + 18 + titleWidth, y + 18);
+
+  if (node.typeId === "ADSR") {
+    drawAdsrModuleFace(ctx, patch, node, schema.params, x, y, moduleColors.accent);
+  } else {
+    drawGenericModuleFace(ctx, node, schema.params, x, y);
+  }
+
+  schema.portsIn.forEach((port, index) => {
+    const py = y + PORT_START_Y + index * PORT_ROW_GAP;
+    const px = x;
+    ctx.fillStyle = getCapabilityColor(port);
+    ctx.beginPath();
+    ctx.arc(px, py, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = COLOR_PORT_LABEL;
+    ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.fillText(port.id, px + 8, py + 3);
+  });
+
+  schema.portsOut.forEach((port, index) => {
+    const py = y + PORT_START_Y + index * PORT_ROW_GAP;
+    const px = x + NODE_W;
+    ctx.fillStyle = getCapabilityColor(port);
+    ctx.beginPath();
+    ctx.arc(px, py, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = COLOR_PORT_LABEL;
+    ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+    const textWidth = ctx.measureText(port.id).width;
+    ctx.fillText(port.id, px - 8 - textWidth, py + 3);
+  });
+}
+
 function MacroBindingDetails(props: {
   patch: Patch;
   nodeId: string;
@@ -294,13 +370,19 @@ function ParamValueControl(props: {
 
 export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const hitPortsRef = useRef<HitPort[]>([]);
   const dragLastLayoutRef = useRef<{ x: number; y: number } | null>(null);
   const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
+  const faceHoverTimerRef = useRef<number | null>(null);
+  const pointerDownNodeIdRef = useRef<string | null>(null);
+  const pointerMovedRef = useRef(false);
   const [newNodeType, setNewNodeType] = useState(modulePalette[0]?.typeId ?? "VCO");
   const [pendingFromPort, setPendingFromPort] = useState<HitPort | null>(null);
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [facePopoverNodeId, setFacePopoverNodeId] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1);
 
   const layoutByNode = useMemo(() => {
     return new Map(props.patch.layout.nodes.map((node) => [node.nodeId, node] as const));
@@ -316,6 +398,21 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     }
     return { width: maxX, height: maxY };
   }, [props.patch.layout.nodes]);
+
+  const getFacePopoverRect = useCallback((nodeId: string) => {
+    const layout = layoutByNode.get(nodeId);
+    if (!layout) return null;
+    const width = NODE_W * FACE_POPOVER_SCALE;
+    const height = NODE_H * FACE_POPOVER_SCALE;
+    const centerX = layout.x * GRID + NODE_W / 2;
+    const centerY = layout.y * GRID + NODE_H / 2;
+    return {
+      x: Math.max(8, Math.min(canvasSize.width - width - 8, centerX - width / 2)),
+      y: Math.max(8, Math.min(canvasSize.height - height - 8, centerY - height / 2)),
+      width,
+      height
+    };
+  }, [canvasSize.height, canvasSize.width, layoutByNode]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -393,60 +490,9 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       const x = layout.x * GRID;
       const y = layout.y * GRID;
 
-      const selected = props.selectedNodeId === node.id;
-      const hovered = hoveredNodeId === node.id;
-      const moduleColors = resolveMutedPatchModuleColors(schema.categories);
-      ctx.fillStyle = moduleColors.fill;
-      ctx.fillRect(x, y, NODE_W, NODE_H);
-      if (hovered && !selected) {
-        ctx.fillStyle = COLOR_NODE_HOVER_OVERLAY;
-        ctx.fillRect(x + 2, y + 2, NODE_W - 4, NODE_H - 4);
-      }
-      ctx.fillStyle = moduleColors.accent;
-      ctx.globalAlpha = selected ? 0.24 : hovered ? 0.18 : 0.12;
-      ctx.fillRect(x, y, NODE_W, NODE_BODY_TOP - 8);
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = selected ? moduleColors.accent : hovered ? COLOR_NODE_TITLE : moduleColors.stroke;
-      ctx.lineWidth = hovered ? 3 : 2;
-      ctx.strokeRect(x, y, NODE_W, NODE_H);
-
-      ctx.fillStyle = COLOR_NODE_TITLE;
-      ctx.font = "13px 'Trebuchet MS', 'Segoe UI', sans-serif";
-      ctx.fillText(node.typeId, x + 10, y + 18);
-      const titleWidth = ctx.measureText(node.typeId).width;
-      ctx.fillStyle = COLOR_NODE_SUBTITLE;
-      ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-      ctx.fillText(node.id, x + 18 + titleWidth, y + 18);
-
-      if (node.typeId === "ADSR") {
-        drawAdsrModuleFace(ctx, props.patch, node, schema.params, x, y, moduleColors.accent);
-      } else {
-        drawGenericModuleFace(ctx, node, schema.params, x, y);
-      }
-
-      schema.portsIn.forEach((port, index) => {
-        const py = y + PORT_START_Y + index * PORT_ROW_GAP;
-        const px = x;
-        ctx.fillStyle = getCapabilityColor(port);
-        ctx.beginPath();
-        ctx.arc(px, py, 5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = COLOR_PORT_LABEL;
-        ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-        ctx.fillText(port.id, px + 8, py + 3);
-      });
-
-      schema.portsOut.forEach((port, index) => {
-        const py = y + PORT_START_Y + index * PORT_ROW_GAP;
-        const px = x + NODE_W;
-        ctx.fillStyle = getCapabilityColor(port);
-        ctx.beginPath();
-        ctx.arc(px, py, 5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = COLOR_PORT_LABEL;
-        ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-        const textWidth = ctx.measureText(port.id).width;
-        ctx.fillText(port.id, px - 8 - textWidth, py + 3);
+      drawModuleCard(ctx, props.patch, node, schema, x, y, {
+        hovered: hoveredNodeId === node.id,
+        selected: props.selectedNodeId === node.id
       });
     });
 
@@ -461,16 +507,72 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       }
     }
 
+    if (facePopoverNodeId) {
+      const node = nodeById.get(facePopoverNodeId);
+      const schema = node ? getModuleSchema(node.typeId) : undefined;
+      const rect = getFacePopoverRect(facePopoverNodeId);
+      if (node && schema && rect) {
+        ctx.save();
+        ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
+        ctx.shadowBlur = 24;
+        ctx.shadowOffsetY = 12;
+        ctx.fillStyle = "rgba(4, 10, 17, 0.78)";
+        ctx.fillRect(rect.x - 10, rect.y - 10, rect.width + 20, rect.height + 20);
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(rect.x, rect.y);
+        ctx.scale(FACE_POPOVER_SCALE, FACE_POPOVER_SCALE);
+        drawModuleCard(ctx, props.patch, node, schema, 0, 0, {
+          hovered: false,
+          selected: true
+        });
+        ctx.restore();
+      }
+    }
+
     hitPortsRef.current = [];
     for (const [key, value] of portPositions.entries()) {
       const [nodeId, kind, portId] = key.split(":");
       hitPortsRef.current.push({ nodeId, kind: kind as "in" | "out", portId, x: value.x, y: value.y });
     }
-  }, [canvasSize, hoveredNodeId, layoutByNode, pendingFromPort, props.patch, props.selectedNodeId]);
+  }, [canvasSize, facePopoverNodeId, getFacePopoverRect, hoveredNodeId, layoutByNode, nodeById, pendingFromPort, props.patch, props.selectedNodeId]);
 
   useEffect(() => {
     draw();
   }, [draw]);
+
+  useEffect(() => {
+    if (!facePopoverNodeId || nodeById.has(facePopoverNodeId)) {
+      return;
+    }
+    setFacePopoverNodeId(null);
+  }, [facePopoverNodeId, nodeById]);
+
+  useEffect(() => {
+    if (!hoveredNodeId || dragNodeId || facePopoverNodeId === hoveredNodeId) {
+      return;
+    }
+    faceHoverTimerRef.current = window.setTimeout(() => {
+      setFacePopoverNodeId(hoveredNodeId);
+    }, FACE_HOVER_DELAY_MS);
+    return () => {
+      if (faceHoverTimerRef.current !== null) {
+        window.clearTimeout(faceHoverTimerRef.current);
+        faceHoverTimerRef.current = null;
+      }
+    };
+  }, [dragNodeId, facePopoverNodeId, hoveredNodeId]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setFacePopoverNodeId(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const pointerToGrid = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -521,6 +623,23 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
 
   const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const pos = pointerToGrid(event);
+    pointerDownNodeIdRef.current = null;
+    pointerMovedRef.current = false;
+    if (facePopoverNodeId) {
+      const rect = getFacePopoverRect(facePopoverNodeId);
+      const insidePopover =
+        rect &&
+        pos.rawX >= rect.x &&
+        pos.rawX <= rect.x + rect.width &&
+        pos.rawY >= rect.y &&
+        pos.rawY <= rect.y + rect.height;
+      if (!insidePopover) {
+        setFacePopoverNodeId(null);
+      } else {
+        return;
+      }
+    }
+
     const hitPort = getPortAtPointer(pos.rawX, pos.rawY);
 
     if (hitPort) {
@@ -540,6 +659,8 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     if (hitNodeId) {
       props.onSelectNode(hitNodeId);
       setDragNodeId(hitNodeId);
+      pointerDownNodeIdRef.current = hitNodeId;
+      pointerMovedRef.current = false;
       const layout = layoutByNode.get(hitNodeId);
       dragLastLayoutRef.current = layout ? { x: layout.x, y: layout.y } : null;
       dragPointerOffsetRef.current = layout
@@ -552,7 +673,31 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     } else {
       props.onSelectNode(undefined);
       setPendingFromPort(null);
+      pointerDownNodeIdRef.current = null;
+      pointerMovedRef.current = false;
     }
+  };
+
+  const onCanvasWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const scrollEl = scrollRef.current;
+    if (!scrollEl) {
+      return;
+    }
+    const rect = scrollEl.getBoundingClientRect();
+    const localX = event.clientX - rect.left;
+    const localY = event.clientY - rect.top;
+    const canvasX = (scrollEl.scrollLeft + localX) / zoom;
+    const canvasY = (scrollEl.scrollTop + localY) / zoom;
+    const nextZoom = clamp(zoom * Math.exp(-event.deltaY * ZOOM_WHEEL_SENSITIVITY), MIN_ZOOM, MAX_ZOOM);
+    if (Math.abs(nextZoom - zoom) < 0.001) {
+      return;
+    }
+    setZoom(nextZoom);
+    window.requestAnimationFrame(() => {
+      scrollEl.scrollLeft = canvasX * nextZoom - localX;
+      scrollEl.scrollTop = canvasY * nextZoom - localY;
+    });
   };
 
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -572,6 +717,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       return;
     }
     dragLastLayoutRef.current = nextLayout;
+    pointerMovedRef.current = true;
     props.onApplyOp({
       type: "moveNode",
       nodeId: dragNodeId,
@@ -580,6 +726,8 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   };
 
   const onPointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const clickedNodeId = pointerDownNodeIdRef.current;
+    const moved = pointerMovedRef.current;
     if (dragNodeId) {
       try {
         event.currentTarget.releasePointerCapture(event.pointerId);
@@ -589,7 +737,12 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     }
     dragLastLayoutRef.current = null;
     dragPointerOffsetRef.current = null;
+    pointerDownNodeIdRef.current = null;
+    pointerMovedRef.current = false;
     setDragNodeId(null);
+    if (clickedNodeId && !moved) {
+      setFacePopoverNodeId(clickedNodeId);
+    }
   };
 
   const selectedNode = props.selectedNodeId ? nodeById.get(props.selectedNodeId) : undefined;
@@ -650,17 +803,19 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
         </button>
         {props.structureLocked && <span className="muted">Preset structure is locked. Move nodes for clarity or edit macros.</span>}
         {pendingFromPort && <span className="muted">Select input port to complete connection.</span>}
+        <span className="patch-zoom-readout">Zoom {Math.round(zoom * 100)}%</span>
       </div>
 
       <div className="patch-layout">
         <div className="patch-canvas-shell">
-          <div className="patch-canvas-scroll">
+          <div className="patch-canvas-scroll" ref={scrollRef} onWheel={onCanvasWheel}>
             <canvas
               ref={canvasRef}
               width={canvasSize.width}
               height={canvasSize.height}
               style={{
-                width: `${canvasSize.width}px`,
+                width: `${canvasSize.width * zoom}px`,
+                height: `${canvasSize.height * zoom}px`,
                 cursor: dragNodeId ? MOVE_CURSOR_ACTIVE : hoveredNodeId ? MOVE_CURSOR : "default"
               }}
               onPointerDown={onPointerDown}
@@ -669,6 +824,10 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
               onPointerLeave={(event) => {
                 onPointerUp(event);
                 setHoveredNodeId(null);
+                if (faceHoverTimerRef.current !== null) {
+                  window.clearTimeout(faceHoverTimerRef.current);
+                  faceHoverTimerRef.current = null;
+                }
               }}
             />
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PATCH_MODULE_CATEGORY_COLORS } from "@/lib/patch/moduleCategories";
 
 interface UseQuickHelpDialogParams {
   allTracksModifierLabel: string;
@@ -48,7 +49,24 @@ export function useQuickHelpDialog({
   );
 
   const patchWorkspaceKeyboardShortcuts = useMemo(() => [{ action: "Help", shortcut: "?" }], []);
-  const patchWorkspaceMouseHelpItems = useMemo<Array<{ action: string; description: string }>>(() => [], []);
+  const patchWorkspaceMouseHelpItems = useMemo<Array<{ action: string; description: string }>>(
+    () => [
+      { action: "Zoom canvas", description: "Use the mouse wheel or a trackpad scroll gesture over the patch canvas." },
+      { action: "Inspect module face", description: "Click a module, or hover on its face briefly, to open the expanded module face." }
+    ],
+    []
+  );
+  const patchWorkspaceColorGlossaryItems = useMemo(
+    () => [
+      { label: "Source", color: PATCH_MODULE_CATEGORY_COLORS.source, description: "oscillators, noise, and resonant sound generators" },
+      { label: "Mix", color: PATCH_MODULE_CATEGORY_COLORS.mix, description: "audio and CV mixers" },
+      { label: "CV", color: PATCH_MODULE_CATEGORY_COLORS.cv, description: "control-voltage math and pitch shaping" },
+      { label: "Processor", color: PATCH_MODULE_CATEGORY_COLORS.processor, description: "filters, VCAs, saturation, and other signal processors" },
+      { label: "Envelope", color: PATCH_MODULE_CATEGORY_COLORS.envelope, description: "time-shaped CV or gate responses" },
+      { label: "Host", color: PATCH_MODULE_CATEGORY_COLORS.host, description: "app-owned patch inputs and outputs" }
+    ],
+    []
+  );
 
   const openHelp = (context: "composer" | "patch-workspace" = "composer") => {
     setHelpContext(context);
@@ -57,6 +75,7 @@ export function useQuickHelpDialog({
 
   return {
     closeHelp: () => setHelpOpen(false),
+    colorGlossaryItems: helpContext === "patch-workspace" ? patchWorkspaceColorGlossaryItems : [],
     helpOpen,
     keyboardShortcuts: helpContext === "patch-workspace" ? patchWorkspaceKeyboardShortcuts : composerKeyboardShortcuts,
     mouseHelpItems: helpContext === "patch-workspace" ? patchWorkspaceMouseHelpItems : composerMouseHelpItems,

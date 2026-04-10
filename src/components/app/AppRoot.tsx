@@ -111,6 +111,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   } = usePlatformShortcuts();
   const {
     closeHelp,
+    colorGlossaryItems,
     helpOpen,
     keyboardShortcuts,
     mouseHelpItems,
@@ -1131,6 +1132,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         />
 
         <QuickHelpDialog
+          colorGlossaryItems={colorGlossaryItems}
           keyboardShortcuts={keyboardShortcuts}
           mouseHelpItems={mouseHelpItems}
           onClose={closeHelp}
