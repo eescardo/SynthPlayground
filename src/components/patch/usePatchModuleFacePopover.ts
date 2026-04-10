@@ -1,13 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-
-interface CanvasRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+import { CanvasRect } from "@/components/patch/patchCanvasGeometry";
 
 interface UsePatchModuleFacePopoverParams {
   getPopoverRect: (nodeId: string) => CanvasRect | null;
