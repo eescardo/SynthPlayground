@@ -22,6 +22,26 @@ const makePatch = (layout: Patch["layout"] = { nodes: [] }): Patch => ({
   io: { audioOutNodeId: "out", audioOutPortId: "in" }
 });
 
+const crossingPatch = (): Patch => ({
+  schemaVersion: 1,
+  id: "patch_crossing",
+  name: "Patch Crossing",
+  meta: { source: "custom" },
+  nodes: [
+    { id: "a", typeId: "VCO", params: {} },
+    { id: "b", typeId: "VCO", params: {} },
+    { id: "x", typeId: "VCA", params: {} },
+    { id: "y", typeId: "VCA", params: {} }
+  ],
+  connections: [
+    { id: "c1", from: { nodeId: "a", portId: "out" }, to: { nodeId: "y", portId: "in" } },
+    { id: "c2", from: { nodeId: "b", portId: "out" }, to: { nodeId: "x", portId: "in" } }
+  ],
+  ui: { macros: [] },
+  layout: { nodes: [] },
+  io: { audioOutNodeId: "y", audioOutPortId: "out" }
+});
+
 describe("patch auto layout", () => {
   it("orders connected modules from inputs to outputs", () => {
     const layout = resolveAutoLayoutNodes(makePatch());
@@ -53,5 +73,13 @@ describe("patch auto layout", () => {
     expect(xByNode.get("pitch")).toBeLessThan(xByNode.get("vco") ?? 0);
     expect(xByNode.get("vco")).toBeLessThan(xByNode.get("out") ?? 0);
     expect(xByNode.get("vco")).toBeGreaterThanOrEqual((xByNode.get("pitch") ?? 0) + 12);
+  });
+
+  it("orders columns by connected neighbors to reduce avoidable wire crossings", () => {
+    const layout = resolveAutoLayoutNodes(crossingPatch());
+    const yByNode = new Map(layout.map((node) => [node.nodeId, node.y]));
+
+    expect(yByNode.get("a")).toBeLessThan(yByNode.get("b") ?? 0);
+    expect(yByNode.get("y")).toBeLessThan(yByNode.get("x") ?? 0);
   });
 });

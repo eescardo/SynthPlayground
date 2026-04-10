@@ -2,10 +2,11 @@ import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch, PatchLayoutNode, PatchNode, SignalCapability } from "@/types/patch";
 
 const AUTO_LAYOUT_X_GAP_GRID = 12;
-const AUTO_LAYOUT_Y_GAP_GRID = 6;
+const AUTO_LAYOUT_Y_GAP_GRID = 7;
 const AUTO_LAYOUT_NODE_WIDTH_GRID = 9;
 const AUTO_LAYOUT_NODE_HEIGHT_GRID = 6;
 const AUTO_LAYOUT_MARGIN_GRID = 1;
+const CROSSING_REDUCTION_PASSES = 4;
 
 const getModuleSortPriority = (node: PatchNode): number => {
   const schema = getModuleSchema(node.typeId);
@@ -64,33 +65,108 @@ export function resolveAutoLayoutNodes(patch: Pick<Patch, "nodes" | "connections
     siblings.push(node);
     nodesByRank.set(rank, siblings);
   }
+  const orderedColumns = reduceColumnCrossings(patch, nodesByRank);
 
   const ySlotByNodeId = new Map<string, number>();
   const layout: PatchLayoutNode[] = [];
-  for (const [rank, nodes] of [...nodesByRank.entries()].sort(([left], [right]) => left - right)) {
-    const usedSlots = new Set<number>();
-    nodes
-      .sort((left, right) => {
-        const leftTarget = getTargetYSlot(patch, left.id, ySlotByNodeId);
-        const rightTarget = getTargetYSlot(patch, right.id, ySlotByNodeId);
-        return (
-          leftTarget - rightTarget ||
-          getModuleSortPriority(left) - getModuleSortPriority(right) ||
-          left.id.localeCompare(right.id)
-        );
-      })
-      .forEach((node, index) => {
-        const preferredSlot = rank === 0 ? index : getTargetYSlot(patch, node.id, ySlotByNodeId);
-        const slot = claimNearestFreeSlot(preferredSlot, usedSlots);
-        ySlotByNodeId.set(node.id, slot);
-        layout.push({
-          nodeId: node.id,
-          x: 2 + rank * AUTO_LAYOUT_X_GAP_GRID,
-          y: 2 + slot * AUTO_LAYOUT_Y_GAP_GRID
-        });
+  for (const [rank, nodes] of orderedColumns) {
+    let lastSlot = -1;
+    nodes.forEach((node, index) => {
+      const preferredSlot = rank === 0 ? index : getTargetYSlot(patch, node.id, ySlotByNodeId);
+      const slot = Math.max(lastSlot + 1, preferredSlot);
+      lastSlot = slot;
+      ySlotByNodeId.set(node.id, slot);
+      layout.push({
+        nodeId: node.id,
+        x: 2 + rank * AUTO_LAYOUT_X_GAP_GRID,
+        y: 2 + slot * AUTO_LAYOUT_Y_GAP_GRID
       });
+    });
   }
   return layout;
+}
+
+function reduceColumnCrossings(
+  patch: Pick<Patch, "nodes" | "connections">,
+  nodesByRank: Map<number, PatchNode[]>
+): Array<[number, PatchNode[]]> {
+  const columns = [...nodesByRank.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([rank, nodes]) => [
+      rank,
+      [...nodes].sort((left, right) => getModuleSortPriority(left) - getModuleSortPriority(right) || left.id.localeCompare(right.id))
+    ] as [number, PatchNode[]]);
+
+  for (let pass = 0; pass < CROSSING_REDUCTION_PASSES; pass += 1) {
+    for (let columnIndex = 1; columnIndex < columns.length; columnIndex += 1) {
+      sortColumnByNeighborBarycenter(patch, columns, columnIndex, columnIndex - 1);
+    }
+    for (let columnIndex = columns.length - 2; columnIndex >= 0; columnIndex -= 1) {
+      sortColumnByNeighborBarycenter(patch, columns, columnIndex, columnIndex + 1);
+    }
+  }
+
+  return columns;
+}
+
+function sortColumnByNeighborBarycenter(
+  patch: Pick<Patch, "nodes" | "connections">,
+  columns: Array<[number, PatchNode[]]>,
+  columnIndex: number,
+  neighborColumnIndex: number
+) {
+  const neighborOrder = new Map(columns[neighborColumnIndex][1].map((node, index) => [node.id, index] as const));
+  columns[columnIndex][1].sort((left, right) => {
+    const leftTarget = getNeighborBarycenter(patch, left.id, neighborOrder);
+    const rightTarget = getNeighborBarycenter(patch, right.id, neighborOrder);
+    return (
+      compareBarycenters(leftTarget, rightTarget) ||
+      getModuleSortPriority(left) - getModuleSortPriority(right) ||
+      left.id.localeCompare(right.id)
+    );
+  });
+}
+
+function compareBarycenters(left: number, right: number): number {
+  if (!Number.isFinite(left) && !Number.isFinite(right)) {
+    return 0;
+  }
+  if (!Number.isFinite(left)) {
+    return 1;
+  }
+  if (!Number.isFinite(right)) {
+    return -1;
+  }
+  return left - right;
+}
+
+function getNeighborBarycenter(
+  patch: Pick<Patch, "nodes" | "connections">,
+  nodeId: string,
+  neighborOrder: Map<string, number>
+): number {
+  let weightedSum = 0;
+  let weightSum = 0;
+  for (const connection of patch.connections) {
+    const neighborNodeId =
+      connection.to.nodeId === nodeId
+        ? connection.from.nodeId
+        : connection.from.nodeId === nodeId
+          ? connection.to.nodeId
+          : null;
+    if (!neighborNodeId) {
+      continue;
+    }
+    const neighborIndex = neighborOrder.get(neighborNodeId);
+    if (neighborIndex === undefined) {
+      continue;
+    }
+    const capability = getConnectionCapability(patch, connection);
+    const weight = capability === "AUDIO" ? 5 : 1;
+    weightedSum += neighborIndex * weight;
+    weightSum += weight;
+  }
+  return weightSum > 0 ? weightedSum / weightSum : Number.POSITIVE_INFINITY;
 }
 
 function getTargetYSlot(
@@ -114,24 +190,6 @@ function getTargetYSlot(
     weightSum += weight;
   }
   return weightSum > 0 ? Math.round(weightedSum / weightSum) : 0;
-}
-
-function claimNearestFreeSlot(preferredSlot: number, usedSlots: Set<number>): number {
-  for (let distance = 0; distance < 64; distance += 1) {
-    const down = preferredSlot + distance;
-    if (!usedSlots.has(down)) {
-      usedSlots.add(down);
-      return down;
-    }
-    const up = preferredSlot - distance;
-    if (up >= 0 && !usedSlots.has(up)) {
-      usedSlots.add(up);
-      return up;
-    }
-  }
-  const fallback = usedSlots.size;
-  usedSlots.add(fallback);
-  return fallback;
 }
 
 export function ensurePatchLayout(patch: Patch): Patch {
