@@ -25,8 +25,6 @@ import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/p
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch, PatchLayoutNode, PatchNode, ParamSchema, ParamValue, PortSchema } from "@/types/patch";
 
-const getCapabilityColor = (port: PortSchema): string => getSignalCapabilityColor(port.capabilities[0]);
-
 interface ResolvedPortPosition {
   x: number;
   y: number;
@@ -252,9 +250,6 @@ export function drawPatchModuleCard(
     const rect = resolvePortLabelRect(ctx, port, kind, x, y, index);
     ctx.fillStyle = "rgba(7, 14, 21, 0.94)";
     ctx.fillRect(rect.x, rect.y - rect.height / 2, rect.width, rect.height);
-    ctx.strokeStyle = getCapabilityColor(port);
-    ctx.lineWidth = 1.3;
-    ctx.strokeRect(rect.x + 0.5, rect.y - rect.height / 2 + 0.5, rect.width - 1, rect.height - 1);
     ctx.fillStyle = PATCH_COLOR_PORT_LABEL;
     ctx.textAlign = "center";
     ctx.fillText(port.id, rect.x + rect.width / 2, rect.y + 3);
