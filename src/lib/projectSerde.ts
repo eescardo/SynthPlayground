@@ -1,6 +1,7 @@
 import { createId } from "@/lib/ids";
 import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping";
 import { sanitizeMacroAutomationMap } from "@/lib/macroAutomation";
+import { ensurePatchLayout } from "@/lib/patch/autoLayout";
 import { presetPatches } from "@/lib/patch/presets";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
 import { TRACK_VOLUME_DEFAULT, TRACK_VOLUME_MAX, TRACK_VOLUME_MIN } from "@/lib/trackVolume";
@@ -181,7 +182,7 @@ export const normalizeProject = (raw: unknown): Project => {
   }
 
   const patchesRaw = Array.isArray(raw.patches) ? raw.patches : [];
-  const normalizedPatches = patchesRaw.map(sanitizePatch);
+  const normalizedPatches = patchesRaw.map((patch, index) => ensurePatchLayout(sanitizePatch(patch, index)));
   const existingPatchIds = new Set(normalizedPatches.map((patch) => patch.id));
   const patches = [
     ...normalizedPatches,

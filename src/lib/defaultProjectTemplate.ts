@@ -2,6 +2,7 @@ import defaultProjectTemplateData from "@/lib/defaultProjectTemplateData.json";
 import { createId } from "@/lib/ids";
 import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping";
 import { sanitizeMacroAutomationMap } from "@/lib/macroAutomation";
+import { ensurePatchLayout } from "@/lib/patch/autoLayout";
 import { Project, Track } from "@/types/music";
 import { Patch } from "@/types/patch";
 
@@ -182,7 +183,7 @@ export const createDefaultProjectFromTemplate = (bundledPresetPatches: Patch[]):
       })
     },
     tracks: tracksRaw.map(sanitizeTemplateTrack),
-    patches: bundledPresetPatches.map((patch) => mergePresetLayout(patch, templateLayoutByPatchId)),
+    patches: bundledPresetPatches.map((patch) => ensurePatchLayout(mergePresetLayout(patch, templateLayoutByPatchId))),
     masterFx: {
       compressorEnabled: Boolean(masterFx.compressorEnabled),
       limiterEnabled: masterFx.limiterEnabled !== false,
@@ -231,7 +232,7 @@ export const createEmptyProjectFromPresets = (bundledPresetPatches: Patch[]): Pr
         }
       }
     ],
-    patches: bundledPresetPatches.map((patch) => structuredClone(patch)),
+    patches: bundledPresetPatches.map((patch) => ensurePatchLayout(structuredClone(patch))),
     masterFx: {
       compressorEnabled: false,
       limiterEnabled: true,

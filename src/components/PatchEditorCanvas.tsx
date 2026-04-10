@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createId } from "@/lib/ids";
+import { resolveAutoLayoutNodes } from "@/lib/patch/autoLayout";
 import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
 import { getModuleSchema, modulePalette } from "@/lib/patch/moduleRegistry";
 import { makeConnectOp } from "@/lib/patch/ops";
-import { PatchValidationIssue, Patch, PatchLayoutNode, PatchNode, PortSchema, ParamSchema, ParamValue } from "@/types/patch";
+import { PatchValidationIssue, Patch, PatchNode, PortSchema, ParamSchema, ParamValue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 
 const GRID = 24;
@@ -15,8 +16,6 @@ const NODE_HIT_PADDING = 0;
 const CANVAS_MIN_WIDTH = 1400;
 const CANVAS_MIN_HEIGHT = 640;
 const CANVAS_PADDING = 120;
-const AUTO_LAYOUT_X_GAP_GRID = 12;
-const AUTO_LAYOUT_Y_GAP_GRID = 7;
 const MOVE_CURSOR = "move";
 const MOVE_CURSOR_ACTIVE = "grabbing";
 const COLOR_CANVAS_BG = "#0c141d";
@@ -64,48 +63,6 @@ function formatParamFaceValue(param: ParamSchema, value: ParamValue | undefined)
   return param.unit === "linear" ? formatted : `${formatted}${param.unit}`;
 }
 
-function resolveAutoLayoutNodes(patch: Patch): PatchLayoutNode[] {
-  const rankByNodeId = new Map<string, number>(patch.nodes.map((node) => [node.id, 0]));
-  for (let pass = 0; pass < patch.nodes.length; pass += 1) {
-    let changed = false;
-    for (const connection of patch.connections) {
-      if (!rankByNodeId.has(connection.from.nodeId) || !rankByNodeId.has(connection.to.nodeId)) {
-        continue;
-      }
-      const nextRank = (rankByNodeId.get(connection.from.nodeId) ?? 0) + 1;
-      if (nextRank > (rankByNodeId.get(connection.to.nodeId) ?? 0)) {
-        rankByNodeId.set(connection.to.nodeId, nextRank);
-        changed = true;
-      }
-    }
-    if (!changed) {
-      break;
-    }
-  }
-
-  const nodesByRank = new Map<number, PatchNode[]>();
-  for (const node of patch.nodes) {
-    const rank = rankByNodeId.get(node.id) ?? 0;
-    const siblings = nodesByRank.get(rank) ?? [];
-    siblings.push(node);
-    nodesByRank.set(rank, siblings);
-  }
-
-  const layout: PatchLayoutNode[] = [];
-  for (const [rank, nodes] of [...nodesByRank.entries()].sort(([left], [right]) => left - right)) {
-    nodes
-      .sort((left, right) => left.id.localeCompare(right.id))
-      .forEach((node, index) => {
-        layout.push({
-          nodeId: node.id,
-          x: 2 + rank * AUTO_LAYOUT_X_GAP_GRID,
-          y: 2 + index * AUTO_LAYOUT_Y_GAP_GRID
-        });
-      });
-  }
-  return layout;
-}
-
 function formatBindingValue(value: number) {
   if (!Number.isFinite(value)) {
     return "0";
@@ -128,8 +85,76 @@ function getNumericParam(node: PatchNode, schema: ParamSchema[], paramId: string
   return typeof value === "number" ? value : 0;
 }
 
+function getAdsrParamValues(node: PatchNode, schema: ParamSchema[]) {
+  return {
+    attack: getNumericParam(node, schema, "attack"),
+    decay: getNumericParam(node, schema, "decay"),
+    sustain: getNumericParam(node, schema, "sustain"),
+    release: getNumericParam(node, schema, "release")
+  };
+}
+
+function getBindingRangeValues(binding: Patch["ui"]["macros"][number]["bindings"][number]) {
+  if (binding.map === "piecewise" && binding.points && binding.points.length > 0) {
+    const values = binding.points.map((point) => point.y);
+    return { low: Math.min(...values), high: Math.max(...values) };
+  }
+  const min = binding.min ?? 0;
+  const max = binding.max ?? 1;
+  return { low: Math.min(min, max), high: Math.max(min, max) };
+}
+
+function resolveAdsrMacroRangeValues(patch: Patch, node: PatchNode, schema: ParamSchema[]) {
+  const low = getAdsrParamValues(node, schema);
+  const high = getAdsrParamValues(node, schema);
+  let hasRange = false;
+
+  for (const macro of patch.ui.macros) {
+    for (const binding of macro.bindings) {
+      if (binding.nodeId !== node.id || !(binding.paramId in low)) {
+        continue;
+      }
+      const range = getBindingRangeValues(binding);
+      const paramId = binding.paramId as keyof typeof low;
+      low[paramId] = Math.min(low[paramId], range.low);
+      high[paramId] = Math.max(high[paramId], range.high);
+      hasRange = true;
+    }
+  }
+
+  return hasRange ? { low, high } : null;
+}
+
+function drawAdsrEnvelopePath(
+  ctx: CanvasRenderingContext2D,
+  values: { attack: number; decay: number; sustain: number; release: number },
+  graph: { x: number; y: number; width: number; height: number }
+) {
+  const attack = Math.max(0.01, values.attack);
+  const decay = Math.max(0.01, values.decay);
+  const sustain = Math.max(0, Math.min(1, values.sustain));
+  const release = Math.max(0.01, values.release);
+  const total = attack + decay + release + 0.75;
+  const ax = graph.x + (attack / total) * graph.width;
+  const dx = ax + (decay / total) * graph.width;
+  const sx = dx + (0.75 / total) * graph.width;
+  const rx = graph.x + graph.width;
+  const highY = graph.y + 6;
+  const sustainY = graph.y + graph.height - 6 - sustain * (graph.height - 12);
+  const baseY = graph.y + graph.height - 4;
+
+  ctx.beginPath();
+  ctx.moveTo(graph.x, baseY);
+  ctx.lineTo(ax, highY);
+  ctx.lineTo(dx, sustainY);
+  ctx.lineTo(sx, sustainY);
+  ctx.lineTo(rx, baseY);
+  ctx.stroke();
+}
+
 function drawAdsrModuleFace(
   ctx: CanvasRenderingContext2D,
+  patch: Patch,
   node: PatchNode,
   schema: ParamSchema[],
   x: number,
@@ -140,31 +165,26 @@ function drawAdsrModuleFace(
   const graphY = y + 48;
   const graphW = NODE_W - 88;
   const graphH = 48;
-  const attack = Math.max(0.01, getNumericParam(node, schema, "attack"));
-  const decay = Math.max(0.01, getNumericParam(node, schema, "decay"));
-  const sustain = Math.max(0, Math.min(1, getNumericParam(node, schema, "sustain")));
-  const release = Math.max(0.01, getNumericParam(node, schema, "release"));
-  const total = attack + decay + release + 0.75;
-  const ax = graphX + (attack / total) * graphW;
-  const dx = ax + (decay / total) * graphW;
-  const sx = dx + (0.75 / total) * graphW;
-  const rx = graphX + graphW;
-  const highY = graphY + 6;
-  const sustainY = graphY + graphH - 6 - sustain * (graphH - 12);
-  const baseY = graphY + graphH - 4;
+  const graph = { x: graphX, y: graphY, width: graphW, height: graphH };
 
   ctx.strokeStyle = "rgba(231, 243, 255, 0.12)";
   ctx.lineWidth = 1;
   ctx.strokeRect(graphX, graphY, graphW, graphH);
+
+  const macroRange = resolveAdsrMacroRangeValues(patch, node, schema);
+  if (macroRange) {
+    ctx.lineWidth = 1.4;
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = "rgba(151, 214, 255, 0.84)";
+    drawAdsrEnvelopePath(ctx, macroRange.low, graph);
+    ctx.strokeStyle = "rgba(255, 214, 145, 0.88)";
+    drawAdsrEnvelopePath(ctx, macroRange.high, graph);
+    ctx.setLineDash([]);
+  }
+
   ctx.strokeStyle = accentColor;
   ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(graphX, baseY);
-  ctx.lineTo(ax, highY);
-  ctx.lineTo(dx, sustainY);
-  ctx.lineTo(sx, sustainY);
-  ctx.lineTo(rx, baseY);
-  ctx.stroke();
+  drawAdsrEnvelopePath(ctx, getAdsrParamValues(node, schema), graph);
 }
 
 function drawGenericModuleFace(
@@ -395,7 +415,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       ctx.fillText(node.id, x + 10, y + 34);
 
       if (node.typeId === "ADSR") {
-        drawAdsrModuleFace(ctx, node, schema.params, x, y, moduleColors.accent);
+        drawAdsrModuleFace(ctx, props.patch, node, schema.params, x, y, moduleColors.accent);
       } else {
         drawGenericModuleFace(ctx, node, schema.params, x, y);
       }
@@ -442,7 +462,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       const [nodeId, kind, portId] = key.split(":");
       hitPortsRef.current.push({ nodeId, kind: kind as "in" | "out", portId, x: value.x, y: value.y });
     }
-  }, [canvasSize, hoveredNodeId, layoutByNode, pendingFromPort, props.patch.connections, props.patch.nodes, props.selectedNodeId]);
+  }, [canvasSize, hoveredNodeId, layoutByNode, pendingFromPort, props.patch, props.selectedNodeId]);
 
   useEffect(() => {
     draw();
