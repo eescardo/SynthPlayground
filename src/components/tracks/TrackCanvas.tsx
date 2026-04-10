@@ -757,6 +757,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     <div className="track-canvas-shell" ref={wrapperRef}>
       <TrackHeaderChrome
         project={project}
+        canvasShellRef={wrapperRef}
         trackLayouts={trackLayouts}
         selectedTrackId={selectedTrackId}
         invalidPatchIds={invalidPatchIds}

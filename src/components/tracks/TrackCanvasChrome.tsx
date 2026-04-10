@@ -1,9 +1,10 @@
-import { Dispatch, SetStateAction } from "react";
+import { Dispatch, RefObject, SetStateAction, useEffect, useState } from "react";
 import { MacroPanel, MacroPanelRow } from "@/components/MacroPanel";
 import { PatchSummaryPopover } from "@/components/PatchSummaryPopover";
 import { TrackVolumePopover } from "@/components/TrackVolumePopover";
 import {
   AUTOMATION_LANE_COLLAPSED_HEIGHT,
+  HEADER_WIDTH,
   MACRO_PANEL_TOGGLE_Y_OFFSET,
   TRACK_PATCH_CONTROL_SIZE,
   SPEAKER_Y_OFFSET
@@ -21,6 +22,7 @@ import { Project } from "@/types/music";
 
 interface TrackHeaderChromeProps {
   project: Project;
+  canvasShellRef: RefObject<HTMLDivElement | null>;
   trackLayouts: TrackLayout[];
   selectedTrackId?: string;
   invalidPatchIds?: Set<string>;
@@ -58,11 +60,11 @@ const TRACK_INSPECTOR_PANEL_MARGIN_TOP = 2;
 const TRACK_INSPECTOR_PANEL_MARGIN_BOTTOM = 6;
 const TRACK_INSPECTOR_ROW_HEIGHT = 20;
 const TRACK_INSPECTOR_ROW_Y_OFFSET = -3;
-const PATCH_SUMMARY_POPOVER_GAP = 8;
 const PATCH_SUMMARY_EXPANDED_MIN_HEIGHT = 184;
 
 export function TrackHeaderChrome({
   project,
+  canvasShellRef,
   trackLayouts,
   selectedTrackId,
   invalidPatchIds,
@@ -88,6 +90,30 @@ export function TrackHeaderChrome({
     schedulePatchSummaryDismiss,
     cancelPatchSummaryDismiss
   } = usePatchSummaryPopover({ selectedTrackId });
+  const [canvasViewport, setCanvasViewport] = useState({ left: 0, top: 0, scrollLeft: 0, scrollTop: 0 });
+
+  useEffect(() => {
+    const shell = canvasShellRef.current;
+    if (!shell) {
+      return;
+    }
+    const updateCanvasViewport = () => {
+      const rect = shell.getBoundingClientRect();
+      setCanvasViewport({
+        left: rect.left,
+        top: rect.top,
+        scrollLeft: shell.scrollLeft,
+        scrollTop: shell.scrollTop
+      });
+    };
+    updateCanvasViewport();
+    shell.addEventListener("scroll", updateCanvasViewport, { passive: true });
+    window.addEventListener("resize", updateCanvasViewport);
+    return () => {
+      shell.removeEventListener("scroll", updateCanvasViewport);
+      window.removeEventListener("resize", updateCanvasViewport);
+    };
+  }, [canvasShellRef]);
 
   return (
     <div className="track-header-overlays">
@@ -142,7 +168,10 @@ export function TrackHeaderChrome({
         const patchSummaryExpandedHeight = Math.max(PATCH_SUMMARY_EXPANDED_MIN_HEIGHT, patchSummaryAnchorHeight);
         const patchSummaryExpandedTop =
           patchSummaryAnchorTop + (patchSummaryAnchorHeight - patchSummaryExpandedHeight) * 0.5;
-        const patchSummaryLeft = 170 + PATCH_SUMMARY_POPOVER_GAP;
+        const patchSummaryLocalTop = patchSummaryPopover?.mode === "expanded" ? patchSummaryExpandedTop : patchSummaryAnchorTop;
+        const patchSummaryLeft = HEADER_WIDTH;
+        const patchSummaryViewportLeft = canvasViewport.left + patchSummaryLeft - canvasViewport.scrollLeft;
+        const patchSummaryViewportTop = canvasViewport.top + patchSummaryLocalTop - canvasViewport.scrollTop;
         const patchInvalid = Boolean(invalidPatchIds?.has(track.instrumentPatchId));
 
         const macroPanelRows: MacroPanelRow[] = [];
@@ -351,9 +380,10 @@ export function TrackHeaderChrome({
                 invalid={patchInvalid}
                 canRemove={patchActions.canRemoveSelectedPatch}
                 mode={patchSummaryPopover.mode}
-                top={patchSummaryPopover.mode === "expanded" ? patchSummaryExpandedTop : patchSummaryAnchorTop}
-                left={patchSummaryLeft}
+                top={patchSummaryViewportTop}
+                left={patchSummaryViewportLeft}
                 height={patchSummaryPopover.mode === "expanded" ? patchSummaryExpandedHeight : patchSummaryAnchorHeight}
+                fixed
                 onExpand={() => setPatchSummaryPopover({ trackId: track.id, mode: "expanded" })}
                 onDuplicate={patchActions.onDuplicateSelectedPatch}
                 onRemove={patchActions.onRequestRemoveSelectedPatch}
