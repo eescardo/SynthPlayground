@@ -82,7 +82,6 @@ function InstrumentToolbar(props: InstrumentToolbarProps) {
     <div className="instrument-toolbar">
       <div className="instrument-toolbar-main">
         <div className="instrument-toolbar-heading">
-          <h3>Instrument</h3>
           <select
             className="instrument-patch-select"
             aria-label="Select instrument"
