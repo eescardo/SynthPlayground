@@ -369,6 +369,7 @@ function ParamValueControl(props: {
 }
 
 export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const hitPortsRef = useRef<HitPort[]>([]);
@@ -383,6 +384,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [facePopoverNodeId, setFacePopoverNodeId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
+  const zoomRef = useRef(zoom);
 
   const layoutByNode = useMemo(() => {
     return new Map(props.patch.layout.nodes.map((node) => [node.nodeId, node] as const));
@@ -543,6 +545,10 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   }, [draw]);
 
   useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
+  useEffect(() => {
     if (!facePopoverNodeId || nodeById.has(facePopoverNodeId)) {
       return;
     }
@@ -678,27 +684,57 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     }
   };
 
-  const onCanvasWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+  const applyCanvasWheelZoom = useCallback((event: WheelEvent, anchor: { x: number; y: number }) => {
     event.preventDefault();
     const scrollEl = scrollRef.current;
     if (!scrollEl) {
       return;
     }
-    const rect = scrollEl.getBoundingClientRect();
-    const localX = event.clientX - rect.left;
-    const localY = event.clientY - rect.top;
-    const canvasX = (scrollEl.scrollLeft + localX) / zoom;
-    const canvasY = (scrollEl.scrollTop + localY) / zoom;
-    const nextZoom = clamp(zoom * Math.exp(-event.deltaY * ZOOM_WHEEL_SENSITIVITY), MIN_ZOOM, MAX_ZOOM);
-    if (Math.abs(nextZoom - zoom) < 0.001) {
+    const currentZoom = zoomRef.current;
+    const canvasX = (scrollEl.scrollLeft + anchor.x) / currentZoom;
+    const canvasY = (scrollEl.scrollTop + anchor.y) / currentZoom;
+    const nextZoom = clamp(currentZoom * Math.exp(-event.deltaY * ZOOM_WHEEL_SENSITIVITY), MIN_ZOOM, MAX_ZOOM);
+    if (Math.abs(nextZoom - currentZoom) < 0.001) {
       return;
     }
+    zoomRef.current = nextZoom;
     setZoom(nextZoom);
     window.requestAnimationFrame(() => {
-      scrollEl.scrollLeft = canvasX * nextZoom - localX;
-      scrollEl.scrollTop = canvasY * nextZoom - localY;
+      scrollEl.scrollLeft = canvasX * nextZoom - anchor.x;
+      scrollEl.scrollTop = canvasY * nextZoom - anchor.y;
     });
-  };
+  }, []);
+
+  useEffect(() => {
+    const rootEl = rootRef.current;
+    const scrollEl = scrollRef.current;
+    if (!rootEl || !scrollEl) {
+      return;
+    }
+
+    const onWheel = (event: WheelEvent) => {
+      const scrollRect = scrollEl.getBoundingClientRect();
+      const target = event.target instanceof Node ? event.target : null;
+      const isOverCanvasScroll = target ? scrollEl.contains(target) : false;
+      if (!isOverCanvasScroll && !event.ctrlKey) {
+        return;
+      }
+
+      const anchor = isOverCanvasScroll
+        ? {
+            x: event.clientX - scrollRect.left,
+            y: event.clientY - scrollRect.top
+          }
+        : {
+            x: scrollEl.clientWidth / 2,
+            y: scrollEl.clientHeight / 2
+          };
+      applyCanvasWheelZoom(event, anchor);
+    };
+
+    rootEl.addEventListener("wheel", onWheel, { capture: true, passive: false });
+    return () => rootEl.removeEventListener("wheel", onWheel, { capture: true });
+  }, [applyCanvasWheelZoom]);
 
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const pos = pointerToGrid(event);
@@ -756,7 +792,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   };
 
   return (
-    <div className="patch-editor">
+    <div className="patch-editor" ref={rootRef}>
       <div className="patch-toolbar">
         <select value={newNodeType} disabled={props.structureLocked} onChange={(e) => setNewNodeType(e.target.value)}>
           {modulePalette.map((module) => (
@@ -808,7 +844,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
 
       <div className="patch-layout">
         <div className="patch-canvas-shell">
-          <div className="patch-canvas-scroll" ref={scrollRef} onWheel={onCanvasWheel}>
+          <div className="patch-canvas-scroll" ref={scrollRef}>
             <canvas
               ref={canvasRef}
               width={canvasSize.width}
