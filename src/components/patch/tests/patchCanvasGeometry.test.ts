@@ -4,6 +4,7 @@ import {
   findPatchPortAtPoint,
   HitPort,
   resolvePatchCanvasSize,
+  resolvePatchDiagramSize,
   resolvePatchFacePopoverRect
 } from "@/components/patch/patchCanvasGeometry";
 import { PATCH_CANVAS_GRID, PATCH_NODE_HEIGHT, PATCH_NODE_WIDTH } from "@/components/patch/patchCanvasConstants";
@@ -28,6 +29,13 @@ describe("patch canvas geometry", () => {
     expect(size.height).toBeGreaterThan(30 * PATCH_CANVAS_GRID + PATCH_NODE_HEIGHT);
   });
 
+  it("resolves diagram size without the minimum canvas floor", () => {
+    const diagramSize = resolvePatchDiagramSize([{ nodeId: "vco1", x: 2, y: 3 }]);
+
+    expect(diagramSize.width).toBeLessThan(resolvePatchCanvasSize([]).width);
+    expect(diagramSize.width).toBeGreaterThan(2 * PATCH_CANVAS_GRID + PATCH_NODE_WIDTH);
+  });
+
   it("centers face popovers around the module when there is room", () => {
     const layoutByNode = new Map<string, PatchLayoutNode>([["vco1", { nodeId: "vco1", x: 20, y: 12 }]]);
     const rect = resolvePatchFacePopoverRect("vco1", layoutByNode, { width: 1400, height: 900 });
@@ -47,10 +55,10 @@ describe("patch canvas geometry", () => {
     expect(findPatchNodeAtPoint(patch, layoutByNode, 2 * PATCH_CANVAS_GRID + 10, 2 * PATCH_CANVAS_GRID + 10)).toBe("front");
   });
 
-  it("hit tests ports by radius", () => {
-    const hitPorts: HitPort[] = [{ nodeId: "vco1", portId: "out", kind: "out", x: 120, y: 48 }];
+  it("hit tests ports by label rect", () => {
+    const hitPorts: HitPort[] = [{ nodeId: "vco1", portId: "out", kind: "out", x: 120, y: 48, width: 32, height: 15 }];
 
     expect(findPatchPortAtPoint(hitPorts, 124, 51)).toEqual(hitPorts[0]);
-    expect(findPatchPortAtPoint(hitPorts, 140, 70)).toBeNull();
+    expect(findPatchPortAtPoint(hitPorts, 156, 70)).toBeNull();
   });
 });

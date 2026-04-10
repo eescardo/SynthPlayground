@@ -22,6 +22,7 @@ const PREVIEW_RESTORE_PADDING_MS = 60;
 const isAudiblePatchOp = (op: PatchOp): boolean =>
   op.type !== "moveNode" &&
   op.type !== "setNodeLayout" &&
+  op.type !== "setCanvasZoom" &&
   op.type !== "addMacro" &&
   op.type !== "removeMacro" &&
   op.type !== "bindMacro" &&
@@ -229,7 +230,12 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
 
   const applyPatchOp = useCallback((op: PatchOp) => {
     if (!selectedPatch) return;
-    if (resolvePatchSource(selectedPatch) === "preset" && op.type !== "moveNode" && op.type !== "setNodeLayout") {
+    if (
+      resolvePatchSource(selectedPatch) === "preset" &&
+      op.type !== "moveNode" &&
+      op.type !== "setNodeLayout" &&
+      op.type !== "setCanvasZoom"
+    ) {
       return;
     }
 
@@ -257,8 +263,10 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
             ? `patch:${selectedPatch.id}:move-node:${op.nodeId}`
             : op.type === "setNodeLayout"
               ? `patch:${selectedPatch.id}:set-node-layout`
+            : op.type === "setCanvasZoom"
+              ? `patch:${selectedPatch.id}:set-canvas-zoom`
             : `patch:${selectedPatch.id}:${op.type}`,
-        coalesce: op.type === "moveNode"
+        coalesce: op.type === "moveNode" || op.type === "setCanvasZoom"
       }
     );
     if (isAudiblePatchOp(op)) {

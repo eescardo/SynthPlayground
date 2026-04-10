@@ -21,6 +21,10 @@ export type PatchOp =
       nodes: Array<{ nodeId: string; x: number; y: number }>;
     }
   | {
+      type: "setCanvasZoom";
+      zoom: number;
+    }
+  | {
       type: "setParam";
       nodeId: string;
       paramId: string;

@@ -14,6 +14,7 @@ import {
   HitPort,
   pointerEventToPatchCanvasPoint,
   resolvePatchCanvasSize,
+  resolvePatchDiagramSize,
   resolvePatchFacePopoverRect
 } from "@/components/patch/patchCanvasGeometry";
 import { createId } from "@/lib/ids";
@@ -48,13 +49,26 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const [pendingFromPort, setPendingFromPort] = useState<HitPort | null>(null);
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const { zoom } = usePatchCanvasZoom({ rootRef, scrollRef });
 
   const layoutByNode = useMemo(() => {
     return new Map(props.patch.layout.nodes.map((node) => [node.nodeId, node] as const));
   }, [props.patch.layout.nodes]);
   const nodeById = useMemo(() => new Map(props.patch.nodes.map((node) => [node.id, node] as const)), [props.patch.nodes]);
   const canvasSize = useMemo(() => resolvePatchCanvasSize(props.patch.layout.nodes), [props.patch.layout.nodes]);
+  const diagramSize = useMemo(() => resolvePatchDiagramSize(props.patch.layout.nodes), [props.patch.layout.nodes]);
+  const onApplyOp = props.onApplyOp;
+  const handleZoomChange = useCallback((zoom: number) => {
+    onApplyOp({ type: "setCanvasZoom", zoom });
+  }, [onApplyOp]);
+  const { zoom } = usePatchCanvasZoom({
+    canvasSize,
+    fitSize: diagramSize,
+    onZoomChange: handleZoomChange,
+    patchId: props.patch.id,
+    rootRef,
+    savedZoom: props.patch.ui.canvasZoom,
+    scrollRef
+  });
 
   const getFacePopoverRect = useCallback((nodeId: string) => {
     return resolvePatchFacePopoverRect(nodeId, layoutByNode, canvasSize);

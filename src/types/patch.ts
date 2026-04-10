@@ -119,6 +119,7 @@ export interface Patch {
   connections: PatchConnection[];
   ui: {
     macros: PatchMacro[];
+    canvasZoom?: number;
   };
   layout: {
     nodes: PatchLayoutNode[];

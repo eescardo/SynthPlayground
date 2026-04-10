@@ -13,6 +13,10 @@ import {
   PATCH_NODE_BODY_TOP,
   PATCH_NODE_HEIGHT,
   PATCH_NODE_WIDTH,
+  PATCH_PORT_LABEL_HEIGHT,
+  PATCH_PORT_LABEL_MIN_WIDTH,
+  PATCH_PORT_LABEL_OVERHANG_RATIO,
+  PATCH_PORT_LABEL_X_PADDING,
   PATCH_PORT_ROW_GAP,
   PATCH_PORT_START_Y
 } from "@/components/patch/patchCanvasConstants";
@@ -22,6 +26,46 @@ import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch, PatchLayoutNode, PatchNode, ParamSchema, ParamValue, PortSchema } from "@/types/patch";
 
 const getCapabilityColor = (port: PortSchema): string => getSignalCapabilityColor(port.capabilities[0]);
+
+interface ResolvedPortPosition {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  anchorX: number;
+  anchorY: number;
+  schema: PortSchema;
+}
+
+function resolvePortLabelWidth(ctx: CanvasRenderingContext2D, port: PortSchema) {
+  return Math.max(PATCH_PORT_LABEL_MIN_WIDTH, Math.ceil(ctx.measureText(port.id).width) + PATCH_PORT_LABEL_X_PADDING * 2);
+}
+
+function resolvePortLabelRect(
+  ctx: CanvasRenderingContext2D,
+  port: PortSchema,
+  kind: "in" | "out",
+  nodeX: number,
+  nodeY: number,
+  index: number
+): ResolvedPortPosition {
+  const width = resolvePortLabelWidth(ctx, port);
+  const height = PATCH_PORT_LABEL_HEIGHT;
+  const y = nodeY + PATCH_PORT_START_Y + index * PATCH_PORT_ROW_GAP;
+  const labelX =
+    kind === "in"
+      ? nodeX - width * PATCH_PORT_LABEL_OVERHANG_RATIO
+      : nodeX + PATCH_NODE_WIDTH - width * (1 - PATCH_PORT_LABEL_OVERHANG_RATIO);
+  return {
+    x: labelX,
+    y,
+    width,
+    height,
+    anchorX: kind === "in" ? labelX : labelX + width,
+    anchorY: y,
+    schema: port
+  };
+}
 
 function formatParamFaceValue(param: ParamSchema, value: ParamValue | undefined): string {
   const resolved = value ?? param.default;
@@ -203,30 +247,22 @@ export function drawPatchModuleCard(
     drawGenericModuleFace(ctx, node, schema.params, x, y);
   }
 
-  schema.portsIn.forEach((port, index) => {
-    const py = y + PATCH_PORT_START_Y + index * PATCH_PORT_ROW_GAP;
-    const px = x;
-    ctx.fillStyle = getCapabilityColor(port);
-    ctx.beginPath();
-    ctx.arc(px, py, 5, 0, Math.PI * 2);
-    ctx.fill();
+  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+  const drawPortLabel = (port: PortSchema, index: number, kind: "in" | "out") => {
+    const rect = resolvePortLabelRect(ctx, port, kind, x, y, index);
+    ctx.fillStyle = "rgba(7, 14, 21, 0.94)";
+    ctx.fillRect(rect.x, rect.y - rect.height / 2, rect.width, rect.height);
+    ctx.strokeStyle = getCapabilityColor(port);
+    ctx.lineWidth = 1.3;
+    ctx.strokeRect(rect.x + 0.5, rect.y - rect.height / 2 + 0.5, rect.width - 1, rect.height - 1);
     ctx.fillStyle = PATCH_COLOR_PORT_LABEL;
-    ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-    ctx.fillText(port.id, px + 8, py + 3);
-  });
+    ctx.textAlign = "center";
+    ctx.fillText(port.id, rect.x + rect.width / 2, rect.y + 3);
+    ctx.textAlign = "left";
+  };
 
-  schema.portsOut.forEach((port, index) => {
-    const py = y + PATCH_PORT_START_Y + index * PATCH_PORT_ROW_GAP;
-    const px = x + PATCH_NODE_WIDTH;
-    ctx.fillStyle = getCapabilityColor(port);
-    ctx.beginPath();
-    ctx.arc(px, py, 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = PATCH_COLOR_PORT_LABEL;
-    ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-    const textWidth = ctx.measureText(port.id).width;
-    ctx.fillText(port.id, px - 8 - textWidth, py + 3);
-  });
+  schema.portsIn.forEach((port, index) => drawPortLabel(port, index, "in"));
+  schema.portsOut.forEach((port, index) => drawPortLabel(port, index, "out"));
 }
 
 function drawPatchGrid(ctx: CanvasRenderingContext2D, width: number, height: number) {
@@ -249,8 +285,13 @@ function drawPatchGrid(ctx: CanvasRenderingContext2D, width: number, height: num
   }
 }
 
-function resolvePortPositions(patch: Patch, layoutByNode: Map<string, PatchLayoutNode>) {
-  const portPositions = new Map<string, { x: number; y: number; schema: PortSchema }>();
+function resolvePortPositions(
+  ctx: CanvasRenderingContext2D,
+  patch: Patch,
+  layoutByNode: Map<string, PatchLayoutNode>
+) {
+  const portPositions = new Map<string, ResolvedPortPosition>();
+  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
 
   patch.nodes.forEach((node) => {
     const schema = getModuleSchema(node.typeId);
@@ -262,15 +303,11 @@ function resolvePortPositions(patch: Patch, layoutByNode: Map<string, PatchLayou
     const y = layout.y * PATCH_CANVAS_GRID;
 
     schema.portsIn.forEach((port, index) => {
-      const py = y + PATCH_PORT_START_Y + index * PATCH_PORT_ROW_GAP;
-      const px = x;
-      portPositions.set(`${node.id}:in:${port.id}`, { x: px, y: py, schema: port });
+      portPositions.set(`${node.id}:in:${port.id}`, resolvePortLabelRect(ctx, port, "in", x, y, index));
     });
 
     schema.portsOut.forEach((port, index) => {
-      const py = y + PATCH_PORT_START_Y + index * PATCH_PORT_ROW_GAP;
-      const px = x + PATCH_NODE_WIDTH;
-      portPositions.set(`${node.id}:out:${port.id}`, { x: px, y: py, schema: port });
+      portPositions.set(`${node.id}:out:${port.id}`, resolvePortLabelRect(ctx, port, "out", x, y, index));
     });
   });
 
@@ -280,7 +317,7 @@ function resolvePortPositions(patch: Patch, layoutByNode: Map<string, PatchLayou
 function drawPatchConnections(
   ctx: CanvasRenderingContext2D,
   patch: Patch,
-  portPositions: Map<string, { x: number; y: number; schema: PortSchema }>
+  portPositions: Map<string, ResolvedPortPosition>
 ) {
   for (const connection of patch.connections) {
     const from = portPositions.get(`${connection.from.nodeId}:out:${connection.from.portId}`);
@@ -292,8 +329,8 @@ function drawPatchConnections(
     ctx.lineWidth = 2;
 
     ctx.beginPath();
-    ctx.moveTo(from.x, from.y);
-    ctx.lineTo(to.x, to.y);
+    ctx.moveTo(from.anchorX, from.anchorY);
+    ctx.lineTo(to.anchorX, to.anchorY);
     ctx.stroke();
   }
 }
@@ -324,7 +361,7 @@ function drawPatchModules(
 function drawPendingPatchPort(
   ctx: CanvasRenderingContext2D,
   pendingFromPort: HitPort | null,
-  portPositions: Map<string, { x: number; y: number; schema: PortSchema }>
+  portPositions: Map<string, ResolvedPortPosition>
 ) {
   if (!pendingFromPort) {
     return;
@@ -332,10 +369,9 @@ function drawPendingPatchPort(
   const portKey = `${pendingFromPort.nodeId}:out:${pendingFromPort.portId}`;
   const p = portPositions.get(portKey);
   if (p) {
-    ctx.fillStyle = PATCH_COLOR_PENDING_PORT;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.strokeStyle = PATCH_COLOR_PENDING_PORT;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(p.x - 2, p.y - p.height / 2 - 2, p.width + 4, p.height + 4);
   }
 }
 
@@ -364,11 +400,19 @@ export function drawPatchFacePopover(
   ctx.restore();
 }
 
-function buildHitPorts(portPositions: Map<string, { x: number; y: number; schema: PortSchema }>) {
+function buildHitPorts(portPositions: Map<string, ResolvedPortPosition>) {
   const hitPorts: HitPort[] = [];
   for (const [key, value] of portPositions.entries()) {
     const [nodeId, kind, portId] = key.split(":");
-    hitPorts.push({ nodeId, kind: kind as "in" | "out", portId, x: value.x, y: value.y });
+    hitPorts.push({
+      nodeId,
+      kind: kind as "in" | "out",
+      portId,
+      x: value.x,
+      y: value.y,
+      width: value.width,
+      height: value.height
+    });
   }
   return hitPorts;
 }
@@ -393,7 +437,7 @@ export function drawPatchCanvas(args: {
   args.canvas.height = height;
 
   drawPatchGrid(ctx, width, height);
-  const portPositions = resolvePortPositions(args.patch, args.layoutByNode);
+  const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode);
   drawPatchConnections(ctx, args.patch, portPositions);
   drawPatchModules(ctx, args.patch, args.layoutByNode, args.hoveredNodeId, args.selectedNodeId);
   drawPendingPatchPort(ctx, args.pendingFromPort, portPositions);

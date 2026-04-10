@@ -1,5 +1,6 @@
 import { createDefaultParamsForType, getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { createId } from "@/lib/ids";
+import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch/patchCanvasConstants";
 import { Patch } from "@/types/patch";
 import { PatchHistoryState, PatchOp } from "@/types/ops";
 
@@ -74,6 +75,11 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
         });
       }
       next.layout.nodes = next.nodes.map((node) => nextLayoutById.get(node.id) ?? { nodeId: node.id, x: 0, y: 0 });
+      return next;
+    }
+
+    case "setCanvasZoom": {
+      next.ui.canvasZoom = Math.max(PATCH_CANVAS_MIN_ZOOM, Math.min(PATCH_CANVAS_MAX_ZOOM, op.zoom));
       return next;
     }
 
