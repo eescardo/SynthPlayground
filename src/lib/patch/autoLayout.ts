@@ -1,5 +1,5 @@
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { Patch, PatchLayoutNode, PatchNode, SignalCapability } from "@/types/patch";
+import { Patch, PatchLayoutNode, PatchModuleCategory, PatchNode, SignalCapability } from "@/types/patch";
 
 const AUTO_LAYOUT_X_GAP_GRID = 12;
 const AUTO_LAYOUT_Y_GAP_GRID = 7;
@@ -7,28 +7,17 @@ const AUTO_LAYOUT_NODE_WIDTH_GRID = 9;
 const AUTO_LAYOUT_NODE_HEIGHT_GRID = 6;
 const AUTO_LAYOUT_MARGIN_GRID = 1;
 const CROSSING_REDUCTION_PASSES = 4;
+const AUTO_LAYOUT_CATEGORY_SEED_ORDER: PatchModuleCategory[] = ["source", "mix", "processor", "cv", "envelope", "host"];
 
-const getModuleSortPriority = (node: PatchNode): number => {
-  const schema = getModuleSchema(node.typeId);
-  if (schema?.categories.includes("source")) {
-    return 0;
-  }
-  if (schema?.categories.includes("mix")) {
-    return 1;
-  }
-  if (schema?.categories.includes("processor")) {
-    return 2;
-  }
-  if (schema?.categories.includes("cv")) {
-    return 3;
-  }
-  if (schema?.categories.includes("envelope")) {
-    return 4;
-  }
+const getAutoLayoutSeedPriority = (node: PatchNode): number => {
+  // Used only as a deterministic fallback before barycenter crossing reduction has
+  // enough graph-neighbor information to order modules within a column.
   if (node.typeId === "Output") {
-    return 5;
+    return AUTO_LAYOUT_CATEGORY_SEED_ORDER.length;
   }
-  return 6;
+  const schema = getModuleSchema(node.typeId);
+  const categoryIndex = AUTO_LAYOUT_CATEGORY_SEED_ORDER.findIndex((category) => schema?.categories.includes(category));
+  return categoryIndex === -1 ? AUTO_LAYOUT_CATEGORY_SEED_ORDER.length + 1 : categoryIndex;
 };
 
 const getConnectionCapability = (patch: Pick<Patch, "nodes">, connection: Patch["connections"][number]): SignalCapability | undefined => {
@@ -186,7 +175,7 @@ function reduceColumnCrossings(
     .sort(([left], [right]) => left - right)
     .map(([rank, nodes]) => [
       rank,
-      [...nodes].sort((left, right) => getModuleSortPriority(left) - getModuleSortPriority(right) || left.id.localeCompare(right.id))
+      [...nodes].sort((left, right) => getAutoLayoutSeedPriority(left) - getAutoLayoutSeedPriority(right) || left.id.localeCompare(right.id))
     ] as [number, PatchNode[]]);
 
   for (let pass = 0; pass < CROSSING_REDUCTION_PASSES; pass += 1) {
@@ -213,7 +202,7 @@ function sortColumnByNeighborBarycenter(
     const rightTarget = getNeighborBarycenter(patch, right.id, neighborOrder);
     return (
       compareBarycenters(leftTarget, rightTarget) ||
-      getModuleSortPriority(left) - getModuleSortPriority(right) ||
+      getAutoLayoutSeedPriority(left) - getAutoLayoutSeedPriority(right) ||
       left.id.localeCompare(right.id)
     );
   });

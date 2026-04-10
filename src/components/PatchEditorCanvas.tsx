@@ -6,6 +6,8 @@ import { resolveAutoLayoutNodes } from "@/lib/patch/autoLayout";
 import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
 import { getModuleSchema, modulePalette } from "@/lib/patch/moduleRegistry";
 import { makeConnectOp } from "@/lib/patch/ops";
+import { usePatchCanvasZoom } from "@/hooks/usePatchCanvasZoom";
+import { usePatchModuleFacePopover } from "@/hooks/usePatchModuleFacePopover";
 import { PatchValidationIssue, Patch, PatchNode, PortSchema, ParamSchema, ParamValue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 
@@ -30,28 +32,7 @@ const COLOR_PENDING_PORT = "#ff5d8f";
 const NODE_BODY_TOP = 34;
 const PORT_START_Y = 46;
 const PORT_ROW_GAP = 16;
-const MIN_ZOOM = 0.2;
-const MAX_ZOOM = 2.5;
-const ZOOM_WHEEL_SENSITIVITY = 0.0012;
-const MOUSE_WHEEL_ZOOM_DELTA_THRESHOLD = 48;
 const FACE_POPOVER_SCALE = 2.5;
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function shouldZoomFromWheel(event: WheelEvent, isOverCanvasScroll: boolean) {
-  if (event.ctrlKey) {
-    return true;
-  }
-  if (!isOverCanvasScroll) {
-    return false;
-  }
-  if (event.deltaMode !== 0) {
-    return true;
-  }
-  return Math.abs(event.deltaY) >= MOUSE_WHEEL_ZOOM_DELTA_THRESHOLD && Math.abs(event.deltaX) < 2;
-}
 
 interface HitPort {
   nodeId: string;
@@ -394,9 +375,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const [pendingFromPort, setPendingFromPort] = useState<HitPort | null>(null);
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [facePopoverNodeId, setFacePopoverNodeId] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1);
-  const zoomRef = useRef(zoom);
+  const { zoom } = usePatchCanvasZoom({ rootRef, scrollRef });
 
   const layoutByNode = useMemo(() => {
     return new Map(props.patch.layout.nodes.map((node) => [node.nodeId, node] as const));
@@ -427,6 +406,15 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       height
     };
   }, [canvasSize.height, canvasSize.width, layoutByNode]);
+  const nodeExists = useCallback((nodeId: string) => nodeById.has(nodeId), [nodeById]);
+  const {
+    handleCanvasPointerDown: handleFacePopoverPointerDown,
+    openPopoverForNode: openFacePopoverForNode,
+    popoverNodeId: facePopoverNodeId
+  } = usePatchModuleFacePopover({
+    getPopoverRect: getFacePopoverRect,
+    nodeExists
+  });
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -556,27 +544,6 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     draw();
   }, [draw]);
 
-  useEffect(() => {
-    zoomRef.current = zoom;
-  }, [zoom]);
-
-  useEffect(() => {
-    if (!facePopoverNodeId || nodeById.has(facePopoverNodeId)) {
-      return;
-    }
-    setFacePopoverNodeId(null);
-  }, [facePopoverNodeId, nodeById]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setFacePopoverNodeId(null);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
-
   const pointerToGrid = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) {
@@ -628,19 +595,8 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     const pos = pointerToGrid(event);
     pointerDownNodeIdRef.current = null;
     pointerMovedRef.current = false;
-    if (facePopoverNodeId) {
-      const rect = getFacePopoverRect(facePopoverNodeId);
-      const insidePopover =
-        rect &&
-        pos.rawX >= rect.x &&
-        pos.rawX <= rect.x + rect.width &&
-        pos.rawY >= rect.y &&
-        pos.rawY <= rect.y + rect.height;
-      if (!insidePopover) {
-        setFacePopoverNodeId(null);
-      } else {
-        return;
-      }
+    if (handleFacePopoverPointerDown(pos.rawX, pos.rawY) === "inside-popover") {
+      return;
     }
 
     const hitPort = getPortAtPointer(pos.rawX, pos.rawY);
@@ -680,58 +636,6 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       pointerMovedRef.current = false;
     }
   };
-
-  const applyCanvasWheelZoom = useCallback((event: WheelEvent, anchor: { x: number; y: number }) => {
-    event.preventDefault();
-    const scrollEl = scrollRef.current;
-    if (!scrollEl) {
-      return;
-    }
-    const currentZoom = zoomRef.current;
-    const canvasX = (scrollEl.scrollLeft + anchor.x) / currentZoom;
-    const canvasY = (scrollEl.scrollTop + anchor.y) / currentZoom;
-    const nextZoom = clamp(currentZoom * Math.exp(-event.deltaY * ZOOM_WHEEL_SENSITIVITY), MIN_ZOOM, MAX_ZOOM);
-    if (Math.abs(nextZoom - currentZoom) < 0.001) {
-      return;
-    }
-    zoomRef.current = nextZoom;
-    setZoom(nextZoom);
-    window.requestAnimationFrame(() => {
-      scrollEl.scrollLeft = canvasX * nextZoom - anchor.x;
-      scrollEl.scrollTop = canvasY * nextZoom - anchor.y;
-    });
-  }, []);
-
-  useEffect(() => {
-    const rootEl = rootRef.current;
-    const scrollEl = scrollRef.current;
-    if (!rootEl || !scrollEl) {
-      return;
-    }
-
-    const onWheel = (event: WheelEvent) => {
-      const scrollRect = scrollEl.getBoundingClientRect();
-      const target = event.target instanceof Node ? event.target : null;
-      const isOverCanvasScroll = target ? scrollEl.contains(target) : false;
-      if (!shouldZoomFromWheel(event, isOverCanvasScroll)) {
-        return;
-      }
-
-      const anchor = isOverCanvasScroll
-        ? {
-            x: event.clientX - scrollRect.left,
-            y: event.clientY - scrollRect.top
-          }
-        : {
-            x: scrollEl.clientWidth / 2,
-            y: scrollEl.clientHeight / 2
-          };
-      applyCanvasWheelZoom(event, anchor);
-    };
-
-    rootEl.addEventListener("wheel", onWheel, { capture: true, passive: false });
-    return () => rootEl.removeEventListener("wheel", onWheel, { capture: true });
-  }, [applyCanvasWheelZoom]);
 
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const pos = pointerToGrid(event);
@@ -774,7 +678,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     pointerMovedRef.current = false;
     setDragNodeId(null);
     if (clickedNodeId && !moved) {
-      setFacePopoverNodeId(clickedNodeId);
+      openFacePopoverForNode(clickedNodeId);
     }
   };
 
