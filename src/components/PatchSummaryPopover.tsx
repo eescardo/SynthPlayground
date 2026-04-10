@@ -13,6 +13,7 @@ interface PatchSummaryPopoverProps {
   top: number;
   left: number;
   height: number;
+  fixed?: boolean;
   onExpand: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
@@ -118,7 +119,7 @@ export function PatchSummaryPopover(props: PatchSummaryPopoverProps) {
     return (
       <div
         className="track-patch-summary-popover teaser"
-        style={{ top: `${props.top}px`, left: `${props.left}px`, height: `${props.height}px` }}
+        style={{ position: props.fixed ? "fixed" : undefined, top: `${props.top}px`, left: `${props.left}px`, height: `${props.height}px` }}
         onMouseEnter={props.onMouseEnter}
         onMouseLeave={props.onMouseLeave}
       >
@@ -132,7 +133,7 @@ export function PatchSummaryPopover(props: PatchSummaryPopoverProps) {
   return (
     <div
       className="track-patch-summary-popover expanded"
-      style={{ top: `${props.top}px`, left: `${props.left}px`, height: `${props.height}px` }}
+      style={{ position: props.fixed ? "fixed" : undefined, top: `${props.top}px`, left: `${props.left}px`, height: `${props.height}px` }}
       onMouseEnter={props.onMouseEnter}
       onMouseLeave={props.onMouseLeave}
       onPointerDown={(event) => event.stopPropagation()}

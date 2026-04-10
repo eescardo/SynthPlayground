@@ -1,18 +1,20 @@
 "use client";
 
-import { PatchEditorCanvas } from "@/components/PatchEditorCanvas";
+import { PatchEditorCanvas } from "@/components/patch/PatchEditorCanvas";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 
 interface InstrumentEditorProps {
   patch: Patch;
+  patches: Patch[];
   selectedNodeId?: string;
   validationIssues: PatchValidationIssue[];
   invalid?: boolean;
   previewPitch: string;
   migrationNotice?: string | null;
   onRenamePatch: (name: string) => void;
+  onSelectPatch: (patchId: string) => void;
   onDuplicatePatch: () => void;
   onUpdatePreset: () => void;
   canRemovePatch: boolean;
@@ -26,10 +28,13 @@ interface InstrumentEditorProps {
 
 interface InstrumentToolbarProps {
   patch: Patch;
+  patches: Patch[];
   invalid?: boolean;
   presetStatus: ReturnType<typeof resolvePatchPresetStatus>;
+  patchSource: ReturnType<typeof resolvePatchSource>;
   previewPitch: string;
   onRenamePatch: (name: string) => void;
+  onSelectPatch: (patchId: string) => void;
   onDuplicatePatch: () => void;
   onUpdatePreset: () => void;
   canRemovePatch: boolean;
@@ -66,19 +71,29 @@ function InstrumentToolbarActions(props: InstrumentToolbarActionsProps) {
 }
 
 function InstrumentToolbar(props: InstrumentToolbarProps) {
+  const sourceLabel =
+    props.presetStatus === "preset_update_available"
+      ? "Preset update"
+      : props.presetStatus === "legacy_preset"
+        ? "Legacy preset"
+        : props.patchSource;
+
   return (
     <div className="instrument-toolbar">
       <div className="instrument-toolbar-main">
         <div className="instrument-toolbar-heading">
-          <h3>Instrument</h3>
-          {props.presetStatus === "preset" && <span className="instrument-source-badge preset">Preset</span>}
-          {props.presetStatus === "preset_update_available" && (
-            <span className="instrument-source-badge preset-update">Preset Update Available</span>
-          )}
-          {props.presetStatus === "legacy_preset" && (
-            <span className="instrument-source-badge legacy-preset">Legacy Preset</span>
-          )}
-          <code className="instrument-title-id">({props.patch.id})</code>
+          <select
+            className="instrument-patch-select"
+            aria-label="Select instrument"
+            value={props.patch.id}
+            onChange={(event) => props.onSelectPatch(event.target.value)}
+          >
+            {props.patches.map((patch) => (
+              <option key={patch.id} value={patch.id}>
+                {patch.name}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="instrument-identity">
           <input
@@ -87,6 +102,18 @@ function InstrumentToolbar(props: InstrumentToolbarProps) {
             value={props.patch.name}
             onChange={(event) => props.onRenamePatch(event.target.value)}
           />
+          <span
+            className={`instrument-source-badge ${
+              props.presetStatus === "preset_update_available"
+                ? "preset-update"
+                : props.presetStatus === "legacy_preset"
+                  ? "legacy-preset"
+                  : props.patchSource
+            }`}
+          >
+            {sourceLabel}
+          </span>
+          <code className="instrument-title-id">({props.patch.id})</code>
         </div>
       </div>
 
@@ -123,10 +150,13 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
     <section className={`instrument-editor${props.invalid ? " invalid" : ""}`}>
       <InstrumentToolbar
         patch={props.patch}
+        patches={props.patches}
         invalid={props.invalid}
         presetStatus={presetStatus}
+        patchSource={patchSource}
         previewPitch={props.previewPitch}
         onRenamePatch={props.onRenamePatch}
+        onSelectPatch={props.onSelectPatch}
         onDuplicatePatch={props.onDuplicatePatch}
         onUpdatePreset={props.onUpdatePreset}
         canRemovePatch={props.canRemovePatch}

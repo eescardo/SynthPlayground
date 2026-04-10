@@ -17,7 +17,6 @@ interface UseEditorKeyboardShortcutsParams {
   hasPrimarySelection: boolean;
   isDeleteShortcutKey: (key: string) => boolean;
   onCloseTransientUi: () => void;
-  onOpenHelp: () => void;
   playheadBeat: number;
   redoProject: () => void;
   undoProject: () => void;
@@ -32,7 +31,6 @@ export function useEditorKeyboardShortcuts({
   hasPrimarySelection,
   isDeleteShortcutKey,
   onCloseTransientUi,
-  onOpenHelp,
   playheadBeat,
   redoProject,
   undoProject
@@ -43,12 +41,6 @@ export function useEditorKeyboardShortcuts({
       const primaryModifier = event.metaKey || event.ctrlKey;
       const lowerKey = event.key.toLowerCase();
       const isDeleteKey = isDeleteShortcutKey(event.key);
-
-      const isHelpKey = event.key === "?" || (event.key === "/" && event.shiftKey);
-      if (isHelpKey && !editingText) {
-        event.preventDefault();
-        onOpenHelp();
-      }
 
       if (event.key === "Escape") {
         onCloseTransientUi();
@@ -126,7 +118,6 @@ export function useEditorKeyboardShortcuts({
     hasPrimarySelection,
     isDeleteShortcutKey,
     onCloseTransientUi,
-    onOpenHelp,
     playheadBeat,
     redoProject,
     undoProject

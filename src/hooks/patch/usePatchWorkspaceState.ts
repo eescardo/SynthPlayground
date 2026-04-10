@@ -20,7 +20,13 @@ const PREVIEW_DURATION_BEATS = 1;
 const PREVIEW_RESTORE_PADDING_MS = 60;
 
 const isAudiblePatchOp = (op: PatchOp): boolean =>
-  op.type !== "moveNode" && op.type !== "addMacro" && op.type !== "removeMacro" && op.type !== "bindMacro" && op.type !== "unbindMacro" && op.type !== "renameMacro";
+  op.type !== "moveNode" &&
+  op.type !== "setNodeLayout" &&
+  op.type !== "addMacro" &&
+  op.type !== "removeMacro" &&
+  op.type !== "bindMacro" &&
+  op.type !== "unbindMacro" &&
+  op.type !== "renameMacro";
 
 const getPreviewDurationMs = (project: Project, durationBeats: number) =>
   Math.max(50, (durationBeats * 60 * 1000) / project.global.tempo + PREVIEW_RESTORE_PADDING_MS);
@@ -169,6 +175,12 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     previewPatchById(selectedPatch.id, pitch);
   }, [previewPatchById, previewPitch, selectedPatch]);
 
+  const selectPatchInWorkspace = useCallback((patchId: string) => {
+    setSelectedPatchId(patchId);
+    setSelectedNodeId(undefined);
+    setMigrationNotice(null);
+  }, []);
+
   const updatePresetToLatest = useCallback(() => {
     if (!selectedPatch || selectedPatch.meta.source !== "preset") {
       return;
@@ -217,7 +229,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
 
   const applyPatchOp = useCallback((op: PatchOp) => {
     if (!selectedPatch) return;
-    if (resolvePatchSource(selectedPatch) === "preset" && op.type !== "moveNode") {
+    if (resolvePatchSource(selectedPatch) === "preset" && op.type !== "moveNode" && op.type !== "setNodeLayout") {
       return;
     }
 
@@ -243,6 +255,8 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
         actionKey:
           op.type === "moveNode"
             ? `patch:${selectedPatch.id}:move-node:${op.nodeId}`
+            : op.type === "setNodeLayout"
+              ? `patch:${selectedPatch.id}:set-node-layout`
             : `patch:${selectedPatch.id}:${op.type}`,
         coalesce: op.type === "moveNode"
       }
@@ -347,6 +361,15 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     }
     const affectedTracks = project.tracks.filter((track) => track.instrumentPatchId === selectedPatch.id);
     const fallbackPatchId = project.patches.find((patch) => patch.id !== selectedPatch.id)?.id ?? "";
+    if (affectedTracks.length === 0) {
+      commitProjectChange((current) => ({
+        ...current,
+        patches: current.patches.filter((patch) => patch.id !== selectedPatch.id)
+      }), { actionKey: `patch:${selectedPatch.id}:remove` });
+      setSelectedPatchId(fallbackPatchId || project.patches.find((patch) => patch.id !== selectedPatch.id)?.id);
+      setSelectedNodeId(undefined);
+      return;
+    }
     setPatchRemovalDialog({
       patchId: selectedPatch.id,
       rows: affectedTracks.map((track) => ({
@@ -355,7 +378,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
         fallbackPatchId
       }))
     });
-  }, [project.patches, project.tracks, selectedPatch, setPatchRemovalDialog]);
+  }, [commitProjectChange, project.patches, project.tracks, selectedPatch, setPatchRemovalDialog]);
 
   return {
     selectedPatch,
@@ -372,6 +395,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     selectedPatchHasErrors,
     openPatchWorkspace,
     closePatchWorkspace,
+    selectPatchInWorkspace,
     previewPatchById,
     previewSelectedPatchNow,
     renameSelectedPatch,

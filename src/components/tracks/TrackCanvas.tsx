@@ -30,7 +30,7 @@ import {
   MuteRect,
   PitchRect,
 } from "@/components/tracks/trackCanvasGeometry";
-import { NoteRect, useTrackCanvasPointerInteractions } from "@/components/tracks/useTrackCanvasPointerInteractions";
+import { NoteRect, useTrackCanvasPointerInteractions } from "@/hooks/tracks/useTrackCanvasPointerInteractions";
 import {
   drawNoteBody,
   fillRoundedRect,
@@ -41,8 +41,8 @@ import {
   TrackCanvasProps,
   TrackLayout
 } from "@/components/tracks/trackCanvasTypes";
-import { useTrackCanvasLayout } from "@/components/tracks/useTrackCanvasLayout";
-import { useTrackCanvasWheelPitchEditing } from "@/components/tracks/useTrackCanvasWheelPitchEditing";
+import { useTrackCanvasLayout } from "@/hooks/tracks/useTrackCanvasLayout";
+import { useTrackCanvasWheelPitchEditing } from "@/hooks/tracks/useTrackCanvasWheelPitchEditing";
 import { useVolumePopover } from "@/hooks/useVolumePopover";
 import { getLoopMarkerStates } from "@/lib/looping";
 import { getProjectTimelineEndBeat } from "@/lib/macroAutomation";
@@ -757,6 +757,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     <div className="track-canvas-shell" ref={wrapperRef}>
       <TrackHeaderChrome
         project={project}
+        canvasShellRef={wrapperRef}
         trackLayouts={trackLayouts}
         selectedTrackId={selectedTrackId}
         invalidPatchIds={invalidPatchIds}

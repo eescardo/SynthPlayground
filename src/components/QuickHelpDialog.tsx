@@ -1,10 +1,12 @@
 interface QuickHelpDialogProps {
+  colorGlossaryItems?: Array<{ color: string; label: string; description: string }>;
+  mouseHelpItems: Array<{ action: string; description: string }>;
   keyboardShortcuts: Array<{ action: string; shortcut: string }>;
   onClose: () => void;
   open: boolean;
 }
 
-export function QuickHelpDialog({ keyboardShortcuts, onClose, open }: QuickHelpDialogProps) {
+export function QuickHelpDialog({ colorGlossaryItems = [], keyboardShortcuts, mouseHelpItems, onClose, open }: QuickHelpDialogProps) {
   if (!open) {
     return null;
   }
@@ -16,13 +18,11 @@ export function QuickHelpDialog({ keyboardShortcuts, onClose, open }: QuickHelpD
         <div className="quick-help-grid">
           <div className="quick-help-section">
             <h4>Mouse</h4>
-            <p><strong>Add note:</strong> Click an empty track lane when nothing is selected.</p>
-            <p><strong>Select notes:</strong> Drag a marquee across notes, or click an existing note.</p>
-            <p><strong>Move note:</strong> Drag a note block horizontally.</p>
-            <p><strong>Resize note:</strong> Drag near the right edge of a note block.</p>
-            <p><strong>Delete note:</strong> Right-click a note block.</p>
-            <p><strong>Change note pitch:</strong> Hover the pitch label and use the mouse wheel.</p>
-            <p><strong>Timeline actions:</strong> Click the playhead or a loop marker to open timeline actions.</p>
+            {mouseHelpItems.map((entry) => (
+              <p key={entry.action}>
+                <strong>{entry.action}:</strong> {entry.description}
+              </p>
+            ))}
           </div>
           <div className="quick-help-section">
             <h4>Keyboard</h4>
@@ -40,6 +40,21 @@ export function QuickHelpDialog({ keyboardShortcuts, onClose, open }: QuickHelpD
             </div>
           </div>
         </div>
+        {colorGlossaryItems.length > 0 && (
+          <div className="quick-help-section quick-help-color-glossary">
+            <h4>Module Colors</h4>
+            <div className="quick-help-color-items">
+              {colorGlossaryItems.map((entry) => (
+                <div key={entry.label} className="quick-help-color-item">
+                  <span className="quick-help-color-swatch" style={{ background: entry.color }} />
+                  <span>
+                    <strong>{entry.label}:</strong> {entry.description}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <p className="muted">Press <kbd>Esc</kbd> to close this help panel.</p>
       </div>
     </div>

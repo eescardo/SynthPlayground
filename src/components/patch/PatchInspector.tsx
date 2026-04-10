@@ -1,0 +1,206 @@
+import { getModuleSchema } from "@/lib/patch/moduleRegistry";
+import { Patch, PatchNode, ParamSchema, ParamValue, PatchValidationIssue } from "@/types/patch";
+import { PatchOp } from "@/types/ops";
+
+function formatBindingValue(value: number) {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+  if (Math.abs(value) >= 100) {
+    return value.toFixed(0);
+  }
+  if (Math.abs(value) >= 10) {
+    return value.toFixed(1);
+  }
+  if (Math.abs(value) >= 1) {
+    return value.toFixed(2);
+  }
+  return value.toFixed(3);
+}
+
+function MacroBindingDetails(props: {
+  patch: Patch;
+  nodeId: string;
+  paramId: string;
+  exposedLabel: string;
+  boundMacroIds: string[];
+}) {
+  const boundMacros = props.patch.ui.macros.filter((macro) => props.boundMacroIds.includes(macro.id));
+
+  return (
+    <>
+      <button type="button" className="macro-binding-pill" disabled title={props.exposedLabel}>
+        {props.exposedLabel}
+      </button>
+      <div className="macro-binding-details">
+        {boundMacros.map((macro) =>
+          macro.bindings
+            .filter((binding) => binding.nodeId === props.nodeId && binding.paramId === props.paramId)
+            .map((binding) => (
+              <div key={binding.id} className="macro-binding-detail-card">
+                <div className="macro-binding-detail-mode">
+                  {binding.map === "piecewise" ? "Keyframed" : binding.map === "exp" ? "Exponential" : "Linear"}
+                </div>
+                {binding.map === "piecewise" && binding.points && binding.points.length >= 2 ? (
+                  <>
+                    <div className="macro-binding-points">
+                      {binding.points.map((point, index) => (
+                        <span key={`${binding.id}_${point.x}_${index}`} className="macro-binding-point-chip">
+                          {point.x.toFixed(2)}:{formatBindingValue(point.y)}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="macro-binding-segments">Segments: linear interpolation</div>
+                  </>
+                ) : (
+                  <div className="macro-binding-range">
+                    Range: {formatBindingValue(binding.min ?? 0)} - {formatBindingValue(binding.max ?? 1)}
+                  </div>
+                )}
+              </div>
+            ))
+        )}
+      </div>
+    </>
+  );
+}
+
+function ParamValueControl(props: {
+  param: ParamSchema;
+  value: ParamValue;
+  disabled?: boolean;
+  onChange: (value: ParamValue) => void;
+}) {
+  const { param, value, disabled, onChange } = props;
+
+  if (param.type === "float") {
+    return (
+      <input
+        type="range"
+        min={param.range.min}
+        max={param.range.max}
+        step={(param.range.max - param.range.min) / 500}
+        value={Number(value)}
+        disabled={disabled}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    );
+  }
+
+  if (param.type === "enum") {
+    return (
+      <select value={String(value)} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
+        {param.options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  return <input type="checkbox" checked={Boolean(value)} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />;
+}
+
+interface PatchInspectorProps {
+  patch: Patch;
+  selectedNode?: PatchNode;
+  selectedSchema?: NonNullable<ReturnType<typeof getModuleSchema>>;
+  structureLocked?: boolean;
+  validationIssues: PatchValidationIssue[];
+  onApplyOp: (op: PatchOp) => void;
+  onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
+}
+
+export function PatchInspector(props: PatchInspectorProps) {
+  const selectedNode = props.selectedNode;
+  const exposeMacro = (paramId: string, suggestedName: string) => {
+    if (!selectedNode || props.structureLocked) {
+      return;
+    }
+    props.onExposeMacro(selectedNode.id, paramId, suggestedName);
+  };
+
+  return (
+    <aside className="patch-inspector">
+      <h3>Inspector</h3>
+      {!selectedNode && <p className="muted">Select a module to edit parameters.</p>}
+
+      {selectedNode && props.selectedSchema && (
+        <>
+          <h4>
+            {selectedNode.typeId} <small>{selectedNode.id}</small>
+          </h4>
+          {props.selectedSchema.params.map((param) => {
+            const value = selectedNode.params[param.id] ?? param.default;
+            const boundMacros = props.patch.ui.macros.filter((macro) =>
+              macro.bindings.some((binding) => binding.nodeId === selectedNode.id && binding.paramId === param.id)
+            );
+            const isExposed = boundMacros.length > 0;
+            const exposedLabel =
+              boundMacros.length === 1
+                ? `Exposed as '${boundMacros[0].name}'`
+                : `Exposed as ${boundMacros.map((macro) => `'${macro.name}'`).join(", ")}`;
+            return (
+              <label key={param.id} className="param-row">
+                <span>{param.label}</span>
+                {!isExposed && (
+                  <ParamValueControl
+                    param={param}
+                    value={value}
+                    disabled={props.structureLocked}
+                    onChange={(nextValue) =>
+                      !props.structureLocked &&
+                      props.onApplyOp({
+                        type: "setParam",
+                        nodeId: selectedNode.id,
+                        paramId: param.id,
+                        value: nextValue
+                      })
+                    }
+                  />
+                )}
+                {isExposed ? (
+                  <MacroBindingDetails
+                    patch={props.patch}
+                    nodeId={selectedNode.id}
+                    paramId={param.id}
+                    exposedLabel={exposedLabel}
+                    boundMacroIds={boundMacros.map((macro) => macro.id)}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    disabled={props.structureLocked}
+                    onClick={() => exposeMacro(param.id, param.label)}
+                  >
+                    Expose Macro
+                  </button>
+                )}
+              </label>
+            );
+          })}
+        </>
+      )}
+
+      <h4>Connections</h4>
+      {props.patch.connections.length === 0 && <p className="muted">No wires yet.</p>}
+      {props.patch.connections.map((connection) => (
+        <div key={connection.id} className="conn-row">
+          <code>
+            {connection.from.nodeId}.{connection.from.portId} {" -> "} {connection.to.nodeId}.{connection.to.portId}
+          </code>
+          <button disabled={props.structureLocked} onClick={() => !props.structureLocked && props.onApplyOp({ type: "disconnect", connectionId: connection.id })}>x</button>
+        </div>
+      ))}
+
+      <h4>Validation</h4>
+      {props.validationIssues.length === 0 && <p className="ok">Patch valid.</p>}
+      {props.validationIssues.map((issue, index) => (
+        <p key={`${issue.message}_${index}`} className={issue.level === "error" ? "error" : "warn"}>
+          {issue.message}
+        </p>
+      ))}
+    </aside>
+  );
+}

@@ -11,7 +11,6 @@ import { RecordingDock } from "@/components/home/RecordingDock";
 import { ExplodeSelectionDialog } from "@/components/ExplodeSelectionDialog";
 import { loadDspWasm } from "@/audio/wasmBridge";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
-import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { TimelineActionsPopoverRequest, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { createId } from "@/lib/ids";
 import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
@@ -50,13 +49,12 @@ import { useNoteClipboard } from "@/hooks/useNoteClipboard";
 import { usePlatformShortcuts } from "@/hooks/usePlatformShortcuts";
 import { usePlaybackController } from "@/hooks/usePlaybackController";
 import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
-import { useQuickHelpDialog } from "@/hooks/useQuickHelpDialog";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
-import { usePatchWorkspaceState } from "@/hooks/usePatchWorkspaceState";
-import { useTrackMacroAutomationActions } from "@/hooks/useTrackMacroAutomationActions";
-import { useTrackVolumeAutomationActions } from "@/hooks/useTrackVolumeAutomationActions";
+import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
+import { useTrackMacroAutomationActions } from "@/hooks/tracks/useTrackMacroAutomationActions";
+import { useTrackVolumeAutomationActions } from "@/hooks/tracks/useTrackVolumeAutomationActions";
 import { Project } from "@/types/music";
 import { PatchValidationIssue } from "@/types/patch";
 
@@ -103,17 +101,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     clearNoteClipboard,
     syncNoteClipboardPayload
   } = useNoteClipboard();
-  const {
-    allTracksModifierLabel,
-    deleteKeyLabel,
-    isDeleteShortcutKey,
-    primaryModifierLabel
-  } = usePlatformShortcuts();
-  const { closeHelp, helpOpen, keyboardShortcuts, openHelp } = useQuickHelpDialog({
-    allTracksModifierLabel,
-    deleteKeyLabel,
-    primaryModifierLabel
-  });
+  const { isDeleteShortcutKey } = usePlatformShortcuts();
   useEffect(() => {
     let cancelled = false;
 
@@ -604,7 +592,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
       scope: explodeSelectionDialogState.selectionKind === "timeline" ? "all-tracks" : explodeSelectionDialogState.scope
     });
     setExplodeSelectionDialogState(null);
-  }, [explodeSelection, explodeSelectionDialogState]);
+  }, [explodeSelection, explodeSelectionDialogState, setExplodeSelectionDialogState]);
 
   const setContentSelectionFromCanvas = useCallback((selection: ContentSelection) => {
     setTimelineActionsPopover(null);
@@ -634,14 +622,12 @@ export function AppRoot({ children }: { children: ReactNode }) {
     hasPrimarySelection: hasTimelineRangeSelection || hasContentSelection(selectedContent),
     isDeleteShortcutKey,
     onCloseTransientUi: () => {
-      closeHelp();
       setPitchPicker(null);
       patchWorkspace.setPreviewPitchPickerOpen(false);
       setPatchRemovalDialog(null);
       setTimelineActionsPopover(null);
       setEditorSelection(clearEditorSelection());
     },
-    onOpenHelp: openHelp,
     playheadBeat,
     redoProject,
     undoProject
@@ -774,6 +760,17 @@ export function AppRoot({ children }: { children: ReactNode }) {
     }
     const affectedTracks = project.tracks.filter((track) => track.instrumentPatchId === selectedTrackPatch.id);
     const fallbackPatchId = project.patches.find((patch) => patch.id !== selectedTrackPatch.id)?.id ?? "";
+    if (affectedTracks.length === 0) {
+      commitProjectChange((current) => ({
+        ...current,
+        patches: current.patches.filter((patch) => patch.id !== selectedTrackPatch.id)
+      }), { actionKey: `patch:${selectedTrackPatch.id}:remove` });
+      if (patchWorkspace.selectedPatchId === selectedTrackPatch.id) {
+        patchWorkspace.setSelectedPatchId(fallbackPatchId || project.patches.find((patch) => patch.id !== selectedTrackPatch.id)?.id);
+      }
+      patchWorkspace.setSelectedNodeId(undefined);
+      return;
+    }
     setPatchRemovalDialog({
       patchId: selectedTrackPatch.id,
       rows: affectedTracks.map((track) => ({
@@ -782,7 +779,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         fallbackPatchId
       }))
     });
-  }, [project.patches, project.tracks, selectedTrackPatch]);
+  }, [commitProjectChange, patchWorkspace, project.patches, project.tracks, selectedTrackPatch]);
 
   const confirmRemovePatch = useCallback(() => {
     if (!patchRemovalDialog) {
@@ -1010,7 +1007,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
       }),
     onAddTrack: addTrack,
     onRemoveTrack: removeSelectedTrack,
-    onOpenHelp: openHelp,
     onExportJson: exportJson,
     onImportJson: () => importInputRef.current?.click(),
     onClearProject: () => void resetToProject(createEmptyProject()),
@@ -1048,6 +1044,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const patchWorkspaceProps: React.ComponentProps<typeof PatchWorkspaceView> = {
     patch: selectedPatch,
+    patches: project.patches,
     previewPitch: patchWorkspace.previewPitch,
     migrationNotice: patchWorkspace.migrationNotice,
     selectedNodeId: patchWorkspace.selectedNodeId,
@@ -1056,8 +1053,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
     canRemovePatch:
       resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset",
     onBackToComposer: patchWorkspace.closePatchWorkspace,
-    onOpenHelp: openHelp,
     onRenamePatch: patchWorkspace.renameSelectedPatch,
+    onSelectPatch: patchWorkspace.selectPatchInWorkspace,
     onDuplicatePatch: patchWorkspace.duplicateSelectedPatchInWorkspace,
     onUpdatePreset: patchWorkspace.updatePresetToLatest,
     onRequestRemovePatch: patchWorkspace.requestRemoveSelectedPatch,
@@ -1120,8 +1117,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
           }}
           onPressEnd={(pitch) => recording.stopRecordedInput(`pointer:${pitch}`)}
         />
-
-        <QuickHelpDialog keyboardShortcuts={keyboardShortcuts} onClose={closeHelp} open={helpOpen} />
 
         <PitchPickerModal
           open={Boolean(pitchPicker && pitchPickerNote)}

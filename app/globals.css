@@ -902,6 +902,8 @@ select {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  flex: 1 1 520px;
+  min-width: min(520px, 100%);
 }
 
 .instrument-toolbar-heading {
@@ -912,6 +914,10 @@ select {
 
 .instrument-toolbar-heading h3 {
   margin: 0;
+}
+
+.instrument-patch-select {
+  min-width: min(260px, 42vw);
 }
 
 .instrument-source-badge {
@@ -941,6 +947,12 @@ select {
   background: rgba(101, 87, 127, 0.22);
 }
 
+.instrument-source-badge.custom {
+  color: #b9e7c6;
+  border-color: #47775a;
+  background: rgba(71, 119, 90, 0.22);
+}
+
 .prominent-action {
   border-color: #5f8fc9;
   background: linear-gradient(180deg, #2f5f94, #234d79);
@@ -949,13 +961,14 @@ select {
 
 .instrument-identity {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.5rem;
 }
 
 .instrument-name-input {
-  min-width: min(320px, 100%);
+  flex: 0 1 320px;
+  min-width: 180px;
   font-size: 1rem;
   font-weight: 700;
 }
@@ -1047,6 +1060,13 @@ select {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
+}
+
+.patch-zoom-readout {
+  margin-left: auto;
+  color: #8fb4d4;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88rem;
 }
 
 .patch-layout {
@@ -1273,6 +1293,34 @@ select {
   gap: 0.35rem;
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+
+.quick-help-color-glossary {
+  border-top: 1px solid rgba(51, 81, 113, 0.4);
+  padding-top: 0.85rem;
+}
+
+.quick-help-color-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.45rem 1rem;
+}
+
+.quick-help-color-item {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  color: #adc7df;
+  line-height: 1.35;
+}
+
+.quick-help-color-swatch {
+  width: 0.85rem;
+  height: 0.85rem;
+  flex: 0 0 auto;
+  border: 1px solid rgba(232, 244, 255, 0.45);
+  border-radius: 4px;
+  transform: translateY(0.12rem);
 }
 
 @media (max-width: 860px) {

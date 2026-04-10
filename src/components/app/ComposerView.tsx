@@ -1,10 +1,13 @@
 "use client";
 
 import type { ComponentProps, RefObject } from "react";
+import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { ProjectActionsBar } from "@/components/home/ProjectActionsBar";
 import { TimelineActionsPopover } from "@/components/TimelineActionsPopover";
 import { TimelineActionsPopoverRequest, TrackCanvas, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { TransportBar } from "@/components/TransportBar";
+import { useComposerQuickHelpDialog } from "@/hooks/useComposerQuickHelpDialog";
+import { usePlatformShortcuts } from "@/hooks/usePlatformShortcuts";
 import { Project } from "@/types/music";
 
 interface ComposerViewProps {
@@ -37,7 +40,6 @@ interface ComposerViewProps {
   onGridChange: (gridBeats: number) => void;
   onAddTrack: () => void;
   onRemoveTrack: () => void;
-  onOpenHelp: () => void;
   onExportJson: () => void;
   onImportJson: () => void;
   onClearProject: () => void;
@@ -60,6 +62,23 @@ interface ComposerViewProps {
 }
 
 export function ComposerView(props: ComposerViewProps) {
+  const {
+    allTracksModifierLabel,
+    deleteKeyLabel,
+    primaryModifierLabel
+  } = usePlatformShortcuts();
+  const {
+    closeHelp,
+    helpOpen,
+    keyboardShortcuts,
+    mouseHelpItems,
+    openHelp
+  } = useComposerQuickHelpDialog({
+    allTracksModifierLabel,
+    deleteKeyLabel,
+    primaryModifierLabel
+  });
+
   return (
     <>
       <TransportBar
@@ -86,7 +105,7 @@ export function ComposerView(props: ComposerViewProps) {
         canRemoveTrack={props.project.tracks.length > 1}
         onAddTrack={props.onAddTrack}
         onRemoveTrack={props.onRemoveTrack}
-        onOpenHelp={props.onOpenHelp}
+        onOpenHelp={openHelp}
         onExportJson={props.onExportJson}
         onImportJson={props.onImportJson}
         onClearProject={props.onClearProject}
@@ -139,6 +158,13 @@ export function ComposerView(props: ComposerViewProps) {
           onClose={props.onCloseTimelineActionsPopover}
         />
       )}
+
+      <QuickHelpDialog
+        keyboardShortcuts={keyboardShortcuts}
+        mouseHelpItems={mouseHelpItems}
+        onClose={closeHelp}
+        open={helpOpen}
+      />
     </>
   );
 }
