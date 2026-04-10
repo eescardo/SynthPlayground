@@ -27,6 +27,9 @@ const COLOR_NODE_SUBTITLE = "#8cb3d5";
 const COLOR_PORT_LABEL = "#9ec0df";
 const COLOR_CONNECTION_FALLBACK = "#c7d8e8";
 const COLOR_PENDING_PORT = "#ff5d8f";
+const NODE_BODY_TOP = 34;
+const PORT_START_Y = 46;
+const PORT_ROW_GAP = 16;
 
 interface HitPort {
   nodeId: string;
@@ -161,10 +164,10 @@ function drawAdsrModuleFace(
   y: number,
   accentColor: string
 ) {
-  const graphX = x + 44;
-  const graphY = y + 48;
-  const graphW = NODE_W - 88;
-  const graphH = 48;
+  const graphX = x + 36;
+  const graphY = y + 38;
+  const graphW = NODE_W - 72;
+  const graphH = 62;
   const graph = { x: graphX, y: graphY, width: graphW, height: graphH };
 
   ctx.strokeStyle = "rgba(231, 243, 255, 0.12)";
@@ -197,11 +200,11 @@ function drawGenericModuleFace(
   const faceParams = schema.slice(0, 3);
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
   faceParams.forEach((param, index) => {
-    const py = y + 54 + index * 17;
+    const py = y + 45 + index * 18;
     ctx.fillStyle = "rgba(158, 192, 223, 0.28)";
-    ctx.fillRect(x + 42, py - 10, NODE_W - 84, 14);
+    ctx.fillRect(x + 36, py - 11, NODE_W - 72, 15);
     ctx.fillStyle = COLOR_NODE_SUBTITLE;
-    ctx.fillText(`${param.label}: ${formatParamFaceValue(param, node.params[param.id])}`, x + 48, py);
+    ctx.fillText(`${param.label}: ${formatParamFaceValue(param, node.params[param.id])}`, x + 42, py);
   });
 }
 
@@ -354,13 +357,13 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       const y = layout.y * GRID;
 
       schema.portsIn.forEach((port, index) => {
-        const py = y + 54 + index * 16;
+        const py = y + PORT_START_Y + index * PORT_ROW_GAP;
         const px = x;
         portPositions.set(`${node.id}:in:${port.id}`, { x: px, y: py, schema: port });
       });
 
       schema.portsOut.forEach((port, index) => {
-        const py = y + 54 + index * 16;
+        const py = y + PORT_START_Y + index * PORT_ROW_GAP;
         const px = x + NODE_W;
         portPositions.set(`${node.id}:out:${port.id}`, { x: px, y: py, schema: port });
       });
@@ -401,7 +404,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       }
       ctx.fillStyle = moduleColors.accent;
       ctx.globalAlpha = selected ? 0.24 : hovered ? 0.18 : 0.12;
-      ctx.fillRect(x, y, NODE_W, 24);
+      ctx.fillRect(x, y, NODE_W, NODE_BODY_TOP - 8);
       ctx.globalAlpha = 1;
       ctx.strokeStyle = selected ? moduleColors.accent : hovered ? COLOR_NODE_TITLE : moduleColors.stroke;
       ctx.lineWidth = hovered ? 3 : 2;
@@ -410,9 +413,10 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       ctx.fillStyle = COLOR_NODE_TITLE;
       ctx.font = "13px 'Trebuchet MS', 'Segoe UI', sans-serif";
       ctx.fillText(node.typeId, x + 10, y + 18);
+      const titleWidth = ctx.measureText(node.typeId).width;
       ctx.fillStyle = COLOR_NODE_SUBTITLE;
       ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-      ctx.fillText(node.id, x + 10, y + 34);
+      ctx.fillText(node.id, x + 18 + titleWidth, y + 18);
 
       if (node.typeId === "ADSR") {
         drawAdsrModuleFace(ctx, props.patch, node, schema.params, x, y, moduleColors.accent);
@@ -421,7 +425,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       }
 
       schema.portsIn.forEach((port, index) => {
-        const py = y + 54 + index * 16;
+        const py = y + PORT_START_Y + index * PORT_ROW_GAP;
         const px = x;
         ctx.fillStyle = getCapabilityColor(port);
         ctx.beginPath();
@@ -433,7 +437,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       });
 
       schema.portsOut.forEach((port, index) => {
-        const py = y + 54 + index * 16;
+        const py = y + PORT_START_Y + index * PORT_ROW_GAP;
         const px = x + NODE_W;
         ctx.fillStyle = getCapabilityColor(port);
         ctx.beginPath();
