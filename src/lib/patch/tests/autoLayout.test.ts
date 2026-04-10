@@ -91,4 +91,12 @@ describe("patch auto layout", () => {
     expect(xByNode.get("env1")).toBeGreaterThan(xByNode.get("mix1") ?? 0);
     expect(xByNode.get("env1")).toBeLessThanOrEqual(xByNode.get("vca1") ?? 0);
   });
+
+  it("uses the longest output dependency path for shared modulation dependencies", () => {
+    const layout = resolveAutoLayoutNodes(padPatch());
+    const xByNode = new Map(layout.map((node) => [node.nodeId, node.x]));
+
+    expect(xByNode.get("lfo1")).toBeLessThanOrEqual(xByNode.get("vco2") ?? 0);
+    expect(xByNode.get("lfo1")).toBeLessThan(xByNode.get("vcf1") ?? 0);
+  });
 });

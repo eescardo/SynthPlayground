@@ -97,7 +97,7 @@ function resolveOutputBackedRanks(patch: Pick<Patch, "nodes" | "connections">): 
     const nodeId = queue[index];
     const nextDistance = (distanceToSinkByNodeId.get(nodeId) ?? 0) + 1;
     for (const predecessorId of predecessorsByNodeId.get(nodeId) ?? []) {
-      if ((distanceToSinkByNodeId.get(predecessorId) ?? Number.POSITIVE_INFINITY) <= nextDistance) {
+      if ((distanceToSinkByNodeId.get(predecessorId) ?? -1) >= nextDistance) {
         continue;
       }
       distanceToSinkByNodeId.set(predecessorId, nextDistance);
