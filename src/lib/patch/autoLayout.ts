@@ -3,6 +3,9 @@ import { Patch, PatchLayoutNode, PatchNode, SignalCapability } from "@/types/pat
 
 const AUTO_LAYOUT_X_GAP_GRID = 12;
 const AUTO_LAYOUT_Y_GAP_GRID = 6;
+const AUTO_LAYOUT_NODE_WIDTH_GRID = 9;
+const AUTO_LAYOUT_NODE_HEIGHT_GRID = 6;
+const AUTO_LAYOUT_MARGIN_GRID = 1;
 
 const getModuleSortPriority = (node: PatchNode): number => {
   const schema = getModuleSchema(node.typeId);
@@ -134,16 +137,37 @@ function claimNearestFreeSlot(preferredSlot: number, usedSlots: Set<number>): nu
 export function ensurePatchLayout(patch: Patch): Patch {
   const nodeIds = new Set(patch.nodes.map((node) => node.id));
   const savedLayout = patch.layout.nodes.filter((node) => nodeIds.has(node.nodeId));
-  if (savedLayout.length === patch.nodes.length) {
+  if (savedLayout.length === patch.nodes.length && !hasLayoutOverlap(savedLayout)) {
     return patch;
   }
 
   const autoLayoutByNodeId = new Map(resolveAutoLayoutNodes(patch).map((node) => [node.nodeId, node] as const));
-  const savedLayoutByNodeId = new Map(savedLayout.map((node) => [node.nodeId, node] as const));
+  const savedLayoutByNodeId = hasLayoutOverlap(savedLayout)
+    ? new Map<string, PatchLayoutNode>()
+    : new Map(savedLayout.map((node) => [node.nodeId, node] as const));
   return {
     ...patch,
     layout: {
       nodes: patch.nodes.map((node) => savedLayoutByNodeId.get(node.id) ?? autoLayoutByNodeId.get(node.id) ?? { nodeId: node.id, x: 0, y: 0 })
     }
   };
+}
+
+function hasLayoutOverlap(layoutNodes: PatchLayoutNode[]): boolean {
+  for (let leftIndex = 0; leftIndex < layoutNodes.length; leftIndex += 1) {
+    const left = layoutNodes[leftIndex];
+    for (let rightIndex = leftIndex + 1; rightIndex < layoutNodes.length; rightIndex += 1) {
+      const right = layoutNodes[rightIndex];
+      const xOverlaps =
+        left.x < right.x + AUTO_LAYOUT_NODE_WIDTH_GRID + AUTO_LAYOUT_MARGIN_GRID &&
+        right.x < left.x + AUTO_LAYOUT_NODE_WIDTH_GRID + AUTO_LAYOUT_MARGIN_GRID;
+      const yOverlaps =
+        left.y < right.y + AUTO_LAYOUT_NODE_HEIGHT_GRID + AUTO_LAYOUT_MARGIN_GRID &&
+        right.y < left.y + AUTO_LAYOUT_NODE_HEIGHT_GRID + AUTO_LAYOUT_MARGIN_GRID;
+      if (xOverlaps && yOverlaps) {
+        return true;
+      }
+    }
+  }
+  return false;
 }

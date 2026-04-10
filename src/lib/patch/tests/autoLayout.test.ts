@@ -39,4 +39,19 @@ describe("patch auto layout", () => {
     expect(patch.layout.nodes.find((node) => node.nodeId === "vco")).toBeDefined();
     expect(patch.layout.nodes.find((node) => node.nodeId === "out")).toBeDefined();
   });
+
+  it("replaces complete saved layouts when module boxes overlap", () => {
+    const patch = ensurePatchLayout(makePatch({
+      nodes: [
+        { nodeId: "pitch", x: 2, y: 2 },
+        { nodeId: "vco", x: 4, y: 2 },
+        { nodeId: "out", x: 6, y: 2 }
+      ]
+    }));
+
+    const xByNode = new Map(patch.layout.nodes.map((node) => [node.nodeId, node.x]));
+    expect(xByNode.get("pitch")).toBeLessThan(xByNode.get("vco") ?? 0);
+    expect(xByNode.get("vco")).toBeLessThan(xByNode.get("out") ?? 0);
+    expect(xByNode.get("vco")).toBeGreaterThanOrEqual((xByNode.get("pitch") ?? 0) + 12);
+  });
 });
