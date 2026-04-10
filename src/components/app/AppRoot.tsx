@@ -612,7 +612,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
       scope: explodeSelectionDialogState.selectionKind === "timeline" ? "all-tracks" : explodeSelectionDialogState.scope
     });
     setExplodeSelectionDialogState(null);
-  }, [explodeSelection, explodeSelectionDialogState]);
+  }, [explodeSelection, explodeSelectionDialogState, setExplodeSelectionDialogState]);
 
   const setContentSelectionFromCanvas = useCallback((selection: ContentSelection) => {
     setTimelineActionsPopover(null);
