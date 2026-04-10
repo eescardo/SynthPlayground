@@ -1,6 +1,6 @@
 "use client";
 
-import { PatchEditorCanvas } from "@/components/PatchEditorCanvas";
+import { PatchEditorCanvas } from "@/components/patch/PatchEditorCanvas";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";

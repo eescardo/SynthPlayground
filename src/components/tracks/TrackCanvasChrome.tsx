@@ -1,5 +1,5 @@
 import { Dispatch, RefObject, SetStateAction, useEffect, useState } from "react";
-import { MacroPanel, MacroPanelRow } from "@/components/MacroPanel";
+import { MacroPanel, MacroPanelRow } from "@/components/tracks/MacroPanel";
 import { PatchSummaryPopover } from "@/components/PatchSummaryPopover";
 import { TrackVolumePopover } from "@/components/TrackVolumePopover";
 import {
