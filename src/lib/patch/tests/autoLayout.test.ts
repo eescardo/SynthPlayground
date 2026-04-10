@@ -95,8 +95,10 @@ describe("patch auto layout", () => {
   it("uses the longest output dependency path for shared modulation dependencies", () => {
     const layout = resolveAutoLayoutNodes(padPatch());
     const xByNode = new Map(layout.map((node) => [node.nodeId, node.x]));
+    const yByNode = new Map(layout.map((node) => [node.nodeId, node.y]));
 
     expect(xByNode.get("lfo1")).toBeLessThanOrEqual(xByNode.get("vco2") ?? 0);
     expect(xByNode.get("lfo1")).toBeLessThan(xByNode.get("vcf1") ?? 0);
+    expect(yByNode.get("lfo1")).toBeGreaterThan(yByNode.get("vco2") ?? 0);
   });
 });

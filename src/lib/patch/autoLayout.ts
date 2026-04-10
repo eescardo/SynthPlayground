@@ -53,10 +53,22 @@ export function resolveAutoLayoutNodes(patch: Pick<Patch, "nodes" | "connections
 
   const ySlotByNodeId = new Map<string, number>();
   const layout: PatchLayoutNode[] = [];
-  for (const [rank, nodes] of orderedColumns) {
+  const columnIndexByNodeId = new Map(
+    orderedColumns.flatMap(([, nodes], columnIndex) => nodes.map((node) => [node.id, columnIndex] as const))
+  );
+  for (let columnIndex = 0; columnIndex < orderedColumns.length; columnIndex += 1) {
+    const [rank, nodes] = orderedColumns[columnIndex];
     let lastSlot = -1;
     nodes.forEach((node, index) => {
-      const preferredSlot = rank === 0 ? index : getTargetYSlot(patch, node.id, ySlotByNodeId);
+      const preferredSlot = getPlacementTargetSlot(
+        patch,
+        node.id,
+        index,
+        ySlotByNodeId,
+        orderedColumns,
+        columnIndex,
+        columnIndexByNodeId
+      );
       const slot = Math.max(lastSlot + 1, preferredSlot);
       lastSlot = slot;
       ySlotByNodeId.set(node.id, slot);
@@ -68,6 +80,58 @@ export function resolveAutoLayoutNodes(patch: Pick<Patch, "nodes" | "connections
     });
   }
   return layout;
+}
+
+function getPlacementTargetSlot(
+  patch: Pick<Patch, "nodes" | "connections">,
+  nodeId: string,
+  fallbackIndex: number,
+  ySlotByNodeId: Map<string, number>,
+  columns: Array<[number, PatchNode[]]>,
+  columnIndex: number,
+  columnIndexByNodeId: Map<string, number>
+): number {
+  const predecessorTarget = getTargetYSlot(patch, nodeId, ySlotByNodeId);
+  if (columnIndex > 0 && Number.isFinite(predecessorTarget)) {
+    return hasAudioPredecessor(patch, nodeId) ? predecessorTarget : Math.round((fallbackIndex + predecessorTarget) / 2);
+  }
+
+  const nextColumn = columns[columnIndex + 1]?.[1];
+  if (nextColumn) {
+    const nextColumnOrder = new Map(nextColumn.map((node, index) => [node.id, index] as const));
+    const downstreamTarget = getNeighborBarycenter(patch, nodeId, nextColumnOrder);
+    if (Number.isFinite(downstreamTarget)) {
+      return Math.round(downstreamTarget + getLongOutgoingEdgeBias(patch, nodeId, columnIndex, columnIndexByNodeId));
+    }
+  }
+
+  return fallbackIndex;
+}
+
+function hasAudioPredecessor(patch: Pick<Patch, "nodes" | "connections">, nodeId: string): boolean {
+  return patch.connections.some(
+    (connection) => connection.to.nodeId === nodeId && getConnectionCapability(patch, connection) === "AUDIO"
+  );
+}
+
+function getLongOutgoingEdgeBias(
+  patch: Pick<Patch, "connections">,
+  nodeId: string,
+  columnIndex: number,
+  columnIndexByNodeId: Map<string, number>
+): number {
+  let maxSkippedColumns = 0;
+  for (const connection of patch.connections) {
+    if (connection.from.nodeId !== nodeId) {
+      continue;
+    }
+    const targetColumnIndex = columnIndexByNodeId.get(connection.to.nodeId);
+    if (targetColumnIndex === undefined) {
+      continue;
+    }
+    maxSkippedColumns = Math.max(maxSkippedColumns, targetColumnIndex - columnIndex - 1);
+  }
+  return Math.max(0, maxSkippedColumns * 0.85);
 }
 
 function resolveOutputBackedRanks(patch: Pick<Patch, "nodes" | "connections">): Map<string, number> {
