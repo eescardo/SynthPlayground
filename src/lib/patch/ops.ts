@@ -60,6 +60,23 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       return next;
     }
 
+    case "setNodeLayout": {
+      const nodeIds = new Set(next.nodes.map((node) => node.id));
+      const nextLayoutById = new Map(next.layout.nodes.map((entry) => [entry.nodeId, entry] as const));
+      for (const layoutNode of op.nodes) {
+        if (!nodeIds.has(layoutNode.nodeId)) {
+          continue;
+        }
+        nextLayoutById.set(layoutNode.nodeId, {
+          nodeId: layoutNode.nodeId,
+          x: layoutNode.x,
+          y: layoutNode.y
+        });
+      }
+      next.layout.nodes = next.nodes.map((node) => nextLayoutById.get(node.id) ?? { nodeId: node.id, x: 0, y: 0 });
+      return next;
+    }
+
     case "setParam": {
       const node = next.nodes.find((entry) => entry.id === op.nodeId);
       if (!node) {

@@ -109,7 +109,14 @@ export function AppRoot({ children }: { children: ReactNode }) {
     isDeleteShortcutKey,
     primaryModifierLabel
   } = usePlatformShortcuts();
-  const { closeHelp, helpOpen, keyboardShortcuts, openHelp } = useQuickHelpDialog({
+  const {
+    closeHelp,
+    helpOpen,
+    keyboardShortcuts,
+    mouseHelpItems,
+    openComposerHelp,
+    openPatchWorkspaceHelp
+  } = useQuickHelpDialog({
     allTracksModifierLabel,
     deleteKeyLabel,
     primaryModifierLabel
@@ -641,7 +648,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
       setTimelineActionsPopover(null);
       setEditorSelection(clearEditorSelection());
     },
-    onOpenHelp: openHelp,
+    onOpenHelp: openComposerHelp,
     playheadBeat,
     redoProject,
     undoProject
@@ -1010,7 +1017,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
       }),
     onAddTrack: addTrack,
     onRemoveTrack: removeSelectedTrack,
-    onOpenHelp: openHelp,
+    onOpenHelp: openComposerHelp,
     onExportJson: exportJson,
     onImportJson: () => importInputRef.current?.click(),
     onClearProject: () => void resetToProject(createEmptyProject()),
@@ -1048,6 +1055,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const patchWorkspaceProps: React.ComponentProps<typeof PatchWorkspaceView> = {
     patch: selectedPatch,
+    patches: project.patches,
     previewPitch: patchWorkspace.previewPitch,
     migrationNotice: patchWorkspace.migrationNotice,
     selectedNodeId: patchWorkspace.selectedNodeId,
@@ -1056,8 +1064,9 @@ export function AppRoot({ children }: { children: ReactNode }) {
     canRemovePatch:
       resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset",
     onBackToComposer: patchWorkspace.closePatchWorkspace,
-    onOpenHelp: openHelp,
+    onOpenHelp: openPatchWorkspaceHelp,
     onRenamePatch: patchWorkspace.renameSelectedPatch,
+    onSelectPatch: patchWorkspace.selectPatchInWorkspace,
     onDuplicatePatch: patchWorkspace.duplicateSelectedPatchInWorkspace,
     onUpdatePreset: patchWorkspace.updatePresetToLatest,
     onRequestRemovePatch: patchWorkspace.requestRemoveSelectedPatch,
@@ -1121,7 +1130,12 @@ export function AppRoot({ children }: { children: ReactNode }) {
           onPressEnd={(pitch) => recording.stopRecordedInput(`pointer:${pitch}`)}
         />
 
-        <QuickHelpDialog keyboardShortcuts={keyboardShortcuts} onClose={closeHelp} open={helpOpen} />
+        <QuickHelpDialog
+          keyboardShortcuts={keyboardShortcuts}
+          mouseHelpItems={mouseHelpItems}
+          onClose={closeHelp}
+          open={helpOpen}
+        />
 
         <PitchPickerModal
           open={Boolean(pitchPicker && pitchPickerNote)}

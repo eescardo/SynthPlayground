@@ -17,6 +17,10 @@ export type PatchOp =
       newLayoutPos: { x: number; y: number };
     }
   | {
+      type: "setNodeLayout";
+      nodes: Array<{ nodeId: string; x: number; y: number }>;
+    }
+  | {
       type: "setParam";
       nodeId: string;
       paramId: string;

@@ -7,6 +7,7 @@ import { PatchOp } from "@/types/ops";
 
 interface PatchWorkspaceViewProps {
   patch: Patch;
+  patches: Patch[];
   previewPitch: string;
   migrationNotice?: string | null;
   selectedNodeId?: string;
@@ -15,6 +16,7 @@ interface PatchWorkspaceViewProps {
   canRemovePatch: boolean;
   onBackToComposer: () => void;
   onOpenHelp: () => void;
+  onSelectPatch: (patchId: string) => void;
   onRenamePatch: (name: string) => void;
   onDuplicatePatch: () => void;
   onUpdatePreset: () => void;
@@ -34,22 +36,21 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           <button type="button" className="patch-workspace-back-button" onClick={props.onBackToComposer}>
             Back to Composer
           </button>
-          <div>
-            <h2>Patch Workspace</h2>
-            <p className="muted">{props.patch.name}</p>
-          </div>
+          <h2>Patch Workspace</h2>
         </div>
-        <button type="button" onClick={props.onOpenHelp}>Help</button>
+        <button type="button" onClick={props.onOpenHelp}>Help (?)</button>
       </div>
 
       <InstrumentEditor
         patch={props.patch}
+        patches={props.patches}
         previewPitch={props.previewPitch}
         migrationNotice={props.migrationNotice}
         selectedNodeId={props.selectedNodeId}
         validationIssues={props.validationIssues}
         invalid={props.invalid}
         onRenamePatch={props.onRenamePatch}
+        onSelectPatch={props.onSelectPatch}
         onDuplicatePatch={props.onDuplicatePatch}
         onUpdatePreset={props.onUpdatePreset}
         canRemovePatch={props.canRemovePatch}

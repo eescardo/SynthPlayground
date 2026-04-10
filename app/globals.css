@@ -914,6 +914,10 @@ select {
   margin: 0;
 }
 
+.instrument-patch-select {
+  min-width: min(260px, 42vw);
+}
+
 .instrument-source-badge {
   padding: 0.16rem 0.45rem;
   border-radius: 999px;
@@ -939,6 +943,12 @@ select {
   color: #d7c7ff;
   border-color: #65577f;
   background: rgba(101, 87, 127, 0.22);
+}
+
+.instrument-source-badge.custom {
+  color: #b9e7c6;
+  border-color: #47775a;
+  background: rgba(71, 119, 90, 0.22);
 }
 
 .prominent-action {

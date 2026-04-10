@@ -14,8 +14,22 @@ export function useQuickHelpDialog({
   primaryModifierLabel
 }: UseQuickHelpDialogParams) {
   const [helpOpen, setHelpOpen] = useState(false);
+  const [helpContext, setHelpContext] = useState<"composer" | "patch-workspace">("composer");
 
-  const keyboardShortcuts = useMemo(
+  const composerMouseHelpItems = useMemo(
+    () => [
+      { action: "Add note", description: "Click an empty track lane when nothing is selected." },
+      { action: "Select notes", description: "Drag a marquee across notes, or click an existing note." },
+      { action: "Move note", description: "Drag a note block horizontally." },
+      { action: "Resize note", description: "Drag near the right edge of a note block." },
+      { action: "Delete note", description: "Right-click a note block." },
+      { action: "Change note pitch", description: "Hover the pitch label and use the mouse wheel." },
+      { action: "Timeline actions", description: "Click the playhead or a loop marker to open timeline actions." }
+    ],
+    []
+  );
+
+  const composerKeyboardShortcuts = useMemo(
     () => [
       { action: "Help", shortcut: "?" },
       { action: "Cut Selection", shortcut: `${primaryModifierLabel}+X` },
@@ -33,10 +47,20 @@ export function useQuickHelpDialog({
     [allTracksModifierLabel, deleteKeyLabel, primaryModifierLabel]
   );
 
+  const patchWorkspaceKeyboardShortcuts = useMemo(() => [{ action: "Help", shortcut: "?" }], []);
+  const patchWorkspaceMouseHelpItems = useMemo<Array<{ action: string; description: string }>>(() => [], []);
+
+  const openHelp = (context: "composer" | "patch-workspace" = "composer") => {
+    setHelpContext(context);
+    setHelpOpen(true);
+  };
+
   return {
     closeHelp: () => setHelpOpen(false),
     helpOpen,
-    keyboardShortcuts,
-    openHelp: () => setHelpOpen(true)
+    keyboardShortcuts: helpContext === "patch-workspace" ? patchWorkspaceKeyboardShortcuts : composerKeyboardShortcuts,
+    mouseHelpItems: helpContext === "patch-workspace" ? patchWorkspaceMouseHelpItems : composerMouseHelpItems,
+    openComposerHelp: () => openHelp("composer"),
+    openPatchWorkspaceHelp: () => openHelp("patch-workspace")
   };
 }

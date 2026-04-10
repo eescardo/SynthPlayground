@@ -5,13 +5,18 @@ import { createId } from "@/lib/ids";
 import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
 import { getModuleSchema, modulePalette } from "@/lib/patch/moduleRegistry";
 import { makeConnectOp } from "@/lib/patch/ops";
-import { PatchValidationIssue, Patch, PortSchema, ParamSchema, ParamValue } from "@/types/patch";
+import { PatchValidationIssue, Patch, PatchLayoutNode, PatchNode, PortSchema, ParamSchema, ParamValue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 
 const GRID = 24;
-const NODE_W = 168;
-const NODE_H = 96;
+const NODE_W = 204;
+const NODE_H = 126;
 const NODE_HIT_PADDING = 0;
+const CANVAS_MIN_WIDTH = 1400;
+const CANVAS_MIN_HEIGHT = 640;
+const CANVAS_PADDING = 120;
+const AUTO_LAYOUT_X_GAP_GRID = 12;
+const AUTO_LAYOUT_Y_GAP_GRID = 7;
 const MOVE_CURSOR = "move";
 const MOVE_CURSOR_ACTIVE = "grabbing";
 const COLOR_CANVAS_BG = "#0c141d";
@@ -46,6 +51,61 @@ function getCapabilityColor(port: PortSchema): string {
   return getSignalCapabilityColor(port.capabilities[0]);
 }
 
+function formatParamFaceValue(param: ParamSchema, value: ParamValue | undefined): string {
+  const resolved = value ?? param.default;
+  if (param.type === "bool") {
+    return resolved ? "on" : "off";
+  }
+  if (param.type === "enum") {
+    return String(resolved);
+  }
+  const numeric = typeof resolved === "number" ? resolved : param.default;
+  const formatted = Math.abs(numeric) >= 10 ? numeric.toFixed(1) : numeric.toFixed(2);
+  return param.unit === "linear" ? formatted : `${formatted}${param.unit}`;
+}
+
+function resolveAutoLayoutNodes(patch: Patch): PatchLayoutNode[] {
+  const rankByNodeId = new Map<string, number>(patch.nodes.map((node) => [node.id, 0]));
+  for (let pass = 0; pass < patch.nodes.length; pass += 1) {
+    let changed = false;
+    for (const connection of patch.connections) {
+      if (!rankByNodeId.has(connection.from.nodeId) || !rankByNodeId.has(connection.to.nodeId)) {
+        continue;
+      }
+      const nextRank = (rankByNodeId.get(connection.from.nodeId) ?? 0) + 1;
+      if (nextRank > (rankByNodeId.get(connection.to.nodeId) ?? 0)) {
+        rankByNodeId.set(connection.to.nodeId, nextRank);
+        changed = true;
+      }
+    }
+    if (!changed) {
+      break;
+    }
+  }
+
+  const nodesByRank = new Map<number, PatchNode[]>();
+  for (const node of patch.nodes) {
+    const rank = rankByNodeId.get(node.id) ?? 0;
+    const siblings = nodesByRank.get(rank) ?? [];
+    siblings.push(node);
+    nodesByRank.set(rank, siblings);
+  }
+
+  const layout: PatchLayoutNode[] = [];
+  for (const [rank, nodes] of [...nodesByRank.entries()].sort(([left], [right]) => left - right)) {
+    nodes
+      .sort((left, right) => left.id.localeCompare(right.id))
+      .forEach((node, index) => {
+        layout.push({
+          nodeId: node.id,
+          x: 2 + rank * AUTO_LAYOUT_X_GAP_GRID,
+          y: 2 + index * AUTO_LAYOUT_Y_GAP_GRID
+        });
+      });
+  }
+  return layout;
+}
+
 function formatBindingValue(value: number) {
   if (!Number.isFinite(value)) {
     return "0";
@@ -60,6 +120,69 @@ function formatBindingValue(value: number) {
     return value.toFixed(2);
   }
   return value.toFixed(3);
+}
+
+function getNumericParam(node: PatchNode, schema: ParamSchema[], paramId: string): number {
+  const param = schema.find((entry) => entry.id === paramId);
+  const value = node.params[paramId] ?? param?.default;
+  return typeof value === "number" ? value : 0;
+}
+
+function drawAdsrModuleFace(
+  ctx: CanvasRenderingContext2D,
+  node: PatchNode,
+  schema: ParamSchema[],
+  x: number,
+  y: number,
+  accentColor: string
+) {
+  const graphX = x + 44;
+  const graphY = y + 48;
+  const graphW = NODE_W - 88;
+  const graphH = 48;
+  const attack = Math.max(0.01, getNumericParam(node, schema, "attack"));
+  const decay = Math.max(0.01, getNumericParam(node, schema, "decay"));
+  const sustain = Math.max(0, Math.min(1, getNumericParam(node, schema, "sustain")));
+  const release = Math.max(0.01, getNumericParam(node, schema, "release"));
+  const total = attack + decay + release + 0.75;
+  const ax = graphX + (attack / total) * graphW;
+  const dx = ax + (decay / total) * graphW;
+  const sx = dx + (0.75 / total) * graphW;
+  const rx = graphX + graphW;
+  const highY = graphY + 6;
+  const sustainY = graphY + graphH - 6 - sustain * (graphH - 12);
+  const baseY = graphY + graphH - 4;
+
+  ctx.strokeStyle = "rgba(231, 243, 255, 0.12)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(graphX, graphY, graphW, graphH);
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(graphX, baseY);
+  ctx.lineTo(ax, highY);
+  ctx.lineTo(dx, sustainY);
+  ctx.lineTo(sx, sustainY);
+  ctx.lineTo(rx, baseY);
+  ctx.stroke();
+}
+
+function drawGenericModuleFace(
+  ctx: CanvasRenderingContext2D,
+  node: PatchNode,
+  schema: ParamSchema[],
+  x: number,
+  y: number
+) {
+  const faceParams = schema.slice(0, 3);
+  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+  faceParams.forEach((param, index) => {
+    const py = y + 54 + index * 17;
+    ctx.fillStyle = "rgba(158, 192, 223, 0.28)";
+    ctx.fillRect(x + 42, py - 10, NODE_W - 84, 14);
+    ctx.fillStyle = COLOR_NODE_SUBTITLE;
+    ctx.fillText(`${param.label}: ${formatParamFaceValue(param, node.params[param.id])}`, x + 48, py);
+  });
 }
 
 function MacroBindingDetails(props: {
@@ -161,6 +284,15 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   }, [props.patch.layout.nodes]);
 
   const nodeById = useMemo(() => new Map(props.patch.nodes.map((node) => [node.id, node] as const)), [props.patch.nodes]);
+  const canvasSize = useMemo(() => {
+    let maxX = CANVAS_MIN_WIDTH;
+    let maxY = CANVAS_MIN_HEIGHT;
+    for (const layout of props.patch.layout.nodes) {
+      maxX = Math.max(maxX, layout.x * GRID + NODE_W + CANVAS_PADDING);
+      maxY = Math.max(maxY, layout.y * GRID + NODE_H + CANVAS_PADDING);
+    }
+    return { width: maxX, height: maxY };
+  }, [props.patch.layout.nodes]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -168,8 +300,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const width = 1400;
-    const height = 640;
+    const { width, height } = canvasSize;
     canvas.width = width;
     canvas.height = height;
 
@@ -202,54 +333,15 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       const x = layout.x * GRID;
       const y = layout.y * GRID;
 
-      const selected = props.selectedNodeId === node.id;
-      const hovered = hoveredNodeId === node.id;
-      const moduleColors = resolveMutedPatchModuleColors(schema.categories);
-      ctx.fillStyle = moduleColors.fill;
-      ctx.fillRect(x, y, NODE_W, NODE_H);
-      if (hovered && !selected) {
-        ctx.fillStyle = COLOR_NODE_HOVER_OVERLAY;
-        ctx.fillRect(x + 2, y + 2, NODE_W - 4, NODE_H - 4);
-      }
-      ctx.fillStyle = moduleColors.accent;
-      ctx.globalAlpha = selected ? 0.24 : hovered ? 0.18 : 0.12;
-      ctx.fillRect(x, y, NODE_W, 22);
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = selected ? moduleColors.accent : hovered ? COLOR_NODE_TITLE : moduleColors.stroke;
-      ctx.lineWidth = hovered ? 3 : 2;
-      ctx.strokeRect(x, y, NODE_W, NODE_H);
-
-      ctx.fillStyle = COLOR_NODE_TITLE;
-      ctx.font = "12px 'Trebuchet MS', 'Segoe UI', sans-serif";
-      ctx.fillText(node.typeId, x + 10, y + 18);
-      ctx.fillStyle = COLOR_NODE_SUBTITLE;
-      ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-      ctx.fillText(node.id, x + 10, y + 32);
-
       schema.portsIn.forEach((port, index) => {
-        const py = y + 50 + index * 14;
+        const py = y + 54 + index * 16;
         const px = x;
-        ctx.fillStyle = getCapabilityColor(port);
-        ctx.beginPath();
-        ctx.arc(px, py, 4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = COLOR_PORT_LABEL;
-        ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-        ctx.fillText(port.id, px + 8, py + 3);
         portPositions.set(`${node.id}:in:${port.id}`, { x: px, y: py, schema: port });
       });
 
       schema.portsOut.forEach((port, index) => {
-        const py = y + 50 + index * 14;
+        const py = y + 54 + index * 16;
         const px = x + NODE_W;
-        ctx.fillStyle = getCapabilityColor(port);
-        ctx.beginPath();
-        ctx.arc(px, py, 4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = COLOR_PORT_LABEL;
-        ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-        const textWidth = ctx.measureText(port.id).width;
-        ctx.fillText(port.id, px - 8 - textWidth, py + 3);
         portPositions.set(`${node.id}:out:${port.id}`, { x: px, y: py, schema: port });
       });
     });
@@ -263,14 +355,76 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       ctx.strokeStyle = getSignalCapabilityColor(commonCapability) ?? COLOR_CONNECTION_FALLBACK;
       ctx.lineWidth = 2;
 
-      const middleX = Math.round((from.x + to.x) / 2 / GRID) * GRID;
       ctx.beginPath();
       ctx.moveTo(from.x, from.y);
-      ctx.lineTo(middleX, from.y);
-      ctx.lineTo(middleX, to.y);
       ctx.lineTo(to.x, to.y);
       ctx.stroke();
     }
+
+    props.patch.nodes.forEach((node) => {
+      const schema = getModuleSchema(node.typeId);
+      if (!schema) return;
+      const layout = layoutByNode.get(node.id);
+      if (!layout) return;
+
+      const x = layout.x * GRID;
+      const y = layout.y * GRID;
+
+      const selected = props.selectedNodeId === node.id;
+      const hovered = hoveredNodeId === node.id;
+      const moduleColors = resolveMutedPatchModuleColors(schema.categories);
+      ctx.fillStyle = moduleColors.fill;
+      ctx.fillRect(x, y, NODE_W, NODE_H);
+      if (hovered && !selected) {
+        ctx.fillStyle = COLOR_NODE_HOVER_OVERLAY;
+        ctx.fillRect(x + 2, y + 2, NODE_W - 4, NODE_H - 4);
+      }
+      ctx.fillStyle = moduleColors.accent;
+      ctx.globalAlpha = selected ? 0.24 : hovered ? 0.18 : 0.12;
+      ctx.fillRect(x, y, NODE_W, 24);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = selected ? moduleColors.accent : hovered ? COLOR_NODE_TITLE : moduleColors.stroke;
+      ctx.lineWidth = hovered ? 3 : 2;
+      ctx.strokeRect(x, y, NODE_W, NODE_H);
+
+      ctx.fillStyle = COLOR_NODE_TITLE;
+      ctx.font = "13px 'Trebuchet MS', 'Segoe UI', sans-serif";
+      ctx.fillText(node.typeId, x + 10, y + 18);
+      ctx.fillStyle = COLOR_NODE_SUBTITLE;
+      ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.fillText(node.id, x + 10, y + 34);
+
+      if (node.typeId === "ADSR") {
+        drawAdsrModuleFace(ctx, node, schema.params, x, y, moduleColors.accent);
+      } else {
+        drawGenericModuleFace(ctx, node, schema.params, x, y);
+      }
+
+      schema.portsIn.forEach((port, index) => {
+        const py = y + 54 + index * 16;
+        const px = x;
+        ctx.fillStyle = getCapabilityColor(port);
+        ctx.beginPath();
+        ctx.arc(px, py, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = COLOR_PORT_LABEL;
+        ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+        ctx.fillText(port.id, px + 8, py + 3);
+      });
+
+      schema.portsOut.forEach((port, index) => {
+        const py = y + 54 + index * 16;
+        const px = x + NODE_W;
+        ctx.fillStyle = getCapabilityColor(port);
+        ctx.beginPath();
+        ctx.arc(px, py, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = COLOR_PORT_LABEL;
+        ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+        const textWidth = ctx.measureText(port.id).width;
+        ctx.fillText(port.id, px - 8 - textWidth, py + 3);
+      });
+    });
 
     if (pendingFromPort) {
       const portKey = `${pendingFromPort.nodeId}:out:${pendingFromPort.portId}`;
@@ -288,7 +442,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       const [nodeId, kind, portId] = key.split(":");
       hitPortsRef.current.push({ nodeId, kind: kind as "in" | "out", portId, x: value.x, y: value.y });
     }
-  }, [hoveredNodeId, layoutByNode, pendingFromPort, props.patch.connections, props.patch.nodes, props.selectedNodeId]);
+  }, [canvasSize, hoveredNodeId, layoutByNode, pendingFromPort, props.patch.connections, props.patch.nodes, props.selectedNodeId]);
 
   useEffect(() => {
     draw();
@@ -458,6 +612,18 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
         >
           Delete Selected
         </button>
+        <button
+          disabled={props.structureLocked || props.patch.nodes.length === 0}
+          onClick={() =>
+            !props.structureLocked &&
+            props.onApplyOp({
+              type: "setNodeLayout",
+              nodes: resolveAutoLayoutNodes(props.patch)
+            })
+          }
+        >
+          Auto-layout
+        </button>
         {props.structureLocked && <span className="muted">Preset structure is locked. Move nodes for clarity or edit macros.</span>}
         {pendingFromPort && <span className="muted">Select input port to complete connection.</span>}
       </div>
@@ -467,9 +633,10 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           <div className="patch-canvas-scroll">
             <canvas
               ref={canvasRef}
-              width={1400}
-              height={640}
+              width={canvasSize.width}
+              height={canvasSize.height}
               style={{
+                width: `${canvasSize.width}px`,
                 cursor: dragNodeId ? MOVE_CURSOR_ACTIVE : hoveredNodeId ? MOVE_CURSOR : "default"
               }}
               onPointerDown={onPointerDown}
