@@ -17,7 +17,7 @@ import {
   PATCH_NODE_HEIGHT,
   PATCH_NODE_WIDTH,
   PATCH_PORT_LABEL_HEIGHT,
-  PATCH_PORT_LABEL_MIN_WIDTH,
+  PATCH_PORT_LABEL_MIN_TEXT,
   PATCH_PORT_LABEL_OVERHANG_RATIO,
   PATCH_PORT_LABEL_X_PADDING,
   PATCH_PORT_ROW_GAP,
@@ -39,7 +39,13 @@ interface ResolvedPortPosition {
 }
 
 function resolvePortLabelWidth(ctx: CanvasRenderingContext2D, port: PortSchema) {
-  return Math.max(PATCH_PORT_LABEL_MIN_WIDTH, Math.ceil(ctx.measureText(port.id).width) + PATCH_PORT_LABEL_X_PADDING * 2);
+  const minWidth = Math.ceil(ctx.measureText(PATCH_PORT_LABEL_MIN_TEXT).width) + PATCH_PORT_LABEL_X_PADDING * 2;
+  return Math.max(minWidth, Math.ceil(ctx.measureText(port.id).width) + PATCH_PORT_LABEL_X_PADDING * 2);
+}
+
+function resolvePortLabelInset(ctx: CanvasRenderingContext2D) {
+  const minWidth = Math.ceil(ctx.measureText(PATCH_PORT_LABEL_MIN_TEXT).width) + PATCH_PORT_LABEL_X_PADDING * 2;
+  return minWidth * (1 - PATCH_PORT_LABEL_OVERHANG_RATIO);
 }
 
 function resolvePortLabelRect(
@@ -52,11 +58,12 @@ function resolvePortLabelRect(
 ): ResolvedPortPosition {
   const width = resolvePortLabelWidth(ctx, port);
   const height = PATCH_PORT_LABEL_HEIGHT;
+  const moduleInset = resolvePortLabelInset(ctx);
   const y = nodeY + PATCH_PORT_START_Y + index * PATCH_PORT_ROW_GAP;
   const labelX =
     kind === "in"
-      ? nodeX - width * PATCH_PORT_LABEL_OVERHANG_RATIO
-      : nodeX + PATCH_NODE_WIDTH - width * (1 - PATCH_PORT_LABEL_OVERHANG_RATIO);
+      ? nodeX + moduleInset - width
+      : nodeX + PATCH_NODE_WIDTH - moduleInset;
   return {
     x: labelX,
     y,
