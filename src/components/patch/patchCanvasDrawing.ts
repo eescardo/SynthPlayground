@@ -10,6 +10,9 @@ import {
   PATCH_COLOR_PENDING_PORT,
   PATCH_COLOR_PORT_LABEL,
   PATCH_FACE_POPOVER_SCALE,
+  PATCH_MODULE_FACE_BOTTOM_INSET,
+  PATCH_MODULE_FACE_INSET_X,
+  PATCH_MODULE_FACE_TOP,
   PATCH_NODE_BODY_TOP,
   PATCH_NODE_HEIGHT,
   PATCH_NODE_WIDTH,
@@ -160,10 +163,10 @@ function drawAdsrModuleFace(
   y: number,
   accentColor: string
 ) {
-  const graphX = x + 36;
-  const graphY = y + 38;
-  const graphW = PATCH_NODE_WIDTH - 72;
-  const graphH = 62;
+  const graphX = x + PATCH_MODULE_FACE_INSET_X;
+  const graphY = y + PATCH_MODULE_FACE_TOP;
+  const graphW = PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2;
+  const graphH = PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET;
   const graph = { x: graphX, y: graphY, width: graphW, height: graphH };
 
   ctx.strokeStyle = "rgba(231, 243, 255, 0.12)";
@@ -194,13 +197,16 @@ function drawGenericModuleFace(
   y: number
 ) {
   const faceParams = schema.slice(0, 3);
+  const rowX = x + PATCH_MODULE_FACE_INSET_X;
+  const rowW = PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2;
+  const rowTop = y + PATCH_MODULE_FACE_TOP + 2;
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
   faceParams.forEach((param, index) => {
-    const py = y + 45 + index * 18;
+    const py = rowTop + index * 20;
     ctx.fillStyle = "rgba(158, 192, 223, 0.28)";
-    ctx.fillRect(x + 36, py - 11, PATCH_NODE_WIDTH - 72, 15);
+    ctx.fillRect(rowX, py - 11, rowW, 16);
     ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
-    ctx.fillText(`${param.label}: ${formatParamFaceValue(param, node.params[param.id])}`, x + 42, py);
+    ctx.fillText(`${param.label}: ${formatParamFaceValue(param, node.params[param.id])}`, rowX + 6, py);
   });
 }
 
