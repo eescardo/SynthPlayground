@@ -27,6 +27,10 @@ interface PatchWorkspaceViewProps {
   onSelectNode: (nodeId?: string) => void;
   onApplyOp: (op: PatchOp) => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
+  onAddMacro: () => void;
+  onRemoveMacro: (macroId: string) => void;
+  onRenameMacro: (macroId: string, name: string) => void;
+  onChangeMacroValue: (macroId: string, normalized: number, options?: { commit?: boolean }) => void;
 }
 
 export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
@@ -70,6 +74,10 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
         onSelectNode={props.onSelectNode}
         onApplyOp={props.onApplyOp}
         onExposeMacro={props.onExposeMacro}
+        onAddMacro={props.onAddMacro}
+        onRemoveMacro={props.onRemoveMacro}
+        onRenameMacro={props.onRenameMacro}
+        onChangeMacroValue={props.onChangeMacroValue}
       />
 
       <QuickHelpDialog

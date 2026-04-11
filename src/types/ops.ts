@@ -71,6 +71,11 @@ export type PatchOp =
       type: "renameMacro";
       macroId: string;
       name: string;
+    }
+  | {
+      type: "setMacroValue";
+      macroId: string;
+      normalized: number;
     };
 
 export interface PatchHistoryState<T> {

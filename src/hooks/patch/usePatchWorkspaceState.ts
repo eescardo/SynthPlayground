@@ -27,7 +27,8 @@ const isAudiblePatchOp = (op: PatchOp): boolean =>
   op.type !== "removeMacro" &&
   op.type !== "bindMacro" &&
   op.type !== "unbindMacro" &&
-  op.type !== "renameMacro";
+  op.type !== "renameMacro" &&
+  op.type !== "setMacroValue";
 
 const getPreviewDurationMs = (project: Project, durationBeats: number) =>
   Math.max(50, (durationBeats * 60 * 1000) / project.global.tempo + PREVIEW_RESTORE_PADDING_MS);
@@ -331,6 +332,70 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     }, { actionKey: `patch:${selectedPatch.id}:expose-macro:${nodeId}:${paramId}` });
   }, [commitProjectChange, selectedPatch]);
 
+  const addPatchMacro = useCallback(() => {
+    if (!selectedPatch || resolvePatchSource(selectedPatch) === "preset") {
+      return;
+    }
+    commitProjectChange((current) => ({
+      ...current,
+      patches: current.patches.map((patch) =>
+        patch.id === selectedPatch.id
+          ? applyPatchGraphOp(patch, {
+              type: "addMacro",
+              macroId: createId("macro"),
+              name: `Macro ${patch.ui.macros.length + 1}`
+            })
+          : patch
+      )
+    }), { actionKey: `patch:${selectedPatch.id}:add-macro` });
+  }, [commitProjectChange, selectedPatch]);
+
+  const removePatchMacro = useCallback((macroId: string) => {
+    if (!selectedPatch || resolvePatchSource(selectedPatch) === "preset") {
+      return;
+    }
+    commitProjectChange((current) => ({
+      ...current,
+      patches: current.patches.map((patch) =>
+        patch.id === selectedPatch.id ? applyPatchGraphOp(patch, { type: "removeMacro", macroId }) : patch
+      )
+    }), { actionKey: `patch:${selectedPatch.id}:remove-macro:${macroId}` });
+  }, [commitProjectChange, selectedPatch]);
+
+  const renamePatchMacro = useCallback((macroId: string, name: string) => {
+    if (!selectedPatch || resolvePatchSource(selectedPatch) === "preset") {
+      return;
+    }
+    commitProjectChange((current) => ({
+      ...current,
+      patches: current.patches.map((patch) =>
+        patch.id === selectedPatch.id ? applyPatchGraphOp(patch, { type: "renameMacro", macroId, name }) : patch
+      )
+    }), {
+      actionKey: `patch:${selectedPatch.id}:rename-macro:${macroId}`,
+      coalesce: true
+    });
+  }, [commitProjectChange, selectedPatch]);
+
+  const changePatchMacroValue = useCallback((macroId: string, normalized: number, options?: { commit?: boolean }) => {
+    if (!selectedPatch) {
+      return;
+    }
+    commitProjectChange((current) => ({
+      ...current,
+      patches: current.patches.map((patch) =>
+        patch.id === selectedPatch.id ? applyPatchGraphOp(patch, { type: "setMacroValue", macroId, normalized }) : patch
+      )
+    }), {
+      actionKey: `patch:${selectedPatch.id}:macro:${macroId}`,
+      coalesce: !options?.commit
+    });
+
+    if (options?.commit) {
+      schedulePatchPreview(selectedPatch.id);
+    }
+  }, [commitProjectChange, schedulePatchPreview, selectedPatch]);
+
   const renameSelectedPatch = useCallback((name: string) => {
     if (!selectedPatch) return;
     commitProjectChange(
@@ -411,6 +476,10 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     updatePresetToLatest,
     requestRemoveSelectedPatch,
     applyPatchOp,
-    exposePatchMacro
+    exposePatchMacro,
+    addPatchMacro,
+    removePatchMacro,
+    renamePatchMacro,
+    changePatchMacroValue
   };
 }

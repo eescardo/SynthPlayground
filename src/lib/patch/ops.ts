@@ -8,6 +8,60 @@ const clonePatch = (patch: Patch): Patch => structuredClone(patch);
 
 const findLayoutNode = (patch: Patch, nodeId: string): number => patch.layout.nodes.findIndex((node) => node.nodeId === nodeId);
 
+const clampNormalizedMacroValue = (normalized: number) => Math.max(0, Math.min(1, normalized));
+
+function resolveMacroBindingValue(binding: Patch["ui"]["macros"][number]["bindings"][number], normalized: number) {
+  const norm = clampNormalizedMacroValue(normalized);
+  if (binding.map === "piecewise" && binding.points && binding.points.length >= 2) {
+    const points = binding.points;
+    if (norm <= points[0].x) {
+      return points[0].y;
+    }
+    if (norm >= points[points.length - 1].x) {
+      return points[points.length - 1].y;
+    }
+
+    const segmentIndex = points.findIndex((point, index) => index > 0 && norm <= point.x);
+    const right = points[segmentIndex];
+    const left = points[segmentIndex - 1];
+    const segmentSpan = Math.max(right.x - left.x, 0.000001);
+    const segmentNorm = (norm - left.x) / segmentSpan;
+    return left.y + (right.y - left.y) * segmentNorm;
+  }
+
+  if (binding.map === "exp") {
+    const min = Math.max(binding.min ?? 0, 0.000001);
+    const max = binding.max ?? min;
+    return min * Math.pow(max / min, norm);
+  }
+
+  const min = binding.min ?? 0;
+  const max = binding.max ?? 1;
+  return min + (max - min) * norm;
+}
+
+function applyMacroValueToPatch(patch: Patch, macroId: string, normalized: number, options?: { persistDefault?: boolean }): Patch {
+  const macro = patch.ui.macros.find((entry) => entry.id === macroId);
+  if (!macro) {
+    return patch;
+  }
+
+  const norm = clampNormalizedMacroValue(normalized);
+  if (options?.persistDefault) {
+    macro.defaultNormalized = norm;
+  }
+
+  for (const binding of macro.bindings) {
+    const node = patch.nodes.find((entry) => entry.id === binding.nodeId);
+    if (!node) {
+      continue;
+    }
+    node.params[binding.paramId] = resolveMacroBindingValue(binding, norm);
+  }
+
+  return patch;
+}
+
 export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
   const next = clonePatch(patch);
 
@@ -159,6 +213,14 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       return next;
     }
 
+    case "setMacroValue": {
+      const macro = next.ui.macros.find((entry) => entry.id === op.macroId);
+      if (!macro) {
+        throw new Error(`Unknown macro: ${op.macroId}`);
+      }
+      return applyMacroValueToPatch(next, op.macroId, op.normalized, { persistDefault: true });
+    }
+
     default: {
       const exhaustiveness: never = op;
       throw new Error(`Unknown op ${(exhaustiveness as { type: string }).type}`);
@@ -221,49 +283,8 @@ export const redoPatchOp = (state: PatchHistoryState<Patch>): PatchHistoryState<
 };
 
 export const applyMacroValue = (patch: Patch, macroId: string, normalized: number): Patch => {
-  const macro = patch.ui.macros.find((entry) => entry.id === macroId);
-  if (!macro) {
-    return patch;
-  }
-
   const next = clonePatch(patch);
-  const norm = Math.max(0, Math.min(1, normalized));
-
-  for (const binding of macro.bindings) {
-    const node = next.nodes.find((entry) => entry.id === binding.nodeId);
-    if (!node) {
-      continue;
-    }
-
-    let resolved: number;
-    if (binding.map === "piecewise" && binding.points && binding.points.length >= 2) {
-      const points = binding.points;
-      if (norm <= points[0].x) {
-        resolved = points[0].y;
-      } else if (norm >= points[points.length - 1].x) {
-        resolved = points[points.length - 1].y;
-      } else {
-        const segmentIndex = points.findIndex((point, index) => index > 0 && norm <= point.x);
-        const right = points[segmentIndex];
-        const left = points[segmentIndex - 1];
-        const segmentSpan = Math.max(right.x - left.x, 0.000001);
-        const segmentNorm = (norm - left.x) / segmentSpan;
-        resolved = left.y + (right.y - left.y) * segmentNorm;
-      }
-    } else if (binding.map === "exp") {
-      const min = Math.max(binding.min ?? 0, 0.000001);
-      const max = binding.max ?? min;
-      resolved = min * Math.pow(max / min, norm);
-    } else {
-      const min = binding.min ?? 0;
-      const max = binding.max ?? 1;
-      resolved = min + (max - min) * norm;
-    }
-
-    node.params[binding.paramId] = resolved;
-  }
-
-  return next;
+  return applyMacroValueToPatch(next, macroId, normalized);
 };
 
 export const makeConnectOp = (

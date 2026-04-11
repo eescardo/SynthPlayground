@@ -1062,7 +1062,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
     onPreviewNow: () => patchWorkspace.previewSelectedPatchNow(),
     onSelectNode: patchWorkspace.setSelectedNodeId,
     onApplyOp: patchWorkspace.applyPatchOp,
-    onExposeMacro: patchWorkspace.exposePatchMacro
+    onExposeMacro: patchWorkspace.exposePatchMacro,
+    onAddMacro: patchWorkspace.addPatchMacro,
+    onRemoveMacro: patchWorkspace.removePatchMacro,
+    onRenameMacro: patchWorkspace.renamePatchMacro,
+    onChangeMacroValue: patchWorkspace.changePatchMacroValue
   };
 
   const contextValue: AppRootContextValue = {

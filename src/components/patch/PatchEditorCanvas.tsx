@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PatchInspector } from "@/components/patch/PatchInspector";
+import { PatchMacroPanel } from "@/components/patch/PatchMacroPanel";
 import {
   PATCH_CANVAS_GRID,
   PATCH_MOVE_CURSOR,
@@ -34,6 +35,10 @@ interface PatchEditorCanvasProps {
   onSelectNode: (nodeId?: string) => void;
   onApplyOp: (op: PatchOp) => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
+  onAddMacro: () => void;
+  onRemoveMacro: (macroId: string) => void;
+  onRenameMacro: (macroId: string, name: string) => void;
+  onChangeMacroValue: (macroId: string, normalized: number, options?: { commit?: boolean }) => void;
 }
 
 export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
@@ -292,6 +297,15 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           onExposeMacro={props.onExposeMacro}
         />
       </div>
+
+      <PatchMacroPanel
+        patch={props.patch}
+        structureLocked={props.structureLocked}
+        onAddMacro={props.onAddMacro}
+        onRemoveMacro={props.onRemoveMacro}
+        onRenameMacro={props.onRenameMacro}
+        onChangeMacroValue={props.onChangeMacroValue}
+      />
     </div>
   );
 }
