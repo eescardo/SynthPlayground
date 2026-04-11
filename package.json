@@ -17,6 +17,7 @@
     "test:ui:verify": "vitest run --config vitest.ui.config.ts",
     "presets:manifest": "node --import tsx scripts/generate-preset-manifest.ts --write",
     "check:presets:manifest": "node --import tsx scripts/check-preset-manifest.ts",
+    "check:presets:definitions": "node --import tsx scripts/check-preset-definitions.ts",
     "check:presets:compat": "node scripts/check-preset-compatibility.mjs",
     "test:unit": "pnpm run sync:worklet-runtime && vitest run",
     "test:unit:watch": "vitest",
