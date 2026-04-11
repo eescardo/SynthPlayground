@@ -1,5 +1,6 @@
 import { getModuleSchema, moduleRegistryById } from "@/lib/patch/moduleRegistry";
 import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
+import { getMacroBindingKeyframeCount } from "@/lib/patch/macroKeyframes";
 import { CompiledNode, CompiledOp, CompiledPlan, Patch, PatchValidationIssue, PatchValidationResult, ParamValue } from "@/types/patch";
 
 const pushError = (issues: PatchValidationIssue[], message: string, context?: Record<string, string>): void => {
@@ -40,6 +41,13 @@ export const validatePatch = (patch: Patch): PatchValidationResult => {
     }
     macroIds.add(macro.id);
 
+    if (!Number.isInteger(macro.keyframeCount) || macro.keyframeCount < 2) {
+      pushError(issues, `Macro keyframe count must be an integer >= 2`, {
+        macroId: macro.id,
+        keyframeCount: String(macro.keyframeCount)
+      });
+    }
+
     for (const binding of macro.bindings) {
       if (macroBindingIds.has(binding.id)) {
         pushError(issues, `Duplicate macro binding id: ${binding.id}`, { bindingId: binding.id, macroId: macro.id });
@@ -67,6 +75,15 @@ export const validatePatch = (patch: Patch): PatchValidationResult => {
           paramId: binding.paramId
         });
         continue;
+      }
+
+      if (getMacroBindingKeyframeCount(binding) !== macro.keyframeCount) {
+        pushError(issues, `Macro binding keyframe count does not match macro`, {
+          macroId: macro.id,
+          bindingId: binding.id,
+          keyframeCount: String(macro.keyframeCount),
+          bindingKeyframeCount: String(getMacroBindingKeyframeCount(binding))
+        });
       }
 
       const targetKey = `${binding.nodeId}:${binding.paramId}`;

@@ -5,6 +5,7 @@ import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch
 import { ensurePatchLayout } from "@/lib/patch/autoLayout";
 import { presetPatches } from "@/lib/patch/presets";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
+import { normalizeMacroKeyframeCount } from "@/lib/patch/macroKeyframes";
 import { TRACK_VOLUME_DEFAULT, TRACK_VOLUME_MAX, TRACK_VOLUME_MIN } from "@/lib/trackVolume";
 import { Project, TrackFxSettings } from "@/types/music";
 import { Patch, PatchConnection, PatchMacro, PatchMeta, PatchNode } from "@/types/patch";
@@ -91,6 +92,7 @@ const sanitizePatchMacro = (raw: unknown, index: number): PatchMacro => {
   return {
     id: asString(macro.id, `macro_${index}`),
     name: asString(macro.name, `Macro ${index + 1}`),
+    keyframeCount: normalizeMacroKeyframeCount(macro.keyframeCount),
     defaultNormalized: clamp(asFiniteNumber(macro.defaultNormalized, 0.5), 0, 1),
     bindings: bindingsRaw.map((binding, bindingIndex) => {
       const item = isObject(binding) ? binding : {};

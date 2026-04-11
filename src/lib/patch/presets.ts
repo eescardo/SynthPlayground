@@ -1,8 +1,9 @@
 import { createDefaultParamsForType } from "@/lib/patch/moduleRegistry";
 import { HOST_NODE_IDS } from "@/lib/patch/constants";
 import { createDefaultProjectFromTemplate, createEmptyProjectFromPresets } from "@/lib/defaultProjectTemplate";
+import { normalizePatchMacroDefinition } from "@/lib/patch/macroKeyframes";
 import { Project } from "@/types/music";
-import { Patch } from "@/types/patch";
+import { Patch, PatchMacro } from "@/types/patch";
 
 const outputNode = (id: string) => ({
   id,
@@ -19,6 +20,25 @@ const noteCore = {
   mod: HOST_NODE_IDS.modWheel
 };
 
+type PresetPatchDraft = Omit<Patch, "ui"> & {
+  ui: Omit<Patch["ui"], "macros"> & {
+    macros: Array<Omit<PatchMacro, "keyframeCount"> & Partial<Pick<PatchMacro, "keyframeCount">>>;
+  };
+};
+
+const finalizePresetPatch = (patch: PresetPatchDraft): Patch => ({
+  ...patch,
+  ui: {
+    ...patch.ui,
+    macros: patch.ui.macros.map((macro) =>
+      normalizePatchMacroDefinition({
+        ...macro,
+        keyframeCount: macro.keyframeCount ?? 2
+      })
+    )
+  }
+});
+
 export const bassPatch = (): Patch => {
   const patchId = "preset_bass";
   const pitchTrackId = "cvscale1";
@@ -34,11 +54,11 @@ export const bassPatch = (): Patch => {
   const satId = "sat1";
   const outId = "out1";
 
-  return {
+  return finalizePresetPatch({
     schemaVersion: 1,
     id: patchId,
     name: "Bass",
-    meta: { source: "preset", presetId: "preset_bass", presetVersion: 9 },
+    meta: { source: "preset", presetId: "preset_bass", presetVersion: 10 },
     nodes: [
       {
         id: pitchTrackId,
@@ -418,7 +438,7 @@ export const bassPatch = (): Patch => {
       audioOutNodeId: outId,
       audioOutPortId: "in"
     }
-  };
+  });
 };
 
 export const padPatch = (): Patch => {
@@ -431,11 +451,11 @@ export const padPatch = (): Patch => {
   const vca = "vca1";
   const out = "out1";
 
-  return {
+  return finalizePresetPatch({
     schemaVersion: 1,
     id: "preset_pad",
     name: "Pad",
-    meta: { source: "preset", presetId: "preset_pad", presetVersion: 4 },
+    meta: { source: "preset", presetId: "preset_pad", presetVersion: 5 },
     nodes: [
       {
         id: vco1,
@@ -527,7 +547,7 @@ export const padPatch = (): Patch => {
       ]
     },
     io: { audioOutNodeId: out, audioOutPortId: "in" }
-  };
+  });
 };
 
 export const pluckPatch = (): Patch => {
@@ -542,11 +562,11 @@ export const pluckPatch = (): Patch => {
   const ampVca = "vca2";
   const out = "out1";
 
-  return {
+  return finalizePresetPatch({
     schemaVersion: 1,
     id: "preset_pluck",
     name: "Pluck",
-    meta: { source: "preset", presetId: "preset_pluck", presetVersion: 24 },
+    meta: { source: "preset", presetId: "preset_pluck", presetVersion: 25 },
     nodes: [
       {
         id: string,
@@ -893,7 +913,7 @@ export const pluckPatch = (): Patch => {
       ]
     },
     io: { audioOutNodeId: out, audioOutPortId: "in" }
-  };
+  });
 };
 
 export const keysPatch = (): Patch => {
@@ -903,11 +923,11 @@ export const keysPatch = (): Patch => {
   const sat = "sat1";
   const out = "out1";
 
-  return {
+  return finalizePresetPatch({
     schemaVersion: 1,
     id: "preset_keys",
     name: "Simple Piano-ish",
-    meta: { source: "preset", presetId: "preset_keys", presetVersion: 1 },
+    meta: { source: "preset", presetId: "preset_keys", presetVersion: 2 },
     nodes: [
       { id: vco, typeId: "VCO", params: { ...createDefaultParamsForType("VCO"), wave: "triangle" } },
       {
@@ -947,7 +967,7 @@ export const keysPatch = (): Patch => {
       ]
     },
     io: { audioOutNodeId: out, audioOutPortId: "in" }
-  };
+  });
 };
 
 export const brassPatch = (): Patch => {
@@ -958,11 +978,11 @@ export const brassPatch = (): Patch => {
   const vca = "vca1";
   const out = "out1";
 
-  return {
+  return finalizePresetPatch({
     schemaVersion: 1,
     id: "preset_brass",
     name: "Brass-ish",
-    meta: { source: "preset", presetId: "preset_brass", presetVersion: 1 },
+    meta: { source: "preset", presetId: "preset_brass", presetVersion: 2 },
     nodes: [
       { id: vco, typeId: "VCO", params: { ...createDefaultParamsForType("VCO"), wave: "square", pulseWidth: 0.35 } },
       { id: lfo, typeId: "LFO", params: { ...createDefaultParamsForType("LFO"), freqHz: 5, bipolar: true } },
@@ -1006,7 +1026,7 @@ export const brassPatch = (): Patch => {
       ]
     },
     io: { audioOutNodeId: out, audioOutPortId: "in" }
-  };
+  });
 };
 
 export const drumPatch = (): Patch => {
@@ -1021,11 +1041,11 @@ export const drumPatch = (): Patch => {
   const sat = "sat1";
   const out = "out1";
 
-  return {
+  return finalizePresetPatch({
     schemaVersion: 1,
     id: "preset_drumish",
     name: "Drum-ish",
-    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 8 },
+    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 9 },
     nodes: [
       {
         id: vco,
@@ -1123,7 +1143,7 @@ export const drumPatch = (): Patch => {
       ]
     },
     io: { audioOutNodeId: out, audioOutPortId: "in" }
-  };
+  });
 };
 
 export const bassDrumPatch = (): Patch => {
@@ -1141,11 +1161,11 @@ export const bassDrumPatch = (): Patch => {
   const sat = "sat1";
   const out = "out1";
 
-  return {
+  return finalizePresetPatch({
     schemaVersion: 1,
     id: "preset_bassdrum",
     name: "Bass Drum",
-    meta: { source: "preset", presetId: "preset_bassdrum", presetVersion: 9 },
+    meta: { source: "preset", presetId: "preset_bassdrum", presetVersion: 10 },
     nodes: [
       {
         id: vco,
@@ -1263,7 +1283,7 @@ export const bassDrumPatch = (): Patch => {
       ]
     },
     io: { audioOutNodeId: out, audioOutPortId: "in" }
-  };
+  });
 };
 
 export const presetPatches = [bassPatch(), brassPatch(), keysPatch(), padPatch(), pluckPatch(), drumPatch(), bassDrumPatch()];

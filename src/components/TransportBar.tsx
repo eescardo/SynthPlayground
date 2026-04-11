@@ -15,6 +15,7 @@ interface TransportBarProps {
   onPlay: () => void;
   onStop: () => void;
   onToggleRecord: () => void;
+  onOpenPatchWorkspace: () => void;
   onExportAudio: () => void;
   exportAudioDisabled?: boolean;
   onTempoChange: (value: number) => void;
@@ -100,6 +101,8 @@ export function TransportBar(props: TransportBarProps) {
             <option value={0.125}>1/32</option>
           </select>
         </label>
+
+        <button onClick={props.onOpenPatchWorkspace}>Open Patch Workspace</button>
 
         <button className="transport-export-button" onClick={props.onExportAudio} disabled={props.exportAudioDisabled}>
           Export audio...

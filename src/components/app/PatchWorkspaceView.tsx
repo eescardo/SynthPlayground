@@ -10,6 +10,7 @@ import { PatchOp } from "@/types/ops";
 interface PatchWorkspaceViewProps {
   patch: Patch;
   patches: Patch[];
+  macroValues: Record<string, number>;
   previewPitch: string;
   migrationNotice?: string | null;
   selectedNodeId?: string;
@@ -30,6 +31,7 @@ interface PatchWorkspaceViewProps {
   onAddMacro: () => void;
   onRemoveMacro: (macroId: string) => void;
   onRenameMacro: (macroId: string, name: string) => void;
+  onSetMacroKeyframeCount: (macroId: string, keyframeCount: number) => void;
   onChangeMacroValue: (macroId: string, normalized: number, options?: { commit?: boolean }) => void;
 }
 
@@ -58,6 +60,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
       <InstrumentEditor
         patch={props.patch}
         patches={props.patches}
+        macroValues={props.macroValues}
         previewPitch={props.previewPitch}
         migrationNotice={props.migrationNotice}
         selectedNodeId={props.selectedNodeId}
@@ -77,6 +80,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
         onAddMacro={props.onAddMacro}
         onRemoveMacro={props.onRemoveMacro}
         onRenameMacro={props.onRenameMacro}
+        onSetMacroKeyframeCount={props.onSetMacroKeyframeCount}
         onChangeMacroValue={props.onChangeMacroValue}
       />
 

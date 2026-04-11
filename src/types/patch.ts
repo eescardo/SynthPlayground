@@ -90,6 +90,7 @@ export interface MacroBinding {
 export interface PatchMacro {
   id: string;
   name: string;
+  keyframeCount: number;
   defaultNormalized?: number;
   bindings: MacroBinding[];
 }

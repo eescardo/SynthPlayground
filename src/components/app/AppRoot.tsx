@@ -990,6 +990,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
       playback.stopPlayback(true);
       void recording.startRecordMode();
     },
+    onOpenPatchWorkspace: () => patchWorkspace.openPatchWorkspace(),
     onExportAudio: () => {
       void exportAudio();
     },
@@ -1045,6 +1046,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const patchWorkspaceProps: React.ComponentProps<typeof PatchWorkspaceView> = {
     patch: selectedPatch,
     patches: project.patches,
+    macroValues: patchWorkspace.workspaceMacroValues,
     previewPitch: patchWorkspace.previewPitch,
     migrationNotice: patchWorkspace.migrationNotice,
     selectedNodeId: patchWorkspace.selectedNodeId,
@@ -1066,6 +1068,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     onAddMacro: patchWorkspace.addPatchMacro,
     onRemoveMacro: patchWorkspace.removePatchMacro,
     onRenameMacro: patchWorkspace.renamePatchMacro,
+    onSetMacroKeyframeCount: patchWorkspace.setPatchMacroKeyframeCount,
     onChangeMacroValue: patchWorkspace.changePatchMacroValue
   };
 

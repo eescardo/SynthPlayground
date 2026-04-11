@@ -83,6 +83,7 @@ describe("projectSerde", () => {
     }
     const popSlapMacro = presetPatch.ui.macros.find((macro) => macro.id === "macro_decay");
     expect(popSlapMacro?.name).toBe("Pop/Slap");
+    expect(popSlapMacro?.keyframeCount).toBe(3);
     const attackBinding = popSlapMacro?.bindings.find((binding) => binding.paramId === "attack");
     expect(attackBinding?.map).toBe("piecewise");
     expect(attackBinding?.points).toEqual([
@@ -117,5 +118,39 @@ describe("projectSerde", () => {
     const validation = validatePatch(repairedPluck);
     expect(validation.ok).toBe(false);
     expect(validation.issues.some((issue) => issue.message.includes("Macro binds the same parameter more than once"))).toBe(true);
+  });
+
+  it("treats legacy three-keyframe macros without macro keyframe count as invalid snapshots", () => {
+    const project = createDefaultProject();
+    const bass = project.patches.find((patch) => patch.id === "preset_bass");
+    if (!bass) {
+      throw new Error("Expected preset_bass patch");
+    }
+
+    const legacy = structuredClone(project) as unknown as { patches: Array<Record<string, unknown>> };
+    legacy.patches = legacy.patches.map((patch) => {
+      if (patch.id !== "preset_bass") {
+        return patch;
+      }
+      const ui = patch.ui as { macros?: Array<Record<string, unknown>> } | undefined;
+      return {
+        ...patch,
+        ui: {
+          ...ui,
+          macros: (ui?.macros ?? []).map((macro) => {
+            const nextMacro = { ...macro };
+            delete nextMacro.keyframeCount;
+            return nextMacro;
+          })
+        }
+      };
+    });
+
+    const normalized = normalizeProject(legacy);
+    const normalizedBass = normalized.patches.find((patch) => patch.id === bass.id);
+    const validation = normalizedBass ? validatePatch(normalizedBass) : { ok: true, issues: [] };
+
+    expect(validation.ok).toBe(false);
+    expect(validation.issues.some((issue) => issue.message.includes("keyframe count"))).toBe(true);
   });
 });

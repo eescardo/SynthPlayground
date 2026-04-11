@@ -29,6 +29,7 @@ import { PatchOp } from "@/types/ops";
 
 interface PatchEditorCanvasProps {
   patch: Patch;
+  macroValues: Record<string, number>;
   selectedNodeId?: string;
   validationIssues: PatchValidationIssue[];
   structureLocked?: boolean;
@@ -38,6 +39,7 @@ interface PatchEditorCanvasProps {
   onAddMacro: () => void;
   onRemoveMacro: (macroId: string) => void;
   onRenameMacro: (macroId: string, name: string) => void;
+  onSetMacroKeyframeCount: (macroId: string, keyframeCount: number) => void;
   onChangeMacroValue: (macroId: string, normalized: number, options?: { commit?: boolean }) => void;
 }
 
@@ -299,10 +301,12 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
 
           <PatchMacroPanel
             patch={props.patch}
+            macroValues={props.macroValues}
             structureLocked={props.structureLocked}
             onAddMacro={props.onAddMacro}
             onRemoveMacro={props.onRemoveMacro}
             onRenameMacro={props.onRenameMacro}
+            onSetMacroKeyframeCount={props.onSetMacroKeyframeCount}
             onChangeMacroValue={props.onChangeMacroValue}
           />
         </div>

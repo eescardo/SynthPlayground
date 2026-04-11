@@ -46,6 +46,7 @@ export type PatchOp =
       type: "addMacro";
       macroId: string;
       name: string;
+      keyframeCount: number;
     }
   | {
       type: "removeMacro";
@@ -73,9 +74,9 @@ export type PatchOp =
       name: string;
     }
   | {
-      type: "setMacroValue";
+      type: "setMacroKeyframeCount";
       macroId: string;
-      normalized: number;
+      keyframeCount: number;
     };
 
 export interface PatchHistoryState<T> {

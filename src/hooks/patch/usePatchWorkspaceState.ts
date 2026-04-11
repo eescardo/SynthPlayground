@@ -7,7 +7,8 @@ import { AudioEngine } from "@/audio/engine";
 import { createId } from "@/lib/ids";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
+import { applyMacroValue, applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
+import { clampNormalizedMacroValue } from "@/lib/patch/macroKeyframes";
 import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { validatePatch } from "@/lib/patch/validation";
 import { pitchToVoct } from "@/lib/pitch";
@@ -18,6 +19,7 @@ import { PatchRemovalDialogState } from "@/components/home/PatchRemovalDialogMod
 
 const PREVIEW_DURATION_BEATS = 1;
 const PREVIEW_RESTORE_PADDING_MS = 60;
+const PATCH_WORKSPACE_MACRO_VALUES_SESSION_KEY = "synth-playground:patch-workspace-macro-values";
 
 const isAudiblePatchOp = (op: PatchOp): boolean =>
   op.type !== "moveNode" &&
@@ -28,15 +30,27 @@ const isAudiblePatchOp = (op: PatchOp): boolean =>
   op.type !== "bindMacro" &&
   op.type !== "unbindMacro" &&
   op.type !== "renameMacro" &&
-  op.type !== "setMacroValue";
+  op.type !== "setMacroKeyframeCount";
 
 const getPreviewDurationMs = (project: Project, durationBeats: number) =>
   Math.max(50, (durationBeats * 60 * 1000) / project.global.tempo + PREVIEW_RESTORE_PADDING_MS);
 
-const buildPatchedPreviewProject = (project: Project, sourceTrack: Track, patchId: string): Project => ({
+const buildPatchedPreviewProject = (
+  project: Project,
+  sourceTrack: Track,
+  patch: Patch,
+  macroValues?: Record<string, number>
+): Project => ({
   ...project,
+  patches: project.patches.map((entry) => (entry.id === patch.id ? patch : entry)),
   tracks: project.tracks.map((track) =>
-    track.id === sourceTrack.id ? { ...track, instrumentPatchId: patchId } : track
+    track.id === sourceTrack.id
+      ? {
+          ...track,
+          instrumentPatchId: patch.id,
+          macroValues: macroValues ? { ...track.macroValues, ...macroValues } : track.macroValues
+        }
+      : track
   )
 });
 
@@ -73,6 +87,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
   const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
   const [pendingPreview, setPendingPreview] = useState<{ patchId: string; nonce: number } | null>(null);
+  const [workspaceMacroValuesByPatchId, setWorkspaceMacroValuesByPatchId] = useState<Record<string, Record<string, number>>>({});
   const previewRestoreTimerRef = useRef<number | null>(null);
   const temporaryPreviewProjectActiveRef = useRef(false);
 
@@ -111,18 +126,61 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     setSelectedNodeId(undefined);
   }, [selectedPatch?.id]);
 
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem(PATCH_WORKSPACE_MACRO_VALUES_SESSION_KEY);
+      if (!raw) {
+        return;
+      }
+      const parsed = JSON.parse(raw) as Record<string, Record<string, unknown>>;
+      setWorkspaceMacroValuesByPatchId(
+        Object.fromEntries(
+          Object.entries(parsed).map(([patchId, macroValues]) => [
+            patchId,
+            Object.fromEntries(
+              Object.entries(macroValues).flatMap(([macroId, normalized]) =>
+                typeof normalized === "number" && Number.isFinite(normalized)
+                  ? [[macroId, clampNormalizedMacroValue(normalized)]]
+                  : []
+              )
+            )
+          ])
+        )
+      );
+    } catch {
+      // Ignore invalid session data and start with defaults.
+    }
+  }, []);
+
+  useEffect(() => {
+    window.sessionStorage.setItem(PATCH_WORKSPACE_MACRO_VALUES_SESSION_KEY, JSON.stringify(workspaceMacroValuesByPatchId));
+  }, [workspaceMacroValuesByPatchId]);
+
   useEffect(() => () => restoreActualProject(), [restoreActualProject]);
 
   const schedulePatchPreview = useCallback((patchId: string) => {
     setPendingPreview({ patchId, nonce: Date.now() });
   }, []);
 
-  const previewPatchById = useCallback((patchId: string, pitch = previewPitch) => {
+  const buildPatchWithWorkspaceMacroValues = useCallback((patch: Patch, macroValues?: Record<string, number>) => {
+    const resolvedMacroValues = macroValues ?? workspaceMacroValuesByPatchId[patch.id];
+    if (!resolvedMacroValues || Object.keys(resolvedMacroValues).length === 0) {
+      return patch;
+    }
+
+    return patch.ui.macros.reduce((nextPatch, macro) => {
+      const normalized = resolvedMacroValues[macro.id];
+      return typeof normalized === "number" ? applyMacroValue(nextPatch, macro.id, normalized) : nextPatch;
+    }, patch);
+  }, [workspaceMacroValuesByPatchId]);
+
+  const previewPatchById = useCallback((patchId: string, pitch = previewPitch, macroValues?: Record<string, number>) => {
     if (playing) {
       return;
     }
     const engine = audioEngineRef.current;
-    const patch = project.patches.find((entry) => entry.id === patchId);
+    const sourcePatch = project.patches.find((entry) => entry.id === patchId);
+    const patch = sourcePatch;
     if (!engine || !patch) {
       return;
     }
@@ -135,23 +193,25 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       return;
     }
 
+    const resolvedMacroValues = macroValues ?? workspaceMacroValuesByPatchId[patchId];
     const needsTemporaryBinding = previewTrack.instrumentPatchId !== patchId;
-    if (needsTemporaryBinding) {
+    const needsTemporaryProject = needsTemporaryBinding || Boolean(resolvedMacroValues && Object.keys(resolvedMacroValues).length > 0);
+    if (needsTemporaryProject) {
       temporaryPreviewProjectActiveRef.current = true;
-      engine.setProject(buildPatchedPreviewProject(project, previewTrack, patchId), { syncToWorklet: true });
+      engine.setProject(buildPatchedPreviewProject(project, previewTrack, patch, resolvedMacroValues), { syncToWorklet: true });
     }
 
     engine
       .previewNote(previewTrack.id, pitchToVoct(pitch), PREVIEW_DURATION_BEATS)
       .catch((error) => setRuntimeError((error as Error).message));
 
-    if (needsTemporaryBinding) {
+    if (needsTemporaryProject) {
       previewRestoreTimerRef.current = window.setTimeout(() => {
         previewRestoreTimerRef.current = null;
         restoreActualProject();
       }, getPreviewDurationMs(project, PREVIEW_DURATION_BEATS));
     }
-  }, [audioEngineRef, playing, previewPitch, project, restoreActualProject, selectedTrack, setRuntimeError]);
+  }, [audioEngineRef, playing, previewPitch, project, restoreActualProject, selectedTrack, setRuntimeError, workspaceMacroValuesByPatchId]);
 
   useEffect(() => {
     if (!pendingPreview || playing) {
@@ -162,7 +222,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   }, [pendingPreview, playing, previewPatchById, previewPitch]);
 
   const openPatchWorkspace = useCallback((patchId?: string) => {
-    setSelectedPatchId(patchId ?? selectedTrack?.instrumentPatchId ?? project.patches[0]?.id);
+    setSelectedPatchId((current) => patchId ?? current ?? selectedTrack?.instrumentPatchId ?? project.patches[0]?.id);
     router.push("/patch-workspace");
   }, [project.patches, router, selectedTrack?.instrumentPatchId]);
 
@@ -182,6 +242,21 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     setSelectedNodeId(undefined);
     setMigrationNotice(null);
   }, []);
+
+  const workspaceMacroValues = useMemo(() => {
+    if (!selectedPatch) {
+      return {};
+    }
+    const persistedValues = workspaceMacroValuesByPatchId[selectedPatch.id] ?? {};
+    return Object.fromEntries(
+      selectedPatch.ui.macros.map((macro) => [macro.id, persistedValues[macro.id] ?? macro.defaultNormalized ?? 0.5])
+    );
+  }, [selectedPatch, workspaceMacroValuesByPatchId]);
+
+  const workspacePatch = useMemo(
+    () => (selectedPatch ? buildPatchWithWorkspaceMacroValues(selectedPatch, workspaceMacroValues) : selectedPatch),
+    [buildPatchWithWorkspaceMacroValues, selectedPatch, workspaceMacroValues]
+  );
 
   const updatePresetToLatest = useCallback(() => {
     if (!selectedPatch || selectedPatch.meta.source !== "preset") {
@@ -309,7 +384,8 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       nextPatch = applyPatchGraphOp(nextPatch, {
         type: "addMacro",
         macroId,
-        name: suggestedName
+        name: suggestedName,
+        keyframeCount: 2
       });
 
       const min = paramSchema.type === "float" ? paramSchema.range.min : 0;
@@ -343,7 +419,8 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
           ? applyPatchGraphOp(patch, {
               type: "addMacro",
               macroId: createId("macro"),
-              name: `Macro ${patch.ui.macros.length + 1}`
+              name: `Macro ${patch.ui.macros.length + 1}`,
+              keyframeCount: 2
             })
           : patch
       )
@@ -377,24 +454,49 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     });
   }, [commitProjectChange, selectedPatch]);
 
-  const changePatchMacroValue = useCallback((macroId: string, normalized: number, options?: { commit?: boolean }) => {
-    if (!selectedPatch) {
+  const setPatchMacroKeyframeCount = useCallback((macroId: string, keyframeCount: number) => {
+    if (!selectedPatch || resolvePatchSource(selectedPatch) === "preset") {
       return;
     }
     commitProjectChange((current) => ({
       ...current,
       patches: current.patches.map((patch) =>
-        patch.id === selectedPatch.id ? applyPatchGraphOp(patch, { type: "setMacroValue", macroId, normalized }) : patch
+        patch.id === selectedPatch.id
+          ? applyPatchGraphOp(patch, { type: "setMacroKeyframeCount", macroId, keyframeCount })
+          : patch
       )
-    }), {
-      actionKey: `patch:${selectedPatch.id}:macro:${macroId}`,
-      coalesce: !options?.commit
+    }), { actionKey: `patch:${selectedPatch.id}:set-macro-keyframes:${macroId}` });
+    schedulePatchPreview(selectedPatch.id);
+  }, [commitProjectChange, schedulePatchPreview, selectedPatch]);
+
+  const changePatchMacroValue = useCallback((macroId: string, normalized: number, options?: { commit?: boolean }) => {
+    if (!selectedPatch) {
+      return;
+    }
+    const clamped = clampNormalizedMacroValue(normalized);
+    const defaultValue = selectedPatch.ui.macros.find((macro) => macro.id === macroId)?.defaultNormalized ?? 0.5;
+    const nextPatchMacroValues = {
+      ...(workspaceMacroValuesByPatchId[selectedPatch.id] ?? {}),
+      [macroId]: clamped
+    };
+    if (Math.abs(clamped - defaultValue) <= 0.0005) {
+      delete nextPatchMacroValues[macroId];
+    }
+
+    setWorkspaceMacroValuesByPatchId((current) => {
+      const next = { ...current };
+      if (Object.keys(nextPatchMacroValues).length === 0) {
+        delete next[selectedPatch.id];
+      } else {
+        next[selectedPatch.id] = nextPatchMacroValues;
+      }
+      return next;
     });
 
     if (options?.commit) {
-      schedulePatchPreview(selectedPatch.id);
+      previewPatchById(selectedPatch.id, previewPitch, nextPatchMacroValues);
     }
-  }, [commitProjectChange, schedulePatchPreview, selectedPatch]);
+  }, [previewPatchById, previewPitch, selectedPatch, workspaceMacroValuesByPatchId]);
 
   const renameSelectedPatch = useCallback((name: string) => {
     if (!selectedPatch) return;
@@ -454,9 +556,10 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   }, [commitProjectChange, project.patches, project.tracks, selectedPatch, setPatchRemovalDialog]);
 
   return {
-    selectedPatch,
+    selectedPatch: workspacePatch ?? selectedPatch,
     selectedPatchId,
     setSelectedPatchId,
+    workspaceMacroValues,
     selectedNodeId,
     setSelectedNodeId,
     previewPitch,
@@ -480,6 +583,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     addPatchMacro,
     removePatchMacro,
     renamePatchMacro,
+    setPatchMacroKeyframeCount,
     changePatchMacroValue
   };
 }

@@ -1,6 +1,7 @@
 import { createDefaultParamsForType, getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { createId } from "@/lib/ids";
 import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch/patchCanvasConstants";
+import { clampNormalizedMacroValue, convertBindingToKeyframeCount, normalizeMacroKeyframeCount, resolveMacroBindingValue } from "@/lib/patch/macroKeyframes";
 import { Patch } from "@/types/patch";
 import { PatchHistoryState, PatchOp } from "@/types/ops";
 
@@ -8,49 +9,13 @@ const clonePatch = (patch: Patch): Patch => structuredClone(patch);
 
 const findLayoutNode = (patch: Patch, nodeId: string): number => patch.layout.nodes.findIndex((node) => node.nodeId === nodeId);
 
-const clampNormalizedMacroValue = (normalized: number) => Math.max(0, Math.min(1, normalized));
-
-function resolveMacroBindingValue(binding: Patch["ui"]["macros"][number]["bindings"][number], normalized: number) {
-  const norm = clampNormalizedMacroValue(normalized);
-  if (binding.map === "piecewise" && binding.points && binding.points.length >= 2) {
-    const points = binding.points;
-    if (norm <= points[0].x) {
-      return points[0].y;
-    }
-    if (norm >= points[points.length - 1].x) {
-      return points[points.length - 1].y;
-    }
-
-    const segmentIndex = points.findIndex((point, index) => index > 0 && norm <= point.x);
-    const right = points[segmentIndex];
-    const left = points[segmentIndex - 1];
-    const segmentSpan = Math.max(right.x - left.x, 0.000001);
-    const segmentNorm = (norm - left.x) / segmentSpan;
-    return left.y + (right.y - left.y) * segmentNorm;
-  }
-
-  if (binding.map === "exp") {
-    const min = Math.max(binding.min ?? 0, 0.000001);
-    const max = binding.max ?? min;
-    return min * Math.pow(max / min, norm);
-  }
-
-  const min = binding.min ?? 0;
-  const max = binding.max ?? 1;
-  return min + (max - min) * norm;
-}
-
-function applyMacroValueToPatch(patch: Patch, macroId: string, normalized: number, options?: { persistDefault?: boolean }): Patch {
+function applyMacroValueToPatch(patch: Patch, macroId: string, normalized: number): Patch {
   const macro = patch.ui.macros.find((entry) => entry.id === macroId);
   if (!macro) {
     return patch;
   }
 
   const norm = clampNormalizedMacroValue(normalized);
-  if (options?.persistDefault) {
-    macro.defaultNormalized = norm;
-  }
-
   for (const binding of macro.bindings) {
     const node = patch.nodes.find((entry) => entry.id === binding.nodeId);
     if (!node) {
@@ -167,7 +132,7 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       if (next.ui.macros.some((macro) => macro.id === op.macroId)) {
         throw new Error(`Macro already exists: ${op.macroId}`);
       }
-      next.ui.macros.push({ id: op.macroId, name: op.name, bindings: [] });
+      next.ui.macros.push({ id: op.macroId, name: op.name, keyframeCount: Math.max(2, op.keyframeCount), bindings: [] });
       return next;
     }
 
@@ -213,12 +178,15 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       return next;
     }
 
-    case "setMacroValue": {
+    case "setMacroKeyframeCount": {
       const macro = next.ui.macros.find((entry) => entry.id === op.macroId);
       if (!macro) {
         throw new Error(`Unknown macro: ${op.macroId}`);
       }
-      return applyMacroValueToPatch(next, op.macroId, op.normalized, { persistDefault: true });
+      const keyframeCount = normalizeMacroKeyframeCount(op.keyframeCount);
+      macro.keyframeCount = keyframeCount;
+      macro.bindings = macro.bindings.map((binding) => convertBindingToKeyframeCount(binding, keyframeCount));
+      return next;
     }
 
     default: {

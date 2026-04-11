@@ -8,6 +8,7 @@ import { PatchOp } from "@/types/ops";
 interface InstrumentEditorProps {
   patch: Patch;
   patches: Patch[];
+  macroValues: Record<string, number>;
   selectedNodeId?: string;
   validationIssues: PatchValidationIssue[];
   invalid?: boolean;
@@ -27,6 +28,7 @@ interface InstrumentEditorProps {
   onAddMacro: () => void;
   onRemoveMacro: (macroId: string) => void;
   onRenameMacro: (macroId: string, name: string) => void;
+  onSetMacroKeyframeCount: (macroId: string, keyframeCount: number) => void;
   onChangeMacroValue: (macroId: string, normalized: number, options?: { commit?: boolean }) => void;
 }
 
@@ -178,6 +180,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
 
       <PatchEditorCanvas
         patch={props.patch}
+        macroValues={props.macroValues}
         selectedNodeId={props.selectedNodeId}
         validationIssues={props.validationIssues}
         structureLocked={structureLocked}
@@ -187,6 +190,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
         onAddMacro={props.onAddMacro}
         onRemoveMacro={props.onRemoveMacro}
         onRenameMacro={props.onRenameMacro}
+        onSetMacroKeyframeCount={props.onSetMacroKeyframeCount}
         onChangeMacroValue={props.onChangeMacroValue}
       />
     </section>

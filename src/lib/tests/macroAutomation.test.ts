@@ -49,8 +49,8 @@ const createPatch = (): Patch => ({
   connections: [],
   ui: {
     macros: [
-      { id: "macro_cutoff", name: "Cutoff", defaultNormalized: 0.5, bindings: [] },
-      { id: "macro_resonance", name: "Resonance", defaultNormalized: 0.3, bindings: [] }
+      { id: "macro_cutoff", name: "Cutoff", keyframeCount: 2, defaultNormalized: 0.5, bindings: [] },
+      { id: "macro_resonance", name: "Resonance", keyframeCount: 2, defaultNormalized: 0.3, bindings: [] }
     ]
   },
   layout: { nodes: [] },
