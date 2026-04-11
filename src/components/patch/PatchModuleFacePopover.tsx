@@ -101,7 +101,7 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
   });
 
   return (
-    <>
+    <div className="patch-canvas-stage" ref={rootRef}>
       <PatchEditorToolbar
         newNodeType={newNodeType}
         structureLocked={structureLocked}
@@ -134,7 +134,7 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
         }
       />
 
-      <div className="patch-canvas-shell" ref={rootRef}>
+      <div className="patch-canvas-shell">
         <div className="patch-canvas-scroll" ref={scrollRef}>
           <canvas
             ref={canvasRef}
@@ -155,6 +155,6 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
           />
         </div>
       </div>
-    </>
+    </div>
   );
 }

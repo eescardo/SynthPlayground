@@ -1091,6 +1091,15 @@ select {
   height: 100%;
 }
 
+.patch-canvas-stage {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.7rem;
+}
+
 .patch-canvas-shell {
   min-width: 0;
   min-height: 0;
