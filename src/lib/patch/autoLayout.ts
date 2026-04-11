@@ -7,7 +7,7 @@ const AUTO_LAYOUT_NODE_WIDTH_GRID = 9;
 const AUTO_LAYOUT_NODE_HEIGHT_GRID = 6;
 const AUTO_LAYOUT_MARGIN_GRID = 1;
 const CROSSING_REDUCTION_PASSES = 4;
-const AUTO_LAYOUT_CATEGORY_SEED_ORDER: PatchModuleCategory[] = ["source", "mix", "processor", "cv", "envelope", "host"];
+const AUTO_LAYOUT_CATEGORY_SEED_ORDER: PatchModuleCategory[] = ["source", "mix", "processor", "cv", "envelope", "probe", "host"];
 
 const getAutoLayoutSeedPriority = (node: PatchNode): number => {
   // Used only as a deterministic fallback before barycenter crossing reduction has

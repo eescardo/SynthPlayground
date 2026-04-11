@@ -2,7 +2,7 @@
 export type SignalCapability = "AUDIO" | "CV" | "GATE";
 export type ParamType = "float" | "enum" | "bool";
 export type Unit = "Hz" | "s" | "dB" | "ratio" | "cents" | "linear" | "VperOct" | "ms" | "oct" | "semitones";
-export type PatchModuleCategory = "source" | "mix" | "cv" | "processor" | "envelope" | "host";
+export type PatchModuleCategory = "source" | "mix" | "cv" | "processor" | "envelope" | "probe" | "host";
 
 export interface ParamSmoothing {
   kind: "one_pole";

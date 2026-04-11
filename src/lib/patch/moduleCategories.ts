@@ -6,6 +6,7 @@ export const PATCH_MODULE_CATEGORY_PRIORITY: PatchModuleCategory[] = [
   "processor",
   "mix",
   "cv",
+  "probe",
   "host"
 ];
 
@@ -14,7 +15,8 @@ export const PATCH_MODULE_CATEGORY_COLORS: Record<PatchModuleCategory, string> =
   mix: "#a8b5c5",
   cv: "#7ad488",
   processor: "#b592ff",
-  envelope: "#ffb46c",
+  envelope: "#c89a43",
+  probe: "#c8ff39",
   host: "#89b6da"
 };
 
@@ -40,9 +42,14 @@ export const PATCH_MODULE_CATEGORY_MUTED_COLORS: Record<PatchModuleCategory, { f
     accent: "#c2abff"
   },
   envelope: {
-    fill: "#422b1f",
-    stroke: "#8e664b",
-    accent: "#ffc07d"
+    fill: "#3d3118",
+    stroke: "#7f6733",
+    accent: "#cfa04a"
+  },
+  probe: {
+    fill: "#24310b",
+    stroke: "#6b9324",
+    accent: "#cfff56"
   },
   host: {
     fill: "#213543",
