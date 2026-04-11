@@ -60,7 +60,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const macroDockHeightRemByRowCount: Record<number, number> = {
     1: 1.58,
     2: 2.68,
-    3: 3.9,
+    3: 3.84,
     4: 4.98,
     5: 6.18
   };
