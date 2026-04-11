@@ -59,8 +59,8 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const macroVisibleRows = Math.max(1, Math.min(5, props.patch.ui.macros.length || 1));
   const macroDockHeightRemByRowCount: Record<number, number> = {
     1: 1.58,
-    2: 2.8,
-    3: 3.78,
+    2: 2.68,
+    3: 3.9,
     4: 4.98,
     5: 6.18
   };
