@@ -912,10 +912,6 @@ select {
   gap: 0.5rem;
 }
 
-.instrument-toolbar-heading h3 {
-  margin: 0;
-}
-
 .instrument-patch-select {
   min-width: min(260px, 42vw);
 }
@@ -1163,13 +1159,11 @@ select {
 
 .patch-workspace-shell .patch-layout {
   grid-template-columns: minmax(0, 1fr) 340px;
-  grid-template-rows: minmax(0, 1fr);
   flex: 1;
   height: 100%;
 }
 
-.patch-workspace-shell .patch-editor-main-column,
-.patch-workspace-shell .patch-canvas-stage {
+.patch-workspace-shell .patch-editor-main-column {
   overflow: hidden;
 }
 
