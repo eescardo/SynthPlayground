@@ -1234,7 +1234,7 @@ select {
   flex-direction: column;
   gap: 0.1rem;
   height: 100%;
-  padding: 0.22rem 0.58rem 0.04rem;
+  padding: 0.22rem 0.58rem 0;
   border-radius: 1rem;
   border: 1px solid rgba(255, 202, 108, 0.34);
   overflow: auto;
