@@ -58,11 +58,11 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const macroVisibleRows = Math.max(1, Math.min(5, props.patch.ui.macros.length || 1));
   const macroDockHeightRemByRowCount: Record<number, number> = {
-    1: 2.28,
-    2: 3.08,
+    1: 1.96,
+    2: 2.98,
     3: 3.89,
-    4: 4.88,
-    5: 5.96
+    4: 4.98,
+    5: 6.18
   };
   const macroDockHeightRem = macroDockHeightRemByRowCount[macroVisibleRows] ?? macroDockHeightRemByRowCount[5];
 
