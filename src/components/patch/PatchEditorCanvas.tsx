@@ -54,6 +54,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const [pendingFromPort, setPendingFromPort] = useState<HitPort | null>(null);
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const macroVisibleRows = Math.max(1, Math.min(5, props.patch.ui.macros.length || 1));
 
   const layoutByNode = useMemo(() => {
     return new Map(props.patch.layout.nodes.map((node) => [node.nodeId, node] as const));
@@ -215,7 +216,15 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const selectedSchema = selectedNode ? getModuleSchema(selectedNode.typeId) : undefined;
 
   return (
-    <div className="patch-editor" ref={rootRef}>
+    <div
+      className="patch-editor"
+      ref={rootRef}
+      style={
+        {
+          "--patch-macro-visible-rows": macroVisibleRows
+        } as React.CSSProperties
+      }
+    >
       <div className="patch-toolbar">
         <select value={newNodeType} disabled={props.structureLocked} onChange={(e) => setNewNodeType(e.target.value)}>
           {modulePalette.map((module) => (
@@ -265,26 +274,37 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       </div>
 
       <div className="patch-layout">
-        <div className="patch-canvas-shell">
-          <div className="patch-canvas-scroll" ref={scrollRef}>
-            <canvas
-              ref={canvasRef}
-              width={canvasSize.width}
-              height={canvasSize.height}
-              style={{
-                width: `${canvasSize.width * zoom}px`,
-                height: `${canvasSize.height * zoom}px`,
-                cursor: dragNodeId ? PATCH_MOVE_CURSOR_ACTIVE : hoveredNodeId ? PATCH_MOVE_CURSOR : "default"
-              }}
-              onPointerDown={onPointerDown}
-              onPointerMove={onPointerMove}
-              onPointerUp={onPointerUp}
-              onPointerLeave={(event) => {
-                onPointerUp(event);
-                setHoveredNodeId(null);
-              }}
-            />
+        <div className="patch-editor-main-column">
+          <div className="patch-canvas-shell">
+            <div className="patch-canvas-scroll" ref={scrollRef}>
+              <canvas
+                ref={canvasRef}
+                width={canvasSize.width}
+                height={canvasSize.height}
+                style={{
+                  width: `${canvasSize.width * zoom}px`,
+                  height: `${canvasSize.height * zoom}px`,
+                  cursor: dragNodeId ? PATCH_MOVE_CURSOR_ACTIVE : hoveredNodeId ? PATCH_MOVE_CURSOR : "default"
+                }}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerLeave={(event) => {
+                  onPointerUp(event);
+                  setHoveredNodeId(null);
+                }}
+              />
+            </div>
           </div>
+
+          <PatchMacroPanel
+            patch={props.patch}
+            structureLocked={props.structureLocked}
+            onAddMacro={props.onAddMacro}
+            onRemoveMacro={props.onRemoveMacro}
+            onRenameMacro={props.onRenameMacro}
+            onChangeMacroValue={props.onChangeMacroValue}
+          />
         </div>
 
         <PatchInspector
@@ -297,15 +317,6 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           onExposeMacro={props.onExposeMacro}
         />
       </div>
-
-      <PatchMacroPanel
-        patch={props.patch}
-        structureLocked={props.structureLocked}
-        onAddMacro={props.onAddMacro}
-        onRemoveMacro={props.onRemoveMacro}
-        onRenameMacro={props.onRenameMacro}
-        onChangeMacroValue={props.onChangeMacroValue}
-      />
     </div>
   );
 }

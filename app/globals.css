@@ -1015,6 +1015,7 @@ select {
   flex-direction: column;
   gap: 0.8rem;
   min-height: 0;
+  height: calc(100vh - 1.6rem);
 }
 
 .patch-workspace-header {
@@ -1053,6 +1054,7 @@ select {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+  min-height: 0;
 }
 
 .patch-toolbar {
@@ -1073,13 +1075,30 @@ select {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 0.7rem;
+  align-items: stretch;
+  min-height: 0;
+  height: 100%;
+}
+
+.patch-editor-main-column {
+  min-width: 0;
+  display: grid;
+  grid-template-rows:
+    minmax(0, 1fr)
+    clamp(4.75rem, calc(6.5dvh + (var(--patch-macro-visible-rows, 1) - 1) * 3.1dvh), 12.5rem);
+  gap: 0.7rem;
+  min-height: 0;
+  height: 100%;
 }
 
 .patch-canvas-shell {
   min-width: 0;
+  min-height: 0;
+  height: 100%;
 }
 
 .patch-canvas-scroll {
+  height: 100%;
   max-width: 100%;
   max-height: 640px;
   overflow: auto;
@@ -1103,50 +1122,76 @@ select {
   border: 1px solid #274156;
   border-radius: 8px;
   padding: 0.6rem;
+  height: 100%;
   max-height: 640px;
   overflow: auto;
 }
 
 .patch-workspace-shell .instrument-editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   padding: 0.9rem;
   border-radius: 16px;
+  overflow: hidden;
+}
+
+.patch-workspace-shell .patch-editor {
+  flex: 1;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .patch-workspace-shell .patch-layout {
   grid-template-columns: minmax(0, 1fr) 340px;
+  flex: 1;
+  height: 100%;
 }
 
 .patch-workspace-shell .patch-canvas-scroll,
 .patch-workspace-shell .patch-inspector {
-  max-height: calc(100vh - 270px);
+  height: 100%;
+  max-height: none;
 }
 
 .patch-macro-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  margin-top: 0.85rem;
-  padding: 0.3rem 0 0;
+  min-height: 0;
+  padding: 0;
+}
+
+.patch-workspace-shell .patch-macro-panel {
+  z-index: 4;
 }
 
 .patch-macro-panel-header {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  margin-bottom: 0.18rem;
+  z-index: 5;
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.35rem;
+  pointer-events: none;
 }
 
 .patch-macro-panel-tab {
   display: inline-flex;
   align-items: center;
-  min-height: 1.75rem;
-  padding: 0.2rem 0.7rem 0.2rem 0.8rem;
+  min-height: 1.45rem;
+  padding: 0.14rem 0.62rem 0.14rem 0.72rem;
   border-radius: 0.2rem 0.8rem 0.8rem 0.2rem;
-  background: rgba(7, 10, 12, 0.96);
+  background: rgba(7, 10, 12, 0.74);
   color: #ffc65e;
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  pointer-events: auto;
 }
 
 .patch-macro-panel-add,
@@ -1154,14 +1199,15 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.8rem;
-  height: 1.8rem;
+  width: 1.35rem;
+  height: 1.35rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 234, 196, 0.2);
   background: rgba(255, 206, 122, 0.08);
   color: #fff2d6;
-  font-size: 1.15rem;
+  font-size: 0.92rem;
   line-height: 1;
+  pointer-events: auto;
 }
 
 .patch-macro-panel-add:disabled,
@@ -1172,41 +1218,45 @@ select {
 .patch-macro-panel-body {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.7rem 0.8rem 0.85rem;
+  gap: 0.22rem;
+  height: 100%;
+  padding: 0.38rem 0.62rem 0.46rem;
   border-radius: 1rem;
   border: 1px solid rgba(255, 206, 122, 0.2);
+  overflow: auto;
   background:
     linear-gradient(180deg, rgba(20, 24, 31, 0.94), rgba(8, 10, 14, 0.98)),
     radial-gradient(circle at left top, rgba(255, 181, 72, 0.12), transparent 34%);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  box-shadow:
+    0 -10px 32px rgba(4, 6, 10, 0.42),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
 }
 
 .patch-macro-panel-empty {
   margin: 0;
   color: #98adbf;
-  font-size: 0.86rem;
+  font-size: 0.78rem;
 }
 
 .patch-macro-row {
   display: grid;
   grid-template-columns: minmax(120px, 190px) minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.42rem;
 }
 
 .patch-macro-name-button,
 .patch-macro-name-input {
   min-width: 0;
-  font-size: 0.88rem;
+  font-size: 0.8rem;
 }
 
 .patch-macro-name-button {
   display: inline-flex;
   align-items: center;
-  min-height: 2rem;
+  min-height: 1rem;
   border: 0;
-  padding: 0 0.2rem;
+  padding: 0 0.12rem;
   background: transparent;
   color: #eef6ff;
   cursor: text;
@@ -1219,13 +1269,14 @@ select {
 }
 
 .patch-macro-name-input {
-  padding: 0.28rem 0.38rem;
+  padding: 0.1rem 0.24rem;
   border-radius: 0.45rem;
 }
 
 .patch-macro-slider {
   width: 100%;
   accent-color: #f1ac24;
+  height: 0.8rem;
 }
 
 .patch-inspector h3,
