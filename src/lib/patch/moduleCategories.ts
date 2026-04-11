@@ -17,7 +17,7 @@ export const PATCH_MODULE_CATEGORY_COLORS: Record<PatchModuleCategory, string> =
   processor: "#b592ff",
   envelope: "#a83317",
   probe: "#c8ff39",
-  host: "#89b6da"
+  host: "#6f7882"
 };
 
 export const PATCH_MODULE_CATEGORY_MUTED_COLORS: Record<PatchModuleCategory, { fill: string; stroke: string; accent: string }> = {
@@ -52,9 +52,9 @@ export const PATCH_MODULE_CATEGORY_MUTED_COLORS: Record<PatchModuleCategory, { f
     accent: "#cfff56"
   },
   host: {
-    fill: "#213543",
-    stroke: "#5f8096",
-    accent: "#9fc1d8"
+    fill: "#23282e",
+    stroke: "#5a636d",
+    accent: "#97a0aa"
   }
 };
 
