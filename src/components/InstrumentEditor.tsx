@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { PatchEditorCanvas } from "@/components/patch/PatchEditorCanvas";
+import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -18,6 +20,7 @@ interface InstrumentEditorProps {
   onRenamePatch: (name: string) => void;
   onSelectPatch: (patchId: string) => void;
   onDuplicatePatch: () => void;
+  onDuplicatePatchToNewTab: () => void;
   onUpdatePreset: () => void;
   canRemovePatch: boolean;
   onRequestRemovePatch: () => void;
@@ -45,6 +48,7 @@ interface InstrumentToolbarProps {
   onRenamePatch: (name: string) => void;
   onSelectPatch: (patchId: string) => void;
   onDuplicatePatch: () => void;
+  onDuplicatePatchToNewTab: () => void;
   onUpdatePreset: () => void;
   canRemovePatch: boolean;
   onRequestRemovePatch: () => void;
@@ -57,6 +61,7 @@ interface InstrumentToolbarActionsProps {
   presetStatus: ReturnType<typeof resolvePatchPresetStatus>;
   onUpdatePreset: () => void;
   onDuplicatePatch: () => void;
+  onDuplicatePatchToNewTab: () => void;
   canRemovePatch: boolean;
   onRequestRemovePatch: () => void;
 }
@@ -70,16 +75,22 @@ function InstrumentToolbarActions(props: InstrumentToolbarActionsProps) {
         </button>
       )}
       <button type="button" onClick={props.onDuplicatePatch}>
-        Duplicate Instrument Patch
+        Duplicate
+      </button>
+      <button type="button" onClick={props.onDuplicatePatchToNewTab}>
+        Duplicate to New Tab
       </button>
       <button type="button" disabled={!props.canRemovePatch} onClick={props.onRequestRemovePatch}>
-        Remove Instrument
+        Remove
       </button>
     </div>
   );
 }
 
 function InstrumentToolbar(props: InstrumentToolbarProps) {
+  const [nameDraft, setNameDraft] = useState(props.patch.name);
+  const [nameEditing, setNameEditing] = useState(false);
+  const [selectorOpen, setSelectorOpen] = useState(false);
   const sourceLabel =
     props.presetStatus === "preset_update_available"
       ? "Preset update"
@@ -87,30 +98,87 @@ function InstrumentToolbar(props: InstrumentToolbarProps) {
         ? "Legacy preset"
         : props.patchSource;
 
+  useDismissiblePopover({
+    active: selectorOpen,
+    popoverSelector: ".instrument-patch-picker-shell",
+    onDismiss: () => setSelectorOpen(false)
+  });
+
+  useEffect(() => {
+    if (!nameEditing) {
+      setNameDraft(props.patch.name);
+    }
+  }, [nameEditing, props.patch.name]);
+
+  const commitRename = () => {
+    const nextName = nameDraft.trim();
+    if (nextName.length > 0 && nextName !== props.patch.name) {
+      props.onRenamePatch(nextName);
+    } else {
+      setNameDraft(props.patch.name);
+    }
+    setNameEditing(false);
+  };
+
+  const startRename = (event: React.MouseEvent | React.KeyboardEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectorOpen(false);
+    setNameEditing(true);
+  };
+
   return (
     <div className="instrument-toolbar">
-      <div className="instrument-toolbar-main">
-        <div className="instrument-toolbar-heading">
-          <select
-            className="instrument-patch-select"
-            aria-label="Select instrument"
-            value={props.patch.id}
-            onChange={(event) => props.onSelectPatch(event.target.value)}
-          >
-            {props.patches.map((patch) => (
-              <option key={patch.id} value={patch.id}>
-                {patch.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="instrument-identity">
-          <input
-            className="instrument-name-input"
-            aria-label="Instrument name"
-            value={props.patch.name}
-            onChange={(event) => props.onRenamePatch(event.target.value)}
-          />
+      <div className="instrument-patch-picker-shell">
+        <div
+          className="instrument-patch-picker"
+          role="button"
+          tabIndex={0}
+          aria-label="Select instrument"
+          aria-expanded={selectorOpen}
+          onClick={() => setSelectorOpen((open) => !open)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setSelectorOpen((open) => !open);
+            }
+          }}
+        >
+          {nameEditing ? (
+            <input
+              className="instrument-name-inline-input"
+              aria-label="Instrument name"
+              autoFocus
+              value={nameDraft}
+              onBlur={commitRename}
+              onChange={(event) => setNameDraft(event.target.value)}
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commitRename();
+                } else if (event.key === "Escape") {
+                  event.preventDefault();
+                  setNameDraft(props.patch.name);
+                  setNameEditing(false);
+                }
+              }}
+            />
+          ) : (
+            <span
+              className="instrument-patch-picker-name"
+              role="button"
+              tabIndex={0}
+              onClick={startRename}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  startRename(event);
+                }
+              }}
+            >
+              {props.patch.name}
+            </span>
+          )}
           <span
             className={`instrument-source-badge ${
               props.presetStatus === "preset_update_available"
@@ -122,8 +190,29 @@ function InstrumentToolbar(props: InstrumentToolbarProps) {
           >
             {sourceLabel}
           </span>
-          <code className="instrument-title-id">({props.patch.id})</code>
+          <span className="instrument-patch-picker-caret" aria-hidden="true">
+            ▾
+          </span>
         </div>
+
+        {selectorOpen && (
+          <div className="instrument-patch-picker-popover" role="dialog" aria-label="Select instrument">
+            {props.patches.map((patch) => (
+              <button
+                key={patch.id}
+                type="button"
+                className={`instrument-patch-picker-option${patch.id === props.patch.id ? " active" : ""}`}
+                onClick={() => {
+                  props.onSelectPatch(patch.id);
+                  setSelectorOpen(false);
+                }}
+              >
+                <span>{patch.name}</span>
+                {patch.id === props.patch.id && <span className="instrument-patch-picker-option-mark">Current</span>}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <InstrumentToolbarActions
@@ -131,14 +220,12 @@ function InstrumentToolbar(props: InstrumentToolbarProps) {
         presetStatus={props.presetStatus}
         onUpdatePreset={props.onUpdatePreset}
         onDuplicatePatch={props.onDuplicatePatch}
+        onDuplicatePatchToNewTab={props.onDuplicatePatchToNewTab}
         canRemovePatch={props.canRemovePatch}
         onRequestRemovePatch={props.onRequestRemovePatch}
       />
 
-      <div className="instrument-toolbar-separator" />
-
       <div className="instrument-preview">
-        <span className="instrument-preview-label">Preview</span>
         <button type="button" className="preview-pitch-button" onClick={props.onOpenPreviewPitchPicker}>
           {props.previewPitch}
         </button>
@@ -167,6 +254,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
         onRenamePatch={props.onRenamePatch}
         onSelectPatch={props.onSelectPatch}
         onDuplicatePatch={props.onDuplicatePatch}
+        onDuplicatePatchToNewTab={props.onDuplicatePatchToNewTab}
         onUpdatePreset={props.onUpdatePreset}
         canRemovePatch={props.canRemovePatch}
         onRequestRemovePatch={props.onRequestRemovePatch}

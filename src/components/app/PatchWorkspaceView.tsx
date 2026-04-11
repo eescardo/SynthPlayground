@@ -1,15 +1,23 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import { useEffect, useState } from "react";
+import type { ComponentProps, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { usePatchWorkspaceQuickHelpDialog } from "@/hooks/patch/usePatchWorkspaceQuickHelpDialog";
 import { Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 
+interface PatchWorkspaceTabViewModel {
+  id: string;
+  patchId: string;
+}
+
 interface PatchWorkspaceViewProps {
   patch: Patch;
   patches: Patch[];
+  tabs: PatchWorkspaceTabViewModel[];
+  activeTabId?: string;
   macroValues: Record<string, number>;
   previewPitch: string;
   migrationNotice?: string | null;
@@ -19,9 +27,11 @@ interface PatchWorkspaceViewProps {
   invalid?: boolean;
   canRemovePatch: boolean;
   onBackToComposer: () => void;
+  onActivateTab: (tabId: string) => void;
   onSelectPatch: (patchId: string) => void;
   onRenamePatch: (name: string) => void;
   onDuplicatePatch: () => void;
+  onDuplicatePatchToNewTab: () => void;
   onUpdatePreset: () => void;
   onRequestRemovePatch: () => void;
   onOpenPreviewPitchPicker: () => void;
@@ -48,6 +58,32 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
     mouseHelpItems,
     openHelp
   } = usePatchWorkspaceQuickHelpDialog();
+  const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
+  const [tabNameDraft, setTabNameDraft] = useState(props.patch.name);
+  const patchNameById = new Map(props.patches.map((patch) => [patch.id, patch.name] as const));
+
+  useEffect(() => {
+    if (renamingTabId === props.activeTabId) {
+      setTabNameDraft(props.patch.name);
+    }
+  }, [props.activeTabId, props.patch.name, renamingTabId]);
+
+  const startRename = (tabId: string, currentName: string, event: ReactMouseEvent | ReactKeyboardEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    props.onActivateTab(tabId);
+    setRenamingTabId(tabId);
+    setTabNameDraft(currentName);
+  };
+
+  const commitTabRename = () => {
+    const nextName = tabNameDraft.trim();
+    if (nextName.length > 0 && renamingTabId === props.activeTabId && nextName !== props.patch.name) {
+      props.onRenamePatch(nextName);
+    }
+    setRenamingTabId(null);
+    setTabNameDraft(props.patch.name);
+  };
 
   return (
     <section className="patch-workspace-shell">
@@ -59,6 +95,61 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           <h2>Patch Workspace</h2>
         </div>
         <button type="button" onClick={openHelp}>Help (?)</button>
+      </div>
+
+      <div className="patch-workspace-tabs" role="tablist" aria-label="Open instrument tabs">
+        {props.tabs.map((tab) => {
+          const tabName = patchNameById.get(tab.patchId) ?? tab.patchId;
+          const active = tab.id === props.activeTabId;
+          const editing = renamingTabId === tab.id;
+
+          return (
+            <div
+              key={tab.id}
+              className={`patch-workspace-tab${active ? " active" : ""}`}
+              role="tab"
+              tabIndex={active ? 0 : -1}
+              aria-selected={active}
+              onClick={() => props.onActivateTab(tab.id)}
+            >
+              {editing ? (
+                <input
+                  className="patch-workspace-tab-name-input"
+                  aria-label="Tab name"
+                  autoFocus
+                  value={tabNameDraft}
+                  onBlur={commitTabRename}
+                  onChange={(event) => setTabNameDraft(event.target.value)}
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      commitTabRename();
+                    } else if (event.key === "Escape") {
+                      event.preventDefault();
+                      setRenamingTabId(null);
+                      setTabNameDraft(props.patch.name);
+                    }
+                  }}
+                />
+              ) : (
+                <span
+                  className="patch-workspace-tab-name"
+                  role="button"
+                  tabIndex={0}
+                  onClick={(event) => startRename(tab.id, tabName, event)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      startRename(tab.id, tabName, event);
+                    }
+                  }}
+                >
+                  {tabName}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <InstrumentEditor
@@ -74,6 +165,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
         onRenamePatch={props.onRenamePatch}
         onSelectPatch={props.onSelectPatch}
         onDuplicatePatch={props.onDuplicatePatch}
+        onDuplicatePatchToNewTab={props.onDuplicatePatchToNewTab}
         onUpdatePreset={props.onUpdatePreset}
         canRemovePatch={props.canRemovePatch}
         onRequestRemovePatch={props.onRequestRemovePatch}

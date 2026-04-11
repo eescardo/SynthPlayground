@@ -895,25 +895,7 @@ select {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.8rem;
-}
-
-.instrument-toolbar-main {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  flex: 1 1 520px;
-  min-width: min(520px, 100%);
-}
-
-.instrument-toolbar-heading {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.instrument-patch-select {
-  min-width: min(260px, 42vw);
+  gap: 0.6rem;
 }
 
 .instrument-source-badge {
@@ -955,23 +937,97 @@ select {
   box-shadow: 0 0 0 1px rgba(145, 192, 255, 0.2);
 }
 
-.instrument-identity {
+.instrument-patch-picker-shell {
+  position: relative;
+  flex: 1 1 280px;
+  min-width: min(280px, 100%);
+}
+
+.instrument-patch-picker {
   display: flex;
-  flex-wrap: nowrap;
   align-items: center;
   gap: 0.5rem;
+  min-height: 2.4rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid rgba(131, 173, 216, 0.26);
+  background: rgba(13, 22, 33, 0.86);
+  cursor: pointer;
 }
 
-.instrument-name-input {
-  flex: 0 1 320px;
-  min-width: 180px;
+.instrument-patch-picker:focus-visible {
+  outline: 2px solid rgba(131, 173, 216, 0.65);
+  outline-offset: 1px;
+}
+
+.instrument-patch-picker-name {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 1rem;
   font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.instrument-title-id {
+.instrument-patch-picker-name:focus-visible {
+  outline: 1px solid rgba(131, 173, 216, 0.65);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.instrument-name-inline-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 0.18rem 0.3rem;
+}
+
+.instrument-patch-picker-caret {
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.9rem;
+}
+
+.instrument-patch-picker-popover {
+  position: absolute;
+  top: calc(100% + 0.3rem);
+  left: 0;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: min(320px, 100%);
+  max-height: 18rem;
+  padding: 0.35rem;
+  overflow: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(131, 173, 216, 0.24);
+  background: rgba(9, 17, 26, 0.98);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.34);
+}
+
+.instrument-patch-picker-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border-radius: 10px;
+  text-align: left;
+}
+
+.instrument-patch-picker-option.active {
+  border-color: rgba(131, 173, 216, 0.42);
+  background: rgba(46, 73, 104, 0.45);
+}
+
+.instrument-patch-picker-option-mark {
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .instrument-toolbar-actions {
@@ -979,27 +1035,13 @@ select {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
-  margin-left: auto;
-}
-
-.instrument-toolbar-separator {
-  width: 1px;
-  align-self: stretch;
-  background: var(--border);
 }
 
 .instrument-preview {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding-left: 0.1rem;
-}
-
-.instrument-preview-label {
-  color: var(--muted);
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  margin-left: auto;
 }
 
 .preview-pitch-button {
@@ -1040,6 +1082,56 @@ select {
 
 .patch-workspace-back-button {
   white-space: nowrap;
+}
+
+.patch-workspace-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.28rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+}
+
+.patch-workspace-tab {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 14rem;
+  padding: 0.35rem 0.65rem 0.4rem;
+  border: 1px solid rgba(131, 173, 216, 0.14);
+  border-radius: 10px 10px 0 0;
+  background: rgba(12, 20, 30, 0.82);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.patch-workspace-tab.active {
+  color: var(--text);
+  border-color: rgba(131, 173, 216, 0.28);
+  background: rgba(18, 30, 44, 0.96);
+}
+
+.patch-workspace-tab-name {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.patch-workspace-tab-name:focus-visible {
+  outline: 1px solid rgba(131, 173, 216, 0.65);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.patch-workspace-tab-name-input {
+  min-width: 5rem;
+  max-width: 12rem;
+  padding: 0.08rem 0.2rem;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .patch-editor {
@@ -1907,11 +1999,11 @@ kbd {
   }
 
   .instrument-toolbar-actions {
-    margin-left: 0;
+    order: 3;
   }
 
-  .instrument-toolbar-separator {
-    display: none;
+  .instrument-preview {
+    margin-left: 0;
   }
 
   .patch-removal-row {

@@ -58,7 +58,7 @@ describe.sequential("patch workspace layout regression", () => {
         try {
           await openPatchWorkspaceApp(page);
 
-          await page.getByRole("button", { name: "Duplicate Instrument Patch" }).click();
+          await page.getByRole("button", { name: "Duplicate", exact: true }).click();
           await page.getByRole("button", { name: "Add Module" }).click();
 
           const beforeZoom = await measurePatchWorkspace(page);

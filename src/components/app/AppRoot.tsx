@@ -765,9 +765,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
         ...current,
         patches: current.patches.filter((patch) => patch.id !== selectedTrackPatch.id)
       }), { actionKey: `patch:${selectedTrackPatch.id}:remove` });
-      if (patchWorkspace.selectedPatchId === selectedTrackPatch.id) {
-        patchWorkspace.setSelectedPatchId(fallbackPatchId || project.patches.find((patch) => patch.id !== selectedTrackPatch.id)?.id);
-      }
       patchWorkspace.setSelectedNodeId(undefined);
       return;
     }
@@ -825,12 +822,9 @@ export function AppRoot({ children }: { children: ReactNode }) {
     const survivingSelectedTrack =
       selectedTrackId && nextTrackIds.has(selectedTrackId) ? selectedTrackId : project.tracks.find((track) => nextTrackIds.has(track.id))?.id;
     setSelectedTrackId(survivingSelectedTrack);
-    if (patchWorkspace.selectedPatchId === patchRemovalDialog.patchId) {
-      patchWorkspace.setSelectedPatchId(project.patches.find((patch) => patch.id !== patchRemovalDialog.patchId)?.id);
-    }
     setPatchRemovalDialog(null);
     patchWorkspace.setSelectedNodeId(undefined);
-  }, [commitProjectChange, patchRemovalDialog, patchWorkspace, project.patches, project.tracks, selectedTrackId]);
+  }, [commitProjectChange, patchRemovalDialog, patchWorkspace, project.tracks, selectedTrackId]);
 
   const updateTrackPatch = (trackId: string, patchId: string) => {
     commitProjectChange((current) => switchTrackPatchInProject(current, trackId, patchId), { actionKey: `track:${trackId}:patch` });
@@ -1046,6 +1040,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const patchWorkspaceProps: React.ComponentProps<typeof PatchWorkspaceView> = {
     patch: selectedPatch,
     patches: project.patches,
+    tabs: patchWorkspace.tabs.map((tab) => ({ id: tab.id, patchId: tab.patchId })),
+    activeTabId: patchWorkspace.activeTabId,
     macroValues: patchWorkspace.workspaceMacroValues,
     previewPitch: patchWorkspace.previewPitch,
     migrationNotice: patchWorkspace.migrationNotice,
@@ -1056,9 +1052,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
     canRemovePatch:
       resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset",
     onBackToComposer: patchWorkspace.closePatchWorkspace,
+    onActivateTab: patchWorkspace.activateWorkspaceTab,
     onRenamePatch: patchWorkspace.renameSelectedPatch,
     onSelectPatch: patchWorkspace.selectPatchInWorkspace,
     onDuplicatePatch: patchWorkspace.duplicateSelectedPatchInWorkspace,
+    onDuplicatePatchToNewTab: patchWorkspace.duplicateSelectedPatchToNewTab,
     onUpdatePreset: patchWorkspace.updatePresetToLatest,
     onRequestRemovePatch: patchWorkspace.requestRemoveSelectedPatch,
     onOpenPreviewPitchPicker: () => patchWorkspace.setPreviewPitchPickerOpen(true),
