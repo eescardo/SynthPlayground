@@ -105,7 +105,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const nodeExists = useCallback((nodeId: string) => nodeById.has(nodeId), [nodeById]);
   const {
     handleCanvasPointerDown: handleFacePopoverPointerDown,
-    openPopoverForNode: openFacePopoverForNode,
+    togglePopoverForNode,
     popoverNodeId: facePopoverNodeId
   } = usePatchModuleFacePopover({
     getPopoverRect: getFacePopoverRect,
@@ -233,7 +233,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     pointerMovedRef.current = false;
     setDragNodeId(null);
     if (clickedNodeId && !moved) {
-      openFacePopoverForNode(clickedNodeId);
+      togglePopoverForNode(clickedNodeId);
     }
   };
 

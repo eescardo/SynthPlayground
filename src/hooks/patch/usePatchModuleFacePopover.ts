@@ -50,6 +50,7 @@ export function usePatchModuleFacePopover({ getPopoverRect, nodeExists }: UsePat
     closePopover: () => setPopoverNodeId(null),
     handleCanvasPointerDown,
     openPopoverForNode: setPopoverNodeId,
+    togglePopoverForNode: (nodeId: string) => setPopoverNodeId((current) => (current === nodeId ? null : nodeId)),
     popoverNodeId
   };
 }
