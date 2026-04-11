@@ -1074,6 +1074,7 @@ select {
 .patch-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-rows: minmax(0, 1fr);
   gap: 0.7rem;
   align-items: stretch;
   min-height: 0;
@@ -1157,12 +1158,21 @@ select {
   flex: 1;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .patch-workspace-shell .patch-layout {
   grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-rows: minmax(0, 1fr);
   flex: 1;
   height: 100%;
+}
+
+.patch-workspace-shell .patch-editor-main-column,
+.patch-workspace-shell .patch-canvas-stage {
+  overflow: hidden;
 }
 
 .patch-workspace-shell .patch-canvas-scroll,
