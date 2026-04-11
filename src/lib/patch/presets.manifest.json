@@ -1,7 +1,7 @@
 [
   {
     "presetId": "preset_bass",
-    "presetVersion": 10,
+    "presetVersion": 11,
     "name": "Bass",
     "macroIds": [
       "macro_cutoff",
