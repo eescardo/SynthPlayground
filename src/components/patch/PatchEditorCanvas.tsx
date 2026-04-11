@@ -151,7 +151,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     const pos = pointerEventToPatchCanvasPoint(canvasRef.current, event);
     pointerDownNodeIdRef.current = null;
     pointerMovedRef.current = false;
-    if (handleFacePopoverPointerDown(pos.rawX, pos.rawY) === "inside-popover") {
+    if (handleFacePopoverPointerDown(pos.rawX, pos.rawY) !== "none") {
       return;
     }
 
