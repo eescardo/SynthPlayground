@@ -551,7 +551,7 @@ export const pluckPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_pluck",
     name: "Pluck",
-    meta: { source: "preset", presetId: "preset_pluck", presetVersion: 25 },
+    meta: { source: "preset", presetId: "preset_pluck", presetVersion: 26 },
     nodes: [
       {
         id: string,

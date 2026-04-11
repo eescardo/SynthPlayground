@@ -57,7 +57,7 @@
   },
   {
     "presetId": "preset_pluck",
-    "presetVersion": 25,
+    "presetVersion": 26,
     "name": "Pluck",
     "macroIds": [
       "macro_tone",
