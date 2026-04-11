@@ -163,7 +163,7 @@ export function PatchSummaryPopover(props: PatchSummaryPopoverProps) {
         <div className="track-patch-summary-actions">
           <button type="button" onClick={props.onDuplicate}>Duplicate Instrument</button>
           <button type="button" onClick={props.onRemove} disabled={!props.canRemove}>Remove Instrument</button>
-          <button type="button" className="prominent-action" onClick={props.onOpenWorkspace}>Open Patch Workspace</button>
+          <button type="button" className="transport-export-button" onClick={props.onOpenWorkspace}>Open Patch Workspace</button>
         </div>
       </div>
     </div>

@@ -40,7 +40,8 @@ export function usePatchModuleFacePopover({ getPopoverRect, nodeExists }: UsePat
       rawY >= rect.y &&
       rawY <= rect.y + rect.height;
     if (insidePopover) {
-      return "inside-popover" as const;
+      setPopoverNodeId(null);
+      return "dismissed" as const;
     }
     setPopoverNodeId(null);
     return "dismissed" as const;
@@ -50,6 +51,7 @@ export function usePatchModuleFacePopover({ getPopoverRect, nodeExists }: UsePat
     closePopover: () => setPopoverNodeId(null),
     handleCanvasPointerDown,
     openPopoverForNode: setPopoverNodeId,
+    togglePopoverForNode: (nodeId: string) => setPopoverNodeId((current) => (current === nodeId ? null : nodeId)),
     popoverNodeId
   };
 }

@@ -36,5 +36,8 @@ jobs:
       - name: Verify preset manifest is up to date
         run: pnpm run check:presets:manifest
 
+      - name: Verify bundled preset definitions are internally consistent
+        run: pnpm run check:presets:definitions
+
       - name: Check preset compatibility against PR base
         run: pnpm run check:presets:compat -- --base-ref origin/${{ github.base_ref }}

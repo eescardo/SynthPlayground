@@ -1,12 +1,37 @@
 import { createDefaultParamsForType, getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { createId } from "@/lib/ids";
 import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch/patchCanvasConstants";
+import {
+  clampNormalizedMacroValue,
+  convertBindingToKeyframeCount,
+  normalizeMacroKeyframeCount,
+  resolveMacroBindingValue,
+  setMacroBindingValueAtKeyframe
+} from "@/lib/patch/macroKeyframes";
 import { Patch } from "@/types/patch";
 import { PatchHistoryState, PatchOp } from "@/types/ops";
 
 const clonePatch = (patch: Patch): Patch => structuredClone(patch);
 
 const findLayoutNode = (patch: Patch, nodeId: string): number => patch.layout.nodes.findIndex((node) => node.nodeId === nodeId);
+
+function applyMacroValueToPatch(patch: Patch, macroId: string, normalized: number): Patch {
+  const macro = patch.ui.macros.find((entry) => entry.id === macroId);
+  if (!macro) {
+    return patch;
+  }
+
+  const norm = clampNormalizedMacroValue(normalized);
+  for (const binding of macro.bindings) {
+    const node = patch.nodes.find((entry) => entry.id === binding.nodeId);
+    if (!node) {
+      continue;
+    }
+    node.params[binding.paramId] = resolveMacroBindingValue(binding, norm);
+  }
+
+  return patch;
+}
 
 export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
   const next = clonePatch(patch);
@@ -113,7 +138,7 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       if (next.ui.macros.some((macro) => macro.id === op.macroId)) {
         throw new Error(`Macro already exists: ${op.macroId}`);
       }
-      next.ui.macros.push({ id: op.macroId, name: op.name, bindings: [] });
+      next.ui.macros.push({ id: op.macroId, name: op.name, keyframeCount: Math.max(2, op.keyframeCount), bindings: [] });
       return next;
     }
 
@@ -156,6 +181,40 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
         throw new Error(`Unknown macro: ${op.macroId}`);
       }
       macro.name = op.name;
+      return next;
+    }
+
+    case "setMacroKeyframeCount": {
+      const macro = next.ui.macros.find((entry) => entry.id === op.macroId);
+      if (!macro) {
+        throw new Error(`Unknown macro: ${op.macroId}`);
+      }
+      const keyframeCount = normalizeMacroKeyframeCount(op.keyframeCount);
+      macro.keyframeCount = keyframeCount;
+      macro.bindings = macro.bindings.map((binding) => convertBindingToKeyframeCount(binding, keyframeCount));
+      return next;
+    }
+
+    case "setMacroBindingKeyframeValue": {
+      const macro = next.ui.macros.find((entry) => entry.id === op.macroId);
+      if (!macro) {
+        throw new Error(`Unknown macro: ${op.macroId}`);
+      }
+      if (typeof op.value !== "number") {
+        throw new Error("Macro keyframe values must be numeric.");
+      }
+      const bindingIndex = macro.bindings.findIndex(
+        (binding) => binding.nodeId === op.nodeId && binding.paramId === op.paramId
+      );
+      if (bindingIndex === -1) {
+        throw new Error(`Unknown macro binding target: ${op.nodeId}.${op.paramId}`);
+      }
+      macro.bindings[bindingIndex] = setMacroBindingValueAtKeyframe(
+        macro.bindings[bindingIndex],
+        macro.keyframeCount,
+        op.normalized,
+        op.value
+      );
       return next;
     }
 
@@ -221,49 +280,8 @@ export const redoPatchOp = (state: PatchHistoryState<Patch>): PatchHistoryState<
 };
 
 export const applyMacroValue = (patch: Patch, macroId: string, normalized: number): Patch => {
-  const macro = patch.ui.macros.find((entry) => entry.id === macroId);
-  if (!macro) {
-    return patch;
-  }
-
   const next = clonePatch(patch);
-  const norm = Math.max(0, Math.min(1, normalized));
-
-  for (const binding of macro.bindings) {
-    const node = next.nodes.find((entry) => entry.id === binding.nodeId);
-    if (!node) {
-      continue;
-    }
-
-    let resolved: number;
-    if (binding.map === "piecewise" && binding.points && binding.points.length >= 2) {
-      const points = binding.points;
-      if (norm <= points[0].x) {
-        resolved = points[0].y;
-      } else if (norm >= points[points.length - 1].x) {
-        resolved = points[points.length - 1].y;
-      } else {
-        const segmentIndex = points.findIndex((point, index) => index > 0 && norm <= point.x);
-        const right = points[segmentIndex];
-        const left = points[segmentIndex - 1];
-        const segmentSpan = Math.max(right.x - left.x, 0.000001);
-        const segmentNorm = (norm - left.x) / segmentSpan;
-        resolved = left.y + (right.y - left.y) * segmentNorm;
-      }
-    } else if (binding.map === "exp") {
-      const min = Math.max(binding.min ?? 0, 0.000001);
-      const max = binding.max ?? min;
-      resolved = min * Math.pow(max / min, norm);
-    } else {
-      const min = binding.min ?? 0;
-      const max = binding.max ?? 1;
-      resolved = min + (max - min) * norm;
-    }
-
-    node.params[binding.paramId] = resolved;
-  }
-
-  return next;
+  return applyMacroValueToPatch(next, macroId, normalized);
 };
 
 export const makeConnectOp = (

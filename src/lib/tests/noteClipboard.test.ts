@@ -30,6 +30,7 @@ const createPatch = (id: string, macroName: string): Patch => ({
       {
         id: "macro_cutoff",
         name: macroName,
+        keyframeCount: 2,
         bindings: []
       }
     ]

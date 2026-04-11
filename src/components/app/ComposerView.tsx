@@ -34,6 +34,7 @@ interface ComposerViewProps {
   onPlay: () => void;
   onStop: () => void;
   onToggleRecord: () => void;
+  onOpenPatchWorkspace: () => void;
   onExportAudio: () => void;
   onTempoChange: (tempo: number) => void;
   onMeterChange: (meter: Project["global"]["meter"]) => void;
@@ -93,6 +94,7 @@ export function ComposerView(props: ComposerViewProps) {
         onPlay={props.onPlay}
         onStop={props.onStop}
         onToggleRecord={props.onToggleRecord}
+        onOpenPatchWorkspace={props.onOpenPatchWorkspace}
         onExportAudio={props.onExportAudio}
         exportAudioDisabled={props.exportingAudio}
         onTempoChange={props.onTempoChange}

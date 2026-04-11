@@ -43,6 +43,11 @@ export function usePatchCanvasZoom({ canvasSize, fitSize = canvasSize, onZoomCha
   const [zoom, setZoom] = useState(savedZoom ?? 1);
   const zoomRef = useRef(zoom);
   const hasUserZoomedRef = useRef(savedZoom !== undefined);
+  const fitSizeRef = useRef(fitSize);
+
+  useEffect(() => {
+    fitSizeRef.current = fitSize;
+  }, [fitSize]);
 
   useEffect(() => {
     zoomRef.current = zoom;
@@ -66,7 +71,7 @@ export function usePatchCanvasZoom({ canvasSize, fitSize = canvasSize, onZoomCha
       if (hasUserZoomedRef.current || savedZoom !== undefined) {
         return;
       }
-      const nextZoom = resolveFitZoom(scrollEl, fitSize);
+      const nextZoom = resolveFitZoom(scrollEl, fitSizeRef.current);
       zoomRef.current = nextZoom;
       setZoom(nextZoom);
     };
@@ -75,7 +80,7 @@ export function usePatchCanvasZoom({ canvasSize, fitSize = canvasSize, onZoomCha
     const resizeObserver = new ResizeObserver(applyFitZoom);
     resizeObserver.observe(scrollEl);
     return () => resizeObserver.disconnect();
-  }, [fitSize, patchId, savedZoom, scrollRef]);
+  }, [patchId, savedZoom, scrollRef]);
 
   const applyCanvasWheelZoom = useCallback((event: WheelEvent, anchor: { x: number; y: number }) => {
     event.preventDefault();

@@ -10,6 +10,7 @@ describe("patch validation", () => {
     patch.ui.macros.push({
       id: "macro_conflict",
       name: "Conflict",
+      keyframeCount: 2,
       bindings: [
         {
           id: "conflict_binding",
@@ -43,6 +44,25 @@ describe("patch validation", () => {
 
     expect(result.ok).toBe(false);
     expect(result.issues.some((issue) => issue.message.includes("Macro binds the same parameter more than once"))).toBe(true);
+  });
+
+  it("rejects bindings whose keyframe count differs from the macro", () => {
+    const patch = pluckPatch();
+    patch.ui.macros[0].keyframeCount = 2;
+    patch.ui.macros[0].bindings[0] = {
+      ...patch.ui.macros[0].bindings[0],
+      map: "piecewise",
+      points: [
+        { x: 0, y: 100 },
+        { x: 0.5, y: 400 },
+        { x: 1, y: 900 }
+      ]
+    };
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.some((issue) => issue.message.includes("keyframe count"))).toBe(true);
   });
 
   it("accepts bundled pluck preset with non-overlapping macro targets", () => {

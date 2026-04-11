@@ -990,6 +990,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
       playback.stopPlayback(true);
       void recording.startRecordMode();
     },
+    onOpenPatchWorkspace: () => patchWorkspace.openPatchWorkspace(),
     onExportAudio: () => {
       void exportAudio();
     },
@@ -1045,9 +1046,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const patchWorkspaceProps: React.ComponentProps<typeof PatchWorkspaceView> = {
     patch: selectedPatch,
     patches: project.patches,
+    macroValues: patchWorkspace.workspaceMacroValues,
     previewPitch: patchWorkspace.previewPitch,
     migrationNotice: patchWorkspace.migrationNotice,
     selectedNodeId: patchWorkspace.selectedNodeId,
+    selectedMacroId: patchWorkspace.selectedMacroId,
     validationIssues,
     invalid: selectedPatchHasErrors,
     canRemovePatch:
@@ -1061,8 +1064,15 @@ export function AppRoot({ children }: { children: ReactNode }) {
     onOpenPreviewPitchPicker: () => patchWorkspace.setPreviewPitchPickerOpen(true),
     onPreviewNow: () => patchWorkspace.previewSelectedPatchNow(),
     onSelectNode: patchWorkspace.setSelectedNodeId,
+    onSelectMacro: patchWorkspace.setSelectedMacroId,
+    onClearSelectedMacro: patchWorkspace.clearSelectedMacro,
     onApplyOp: patchWorkspace.applyPatchOp,
-    onExposeMacro: patchWorkspace.exposePatchMacro
+    onExposeMacro: patchWorkspace.exposePatchMacro,
+    onAddMacro: patchWorkspace.addPatchMacro,
+    onRemoveMacro: patchWorkspace.removePatchMacro,
+    onRenameMacro: patchWorkspace.renamePatchMacro,
+    onSetMacroKeyframeCount: patchWorkspace.setPatchMacroKeyframeCount,
+    onChangeMacroValue: patchWorkspace.changePatchMacroValue
   };
 
   const contextValue: AppRootContextValue = {

@@ -8,7 +8,9 @@ import { PatchOp } from "@/types/ops";
 interface InstrumentEditorProps {
   patch: Patch;
   patches: Patch[];
+  macroValues: Record<string, number>;
   selectedNodeId?: string;
+  selectedMacroId?: string;
   validationIssues: PatchValidationIssue[];
   invalid?: boolean;
   previewPitch: string;
@@ -22,8 +24,15 @@ interface InstrumentEditorProps {
   onOpenPreviewPitchPicker: () => void;
   onPreviewNow: () => void;
   onSelectNode: (nodeId?: string) => void;
+  onSelectMacro: (macroId?: string) => void;
+  onClearSelectedMacro: () => void;
   onApplyOp: (op: PatchOp) => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
+  onAddMacro: () => void;
+  onRemoveMacro: (macroId: string) => void;
+  onRenameMacro: (macroId: string, name: string) => void;
+  onSetMacroKeyframeCount: (macroId: string, keyframeCount: number) => void;
+  onChangeMacroValue: (macroId: string, normalized: number, options?: { commit?: boolean }) => void;
 }
 
 interface InstrumentToolbarProps {
@@ -174,12 +183,21 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
 
       <PatchEditorCanvas
         patch={props.patch}
+        macroValues={props.macroValues}
         selectedNodeId={props.selectedNodeId}
+        selectedMacroId={props.selectedMacroId}
         validationIssues={props.validationIssues}
         structureLocked={structureLocked}
         onSelectNode={props.onSelectNode}
+        onSelectMacro={props.onSelectMacro}
+        onClearSelectedMacro={props.onClearSelectedMacro}
         onApplyOp={props.onApplyOp}
         onExposeMacro={props.onExposeMacro}
+        onAddMacro={props.onAddMacro}
+        onRemoveMacro={props.onRemoveMacro}
+        onRenameMacro={props.onRenameMacro}
+        onSetMacroKeyframeCount={props.onSetMacroKeyframeCount}
+        onChangeMacroValue={props.onChangeMacroValue}
       />
     </section>
   );

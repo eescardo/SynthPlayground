@@ -137,6 +137,7 @@ describe("synth worklet runtime", () => {
           {
             id: "macro_brightness",
             name: "Brightness",
+            keyframeCount: 3,
             bindings: [
               {
                 id: "binding_1",

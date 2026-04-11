@@ -137,16 +137,20 @@ function resolveAdsrMacroRangeValues(patch: Patch, node: PatchNode, schema: Para
 function drawAdsrEnvelopePath(
   ctx: CanvasRenderingContext2D,
   values: { attack: number; decay: number; sustain: number; release: number },
-  graph: { x: number; y: number; width: number; height: number }
+  graph: { x: number; y: number; width: number; height: number },
+  longestDurationMs: number
 ) {
-  const attack = Math.max(0.01, values.attack);
-  const decay = Math.max(0.01, values.decay);
+  const attackMs = Math.max(1, values.attack * 1000);
+  const decayMs = Math.max(1, values.decay * 1000);
   const sustain = Math.max(0, Math.min(1, values.sustain));
-  const release = Math.max(0.01, values.release);
-  const total = attack + decay + release + 0.75;
-  const ax = graph.x + (attack / total) * graph.width;
-  const dx = ax + (decay / total) * graph.width;
-  const sx = dx + (0.75 / total) * graph.width;
+  const releaseMs = Math.max(1, values.release * 1000);
+  const scaledDurationMs = Math.max(longestDurationMs, attackMs + decayMs + releaseMs, 1);
+  const sustainHoldWidth = Math.max(10, Math.min(graph.width * 0.16, 18));
+  const timedWidth = Math.max(graph.width - sustainHoldWidth, graph.width * 0.6);
+  const timeScale = timedWidth / scaledDurationMs;
+  const ax = graph.x + attackMs * timeScale;
+  const dx = ax + decayMs * timeScale;
+  const sx = dx + sustainHoldWidth;
   const rx = graph.x + graph.width;
   const highY = graph.y + 6;
   const sustainY = graph.y + graph.height - 6 - sustain * (graph.height - 12);
@@ -175,25 +179,32 @@ function drawAdsrModuleFace(
   const graphW = PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2;
   const graphH = PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET;
   const graph = { x: graphX, y: graphY, width: graphW, height: graphH };
+  const currentValues = getAdsrParamValues(node, schema);
+  const macroRange = resolveAdsrMacroRangeValues(patch, node, schema);
+  const longestDurationMs = Math.max(
+    1,
+    (currentValues.attack + currentValues.decay + currentValues.release) * 1000,
+    macroRange ? (macroRange.low.attack + macroRange.low.decay + macroRange.low.release) * 1000 : 0,
+    macroRange ? (macroRange.high.attack + macroRange.high.decay + macroRange.high.release) * 1000 : 0
+  );
 
   ctx.strokeStyle = "rgba(231, 243, 255, 0.12)";
   ctx.lineWidth = 1;
   ctx.strokeRect(graphX, graphY, graphW, graphH);
 
-  const macroRange = resolveAdsrMacroRangeValues(patch, node, schema);
   if (macroRange) {
     ctx.lineWidth = 1.4;
     ctx.setLineDash([3, 3]);
     ctx.strokeStyle = "rgba(151, 214, 255, 0.84)";
-    drawAdsrEnvelopePath(ctx, macroRange.low, graph);
+    drawAdsrEnvelopePath(ctx, macroRange.low, graph, longestDurationMs);
     ctx.strokeStyle = "rgba(255, 214, 145, 0.88)";
-    drawAdsrEnvelopePath(ctx, macroRange.high, graph);
+    drawAdsrEnvelopePath(ctx, macroRange.high, graph, longestDurationMs);
     ctx.setLineDash([]);
   }
 
   ctx.strokeStyle = accentColor;
   ctx.lineWidth = 2;
-  drawAdsrEnvelopePath(ctx, getAdsrParamValues(node, schema), graph);
+  drawAdsrEnvelopePath(ctx, currentValues, graph, longestDurationMs);
 }
 
 function drawGenericModuleFace(
@@ -226,12 +237,18 @@ export function drawPatchModuleCard(
   y: number,
   options: {
     hovered: boolean;
+    macroSelected: boolean;
     selected: boolean;
   }
 ) {
   const moduleColors = resolveMutedPatchModuleColors(schema.categories);
   ctx.fillStyle = moduleColors.fill;
   ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
+  if (options.macroSelected) {
+    ctx.strokeStyle = "rgba(246, 176, 28, 0.88)";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x - 4, y - 4, PATCH_NODE_WIDTH + 8, PATCH_NODE_HEIGHT + 8);
+  }
   if (options.hovered && !options.selected) {
     ctx.fillStyle = PATCH_COLOR_NODE_HOVER_OVERLAY;
     ctx.fillRect(x + 2, y + 2, PATCH_NODE_WIDTH - 4, PATCH_NODE_HEIGHT - 4);
@@ -348,6 +365,7 @@ function drawPatchModules(
   patch: Patch,
   layoutByNode: Map<string, PatchLayoutNode>,
   hoveredNodeId: string | null,
+  selectedMacroNodeIds: Set<string>,
   selectedNodeId: string | undefined
 ) {
   patch.nodes.forEach((node) => {
@@ -361,6 +379,7 @@ function drawPatchModules(
 
     drawPatchModuleCard(ctx, patch, node, schema, x, y, {
       hovered: hoveredNodeId === node.id,
+      macroSelected: selectedMacroNodeIds.has(node.id),
       selected: selectedNodeId === node.id
     });
   });
@@ -388,7 +407,8 @@ export function drawPatchFacePopover(
   patch: Patch,
   node: PatchNode,
   schema: NonNullable<ReturnType<typeof getModuleSchema>>,
-  rect: CanvasRect
+  rect: CanvasRect,
+  macroSelected: boolean
 ) {
   ctx.save();
   ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
@@ -403,6 +423,7 @@ export function drawPatchFacePopover(
   ctx.scale(PATCH_FACE_POPOVER_SCALE, PATCH_FACE_POPOVER_SCALE);
   drawPatchModuleCard(ctx, patch, node, schema, 0, 0, {
     hovered: false,
+    macroSelected,
     selected: true
   });
   ctx.restore();
@@ -435,6 +456,7 @@ export function drawPatchCanvas(args: {
   nodeById: Map<string, PatchNode>;
   patch: Patch;
   pendingFromPort: HitPort | null;
+  selectedMacroNodeIds: Set<string>;
   selectedNodeId?: string;
 }): HitPort[] {
   const ctx = args.canvas.getContext("2d");
@@ -447,7 +469,7 @@ export function drawPatchCanvas(args: {
   drawPatchGrid(ctx, width, height);
   const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode);
   drawPatchConnections(ctx, args.patch, portPositions);
-  drawPatchModules(ctx, args.patch, args.layoutByNode, args.hoveredNodeId, args.selectedNodeId);
+  drawPatchModules(ctx, args.patch, args.layoutByNode, args.hoveredNodeId, args.selectedMacroNodeIds, args.selectedNodeId);
   drawPendingPatchPort(ctx, args.pendingFromPort, portPositions);
 
   if (args.facePopoverNodeId) {
@@ -455,7 +477,7 @@ export function drawPatchCanvas(args: {
     const schema = node ? getModuleSchema(node.typeId) : undefined;
     const rect = args.getFacePopoverRect(args.facePopoverNodeId);
     if (node && schema && rect) {
-      drawPatchFacePopover(ctx, args.patch, node, schema, rect);
+      drawPatchFacePopover(ctx, args.patch, node, schema, rect, args.selectedMacroNodeIds.has(node.id));
     }
   }
 

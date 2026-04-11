@@ -38,7 +38,7 @@ export const bassPatch = (): Patch => {
     schemaVersion: 1,
     id: patchId,
     name: "Bass",
-    meta: { source: "preset", presetId: "preset_bass", presetVersion: 9 },
+    meta: { source: "preset", presetId: "preset_bass", presetVersion: 10 },
     nodes: [
       {
         id: pitchTrackId,
@@ -234,6 +234,7 @@ export const bassPatch = (): Patch => {
         {
           id: "macro_cutoff",
           name: "Cutoff",
+          keyframeCount: 2,
           defaultNormalized: 0.28,
           bindings: [
             {
@@ -249,6 +250,7 @@ export const bassPatch = (): Patch => {
         {
           id: "macro_decay",
           name: "Pop/Slap",
+          keyframeCount: 3,
           defaultNormalized: 0.5,
           bindings: [
             {
@@ -435,7 +437,7 @@ export const padPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_pad",
     name: "Pad",
-    meta: { source: "preset", presetId: "preset_pad", presetVersion: 4 },
+    meta: { source: "preset", presetId: "preset_pad", presetVersion: 5 },
     nodes: [
       {
         id: vco1,
@@ -492,18 +494,21 @@ export const padPatch = (): Patch => {
         {
           id: "macro_attack",
           name: "Attack",
+          keyframeCount: 2,
           defaultNormalized: 0.34,
           bindings: [{ id: "b1", nodeId: env, paramId: "attack", map: "linear", min: 0.05, max: 3.2 }]
         },
         {
           id: "macro_release",
           name: "Release",
+          keyframeCount: 2,
           defaultNormalized: 0.32,
           bindings: [{ id: "b6", nodeId: env, paramId: "release", map: "linear", min: 0.15, max: 2.4 }]
         },
         {
           id: "macro_motion",
           name: "Motion",
+          keyframeCount: 2,
           defaultNormalized: 0.46,
           bindings: [
             { id: "b2", nodeId: lfo, paramId: "freqHz", map: "exp", min: 0.04, max: 4.5 },
@@ -546,7 +551,7 @@ export const pluckPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_pluck",
     name: "Pluck",
-    meta: { source: "preset", presetId: "preset_pluck", presetVersion: 24 },
+    meta: { source: "preset", presetId: "preset_pluck", presetVersion: 25 },
     nodes: [
       {
         id: string,
@@ -658,15 +663,19 @@ export const pluckPatch = (): Patch => {
         {
           id: "macro_tone",
           name: "Tightness",
+          keyframeCount: 3,
           defaultNormalized: 0.58,
           bindings: [
             {
               id: "b1",
               nodeId: filter,
               paramId: "cutoffHz",
-              map: "exp",
-              min: 620,
-              max: 2600
+              map: "piecewise",
+              points: [
+                { x: 0, y: 620 },
+                { x: 0.5, y: 1269.645569 },
+                { x: 1, y: 2600 }
+              ]
             },
             {
               id: "b1b",
@@ -739,6 +748,7 @@ export const pluckPatch = (): Patch => {
         {
           id: "macro_decay",
           name: "Decay",
+          keyframeCount: 2,
           defaultNormalized: 0.62,
           bindings: [
             { id: "b2", nodeId: string, paramId: "decay", map: "linear", min: 0.97, max: 0.9985 },
@@ -751,6 +761,7 @@ export const pluckPatch = (): Patch => {
         {
           id: "macro_material",
           name: "Material",
+          keyframeCount: 3,
           defaultNormalized: 0.5,
           bindings: [
             {
@@ -907,7 +918,7 @@ export const keysPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_keys",
     name: "Simple Piano-ish",
-    meta: { source: "preset", presetId: "preset_keys", presetVersion: 1 },
+    meta: { source: "preset", presetId: "preset_keys", presetVersion: 2 },
     nodes: [
       { id: vco, typeId: "VCO", params: { ...createDefaultParamsForType("VCO"), wave: "triangle" } },
       {
@@ -932,6 +943,7 @@ export const keysPatch = (): Patch => {
         {
           id: "macro_brightness",
           name: "Brightness",
+          keyframeCount: 2,
           defaultNormalized: 0.33,
           bindings: [{ id: "b1", nodeId: sat, paramId: "driveDb", map: "linear", min: 0, max: 18 }]
         }
@@ -962,7 +974,7 @@ export const brassPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_brass",
     name: "Brass-ish",
-    meta: { source: "preset", presetId: "preset_brass", presetVersion: 1 },
+    meta: { source: "preset", presetId: "preset_brass", presetVersion: 2 },
     nodes: [
       { id: vco, typeId: "VCO", params: { ...createDefaultParamsForType("VCO"), wave: "square", pulseWidth: 0.35 } },
       { id: lfo, typeId: "LFO", params: { ...createDefaultParamsForType("LFO"), freqHz: 5, bipolar: true } },
@@ -990,6 +1002,7 @@ export const brassPatch = (): Patch => {
         {
           id: "macro_bite",
           name: "Bite",
+          keyframeCount: 2,
           defaultNormalized: 0.18,
           bindings: [{ id: "b1", nodeId: vcf, paramId: "resonance", map: "linear", min: 0.05, max: 0.9 }]
         }
@@ -1025,7 +1038,7 @@ export const drumPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_drumish",
     name: "Drum-ish",
-    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 8 },
+    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 9 },
     nodes: [
       {
         id: vco,
@@ -1074,6 +1087,7 @@ export const drumPatch = (): Patch => {
         {
           id: "macro_shell",
           name: "Shell",
+          keyframeCount: 2,
           defaultNormalized: 0.34,
           bindings: [
             { id: "b1", nodeId: bodyEnv, paramId: "decay", map: "linear", min: 0.03, max: 0.24 },
@@ -1084,12 +1098,14 @@ export const drumPatch = (): Patch => {
         {
           id: "macro_shell_level",
           name: "Shell Level",
+          keyframeCount: 2,
           defaultNormalized: 0.46,
           bindings: [{ id: "b10", nodeId: mix, paramId: "gain1", map: "linear", min: 0.18, max: 1 }]
         },
         {
           id: "macro_rattle",
           name: "Rattle",
+          keyframeCount: 2,
           defaultNormalized: 0.46,
           bindings: [
             { id: "b4", nodeId: noiseVca, paramId: "gain", map: "linear", min: 0.08, max: 0.95 },
@@ -1103,6 +1119,7 @@ export const drumPatch = (): Patch => {
         {
           id: "macro_rattle_level",
           name: "Rattle Level",
+          keyframeCount: 2,
           defaultNormalized: 0.5,
           bindings: [{ id: "b11", nodeId: mix, paramId: "gain2", map: "linear", min: 0, max: 1 }]
         }
@@ -1145,7 +1162,7 @@ export const bassDrumPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_bassdrum",
     name: "Bass Drum",
-    meta: { source: "preset", presetId: "preset_bassdrum", presetVersion: 9 },
+    meta: { source: "preset", presetId: "preset_bassdrum", presetVersion: 10 },
     nodes: [
       {
         id: vco,
@@ -1216,6 +1233,7 @@ export const bassDrumPatch = (): Patch => {
         {
           id: "macro_body",
           name: "Body",
+          keyframeCount: 2,
           defaultNormalized: 0.76,
           bindings: [
             { id: "b1", nodeId: bodyEnv, paramId: "decay", map: "linear", min: 0.045, max: 0.18 },
@@ -1227,6 +1245,7 @@ export const bassDrumPatch = (): Patch => {
         {
           id: "macro_click",
           name: "Click",
+          keyframeCount: 2,
           defaultNormalized: 0.2,
           bindings: [
             { id: "b4", nodeId: clickVca, paramId: "gain", map: "linear", min: 0.08, max: 0.58 },
@@ -1237,6 +1256,7 @@ export const bassDrumPatch = (): Patch => {
         {
           id: "macro_drive",
           name: "Drive",
+          keyframeCount: 2,
           defaultNormalized: 0.42,
           bindings: [
             { id: "b7", nodeId: sat, paramId: "gainDb", map: "linear", min: 12, max: 24 },
