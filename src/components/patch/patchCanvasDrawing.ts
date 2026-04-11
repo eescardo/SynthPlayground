@@ -407,7 +407,8 @@ export function drawPatchFacePopover(
   patch: Patch,
   node: PatchNode,
   schema: NonNullable<ReturnType<typeof getModuleSchema>>,
-  rect: CanvasRect
+  rect: CanvasRect,
+  macroSelected: boolean
 ) {
   ctx.save();
   ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
@@ -422,7 +423,7 @@ export function drawPatchFacePopover(
   ctx.scale(PATCH_FACE_POPOVER_SCALE, PATCH_FACE_POPOVER_SCALE);
   drawPatchModuleCard(ctx, patch, node, schema, 0, 0, {
     hovered: false,
-    macroSelected: false,
+    macroSelected,
     selected: true
   });
   ctx.restore();
@@ -476,7 +477,7 @@ export function drawPatchCanvas(args: {
     const schema = node ? getModuleSchema(node.typeId) : undefined;
     const rect = args.getFacePopoverRect(args.facePopoverNodeId);
     if (node && schema && rect) {
-      drawPatchFacePopover(ctx, args.patch, node, schema, rect);
+      drawPatchFacePopover(ctx, args.patch, node, schema, rect, args.selectedMacroNodeIds.has(node.id));
     }
   }
 
