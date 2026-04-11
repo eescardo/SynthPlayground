@@ -1156,8 +1156,6 @@ select {
 
 .patch-workspace-shell .patch-editor {
   flex: 1;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
   height: 100%;
   overflow: hidden;
