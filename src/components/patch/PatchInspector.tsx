@@ -1,3 +1,7 @@
+import {
+  resolveMacroBindingValue,
+  resolveMacroKeyframeIndexAtValue
+} from "@/lib/patch/macroKeyframes";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch, PatchNode, ParamSchema, ParamValue, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -24,6 +28,7 @@ function MacroBindingDetails(props: {
   paramId: string;
   exposedLabel: string;
   boundMacroIds: string[];
+  editableSummary?: string | null;
 }) {
   const boundMacros = props.patch.ui.macros.filter((macro) => props.boundMacroIds.includes(macro.id));
 
@@ -33,6 +38,7 @@ function MacroBindingDetails(props: {
         {props.exposedLabel}
       </button>
       <div className="macro-binding-details">
+        {props.editableSummary && <div className="macro-binding-edit-summary">{props.editableSummary}</div>}
         {boundMacros.map((macro) =>
           macro.bindings
             .filter((binding) => binding.nodeId === props.nodeId && binding.paramId === props.paramId)
@@ -104,7 +110,9 @@ function ParamValueControl(props: {
 
 interface PatchInspectorProps {
   patch: Patch;
+  macroValues: Record<string, number>;
   selectedNode?: PatchNode;
+  selectedMacroId?: string;
   selectedSchema?: NonNullable<ReturnType<typeof getModuleSchema>>;
   structureLocked?: boolean;
   validationIssues: PatchValidationIssue[];
@@ -112,14 +120,37 @@ interface PatchInspectorProps {
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
 }
 
+function resolveIssuesForNode(nodeId: string, issues: PatchValidationIssue[]) {
+  return issues.filter((issue) =>
+    Object.values(issue.context ?? {}).some((value) => value.includes(nodeId))
+  );
+}
+
 export function PatchInspector(props: PatchInspectorProps) {
   const selectedNode = props.selectedNode;
+  const selectedMacro = props.selectedMacroId
+    ? props.patch.ui.macros.find((macro) => macro.id === props.selectedMacroId)
+    : undefined;
+  const selectedMacroValue =
+    selectedMacro ? (props.macroValues[selectedMacro.id] ?? selectedMacro.defaultNormalized ?? 0.5) : undefined;
+  const selectedMacroKeyframeIndex =
+    selectedMacro && typeof selectedMacroValue === "number"
+      ? resolveMacroKeyframeIndexAtValue(selectedMacro.keyframeCount, selectedMacroValue)
+      : null;
+
   const exposeMacro = (paramId: string, suggestedName: string) => {
     if (!selectedNode || props.structureLocked) {
       return;
     }
     props.onExposeMacro(selectedNode.id, paramId, suggestedName);
   };
+
+  const visibleConnections = selectedNode
+    ? props.patch.connections.filter(
+        (connection) => connection.from.nodeId === selectedNode.id || connection.to.nodeId === selectedNode.id
+      )
+    : props.patch.connections;
+  const visibleValidationIssues = selectedNode ? resolveIssuesForNode(selectedNode.id, props.validationIssues) : props.validationIssues;
 
   return (
     <aside className="patch-inspector">
@@ -136,56 +167,94 @@ export function PatchInspector(props: PatchInspectorProps) {
             const boundMacros = props.patch.ui.macros.filter((macro) =>
               macro.bindings.some((binding) => binding.nodeId === selectedNode.id && binding.paramId === param.id)
             );
+            const activeBindingMacro = boundMacros[0];
             const isExposed = boundMacros.length > 0;
             const exposedLabel =
               boundMacros.length === 1
                 ? `Exposed as '${boundMacros[0].name}'`
                 : `Exposed as ${boundMacros.map((macro) => `'${macro.name}'`).join(", ")}`;
+            const isEditableSelectedMacroBinding =
+              Boolean(activeBindingMacro) &&
+              !props.structureLocked &&
+              props.selectedMacroId === activeBindingMacro?.id &&
+              selectedMacroKeyframeIndex !== null &&
+              param.type === "float" &&
+              typeof value === "number";
+            const editableSummary =
+              activeBindingMacro && props.selectedMacroId === activeBindingMacro.id
+                ? selectedMacroKeyframeIndex !== null
+                  ? `Editing ${activeBindingMacro.name} at keyframe ${selectedMacroKeyframeIndex + 1}/${activeBindingMacro.keyframeCount}`
+                  : "Bound values unlock when the selected macro is parked on a keyframe notch."
+                : activeBindingMacro
+                  ? `Select ${activeBindingMacro.name} and stop on a keyframe notch to edit this binding.`
+                  : null;
+
             return (
-              <label key={param.id} className="param-row">
+              <div key={param.id} className={`param-row${isExposed ? " bound" : ""}`}>
                 <span>{param.label}</span>
-                {!isExposed && (
-                  <ParamValueControl
-                    param={param}
-                    value={value}
-                    disabled={props.structureLocked}
-                    onChange={(nextValue) =>
-                      !props.structureLocked &&
-                      props.onApplyOp({
-                        type: "setParam",
-                        nodeId: selectedNode.id,
-                        paramId: param.id,
-                        value: nextValue
-                      })
-                    }
-                  />
-                )}
+                <div className="param-control-stack">
+                  {(!isExposed || isEditableSelectedMacroBinding) && (
+                    <ParamValueControl
+                      param={param}
+                      value={
+                        isEditableSelectedMacroBinding && activeBindingMacro
+                          ? resolveMacroBindingValue(activeBindingMacro.bindings.find((binding) => binding.nodeId === selectedNode.id && binding.paramId === param.id)!, selectedMacroValue ?? 0)
+                          : value
+                      }
+                      disabled={props.structureLocked}
+                      onChange={(nextValue) => {
+                        if (props.structureLocked) {
+                          return;
+                        }
+                        if (isEditableSelectedMacroBinding && activeBindingMacro && typeof nextValue === "number") {
+                          props.onApplyOp({
+                            type: "setMacroBindingKeyframeValue",
+                            macroId: activeBindingMacro.id,
+                            nodeId: selectedNode.id,
+                            paramId: param.id,
+                            normalized: selectedMacroValue ?? 0,
+                            value: nextValue
+                          });
+                          return;
+                        }
+                        props.onApplyOp({
+                          type: "setParam",
+                          nodeId: selectedNode.id,
+                          paramId: param.id,
+                          value: nextValue
+                        });
+                      }}
+                    />
+                  )}
+                  {isExposed && (
+                    <MacroBindingDetails
+                      patch={props.patch}
+                      nodeId={selectedNode.id}
+                      paramId={param.id}
+                      exposedLabel={exposedLabel}
+                      boundMacroIds={boundMacros.map((macro) => macro.id)}
+                      editableSummary={editableSummary}
+                    />
+                  )}
+                </div>
                 {isExposed ? (
-                  <MacroBindingDetails
-                    patch={props.patch}
-                    nodeId={selectedNode.id}
-                    paramId={param.id}
-                    exposedLabel={exposedLabel}
-                    boundMacroIds={boundMacros.map((macro) => macro.id)}
-                  />
+                  <button type="button" disabled className="patch-inspector-status-button">
+                    {props.structureLocked ? "Preset lock" : isEditableSelectedMacroBinding ? "Keyframe edit" : "Locked"}
+                  </button>
                 ) : (
-                  <button
-                    type="button"
-                    disabled={props.structureLocked}
-                    onClick={() => exposeMacro(param.id, param.label)}
-                  >
+                  <button type="button" disabled={props.structureLocked} onClick={() => exposeMacro(param.id, param.label)}>
                     Expose Macro
                   </button>
                 )}
-              </label>
+              </div>
             );
           })}
         </>
       )}
 
-      <h4>Connections</h4>
-      {props.patch.connections.length === 0 && <p className="muted">No wires yet.</p>}
-      {props.patch.connections.map((connection) => (
+      <h4>{selectedNode ? "Module Connections" : "Connections"}</h4>
+      {visibleConnections.length === 0 && <p className="muted">{selectedNode ? "No wires on this module." : "No wires yet."}</p>}
+      {visibleConnections.map((connection) => (
         <div key={connection.id} className="conn-row">
           <code>
             {connection.from.nodeId}.{connection.from.portId} {" -> "} {connection.to.nodeId}.{connection.to.portId}
@@ -194,9 +263,9 @@ export function PatchInspector(props: PatchInspectorProps) {
         </div>
       ))}
 
-      <h4>Validation</h4>
-      {props.validationIssues.length === 0 && <p className="ok">Patch valid.</p>}
-      {props.validationIssues.map((issue, index) => (
+      <h4>{selectedNode ? "Module Validation" : "Validation"}</h4>
+      {visibleValidationIssues.length === 0 && <p className="ok">{selectedNode ? "Module valid." : "Patch valid."}</p>}
+      {visibleValidationIssues.map((issue, index) => (
         <p key={`${issue.message}_${index}`} className={issue.level === "error" ? "error" : "warn"}>
           {issue.message}
         </p>

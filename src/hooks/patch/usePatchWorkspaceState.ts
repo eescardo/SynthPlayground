@@ -21,6 +21,11 @@ const PREVIEW_DURATION_BEATS = 1;
 const PREVIEW_RESTORE_PADDING_MS = 60;
 const PATCH_WORKSPACE_MACRO_VALUES_SESSION_KEY = "synth-playground:patch-workspace-macro-values";
 
+const isTextEditingTarget = (target: EventTarget | null) => {
+  const element = target as HTMLElement | null;
+  return Boolean(element && (element.tagName === "INPUT" || element.tagName === "SELECT" || element.tagName === "TEXTAREA"));
+};
+
 const isAudiblePatchOp = (op: PatchOp): boolean =>
   op.type !== "moveNode" &&
   op.type !== "setNodeLayout" &&
@@ -83,6 +88,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   } = options;
   const [selectedPatchId, setSelectedPatchId] = useState<string | undefined>(undefined);
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(undefined);
+  const [selectedMacroId, setSelectedMacroId] = useState<string | undefined>(undefined);
   const [previewPitch, setPreviewPitch] = useState(DEFAULT_NOTE_PITCH);
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
   const [migrationNotice, setMigrationNotice] = useState<string | null>(null);
@@ -124,7 +130,17 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   useEffect(() => {
     setMigrationNotice(null);
     setSelectedNodeId(undefined);
+    setSelectedMacroId(undefined);
   }, [selectedPatch?.id]);
+
+  useEffect(() => {
+    if (!selectedPatch || !selectedMacroId) {
+      return;
+    }
+    if (!selectedPatch.ui.macros.some((macro) => macro.id === selectedMacroId)) {
+      setSelectedMacroId(undefined);
+    }
+  }, [selectedMacroId, selectedPatch]);
 
   useEffect(() => {
     try {
@@ -157,6 +173,17 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   }, [workspaceMacroValuesByPatchId]);
 
   useEffect(() => () => restoreActualProject(), [restoreActualProject]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || isTextEditingTarget(event.target)) {
+        return;
+      }
+      setSelectedMacroId(undefined);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const schedulePatchPreview = useCallback((patchId: string) => {
     setPendingPreview({ patchId, nonce: Date.now() });
@@ -240,6 +267,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   const selectPatchInWorkspace = useCallback((patchId: string) => {
     setSelectedPatchId(patchId);
     setSelectedNodeId(undefined);
+    setSelectedMacroId(undefined);
     setMigrationNotice(null);
   }, []);
 
@@ -525,6 +553,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     }), { actionKey: `patch:duplicate:${duplicate.id}` });
     setSelectedPatchId(duplicate.id);
     setSelectedNodeId(undefined);
+    setSelectedMacroId(undefined);
     setMigrationNotice(null);
     schedulePatchPreview(duplicate.id);
   }, [commitProjectChange, schedulePatchPreview, selectedPatch]);
@@ -543,6 +572,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       }), { actionKey: `patch:${selectedPatch.id}:remove` });
       setSelectedPatchId(fallbackPatchId || project.patches.find((patch) => patch.id !== selectedPatch.id)?.id);
       setSelectedNodeId(undefined);
+      setSelectedMacroId(undefined);
       return;
     }
     setPatchRemovalDialog({
@@ -562,6 +592,8 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     workspaceMacroValues,
     selectedNodeId,
     setSelectedNodeId,
+    selectedMacroId,
+    setSelectedMacroId,
     previewPitch,
     setPreviewPitch,
     previewPitchPickerOpen,
@@ -584,6 +616,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     removePatchMacro,
     renamePatchMacro,
     setPatchMacroKeyframeCount,
-    changePatchMacroValue
+    changePatchMacroValue,
+    clearSelectedMacro: () => setSelectedMacroId(undefined)
   };
 }

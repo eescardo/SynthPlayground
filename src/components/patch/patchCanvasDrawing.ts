@@ -237,12 +237,18 @@ export function drawPatchModuleCard(
   y: number,
   options: {
     hovered: boolean;
+    macroSelected: boolean;
     selected: boolean;
   }
 ) {
   const moduleColors = resolveMutedPatchModuleColors(schema.categories);
   ctx.fillStyle = moduleColors.fill;
   ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
+  if (options.macroSelected) {
+    ctx.strokeStyle = "rgba(246, 176, 28, 0.88)";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x - 4, y - 4, PATCH_NODE_WIDTH + 8, PATCH_NODE_HEIGHT + 8);
+  }
   if (options.hovered && !options.selected) {
     ctx.fillStyle = PATCH_COLOR_NODE_HOVER_OVERLAY;
     ctx.fillRect(x + 2, y + 2, PATCH_NODE_WIDTH - 4, PATCH_NODE_HEIGHT - 4);
@@ -359,6 +365,7 @@ function drawPatchModules(
   patch: Patch,
   layoutByNode: Map<string, PatchLayoutNode>,
   hoveredNodeId: string | null,
+  selectedMacroNodeIds: Set<string>,
   selectedNodeId: string | undefined
 ) {
   patch.nodes.forEach((node) => {
@@ -372,6 +379,7 @@ function drawPatchModules(
 
     drawPatchModuleCard(ctx, patch, node, schema, x, y, {
       hovered: hoveredNodeId === node.id,
+      macroSelected: selectedMacroNodeIds.has(node.id),
       selected: selectedNodeId === node.id
     });
   });
@@ -414,6 +422,7 @@ export function drawPatchFacePopover(
   ctx.scale(PATCH_FACE_POPOVER_SCALE, PATCH_FACE_POPOVER_SCALE);
   drawPatchModuleCard(ctx, patch, node, schema, 0, 0, {
     hovered: false,
+    macroSelected: false,
     selected: true
   });
   ctx.restore();
@@ -446,6 +455,7 @@ export function drawPatchCanvas(args: {
   nodeById: Map<string, PatchNode>;
   patch: Patch;
   pendingFromPort: HitPort | null;
+  selectedMacroNodeIds: Set<string>;
   selectedNodeId?: string;
 }): HitPort[] {
   const ctx = args.canvas.getContext("2d");
@@ -458,7 +468,7 @@ export function drawPatchCanvas(args: {
   drawPatchGrid(ctx, width, height);
   const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode);
   drawPatchConnections(ctx, args.patch, portPositions);
-  drawPatchModules(ctx, args.patch, args.layoutByNode, args.hoveredNodeId, args.selectedNodeId);
+  drawPatchModules(ctx, args.patch, args.layoutByNode, args.hoveredNodeId, args.selectedMacroNodeIds, args.selectedNodeId);
   drawPendingPatchPort(ctx, args.pendingFromPort, portPositions);
 
   if (args.facePopoverNodeId) {

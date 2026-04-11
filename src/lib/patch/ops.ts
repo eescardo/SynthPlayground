@@ -1,7 +1,13 @@
 import { createDefaultParamsForType, getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { createId } from "@/lib/ids";
 import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch/patchCanvasConstants";
-import { clampNormalizedMacroValue, convertBindingToKeyframeCount, normalizeMacroKeyframeCount, resolveMacroBindingValue } from "@/lib/patch/macroKeyframes";
+import {
+  clampNormalizedMacroValue,
+  convertBindingToKeyframeCount,
+  normalizeMacroKeyframeCount,
+  resolveMacroBindingValue,
+  setMacroBindingValueAtKeyframe
+} from "@/lib/patch/macroKeyframes";
 import { Patch } from "@/types/patch";
 import { PatchHistoryState, PatchOp } from "@/types/ops";
 
@@ -186,6 +192,29 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       const keyframeCount = normalizeMacroKeyframeCount(op.keyframeCount);
       macro.keyframeCount = keyframeCount;
       macro.bindings = macro.bindings.map((binding) => convertBindingToKeyframeCount(binding, keyframeCount));
+      return next;
+    }
+
+    case "setMacroBindingKeyframeValue": {
+      const macro = next.ui.macros.find((entry) => entry.id === op.macroId);
+      if (!macro) {
+        throw new Error(`Unknown macro: ${op.macroId}`);
+      }
+      if (typeof op.value !== "number") {
+        throw new Error("Macro keyframe values must be numeric.");
+      }
+      const bindingIndex = macro.bindings.findIndex(
+        (binding) => binding.nodeId === op.nodeId && binding.paramId === op.paramId
+      );
+      if (bindingIndex === -1) {
+        throw new Error(`Unknown macro binding target: ${op.nodeId}.${op.paramId}`);
+      }
+      macro.bindings[bindingIndex] = setMacroBindingValueAtKeyframe(
+        macro.bindings[bindingIndex],
+        macro.keyframeCount,
+        op.normalized,
+        op.value
+      );
       return next;
     }
 

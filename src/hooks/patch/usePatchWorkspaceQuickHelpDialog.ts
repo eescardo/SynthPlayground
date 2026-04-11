@@ -19,6 +19,14 @@ export function usePatchWorkspaceQuickHelpDialog() {
     ],
     []
   );
+  const generalGuidanceItems = useMemo(
+    () => [
+      "Macro selections are sticky. Click a macro to keep it selected, press Esc or use Clear to drop it.",
+      "In custom patches, macro-bound parameters unlock only when the selected macro slider is parked on a keyframe notch.",
+      "Selecting a macro outlines every participating module in amber so you can see its footprint across the patch."
+    ],
+    []
+  );
   const colorGlossaryItems = useMemo(
     () => [
       { label: "Source", color: PATCH_MODULE_CATEGORY_COLORS.source, description: "oscillators, noise, and resonant sound generators" },
@@ -48,6 +56,7 @@ export function usePatchWorkspaceQuickHelpDialog() {
   return {
     closeHelp: () => setHelpOpen(false),
     colorGlossaryItems,
+    generalGuidanceItems,
     helpOpen,
     keyboardShortcuts,
     mouseHelpItems,

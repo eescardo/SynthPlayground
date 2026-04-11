@@ -10,6 +10,7 @@ interface InstrumentEditorProps {
   patches: Patch[];
   macroValues: Record<string, number>;
   selectedNodeId?: string;
+  selectedMacroId?: string;
   validationIssues: PatchValidationIssue[];
   invalid?: boolean;
   previewPitch: string;
@@ -23,6 +24,8 @@ interface InstrumentEditorProps {
   onOpenPreviewPitchPicker: () => void;
   onPreviewNow: () => void;
   onSelectNode: (nodeId?: string) => void;
+  onSelectMacro: (macroId?: string) => void;
+  onClearSelectedMacro: () => void;
   onApplyOp: (op: PatchOp) => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
   onAddMacro: () => void;
@@ -182,9 +185,12 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
         patch={props.patch}
         macroValues={props.macroValues}
         selectedNodeId={props.selectedNodeId}
+        selectedMacroId={props.selectedMacroId}
         validationIssues={props.validationIssues}
         structureLocked={structureLocked}
         onSelectNode={props.onSelectNode}
+        onSelectMacro={props.onSelectMacro}
+        onClearSelectedMacro={props.onClearSelectedMacro}
         onApplyOp={props.onApplyOp}
         onExposeMacro={props.onExposeMacro}
         onAddMacro={props.onAddMacro}

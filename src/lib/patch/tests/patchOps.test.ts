@@ -35,4 +35,25 @@ describe("patch ops", () => {
     expect(nextMacro?.keyframeCount).toBe(2);
     expect(nextMacro?.bindings.every((binding) => getMacroBindingKeyframeCount(binding) === 2)).toBe(true);
   });
+
+  it("updates the active macro binding keyframe value", () => {
+    const patch = pluckPatch();
+    const macro = patch.ui.macros.find((entry) => entry.keyframeCount === 3) ?? patch.ui.macros[0];
+    const binding = macro.bindings[0];
+    expect(binding).toBeDefined();
+
+    const nextPatch = applyPatchOp(patch, {
+      type: "setMacroBindingKeyframeValue",
+      macroId: macro.id,
+      nodeId: binding.nodeId,
+      paramId: binding.paramId,
+      normalized: 0.5,
+      value: 432
+    });
+
+    const nextBinding = nextPatch.ui.macros
+      .find((entry) => entry.id === macro.id)
+      ?.bindings.find((entry) => entry.nodeId === binding.nodeId && entry.paramId === binding.paramId);
+    expect(nextBinding?.points?.[1]?.y).toBe(432);
+  });
 });

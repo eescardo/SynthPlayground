@@ -1050,6 +1050,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     previewPitch: patchWorkspace.previewPitch,
     migrationNotice: patchWorkspace.migrationNotice,
     selectedNodeId: patchWorkspace.selectedNodeId,
+    selectedMacroId: patchWorkspace.selectedMacroId,
     validationIssues,
     invalid: selectedPatchHasErrors,
     canRemovePatch:
@@ -1063,6 +1064,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
     onOpenPreviewPitchPicker: () => patchWorkspace.setPreviewPitchPickerOpen(true),
     onPreviewNow: () => patchWorkspace.previewSelectedPatchNow(),
     onSelectNode: patchWorkspace.setSelectedNodeId,
+    onSelectMacro: patchWorkspace.setSelectedMacroId,
+    onClearSelectedMacro: patchWorkspace.clearSelectedMacro,
     onApplyOp: patchWorkspace.applyPatchOp,
     onExposeMacro: patchWorkspace.exposePatchMacro,
     onAddMacro: patchWorkspace.addPatchMacro,

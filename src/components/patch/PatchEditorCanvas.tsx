@@ -31,9 +31,12 @@ interface PatchEditorCanvasProps {
   patch: Patch;
   macroValues: Record<string, number>;
   selectedNodeId?: string;
+  selectedMacroId?: string;
   validationIssues: PatchValidationIssue[];
   structureLocked?: boolean;
   onSelectNode: (nodeId?: string) => void;
+  onSelectMacro: (macroId?: string) => void;
+  onClearSelectedMacro: () => void;
   onApplyOp: (op: PatchOp) => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
   onAddMacro: () => void;
@@ -65,6 +68,16 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     5: 6.18
   };
   const macroDockHeightRem = macroDockHeightRemByRowCount[macroVisibleRows] ?? macroDockHeightRemByRowCount[5];
+  const selectedMacroNodeIds = useMemo(() => {
+    if (!props.selectedMacroId) {
+      return new Set<string>();
+    }
+    return new Set(
+      props.patch.ui.macros
+        .find((macro) => macro.id === props.selectedMacroId)
+        ?.bindings.map((binding) => binding.nodeId) ?? []
+    );
+  }, [props.patch.ui.macros, props.selectedMacroId]);
 
   const layoutByNode = useMemo(() => {
     return new Map(props.patch.layout.nodes.map((node) => [node.nodeId, node] as const));
@@ -114,6 +127,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       nodeById,
       patch: props.patch,
       pendingFromPort,
+      selectedMacroNodeIds,
       selectedNodeId: props.selectedNodeId
     });
   }, [
@@ -125,6 +139,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     nodeById,
     pendingFromPort,
     props.patch,
+    selectedMacroNodeIds,
     props.selectedNodeId
   ]);
 
@@ -311,8 +326,11 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           <PatchMacroPanel
             patch={props.patch}
             macroValues={props.macroValues}
+            selectedMacroId={props.selectedMacroId}
             structureLocked={props.structureLocked}
             onAddMacro={props.onAddMacro}
+            onSelectMacro={props.onSelectMacro}
+            onClearSelection={props.onClearSelectedMacro}
             onRemoveMacro={props.onRemoveMacro}
             onRenameMacro={props.onRenameMacro}
             onSetMacroKeyframeCount={props.onSetMacroKeyframeCount}
@@ -322,7 +340,9 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
 
         <PatchInspector
           patch={props.patch}
+          macroValues={props.macroValues}
           selectedNode={selectedNode}
+          selectedMacroId={props.selectedMacroId}
           selectedSchema={selectedSchema}
           structureLocked={props.structureLocked}
           validationIssues={props.validationIssues}

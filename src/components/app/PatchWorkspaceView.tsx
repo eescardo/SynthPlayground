@@ -14,6 +14,7 @@ interface PatchWorkspaceViewProps {
   previewPitch: string;
   migrationNotice?: string | null;
   selectedNodeId?: string;
+  selectedMacroId?: string;
   validationIssues: ComponentProps<typeof InstrumentEditor>["validationIssues"];
   invalid?: boolean;
   canRemovePatch: boolean;
@@ -26,6 +27,8 @@ interface PatchWorkspaceViewProps {
   onOpenPreviewPitchPicker: () => void;
   onPreviewNow: () => void;
   onSelectNode: (nodeId?: string) => void;
+  onSelectMacro: (macroId?: string) => void;
+  onClearSelectedMacro: () => void;
   onApplyOp: (op: PatchOp) => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
   onAddMacro: () => void;
@@ -39,6 +42,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
   const {
     closeHelp,
     colorGlossaryItems,
+    generalGuidanceItems,
     helpOpen,
     keyboardShortcuts,
     mouseHelpItems,
@@ -64,6 +68,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
         previewPitch={props.previewPitch}
         migrationNotice={props.migrationNotice}
         selectedNodeId={props.selectedNodeId}
+        selectedMacroId={props.selectedMacroId}
         validationIssues={props.validationIssues}
         invalid={props.invalid}
         onRenamePatch={props.onRenamePatch}
@@ -75,6 +80,8 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
         onOpenPreviewPitchPicker={props.onOpenPreviewPitchPicker}
         onPreviewNow={props.onPreviewNow}
         onSelectNode={props.onSelectNode}
+        onSelectMacro={props.onSelectMacro}
+        onClearSelectedMacro={props.onClearSelectedMacro}
         onApplyOp={props.onApplyOp}
         onExposeMacro={props.onExposeMacro}
         onAddMacro={props.onAddMacro}
@@ -85,12 +92,31 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
       />
 
       <QuickHelpDialog
-        colorGlossaryItems={colorGlossaryItems}
         keyboardShortcuts={keyboardShortcuts}
         mouseHelpItems={mouseHelpItems}
         onClose={closeHelp}
         open={helpOpen}
-      />
+      >
+        <div className="quick-help-section quick-help-general-guidance">
+          <h4>General Guidance</h4>
+          {generalGuidanceItems.map((entry) => (
+            <p key={entry}>{entry}</p>
+          ))}
+        </div>
+        <div className="quick-help-section quick-help-color-glossary">
+          <h4>Module Colors</h4>
+          <div className="quick-help-color-items">
+            {colorGlossaryItems.map((entry) => (
+              <div key={entry.label} className="quick-help-color-item">
+                <span className="quick-help-color-swatch" style={{ background: entry.color }} />
+                <span>
+                  <strong>{entry.label}:</strong> {entry.description}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </QuickHelpDialog>
     </section>
   );
 }

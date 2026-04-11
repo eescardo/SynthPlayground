@@ -1,12 +1,14 @@
+import type { ReactNode } from "react";
+
 interface QuickHelpDialogProps {
-  colorGlossaryItems?: Array<{ color: string; label: string; description: string }>;
   mouseHelpItems: Array<{ action: string; description: string }>;
   keyboardShortcuts: Array<{ action: string; shortcut: string }>;
+  children?: ReactNode;
   onClose: () => void;
   open: boolean;
 }
 
-export function QuickHelpDialog({ colorGlossaryItems = [], keyboardShortcuts, mouseHelpItems, onClose, open }: QuickHelpDialogProps) {
+export function QuickHelpDialog({ children, keyboardShortcuts, mouseHelpItems, onClose, open }: QuickHelpDialogProps) {
   if (!open) {
     return null;
   }
@@ -40,21 +42,7 @@ export function QuickHelpDialog({ colorGlossaryItems = [], keyboardShortcuts, mo
             </div>
           </div>
         </div>
-        {colorGlossaryItems.length > 0 && (
-          <div className="quick-help-section quick-help-color-glossary">
-            <h4>Module Colors</h4>
-            <div className="quick-help-color-items">
-              {colorGlossaryItems.map((entry) => (
-                <div key={entry.label} className="quick-help-color-item">
-                  <span className="quick-help-color-swatch" style={{ background: entry.color }} />
-                  <span>
-                    <strong>{entry.label}:</strong> {entry.description}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {children}
         <p className="muted">Press <kbd>Esc</kbd> to close this help panel.</p>
       </div>
     </div>

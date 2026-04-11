@@ -2,13 +2,20 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
+import {
+  getMacroKeyframePositions,
+  snapNormalizedToMacroKeyframe
+} from "@/lib/patch/macroKeyframes";
 import { Patch } from "@/types/patch";
 
 interface PatchMacroPanelProps {
   patch: Patch;
   macroValues: Record<string, number>;
+  selectedMacroId?: string;
   structureLocked?: boolean;
   onAddMacro: () => void;
+  onSelectMacro: (macroId?: string) => void;
+  onClearSelection: () => void;
   onRemoveMacro: (macroId: string) => void;
   onRenameMacro: (macroId: string, name: string) => void;
   onSetMacroKeyframeCount: (macroId: string, keyframeCount: number) => void;
@@ -89,6 +96,14 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
         <div className="patch-macro-panel-tab">Macros</div>
         <button
           type="button"
+          className="patch-macro-panel-clear"
+          disabled={!props.selectedMacroId}
+          onClick={props.onClearSelection}
+        >
+          Clear
+        </button>
+        <button
+          type="button"
           className="patch-macro-panel-add"
           aria-label="Add macro"
           title={props.structureLocked ? "Preset macros cannot be added" : "Add macro"}
@@ -106,8 +121,14 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
           props.patch.ui.macros.map((macro) => {
             const value = props.macroValues[macro.id] ?? macro.defaultNormalized ?? 0.5;
             const isEditing = editingMacroId === macro.id;
+            const isSelected = props.selectedMacroId === macro.id;
+            const keyframePositions = getMacroKeyframePositions(macro.keyframeCount);
             return (
-              <div key={macro.id} className="patch-macro-row">
+              <div
+                key={macro.id}
+                className={`patch-macro-row${isSelected ? " selected" : ""}`}
+                onPointerDown={() => props.onSelectMacro(macro.id)}
+              >
                 {isEditing ? (
                   <input
                     className="patch-macro-name-input"
@@ -142,31 +163,60 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
                   </button>
                 )}
 
-                <input
-                  className="patch-macro-slider"
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.001}
-                  value={value}
-                  aria-label={`${macro.name} macro amount`}
-                  style={
-                    {
-                      "--macro-slider-percent": `${Math.round(value * 100)}%`
-                    } as CSSProperties
-                  }
-                  onChange={(event) => {
-                    pendingCommitMacroIdRef.current = macro.id;
-                    props.onChangeMacroValue(macro.id, Number(event.target.value));
-                  }}
-                  onPointerUp={(event) => commitMacroValueIfPending(macro.id, Number(event.currentTarget.value))}
-                  onBlur={(event) => commitMacroValueIfPending(macro.id, Number(event.currentTarget.value))}
-                  onKeyUp={(event) => {
-                    if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(event.key)) {
-                      commitMacroValueIfPending(macro.id, Number(event.currentTarget.value));
+                <div className="patch-macro-slider-shell">
+                  <div className="patch-macro-slider-keyframes" aria-hidden="true">
+                    {keyframePositions.map((position, index) => (
+                      <span
+                        key={`${macro.id}_keyframe_${index}`}
+                        className="patch-macro-slider-keyframe-notch"
+                        style={
+                          {
+                            "--macro-keyframe-position": `${position * 100}%`
+                          } as CSSProperties
+                        }
+                      />
+                    ))}
+                  </div>
+                  <input
+                    className="patch-macro-slider"
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.001}
+                    value={value}
+                    aria-label={`${macro.name} macro amount`}
+                    style={
+                      {
+                        "--macro-slider-percent": `${Math.round(value * 100)}%`
+                      } as CSSProperties
                     }
-                  }}
-                />
+                    onChange={(event) => {
+                      pendingCommitMacroIdRef.current = macro.id;
+                      props.onSelectMacro(macro.id);
+                      props.onChangeMacroValue(macro.id, snapNormalizedToMacroKeyframe(macro.keyframeCount, Number(event.target.value)));
+                    }}
+                    onPointerUp={(event) =>
+                      commitMacroValueIfPending(
+                        macro.id,
+                        snapNormalizedToMacroKeyframe(macro.keyframeCount, Number(event.currentTarget.value))
+                      )
+                    }
+                    onBlur={(event) =>
+                      commitMacroValueIfPending(
+                        macro.id,
+                        snapNormalizedToMacroKeyframe(macro.keyframeCount, Number(event.currentTarget.value))
+                      )
+                    }
+                    onKeyUp={(event) => {
+                      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(event.key)) {
+                        commitMacroValueIfPending(
+                          macro.id,
+                          snapNormalizedToMacroKeyframe(macro.keyframeCount, Number(event.currentTarget.value))
+                        );
+                      }
+                    }}
+                  />
+                </div>
 
                 <div
                   ref={keyframeMenuMacroId === macro.id ? keyframeMenuRef : null}
@@ -180,7 +230,10 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
                     aria-expanded={keyframeMenuMacroId === macro.id}
                     title={props.structureLocked ? "Preset macro keyframes cannot be changed" : "Set macro keyframes"}
                     disabled={props.structureLocked}
-                    onClick={() => setKeyframeMenuMacroId((current) => (current === macro.id ? null : macro.id))}
+                    onClick={() => {
+                      props.onSelectMacro(macro.id);
+                      setKeyframeMenuMacroId((current) => (current === macro.id ? null : macro.id));
+                    }}
                   >
                     {macro.keyframeCount}
                   </button>

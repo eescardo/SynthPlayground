@@ -1,6 +1,47 @@
 import { MacroBinding, Patch, PatchMacro } from "@/types/patch";
 
 export const clampNormalizedMacroValue = (normalized: number) => Math.max(0, Math.min(1, normalized));
+export const MACRO_KEYFRAME_SNAP_THRESHOLD = 0.035;
+
+export function getMacroKeyframePositions(keyframeCount: number) {
+  const normalizedKeyframeCount = normalizeMacroKeyframeCount(keyframeCount);
+  return Array.from({ length: normalizedKeyframeCount }, (_, index) =>
+    normalizedKeyframeCount === 1 ? 0 : index / (normalizedKeyframeCount - 1)
+  );
+}
+
+export function findNearestMacroKeyframeIndex(keyframeCount: number, normalized: number) {
+  const positions = getMacroKeyframePositions(keyframeCount);
+  const clamped = clampNormalizedMacroValue(normalized);
+  let bestIndex = 0;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  positions.forEach((position, index) => {
+    const distance = Math.abs(position - clamped);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  });
+  return bestIndex;
+}
+
+export function snapNormalizedToMacroKeyframe(keyframeCount: number, normalized: number, threshold = MACRO_KEYFRAME_SNAP_THRESHOLD) {
+  const positions = getMacroKeyframePositions(keyframeCount);
+  const clamped = clampNormalizedMacroValue(normalized);
+  const nearestIndex = findNearestMacroKeyframeIndex(keyframeCount, clamped);
+  return Math.abs(positions[nearestIndex] - clamped) <= threshold ? positions[nearestIndex] : clamped;
+}
+
+export function resolveMacroKeyframeIndexAtValue(
+  keyframeCount: number,
+  normalized: number,
+  threshold = MACRO_KEYFRAME_SNAP_THRESHOLD * 0.5
+) {
+  const positions = getMacroKeyframePositions(keyframeCount);
+  const clamped = clampNormalizedMacroValue(normalized);
+  const nearestIndex = findNearestMacroKeyframeIndex(keyframeCount, clamped);
+  return Math.abs(positions[nearestIndex] - clamped) <= threshold ? nearestIndex : null;
+}
 
 export function resolveMacroBindingValue(binding: MacroBinding, normalized: number) {
   const norm = clampNormalizedMacroValue(normalized);
@@ -69,6 +110,36 @@ export function convertBindingToKeyframeCount(binding: MacroBinding, keyframeCou
     ...binding,
     map: "piecewise",
     points
+  };
+}
+
+export function setMacroBindingValueAtKeyframe(
+  binding: MacroBinding,
+  keyframeCount: number,
+  normalized: number,
+  nextValue: number
+): MacroBinding {
+  const normalizedKeyframeCount = normalizeMacroKeyframeCount(keyframeCount);
+  const keyframeIndex = findNearestMacroKeyframeIndex(normalizedKeyframeCount, normalized);
+
+  if (normalizedKeyframeCount <= 2) {
+    if (binding.map === "piecewise" && binding.points && binding.points.length >= 2) {
+      const nextPoints = binding.points.map((point, index) => (index === keyframeIndex ? { ...point, y: nextValue } : point));
+      return { ...binding, points: nextPoints };
+    }
+
+    if (keyframeIndex === 0) {
+      return { ...binding, min: nextValue };
+    }
+    return { ...binding, max: nextValue };
+  }
+
+  const piecewiseBinding = convertBindingToKeyframeCount(binding, normalizedKeyframeCount);
+  const nextPoints = (piecewiseBinding.points ?? []).map((point, index) => (index === keyframeIndex ? { ...point, y: nextValue } : point));
+  return {
+    ...piecewiseBinding,
+    map: "piecewise",
+    points: nextPoints
   };
 }
 

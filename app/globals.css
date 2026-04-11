@@ -1195,6 +1195,7 @@ select {
 }
 
 .patch-macro-panel-add,
+.patch-macro-panel-clear,
 .patch-macro-panel-remove {
   display: inline-flex;
   align-items: center;
@@ -1210,6 +1211,14 @@ select {
   pointer-events: auto;
 }
 
+.patch-macro-panel-clear {
+  width: auto;
+  padding: 0 0.45rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .patch-macro-panel-remove {
   border-color: rgba(255, 227, 176, 0.3);
   box-shadow:
@@ -1217,13 +1226,15 @@ select {
     0 1px 3px rgba(20, 10, 4, 0.24);
 }
 
-.patch-macro-panel-add {
+.patch-macro-panel-add,
+.patch-macro-panel-clear {
   border-color: rgba(255, 227, 176, 0.3);
   box-shadow:
     inset 0 0 0 1px rgba(255, 244, 224, 0.05),
     0 1px 3px rgba(20, 10, 4, 0.24);
 }
 
+.patch-macro-panel-clear:disabled,
 .patch-macro-panel-add:disabled,
 .patch-macro-panel-remove:disabled {
   opacity: 0.45;
@@ -1261,6 +1272,11 @@ select {
   flex: 0 0 auto;
 }
 
+.patch-macro-row.selected {
+  background: rgba(246, 176, 28, 0.06);
+  border-radius: 0.5rem;
+}
+
 .patch-macro-name-button,
 .patch-macro-name-input {
   min-width: 0;
@@ -1295,6 +1311,31 @@ select {
   appearance: none;
   background: transparent;
   padding: 0;
+}
+
+.patch-macro-slider-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.patch-macro-slider-keyframes {
+  position: absolute;
+  inset: 0.02rem 0;
+  pointer-events: none;
+}
+
+.patch-macro-slider-keyframe-notch {
+  position: absolute;
+  left: var(--macro-keyframe-position);
+  top: 50%;
+  width: 0.12rem;
+  height: 0.58rem;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  background: rgba(246, 176, 28, 0.86);
+  box-shadow: 0 0 0 1px rgba(58, 30, 4, 0.25);
 }
 
 .patch-macro-slider::-webkit-slider-runnable-track {
@@ -1424,10 +1465,21 @@ select {
 .param-row {
   display: grid;
   grid-template-columns: 92px 1fr auto;
-  align-items: center;
+  align-items: start;
   gap: 0.4rem;
   margin-bottom: 0.4rem;
   font-size: 0.86rem;
+}
+
+.param-control-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.patch-inspector-status-button {
+  align-self: start;
 }
 
 .macro-binding-pill {
@@ -1445,6 +1497,11 @@ select {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+.macro-binding-edit-summary {
+  color: #ffd69b;
+  font-size: 0.72rem;
 }
 
 .macro-binding-detail-card {

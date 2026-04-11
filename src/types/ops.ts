@@ -77,6 +77,14 @@ export type PatchOp =
       type: "setMacroKeyframeCount";
       macroId: string;
       keyframeCount: number;
+    }
+  | {
+      type: "setMacroBindingKeyframeValue";
+      macroId: string;
+      nodeId: string;
+      paramId: string;
+      normalized: number;
+      value: number | string | boolean;
     };
 
 export interface PatchHistoryState<T> {
