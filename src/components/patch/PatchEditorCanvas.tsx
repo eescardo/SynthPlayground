@@ -57,6 +57,14 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const macroVisibleRows = Math.max(1, Math.min(5, props.patch.ui.macros.length || 1));
+  const macroDockHeightRemByRowCount: Record<number, number> = {
+    1: 2.28,
+    2: 3.08,
+    3: 3.89,
+    4: 4.88,
+    5: 5.96
+  };
+  const macroDockHeightRem = macroDockHeightRemByRowCount[macroVisibleRows] ?? macroDockHeightRemByRowCount[5];
 
   const layoutByNode = useMemo(() => {
     return new Map(props.patch.layout.nodes.map((node) => [node.nodeId, node] as const));
@@ -223,7 +231,8 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       ref={rootRef}
       style={
         {
-          "--patch-macro-visible-rows": macroVisibleRows
+          "--patch-macro-visible-rows": macroVisibleRows,
+          "--patch-macro-dock-height": `${macroDockHeightRem}rem`
         } as React.CSSProperties
       }
     >
