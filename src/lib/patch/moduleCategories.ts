@@ -15,7 +15,7 @@ export const PATCH_MODULE_CATEGORY_COLORS: Record<PatchModuleCategory, string> =
   mix: "#a8b5c5",
   cv: "#7ad488",
   processor: "#b592ff",
-  envelope: "#c89a43",
+  envelope: "#a83317",
   probe: "#c8ff39",
   host: "#89b6da"
 };
@@ -42,9 +42,9 @@ export const PATCH_MODULE_CATEGORY_MUTED_COLORS: Record<PatchModuleCategory, { f
     accent: "#c2abff"
   },
   envelope: {
-    fill: "#3d3118",
-    stroke: "#7f6733",
-    accent: "#cfa04a"
+    fill: "#381712",
+    stroke: "#7d3020",
+    accent: "#c6492b"
   },
   probe: {
     fill: "#24310b",
