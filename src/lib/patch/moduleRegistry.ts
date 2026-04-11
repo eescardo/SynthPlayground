@@ -390,7 +390,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   },
   {
     typeId: "Output",
-    categories: categories("mix"),
+    categories: categories("host", "mix"),
     doc: { summary: "Final output sink for instrument patch." },
     params: [
       floatParam("gainDb", "Gain", -60, 6, "dB", "Output gain", { default: -6, smoothingMs: 30 }),
