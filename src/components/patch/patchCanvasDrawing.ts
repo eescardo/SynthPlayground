@@ -376,7 +376,7 @@ function drawPatchConnections(
     ctx.strokeStyle = getSignalCapabilityColor(commonCapability) ?? PATCH_COLOR_CONNECTION_FALLBACK;
     ctx.lineWidth = 2;
     if (isHostConnection) {
-      ctx.globalAlpha = 0.3;
+      ctx.globalAlpha = 0.5;
       ctx.setLineDash([2, 6]);
     }
     ctx.beginPath();
