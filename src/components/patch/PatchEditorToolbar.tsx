@@ -6,7 +6,6 @@ import { modulePalette } from "@/lib/patch/moduleRegistry";
 import { PatchWorkspaceProbeState } from "@/types/probes";
 
 interface PatchEditorToolbarProps {
-  newNodeType: string;
   structureLocked?: boolean;
   canClearPatch: boolean;
   patchNodeCount: number;
@@ -15,8 +14,7 @@ interface PatchEditorToolbarProps {
   pendingFromPort: boolean;
   pendingProbeId?: string | null;
   zoom: number;
-  onChangeNewNodeType: (typeId: string) => void;
-  onAddNode: () => void;
+  onAddNode: (typeId: string) => void;
   onAddProbe: (kind: PatchWorkspaceProbeState["kind"]) => void;
   onDeleteSelected: () => void;
   onClearPatch: () => void;
@@ -24,7 +22,14 @@ interface PatchEditorToolbarProps {
 }
 
 export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
+  const [modulePickerOpen, setModulePickerOpen] = useState(false);
   const [probePickerOpen, setProbePickerOpen] = useState(false);
+
+  useDismissiblePopover({
+    active: modulePickerOpen,
+    popoverSelector: ".patch-toolbar-module-picker",
+    onDismiss: () => setModulePickerOpen(false)
+  });
 
   useDismissiblePopover({
     active: probePickerOpen,
@@ -34,22 +39,33 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
 
   return (
     <div className="patch-toolbar">
-      <select value={props.newNodeType} disabled={props.structureLocked} onChange={(event) => props.onChangeNewNodeType(event.target.value)}>
-        {modulePalette.map((module) => (
-          <option key={module.typeId} value={module.typeId}>
-            {module.typeId}
-          </option>
-        ))}
-      </select>
-      <button disabled={props.structureLocked} onClick={props.onAddNode}>
-        Add Module
-      </button>
+      <div className="patch-toolbar-module-picker">
+        <button type="button" disabled={props.structureLocked} onClick={() => setModulePickerOpen((open) => !open)}>
+          Add Module
+        </button>
+        {modulePickerOpen && (
+          <div className="patch-toolbar-picker-popover patch-toolbar-module-popover" role="dialog" aria-label="Add module">
+            {modulePalette.map((module) => (
+              <button
+                key={module.typeId}
+                type="button"
+                onClick={() => {
+                  props.onAddNode(module.typeId);
+                  setModulePickerOpen(false);
+                }}
+              >
+                {module.typeId}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="patch-toolbar-probe-picker">
         <button type="button" onClick={() => setProbePickerOpen((open) => !open)}>
           Add Probe
         </button>
         {probePickerOpen && (
-          <div className="patch-toolbar-probe-popover" role="dialog" aria-label="Add probe">
+          <div className="patch-toolbar-picker-popover patch-toolbar-probe-popover" role="dialog" aria-label="Add probe">
             <button type="button" onClick={() => {
               props.onAddProbe("scope");
               setProbePickerOpen(false);

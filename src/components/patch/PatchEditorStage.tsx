@@ -64,7 +64,6 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [newNodeType, setNewNodeType] = useState("VCO");
   const [dragProbe, setDragProbe] = useState<{ probeId: string; offsetX: number; offsetY: number } | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const layoutByNode = useMemo(() => {
@@ -222,7 +221,6 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   return (
     <div className="patch-canvas-stage" ref={rootRef}>
       <PatchEditorToolbar
-        newNodeType={newNodeType}
         structureLocked={structureLocked}
         canClearPatch={patch.nodes.length > 1 || patch.connections.length > 0 || patch.ui.macros.length > 0}
         patchNodeCount={patch.nodes.length}
@@ -231,15 +229,14 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
         pendingFromPort={Boolean(pendingFromPort)}
         pendingProbeId={probeState.attachingProbeId}
         zoom={zoom}
-        onChangeNewNodeType={setNewNodeType}
-        onAddNode={() => {
+        onAddNode={(typeId) => {
           if (structureLocked) {
             return;
           }
           const nodeId = createId("node");
           onApplyOp({
             type: "addNode",
-            typeId: newNodeType,
+            typeId,
             nodeId,
             layoutPos: { x: 3, y: 3 }
           });
