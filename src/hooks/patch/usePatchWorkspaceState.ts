@@ -228,9 +228,9 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activeTab, updateActiveTab]);
 
-  const activateWorkspaceTab = useCallback((tabId: string, options?: { preview?: boolean }) => {
+  const activateWorkspaceTab = useCallback((tabId: string, options?: { preview?: boolean; skipHistory?: boolean }) => {
     skipNextTabPreviewRef.current = options?.preview === false;
-    skipNextWorkspaceHistoryRef.current = true;
+    skipNextWorkspaceHistoryRef.current = options?.skipHistory ?? true;
     setActiveTabId(tabId);
   }, []);
 
@@ -248,7 +248,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     if (resolvedPatchId) {
       const existingTab = tabs.find((tab) => tab.patchId === resolvedPatchId);
       if (existingTab) {
-        activateWorkspaceTab(existingTab.id, { preview: false });
+        activateWorkspaceTab(existingTab.id, { preview: false, skipHistory: true });
       } else {
         const nextTab = createWorkspaceTab(resolvedPatchId);
         skipNextTabPreviewRef.current = true;
@@ -304,7 +304,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       return next;
     });
     if (activeTabId === tabId) {
-      activateWorkspaceTab(fallbackTab.id, { preview: false });
+      activateWorkspaceTab(fallbackTab.id, { preview: false, skipHistory: false });
     }
   }, [activateWorkspaceTab, activeTabId, tabs]);
 
