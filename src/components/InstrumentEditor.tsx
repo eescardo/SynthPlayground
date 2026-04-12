@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { InstrumentToolbar } from "@/components/patch/InstrumentToolbar";
 import { PatchEditorCanvas } from "@/components/patch/PatchEditorCanvas";
+import { createInstrumentEditorPreviewReadyKey } from "@/components/patch/instrumentEditorPreview";
 import { useAfterStateCommit } from "@/hooks/useAfterStateCommit";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { PatchValidationIssue, Patch } from "@/types/patch";
@@ -44,7 +45,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
   const presetStatus = resolvePatchPresetStatus(props.patch);
   const structureLocked = patchSource === "preset";
   const previewReadyCommitKey = useMemo(
-    () => `${editorSessionKey ?? ""}:${patch.id}:${JSON.stringify(macroValues)}`,
+    () => createInstrumentEditorPreviewReadyKey(editorSessionKey, patch.id, macroValues),
     [editorSessionKey, macroValues, patch.id]
   );
 
