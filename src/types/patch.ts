@@ -22,6 +22,7 @@ export interface FloatParamSchema extends ParamSchemaBase {
   type: "float";
   default: number;
   range: { min: number; max: number };
+  step?: number;
   unit: Unit;
   map?: "linear" | "exp";
 }
