@@ -3,7 +3,7 @@ import { createId } from "@/lib/ids";
 import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping";
 import { sanitizeMacroAutomationMap } from "@/lib/macroAutomation";
 import { ensurePatchLayout } from "@/lib/patch/autoLayout";
-import { Project, Track } from "@/types/music";
+import { Project, Track, PatchWorkspaceTabState } from "@/types/music";
 import { Patch } from "@/types/patch";
 
 type RawTemplateTrack = {
@@ -100,6 +100,19 @@ const sanitizeTemplateTrack = (track: RawTemplateTrack, index: number): Track =>
   };
 };
 
+const createInitialPatchWorkspaceState = (initialPatchId: string, bundledPresetPatches: Patch[]) => {
+  const initialPatchName = bundledPresetPatches.find((patch) => patch.id === initialPatchId)?.name ?? "Instrument";
+  const initialTab: PatchWorkspaceTabState = {
+    id: createId("patchTab"),
+    name: initialPatchName,
+    patchId: initialPatchId
+  };
+  return {
+    activeTabId: initialTab.id,
+    tabs: [initialTab]
+  };
+};
+
 const buildTemplateLayoutByPatchId = (): Map<string, Map<string, { x: number; y: number }>> => {
   const patches = Array.isArray(templateProject.patches) ? templateProject.patches : [];
   return new Map(
@@ -153,6 +166,14 @@ export const createDefaultProjectFromTemplate = (bundledPresetPatches: Patch[]):
   const templateLayoutByPatchId = buildTemplateLayoutByPatchId();
 
   return {
+    ui: {
+      patchWorkspace: createInitialPatchWorkspaceState(
+        tracksRaw[0]?.instrumentPatchId && typeof tracksRaw[0].instrumentPatchId === "string"
+          ? tracksRaw[0].instrumentPatchId
+          : bundledPresetPatches[0]?.id ?? "preset_bass",
+        bundledPresetPatches
+      )
+    },
     id: "project_default",
     name: asString(templateProject.name, "New Synth Playground Project"),
     global: {
@@ -199,6 +220,9 @@ export const createEmptyProjectFromPresets = (bundledPresetPatches: Patch[]): Pr
   const firstPresetId = bundledPresetPatches[0]?.id ?? "preset_bass";
 
   return {
+    ui: {
+      patchWorkspace: createInitialPatchWorkspaceState(firstPresetId, bundledPresetPatches)
+    },
     id: "project_default",
     name: "New Synth Playground Project",
     global: {

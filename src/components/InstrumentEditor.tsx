@@ -15,8 +15,8 @@ interface InstrumentEditorProps {
   selectedMacroId?: string;
   validationIssues: PatchValidationIssue[];
   invalid?: boolean;
-  previewPitch: string;
   migrationNotice?: string | null;
+  onReady?: (macroValues: Record<string, number>) => void;
   onRenamePatch: (name: string) => void;
   onSelectPatch: (patchId: string) => void;
   onDuplicatePatch: () => void;
@@ -24,8 +24,6 @@ interface InstrumentEditorProps {
   onUpdatePreset: () => void;
   canRemovePatch: boolean;
   onRequestRemovePatch: () => void;
-  onOpenPreviewPitchPicker: () => void;
-  onPreviewNow: () => void;
   onSelectNode: (nodeId?: string) => void;
   onSelectMacro: (macroId?: string) => void;
   onClearSelectedMacro: () => void;
@@ -44,7 +42,6 @@ interface InstrumentToolbarProps {
   invalid?: boolean;
   presetStatus: ReturnType<typeof resolvePatchPresetStatus>;
   patchSource: ReturnType<typeof resolvePatchSource>;
-  previewPitch: string;
   onRenamePatch: (name: string) => void;
   onSelectPatch: (patchId: string) => void;
   onDuplicatePatch: () => void;
@@ -52,8 +49,6 @@ interface InstrumentToolbarProps {
   onUpdatePreset: () => void;
   canRemovePatch: boolean;
   onRequestRemovePatch: () => void;
-  onOpenPreviewPitchPicker: () => void;
-  onPreviewNow: () => void;
 }
 
 interface InstrumentToolbarActionsProps {
@@ -91,6 +86,7 @@ function InstrumentToolbar(props: InstrumentToolbarProps) {
   const [nameDraft, setNameDraft] = useState(props.patch.name);
   const [nameEditing, setNameEditing] = useState(false);
   const [selectorOpen, setSelectorOpen] = useState(false);
+  const presetLineageLabel = props.patch.meta.source === "preset" ? props.patch.meta.presetId : props.patch.id;
   const sourceLabel =
     props.presetStatus === "preset_update_available"
       ? "Preset update"
@@ -144,41 +140,43 @@ function InstrumentToolbar(props: InstrumentToolbarProps) {
             }
           }}
         >
-          {nameEditing ? (
-            <input
-              className="instrument-name-inline-input"
-              aria-label="Instrument name"
-              autoFocus
-              value={nameDraft}
-              onBlur={commitRename}
-              onChange={(event) => setNameDraft(event.target.value)}
-              onClick={(event) => event.stopPropagation()}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  commitRename();
-                } else if (event.key === "Escape") {
-                  event.preventDefault();
-                  setNameDraft(props.patch.name);
-                  setNameEditing(false);
-                }
-              }}
-            />
-          ) : (
-            <span
-              className="instrument-patch-picker-name"
-              role="button"
-              tabIndex={0}
-              onClick={startRename}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  startRename(event);
-                }
-              }}
-            >
-              {props.patch.name}
-            </span>
-          )}
+          <span className="instrument-patch-picker-label">
+            {nameEditing ? (
+              <input
+                className="instrument-name-inline-input"
+                aria-label="Instrument name"
+                autoFocus
+                value={nameDraft}
+                onBlur={commitRename}
+                onChange={(event) => setNameDraft(event.target.value)}
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    commitRename();
+                  } else if (event.key === "Escape") {
+                    event.preventDefault();
+                    setNameDraft(props.patch.name);
+                    setNameEditing(false);
+                  }
+                }}
+              />
+            ) : (
+              <span
+                className="instrument-patch-picker-name"
+                role="button"
+                tabIndex={0}
+                onClick={startRename}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    startRename(event);
+                  }
+                }}
+              >
+                {props.patch.name}
+              </span>
+            )}
+          </span>
           <span
             className={`instrument-source-badge ${
               props.presetStatus === "preset_update_available"
@@ -215,6 +213,8 @@ function InstrumentToolbar(props: InstrumentToolbarProps) {
         )}
       </div>
 
+      <span className="instrument-toolbar-lineage-label">({presetLineageLabel})</span>
+
       <InstrumentToolbarActions
         invalid={props.invalid}
         presetStatus={props.presetStatus}
@@ -224,33 +224,45 @@ function InstrumentToolbar(props: InstrumentToolbarProps) {
         canRemovePatch={props.canRemovePatch}
         onRequestRemovePatch={props.onRequestRemovePatch}
       />
-
-      <div className="instrument-preview">
-        <button type="button" className="preview-pitch-button" onClick={props.onOpenPreviewPitchPicker}>
-          {props.previewPitch}
-        </button>
-        <button type="button" onClick={props.onPreviewNow}>
-          Play
-        </button>
-      </div>
     </div>
   );
 }
 
 export function InstrumentEditor(props: InstrumentEditorProps) {
+  const { invalid, macroValues, onReady, patch } = props;
   const patchSource = resolvePatchSource(props.patch);
   const presetStatus = resolvePatchPresetStatus(props.patch);
   const structureLocked = patchSource === "preset";
 
+  useEffect(() => {
+    if (!onReady) {
+      return;
+    }
+    let cancelled = false;
+    const frameId = window.requestAnimationFrame(() => {
+      const nextFrameId = window.requestAnimationFrame(() => {
+        if (!cancelled) {
+          onReady(macroValues);
+        }
+      });
+      if (cancelled) {
+        window.cancelAnimationFrame(nextFrameId);
+      }
+    });
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [macroValues, onReady, patch.id]);
+
   return (
-    <section className={`instrument-editor${props.invalid ? " invalid" : ""}`}>
+    <section className={`instrument-editor${invalid ? " invalid" : ""}`}>
       <InstrumentToolbar
         patch={props.patch}
         patches={props.patches}
         invalid={props.invalid}
         presetStatus={presetStatus}
         patchSource={patchSource}
-        previewPitch={props.previewPitch}
         onRenamePatch={props.onRenamePatch}
         onSelectPatch={props.onSelectPatch}
         onDuplicatePatch={props.onDuplicatePatch}
@@ -258,8 +270,6 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
         onUpdatePreset={props.onUpdatePreset}
         canRemovePatch={props.canRemovePatch}
         onRequestRemovePatch={props.onRequestRemovePatch}
-        onOpenPreviewPitchPicker={props.onOpenPreviewPitchPicker}
-        onPreviewNow={props.onPreviewNow}
       />
 
       {props.migrationNotice && <p className="warn">{props.migrationNotice}</p>}

@@ -1,5 +1,6 @@
 import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
 import { createId } from "@/lib/ids";
+import { AudioProject } from "@/types/audio";
 import {
   cloneAutomationKeyframeAtBeat,
   getProjectTimelineEndBeat,
@@ -393,7 +394,7 @@ export const getSongBeatForPlaybackBeat = (
   return mapPlaybackBeatInSequence(playbackBeat, cueBeat, Number.POSITIVE_INFINITY, pairs);
 };
 
-export const getLoopPlaybackEndBeat = (project: Project, cueBeat: number, fallbackEndBeat: number): number => {
+export const getLoopPlaybackEndBeat = (project: Pick<Project, "global"> | AudioProject, cueBeat: number, fallbackEndBeat: number): number => {
   const { pairs } = buildLoopPairs(project.global.loop);
   return cueBeat + getSequencePlaybackLength(cueBeat, fallbackEndBeat, pairs.filter((pair) => pair.startBeat < fallbackEndBeat - EPSILON));
 };

@@ -2,6 +2,7 @@
 
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toAudioProject } from "@/audio/audioProject";
 import { AudioEngine } from "@/audio/engine";
 import { ComposerView } from "@/components/app/ComposerView";
 import { PatchWorkspaceView } from "@/components/app/PatchWorkspaceView";
@@ -94,6 +95,38 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const recordingHandleBeatRef = useRef<(beat: number) => void>(() => {});
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const project = projectHistory.current;
+  const {
+    id: projectId,
+    name: projectName,
+    global: projectGlobal,
+    tracks: projectTracks,
+    patches: projectPatches,
+    masterFx: projectMasterFx,
+    createdAt: projectCreatedAt,
+    updatedAt: projectUpdatedAt
+  } = project;
+  const audioProject = useMemo(
+    () => ({
+      id: projectId,
+      name: projectName,
+      global: projectGlobal,
+      tracks: projectTracks,
+      patches: projectPatches,
+      masterFx: projectMasterFx,
+      createdAt: projectCreatedAt,
+      updatedAt: projectUpdatedAt
+    }),
+    [
+      projectCreatedAt,
+      projectGlobal,
+      projectId,
+      projectMasterFx,
+      projectName,
+      projectPatches,
+      projectTracks,
+      projectUpdatedAt
+    ]
+  );
   const {
     noteClipboardPayload,
     setNoteClipboardPayload,
@@ -230,12 +263,18 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const commitProjectChange = useCallback(
     (
       updater: (current: Project) => Project,
-      options?: { actionKey?: string; coalesce?: boolean }
+      options?: { actionKey?: string; coalesce?: boolean; skipHistory?: boolean }
     ) => {
       setProjectHistory((prev) => {
         const next = updater(prev.current);
         if (next === prev.current) {
           return prev;
+        }
+        if (options?.skipHistory) {
+          return {
+            ...prev,
+            current: next
+          };
         }
         return pushHistory(prev, next, options);
       });
@@ -324,8 +363,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
     if (!audioEngineRef.current) {
       audioEngineRef.current = new AudioEngine();
     }
-    audioEngineRef.current.setProject(project, { syncToWorklet: !playing });
-  }, [playing, project, ready]);
+    audioEngineRef.current.setProject(audioProject, { syncToWorklet: !playing });
+  }, [audioProject, playing, ready]);
 
   useEffect(() => {
     setEditorSelection((current) => filterEditorSelectionToProject(project, current));
@@ -386,6 +425,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const playback = usePlaybackController({
     project,
+    audioProject,
     playbackEndBeat,
     userCueBeat,
     playheadBeat,
@@ -606,11 +646,33 @@ export function AppRoot({ children }: { children: ReactNode }) {
   }, []);
 
   const undoProject = useCallback(() => {
-    setProjectHistory((prev) => undoHistory(prev));
+    setProjectHistory((prev) => {
+      const next = undoHistory(prev);
+      return next === prev
+        ? prev
+        : {
+            ...next,
+            current: {
+              ...next.current,
+              ui: prev.current.ui
+            }
+          };
+    });
   }, []);
 
   const redoProject = useCallback(() => {
-    setProjectHistory((prev) => redoHistory(prev));
+    setProjectHistory((prev) => {
+      const next = redoHistory(prev);
+      return next === prev
+        ? prev
+        : {
+            ...next,
+            current: {
+              ...next.current,
+              ui: prev.current.ui
+            }
+          };
+    });
   }, []);
 
   useEditorKeyboardShortcuts({
@@ -681,7 +743,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
       const imported = importProjectFromJson(text);
       resetProjectHistory(imported);
       setSelectedTrackId(imported.tracks[0]?.id);
-      audioEngineRef.current?.setProject(imported);
+      audioEngineRef.current?.setProject(toAudioProject(imported));
     } catch (error) {
       setRuntimeError((error as Error).message);
     }
@@ -1040,7 +1102,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const patchWorkspaceProps: React.ComponentProps<typeof PatchWorkspaceView> = {
     patch: selectedPatch,
     patches: project.patches,
-    tabs: patchWorkspace.tabs.map((tab) => ({ id: tab.id, patchId: tab.patchId })),
+    tabs: patchWorkspace.tabs.map((tab) => ({ id: tab.id, name: tab.name, patchId: tab.patchId })),
     activeTabId: patchWorkspace.activeTabId,
     macroValues: patchWorkspace.workspaceMacroValues,
     previewPitch: patchWorkspace.previewPitch,
@@ -1053,6 +1115,9 @@ export function AppRoot({ children }: { children: ReactNode }) {
       resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset",
     onBackToComposer: patchWorkspace.closePatchWorkspace,
     onActivateTab: patchWorkspace.activateWorkspaceTab,
+    onCreateTab: patchWorkspace.createWorkspaceTabFromCurrent,
+    onCloseTab: patchWorkspace.closeWorkspaceTab,
+    onRenameTab: patchWorkspace.renameWorkspaceTab,
     onRenamePatch: patchWorkspace.renameSelectedPatch,
     onSelectPatch: patchWorkspace.selectPatchInWorkspace,
     onDuplicatePatch: patchWorkspace.duplicateSelectedPatchInWorkspace,
@@ -1061,6 +1126,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     onRequestRemovePatch: patchWorkspace.requestRemoveSelectedPatch,
     onOpenPreviewPitchPicker: () => patchWorkspace.setPreviewPitchPickerOpen(true),
     onPreviewNow: () => patchWorkspace.previewSelectedPatchNow(),
+    onInstrumentEditorReady: patchWorkspace.handleInstrumentEditorReady,
     onSelectNode: patchWorkspace.setSelectedNodeId,
     onSelectMacro: patchWorkspace.setSelectedMacroId,
     onClearSelectedMacro: patchWorkspace.clearSelectedMacro,

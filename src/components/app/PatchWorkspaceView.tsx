@@ -10,6 +10,7 @@ import { PatchOp } from "@/types/ops";
 
 interface PatchWorkspaceTabViewModel {
   id: string;
+  name: string;
   patchId: string;
 }
 
@@ -28,6 +29,9 @@ interface PatchWorkspaceViewProps {
   canRemovePatch: boolean;
   onBackToComposer: () => void;
   onActivateTab: (tabId: string) => void;
+  onCreateTab: () => void;
+  onCloseTab: (tabId: string) => void;
+  onRenameTab: (tabId: string, name: string) => void;
   onSelectPatch: (patchId: string) => void;
   onRenamePatch: (name: string) => void;
   onDuplicatePatch: () => void;
@@ -36,6 +40,7 @@ interface PatchWorkspaceViewProps {
   onRequestRemovePatch: () => void;
   onOpenPreviewPitchPicker: () => void;
   onPreviewNow: () => void;
+  onInstrumentEditorReady: (macroValues: Record<string, number>) => void;
   onSelectNode: (nodeId?: string) => void;
   onSelectMacro: (macroId?: string) => void;
   onClearSelectedMacro: () => void;
@@ -59,14 +64,13 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
     openHelp
   } = usePatchWorkspaceQuickHelpDialog();
   const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
-  const [tabNameDraft, setTabNameDraft] = useState(props.patch.name);
-  const patchNameById = new Map(props.patches.map((patch) => [patch.id, patch.name] as const));
+  const [tabNameDraft, setTabNameDraft] = useState(props.tabs.find((tab) => tab.id === props.activeTabId)?.name ?? props.patch.name);
 
   useEffect(() => {
     if (renamingTabId === props.activeTabId) {
-      setTabNameDraft(props.patch.name);
+      setTabNameDraft(props.tabs.find((tab) => tab.id === props.activeTabId)?.name ?? props.patch.name);
     }
-  }, [props.activeTabId, props.patch.name, renamingTabId]);
+  }, [props.activeTabId, props.patch.name, props.tabs, renamingTabId]);
 
   const startRename = (tabId: string, currentName: string, event: ReactMouseEvent | ReactKeyboardEvent) => {
     event.preventDefault();
@@ -78,11 +82,12 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
 
   const commitTabRename = () => {
     const nextName = tabNameDraft.trim();
-    if (nextName.length > 0 && renamingTabId === props.activeTabId && nextName !== props.patch.name) {
-      props.onRenamePatch(nextName);
+    const currentTab = props.tabs.find((tab) => tab.id === renamingTabId);
+    if (nextName.length > 0 && renamingTabId && currentTab && nextName !== currentTab.name) {
+      props.onRenameTab(renamingTabId, nextName);
     }
     setRenamingTabId(null);
-    setTabNameDraft(props.patch.name);
+    setTabNameDraft(props.tabs.find((tab) => tab.id === props.activeTabId)?.name ?? props.patch.name);
   };
 
   return (
@@ -94,94 +99,126 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           </button>
           <h2>Patch Workspace</h2>
         </div>
-        <button type="button" onClick={openHelp}>Help (?)</button>
+        <div className="patch-workspace-header-actions">
+          <button type="button" onClick={openHelp}>Help (?)</button>
+          <button type="button" className="preview-pitch-button" onClick={props.onOpenPreviewPitchPicker}>
+            {props.previewPitch}
+          </button>
+          <button type="button" onClick={props.onPreviewNow}>
+            Play
+          </button>
+        </div>
       </div>
 
-      <div className="patch-workspace-tabs" role="tablist" aria-label="Open instrument tabs">
-        {props.tabs.map((tab) => {
-          const tabName = patchNameById.get(tab.patchId) ?? tab.patchId;
-          const active = tab.id === props.activeTabId;
-          const editing = renamingTabId === tab.id;
+      <div className="patch-workspace-editor-shell">
+        <div className="patch-workspace-tabs" role="tablist" aria-label="Open instrument tabs">
+          {props.tabs.map((tab) => {
+            const tabName = tab.name;
+            const active = tab.id === props.activeTabId;
+            const editing = renamingTabId === tab.id;
 
-          return (
-            <div
-              key={tab.id}
-              className={`patch-workspace-tab${active ? " active" : ""}`}
-              role="tab"
-              tabIndex={active ? 0 : -1}
-              aria-selected={active}
-              onClick={() => props.onActivateTab(tab.id)}
-            >
-              {editing ? (
-                <input
-                  className="patch-workspace-tab-name-input"
-                  aria-label="Tab name"
-                  autoFocus
-                  value={tabNameDraft}
-                  onBlur={commitTabRename}
-                  onChange={(event) => setTabNameDraft(event.target.value)}
-                  onClick={(event) => event.stopPropagation()}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      commitTabRename();
-                    } else if (event.key === "Escape") {
-                      event.preventDefault();
-                      setRenamingTabId(null);
-                      setTabNameDraft(props.patch.name);
-                    }
-                  }}
-                />
-              ) : (
-                <span
-                  className="patch-workspace-tab-name"
-                  role="button"
-                  tabIndex={0}
-                  onClick={(event) => startRename(tab.id, tabName, event)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      startRename(tab.id, tabName, event);
-                    }
-                  }}
-                >
-                  {tabName}
-                </span>
-              )}
-            </div>
-          );
-        })}
+            return (
+              <div
+                key={tab.id}
+                className={`patch-workspace-tab${active ? " active" : ""}`}
+                role="tab"
+                tabIndex={active ? 0 : -1}
+                aria-selected={active}
+                onClick={() => props.onActivateTab(tab.id)}
+              >
+                {editing ? (
+                  <input
+                    className="patch-workspace-tab-name-input"
+                    aria-label="Tab name"
+                    autoFocus
+                    size={Math.max(1, tabNameDraft.length)}
+                    value={tabNameDraft}
+                    onBlur={commitTabRename}
+                    onChange={(event) => setTabNameDraft(event.target.value)}
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        commitTabRename();
+                      } else if (event.key === "Escape") {
+                        event.preventDefault();
+                        setRenamingTabId(null);
+                        setTabNameDraft(tab.name);
+                      }
+                    }}
+                  />
+                ) : (
+                  <>
+                    <span
+                      className="patch-workspace-tab-name"
+                      role="button"
+                      tabIndex={0}
+                      onClick={(event) => {
+                        if (!active) {
+                          return;
+                        }
+                        startRename(tab.id, tabName, event);
+                      }}
+                      onKeyDown={(event) => {
+                        if (active && (event.key === "Enter" || event.key === " ")) {
+                          startRename(tab.id, tabName, event);
+                        }
+                      }}
+                    >
+                      {tabName}
+                    </span>
+                    {props.tabs.length > 1 && (
+                      <button
+                        type="button"
+                        className="patch-workspace-tab-close"
+                        aria-label={`Close ${tabName} tab`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          props.onCloseTab(tab.id);
+                        }}
+                      >
+                        x
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })}
+          <button type="button" className="patch-workspace-tab-add" aria-label="New instrument tab" onClick={props.onCreateTab}>
+            +
+          </button>
+        </div>
+
+        <InstrumentEditor
+          patch={props.patch}
+          patches={props.patches}
+          macroValues={props.macroValues}
+          migrationNotice={props.migrationNotice}
+          onReady={props.onInstrumentEditorReady}
+          selectedNodeId={props.selectedNodeId}
+          selectedMacroId={props.selectedMacroId}
+          validationIssues={props.validationIssues}
+          invalid={props.invalid}
+          onRenamePatch={props.onRenamePatch}
+          onSelectPatch={props.onSelectPatch}
+          onDuplicatePatch={props.onDuplicatePatch}
+          onDuplicatePatchToNewTab={props.onDuplicatePatchToNewTab}
+          onUpdatePreset={props.onUpdatePreset}
+          canRemovePatch={props.canRemovePatch}
+          onRequestRemovePatch={props.onRequestRemovePatch}
+          onSelectNode={props.onSelectNode}
+          onSelectMacro={props.onSelectMacro}
+          onClearSelectedMacro={props.onClearSelectedMacro}
+          onApplyOp={props.onApplyOp}
+          onExposeMacro={props.onExposeMacro}
+          onAddMacro={props.onAddMacro}
+          onRemoveMacro={props.onRemoveMacro}
+          onRenameMacro={props.onRenameMacro}
+          onSetMacroKeyframeCount={props.onSetMacroKeyframeCount}
+          onChangeMacroValue={props.onChangeMacroValue}
+        />
       </div>
-
-      <InstrumentEditor
-        patch={props.patch}
-        patches={props.patches}
-        macroValues={props.macroValues}
-        previewPitch={props.previewPitch}
-        migrationNotice={props.migrationNotice}
-        selectedNodeId={props.selectedNodeId}
-        selectedMacroId={props.selectedMacroId}
-        validationIssues={props.validationIssues}
-        invalid={props.invalid}
-        onRenamePatch={props.onRenamePatch}
-        onSelectPatch={props.onSelectPatch}
-        onDuplicatePatch={props.onDuplicatePatch}
-        onDuplicatePatchToNewTab={props.onDuplicatePatchToNewTab}
-        onUpdatePreset={props.onUpdatePreset}
-        canRemovePatch={props.canRemovePatch}
-        onRequestRemovePatch={props.onRequestRemovePatch}
-        onOpenPreviewPitchPicker={props.onOpenPreviewPitchPicker}
-        onPreviewNow={props.onPreviewNow}
-        onSelectNode={props.onSelectNode}
-        onSelectMacro={props.onSelectMacro}
-        onClearSelectedMacro={props.onClearSelectedMacro}
-        onApplyOp={props.onApplyOp}
-        onExposeMacro={props.onExposeMacro}
-        onAddMacro={props.onAddMacro}
-        onRemoveMacro={props.onRemoveMacro}
-        onRenameMacro={props.onRenameMacro}
-        onSetMacroKeyframeCount={props.onSetMacroKeyframeCount}
-        onChangeMacroValue={props.onChangeMacroValue}
-      />
 
       <QuickHelpDialog
         keyboardShortcuts={keyboardShortcuts}

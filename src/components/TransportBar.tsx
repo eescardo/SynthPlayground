@@ -21,6 +21,7 @@ interface TransportBarProps {
   onTempoChange: (value: number) => void;
   onMeterChange: (value: "4/4" | "3/4") => void;
   onGridChange: (value: number) => void;
+  onOpenHelp: () => void;
 }
 
 interface RecordButtonProps {
@@ -79,6 +80,8 @@ export function TransportBar(props: TransportBarProps) {
       </div>
 
       <div className="transport-right">
+        <button onClick={props.onOpenHelp}>Help (?)</button>
+
         <label>
           Tempo
           <input type="number" min={40} max={220} value={props.tempo} onChange={onTempoInput} />

@@ -100,6 +100,7 @@ export function ComposerView(props: ComposerViewProps) {
         onTempoChange={props.onTempoChange}
         onMeterChange={props.onMeterChange}
         onGridChange={props.onGridChange}
+        onOpenHelp={openHelp}
       />
 
       <ProjectActionsBar
@@ -107,7 +108,6 @@ export function ComposerView(props: ComposerViewProps) {
         canRemoveTrack={props.project.tracks.length > 1}
         onAddTrack={props.onAddTrack}
         onRemoveTrack={props.onRemoveTrack}
-        onOpenHelp={openHelp}
         onExportJson={props.onExportJson}
         onImportJson={props.onImportJson}
         onClearProject={props.onClearProject}

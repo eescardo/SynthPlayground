@@ -7,7 +7,7 @@ import { presetPatches } from "@/lib/patch/presets";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
 import { normalizeMacroKeyframeCount } from "@/lib/patch/macroKeyframes";
 import { TRACK_VOLUME_DEFAULT, TRACK_VOLUME_MAX, TRACK_VOLUME_MIN } from "@/lib/trackVolume";
-import { Project, TrackFxSettings } from "@/types/music";
+import { Project, TrackFxSettings, PatchWorkspaceTabState } from "@/types/music";
 import { Patch, PatchConnection, PatchMacro, PatchMeta, PatchNode } from "@/types/patch";
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -180,6 +180,25 @@ const sanitizePatch = (raw: unknown, index: number): Patch => {
   };
 };
 
+const sanitizePatchWorkspaceTab = (
+  raw: unknown,
+  index: number,
+  patchIds: Set<string>,
+  fallbackPatchId: string,
+  patchNameById: Map<string, string>
+): PatchWorkspaceTabState => {
+  const tab = isObject(raw) ? raw : {};
+  const patchId = asString(tab.patchId, fallbackPatchId);
+  const resolvedPatchId = patchIds.has(patchId) ? patchId : fallbackPatchId;
+  return {
+    id: asString(tab.id, createId(`patch_tab_${index}`)),
+    name: asString(tab.name, patchNameById.get(resolvedPatchId) ?? `Tab ${index + 1}`),
+    patchId: resolvedPatchId,
+    selectedNodeId: typeof tab.selectedNodeId === "string" ? tab.selectedNodeId : undefined,
+    selectedMacroId: typeof tab.selectedMacroId === "string" ? tab.selectedMacroId : undefined
+  };
+};
+
 export const exportProjectToJson = (project: Project): string => JSON.stringify(project, null, 2);
 
 export const normalizeProject = (raw: unknown): Project => {
@@ -207,6 +226,7 @@ export const normalizeProject = (raw: unknown): Project => {
 
   const patchIds = new Set(patches.map((patch) => patch.id));
   const fallbackPatchId = patches[0].id;
+  const patchNameById = new Map(patches.map((patch) => [patch.id, patch.name] as const));
   const tracksRaw = Array.isArray(raw.tracks) ? raw.tracks : [];
   const tracks = tracksRaw
     .map((entry, index) => {
@@ -264,6 +284,19 @@ export const normalizeProject = (raw: unknown): Project => {
   }
 
   const masterFxRaw = isObject(raw.masterFx) ? raw.masterFx : {};
+  const uiRaw = isObject(raw.ui) ? raw.ui : {};
+  const patchWorkspaceRaw = isObject(uiRaw.patchWorkspace) ? uiRaw.patchWorkspace : {};
+  const patchWorkspaceTabsRaw = Array.isArray(patchWorkspaceRaw.tabs) ? patchWorkspaceRaw.tabs : [];
+  const patchWorkspaceTabs = patchWorkspaceTabsRaw.map((tab, index) =>
+    sanitizePatchWorkspaceTab(tab, index, patchIds, fallbackPatchId, patchNameById)
+  );
+  const defaultTab: PatchWorkspaceTabState = {
+    id: createId("patchTab"),
+    name: patchNameById.get(tracks[0]?.instrumentPatchId ?? fallbackPatchId) ?? "Instrument",
+    patchId: tracks[0]?.instrumentPatchId ?? fallbackPatchId
+  };
+  const normalizedPatchWorkspaceTabs = patchWorkspaceTabs.length > 0 ? patchWorkspaceTabs : [defaultTab];
+  const activeTabId = asString(patchWorkspaceRaw.activeTabId, normalizedPatchWorkspaceTabs[0].id);
   const now = Date.now();
 
   return {
@@ -327,6 +360,14 @@ export const normalizeProject = (raw: unknown): Project => {
       compressorEnabled: Boolean(masterFxRaw.compressorEnabled),
       limiterEnabled: masterFxRaw.limiterEnabled !== false,
       makeupGain: asFiniteNumber(masterFxRaw.makeupGain, 0)
+    },
+    ui: {
+      patchWorkspace: {
+        activeTabId: normalizedPatchWorkspaceTabs.some((tab) => tab.id === activeTabId)
+          ? activeTabId
+          : normalizedPatchWorkspaceTabs[0].id,
+        tabs: normalizedPatchWorkspaceTabs
+      }
     },
     createdAt: asFiniteNumber(raw.createdAt, now),
     updatedAt: asFiniteNumber(raw.updatedAt, now)

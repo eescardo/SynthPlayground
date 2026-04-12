@@ -955,14 +955,19 @@ select {
   cursor: pointer;
 }
 
+.instrument-patch-picker-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .instrument-patch-picker:focus-visible {
   outline: 2px solid rgba(131, 173, 216, 0.65);
   outline-offset: 1px;
 }
 
 .instrument-patch-picker-name {
-  flex: 1 1 auto;
-  min-width: 0;
+  display: inline-block;
+  max-width: 100%;
   font-size: 1rem;
   font-weight: 700;
   white-space: nowrap;
@@ -977,7 +982,7 @@ select {
 }
 
 .instrument-name-inline-input {
-  flex: 1 1 auto;
+  width: min(100%, 16rem);
   min-width: 0;
   font-size: 1rem;
   font-weight: 700;
@@ -1037,11 +1042,12 @@ select {
   gap: 0.5rem;
 }
 
-.instrument-preview {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-left: auto;
+.instrument-toolbar-lineage-label {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.76rem;
+  white-space: nowrap;
 }
 
 .preview-pitch-button {
@@ -1075,6 +1081,13 @@ select {
   gap: 0.75rem;
 }
 
+.patch-workspace-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 .patch-workspace-heading h2 {
   margin: 0;
   font-size: 1rem;
@@ -1084,20 +1097,33 @@ select {
   white-space: nowrap;
 }
 
+.patch-workspace-editor-shell {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  gap: 0;
+}
+
 .patch-workspace-tabs {
   display: flex;
   align-items: flex-end;
   gap: 0.28rem;
   overflow-x: auto;
-  padding-bottom: 0.15rem;
+  padding-bottom: 0;
+  margin-bottom: -1px;
+  position: relative;
+  z-index: 2;
 }
 
 .patch-workspace-tab {
   display: inline-flex;
   align-items: center;
+  position: relative;
+  gap: 0.32rem;
   min-width: 0;
   max-width: 14rem;
-  padding: 0.35rem 0.65rem 0.4rem;
+  padding: 0.35rem 1.15rem 0.4rem 0.65rem;
   border: 1px solid rgba(131, 173, 216, 0.14);
   border-radius: 10px 10px 0 0;
   background: rgba(12, 20, 30, 0.82);
@@ -1127,10 +1153,43 @@ select {
 }
 
 .patch-workspace-tab-name-input {
-  min-width: 5rem;
+  width: auto;
+  min-width: 1.8rem;
   max-width: 12rem;
   padding: 0.08rem 0.2rem;
   font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.patch-workspace-tab-close,
+.patch-workspace-tab-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 999px;
+  line-height: 1;
+}
+
+.patch-workspace-tab-close {
+  width: 0.66rem;
+  height: 0.66rem;
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  border: none;
+  background: rgba(228, 238, 248, 0.92);
+  color: rgba(10, 18, 28, 0.96);
+  font-size: 0.5rem;
+}
+
+.patch-workspace-tab-add {
+  width: 1.45rem;
+  height: 1.45rem;
+  align-self: center;
+  margin-left: 0.16rem;
+  border-color: rgba(131, 173, 216, 0.24);
+  font-size: 0.95rem;
   font-weight: 600;
 }
 
@@ -1238,7 +1297,7 @@ select {
   flex: 1;
   min-height: 0;
   padding: 0.9rem;
-  border-radius: 16px;
+  border-radius: 0 16px 16px 16px;
   overflow: hidden;
 }
 

@@ -717,6 +717,9 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         }
         break;
       case "PREVIEW":
+        if (message.project) {
+          this.applyProject(message.project);
+        }
         this.previewing = false;
         this.playing = false;
         this.songSampleCounter = 0;

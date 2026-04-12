@@ -4,8 +4,7 @@ import { collectEventsInWindow } from "@/audio/scheduler";
 import { getLoopPlaybackEndBeat, getSongBeatForPlaybackBeat } from "@/lib/looping";
 import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
 import { createId } from "@/lib/ids";
-import { Project } from "@/types/music";
-import { SchedulerEvent } from "@/types/audio";
+import { AudioProject, SchedulerEvent } from "@/types/audio";
 
 const LOOKAHEAD_MS = 300;
 const SCHEDULER_TICK_MS = 25;
@@ -15,7 +14,7 @@ export const FIXED_SAMPLE_RATE = 48000;
 export interface AudioEngineBackend {
   init(): Promise<void>;
   ensureRunning(): Promise<void>;
-  setProject(project: Project, options?: { syncToWorklet?: boolean }): void;
+  setProject(project: AudioProject, options?: { syncToWorklet?: boolean }): void;
   play(startBeat?: number): Promise<void>;
   stop(): void;
   getPlayheadBeat(): number;
@@ -27,7 +26,13 @@ export interface AudioEngineBackend {
   setRecordingTrack(trackId: string | null): void;
   recordNoteOn(trackId: string, noteId: string, pitchVoct: number, velocity?: number): Promise<number>;
   recordNoteOff(trackId: string, noteId: string, pitchVoct: number): number;
-  previewNote(trackId: string, pitchVoct: number, durationBeats: number, velocity?: number, options?: { ignoreVolume?: boolean }): Promise<void>;
+  previewNote(
+    trackId: string,
+    pitchVoct: number,
+    durationBeats: number,
+    velocity?: number,
+    options?: { ignoreVolume?: boolean; projectOverride?: AudioProject }
+  ): Promise<void>;
 }
 
 const getWorkletUrl = () =>
@@ -40,7 +45,7 @@ class RealAudioEngineBackend implements AudioEngineBackend {
   private songStartContextTime = 0;
   private scheduledUntilSample = 0;
   private isPlaying = false;
-  private project: Project | null = null;
+  private project: AudioProject | null = null;
   private playSessionId = 0;
   private recordingTrackId: string | null = null;
   private cueBeat = 0;
@@ -152,7 +157,7 @@ class RealAudioEngineBackend implements AudioEngineBackend {
     }
   }
 
-  setProject(project: Project, options?: { syncToWorklet?: boolean }): void {
+  setProject(project: AudioProject, options?: { syncToWorklet?: boolean }): void {
     this.project = project;
     if (options?.syncToWorklet === false) {
       return;
@@ -319,7 +324,13 @@ class RealAudioEngineBackend implements AudioEngineBackend {
     return sampleTime;
   }
 
-  async previewNote(trackId: string, pitchVoct: number, durationBeats: number, velocity = 0.9, options?: { ignoreVolume?: boolean }): Promise<void> {
+  async previewNote(
+    trackId: string,
+    pitchVoct: number,
+    durationBeats: number,
+    velocity = 0.9,
+    options?: { ignoreVolume?: boolean; projectOverride?: AudioProject }
+  ): Promise<void> {
     if (this.isPlaying || !this.project) {
       return;
     }
@@ -357,7 +368,8 @@ class RealAudioEngineBackend implements AudioEngineBackend {
       type: "PREVIEW",
       events,
       durationSamples: durationSamples + BLOCK_SIZE,
-      ignoreVolume: options?.ignoreVolume !== false
+      ignoreVolume: options?.ignoreVolume !== false,
+      project: options?.projectOverride
     });
   }
 }
@@ -365,7 +377,7 @@ class RealAudioEngineBackend implements AudioEngineBackend {
 class FakeAudioEngineBackend implements AudioEngineBackend {
   private fakeSongStartTimeMs = 0;
   private isPlaying = false;
-  private project: Project | null = null;
+  private project: AudioProject | null = null;
   private cueBeat = 0;
   private recordingTrackId: string | null = null;
 
@@ -379,7 +391,7 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
     await this.init();
   }
 
-  setProject(project: Project): void {
+  setProject(project: AudioProject): void {
     this.project = project;
   }
 
@@ -452,7 +464,13 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
     return this.getSafeLiveSampleTime();
   }
 
-  async previewNote(trackId: string, pitchVoct: number, durationBeats: number, velocity = 0.9, options?: { ignoreVolume?: boolean }): Promise<void> {
+  async previewNote(
+    trackId: string,
+    pitchVoct: number,
+    durationBeats: number,
+    velocity = 0.9,
+    options?: { ignoreVolume?: boolean; projectOverride?: AudioProject }
+  ): Promise<void> {
     void trackId;
     void pitchVoct;
     void durationBeats;

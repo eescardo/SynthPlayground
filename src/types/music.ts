@@ -80,6 +80,23 @@ export interface MasterFxSettings {
   makeupGain: number;
 }
 
+export interface PatchWorkspaceTabState {
+  id: string;
+  name: string;
+  patchId: string;
+  selectedNodeId?: string;
+  selectedMacroId?: string;
+}
+
+export interface PatchWorkspaceUiState {
+  activeTabId?: string;
+  tabs: PatchWorkspaceTabState[];
+}
+
+export interface ProjectUiState {
+  patchWorkspace: PatchWorkspaceUiState;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -87,6 +104,7 @@ export interface Project {
   tracks: Track[];
   patches: Patch[];
   masterFx: MasterFxSettings;
+  ui: ProjectUiState;
   createdAt: number;
   updatedAt: number;
 }
