@@ -87,6 +87,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
         <div className="patch-editor-main-column">
           <PatchEditorStage
             patch={props.patch}
+            validationIssues={props.validationIssues}
             probeState={canvasProbeState}
             selectedNodeId={props.selectedNodeId}
             selectedMacroNodeIds={selectedMacroNodeIds}

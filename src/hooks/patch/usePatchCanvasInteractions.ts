@@ -11,7 +11,7 @@ import {
   pointerEventToPatchCanvasPoint
 } from "@/components/patch/patchCanvasGeometry";
 import { PATCH_CANVAS_GRID } from "@/components/patch/patchCanvasConstants";
-import { PatchLayoutNode, PatchNode, Patch } from "@/types/patch";
+import { PatchLayoutNode, PatchNode, Patch, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { validatePatchConnectionCandidate } from "@/lib/patch/validation";
 
@@ -23,6 +23,7 @@ interface UsePatchCanvasInteractionsArgs {
   layoutByNode: Map<string, PatchLayoutNode>;
   nodeById: Map<string, PatchNode>;
   patch: Patch;
+  validationIssues: PatchValidationIssue[];
   selectedMacroNodeIds: Set<string>;
   selectedNodeId?: string;
   pendingProbeId?: string | null;
@@ -89,6 +90,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       layoutByNode: args.layoutByNode,
       nodeById: args.nodeById,
       patch: args.patch,
+      validationIssues: args.validationIssues,
       pendingFromPort,
       pendingWirePointer,
       selectedMacroNodeIds: args.selectedMacroNodeIds,
@@ -103,6 +105,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     args.layoutByNode,
     args.nodeById,
     args.patch,
+    args.validationIssues,
     args.selectedMacroNodeIds,
     args.selectedNodeId,
     hoveredAttachTarget,

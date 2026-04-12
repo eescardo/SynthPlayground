@@ -29,12 +29,13 @@ import { makeConnectOp } from "@/lib/patch/ops";
 import { usePatchCanvasInteractions } from "@/hooks/patch/usePatchCanvasInteractions";
 import { usePatchCanvasZoom } from "@/hooks/patch/usePatchCanvasZoom";
 import { usePatchModuleFacePopover } from "@/hooks/patch/usePatchModuleFacePopover";
-import { Patch, PatchLayoutNode } from "@/types/patch";
+import { Patch, PatchLayoutNode, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState, PatchWorkspaceProbeState } from "@/types/probes";
 
 interface PatchEditorStageProps {
   patch: Patch;
+  validationIssues: PatchValidationIssue[];
   probeState: PatchProbeEditorState;
   selectedNodeId?: string;
   selectedMacroNodeIds: Set<string>;
@@ -117,6 +118,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     layoutByNode,
     nodeById,
     patch,
+    validationIssues: props.validationIssues,
     selectedMacroNodeIds,
     selectedNodeId,
     pendingProbeId: probeState.attachingProbeId,
