@@ -6,6 +6,19 @@ import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.share
 import { AudioEngine } from "@/audio/engine";
 import { PatchRemovalDialogState } from "@/components/home/PatchRemovalDialogModal";
 import { usePatchWorkspaceMacroValues } from "@/hooks/patch/usePatchWorkspaceMacroValues";
+import {
+  createNextTabName,
+  getActiveTab,
+  isAudiblePatchOp,
+  isShortcutBlockedTarget,
+  isTextEditingTarget,
+  LocalPatchWorkspaceTab,
+  parseTabMacroValues,
+  PATCH_WORKSPACE_TAB_MACRO_VALUES_SESSION_KEY,
+  pruneTabMacroValues,
+  toLocalTab,
+  toPersistedTab
+} from "@/hooks/patch/patchWorkspaceStateUtils";
 import { usePatchWorkspacePreview } from "@/hooks/patch/usePatchWorkspacePreview";
 import { createId } from "@/lib/ids";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
@@ -13,77 +26,9 @@ import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
 import { clampNormalizedMacroValue } from "@/lib/patch/macroKeyframes";
 import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { validatePatch } from "@/lib/patch/validation";
-import { PatchWorkspaceTabState, Project, Track } from "@/types/music";
+import { Project, Track } from "@/types/music";
 import { PatchOp } from "@/types/ops";
 import { PatchValidationIssue, Patch } from "@/types/patch";
-
-interface LocalPatchWorkspaceTab extends PatchWorkspaceTabState {
-  migrationNotice: string | null;
-}
-
-const PATCH_WORKSPACE_TAB_MACRO_VALUES_SESSION_KEY = "synth-playground:patch-workspace-tab-macro-values";
-
-const isTextEditingTarget = (target: EventTarget | null) => {
-  const element = target as HTMLElement | null;
-  const isTextInput =
-    element instanceof HTMLInputElement
-      ? ["text", "search", "url", "email", "tel", "password", "number"].includes(element.type)
-      : false;
-  return Boolean(
-    element &&
-      (isTextInput ||
-        element.tagName === "SELECT" ||
-        element.tagName === "TEXTAREA" ||
-        element.isContentEditable)
-  );
-};
-
-const isShortcutBlockedTarget = (target: EventTarget | null) => {
-  const element = target as HTMLElement | null;
-  return Boolean(
-    element &&
-      (isTextEditingTarget(element) ||
-        element.tagName === "BUTTON" ||
-        element.tagName === "A" ||
-        element.closest("[role='dialog']"))
-  );
-};
-
-const isAudiblePatchOp = (op: PatchOp): boolean =>
-  op.type !== "moveNode" &&
-  op.type !== "setNodeLayout" &&
-  op.type !== "setCanvasZoom" &&
-  op.type !== "addMacro" &&
-  op.type !== "removeMacro" &&
-  op.type !== "bindMacro" &&
-  op.type !== "unbindMacro" &&
-  op.type !== "renameMacro" &&
-  op.type !== "setMacroKeyframeCount";
-
-const toLocalTab = (tab: PatchWorkspaceTabState): LocalPatchWorkspaceTab => ({
-  ...tab,
-  migrationNotice: null
-});
-
-const toPersistedTab = (tab: LocalPatchWorkspaceTab): PatchWorkspaceTabState => ({
-  id: tab.id,
-  name: tab.name,
-  patchId: tab.patchId,
-  selectedNodeId: tab.selectedNodeId,
-  selectedMacroId: tab.selectedMacroId
-});
-
-const getActiveTab = (tabs: LocalPatchWorkspaceTab[], activeTabId?: string) => tabs.find((tab) => tab.id === activeTabId) ?? tabs[0];
-
-const createNextTabName = (tabs: Array<{ name: string }>) => {
-  for (let index = 1; index < 10_000; index += 1) {
-    const candidate = `Tab ${index}`;
-    if (!tabs.some((tab) => tab.name === candidate)) {
-      return candidate;
-    }
-  }
-  return `Tab ${Date.now()}`;
-};
 
 interface UsePatchWorkspaceStateOptions {
   project: Project;
@@ -131,29 +76,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   }), [patchNameById]);
 
   useEffect(() => {
-    try {
-      const raw = window.sessionStorage.getItem(PATCH_WORKSPACE_TAB_MACRO_VALUES_SESSION_KEY);
-      if (!raw) {
-        return;
-      }
-      const parsed = JSON.parse(raw) as Record<string, Record<string, unknown>>;
-      setTabMacroValuesById(
-        Object.fromEntries(
-          Object.entries(parsed).map(([tabId, macroValues]) => [
-            tabId,
-            Object.fromEntries(
-              Object.entries(macroValues).flatMap(([macroId, normalized]) =>
-                typeof normalized === "number" && Number.isFinite(normalized)
-                  ? [[macroId, clampNormalizedMacroValue(normalized)]]
-                  : []
-              )
-            )
-          ])
-        )
-      );
-    } catch {
-      // Ignore invalid session data.
-    }
+    setTabMacroValuesById(parseTabMacroValues(window.sessionStorage.getItem(PATCH_WORKSPACE_TAB_MACRO_VALUES_SESSION_KEY)));
   }, []);
 
   useEffect(() => {
@@ -161,9 +84,8 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   }, [tabMacroValuesById]);
 
   useEffect(() => {
-    const validTabIds = new Set(tabs.map((tab) => tab.id));
     setTabMacroValuesById((current) => {
-      const next = Object.fromEntries(Object.entries(current).filter(([tabId]) => validTabIds.has(tabId)));
+      const next = pruneTabMacroValues(current, tabs.map((tab) => tab.id));
       return Object.keys(next).length === Object.keys(current).length ? current : next;
     });
   }, [tabs]);

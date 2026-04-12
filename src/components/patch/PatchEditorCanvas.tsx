@@ -9,6 +9,16 @@ import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 
+const PATCH_MACRO_VISIBLE_ROW_MIN = 1;
+const PATCH_MACRO_VISIBLE_ROW_MAX = 5;
+const PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT: Record<number, number> = {
+  1: 1.58,
+  2: 2.68,
+  3: 3.84,
+  4: 4.98,
+  5: 6.18
+};
+
 interface PatchEditorCanvasProps {
   patch: Patch;
   macroValues: Record<string, number>;
@@ -29,15 +39,9 @@ interface PatchEditorCanvasProps {
 }
 
 export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
-  const macroVisibleRows = Math.max(1, Math.min(5, props.patch.ui.macros.length || 1));
-  const macroDockHeightRemByRowCount: Record<number, number> = {
-    1: 1.58,
-    2: 2.68,
-    3: 3.84,
-    4: 4.98,
-    5: 6.18
-  };
-  const macroDockHeightRem = macroDockHeightRemByRowCount[macroVisibleRows] ?? macroDockHeightRemByRowCount[5];
+  const macroVisibleRows = Math.max(PATCH_MACRO_VISIBLE_ROW_MIN, Math.min(PATCH_MACRO_VISIBLE_ROW_MAX, props.patch.ui.macros.length || 1));
+  const macroDockHeightRem =
+    PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT[macroVisibleRows] ?? PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT[PATCH_MACRO_VISIBLE_ROW_MAX];
   const selectedMacroNodeIds = useMemo(() => {
     if (!props.selectedMacroId) {
       return new Set<string>();
