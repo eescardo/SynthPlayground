@@ -25,53 +25,33 @@ import { usePatchCanvasZoom } from "@/hooks/patch/usePatchCanvasZoom";
 import { usePatchModuleFacePopover } from "@/hooks/patch/usePatchModuleFacePopover";
 import { Patch, PatchLayoutNode } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
-import { PatchProbeTarget, PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
+import { PatchProbeEditorActions, PatchProbeEditorState, PatchWorkspaceProbeState } from "@/types/probes";
 
 interface PatchModuleFacePopoverProps {
   patch: Patch;
-  probes: PatchWorkspaceProbeState[];
-  selectedProbeId?: string;
-  previewCaptureByProbeId: Record<string, PreviewProbeCapture>;
-  previewProgress: number;
+  probeState: PatchProbeEditorState;
   selectedNodeId?: string;
   selectedMacroNodeIds: Set<string>;
   structureLocked?: boolean;
   onApplyOp: (op: PatchOp) => void;
-  onAddProbe: (kind: PatchWorkspaceProbeState["kind"]) => void;
-  onMoveProbe: (probeId: string, x: number, y: number) => void;
-  onSelectProbe: (probeId?: string) => void;
-  onUpdateProbeTarget: (probeId: string, target?: PatchProbeTarget) => void;
-  onUpdateProbeSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
-  onToggleProbeExpanded: (probeId: string) => void;
-  onDeleteSelectedProbe: () => void;
+  probeActions: PatchProbeEditorActions;
   onSelectNode: (nodeId?: string) => void;
-  attachingProbeId?: string | null;
   onToggleAttachProbe: (probeId: string) => void;
   onCancelAttachProbe: () => void;
 }
 
 export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
   const {
-    onAddProbe,
     onApplyOp,
-    onDeleteSelectedProbe,
-    onMoveProbe,
     onSelectNode,
-    onSelectProbe,
     onToggleAttachProbe,
     onCancelAttachProbe,
-    onToggleProbeExpanded,
-    onUpdateProbeSpectrumWindow,
-    onUpdateProbeTarget,
     patch,
-    previewCaptureByProbeId,
-    previewProgress,
-    probes,
+    probeActions,
+    probeState,
     selectedMacroNodeIds,
     selectedNodeId,
-    selectedProbeId,
-    structureLocked,
-    attachingProbeId
+    structureLocked
   } = props;
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -129,13 +109,13 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
     patch,
     selectedMacroNodeIds,
     selectedNodeId,
-    pendingProbeId: attachingProbeId,
+    pendingProbeId: probeState.attachingProbeId,
     structureLocked,
     onApplyOp,
     onSelectNode,
     onAttachProbeTarget: (target) => {
-      if (attachingProbeId) {
-        onUpdateProbeTarget(attachingProbeId, target);
+      if (probeState.attachingProbeId) {
+        probeActions.updateTarget(probeState.attachingProbeId, target);
         onCancelAttachProbe();
       }
     },
@@ -159,7 +139,7 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
       const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
       const rawX = (event.clientX - rect.left) * scaleX;
       const rawY = (event.clientY - rect.top) * scaleY;
-      onMoveProbe(
+      probeActions.moveProbe(
         dragProbe.probeId,
         Math.max(0, Math.round((rawX - dragProbe.offsetX) / PATCH_CANVAS_GRID)),
         Math.max(0, Math.round((rawY - dragProbe.offsetY) / PATCH_CANVAS_GRID))
@@ -172,11 +152,11 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
     };
-  }, [dragProbe, onMoveProbe]);
+  }, [dragProbe, probeActions]);
 
   const beginProbeDrag = useCallback((probeId: string, clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
-    const probe = probes.find((entry) => entry.id === probeId);
+    const probe = probeState.probes.find((entry) => entry.id === probeId);
     if (!canvas || !probe) {
       return;
     }
@@ -190,7 +170,7 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
       offsetX: rawX - probe.x * PATCH_CANVAS_GRID,
       offsetY: rawY - probe.y * PATCH_CANVAS_GRID
     });
-  }, [probes]);
+  }, [probeState.probes]);
 
   return (
     <div className="patch-canvas-stage" ref={rootRef}>
@@ -199,9 +179,9 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
         structureLocked={structureLocked}
         patchNodeCount={patch.nodes.length}
         selectedNodeId={selectedNodeId}
-        selectedProbeId={selectedProbeId}
+        selectedProbeId={probeState.selectedProbeId}
         pendingFromPort={Boolean(pendingFromPort)}
-        pendingProbeId={attachingProbeId}
+        pendingProbeId={probeState.attachingProbeId}
         zoom={zoom}
         onChangeNewNodeType={setNewNodeType}
         onAddNode={() => {
@@ -217,10 +197,10 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
           });
           onSelectNode(nodeId);
         }}
-        onAddProbe={onAddProbe}
+        onAddProbe={probeActions.addProbe}
         onDeleteSelected={() =>
-          selectedProbeId
-            ? (onCancelAttachProbe(), onDeleteSelectedProbe())
+          probeState.selectedProbeId
+            ? (onCancelAttachProbe(), probeActions.deleteSelected())
             : selectedNodeId && !structureLocked && onApplyOp({ type: "removeNode", nodeId: selectedNodeId })
         }
         onAutoLayout={() => {
@@ -230,8 +210,8 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
             nodes: nextNodeLayout
           });
           const nextLayoutByNode = new Map(nextNodeLayout.map((node) => [node.nodeId, node] as const));
-          resolveAutoLayoutProbePositions(patch, probes, nextLayoutByNode).forEach((probe) => {
-            onMoveProbe(probe.id, probe.x, probe.y);
+          resolveAutoLayoutProbePositions(patch, probeState.probes, nextLayoutByNode).forEach((probe) => {
+            probeActions.moveProbe(probe.id, probe.x, probe.y);
           });
         }}
       />
@@ -247,7 +227,7 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
                 width: `${canvasSize.width * zoom}px`,
                 height: `${canvasSize.height * zoom}px`,
                 cursor:
-                  attachingProbeId
+                  probeState.attachingProbeId
                     ? hoveredAttachTarget
                       ? PATCH_ATTACH_CURSOR_CLOSED
                       : PATCH_ATTACH_CURSOR_OPEN
@@ -268,17 +248,17 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
             <PatchProbeOverlay
               patch={patch}
               layoutByNode={layoutByNode}
-              probes={probes}
-              selectedProbeId={selectedProbeId}
-              previewCaptureByProbeId={previewCaptureByProbeId}
-              previewProgress={previewProgress}
+              probes={probeState.probes}
+              selectedProbeId={probeState.selectedProbeId}
+              previewCaptureByProbeId={probeState.previewCaptureByProbeId}
+              previewProgress={probeState.previewProgress}
               zoom={zoom}
-              attachingProbeId={attachingProbeId}
-              onSelectProbe={onSelectProbe}
+              attachingProbeId={probeState.attachingProbeId}
+              onSelectProbe={probeActions.selectProbe}
               onBeginProbeDrag={beginProbeDrag}
               onStartAttachProbe={onToggleAttachProbe}
-              onUpdateSpectrumWindow={onUpdateProbeSpectrumWindow}
-              onToggleExpanded={onToggleProbeExpanded}
+              onUpdateSpectrumWindow={probeActions.updateSpectrumWindow}
+              onToggleExpanded={probeActions.toggleExpanded}
             />
           </div>
         </div>

@@ -50,3 +50,22 @@ export interface PreviewProbeCapture {
   capturedSamples: number;
   samples: number[];
 }
+
+export interface PatchProbeEditorState {
+  probes: PatchWorkspaceProbeState[];
+  selectedProbeId?: string;
+  previewCaptureByProbeId: Record<string, PreviewProbeCapture>;
+  previewProgress: number;
+  attachingProbeId?: string | null;
+}
+
+export interface PatchProbeEditorActions {
+  addProbe: (kind: PatchWorkspaceProbeState["kind"]) => void;
+  moveProbe: (probeId: string, x: number, y: number) => void;
+  selectProbe: (probeId?: string) => void;
+  updateTarget: (probeId: string, target?: PatchProbeTarget) => void;
+  updateSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
+  updateFrequencyView: (probeId: string, maxHz: number) => void;
+  toggleExpanded: (probeId: string) => void;
+  deleteSelected: () => void;
+}

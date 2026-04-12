@@ -8,7 +8,7 @@ import { PatchModuleFacePopover } from "@/components/patch/PatchModuleFacePopove
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
-import { PatchProbeTarget, PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
+import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 
 const PATCH_MACRO_VISIBLE_ROW_MIN = 1;
 const PATCH_MACRO_VISIBLE_ROW_MAX = 5;
@@ -22,10 +22,7 @@ const PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT: Record<number, number> = {
 
 interface PatchEditorCanvasProps {
   patch: Patch;
-  probes: PatchWorkspaceProbeState[];
-  selectedProbeId?: string;
-  previewCaptureByProbeId: Record<string, PreviewProbeCapture>;
-  previewProgress: number;
+  probeState: PatchProbeEditorState;
   macroValues: Record<string, number>;
   selectedNodeId?: string;
   selectedMacroId?: string;
@@ -35,14 +32,7 @@ interface PatchEditorCanvasProps {
   onSelectMacro: (macroId?: string) => void;
   onClearSelectedMacro: () => void;
   onApplyOp: (op: PatchOp) => void;
-  onAddProbe: (kind: PatchWorkspaceProbeState["kind"]) => void;
-  onMoveProbe: (probeId: string, x: number, y: number) => void;
-  onSelectProbe: (probeId?: string) => void;
-  onUpdateProbeTarget: (probeId: string, target?: PatchProbeTarget) => void;
-  onUpdateProbeSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
-  onUpdateProbeFrequencyView: (probeId: string, maxHz: number) => void;
-  onToggleProbeExpanded: (probeId: string) => void;
-  onDeleteSelectedProbe: () => void;
+  probeActions: PatchProbeEditorActions;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
   onAddMacro: () => void;
   onRemoveMacro: (macroId: string) => void;
@@ -70,8 +60,8 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const nodeById = useMemo(() => new Map(props.patch.nodes.map((node) => [node.id, node] as const)), [props.patch.nodes]);
   const selectedNode = props.selectedNodeId ? nodeById.get(props.selectedNodeId) : undefined;
   const selectedSchema = selectedNode ? getModuleSchema(selectedNode.typeId) : undefined;
-  const probeById = useMemo(() => new Map(props.probes.map((probe) => [probe.id, probe] as const)), [props.probes]);
-  const selectedProbe = props.selectedProbeId ? probeById.get(props.selectedProbeId) : undefined;
+  const probeById = useMemo(() => new Map(props.probeState.probes.map((probe) => [probe.id, probe] as const)), [props.probeState.probes]);
+  const selectedProbe = props.probeState.selectedProbeId ? probeById.get(props.probeState.selectedProbeId) : undefined;
 
   useEffect(() => {
     if (attachingProbeId && !probeById.has(attachingProbeId)) {
@@ -93,9 +83,17 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   }, [attachingProbeId]);
 
   const handleToggleAttachProbe = (probeId: string) => {
-    props.onSelectProbe(probeId);
+    props.probeActions.selectProbe(probeId);
     setAttachingProbeId((current) => (current === probeId ? null : probeId));
   };
+
+  const canvasProbeState = useMemo(
+    () => ({
+      ...props.probeState,
+      attachingProbeId
+    }),
+    [attachingProbeId, props.probeState]
+  );
 
   return (
     <div
@@ -111,23 +109,13 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
         <div className="patch-editor-main-column">
           <PatchModuleFacePopover
             patch={props.patch}
-            probes={props.probes}
-            selectedProbeId={props.selectedProbeId}
-            previewCaptureByProbeId={props.previewCaptureByProbeId}
-            previewProgress={props.previewProgress}
+            probeState={canvasProbeState}
             selectedNodeId={props.selectedNodeId}
             selectedMacroNodeIds={selectedMacroNodeIds}
             structureLocked={props.structureLocked}
             onApplyOp={props.onApplyOp}
-            onAddProbe={props.onAddProbe}
-            onMoveProbe={props.onMoveProbe}
+            probeActions={props.probeActions}
             onSelectNode={props.onSelectNode}
-            onSelectProbe={props.onSelectProbe}
-            onUpdateProbeTarget={props.onUpdateProbeTarget}
-            onUpdateProbeSpectrumWindow={props.onUpdateProbeSpectrumWindow}
-            onToggleProbeExpanded={props.onToggleProbeExpanded}
-            onDeleteSelectedProbe={props.onDeleteSelectedProbe}
-            attachingProbeId={attachingProbeId}
             onToggleAttachProbe={handleToggleAttachProbe}
             onCancelAttachProbe={() => setAttachingProbeId(null)}
           />
@@ -154,17 +142,17 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           selectedProbe={selectedProbe}
           selectedMacroId={props.selectedMacroId}
           selectedSchema={selectedSchema}
-          previewCapture={selectedProbe ? props.previewCaptureByProbeId[selectedProbe.id] : undefined}
-          previewProgress={props.previewProgress}
+          previewCapture={selectedProbe ? props.probeState.previewCaptureByProbeId[selectedProbe.id] : undefined}
+          previewProgress={props.probeState.previewProgress}
           attachingProbeId={attachingProbeId}
           structureLocked={props.structureLocked}
           validationIssues={props.validationIssues}
           onApplyOp={props.onApplyOp}
           onExposeMacro={props.onExposeMacro}
-          onUpdateProbeSpectrumWindow={props.onUpdateProbeSpectrumWindow}
-          onUpdateProbeFrequencyView={props.onUpdateProbeFrequencyView}
+          onUpdateProbeSpectrumWindow={props.probeActions.updateSpectrumWindow}
+          onUpdateProbeFrequencyView={props.probeActions.updateFrequencyView}
           onToggleAttachProbe={handleToggleAttachProbe}
-          onClearProbeTarget={(probeId) => props.onUpdateProbeTarget(probeId, undefined)}
+          onClearProbeTarget={(probeId) => props.probeActions.updateTarget(probeId, undefined)}
         />
       </div>
     </div>
