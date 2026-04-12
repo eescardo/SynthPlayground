@@ -11,6 +11,8 @@ export interface AudioBenchmarkScenarioConfig {
   automatedTrackCount: number;
   macroAutomationLanesPerTrack: number;
   includeVolumeAutomationOnAutomatedTracks: boolean;
+  includeTrackFx: boolean;
+  includeMasterFx: boolean;
   noteSpacingBeats: number;
   noteDurationBeats: number;
   blockSize: number;
@@ -75,7 +77,15 @@ export interface AudioBenchmarkMetricSummaries {
   outputAbsSum: NumericMetricSummary;
 }
 
-export interface AudioBenchmarkSuiteResult {
+export interface AudioBenchmarkScenarioResult {
+  scenario: AudioBenchmarkScenarioConfig;
+  runsRequested: number;
+  warmupRuns: number;
+  summaries: AudioBenchmarkMetricSummaries;
+  runs: AudioBenchmarkRunResult[];
+}
+
+export interface AudioBenchmarkBundleResult {
   schemaVersion: 1;
   generatedAt: string;
   gitRef?: string;
@@ -85,18 +95,21 @@ export interface AudioBenchmarkSuiteResult {
     platform: NodeJS.Platform;
     arch: string;
   };
-  scenario: AudioBenchmarkScenarioConfig;
-  runsRequested: number;
-  warmupRuns: number;
-  summaries: AudioBenchmarkMetricSummaries;
-  runs: AudioBenchmarkRunResult[];
+  scenarios: AudioBenchmarkScenarioResult[];
 }
 
-export interface AudioBenchmarkComparison {
-  base: AudioBenchmarkSuiteResult | null;
-  head: AudioBenchmarkSuiteResult;
+export interface AudioBenchmarkScenarioComparison {
+  scenarioId: string;
+  base: AudioBenchmarkScenarioResult | null;
+  head: AudioBenchmarkScenarioResult;
   deltas: Record<keyof AudioBenchmarkMetricSummaries, {
     absolute: number | null;
     percent: number | null;
   }>;
+}
+
+export interface AudioBenchmarkComparisonBundle {
+  base: AudioBenchmarkBundleResult | null;
+  head: AudioBenchmarkBundleResult;
+  scenarios: AudioBenchmarkScenarioComparison[];
 }

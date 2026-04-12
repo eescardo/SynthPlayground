@@ -1,13 +1,14 @@
-import { collectEventsInWindow } from "@/audio/scheduler";
-import { createOfflineRenderProcessor, renderProjectOffline } from "@/audio/offlineRender";
 import {
+  AudioBenchmarkBundleResult,
   AudioBenchmarkMetricSummaries,
   AudioBenchmarkRunMetrics,
   AudioBenchmarkRunResult,
   AudioBenchmarkScenario,
-  AudioBenchmarkSuiteResult,
+  AudioBenchmarkScenarioResult,
   NumericMetricSummary
 } from "@/audio/benchmarks/types";
+import { createOfflineRenderProcessor, renderProjectOffline } from "@/audio/offlineRender";
+import { collectEventsInWindow } from "@/audio/scheduler";
 import { beatToSample } from "@/lib/musicTiming";
 import { SchedulerEvent } from "@/types/audio";
 import { performance } from "node:perf_hooks";
@@ -15,7 +16,7 @@ import { performance } from "node:perf_hooks";
 const DEFAULT_WARMUP_RUNS = 1;
 const BYTES_PER_MB = 1024 * 1024;
 
-type BenchmarkOptions = {
+export type BenchmarkOptions = {
   runs: number;
   warmupRuns?: number;
   gitRef?: string;
@@ -38,25 +39,25 @@ const numericSummary = (values: number[]): NumericMetricSummary => {
 };
 
 const summarizeRuns = (runs: AudioBenchmarkRunResult[]): AudioBenchmarkMetricSummaries => {
-  const pluck = (key: keyof AudioBenchmarkRunMetrics) => runs.map((run) => run.metrics[key]);
+  const pick = (key: keyof AudioBenchmarkRunMetrics) => runs.map((run) => run.metrics[key]);
   return {
-    compileProjectMs: numericSummary(pluck("compileProjectMs")),
-    scheduleEventsMs: numericSummary(pluck("scheduleEventsMs")),
-    transportSetupMs: numericSummary(pluck("transportSetupMs")),
-    renderSongMs: numericSummary(pluck("renderSongMs")),
-    realtimeFactor: numericSummary(pluck("realtimeFactor")),
-    eventsPerSecond: numericSummary(pluck("eventsPerSecond")),
-    cpuUserMs: numericSummary(pluck("cpuUserMs")),
-    cpuSystemMs: numericSummary(pluck("cpuSystemMs")),
-    rssDeltaMb: numericSummary(pluck("rssDeltaMb")),
-    heapUsedDeltaMb: numericSummary(pluck("heapUsedDeltaMb")),
-    peakHeapMb: numericSummary(pluck("peakHeapMb")),
-    renderedBlocks: numericSummary(pluck("renderedBlocks")),
-    renderedSamples: numericSummary(pluck("renderedSamples")),
-    eventCount: numericSummary(pluck("eventCount")),
-    noteEventCount: numericSummary(pluck("noteEventCount")),
-    macroEventCount: numericSummary(pluck("macroEventCount")),
-    outputAbsSum: numericSummary(pluck("outputAbsSum"))
+    compileProjectMs: numericSummary(pick("compileProjectMs")),
+    scheduleEventsMs: numericSummary(pick("scheduleEventsMs")),
+    transportSetupMs: numericSummary(pick("transportSetupMs")),
+    renderSongMs: numericSummary(pick("renderSongMs")),
+    realtimeFactor: numericSummary(pick("realtimeFactor")),
+    eventsPerSecond: numericSummary(pick("eventsPerSecond")),
+    cpuUserMs: numericSummary(pick("cpuUserMs")),
+    cpuSystemMs: numericSummary(pick("cpuSystemMs")),
+    rssDeltaMb: numericSummary(pick("rssDeltaMb")),
+    heapUsedDeltaMb: numericSummary(pick("heapUsedDeltaMb")),
+    peakHeapMb: numericSummary(pick("peakHeapMb")),
+    renderedBlocks: numericSummary(pick("renderedBlocks")),
+    renderedSamples: numericSummary(pick("renderedSamples")),
+    eventCount: numericSummary(pick("eventCount")),
+    noteEventCount: numericSummary(pick("noteEventCount")),
+    macroEventCount: numericSummary(pick("macroEventCount")),
+    outputAbsSum: numericSummary(pick("outputAbsSum"))
   };
 };
 
@@ -125,10 +126,10 @@ const runSingleBenchmark = (scenario: AudioBenchmarkScenario): AudioBenchmarkRun
   };
 };
 
-export const runAudioBenchmarkSuite = (
+export const runAudioBenchmarkScenario = (
   scenario: AudioBenchmarkScenario,
-  options: BenchmarkOptions
-): AudioBenchmarkSuiteResult => {
+  options: Pick<BenchmarkOptions, "runs" | "warmupRuns">
+): AudioBenchmarkScenarioResult => {
   const warmupRuns = options.warmupRuns ?? DEFAULT_WARMUP_RUNS;
   for (let warmupIndex = 0; warmupIndex < warmupRuns; warmupIndex += 1) {
     runSingleBenchmark(scenario);
@@ -143,15 +144,6 @@ export const runAudioBenchmarkSuite = (
   }
 
   return {
-    schemaVersion: 1,
-    generatedAt: new Date().toISOString(),
-    gitRef: options.gitRef,
-    gitSha: options.gitSha,
-    system: {
-      node: process.version,
-      platform: process.platform,
-      arch: process.arch
-    },
     scenario: scenario.config,
     runsRequested: options.runs,
     warmupRuns,
@@ -159,6 +151,22 @@ export const runAudioBenchmarkSuite = (
     runs
   };
 };
+
+export const runAudioBenchmarkBundle = (
+  scenarios: AudioBenchmarkScenario[],
+  options: BenchmarkOptions
+): AudioBenchmarkBundleResult => ({
+  schemaVersion: 1,
+  generatedAt: new Date().toISOString(),
+  gitRef: options.gitRef,
+  gitSha: options.gitSha,
+  system: {
+    node: process.version,
+    platform: process.platform,
+    arch: process.arch
+  },
+  scenarios: scenarios.map((scenario) => runAudioBenchmarkScenario(scenario, options))
+});
 
 export const countEventsByType = (events: SchedulerEvent[]) => ({
   noteEvents: events.filter((event) => event.type === "NoteOn" || event.type === "NoteOff").length,

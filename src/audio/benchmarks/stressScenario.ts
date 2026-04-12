@@ -1,7 +1,7 @@
 import { toAudioProject } from "@/audio/audioProject";
+import { AudioBenchmarkScenario, AudioBenchmarkScenarioConfig } from "@/audio/benchmarks/types";
 import { TRACK_VOLUME_AUTOMATION_ID, createTrackMacroAutomationLane } from "@/lib/macroAutomation";
 import { presetPatches } from "@/lib/patch/presets";
-import { AudioBenchmarkScenario, AudioBenchmarkScenarioConfig } from "@/audio/benchmarks/types";
 import { Project, Track } from "@/types/music";
 
 const DEFAULT_CONFIG: AudioBenchmarkScenarioConfig = {
@@ -15,11 +15,45 @@ const DEFAULT_CONFIG: AudioBenchmarkScenarioConfig = {
   automatedTrackCount: 18,
   macroAutomationLanesPerTrack: 2,
   includeVolumeAutomationOnAutomatedTracks: true,
+  includeTrackFx: true,
+  includeMasterFx: true,
   noteSpacingBeats: 1,
   noteDurationBeats: 0.5,
   blockSize: 128,
   sampleRate: 48000
 };
+
+const SCENARIO_OVERRIDES: Record<string, Partial<AudioBenchmarkScenarioConfig>> = {
+  "stress-3min-35tracks": {},
+  "no-automation-3min-35tracks": {
+    id: "no-automation-3min-35tracks",
+    name: "No automation: 3 minute song, 35 tracks, notes and FX only",
+    automatedTrackCount: 0,
+    macroAutomationLanesPerTrack: 0,
+    includeVolumeAutomationOnAutomatedTracks: false
+  },
+  "notes-only-3min-35tracks": {
+    id: "notes-only-3min-35tracks",
+    name: "Notes only: 3 minute song, 35 tracks, no automation or FX",
+    automatedTrackCount: 0,
+    macroAutomationLanesPerTrack: 0,
+    includeVolumeAutomationOnAutomatedTracks: false,
+    includeTrackFx: false,
+    includeMasterFx: false
+  },
+  "automation-heavy-low-track": {
+    id: "automation-heavy-low-track",
+    name: "Automation heavy: 3 minute song, 8 tracks, dense macro animation",
+    trackCount: 8,
+    automatedTrackCount: 8,
+    macroAutomationLanesPerTrack: 3,
+    includeVolumeAutomationOnAutomatedTracks: true,
+    includeTrackFx: true,
+    includeMasterFx: true
+  }
+};
+
+export const DEFAULT_BENCHMARK_SCENARIO_IDS = Object.keys(SCENARIO_OVERRIDES);
 
 const PITCH_SETS_BY_PATCH_ID: Record<string, string[]> = {
   preset_bass: ["C2", "G2", "A#1", "F2"],
@@ -60,11 +94,11 @@ const createAutomationLane = (macroId: string, trackIndex: number, laneIndex: nu
   return lane;
 };
 
-const createTrackFx = (trackIndex: number) => ({
-  delayEnabled: trackIndex % 3 === 0,
-  reverbEnabled: trackIndex % 4 === 0,
-  saturationEnabled: trackIndex % 2 === 0,
-  compressorEnabled: trackIndex % 5 === 0,
+const createTrackFx = (trackIndex: number, includeTrackFx: boolean) => ({
+  delayEnabled: includeTrackFx && trackIndex % 3 === 0,
+  reverbEnabled: includeTrackFx && trackIndex % 4 === 0,
+  saturationEnabled: includeTrackFx && trackIndex % 2 === 0,
+  compressorEnabled: includeTrackFx && trackIndex % 5 === 0,
   delayMix: 0.12 + (trackIndex % 4) * 0.08,
   reverbMix: 0.1 + (trackIndex % 3) * 0.06,
   drive: 0.18 + (trackIndex % 5) * 0.08,
@@ -134,13 +168,11 @@ const createTrack = (patchId: string, trackIndex: number, config: AudioBenchmark
     volume: 0.75 + (trackIndex % 5) * 0.12,
     mute: false,
     solo: false,
-    fx: createTrackFx(trackIndex)
+    fx: createTrackFx(trackIndex, config.includeTrackFx)
   };
 };
 
-export const createStressBenchmarkProject = (
-  overrides: Partial<AudioBenchmarkScenarioConfig> = {}
-): AudioBenchmarkScenario => {
+export const createStressBenchmarkProject = (overrides: Partial<AudioBenchmarkScenarioConfig> = {}): AudioBenchmarkScenario => {
   const config = { ...DEFAULT_CONFIG, ...overrides };
   const patches = structuredClone(presetPatches);
   const patchIds = patches.map((patch) => patch.id);
@@ -159,8 +191,8 @@ export const createStressBenchmarkProject = (
     tracks,
     patches,
     masterFx: {
-      compressorEnabled: true,
-      limiterEnabled: true,
+      compressorEnabled: config.includeMasterFx,
+      limiterEnabled: config.includeMasterFx,
       makeupGain: 0
     },
     ui: {
@@ -184,4 +216,15 @@ export const createStressBenchmarkProject = (
     config,
     project: toAudioProject(project)
   };
+};
+
+export const createNamedBenchmarkScenario = (
+  scenarioId: string,
+  overrides: Partial<AudioBenchmarkScenarioConfig> = {}
+): AudioBenchmarkScenario => {
+  const scenarioOverrides = SCENARIO_OVERRIDES[scenarioId];
+  if (!scenarioOverrides) {
+    throw new Error(`Unknown benchmark scenario: ${scenarioId}`);
+  }
+  return createStressBenchmarkProject({ ...scenarioOverrides, ...overrides, id: scenarioId });
 };

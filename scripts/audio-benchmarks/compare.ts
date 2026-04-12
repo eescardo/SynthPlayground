@@ -1,5 +1,5 @@
-import { compareBenchmarkSuites, renderBenchmarkComparisonMarkdown } from "@/audio/benchmarks/compare";
-import { AudioBenchmarkSuiteResult } from "@/audio/benchmarks/types";
+import { compareBenchmarkBundles, renderBenchmarkComparisonMarkdown } from "@/audio/benchmarks/compare";
+import { AudioBenchmarkBundleResult } from "@/audio/benchmarks/types";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -19,10 +19,10 @@ if (!headPath) {
 }
 
 const base = basePath && fs.existsSync(basePath)
-  ? (JSON.parse(fs.readFileSync(basePath, "utf8")) as AudioBenchmarkSuiteResult)
+  ? (JSON.parse(fs.readFileSync(basePath, "utf8")) as AudioBenchmarkBundleResult)
   : null;
-const head = JSON.parse(fs.readFileSync(headPath, "utf8")) as AudioBenchmarkSuiteResult;
-const comparison = compareBenchmarkSuites(base, head);
+const head = JSON.parse(fs.readFileSync(headPath, "utf8")) as AudioBenchmarkBundleResult;
+const comparison = compareBenchmarkBundles(base, head);
 const markdown = renderBenchmarkComparisonMarkdown(comparison);
 const json = JSON.stringify(comparison, null, 2);
 

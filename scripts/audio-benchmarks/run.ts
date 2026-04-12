@@ -1,5 +1,5 @@
-import { createStressBenchmarkProject } from "@/audio/benchmarks/stressScenario";
-import { runAudioBenchmarkSuite } from "@/audio/benchmarks/runBenchmark";
+import { createNamedBenchmarkScenario, DEFAULT_BENCHMARK_SCENARIO_IDS } from "@/audio/benchmarks/stressScenario";
+import { runAudioBenchmarkBundle } from "@/audio/benchmarks/runBenchmark";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -18,23 +18,29 @@ const parseNumberFlag = (name: string, fallback: number) => {
 const outputPath = readFlag("--output");
 const runs = Math.max(1, Math.floor(parseNumberFlag("--runs", 5)));
 const warmupRuns = Math.max(0, Math.floor(parseNumberFlag("--warmup-runs", 1)));
-const trackCount = Math.max(1, Math.floor(parseNumberFlag("--tracks", 35)));
-const automatedTrackCount = Math.max(0, Math.floor(parseNumberFlag("--automated-tracks", 18)));
-const durationBeats = Math.max(1, parseNumberFlag("--duration-beats", 360));
-const tempo = Math.max(20, parseNumberFlag("--tempo", 120));
-const blockSize = Math.max(32, Math.floor(parseNumberFlag("--block-size", 128)));
-const macroLanesPerTrack = Math.max(0, Math.floor(parseNumberFlag("--macro-lanes-per-track", 2)));
+const trackCount = readFlag("--tracks");
+const automatedTrackCount = readFlag("--automated-tracks");
+const durationBeats = readFlag("--duration-beats");
+const tempo = readFlag("--tempo");
+const blockSize = readFlag("--block-size");
+const macroLanesPerTrack = readFlag("--macro-lanes-per-track");
+const scenarioArg = readFlag("--scenario", "all") ?? "all";
 
-const scenario = createStressBenchmarkProject({
-  trackCount,
-  automatedTrackCount,
-  durationBeats,
-  tempo,
-  blockSize,
-  macroAutomationLanesPerTrack: macroLanesPerTrack
-});
+const scenarioIds = scenarioArg === "all"
+  ? DEFAULT_BENCHMARK_SCENARIO_IDS
+  : scenarioArg.split(",").map((value) => value.trim()).filter(Boolean);
 
-const result = runAudioBenchmarkSuite(scenario, {
+const scenarioOverrides = {
+  ...(trackCount !== undefined ? { trackCount: Math.max(1, Math.floor(Number(trackCount))) } : {}),
+  ...(automatedTrackCount !== undefined ? { automatedTrackCount: Math.max(0, Math.floor(Number(automatedTrackCount))) } : {}),
+  ...(durationBeats !== undefined ? { durationBeats: Math.max(1, Number(durationBeats)) } : {}),
+  ...(tempo !== undefined ? { tempo: Math.max(20, Number(tempo)) } : {}),
+  ...(blockSize !== undefined ? { blockSize: Math.max(32, Math.floor(Number(blockSize))) } : {}),
+  ...(macroLanesPerTrack !== undefined ? { macroAutomationLanesPerTrack: Math.max(0, Math.floor(Number(macroLanesPerTrack))) } : {})
+};
+
+const scenarios = scenarioIds.map((scenarioId) => createNamedBenchmarkScenario(scenarioId, scenarioOverrides));
+const result = runAudioBenchmarkBundle(scenarios, {
   runs,
   warmupRuns,
   gitRef: process.env.GITHUB_REF_NAME ?? process.env.BENCHMARK_GIT_REF,
