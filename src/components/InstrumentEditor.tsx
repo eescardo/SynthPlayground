@@ -9,6 +9,7 @@ import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 
 interface InstrumentEditorProps {
+  editorSessionKey?: string;
   patch: Patch;
   patches: Patch[];
   macroValues: Record<string, number>;
@@ -38,13 +39,13 @@ interface InstrumentEditorProps {
 }
 
 export function InstrumentEditor(props: InstrumentEditorProps) {
-  const { invalid, macroValues, onReady, patch } = props;
+  const { editorSessionKey, invalid, macroValues, onReady, patch } = props;
   const patchSource = resolvePatchSource(props.patch);
   const presetStatus = resolvePatchPresetStatus(props.patch);
   const structureLocked = patchSource === "preset";
   const previewReadyCommitKey = useMemo(
-    () => `${patch.id}:${JSON.stringify(macroValues)}`,
-    [macroValues, patch.id]
+    () => `${editorSessionKey ?? ""}:${patch.id}:${JSON.stringify(macroValues)}`,
+    [editorSessionKey, macroValues, patch.id]
   );
 
   useAfterStateCommit({

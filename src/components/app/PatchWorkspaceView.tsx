@@ -89,6 +89,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
         />
 
         <InstrumentEditor
+          editorSessionKey={props.activeTabId}
           patch={props.patch}
           patches={props.patches}
           macroValues={props.macroValues}
