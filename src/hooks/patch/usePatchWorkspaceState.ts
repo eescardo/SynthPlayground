@@ -231,6 +231,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   const activateWorkspaceTab = useCallback((tabId: string, options?: { preview?: boolean; skipHistory?: boolean }) => {
     skipNextTabPreviewRef.current = options?.preview === false;
     skipNextWorkspaceHistoryRef.current = options?.skipHistory ?? true;
+    pendingAutoPreviewTabIdRef.current = options?.preview === false ? null : tabId;
     setActiveTabId(tabId);
   }, []);
 
@@ -664,9 +665,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     skipNextTabPreviewRef.current = false;
     if (shouldSkipPreview) {
       pendingAutoPreviewTabIdRef.current = null;
-      return;
     }
-    pendingAutoPreviewTabIdRef.current = activeTab.id;
   }, [activeTab]);
 
   const handleInstrumentEditorReady = useCallback((renderedMacroValues: Record<string, number>) => {
