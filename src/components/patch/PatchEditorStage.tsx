@@ -27,7 +27,7 @@ import { Patch, PatchLayoutNode } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState, PatchWorkspaceProbeState } from "@/types/probes";
 
-interface PatchModuleFacePopoverProps {
+interface PatchEditorStageProps {
   patch: Patch;
   probeState: PatchProbeEditorState;
   selectedNodeId?: string;
@@ -40,7 +40,7 @@ interface PatchModuleFacePopoverProps {
   onCancelAttachProbe: () => void;
 }
 
-export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
+export function PatchEditorStage(props: PatchEditorStageProps) {
   const {
     onApplyOp,
     onSelectNode,

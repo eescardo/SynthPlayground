@@ -2,9 +2,9 @@
 
 import type { CSSProperties } from "react";
 import { useMemo } from "react";
+import { PatchEditorStage } from "@/components/patch/PatchEditorStage";
 import { PatchInspector } from "@/components/patch/PatchInspector";
 import { PatchMacroPanel } from "@/components/patch/PatchMacroPanel";
-import { PatchModuleFacePopover } from "@/components/patch/PatchModuleFacePopover";
 import { usePatchProbeEditorState } from "@/hooks/patch/usePatchProbeEditorState";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { PatchValidationIssue, Patch } from "@/types/patch";
@@ -84,7 +84,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     >
       <div className="patch-layout">
         <div className="patch-editor-main-column">
-          <PatchModuleFacePopover
+          <PatchEditorStage
             patch={props.patch}
             probeState={canvasProbeState}
             selectedNodeId={props.selectedNodeId}
