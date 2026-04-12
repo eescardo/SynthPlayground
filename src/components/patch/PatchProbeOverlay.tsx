@@ -33,6 +33,8 @@ interface PatchProbeOverlayProps {
 
 const PROBE_SPECTRUM_WINDOWS = [256, 512, 1024, 2048];
 const PROBE_DRAG_THRESHOLD_PX = 6;
+const SPECTRUM_REFERENCE_FREQUENCIES = [500, 2000, 10000];
+const SPECTRUM_MAX_FREQUENCY = 24000;
 
 export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
   const connectionLines = useMemo(
@@ -351,6 +353,14 @@ function SpectrumProbeGraph(props: {
   onChangeWindowSize: (windowSize: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const frequencyMarkers = useMemo(
+    () =>
+      SPECTRUM_REFERENCE_FREQUENCIES.map((frequency) => ({
+        frequency,
+        bottomPercent: Math.sqrt(frequency / SPECTRUM_MAX_FREQUENCY) * 100
+      })),
+    []
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -403,6 +413,18 @@ function SpectrumProbeGraph(props: {
         <canvas ref={canvasRef} className="patch-probe-spectrogram-canvas" />
         {!props.compact && (
           <>
+            {frequencyMarkers.map((marker) => (
+              <div
+                key={marker.frequency}
+                className="patch-probe-spectrogram-marker"
+                style={{ bottom: `${marker.bottomPercent}%` }}
+              >
+                <span className="patch-probe-spectrogram-marker-line" />
+                <span className="patch-probe-spectrogram-marker-label">
+                  {formatSpectrumFrequency(marker.frequency)}
+                </span>
+              </div>
+            ))}
             <span className="patch-probe-spectrogram-axis patch-probe-spectrogram-axis-high">High</span>
             <span className="patch-probe-spectrogram-axis patch-probe-spectrogram-axis-low">Low</span>
             <span className="patch-probe-spectrogram-axis patch-probe-spectrogram-axis-time">Time</span>
@@ -426,6 +448,14 @@ function SpectrumProbeGraph(props: {
       )}
     </div>
   );
+}
+
+function formatSpectrumFrequency(frequency: number) {
+  if (frequency >= 1000) {
+    const khz = frequency / 1000;
+    return Number.isInteger(khz) ? `${khz}kHz` : `${khz.toFixed(1)}kHz`;
+  }
+  return `${frequency}Hz`;
 }
 
 function resolveRenderedProbeWidth(probe: PatchWorkspaceProbeState, zoom: number) {

@@ -1430,6 +1430,35 @@ select {
   background: rgba(10, 18, 28, 0.9);
 }
 
+.patch-probe-spectrogram-marker {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.patch-probe-spectrogram-marker-line {
+  position: absolute;
+  left: 2.9rem;
+  right: 0.45rem;
+  top: 0;
+  border-top: 1px dashed rgba(231, 243, 255, 0.18);
+}
+
+.patch-probe-spectrogram-marker-label {
+  position: absolute;
+  left: 0.45rem;
+  top: -0.45rem;
+  color: rgba(231, 243, 255, 0.72);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: rgba(6, 12, 18, 0.44);
+  padding: 0 0.18rem;
+  border-radius: 4px;
+}
+
 .patch-probe-spectrogram-axis {
   position: absolute;
   color: rgba(231, 243, 255, 0.78);
