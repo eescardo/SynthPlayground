@@ -168,6 +168,7 @@ export function PatchInspector(props: PatchInspectorProps) {
   const visibleValidationIssues = selectedNode ? resolveIssuesForNode(selectedNode.id, props.validationIssues) : props.validationIssues;
   const visibleRequiredPortIssues = resolveRequiredPortIssues(visibleValidationIssues);
   const visibleGeneralValidationIssues = visibleValidationIssues.filter((issue) => issue.code !== "required-port-unconnected");
+  const visibleValidationHasErrors = visibleValidationIssues.some((issue) => issue.level === "error");
   return (
     <aside className="patch-inspector">
       <h3>Inspector</h3>
@@ -311,7 +312,17 @@ export function PatchInspector(props: PatchInspectorProps) {
       ))}
 
       <h4>{selectedNode ? "Module Validation" : "Validation"}</h4>
-      {visibleGeneralValidationIssues.length === 0 && <p className="ok">{selectedNode ? "Module valid." : "Patch valid."}</p>}
+      {visibleGeneralValidationIssues.length === 0 && (
+        <p className={visibleValidationHasErrors ? "error" : "ok"}>
+          {visibleValidationHasErrors
+            ? selectedNode
+              ? "Module invalid. Fix required connections above."
+              : "Patch invalid. Fix required connections above."
+            : selectedNode
+              ? "Module valid."
+              : "Patch valid."}
+        </p>
+      )}
       {visibleGeneralValidationIssues.map((issue, index) => (
         <p key={`${issue.message}_${index}`} className={issue.level === "error" ? "error" : "warn"}>
           {issue.message}

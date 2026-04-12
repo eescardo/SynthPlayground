@@ -14,6 +14,127 @@ const pushError = (
 
 export const patchHasNode = (patch: Patch, nodeId: string): boolean => patch.nodes.some((node) => node.id === nodeId);
 
+const resolveAllNodeTypes = (patch: Patch): Map<string, string> => {
+  const allNodeTypes = new Map<string, string>();
+  for (const node of patch.nodes) {
+    allNodeTypes.set(node.id, node.typeId);
+  }
+  for (const hostId of SOURCE_HOST_NODE_IDS) {
+    allNodeTypes.set(hostId, SOURCE_HOST_NODE_TYPE_BY_ID[hostId]);
+  }
+  return allNodeTypes;
+};
+
+const wouldCreateCycle = (patch: Patch, fromNodeId: string, toNodeId: string) => {
+  if (fromNodeId === toNodeId) {
+    return true;
+  }
+  if (!patchHasNode(patch, fromNodeId) || !patchHasNode(patch, toNodeId)) {
+    return false;
+  }
+
+  const adjacency = new Map<string, string[]>();
+  for (const node of patch.nodes) {
+    adjacency.set(node.id, []);
+  }
+  for (const connection of patch.connections) {
+    if (!patchHasNode(patch, connection.from.nodeId) || !patchHasNode(patch, connection.to.nodeId)) {
+      continue;
+    }
+    adjacency.get(connection.from.nodeId)?.push(connection.to.nodeId);
+  }
+
+  const stack = [toNodeId];
+  const visited = new Set<string>();
+  while (stack.length > 0) {
+    const nodeId = stack.pop()!;
+    if (nodeId === fromNodeId) {
+      return true;
+    }
+    if (visited.has(nodeId)) {
+      continue;
+    }
+    visited.add(nodeId);
+    for (const nextId of adjacency.get(nodeId) ?? []) {
+      stack.push(nextId);
+    }
+  }
+  return false;
+};
+
+export const validatePatchConnectionCandidate = (
+  patch: Patch,
+  fromNodeId: string,
+  fromPortId: string,
+  toNodeId: string,
+  toPortId: string
+): PatchValidationIssue[] => {
+  const issues: PatchValidationIssue[] = [];
+  const allNodeTypes = resolveAllNodeTypes(patch);
+  const fromType = allNodeTypes.get(fromNodeId);
+  const toType = allNodeTypes.get(toNodeId);
+
+  if (!fromType) {
+    pushError(issues, `Connection source node does not exist`, { nodeId: fromNodeId }, "connection-missing-source");
+    return issues;
+  }
+  if (!toType) {
+    pushError(issues, `Connection destination node does not exist`, { nodeId: toNodeId }, "connection-missing-destination");
+    return issues;
+  }
+
+  const fromSchema = getModuleSchema(fromType);
+  const toSchema = getModuleSchema(toType);
+  if (!fromSchema || !toSchema) {
+    pushError(issues, `Connection references unknown module schema`, undefined, "connection-unknown-schema");
+    return issues;
+  }
+
+  const fromPort = fromSchema.portsOut.find((port) => port.id === fromPortId);
+  const toPort = toSchema.portsIn.find((port) => port.id === toPortId);
+  if (!fromPort) {
+    pushError(issues, `Invalid source port`, { nodeId: fromNodeId, portId: fromPortId }, "connection-invalid-source-port");
+    return issues;
+  }
+  if (!toPort) {
+    pushError(issues, `Invalid destination port`, { nodeId: toNodeId, portId: toPortId }, "connection-invalid-destination-port");
+    return issues;
+  }
+  if (fromPort.kind !== toPort.kind) {
+    pushError(issues, `Port kind mismatch`, undefined, "connection-kind-mismatch");
+    return issues;
+  }
+  const isCompatible = fromPort.capabilities.some((capability) => toPort.capabilities.includes(capability));
+  if (!isCompatible) {
+    pushError(
+      issues,
+      `Port capability mismatch`,
+      { from: fromPort.capabilities.join(","), to: toPort.capabilities.join(",") },
+      "connection-capability-mismatch"
+    );
+    return issues;
+  }
+  if (!toPort.multiIn && patch.connections.some((connection) => connection.to.nodeId === toNodeId && connection.to.portId === toPortId)) {
+    pushError(
+      issues,
+      `Multiple inputs connected to single-input port`,
+      { targetPort: `${toNodeId}:${toPortId}` },
+      "connection-target-occupied"
+    );
+    return issues;
+  }
+  if (wouldCreateCycle(patch, fromNodeId, toNodeId)) {
+    pushError(
+      issues,
+      `Cycle detected in patch graph`,
+      { atNode: toNodeId, path: `${fromNodeId} -> ${toNodeId}` },
+      "connection-cycle"
+    );
+  }
+
+  return issues;
+};
+
 export const validatePatch = (patch: Patch): PatchValidationResult => {
   const issues: PatchValidationIssue[] = [];
   const macroIds = new Set<string>();
@@ -32,13 +153,7 @@ export const validatePatch = (patch: Patch): PatchValidationResult => {
     }
   }
 
-  const allNodeTypes = new Map<string, string>();
-  for (const node of patch.nodes) {
-    allNodeTypes.set(node.id, node.typeId);
-  }
-  for (const hostId of SOURCE_HOST_NODE_IDS) {
-    allNodeTypes.set(hostId, SOURCE_HOST_NODE_TYPE_BY_ID[hostId]);
-  }
+  const allNodeTypes = resolveAllNodeTypes(patch);
 
   for (const macro of patch.ui.macros) {
     if (macroIds.has(macro.id)) {

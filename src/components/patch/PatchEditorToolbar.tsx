@@ -8,6 +8,7 @@ import { PatchWorkspaceProbeState } from "@/types/probes";
 interface PatchEditorToolbarProps {
   newNodeType: string;
   structureLocked?: boolean;
+  canClearPatch: boolean;
   patchNodeCount: number;
   selectedNodeId?: string;
   selectedProbeId?: string;
@@ -18,6 +19,7 @@ interface PatchEditorToolbarProps {
   onAddNode: () => void;
   onAddProbe: (kind: PatchWorkspaceProbeState["kind"]) => void;
   onDeleteSelected: () => void;
+  onClearPatch: () => void;
   onAutoLayout: () => void;
 }
 
@@ -68,6 +70,9 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
         onClick={props.onDeleteSelected}
       >
         Delete Selected
+      </button>
+      <button disabled={!props.canClearPatch || props.structureLocked} onClick={props.onClearPatch}>
+        Clear
       </button>
       <button disabled={props.patchNodeCount === 0} onClick={props.onAutoLayout}>
         Auto-layout

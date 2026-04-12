@@ -2,7 +2,7 @@ import { createDefaultParamsForType } from "@/lib/patch/moduleRegistry";
 import { HOST_NODE_IDS } from "@/lib/patch/constants";
 import { createDefaultProjectFromTemplate, createEmptyProjectFromPresets } from "@/lib/defaultProjectTemplate";
 import { Project } from "@/types/music";
-import { Patch } from "@/types/patch";
+import { Patch, PatchMeta } from "@/types/patch";
 
 const outputNode = (id: string) => ({
   id,
@@ -18,6 +18,40 @@ const noteCore = {
   velocity: HOST_NODE_IDS.velocity,
   mod: HOST_NODE_IDS.modWheel
 };
+
+export const createClearPatch = ({
+  id,
+  name = "New Patch",
+  meta = { source: "custom" } satisfies PatchMeta,
+  outputNodeId = "out1",
+  outputPosition = { x: 18, y: 6 },
+  canvasZoom
+}: {
+  id: string;
+  name?: string;
+  meta?: PatchMeta;
+  outputNodeId?: string;
+  outputPosition?: { x: number; y: number };
+  canvasZoom?: number;
+}): Patch => ({
+  schemaVersion: 1,
+  id,
+  name,
+  meta,
+  nodes: [outputNode(outputNodeId)],
+  connections: [],
+  ui: {
+    macros: [],
+    canvasZoom
+  },
+  layout: {
+    nodes: [{ nodeId: outputNodeId, x: outputPosition.x, y: outputPosition.y }]
+  },
+  io: {
+    audioOutNodeId: outputNodeId,
+    audioOutPortId: "in"
+  }
+});
 
 export const bassPatch = (): Patch => {
   const patchId = "preset_bass";

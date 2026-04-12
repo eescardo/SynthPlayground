@@ -32,6 +32,7 @@ interface InstrumentEditorProps {
   onSelectNode: (nodeId?: string) => void;
   onSelectMacro: (macroId?: string) => void;
   onClearSelectedMacro: () => void;
+  onClearPatch: () => void;
   onApplyOp: (op: PatchOp) => void;
   probeActions: PatchProbeEditorActions;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
@@ -93,6 +94,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
         onSelectNode={props.onSelectNode}
         onSelectMacro={props.onSelectMacro}
         onClearSelectedMacro={props.onClearSelectedMacro}
+        onClearPatch={props.onClearPatch}
         onApplyOp={props.onApplyOp}
         probeActions={props.probeActions}
         onExposeMacro={props.onExposeMacro}

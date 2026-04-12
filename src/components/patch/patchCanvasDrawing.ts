@@ -4,12 +4,19 @@ import {
   PATCH_COLOR_CONNECTION_FALLBACK,
   PATCH_COLOR_GRID_MAJOR,
   PATCH_COLOR_GRID_MINOR,
+  PATCH_COLOR_HOST_STRIP_FILL,
+  PATCH_COLOR_HOST_STRIP_STROKE,
   PATCH_COLOR_NODE_HOVER_OVERLAY,
   PATCH_COLOR_NODE_SUBTITLE,
   PATCH_COLOR_NODE_TITLE,
   PATCH_COLOR_PENDING_PORT,
+  PATCH_COLOR_PENDING_WIRE,
   PATCH_COLOR_PORT_LABEL,
+  PATCH_COLOR_VALID_TARGET,
   PATCH_FACE_POPOVER_SCALE,
+  PATCH_HOST_STRIP_WIDTH,
+  PATCH_HOST_STRIP_X,
+  PATCH_HOST_STRIP_Y,
   PATCH_MODULE_FACE_BOTTOM_INSET,
   PATCH_MODULE_FACE_INSET_X,
   PATCH_MODULE_FACE_TOP,
@@ -23,7 +30,8 @@ import {
   PATCH_PORT_ROW_GAP,
   PATCH_PORT_START_Y
 } from "@/components/patch/patchCanvasConstants";
-import { CanvasRect, HitPort } from "@/components/patch/patchCanvasGeometry";
+import { CanvasRect, HitPort, resolveHostPatchPortLabel, resolveHostPatchPortRect } from "@/components/patch/patchCanvasGeometry";
+import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
 import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch, PatchLayoutNode, PatchNode, ParamSchema, ParamValue, PortSchema } from "@/types/patch";
@@ -336,7 +344,57 @@ function resolvePortPositions(
     });
   });
 
+  SOURCE_HOST_NODE_IDS.forEach((hostId) => {
+    const schema = getModuleSchema(SOURCE_HOST_NODE_TYPE_BY_ID[hostId]);
+    const rect = resolveHostPatchPortRect(hostId);
+    const port = schema?.portsOut[0];
+    if (!rect || !port) {
+      return;
+    }
+    portPositions.set(`${hostId}:out:${port.id}`, {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+      anchorX: rect.x + rect.width,
+      anchorY: rect.y,
+      schema: port
+    });
+  });
+
   return portPositions;
+}
+
+function drawPatchHostStrip(ctx: CanvasRenderingContext2D) {
+  const stripHeight = 108;
+  ctx.fillStyle = PATCH_COLOR_HOST_STRIP_FILL;
+  ctx.strokeStyle = PATCH_COLOR_HOST_STRIP_STROKE;
+  ctx.lineWidth = 2;
+  ctx.fillRect(PATCH_HOST_STRIP_X - 18, PATCH_HOST_STRIP_Y - 36, PATCH_HOST_STRIP_WIDTH + 36, stripHeight);
+  ctx.strokeRect(PATCH_HOST_STRIP_X - 18, PATCH_HOST_STRIP_Y - 36, PATCH_HOST_STRIP_WIDTH + 36, stripHeight);
+
+  ctx.fillStyle = PATCH_COLOR_NODE_TITLE;
+  ctx.font = "12px 'Trebuchet MS', 'Segoe UI', sans-serif";
+  ctx.fillText("Host Sources", PATCH_HOST_STRIP_X - 8, PATCH_HOST_STRIP_Y - 14);
+  ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
+  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillText("voice inputs", PATCH_HOST_STRIP_X - 8, PATCH_HOST_STRIP_Y - 2);
+}
+
+function drawHostPorts(ctx: CanvasRenderingContext2D, portPositions: Map<string, ResolvedPortPosition>) {
+  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+  SOURCE_HOST_NODE_IDS.forEach((hostId) => {
+    const port = portPositions.get(`${hostId}:out:out`);
+    if (!port) {
+      return;
+    }
+    ctx.fillStyle = "rgba(7, 14, 21, 0.94)";
+    ctx.fillRect(port.x, port.y - port.height / 2, port.width, port.height);
+    ctx.fillStyle = PATCH_COLOR_PORT_LABEL;
+    ctx.textAlign = "center";
+    ctx.fillText(resolveHostPatchPortLabel(hostId), port.x + port.width / 2, port.y + 3);
+    ctx.textAlign = "left";
+  });
 }
 
 function drawPatchConnections(
@@ -402,6 +460,31 @@ function drawPendingPatchPort(
   }
 }
 
+function drawPendingPatchWire(
+  ctx: CanvasRenderingContext2D,
+  pendingFromPort: HitPort | null,
+  pointer: { x: number; y: number } | null,
+  portPositions: Map<string, ResolvedPortPosition>
+) {
+  if (!pendingFromPort || !pointer) {
+    return;
+  }
+  const portKey = `${pendingFromPort.nodeId}:out:${pendingFromPort.portId}`;
+  const from = portPositions.get(portKey);
+  if (!from) {
+    return;
+  }
+  ctx.save();
+  ctx.strokeStyle = getSignalCapabilityColor(from.schema.capabilities[0]) ?? PATCH_COLOR_PENDING_WIRE;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 6]);
+  ctx.beginPath();
+  ctx.moveTo(from.anchorX, from.anchorY);
+  ctx.lineTo(pointer.x, pointer.y);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawHoveredAttachTarget(
   ctx: CanvasRenderingContext2D,
   patch: Patch,
@@ -416,7 +499,7 @@ function drawHoveredAttachTarget(
   }
 
   ctx.save();
-  ctx.strokeStyle = "rgba(200, 255, 57, 0.98)";
+  ctx.strokeStyle = PATCH_COLOR_VALID_TARGET;
   ctx.fillStyle = "rgba(200, 255, 57, 0.16)";
   ctx.lineWidth = 2;
   ctx.setLineDash([4, 4]);
@@ -507,6 +590,7 @@ export function drawPatchCanvas(args: {
   nodeById: Map<string, PatchNode>;
   patch: Patch;
   pendingFromPort: HitPort | null;
+  pendingWirePointer?: { x: number; y: number } | null;
   selectedMacroNodeIds: Set<string>;
   selectedNodeId?: string;
   hoveredAttachTarget?: { kind: "port"; nodeId: string; portId: string; portKind: "in" | "out" } | { kind: "connection"; connectionId: string } | null;
@@ -520,9 +604,12 @@ export function drawPatchCanvas(args: {
 
   drawPatchGrid(ctx, width, height);
   const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode);
+  drawPatchHostStrip(ctx);
   drawPatchConnections(ctx, args.patch, portPositions);
   drawPatchModules(ctx, args.patch, args.layoutByNode, args.hoveredNodeId, args.selectedMacroNodeIds, args.selectedNodeId);
+  drawHostPorts(ctx, portPositions);
   drawPendingPatchPort(ctx, args.pendingFromPort, portPositions);
+  drawPendingPatchWire(ctx, args.pendingFromPort, args.pendingWirePointer ?? null, portPositions);
   drawHoveredAttachTarget(ctx, args.patch, portPositions, args.hoveredAttachTarget ?? null);
 
   if (args.facePopoverNodeId) {

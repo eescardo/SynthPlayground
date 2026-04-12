@@ -4,6 +4,10 @@ import {
   PATCH_CANVAS_PADDING,
   PATCH_FACE_POPOVER_SCALE,
   PATCH_CANVAS_GRID,
+  PATCH_HOST_STRIP_ROW_GAP,
+  PATCH_HOST_STRIP_WIDTH,
+  PATCH_HOST_STRIP_X,
+  PATCH_HOST_STRIP_Y,
   PATCH_NODE_HEIGHT,
   PATCH_NODE_HIT_PADDING,
   PATCH_NODE_WIDTH,
@@ -12,6 +16,7 @@ import {
 } from "@/components/patch/patchCanvasConstants";
 import { PointerEvent as ReactPointerEvent } from "react";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
+import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
 import { Patch, PatchLayoutNode } from "@/types/patch";
 
 export interface CanvasPoint {
@@ -32,10 +37,43 @@ export interface HitPort {
   nodeId: string;
   portId: string;
   kind: "in" | "out";
+  validTarget?: boolean;
   x: number;
   y: number;
   width: number;
   height: number;
+}
+
+export function isHostPatchNodeId(nodeId: string) {
+  return SOURCE_HOST_NODE_IDS.includes(nodeId as (typeof SOURCE_HOST_NODE_IDS)[number]);
+}
+
+export function resolveHostPatchPortLabel(nodeId: string) {
+  switch (nodeId) {
+    case "$host.pitch":
+      return "pitch";
+    case "$host.gate":
+      return "gate";
+    case "$host.velocity":
+      return "velocity";
+    case "$host.modwheel":
+      return "mod wheel";
+    default:
+      return "host";
+  }
+}
+
+export function resolveHostPatchPortRect(nodeId: string) {
+  const hostIndex = SOURCE_HOST_NODE_IDS.indexOf(nodeId as (typeof SOURCE_HOST_NODE_IDS)[number]);
+  if (hostIndex < 0) {
+    return null;
+  }
+  return {
+    x: PATCH_HOST_STRIP_X,
+    y: PATCH_HOST_STRIP_Y + hostIndex * PATCH_HOST_STRIP_ROW_GAP,
+    width: PATCH_HOST_STRIP_WIDTH,
+    height: 15
+  };
 }
 
 export function resolvePatchCanvasSize(layoutNodes: PatchLayoutNode[]) {
@@ -147,6 +185,18 @@ export function resolvePatchPortAnchorPoint(
   portId: string,
   portKind: "in" | "out"
 ) {
+  if (isHostPatchNodeId(nodeId)) {
+    const rect = resolveHostPatchPortRect(nodeId);
+    const schema = getModuleSchema(SOURCE_HOST_NODE_TYPE_BY_ID[nodeId as keyof typeof SOURCE_HOST_NODE_TYPE_BY_ID]);
+    const hasPort = portKind === "out" && portId === "out" && schema?.portsOut.some((port) => port.id === portId);
+    if (!rect || !hasPort) {
+      return null;
+    }
+    return {
+      x: rect.x + rect.width,
+      y: rect.y
+    };
+  }
   const node = patch.nodes.find((entry) => entry.id === nodeId);
   const layout = layoutByNode.get(nodeId);
   const schema = node ? getModuleSchema(node.typeId) : undefined;

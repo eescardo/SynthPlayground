@@ -33,6 +33,7 @@ interface PatchEditorStageProps {
   selectedNodeId?: string;
   selectedMacroNodeIds: Set<string>;
   structureLocked?: boolean;
+  onClearPatch: () => void;
   onApplyOp: (op: PatchOp) => void;
   probeActions: PatchProbeEditorActions;
   onSelectNode: (nodeId?: string) => void;
@@ -177,6 +178,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
       <PatchEditorToolbar
         newNodeType={newNodeType}
         structureLocked={structureLocked}
+        canClearPatch={patch.nodes.length > 1 || patch.connections.length > 0 || patch.ui.macros.length > 0}
         patchNodeCount={patch.nodes.length}
         selectedNodeId={selectedNodeId}
         selectedProbeId={probeState.selectedProbeId}
@@ -203,6 +205,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
             ? (onCancelAttachProbe(), probeActions.deleteSelected())
             : selectedNodeId && !structureLocked && onApplyOp({ type: "removeNode", nodeId: selectedNodeId })
         }
+        onClearPatch={props.onClearPatch}
         onAutoLayout={() => {
           const nextNodeLayout = resolveAutoLayoutNodes(patch);
           onApplyOp({
@@ -231,6 +234,10 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
                     ? hoveredAttachTarget
                       ? PATCH_ATTACH_CURSOR_CLOSED
                       : PATCH_ATTACH_CURSOR_OPEN
+                    : pendingFromPort
+                      ? hoveredAttachTarget
+                        ? PATCH_ATTACH_CURSOR_CLOSED
+                        : PATCH_ATTACH_CURSOR_OPEN
                     : dragNodeId
                       ? PATCH_MOVE_CURSOR_ACTIVE
                       : hoveredNodeId
