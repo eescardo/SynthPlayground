@@ -1,10 +1,11 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { PatchInspector } from "@/components/patch/PatchInspector";
 import { PatchMacroPanel } from "@/components/patch/PatchMacroPanel";
 import { PatchModuleFacePopover } from "@/components/patch/PatchModuleFacePopover";
+import { usePatchProbeEditorState } from "@/hooks/patch/usePatchProbeEditorState";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -42,7 +43,6 @@ interface PatchEditorCanvasProps {
 }
 
 export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
-  const [attachingProbeId, setAttachingProbeId] = useState<string | null>(null);
   const macroVisibleRows = Math.max(PATCH_MACRO_VISIBLE_ROW_MIN, Math.min(PATCH_MACRO_VISIBLE_ROW_MAX, props.patch.ui.macros.length || 1));
   const macroDockHeightRem =
     PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT[macroVisibleRows] ?? PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT[PATCH_MACRO_VISIBLE_ROW_MAX];
@@ -60,40 +60,17 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const nodeById = useMemo(() => new Map(props.patch.nodes.map((node) => [node.id, node] as const)), [props.patch.nodes]);
   const selectedNode = props.selectedNodeId ? nodeById.get(props.selectedNodeId) : undefined;
   const selectedSchema = selectedNode ? getModuleSchema(selectedNode.typeId) : undefined;
-  const probeById = useMemo(() => new Map(props.probeState.probes.map((probe) => [probe.id, probe] as const)), [props.probeState.probes]);
-  const selectedProbe = props.probeState.selectedProbeId ? probeById.get(props.probeState.selectedProbeId) : undefined;
-
-  useEffect(() => {
-    if (attachingProbeId && !probeById.has(attachingProbeId)) {
-      setAttachingProbeId(null);
-    }
-  }, [attachingProbeId, probeById]);
-
-  useEffect(() => {
-    if (!attachingProbeId) {
-      return;
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setAttachingProbeId(null);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [attachingProbeId]);
-
-  const handleToggleAttachProbe = (probeId: string) => {
-    props.probeActions.selectProbe(probeId);
-    setAttachingProbeId((current) => (current === probeId ? null : probeId));
-  };
-
-  const canvasProbeState = useMemo(
-    () => ({
-      ...props.probeState,
-      attachingProbeId
-    }),
-    [attachingProbeId, props.probeState]
-  );
+  const {
+    attachingProbeId,
+    cancelAttachProbe,
+    canvasProbeState,
+    selectedProbe,
+    toggleAttachProbe
+  } = usePatchProbeEditorState({
+    probes: props.probeState.probes,
+    probeState: props.probeState,
+    probeActions: props.probeActions
+  });
 
   return (
     <div
@@ -116,8 +93,8 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
             onApplyOp={props.onApplyOp}
             probeActions={props.probeActions}
             onSelectNode={props.onSelectNode}
-            onToggleAttachProbe={handleToggleAttachProbe}
-            onCancelAttachProbe={() => setAttachingProbeId(null)}
+            onToggleAttachProbe={toggleAttachProbe}
+            onCancelAttachProbe={cancelAttachProbe}
           />
 
           <PatchMacroPanel
@@ -151,7 +128,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           onExposeMacro={props.onExposeMacro}
           onUpdateProbeSpectrumWindow={props.probeActions.updateSpectrumWindow}
           onUpdateProbeFrequencyView={props.probeActions.updateFrequencyView}
-          onToggleAttachProbe={handleToggleAttachProbe}
+          onToggleAttachProbe={toggleAttachProbe}
           onClearProbeTarget={(probeId) => props.probeActions.updateTarget(probeId, undefined)}
         />
       </div>
