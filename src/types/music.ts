@@ -97,6 +97,10 @@ export interface ProjectUiState {
   patchWorkspace: PatchWorkspaceUiState;
 }
 
+export interface ProjectGlobalCarrier {
+  global: ProjectGlobalSettings;
+}
+
 export interface Project {
   id: string;
   name: string;
