@@ -74,10 +74,10 @@ export function resolveHostPatchPortTint(nodeId: string) {
       };
     case "$host.gate":
       return {
-        fill: "#dfd2aa",
-        stroke: "#b69b58",
-        text: "#443514",
-        wire: "#d2ac4f"
+        fill: "#f1d2ba",
+        stroke: "#c89266",
+        text: "#4b2a16",
+        wire: "#e2a16c"
       };
     case "$host.velocity":
       return {
@@ -88,10 +88,10 @@ export function resolveHostPatchPortTint(nodeId: string) {
       };
     case "$host.modwheel":
       return {
-        fill: "#f1d2ba",
-        stroke: "#c89266",
-        text: "#4b2a16",
-        wire: "#e2a16c"
+        fill: "#dfd2aa",
+        stroke: "#b69b58",
+        text: "#443514",
+        wire: "#d2ac4f"
       };
     default:
       return {
