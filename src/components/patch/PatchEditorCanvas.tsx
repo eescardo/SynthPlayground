@@ -161,7 +161,6 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           onApplyOp={props.onApplyOp}
           onExposeMacro={props.onExposeMacro}
           onUpdateProbeSpectrumWindow={props.onUpdateProbeSpectrumWindow}
-          onToggleProbeExpanded={props.onToggleProbeExpanded}
           onToggleAttachProbe={handleToggleAttachProbe}
           onClearProbeTarget={(probeId) => props.onUpdateProbeTarget(probeId, undefined)}
         />

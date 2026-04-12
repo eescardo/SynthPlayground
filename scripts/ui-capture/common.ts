@@ -129,9 +129,9 @@ export const setupPatchWorkspaceProbes = async (page: Page) => {
     targetPosition: { x: 860, y: 380 }
   });
 
-  await cards.nth(0).getByRole("button", { name: "Expand" }).click();
-  await cards.nth(1).getByRole("button", { name: "Expand" }).click();
-  await page.locator(".patch-probe-popover").first().click();
+  await cards.nth(0).locator(".patch-probe-face-toggle").click();
+  await cards.nth(1).locator(".patch-probe-face-toggle").click();
+  await cards.nth(0).locator(".patch-probe-card-header").click();
 
   await page.getByRole("button", { name: "Play" }).last().click();
   await page.waitForTimeout(650);

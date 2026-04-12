@@ -272,7 +272,6 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
               previewCaptureByProbeId={previewCaptureByProbeId}
               previewProgress={previewProgress}
               zoom={zoom}
-              canvasSize={canvasSize}
               attachingProbeId={attachingProbeId}
               onSelectProbe={onSelectProbe}
               onBeginProbeDrag={beginProbeDrag}

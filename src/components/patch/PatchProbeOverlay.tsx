@@ -8,7 +8,6 @@ import {
 import { PATCH_CANVAS_GRID } from "@/components/patch/patchCanvasConstants";
 import {
   buildSpectrumBins,
-  EXPANDED_PROBE_SIZE,
   normalizeProbeSamples
 } from "@/lib/patch/probes";
 import { Patch, PatchLayoutNode } from "@/types/patch";
@@ -22,7 +21,6 @@ interface PatchProbeOverlayProps {
   previewCaptureByProbeId: Record<string, PreviewProbeCapture>;
   previewProgress: number;
   zoom: number;
-  canvasSize: { width: number; height: number };
   attachingProbeId?: string | null;
   onSelectProbe: (probeId?: string) => void;
   onBeginProbeDrag: (probeId: string, clientX: number, clientY: number) => void;
@@ -32,7 +30,7 @@ interface PatchProbeOverlayProps {
 }
 
 const PROBE_SPECTRUM_WINDOWS = [256, 512, 1024, 2048];
-const PROBE_EXPANDED_MARGIN = 16;
+const PROBE_EXPANDED_SIZE = { width: 340, height: 228 } as const;
 
 export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
   const connectionLines = useMemo(
@@ -54,10 +52,12 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
         if (!targetPoint) {
           return [];
         }
+        const renderedWidth = resolveRenderedProbeWidth(probe, props.zoom);
+        const renderedHeight = resolveRenderedProbeHeight(probe, props.zoom);
         return [{
           id: probe.id,
-          x1: (probe.x * PATCH_CANVAS_GRID + probe.width * PATCH_CANVAS_GRID) * props.zoom,
-          y1: (probe.y * PATCH_CANVAS_GRID + probe.height * PATCH_CANVAS_GRID * 0.5) * props.zoom,
+          x1: probe.x * PATCH_CANVAS_GRID * props.zoom + renderedWidth,
+          y1: probe.y * PATCH_CANVAS_GRID * props.zoom + renderedHeight * 0.5,
           x2: targetPoint.x * props.zoom,
           y2: targetPoint.y * props.zoom,
           targetKind: probe.target.kind
@@ -101,7 +101,6 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
             capture={capture}
             previewProgress={props.previewProgress}
             zoom={props.zoom}
-            canvasSize={props.canvasSize}
             selected={props.selectedProbeId === probe.id}
             attaching={props.attachingProbeId === probe.id}
             onSelectProbe={props.onSelectProbe}
@@ -121,7 +120,6 @@ function ProbeCard(props: {
   capture?: PreviewProbeCapture;
   previewProgress: number;
   zoom: number;
-  canvasSize: { width: number; height: number };
   selected: boolean;
   attaching: boolean;
   onSelectProbe: (probeId?: string) => void;
@@ -140,98 +138,63 @@ function ProbeCard(props: {
         props.capture.capturedSamples
       )
     : [];
-  const expandedRect = resolveExpandedProbeRect(props.probe, props.zoom, props.canvasSize);
+  const renderedWidth = resolveRenderedProbeWidth(props.probe, props.zoom);
+  const renderedHeight = resolveRenderedProbeHeight(props.probe, props.zoom);
 
   return (
-    <>
+    <div
+      className={`patch-probe-card${props.selected ? " selected" : ""}${props.attaching ? " attaching" : ""}${props.probe.expanded ? " expanded" : ""}`}
+      style={{
+        left: `${props.probe.x * PATCH_CANVAS_GRID * props.zoom}px`,
+        top: `${props.probe.y * PATCH_CANVAS_GRID * props.zoom}px`,
+        width: `${renderedWidth}px`,
+        height: `${renderedHeight}px`
+      }}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        props.onSelectProbe(props.probe.id);
+      }}
+    >
       <div
-        className={`patch-probe-card${props.selected ? " selected" : ""}${props.attaching ? " attaching" : ""}`}
-        style={{
-          left: `${props.probe.x * PATCH_CANVAS_GRID * props.zoom}px`,
-          top: `${props.probe.y * PATCH_CANVAS_GRID * props.zoom}px`,
-          width: `${props.probe.width * PATCH_CANVAS_GRID * props.zoom}px`,
-          height: `${props.probe.height * PATCH_CANVAS_GRID * props.zoom}px`
-        }}
+        className="patch-probe-card-header"
         onPointerDown={(event) => {
           event.stopPropagation();
           props.onSelectProbe(props.probe.id);
           props.onBeginProbeDrag(props.probe.id, event.clientX, event.clientY);
         }}
       >
-        <div className="patch-probe-card-header">
-          <strong>{props.probe.name}</strong>
-          <div className="patch-probe-card-actions">
-            <button
-              type="button"
-              className="patch-probe-attach-button"
-              onClick={(event) => {
-                event.stopPropagation();
-                props.onStartAttachProbe(props.probe.id);
-              }}
-            >
-              {props.attaching ? "Cancel" : "Attach"}
-            </button>
-            <button
-              type="button"
-              className="patch-probe-expand-button"
-              onClick={(event) => {
-                event.stopPropagation();
-                props.onToggleExpanded(props.probe.id);
-              }}
-            >
-              {props.probe.expanded ? "Collapse" : "Expand"}
-            </button>
-          </div>
-        </div>
-        <div className="patch-probe-card-body">
-          <ProbeGraphBody
-            probe={props.probe}
-            capture={props.capture}
-            previewProgress={props.previewProgress}
-            spectrumBins={spectrumBins}
-            compact
-            onUpdateSpectrumWindow={props.onUpdateSpectrumWindow}
-          />
-        </div>
-      </div>
-
-      {props.probe.expanded && (
-        <div
-          className={`patch-probe-popover${props.selected ? " selected" : ""}`}
-          style={{
-            left: `${expandedRect.x}px`,
-            top: `${expandedRect.y}px`,
-            width: `${expandedRect.width}px`,
-            height: `${expandedRect.height}px`
-          }}
-          onPointerDown={(event) => {
+        <strong>{props.probe.name}</strong>
+        <button
+          type="button"
+          className="patch-probe-attach-button"
+          onClick={(event) => {
             event.stopPropagation();
-            props.onSelectProbe(props.probe.id);
+            props.onStartAttachProbe(props.probe.id);
           }}
         >
-          <div className="patch-probe-popover-header">
-            <strong>{props.probe.name}</strong>
-            <div className="patch-probe-card-actions">
-              <button type="button" onClick={() => props.onStartAttachProbe(props.probe.id)}>
-                {props.attaching ? "Cancel Attach" : "Attach"}
-              </button>
-              <button type="button" onClick={() => props.onToggleExpanded(props.probe.id)}>
-                Collapse
-              </button>
-            </div>
-          </div>
-          <div className="patch-probe-popover-body">
-            <ProbeGraphBody
-              probe={props.probe}
-              capture={props.capture}
-              previewProgress={props.previewProgress}
-              spectrumBins={spectrumBins}
-              onUpdateSpectrumWindow={props.onUpdateSpectrumWindow}
-            />
-          </div>
-        </div>
-      )}
-    </>
+          {props.attaching ? "Cancel" : "Attach"}
+        </button>
+      </div>
+      <div
+        className="patch-probe-card-body patch-probe-face-toggle"
+        onPointerDown={(event) => {
+          event.stopPropagation();
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
+          props.onToggleExpanded(props.probe.id);
+        }}
+      >
+        <ProbeGraphBody
+          probe={props.probe}
+          capture={props.capture}
+          previewProgress={props.previewProgress}
+          spectrumBins={spectrumBins}
+          compact={!props.probe.expanded}
+          onUpdateSpectrumWindow={props.onUpdateSpectrumWindow}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -345,30 +308,10 @@ function SpectrumProbeGraph(props: {
   );
 }
 
-function resolveExpandedProbeRect(
-  probe: PatchWorkspaceProbeState,
-  zoom: number,
-  canvasSize: { width: number; height: number }
-) {
-  const cardLeft = probe.x * PATCH_CANVAS_GRID * zoom;
-  const cardTop = probe.y * PATCH_CANVAS_GRID * zoom;
-  const cardWidth = probe.width * PATCH_CANVAS_GRID * zoom;
-  const cardHeight = probe.height * PATCH_CANVAS_GRID * zoom;
-  const width = Math.min(EXPANDED_PROBE_SIZE.width, canvasSize.width * zoom - PROBE_EXPANDED_MARGIN * 2);
-  const height = Math.min(EXPANDED_PROBE_SIZE.height, canvasSize.height * zoom - PROBE_EXPANDED_MARGIN * 2);
-  const centeredX = cardLeft + cardWidth * 0.5 - width * 0.5;
-  const preferredTop = cardTop - height - 12;
-  const fallbackTop = cardTop + cardHeight + 12;
-  return {
-    x: Math.max(PROBE_EXPANDED_MARGIN, Math.min(canvasSize.width * zoom - width - PROBE_EXPANDED_MARGIN, centeredX)),
-    y: Math.max(
-      PROBE_EXPANDED_MARGIN,
-      Math.min(
-        canvasSize.height * zoom - height - PROBE_EXPANDED_MARGIN,
-        preferredTop >= PROBE_EXPANDED_MARGIN ? preferredTop : fallbackTop
-      )
-    ),
-    width,
-    height
-  };
+function resolveRenderedProbeWidth(probe: PatchWorkspaceProbeState, zoom: number) {
+  return probe.expanded ? PROBE_EXPANDED_SIZE.width : probe.width * PATCH_CANVAS_GRID * zoom;
+}
+
+function resolveRenderedProbeHeight(probe: PatchWorkspaceProbeState, zoom: number) {
+  return probe.expanded ? PROBE_EXPANDED_SIZE.height : probe.height * PATCH_CANVAS_GRID * zoom;
 }

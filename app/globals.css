@@ -1333,9 +1333,24 @@ select {
   user-select: none;
 }
 
+.patch-probe-card.expanded {
+  z-index: 4;
+  gap: 0.5rem;
+  padding: 0.7rem 0.8rem 0.8rem;
+  border-color: rgba(200, 255, 57, 0.8);
+  border-width: 1px;
+  border-radius: 18px;
+  background: rgba(6, 12, 18, 0.5);
+  box-shadow: 0 20px 36px rgba(0, 0, 0, 0.34);
+}
+
 .patch-probe-card.selected {
   border-color: rgba(200, 255, 57, 0.88);
   box-shadow: 0 0 0 1px rgba(200, 255, 57, 0.2), 0 12px 24px rgba(0, 0, 0, 0.32);
+}
+
+.patch-probe-card.expanded.selected {
+  box-shadow: 0 0 0 1px rgba(200, 255, 57, 0.24), 0 22px 40px rgba(0, 0, 0, 0.38);
 }
 
 .patch-probe-card.attaching {
@@ -1360,12 +1375,6 @@ select {
   text-overflow: ellipsis;
 }
 
-.patch-probe-card-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
 .patch-probe-attach-button {
   padding: 0.12rem 0.4rem;
   border-radius: 999px;
@@ -1375,19 +1384,13 @@ select {
   font-size: 0.68rem;
 }
 
-.patch-probe-expand-button,
-.patch-probe-popover button {
-  padding: 0.12rem 0.4rem;
-  border-radius: 999px;
-  border: 1px solid rgba(143, 180, 212, 0.32);
-  background: rgba(143, 180, 212, 0.12);
-  color: #e7f3ff;
-  font-size: 0.68rem;
-}
-
 .patch-probe-card-body {
   flex: 1;
   min-height: 0;
+}
+
+.patch-probe-face-toggle {
+  cursor: pointer;
 }
 
 .patch-probe-graph {
@@ -1410,36 +1413,6 @@ select {
   gap: 0.4rem;
   color: #8fb4d4;
   font-size: 0.7rem;
-}
-
-.patch-probe-popover {
-  position: absolute;
-  z-index: 4;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  border: 1px solid rgba(200, 255, 57, 0.4);
-  border-radius: 16px;
-  background: rgba(6, 12, 18, 0.98);
-  box-shadow: 0 20px 36px rgba(0, 0, 0, 0.4);
-  pointer-events: auto;
-}
-
-.patch-probe-popover.selected {
-  box-shadow: 0 0 0 1px rgba(200, 255, 57, 0.22), 0 20px 36px rgba(0, 0, 0, 0.42);
-}
-
-.patch-probe-popover-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  padding: 0.7rem 0.8rem 0.2rem;
-  color: #e7f3ff;
-}
-
-.patch-probe-popover-body {
-  min-height: 0;
-  padding: 0.2rem 0.8rem 0.8rem;
 }
 
 .patch-layout canvas {

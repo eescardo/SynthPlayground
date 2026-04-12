@@ -125,7 +125,6 @@ interface PatchInspectorProps {
   onApplyOp: (op: PatchOp) => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
   onUpdateProbeSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
-  onToggleProbeExpanded: (probeId: string) => void;
   onToggleAttachProbe: (probeId: string) => void;
   onClearProbeTarget: (probeId: string) => void;
 }
@@ -298,11 +297,13 @@ export function PatchInspector(props: PatchInspectorProps) {
             <span>Expanded</span>
             <div className="param-control-stack">
               <div className="macro-binding-edit-summary">
-                {selectedProbe.expanded ? "Large probe popover is open." : "Show a larger probe face popover."}
+                {selectedProbe.expanded
+                  ? "Large probe view is open. Drag it by the header or click the face to collapse it."
+                  : "Click the probe face to expand it in place."}
               </div>
             </div>
-            <button type="button" onClick={() => props.onToggleProbeExpanded(selectedProbe.id)}>
-              {selectedProbe.expanded ? "Collapse" : "Expand"}
+            <button type="button" disabled className="patch-inspector-status-button">
+              {selectedProbe.expanded ? "Open" : "Closed"}
             </button>
           </div>
           {selectedProbe.kind === "spectrum" && (
