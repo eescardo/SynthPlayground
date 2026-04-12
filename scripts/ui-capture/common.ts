@@ -123,14 +123,18 @@ export const setupPatchWorkspaceProbes = async (page: Page) => {
 
   const cards = page.locator(".patch-probe-card");
   await cards.nth(0).dragTo(page.locator(".patch-canvas-overlay-shell"), {
-    targetPosition: { x: 360, y: 320 }
+    targetPosition: { x: 360, y: 380 }
   });
   await cards.nth(1).dragTo(page.locator(".patch-canvas-overlay-shell"), {
-    targetPosition: { x: 760, y: 320 }
+    targetPosition: { x: 860, y: 380 }
   });
 
+  await cards.nth(0).getByRole("button", { name: "Expand" }).click();
+  await cards.nth(1).getByRole("button", { name: "Expand" }).click();
+  await page.locator(".patch-probe-popover").first().click();
+
   await page.getByRole("button", { name: "Play" }).last().click();
-  await page.waitForTimeout(220);
+  await page.waitForTimeout(650);
 };
 
 const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canvas");

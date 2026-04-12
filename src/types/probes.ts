@@ -24,6 +24,7 @@ export interface PatchWorkspaceProbeState {
   y: number;
   width: number;
   height: number;
+  expanded?: boolean;
   target?: PatchProbeTarget;
   spectrumWindowSize?: number;
 }
@@ -41,5 +42,6 @@ export interface PreviewProbeCapture {
   target: PatchProbeTarget;
   sampleRate: number;
   durationSamples: number;
+  capturedSamples: number;
   samples: number[];
 }

@@ -50,6 +50,7 @@ interface PatchWorkspaceViewProps {
   onSelectProbe: (probeId?: string) => void;
   onUpdateProbeTarget: (probeId: string, target?: PatchProbeTarget) => void;
   onUpdateProbeSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
+  onToggleProbeExpanded: (probeId: string) => void;
   onDeleteSelectedProbe: () => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
   onAddMacro: () => void;
@@ -132,6 +133,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           onSelectProbe={props.onSelectProbe}
           onUpdateProbeTarget={props.onUpdateProbeTarget}
           onUpdateProbeSpectrumWindow={props.onUpdateProbeSpectrumWindow}
+          onToggleProbeExpanded={props.onToggleProbeExpanded}
           onDeleteSelectedProbe={props.onDeleteSelectedProbe}
           onExposeMacro={props.onExposeMacro}
           onAddMacro={props.onAddMacro}

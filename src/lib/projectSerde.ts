@@ -216,6 +216,7 @@ const sanitizePatchWorkspaceProbes = (raw: unknown): PatchWorkspaceProbeState[] 
       y: Math.max(0, Math.floor(asFiniteNumber(entry.y, 4))),
       width: Math.max(6, Math.floor(asFiniteNumber(entry.width, 10))),
       height: Math.max(4, Math.floor(asFiniteNumber(entry.height, 6))),
+      expanded: entry.expanded === true,
       target: sanitizeProbeTarget(entry.target),
       spectrumWindowSize: [256, 512, 1024, 2048].includes(spectrumWindowSize) ? spectrumWindowSize : undefined
     };

@@ -29,10 +29,16 @@ interface UsePatchCanvasInteractionsArgs {
   onApplyOp: (op: PatchOp) => void;
   onSelectNode: (nodeId?: string) => void;
   onAttachProbeTarget?: (target: { kind: "port"; nodeId: string; portId: string; portKind: "in" | "out" } | { kind: "connection"; connectionId: string }) => void;
+  onCancelProbeAttach?: () => void;
   makeConnectOp: (fromNodeId: string, fromPortId: string, toNodeId: string, toPortId: string) => PatchOp;
   handleFacePopoverPointerDown: (rawX: number, rawY: number) => "none" | "dismissed" | "inside-popover";
   togglePopoverForNode: (nodeId: string) => void;
 }
+
+type HoveredAttachTarget =
+  | { kind: "port"; nodeId: string; portId: string; portKind: "in" | "out" }
+  | { kind: "connection"; connectionId: string }
+  | null;
 
 export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs) {
   const hitPortsRef = useRef<HitPort[]>([]);
@@ -43,6 +49,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
   const [pendingFromPort, setPendingFromPort] = useState<HitPort | null>(null);
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [hoveredAttachTarget, setHoveredAttachTarget] = useState<HoveredAttachTarget>(null);
 
   useEffect(() => {
     const canvas = args.canvasRef.current;
@@ -60,7 +67,8 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       patch: args.patch,
       pendingFromPort,
       selectedMacroNodeIds: args.selectedMacroNodeIds,
-      selectedNodeId: args.selectedNodeId
+      selectedNodeId: args.selectedNodeId,
+      hoveredAttachTarget
     });
   }, [
     args.canvasRef,
@@ -72,6 +80,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     args.patch,
     args.selectedMacroNodeIds,
     args.selectedNodeId,
+    hoveredAttachTarget,
     hoveredNodeId,
     pendingFromPort
   ]);
@@ -120,6 +129,9 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         });
         return;
       }
+      args.onCancelProbeAttach?.();
+      setHoveredAttachTarget(null);
+      return;
     }
 
     const hitNodeId = getNodeAtPointer(pos.rawX, pos.rawY);
@@ -152,6 +164,21 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
   const onPointerMove = useCallback((event: ReactPointerEvent<HTMLCanvasElement>) => {
     const pos = pointerEventToPatchCanvasPoint(args.canvasRef.current, event);
     const hoverPort = findPatchPortAtPoint(hitPortsRef.current, pos.rawX, pos.rawY);
+    if (args.pendingProbeId) {
+      if (hoverPort) {
+        setHoveredAttachTarget({
+          kind: "port",
+          nodeId: hoverPort.nodeId,
+          portId: hoverPort.portId,
+          portKind: hoverPort.kind
+        });
+      } else {
+        const hoverConnectionId = findPatchConnectionAtPoint(args.patch, args.layoutByNode, pos.rawX, pos.rawY);
+        setHoveredAttachTarget(hoverConnectionId ? { kind: "connection", connectionId: hoverConnectionId } : null);
+      }
+    } else {
+      setHoveredAttachTarget(null);
+    }
     const hoverNodeId = hoverPort ? null : getNodeAtPointer(pos.rawX, pos.rawY);
     setHoveredNodeId((prev) => (prev === hoverNodeId ? prev : hoverNodeId));
 
@@ -202,6 +229,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     dragNodeId,
     hoveredNodeId,
     pendingFromPort,
+    hoveredAttachTarget,
     onPointerDown,
     onPointerMove,
     onPointerUp,

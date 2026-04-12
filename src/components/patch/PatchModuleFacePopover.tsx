@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PatchEditorToolbar } from "@/components/patch/PatchEditorToolbar";
 import { PatchProbeOverlay } from "@/components/patch/PatchProbeOverlay";
 import {
+  PATCH_ATTACH_CURSOR_CLOSED,
+  PATCH_ATTACH_CURSOR_OPEN,
   PATCH_CANVAS_GRID,
   PATCH_MOVE_CURSOR,
   PATCH_MOVE_CURSOR_ACTIVE
@@ -40,8 +42,12 @@ interface PatchModuleFacePopoverProps {
   onSelectProbe: (probeId?: string) => void;
   onUpdateProbeTarget: (probeId: string, target?: PatchProbeTarget) => void;
   onUpdateProbeSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
+  onToggleProbeExpanded: (probeId: string) => void;
   onDeleteSelectedProbe: () => void;
   onSelectNode: (nodeId?: string) => void;
+  attachingProbeId?: string | null;
+  onToggleAttachProbe: (probeId: string) => void;
+  onCancelAttachProbe: () => void;
 }
 
 export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
@@ -52,6 +58,9 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
     onMoveProbe,
     onSelectNode,
     onSelectProbe,
+    onToggleAttachProbe,
+    onCancelAttachProbe,
+    onToggleProbeExpanded,
     onUpdateProbeSpectrumWindow,
     onUpdateProbeTarget,
     patch,
@@ -61,13 +70,13 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
     selectedMacroNodeIds,
     selectedNodeId,
     selectedProbeId,
-    structureLocked
+    structureLocked,
+    attachingProbeId
   } = props;
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [newNodeType, setNewNodeType] = useState("VCO");
-  const [pendingProbeId, setPendingProbeId] = useState<string | null>(null);
   const [dragProbe, setDragProbe] = useState<{ probeId: string; offsetX: number; offsetY: number } | null>(null);
   const layoutByNode = useMemo(() => {
     return new Map(patch.layout.nodes.map((node) => [node.nodeId, node] as const));
@@ -105,6 +114,7 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
     dragNodeId,
     hoveredNodeId,
     pendingFromPort,
+    hoveredAttachTarget,
     onPointerDown,
     onPointerMove,
     onPointerUp,
@@ -119,16 +129,17 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
     patch,
     selectedMacroNodeIds,
     selectedNodeId,
-    pendingProbeId,
+    pendingProbeId: attachingProbeId,
     structureLocked,
     onApplyOp,
     onSelectNode,
     onAttachProbeTarget: (target) => {
-      if (pendingProbeId) {
-        onUpdateProbeTarget(pendingProbeId, target);
-        setPendingProbeId(null);
+      if (attachingProbeId) {
+        onUpdateProbeTarget(attachingProbeId, target);
+        onCancelAttachProbe();
       }
     },
+    onCancelProbeAttach: onCancelAttachProbe,
     makeConnectOp,
     handleFacePopoverPointerDown: handleCanvasPointerDown,
     togglePopoverForNode
@@ -190,7 +201,7 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
         selectedNodeId={selectedNodeId}
         selectedProbeId={selectedProbeId}
         pendingFromPort={Boolean(pendingFromPort)}
-        pendingProbeId={pendingProbeId}
+        pendingProbeId={attachingProbeId}
         zoom={zoom}
         onChangeNewNodeType={setNewNodeType}
         onAddNode={() => {
@@ -234,7 +245,16 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
               style={{
                 width: `${canvasSize.width * zoom}px`,
                 height: `${canvasSize.height * zoom}px`,
-                cursor: dragNodeId ? PATCH_MOVE_CURSOR_ACTIVE : hoveredNodeId ? PATCH_MOVE_CURSOR : "default"
+                cursor:
+                  attachingProbeId
+                    ? hoveredAttachTarget
+                      ? PATCH_ATTACH_CURSOR_CLOSED
+                      : PATCH_ATTACH_CURSOR_OPEN
+                    : dragNodeId
+                      ? PATCH_MOVE_CURSOR_ACTIVE
+                      : hoveredNodeId
+                        ? PATCH_MOVE_CURSOR
+                        : "default"
               }}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
@@ -252,13 +272,13 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
               previewCaptureByProbeId={previewCaptureByProbeId}
               previewProgress={previewProgress}
               zoom={zoom}
+              canvasSize={canvasSize}
+              attachingProbeId={attachingProbeId}
               onSelectProbe={onSelectProbe}
               onBeginProbeDrag={beginProbeDrag}
-              onStartAttachProbe={(probeId) => {
-                onSelectProbe(probeId);
-                setPendingProbeId(probeId);
-              }}
+              onStartAttachProbe={onToggleAttachProbe}
               onUpdateSpectrumWindow={onUpdateProbeSpectrumWindow}
+              onToggleExpanded={onToggleProbeExpanded}
             />
           </div>
         </div>

@@ -363,6 +363,17 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     }));
   }, [updateActiveTab]);
 
+  const toggleProbeExpanded = useCallback((probeId: string) => {
+    updateActiveTab((tab) => ({
+      ...tab,
+      probes: tab.probes.map((probe) =>
+        probe.id === probeId
+          ? { ...probe, expanded: !probe.expanded }
+          : probe
+      )
+    }));
+  }, [updateActiveTab]);
+
   const removeSelectedProbe = useCallback(() => {
     const selectedProbeId = activeTab?.selectedProbeId;
     if (!selectedProbeId) {
@@ -717,6 +728,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     moveProbe,
     updateProbeTarget,
     updateProbeSpectrumWindow,
+    toggleProbeExpanded,
     removeSelectedProbe,
     previewCaptureByProbeId,
     previewProgress,

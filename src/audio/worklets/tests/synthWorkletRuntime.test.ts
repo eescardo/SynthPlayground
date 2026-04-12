@@ -474,7 +474,67 @@ describe("synth worklet runtime", () => {
           expect.objectContaining({
             probeId: "probe_scope",
             sampleRate: 48000,
-            durationSamples: 32
+            durationSamples: 32,
+            capturedSamples: 32
+          })
+        ]
+      })
+    );
+  });
+
+  it("streams probe capture updates before preview completion", async () => {
+    const { SynthWorkletProcessor } = await loadRuntimeModule();
+
+    const processor = new SynthWorkletProcessor({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize: 128,
+        project: createProject()
+      }
+    });
+
+    const postMessage = vi.spyOn((processor as { port: { postMessage: (...args: unknown[]) => void } }).port, "postMessage");
+
+    processor.onMessage({
+      type: "PREVIEW",
+      trackId: "track_1",
+      previewId: "preview_stream",
+      durationSamples: 2048,
+      captureProbes: [
+        {
+          probeId: "probe_scope",
+          kind: "scope",
+          target: {
+            kind: "connection",
+            connectionId: "conn_1"
+          }
+        }
+      ],
+      events: [
+        {
+          id: "preview_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ]
+    });
+
+    for (let index = 0; index < 8; index += 1) {
+      renderProcessorBlock(processor);
+    }
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "PREVIEW_CAPTURE",
+        previewId: "preview_stream",
+        captures: [
+          expect.objectContaining({
+            probeId: "probe_scope",
+            capturedSamples: 1024
           })
         ]
       })

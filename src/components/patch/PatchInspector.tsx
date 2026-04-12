@@ -3,8 +3,10 @@ import {
   resolveMacroKeyframeIndexAtValue
 } from "@/lib/patch/macroKeyframes";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
+import { normalizeProbeSamples } from "@/lib/patch/probes";
 import { Patch, PatchNode, ParamSchema, ParamValue, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
+import { PatchProbeTarget, PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
 
 function formatBindingValue(value: number) {
   if (!Number.isFinite(value)) {
@@ -112,12 +114,20 @@ interface PatchInspectorProps {
   patch: Patch;
   macroValues: Record<string, number>;
   selectedNode?: PatchNode;
+  selectedProbe?: PatchWorkspaceProbeState;
   selectedMacroId?: string;
   selectedSchema?: NonNullable<ReturnType<typeof getModuleSchema>>;
+  previewCapture?: PreviewProbeCapture;
+  previewProgress: number;
+  attachingProbeId?: string | null;
   structureLocked?: boolean;
   validationIssues: PatchValidationIssue[];
   onApplyOp: (op: PatchOp) => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
+  onUpdateProbeSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
+  onToggleProbeExpanded: (probeId: string) => void;
+  onToggleAttachProbe: (probeId: string) => void;
+  onClearProbeTarget: (probeId: string) => void;
 }
 
 function resolveIssuesForNode(nodeId: string, issues: PatchValidationIssue[]) {
@@ -126,8 +136,22 @@ function resolveIssuesForNode(nodeId: string, issues: PatchValidationIssue[]) {
   );
 }
 
+function formatProbeTarget(patch: Patch, target?: PatchProbeTarget) {
+  if (!target) {
+    return "Not attached";
+  }
+  if (target.kind === "connection") {
+    const connection = patch.connections.find((entry) => entry.id === target.connectionId);
+    return connection
+      ? `${connection.from.nodeId}.${connection.from.portId} -> ${connection.to.nodeId}.${connection.to.portId}`
+      : "Wire target unavailable";
+  }
+  return `${target.nodeId}.${target.portId} (${target.portKind})`;
+}
+
 export function PatchInspector(props: PatchInspectorProps) {
   const selectedNode = props.selectedNode;
+  const selectedProbe = props.selectedProbe;
   const selectedMacro = props.selectedMacroId
     ? props.patch.ui.macros.find((macro) => macro.id === props.selectedMacroId)
     : undefined;
@@ -151,11 +175,15 @@ export function PatchInspector(props: PatchInspectorProps) {
       )
     : props.patch.connections;
   const visibleValidationIssues = selectedNode ? resolveIssuesForNode(selectedNode.id, props.validationIssues) : props.validationIssues;
+  const selectedProbeNormalizedSamples =
+    selectedProbe && props.previewCapture?.samples?.length
+      ? normalizeProbeSamples(props.previewCapture.samples.slice(0, props.previewCapture.capturedSamples || props.previewCapture.samples.length))
+      : [];
 
   return (
     <aside className="patch-inspector">
       <h3>Inspector</h3>
-      {!selectedNode && <p className="muted">Select a module to edit parameters.</p>}
+      {!selectedNode && !selectedProbe && <p className="muted">Select a module or probe to edit parameters.</p>}
 
       {selectedNode && props.selectedSchema && (
         <>
@@ -249,6 +277,87 @@ export function PatchInspector(props: PatchInspectorProps) {
               </div>
             );
           })}
+        </>
+      )}
+
+      {selectedProbe && !selectedNode && (
+        <>
+          <h4>
+            {selectedProbe.name} <small>{selectedProbe.kind}</small>
+          </h4>
+          <div className="param-row">
+            <span>Attachment</span>
+            <div className="param-control-stack">
+              <code>{formatProbeTarget(props.patch, selectedProbe.target)}</code>
+            </div>
+            <button type="button" onClick={() => props.onToggleAttachProbe(selectedProbe.id)}>
+              {props.attachingProbeId === selectedProbe.id ? "Cancel" : "Attach"}
+            </button>
+          </div>
+          <div className="param-row">
+            <span>Expanded</span>
+            <div className="param-control-stack">
+              <div className="macro-binding-edit-summary">
+                {selectedProbe.expanded ? "Large probe popover is open." : "Show a larger probe face popover."}
+              </div>
+            </div>
+            <button type="button" onClick={() => props.onToggleProbeExpanded(selectedProbe.id)}>
+              {selectedProbe.expanded ? "Collapse" : "Expand"}
+            </button>
+          </div>
+          {selectedProbe.kind === "spectrum" && (
+            <div className="param-row">
+              <span>Window</span>
+              <div className="param-control-stack">
+                <select
+                  value={selectedProbe.spectrumWindowSize ?? 1024}
+                  onChange={(event) => props.onUpdateProbeSpectrumWindow(selectedProbe.id, Number(event.target.value))}
+                >
+                  {[256, 512, 1024, 2048].map((windowSize) => (
+                    <option key={windowSize} value={windowSize}>
+                      {windowSize}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                disabled={!selectedProbe.target}
+                onClick={() => props.onClearProbeTarget(selectedProbe.id)}
+              >
+                Clear Target
+              </button>
+            </div>
+          )}
+          {selectedProbe.kind === "scope" && (
+            <div className="param-row">
+              <span>Signal</span>
+              <div className="param-control-stack">
+                <div className="macro-binding-edit-summary">
+                  {selectedProbeNormalizedSamples.length > 0
+                    ? `Normalized from ${props.previewCapture?.capturedSamples ?? 0} captured samples. Playhead ${Math.round(props.previewProgress * 100)}%.`
+                    : "Preview the patch to populate scope data."}
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={!selectedProbe.target}
+                onClick={() => props.onClearProbeTarget(selectedProbe.id)}
+              >
+                Clear Target
+              </button>
+            </div>
+          )}
+          {selectedProbe.kind === "spectrum" && (
+            <p className="muted">
+              Spectrum follows the current preview playhead and analyzes the active signal window over time.
+            </p>
+          )}
+          {selectedProbe.kind === "scope" && (
+            <p className="muted">
+              Scope view normalizes the captured signal so quiet patches still render visibly.
+            </p>
+          )}
         </>
       )}
 

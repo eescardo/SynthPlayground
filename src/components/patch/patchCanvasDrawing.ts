@@ -402,6 +402,57 @@ function drawPendingPatchPort(
   }
 }
 
+function drawHoveredAttachTarget(
+  ctx: CanvasRenderingContext2D,
+  patch: Patch,
+  portPositions: Map<string, ResolvedPortPosition>,
+  hoveredAttachTarget:
+    | { kind: "port"; nodeId: string; portId: string; portKind: "in" | "out" }
+    | { kind: "connection"; connectionId: string }
+    | null
+) {
+  if (!hoveredAttachTarget) {
+    return;
+  }
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(200, 255, 57, 0.98)";
+  ctx.fillStyle = "rgba(200, 255, 57, 0.16)";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 4]);
+
+  if (hoveredAttachTarget.kind === "port") {
+    const port = portPositions.get(`${hoveredAttachTarget.nodeId}:${hoveredAttachTarget.portKind}:${hoveredAttachTarget.portId}`);
+    if (port) {
+      ctx.fillRect(port.x - 4, port.y - port.height / 2 - 4, port.width + 8, port.height + 8);
+      ctx.strokeRect(port.x - 4, port.y - port.height / 2 - 4, port.width + 8, port.height + 8);
+    }
+    ctx.restore();
+    return;
+  }
+
+  const connection = patch.connections.find((entry) => entry.id === hoveredAttachTarget.connectionId);
+  if (!connection) {
+    ctx.restore();
+    return;
+  }
+  const from = portPositions.get(`${connection.from.nodeId}:out:${connection.from.portId}`);
+  const to = portPositions.get(`${connection.to.nodeId}:in:${connection.to.portId}`);
+  if (!from || !to) {
+    ctx.restore();
+    return;
+  }
+  ctx.beginPath();
+  ctx.moveTo(from.anchorX, from.anchorY);
+  ctx.lineTo(to.anchorX, to.anchorY);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc((from.anchorX + to.anchorX) / 2, (from.anchorY + to.anchorY) / 2, 7, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
 export function drawPatchFacePopover(
   ctx: CanvasRenderingContext2D,
   patch: Patch,
@@ -458,6 +509,7 @@ export function drawPatchCanvas(args: {
   pendingFromPort: HitPort | null;
   selectedMacroNodeIds: Set<string>;
   selectedNodeId?: string;
+  hoveredAttachTarget?: { kind: "port"; nodeId: string; portId: string; portKind: "in" | "out" } | { kind: "connection"; connectionId: string } | null;
 }): HitPort[] {
   const ctx = args.canvas.getContext("2d");
   if (!ctx) return [];
@@ -471,6 +523,7 @@ export function drawPatchCanvas(args: {
   drawPatchConnections(ctx, args.patch, portPositions);
   drawPatchModules(ctx, args.patch, args.layoutByNode, args.hoveredNodeId, args.selectedMacroNodeIds, args.selectedNodeId);
   drawPendingPatchPort(ctx, args.pendingFromPort, portPositions);
+  drawHoveredAttachTarget(ctx, args.patch, portPositions, args.hoveredAttachTarget ?? null);
 
   if (args.facePopoverNodeId) {
     const node = args.nodeById.get(args.facePopoverNodeId);

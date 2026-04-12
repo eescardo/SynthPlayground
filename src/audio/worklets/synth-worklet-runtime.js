@@ -713,6 +713,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
           previewId: message.previewId,
           trackId: message.trackId,
           durationSamples,
+          lastEmittedCapturedSamples: 0,
           signalIndexByProbeId,
           captureSamplesByProbeId,
           captureMetaByProbeId
@@ -720,10 +721,15 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
       : null;
   }
 
-  flushPreviewCapture() {
+  emitPreviewCapture(force = false) {
     if (!this.previewCapture) {
       return;
     }
+    const capturedSamples = Math.max(0, this.previewCapture.durationSamples - this.previewRemainingSamples);
+    if (!force && capturedSamples - this.previewCapture.lastEmittedCapturedSamples < 1024) {
+      return;
+    }
+    this.previewCapture.lastEmittedCapturedSamples = capturedSamples;
     const captures = [];
     for (const [probeId, samples] of this.previewCapture.captureSamplesByProbeId.entries()) {
       const meta = this.previewCapture.captureMetaByProbeId.get(probeId);
@@ -736,7 +742,8 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         target: meta.target,
         sampleRate: this.sampleRateInternal,
         durationSamples: this.previewCapture.durationSamples,
-        samples: Array.from(samples)
+        capturedSamples,
+        samples: Array.from(samples.slice(0, capturedSamples))
       });
     }
     this.port.postMessage({
@@ -744,7 +751,9 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
       previewId: this.previewCapture.previewId,
       captures
     });
-    this.previewCapture = null;
+    if (force) {
+      this.previewCapture = null;
+    }
   }
 
   resetTrackVoices(trackRuntime, options = {}) {
@@ -956,6 +965,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
   renderFrameRange(left, right, startFrame, endFrame) {
     this.masterBuffer.fill(0, startFrame, endFrame);
     const captureOffset = this.songSampleCounter;
+    let previewCompleted = false;
 
     if (this.playing || this.previewing) {
       for (const track of this.trackRuntimes) {
@@ -990,10 +1000,16 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
           this.previewing = false;
           this.eventQueue.length = 0;
           this.resetAllTrackVoices();
-          this.flushPreviewCapture();
+          previewCompleted = true;
         }
       }
       this.sampleCounter += 1;
+    }
+
+    if (previewCompleted) {
+      this.emitPreviewCapture(true);
+    } else if (this.previewCapture) {
+      this.emitPreviewCapture(false);
     }
   }
 

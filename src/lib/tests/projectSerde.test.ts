@@ -111,6 +111,7 @@ describe("projectSerde", () => {
             y: 5,
             width: 10,
             height: 6,
+            expanded: true,
             target: {
               kind: "connection",
               connectionId: "conn_1"
