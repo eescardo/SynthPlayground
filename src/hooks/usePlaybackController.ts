@@ -4,9 +4,11 @@ import { RefObject, useCallback, useEffect, useRef } from "react";
 import { AudioEngine } from "@/audio/engine";
 import { getLoopPlaybackEndBeat } from "@/lib/looping";
 import { Project } from "@/types/music";
+import { AudioProject } from "@/types/audio";
 
 interface UsePlaybackControllerArgs {
   project: Project;
+  audioProject: AudioProject;
   playbackEndBeat: number;
   userCueBeat: number;
   playheadBeat: number;
@@ -22,6 +24,7 @@ interface UsePlaybackControllerArgs {
 export function usePlaybackController(args: UsePlaybackControllerArgs) {
   const {
     project,
+    audioProject,
     playbackEndBeat,
     userCueBeat,
     playheadBeat,
@@ -73,13 +76,13 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
     if (!audioEngineRef.current) {
       audioEngineRef.current = new AudioEngine();
     }
-    audioEngineRef.current.setProject(project, { syncToWorklet: true });
+    audioEngineRef.current.setProject(audioProject, { syncToWorklet: true });
     await audioEngineRef.current.play(cueBeat);
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
     }
     rafRef.current = requestAnimationFrame(tickPlayhead);
-  }, [audioEngineRef, project, tickPlayhead]);
+  }, [audioEngineRef, audioProject, tickPlayhead]);
 
   const startPlayback = useCallback(async () => {
     if (process.env.NEXT_PUBLIC_STRICT_WASM === "1" && !strictWasmReady) {

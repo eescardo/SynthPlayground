@@ -11,11 +11,20 @@ const isTextEditingTarget = (target: EventTarget | null) => {
 export function usePatchWorkspaceQuickHelpDialog() {
   const [helpOpen, setHelpOpen] = useState(false);
 
-  const keyboardShortcuts = useMemo(() => [{ action: "Help", shortcut: "?" }], []);
+  const keyboardShortcuts = useMemo(
+    () => [
+      { action: "Preview current tab", shortcut: "Space" },
+      { action: "Next tab", shortcut: "Ctrl+`" },
+      { action: "Previous tab", shortcut: "Ctrl+Shift+`" },
+      { action: "Help", shortcut: "?" }
+    ],
+    []
+  );
   const mouseHelpItems = useMemo<Array<{ action: string; description: string }>>(
     () => [
       { action: "Zoom canvas", description: "Use a trackpad pinch or notched mouse wheel over the patch canvas. Two-finger trackpad scroll pans." },
-      { action: "Inspect module face", description: "Click a module to open the expanded module face." }
+      { action: "Inspect module face", description: "Click a module to open the expanded module face." },
+      { action: "Rename tabs or instruments", description: "Click exactly on the visible tab or instrument name text to rename it inline." }
     ],
     []
   );

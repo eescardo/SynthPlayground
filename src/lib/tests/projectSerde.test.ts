@@ -93,6 +93,30 @@ describe("projectSerde", () => {
     ]);
   });
 
+  it("import/export roundtrip preserves patch workspace tabs separately from patch names", () => {
+    const project = createDefaultProject();
+    project.ui.patchWorkspace.tabs = [
+      {
+        id: "tab_a",
+        name: "Bass Ideas",
+        patchId: "preset_bass",
+        selectedNodeId: "vcf1",
+        selectedMacroId: "macro_decay"
+      },
+      {
+        id: "tab_b",
+        name: "Transient Test",
+        patchId: "preset_bass"
+      }
+    ];
+    project.ui.patchWorkspace.activeTabId = "tab_b";
+
+    const roundTrip = importProjectFromJson(exportProjectToJson(project));
+
+    expect(roundTrip.ui.patchWorkspace.activeTabId).toBe("tab_b");
+    expect(roundTrip.ui.patchWorkspace.tabs).toEqual(project.ui.patchWorkspace.tabs);
+  });
+
   it("preserves invalid preset snapshots so UI can surface validation failures", () => {
     const project = createDefaultProject();
     const pluck = project.patches.find((patch) => patch.id === "preset_pluck");

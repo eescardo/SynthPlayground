@@ -2,6 +2,7 @@
 
 import type { ComponentProps } from "react";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
+import { PatchWorkspaceTabStrip, PatchWorkspaceTabViewModel } from "@/components/patch-workspace/PatchWorkspaceTabStrip";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { usePatchWorkspaceQuickHelpDialog } from "@/hooks/patch/usePatchWorkspaceQuickHelpDialog";
 import { Patch } from "@/types/patch";
@@ -10,6 +11,8 @@ import { PatchOp } from "@/types/ops";
 interface PatchWorkspaceViewProps {
   patch: Patch;
   patches: Patch[];
+  tabs: PatchWorkspaceTabViewModel[];
+  activeTabId?: string;
   macroValues: Record<string, number>;
   previewPitch: string;
   migrationNotice?: string | null;
@@ -19,13 +22,20 @@ interface PatchWorkspaceViewProps {
   invalid?: boolean;
   canRemovePatch: boolean;
   onBackToComposer: () => void;
+  onActivateTab: (tabId: string) => void;
+  canCreateTab: boolean;
+  onCreateTab: () => void;
+  onCloseTab: (tabId: string) => void;
+  onRenameTab: (tabId: string, name: string) => void;
   onSelectPatch: (patchId: string) => void;
   onRenamePatch: (name: string) => void;
   onDuplicatePatch: () => void;
+  onDuplicatePatchToNewTab: () => void;
   onUpdatePreset: () => void;
   onRequestRemovePatch: () => void;
   onOpenPreviewPitchPicker: () => void;
   onPreviewNow: () => void;
+  onInstrumentEditorReady: (macroValues: Record<string, number>) => void;
   onSelectNode: (nodeId?: string) => void;
   onSelectMacro: (macroId?: string) => void;
   onClearSelectedMacro: () => void;
@@ -58,38 +68,58 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           </button>
           <h2>Patch Workspace</h2>
         </div>
-        <button type="button" onClick={openHelp}>Help (?)</button>
+        <div className="patch-workspace-header-actions">
+          <button type="button" onClick={openHelp}>Help (?)</button>
+          <button type="button" className="preview-pitch-button" onClick={props.onOpenPreviewPitchPicker}>
+            {props.previewPitch}
+          </button>
+          <button type="button" onClick={props.onPreviewNow}>
+            Play
+          </button>
+        </div>
       </div>
 
-      <InstrumentEditor
-        patch={props.patch}
-        patches={props.patches}
-        macroValues={props.macroValues}
-        previewPitch={props.previewPitch}
-        migrationNotice={props.migrationNotice}
-        selectedNodeId={props.selectedNodeId}
-        selectedMacroId={props.selectedMacroId}
-        validationIssues={props.validationIssues}
-        invalid={props.invalid}
-        onRenamePatch={props.onRenamePatch}
-        onSelectPatch={props.onSelectPatch}
-        onDuplicatePatch={props.onDuplicatePatch}
-        onUpdatePreset={props.onUpdatePreset}
-        canRemovePatch={props.canRemovePatch}
-        onRequestRemovePatch={props.onRequestRemovePatch}
-        onOpenPreviewPitchPicker={props.onOpenPreviewPitchPicker}
-        onPreviewNow={props.onPreviewNow}
-        onSelectNode={props.onSelectNode}
-        onSelectMacro={props.onSelectMacro}
-        onClearSelectedMacro={props.onClearSelectedMacro}
-        onApplyOp={props.onApplyOp}
-        onExposeMacro={props.onExposeMacro}
-        onAddMacro={props.onAddMacro}
-        onRemoveMacro={props.onRemoveMacro}
-        onRenameMacro={props.onRenameMacro}
-        onSetMacroKeyframeCount={props.onSetMacroKeyframeCount}
-        onChangeMacroValue={props.onChangeMacroValue}
-      />
+      <div className="patch-workspace-editor-shell">
+        <PatchWorkspaceTabStrip
+          tabs={props.tabs}
+          activeTabId={props.activeTabId}
+          canCreateTab={props.canCreateTab}
+          onActivateTab={props.onActivateTab}
+          onCreateTab={props.onCreateTab}
+          onCloseTab={props.onCloseTab}
+          onRenameTab={props.onRenameTab}
+        />
+
+        <InstrumentEditor
+          editorSessionKey={props.activeTabId}
+          patch={props.patch}
+          patches={props.patches}
+          macroValues={props.macroValues}
+          migrationNotice={props.migrationNotice}
+          onReady={props.onInstrumentEditorReady}
+          selectedNodeId={props.selectedNodeId}
+          selectedMacroId={props.selectedMacroId}
+          validationIssues={props.validationIssues}
+          invalid={props.invalid}
+          onRenamePatch={props.onRenamePatch}
+          onSelectPatch={props.onSelectPatch}
+          onDuplicatePatch={props.onDuplicatePatch}
+          onDuplicatePatchToNewTab={props.onDuplicatePatchToNewTab}
+          onUpdatePreset={props.onUpdatePreset}
+          canRemovePatch={props.canRemovePatch}
+          onRequestRemovePatch={props.onRequestRemovePatch}
+          onSelectNode={props.onSelectNode}
+          onSelectMacro={props.onSelectMacro}
+          onClearSelectedMacro={props.onClearSelectedMacro}
+          onApplyOp={props.onApplyOp}
+          onExposeMacro={props.onExposeMacro}
+          onAddMacro={props.onAddMacro}
+          onRemoveMacro={props.onRemoveMacro}
+          onRenameMacro={props.onRenameMacro}
+          onSetMacroKeyframeCount={props.onSetMacroKeyframeCount}
+          onChangeMacroValue={props.onChangeMacroValue}
+        />
+      </div>
 
       <QuickHelpDialog
         keyboardShortcuts={keyboardShortcuts}

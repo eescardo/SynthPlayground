@@ -81,6 +81,18 @@ function createProject(options: {
       makeupGain: 0,
       ...masterFx
     },
+    ui: {
+      patchWorkspace: {
+        activeTabId: "tab_1",
+        tabs: [
+          {
+            id: "tab_1",
+            name: patch.name,
+            patchId: patch.id
+          }
+        ]
+      }
+    },
     createdAt: 0,
     updatedAt: 0
   } satisfies Project;
@@ -328,6 +340,83 @@ describe("synth worklet runtime", () => {
 
     expect(sumAbs(fullLeft)).toBeGreaterThan(0.001);
     expect(sumAbs(quietLeft)).toBeCloseTo(sumAbs(fullLeft) * 0.25, 4);
+  });
+
+  it("applies preview project overrides atomically for preview rendering", async () => {
+    const { SynthWorkletProcessor } = await loadRuntimeModule();
+
+    const basePatch = createPatch({
+      id: "patch_base",
+      ui: {
+        macros: [
+          {
+            id: "macro_gain",
+            name: "Gain",
+            keyframeCount: 3,
+            bindings: [
+              {
+                id: "binding_gain",
+                nodeId: "out",
+                paramId: "gainDb",
+                map: "linear",
+                min: -24,
+                max: 0
+              }
+            ]
+          }
+        ]
+      }
+    });
+    const baseTrack = createTrack({
+      instrumentPatchId: basePatch.id,
+      macroValues: {
+        macro_gain: 0
+      }
+    });
+    const processor = new SynthWorkletProcessor({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize: 128,
+        project: createProject({ patch: basePatch, track: baseTrack })
+      }
+    });
+
+    const previewPatch = structuredClone(basePatch);
+    previewPatch.id = "patch_preview";
+    const previewProject = createProject({
+      patch: previewPatch,
+      track: createTrack({
+        instrumentPatchId: previewPatch.id,
+        macroValues: {
+          macro_gain: 1
+        }
+      })
+    });
+
+    processor.onMessage({
+      type: "PREVIEW",
+      project: previewProject,
+      durationSamples: 128,
+      events: [
+        {
+          id: "preview_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ]
+    });
+
+    const processorState = processor as typeof processor & {
+      project?: Project;
+      trackRuntimes?: Array<{ track: Track }>;
+    };
+
+    expect(processorState.project?.patches[0]?.id).toBe("patch_preview");
+    expect(processorState.trackRuntimes?.[0]?.track.instrumentPatchId).toBe("patch_preview");
   });
 
   it("ignores stale transport event batches from older sessions", async () => {

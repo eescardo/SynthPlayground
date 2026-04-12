@@ -5,7 +5,6 @@ interface ProjectActionsBarProps {
   canRemoveTrack: boolean;
   onAddTrack: () => void;
   onRemoveTrack: () => void;
-  onOpenHelp: () => void;
   onExportJson: () => void;
   onImportJson: () => void;
   onClearProject: () => void;
@@ -19,7 +18,6 @@ export function ProjectActionsBar({
   canRemoveTrack,
   onAddTrack,
   onRemoveTrack,
-  onOpenHelp,
   onExportJson,
   onImportJson,
   onClearProject,
@@ -33,7 +31,6 @@ export function ProjectActionsBar({
       <button disabled={recordingDisabled || !canRemoveTrack} onClick={onRemoveTrack}>
         Remove Track
       </button>
-      <button onClick={onOpenHelp}>Help (?)</button>
       <button onClick={onExportJson}>Export Project JSON</button>
       <button onClick={onImportJson}>Import Project JSON</button>
       <button onClick={onClearProject}>Clear Project</button>

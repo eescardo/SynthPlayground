@@ -2,6 +2,7 @@
 
 import { RefObject, useCallback, useState } from "react";
 import { AudioEngine } from "@/audio/engine";
+import { toAudioProject } from "@/audio/audioProject";
 import { TRACK_VOLUME_AUTOMATION_ID } from "@/lib/macroAutomation";
 import { clampTrackVolume, isTrackVolumeMuted } from "@/lib/trackVolume";
 import { Project } from "@/types/music";
@@ -56,7 +57,7 @@ export function useProjectAudioActions(options: UseProjectAudioActionsOptions) {
     }
     setExportingAudio(true);
     try {
-      const blob = await audioEngineRef.current.exportProjectAudio(project);
+      const blob = await audioEngineRef.current.exportProjectAudio(toAudioProject(project));
       downloadBlob(blob, `${project.name.replace(/\s+/g, "_").toLowerCase()}.wav`);
     } catch (error) {
       setRuntimeError((error as Error).message);

@@ -6,7 +6,7 @@ import {
   getTrackMacroValueAtBeat
 } from "@/lib/macroAutomation";
 import { insertBeatGap, sortNotes } from "@/lib/noteEditing";
-import { Note, Project, ProjectGlobalSettings, Track } from "@/types/music";
+import { Note, Project, ProjectGlobalCarrier, ProjectGlobalSettings, Track } from "@/types/music";
 
 export interface SanitizedLoopMarker {
   id: string;
@@ -393,7 +393,7 @@ export const getSongBeatForPlaybackBeat = (
   return mapPlaybackBeatInSequence(playbackBeat, cueBeat, Number.POSITIVE_INFINITY, pairs);
 };
 
-export const getLoopPlaybackEndBeat = (project: Project, cueBeat: number, fallbackEndBeat: number): number => {
+export const getLoopPlaybackEndBeat = (project: ProjectGlobalCarrier, cueBeat: number, fallbackEndBeat: number): number => {
   const { pairs } = buildLoopPairs(project.global.loop);
   return cueBeat + getSequencePlaybackLength(cueBeat, fallbackEndBeat, pairs.filter((pair) => pair.startBeat < fallbackEndBeat - EPSILON));
 };

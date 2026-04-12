@@ -3,8 +3,8 @@
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { getLoopPlaybackEndBeat } from "@/lib/looping";
 import { beatToSample } from "@/lib/musicTiming";
-import { Project } from "@/types/music";
 import { createAudioEngineBackend, AudioEngineBackend, BLOCK_SIZE, FIXED_SAMPLE_RATE } from "@/audio/engineBackends";
+import { AudioProject } from "@/types/audio";
 
 const EXPORT_TAIL_BEATS = 8;
 
@@ -65,7 +65,7 @@ export class AudioEngine {
     return this.backend.ensureRunning();
   }
 
-  setProject(project: Project, options?: { syncToWorklet?: boolean }): void {
+  setProject(project: AudioProject, options?: { syncToWorklet?: boolean }): void {
     this.backend.setProject(project, options);
   }
 
@@ -113,11 +113,17 @@ export class AudioEngine {
     return this.backend.recordNoteOff(trackId, noteId, pitchVoct);
   }
 
-  previewNote(trackId: string, pitchVoct: number, durationBeats: number, velocity = 0.9, options?: { ignoreVolume?: boolean }): Promise<void> {
+  previewNote(
+    trackId: string,
+    pitchVoct: number,
+    durationBeats: number,
+    velocity = 0.9,
+    options?: { ignoreVolume?: boolean; projectOverride?: AudioProject }
+  ): Promise<void> {
     return this.backend.previewNote(trackId, pitchVoct, durationBeats, velocity, options);
   }
 
-  async exportProjectAudio(project: Project): Promise<Blob> {
+  async exportProjectAudio(project: AudioProject): Promise<Blob> {
     const maxNoteEndBeat = project.tracks
       .flatMap((track) => track.notes)
       .reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);

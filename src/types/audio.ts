@@ -1,3 +1,13 @@
+import { MasterFxSettings, ProjectGlobalSettings, Track } from "@/types/music";
+import { Patch } from "@/types/patch";
+
+export interface AudioProject {
+  global: ProjectGlobalSettings;
+  tracks: Track[];
+  patches: Patch[];
+  masterFx: MasterFxSettings;
+}
+
 // Scheduler/worklet message contracts and event payload types for audio transport.
 export type SchedulerEventType = "NoteOn" | "NoteOff" | "ParamChange" | "MacroChange";
 export type SchedulerEventSource = "timeline" | "live_input" | "preview" | "automation";
@@ -49,7 +59,7 @@ export interface WorkletInitMessage {
 
 export interface WorkletSetProjectMessage {
   type: "SET_PROJECT";
-  project: unknown;
+  project: AudioProject;
 }
 
 export interface WorkletEventsMessage {
@@ -69,6 +79,8 @@ export interface WorkletPreviewMessage {
   type: "PREVIEW";
   events: SchedulerEvent[];
   durationSamples: number;
+  project?: AudioProject;
+  ignoreVolume?: boolean;
 }
 
 export interface WorkletTransportMessage {

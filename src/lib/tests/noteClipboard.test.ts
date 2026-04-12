@@ -156,6 +156,18 @@ const createProject = (): Project => ({
     limiterEnabled: false,
     makeupGain: 1
   },
+  ui: {
+    patchWorkspace: {
+      activeTabId: "tab_1",
+      tabs: [
+        {
+          id: "tab_1",
+          name: "Cutoff",
+          patchId: "patch_1"
+        }
+      ]
+    }
+  },
   createdAt: 0,
   updatedAt: 0
 });

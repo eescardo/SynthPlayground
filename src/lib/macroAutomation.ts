@@ -1,5 +1,6 @@
 import { createId } from "@/lib/ids";
 import {
+  ProjectGlobalCarrier,
   Project,
   SplitTrackMacroAutomationKeyframe,
   Track,
@@ -216,7 +217,7 @@ export const getTrackAutomationPoints = (lane: TrackMacroAutomationLane, endBeat
   return points;
 };
 
-export const getProjectTimelineEndBeat = (project: Project): number => {
+export const getProjectTimelineEndBeat = (project: ProjectGlobalCarrier & Pick<Project, "tracks">): number => {
   const meterBeats = project.global.meter === "4/4" ? 4 : 3;
   const maxNoteEnd = project.tracks.flatMap((track) => track.notes).reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);
   return Math.max(16, Math.ceil(maxNoteEnd + meterBeats));

@@ -9,8 +9,7 @@ import {
 import { beatRangeToSampleRange } from "@/lib/musicTiming";
 import { pitchToVoct } from "@/lib/pitch";
 import { createId } from "@/lib/ids";
-import { Project } from "@/types/music";
-import { SchedulerEvent, SchedulerEventType } from "@/types/audio";
+import { AudioProject, SchedulerEvent, SchedulerEventType } from "@/types/audio";
 
 interface SchedulerWindow {
   fromSample: number;
@@ -46,7 +45,7 @@ const SCHEDULER_EVENT_SORT_PRIORITY: Record<SchedulerEventType, SchedulerEventSo
 
 const stableNoteEventIds = new Map<string, NoteEventCache>();
 
-const pruneStaleNoteEventIds = (project: Project): void => {
+const pruneStaleNoteEventIds = (project: AudioProject): void => {
   const activeKeys = new Set<string>();
   for (const track of project.tracks) {
     for (const note of track.notes) {
@@ -75,12 +74,12 @@ const noteEventCacheFor = (trackId: string, noteId: string): NoteEventCache => {
   return created;
 };
 
-const getLoopedEventSampleTimes = (songBeat: number, cueBeat: number, project: Project): number[] => {
+const getLoopedEventSampleTimes = (songBeat: number, cueBeat: number, project: AudioProject): number[] => {
   const playbackBeatTimes = getLoopedPlaybackBeatsForSongBeat(songBeat, cueBeat, project.global.loop);
   return playbackBeatTimes.map((beatOffset) => beatRangeToSampleRange(beatOffset, 0, project.global.sampleRate, project.global.tempo).startSample);
 };
 
-export const collectEventsInWindow = (project: Project, window: SchedulerWindow, options?: CollectEventsOptions): SchedulerEvent[] => {
+export const collectEventsInWindow = (project: AudioProject, window: SchedulerWindow, options?: CollectEventsOptions): SchedulerEvent[] => {
   pruneStaleNoteEventIds(project);
   const events: SchedulerEvent[] = [];
   const cueBeat = Math.max(0, options?.cueBeat ?? 0);
