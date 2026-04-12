@@ -173,7 +173,7 @@ async function measurePatchWorkspace(page: Page): Promise<PatchWorkspaceMetrics>
       stage: pick(".patch-canvas-stage"),
       shell: pick(".patch-canvas-shell"),
       scroll: pick(".patch-canvas-scroll"),
-      canvas: pick(".patch-layout canvas")
+      canvas: pick(".patch-canvas-overlay-shell > canvas")
     };
   });
 }

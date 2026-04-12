@@ -63,7 +63,7 @@ const resolveRawPortPoint = (patch: Patch, nodeId: string, portId: string, portK
 };
 
 const resolveCanvasDisplayScale = async (page: Page) => {
-  const canvas = page.locator(".patch-layout canvas");
+  const canvas = page.locator(".patch-canvas-overlay-shell > canvas");
   const box = await canvas.boundingBox();
   if (!box) {
     throw new Error("Patch canvas bounding box was not available.");
