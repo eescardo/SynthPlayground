@@ -1,14 +1,16 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   resolvePatchConnectionMidpoint,
   resolvePatchPortAnchorPoint
 } from "@/components/patch/patchCanvasGeometry";
 import { PATCH_CANVAS_GRID } from "@/components/patch/patchCanvasConstants";
 import {
-  buildSpectrumBins,
-  normalizeProbeSamples
+  buildProbeSpectrogram,
+  EXPANDED_PROBE_SIZE,
+  normalizeProbeSamples,
+  resolveProbePeakAmplitude
 } from "@/lib/patch/probes";
 import { Patch, PatchLayoutNode } from "@/types/patch";
 import { PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
@@ -30,7 +32,7 @@ interface PatchProbeOverlayProps {
 }
 
 const PROBE_SPECTRUM_WINDOWS = [256, 512, 1024, 2048];
-const PROBE_EXPANDED_SIZE = { width: 340, height: 228 } as const;
+const PROBE_DRAG_THRESHOLD_PX = 6;
 
 export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
   const connectionLines = useMemo(
@@ -128,18 +130,66 @@ function ProbeCard(props: {
   onUpdateSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
   onToggleExpanded: (probeId: string) => void;
 }) {
-  const spectrumBins = props.capture && props.probe.kind === "spectrum"
-    ? buildSpectrumBins(
+  const gestureStateRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    moved: boolean;
+  } | null>(null);
+  const renderedWidth = resolveRenderedProbeWidth(props.probe, props.zoom);
+  const renderedHeight = resolveRenderedProbeHeight(props.probe, props.zoom);
+
+  useEffect(() => {
+    return () => {
+      gestureStateRef.current = null;
+    };
+  }, []);
+
+  const beginGesture = (pointerId: number, clientX: number, clientY: number) => {
+    gestureStateRef.current = { pointerId, startX: clientX, startY: clientY, moved: false };
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const gesture = gestureStateRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId || gesture.moved) {
+      return;
+    }
+    const distance = Math.hypot(event.clientX - gesture.startX, event.clientY - gesture.startY);
+    if (distance < PROBE_DRAG_THRESHOLD_PX) {
+      return;
+    }
+    gesture.moved = true;
+    props.onBeginProbeDrag(props.probe.id, gesture.startX, gesture.startY);
+  };
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    const gesture = gestureStateRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) {
+      return;
+    }
+    gestureStateRef.current = null;
+    if (!gesture.moved) {
+      props.onToggleExpanded(props.probe.id);
+    }
+  };
+
+  const handlePointerCancel = (event: React.PointerEvent<HTMLDivElement>) => {
+    const gesture = gestureStateRef.current;
+    if (gesture && gesture.pointerId === event.pointerId) {
+      gestureStateRef.current = null;
+    }
+  };
+
+  const spectrogram = props.capture && props.probe.kind === "spectrum"
+    ? buildProbeSpectrogram(
         props.capture.samples,
         props.probe.spectrumWindowSize ?? 1024,
-        32,
-        props.previewProgress,
+        props.probe.expanded ? 54 : 28,
+        props.probe.expanded ? 30 : 18,
         props.capture.durationSamples,
         props.capture.capturedSamples
       )
     : [];
-  const renderedWidth = resolveRenderedProbeWidth(props.probe, props.zoom);
-  const renderedHeight = resolveRenderedProbeHeight(props.probe, props.zoom);
 
   return (
     <div
@@ -152,17 +202,17 @@ function ProbeCard(props: {
       }}
       onPointerDown={(event) => {
         event.stopPropagation();
+        if ((event.target as HTMLElement | null)?.closest("button,select,label")) {
+          return;
+        }
         props.onSelectProbe(props.probe.id);
+        beginGesture(event.pointerId, event.clientX, event.clientY);
       }}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
     >
-      <div
-        className="patch-probe-card-header"
-        onPointerDown={(event) => {
-          event.stopPropagation();
-          props.onSelectProbe(props.probe.id);
-          props.onBeginProbeDrag(props.probe.id, event.clientX, event.clientY);
-        }}
-      >
+      <div className="patch-probe-card-header">
         <strong>{props.probe.name}</strong>
         <button
           type="button"
@@ -175,21 +225,12 @@ function ProbeCard(props: {
           {props.attaching ? "Cancel" : "Attach"}
         </button>
       </div>
-      <div
-        className="patch-probe-card-body patch-probe-face-toggle"
-        onPointerDown={(event) => {
-          event.stopPropagation();
-        }}
-        onClick={(event) => {
-          event.stopPropagation();
-          props.onToggleExpanded(props.probe.id);
-        }}
-      >
+      <div className="patch-probe-card-body patch-probe-face-toggle">
         <ProbeGraphBody
           probe={props.probe}
           capture={props.capture}
           previewProgress={props.previewProgress}
-          spectrumBins={spectrumBins}
+          spectrogram={spectrogram}
           compact={!props.probe.expanded}
           onUpdateSpectrumWindow={props.onUpdateSpectrumWindow}
         />
@@ -202,16 +243,16 @@ function ProbeGraphBody(props: {
   probe: PatchWorkspaceProbeState;
   capture?: PreviewProbeCapture;
   previewProgress: number;
-  spectrumBins: number[];
+  spectrogram: number[][];
   compact?: boolean;
   onUpdateSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
 }) {
   if (props.probe.kind === "scope") {
-    return <ScopeProbeGraph capture={props.capture} progress={props.previewProgress} />;
+    return <ScopeProbeGraph capture={props.capture} progress={props.previewProgress} compact={props.compact} />;
   }
   return (
     <SpectrumProbeGraph
-      bins={props.spectrumBins}
+      spectrogram={props.spectrogram}
       selectedWindowSize={props.probe.spectrumWindowSize ?? 1024}
       compact={props.compact}
       onChangeWindowSize={(next) => props.onUpdateSpectrumWindow(props.probe.id, next)}
@@ -219,75 +260,119 @@ function ProbeGraphBody(props: {
   );
 }
 
-function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: number }) {
+function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: number; compact?: boolean }) {
   const graphData = useMemo(() => {
-    const sampleCount = props.capture?.capturedSamples ?? props.capture?.samples.length ?? 0;
-    if (!props.capture?.samples?.length || sampleCount <= 0) {
-      return { centerLine: "", envelopePath: "" };
+    const durationSamples = props.capture?.durationSamples ?? 0;
+    const capturedSamples = props.capture?.capturedSamples ?? 0;
+    if (!props.capture?.samples?.length || durationSamples <= 0) {
+      return { centerLine: "", envelopePath: "", peak: 0, capturedRatio: 0 };
     }
-    const normalized = normalizeProbeSamples(props.capture.samples.slice(0, sampleCount));
-    const bucketCount = 96;
-    const centerPoints = [];
-    const upperPoints = [];
-    const lowerPoints = [];
+    const visibleSamples = props.capture.samples.slice(0, capturedSamples);
+    const normalized = normalizeProbeSamples(visibleSamples);
+    const bucketCount = props.compact ? 72 : 120;
+    const centerPoints: string[] = [];
+    const upperPoints: string[] = [];
+    const lowerPoints: string[] = [];
     for (let bucket = 0; bucket < bucketCount; bucket += 1) {
-      const start = Math.floor((bucket / bucketCount) * normalized.length);
-      const end = Math.max(start + 1, Math.floor(((bucket + 1) / bucketCount) * normalized.length));
+      const bucketStart = Math.floor((bucket / bucketCount) * durationSamples);
+      const bucketEnd = Math.max(bucketStart + 1, Math.floor(((bucket + 1) / bucketCount) * durationSamples));
+      const x = (bucket / Math.max(1, bucketCount - 1)) * 100;
+      if (bucketStart >= capturedSamples) {
+        continue;
+      }
+      const normalizedStart = Math.floor((bucketStart / Math.max(1, capturedSamples)) * normalized.length);
+      const normalizedEnd = Math.max(
+        normalizedStart + 1,
+        Math.floor((Math.min(bucketEnd, capturedSamples) / Math.max(1, capturedSamples)) * normalized.length)
+      );
       let min = 1;
       let max = -1;
-      for (let index = start; index < end; index += 1) {
+      for (let index = normalizedStart; index < normalizedEnd; index += 1) {
         const sample = normalized[index] ?? 0;
         min = Math.min(min, sample);
         max = Math.max(max, sample);
       }
-      const x = (bucket / Math.max(1, bucketCount - 1)) * 100;
       centerPoints.push(`${x},${50 - ((min + max) * 0.5) * 22}`);
       upperPoints.push(`${x},${50 - max * 24}`);
       lowerPoints.push(`${x},${50 - min * 24}`);
     }
     return {
       centerLine: centerPoints.join(" "),
-      envelopePath: `${upperPoints.join(" ")} ${[...lowerPoints].reverse().join(" ")}`
+      envelopePath: upperPoints.length > 1 ? `${upperPoints.join(" ")} ${[...lowerPoints].reverse().join(" ")}` : "",
+      peak: resolveProbePeakAmplitude(visibleSamples),
+      capturedRatio: capturedSamples / Math.max(1, durationSamples)
     };
-  }, [props.capture]);
+  }, [props.capture, props.compact]);
 
   return (
     <svg viewBox="0 0 100 60" className="patch-probe-graph">
       <rect x="0" y="0" width="100" height="60" fill="rgba(10, 18, 28, 0.9)" rx="6" />
-      <line x1="0" y1="30" x2="100" y2="30" stroke="rgba(140, 179, 213, 0.18)" strokeWidth="1" />
+      <line x1="0" y1="6" x2="100" y2="6" stroke="rgba(140, 179, 213, 0.16)" strokeWidth="0.8" />
+      <line x1="0" y1="30" x2="100" y2="30" stroke="rgba(140, 179, 213, 0.22)" strokeWidth="1" />
+      <line x1="0" y1="54" x2="100" y2="54" stroke="rgba(140, 179, 213, 0.16)" strokeWidth="0.8" />
+      {graphData.capturedRatio < 1 && (
+        <rect
+          x={Math.max(0, graphData.capturedRatio * 100)}
+          y="0"
+          width={Math.max(0, 100 - graphData.capturedRatio * 100)}
+          height="60"
+          fill="rgba(6, 12, 18, 0.3)"
+        />
+      )}
       {graphData.envelopePath && <polygon points={graphData.envelopePath} fill="rgba(151, 214, 255, 0.16)" />}
       {graphData.centerLine && (
-        <polyline points={graphData.centerLine} fill="none" stroke="rgba(151, 214, 255, 0.95)" strokeWidth="1.8" />
+        <polyline points={graphData.centerLine} fill="none" stroke="rgba(151, 214, 255, 0.95)" strokeWidth="1.6" />
       )}
       <rect x={Math.max(0, Math.min(98, props.progress * 100 - 1))} y="0" width="2" height="60" fill="rgba(200, 255, 57, 0.9)" />
+      {!props.compact && graphData.peak > 0 && (
+        <>
+          <text x="2" y="7.5" className="patch-probe-axis-label">{`+${graphData.peak.toFixed(3)}`}</text>
+          <text x="2" y="31.5" className="patch-probe-axis-label">0</text>
+          <text x="2" y="55.5" className="patch-probe-axis-label">{`-${graphData.peak.toFixed(3)}`}</text>
+        </>
+      )}
     </svg>
   );
 }
 
 function SpectrumProbeGraph(props: {
-  bins: number[];
+  spectrogram: number[][];
   selectedWindowSize: number;
   compact?: boolean;
   onChangeWindowSize: (windowSize: number) => void;
 }) {
+  const rows = props.spectrogram.length;
+  const columns = props.spectrogram[0]?.length ?? 0;
   return (
     <div className="patch-probe-spectrum-shell">
       <svg viewBox="0 0 100 60" className="patch-probe-graph">
         <rect x="0" y="0" width="100" height="60" fill="rgba(10, 18, 28, 0.9)" rx="6" />
-        {props.bins.map((value, index) => {
-          const width = 100 / Math.max(1, props.bins.length);
-          const height = Math.max(2, value * 54);
-          return (
-            <rect
-              key={index}
-              x={index * width + 0.6}
-              y={58 - height}
-              width={Math.max(1, width - 1.2)}
-              height={height}
-              fill="rgba(255, 214, 145, 0.92)"
-            />
-          );
-        })}
+        {props.spectrogram.map((row, rowIndex) =>
+          row.map((value, columnIndex) => {
+            const cellWidth = 100 / Math.max(1, columns);
+            const cellHeight = 60 / Math.max(1, rows);
+            const x = columnIndex * cellWidth;
+            const y = 60 - (rowIndex + 1) * cellHeight;
+            const alpha = Math.max(0.04, Math.min(0.95, value * 0.95));
+            return (
+              <rect
+                key={`${rowIndex}_${columnIndex}`}
+                x={x}
+                y={y}
+                width={cellWidth + 0.15}
+                height={cellHeight + 0.15}
+                fill={`rgba(255, 214, 145, ${alpha})`}
+              />
+            );
+          })
+        )}
+        {!props.compact && (
+          <>
+            <text x="2" y="7.5" className="patch-probe-axis-label">High</text>
+            <text x="2" y="56" className="patch-probe-axis-label">Low</text>
+            <text x="84" y="56" className="patch-probe-axis-label">Time</text>
+          </>
+        )}
       </svg>
       {!props.compact && (
         <label className="patch-probe-window-label">
@@ -309,9 +394,9 @@ function SpectrumProbeGraph(props: {
 }
 
 function resolveRenderedProbeWidth(probe: PatchWorkspaceProbeState, zoom: number) {
-  return probe.expanded ? PROBE_EXPANDED_SIZE.width : probe.width * PATCH_CANVAS_GRID * zoom;
+  return probe.expanded ? EXPANDED_PROBE_SIZE.width : probe.width * PATCH_CANVAS_GRID * zoom;
 }
 
 function resolveRenderedProbeHeight(probe: PatchWorkspaceProbeState, zoom: number) {
-  return probe.expanded ? PROBE_EXPANDED_SIZE.height : probe.height * PATCH_CANVAS_GRID * zoom;
+  return probe.expanded ? EXPANDED_PROBE_SIZE.height : probe.height * PATCH_CANVAS_GRID * zoom;
 }

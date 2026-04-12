@@ -96,3 +96,40 @@ export const buildSpectrumBins = (
   }
   return magnitudes;
 };
+
+export const buildProbeSpectrogram = (
+  samples: ArrayLike<number>,
+  windowSize = 1024,
+  timeBinCount = 40,
+  freqBinCount = 24,
+  durationSamples = samples.length,
+  capturedSamples = samples.length
+) => {
+  const safeDurationSamples = Math.max(durationSamples, samples.length, 1);
+  const safeCapturedSamples = Math.max(0, Math.min(capturedSamples, samples.length, safeDurationSamples));
+  const grid = Array.from({ length: freqBinCount }, () => new Array(timeBinCount).fill(0));
+  if (safeCapturedSamples < 32) {
+    return grid;
+  }
+
+  for (let timeIndex = 0; timeIndex < timeBinCount; timeIndex += 1) {
+    const normalizedTime = timeBinCount <= 1 ? 0 : timeIndex / (timeBinCount - 1);
+    const bins = buildSpectrumBins(
+      samples,
+      windowSize,
+      freqBinCount,
+      normalizedTime,
+      safeDurationSamples,
+      safeCapturedSamples
+    );
+    const capturedAtColumn = Math.floor(normalizedTime * safeDurationSamples);
+    if (capturedAtColumn > safeCapturedSamples) {
+      continue;
+    }
+    for (let freqIndex = 0; freqIndex < freqBinCount; freqIndex += 1) {
+      grid[freqIndex][timeIndex] = bins[freqIndex] ?? 0;
+    }
+  }
+
+  return grid;
+};

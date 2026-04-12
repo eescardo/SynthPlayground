@@ -1399,6 +1399,13 @@ select {
   display: block;
 }
 
+.patch-probe-axis-label {
+  fill: rgba(231, 243, 255, 0.78);
+  font-size: 4px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
 .patch-probe-spectrum-shell {
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;

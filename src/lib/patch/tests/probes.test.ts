@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSpectrumBins, normalizeProbeSamples } from "@/lib/patch/probes";
+import { buildProbeSpectrogram, buildSpectrumBins, normalizeProbeSamples } from "@/lib/patch/probes";
 
 describe("probe helpers", () => {
   it("normalizes quiet sample streams so they remain visible", () => {
@@ -24,5 +24,23 @@ describe("probe helpers", () => {
     expect(Math.max(...earlyBins)).toBeGreaterThan(0.05);
     expect(Math.max(...lateBins)).toBeGreaterThan(0.05);
     expect(earlyBins).not.toEqual(lateBins);
+  });
+
+  it("builds a spectrogram grid whose columns represent successive time slices", () => {
+    const samples = new Array(1536).fill(0).map((_, index) =>
+      index < 768
+        ? Math.sin((2 * Math.PI * index) / 32) * 0.2
+        : Math.sin((2 * Math.PI * index) / 8) * 0.2
+    );
+
+    const grid = buildProbeSpectrogram(samples, 256, 12, 10, samples.length, samples.length);
+
+    expect(grid).toHaveLength(10);
+    expect(grid[0]).toHaveLength(12);
+    const firstColumnEnergy = grid.reduce((sum, row) => sum + row[1], 0);
+    const lastColumnEnergy = grid.reduce((sum, row) => sum + row[10], 0);
+    expect(firstColumnEnergy).toBeGreaterThan(0.1);
+    expect(lastColumnEnergy).toBeGreaterThan(0.1);
+    expect(grid.map((row) => row[1])).not.toEqual(grid.map((row) => row[10]));
   });
 });
