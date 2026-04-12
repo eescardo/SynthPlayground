@@ -280,19 +280,32 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: numbe
   const graphData = useMemo(() => {
     const durationSamples = props.capture?.durationSamples ?? 0;
     const capturedSamples = props.capture?.capturedSamples ?? 0;
+    const sampleRate = props.capture?.sampleRate ?? 48000;
     if (!props.capture?.samples?.length || durationSamples <= 0) {
-      return { centerLine: "", envelopePath: "", peak: 0, capturedRatio: 0 };
+      return {
+        waveformSegments: [] as Array<{ x: number; y1: number; y2: number }>,
+        envelopeLine: "",
+        peak: 0,
+        capturedRatio: 0,
+        durationSeconds: 0
+      };
     }
     const visibleSamples = props.capture.samples.slice(0, capturedSamples);
     const normalized = normalizeProbeSamples(visibleSamples);
     const bucketCount = props.compact ? 72 : 120;
-    const centerPoints: string[] = [];
-    const upperPoints: string[] = [];
-    const lowerPoints: string[] = [];
+    const waveformSegments: Array<{ x: number; y1: number; y2: number }> = [];
+    const envelopePoints: string[] = [];
+    const waveformCenterY = props.compact ? 18 : 17;
+    const waveformHalfHeight = props.compact ? 10 : 9;
+    const envelopeTopY = props.compact ? 35 : 33;
+    const envelopeHeight = props.compact ? 18 : 19;
+    const plotStartX = props.compact ? 2 : 8;
+    const plotWidth = props.compact ? 97 : 90;
+
     for (let bucket = 0; bucket < bucketCount; bucket += 1) {
       const bucketStart = Math.floor((bucket / bucketCount) * durationSamples);
       const bucketEnd = Math.max(bucketStart + 1, Math.floor(((bucket + 1) / bucketCount) * durationSamples));
-      const x = (bucket / Math.max(1, bucketCount - 1)) * 100;
+      const x = plotStartX + (bucket / Math.max(1, bucketCount - 1)) * plotWidth;
       if (bucketStart >= capturedSamples) {
         continue;
       }
@@ -303,48 +316,111 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: numbe
       );
       let min = 1;
       let max = -1;
+      let absolutePeak = 0;
       for (let index = normalizedStart; index < normalizedEnd; index += 1) {
         const sample = normalized[index] ?? 0;
         min = Math.min(min, sample);
         max = Math.max(max, sample);
+        absolutePeak = Math.max(absolutePeak, Math.abs(sample));
       }
-      centerPoints.push(`${x},${50 - ((min + max) * 0.5) * 22}`);
-      upperPoints.push(`${x},${50 - max * 24}`);
-      lowerPoints.push(`${x},${50 - min * 24}`);
+      waveformSegments.push({
+        x,
+        y1: waveformCenterY - max * waveformHalfHeight,
+        y2: waveformCenterY - min * waveformHalfHeight
+      });
+      envelopePoints.push(`${x},${envelopeTopY + (1 - absolutePeak) * envelopeHeight}`);
     }
     return {
-      centerLine: centerPoints.join(" "),
-      envelopePath: upperPoints.length > 1 ? `${upperPoints.join(" ")} ${[...lowerPoints].reverse().join(" ")}` : "",
+      waveformSegments,
+      envelopeLine: envelopePoints.join(" "),
       peak: resolveProbePeakAmplitude(visibleSamples),
-      capturedRatio: capturedSamples / Math.max(1, durationSamples)
+      capturedRatio: capturedSamples / Math.max(1, durationSamples),
+      durationSeconds: durationSamples / Math.max(1, sampleRate)
     };
   }, [props.capture, props.compact]);
+
+  const timeMarkers = useMemo(
+    () =>
+      [0, 0.5, 1].map((ratio) => ({
+        ratio,
+        x: (props.compact ? 2 : 8) + ratio * (props.compact ? 97 : 90),
+        label: formatScopeTimestamp(graphData.durationSeconds * ratio)
+      })),
+    [graphData.durationSeconds, props.compact]
+  );
+
+  const futureMaskX = (props.compact ? 2 : 8) + graphData.capturedRatio * (props.compact ? 97 : 90);
+  const futureMaskWidth = Math.max(0, (props.compact ? 99 : 98) - futureMaskX);
+  const playheadX = (props.compact ? 2 : 8) + props.progress * (props.compact ? 97 : 90);
 
   return (
     <svg viewBox="0 0 100 60" className="patch-probe-graph">
       <rect x="0" y="0" width="100" height="60" fill="rgba(10, 18, 28, 0.9)" rx="6" />
-      <line x1="0" y1="6" x2="100" y2="6" stroke="rgba(140, 179, 213, 0.16)" strokeWidth="0.8" />
-      <line x1="0" y1="30" x2="100" y2="30" stroke="rgba(140, 179, 213, 0.22)" strokeWidth="1" />
-      <line x1="0" y1="54" x2="100" y2="54" stroke="rgba(140, 179, 213, 0.16)" strokeWidth="0.8" />
+      <rect x={props.compact ? 2 : 8} y="6" width={props.compact ? 97 : 90} height="22" fill="rgba(255, 255, 255, 0.015)" rx="4" />
+      <rect x={props.compact ? 2 : 8} y="33" width={props.compact ? 97 : 90} height="21" fill="rgba(255, 255, 255, 0.012)" rx="4" />
+      {timeMarkers.map((marker) => (
+        <line
+          key={marker.ratio}
+          x1={marker.x}
+          y1="6"
+          x2={marker.x}
+          y2="54"
+          stroke="rgba(140, 179, 213, 0.1)"
+          strokeWidth="0.35"
+          shapeRendering="crispEdges"
+        />
+      ))}
+      <line x1={props.compact ? 2 : 8} y1="17" x2="98" y2="17" stroke="rgba(140, 179, 213, 0.22)" strokeWidth="0.45" shapeRendering="crispEdges" />
+      <line x1={props.compact ? 2 : 8} y1="33" x2="98" y2="33" stroke="rgba(140, 179, 213, 0.18)" strokeWidth="0.35" shapeRendering="crispEdges" />
+      <line x1={props.compact ? 2 : 8} y1="54" x2="98" y2="54" stroke="rgba(140, 179, 213, 0.18)" strokeWidth="0.35" shapeRendering="crispEdges" />
       {graphData.capturedRatio < 1 && (
         <rect
-          x={Math.max(0, graphData.capturedRatio * 100)}
-          y="0"
-          width={Math.max(0, 100 - graphData.capturedRatio * 100)}
-          height="60"
-          fill="rgba(6, 12, 18, 0.3)"
+          x={futureMaskX}
+          y="6"
+          width={futureMaskWidth}
+          height="48"
+          fill="rgba(6, 12, 18, 0.42)"
         />
       )}
-      {graphData.envelopePath && <polygon points={graphData.envelopePath} fill="rgba(151, 214, 255, 0.16)" />}
-      {graphData.centerLine && (
-        <polyline points={graphData.centerLine} fill="none" stroke="rgba(151, 214, 255, 0.95)" strokeWidth="1.6" />
+      {graphData.waveformSegments.map((segment) => (
+        <line
+          key={`wave_${segment.x}`}
+          x1={segment.x}
+          y1={segment.y1}
+          x2={segment.x}
+          y2={segment.y2}
+          stroke="rgba(163, 219, 255, 0.95)"
+          strokeWidth="0.42"
+          shapeRendering="crispEdges"
+          vectorEffect="non-scaling-stroke"
+        />
+      ))}
+      {graphData.envelopeLine && (
+        <polyline
+          points={graphData.envelopeLine}
+          fill="none"
+          stroke="rgba(200, 255, 57, 0.96)"
+          strokeWidth="0.58"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
       )}
-      <rect x={Math.max(0, Math.min(98, props.progress * 100 - 1))} y="0" width="2" height="60" fill="rgba(200, 255, 57, 0.9)" />
+      <line x1={playheadX} y1="6" x2={playheadX} y2="54" stroke="rgba(200, 255, 57, 0.85)" strokeWidth="0.7" shapeRendering="crispEdges" />
       {!props.compact && graphData.peak > 0 && (
         <>
-          <text x="2" y="7.5" className="patch-probe-axis-label">{`+${graphData.peak.toFixed(3)}`}</text>
-          <text x="2" y="31.5" className="patch-probe-axis-label">0</text>
-          <text x="2" y="55.5" className="patch-probe-axis-label">{`-${graphData.peak.toFixed(3)}`}</text>
+          <text x="0.8" y="8.5" className="patch-probe-axis-label">Wave</text>
+          <text x="0.8" y="14" className="patch-probe-axis-label">{`+${graphData.peak.toFixed(3)}`}</text>
+          <text x="0.8" y="18.5" className="patch-probe-axis-label">0</text>
+          <text x="0.8" y="24" className="patch-probe-axis-label">{`-${graphData.peak.toFixed(3)}`}</text>
+          <text x="0.8" y="36.5" className="patch-probe-axis-label">Env</text>
+          <text x="0.8" y="40.5" className="patch-probe-axis-label">1.0</text>
+          <text x="0.8" y="54" className="patch-probe-axis-label">0</text>
+          {timeMarkers.map((marker) => (
+            <text key={`time_${marker.ratio}`} x={marker.x} y="59" textAnchor={marker.ratio === 0 ? "start" : marker.ratio === 1 ? "end" : "middle"} className="patch-probe-axis-label">
+              {marker.label}
+            </text>
+          ))}
         </>
       )}
     </svg>
@@ -492,6 +568,13 @@ function resolveSpectrumFrequencyMarkers(maxFrequencyHz: number) {
       frequency,
       bottomPercent: Math.sqrt(frequency / Math.max(1, Math.min(maxFrequencyHz, PROBE_MAX_MAX_FREQUENCY_HZ))) * 100
     }));
+}
+
+function formatScopeTimestamp(seconds: number) {
+  if (seconds < 1) {
+    return `${Math.round(seconds * 1000)}ms`;
+  }
+  return `${seconds.toFixed(seconds >= 10 ? 0 : 1)}s`;
 }
 
 function resolveRenderedProbeWidth(probe: PatchWorkspaceProbeState, zoom: number) {
