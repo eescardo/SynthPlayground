@@ -114,7 +114,7 @@ describe("projectSerde", () => {
             height: 6,
             expanded: true,
             spectrumWindowSize: undefined,
-            spectrumMaxFrequencyHz: undefined,
+            frequencyView: undefined,
             target: {
               kind: "connection",
               connectionId: "conn_1"
@@ -130,7 +130,9 @@ describe("projectSerde", () => {
             height: 6,
             expanded: false,
             spectrumWindowSize: 512,
-            spectrumMaxFrequencyHz: 4000,
+            frequencyView: {
+              maxHz: 4000
+            },
             target: {
               kind: "connection",
               connectionId: "conn_2"

@@ -16,6 +16,10 @@ export interface PatchProbeConnectionTarget {
 
 export type PatchProbeTarget = PatchProbePortTarget | PatchProbeConnectionTarget;
 
+export interface PatchProbeFrequencyView {
+  maxHz: number;
+}
+
 export interface PatchWorkspaceProbeState {
   id: string;
   kind: PatchProbeKind;
@@ -27,7 +31,7 @@ export interface PatchWorkspaceProbeState {
   expanded?: boolean;
   target?: PatchProbeTarget;
   spectrumWindowSize?: number;
-  spectrumMaxFrequencyHz?: number;
+  frequencyView?: PatchProbeFrequencyView;
 }
 
 export interface PreviewProbeRequest {

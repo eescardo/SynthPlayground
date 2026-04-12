@@ -131,7 +131,7 @@ interface PatchInspectorProps {
   onApplyOp: (op: PatchOp) => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
   onUpdateProbeSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
-  onUpdateProbeSpectrumMaxFrequency: (probeId: string, spectrumMaxFrequencyHz: number) => void;
+  onUpdateProbeFrequencyView: (probeId: string, maxHz: number) => void;
   onToggleAttachProbe: (probeId: string) => void;
   onClearProbeTarget: (probeId: string) => void;
 }
@@ -346,16 +346,16 @@ export function PatchInspector(props: PatchInspectorProps) {
                   min={PROBE_MIN_MAX_FREQUENCY_HZ}
                   max={PROBE_MAX_MAX_FREQUENCY_HZ}
                   step={100}
-                  value={selectedProbe.spectrumMaxFrequencyHz ?? DEFAULT_PROBE_MAX_FREQUENCY_HZ}
+                  value={selectedProbe.frequencyView?.maxHz ?? DEFAULT_PROBE_MAX_FREQUENCY_HZ}
                   onChange={(event) =>
-                    props.onUpdateProbeSpectrumMaxFrequency(
+                    props.onUpdateProbeFrequencyView(
                       selectedProbe.id,
                       clampProbeMaxFrequencyHz(Number(event.target.value))
                     )
                   }
                 />
                 <div className="macro-binding-edit-summary">
-                  {`${clampProbeMaxFrequencyHz(selectedProbe.spectrumMaxFrequencyHz ?? DEFAULT_PROBE_MAX_FREQUENCY_HZ).toLocaleString()} Hz top of view. Lower values zoom in on VCF detail.`}
+                  {`${clampProbeMaxFrequencyHz(selectedProbe.frequencyView?.maxHz ?? DEFAULT_PROBE_MAX_FREQUENCY_HZ).toLocaleString()} Hz top of view. Lower values zoom in on VCF detail.`}
                 </div>
               </div>
               <button

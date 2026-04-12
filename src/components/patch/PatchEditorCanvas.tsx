@@ -40,7 +40,7 @@ interface PatchEditorCanvasProps {
   onSelectProbe: (probeId?: string) => void;
   onUpdateProbeTarget: (probeId: string, target?: PatchProbeTarget) => void;
   onUpdateProbeSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
-  onUpdateProbeSpectrumMaxFrequency: (probeId: string, spectrumMaxFrequencyHz: number) => void;
+  onUpdateProbeFrequencyView: (probeId: string, maxHz: number) => void;
   onToggleProbeExpanded: (probeId: string) => void;
   onDeleteSelectedProbe: () => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
@@ -162,7 +162,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           onApplyOp={props.onApplyOp}
           onExposeMacro={props.onExposeMacro}
           onUpdateProbeSpectrumWindow={props.onUpdateProbeSpectrumWindow}
-          onUpdateProbeSpectrumMaxFrequency={props.onUpdateProbeSpectrumMaxFrequency}
+          onUpdateProbeFrequencyView={props.onUpdateProbeFrequencyView}
           onToggleAttachProbe={handleToggleAttachProbe}
           onClearProbeTarget={(probeId) => props.onUpdateProbeTarget(probeId, undefined)}
         />

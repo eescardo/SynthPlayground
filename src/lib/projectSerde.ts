@@ -209,7 +209,15 @@ const sanitizePatchWorkspaceProbes = (raw: unknown): PatchWorkspaceProbeState[] 
     const entry = isObject(probe) ? probe : {};
     const kind = entry.kind === "spectrum" ? "spectrum" : "scope";
     const spectrumWindowSize = asFiniteNumber(entry.spectrumWindowSize, 0);
-    const spectrumMaxFrequencyHz = asFiniteNumber(entry.spectrumMaxFrequencyHz, DEFAULT_PROBE_MAX_FREQUENCY_HZ);
+    const rawFrequencyView = isObject(entry.frequencyView) ? entry.frequencyView : {};
+    const legacySpectrumMaxFrequencyHz = asOptionalFiniteNumber(entry.spectrumMaxFrequencyHz);
+    const frequencyView = kind === "spectrum"
+      ? {
+          maxHz: clampProbeMaxFrequencyHz(
+            asFiniteNumber(rawFrequencyView.maxHz, legacySpectrumMaxFrequencyHz ?? DEFAULT_PROBE_MAX_FREQUENCY_HZ)
+          )
+        }
+      : undefined;
     return {
       id: asString(entry.id, createId(`probe_${index}`)),
       kind,
@@ -221,7 +229,7 @@ const sanitizePatchWorkspaceProbes = (raw: unknown): PatchWorkspaceProbeState[] 
       expanded: entry.expanded === true,
       target: sanitizeProbeTarget(entry.target),
       spectrumWindowSize: [256, 512, 1024, 2048].includes(spectrumWindowSize) ? spectrumWindowSize : undefined,
-      spectrumMaxFrequencyHz: kind === "spectrum" ? clampProbeMaxFrequencyHz(spectrumMaxFrequencyHz) : undefined
+      frequencyView
     };
   });
 };

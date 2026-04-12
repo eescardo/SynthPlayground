@@ -8,10 +8,10 @@ import {
 import { PATCH_CANVAS_GRID } from "@/components/patch/patchCanvasConstants";
 import {
   buildProbeSpectrogram,
-  DEFAULT_PROBE_MAX_FREQUENCY_HZ,
   EXPANDED_PROBE_SIZE,
   normalizeProbeSamples,
   PROBE_MAX_MAX_FREQUENCY_HZ,
+  resolveProbeFrequencyView,
   resolveProbePeakAmplitude
 } from "@/lib/patch/probes";
 import { Patch, PatchLayoutNode } from "@/types/patch";
@@ -194,14 +194,14 @@ function ProbeCard(props: {
             props.capture.durationSamples,
             props.capture.capturedSamples,
             props.capture.sampleRate,
-            props.probe.spectrumMaxFrequencyHz ?? DEFAULT_PROBE_MAX_FREQUENCY_HZ
+            resolveProbeFrequencyView(props.probe.frequencyView).maxHz
           )
         : [],
     [
       props.capture,
       props.probe.kind,
       props.probe.spectrumWindowSize,
-      props.probe.spectrumMaxFrequencyHz,
+      props.probe.frequencyView,
       props.probe.expanded
     ]
   );
@@ -269,7 +269,7 @@ function ProbeGraphBody(props: {
     <SpectrumProbeGraph
       spectrogram={props.spectrogram}
       selectedWindowSize={props.probe.spectrumWindowSize ?? 1024}
-      maxFrequencyHz={props.probe.spectrumMaxFrequencyHz ?? DEFAULT_PROBE_MAX_FREQUENCY_HZ}
+      maxFrequencyHz={resolveProbeFrequencyView(props.probe.frequencyView).maxHz}
       compact={props.compact}
       onChangeWindowSize={(next) => props.onUpdateSpectrumWindow(props.probe.id, next)}
     />

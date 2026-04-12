@@ -219,9 +219,10 @@ export function PatchModuleFacePopover(props: PatchModuleFacePopoverProps) {
         }}
         onAddProbe={onAddProbe}
         onDeleteSelected={() =>
-          selectedNodeId && !structureLocked && onApplyOp({ type: "removeNode", nodeId: selectedNodeId })
+          selectedProbeId
+            ? (onCancelAttachProbe(), onDeleteSelectedProbe())
+            : selectedNodeId && !structureLocked && onApplyOp({ type: "removeNode", nodeId: selectedNodeId })
         }
-        onDeleteSelectedProbe={onDeleteSelectedProbe}
         onAutoLayout={() => {
           const nextNodeLayout = resolveAutoLayoutNodes(patch);
           onApplyOp({

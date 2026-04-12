@@ -27,7 +27,7 @@ import { validatePatch } from "@/lib/patch/validation";
 import { Project, Track } from "@/types/music";
 import { PatchOp } from "@/types/ops";
 import { PatchValidationIssue, Patch } from "@/types/patch";
-import { PatchProbeTarget, PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
+import { PatchProbeFrequencyView, PatchProbeTarget, PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
 
 interface UsePatchWorkspaceStateOptions {
   project: Project;
@@ -363,10 +363,10 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     }));
   }, [updateActiveTab]);
 
-  const updateProbeSpectrumMaxFrequency = useCallback((probeId: string, spectrumMaxFrequencyHz: number) => {
+  const updateProbeFrequencyView = useCallback((probeId: string, frequencyView: PatchProbeFrequencyView) => {
     updateActiveTab((tab) => ({
       ...tab,
-      probes: tab.probes.map((probe) => (probe.id === probeId ? { ...probe, spectrumMaxFrequencyHz } : probe))
+      probes: tab.probes.map((probe) => (probe.id === probeId ? { ...probe, frequencyView } : probe))
     }));
   }, [updateActiveTab]);
 
@@ -735,7 +735,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     moveProbe,
     updateProbeTarget,
     updateProbeSpectrumWindow,
-    updateProbeSpectrumMaxFrequency,
+    updateProbeFrequencyView,
     toggleProbeExpanded,
     removeSelectedProbe,
     previewCaptureByProbeId,
