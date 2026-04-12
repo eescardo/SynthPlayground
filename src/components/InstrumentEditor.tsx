@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useMemo } from "react";
 import { InstrumentToolbar } from "@/components/patch/InstrumentToolbar";
 import { PatchEditorCanvas } from "@/components/patch/PatchEditorCanvas";
+import { useAfterStateCommit } from "@/hooks/useAfterStateCommit";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -41,27 +42,16 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
   const patchSource = resolvePatchSource(props.patch);
   const presetStatus = resolvePatchPresetStatus(props.patch);
   const structureLocked = patchSource === "preset";
+  const previewReadyCommitKey = useMemo(
+    () => `${patch.id}:${JSON.stringify(macroValues)}`,
+    [macroValues, patch.id]
+  );
 
-  useEffect(() => {
-    if (!onReady) {
-      return;
-    }
-    let cancelled = false;
-    const frameId = window.requestAnimationFrame(() => {
-      const nextFrameId = window.requestAnimationFrame(() => {
-        if (!cancelled) {
-          onReady(macroValues);
-        }
-      });
-      if (cancelled) {
-        window.cancelAnimationFrame(nextFrameId);
-      }
-    });
-    return () => {
-      cancelled = true;
-      window.cancelAnimationFrame(frameId);
-    };
-  }, [macroValues, onReady, patch.id]);
+  useAfterStateCommit({
+    commitKey: previewReadyCommitKey,
+    enabled: Boolean(onReady),
+    onCommit: () => onReady?.(macroValues)
+  });
 
   return (
     <section className={`instrument-editor${invalid ? " invalid" : ""}`}>
