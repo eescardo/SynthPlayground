@@ -19,6 +19,13 @@ export interface OfflineRenderResult {
 }
 
 const BYTES_PER_MB = 1024 * 1024;
+const getHeapUsedMb = () => {
+  const proc = globalThis.process;
+  if (!proc?.memoryUsage) {
+    return 0;
+  }
+  return proc.memoryUsage().heapUsed / BYTES_PER_MB;
+};
 
 export const createOfflineRenderProcessor = (
   project: AudioProject,
@@ -50,7 +57,7 @@ export const renderProjectOffline = (
   const right = new Float32Array(durationSamples);
   const renderedBlocks = Math.ceil(durationSamples / blockSize);
   let outputAbsSum = 0;
-  let peakHeapMb = process.memoryUsage().heapUsed / BYTES_PER_MB;
+  let peakHeapMb = getHeapUsedMb();
 
   for (let blockIndex = 0; blockIndex < renderedBlocks; blockIndex += 1) {
     const blockLeft = new Float32Array(blockSize);
@@ -67,11 +74,11 @@ export const renderProjectOffline = (
     }
 
     if ((blockIndex & 255) === 0) {
-      peakHeapMb = Math.max(peakHeapMb, process.memoryUsage().heapUsed / BYTES_PER_MB);
+      peakHeapMb = Math.max(peakHeapMb, getHeapUsedMb());
     }
   }
 
-  peakHeapMb = Math.max(peakHeapMb, process.memoryUsage().heapUsed / BYTES_PER_MB);
+  peakHeapMb = Math.max(peakHeapMb, getHeapUsedMb());
 
   return {
     left,
