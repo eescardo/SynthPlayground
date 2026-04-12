@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildProbeSpectrogram, buildSpectrumBins, normalizeProbeSamples } from "@/lib/patch/probes";
+import { buildScopeRenderData, resolveScopeTimeMarkers, resolveSpectrumFrequencyMarkers } from "@/lib/patch/probeViewMath";
 
 describe("probe helpers", () => {
   it("normalizes quiet sample streams so they remain visible", () => {
@@ -56,5 +57,42 @@ describe("probe helpers", () => {
     const narrowedTopHalfEnergy = narrowedRange.slice(5).reduce((sum, row) => sum + row[6], 0);
 
     expect(narrowedTopHalfEnergy).toBeGreaterThan(fullTopHalfEnergy);
+  });
+
+  it("places spectrum markers within the selected frequency view", () => {
+    const markers = resolveSpectrumFrequencyMarkers(4000);
+
+    expect(markers).toHaveLength(3);
+    expect(markers.every((marker) => marker.frequency < 4000)).toBe(true);
+    expect(markers.every((marker) => marker.bottomPercent > 0 && marker.bottomPercent < 100)).toBe(true);
+  });
+
+  it("builds separate scope waveform and envelope render data", () => {
+    const samples = new Array(256).fill(0).map((_, index) =>
+      Math.sin((2 * Math.PI * index) / 16) * 0.15
+    );
+
+    const renderData = buildScopeRenderData({
+      probeId: "probe_scope",
+      kind: "scope",
+      target: { kind: "connection", connectionId: "conn_1" },
+      sampleRate: 48000,
+      durationSamples: samples.length,
+      capturedSamples: samples.length,
+      samples
+    }, false);
+
+    expect(renderData.waveformSegments.length).toBeGreaterThan(0);
+    expect(renderData.envelopeLine.length).toBeGreaterThan(0);
+    expect(renderData.peak).toBeGreaterThan(0);
+  });
+
+  it("builds fixed scope time markers for full-duration rendering", () => {
+    const markers = resolveScopeTimeMarkers(1.2, false);
+
+    expect(markers).toHaveLength(3);
+    expect(markers[0]?.label).toBe("0ms");
+    expect(markers[1]?.label).toBe("600ms");
+    expect(markers[2]?.label).toBe("1.2s");
   });
 });

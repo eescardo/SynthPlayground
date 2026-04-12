@@ -341,12 +341,16 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     }));
   }, [updateActiveTab]);
 
-  const moveProbe = useCallback((probeId: string, x: number, y: number) => {
+  const updateProbeState = useCallback((probeId: string, updater: (probe: PatchWorkspaceProbeState) => PatchWorkspaceProbeState) => {
     updateActiveTab((tab) => ({
       ...tab,
-      probes: tab.probes.map((probe) => (probe.id === probeId ? { ...probe, x, y } : probe))
+      probes: tab.probes.map((probe) => (probe.id === probeId ? updater(probe) : probe))
     }));
   }, [updateActiveTab]);
+
+  const moveProbe = useCallback((probeId: string, x: number, y: number) => {
+    updateProbeState(probeId, (probe) => ({ ...probe, x, y }));
+  }, [updateProbeState]);
 
   const updateProbeTarget = useCallback((probeId: string, target?: PatchProbeTarget) => {
     updateActiveTab((tab) => ({
@@ -357,29 +361,16 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   }, [updateActiveTab]);
 
   const updateProbeSpectrumWindow = useCallback((probeId: string, spectrumWindowSize: number) => {
-    updateActiveTab((tab) => ({
-      ...tab,
-      probes: tab.probes.map((probe) => (probe.id === probeId ? { ...probe, spectrumWindowSize } : probe))
-    }));
-  }, [updateActiveTab]);
+    updateProbeState(probeId, (probe) => ({ ...probe, spectrumWindowSize }));
+  }, [updateProbeState]);
 
   const updateProbeFrequencyView = useCallback((probeId: string, frequencyView: PatchProbeFrequencyView) => {
-    updateActiveTab((tab) => ({
-      ...tab,
-      probes: tab.probes.map((probe) => (probe.id === probeId ? { ...probe, frequencyView } : probe))
-    }));
-  }, [updateActiveTab]);
+    updateProbeState(probeId, (probe) => ({ ...probe, frequencyView }));
+  }, [updateProbeState]);
 
   const toggleProbeExpanded = useCallback((probeId: string) => {
-    updateActiveTab((tab) => ({
-      ...tab,
-      probes: tab.probes.map((probe) =>
-        probe.id === probeId
-          ? { ...probe, expanded: !probe.expanded }
-          : probe
-      )
-    }));
-  }, [updateActiveTab]);
+    updateProbeState(probeId, (probe) => ({ ...probe, expanded: !probe.expanded }));
+  }, [updateProbeState]);
 
   const removeSelectedProbe = useCallback(() => {
     const selectedProbeId = activeTab?.selectedProbeId;

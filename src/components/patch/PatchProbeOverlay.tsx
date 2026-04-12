@@ -9,11 +9,14 @@ import { PATCH_CANVAS_GRID } from "@/components/patch/patchCanvasConstants";
 import {
   buildProbeSpectrogram,
   EXPANDED_PROBE_SIZE,
-  normalizeProbeSamples,
-  PROBE_MAX_MAX_FREQUENCY_HZ,
   resolveProbeFrequencyView,
-  resolveProbePeakAmplitude
 } from "@/lib/patch/probes";
+import {
+  buildScopeRenderData,
+  formatSpectrumFrequency,
+  resolveScopeTimeMarkers,
+  resolveSpectrumFrequencyMarkers
+} from "@/lib/patch/probeViewMath";
 import { Patch, PatchLayoutNode } from "@/types/patch";
 import { PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
 
@@ -35,7 +38,6 @@ interface PatchProbeOverlayProps {
 
 const PROBE_SPECTRUM_WINDOWS = [256, 512, 1024, 2048];
 const PROBE_DRAG_THRESHOLD_PX = 6;
-const SPECTRUM_REFERENCE_FREQUENCIES = [100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 
 export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
   const connectionLines = useMemo(
@@ -277,75 +279,10 @@ function ProbeGraphBody(props: {
 }
 
 function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: number; compact?: boolean }) {
-  const graphData = useMemo(() => {
-    const durationSamples = props.capture?.durationSamples ?? 0;
-    const capturedSamples = props.capture?.capturedSamples ?? 0;
-    const sampleRate = props.capture?.sampleRate ?? 48000;
-    if (!props.capture?.samples?.length || durationSamples <= 0) {
-      return {
-        waveformSegments: [] as Array<{ x: number; y1: number; y2: number }>,
-        envelopeLine: "",
-        peak: 0,
-        capturedRatio: 0,
-        durationSeconds: 0
-      };
-    }
-    const visibleSamples = props.capture.samples.slice(0, capturedSamples);
-    const normalized = normalizeProbeSamples(visibleSamples);
-    const bucketCount = props.compact ? 72 : 120;
-    const waveformSegments: Array<{ x: number; y1: number; y2: number }> = [];
-    const envelopePoints: string[] = [];
-    const waveformCenterY = props.compact ? 18 : 17;
-    const waveformHalfHeight = props.compact ? 10 : 9;
-    const envelopeTopY = props.compact ? 35 : 33;
-    const envelopeHeight = props.compact ? 18 : 19;
-    const plotStartX = props.compact ? 2 : 8;
-    const plotWidth = props.compact ? 97 : 90;
-
-    for (let bucket = 0; bucket < bucketCount; bucket += 1) {
-      const bucketStart = Math.floor((bucket / bucketCount) * durationSamples);
-      const bucketEnd = Math.max(bucketStart + 1, Math.floor(((bucket + 1) / bucketCount) * durationSamples));
-      const x = plotStartX + (bucket / Math.max(1, bucketCount - 1)) * plotWidth;
-      if (bucketStart >= capturedSamples) {
-        continue;
-      }
-      const normalizedStart = Math.floor((bucketStart / Math.max(1, capturedSamples)) * normalized.length);
-      const normalizedEnd = Math.max(
-        normalizedStart + 1,
-        Math.floor((Math.min(bucketEnd, capturedSamples) / Math.max(1, capturedSamples)) * normalized.length)
-      );
-      let min = 1;
-      let max = -1;
-      let absolutePeak = 0;
-      for (let index = normalizedStart; index < normalizedEnd; index += 1) {
-        const sample = normalized[index] ?? 0;
-        min = Math.min(min, sample);
-        max = Math.max(max, sample);
-        absolutePeak = Math.max(absolutePeak, Math.abs(sample));
-      }
-      waveformSegments.push({
-        x,
-        y1: waveformCenterY - max * waveformHalfHeight,
-        y2: waveformCenterY - min * waveformHalfHeight
-      });
-      envelopePoints.push(`${x},${envelopeTopY + (1 - absolutePeak) * envelopeHeight}`);
-    }
-    return {
-      waveformSegments,
-      envelopeLine: envelopePoints.join(" "),
-      peak: resolveProbePeakAmplitude(visibleSamples),
-      capturedRatio: capturedSamples / Math.max(1, durationSamples),
-      durationSeconds: durationSamples / Math.max(1, sampleRate)
-    };
-  }, [props.capture, props.compact]);
+  const graphData = useMemo(() => buildScopeRenderData(props.capture, props.compact), [props.capture, props.compact]);
 
   const timeMarkers = useMemo(
-    () =>
-      [0, 0.5, 1].map((ratio) => ({
-        ratio,
-        x: (props.compact ? 2 : 8) + ratio * (props.compact ? 97 : 90),
-        label: formatScopeTimestamp(graphData.durationSeconds * ratio)
-      })),
+    () => resolveScopeTimeMarkers(graphData.durationSeconds, props.compact),
     [graphData.durationSeconds, props.compact]
   );
 
@@ -526,55 +463,6 @@ function SpectrumProbeGraph(props: {
       )}
     </div>
   );
-}
-
-function formatSpectrumFrequency(frequency: number) {
-  if (frequency >= 1000) {
-    const khz = frequency / 1000;
-    return Number.isInteger(khz) ? `${khz}kHz` : `${khz.toFixed(1)}kHz`;
-  }
-  return `${frequency}Hz`;
-}
-
-function resolveSpectrumFrequencyMarkers(maxFrequencyHz: number) {
-  const limitedCandidates = SPECTRUM_REFERENCE_FREQUENCIES.filter((frequency) => frequency < maxFrequencyHz * 0.98);
-  const candidates = limitedCandidates.length > 0 ? limitedCandidates : [Math.max(100, Math.round(maxFrequencyHz * 0.5))];
-  const targets = [0.18, 0.45, 0.8];
-  const selected = new Set<number>();
-
-  for (const target of targets) {
-    const desired = maxFrequencyHz * target;
-    let bestFrequency = candidates[0];
-    let bestDistance = Number.POSITIVE_INFINITY;
-    for (const candidate of candidates) {
-      if (selected.has(candidate)) {
-        continue;
-      }
-      const distance = Math.abs(candidate - desired);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestFrequency = candidate;
-      }
-    }
-    selected.add(bestFrequency);
-    if (selected.size === candidates.length) {
-      break;
-    }
-  }
-
-  return [...selected]
-    .sort((left, right) => left - right)
-    .map((frequency) => ({
-      frequency,
-      bottomPercent: Math.sqrt(frequency / Math.max(1, Math.min(maxFrequencyHz, PROBE_MAX_MAX_FREQUENCY_HZ))) * 100
-    }));
-}
-
-function formatScopeTimestamp(seconds: number) {
-  if (seconds < 1) {
-    return `${Math.round(seconds * 1000)}ms`;
-  }
-  return `${seconds.toFixed(seconds >= 10 ? 0 : 1)}s`;
 }
 
 function resolveRenderedProbeWidth(probe: PatchWorkspaceProbeState, zoom: number) {
