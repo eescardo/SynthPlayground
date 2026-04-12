@@ -69,7 +69,8 @@ const createProject = (): Project => ({
         {
           id: "tab_1",
           name: "Track 1",
-          patchId: "patch_missing"
+          patchId: "patch_missing",
+          probes: []
         }
       ]
     }

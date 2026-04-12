@@ -35,6 +35,7 @@ export function usePatchWorkspaceTabState(options: UsePatchWorkspaceTabStateOpti
     id: createId("patchTab"),
     name: name ?? patchNameById.get(patchId) ?? "Instrument",
     patchId,
+    probes: [],
     migrationNotice: null
   }), [patchNameById]);
 

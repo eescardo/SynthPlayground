@@ -2,12 +2,14 @@
 
 import type { CSSProperties } from "react";
 import { useMemo } from "react";
+import { PatchEditorStage } from "@/components/patch/PatchEditorStage";
 import { PatchInspector } from "@/components/patch/PatchInspector";
 import { PatchMacroPanel } from "@/components/patch/PatchMacroPanel";
-import { PatchModuleFacePopover } from "@/components/patch/PatchModuleFacePopover";
+import { usePatchProbeEditorState } from "@/hooks/patch/usePatchProbeEditorState";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
+import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 
 const PATCH_MACRO_VISIBLE_ROW_MIN = 1;
 const PATCH_MACRO_VISIBLE_ROW_MAX = 5;
@@ -21,6 +23,7 @@ const PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT: Record<number, number> = {
 
 interface PatchEditorCanvasProps {
   patch: Patch;
+  probeState: PatchProbeEditorState;
   macroValues: Record<string, number>;
   selectedNodeId?: string;
   selectedMacroId?: string;
@@ -30,6 +33,7 @@ interface PatchEditorCanvasProps {
   onSelectMacro: (macroId?: string) => void;
   onClearSelectedMacro: () => void;
   onApplyOp: (op: PatchOp) => void;
+  probeActions: PatchProbeEditorActions;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
   onAddMacro: () => void;
   onRemoveMacro: (macroId: string) => void;
@@ -56,6 +60,17 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const nodeById = useMemo(() => new Map(props.patch.nodes.map((node) => [node.id, node] as const)), [props.patch.nodes]);
   const selectedNode = props.selectedNodeId ? nodeById.get(props.selectedNodeId) : undefined;
   const selectedSchema = selectedNode ? getModuleSchema(selectedNode.typeId) : undefined;
+  const {
+    attachingProbeId,
+    cancelAttachProbe,
+    canvasProbeState,
+    selectedProbe,
+    toggleAttachProbe
+  } = usePatchProbeEditorState({
+    probes: props.probeState.probes,
+    probeState: props.probeState,
+    probeActions: props.probeActions
+  });
 
   return (
     <div
@@ -69,13 +84,17 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     >
       <div className="patch-layout">
         <div className="patch-editor-main-column">
-          <PatchModuleFacePopover
+          <PatchEditorStage
             patch={props.patch}
+            probeState={canvasProbeState}
             selectedNodeId={props.selectedNodeId}
             selectedMacroNodeIds={selectedMacroNodeIds}
             structureLocked={props.structureLocked}
             onApplyOp={props.onApplyOp}
+            probeActions={props.probeActions}
             onSelectNode={props.onSelectNode}
+            onToggleAttachProbe={toggleAttachProbe}
+            onCancelAttachProbe={cancelAttachProbe}
           />
 
           <PatchMacroPanel
@@ -97,12 +116,20 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           patch={props.patch}
           macroValues={props.macroValues}
           selectedNode={selectedNode}
+          selectedProbe={selectedProbe}
           selectedMacroId={props.selectedMacroId}
           selectedSchema={selectedSchema}
+          previewCapture={selectedProbe ? props.probeState.previewCaptureByProbeId[selectedProbe.id] : undefined}
+          previewProgress={props.probeState.previewProgress}
+          attachingProbeId={attachingProbeId}
           structureLocked={props.structureLocked}
           validationIssues={props.validationIssues}
           onApplyOp={props.onApplyOp}
           onExposeMacro={props.onExposeMacro}
+          onUpdateProbeSpectrumWindow={props.probeActions.updateSpectrumWindow}
+          onUpdateProbeFrequencyView={props.probeActions.updateFrequencyView}
+          onToggleAttachProbe={toggleAttachProbe}
+          onClearProbeTarget={(probeId) => props.probeActions.updateTarget(probeId, undefined)}
         />
       </div>
     </div>

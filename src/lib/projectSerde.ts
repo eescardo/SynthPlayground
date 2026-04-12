@@ -3,12 +3,14 @@ import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping"
 import { sanitizeMacroAutomationMap } from "@/lib/macroAutomation";
 import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch/patchCanvasConstants";
 import { ensurePatchLayout } from "@/lib/patch/autoLayout";
+import { clampProbeMaxFrequencyHz, DEFAULT_PROBE_MAX_FREQUENCY_HZ } from "@/lib/patch/probes";
 import { presetPatches } from "@/lib/patch/presets";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
 import { normalizeMacroKeyframeCount } from "@/lib/patch/macroKeyframes";
 import { TRACK_VOLUME_DEFAULT, TRACK_VOLUME_MAX, TRACK_VOLUME_MIN } from "@/lib/trackVolume";
 import { Project, TrackFxSettings, PatchWorkspaceTabState } from "@/types/music";
 import { Patch, PatchConnection, PatchMacro, PatchMeta, PatchNode } from "@/types/patch";
+import { PatchProbeTarget, PatchWorkspaceProbeState } from "@/types/probes";
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -180,6 +182,58 @@ const sanitizePatch = (raw: unknown, index: number): Patch => {
   };
 };
 
+const sanitizeProbeTarget = (raw: unknown): PatchProbeTarget | undefined => {
+  const target = isObject(raw) ? raw : {};
+  if (target.kind === "connection" && typeof target.connectionId === "string") {
+    return { kind: "connection", connectionId: target.connectionId };
+  }
+  if (
+    target.kind === "port" &&
+    (target.portKind === "in" || target.portKind === "out") &&
+    typeof target.nodeId === "string" &&
+    typeof target.portId === "string"
+  ) {
+    return {
+      kind: "port",
+      portKind: target.portKind,
+      nodeId: target.nodeId,
+      portId: target.portId
+    };
+  }
+  return undefined;
+};
+
+const sanitizePatchWorkspaceProbes = (raw: unknown): PatchWorkspaceProbeState[] => {
+  const probes = Array.isArray(raw) ? raw : [];
+  return probes.map((probe, index) => {
+    const entry = isObject(probe) ? probe : {};
+    const kind = entry.kind === "spectrum" ? "spectrum" : "scope";
+    const spectrumWindowSize = asFiniteNumber(entry.spectrumWindowSize, 0);
+    const rawFrequencyView = isObject(entry.frequencyView) ? entry.frequencyView : {};
+    const legacySpectrumMaxFrequencyHz = asOptionalFiniteNumber(entry.spectrumMaxFrequencyHz);
+    const frequencyView = kind === "spectrum"
+      ? {
+          maxHz: clampProbeMaxFrequencyHz(
+            asFiniteNumber(rawFrequencyView.maxHz, legacySpectrumMaxFrequencyHz ?? DEFAULT_PROBE_MAX_FREQUENCY_HZ)
+          )
+        }
+      : undefined;
+    return {
+      id: asString(entry.id, createId(`probe_${index}`)),
+      kind,
+      name: asString(entry.name, kind === "spectrum" ? "Spectrum Probe" : "Scope Probe"),
+      x: Math.max(0, Math.floor(asFiniteNumber(entry.x, 4))),
+      y: Math.max(0, Math.floor(asFiniteNumber(entry.y, 4))),
+      width: Math.max(6, Math.floor(asFiniteNumber(entry.width, 10))),
+      height: Math.max(4, Math.floor(asFiniteNumber(entry.height, 6))),
+      expanded: entry.expanded === true,
+      target: sanitizeProbeTarget(entry.target),
+      spectrumWindowSize: [256, 512, 1024, 2048].includes(spectrumWindowSize) ? spectrumWindowSize : undefined,
+      frequencyView
+    };
+  });
+};
+
 const sanitizePatchWorkspaceTab = (
   raw: unknown,
   index: number,
@@ -195,7 +249,9 @@ const sanitizePatchWorkspaceTab = (
     name: asString(tab.name, patchNameById.get(resolvedPatchId) ?? `Tab ${index + 1}`),
     patchId: resolvedPatchId,
     selectedNodeId: typeof tab.selectedNodeId === "string" ? tab.selectedNodeId : undefined,
-    selectedMacroId: typeof tab.selectedMacroId === "string" ? tab.selectedMacroId : undefined
+    selectedMacroId: typeof tab.selectedMacroId === "string" ? tab.selectedMacroId : undefined,
+    selectedProbeId: typeof tab.selectedProbeId === "string" ? tab.selectedProbeId : undefined,
+    probes: sanitizePatchWorkspaceProbes(tab.probes)
   };
 };
 
@@ -293,7 +349,8 @@ export const normalizeProject = (raw: unknown): Project => {
   const defaultTab: PatchWorkspaceTabState = {
     id: createId("patchTab"),
     name: patchNameById.get(tracks[0]?.instrumentPatchId ?? fallbackPatchId) ?? "Instrument",
-    patchId: tracks[0]?.instrumentPatchId ?? fallbackPatchId
+    patchId: tracks[0]?.instrumentPatchId ?? fallbackPatchId,
+    probes: []
   };
   const normalizedPatchWorkspaceTabs = patchWorkspaceTabs.length > 0 ? patchWorkspaceTabs : [defaultTab];
   const activeTabId = asString(patchWorkspaceRaw.activeTabId, normalizedPatchWorkspaceTabs[0].id);

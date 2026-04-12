@@ -1109,6 +1109,12 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const patchWorkspaceProps: React.ComponentProps<typeof PatchWorkspaceView> = {
     patch: selectedPatch,
     patches: project.patches,
+    probeState: {
+      probes: patchWorkspace.probes,
+      selectedProbeId: patchWorkspace.selectedProbeId,
+      previewCaptureByProbeId: patchWorkspace.previewCaptureByProbeId,
+      previewProgress: patchWorkspace.previewProgress
+    },
     tabs: patchWorkspace.tabs.map((tab) => ({ id: tab.id, name: tab.name, patchId: tab.patchId })),
     activeTabId: patchWorkspace.activeTabId,
     macroValues: patchWorkspace.workspaceMacroValues,
@@ -1139,6 +1145,16 @@ export function AppRoot({ children }: { children: ReactNode }) {
     onSelectMacro: patchWorkspace.setSelectedMacroId,
     onClearSelectedMacro: patchWorkspace.clearSelectedMacro,
     onApplyOp: patchWorkspace.applyPatchOp,
+    probeActions: {
+      addProbe: patchWorkspace.addProbeToWorkspace,
+      moveProbe: patchWorkspace.moveProbe,
+      selectProbe: patchWorkspace.setSelectedProbeId,
+      updateTarget: patchWorkspace.updateProbeTarget,
+      updateSpectrumWindow: patchWorkspace.updateProbeSpectrumWindow,
+      updateFrequencyView: (probeId, maxHz) => patchWorkspace.updateProbeFrequencyView(probeId, { maxHz }),
+      toggleExpanded: patchWorkspace.toggleProbeExpanded,
+      deleteSelected: patchWorkspace.removeSelectedProbe
+    },
     onExposeMacro: patchWorkspace.exposePatchMacro,
     onAddMacro: patchWorkspace.addPatchMacro,
     onRemoveMacro: patchWorkspace.removePatchMacro,

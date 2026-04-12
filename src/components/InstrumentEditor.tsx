@@ -8,11 +8,13 @@ import { useAfterStateCommit } from "@/hooks/useAfterStateCommit";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
+import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 
 interface InstrumentEditorProps {
   editorSessionKey?: string;
   patch: Patch;
   patches: Patch[];
+  probeState: PatchProbeEditorState;
   macroValues: Record<string, number>;
   selectedNodeId?: string;
   selectedMacroId?: string;
@@ -31,6 +33,7 @@ interface InstrumentEditorProps {
   onSelectMacro: (macroId?: string) => void;
   onClearSelectedMacro: () => void;
   onApplyOp: (op: PatchOp) => void;
+  probeActions: PatchProbeEditorActions;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
   onAddMacro: () => void;
   onRemoveMacro: (macroId: string) => void;
@@ -81,6 +84,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
 
       <PatchEditorCanvas
         patch={props.patch}
+        probeState={props.probeState}
         macroValues={props.macroValues}
         selectedNodeId={props.selectedNodeId}
         selectedMacroId={props.selectedMacroId}
@@ -90,6 +94,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
         onSelectMacro={props.onSelectMacro}
         onClearSelectedMacro={props.onClearSelectedMacro}
         onApplyOp={props.onApplyOp}
+        probeActions={props.probeActions}
         onExposeMacro={props.onExposeMacro}
         onAddMacro={props.onAddMacro}
         onRemoveMacro={props.onRemoveMacro}

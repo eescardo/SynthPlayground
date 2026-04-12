@@ -4,7 +4,8 @@ import { collectEventsInWindow } from "@/audio/scheduler";
 import { getLoopPlaybackEndBeat, getSongBeatForPlaybackBeat } from "@/lib/looping";
 import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
 import { createId } from "@/lib/ids";
-import { AudioProject, SchedulerEvent } from "@/types/audio";
+import { AudioProject, SchedulerEvent, WorkletOutboundMessage } from "@/types/audio";
+import { PreviewProbeCapture, PreviewProbeRequest } from "@/types/probes";
 
 const LOOKAHEAD_MS = 300;
 const SCHEDULER_TICK_MS = 25;
@@ -31,8 +32,14 @@ export interface AudioEngineBackend {
     pitchVoct: number,
     durationBeats: number,
     velocity?: number,
-    options?: { ignoreVolume?: boolean; projectOverride?: AudioProject }
+    options?: {
+      ignoreVolume?: boolean;
+      projectOverride?: AudioProject;
+      captureProbes?: PreviewProbeRequest[];
+      previewId?: string;
+    }
   ): Promise<void>;
+  setPreviewCaptureListener(listener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null): void;
 }
 
 const getWorkletUrl = () =>
@@ -49,6 +56,7 @@ class RealAudioEngineBackend implements AudioEngineBackend {
   private playSessionId = 0;
   private recordingTrackId: string | null = null;
   private cueBeat = 0;
+  private previewCaptureListener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null = null;
 
   private async disposeContext(): Promise<void> {
     this.worklet?.disconnect();
@@ -120,6 +128,12 @@ class RealAudioEngineBackend implements AudioEngineBackend {
         numberOfOutputs: 1,
         outputChannelCount: [2]
       });
+      worklet.port.onmessage = (event: MessageEvent<WorkletOutboundMessage>) => {
+        const message = event.data;
+        if (message?.type === "PREVIEW_CAPTURE") {
+          this.previewCaptureListener?.(message.previewId, message.captures);
+        }
+      };
 
       worklet.connect(context.destination);
       worklet.port.postMessage({
@@ -166,6 +180,10 @@ class RealAudioEngineBackend implements AudioEngineBackend {
       type: "SET_PROJECT",
       project
     });
+  }
+
+  setPreviewCaptureListener(listener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null): void {
+    this.previewCaptureListener = listener;
   }
 
   async play(startBeat = 0): Promise<void> {
@@ -329,7 +347,12 @@ class RealAudioEngineBackend implements AudioEngineBackend {
     pitchVoct: number,
     durationBeats: number,
     velocity = 0.9,
-    options?: { ignoreVolume?: boolean; projectOverride?: AudioProject }
+    options?: {
+      ignoreVolume?: boolean;
+      projectOverride?: AudioProject;
+      captureProbes?: PreviewProbeRequest[];
+      previewId?: string;
+    }
   ): Promise<void> {
     if (this.isPlaying || !this.project) {
       return;
@@ -341,7 +364,7 @@ class RealAudioEngineBackend implements AudioEngineBackend {
     }
 
     const durationSamples = Math.max(1, beatToSample(durationBeats, FIXED_SAMPLE_RATE, this.project.global.tempo));
-    const previewId = createId("preview");
+    const previewId = options?.previewId ?? createId("preview");
     const events: SchedulerEvent[] = [
       {
         id: `${previewId}_on`,
@@ -366,10 +389,13 @@ class RealAudioEngineBackend implements AudioEngineBackend {
 
     this.worklet.port.postMessage({
       type: "PREVIEW",
+      trackId,
+      previewId,
       events,
       durationSamples: durationSamples + BLOCK_SIZE,
       ignoreVolume: options?.ignoreVolume !== false,
-      project: options?.projectOverride
+      project: options?.projectOverride,
+      captureProbes: options?.captureProbes
     });
   }
 }
@@ -394,6 +420,8 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
   setProject(project: AudioProject): void {
     this.project = project;
   }
+
+  setPreviewCaptureListener(): void {}
 
   async play(startBeat = 0): Promise<void> {
     if (!this.project) {
@@ -469,7 +497,12 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
     pitchVoct: number,
     durationBeats: number,
     velocity = 0.9,
-    options?: { ignoreVolume?: boolean; projectOverride?: AudioProject }
+    options?: {
+      ignoreVolume?: boolean;
+      projectOverride?: AudioProject;
+      captureProbes?: PreviewProbeRequest[];
+      previewId?: string;
+    }
   ): Promise<void> {
     void trackId;
     void pitchVoct;

@@ -6,9 +6,12 @@ import {
   PATCH_CANVAS_GRID,
   PATCH_NODE_HEIGHT,
   PATCH_NODE_HIT_PADDING,
-  PATCH_NODE_WIDTH
+  PATCH_NODE_WIDTH,
+  PATCH_PORT_ROW_GAP,
+  PATCH_PORT_START_Y
 } from "@/components/patch/patchCanvasConstants";
 import { PointerEvent as ReactPointerEvent } from "react";
+import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch, PatchLayoutNode } from "@/types/patch";
 
 export interface CanvasPoint {
@@ -132,6 +135,78 @@ export function findPatchPortAtPoint(hitPorts: HitPort[], rawX: number, rawY: nu
       rawY <= port.y + port.height / 2 + padding
     ) {
       return port;
+    }
+  }
+  return null;
+}
+
+export function resolvePatchPortAnchorPoint(
+  patch: Pick<Patch, "nodes">,
+  layoutByNode: Map<string, PatchLayoutNode>,
+  nodeId: string,
+  portId: string,
+  portKind: "in" | "out"
+) {
+  const node = patch.nodes.find((entry) => entry.id === nodeId);
+  const layout = layoutByNode.get(nodeId);
+  const schema = node ? getModuleSchema(node.typeId) : undefined;
+  const ports = portKind === "in" ? schema?.portsIn : schema?.portsOut;
+  const portIndex = ports?.findIndex((port) => port.id === portId) ?? -1;
+  if (!layout || !schema || portIndex < 0) {
+    return null;
+  }
+  return {
+    x: layout.x * PATCH_CANVAS_GRID + (portKind === "in" ? 0 : PATCH_NODE_WIDTH),
+    y: layout.y * PATCH_CANVAS_GRID + PATCH_PORT_START_Y + portIndex * PATCH_PORT_ROW_GAP
+  };
+}
+
+export function resolvePatchConnectionMidpoint(
+  patch: Pick<Patch, "nodes" | "connections">,
+  layoutByNode: Map<string, PatchLayoutNode>,
+  connectionId: string
+) {
+  const connection = patch.connections.find((entry) => entry.id === connectionId);
+  if (!connection) {
+    return null;
+  }
+  const from = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.from.nodeId, connection.from.portId, "out");
+  const to = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.to.nodeId, connection.to.portId, "in");
+  if (!from || !to) {
+    return null;
+  }
+  return {
+    x: (from.x + to.x) / 2,
+    y: (from.y + to.y) / 2
+  };
+}
+
+export function findPatchConnectionAtPoint(
+  patch: Pick<Patch, "nodes" | "connections">,
+  layoutByNode: Map<string, PatchLayoutNode>,
+  rawX: number,
+  rawY: number
+): string | null {
+  const threshold = 8;
+  for (let index = patch.connections.length - 1; index >= 0; index -= 1) {
+    const connection = patch.connections[index];
+    const from = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.from.nodeId, connection.from.portId, "out");
+    const to = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.to.nodeId, connection.to.portId, "in");
+    if (!from || !to) {
+      continue;
+    }
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const lengthSquared = dx * dx + dy * dy;
+    if (lengthSquared <= 0) {
+      continue;
+    }
+    const t = Math.max(0, Math.min(1, ((rawX - from.x) * dx + (rawY - from.y) * dy) / lengthSquared));
+    const closestX = from.x + dx * t;
+    const closestY = from.y + dy * t;
+    const distance = Math.hypot(rawX - closestX, rawY - closestY);
+    if (distance <= threshold) {
+      return connection.id;
     }
   }
   return null;

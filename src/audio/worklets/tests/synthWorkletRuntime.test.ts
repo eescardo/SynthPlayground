@@ -88,7 +88,8 @@ function createProject(options: {
           {
             id: "tab_1",
             name: patch.name,
-            patchId: patch.id
+            patchId: patch.id,
+            probes: []
           }
         ]
       }
@@ -279,6 +280,7 @@ describe("synth worklet runtime", () => {
 
     processor.onMessage({
       type: "PREVIEW",
+      trackId: "track_1",
       durationSamples: 128,
       events: [
         {
@@ -319,6 +321,7 @@ describe("synth worklet runtime", () => {
     for (const processor of [fullVolumeProcessor, quietProcessor]) {
       processor.onMessage({
         type: "PREVIEW",
+        trackId: "track_1",
         durationSamples: 128,
         ignoreVolume: false,
         events: [
@@ -395,6 +398,7 @@ describe("synth worklet runtime", () => {
 
     processor.onMessage({
       type: "PREVIEW",
+      trackId: "track_1",
       project: previewProject,
       durationSamples: 128,
       events: [
@@ -417,6 +421,124 @@ describe("synth worklet runtime", () => {
 
     expect(processorState.project?.patches[0]?.id).toBe("patch_preview");
     expect(processorState.trackRuntimes?.[0]?.track.instrumentPatchId).toBe("patch_preview");
+  });
+
+  it("emits captured probe samples after preview rendering completes", async () => {
+    const { SynthWorkletProcessor } = await loadRuntimeModule();
+
+    const processor = new SynthWorkletProcessor({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize: 128,
+        project: createProject()
+      }
+    });
+
+    const postMessage = vi.spyOn((processor as { port: { postMessage: (...args: unknown[]) => void } }).port, "postMessage");
+
+    processor.onMessage({
+      type: "PREVIEW",
+      trackId: "track_1",
+      previewId: "preview_test",
+      durationSamples: 32,
+      captureProbes: [
+        {
+          probeId: "probe_scope",
+          kind: "scope",
+          target: {
+            kind: "connection",
+            connectionId: "conn_1"
+          }
+        }
+      ],
+      events: [
+        {
+          id: "preview_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ]
+    });
+
+    renderProcessorBlock(processor);
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "PREVIEW_CAPTURE",
+        previewId: "preview_test",
+        captures: [
+          expect.objectContaining({
+            probeId: "probe_scope",
+            sampleRate: 48000,
+            durationSamples: 32,
+            capturedSamples: 32
+          })
+        ]
+      })
+    );
+  });
+
+  it("streams probe capture updates before preview completion", async () => {
+    const { SynthWorkletProcessor } = await loadRuntimeModule();
+
+    const processor = new SynthWorkletProcessor({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize: 128,
+        project: createProject()
+      }
+    });
+
+    const postMessage = vi.spyOn((processor as { port: { postMessage: (...args: unknown[]) => void } }).port, "postMessage");
+
+    processor.onMessage({
+      type: "PREVIEW",
+      trackId: "track_1",
+      previewId: "preview_stream",
+      durationSamples: 2048,
+      captureProbes: [
+        {
+          probeId: "probe_scope",
+          kind: "scope",
+          target: {
+            kind: "connection",
+            connectionId: "conn_1"
+          }
+        }
+      ],
+      events: [
+        {
+          id: "preview_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ]
+    });
+
+    for (let index = 0; index < 8; index += 1) {
+      renderProcessorBlock(processor);
+    }
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "PREVIEW_CAPTURE",
+        previewId: "preview_stream",
+        captures: [
+          expect.objectContaining({
+            probeId: "probe_scope",
+            capturedSamples: 1024
+          })
+        ]
+      })
+    );
   });
 
   it("ignores stale transport event batches from older sessions", async () => {

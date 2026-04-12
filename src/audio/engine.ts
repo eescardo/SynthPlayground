@@ -5,6 +5,7 @@ import { getLoopPlaybackEndBeat } from "@/lib/looping";
 import { beatToSample } from "@/lib/musicTiming";
 import { createAudioEngineBackend, AudioEngineBackend, BLOCK_SIZE, FIXED_SAMPLE_RATE } from "@/audio/engineBackends";
 import { AudioProject } from "@/types/audio";
+import { PreviewProbeCapture, PreviewProbeRequest } from "@/types/probes";
 
 const EXPORT_TAIL_BEATS = 8;
 
@@ -118,9 +119,18 @@ export class AudioEngine {
     pitchVoct: number,
     durationBeats: number,
     velocity = 0.9,
-    options?: { ignoreVolume?: boolean; projectOverride?: AudioProject }
+    options?: {
+      ignoreVolume?: boolean;
+      projectOverride?: AudioProject;
+      captureProbes?: PreviewProbeRequest[];
+      previewId?: string;
+    }
   ): Promise<void> {
     return this.backend.previewNote(trackId, pitchVoct, durationBeats, velocity, options);
+  }
+
+  setPreviewCaptureListener(listener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null): void {
+    this.backend.setPreviewCaptureListener(listener);
   }
 
   async exportProjectAudio(project: AudioProject): Promise<Blob> {

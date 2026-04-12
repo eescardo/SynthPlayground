@@ -2,9 +2,11 @@ import {
   resolveMacroBindingValue,
   resolveMacroKeyframeIndexAtValue
 } from "@/lib/patch/macroKeyframes";
+import { ProbeInspectorSection } from "@/components/patch/ProbeInspectorSection";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch, PatchNode, ParamSchema, ParamValue, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
+import { PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
 
 function formatBindingValue(value: number) {
   if (!Number.isFinite(value)) {
@@ -112,12 +114,20 @@ interface PatchInspectorProps {
   patch: Patch;
   macroValues: Record<string, number>;
   selectedNode?: PatchNode;
+  selectedProbe?: PatchWorkspaceProbeState;
   selectedMacroId?: string;
   selectedSchema?: NonNullable<ReturnType<typeof getModuleSchema>>;
+  previewCapture?: PreviewProbeCapture;
+  previewProgress: number;
+  attachingProbeId?: string | null;
   structureLocked?: boolean;
   validationIssues: PatchValidationIssue[];
   onApplyOp: (op: PatchOp) => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
+  onUpdateProbeSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
+  onUpdateProbeFrequencyView: (probeId: string, maxHz: number) => void;
+  onToggleAttachProbe: (probeId: string) => void;
+  onClearProbeTarget: (probeId: string) => void;
 }
 
 function resolveIssuesForNode(nodeId: string, issues: PatchValidationIssue[]) {
@@ -128,6 +138,7 @@ function resolveIssuesForNode(nodeId: string, issues: PatchValidationIssue[]) {
 
 export function PatchInspector(props: PatchInspectorProps) {
   const selectedNode = props.selectedNode;
+  const selectedProbe = props.selectedProbe;
   const selectedMacro = props.selectedMacroId
     ? props.patch.ui.macros.find((macro) => macro.id === props.selectedMacroId)
     : undefined;
@@ -151,11 +162,10 @@ export function PatchInspector(props: PatchInspectorProps) {
       )
     : props.patch.connections;
   const visibleValidationIssues = selectedNode ? resolveIssuesForNode(selectedNode.id, props.validationIssues) : props.validationIssues;
-
   return (
     <aside className="patch-inspector">
       <h3>Inspector</h3>
-      {!selectedNode && <p className="muted">Select a module to edit parameters.</p>}
+      {!selectedNode && !selectedProbe && <p className="muted">Select a module or probe to edit parameters.</p>}
 
       {selectedNode && props.selectedSchema && (
         <>
@@ -250,6 +260,20 @@ export function PatchInspector(props: PatchInspectorProps) {
             );
           })}
         </>
+      )}
+
+      {selectedProbe && !selectedNode && (
+        <ProbeInspectorSection
+          patch={props.patch}
+          selectedProbe={selectedProbe}
+          previewCapture={props.previewCapture}
+          previewProgress={props.previewProgress}
+          attachingProbeId={props.attachingProbeId}
+          onUpdateProbeSpectrumWindow={props.onUpdateProbeSpectrumWindow}
+          onUpdateProbeFrequencyView={props.onUpdateProbeFrequencyView}
+          onToggleAttachProbe={props.onToggleAttachProbe}
+          onClearProbeTarget={props.onClearProbeTarget}
+        />
       )}
 
       <h4>{selectedNode ? "Module Connections" : "Connections"}</h4>

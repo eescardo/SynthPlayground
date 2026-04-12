@@ -10,7 +10,8 @@ describe("audioProject", () => {
       {
         id: "tab_bass",
         name: "Bass Sketch",
-        patchId: "preset_bass"
+        patchId: "preset_bass",
+        probes: []
       }
     ];
 
