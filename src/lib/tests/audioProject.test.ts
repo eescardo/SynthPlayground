@@ -17,14 +17,10 @@ describe("audioProject", () => {
     const audioProject = toAudioProject(project);
 
     expect(audioProject).toEqual({
-      id: project.id,
-      name: project.name,
       global: project.global,
       tracks: project.tracks,
       patches: project.patches,
-      masterFx: project.masterFx,
-      createdAt: project.createdAt,
-      updatedAt: project.updatedAt
+      masterFx: project.masterFx
     });
     expect("ui" in (audioProject as unknown as Record<string, unknown>)).toBe(false);
   });

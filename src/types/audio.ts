@@ -2,14 +2,10 @@ import { MasterFxSettings, ProjectGlobalSettings, Track } from "@/types/music";
 import { Patch } from "@/types/patch";
 
 export interface AudioProject {
-  id: string;
-  name: string;
   global: ProjectGlobalSettings;
   tracks: Track[];
   patches: Patch[];
   masterFx: MasterFxSettings;
-  createdAt: number;
-  updatedAt: number;
 }
 
 // Scheduler/worklet message contracts and event payload types for audio transport.
