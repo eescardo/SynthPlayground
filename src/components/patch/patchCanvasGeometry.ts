@@ -68,11 +68,12 @@ export function resolveHostPatchPortRect(nodeId: string) {
   if (hostIndex < 0) {
     return null;
   }
+  const label = resolveHostPatchPortLabel(nodeId);
   return {
     x: PATCH_HOST_STRIP_X,
     y: PATCH_HOST_STRIP_Y + hostIndex * PATCH_HOST_STRIP_ROW_GAP,
-    width: PATCH_HOST_STRIP_WIDTH,
-    height: 15
+    width: Math.max(PATCH_HOST_STRIP_WIDTH, label.length * 7 + 22),
+    height: 18
   };
 }
 

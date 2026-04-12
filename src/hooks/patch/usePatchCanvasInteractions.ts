@@ -53,6 +53,28 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [hoveredAttachTarget, setHoveredAttachTarget] = useState<HoveredAttachTarget>(null);
 
+  const resolveConnectionOp = useCallback((startPort: HitPort | null, endPort: HitPort | null) => {
+    if (!startPort || !endPort || startPort.kind === endPort.kind) {
+      return null;
+    }
+    const fromPort = startPort.kind === "out" ? startPort : endPort;
+    const toPort = startPort.kind === "in" ? startPort : endPort;
+    const issues = validatePatchConnectionCandidate(
+      args.patch,
+      fromPort.nodeId,
+      fromPort.portId,
+      toPort.nodeId,
+      toPort.portId
+    );
+    if (issues.some((issue) => issue.level === "error")) {
+      return null;
+    }
+    return {
+      op: args.makeConnectOp(fromPort.nodeId, fromPort.portId, toPort.nodeId, toPort.portId),
+      target: toPort
+    };
+  }, [args.makeConnectOp, args.patch]);
+
   useEffect(() => {
     const canvas = args.canvasRef.current;
     if (!canvas) {
@@ -89,19 +111,6 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     pendingWirePointer
   ]);
 
-  const isValidConnectionTarget = useCallback((fromPort: HitPort | null, toPort: HitPort | null) => {
-    if (!fromPort || !toPort || toPort.kind !== "in") {
-      return false;
-    }
-    return !validatePatchConnectionCandidate(
-      args.patch,
-      fromPort.nodeId,
-      fromPort.portId,
-      toPort.nodeId,
-      toPort.portId
-    ).some((issue) => issue.level === "error");
-  }, [args.patch]);
-
   const getNodeAtPointer = useCallback((rawX: number, rawY: number) => {
     return findPatchNodeAtPoint(args.patch, args.layoutByNode, rawX, rawY);
   }, [args.layoutByNode, args.patch]);
@@ -128,14 +137,19 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       if (args.structureLocked) {
         return;
       }
-      if (hitPort.kind === "out") {
+      if (!pendingFromPort) {
         setPendingFromPort(hitPort);
         setPendingWirePointer({ x: pos.rawX, y: pos.rawY });
-      } else if (hitPort.kind === "in" && pendingFromPort) {
-        if (isValidConnectionTarget(pendingFromPort, hitPort)) {
-          args.onApplyOp(args.makeConnectOp(pendingFromPort.nodeId, pendingFromPort.portId, hitPort.nodeId, hitPort.portId));
+      } else {
+        const resolved = resolveConnectionOp(pendingFromPort, hitPort);
+        if (resolved) {
+          args.onApplyOp(resolved.op);
           setPendingFromPort(null);
           setPendingWirePointer(null);
+          setHoveredAttachTarget(null);
+        } else {
+          setPendingFromPort(hitPort);
+          setPendingWirePointer({ x: pos.rawX, y: pos.rawY });
         }
       }
       return;
@@ -180,8 +194,8 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
   }, [
     args,
     getNodeAtPointer,
-    isValidConnectionTarget,
-    pendingFromPort
+    pendingFromPort,
+    resolveConnectionOp
   ]);
 
   const onPointerMove = useCallback((event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -203,14 +217,17 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         setHoveredAttachTarget(hoverConnectionId ? { kind: "connection", connectionId: hoverConnectionId } : null);
       }
     } else if (pendingFromPort) {
-      setHoveredAttachTarget(isValidConnectionTarget(pendingFromPort, hoverPort)
-        ? {
-            kind: "port",
-            nodeId: hoverPort!.nodeId,
-            portId: hoverPort!.portId,
-            portKind: "in"
-          }
-        : null);
+      const resolved = resolveConnectionOp(pendingFromPort, hoverPort);
+      setHoveredAttachTarget(
+        resolved
+          ? {
+              kind: "port",
+              nodeId: resolved.target.nodeId,
+              portId: resolved.target.portId,
+              portKind: resolved.target.kind
+            }
+          : null
+      );
     } else {
       setHoveredAttachTarget(null);
     }
@@ -238,7 +255,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       nodeId: dragNodeId,
       newLayoutPos: nextLayout
     });
-  }, [args, dragNodeId, getNodeAtPointer, isValidConnectionTarget, pendingFromPort]);
+  }, [args, dragNodeId, getNodeAtPointer, pendingFromPort, resolveConnectionOp]);
 
   const onPointerUp = useCallback((event: ReactPointerEvent<HTMLCanvasElement>) => {
     const clickedNodeId = pointerDownNodeIdRef.current;

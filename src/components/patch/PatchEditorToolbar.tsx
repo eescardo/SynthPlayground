@@ -78,7 +78,7 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
         Auto-layout
       </button>
       {props.structureLocked && <span className="muted">Preset structure is locked. Move nodes for clarity or edit macros.</span>}
-      {props.pendingFromPort && <span className="muted">Select input port to complete connection.</span>}
+      {props.pendingFromPort && <span className="muted">Select a compatible port to complete connection.</span>}
       {props.pendingProbeId && <span className="muted">Click a port or wire to attach the selected probe.</span>}
       <span className="patch-zoom-readout">Zoom {Math.round(props.zoom * 100)}%</span>
     </div>

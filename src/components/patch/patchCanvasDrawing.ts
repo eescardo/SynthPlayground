@@ -5,6 +5,7 @@ import {
   PATCH_COLOR_GRID_MAJOR,
   PATCH_COLOR_GRID_MINOR,
   PATCH_COLOR_HOST_STRIP_FILL,
+  PATCH_COLOR_HOST_PORT_TEXT,
   PATCH_COLOR_HOST_STRIP_STROKE,
   PATCH_COLOR_NODE_HOVER_OVERLAY,
   PATCH_COLOR_NODE_SUBTITLE,
@@ -365,22 +366,6 @@ function resolvePortPositions(
   return portPositions;
 }
 
-function drawPatchHostStrip(ctx: CanvasRenderingContext2D) {
-  const stripHeight = 108;
-  ctx.fillStyle = PATCH_COLOR_HOST_STRIP_FILL;
-  ctx.strokeStyle = PATCH_COLOR_HOST_STRIP_STROKE;
-  ctx.lineWidth = 2;
-  ctx.fillRect(PATCH_HOST_STRIP_X - 18, PATCH_HOST_STRIP_Y - 36, PATCH_HOST_STRIP_WIDTH + 36, stripHeight);
-  ctx.strokeRect(PATCH_HOST_STRIP_X - 18, PATCH_HOST_STRIP_Y - 36, PATCH_HOST_STRIP_WIDTH + 36, stripHeight);
-
-  ctx.fillStyle = PATCH_COLOR_NODE_TITLE;
-  ctx.font = "12px 'Trebuchet MS', 'Segoe UI', sans-serif";
-  ctx.fillText("Host Sources", PATCH_HOST_STRIP_X - 8, PATCH_HOST_STRIP_Y - 14);
-  ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
-  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.fillText("voice inputs", PATCH_HOST_STRIP_X - 8, PATCH_HOST_STRIP_Y - 2);
-}
-
 function drawHostPorts(ctx: CanvasRenderingContext2D, portPositions: Map<string, ResolvedPortPosition>) {
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
   SOURCE_HOST_NODE_IDS.forEach((hostId) => {
@@ -388,9 +373,12 @@ function drawHostPorts(ctx: CanvasRenderingContext2D, portPositions: Map<string,
     if (!port) {
       return;
     }
-    ctx.fillStyle = "rgba(7, 14, 21, 0.94)";
+    ctx.fillStyle = PATCH_COLOR_HOST_STRIP_FILL;
     ctx.fillRect(port.x, port.y - port.height / 2, port.width, port.height);
-    ctx.fillStyle = PATCH_COLOR_PORT_LABEL;
+    ctx.strokeStyle = PATCH_COLOR_HOST_STRIP_STROKE;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(port.x, port.y - port.height / 2, port.width, port.height);
+    ctx.fillStyle = PATCH_COLOR_HOST_PORT_TEXT;
     ctx.textAlign = "center";
     ctx.fillText(resolveHostPatchPortLabel(hostId), port.x + port.width / 2, port.y + 3);
     ctx.textAlign = "left";
@@ -445,13 +433,13 @@ function drawPatchModules(
 
 function drawPendingPatchPort(
   ctx: CanvasRenderingContext2D,
-  pendingFromPort: HitPort | null,
+  pendingPort: HitPort | null,
   portPositions: Map<string, ResolvedPortPosition>
 ) {
-  if (!pendingFromPort) {
+  if (!pendingPort) {
     return;
   }
-  const portKey = `${pendingFromPort.nodeId}:out:${pendingFromPort.portId}`;
+  const portKey = `${pendingPort.nodeId}:${pendingPort.kind}:${pendingPort.portId}`;
   const p = portPositions.get(portKey);
   if (p) {
     ctx.strokeStyle = PATCH_COLOR_PENDING_PORT;
@@ -462,24 +450,24 @@ function drawPendingPatchPort(
 
 function drawPendingPatchWire(
   ctx: CanvasRenderingContext2D,
-  pendingFromPort: HitPort | null,
+  pendingPort: HitPort | null,
   pointer: { x: number; y: number } | null,
   portPositions: Map<string, ResolvedPortPosition>
 ) {
-  if (!pendingFromPort || !pointer) {
+  if (!pendingPort || !pointer) {
     return;
   }
-  const portKey = `${pendingFromPort.nodeId}:out:${pendingFromPort.portId}`;
-  const from = portPositions.get(portKey);
-  if (!from) {
+  const portKey = `${pendingPort.nodeId}:${pendingPort.kind}:${pendingPort.portId}`;
+  const anchor = portPositions.get(portKey);
+  if (!anchor) {
     return;
   }
   ctx.save();
-  ctx.strokeStyle = getSignalCapabilityColor(from.schema.capabilities[0]) ?? PATCH_COLOR_PENDING_WIRE;
+  ctx.strokeStyle = getSignalCapabilityColor(anchor.schema.capabilities[0]) ?? PATCH_COLOR_PENDING_WIRE;
   ctx.lineWidth = 2;
   ctx.setLineDash([8, 6]);
   ctx.beginPath();
-  ctx.moveTo(from.anchorX, from.anchorY);
+  ctx.moveTo(anchor.anchorX, anchor.anchorY);
   ctx.lineTo(pointer.x, pointer.y);
   ctx.stroke();
   ctx.restore();
@@ -604,7 +592,6 @@ export function drawPatchCanvas(args: {
 
   drawPatchGrid(ctx, width, height);
   const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode);
-  drawPatchHostStrip(ctx);
   drawPatchConnections(ctx, args.patch, portPositions);
   drawPatchModules(ctx, args.patch, args.layoutByNode, args.hoveredNodeId, args.selectedMacroNodeIds, args.selectedNodeId);
   drawHostPorts(ctx, portPositions);
