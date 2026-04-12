@@ -5,6 +5,7 @@ import { InstrumentToolbar } from "@/components/patch/InstrumentToolbar";
 import { PatchEditorCanvas } from "@/components/patch/PatchEditorCanvas";
 import { createInstrumentEditorPreviewReadyKey } from "@/components/patch/instrumentEditorPreview";
 import { useAfterStateCommit } from "@/hooks/useAfterStateCommit";
+import { NoteClipboardPayload } from "@/lib/clipboard";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -13,6 +14,7 @@ import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 interface InstrumentEditorProps {
   editorSessionKey?: string;
   patch: Patch;
+  tempo: number;
   patches: Patch[];
   probeState: PatchProbeEditorState;
   macroValues: Record<string, number>;
@@ -21,6 +23,7 @@ interface InstrumentEditorProps {
   validationIssues: PatchValidationIssue[];
   invalid?: boolean;
   migrationNotice?: string | null;
+  onWriteClipboardPayload?: (payload: NoteClipboardPayload) => Promise<void>;
   onReady?: (macroValues: Record<string, number>) => void;
   onRenamePatch: (name: string) => void;
   onSelectPatch: (patchId: string) => void;
@@ -85,12 +88,14 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
 
       <PatchEditorCanvas
         patch={props.patch}
+        tempo={props.tempo}
         probeState={props.probeState}
         macroValues={props.macroValues}
         selectedNodeId={props.selectedNodeId}
         selectedMacroId={props.selectedMacroId}
         validationIssues={props.validationIssues}
         structureLocked={structureLocked}
+        onWriteClipboardPayload={props.onWriteClipboardPayload}
         onSelectNode={props.onSelectNode}
         onSelectMacro={props.onSelectMacro}
         onClearSelectedMacro={props.onClearSelectedMacro}

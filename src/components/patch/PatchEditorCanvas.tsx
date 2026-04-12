@@ -6,6 +6,7 @@ import { PatchEditorStage } from "@/components/patch/PatchEditorStage";
 import { PatchInspector } from "@/components/patch/PatchInspector";
 import { PatchMacroPanel } from "@/components/patch/PatchMacroPanel";
 import { usePatchProbeEditorState } from "@/hooks/patch/usePatchProbeEditorState";
+import { NoteClipboardPayload } from "@/lib/clipboard";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -23,12 +24,14 @@ const PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT: Record<number, number> = {
 
 interface PatchEditorCanvasProps {
   patch: Patch;
+  tempo: number;
   probeState: PatchProbeEditorState;
   macroValues: Record<string, number>;
   selectedNodeId?: string;
   selectedMacroId?: string;
   validationIssues: PatchValidationIssue[];
   structureLocked?: boolean;
+  onWriteClipboardPayload?: (payload: NoteClipboardPayload) => Promise<void>;
   onSelectNode: (nodeId?: string) => void;
   onSelectMacro: (macroId?: string) => void;
   onClearSelectedMacro: () => void;
@@ -117,6 +120,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
 
         <PatchInspector
           patch={props.patch}
+          tempo={props.tempo}
           macroValues={props.macroValues}
           selectedNode={selectedNode}
           selectedProbe={selectedProbe}
@@ -127,6 +131,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           attachingProbeId={attachingProbeId}
           structureLocked={props.structureLocked}
           validationIssues={props.validationIssues}
+          onWriteClipboardPayload={props.onWriteClipboardPayload}
           onApplyOp={props.onApplyOp}
           onExposeMacro={props.onExposeMacro}
           onUpdateProbeSpectrumWindow={props.probeActions.updateSpectrumWindow}

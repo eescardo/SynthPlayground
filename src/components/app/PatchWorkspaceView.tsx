@@ -2,6 +2,7 @@
 
 import type { ComponentProps } from "react";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
+import { NoteClipboardPayload } from "@/lib/clipboard";
 import { PatchWorkspaceTabStrip, PatchWorkspaceTabViewModel } from "@/components/patch-workspace/PatchWorkspaceTabStrip";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { usePatchWorkspaceQuickHelpDialog } from "@/hooks/patch/usePatchWorkspaceQuickHelpDialog";
@@ -11,6 +12,7 @@ import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 
 interface PatchWorkspaceViewProps {
   patch: Patch;
+  tempo: number;
   patches: Patch[];
   probeState: PatchProbeEditorState;
   tabs: PatchWorkspaceTabViewModel[];
@@ -23,6 +25,7 @@ interface PatchWorkspaceViewProps {
   validationIssues: ComponentProps<typeof InstrumentEditor>["validationIssues"];
   invalid?: boolean;
   canRemovePatch: boolean;
+  onWriteClipboardPayload?: (payload: NoteClipboardPayload) => Promise<void>;
   onBackToComposer: () => void;
   onActivateTab: (tabId: string) => void;
   canCreateTab: boolean;
@@ -97,6 +100,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
         <InstrumentEditor
           editorSessionKey={props.activeTabId}
           patch={props.patch}
+          tempo={props.tempo}
           patches={props.patches}
           probeState={props.probeState}
           macroValues={props.macroValues}
@@ -106,6 +110,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           selectedMacroId={props.selectedMacroId}
           validationIssues={props.validationIssues}
           invalid={props.invalid}
+          onWriteClipboardPayload={props.onWriteClipboardPayload}
           onRenamePatch={props.onRenamePatch}
           onSelectPatch={props.onSelectPatch}
           onDuplicatePatch={props.onDuplicatePatch}

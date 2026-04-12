@@ -1108,6 +1108,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const patchWorkspaceProps: React.ComponentProps<typeof PatchWorkspaceView> = {
     patch: selectedPatch,
+    tempo: project.global.tempo,
     patches: project.patches,
     probeState: {
       probes: patchWorkspace.probes,
@@ -1124,6 +1125,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     selectedMacroId: patchWorkspace.selectedMacroId,
     validationIssues,
     invalid: selectedPatchHasErrors,
+    onWriteClipboardPayload: writeClipboardPayload,
     canRemovePatch:
       resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset",
     onBackToComposer: patchWorkspace.closePatchWorkspace,

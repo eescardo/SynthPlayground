@@ -4,15 +4,19 @@ import {
   PROBE_MAX_MAX_FREQUENCY_HZ,
   PROBE_MIN_MAX_FREQUENCY_HZ
 } from "@/lib/patch/probes";
+import { NoteClipboardPayload } from "@/lib/clipboard";
+import { buildPitchTrackerClipboardPayload, detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
 import { Patch } from "@/types/patch";
 import { PatchProbeTarget, PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
 
 interface ProbeInspectorSectionProps {
   patch: Patch;
+  tempo: number;
   selectedProbe: PatchWorkspaceProbeState;
   previewCapture?: PreviewProbeCapture;
   previewProgress: number;
   attachingProbeId?: string | null;
+  onWriteClipboardPayload?: (payload: NoteClipboardPayload) => Promise<void>;
   onUpdateProbeSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
   onUpdateProbeFrequencyView: (probeId: string, maxHz: number) => void;
   onToggleAttachProbe: (probeId: string) => void;
@@ -21,6 +25,10 @@ interface ProbeInspectorSectionProps {
 
 export function ProbeInspectorSection(props: ProbeInspectorSectionProps) {
   const { selectedProbe } = props;
+  const detectedNotes =
+    selectedProbe.kind === "pitch_tracker" ? detectMonophonicPitchNotes(props.previewCapture, props.tempo) : [];
+  const clipboardPayload =
+    selectedProbe.kind === "pitch_tracker" ? buildPitchTrackerClipboardPayload(props.patch.id, detectedNotes) : null;
 
   return (
     <>
@@ -110,6 +118,57 @@ export function ProbeInspectorSection(props: ProbeInspectorSectionProps) {
           </div>
           <p className="muted">
             Scope view normalizes the captured signal so quiet patches still render visibly.
+          </p>
+        </>
+      )}
+      {selectedProbe.kind === "pitch_tracker" && (
+        <>
+          <div className="param-row">
+            <span>Detected Notes</span>
+            <div className="param-control-stack">
+              <div className="macro-binding-edit-summary">
+                {detectedNotes.length
+                  ? `${detectedNotes.length} monophonic note${detectedNotes.length === 1 ? "" : "s"} detected from the latest preview.`
+                  : "Preview the patch to estimate note pitch, onset, and offset from this attached signal."}
+              </div>
+              {detectedNotes.length > 0 && (
+                <div className="pitch-tracker-note-list">
+                  {detectedNotes.map((note, index) => (
+                    <div key={`${note.pitchStr}_${note.startBeat}_${index}`} className="pitch-tracker-note-row">
+                      <strong>{note.pitchStr}</strong>
+                      <span>{note.startBeat.toFixed(2)} beat</span>
+                      <span>{note.durationBeats.toFixed(2)} beat</span>
+                      <span>{Math.round(note.confidence * 100)}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              disabled={!selectedProbe.target}
+              onClick={() => props.onClearProbeTarget(selectedProbe.id)}
+            >
+              Clear Target
+            </button>
+          </div>
+          <div className="param-row">
+            <span>Clipboard</span>
+            <div className="param-control-stack">
+              <div className="macro-binding-edit-summary">
+                Copy writes the detected notes using the app’s note clipboard format so they can be pasted into the composer.
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={!clipboardPayload || !props.onWriteClipboardPayload}
+              onClick={() => clipboardPayload && props.onWriteClipboardPayload?.(clipboardPayload)}
+            >
+              Copy Notes
+            </button>
+          </div>
+          <p className="muted">
+            Pitch tracker is intentionally simple and monophonic-only. It works best on a clean lead, bass, or trimmed sample line with obvious gaps between notes.
           </p>
         </>
       )}
