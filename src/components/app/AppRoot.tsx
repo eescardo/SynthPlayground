@@ -654,7 +654,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
             ...next,
             current: {
               ...next.current,
-              ui: prev.current.ui
+              ui: {
+                ...prev.current.ui,
+                patchWorkspace: next.current.ui.patchWorkspace
+              }
             }
           };
     });
@@ -669,7 +672,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
             ...next,
             current: {
               ...next.current,
-              ui: prev.current.ui
+              ui: {
+                ...prev.current.ui,
+                patchWorkspace: next.current.ui.patchWorkspace
+              }
             }
           };
     });
