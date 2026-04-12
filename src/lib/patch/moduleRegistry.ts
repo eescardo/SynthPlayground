@@ -7,13 +7,14 @@ const floatParam = (
   max: number,
   unit: Unit,
   doc: string,
-  options?: { default?: number; map?: "linear" | "exp"; smoothingMs?: number }
+  options?: { default?: number; map?: "linear" | "exp"; smoothingMs?: number; step?: number }
 ): ParamSchema => ({
   id,
   label,
   type: "float",
   default: options?.default ?? min,
   range: { min, max },
+  step: options?.step,
   unit,
   map: options?.map ?? "linear",
   smoothing: options?.smoothingMs ? { kind: "one_pole", timeMs: options.smoothingMs } : null,
@@ -105,15 +106,18 @@ export const moduleRegistry: ModuleTypeSchema[] = [
     params: [
       floatParam("octaves", "Octaves", -4, 4, "VperOct", "Pitch offset in octaves", {
         default: 0,
-        smoothingMs: 10
+        smoothingMs: 10,
+        step: 1
       }),
-      floatParam("semitones", "Semitones", -12, 12, "semitones", "Pitch offset in semitones", {
+      floatParam("semitones", "Semitones", -11, 11, "semitones", "Pitch offset in semitones", {
         default: 0,
-        smoothingMs: 10
+        smoothingMs: 10,
+        step: 1
       }),
       floatParam("cents", "Cents", -100, 100, "cents", "Fine pitch offset in cents", {
         default: 0,
-        smoothingMs: 10
+        smoothingMs: 10,
+        step: 1
       })
     ],
     portsIn: [port("in", "In", ["CV"], "Input CV")],

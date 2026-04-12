@@ -87,7 +87,7 @@ function ParamValueControl(props: {
         type="range"
         min={param.range.min}
         max={param.range.max}
-        step={(param.range.max - param.range.min) / 500}
+        step={param.step ?? (param.range.max - param.range.min) / 500}
         value={Number(value)}
         disabled={disabled}
         onChange={(event) => onChange(Number(event.target.value))}
