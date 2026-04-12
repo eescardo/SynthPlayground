@@ -50,6 +50,7 @@ describe("patch auto layout", () => {
 
     expect(xByNode.get("pitch")).toBeLessThan(xByNode.get("vco") ?? 0);
     expect(xByNode.get("vco")).toBeLessThan(xByNode.get("out") ?? 0);
+    expect(xByNode.get("pitch")).toBeGreaterThanOrEqual(4);
   });
 
   it("fills missing layout without replacing saved positions", () => {

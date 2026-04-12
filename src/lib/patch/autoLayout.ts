@@ -3,6 +3,7 @@ import { Patch, PatchLayoutNode, PatchModuleCategory, PatchNode, SignalCapabilit
 
 const AUTO_LAYOUT_X_GAP_GRID = 12;
 const AUTO_LAYOUT_Y_GAP_GRID = 7;
+const AUTO_LAYOUT_START_X_GRID = 4;
 const AUTO_LAYOUT_NODE_WIDTH_GRID = 9;
 const AUTO_LAYOUT_NODE_HEIGHT_GRID = 6;
 const AUTO_LAYOUT_MARGIN_GRID = 1;
@@ -63,7 +64,7 @@ export function resolveAutoLayoutNodes(patch: Pick<Patch, "nodes" | "connections
       ySlotByNodeId.set(node.id, slot);
       layout.push({
         nodeId: node.id,
-        x: 2 + rank * AUTO_LAYOUT_X_GAP_GRID,
+        x: AUTO_LAYOUT_START_X_GRID + rank * AUTO_LAYOUT_X_GAP_GRID,
         y: 2 + slot * AUTO_LAYOUT_Y_GAP_GRID
       });
     });
