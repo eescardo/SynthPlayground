@@ -54,6 +54,7 @@ import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
 import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
+import { MAX_PATCH_WORKSPACE_TABS } from "@/hooks/patch/patchWorkspaceStateUtils";
 import { useTrackMacroAutomationActions } from "@/hooks/tracks/useTrackMacroAutomationActions";
 import { useTrackVolumeAutomationActions } from "@/hooks/tracks/useTrackVolumeAutomationActions";
 import { Project } from "@/types/music";
@@ -1121,6 +1122,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
       resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset",
     onBackToComposer: patchWorkspace.closePatchWorkspace,
     onActivateTab: patchWorkspace.activateWorkspaceTab,
+    canCreateTab: patchWorkspace.tabs.length < MAX_PATCH_WORKSPACE_TABS,
     onCreateTab: patchWorkspace.createWorkspaceTabFromCurrent,
     onCloseTab: patchWorkspace.closeWorkspaceTab,
     onRenameTab: patchWorkspace.renameWorkspaceTab,

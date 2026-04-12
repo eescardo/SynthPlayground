@@ -23,6 +23,7 @@ interface PatchWorkspaceViewProps {
   canRemovePatch: boolean;
   onBackToComposer: () => void;
   onActivateTab: (tabId: string) => void;
+  canCreateTab: boolean;
   onCreateTab: () => void;
   onCloseTab: (tabId: string) => void;
   onRenameTab: (tabId: string, name: string) => void;
@@ -82,6 +83,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
         <PatchWorkspaceTabStrip
           tabs={props.tabs}
           activeTabId={props.activeTabId}
+          canCreateTab={props.canCreateTab}
           onActivateTab={props.onActivateTab}
           onCreateTab={props.onCreateTab}
           onCloseTab={props.onCloseTab}

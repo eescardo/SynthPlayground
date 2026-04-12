@@ -1109,11 +1109,20 @@ select {
   display: flex;
   align-items: flex-end;
   gap: 0.28rem;
-  overflow-x: auto;
   padding-bottom: 0;
   margin-bottom: -1px;
   position: relative;
   z-index: 2;
+}
+
+.patch-workspace-tab-list {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: flex-end;
+  gap: 0.28rem;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .patch-workspace-tab {
@@ -1186,8 +1195,9 @@ select {
 .patch-workspace-tab-add {
   width: 1.45rem;
   height: 1.45rem;
+  flex: 0 0 auto;
   align-self: center;
-  margin-left: 0.16rem;
+  margin-right: 0.16rem;
   border-color: rgba(131, 173, 216, 0.24);
   font-size: 0.95rem;
   font-weight: 600;

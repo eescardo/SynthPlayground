@@ -7,6 +7,7 @@ export interface LocalPatchWorkspaceTab extends PatchWorkspaceTabState {
 }
 
 export const PATCH_WORKSPACE_TAB_MACRO_VALUES_SESSION_KEY = "synth-playground:patch-workspace-tab-macro-values";
+export const MAX_PATCH_WORKSPACE_TABS = 16;
 
 export const isTextEditingTarget = (target: EventTarget | null) => {
   const element = target as HTMLElement | null;
@@ -62,13 +63,20 @@ export const getActiveTab = (tabs: LocalPatchWorkspaceTab[], activeTabId?: strin
   tabs.find((tab) => tab.id === activeTabId) ?? tabs[0];
 
 export const createNextTabName = (tabs: Array<{ name: string }>) => {
-  for (let index = 1; index < 10_000; index += 1) {
+  const existingNames = new Set(tabs.map((tab) => tab.name));
+
+  for (let index = 1; index <= MAX_PATCH_WORKSPACE_TABS; index += 1) {
     const candidate = `Tab ${index}`;
-    if (!tabs.some((tab) => tab.name === candidate)) {
+    if (!existingNames.has(candidate)) {
       return candidate;
     }
   }
-  return `Tab ${Date.now()}`;
+
+  let overflowIndex = MAX_PATCH_WORKSPACE_TABS + 1;
+  while (existingNames.has(`Tab ${overflowIndex}`)) {
+    overflowIndex += 1;
+  }
+  return `Tab ${overflowIndex}`;
 };
 
 export const parseTabMacroValues = (raw: string | null): Record<string, Record<string, number>> => {

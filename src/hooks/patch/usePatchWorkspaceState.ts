@@ -13,6 +13,7 @@ import {
   isShortcutBlockedTarget,
   isTextEditingTarget,
   LocalPatchWorkspaceTab,
+  MAX_PATCH_WORKSPACE_TABS,
   parseTabMacroValues,
   PATCH_WORKSPACE_TAB_MACRO_VALUES_SESSION_KEY,
   pruneTabMacroValues,
@@ -250,7 +251,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       const existingTab = tabs.find((tab) => tab.patchId === resolvedPatchId);
       if (existingTab) {
         activateWorkspaceTab(existingTab.id, { preview: false, skipHistory: true });
-      } else {
+      } else if (tabs.length < MAX_PATCH_WORKSPACE_TABS) {
         const nextTab = createWorkspaceTab(resolvedPatchId);
         skipNextTabPreviewRef.current = true;
         setTabs((currentTabs) => [...currentTabs, nextTab]);
@@ -273,6 +274,9 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   }, [updateTabs]);
 
   const createWorkspaceTabFromCurrent = useCallback(() => {
+    if (tabs.length >= MAX_PATCH_WORKSPACE_TABS) {
+      return;
+    }
     const patchId = activeTab?.patchId ?? selectedPatch?.id ?? selectedTrack?.instrumentPatchId ?? project.patches[0]?.id;
     if (!patchId) {
       return;

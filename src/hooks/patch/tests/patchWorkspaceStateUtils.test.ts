@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createNextTabName,
   isAudiblePatchOp,
+  MAX_PATCH_WORKSPACE_TABS,
   parseTabMacroValues,
   pruneTabMacroValues
 } from "@/hooks/patch/patchWorkspaceStateUtils";
@@ -10,6 +11,12 @@ describe("patchWorkspaceStateUtils", () => {
   it("creates the first unused sequential tab name", () => {
     expect(createNextTabName([])).toBe("Tab 1");
     expect(createNextTabName([{ name: "Tab 1" }, { name: "Ideas" }, { name: "Tab 3" }])).toBe("Tab 2");
+  });
+
+  it("falls back to the next unique overflow number after the preferred range", () => {
+    const tabs = Array.from({ length: MAX_PATCH_WORKSPACE_TABS }, (_, index) => ({ name: `Tab ${index + 1}` }));
+    expect(createNextTabName(tabs)).toBe("Tab 17");
+    expect(createNextTabName([...tabs, { name: "Tab 17" }, { name: "Tab 19" }])).toBe("Tab 18");
   });
 
   it("parses and clamps session macro values while ignoring invalid entries", () => {
