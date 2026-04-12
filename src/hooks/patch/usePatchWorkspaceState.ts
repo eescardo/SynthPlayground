@@ -64,6 +64,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   const skipNextTabPreviewRef = useRef(true);
   const previousActiveTabIdRef = useRef<string | undefined>(undefined);
   const pendingAutoPreviewTabIdRef = useRef<string | null>(null);
+  const skipNextWorkspaceHistoryRef = useRef(true);
   const projectWorkspaceSignature = JSON.stringify(project.ui.patchWorkspace);
   const workspaceSyncSignatureRef = useRef(projectWorkspaceSignature);
   const patchNameById = useMemo(() => new Map(project.patches.map((patch) => [patch.id, patch.name] as const)), [project.patches]);
@@ -121,8 +122,9 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
           patchWorkspace: persistedWorkspaceState
         }
       }),
-      { skipHistory: true }
+      { skipHistory: skipNextWorkspaceHistoryRef.current }
     );
+    skipNextWorkspaceHistoryRef.current = true;
   }, [commitProjectChange, persistedWorkspaceSignature, persistedWorkspaceState]);
 
   const activeTab = useMemo(() => getActiveTab(tabs, activeTabId), [activeTabId, tabs]);
@@ -228,6 +230,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
 
   const activateWorkspaceTab = useCallback((tabId: string, options?: { preview?: boolean }) => {
     skipNextTabPreviewRef.current = options?.preview === false;
+    skipNextWorkspaceHistoryRef.current = true;
     setActiveTabId(tabId);
   }, []);
 
@@ -274,6 +277,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       return;
     }
     const nextTab = createWorkspaceTab(patchId, createNextTabName(tabs));
+    skipNextWorkspaceHistoryRef.current = false;
     setTabs((currentTabs) => [...currentTabs, nextTab]);
     setTabMacroValuesById((current) => ({
       ...current,
@@ -292,6 +296,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       return;
     }
     const fallbackTab = tabs[closingIndex + 1] ?? tabs[closingIndex - 1];
+    skipNextWorkspaceHistoryRef.current = false;
     setTabs((currentTabs) => currentTabs.filter((tab) => tab.id !== tabId));
     setTabMacroValuesById((current) => {
       const next = { ...current };
