@@ -15,6 +15,8 @@
     "test:ui:capture": "pnpm run sync:worklet-runtime && node --import tsx scripts/ui-screenshots/capture.ts",
     "test:ui:video:capture": "pnpm run sync:worklet-runtime && node --import tsx scripts/ui-videos/capture.ts",
     "test:ui:verify": "vitest run --config vitest.ui.config.ts",
+    "benchmark:audio": "node --expose-gc --import tsx scripts/audio-benchmarks/run.ts",
+    "benchmark:audio:compare": "node --import tsx scripts/audio-benchmarks/compare.ts",
     "presets:manifest": "node --import tsx scripts/generate-preset-manifest.ts --write",
     "check:presets:manifest": "node --import tsx scripts/check-preset-manifest.ts",
     "check:presets:definitions": "node --import tsx scripts/check-preset-definitions.ts",
