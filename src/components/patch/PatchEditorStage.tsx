@@ -7,16 +7,21 @@ import {
   PATCH_ATTACH_CURSOR_CLOSED,
   PATCH_ATTACH_CURSOR_OPEN,
   PATCH_CANVAS_GRID,
+  PATCH_HOST_STRIP_X,
   PATCH_MOVE_CURSOR,
   PATCH_MOVE_CURSOR_ACTIVE
 } from "@/components/patch/patchCanvasConstants";
 import {
+  HitPort,
+  resolveHostPatchPortLabel,
+  resolveHostPatchPortRect,
   resolvePatchConnectionMidpoint,
   resolvePatchCanvasSize,
   resolvePatchDiagramSize,
   resolvePatchFacePopoverRect,
   resolvePatchPortAnchorPoint
 } from "@/components/patch/patchCanvasGeometry";
+import { SOURCE_HOST_NODE_IDS } from "@/lib/patch/constants";
 import { createId } from "@/lib/ids";
 import { resolveAutoLayoutNodes } from "@/lib/patch/autoLayout";
 import { makeConnectOp } from "@/lib/patch/ops";
@@ -59,6 +64,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [newNodeType, setNewNodeType] = useState("VCO");
   const [dragProbe, setDragProbe] = useState<{ probeId: string; offsetX: number; offsetY: number } | null>(null);
+  const [scrollTop, setScrollTop] = useState(0);
   const layoutByNode = useMemo(() => {
     return new Map(patch.layout.nodes.map((node) => [node.nodeId, node] as const));
   }, [patch.layout.nodes]);
@@ -96,6 +102,8 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     hoveredNodeId,
     pendingFromPort,
     hoveredAttachTarget,
+    handlePortHover,
+    handlePortSelection,
     onPointerDown,
     onPointerMove,
     onPointerUp,
@@ -173,6 +181,37 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     });
   }, [probeState.probes]);
 
+  const hostPorts = useMemo(
+    () =>
+      SOURCE_HOST_NODE_IDS.map((nodeId) => {
+        const rect = resolveHostPatchPortRect(nodeId);
+        if (!rect) {
+          return null;
+        }
+        const hitPort: HitPort = {
+          nodeId,
+          portId: "out",
+          kind: "out",
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height
+        };
+        return {
+          nodeId,
+          label: resolveHostPatchPortLabel(nodeId),
+          hitPort,
+          style: {
+            left: `${PATCH_HOST_STRIP_X - rect.width}px`,
+            top: `${rect.y * zoom - scrollTop - rect.height / 2}px`,
+            width: `${rect.width}px`,
+            height: `${rect.height}px`
+          }
+        };
+      }).filter((entry): entry is NonNullable<typeof entry> => Boolean(entry)),
+    [scrollTop, zoom]
+  );
+
   return (
     <div className="patch-canvas-stage" ref={rootRef}>
       <PatchEditorToolbar
@@ -220,7 +259,13 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
       />
 
       <div className="patch-canvas-shell">
-        <div className="patch-canvas-scroll" ref={scrollRef}>
+        <div
+          className="patch-canvas-scroll"
+          ref={scrollRef}
+          onScroll={(event) => {
+            setScrollTop(event.currentTarget.scrollTop);
+          }}
+        >
           <div className="patch-canvas-overlay-shell" style={{ width: `${canvasSize.width * zoom}px`, height: `${canvasSize.height * zoom}px` }}>
             <canvas
               ref={canvasRef}
@@ -268,6 +313,39 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
               onToggleExpanded={probeActions.toggleExpanded}
             />
           </div>
+        </div>
+        <div className="patch-host-port-layer">
+          {hostPorts.map((port) => (
+            <button
+              key={port.nodeId}
+              type="button"
+              className={`patch-host-port${pendingFromPort?.nodeId === port.nodeId ? " pending" : ""}`}
+              style={port.style}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                handlePortSelection(port.hitPort, {
+                  x: port.hitPort.x + port.hitPort.width,
+                  y: port.hitPort.y
+                });
+              }}
+              onPointerEnter={() =>
+                handlePortHover(port.hitPort, {
+                  x: port.hitPort.x + port.hitPort.width,
+                  y: port.hitPort.y
+                })
+              }
+              onPointerMove={() =>
+                handlePortHover(port.hitPort, {
+                  x: port.hitPort.x + port.hitPort.width,
+                  y: port.hitPort.y
+                })
+              }
+              onPointerLeave={() => handlePortHover(null, null)}
+            >
+              {port.label}
+            </button>
+          ))}
         </div>
       </div>
     </div>

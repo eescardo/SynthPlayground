@@ -4,9 +4,6 @@ import {
   PATCH_COLOR_CONNECTION_FALLBACK,
   PATCH_COLOR_GRID_MAJOR,
   PATCH_COLOR_GRID_MINOR,
-  PATCH_COLOR_HOST_STRIP_FILL,
-  PATCH_COLOR_HOST_PORT_TEXT,
-  PATCH_COLOR_HOST_STRIP_STROKE,
   PATCH_COLOR_NODE_HOVER_OVERLAY,
   PATCH_COLOR_NODE_SUBTITLE,
   PATCH_COLOR_NODE_TITLE,
@@ -28,7 +25,7 @@ import {
   PATCH_PORT_ROW_GAP,
   PATCH_PORT_START_Y
 } from "@/components/patch/patchCanvasConstants";
-import { CanvasRect, HitPort, resolveHostPatchPortLabel, resolveHostPatchPortRect } from "@/components/patch/patchCanvasGeometry";
+import { CanvasRect, HitPort, isHostPatchNodeId, resolveHostPatchPortRect } from "@/components/patch/patchCanvasGeometry";
 import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
 import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
@@ -363,25 +360,6 @@ function resolvePortPositions(
   return portPositions;
 }
 
-function drawHostPorts(ctx: CanvasRenderingContext2D, portPositions: Map<string, ResolvedPortPosition>) {
-  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-  SOURCE_HOST_NODE_IDS.forEach((hostId) => {
-    const port = portPositions.get(`${hostId}:out:out`);
-    if (!port) {
-      return;
-    }
-    ctx.fillStyle = PATCH_COLOR_HOST_STRIP_FILL;
-    ctx.fillRect(port.x, port.y - port.height / 2, port.width, port.height);
-    ctx.strokeStyle = PATCH_COLOR_HOST_STRIP_STROKE;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(port.x, port.y - port.height / 2, port.width, port.height);
-    ctx.fillStyle = PATCH_COLOR_HOST_PORT_TEXT;
-    ctx.textAlign = "center";
-    ctx.fillText(resolveHostPatchPortLabel(hostId), port.x + port.width / 2, port.y + 3);
-    ctx.textAlign = "left";
-  });
-}
-
 function drawPatchConnections(
   ctx: CanvasRenderingContext2D,
   patch: Patch,
@@ -552,6 +530,9 @@ function buildHitPorts(portPositions: Map<string, ResolvedPortPosition>) {
   const hitPorts: HitPort[] = [];
   for (const [key, value] of portPositions.entries()) {
     const [nodeId, kind, portId] = key.split(":");
+    if (isHostPatchNodeId(nodeId)) {
+      continue;
+    }
     hitPorts.push({
       nodeId,
       kind: kind as "in" | "out",
@@ -591,7 +572,6 @@ export function drawPatchCanvas(args: {
   const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode);
   drawPatchConnections(ctx, args.patch, portPositions);
   drawPatchModules(ctx, args.patch, args.layoutByNode, args.hoveredNodeId, args.selectedMacroNodeIds, args.selectedNodeId);
-  drawHostPorts(ctx, portPositions);
   drawPendingPatchPort(ctx, args.pendingFromPort, portPositions);
   drawPendingPatchWire(ctx, args.pendingFromPort, args.pendingWirePointer ?? null, portPositions);
   drawHoveredAttachTarget(ctx, args.patch, portPositions, args.hoveredAttachTarget ?? null);
