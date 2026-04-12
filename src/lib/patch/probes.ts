@@ -125,6 +125,7 @@ export const buildProbeSpectrogram = (
     { length: frameSize },
     (_, index) => 0.5 - 0.5 * Math.cos((2 * Math.PI * index) / Math.max(1, frameSize - 1))
   );
+  let peakMagnitude = 0;
 
   for (let timeIndex = 0; timeIndex < timeBinCount; timeIndex += 1) {
     const normalizedTime = timeBinCount <= 1 ? 0 : timeIndex / (timeBinCount - 1);
@@ -136,7 +137,19 @@ export const buildProbeSpectrogram = (
     const peak = resolveProbeFramePeak(samples, frameStart, frameSize);
     for (let freqIndex = 0; freqIndex < freqBinCount; freqIndex += 1) {
       const magnitude = measureGoertzelMagnitude(samples, frameStart, frameSize, bandCenters[freqIndex], peak, hannWindow);
-      grid[freqIndex][timeIndex] = Math.min(1, Math.pow(magnitude * 28, 0.72));
+      grid[freqIndex][timeIndex] = magnitude;
+      peakMagnitude = Math.max(peakMagnitude, magnitude);
+    }
+  }
+
+  if (peakMagnitude <= 0) {
+    return grid;
+  }
+
+  for (let freqIndex = 0; freqIndex < freqBinCount; freqIndex += 1) {
+    for (let timeIndex = 0; timeIndex < timeBinCount; timeIndex += 1) {
+      const normalizedMagnitude = grid[freqIndex][timeIndex] / peakMagnitude;
+      grid[freqIndex][timeIndex] = Math.max(0.02, Math.min(1, Math.pow(normalizedMagnitude, 0.48)));
     }
   }
 
