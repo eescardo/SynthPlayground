@@ -19,6 +19,13 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next-ui-capture-3005/types/**/*.ts",
+    ".next-ui-capture-3006/types/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }

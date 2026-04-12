@@ -129,8 +129,8 @@ export const setupPatchWorkspaceProbes = async (page: Page) => {
     targetPosition: { x: 860, y: 380 }
   });
 
-  await cards.nth(0).click({ position: { x: 24, y: 48 } });
-  await cards.nth(1).click({ position: { x: 24, y: 48 } });
+  await cards.nth(0).click({ position: { x: 24, y: 48 }, force: true });
+  await cards.nth(1).click({ position: { x: 24, y: 48 }, force: true });
 
   await page.getByRole("button", { name: "Play" }).last().click();
   await page.waitForTimeout(650);
@@ -191,11 +191,15 @@ export const waitForServer = async (url: string, timeoutMs: number) => {
 };
 
 export const startDevServer = (port: number, envOverrides?: Record<string, string>): ChildProcess =>
-  spawn("pnpm", ["exec", "next", "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
-    cwd: process.cwd(),
-    stdio: "inherit",
-    env: { ...process.env, ...envOverrides }
-  });
+  {
+    const distDir = `.next-ui-capture-${port}`;
+    fs.rmSync(path.join(process.cwd(), distDir), { recursive: true, force: true });
+    return spawn("pnpm", ["exec", "next", "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
+      cwd: process.cwd(),
+      stdio: "inherit",
+      env: { ...process.env, NEXT_UI_CAPTURE: "1", NEXT_DIST_DIR: distDir, ...envOverrides }
+    });
+  };
 
 export const savePageScreenshot = async (page: Page, outputPath: string, locator?: string) => {
   ensureArtifactDir(outputPath);
