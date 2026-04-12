@@ -3,6 +3,7 @@ import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping"
 import { sanitizeMacroAutomationMap } from "@/lib/macroAutomation";
 import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch/patchCanvasConstants";
 import { ensurePatchLayout } from "@/lib/patch/autoLayout";
+import { clampProbeMaxFrequencyHz, DEFAULT_PROBE_MAX_FREQUENCY_HZ } from "@/lib/patch/probes";
 import { presetPatches } from "@/lib/patch/presets";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
 import { normalizeMacroKeyframeCount } from "@/lib/patch/macroKeyframes";
@@ -208,6 +209,7 @@ const sanitizePatchWorkspaceProbes = (raw: unknown): PatchWorkspaceProbeState[] 
     const entry = isObject(probe) ? probe : {};
     const kind = entry.kind === "spectrum" ? "spectrum" : "scope";
     const spectrumWindowSize = asFiniteNumber(entry.spectrumWindowSize, 0);
+    const spectrumMaxFrequencyHz = asFiniteNumber(entry.spectrumMaxFrequencyHz, DEFAULT_PROBE_MAX_FREQUENCY_HZ);
     return {
       id: asString(entry.id, createId(`probe_${index}`)),
       kind,
@@ -218,7 +220,8 @@ const sanitizePatchWorkspaceProbes = (raw: unknown): PatchWorkspaceProbeState[] 
       height: Math.max(4, Math.floor(asFiniteNumber(entry.height, 6))),
       expanded: entry.expanded === true,
       target: sanitizeProbeTarget(entry.target),
-      spectrumWindowSize: [256, 512, 1024, 2048].includes(spectrumWindowSize) ? spectrumWindowSize : undefined
+      spectrumWindowSize: [256, 512, 1024, 2048].includes(spectrumWindowSize) ? spectrumWindowSize : undefined,
+      spectrumMaxFrequencyHz: kind === "spectrum" ? clampProbeMaxFrequencyHz(spectrumMaxFrequencyHz) : undefined
     };
   });
 };

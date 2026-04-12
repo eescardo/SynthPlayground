@@ -2,6 +2,12 @@ import {
   resolveMacroBindingValue,
   resolveMacroKeyframeIndexAtValue
 } from "@/lib/patch/macroKeyframes";
+import {
+  clampProbeMaxFrequencyHz,
+  DEFAULT_PROBE_MAX_FREQUENCY_HZ,
+  PROBE_MAX_MAX_FREQUENCY_HZ,
+  PROBE_MIN_MAX_FREQUENCY_HZ
+} from "@/lib/patch/probes";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { normalizeProbeSamples } from "@/lib/patch/probes";
 import { Patch, PatchNode, ParamSchema, ParamValue, PatchValidationIssue } from "@/types/patch";
@@ -125,6 +131,7 @@ interface PatchInspectorProps {
   onApplyOp: (op: PatchOp) => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
   onUpdateProbeSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
+  onUpdateProbeSpectrumMaxFrequency: (probeId: string, spectrumMaxFrequencyHz: number) => void;
   onToggleAttachProbe: (probeId: string) => void;
   onClearProbeTarget: (probeId: string) => void;
 }
@@ -330,6 +337,36 @@ export function PatchInspector(props: PatchInspectorProps) {
               </button>
             </div>
           )}
+          {selectedProbe.kind === "spectrum" && (
+            <div className="param-row">
+              <span>Max Freq</span>
+              <div className="param-control-stack">
+                <input
+                  type="range"
+                  min={PROBE_MIN_MAX_FREQUENCY_HZ}
+                  max={PROBE_MAX_MAX_FREQUENCY_HZ}
+                  step={100}
+                  value={selectedProbe.spectrumMaxFrequencyHz ?? DEFAULT_PROBE_MAX_FREQUENCY_HZ}
+                  onChange={(event) =>
+                    props.onUpdateProbeSpectrumMaxFrequency(
+                      selectedProbe.id,
+                      clampProbeMaxFrequencyHz(Number(event.target.value))
+                    )
+                  }
+                />
+                <div className="macro-binding-edit-summary">
+                  {`${clampProbeMaxFrequencyHz(selectedProbe.spectrumMaxFrequencyHz ?? DEFAULT_PROBE_MAX_FREQUENCY_HZ).toLocaleString()} Hz top of view. Lower values zoom in on VCF detail.`}
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={!selectedProbe.target}
+                onClick={() => props.onClearProbeTarget(selectedProbe.id)}
+              >
+                Clear Target
+              </button>
+            </div>
+          )}
           {selectedProbe.kind === "scope" && (
             <div className="param-row">
               <span>Signal</span>
@@ -351,7 +388,7 @@ export function PatchInspector(props: PatchInspectorProps) {
           )}
           {selectedProbe.kind === "spectrum" && (
             <p className="muted">
-              Spectrum follows the current preview playhead and analyzes the active signal window over time.
+              Spectrum follows the current preview playhead and analyzes the active signal window over time. Narrowing max frequency reallocates the same bins into a tighter band.
             </p>
           )}
           {selectedProbe.kind === "scope" && (

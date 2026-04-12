@@ -1148,6 +1148,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     onSelectProbe: patchWorkspace.setSelectedProbeId,
     onUpdateProbeTarget: patchWorkspace.updateProbeTarget,
     onUpdateProbeSpectrumWindow: patchWorkspace.updateProbeSpectrumWindow,
+    onUpdateProbeSpectrumMaxFrequency: patchWorkspace.updateProbeSpectrumMaxFrequency,
     onToggleProbeExpanded: patchWorkspace.toggleProbeExpanded,
     onDeleteSelectedProbe: patchWorkspace.removeSelectedProbe,
     onExposeMacro: patchWorkspace.exposePatchMacro,

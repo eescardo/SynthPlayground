@@ -4,6 +4,9 @@ import { PatchWorkspaceProbeState } from "@/types/probes";
 export const DEFAULT_SCOPE_PROBE_SIZE = { width: 10, height: 6 } as const;
 export const DEFAULT_SPECTRUM_PROBE_SIZE = { width: 10, height: 6 } as const;
 export const EXPANDED_PROBE_SIZE = { width: 340, height: 228 } as const;
+export const PROBE_MIN_MAX_FREQUENCY_HZ = 500;
+export const PROBE_MAX_MAX_FREQUENCY_HZ = 24000;
+export const DEFAULT_PROBE_MAX_FREQUENCY_HZ = PROBE_MAX_MAX_FREQUENCY_HZ;
 const MIN_PROBE_NORMALIZATION_PEAK = 0.0001;
 const SPECTROGRAM_MIN_FRAME_SIZE = 96;
 
@@ -20,8 +23,12 @@ export const createPatchWorkspaceProbe = (
   width: kind === "spectrum" ? DEFAULT_SPECTRUM_PROBE_SIZE.width : DEFAULT_SCOPE_PROBE_SIZE.width,
   height: kind === "spectrum" ? DEFAULT_SPECTRUM_PROBE_SIZE.height : DEFAULT_SCOPE_PROBE_SIZE.height,
   expanded: false,
-  spectrumWindowSize: kind === "spectrum" ? 1024 : undefined
+  spectrumWindowSize: kind === "spectrum" ? 1024 : undefined,
+  spectrumMaxFrequencyHz: kind === "spectrum" ? DEFAULT_PROBE_MAX_FREQUENCY_HZ : undefined
 });
+
+export const clampProbeMaxFrequencyHz = (frequency: number) =>
+  Math.max(PROBE_MIN_MAX_FREQUENCY_HZ, Math.min(PROBE_MAX_MAX_FREQUENCY_HZ, Math.round(frequency)));
 
 export const resolveProbePeakAmplitude = (samples: ArrayLike<number>) => {
   let peak = 0;
@@ -104,7 +111,9 @@ export const buildProbeSpectrogram = (
   timeBinCount = 40,
   freqBinCount = 24,
   durationSamples = samples.length,
-  capturedSamples = samples.length
+  capturedSamples = samples.length,
+  sampleRate = 48000,
+  maxFrequencyHz = DEFAULT_PROBE_MAX_FREQUENCY_HZ
 ) => {
   const safeDurationSamples = Math.max(durationSamples, samples.length, 1);
   const safeCapturedSamples = Math.max(0, Math.min(capturedSamples, samples.length, safeDurationSamples));
@@ -117,7 +126,9 @@ export const buildProbeSpectrogram = (
     SPECTROGRAM_MIN_FRAME_SIZE,
     Math.min(windowSize, safeCapturedSamples, 384)
   );
-  const maxBin = Math.max(2, Math.floor(frameSize / 2));
+  const nyquistHz = Math.max(1, sampleRate / 2);
+  const clampedMaxFrequencyHz = Math.min(clampProbeMaxFrequencyHz(maxFrequencyHz), nyquistHz);
+  const maxBin = Math.max(2, Math.floor((clampedMaxFrequencyHz / sampleRate) * frameSize));
   const bandCenters = Array.from({ length: freqBinCount }, (_, index) =>
     Math.max(1, Math.floor(Math.pow((index + 0.5) / freqBinCount, 2) * maxBin))
   );

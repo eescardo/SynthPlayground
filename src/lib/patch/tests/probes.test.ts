@@ -43,4 +43,18 @@ describe("probe helpers", () => {
     expect(lastColumnEnergy).toBeGreaterThan(0.01);
     expect(grid.map((row) => row[1])).not.toEqual(grid.map((row) => row[10]));
   });
+
+  it("reallocates spectrum detail when max frequency is narrowed", () => {
+    const samples = new Array(2048).fill(0).map((_, index) =>
+      Math.sin((2 * Math.PI * index) / 12) * 0.2
+    );
+
+    const fullRange = buildProbeSpectrogram(samples, 256, 12, 10, samples.length, samples.length, 48000, 24000);
+    const narrowedRange = buildProbeSpectrogram(samples, 256, 12, 10, samples.length, samples.length, 48000, 4000);
+
+    const fullTopHalfEnergy = fullRange.slice(5).reduce((sum, row) => sum + row[6], 0);
+    const narrowedTopHalfEnergy = narrowedRange.slice(5).reduce((sum, row) => sum + row[6], 0);
+
+    expect(narrowedTopHalfEnergy).toBeGreaterThan(fullTopHalfEnergy);
+  });
 });

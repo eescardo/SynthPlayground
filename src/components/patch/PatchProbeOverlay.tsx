@@ -8,8 +8,10 @@ import {
 import { PATCH_CANVAS_GRID } from "@/components/patch/patchCanvasConstants";
 import {
   buildProbeSpectrogram,
+  DEFAULT_PROBE_MAX_FREQUENCY_HZ,
   EXPANDED_PROBE_SIZE,
   normalizeProbeSamples,
+  PROBE_MAX_MAX_FREQUENCY_HZ,
   resolveProbePeakAmplitude
 } from "@/lib/patch/probes";
 import { Patch, PatchLayoutNode } from "@/types/patch";
@@ -33,8 +35,7 @@ interface PatchProbeOverlayProps {
 
 const PROBE_SPECTRUM_WINDOWS = [256, 512, 1024, 2048];
 const PROBE_DRAG_THRESHOLD_PX = 6;
-const SPECTRUM_REFERENCE_FREQUENCIES = [500, 2000, 10000];
-const SPECTRUM_MAX_FREQUENCY = 24000;
+const SPECTRUM_REFERENCE_FREQUENCIES = [100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 
 export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
   const connectionLines = useMemo(
@@ -191,13 +192,16 @@ function ProbeCard(props: {
             props.probe.expanded ? 54 : 28,
             props.probe.expanded ? 30 : 18,
             props.capture.durationSamples,
-            props.capture.capturedSamples
+            props.capture.capturedSamples,
+            props.capture.sampleRate,
+            props.probe.spectrumMaxFrequencyHz ?? DEFAULT_PROBE_MAX_FREQUENCY_HZ
           )
         : [],
     [
       props.capture,
       props.probe.kind,
       props.probe.spectrumWindowSize,
+      props.probe.spectrumMaxFrequencyHz,
       props.probe.expanded
     ]
   );
@@ -265,6 +269,7 @@ function ProbeGraphBody(props: {
     <SpectrumProbeGraph
       spectrogram={props.spectrogram}
       selectedWindowSize={props.probe.spectrumWindowSize ?? 1024}
+      maxFrequencyHz={props.probe.spectrumMaxFrequencyHz ?? DEFAULT_PROBE_MAX_FREQUENCY_HZ}
       compact={props.compact}
       onChangeWindowSize={(next) => props.onUpdateSpectrumWindow(props.probe.id, next)}
     />
@@ -349,17 +354,14 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: numbe
 function SpectrumProbeGraph(props: {
   spectrogram: number[][];
   selectedWindowSize: number;
+  maxFrequencyHz: number;
   compact?: boolean;
   onChangeWindowSize: (windowSize: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frequencyMarkers = useMemo(
-    () =>
-      SPECTRUM_REFERENCE_FREQUENCIES.map((frequency) => ({
-        frequency,
-        bottomPercent: Math.sqrt(frequency / SPECTRUM_MAX_FREQUENCY) * 100
-      })),
-    []
+    () => resolveSpectrumFrequencyMarkers(props.maxFrequencyHz),
+    [props.maxFrequencyHz]
   );
 
   useEffect(() => {
@@ -456,6 +458,40 @@ function formatSpectrumFrequency(frequency: number) {
     return Number.isInteger(khz) ? `${khz}kHz` : `${khz.toFixed(1)}kHz`;
   }
   return `${frequency}Hz`;
+}
+
+function resolveSpectrumFrequencyMarkers(maxFrequencyHz: number) {
+  const limitedCandidates = SPECTRUM_REFERENCE_FREQUENCIES.filter((frequency) => frequency < maxFrequencyHz * 0.98);
+  const candidates = limitedCandidates.length > 0 ? limitedCandidates : [Math.max(100, Math.round(maxFrequencyHz * 0.5))];
+  const targets = [0.18, 0.45, 0.8];
+  const selected = new Set<number>();
+
+  for (const target of targets) {
+    const desired = maxFrequencyHz * target;
+    let bestFrequency = candidates[0];
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (const candidate of candidates) {
+      if (selected.has(candidate)) {
+        continue;
+      }
+      const distance = Math.abs(candidate - desired);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestFrequency = candidate;
+      }
+    }
+    selected.add(bestFrequency);
+    if (selected.size === candidates.length) {
+      break;
+    }
+  }
+
+  return [...selected]
+    .sort((left, right) => left - right)
+    .map((frequency) => ({
+      frequency,
+      bottomPercent: Math.sqrt(frequency / Math.max(1, Math.min(maxFrequencyHz, PROBE_MAX_MAX_FREQUENCY_HZ))) * 100
+    }));
 }
 
 function resolveRenderedProbeWidth(probe: PatchWorkspaceProbeState, zoom: number) {

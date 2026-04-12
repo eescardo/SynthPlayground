@@ -363,6 +363,13 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     }));
   }, [updateActiveTab]);
 
+  const updateProbeSpectrumMaxFrequency = useCallback((probeId: string, spectrumMaxFrequencyHz: number) => {
+    updateActiveTab((tab) => ({
+      ...tab,
+      probes: tab.probes.map((probe) => (probe.id === probeId ? { ...probe, spectrumMaxFrequencyHz } : probe))
+    }));
+  }, [updateActiveTab]);
+
   const toggleProbeExpanded = useCallback((probeId: string) => {
     updateActiveTab((tab) => ({
       ...tab,
@@ -728,6 +735,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     moveProbe,
     updateProbeTarget,
     updateProbeSpectrumWindow,
+    updateProbeSpectrumMaxFrequency,
     toggleProbeExpanded,
     removeSelectedProbe,
     previewCaptureByProbeId,

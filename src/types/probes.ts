@@ -27,6 +27,7 @@ export interface PatchWorkspaceProbeState {
   expanded?: boolean;
   target?: PatchProbeTarget;
   spectrumWindowSize?: number;
+  spectrumMaxFrequencyHz?: number;
 }
 
 export interface PreviewProbeRequest {
