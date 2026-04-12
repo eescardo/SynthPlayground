@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { drumPatch, pluckPatch } from "@/lib/patch/presets";
+import { bassPatch, drumPatch, pluckPatch, presetPatches } from "@/lib/patch/presets";
 import { validatePatch } from "@/lib/patch/validation";
 import { Patch } from "@/types/patch";
+
+function findIssue(patch: Patch, code: string, nodeId: string, portId: string) {
+  return validatePatch(patch).issues.find(
+    (issue) => issue.code === code && issue.context?.nodeId === nodeId && issue.context?.portId === portId
+  );
+}
 
 describe("patch validation", () => {
   it("rejects conflicting macro bindings across different macros", () => {
@@ -79,5 +85,87 @@ describe("patch validation", () => {
     const result = validatePatch(patch);
 
     expect(result.ok).toBe(true);
+  });
+
+  it("accepts all bundled presets with required port validation enabled", () => {
+    for (const patch of presetPatches) {
+      const result = validatePatch(patch);
+      expect(result.ok, patch.name).toBe(true);
+    }
+  });
+
+  it("rejects modules with unconnected required input ports", () => {
+    const patch = bassPatch();
+    patch.connections = patch.connections.filter(
+      (connection) => !(connection.to.nodeId === "vco1" && connection.to.portId === "pitch")
+    );
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(false);
+    expect(findIssue(patch, "required-port-unconnected", "vco1", "pitch")).toBeTruthy();
+  });
+
+  it("rejects modules with unconnected required output ports", () => {
+    const patch = bassPatch();
+    patch.connections = patch.connections.filter(
+      (connection) => !(connection.from.nodeId === "sat1" && connection.from.portId === "out")
+    );
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(false);
+    expect(findIssue(patch, "required-port-unconnected", "sat1", "out")).toBeTruthy();
+  });
+
+  it("does not treat same-module wiring as satisfying required ports", () => {
+    const patch: Patch = {
+      schemaVersion: 1,
+      id: "self_loop_validation",
+      name: "Self Loop Validation",
+      meta: { source: "custom" },
+      nodes: [
+        {
+          id: "vca1",
+          typeId: "VCA",
+          params: {
+            bias: 0,
+            gain: 1
+          }
+        },
+        {
+          id: "out1",
+          typeId: "Output",
+          params: {
+            gainDb: -6,
+            limiter: true
+          }
+        }
+      ],
+      connections: [
+        {
+          id: "c1",
+          from: { nodeId: "vca1", portId: "out" },
+          to: { nodeId: "vca1", portId: "in" }
+        },
+        {
+          id: "c2",
+          from: { nodeId: "vca1", portId: "out" },
+          to: { nodeId: "out1", portId: "in" }
+        }
+      ],
+      ui: { macros: [] },
+      layout: { nodes: [] },
+      io: {
+        audioOutNodeId: "out1",
+        audioOutPortId: "in"
+      }
+    };
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.some((issue) => issue.message.includes("Cycle detected in patch graph"))).toBe(true);
+    expect(findIssue(patch, "required-port-unconnected", "vca1", "in")).toBeTruthy();
   });
 });

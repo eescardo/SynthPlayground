@@ -136,6 +136,10 @@ function resolveIssuesForNode(nodeId: string, issues: PatchValidationIssue[]) {
   );
 }
 
+function resolveRequiredPortIssues(issues: PatchValidationIssue[]) {
+  return issues.filter((issue) => issue.code === "required-port-unconnected");
+}
+
 export function PatchInspector(props: PatchInspectorProps) {
   const selectedNode = props.selectedNode;
   const selectedProbe = props.selectedProbe;
@@ -162,6 +166,8 @@ export function PatchInspector(props: PatchInspectorProps) {
       )
     : props.patch.connections;
   const visibleValidationIssues = selectedNode ? resolveIssuesForNode(selectedNode.id, props.validationIssues) : props.validationIssues;
+  const visibleRequiredPortIssues = resolveRequiredPortIssues(visibleValidationIssues);
+  const visibleGeneralValidationIssues = visibleValidationIssues.filter((issue) => issue.code !== "required-port-unconnected");
   return (
     <aside className="patch-inspector">
       <h3>Inspector</h3>
@@ -276,6 +282,23 @@ export function PatchInspector(props: PatchInspectorProps) {
         />
       )}
 
+      <h4>{selectedNode ? "Required Connections" : "Unconnected Required Ports"}</h4>
+      {visibleRequiredPortIssues.length === 0 && (
+        <p className="ok">{selectedNode ? "All required module ports are connected." : "All required ports are connected."}</p>
+      )}
+      {visibleRequiredPortIssues.map((issue, index) => {
+        const typeId = issue.context?.typeId ?? "Module";
+        const portId = issue.context?.portId ?? "unknown";
+        const direction = issue.context?.direction === "out" ? "output" : "input";
+        const nodeId = issue.context?.nodeId;
+        const label = selectedNode || !nodeId ? `${direction} '${portId}'` : `${nodeId}.${portId}`;
+        return (
+          <p key={`${issue.message}_${portId}_${index}`} className="error">
+            {typeId}: required {label} is unconnected.
+          </p>
+        );
+      })}
+
       <h4>{selectedNode ? "Module Connections" : "Connections"}</h4>
       {visibleConnections.length === 0 && <p className="muted">{selectedNode ? "No wires on this module." : "No wires yet."}</p>}
       {visibleConnections.map((connection) => (
@@ -288,8 +311,8 @@ export function PatchInspector(props: PatchInspectorProps) {
       ))}
 
       <h4>{selectedNode ? "Module Validation" : "Validation"}</h4>
-      {visibleValidationIssues.length === 0 && <p className="ok">{selectedNode ? "Module valid." : "Patch valid."}</p>}
-      {visibleValidationIssues.map((issue, index) => (
+      {visibleGeneralValidationIssues.length === 0 && <p className="ok">{selectedNode ? "Module valid." : "Patch valid."}</p>}
+      {visibleGeneralValidationIssues.map((issue, index) => (
         <p key={`${issue.message}_${index}`} className={issue.level === "error" ? "error" : "warn"}>
           {issue.message}
         </p>

@@ -3,8 +3,13 @@ import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/c
 import { getMacroBindingKeyframeCount } from "@/lib/patch/macroKeyframes";
 import { CompiledNode, CompiledOp, CompiledPlan, Patch, PatchValidationIssue, PatchValidationResult, ParamValue } from "@/types/patch";
 
-const pushError = (issues: PatchValidationIssue[], message: string, context?: Record<string, string>): void => {
-  issues.push({ level: "error", message, context });
+const pushError = (
+  issues: PatchValidationIssue[],
+  message: string,
+  context?: Record<string, string>,
+  code?: string
+): void => {
+  issues.push({ level: "error", message, context, code });
 };
 
 export const patchHasNode = (patch: Patch, nodeId: string): boolean => patch.nodes.some((node) => node.id === nodeId);
@@ -109,6 +114,8 @@ export const validatePatch = (patch: Patch): PatchValidationResult => {
 
   const incomingByPort = new Map<string, number>();
   const uniqueConnectionIds = new Set<string>();
+  const connectedInputPorts = new Set<string>();
+  const connectedOutputPorts = new Set<string>();
 
   for (const connection of patch.connections) {
     if (uniqueConnectionIds.has(connection.id)) {
@@ -175,12 +182,69 @@ export const validatePatch = (patch: Patch): PatchValidationResult => {
 
     const incomingKey = `${connection.to.nodeId}:${connection.to.portId}`;
     incomingByPort.set(incomingKey, (incomingByPort.get(incomingKey) ?? 0) + 1);
+    if (connection.from.nodeId !== connection.to.nodeId) {
+      connectedOutputPorts.add(`${connection.from.nodeId}:${connection.from.portId}`);
+      connectedInputPorts.add(incomingKey);
+    }
 
     if ((incomingByPort.get(incomingKey) ?? 0) > 1 && !toPort.multiIn) {
       pushError(issues, `Multiple inputs connected to single-input port`, {
         connectionId: connection.id,
         targetPort: incomingKey
       });
+    }
+  }
+
+  for (const node of patch.nodes) {
+    const schema = getModuleSchema(node.typeId);
+    if (!schema) {
+      continue;
+    }
+
+    for (const portId of schema.requiredPortIds?.in ?? []) {
+      const portExists = schema.portsIn.some((port) => port.id === portId);
+      if (!portExists) {
+        pushError(
+          issues,
+          `Module schema declares unknown required input port`,
+          { nodeId: node.id, typeId: node.typeId, portId, direction: "in" },
+          "required-port-schema-mismatch"
+        );
+        continue;
+      }
+
+      const connectionKey = `${node.id}:${portId}`;
+      if (!connectedInputPorts.has(connectionKey)) {
+        pushError(
+          issues,
+          `Required input port is unconnected`,
+          { nodeId: node.id, typeId: node.typeId, portId, direction: "in" },
+          "required-port-unconnected"
+        );
+      }
+    }
+
+    for (const portId of schema.requiredPortIds?.out ?? []) {
+      const portExists = schema.portsOut.some((port) => port.id === portId);
+      if (!portExists) {
+        pushError(
+          issues,
+          `Module schema declares unknown required output port`,
+          { nodeId: node.id, typeId: node.typeId, portId, direction: "out" },
+          "required-port-schema-mismatch"
+        );
+        continue;
+      }
+
+      const connectionKey = `${node.id}:${portId}`;
+      if (!connectedOutputPorts.has(connectionKey)) {
+        pushError(
+          issues,
+          `Required output port is unconnected`,
+          { nodeId: node.id, typeId: node.typeId, portId, direction: "out" },
+          "required-port-unconnected"
+        );
+      }
     }
   }
 
