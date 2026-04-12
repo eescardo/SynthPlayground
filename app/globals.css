@@ -1413,6 +1413,47 @@ select {
   height: 100%;
 }
 
+.patch-probe-spectrogram-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.patch-probe-spectrogram-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 8px;
+  background: rgba(10, 18, 28, 0.9);
+}
+
+.patch-probe-spectrogram-axis {
+  position: absolute;
+  color: rgba(231, 243, 255, 0.78);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+.patch-probe-spectrogram-axis-high {
+  left: 0.45rem;
+  top: 0.35rem;
+}
+
+.patch-probe-spectrogram-axis-low {
+  left: 0.45rem;
+  bottom: 0.35rem;
+}
+
+.patch-probe-spectrogram-axis-time {
+  right: 0.45rem;
+  bottom: 0.35rem;
+}
+
 .patch-probe-window-label {
   display: flex;
   align-items: center;

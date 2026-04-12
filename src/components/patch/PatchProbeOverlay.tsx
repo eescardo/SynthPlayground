@@ -180,16 +180,25 @@ function ProbeCard(props: {
     }
   };
 
-  const spectrogram = props.capture && props.probe.kind === "spectrum"
-    ? buildProbeSpectrogram(
-        props.capture.samples,
-        props.probe.spectrumWindowSize ?? 1024,
-        props.probe.expanded ? 54 : 28,
-        props.probe.expanded ? 30 : 18,
-        props.capture.durationSamples,
-        props.capture.capturedSamples
-      )
-    : [];
+  const spectrogram = useMemo(
+    () =>
+      props.capture && props.probe.kind === "spectrum"
+        ? buildProbeSpectrogram(
+            props.capture.samples,
+            props.probe.spectrumWindowSize ?? 1024,
+            props.probe.expanded ? 54 : 28,
+            props.probe.expanded ? 30 : 18,
+            props.capture.durationSamples,
+            props.capture.capturedSamples
+          )
+        : [],
+    [
+      props.capture,
+      props.probe.kind,
+      props.probe.spectrumWindowSize,
+      props.probe.expanded
+    ]
+  );
 
   return (
     <div
@@ -341,39 +350,65 @@ function SpectrumProbeGraph(props: {
   compact?: boolean;
   onChangeWindowSize: (windowSize: number) => void;
 }) {
-  const rows = props.spectrogram.length;
-  const columns = props.spectrogram[0]?.length ?? 0;
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+    const context = canvas.getContext("2d");
+    if (!context) {
+      return;
+    }
+    const width = props.compact ? 240 : 320;
+    const height = props.compact ? 144 : 192;
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    canvas.width = Math.round(width * devicePixelRatio);
+    canvas.height = Math.round(height * devicePixelRatio);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    context.clearRect(0, 0, width, height);
+    context.fillStyle = "rgba(10, 18, 28, 0.9)";
+    context.fillRect(0, 0, width, height);
+
+    const rows = props.spectrogram.length;
+    const columns = props.spectrogram[0]?.length ?? 0;
+    if (!rows || !columns) {
+      return;
+    }
+
+    const cellWidth = width / columns;
+    const cellHeight = height / rows;
+    for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
+      const row = props.spectrogram[rowIndex] ?? [];
+      for (let columnIndex = 0; columnIndex < columns; columnIndex += 1) {
+        const value = row[columnIndex] ?? 0;
+        const alpha = Math.max(0.03, Math.min(0.96, value * 0.95));
+        context.fillStyle = `rgba(255, 214, 145, ${alpha})`;
+        context.fillRect(
+          columnIndex * cellWidth,
+          height - (rowIndex + 1) * cellHeight,
+          Math.ceil(cellWidth + 1),
+          Math.ceil(cellHeight + 1)
+        );
+      }
+    }
+  }, [props.compact, props.spectrogram]);
+
   return (
     <div className="patch-probe-spectrum-shell">
-      <svg viewBox="0 0 100 60" className="patch-probe-graph">
-        <rect x="0" y="0" width="100" height="60" fill="rgba(10, 18, 28, 0.9)" rx="6" />
-        {props.spectrogram.map((row, rowIndex) =>
-          row.map((value, columnIndex) => {
-            const cellWidth = 100 / Math.max(1, columns);
-            const cellHeight = 60 / Math.max(1, rows);
-            const x = columnIndex * cellWidth;
-            const y = 60 - (rowIndex + 1) * cellHeight;
-            const alpha = Math.max(0.04, Math.min(0.95, value * 0.95));
-            return (
-              <rect
-                key={`${rowIndex}_${columnIndex}`}
-                x={x}
-                y={y}
-                width={cellWidth + 0.15}
-                height={cellHeight + 0.15}
-                fill={`rgba(255, 214, 145, ${alpha})`}
-              />
-            );
-          })
-        )}
+      <div className="patch-probe-spectrogram-frame">
+        <canvas ref={canvasRef} className="patch-probe-spectrogram-canvas" />
         {!props.compact && (
           <>
-            <text x="2" y="7.5" className="patch-probe-axis-label">High</text>
-            <text x="2" y="56" className="patch-probe-axis-label">Low</text>
-            <text x="84" y="56" className="patch-probe-axis-label">Time</text>
+            <span className="patch-probe-spectrogram-axis patch-probe-spectrogram-axis-high">High</span>
+            <span className="patch-probe-spectrogram-axis patch-probe-spectrogram-axis-low">Low</span>
+            <span className="patch-probe-spectrogram-axis patch-probe-spectrogram-axis-time">Time</span>
           </>
         )}
-      </svg>
+      </div>
       {!props.compact && (
         <label className="patch-probe-window-label">
           Window

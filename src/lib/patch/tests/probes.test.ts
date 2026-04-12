@@ -39,8 +39,8 @@ describe("probe helpers", () => {
     expect(grid[0]).toHaveLength(12);
     const firstColumnEnergy = grid.reduce((sum, row) => sum + row[1], 0);
     const lastColumnEnergy = grid.reduce((sum, row) => sum + row[10], 0);
-    expect(firstColumnEnergy).toBeGreaterThan(0.1);
-    expect(lastColumnEnergy).toBeGreaterThan(0.1);
+    expect(firstColumnEnergy).toBeGreaterThan(0.01);
+    expect(lastColumnEnergy).toBeGreaterThan(0.01);
     expect(grid.map((row) => row[1])).not.toEqual(grid.map((row) => row[10]));
   });
 });

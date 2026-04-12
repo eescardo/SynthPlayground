@@ -5,6 +5,7 @@ export const DEFAULT_SCOPE_PROBE_SIZE = { width: 10, height: 6 } as const;
 export const DEFAULT_SPECTRUM_PROBE_SIZE = { width: 10, height: 6 } as const;
 export const EXPANDED_PROBE_SIZE = { width: 340, height: 228 } as const;
 const MIN_PROBE_NORMALIZATION_PEAK = 0.0001;
+const SPECTROGRAM_MIN_FRAME_SIZE = 96;
 
 export const createPatchWorkspaceProbe = (
   kind: PatchWorkspaceProbeState["kind"],
@@ -108,28 +109,70 @@ export const buildProbeSpectrogram = (
   const safeDurationSamples = Math.max(durationSamples, samples.length, 1);
   const safeCapturedSamples = Math.max(0, Math.min(capturedSamples, samples.length, safeDurationSamples));
   const grid = Array.from({ length: freqBinCount }, () => new Array(timeBinCount).fill(0));
-  if (safeCapturedSamples < 32) {
+  if (safeCapturedSamples < SPECTROGRAM_MIN_FRAME_SIZE) {
     return grid;
   }
 
+  const frameSize = Math.max(
+    SPECTROGRAM_MIN_FRAME_SIZE,
+    Math.min(windowSize, safeCapturedSamples, 384)
+  );
+  const maxBin = Math.max(2, Math.floor(frameSize / 2));
+  const bandCenters = Array.from({ length: freqBinCount }, (_, index) =>
+    Math.max(1, Math.floor(Math.pow((index + 0.5) / freqBinCount, 2) * maxBin))
+  );
+  const hannWindow = Float32Array.from(
+    { length: frameSize },
+    (_, index) => 0.5 - 0.5 * Math.cos((2 * Math.PI * index) / Math.max(1, frameSize - 1))
+  );
+
   for (let timeIndex = 0; timeIndex < timeBinCount; timeIndex += 1) {
     const normalizedTime = timeBinCount <= 1 ? 0 : timeIndex / (timeBinCount - 1);
-    const bins = buildSpectrumBins(
-      samples,
-      windowSize,
-      freqBinCount,
-      normalizedTime,
-      safeDurationSamples,
-      safeCapturedSamples
-    );
-    const capturedAtColumn = Math.floor(normalizedTime * safeDurationSamples);
-    if (capturedAtColumn > safeCapturedSamples) {
+    const centerSample = Math.floor(normalizedTime * Math.max(0, safeDurationSamples - 1));
+    if (centerSample >= safeCapturedSamples) {
       continue;
     }
+    const frameStart = Math.max(0, Math.min(safeCapturedSamples - frameSize, centerSample - Math.floor(frameSize / 2)));
+    const peak = resolveProbeFramePeak(samples, frameStart, frameSize);
     for (let freqIndex = 0; freqIndex < freqBinCount; freqIndex += 1) {
-      grid[freqIndex][timeIndex] = bins[freqIndex] ?? 0;
+      const magnitude = measureGoertzelMagnitude(samples, frameStart, frameSize, bandCenters[freqIndex], peak, hannWindow);
+      grid[freqIndex][timeIndex] = Math.min(1, Math.pow(magnitude * 28, 0.72));
     }
   }
 
   return grid;
 };
+
+function resolveProbeFramePeak(samples: ArrayLike<number>, frameStart: number, frameSize: number) {
+  let peak = 0;
+  for (let index = 0; index < frameSize; index += 1) {
+    peak = Math.max(peak, Math.abs(Number(samples[frameStart + index] ?? 0)));
+  }
+  return Math.max(peak, MIN_PROBE_NORMALIZATION_PEAK);
+}
+
+function measureGoertzelMagnitude(
+  samples: ArrayLike<number>,
+  frameStart: number,
+  frameSize: number,
+  binIndex: number,
+  peak: number,
+  hannWindow: Float32Array
+) {
+  const omega = (2 * Math.PI * binIndex) / frameSize;
+  const coefficient = 2 * Math.cos(omega);
+  let q0 = 0;
+  let q1 = 0;
+  let q2 = 0;
+
+  for (let index = 0; index < frameSize; index += 1) {
+    const normalizedSample = Number(samples[frameStart + index] ?? 0) / peak;
+    q0 = coefficient * q1 - q2 + normalizedSample * hannWindow[index];
+    q2 = q1;
+    q1 = q0;
+  }
+
+  const real = q1 - q2 * Math.cos(omega);
+  const imag = q2 * Math.sin(omega);
+  return Math.sqrt(real * real + imag * imag) / frameSize;
+}
