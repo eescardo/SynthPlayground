@@ -63,6 +63,46 @@ export function resolveHostPatchPortLabel(nodeId: string) {
   }
 }
 
+export function resolveHostPatchPortTint(nodeId: string) {
+  switch (nodeId) {
+    case "$host.pitch":
+      return {
+        fill: "#cfe5f7",
+        stroke: "#8fb3d1",
+        text: "#163248",
+        wire: "#8fc1eb"
+      };
+    case "$host.gate":
+      return {
+        fill: "#dfd2aa",
+        stroke: "#b69b58",
+        text: "#443514",
+        wire: "#d2ac4f"
+      };
+    case "$host.velocity":
+      return {
+        fill: "#cfe6c6",
+        stroke: "#8eb17c",
+        text: "#173321",
+        wire: "#8dc97d"
+      };
+    case "$host.modwheel":
+      return {
+        fill: "#f1d2ba",
+        stroke: "#c89266",
+        text: "#4b2a16",
+        wire: "#e2a16c"
+      };
+    default:
+      return {
+        fill: "#c9d6de",
+        stroke: "#93a8b6",
+        text: "#10202c",
+        wire: "#c7d8e8"
+      };
+  }
+}
+
 export function resolveHostPatchPortRect(nodeId: string) {
   const hostIndex = SOURCE_HOST_NODE_IDS.indexOf(nodeId as (typeof SOURCE_HOST_NODE_IDS)[number]);
   if (hostIndex < 0) {

@@ -25,7 +25,7 @@ import {
   PATCH_PORT_ROW_GAP,
   PATCH_PORT_START_Y
 } from "@/components/patch/patchCanvasConstants";
-import { CanvasRect, HitPort, isHostPatchNodeId, resolveHostPatchPortRect } from "@/components/patch/patchCanvasGeometry";
+import { CanvasRect, HitPort, isHostPatchNodeId, resolveHostPatchPortRect, resolveHostPatchPortTint } from "@/components/patch/patchCanvasGeometry";
 import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
 import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
@@ -373,7 +373,11 @@ function drawPatchConnections(
     const commonCapability = from.schema.capabilities.find((cap) => to.schema.capabilities.includes(cap)) ?? "AUDIO";
     const isHostConnection = isHostPatchNodeId(connection.from.nodeId) || isHostPatchNodeId(connection.to.nodeId);
     ctx.save();
-    ctx.strokeStyle = getSignalCapabilityColor(commonCapability) ?? PATCH_COLOR_CONNECTION_FALLBACK;
+    ctx.strokeStyle = isHostConnection
+      ? resolveHostPatchPortTint(
+          isHostPatchNodeId(connection.from.nodeId) ? connection.from.nodeId : connection.to.nodeId
+        ).wire
+      : getSignalCapabilityColor(commonCapability) ?? PATCH_COLOR_CONNECTION_FALLBACK;
     ctx.lineWidth = 2;
     if (isHostConnection) {
       ctx.globalAlpha = 0.5;

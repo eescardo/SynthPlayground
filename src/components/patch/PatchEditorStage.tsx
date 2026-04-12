@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PatchEditorToolbar } from "@/components/patch/PatchEditorToolbar";
 import { PatchProbeOverlay } from "@/components/patch/PatchProbeOverlay";
 import {
@@ -14,6 +14,7 @@ import {
 import {
   HitPort,
   resolveHostPatchPortLabel,
+  resolveHostPatchPortTint,
   resolveHostPatchPortRect,
   resolvePatchConnectionMidpoint,
   resolvePatchCanvasSize,
@@ -197,16 +198,20 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           width: rect.width,
           height: rect.height
         };
+        const tint = resolveHostPatchPortTint(nodeId);
         return {
           nodeId,
           label: resolveHostPatchPortLabel(nodeId),
           hitPort,
           style: {
+            "--patch-host-port-bg": tint.fill,
+            "--patch-host-port-border": tint.stroke,
+            "--patch-host-port-text": tint.text,
             left: `${PATCH_HOST_STRIP_X - rect.width}px`,
             top: `${rect.y * zoom - scrollTop - rect.height / 2}px`,
             width: `${rect.width}px`,
             height: `${rect.height}px`
-          }
+          } as CSSProperties
         };
       }).filter((entry): entry is NonNullable<typeof entry> => Boolean(entry)),
     [scrollTop, zoom]
