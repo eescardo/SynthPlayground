@@ -57,7 +57,7 @@ export function resolveHostPatchPortLabel(nodeId: string) {
     case "$host.velocity":
       return "velocity";
     case "$host.modwheel":
-      return "mod wheel";
+      return "modwheel";
     default:
       return "host";
   }
@@ -69,7 +69,7 @@ export function resolveHostPatchPortRect(nodeId: string) {
     return null;
   }
   const label = resolveHostPatchPortLabel(nodeId);
-  const width = Math.max(PATCH_HOST_STRIP_WIDTH, label.length * 6 + 6);
+  const width = Math.max(PATCH_HOST_STRIP_WIDTH, label.length * 6 + 4);
   return {
     x: PATCH_HOST_STRIP_X - width,
     y: PATCH_HOST_STRIP_Y + hostIndex * PATCH_HOST_STRIP_ROW_GAP,
