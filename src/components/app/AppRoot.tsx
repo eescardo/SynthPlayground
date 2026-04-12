@@ -1144,6 +1144,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     onSelectNode: patchWorkspace.setSelectedNodeId,
     onSelectMacro: patchWorkspace.setSelectedMacroId,
     onClearSelectedMacro: patchWorkspace.clearSelectedMacro,
+    onClearPatch: patchWorkspace.clearSelectedPatchCircuit,
     onApplyOp: patchWorkspace.applyPatchOp,
     probeActions: {
       addProbe: patchWorkspace.addProbeToWorkspace,

@@ -131,9 +131,65 @@ interface PatchInspectorProps {
 }
 
 function resolveIssuesForNode(nodeId: string, issues: PatchValidationIssue[]) {
-  return issues.filter((issue) =>
-    Object.values(issue.context ?? {}).some((value) => value.includes(nodeId))
+  return issues.filter((issue) => {
+    const context = issue.context;
+    if (!context) {
+      return false;
+    }
+    return (
+      context.nodeId === nodeId ||
+      context.conflictingMacroId === nodeId ||
+      context.atNode === nodeId ||
+      context.targetPort?.startsWith(`${nodeId}:`) === true ||
+      context.path?.split(" -> ").includes(nodeId) === true
+    );
+  });
+}
+
+function resolveRequiredPortIssues(issues: PatchValidationIssue[]) {
+  return issues.filter((issue) => issue.code === "required-port-unconnected");
+}
+
+function resolveParamBindingState(
+  patch: Patch,
+  selectedNode: PatchNode,
+  param: ParamSchema,
+  selectedMacroId: string | undefined,
+  selectedMacroKeyframeIndex: number | null,
+  structureLocked: boolean | undefined
+) {
+  const boundMacros = patch.ui.macros.filter((macro) =>
+    macro.bindings.some((binding) => binding.nodeId === selectedNode.id && binding.paramId === param.id)
   );
+  const activeBindingMacro = boundMacros[0];
+  const isExposed = boundMacros.length > 0;
+  const exposedLabel =
+    boundMacros.length === 1
+      ? `Exposed as '${boundMacros[0].name}'`
+      : `Exposed as ${boundMacros.map((macro) => `'${macro.name}'`).join(", ")}`;
+  const isEditableSelectedMacroBinding =
+    Boolean(activeBindingMacro) &&
+    !structureLocked &&
+    selectedMacroId === activeBindingMacro?.id &&
+    selectedMacroKeyframeIndex !== null &&
+    param.type === "float";
+  const editableSummary =
+    activeBindingMacro && selectedMacroId === activeBindingMacro.id
+      ? selectedMacroKeyframeIndex !== null
+        ? `Editing ${activeBindingMacro.name} at keyframe ${selectedMacroKeyframeIndex + 1}/${activeBindingMacro.keyframeCount}`
+        : "Bound values unlock when the selected macro is parked on a keyframe notch."
+      : activeBindingMacro
+        ? `Select ${activeBindingMacro.name} and stop on a keyframe notch to edit this binding.`
+        : null;
+
+  return {
+    activeBindingMacro,
+    boundMacros,
+    editableSummary,
+    exposedLabel,
+    isEditableSelectedMacroBinding,
+    isExposed
+  };
 }
 
 export function PatchInspector(props: PatchInspectorProps) {
@@ -162,6 +218,9 @@ export function PatchInspector(props: PatchInspectorProps) {
       )
     : props.patch.connections;
   const visibleValidationIssues = selectedNode ? resolveIssuesForNode(selectedNode.id, props.validationIssues) : props.validationIssues;
+  const visibleRequiredPortIssues = resolveRequiredPortIssues(visibleValidationIssues);
+  const visibleGeneralValidationIssues = visibleValidationIssues.filter((issue) => issue.code !== "required-port-unconnected");
+  const visibleValidationHasErrors = visibleValidationIssues.some((issue) => issue.level === "error");
   return (
     <aside className="patch-inspector">
       <h3>Inspector</h3>
@@ -174,41 +233,30 @@ export function PatchInspector(props: PatchInspectorProps) {
           </h4>
           {props.selectedSchema.params.map((param) => {
             const value = selectedNode.params[param.id] ?? param.default;
-            const boundMacros = props.patch.ui.macros.filter((macro) =>
-              macro.bindings.some((binding) => binding.nodeId === selectedNode.id && binding.paramId === param.id)
+            const bindingState = resolveParamBindingState(
+              props.patch,
+              selectedNode,
+              param,
+              props.selectedMacroId,
+              selectedMacroKeyframeIndex,
+              props.structureLocked
             );
-            const activeBindingMacro = boundMacros[0];
-            const isExposed = boundMacros.length > 0;
-            const exposedLabel =
-              boundMacros.length === 1
-                ? `Exposed as '${boundMacros[0].name}'`
-                : `Exposed as ${boundMacros.map((macro) => `'${macro.name}'`).join(", ")}`;
-            const isEditableSelectedMacroBinding =
-              Boolean(activeBindingMacro) &&
-              !props.structureLocked &&
-              props.selectedMacroId === activeBindingMacro?.id &&
-              selectedMacroKeyframeIndex !== null &&
-              param.type === "float" &&
-              typeof value === "number";
-            const editableSummary =
-              activeBindingMacro && props.selectedMacroId === activeBindingMacro.id
-                ? selectedMacroKeyframeIndex !== null
-                  ? `Editing ${activeBindingMacro.name} at keyframe ${selectedMacroKeyframeIndex + 1}/${activeBindingMacro.keyframeCount}`
-                  : "Bound values unlock when the selected macro is parked on a keyframe notch."
-                : activeBindingMacro
-                  ? `Select ${activeBindingMacro.name} and stop on a keyframe notch to edit this binding.`
-                  : null;
 
             return (
-              <div key={param.id} className={`param-row${isExposed ? " bound" : ""}`}>
+              <div key={param.id} className={`param-row${bindingState.isExposed ? " bound" : ""}`}>
                 <span>{param.label}</span>
                 <div className="param-control-stack">
-                  {(!isExposed || isEditableSelectedMacroBinding) && (
+                  {(!bindingState.isExposed || bindingState.isEditableSelectedMacroBinding) && (
                     <ParamValueControl
                       param={param}
                       value={
-                        isEditableSelectedMacroBinding && activeBindingMacro
-                          ? resolveMacroBindingValue(activeBindingMacro.bindings.find((binding) => binding.nodeId === selectedNode.id && binding.paramId === param.id)!, selectedMacroValue ?? 0)
+                        bindingState.isEditableSelectedMacroBinding && bindingState.activeBindingMacro
+                          ? resolveMacroBindingValue(
+                              bindingState.activeBindingMacro.bindings.find(
+                                (binding) => binding.nodeId === selectedNode.id && binding.paramId === param.id
+                              )!,
+                              selectedMacroValue ?? 0
+                            )
                           : value
                       }
                       disabled={props.structureLocked}
@@ -216,10 +264,10 @@ export function PatchInspector(props: PatchInspectorProps) {
                         if (props.structureLocked) {
                           return;
                         }
-                        if (isEditableSelectedMacroBinding && activeBindingMacro && typeof nextValue === "number") {
+                        if (bindingState.isEditableSelectedMacroBinding && bindingState.activeBindingMacro && typeof nextValue === "number") {
                           props.onApplyOp({
                             type: "setMacroBindingKeyframeValue",
-                            macroId: activeBindingMacro.id,
+                            macroId: bindingState.activeBindingMacro.id,
                             nodeId: selectedNode.id,
                             paramId: param.id,
                             normalized: selectedMacroValue ?? 0,
@@ -236,20 +284,20 @@ export function PatchInspector(props: PatchInspectorProps) {
                       }}
                     />
                   )}
-                  {isExposed && (
+                  {bindingState.isExposed && (
                     <MacroBindingDetails
                       patch={props.patch}
                       nodeId={selectedNode.id}
                       paramId={param.id}
-                      exposedLabel={exposedLabel}
-                      boundMacroIds={boundMacros.map((macro) => macro.id)}
-                      editableSummary={editableSummary}
+                      exposedLabel={bindingState.exposedLabel}
+                      boundMacroIds={bindingState.boundMacros.map((macro) => macro.id)}
+                      editableSummary={bindingState.editableSummary}
                     />
                   )}
                 </div>
-                {isExposed ? (
+                {bindingState.isExposed ? (
                   <button type="button" disabled className="patch-inspector-status-button">
-                    {props.structureLocked ? "Preset lock" : isEditableSelectedMacroBinding ? "Keyframe edit" : "Locked"}
+                    {props.structureLocked ? "Preset lock" : bindingState.isEditableSelectedMacroBinding ? "Keyframe edit" : "Locked"}
                   </button>
                 ) : (
                   <button type="button" disabled={props.structureLocked} onClick={() => exposeMacro(param.id, param.label)}>
@@ -276,6 +324,23 @@ export function PatchInspector(props: PatchInspectorProps) {
         />
       )}
 
+      <h4>{selectedNode ? "Required Connections" : "Unconnected Required Ports"}</h4>
+      {visibleRequiredPortIssues.length === 0 && (
+        <p className="ok">{selectedNode ? "All required module ports are connected." : "All required ports are connected."}</p>
+      )}
+      {visibleRequiredPortIssues.map((issue, index) => {
+        const typeId = issue.context?.typeId ?? "Module";
+        const portId = issue.context?.portId ?? "unknown";
+        const direction = issue.context?.direction === "out" ? "output" : "input";
+        const nodeId = issue.context?.nodeId;
+        const label = selectedNode || !nodeId ? `${direction} '${portId}'` : `${nodeId}.${portId}`;
+        return (
+          <p key={`${issue.message}_${portId}_${index}`} className="error">
+            {typeId}: required {label} is unconnected.
+          </p>
+        );
+      })}
+
       <h4>{selectedNode ? "Module Connections" : "Connections"}</h4>
       {visibleConnections.length === 0 && <p className="muted">{selectedNode ? "No wires on this module." : "No wires yet."}</p>}
       {visibleConnections.map((connection) => (
@@ -288,8 +353,18 @@ export function PatchInspector(props: PatchInspectorProps) {
       ))}
 
       <h4>{selectedNode ? "Module Validation" : "Validation"}</h4>
-      {visibleValidationIssues.length === 0 && <p className="ok">{selectedNode ? "Module valid." : "Patch valid."}</p>}
-      {visibleValidationIssues.map((issue, index) => (
+      {visibleGeneralValidationIssues.length === 0 && (
+        <p className={visibleValidationHasErrors ? "error" : "ok"}>
+          {visibleValidationHasErrors
+            ? selectedNode
+              ? "Module invalid. Fix required connections above."
+              : "Patch invalid. Fix required connections above."
+            : selectedNode
+              ? "Module valid."
+              : "Patch valid."}
+        </p>
+      )}
+      {visibleGeneralValidationIssues.map((issue, index) => (
         <p key={`${issue.message}_${index}`} className={issue.level === "error" ? "error" : "warn"}>
           {issue.message}
         </p>

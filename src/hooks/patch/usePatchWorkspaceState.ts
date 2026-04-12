@@ -19,11 +19,12 @@ import { usePatchWorkspaceTabMacroSession } from "@/hooks/patch/usePatchWorkspac
 import { usePatchWorkspaceTabState } from "@/hooks/patch/usePatchWorkspaceTabState";
 import { createId } from "@/lib/ids";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
+import { createClearPatch } from "@/lib/patch/presets";
 import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
 import { createPatchWorkspaceProbe } from "@/lib/patch/probes";
 import { clampNormalizedMacroValue } from "@/lib/patch/macroKeyframes";
 import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
-import { validatePatch } from "@/lib/patch/validation";
+import { validatePatch, validatePatchConnectionCandidate } from "@/lib/patch/validation";
 import { Project, Track } from "@/types/music";
 import { PatchOp } from "@/types/ops";
 import { PatchValidationIssue, Patch } from "@/types/patch";
@@ -236,25 +237,29 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     if (tabs.length >= MAX_PATCH_WORKSPACE_TABS) {
       return;
     }
-    const patchId = activeTab?.patchId ?? selectedPatch?.id ?? selectedTrack?.instrumentPatchId ?? project.patches[0]?.id;
-    if (!patchId) {
-      return;
-    }
-    const nextTab = { ...createWorkspaceTab(patchId, createNextTabName(tabs)), probes: [] };
+    const nextName = createNextTabName(tabs);
+    const nextPatchId = createId("patch");
+    const nextPatch = createClearPatch({
+      id: nextPatchId,
+      name: nextName
+    });
+    const nextTab = { ...createWorkspaceTab(nextPatchId, nextName), probes: [] };
+
+    commitProjectChange((current) => ({
+      ...current,
+      patches: [...current.patches, nextPatch]
+    }), { actionKey: `patch:new-tab:${nextPatchId}` });
     skipNextWorkspaceHistoryRef.current = false;
     setTabs((currentTabs) => [...currentTabs, nextTab]);
     setTabMacroValuesById((current) => ({
       ...current,
-      [nextTab.id]: activeTab ? { ...(current[activeTab.id] ?? {}) } : {}
+      [nextTab.id]: {}
     }));
     setActiveTabId(nextTab.id);
     setSkipNextTabPreview(true);
   }, [
-    activeTab,
+    commitProjectChange,
     createWorkspaceTab,
-    project.patches,
-    selectedPatch?.id,
-    selectedTrack?.instrumentPatchId,
     setActiveTabId,
     setSkipNextTabPreview,
     setTabMacroValuesById,
@@ -451,6 +456,19 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       return;
     }
 
+    if (op.type === "connect") {
+      const connectionIssues = validatePatchConnectionCandidate(
+        selectedPatch,
+        op.fromNodeId,
+        op.fromPortId,
+        op.toNodeId,
+        op.toPortId
+      );
+      if (connectionIssues.some((issue) => issue.level === "error")) {
+        return;
+      }
+    }
+
     let nextPatch: Patch;
     try {
       nextPatch = applyPatchGraphOp(selectedPatch, op);
@@ -459,10 +477,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       return;
     }
 
-    const validation = validatePatch(nextPatch);
-    if (op.type === "connect" && validation.issues.some((issue) => issue.level === "error")) {
-      return;
-    }
+    validatePatch(nextPatch);
 
     commitProjectChange(
       (current) => ({
@@ -486,6 +501,43 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       schedulePatchPreview(selectedPatch.id, undefined, activeTab ? tabMacroValuesById[activeTab.id] : undefined);
     }
   }, [activeTab, commitProjectChange, schedulePatchPreview, selectedPatch, setRuntimeError, tabMacroValuesById, updateActiveTab]);
+
+  const clearSelectedPatchCircuit = useCallback(() => {
+    if (!selectedPatch || resolvePatchSource(selectedPatch) === "preset") {
+      return;
+    }
+
+    const existingOutputNode = selectedPatch.nodes.find((node) => node.typeId === "Output");
+    const existingOutputLayout = existingOutputNode
+      ? selectedPatch.layout.nodes.find((node) => node.nodeId === existingOutputNode.id)
+      : undefined;
+
+    const nextPatch = createClearPatch({
+      id: selectedPatch.id,
+      name: selectedPatch.name,
+      meta: selectedPatch.meta,
+      outputNodeId: existingOutputNode?.id ?? "out1",
+      outputPosition: existingOutputLayout ? { x: existingOutputLayout.x, y: existingOutputLayout.y } : undefined,
+      canvasZoom: selectedPatch.ui.canvasZoom
+    });
+
+    commitProjectChange((current) => ({
+      ...current,
+      patches: current.patches.map((patch) => (patch.id === selectedPatch.id ? nextPatch : patch))
+    }), { actionKey: `patch:${selectedPatch.id}:clear-circuit` });
+    updateActiveTab((tab) => ({
+      ...tab,
+      selectedNodeId: undefined,
+      selectedMacroId: undefined,
+      selectedProbeId: undefined,
+      probes: [],
+      migrationNotice: null
+    }));
+    if (activeTab) {
+      setTabMacroValuesById((current) => ({ ...current, [activeTab.id]: {} }));
+    }
+    setPreviewCaptureByProbeId({});
+  }, [activeTab, commitProjectChange, selectedPatch, setTabMacroValuesById, updateActiveTab]);
 
   const exposePatchMacro = useCallback((nodeId: string, paramId: string, suggestedName: string) => {
     if (!selectedPatch || resolvePatchSource(selectedPatch) === "preset") {
@@ -754,6 +806,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     duplicateSelectedPatchToNewTab,
     updatePresetToLatest,
     requestRemoveSelectedPatch,
+    clearSelectedPatchCircuit,
     applyPatchOp,
     exposePatchMacro,
     addPatchMacro,

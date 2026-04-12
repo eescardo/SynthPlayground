@@ -1,38 +1,40 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { PatchHostPortOverlay } from "@/components/patch/PatchHostPortOverlay";
 import { PatchEditorToolbar } from "@/components/patch/PatchEditorToolbar";
 import { PatchProbeOverlay } from "@/components/patch/PatchProbeOverlay";
 import {
   PATCH_ATTACH_CURSOR_CLOSED,
   PATCH_ATTACH_CURSOR_OPEN,
-  PATCH_CANVAS_GRID,
   PATCH_MOVE_CURSOR,
   PATCH_MOVE_CURSOR_ACTIVE
 } from "@/components/patch/patchCanvasConstants";
 import {
-  resolvePatchConnectionMidpoint,
   resolvePatchCanvasSize,
   resolvePatchDiagramSize,
-  resolvePatchFacePopoverRect,
-  resolvePatchPortAnchorPoint
+  resolvePatchFacePopoverRect
 } from "@/components/patch/patchCanvasGeometry";
 import { createId } from "@/lib/ids";
 import { resolveAutoLayoutNodes } from "@/lib/patch/autoLayout";
 import { makeConnectOp } from "@/lib/patch/ops";
+import { resolveAutoLayoutProbePositions } from "@/lib/patch/probeAutoLayout";
 import { usePatchCanvasInteractions } from "@/hooks/patch/usePatchCanvasInteractions";
+import { usePatchProbeDrag } from "@/hooks/patch/usePatchProbeDrag";
 import { usePatchCanvasZoom } from "@/hooks/patch/usePatchCanvasZoom";
 import { usePatchModuleFacePopover } from "@/hooks/patch/usePatchModuleFacePopover";
-import { Patch, PatchLayoutNode } from "@/types/patch";
+import { Patch, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
-import { PatchProbeEditorActions, PatchProbeEditorState, PatchWorkspaceProbeState } from "@/types/probes";
+import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 
 interface PatchEditorStageProps {
   patch: Patch;
+  validationIssues: PatchValidationIssue[];
   probeState: PatchProbeEditorState;
   selectedNodeId?: string;
   selectedMacroNodeIds: Set<string>;
   structureLocked?: boolean;
+  onClearPatch: () => void;
   onApplyOp: (op: PatchOp) => void;
   probeActions: PatchProbeEditorActions;
   onSelectNode: (nodeId?: string) => void;
@@ -56,8 +58,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [newNodeType, setNewNodeType] = useState("VCO");
-  const [dragProbe, setDragProbe] = useState<{ probeId: string; offsetX: number; offsetY: number } | null>(null);
+  const [scrollTop, setScrollTop] = useState(0);
   const layoutByNode = useMemo(() => {
     return new Map(patch.layout.nodes.map((node) => [node.nodeId, node] as const));
   }, [patch.layout.nodes]);
@@ -95,6 +96,8 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     hoveredNodeId,
     pendingFromPort,
     hoveredAttachTarget,
+    handlePortHover,
+    handlePortSelection,
     onPointerDown,
     onPointerMove,
     onPointerUp,
@@ -107,6 +110,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     layoutByNode,
     nodeById,
     patch,
+    validationIssues: props.validationIssues,
     selectedMacroNodeIds,
     selectedNodeId,
     pendingProbeId: probeState.attachingProbeId,
@@ -125,73 +129,31 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     togglePopoverForNode
   });
 
-  useEffect(() => {
-    if (!dragProbe) {
-      return;
-    }
-    const handlePointerMove = (event: PointerEvent) => {
-      const canvas = canvasRef.current;
-      if (!canvas) {
-        return;
-      }
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
-      const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
-      const rawX = (event.clientX - rect.left) * scaleX;
-      const rawY = (event.clientY - rect.top) * scaleY;
-      probeActions.moveProbe(
-        dragProbe.probeId,
-        Math.max(0, Math.round((rawX - dragProbe.offsetX) / PATCH_CANVAS_GRID)),
-        Math.max(0, Math.round((rawY - dragProbe.offsetY) / PATCH_CANVAS_GRID))
-      );
-    };
-    const handlePointerUp = () => setDragProbe(null);
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-    };
-  }, [dragProbe, probeActions]);
-
-  const beginProbeDrag = useCallback((probeId: string, clientX: number, clientY: number) => {
-    const canvas = canvasRef.current;
-    const probe = probeState.probes.find((entry) => entry.id === probeId);
-    if (!canvas || !probe) {
-      return;
-    }
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
-    const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
-    const rawX = (clientX - rect.left) * scaleX;
-    const rawY = (clientY - rect.top) * scaleY;
-    setDragProbe({
-      probeId,
-      offsetX: rawX - probe.x * PATCH_CANVAS_GRID,
-      offsetY: rawY - probe.y * PATCH_CANVAS_GRID
-    });
-  }, [probeState.probes]);
+  const { beginProbeDrag } = usePatchProbeDrag({
+    canvasRef,
+    probes: probeState.probes,
+    probeActions
+  });
 
   return (
     <div className="patch-canvas-stage" ref={rootRef}>
       <PatchEditorToolbar
-        newNodeType={newNodeType}
         structureLocked={structureLocked}
+        canClearPatch={patch.nodes.length > 1 || patch.connections.length > 0 || patch.ui.macros.length > 0}
         patchNodeCount={patch.nodes.length}
         selectedNodeId={selectedNodeId}
         selectedProbeId={probeState.selectedProbeId}
         pendingFromPort={Boolean(pendingFromPort)}
         pendingProbeId={probeState.attachingProbeId}
         zoom={zoom}
-        onChangeNewNodeType={setNewNodeType}
-        onAddNode={() => {
+        onAddNode={(typeId) => {
           if (structureLocked) {
             return;
           }
           const nodeId = createId("node");
           onApplyOp({
             type: "addNode",
-            typeId: newNodeType,
+            typeId,
             nodeId,
             layoutPos: { x: 3, y: 3 }
           });
@@ -203,6 +165,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
             ? (onCancelAttachProbe(), probeActions.deleteSelected())
             : selectedNodeId && !structureLocked && onApplyOp({ type: "removeNode", nodeId: selectedNodeId })
         }
+        onClearPatch={props.onClearPatch}
         onAutoLayout={() => {
           const nextNodeLayout = resolveAutoLayoutNodes(patch);
           onApplyOp({
@@ -217,7 +180,13 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
       />
 
       <div className="patch-canvas-shell">
-        <div className="patch-canvas-scroll" ref={scrollRef}>
+        <div
+          className="patch-canvas-scroll"
+          ref={scrollRef}
+          onScroll={(event) => {
+            setScrollTop(event.currentTarget.scrollTop);
+          }}
+        >
           <div className="patch-canvas-overlay-shell" style={{ width: `${canvasSize.width * zoom}px`, height: `${canvasSize.height * zoom}px` }}>
             <canvas
               ref={canvasRef}
@@ -226,16 +195,13 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
               style={{
                 width: `${canvasSize.width * zoom}px`,
                 height: `${canvasSize.height * zoom}px`,
-                cursor:
-                  probeState.attachingProbeId
-                    ? hoveredAttachTarget
-                      ? PATCH_ATTACH_CURSOR_CLOSED
-                      : PATCH_ATTACH_CURSOR_OPEN
-                    : dragNodeId
-                      ? PATCH_MOVE_CURSOR_ACTIVE
-                      : hoveredNodeId
-                        ? PATCH_MOVE_CURSOR
-                        : "default"
+                cursor: resolveCanvasCursor({
+                  attachingProbeId: probeState.attachingProbeId,
+                  pendingFromPort: Boolean(pendingFromPort),
+                  hoveredAttachTarget: Boolean(hoveredAttachTarget),
+                  dragNodeId: Boolean(dragNodeId),
+                  hoveredNodeId: Boolean(hoveredNodeId)
+                })
               }}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
@@ -262,60 +228,33 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
             />
           </div>
         </div>
+        <PatchHostPortOverlay
+          pendingFromPort={pendingFromPort}
+          scrollTop={scrollTop}
+          zoom={zoom}
+          onPortSelection={handlePortSelection}
+          onPortHover={handlePortHover}
+        />
       </div>
     </div>
   );
 }
 
-function resolveAutoLayoutProbePositions(
-  patch: Patch,
-  probes: PatchWorkspaceProbeState[],
-  layoutByNode: Map<string, PatchLayoutNode>
-) {
-  const occupied = patch.nodes.map((node) => {
-    const layout = layoutByNode.get(node.id);
-    return layout ? { x: layout.x, y: layout.y, width: 9, height: 6 } : null;
-  }).filter((entry): entry is { x: number; y: number; width: number; height: number } => Boolean(entry));
-  const resolved: PatchWorkspaceProbeState[] = [];
-
-  const overlaps = (candidate: { x: number; y: number; width: number; height: number }) =>
-    [...occupied, ...resolved].some((entry) =>
-      candidate.x < entry.x + entry.width + 1 &&
-      entry.x < candidate.x + candidate.width + 1 &&
-      candidate.y < entry.y + entry.height + 1 &&
-      entry.y < candidate.y + candidate.height + 1
-    );
-
-  for (const probe of probes) {
-    const preferredPoint =
-      probe.target?.kind === "connection"
-        ? resolvePatchConnectionMidpoint(patch, layoutByNode, probe.target.connectionId)
-        : probe.target
-          ? resolvePatchPortAnchorPoint(patch, layoutByNode, probe.target.nodeId, probe.target.portId, probe.target.portKind)
-          : null;
-    const preferredX = preferredPoint ? Math.max(0, Math.round(preferredPoint.x / PATCH_CANVAS_GRID) + 2) : 3;
-    const preferredY = preferredPoint ? Math.max(0, Math.round(preferredPoint.y / PATCH_CANVAS_GRID) - Math.floor(probe.height / 2)) : 3;
-    let placed = { ...probe, x: preferredX, y: preferredY };
-    if (overlaps({ x: placed.x, y: placed.y, width: probe.width, height: probe.height })) {
-      let found = false;
-      for (let ring = 0; ring < 40 && !found; ring += 1) {
-        for (let dx = -ring; dx <= ring && !found; dx += 1) {
-          for (let dy = -ring; dy <= ring && !found; dy += 1) {
-            const candidate = {
-              ...probe,
-              x: Math.max(0, preferredX + dx),
-              y: Math.max(0, preferredY + dy)
-            };
-            if (!overlaps({ x: candidate.x, y: candidate.y, width: probe.width, height: probe.height })) {
-              placed = candidate;
-              found = true;
-            }
-          }
-        }
-      }
-    }
-    resolved.push(placed);
+function resolveCanvasCursor(args: {
+  attachingProbeId: string | null | undefined;
+  pendingFromPort: boolean;
+  hoveredAttachTarget: boolean;
+  dragNodeId: boolean;
+  hoveredNodeId: boolean;
+}) {
+  if (args.attachingProbeId || args.pendingFromPort) {
+    return args.hoveredAttachTarget ? PATCH_ATTACH_CURSOR_CLOSED : PATCH_ATTACH_CURSOR_OPEN;
   }
-
-  return resolved;
+  if (args.dragNodeId) {
+    return PATCH_MOVE_CURSOR_ACTIVE;
+  }
+  if (args.hoveredNodeId) {
+    return PATCH_MOVE_CURSOR;
+  }
+  return "default";
 }

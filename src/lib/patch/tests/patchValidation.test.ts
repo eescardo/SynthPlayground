@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { drumPatch, pluckPatch } from "@/lib/patch/presets";
-import { validatePatch } from "@/lib/patch/validation";
+import { bassPatch, createClearPatch, drumPatch, pluckPatch, presetPatches } from "@/lib/patch/presets";
+import { moduleRegistryById } from "@/lib/patch/moduleRegistry";
+import { validatePatch, validatePatchConnectionCandidate } from "@/lib/patch/validation";
 import { Patch } from "@/types/patch";
+
+function findIssue(patch: Patch, code: string, nodeId: string, portId: string) {
+  return validatePatch(patch).issues.find(
+    (issue) => issue.code === code && issue.context?.nodeId === nodeId && issue.context?.portId === portId
+  );
+}
 
 describe("patch validation", () => {
   it("rejects conflicting macro bindings across different macros", () => {
@@ -79,5 +86,149 @@ describe("patch validation", () => {
     const result = validatePatch(patch);
 
     expect(result.ok).toBe(true);
+  });
+
+  it("accepts all bundled presets with required port validation enabled", () => {
+    for (const patch of presetPatches) {
+      const result = validatePatch(patch);
+      expect(result.ok, patch.name).toBe(true);
+    }
+  });
+
+  it("rejects modules with unconnected required input ports", () => {
+    const patch = bassPatch();
+    patch.connections = patch.connections.filter(
+      (connection) => !(connection.to.nodeId === "vco1" && connection.to.portId === "pitch")
+    );
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(false);
+    expect(findIssue(patch, "required-port-unconnected", "vco1", "pitch")).toBeTruthy();
+  });
+
+  it("rejects modules with unconnected required output ports", () => {
+    const patch = bassPatch();
+    patch.connections = patch.connections.filter(
+      (connection) => !(connection.from.nodeId === "sat1" && connection.from.portId === "out")
+    );
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(false);
+    expect(findIssue(patch, "required-port-unconnected", "sat1", "out")).toBeTruthy();
+  });
+
+  it("rejects module schemas that declare missing required ports", () => {
+    const patch = bassPatch();
+    const schema = moduleRegistryById.get("VCO");
+    expect(schema).toBeDefined();
+
+    const previousRequiredPortIds = schema?.requiredPortIds;
+    if (schema) {
+      schema.requiredPortIds = { in: ["pitch", "notARealPort"] };
+    }
+
+    try {
+      const result = validatePatch(patch);
+
+      expect(result.ok).toBe(false);
+      expect(result.issues.some((issue) => issue.code === "required-port-schema-mismatch" && issue.context?.nodeId === "vco1")).toBe(true);
+    } finally {
+      if (schema) {
+        schema.requiredPortIds = previousRequiredPortIds;
+      }
+    }
+  });
+
+  it("does not treat same-module wiring as satisfying required ports", () => {
+    const patch: Patch = {
+      schemaVersion: 1,
+      id: "self_loop_validation",
+      name: "Self Loop Validation",
+      meta: { source: "custom" },
+      nodes: [
+        {
+          id: "vca1",
+          typeId: "VCA",
+          params: {
+            bias: 0,
+            gain: 1
+          }
+        },
+        {
+          id: "out1",
+          typeId: "Output",
+          params: {
+            gainDb: -6,
+            limiter: true
+          }
+        }
+      ],
+      connections: [
+        {
+          id: "c1",
+          from: { nodeId: "vca1", portId: "out" },
+          to: { nodeId: "vca1", portId: "in" }
+        },
+        {
+          id: "c2",
+          from: { nodeId: "vca1", portId: "out" },
+          to: { nodeId: "out1", portId: "in" }
+        }
+      ],
+      ui: { macros: [] },
+      layout: { nodes: [] },
+      io: {
+        audioOutNodeId: "out1",
+        audioOutPortId: "in"
+      }
+    };
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.some((issue) => issue.message.includes("Cycle detected in patch graph"))).toBe(true);
+    expect(findIssue(patch, "required-port-unconnected", "vca1", "in")).toBeTruthy();
+  });
+
+  it("allows wiring a module output into Output even when other required ports are still missing", () => {
+    const patch = createClearPatch({ id: "clear_patch", name: "Clear Patch" });
+    patch.nodes.unshift({
+      id: "vco1",
+      typeId: "VCO",
+      params: {
+        wave: "saw",
+        pulseWidth: 0.5,
+        baseTuneCents: 0,
+        fineTuneCents: 0,
+        pwmAmount: 0
+      }
+    });
+    patch.layout.nodes.unshift({ nodeId: "vco1", x: 8, y: 6 });
+
+    const issues = validatePatchConnectionCandidate(patch, "vco1", "out", "out1", "in");
+
+    expect(issues).toEqual([]);
+  });
+
+  it("allows wiring host pitch into a module pitch input", () => {
+    const patch = createClearPatch({ id: "host_connect", name: "Host Connect" });
+    patch.nodes.unshift({
+      id: "vco1",
+      typeId: "VCO",
+      params: {
+        wave: "saw",
+        pulseWidth: 0.5,
+        baseTuneCents: 0,
+        fineTuneCents: 0,
+        pwmAmount: 0
+      }
+    });
+    patch.layout.nodes.unshift({ nodeId: "vco1", x: 8, y: 6 });
+
+    const issues = validatePatchConnectionCandidate(patch, "$host.pitch", "out", "vco1", "pitch");
+
+    expect(issues).toEqual([]);
   });
 });

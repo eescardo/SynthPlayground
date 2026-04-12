@@ -53,6 +53,10 @@ export interface ModuleTypeSchema {
   categories: PatchModuleCategory[];
   doc: { summary: string };
   hostOnly?: boolean;
+  requiredPortIds?: {
+    in?: string[];
+    out?: string[];
+  };
   params: ParamSchema[];
   portsIn: PortSchema[];
   portsOut: PortSchema[];
@@ -136,6 +140,7 @@ export type PatchValidationIssueLevel = "error" | "warning";
 export interface PatchValidationIssue {
   level: PatchValidationIssueLevel;
   message: string;
+  code?: string;
   context?: Record<string, string>;
 }
 

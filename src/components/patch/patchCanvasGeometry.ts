@@ -4,6 +4,10 @@ import {
   PATCH_CANVAS_PADDING,
   PATCH_FACE_POPOVER_SCALE,
   PATCH_CANVAS_GRID,
+  PATCH_HOST_STRIP_ROW_GAP,
+  PATCH_HOST_STRIP_WIDTH,
+  PATCH_HOST_STRIP_X,
+  PATCH_HOST_STRIP_Y,
   PATCH_NODE_HEIGHT,
   PATCH_NODE_HIT_PADDING,
   PATCH_NODE_WIDTH,
@@ -12,6 +16,7 @@ import {
 } from "@/components/patch/patchCanvasConstants";
 import { PointerEvent as ReactPointerEvent } from "react";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
+import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
 import { Patch, PatchLayoutNode } from "@/types/patch";
 
 export interface CanvasPoint {
@@ -32,10 +37,85 @@ export interface HitPort {
   nodeId: string;
   portId: string;
   kind: "in" | "out";
+  validTarget?: boolean;
   x: number;
   y: number;
   width: number;
   height: number;
+}
+
+export function isHostPatchNodeId(nodeId: string) {
+  return SOURCE_HOST_NODE_IDS.includes(nodeId as (typeof SOURCE_HOST_NODE_IDS)[number]);
+}
+
+export function resolveHostPatchPortLabel(nodeId: string) {
+  switch (nodeId) {
+    case "$host.pitch":
+      return "pitch";
+    case "$host.gate":
+      return "gate";
+    case "$host.velocity":
+      return "velocity";
+    case "$host.modwheel":
+      return "modwheel";
+    default:
+      return "host";
+  }
+}
+
+export function resolveHostPatchPortTint(nodeId: string) {
+  switch (nodeId) {
+    case "$host.pitch":
+      return {
+        fill: "#cfe5f7",
+        stroke: "#8fb3d1",
+        text: "#163248",
+        wire: "#8fc1eb"
+      };
+    case "$host.gate":
+      return {
+        fill: "#f1d2ba",
+        stroke: "#c89266",
+        text: "#4b2a16",
+        wire: "#e2a16c"
+      };
+    case "$host.velocity":
+      return {
+        fill: "#cfe6c6",
+        stroke: "#8eb17c",
+        text: "#173321",
+        wire: "#8dc97d"
+      };
+    case "$host.modwheel":
+      return {
+        fill: "#dfd2aa",
+        stroke: "#b69b58",
+        text: "#443514",
+        wire: "#d2ac4f"
+      };
+    default:
+      return {
+        fill: "#c9d6de",
+        stroke: "#93a8b6",
+        text: "#10202c",
+        wire: "#c7d8e8"
+      };
+  }
+}
+
+export function resolveHostPatchPortRect(nodeId: string) {
+  const hostIndex = SOURCE_HOST_NODE_IDS.indexOf(nodeId as (typeof SOURCE_HOST_NODE_IDS)[number]);
+  if (hostIndex < 0) {
+    return null;
+  }
+  const label = resolveHostPatchPortLabel(nodeId);
+  const width = Math.max(PATCH_HOST_STRIP_WIDTH, label.length * 6 + 4);
+  return {
+    x: PATCH_HOST_STRIP_X - width,
+    y: PATCH_HOST_STRIP_Y + hostIndex * PATCH_HOST_STRIP_ROW_GAP,
+    width,
+    height: 14
+  };
 }
 
 export function resolvePatchCanvasSize(layoutNodes: PatchLayoutNode[]) {
@@ -147,6 +227,18 @@ export function resolvePatchPortAnchorPoint(
   portId: string,
   portKind: "in" | "out"
 ) {
+  if (isHostPatchNodeId(nodeId)) {
+    const rect = resolveHostPatchPortRect(nodeId);
+    const schema = getModuleSchema(SOURCE_HOST_NODE_TYPE_BY_ID[nodeId as keyof typeof SOURCE_HOST_NODE_TYPE_BY_ID]);
+    const hasPort = portKind === "out" && portId === "out" && schema?.portsOut.some((port) => port.id === portId);
+    if (!rect || !hasPort) {
+      return null;
+    }
+    return {
+      x: rect.x + rect.width,
+      y: rect.y
+    };
+  }
   const node = patch.nodes.find((entry) => entry.id === nodeId);
   const layout = layoutByNode.get(nodeId);
   const schema = node ? getModuleSchema(node.typeId) : undefined;
