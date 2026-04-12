@@ -371,13 +371,19 @@ function drawPatchConnections(
     if (!from || !to) continue;
 
     const commonCapability = from.schema.capabilities.find((cap) => to.schema.capabilities.includes(cap)) ?? "AUDIO";
+    const isHostConnection = isHostPatchNodeId(connection.from.nodeId) || isHostPatchNodeId(connection.to.nodeId);
+    ctx.save();
     ctx.strokeStyle = getSignalCapabilityColor(commonCapability) ?? PATCH_COLOR_CONNECTION_FALLBACK;
     ctx.lineWidth = 2;
-
+    if (isHostConnection) {
+      ctx.globalAlpha = 0.3;
+      ctx.setLineDash([2, 6]);
+    }
     ctx.beginPath();
     ctx.moveTo(from.anchorX, from.anchorY);
     ctx.lineTo(to.anchorX, to.anchorY);
     ctx.stroke();
+    ctx.restore();
   }
 }
 
