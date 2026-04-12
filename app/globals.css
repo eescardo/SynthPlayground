@@ -1321,12 +1321,12 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 0.18rem;
-  border: 2px solid #93a8b6;
+  padding: 0 0.09rem;
+  border: 1.5px solid #93a8b6;
   border-radius: 0.2rem;
   background: #c9d6de;
   color: #10202c;
-  font: 600 10px ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 600 8px ui-monospace, SFMono-Regular, Menlo, monospace;
   letter-spacing: 0.01em;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.16);
   white-space: nowrap;
