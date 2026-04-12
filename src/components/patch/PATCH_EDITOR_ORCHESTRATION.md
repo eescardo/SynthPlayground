@@ -71,8 +71,6 @@ It owns:
 - canvas cursor state
 - rendering the probe overlay on top of the canvas
 
-This component used to be named `PatchModuleFacePopover`, but that became
-misleading once it grew into the broader stage/orchestration layer.
 
 ### `PatchProbeOverlay`
 
@@ -84,8 +82,6 @@ Owns probe rendering in both collapsed and expanded in-place treatments:
 - spectrum rendering
 - probe card gestures for click-to-expand and drag initiation
 
-It does **not** use module face popovers for expanded probes. Expanded probes are
-the same cards rendered larger in place.
 
 ### `PatchInspector`
 
