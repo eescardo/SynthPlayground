@@ -1,5 +1,6 @@
 import { MasterFxSettings, ProjectGlobalSettings, Track } from "@/types/music";
 import { Patch } from "@/types/patch";
+import { PreviewProbeCapture, PreviewProbeRequest } from "@/types/probes";
 
 export interface AudioProject {
   global: ProjectGlobalSettings;
@@ -79,8 +80,17 @@ export interface WorkletPreviewMessage {
   type: "PREVIEW";
   events: SchedulerEvent[];
   durationSamples: number;
+  trackId: string;
   project?: AudioProject;
   ignoreVolume?: boolean;
+  previewId?: string;
+  captureProbes?: PreviewProbeRequest[];
+}
+
+export interface WorkletPreviewCaptureMessage {
+  type: "PREVIEW_CAPTURE";
+  previewId?: string;
+  captures: PreviewProbeCapture[];
 }
 
 export interface WorkletTransportMessage {
@@ -104,3 +114,5 @@ export type WorkletInboundMessage =
   | WorkletPreviewMessage
   | WorkletRecordingMessage
   | WorkletTransportMessage;
+
+export type WorkletOutboundMessage = WorkletPreviewCaptureMessage;

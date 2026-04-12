@@ -1,7 +1,7 @@
 "use client";
 
 import type { Dispatch, RefObject, SetStateAction } from "react";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { AudioEngine } from "@/audio/engine";
 import { PatchRemovalDialogState } from "@/components/home/PatchRemovalDialogModal";
@@ -11,7 +11,7 @@ import {
   isAudiblePatchOp,
   isTextEditingTarget,
   LocalPatchWorkspaceTab,
-  MAX_PATCH_WORKSPACE_TABS,
+  MAX_PATCH_WORKSPACE_TABS
 } from "@/hooks/patch/patchWorkspaceStateUtils";
 import { usePatchWorkspacePreviewController } from "@/hooks/patch/usePatchWorkspacePreviewController";
 import { usePatchWorkspacePreview } from "@/hooks/patch/usePatchWorkspacePreview";
@@ -20,12 +20,14 @@ import { usePatchWorkspaceTabState } from "@/hooks/patch/usePatchWorkspaceTabSta
 import { createId } from "@/lib/ids";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
+import { createPatchWorkspaceProbe } from "@/lib/patch/probes";
 import { clampNormalizedMacroValue } from "@/lib/patch/macroKeyframes";
 import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { validatePatch } from "@/lib/patch/validation";
 import { Project, Track } from "@/types/music";
 import { PatchOp } from "@/types/ops";
 import { PatchValidationIssue, Patch } from "@/types/patch";
+import { PatchProbeTarget, PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
 
 interface UsePatchWorkspaceStateOptions {
   project: Project;
@@ -74,6 +76,8 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     commitProjectChange
   });
   const { tabMacroValuesById, setTabMacroValuesById } = usePatchWorkspaceTabMacroSession(tabs.map((tab) => tab.id));
+  const [previewCaptureByProbeId, setPreviewCaptureByProbeId] = useState<Record<string, PreviewProbeCapture>>({});
+
   const selectedPatch = useMemo(
     () =>
       project.patches.find((patch) => patch.id === activeTab?.patchId) ??
@@ -90,7 +94,9 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   });
   const selectedNodeId = activeTab?.selectedNodeId;
   const selectedMacroId = activeTab?.selectedMacroId;
+  const selectedProbeId = activeTab?.selectedProbeId;
   const migrationNotice = activeTab?.migrationNotice ?? null;
+  const probes = activeTab?.probes ?? [];
 
   const validationIssues = useMemo(
     () => (selectedPatch ? validationIssuesByPatchId.get(selectedPatch.id) ?? [] : []),
@@ -99,6 +105,8 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   const selectedPatchHasErrors = validationIssues.some((issue) => issue.level === "error");
 
   const {
+    previewCaptureByProbeId: latestPreviewCaptureByProbeId,
+    previewProgress,
     previewPatchById,
     previewPitch,
     previewPitchPickerOpen,
@@ -110,10 +118,47 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     project,
     selectedPatch,
     selectedTrack,
+    probes,
     audioEngineRef,
     playing,
     setRuntimeError
   });
+
+  useEffect(() => {
+    const validPatchIds = new Set(project.patches.map((patch) => patch.id));
+    setTabs((currentTabs) => {
+      const fallbackPatchId = selectedTrack?.instrumentPatchId ?? project.patches[0]?.id;
+      if (!fallbackPatchId) {
+        return currentTabs;
+      }
+      const nextTabs = currentTabs
+        .filter((tab) => validPatchIds.has(tab.patchId))
+        .map((tab) => {
+          const patch = project.patches.find((entry) => entry.id === tab.patchId);
+          const probes = (tab.probes ?? []).filter((probe) => {
+            const target = probe.target;
+            if (!target) {
+              return true;
+            }
+            if (target.kind === "connection") {
+              return Boolean(patch?.connections.some((connection) => connection.id === target.connectionId));
+            }
+            return Boolean(patch?.nodes.some((node) => node.id === target.nodeId));
+          });
+          return {
+            ...tab,
+            name: tab.name || patchNameById.get(tab.patchId) || "Instrument",
+            probes,
+            selectedMacroId:
+              tab.selectedMacroId && patch?.ui.macros.some((macro) => macro.id === tab.selectedMacroId)
+                ? tab.selectedMacroId
+                : undefined,
+            selectedProbeId: tab.selectedProbeId && probes.some((probe) => probe.id === tab.selectedProbeId) ? tab.selectedProbeId : undefined
+          };
+        });
+      return nextTabs.length > 0 ? nextTabs : [{ ...createWorkspaceTab(fallbackPatchId), probes: [] }];
+    });
+  }, [createWorkspaceTab, patchNameById, project.patches, selectedTrack?.instrumentPatchId, setTabs]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -125,6 +170,10 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activeTab, updateActiveTab]);
+
+  useEffect(() => {
+    setPreviewCaptureByProbeId(latestPreviewCaptureByProbeId);
+  }, [latestPreviewCaptureByProbeId]);
 
   const setSkipWorkspaceHistory = useCallback((skipHistory: boolean) => {
     skipNextWorkspaceHistoryRef.current = skipHistory;
@@ -156,7 +205,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       if (existingTab) {
         activateWorkspaceTab(existingTab.id, { preview: false, skipHistory: true });
       } else if (tabs.length < MAX_PATCH_WORKSPACE_TABS) {
-        const nextTab = createWorkspaceTab(resolvedPatchId);
+        const nextTab = { ...createWorkspaceTab(resolvedPatchId), probes: [] };
         setSkipNextTabPreview(true);
         setTabs((currentTabs) => [...currentTabs, nextTab]);
         setActiveTabId(nextTab.id);
@@ -191,7 +240,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     if (!patchId) {
       return;
     }
-    const nextTab = createWorkspaceTab(patchId, createNextTabName(tabs));
+    const nextTab = { ...createWorkspaceTab(patchId, createNextTabName(tabs)), probes: [] };
     skipNextWorkspaceHistoryRef.current = false;
     setTabs((currentTabs) => [...currentTabs, nextTab]);
     setTabMacroValuesById((current) => ({
@@ -261,10 +310,75 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       patchId,
       selectedNodeId: undefined,
       selectedMacroId: undefined,
+      selectedProbeId: undefined,
+      probes: [],
       migrationNotice: null
     }));
     setTabMacroValuesById((current) => ({ ...current, [activeTab.id]: {} }));
+    setPreviewCaptureByProbeId({});
   }, [activeTab, setTabMacroValuesById, updateActiveTab]);
+
+  const addProbeToWorkspace = useCallback((kind: PatchWorkspaceProbeState["kind"]) => {
+    if (!activeTab) {
+      return;
+    }
+    const nextProbe = createPatchWorkspaceProbe(kind, 4, 4 + activeTab.probes.length * 7);
+    updateActiveTab((tab) => ({
+      ...tab,
+      selectedNodeId: undefined,
+      selectedMacroId: undefined,
+      selectedProbeId: nextProbe.id,
+      probes: [...tab.probes, nextProbe]
+    }));
+  }, [activeTab, updateActiveTab]);
+
+  const setSelectedProbeId = useCallback((probeId?: string) => {
+    updateActiveTab((tab) => ({
+      ...tab,
+      selectedNodeId: undefined,
+      selectedMacroId: undefined,
+      selectedProbeId: probeId
+    }));
+  }, [updateActiveTab]);
+
+  const moveProbe = useCallback((probeId: string, x: number, y: number) => {
+    updateActiveTab((tab) => ({
+      ...tab,
+      probes: tab.probes.map((probe) => (probe.id === probeId ? { ...probe, x, y } : probe))
+    }));
+  }, [updateActiveTab]);
+
+  const updateProbeTarget = useCallback((probeId: string, target?: PatchProbeTarget) => {
+    updateActiveTab((tab) => ({
+      ...tab,
+      selectedProbeId: probeId,
+      probes: tab.probes.map((probe) => (probe.id === probeId ? { ...probe, target } : probe))
+    }));
+  }, [updateActiveTab]);
+
+  const updateProbeSpectrumWindow = useCallback((probeId: string, spectrumWindowSize: number) => {
+    updateActiveTab((tab) => ({
+      ...tab,
+      probes: tab.probes.map((probe) => (probe.id === probeId ? { ...probe, spectrumWindowSize } : probe))
+    }));
+  }, [updateActiveTab]);
+
+  const removeSelectedProbe = useCallback(() => {
+    const selectedProbeId = activeTab?.selectedProbeId;
+    if (!selectedProbeId) {
+      return;
+    }
+    updateActiveTab((tab) => ({
+      ...tab,
+      selectedProbeId: undefined,
+      probes: tab.probes.filter((probe) => probe.id !== tab.selectedProbeId)
+    }));
+    setPreviewCaptureByProbeId((current) => {
+      const next = { ...current };
+      delete next[selectedProbeId];
+      return next;
+    });
+  }, [activeTab, updateActiveTab]);
 
   const updatePresetToLatest = useCallback(() => {
     if (!selectedPatch || selectedPatch.meta.source !== "preset") {
@@ -533,6 +647,9 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     if (!selectedPatch || !activeTab) {
       return;
     }
+    if (tabs.length >= MAX_PATCH_WORKSPACE_TABS) {
+      return;
+    }
 
     const duplicate = structuredClone(selectedPatch);
     duplicate.id = createId("patch");
@@ -540,12 +657,14 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     duplicate.meta = { source: "custom" };
 
     const nextTab: LocalPatchWorkspaceTab = {
-      id: createId("patchTab"),
-      name: duplicate.name,
-      patchId: duplicate.id,
+      ...createWorkspaceTab(duplicate.id, duplicate.name),
       selectedNodeId: activeTab.selectedNodeId,
       selectedMacroId: activeTab.selectedMacroId,
-      migrationNotice: null
+      selectedProbeId: undefined,
+      probes: activeTab.probes.map((probe) => ({
+        ...structuredClone(probe),
+        id: createId("probe")
+      }))
     };
 
     commitProjectChange((current) => ({
@@ -556,16 +675,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     setTabMacroValuesById((current) => ({ ...current, [nextTab.id]: { ...(tabMacroValuesById[activeTab.id] ?? {}) } }));
     setActiveTabId(nextTab.id);
     schedulePatchPreview(duplicate.id, undefined, tabMacroValuesById[activeTab.id]);
-  }, [
-    activeTab,
-    commitProjectChange,
-    schedulePatchPreview,
-    selectedPatch,
-    setActiveTabId,
-    setTabMacroValuesById,
-    setTabs,
-    tabMacroValuesById
-  ]);
+  }, [activeTab, commitProjectChange, createWorkspaceTab, schedulePatchPreview, setActiveTabId, setTabMacroValuesById, setTabs, selectedPatch, tabMacroValuesById, tabs.length]);
 
   const requestRemoveSelectedPatch = useCallback(() => {
     const patchStatus = selectedPatch ? resolvePatchPresetStatus(selectedPatch) : "custom";
@@ -600,10 +710,20 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     renameWorkspaceTab,
     selectedPatch: workspacePatch ?? selectedPatch,
     workspaceMacroValues,
+    probes,
+    selectedProbeId,
+    setSelectedProbeId,
+    addProbeToWorkspace,
+    moveProbe,
+    updateProbeTarget,
+    updateProbeSpectrumWindow,
+    removeSelectedProbe,
+    previewCaptureByProbeId,
+    previewProgress,
     selectedNodeId,
-    setSelectedNodeId: (nodeId?: string) => updateActiveTab((tab) => ({ ...tab, selectedNodeId: nodeId })),
+    setSelectedNodeId: (nodeId?: string) => updateActiveTab((tab) => ({ ...tab, selectedNodeId: nodeId, selectedProbeId: undefined })),
     selectedMacroId,
-    setSelectedMacroId: (macroId?: string) => updateActiveTab((tab) => ({ ...tab, selectedMacroId: macroId })),
+    setSelectedMacroId: (macroId?: string) => updateActiveTab((tab) => ({ ...tab, selectedMacroId: macroId, selectedProbeId: undefined })),
     previewPitch,
     setPreviewPitch,
     previewPitchPickerOpen,

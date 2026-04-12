@@ -8,6 +8,7 @@ import { PatchModuleFacePopover } from "@/components/patch/PatchModuleFacePopove
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
+import { PatchProbeTarget, PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
 
 const PATCH_MACRO_VISIBLE_ROW_MIN = 1;
 const PATCH_MACRO_VISIBLE_ROW_MAX = 5;
@@ -21,6 +22,10 @@ const PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT: Record<number, number> = {
 
 interface PatchEditorCanvasProps {
   patch: Patch;
+  probes: PatchWorkspaceProbeState[];
+  selectedProbeId?: string;
+  previewCaptureByProbeId: Record<string, PreviewProbeCapture>;
+  previewProgress: number;
   macroValues: Record<string, number>;
   selectedNodeId?: string;
   selectedMacroId?: string;
@@ -30,6 +35,12 @@ interface PatchEditorCanvasProps {
   onSelectMacro: (macroId?: string) => void;
   onClearSelectedMacro: () => void;
   onApplyOp: (op: PatchOp) => void;
+  onAddProbe: (kind: PatchWorkspaceProbeState["kind"]) => void;
+  onMoveProbe: (probeId: string, x: number, y: number) => void;
+  onSelectProbe: (probeId?: string) => void;
+  onUpdateProbeTarget: (probeId: string, target?: PatchProbeTarget) => void;
+  onUpdateProbeSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
+  onDeleteSelectedProbe: () => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
   onAddMacro: () => void;
   onRemoveMacro: (macroId: string) => void;
@@ -71,11 +82,21 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
         <div className="patch-editor-main-column">
           <PatchModuleFacePopover
             patch={props.patch}
+            probes={props.probes}
+            selectedProbeId={props.selectedProbeId}
+            previewCaptureByProbeId={props.previewCaptureByProbeId}
+            previewProgress={props.previewProgress}
             selectedNodeId={props.selectedNodeId}
             selectedMacroNodeIds={selectedMacroNodeIds}
             structureLocked={props.structureLocked}
             onApplyOp={props.onApplyOp}
+            onAddProbe={props.onAddProbe}
+            onMoveProbe={props.onMoveProbe}
             onSelectNode={props.onSelectNode}
+            onSelectProbe={props.onSelectProbe}
+            onUpdateProbeTarget={props.onUpdateProbeTarget}
+            onUpdateProbeSpectrumWindow={props.onUpdateProbeSpectrumWindow}
+            onDeleteSelectedProbe={props.onDeleteSelectedProbe}
           />
 
           <PatchMacroPanel

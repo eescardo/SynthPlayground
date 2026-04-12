@@ -240,8 +240,30 @@ export class TrackRuntime {
       fallbackOutputSignalIndex,
       outputInputSourceSignalIndex,
       hostSignalIndices,
+      inputSourceByDestKey,
+      outputIndexByKey,
       signalCount: nextSignalIndex
     };
+  }
+
+  resolveProbeSignalIndex(target) {
+    if (!target || typeof target !== "object") {
+      return -1;
+    }
+    if (target.kind === "connection") {
+      const connection = this.patch.connections.find((entry) => entry.id === target.connectionId);
+      if (!connection) {
+        return -1;
+      }
+      return this.compiled.outputIndexByKey.get(`${connection.from.nodeId}:${connection.from.portId}`) ?? -1;
+    }
+    if (target.kind === "port") {
+      if (target.portKind === "out") {
+        return this.compiled.outputIndexByKey.get(`${target.nodeId}:${target.portId}`) ?? -1;
+      }
+      return this.compiled.inputSourceByDestKey.get(`${target.nodeId}:${target.portId}`) ?? -1;
+    }
+    return -1;
   }
 
   // Track-level voice allocation is still intentionally simple: one note at a time
@@ -570,6 +592,19 @@ export class TrackRuntime {
       if (!voice.active) continue;
       const voiceOutput = this.renderVoiceFrames(voice, startFrame, endFrame);
       if (!voiceOutput) continue;
+      if (options.captureBufferByProbeId) {
+        const captureOffset = Number.isFinite(options.captureOffset) ? options.captureOffset : 0;
+        for (const [probeId, signalIndex] of options.captureBufferByProbeId.entries()) {
+          const signalBuffer = voice.signalBuffers[signalIndex];
+          const captureBuffer = options.captureSamplesByProbeId.get(probeId);
+          if (!signalBuffer || !captureBuffer) {
+            continue;
+          }
+          for (let i = startFrame; i < endFrame; i += 1) {
+            captureBuffer[captureOffset + (i - startFrame)] += signalBuffer[i];
+          }
+        }
+      }
       for (let i = startFrame; i < endFrame; i += 1) {
         this.trackBuffer[i] += voiceOutput[i];
       }
@@ -605,6 +640,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     this.previewing = false;
     this.previewRemainingSamples = 0;
     this.previewIgnoreVolume = true;
+    this.previewCapture = null;
     this.sampleCounter = 0;
     this.songSampleCounter = 0;
     this.transportSessionId = 0;
@@ -648,6 +684,69 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     }
   }
 
+  beginPreviewCapture(message) {
+    const captureProbes = Array.isArray(message.captureProbes) ? message.captureProbes : [];
+    if (!captureProbes.length) {
+      this.previewCapture = null;
+      return;
+    }
+    const trackRuntime = this.trackRuntimes.find((entry) => entry.track.id === message.trackId);
+    if (!trackRuntime) {
+      this.previewCapture = null;
+      return;
+    }
+    const durationSamples = Math.max(0, Math.floor(message.durationSamples || 0));
+    const signalIndexByProbeId = new Map();
+    const captureSamplesByProbeId = new Map();
+    const captureMetaByProbeId = new Map();
+    for (const probe of captureProbes) {
+      const signalIndex = trackRuntime.resolveProbeSignalIndex(probe.target);
+      if (signalIndex < 0) {
+        continue;
+      }
+      signalIndexByProbeId.set(probe.probeId, signalIndex);
+      captureSamplesByProbeId.set(probe.probeId, new Float32Array(durationSamples));
+      captureMetaByProbeId.set(probe.probeId, probe);
+    }
+    this.previewCapture = signalIndexByProbeId.size > 0
+      ? {
+          previewId: message.previewId,
+          trackId: message.trackId,
+          durationSamples,
+          signalIndexByProbeId,
+          captureSamplesByProbeId,
+          captureMetaByProbeId
+        }
+      : null;
+  }
+
+  flushPreviewCapture() {
+    if (!this.previewCapture) {
+      return;
+    }
+    const captures = [];
+    for (const [probeId, samples] of this.previewCapture.captureSamplesByProbeId.entries()) {
+      const meta = this.previewCapture.captureMetaByProbeId.get(probeId);
+      if (!meta) {
+        continue;
+      }
+      captures.push({
+        probeId,
+        kind: meta.kind,
+        target: meta.target,
+        sampleRate: this.sampleRateInternal,
+        durationSamples: this.previewCapture.durationSamples,
+        samples: Array.from(samples)
+      });
+    }
+    this.port.postMessage({
+      type: "PREVIEW_CAPTURE",
+      previewId: this.previewCapture.previewId,
+      captures
+    });
+    this.previewCapture = null;
+  }
+
   resetTrackVoices(trackRuntime, options = {}) {
     const clearNoteId = Boolean(options.clearNoteId);
     for (const voice of trackRuntime.voices) {
@@ -671,6 +770,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     this.previewing = false;
     this.previewRemainingSamples = 0;
     this.previewIgnoreVolume = true;
+    this.previewCapture = null;
     this.recordingTrackId = null;
     this.transportSessionId = Number.isFinite(message.sessionId) ? message.sessionId : this.transportSessionId + 1;
     this.songSampleCounter = Math.max(0, message.songStartSample || 0);
@@ -730,6 +830,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         this.resetAllTrackVoices();
         this.previewRemainingSamples = Math.max(0, message.durationSamples || 0);
         this.previewIgnoreVolume = message.ignoreVolume !== false;
+        this.beginPreviewCapture(message);
         this.previewing = this.previewRemainingSamples > 0;
         break;
       case "EVENTS":
@@ -854,12 +955,22 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
   // master FX, and write the resulting mono signal to both output channels.
   renderFrameRange(left, right, startFrame, endFrame) {
     this.masterBuffer.fill(0, startFrame, endFrame);
+    const captureOffset = this.songSampleCounter;
 
     if (this.playing || this.previewing) {
       for (const track of this.trackRuntimes) {
         track.processTrackFrames(this.masterBuffer, startFrame, endFrame, {
           ignoreMute: this.previewing,
-          ignoreVolume: this.previewing ? this.previewIgnoreVolume : false
+          ignoreVolume: this.previewing ? this.previewIgnoreVolume : false,
+          captureOffset,
+          captureBufferByProbeId:
+            this.previewCapture && track.track.id === this.previewCapture.trackId
+              ? this.previewCapture.signalIndexByProbeId
+              : null,
+          captureSamplesByProbeId:
+            this.previewCapture && track.track.id === this.previewCapture.trackId
+              ? this.previewCapture.captureSamplesByProbeId
+              : null
         });
       }
     }
@@ -879,6 +990,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
           this.previewing = false;
           this.eventQueue.length = 0;
           this.resetAllTrackVoices();
+          this.flushPreviewCapture();
         }
       }
       this.sampleCounter += 1;

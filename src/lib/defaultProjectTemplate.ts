@@ -105,7 +105,8 @@ const createInitialPatchWorkspaceState = (initialPatchId: string, bundledPresetP
   const initialTab: PatchWorkspaceTabState = {
     id: createId("patchTab"),
     name: initialPatchName,
-    patchId: initialPatchId
+    patchId: initialPatchId,
+    probes: []
   };
   return {
     activeTabId: initialTab.id,

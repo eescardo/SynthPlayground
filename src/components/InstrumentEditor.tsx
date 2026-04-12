@@ -8,11 +8,16 @@ import { useAfterStateCommit } from "@/hooks/useAfterStateCommit";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
+import { PatchProbeTarget, PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
 
 interface InstrumentEditorProps {
   editorSessionKey?: string;
   patch: Patch;
   patches: Patch[];
+  probes: PatchWorkspaceProbeState[];
+  selectedProbeId?: string;
+  previewCaptureByProbeId: Record<string, PreviewProbeCapture>;
+  previewProgress: number;
   macroValues: Record<string, number>;
   selectedNodeId?: string;
   selectedMacroId?: string;
@@ -31,6 +36,12 @@ interface InstrumentEditorProps {
   onSelectMacro: (macroId?: string) => void;
   onClearSelectedMacro: () => void;
   onApplyOp: (op: PatchOp) => void;
+  onAddProbe: (kind: PatchWorkspaceProbeState["kind"]) => void;
+  onMoveProbe: (probeId: string, x: number, y: number) => void;
+  onSelectProbe: (probeId?: string) => void;
+  onUpdateProbeTarget: (probeId: string, target?: PatchProbeTarget) => void;
+  onUpdateProbeSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
+  onDeleteSelectedProbe: () => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
   onAddMacro: () => void;
   onRemoveMacro: (macroId: string) => void;
@@ -81,6 +92,10 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
 
       <PatchEditorCanvas
         patch={props.patch}
+        probes={props.probes}
+        selectedProbeId={props.selectedProbeId}
+        previewCaptureByProbeId={props.previewCaptureByProbeId}
+        previewProgress={props.previewProgress}
         macroValues={props.macroValues}
         selectedNodeId={props.selectedNodeId}
         selectedMacroId={props.selectedMacroId}
@@ -90,6 +105,12 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
         onSelectMacro={props.onSelectMacro}
         onClearSelectedMacro={props.onClearSelectedMacro}
         onApplyOp={props.onApplyOp}
+        onAddProbe={props.onAddProbe}
+        onMoveProbe={props.onMoveProbe}
+        onSelectProbe={props.onSelectProbe}
+        onUpdateProbeTarget={props.onUpdateProbeTarget}
+        onUpdateProbeSpectrumWindow={props.onUpdateProbeSpectrumWindow}
+        onDeleteSelectedProbe={props.onDeleteSelectedProbe}
         onExposeMacro={props.onExposeMacro}
         onAddMacro={props.onAddMacro}
         onRemoveMacro={props.onRemoveMacro}

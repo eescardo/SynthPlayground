@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import { drawPatchCanvas } from "@/components/patch/patchCanvasDrawing";
 import {
+  findPatchConnectionAtPoint,
   findPatchNodeAtPoint,
   findPatchPortAtPoint,
   HitPort,
@@ -23,9 +24,11 @@ interface UsePatchCanvasInteractionsArgs {
   patch: Patch;
   selectedMacroNodeIds: Set<string>;
   selectedNodeId?: string;
+  pendingProbeId?: string | null;
   structureLocked?: boolean;
   onApplyOp: (op: PatchOp) => void;
   onSelectNode: (nodeId?: string) => void;
+  onAttachProbeTarget?: (target: { kind: "port"; nodeId: string; portId: string; portKind: "in" | "out" } | { kind: "connection"; connectionId: string }) => void;
   makeConnectOp: (fromNodeId: string, fromPortId: string, toNodeId: string, toPortId: string) => PatchOp;
   handleFacePopoverPointerDown: (rawX: number, rawY: number) => "none" | "dismissed" | "inside-popover";
   togglePopoverForNode: (nodeId: string) => void;
@@ -87,6 +90,15 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
 
     const hitPort = findPatchPortAtPoint(hitPortsRef.current, pos.rawX, pos.rawY);
     if (hitPort) {
+      if (args.pendingProbeId && args.onAttachProbeTarget) {
+        args.onAttachProbeTarget({
+          kind: "port",
+          nodeId: hitPort.nodeId,
+          portId: hitPort.portId,
+          portKind: hitPort.kind
+        });
+        return;
+      }
       if (args.structureLocked) {
         return;
       }
@@ -97,6 +109,17 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         setPendingFromPort(null);
       }
       return;
+    }
+
+    if (args.pendingProbeId && args.onAttachProbeTarget) {
+      const hitConnectionId = findPatchConnectionAtPoint(args.patch, args.layoutByNode, pos.rawX, pos.rawY);
+      if (hitConnectionId) {
+        args.onAttachProbeTarget({
+          kind: "connection",
+          connectionId: hitConnectionId
+        });
+        return;
+      }
     }
 
     const hitNodeId = getNodeAtPointer(pos.rawX, pos.rawY);

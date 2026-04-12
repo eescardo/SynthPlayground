@@ -1221,6 +1221,25 @@ select {
   gap: 0.5rem;
 }
 
+.patch-toolbar-probe-picker {
+  position: relative;
+}
+
+.patch-toolbar-probe-popover {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  z-index: 16;
+  display: grid;
+  gap: 0.3rem;
+  min-width: 10rem;
+  padding: 0.35rem;
+  border: 1px solid rgba(131, 173, 216, 0.24);
+  border-radius: 12px;
+  background: rgba(9, 17, 26, 0.98);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.34);
+}
+
 .patch-zoom-readout {
   margin-left: auto;
   color: #8fb4d4;
@@ -1281,6 +1300,93 @@ select {
   border: 1px solid #223749;
   border-radius: 8px;
   background: #0b1118;
+}
+
+.patch-canvas-overlay-shell {
+  position: relative;
+}
+
+.patch-probe-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.patch-probe-connections {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.patch-probe-card {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.45rem;
+  border: 1px solid rgba(200, 255, 57, 0.32);
+  border-radius: 12px;
+  background: rgba(11, 18, 25, 0.96);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  pointer-events: auto;
+  user-select: none;
+}
+
+.patch-probe-card.selected {
+  border-color: rgba(200, 255, 57, 0.88);
+  box-shadow: 0 0 0 1px rgba(200, 255, 57, 0.2), 0 12px 24px rgba(0, 0, 0, 0.32);
+}
+
+.patch-probe-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: #e7f3ff;
+  font-size: 0.78rem;
+}
+
+.patch-probe-card-header strong {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.patch-probe-attach-button {
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(200, 255, 57, 0.42);
+  background: rgba(200, 255, 57, 0.12);
+  color: #e7f3ff;
+  font-size: 0.68rem;
+}
+
+.patch-probe-card-body {
+  flex: 1;
+  min-height: 0;
+}
+
+.patch-probe-graph {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.patch-probe-spectrum-shell {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 0.3rem;
+  height: 100%;
+}
+
+.patch-probe-window-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  color: #8fb4d4;
+  font-size: 0.7rem;
 }
 
 .patch-layout canvas {

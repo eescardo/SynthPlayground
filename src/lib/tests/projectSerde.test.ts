@@ -101,12 +101,28 @@ describe("projectSerde", () => {
         name: "Bass Ideas",
         patchId: "preset_bass",
         selectedNodeId: "vcf1",
-        selectedMacroId: "macro_decay"
+        selectedMacroId: "macro_decay",
+        probes: [
+          {
+            id: "probe_scope",
+            kind: "scope",
+            name: "Bass Scope",
+            x: 14,
+            y: 5,
+            width: 10,
+            height: 6,
+            target: {
+              kind: "connection",
+              connectionId: "conn_1"
+            }
+          }
+        ]
       },
       {
         id: "tab_b",
         name: "Transient Test",
-        patchId: "preset_bass"
+        patchId: "preset_bass",
+        probes: []
       }
     ];
     project.ui.patchWorkspace.activeTabId = "tab_b";

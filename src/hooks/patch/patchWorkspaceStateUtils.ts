@@ -48,6 +48,7 @@ export const isAudiblePatchOp = (op: PatchOp): boolean =>
 
 export const toLocalTab = (tab: PatchWorkspaceTabState): LocalPatchWorkspaceTab => ({
   ...tab,
+  probes: Array.isArray(tab.probes) ? tab.probes : [],
   migrationNotice: null
 });
 
@@ -56,7 +57,9 @@ export const toPersistedTab = (tab: LocalPatchWorkspaceTab): PatchWorkspaceTabSt
   name: tab.name,
   patchId: tab.patchId,
   selectedNodeId: tab.selectedNodeId,
-  selectedMacroId: tab.selectedMacroId
+  selectedMacroId: tab.selectedMacroId,
+  selectedProbeId: tab.selectedProbeId,
+  probes: tab.probes
 });
 
 export const getActiveTab = (tabs: LocalPatchWorkspaceTab[], activeTabId?: string) =>

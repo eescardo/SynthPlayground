@@ -1,5 +1,6 @@
 // Core song/composition structures used by UI editing, transport, and project persistence.
 import { Patch } from "@/types/patch";
+import { PatchWorkspaceProbeState } from "@/types/probes";
 
 export interface Note {
   id: string;
@@ -86,6 +87,8 @@ export interface PatchWorkspaceTabState {
   patchId: string;
   selectedNodeId?: string;
   selectedMacroId?: string;
+  selectedProbeId?: string;
+  probes: PatchWorkspaceProbeState[];
 }
 
 export interface PatchWorkspaceUiState {
