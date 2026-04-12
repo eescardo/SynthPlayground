@@ -43,6 +43,27 @@ type HoveredAttachTarget =
   | null;
 
 export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs) {
+  const {
+    canvasRef,
+    canvasSize,
+    facePopoverNodeId,
+    getFacePopoverRect,
+    layoutByNode,
+    nodeById,
+    patch,
+    validationIssues,
+    selectedMacroNodeIds,
+    selectedNodeId,
+    pendingProbeId,
+    structureLocked,
+    onApplyOp,
+    onSelectNode,
+    onAttachProbeTarget,
+    onCancelProbeAttach,
+    makeConnectOp,
+    handleFacePopoverPointerDown,
+    togglePopoverForNode
+  } = args;
   const hitPortsRef = useRef<HitPort[]>([]);
   const dragLastLayoutRef = useRef<{ x: number; y: number } | null>(null);
   const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
@@ -61,7 +82,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     const fromPort = startPort.kind === "out" ? startPort : endPort;
     const toPort = startPort.kind === "in" ? startPort : endPort;
     const issues = validatePatchConnectionCandidate(
-      args.patch,
+      patch,
       fromPort.nodeId,
       fromPort.portId,
       toPort.nodeId,
@@ -71,43 +92,43 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       return null;
     }
     return {
-      op: args.makeConnectOp(fromPort.nodeId, fromPort.portId, toPort.nodeId, toPort.portId),
+      op: makeConnectOp(fromPort.nodeId, fromPort.portId, toPort.nodeId, toPort.portId),
       target: toPort
     };
-  }, [args.makeConnectOp, args.patch]);
+  }, [makeConnectOp, patch]);
 
   useEffect(() => {
-    const canvas = args.canvasRef.current;
+    const canvas = canvasRef.current;
     if (!canvas) {
       return;
     }
     hitPortsRef.current = drawPatchCanvas({
       canvas,
-      canvasSize: args.canvasSize,
-      facePopoverNodeId: args.facePopoverNodeId,
-      getFacePopoverRect: args.getFacePopoverRect,
+      canvasSize,
+      facePopoverNodeId,
+      getFacePopoverRect,
       hoveredNodeId,
-      layoutByNode: args.layoutByNode,
-      nodeById: args.nodeById,
-      patch: args.patch,
-      validationIssues: args.validationIssues,
+      layoutByNode,
+      nodeById,
+      patch,
+      validationIssues,
       pendingFromPort,
       pendingWirePointer,
-      selectedMacroNodeIds: args.selectedMacroNodeIds,
-      selectedNodeId: args.selectedNodeId,
+      selectedMacroNodeIds,
+      selectedNodeId,
       hoveredAttachTarget
     });
   }, [
-    args.canvasRef,
-    args.canvasSize,
-    args.facePopoverNodeId,
-    args.getFacePopoverRect,
-    args.layoutByNode,
-    args.nodeById,
-    args.patch,
-    args.validationIssues,
-    args.selectedMacroNodeIds,
-    args.selectedNodeId,
+    canvasRef,
+    canvasSize,
+    facePopoverNodeId,
+    getFacePopoverRect,
+    layoutByNode,
+    nodeById,
+    patch,
+    validationIssues,
+    selectedMacroNodeIds,
+    selectedNodeId,
     hoveredAttachTarget,
     hoveredNodeId,
     pendingFromPort,
@@ -115,12 +136,12 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
   ]);
 
   const getNodeAtPointer = useCallback((rawX: number, rawY: number) => {
-    return findPatchNodeAtPoint(args.patch, args.layoutByNode, rawX, rawY);
-  }, [args.layoutByNode, args.patch]);
+    return findPatchNodeAtPoint(patch, layoutByNode, rawX, rawY);
+  }, [layoutByNode, patch]);
 
   const handlePortSelection = useCallback((hitPort: HitPort, pointer: { x: number; y: number }) => {
-    if (args.pendingProbeId && args.onAttachProbeTarget) {
-      args.onAttachProbeTarget({
+    if (pendingProbeId && onAttachProbeTarget) {
+      onAttachProbeTarget({
         kind: "port",
         nodeId: hitPort.nodeId,
         portId: hitPort.portId,
@@ -128,7 +149,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       });
       return;
     }
-    if (args.structureLocked) {
+    if (structureLocked) {
       return;
     }
     if (!pendingFromPort) {
@@ -139,7 +160,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
 
     const resolved = resolveConnectionOp(pendingFromPort, hitPort);
     if (resolved) {
-      args.onApplyOp(resolved.op);
+      onApplyOp(resolved.op);
       setPendingFromPort(null);
       setPendingWirePointer(null);
       setHoveredAttachTarget(null);
@@ -148,7 +169,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
 
     setPendingFromPort(hitPort);
     setPendingWirePointer(pointer);
-  }, [args, pendingFromPort, resolveConnectionOp]);
+  }, [onApplyOp, onAttachProbeTarget, pendingProbeId, pendingFromPort, resolveConnectionOp, structureLocked]);
 
   const handlePortHover = useCallback((hoverPort: HitPort | null, pointer: { x: number; y: number } | null) => {
     if (pendingFromPort && pointer) {
@@ -173,10 +194,10 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
   }, [pendingFromPort, resolveConnectionOp]);
 
   const onPointerDown = useCallback((event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const pos = pointerEventToPatchCanvasPoint(args.canvasRef.current, event);
+    const pos = pointerEventToPatchCanvasPoint(canvasRef.current, event);
     pointerDownNodeIdRef.current = null;
     pointerMovedRef.current = false;
-    if (args.handleFacePopoverPointerDown(pos.rawX, pos.rawY) !== "none") {
+    if (handleFacePopoverPointerDown(pos.rawX, pos.rawY) !== "none") {
       return;
     }
 
@@ -186,27 +207,27 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       return;
     }
 
-    if (args.pendingProbeId && args.onAttachProbeTarget) {
-      const hitConnectionId = findPatchConnectionAtPoint(args.patch, args.layoutByNode, pos.rawX, pos.rawY);
+    if (pendingProbeId && onAttachProbeTarget) {
+      const hitConnectionId = findPatchConnectionAtPoint(patch, layoutByNode, pos.rawX, pos.rawY);
       if (hitConnectionId) {
-        args.onAttachProbeTarget({
+        onAttachProbeTarget({
           kind: "connection",
           connectionId: hitConnectionId
         });
         return;
       }
-      args.onCancelProbeAttach?.();
+      onCancelProbeAttach?.();
       setHoveredAttachTarget(null);
       return;
     }
 
     const hitNodeId = getNodeAtPointer(pos.rawX, pos.rawY);
     if (hitNodeId) {
-      args.onSelectNode(hitNodeId);
+      onSelectNode(hitNodeId);
       setDragNodeId(hitNodeId);
       pointerDownNodeIdRef.current = hitNodeId;
       pointerMovedRef.current = false;
-      const layout = args.layoutByNode.get(hitNodeId);
+      const layout = layoutByNode.get(hitNodeId);
       dragLastLayoutRef.current = layout ? { x: layout.x, y: layout.y } : null;
       dragPointerOffsetRef.current = layout
         ? {
@@ -216,24 +237,29 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         : null;
       event.currentTarget.setPointerCapture(event.pointerId);
     } else {
-      args.onSelectNode(undefined);
+      onSelectNode(undefined);
       setPendingFromPort(null);
       setPendingWirePointer(null);
       pointerDownNodeIdRef.current = null;
       pointerMovedRef.current = false;
     }
   }, [
-    args,
+    canvasRef,
+    handleFacePopoverPointerDown,
+    layoutByNode,
+    onAttachProbeTarget,
+    onCancelProbeAttach,
+    onSelectNode,
+    patch,
+    pendingProbeId,
     getNodeAtPointer,
-    handlePortSelection,
-    pendingFromPort,
-    resolveConnectionOp
+    handlePortSelection
   ]);
 
   const onPointerMove = useCallback((event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const pos = pointerEventToPatchCanvasPoint(args.canvasRef.current, event);
+    const pos = pointerEventToPatchCanvasPoint(canvasRef.current, event);
     const hoverPort = findPatchPortAtPoint(hitPortsRef.current, pos.rawX, pos.rawY);
-    if (args.pendingProbeId) {
+    if (pendingProbeId) {
       if (hoverPort) {
         setHoveredAttachTarget({
           kind: "port",
@@ -242,7 +268,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
           portKind: hoverPort.kind
         });
       } else {
-        const hoverConnectionId = findPatchConnectionAtPoint(args.patch, args.layoutByNode, pos.rawX, pos.rawY);
+        const hoverConnectionId = findPatchConnectionAtPoint(patch, layoutByNode, pos.rawX, pos.rawY);
         setHoveredAttachTarget(hoverConnectionId ? { kind: "connection", connectionId: hoverConnectionId } : null);
       }
     } else {
@@ -267,12 +293,12 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     }
     dragLastLayoutRef.current = nextLayout;
     pointerMovedRef.current = true;
-    args.onApplyOp({
+    onApplyOp({
       type: "moveNode",
       nodeId: dragNodeId,
       newLayoutPos: nextLayout
     });
-  }, [args, dragNodeId, getNodeAtPointer, handlePortHover]);
+  }, [canvasRef, dragNodeId, getNodeAtPointer, handlePortHover, layoutByNode, onApplyOp, patch, pendingProbeId]);
 
   const onPointerUp = useCallback((event: ReactPointerEvent<HTMLCanvasElement>) => {
     const clickedNodeId = pointerDownNodeIdRef.current;
@@ -290,9 +316,9 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     pointerMovedRef.current = false;
     setDragNodeId(null);
     if (clickedNodeId && !moved) {
-      args.togglePopoverForNode(clickedNodeId);
+      togglePopoverForNode(clickedNodeId);
     }
-  }, [args, dragNodeId]);
+  }, [dragNodeId, togglePopoverForNode]);
 
   return {
     dragNodeId,

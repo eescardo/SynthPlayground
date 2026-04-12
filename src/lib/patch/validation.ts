@@ -25,6 +25,68 @@ const resolveAllNodeTypes = (patch: Patch): Map<string, string> => {
   return allNodeTypes;
 };
 
+interface ResolvedConnectionValidation {
+  fromPort: NonNullable<ReturnType<typeof getModuleSchema>>["portsOut"][number];
+  toPort: NonNullable<ReturnType<typeof getModuleSchema>>["portsIn"][number];
+}
+
+const resolveConnectionValidation = (
+  issues: PatchValidationIssue[],
+  allNodeTypes: Map<string, string>,
+  fromNodeId: string,
+  fromPortId: string,
+  toNodeId: string,
+  toPortId: string,
+  context?: Record<string, string>
+): ResolvedConnectionValidation | null => {
+  const fromType = allNodeTypes.get(fromNodeId);
+  const toType = allNodeTypes.get(toNodeId);
+
+  if (!fromType) {
+    pushError(issues, `Connection source node does not exist`, { ...context, nodeId: fromNodeId }, "connection-missing-source");
+    return null;
+  }
+  if (!toType) {
+    pushError(issues, `Connection destination node does not exist`, { ...context, nodeId: toNodeId }, "connection-missing-destination");
+    return null;
+  }
+
+  const fromSchema = getModuleSchema(fromType);
+  const toSchema = getModuleSchema(toType);
+  if (!fromSchema || !toSchema) {
+    pushError(issues, `Connection references unknown module schema`, context, "connection-unknown-schema");
+    return null;
+  }
+
+  const fromPort = fromSchema.portsOut.find((port) => port.id === fromPortId);
+  const toPort = toSchema.portsIn.find((port) => port.id === toPortId);
+  if (!fromPort) {
+    pushError(issues, `Invalid source port`, { ...context, nodeId: fromNodeId, portId: fromPortId }, "connection-invalid-source-port");
+    return null;
+  }
+  if (!toPort) {
+    pushError(issues, `Invalid destination port`, { ...context, nodeId: toNodeId, portId: toPortId }, "connection-invalid-destination-port");
+    return null;
+  }
+  if (fromPort.kind !== toPort.kind) {
+    pushError(issues, `Port kind mismatch`, context, "connection-kind-mismatch");
+    return null;
+  }
+
+  const isCompatible = fromPort.capabilities.some((capability) => toPort.capabilities.includes(capability));
+  if (!isCompatible) {
+    pushError(
+      issues,
+      `Port capability mismatch`,
+      { ...context, from: fromPort.capabilities.join(","), to: toPort.capabilities.join(",") },
+      "connection-capability-mismatch"
+    );
+    return null;
+  }
+
+  return { fromPort, toPort };
+};
+
 const wouldCreateCycle = (patch: Patch, fromNodeId: string, toNodeId: string) => {
   if (fromNodeId === toNodeId) {
     return true;
@@ -71,50 +133,11 @@ export const validatePatchConnectionCandidate = (
 ): PatchValidationIssue[] => {
   const issues: PatchValidationIssue[] = [];
   const allNodeTypes = resolveAllNodeTypes(patch);
-  const fromType = allNodeTypes.get(fromNodeId);
-  const toType = allNodeTypes.get(toNodeId);
-
-  if (!fromType) {
-    pushError(issues, `Connection source node does not exist`, { nodeId: fromNodeId }, "connection-missing-source");
+  const resolved = resolveConnectionValidation(issues, allNodeTypes, fromNodeId, fromPortId, toNodeId, toPortId);
+  if (!resolved) {
     return issues;
   }
-  if (!toType) {
-    pushError(issues, `Connection destination node does not exist`, { nodeId: toNodeId }, "connection-missing-destination");
-    return issues;
-  }
-
-  const fromSchema = getModuleSchema(fromType);
-  const toSchema = getModuleSchema(toType);
-  if (!fromSchema || !toSchema) {
-    pushError(issues, `Connection references unknown module schema`, undefined, "connection-unknown-schema");
-    return issues;
-  }
-
-  const fromPort = fromSchema.portsOut.find((port) => port.id === fromPortId);
-  const toPort = toSchema.portsIn.find((port) => port.id === toPortId);
-  if (!fromPort) {
-    pushError(issues, `Invalid source port`, { nodeId: fromNodeId, portId: fromPortId }, "connection-invalid-source-port");
-    return issues;
-  }
-  if (!toPort) {
-    pushError(issues, `Invalid destination port`, { nodeId: toNodeId, portId: toPortId }, "connection-invalid-destination-port");
-    return issues;
-  }
-  if (fromPort.kind !== toPort.kind) {
-    pushError(issues, `Port kind mismatch`, undefined, "connection-kind-mismatch");
-    return issues;
-  }
-  const isCompatible = fromPort.capabilities.some((capability) => toPort.capabilities.includes(capability));
-  if (!isCompatible) {
-    pushError(
-      issues,
-      `Port capability mismatch`,
-      { from: fromPort.capabilities.join(","), to: toPort.capabilities.join(",") },
-      "connection-capability-mismatch"
-    );
-    return issues;
-  }
-  if (!toPort.multiIn && patch.connections.some((connection) => connection.to.nodeId === toNodeId && connection.to.portId === toPortId)) {
+  if (!resolved.toPort.multiIn && patch.connections.some((connection) => connection.to.nodeId === toNodeId && connection.to.portId === toPortId)) {
     pushError(
       issues,
       `Multiple inputs connected to single-input port`,
@@ -238,60 +261,16 @@ export const validatePatch = (patch: Patch): PatchValidationResult => {
     }
     uniqueConnectionIds.add(connection.id);
 
-    const fromType = allNodeTypes.get(connection.from.nodeId);
-    const toType = allNodeTypes.get(connection.to.nodeId);
-
-    if (!fromType) {
-      pushError(issues, `Connection source node does not exist`, { connectionId: connection.id, nodeId: connection.from.nodeId });
-      continue;
-    }
-    if (!toType) {
-      pushError(issues, `Connection destination node does not exist`, {
-        connectionId: connection.id,
-        nodeId: connection.to.nodeId
-      });
-      continue;
-    }
-
-    const fromSchema = getModuleSchema(fromType);
-    const toSchema = getModuleSchema(toType);
-    if (!fromSchema || !toSchema) {
-      pushError(issues, `Connection references unknown module schema`, { connectionId: connection.id });
-      continue;
-    }
-
-    const fromPort = fromSchema.portsOut.find((port) => port.id === connection.from.portId);
-    const toPort = toSchema.portsIn.find((port) => port.id === connection.to.portId);
-
-    if (!fromPort) {
-      pushError(issues, `Invalid source port`, {
-        connectionId: connection.id,
-        nodeId: connection.from.nodeId,
-        portId: connection.from.portId
-      });
-      continue;
-    }
-    if (!toPort) {
-      pushError(issues, `Invalid destination port`, {
-        connectionId: connection.id,
-        nodeId: connection.to.nodeId,
-        portId: connection.to.portId
-      });
-      continue;
-    }
-
-    if (fromPort.kind !== toPort.kind) {
-      pushError(issues, `Port kind mismatch`, { connectionId: connection.id });
-      continue;
-    }
-
-    const isCompatible = fromPort.capabilities.some((capability) => toPort.capabilities.includes(capability));
-    if (!isCompatible) {
-      pushError(issues, `Port capability mismatch`, {
-        connectionId: connection.id,
-        from: fromPort.capabilities.join(","),
-        to: toPort.capabilities.join(",")
-      });
+    const resolved = resolveConnectionValidation(
+      issues,
+      allNodeTypes,
+      connection.from.nodeId,
+      connection.from.portId,
+      connection.to.nodeId,
+      connection.to.portId,
+      { connectionId: connection.id }
+    );
+    if (!resolved) {
       continue;
     }
 
@@ -302,7 +281,7 @@ export const validatePatch = (patch: Patch): PatchValidationResult => {
       connectedInputPorts.add(incomingKey);
     }
 
-    if ((incomingByPort.get(incomingKey) ?? 0) > 1 && !toPort.multiIn) {
+    if ((incomingByPort.get(incomingKey) ?? 0) > 1 && !resolved.toPort.multiIn) {
       pushError(issues, `Multiple inputs connected to single-input port`, {
         connectionId: connection.id,
         targetPort: incomingKey

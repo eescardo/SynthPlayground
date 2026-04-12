@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { bassPatch, createClearPatch, drumPatch, pluckPatch, presetPatches } from "@/lib/patch/presets";
+import { moduleRegistryById } from "@/lib/patch/moduleRegistry";
 import { validatePatch, validatePatchConnectionCandidate } from "@/lib/patch/validation";
 import { Patch } from "@/types/patch";
 
@@ -116,6 +117,28 @@ describe("patch validation", () => {
 
     expect(result.ok).toBe(false);
     expect(findIssue(patch, "required-port-unconnected", "sat1", "out")).toBeTruthy();
+  });
+
+  it("rejects module schemas that declare missing required ports", () => {
+    const patch = bassPatch();
+    const schema = moduleRegistryById.get("VCO");
+    expect(schema).toBeDefined();
+
+    const previousRequiredPortIds = schema?.requiredPortIds;
+    if (schema) {
+      schema.requiredPortIds = { in: ["pitch", "notARealPort"] };
+    }
+
+    try {
+      const result = validatePatch(patch);
+
+      expect(result.ok).toBe(false);
+      expect(result.issues.some((issue) => issue.code === "required-port-schema-mismatch" && issue.context?.nodeId === "vco1")).toBe(true);
+    } finally {
+      if (schema) {
+        schema.requiredPortIds = previousRequiredPortIds;
+      }
+    }
   });
 
   it("does not treat same-module wiring as satisfying required ports", () => {

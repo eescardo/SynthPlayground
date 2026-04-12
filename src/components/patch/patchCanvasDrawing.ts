@@ -25,6 +25,7 @@ import {
   PATCH_PORT_ROW_GAP,
   PATCH_PORT_START_Y
 } from "@/components/patch/patchCanvasConstants";
+import { resolveInvalidPortKeys } from "@/components/patch/patchCanvasValidation";
 import { CanvasRect, HitPort, isHostPatchNodeId, resolveHostPatchPortRect, resolveHostPatchPortTint } from "@/components/patch/patchCanvasGeometry";
 import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
 import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
@@ -556,23 +557,6 @@ function buildHitPorts(portPositions: Map<string, ResolvedPortPosition>) {
     });
   }
   return hitPorts;
-}
-
-function resolveInvalidPortKeys(validationIssues: PatchValidationIssue[]) {
-  const invalidPortKeys = new Set<string>();
-  for (const issue of validationIssues) {
-    if (issue.code !== "required-port-unconnected") {
-      continue;
-    }
-    const nodeId = issue.context?.nodeId;
-    const portId = issue.context?.portId;
-    const direction = issue.context?.direction;
-    if (!nodeId || !portId || (direction !== "in" && direction !== "out")) {
-      continue;
-    }
-    invalidPortKeys.add(`${nodeId}:${direction}:${portId}`);
-  }
-  return invalidPortKeys;
 }
 
 export function drawPatchCanvas(args: {

@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
+import { PatchToolbarPicker } from "@/components/patch/PatchToolbarPicker";
 import { modulePalette } from "@/lib/patch/moduleRegistry";
 import { PatchWorkspaceProbeState } from "@/types/probes";
 
@@ -22,65 +21,55 @@ interface PatchEditorToolbarProps {
 }
 
 export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
-  const [modulePickerOpen, setModulePickerOpen] = useState(false);
-  const [probePickerOpen, setProbePickerOpen] = useState(false);
-
-  useDismissiblePopover({
-    active: modulePickerOpen,
-    popoverSelector: ".patch-toolbar-module-picker",
-    onDismiss: () => setModulePickerOpen(false)
-  });
-
-  useDismissiblePopover({
-    active: probePickerOpen,
-    popoverSelector: ".patch-toolbar-probe-picker",
-    onDismiss: () => setProbePickerOpen(false)
-  });
-
   return (
     <div className="patch-toolbar">
-      <div className="patch-toolbar-module-picker">
-        <button type="button" disabled={props.structureLocked} onClick={() => setModulePickerOpen((open) => !open)}>
-          Add Module
-        </button>
-        {modulePickerOpen && (
-          <div className="patch-toolbar-picker-popover patch-toolbar-module-popover" role="dialog" aria-label="Add module">
+      <PatchToolbarPicker
+        buttonLabel="Add Module"
+        popoverAriaLabel="Add module"
+        wrapperClassName="patch-toolbar-module-picker"
+        popoverClassName="patch-toolbar-module-popover"
+        disabled={props.structureLocked}
+      >
+        {({ close }) => (
+          <>
             {modulePalette.map((module) => (
               <button
                 key={module.typeId}
                 type="button"
                 onClick={() => {
                   props.onAddNode(module.typeId);
-                  setModulePickerOpen(false);
+                  close();
                 }}
               >
                 {module.typeId}
               </button>
             ))}
-          </div>
+          </>
         )}
-      </div>
-      <div className="patch-toolbar-probe-picker">
-        <button type="button" onClick={() => setProbePickerOpen((open) => !open)}>
-          Add Probe
-        </button>
-        {probePickerOpen && (
-          <div className="patch-toolbar-picker-popover patch-toolbar-probe-popover" role="dialog" aria-label="Add probe">
+      </PatchToolbarPicker>
+      <PatchToolbarPicker
+        buttonLabel="Add Probe"
+        popoverAriaLabel="Add probe"
+        wrapperClassName="patch-toolbar-probe-picker"
+        popoverClassName="patch-toolbar-probe-popover"
+      >
+        {({ close }) => (
+          <>
             <button type="button" onClick={() => {
               props.onAddProbe("scope");
-              setProbePickerOpen(false);
+              close();
             }}>
               Scope Probe
             </button>
             <button type="button" onClick={() => {
               props.onAddProbe("spectrum");
-              setProbePickerOpen(false);
+              close();
             }}>
               Spectrum Probe
             </button>
-          </div>
+          </>
         )}
-      </div>
+      </PatchToolbarPicker>
       <button
         disabled={!props.selectedProbeId && (!props.selectedNodeId || props.structureLocked)}
         onClick={props.onDeleteSelected}
