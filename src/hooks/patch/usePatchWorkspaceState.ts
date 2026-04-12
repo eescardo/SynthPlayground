@@ -1,26 +1,22 @@
 "use client";
 
 import type { Dispatch, RefObject, SetStateAction } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { AudioEngine } from "@/audio/engine";
 import { PatchRemovalDialogState } from "@/components/home/PatchRemovalDialogModal";
 import { usePatchWorkspaceMacroValues } from "@/hooks/patch/usePatchWorkspaceMacroValues";
 import {
   createNextTabName,
-  getActiveTab,
   isAudiblePatchOp,
-  isShortcutBlockedTarget,
   isTextEditingTarget,
   LocalPatchWorkspaceTab,
   MAX_PATCH_WORKSPACE_TABS,
-  parseTabMacroValues,
-  PATCH_WORKSPACE_TAB_MACRO_VALUES_SESSION_KEY,
-  pruneTabMacroValues,
-  toLocalTab,
-  toPersistedTab
 } from "@/hooks/patch/patchWorkspaceStateUtils";
+import { usePatchWorkspacePreviewController } from "@/hooks/patch/usePatchWorkspacePreviewController";
 import { usePatchWorkspacePreview } from "@/hooks/patch/usePatchWorkspacePreview";
+import { usePatchWorkspaceTabMacroSession } from "@/hooks/patch/usePatchWorkspaceTabMacroSession";
+import { usePatchWorkspaceTabState } from "@/hooks/patch/usePatchWorkspaceTabState";
 import { createId } from "@/lib/ids";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
@@ -58,77 +54,26 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     setRuntimeError,
     setPatchRemovalDialog
   } = options;
-  const initialPersistedWorkspace = project.ui.patchWorkspace;
-  const [tabs, setTabs] = useState<LocalPatchWorkspaceTab[]>(() => initialPersistedWorkspace.tabs.map(toLocalTab));
-  const [activeTabId, setActiveTabId] = useState<string | undefined>(initialPersistedWorkspace.activeTabId);
-  const [tabMacroValuesById, setTabMacroValuesById] = useState<Record<string, Record<string, number>>>({});
-  const skipNextTabPreviewRef = useRef(true);
-  const previousActiveTabIdRef = useRef<string | undefined>(undefined);
-  const pendingAutoPreviewTabIdRef = useRef<string | null>(null);
-  const skipNextWorkspaceHistoryRef = useRef(true);
-  const projectWorkspaceSignature = JSON.stringify(project.ui.patchWorkspace);
-  const workspaceSyncSignatureRef = useRef(projectWorkspaceSignature);
   const patchNameById = useMemo(() => new Map(project.patches.map((patch) => [patch.id, patch.name] as const)), [project.patches]);
-
-  const createWorkspaceTab = useCallback((patchId: string, name?: string): LocalPatchWorkspaceTab => ({
-    id: createId("patchTab"),
-    name: name ?? patchNameById.get(patchId) ?? "Instrument",
-    patchId,
-    migrationNotice: null
-  }), [patchNameById]);
-
-  useEffect(() => {
-    setTabMacroValuesById(parseTabMacroValues(window.sessionStorage.getItem(PATCH_WORKSPACE_TAB_MACRO_VALUES_SESSION_KEY)));
-  }, []);
-
-  useEffect(() => {
-    window.sessionStorage.setItem(PATCH_WORKSPACE_TAB_MACRO_VALUES_SESSION_KEY, JSON.stringify(tabMacroValuesById));
-  }, [tabMacroValuesById]);
-
-  useEffect(() => {
-    setTabMacroValuesById((current) => {
-      const next = pruneTabMacroValues(current, tabs.map((tab) => tab.id));
-      return Object.keys(next).length === Object.keys(current).length ? current : next;
-    });
-  }, [tabs]);
-
-  useEffect(() => {
-    if (projectWorkspaceSignature === workspaceSyncSignatureRef.current) {
-      return;
-    }
-    workspaceSyncSignatureRef.current = projectWorkspaceSignature;
-    setTabs(project.ui.patchWorkspace.tabs.map(toLocalTab));
-    setActiveTabId(project.ui.patchWorkspace.activeTabId);
-  }, [project.ui.patchWorkspace.activeTabId, project.ui.patchWorkspace.tabs, projectWorkspaceSignature]);
-
-  const persistedWorkspaceState = useMemo(
-    () => ({
-      activeTabId,
-      tabs: tabs.map(toPersistedTab)
-    }),
-    [activeTabId, tabs]
-  );
-  const persistedWorkspaceSignature = JSON.stringify(persistedWorkspaceState);
-
-  useEffect(() => {
-    if (persistedWorkspaceSignature === workspaceSyncSignatureRef.current) {
-      return;
-    }
-    workspaceSyncSignatureRef.current = persistedWorkspaceSignature;
-    commitProjectChange(
-      (current) => ({
-        ...current,
-        ui: {
-          ...current.ui,
-          patchWorkspace: persistedWorkspaceState
-        }
-      }),
-      { skipHistory: skipNextWorkspaceHistoryRef.current }
-    );
-    skipNextWorkspaceHistoryRef.current = true;
-  }, [commitProjectChange, persistedWorkspaceSignature, persistedWorkspaceState]);
-
-  const activeTab = useMemo(() => getActiveTab(tabs, activeTabId), [activeTabId, tabs]);
+  const {
+    tabs,
+    activeTabId,
+    activeTab,
+    setTabs,
+    setActiveTabId,
+    updateTabs,
+    updateActiveTab,
+    createWorkspaceTab,
+    closePatchWorkspace,
+    skipNextWorkspaceHistoryRef
+  } = usePatchWorkspaceTabState({
+    project,
+    selectedTrack,
+    router,
+    patchNameById,
+    commitProjectChange
+  });
+  const { tabMacroValuesById, setTabMacroValuesById } = usePatchWorkspaceTabMacroSession(tabs.map((tab) => tab.id));
   const selectedPatch = useMemo(
     () =>
       project.patches.find((patch) => patch.id === activeTab?.patchId) ??
@@ -170,54 +115,6 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     setRuntimeError
   });
 
-  const updateTabs = useCallback((updater: (currentTabs: LocalPatchWorkspaceTab[]) => LocalPatchWorkspaceTab[]) => {
-    setTabs((currentTabs) => updater(currentTabs));
-  }, []);
-
-  const updateActiveTab = useCallback(
-    (updater: (tab: LocalPatchWorkspaceTab) => LocalPatchWorkspaceTab) => {
-      if (!activeTab) {
-        return;
-      }
-      setTabs((currentTabs) => currentTabs.map((tab) => (tab.id === activeTab.id ? updater(tab) : tab)));
-    },
-    [activeTab]
-  );
-
-  useEffect(() => {
-    const validPatchIds = new Set(project.patches.map((patch) => patch.id));
-    setTabs((currentTabs) => {
-      const fallbackPatchId = selectedTrack?.instrumentPatchId ?? project.patches[0]?.id;
-      if (!fallbackPatchId) {
-        return currentTabs;
-      }
-      const nextTabs = currentTabs
-        .filter((tab) => validPatchIds.has(tab.patchId))
-        .map((tab) => ({
-          ...tab,
-          name: tab.name || patchNameById.get(tab.patchId) || "Instrument",
-          selectedMacroId:
-            tab.selectedMacroId &&
-            project.patches.find((patch) => patch.id === tab.patchId)?.ui.macros.some((macro) => macro.id === tab.selectedMacroId)
-              ? tab.selectedMacroId
-              : undefined
-        }));
-      return nextTabs.length > 0 ? nextTabs : [createWorkspaceTab(fallbackPatchId)];
-    });
-  }, [createWorkspaceTab, patchNameById, project.patches, selectedTrack?.instrumentPatchId]);
-
-  useEffect(() => {
-    if (!activeTabId) {
-      if (tabs[0]) {
-        setActiveTabId(tabs[0].id);
-      }
-      return;
-    }
-    if (!tabs.some((tab) => tab.id === activeTabId)) {
-      setActiveTabId(tabs[0]?.id);
-    }
-  }, [activeTabId, tabs]);
-
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || isTextEditingTarget(event.target) || !activeTab) {
@@ -229,21 +126,28 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activeTab, updateActiveTab]);
 
-  const activateWorkspaceTab = useCallback((tabId: string, options?: { preview?: boolean; skipHistory?: boolean }) => {
-    skipNextTabPreviewRef.current = options?.preview === false;
-    skipNextWorkspaceHistoryRef.current = options?.skipHistory ?? true;
-    pendingAutoPreviewTabIdRef.current = options?.preview === false ? null : tabId;
-    setActiveTabId(tabId);
-  }, []);
+  const setSkipWorkspaceHistory = useCallback((skipHistory: boolean) => {
+    skipNextWorkspaceHistoryRef.current = skipHistory;
+  }, [skipNextWorkspaceHistoryRef]);
 
-  const cycleWorkspaceTabs = useCallback((direction: 1 | -1) => {
-    if (tabs.length < 2 || !activeTab) {
-      return;
-    }
-    const currentIndex = tabs.findIndex((tab) => tab.id === activeTab.id);
-    const nextIndex = (currentIndex + direction + tabs.length) % tabs.length;
-    activateWorkspaceTab(tabs[nextIndex].id);
-  }, [activateWorkspaceTab, activeTab, tabs]);
+  const getActiveTabMacroValues = useCallback(
+    () => (activeTab ? tabMacroValuesById[activeTab.id] : undefined),
+    [activeTab, tabMacroValuesById]
+  );
+
+  const {
+    activateWorkspaceTab,
+    handleInstrumentEditorReady,
+    setSkipNextTabPreview
+  } = usePatchWorkspacePreviewController({
+    tabs,
+    activeTab,
+    previewPitch,
+    previewSelectedPatchNow,
+    setActiveTabId,
+    setSkipWorkspaceHistory,
+    getActiveTabMacroValues
+  });
 
   const openPatchWorkspace = useCallback((patchId?: string) => {
     const resolvedPatchId = patchId ?? selectedTrack?.instrumentPatchId ?? project.patches[0]?.id;
@@ -253,17 +157,23 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
         activateWorkspaceTab(existingTab.id, { preview: false, skipHistory: true });
       } else if (tabs.length < MAX_PATCH_WORKSPACE_TABS) {
         const nextTab = createWorkspaceTab(resolvedPatchId);
-        skipNextTabPreviewRef.current = true;
+        setSkipNextTabPreview(true);
         setTabs((currentTabs) => [...currentTabs, nextTab]);
         setActiveTabId(nextTab.id);
       }
     }
     router.push("/patch-workspace");
-  }, [activateWorkspaceTab, createWorkspaceTab, project.patches, router, selectedTrack?.instrumentPatchId, tabs]);
-
-  const closePatchWorkspace = useCallback(() => {
-    router.push("/");
-  }, [router]);
+  }, [
+    activateWorkspaceTab,
+    createWorkspaceTab,
+    project.patches,
+    router,
+    selectedTrack?.instrumentPatchId,
+    setActiveTabId,
+    setSkipNextTabPreview,
+    setTabs,
+    tabs
+  ]);
 
   const renameWorkspaceTab = useCallback((tabId: string, name: string) => {
     const nextName = name.trim();
@@ -289,8 +199,20 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       [nextTab.id]: activeTab ? { ...(current[activeTab.id] ?? {}) } : {}
     }));
     setActiveTabId(nextTab.id);
-    skipNextTabPreviewRef.current = true;
-  }, [activeTab, createWorkspaceTab, project.patches, selectedPatch?.id, selectedTrack?.instrumentPatchId, tabs]);
+    setSkipNextTabPreview(true);
+  }, [
+    activeTab,
+    createWorkspaceTab,
+    project.patches,
+    selectedPatch?.id,
+    selectedTrack?.instrumentPatchId,
+    setActiveTabId,
+    setSkipNextTabPreview,
+    setTabMacroValuesById,
+    setTabs,
+    skipNextWorkspaceHistoryRef,
+    tabs
+  ]);
 
   const closeWorkspaceTab = useCallback((tabId: string) => {
     if (tabs.length <= 1) {
@@ -311,7 +233,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     if (activeTabId === tabId) {
       activateWorkspaceTab(fallbackTab.id, { preview: false, skipHistory: false });
     }
-  }, [activateWorkspaceTab, activeTabId, tabs]);
+  }, [activateWorkspaceTab, activeTabId, setTabMacroValuesById, setTabs, skipNextWorkspaceHistoryRef, tabs]);
 
   const renameSelectedPatch = useCallback((name: string) => {
     if (!selectedPatch) {
@@ -342,7 +264,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       migrationNotice: null
     }));
     setTabMacroValuesById((current) => ({ ...current, [activeTab.id]: {} }));
-  }, [activeTab, updateActiveTab]);
+  }, [activeTab, setTabMacroValuesById, updateActiveTab]);
 
   const updatePresetToLatest = useCallback(() => {
     if (!selectedPatch || selectedPatch.meta.source !== "preset") {
@@ -581,7 +503,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     if (changeOptions?.commit) {
       previewSelectedPatchNow(previewPitch, nextMacroValues);
     }
-  }, [activeTab, previewPitch, previewSelectedPatchNow, selectedPatch, tabMacroValuesById]);
+  }, [activeTab, previewPitch, previewSelectedPatchNow, selectedPatch, setTabMacroValuesById, tabMacroValuesById]);
 
   const duplicateSelectedPatchInWorkspace = useCallback(() => {
     if (!selectedPatch || !activeTab) {
@@ -634,7 +556,16 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     setTabMacroValuesById((current) => ({ ...current, [nextTab.id]: { ...(tabMacroValuesById[activeTab.id] ?? {}) } }));
     setActiveTabId(nextTab.id);
     schedulePatchPreview(duplicate.id, undefined, tabMacroValuesById[activeTab.id]);
-  }, [activeTab, commitProjectChange, schedulePatchPreview, selectedPatch, tabMacroValuesById]);
+  }, [
+    activeTab,
+    commitProjectChange,
+    schedulePatchPreview,
+    selectedPatch,
+    setActiveTabId,
+    setTabMacroValuesById,
+    setTabs,
+    tabMacroValuesById
+  ]);
 
   const requestRemoveSelectedPatch = useCallback(() => {
     const patchStatus = selectedPatch ? resolvePatchPresetStatus(selectedPatch) : "custom";
@@ -659,45 +590,6 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       }))
     });
   }, [commitProjectChange, project.patches, project.tracks, selectedPatch, setPatchRemovalDialog]);
-
-  useEffect(() => {
-    if (!activeTab || previousActiveTabIdRef.current === activeTab.id) {
-      return;
-    }
-    const shouldSkipPreview = skipNextTabPreviewRef.current || previousActiveTabIdRef.current === undefined;
-    previousActiveTabIdRef.current = activeTab.id;
-    skipNextTabPreviewRef.current = false;
-    if (shouldSkipPreview) {
-      pendingAutoPreviewTabIdRef.current = null;
-    }
-  }, [activeTab]);
-
-  const handleInstrumentEditorReady = useCallback((renderedMacroValues: Record<string, number>) => {
-    if (!activeTab || pendingAutoPreviewTabIdRef.current !== activeTab.id) {
-      return;
-    }
-    pendingAutoPreviewTabIdRef.current = null;
-    previewSelectedPatchNow(previewPitch, renderedMacroValues);
-  }, [activeTab, previewPitch, previewSelectedPatchNow]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (isShortcutBlockedTarget(event.target)) {
-        return;
-      }
-      if (event.code === "Space") {
-        event.preventDefault();
-        previewSelectedPatchNow(previewPitch, activeTab ? tabMacroValuesById[activeTab.id] : undefined);
-        return;
-      }
-      if (event.ctrlKey && !event.metaKey && !event.altKey && event.code === "Backquote") {
-        event.preventDefault();
-        cycleWorkspaceTabs(event.shiftKey ? -1 : 1);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeTab, cycleWorkspaceTabs, previewPitch, previewSelectedPatchNow, tabMacroValuesById]);
 
   return {
     tabs,
