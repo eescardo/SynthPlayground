@@ -21,6 +21,10 @@ on:
         description: "Head ref to benchmark"
         required: false
         default: ""
+      runs:
+        description: "Measured runs to execute per scenario"
+        required: false
+        default: "2"
 
 permissions:
   contents: read
@@ -33,6 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       should_run: ${{ steps.resolve.outputs.should_run }}
+      run_count: ${{ steps.resolve.outputs.run_count }}
       base_ref: ${{ steps.resolve.outputs.base_ref }}
       head_ref: ${{ steps.resolve.outputs.head_ref }}
       base_label: ${{ steps.resolve.outputs.base_label }}
@@ -43,12 +48,21 @@ jobs:
         id: resolve
         shell: bash
         run: |
+          default_runs=2
+
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             head_ref="${{ github.event.inputs.head_ref }}"
             if [[ -z "$head_ref" ]]; then
               head_ref="${{ github.ref_name }}"
             fi
+
+            run_count="${{ github.event.inputs.runs }}"
+            if ! [[ "$run_count" =~ ^[0-9]+$ ]] || [[ "$run_count" -lt 1 ]]; then
+              run_count="$default_runs"
+            fi
+
             echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "run_count=$run_count" >> "$GITHUB_OUTPUT"
             echo "base_ref=${{ github.event.inputs.base_ref }}" >> "$GITHUB_OUTPUT"
             echo "head_ref=$head_ref" >> "$GITHUB_OUTPUT"
             echo "base_label=${{ github.event.inputs.base_ref }}" >> "$GITHUB_OUTPUT"
@@ -57,12 +71,26 @@ jobs:
             exit 0
           fi
 
+          should_run=false
+          run_count="$default_runs"
           labels='${{ toJson(github.event.pull_request.labels.*.name) }}'
-          if [[ "$labels" == *'"audio-benchmarks"'* ]]; then
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-          fi
+
+          while IFS= read -r label; do
+            if [[ "$label" == "audio-benchmarks" ]]; then
+              should_run=true
+              continue
+            fi
+            if [[ "$label" =~ ^audio-benchmarks:runs:([0-9]+)$ ]]; then
+              should_run=true
+              parsed_runs="${BASH_REMATCH[1]}"
+              if [[ "$parsed_runs" -ge 1 ]]; then
+                run_count="$parsed_runs"
+              fi
+            fi
+          done < <(printf '%s\n' '${{ join(github.event.pull_request.labels.*.name, '\n') }}')
+
+          echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
+          echo "run_count=$run_count" >> "$GITHUB_OUTPUT"
           echo "base_ref=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
           echo "head_ref=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
           echo "base_label=${{ github.event.pull_request.base.ref }}" >> "$GITHUB_OUTPUT"
@@ -76,7 +104,7 @@ jobs:
     if: needs.context.outputs.should_run != 'true'
     steps:
       - name: Benchmarks not requested
-        run: echo "Skipping audio benchmarks. Add the 'audio-benchmarks' label or run this workflow manually."
+        run: echo "Skipping audio benchmarks. Add the 'audio-benchmarks' or 'audio-benchmarks:runs:x' label, or run this workflow manually."
 
   benchmark-base:
     name: Benchmark Base
@@ -110,7 +138,7 @@ jobs:
         continue-on-error: true
         env:
           BENCHMARK_GIT_REF: ${{ needs.context.outputs.base_label }}
-        run: pnpm run benchmark:audio -- --runs 5 --output artifacts/audio-benchmarks/base.json
+        run: pnpm run benchmark:audio -- --runs ${{ needs.context.outputs.run_count }} --output artifacts/audio-benchmarks/base.json
 
       - name: Flag base artifact availability
         id: base-artifact
@@ -158,7 +186,7 @@ jobs:
         env:
           BENCHMARK_GIT_REF: ${{ needs.context.outputs.head_label }}
           BENCHMARK_GIT_SHA: ${{ needs.context.outputs.head_ref }}
-        run: pnpm run benchmark:audio -- --runs 5 --output artifacts/audio-benchmarks/head.json
+        run: pnpm run benchmark:audio -- --runs ${{ needs.context.outputs.run_count }} --output artifacts/audio-benchmarks/head.json
 
       - name: Upload head benchmark artifact
         uses: actions/upload-artifact@v4
