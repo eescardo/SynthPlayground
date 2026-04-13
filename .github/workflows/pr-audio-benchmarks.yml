@@ -1,0 +1,301 @@
+name: PR Audio Benchmarks
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Optional PR number to update with the benchmark comment"
+        required: false
+      base_ref:
+        description: "Base ref to benchmark against"
+        required: false
+        default: "main"
+      head_ref:
+        description: "Head ref to benchmark"
+        required: false
+        default: ""
+      runs:
+        description: "Measured runs to execute per scenario"
+        required: false
+        default: "2"
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  context:
+    name: Resolve Context
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.resolve.outputs.should_run }}
+      run_count: ${{ steps.resolve.outputs.run_count }}
+      base_ref: ${{ steps.resolve.outputs.base_ref }}
+      head_ref: ${{ steps.resolve.outputs.head_ref }}
+      base_label: ${{ steps.resolve.outputs.base_label }}
+      head_label: ${{ steps.resolve.outputs.head_label }}
+      pr_number: ${{ steps.resolve.outputs.pr_number }}
+    steps:
+      - name: Resolve benchmark context
+        id: resolve
+        shell: bash
+        run: |
+          default_runs=2
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            head_ref="${{ github.event.inputs.head_ref }}"
+            if [[ -z "$head_ref" ]]; then
+              head_ref="${{ github.ref_name }}"
+            fi
+
+            run_count="${{ github.event.inputs.runs }}"
+            if ! [[ "$run_count" =~ ^[0-9]+$ ]] || [[ "$run_count" -lt 1 ]]; then
+              run_count="$default_runs"
+            fi
+
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "run_count=$run_count" >> "$GITHUB_OUTPUT"
+            echo "base_ref=${{ github.event.inputs.base_ref }}" >> "$GITHUB_OUTPUT"
+            echo "head_ref=$head_ref" >> "$GITHUB_OUTPUT"
+            echo "base_label=${{ github.event.inputs.base_ref }}" >> "$GITHUB_OUTPUT"
+            echo "head_label=$head_ref" >> "$GITHUB_OUTPUT"
+            echo "pr_number=${{ github.event.inputs.pr_number }}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          should_run=false
+          run_count="$default_runs"
+          labels='${{ toJson(github.event.pull_request.labels.*.name) }}'
+
+          while IFS= read -r label; do
+            if [[ "$label" == "audio-benchmarks" ]]; then
+              should_run=true
+              continue
+            fi
+            if [[ "$label" =~ ^audio-benchmarks:runs:([0-9]+)$ ]]; then
+              should_run=true
+              parsed_runs="${BASH_REMATCH[1]}"
+              if [[ "$parsed_runs" -ge 1 ]]; then
+                run_count="$parsed_runs"
+              fi
+            fi
+          done < <(printf '%s\n' '${{ join(github.event.pull_request.labels.*.name, '\n') }}')
+
+          echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
+          echo "run_count=$run_count" >> "$GITHUB_OUTPUT"
+          echo "base_ref=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          echo "head_ref=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          echo "base_label=${{ github.event.pull_request.base.ref }}" >> "$GITHUB_OUTPUT"
+          echo "head_label=${{ github.head_ref }}" >> "$GITHUB_OUTPUT"
+          echo "pr_number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+
+  skip:
+    name: Skip Benchmarks
+    runs-on: ubuntu-latest
+    needs: context
+    if: needs.context.outputs.should_run != 'true'
+    steps:
+      - name: Benchmarks not requested
+        run: echo "Skipping audio benchmarks. Add the 'audio-benchmarks' or 'audio-benchmarks:runs:x' label, or run this workflow manually."
+
+  benchmark-base:
+    name: Benchmark Base
+    runs-on: ubuntu-latest
+    needs: context
+    if: needs.context.outputs.should_run == 'true'
+    outputs:
+      has_artifact: ${{ steps.base-artifact.outputs.has_artifact }}
+    steps:
+      - name: Check out base ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.context.outputs.base_ref }}
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run base audio benchmark
+        id: run-base
+        continue-on-error: true
+        env:
+          BENCHMARK_GIT_REF: ${{ needs.context.outputs.base_label }}
+        run: pnpm run benchmark:audio -- --runs ${{ needs.context.outputs.run_count }} --output artifacts/audio-benchmarks/base.json
+
+      - name: Flag base artifact availability
+        id: base-artifact
+        run: |
+          if [ -f artifacts/audio-benchmarks/base.json ]; then
+            echo "has_artifact=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_artifact=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload base benchmark artifact
+        if: steps.base-artifact.outputs.has_artifact == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: audio-benchmark-base
+          path: artifacts/audio-benchmarks/base.json
+          if-no-files-found: error
+
+  benchmark-head:
+    name: Benchmark Head
+    runs-on: ubuntu-latest
+    needs: context
+    if: needs.context.outputs.should_run == 'true'
+    steps:
+      - name: Check out head ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.context.outputs.head_ref }}
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run head audio benchmark
+        env:
+          BENCHMARK_GIT_REF: ${{ needs.context.outputs.head_label }}
+          BENCHMARK_GIT_SHA: ${{ needs.context.outputs.head_ref }}
+        run: pnpm run benchmark:audio -- --runs ${{ needs.context.outputs.run_count }} --output artifacts/audio-benchmarks/head.json
+
+      - name: Upload head benchmark artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: audio-benchmark-head
+          path: artifacts/audio-benchmarks/head.json
+          if-no-files-found: error
+
+  compare-and-comment:
+    name: Compare And Comment
+    runs-on: ubuntu-latest
+    needs:
+      - context
+      - benchmark-base
+      - benchmark-head
+    if: always() && needs.context.outputs.should_run == 'true' && needs.benchmark-head.result == 'success'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download base benchmark artifact
+        if: needs.benchmark-base.outputs.has_artifact == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: audio-benchmark-base
+          path: artifacts/audio-benchmarks
+
+      - name: Download head benchmark artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: audio-benchmark-head
+          path: artifacts/audio-benchmarks
+
+      - name: Compare benchmark results
+        run: |
+          if [ "${{ needs.benchmark-base.outputs.has_artifact }}" = "true" ]; then
+            pnpm run benchmark:audio:compare -- \
+              --base artifacts/audio-benchmarks/base.json \
+              --head artifacts/audio-benchmarks/head.json \
+              --output artifacts/audio-benchmarks/comparison.json \
+              --markdown artifacts/audio-benchmarks/comment.md
+          else
+            pnpm run benchmark:audio:compare -- \
+              --head artifacts/audio-benchmarks/head.json \
+              --output artifacts/audio-benchmarks/comparison.json \
+              --markdown artifacts/audio-benchmarks/comment.md
+          fi
+
+      - name: Upload benchmark comparison artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: audio-benchmark-comparison
+          path: |
+            artifacts/audio-benchmarks/head.json
+            artifacts/audio-benchmarks/comparison.json
+            artifacts/audio-benchmarks/comment.md
+          if-no-files-found: error
+
+      - name: Upsert benchmark comment
+        if: needs.context.outputs.pr_number != ''
+        uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ needs.context.outputs.pr_number }}
+        with:
+          script: |
+            const fs = require("node:fs");
+            const prNumber = Number(process.env.PR_NUMBER);
+            const marker = "<!-- pr-audio-benchmarks -->";
+            const markdown = fs.readFileSync("artifacts/audio-benchmarks/comment.md", "utf8");
+            const body = `${marker}
+            ## Audio Benchmarks
+
+            ${markdown}`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+
+            const existing = comments.find((comment) => comment.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body,
+            });
