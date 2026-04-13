@@ -1,5 +1,5 @@
 import { expect, Page } from "@playwright/test";
-import { openApp, savePageScreenshot, setupMacroAutomationLane, setupPatchWorkspaceProbes } from "../ui-capture/common";
+import { openApp, savePageScreenshot, setupMacroAutomationLane, setupPatchWorkspaceProbes, setupSamplePlayerWorkspace } from "../ui-capture/common";
 import { applySelectionReviewFraming, showSelectionActionsPopover } from "../ui-capture/selectionCapture";
 import { SCREENSHOT_SCENARIO, SCREENSHOT_SCENARIOS, ScreenshotScenario } from "./scenarios";
 
@@ -62,9 +62,9 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
   },
   [SCREENSHOT_SCENARIO.PATCH_EDITOR]: {
     name: SCREENSHOT_SCENARIO.PATCH_EDITOR,
-    description: "Dedicated patch workspace view with attached scope and spectrum probes",
+    description: "Patch workspace focused on the SamplePlayer inspector with a seeded pitch tracker probe",
     capture: async (page, outputPath) => {
-      await setupPatchWorkspaceProbes(page);
+      await setupSamplePlayerWorkspace(page);
       await savePageScreenshot(page, outputPath, ".patch-workspace-shell");
     }
   },

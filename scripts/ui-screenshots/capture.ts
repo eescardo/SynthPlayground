@@ -1,5 +1,6 @@
 import path from "node:path";
 import process from "node:process";
+import fs from "node:fs";
 import { chromium } from "@playwright/test";
 import { startDevServer, waitForServer } from "../ui-capture/common";
 import {
@@ -13,6 +14,7 @@ const screenshotLabel = process.env.SCREENSHOT_LABEL ?? "local";
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 3005);
 const baseURL = `http://127.0.0.1:${port}`;
 const screenshotRoot = path.join(process.cwd(), "artifacts", "screenshots", screenshotLabel);
+const trackedFilesToRestore = ["next-env.d.ts", "tsconfig.json"] as const;
 
 const parseRequestedScenarios = (): ScreenshotScenario[] => {
   const args = process.argv.slice(2).filter((arg) => arg !== "--");
@@ -29,6 +31,9 @@ const parseRequestedScenarios = (): ScreenshotScenario[] => {
 const run = async () => {
   assertScenarioRegistryAligned();
   const requestedScenarios = parseRequestedScenarios();
+  const originalFileContents = new Map(
+    trackedFilesToRestore.map((filePath) => [filePath, fs.readFileSync(path.join(process.cwd(), filePath), "utf8")] as const)
+  );
   const devServer = startDevServer(port);
 
   try {
@@ -58,6 +63,9 @@ const run = async () => {
     }
   } finally {
     devServer.kill("SIGTERM");
+    for (const [filePath, contents] of originalFileContents.entries()) {
+      fs.writeFileSync(path.join(process.cwd(), filePath), contents);
+    }
   }
 };
 
