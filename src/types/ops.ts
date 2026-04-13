@@ -31,6 +31,11 @@ export type PatchOp =
       value: number | string | boolean;
     }
   | {
+      type: "setParams";
+      nodeId: string;
+      values: Record<string, number | string | boolean>;
+    }
+  | {
       type: "connect";
       connectionId: string;
       fromNodeId: string;

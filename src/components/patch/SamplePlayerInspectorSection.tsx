@@ -20,6 +20,11 @@ interface SamplePlayerInspectorSectionProps {
   onApplyOp: (op: PatchOp) => void;
 }
 
+type SamplePlayerStatus = {
+  tone: "info" | "success" | "error";
+  message: string;
+} | null;
+
 export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSectionProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const sampleAsset = useMemo(
@@ -27,7 +32,7 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
     [props.node.params.sampleData]
   );
   const [sourceUrl, setSourceUrl] = useState(sampleAsset?.sourceUrl ?? "");
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<SamplePlayerStatus>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -43,20 +48,26 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
   );
 
   const storeSample = (sampleData: string) => {
-    props.onApplyOp({ type: "setParam", nodeId: props.node.id, paramId: "sampleData", value: sampleData });
-    props.onApplyOp({ type: "setParam", nodeId: props.node.id, paramId: "start", value: 0 });
-    props.onApplyOp({ type: "setParam", nodeId: props.node.id, paramId: "end", value: 1 });
+    props.onApplyOp({
+      type: "setParams",
+      nodeId: props.node.id,
+      values: {
+        sampleData,
+        start: 0,
+        end: 1
+      }
+    });
   };
 
   const importFile = async (file: File) => {
     setLoading(true);
-    setStatus("Importing sample...");
+    setStatus({ tone: "info", message: "Importing sample..." });
     try {
       const decoded = await decodeSamplePlayerFile(file);
       storeSample(serializeSamplePlayerData(decoded));
-      setStatus(`Loaded ${decoded.name}`);
+      setStatus({ tone: "success", message: `Loaded ${decoded.name}` });
     } catch (error) {
-      setStatus((error as Error).message);
+      setStatus({ tone: "error", message: formatSamplePlayerError(error, file.name) });
     } finally {
       setLoading(false);
     }
@@ -65,17 +76,17 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
   const importUrl = async () => {
     const nextUrl = sourceUrl.trim();
     if (!nextUrl) {
-      setStatus("Enter a sample URL first.");
+      setStatus({ tone: "error", message: "Enter a sample URL first." });
       return;
     }
     setLoading(true);
-    setStatus("Fetching sample...");
+    setStatus({ tone: "info", message: "Fetching sample..." });
     try {
       const decoded = await decodeSamplePlayerUrl(nextUrl);
       storeSample(serializeSamplePlayerData(decoded));
-      setStatus(`Loaded ${decoded.name}`);
+      setStatus({ tone: "success", message: `Loaded ${decoded.name}` });
     } catch (error) {
-      setStatus((error as Error).message);
+      setStatus({ tone: "error", message: formatSamplePlayerError(error, nextUrl) });
     } finally {
       setLoading(false);
     }
@@ -83,10 +94,10 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
 
   const previewSample = async () => {
     if (!sampleAsset || !trim) {
-      setStatus("Load a sample first.");
+      setStatus({ tone: "error", message: "Load a sample first." });
       return;
     }
-    setStatus("Previewing trimmed sample...");
+    setStatus({ tone: "info", message: "Previewing trimmed sample..." });
     try {
       await previewSampleAsset(sampleAsset, {
         startRatio,
@@ -94,7 +105,7 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
         loop: props.node.params.mode === "loop"
       });
     } catch (error) {
-      setStatus((error as Error).message);
+      setStatus({ tone: "error", message: formatSamplePlayerError(error, sampleAsset.name) });
     }
   };
 
@@ -157,8 +168,8 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
         <span>Preview Sample</span>
         <div className="param-control-stack">
           <SampleWaveform peaks={waveformPeaks} startRatio={startRatio} endRatio={endRatio} />
-          <div className="macro-binding-edit-summary">
-            {status ?? "This preview plays the trimmed sample directly, separate from patch note preview."}
+          <div className={`sample-player-status${status ? ` ${status.tone}` : ""}`}>
+            {status?.message ?? "This preview plays the trimmed sample directly, separate from patch note preview."}
           </div>
         </div>
         <button type="button" disabled={!sampleAsset || loading} onClick={() => void previewSample()}>
@@ -206,4 +217,9 @@ function SampleWaveform(props: { peaks: number[]; startRatio: number; endRatio: 
       {bars}
     </svg>
   );
+}
+
+function formatSamplePlayerError(error: unknown, source: string) {
+  const message = error instanceof Error ? error.message : String(error);
+  return `Could not load ${source}: ${message || "unknown error"}`;
 }

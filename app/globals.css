@@ -1989,6 +1989,23 @@ select {
   font-size: 0.78rem;
 }
 
+.sample-player-status {
+  color: #ffd69b;
+  font-size: 0.72rem;
+}
+
+.sample-player-status.success {
+  color: #8de0a1;
+}
+
+.sample-player-status.error {
+  color: #ff9b9b;
+}
+
+.sample-player-status.info {
+  color: #9fc3ff;
+}
+
 .pitch-tracker-note-list {
   display: flex;
   flex-direction: column;

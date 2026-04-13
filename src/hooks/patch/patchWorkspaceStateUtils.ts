@@ -39,6 +39,7 @@ export const isAudiblePatchOp = (op: PatchOp): boolean =>
   op.type !== "moveNode" &&
   op.type !== "setNodeLayout" &&
   op.type !== "setCanvasZoom" &&
+  op.type !== "setParams" &&
   op.type !== "addMacro" &&
   op.type !== "removeMacro" &&
   op.type !== "bindMacro" &&
