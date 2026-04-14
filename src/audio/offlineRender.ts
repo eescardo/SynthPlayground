@@ -1,4 +1,4 @@
-import { SynthWorkletProcessor } from "@/audio/worklets/synth-worklet-runtime.js";
+import { JsSynthRenderBackend, SynthWorkletProcessor } from "@/audio/worklets/synth-worklet-runtime.js";
 import { AudioProject, SchedulerEvent } from "@/types/audio";
 
 export interface OfflineRenderOptions {
@@ -39,13 +39,25 @@ export const createOfflineRenderProcessor = (
     }
   });
 
+export const createOfflineRenderBackend = (
+  project: AudioProject,
+  options: Pick<OfflineRenderOptions, "sampleRate" | "blockSize">
+): JsSynthRenderBackend =>
+  new JsSynthRenderBackend({
+    processorOptions: {
+      sampleRate: options.sampleRate,
+      blockSize: options.blockSize,
+      project
+    }
+  });
+
 export const renderProjectOffline = (
   project: AudioProject,
   options: OfflineRenderOptions
 ): OfflineRenderResult => {
   const { sampleRate, blockSize, durationSamples } = options;
-  const processor = createOfflineRenderProcessor(project, { sampleRate, blockSize });
-  processor.onMessage({
+  const backend = createOfflineRenderBackend(project, { sampleRate, blockSize });
+  backend.onMessage({
     type: "TRANSPORT",
     isPlaying: true,
     songStartSample: 0,
@@ -62,7 +74,7 @@ export const renderProjectOffline = (
   for (let blockIndex = 0; blockIndex < renderedBlocks; blockIndex += 1) {
     const blockLeft = new Float32Array(blockSize);
     const blockRight = new Float32Array(blockSize);
-    processor.process([], [[blockLeft, blockRight] as unknown as Float32Array[]], {} as Record<string, never>);
+    backend.processBlock([blockLeft, blockRight]);
 
     const blockOffset = blockIndex * blockSize;
     const validFrames = Math.min(blockSize, durationSamples - blockOffset);

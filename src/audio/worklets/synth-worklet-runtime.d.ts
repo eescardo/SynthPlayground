@@ -1,4 +1,4 @@
-import type { Track } from "@/types/music";
+import type { Project, Track } from "@/types/music";
 import type { Patch } from "@/types/patch";
 
 export interface WorkletPortLike {
@@ -43,9 +43,21 @@ export class TrackRuntime {
   ): void;
 }
 
+export class JsSynthRenderBackend {
+  constructor(options?: unknown);
+  port: WorkletPortLike;
+  project: Project | null;
+  trackRuntimes: Array<{ track: Track }>;
+  eventQueue: unknown[];
+  onMessage(message: unknown): void;
+  processBlock(output: Float32Array[]): boolean;
+}
+
 export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
   constructor(options?: unknown);
   eventQueue: unknown[];
+  project: Project | null;
+  trackRuntimes: Array<{ track: Track }>;
   onMessage(message: unknown): void;
   process(inputs: unknown[], outputs: unknown[], parameters?: Record<string, unknown>): boolean;
 }

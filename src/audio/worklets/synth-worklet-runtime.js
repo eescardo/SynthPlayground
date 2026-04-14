@@ -657,9 +657,12 @@ export class TrackRuntime {
   }
 }
 
-export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
-  constructor(options) {
-    super();
+export class JsSynthRenderBackend {
+  constructor(options = {}) {
+    this.port = {
+      onmessage: null,
+      postMessage() {}
+    };
     this.sampleRateInternal = DEFAULT_SAMPLE_RATE;
     this.blockSize = 128;
     this.project = null;
@@ -678,9 +681,6 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     this.recordingTrackId = null;
     this.masterCompressorEnv = 0;
     this.masterBuffer = new Float32Array(this.blockSize);
-
-    this.port.onmessage = (event) => this.onMessage(event.data);
-
     const processorOptions = options && options.processorOptions ? options.processorOptions : null;
     if (processorOptions) {
       this.applyInit(processorOptions);
@@ -1055,11 +1055,10 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     }
   }
 
-  // AudioWorklet entry point. The processor iterates through the output block in
+  // Render one full output block. The backend iterates through the output block in
   // slices separated by pending events so note/param changes remain sample-accurate
   // without rebuilding the graph for every individual sample.
-  process(_inputs, outputs) {
-    const output = outputs[0];
+  processBlock(output) {
     const left = output[0];
     const right = output[1] || output[0];
 
@@ -1085,5 +1084,34 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     }
 
     return true;
+  }
+}
+
+export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
+  constructor(options) {
+    super();
+    this.backend = new JsSynthRenderBackend(options);
+    this.port.onmessage = (event) => this.backend.onMessage(event.data);
+    this.backend.port = this.port;
+  }
+
+  onMessage(message) {
+    this.backend.onMessage(message);
+  }
+
+  get project() {
+    return this.backend.project;
+  }
+
+  get trackRuntimes() {
+    return this.backend.trackRuntimes;
+  }
+
+  get eventQueue() {
+    return this.backend.eventQueue;
+  }
+
+  process(_inputs, outputs) {
+    return this.backend.processBlock(outputs[0]);
   }
 }
