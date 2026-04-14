@@ -1,5 +1,6 @@
 import { toAudioProject } from "@/audio/audioProject";
 import { AudioBenchmarkScenario, AudioBenchmarkScenarioConfig } from "@/audio/benchmarks/types";
+import { createEmptyProjectAssetLibrary } from "@/lib/sampleAssetLibrary";
 import { TRACK_VOLUME_AUTOMATION_ID, createTrackMacroAutomationLane } from "@/lib/macroAutomation";
 import { presetPatches } from "@/lib/patch/presets";
 import { Project, Track } from "@/types/music";
@@ -214,7 +215,7 @@ export const createStressBenchmarkProject = (overrides: Partial<AudioBenchmarkSc
 
   return {
     config,
-    project: toAudioProject(project)
+    project: toAudioProject(project, createEmptyProjectAssetLibrary())
   };
 };
 
