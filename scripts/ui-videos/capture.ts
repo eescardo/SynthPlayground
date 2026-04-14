@@ -11,6 +11,7 @@ const videoLabel = process.env.VIDEO_LABEL ?? "local";
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 3006);
 const baseURL = `http://127.0.0.1:${port}`;
 const videoRoot = path.join(process.cwd(), "artifacts", "videos", videoLabel);
+const trackedFilesToRestore = ["next-env.d.ts", "tsconfig.json"] as const;
 
 const parseRequestedScenarios = (): VideoScenario[] => {
   const args = process.argv.slice(2).filter((arg) => arg !== "--");
@@ -27,6 +28,9 @@ const parseRequestedScenarios = (): VideoScenario[] => {
 const run = async () => {
   assertVideoRegistryAligned();
   const requestedScenarios = parseRequestedScenarios();
+  const originalFileContents = new Map(
+    trackedFilesToRestore.map((filePath) => [filePath, fs.readFileSync(path.join(process.cwd(), filePath), "utf8")] as const)
+  );
   const devServer = startDevServer(port, {
     NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO: "1"
   });
@@ -73,6 +77,9 @@ const run = async () => {
     }
   } finally {
     devServer.kill("SIGTERM");
+    for (const [filePath, contents] of originalFileContents.entries()) {
+      fs.writeFileSync(path.join(process.cwd(), filePath), contents);
+    }
   }
 };
 

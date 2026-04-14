@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, Locator, Page, Video } from "@playwright/test";
-import { holdLocatorFor, openApp, setupMacroAutomationLane, setupPatchWorkspaceProbes } from "../ui-capture/common";
+import { holdLocatorFor, openApp, setupMacroAutomationLane, setupPatchWorkspaceProbes, setupSamplePlayerWorkspace } from "../ui-capture/common";
 import { applySelectionReviewFraming, showSelectionActionsPopover } from "../ui-capture/selectionCapture";
 import { VIDEO_SCENARIO, VIDEO_SCENARIOS, VideoScenario } from "./scenarios";
 
@@ -187,9 +187,10 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
   },
   [VIDEO_SCENARIO.PATCH_PROBE_PREVIEW]: {
     name: VIDEO_SCENARIO.PATCH_PROBE_PREVIEW,
-    description: "Patch workspace with attached probes while preview playback advances through the captured signal.",
+    description: "Patch workspace SamplePlayer preview with an attached pitch tracker updating from the captured signal.",
     capture: async (page) => {
-      await setupPatchWorkspaceProbes(page);
+      await setupSamplePlayerWorkspace(page);
+      await page.getByRole("button", { name: "Play" }).last().click();
       await page.waitForTimeout(playbackDurationMs);
     }
   }

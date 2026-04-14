@@ -1,12 +1,15 @@
+import { useEffect, useState } from "react";
 import {
   resolveMacroBindingValue,
   resolveMacroKeyframeIndexAtValue
 } from "@/lib/patch/macroKeyframes";
+import { SamplePlayerInspectorSection } from "@/components/patch/SamplePlayerInspectorSection";
 import { ProbeInspectorSection } from "@/components/patch/ProbeInspectorSection";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch, PatchNode, ParamSchema, ParamValue, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
+import { samplePlayerPitchSemisToRootPitch } from "@/lib/patch/samplePlayer";
 
 function formatBindingValue(value: number) {
   if (!Number.isFinite(value)) {
@@ -82,17 +85,7 @@ function ParamValueControl(props: {
   const { param, value, disabled, onChange } = props;
 
   if (param.type === "float") {
-    return (
-      <input
-        type="range"
-        min={param.range.min}
-        max={param.range.max}
-        step={param.step ?? (param.range.max - param.range.min) / 500}
-        value={Number(value)}
-        disabled={disabled}
-        onChange={(event) => onChange(Number(event.target.value))}
-      />
-    );
+    return <FloatParamValueControl param={param} value={Number(value)} disabled={disabled} onChange={onChange} />;
   }
 
   if (param.type === "enum") {
@@ -108,6 +101,59 @@ function ParamValueControl(props: {
   }
 
   return <input type="checkbox" checked={Boolean(value)} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />;
+}
+
+function FloatParamValueControl(props: {
+  param: Extract<ParamSchema, { type: "float" }>;
+  value: number;
+  disabled?: boolean;
+  onChange: (value: number) => void;
+}) {
+  const [draftValue, setDraftValue] = useState(props.value);
+
+  useEffect(() => {
+    setDraftValue(props.value);
+  }, [props.value]);
+
+  const commitDraft = (nextValue: number) => {
+    if (nextValue === props.value) {
+      return;
+    }
+    props.onChange(nextValue);
+  };
+
+  return (
+    <input
+      type="range"
+      min={props.param.range.min}
+      max={props.param.range.max}
+      step={props.param.step ?? (props.param.range.max - props.param.range.min) / 500}
+      value={draftValue}
+      disabled={props.disabled}
+      onChange={(event) => setDraftValue(Number(event.target.value))}
+      onPointerUp={(event) => commitDraft(Number(event.currentTarget.value))}
+      onBlur={(event) => commitDraft(Number(event.currentTarget.value))}
+      onKeyUp={(event) => {
+        if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(event.key)) {
+          commitDraft(Number(event.currentTarget.value));
+        }
+      }}
+    />
+  );
+}
+
+function renderParamInlineSummary(node: PatchNode, param: ParamSchema, value: ParamValue) {
+  if (node.typeId === "SamplePlayer" && param.id === "pitchSemis" && typeof value === "number") {
+    return <div className="sample-player-pitch-readout">Treat as {samplePlayerPitchSemisToRootPitch(value)}</div>;
+  }
+  return null;
+}
+
+function shouldRenderParamInGenericInspector(node: PatchNode, param: ParamSchema) {
+  if (node.typeId === "SamplePlayer" && (param.id === "start" || param.id === "end")) {
+    return false;
+  }
+  return true;
 }
 
 interface PatchInspectorProps {
@@ -231,7 +277,9 @@ export function PatchInspector(props: PatchInspectorProps) {
           <h4>
             {selectedNode.typeId} <small>{selectedNode.id}</small>
           </h4>
-          {props.selectedSchema.params.map((param) => {
+          {props.selectedSchema.params
+            .filter((param) => shouldRenderParamInGenericInspector(selectedNode, param))
+            .map((param) => {
             const value = selectedNode.params[param.id] ?? param.default;
             const bindingState = resolveParamBindingState(
               props.patch,
@@ -246,6 +294,7 @@ export function PatchInspector(props: PatchInspectorProps) {
               <div key={param.id} className={`param-row${bindingState.isExposed ? " bound" : ""}`}>
                 <span>{param.label}</span>
                 <div className="param-control-stack">
+                  {renderParamInlineSummary(selectedNode, param, value)}
                   {(!bindingState.isExposed || bindingState.isEditableSelectedMacroBinding) && (
                     <ParamValueControl
                       param={param}
@@ -306,7 +355,14 @@ export function PatchInspector(props: PatchInspectorProps) {
                 )}
               </div>
             );
-          })}
+            })}
+          {selectedNode.typeId === "SamplePlayer" && (
+            <SamplePlayerInspectorSection
+              node={selectedNode}
+              structureLocked={props.structureLocked}
+              onApplyOp={props.onApplyOp}
+            />
+          )}
         </>
       )}
 

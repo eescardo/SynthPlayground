@@ -91,6 +91,9 @@ export function InstrumentToolbar(props: InstrumentToolbarProps) {
           aria-expanded={selectorOpen}
           onClick={() => setSelectorOpen((open) => !open)}
           onKeyDown={(event) => {
+            if (event.target !== event.currentTarget) {
+              return;
+            }
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
               setSelectorOpen((open) => !open);
@@ -115,6 +118,7 @@ export function InstrumentToolbar(props: InstrumentToolbarProps) {
                     event.preventDefault();
                     rename.cancel();
                   }
+                  event.stopPropagation();
                 }}
               />
             ) : (

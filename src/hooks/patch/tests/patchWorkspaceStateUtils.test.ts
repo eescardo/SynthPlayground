@@ -4,8 +4,12 @@ import {
   isAudiblePatchOp,
   MAX_PATCH_WORKSPACE_TABS,
   parseTabMacroValues,
-  pruneTabMacroValues
+  pruneTabMacroValues,
+  resetWorkspaceTabForPatch,
+  sanitizeWorkspaceTabs,
+  retargetRemovedPatchTabs
 } from "@/hooks/patch/patchWorkspaceStateUtils";
+import { createClearPatch } from "@/lib/patch/presets";
 
 describe("patchWorkspaceStateUtils", () => {
   it("creates the first unused sequential tab name", () => {
@@ -72,5 +76,143 @@ describe("patchWorkspaceStateUtils", () => {
         toPortId: "in"
       })
     ).toBe(true);
+  });
+
+  it("keeps tabs while retargeting a removed patch to a replacement clear patch", () => {
+    expect(
+      retargetRemovedPatchTabs(
+        [
+          {
+            id: "tab_a",
+            name: "Lead Sketch",
+            patchId: "patch_removed",
+            selectedNodeId: "osc1",
+            selectedMacroId: "macro_cutoff",
+            selectedProbeId: "probe_1",
+            probes: [{ id: "probe_1", kind: "scope", name: "Scope Probe", x: 0, y: 0, width: 10, height: 8 }],
+            migrationNotice: "Old notice"
+          },
+          {
+            id: "tab_b",
+            name: "Bass",
+            patchId: "patch_other",
+            probes: [],
+            migrationNotice: null
+          }
+        ],
+        "patch_removed",
+        "patch_replacement"
+      )
+    ).toEqual([
+      {
+        id: "tab_a",
+        name: "Lead Sketch",
+        patchId: "patch_replacement",
+        selectedNodeId: undefined,
+        selectedMacroId: undefined,
+        selectedProbeId: undefined,
+        probes: [],
+        migrationNotice: null
+      },
+      {
+        id: "tab_b",
+        name: "Bass",
+        patchId: "patch_other",
+        probes: [],
+        migrationNotice: null
+      }
+    ]);
+  });
+
+  it("resets workspace tab editor state when swapping to another patch", () => {
+    expect(
+      resetWorkspaceTabForPatch(
+        {
+          id: "tab_a",
+          name: "Lead Sketch",
+          patchId: "patch_old",
+          selectedNodeId: "osc1",
+          selectedMacroId: "macro_cutoff",
+          selectedProbeId: "probe_1",
+          probes: [{ id: "probe_1", kind: "scope", name: "Scope Probe", x: 0, y: 0, width: 10, height: 8 }],
+          migrationNotice: "Old notice"
+        },
+        "patch_new"
+      )
+    ).toEqual({
+      id: "tab_a",
+      name: "Lead Sketch",
+      patchId: "patch_new",
+      selectedNodeId: undefined,
+      selectedMacroId: undefined,
+      selectedProbeId: undefined,
+      probes: [],
+      migrationNotice: null
+    });
+  });
+
+  it("sanitizes tabs against the current patch graph and fallback patch", () => {
+    const patch = createClearPatch({ id: "patch_a", name: "Lead" });
+    patch.nodes.unshift({
+      id: "sample1",
+      typeId: "SamplePlayer",
+      params: {
+        mode: "oneshot",
+        start: 0,
+        end: 1,
+        gain: 1,
+        pitchSemis: 0,
+        sampleData: ""
+      }
+    });
+    patch.layout.nodes.unshift({ nodeId: "sample1", x: 4, y: 4 });
+
+    const tabs = sanitizeWorkspaceTabs(
+      [
+        {
+          id: "tab_a",
+          name: "",
+          patchId: "patch_a",
+          selectedMacroId: "missing_macro",
+          selectedProbeId: "probe_keep",
+          probes: [
+            { id: "probe_keep", kind: "scope", name: "Scope Probe", x: 0, y: 0, width: 10, height: 8, target: { kind: "port", nodeId: "sample1", portId: "out", portKind: "out" } },
+            { id: "probe_drop", kind: "scope", name: "Scope Probe", x: 0, y: 0, width: 10, height: 8, target: { kind: "port", nodeId: "missing", portId: "out", portKind: "out" } }
+          ],
+          migrationNotice: null
+        },
+        {
+          id: "tab_b",
+          name: "Gone",
+          patchId: "patch_missing",
+          probes: [],
+          migrationNotice: null
+        }
+      ],
+      new Map([["patch_a", patch]]),
+      new Map([["patch_a", "Lead"]]),
+      "patch_a",
+      (patchId) => ({
+        id: "fallback_tab",
+        name: "Fallback",
+        patchId,
+        probes: [],
+        migrationNotice: null
+      })
+    );
+
+    expect(tabs).toEqual([
+      {
+        id: "tab_a",
+        name: "Lead",
+        patchId: "patch_a",
+        selectedMacroId: undefined,
+        selectedProbeId: "probe_keep",
+        probes: [
+          { id: "probe_keep", kind: "scope", name: "Scope Probe", x: 0, y: 0, width: 10, height: 8, target: { kind: "port", nodeId: "sample1", portId: "out", portKind: "out" } }
+        ],
+        migrationNotice: null
+      }
+    ]);
   });
 });

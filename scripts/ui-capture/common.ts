@@ -3,7 +3,10 @@ import path from "node:path";
 import { ChildProcess, spawn } from "node:child_process";
 import { expect, Locator, Page } from "@playwright/test";
 import { createDefaultProject } from "../../src/lib/patch/presets";
+import { createId } from "../../src/lib/ids";
+import { HOST_NODE_IDS } from "../../src/lib/patch/constants";
 import { getModuleSchema } from "../../src/lib/patch/moduleRegistry";
+import { Project } from "../../src/types/music";
 import { Patch } from "../../src/types/patch";
 
 export const ensureArtifactDir = (outputPath: string) => {
@@ -32,6 +35,46 @@ export const openApp = async (page: Page) => {
 
 export const openPatchWorkspaceApp = async (page: Page) => {
   await clearPersistedProject(page);
+  await page.goto("/patch-workspace");
+  await expect(page.locator(".patch-workspace-shell")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("button", { name: "Back to Composer" })).toBeVisible();
+};
+
+export const seedProject = async (page: Page, project: Project) => {
+  await page.addInitScript(async (seededProject: Project) => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+    await new Promise<void>((resolve, reject) => {
+      const deleteRequest = window.indexedDB.deleteDatabase("synth-playground");
+      deleteRequest.onerror = () => reject(deleteRequest.error ?? new Error("Failed to clear synth-playground database."));
+      deleteRequest.onblocked = () => resolve();
+      deleteRequest.onsuccess = () => resolve();
+    });
+    await new Promise<void>((resolve, reject) => {
+      const request = window.indexedDB.open("synth-playground", 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains("projects")) {
+          db.createObjectStore("projects");
+        }
+      };
+      request.onerror = () => reject(request.error ?? new Error("Failed to open synth-playground database."));
+      request.onsuccess = () => {
+        const db = request.result;
+        const tx = db.transaction("projects", "readwrite");
+        tx.objectStore("projects").put(seededProject, "active");
+        tx.oncomplete = () => {
+          db.close();
+          resolve();
+        };
+        tx.onerror = () => reject(tx.error ?? new Error("Failed to seed synth-playground database."));
+      };
+    });
+  }, project);
+};
+
+export const openSeededPatchWorkspaceApp = async (page: Page, project: Project) => {
+  await seedProject(page, project);
   await page.goto("/patch-workspace");
   await expect(page.locator(".patch-workspace-shell")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("button", { name: "Back to Composer" })).toBeVisible();
@@ -134,6 +177,122 @@ export const setupPatchWorkspaceProbes = async (page: Page) => {
 
   await page.getByRole("button", { name: "Play" }).last().click();
   await page.waitForTimeout(650);
+};
+
+const createSerializedCaptureSampleData = () =>
+  JSON.stringify({
+    version: 1,
+    name: "capture-sample.wav",
+    sampleRate: 48_000,
+    samples: Array.from({ length: 12_000 }, (_, index) => {
+      const t = index / 48_000;
+      const envelope = index < 9_000 ? 1 : Math.max(0, 1 - (index - 9_000) / 3_000);
+      const hz = t < 0.12 ? 261.63 : t < 0.24 ? 329.63 : 392;
+      return Math.sin(2 * Math.PI * hz * t) * 0.6 * envelope;
+    })
+  });
+
+export const createSamplePlayerCaptureProject = (): Project => {
+  const project = createDefaultProject();
+  const patchId = createId("patch");
+  const sampleNodeId = "sample1";
+  const outputNodeId = "out1";
+  const patch: Patch = {
+    schemaVersion: 1,
+    id: patchId,
+    name: "Sample Player Capture",
+    meta: { source: "custom" },
+    nodes: [
+      {
+        id: sampleNodeId,
+        typeId: "SamplePlayer",
+        params: {
+          mode: "oneshot",
+          start: 0.12,
+          end: 0.82,
+          gain: 1,
+          pitchSemis: 0,
+          sampleData: createSerializedCaptureSampleData()
+        }
+      },
+      {
+        id: outputNodeId,
+        typeId: "Output",
+        params: {
+          gainDb: -6,
+          limiter: true
+        }
+      }
+    ],
+    connections: [
+      {
+        id: "sample_gate",
+        from: { nodeId: HOST_NODE_IDS.gate, portId: "out" },
+        to: { nodeId: sampleNodeId, portId: "gate" }
+      },
+      {
+        id: "sample_pitch",
+        from: { nodeId: HOST_NODE_IDS.pitch, portId: "out" },
+        to: { nodeId: sampleNodeId, portId: "pitch" }
+      },
+      {
+        id: "sample_out",
+        from: { nodeId: sampleNodeId, portId: "out" },
+        to: { nodeId: outputNodeId, portId: "in" }
+      }
+    ],
+    ui: { macros: [] },
+    layout: {
+      nodes: [
+        { nodeId: sampleNodeId, x: 8, y: 6 },
+        { nodeId: outputNodeId, x: 18, y: 6 }
+      ]
+    },
+    io: {
+      audioOutNodeId: outputNodeId,
+      audioOutPortId: "out"
+    }
+  };
+
+  project.patches = [patch, ...project.patches];
+  project.tracks[0] = {
+    ...project.tracks[0],
+    instrumentPatchId: patchId
+  };
+  const tabId = createId("patchTab");
+  project.ui.patchWorkspace = {
+    activeTabId: tabId,
+    tabs: [
+      {
+        id: tabId,
+        name: patch.name,
+        patchId,
+        selectedNodeId: sampleNodeId,
+        selectedProbeId: "pitch_probe",
+        probes: [
+          {
+            id: "pitch_probe",
+            kind: "pitch_tracker",
+            name: "Pitch Tracker",
+            x: 20,
+            y: 11,
+            width: 10,
+            height: 6,
+            expanded: true,
+            target: { kind: "connection", connectionId: "sample_out" }
+          }
+        ]
+      }
+    ]
+  };
+  return project;
+};
+
+export const setupSamplePlayerWorkspace = async (page: Page) => {
+  await openSeededPatchWorkspaceApp(page, createSamplePlayerCaptureProject());
+  await expect(page.getByRole("heading", { name: "Patch Workspace" })).toBeVisible();
+  await expect(page.locator(".sample-waveform-preview")).toBeVisible();
+  await expect(page.locator(".patch-probe-card.expanded")).toHaveCount(1);
 };
 
 const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canvas");

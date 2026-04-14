@@ -32,13 +32,19 @@ import {
   setEditorSelectionMarqueeActive,
   setEditorTimelineSelection
 } from "@/lib/clipboard";
-import { clearProject, loadProject, saveProject } from "@/lib/persistence";
+import { clearProjectState, loadProjectState, saveProjectState } from "@/lib/persistence";
 import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { createDefaultProject, createEmptyProject } from "@/lib/patch/presets";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
-import { importProjectFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
+import { importProjectBundleFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
 import { pitchToVoct } from "@/lib/pitch";
+import {
+  buildMissingSampleAssetIssues,
+  createEmptyProjectAssetLibrary,
+  extractInlineSamplePlayerAssets,
+  upsertSamplePlayerAssetData
+} from "@/lib/sampleAssetLibrary";
 import { removeTrackFromProject, renameTrackInProject, switchTrackPatchInProject } from "@/lib/trackEdits";
 import { useNoteEditor } from "@/hooks/useNoteEditor";
 import { useLoopSettings } from "@/hooks/useLoopSettings";
@@ -57,6 +63,7 @@ import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
 import { MAX_PATCH_WORKSPACE_TABS } from "@/hooks/patch/patchWorkspaceStateUtils";
 import { useTrackMacroAutomationActions } from "@/hooks/tracks/useTrackMacroAutomationActions";
 import { useTrackVolumeAutomationActions } from "@/hooks/tracks/useTrackVolumeAutomationActions";
+import { ProjectAssetLibrary } from "@/types/assets";
 import { Project } from "@/types/music";
 import { PatchValidationIssue } from "@/types/patch";
 
@@ -77,6 +84,7 @@ export const useAppRoot = () => {
 
 export function AppRoot({ children }: { children: ReactNode }) {
   const [projectHistory, setProjectHistory] = useState<HistoryState<Project>>(() => createHistory(createEmptyProject()));
+  const [projectAssets, setProjectAssets] = useState<ProjectAssetLibrary>(() => createEmptyProjectAssetLibrary());
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [playheadBeat, setPlayheadBeat] = useState(0);
@@ -96,37 +104,9 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const recordingHandleBeatRef = useRef<(beat: number) => void>(() => {});
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const project = projectHistory.current;
-  const {
-    id: projectId,
-    name: projectName,
-    global: projectGlobal,
-    tracks: projectTracks,
-    patches: projectPatches,
-    masterFx: projectMasterFx,
-    createdAt: projectCreatedAt,
-    updatedAt: projectUpdatedAt
-  } = project;
   const audioProject = useMemo(
-    () => ({
-      id: projectId,
-      name: projectName,
-      global: projectGlobal,
-      tracks: projectTracks,
-      patches: projectPatches,
-      masterFx: projectMasterFx,
-      createdAt: projectCreatedAt,
-      updatedAt: projectUpdatedAt
-    }),
-    [
-      projectCreatedAt,
-      projectGlobal,
-      projectId,
-      projectMasterFx,
-      projectName,
-      projectPatches,
-      projectTracks,
-      projectUpdatedAt
-    ]
+    () => toAudioProject(project, projectAssets),
+    [project, projectAssets]
   );
   const {
     noteClipboardPayload,
@@ -141,24 +121,28 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
     const boot = async () => {
       try {
-        const saved = await loadProject();
-        const loadedProject = saved ? normalizeProject(saved) : createDefaultProject();
+        const savedState = await loadProjectState();
+        const loadedProject = savedState ? normalizeProject(savedState.project) : createDefaultProject();
+        const loadedAssets = savedState?.assets ?? createEmptyProjectAssetLibrary();
+        const migratedState = extractInlineSamplePlayerAssets(loadedProject, loadedAssets);
         if (cancelled) {
           return;
         }
-        if (saved) {
-          saveProject(loadedProject).catch(() => {
+        if (savedState) {
+          saveProjectState(migratedState.project, migratedState.assets).catch(() => {
             // ignore migration save failures
           });
         }
-        setProjectHistory(createHistory(loadedProject));
-        setSelectedTrackId(loadedProject.tracks[0]?.id);
+        setProjectAssets(migratedState.assets);
+        setProjectHistory(createHistory(migratedState.project));
+        setSelectedTrackId(migratedState.project.tracks[0]?.id);
         setReady(true);
       } catch (error) {
         if (cancelled) {
           return;
         }
         const fallbackProject = createDefaultProject();
+        setProjectAssets(createEmptyProjectAssetLibrary());
         setProjectHistory(createHistory(fallbackProject));
         setSelectedTrackId(fallbackProject.tracks[0]?.id);
         setRuntimeError(`Failed to load the saved project. Loaded the default project instead. ${(error as Error).message}`);
@@ -176,12 +160,12 @@ export function AppRoot({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!ready) return;
     const timer = window.setTimeout(() => {
-      saveProject({ ...project, updatedAt: Date.now() }).catch(() => {
+      saveProjectState({ ...project, updatedAt: Date.now() }, projectAssets).catch(() => {
         // ignore autosave errors
       });
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [project, ready]);
+  }, [project, projectAssets, ready]);
 
   const selectedTrack = useMemo(
     () => project.tracks.find((track) => track.id === selectedTrackId) ?? project.tracks[0],
@@ -247,10 +231,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const patchValidationById = useMemo(() => {
     const next = new Map<string, PatchValidationIssue[]>();
     for (const patch of project.patches) {
-      next.set(patch.id, validatePatch(patch).issues);
+      next.set(patch.id, [...validatePatch(patch).issues, ...buildMissingSampleAssetIssues(patch, projectAssets)]);
     }
     return next;
-  }, [project.patches]);
+  }, [project.patches, projectAssets]);
   const invalidPatchIds = useMemo(
     () =>
       new Set(
@@ -283,12 +267,20 @@ export function AppRoot({ children }: { children: ReactNode }) {
     []
   );
 
-  const resetProjectHistory = useCallback((nextProject: Project) => {
+  const resetProjectState = useCallback((nextProject: Project, nextAssets: ProjectAssetLibrary = createEmptyProjectAssetLibrary()) => {
+    setProjectAssets(nextAssets);
     setProjectHistory(createHistory(nextProject));
   }, []);
 
+  const upsertWorkspaceSamplePlayerAssetData = useCallback((serializedSampleData: string, existingAssetId?: string | null) => {
+    const nextState = upsertSamplePlayerAssetData(projectAssets, serializedSampleData, existingAssetId);
+    setProjectAssets(nextState.assets);
+    return nextState.assetId;
+  }, [projectAssets]);
+
   const patchWorkspace = usePatchWorkspaceState({
     project,
+    projectAssets,
     selectedTrack,
     validationIssuesByPatchId: patchValidationById,
     commitProjectChange,
@@ -471,6 +463,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   }, [commitProjectChange]);
   const { exportingAudio, exportAudio, setTrackVolume } = useProjectAudioActions({
     project,
+    projectAssets,
     audioEngineRef,
     commitProjectChange,
     setRuntimeError
@@ -734,7 +727,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   }, [patchWorkspace]));
 
   const exportJson = () => {
-    const payload = exportProjectToJson(project);
+    const payload = exportProjectToJson(project, projectAssets);
     const blob = new Blob([payload], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -747,10 +740,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const importJson = async (file: File) => {
     const text = await file.text();
     try {
-      const imported = importProjectFromJson(text);
-      resetProjectHistory(imported);
-      setSelectedTrackId(imported.tracks[0]?.id);
-      audioEngineRef.current?.setProject(toAudioProject(imported));
+      const importedBundle = importProjectBundleFromJson(text);
+      const migratedState = extractInlineSamplePlayerAssets(importedBundle.project, importedBundle.assets);
+      resetProjectState(migratedState.project, migratedState.assets);
+      setSelectedTrackId(migratedState.project.tracks[0]?.id);
+      audioEngineRef.current?.setProject(toAudioProject(migratedState.project, migratedState.assets));
     } catch (error) {
       setRuntimeError((error as Error).message);
     }
@@ -946,8 +940,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const activeRecordingTrack = activeRecordingTrackId ? project.tracks.find((track) => track.id === activeRecordingTrackId) : undefined;
   const resetToProject = async (nextProject: Project) => {
     playback.stopPlayback();
-    await clearProject();
-    resetProjectHistory(nextProject);
+    await clearProjectState();
+    resetProjectState(nextProject);
     setSelectedTrackId(nextProject.tracks[0]?.id);
   };
   const trackCanvasTrackActions = {
@@ -1108,6 +1102,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const patchWorkspaceProps: React.ComponentProps<typeof PatchWorkspaceView> = {
     patch: selectedPatch,
+    tempo: project.global.tempo,
+    meter: project.global.meter,
+    playheadBeat,
+    sampleAssets: projectAssets,
     patches: project.patches,
     probeState: {
       probes: patchWorkspace.probes,
@@ -1124,6 +1122,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
     selectedMacroId: patchWorkspace.selectedMacroId,
     validationIssues,
     invalid: selectedPatchHasErrors,
+    onWriteClipboardPayload: writeClipboardPayload,
+    onUpsertSamplePlayerAssetData: upsertWorkspaceSamplePlayerAssetData,
     canRemovePatch:
       resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset",
     onBackToComposer: patchWorkspace.closePatchWorkspace,

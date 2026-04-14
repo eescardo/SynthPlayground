@@ -20,7 +20,7 @@ export const createPatchWorkspaceProbe = (
 ): PatchWorkspaceProbeState => ({
   id: createId("probe"),
   kind,
-  name: kind === "spectrum" ? "Spectrum Probe" : "Scope Probe",
+  name: kind === "spectrum" ? "Spectrum Probe" : kind === "pitch_tracker" ? "Pitch Tracker" : "Scope Probe",
   x,
   y,
   width: kind === "spectrum" ? DEFAULT_SPECTRUM_PROBE_SIZE.width : DEFAULT_SCOPE_PROBE_SIZE.width,

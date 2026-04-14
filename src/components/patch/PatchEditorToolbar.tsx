@@ -67,6 +67,12 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
             }}>
               Spectrum Probe
             </button>
+            <button type="button" onClick={() => {
+              props.onAddProbe("pitch_tracker");
+              close();
+            }}>
+              Pitch Tracker
+            </button>
           </>
         )}
       </PatchToolbarPicker>

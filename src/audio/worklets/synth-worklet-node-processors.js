@@ -301,8 +301,81 @@ const processNoise = (context) => {
 };
 
 const processSamplePlayer = (context) => {
-  const { out, startFrame, endFrame } = context;
-  out.fill(0, startFrame, endFrame);
+  const { runtime, voice, runtimeNode, out, read, hostPitchBuffer, hostGateBuffer, startFrame, endFrame } = context;
+  const gate = read("gate", hostGateBuffer);
+  const pitch = read("pitch", hostPitchBuffer);
+  const gainParam = fillNumericParamBuffer(context, "gain", Number(runtimeNode.params.gain ?? 1));
+  const pitchSemisParam = fillNumericParamBuffer(context, "pitchSemis", Number(runtimeNode.params.pitchSemis ?? 0));
+  const mode = getParamValue(context, "mode", runtimeNode.params.mode || "oneshot");
+  const startRatio = clamp(Number(runtimeNode.params.start ?? 0), 0, 1);
+  const endRatio = clamp(Number(runtimeNode.params.end ?? 1), startRatio + 0.0001, 1);
+  const state =
+    voice.nodeState.get(runtimeNode.id) || {
+      lastSampleData: null,
+      asset: null,
+      position: 0,
+      active: false,
+      lastGate: 0
+    };
+
+  if (state.lastSampleData !== runtimeNode.params.sampleData) {
+    state.lastSampleData = runtimeNode.params.sampleData;
+    state.asset = parseSampleAsset(runtimeNode.params.sampleData);
+    state.position = 0;
+    state.active = false;
+  }
+
+  const asset = state.asset;
+  if (!asset || !asset.samples.length) {
+    out.fill(0, startFrame, endFrame);
+    voice.nodeState.set(runtimeNode.id, state);
+    return;
+  }
+
+  const startSample = clamp(Math.floor(startRatio * asset.samples.length), 0, Math.max(0, asset.samples.length - 1));
+  const endSample = clamp(Math.ceil(endRatio * asset.samples.length), startSample + 1, asset.samples.length);
+
+  for (let i = startFrame; i < endFrame; i += 1) {
+    const gateValue = gate[i];
+    const risingEdge = gateValue >= 0.5 && state.lastGate < 0.5;
+    if (risingEdge) {
+      state.position = startSample;
+      state.active = true;
+    }
+    state.lastGate = gateValue;
+
+    if (mode === "loop" && gateValue < 0.5) {
+      state.active = false;
+    }
+
+    if (!state.active) {
+      out[i] = 0;
+      continue;
+    }
+
+    if (state.position >= endSample) {
+      if (mode === "loop" && gateValue >= 0.5) {
+        state.position = startSample + (state.position - startSample) % Math.max(1, endSample - startSample);
+      } else {
+        state.active = false;
+        out[i] = 0;
+        continue;
+      }
+    }
+
+    const sampleIndex = clamp(state.position, startSample, Math.max(startSample, endSample - 1));
+    const baseIndex = Math.floor(sampleIndex);
+    const nextIndex = Math.min(endSample - 1, baseIndex + 1);
+    const frac = sampleIndex - baseIndex;
+    const currentSample = asset.samples[baseIndex] ?? 0;
+    const nextSample = asset.samples[nextIndex] ?? currentSample;
+    out[i] = (currentSample + (nextSample - currentSample) * frac) * gainParam[i];
+
+    const pitchFactor = Math.pow(2, pitch[i] + pitchSemisParam[i] / 12);
+    state.position += pitchFactor * asset.sampleRate / runtime.sampleRate;
+  }
+
+  voice.nodeState.set(runtimeNode.id, state);
 };
 
 const processDelay = (context) => {
@@ -480,6 +553,29 @@ export const NODE_PROCESSORS = {
   Compressor: processCompressor,
   Output: processOutput
 };
+
+function parseSampleAsset(raw) {
+  if (typeof raw !== "string" || raw.length === 0) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (
+      parsed?.version !== 1 ||
+      typeof parsed.sampleRate !== "number" ||
+      !Number.isFinite(parsed.sampleRate) ||
+      !Array.isArray(parsed.samples)
+    ) {
+      return null;
+    }
+    return {
+      sampleRate: parsed.sampleRate,
+      samples: Float32Array.from(parsed.samples.map((sample) => (typeof sample === "number" && Number.isFinite(sample) ? sample : 0)))
+    };
+  } catch {
+    return null;
+  }
+}
 
 export const getNodeProcessor = (typeId) => {
   const processor = NODE_PROCESSORS[typeId];

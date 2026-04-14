@@ -117,6 +117,19 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       return next;
     }
 
+    case "setParams": {
+      const node = next.nodes.find((entry) => entry.id === op.nodeId);
+      if (!node) {
+        throw new Error(`Unknown node in setParams: ${op.nodeId}`);
+      }
+      // This is the multi-param atomic update affordance used when several
+      // params form one logical state change and should land together.
+      for (const [paramId, value] of Object.entries(op.values)) {
+        node.params[paramId] = value;
+      }
+      return next;
+    }
+
     case "connect": {
       if (next.connections.some((connection) => connection.id === op.connectionId)) {
         throw new Error(`Connection already exists: ${op.connectionId}`);

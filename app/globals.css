@@ -1530,6 +1530,47 @@ select {
   font-size: 0.7rem;
 }
 
+.pitch-tracker-probe {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  height: 100%;
+  padding: 0.3rem 0.35rem;
+  border-radius: 8px;
+  background: rgba(10, 18, 28, 0.9);
+  color: #e7f3ff;
+}
+
+.pitch-tracker-probe-summary {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #c8ff39;
+}
+
+.pitch-tracker-probe-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-height: 0;
+}
+
+.pitch-tracker-probe-note,
+.pitch-tracker-note-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.22rem 0.35rem;
+  border-radius: 6px;
+  background: rgba(143, 196, 245, 0.08);
+  font-size: 0.72rem;
+}
+
+.pitch-tracker-probe-empty {
+  color: rgba(231, 243, 255, 0.7);
+  font-size: 0.7rem;
+}
+
 .patch-layout canvas {
   display: block;
   width: 1400px;
@@ -1928,6 +1969,95 @@ select {
 .macro-binding-edit-summary {
   color: #ffd69b;
   font-size: 0.72rem;
+}
+
+.sample-waveform-preview {
+  width: 100%;
+  min-height: 4rem;
+  display: block;
+}
+
+.sample-waveform-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 4rem;
+  border-radius: 0.5rem;
+  border: 1px dashed rgba(131, 173, 216, 0.28);
+  background: rgba(10, 18, 28, 0.4);
+  color: rgba(231, 243, 255, 0.7);
+  font-size: 0.78rem;
+}
+
+.sample-player-status {
+  color: #ffd69b;
+  font-size: 0.72rem;
+}
+
+.sample-player-status.success {
+  color: #8de0a1;
+}
+
+.sample-player-status.error {
+  color: #ff9b9b;
+}
+
+.sample-player-status.info {
+  color: #9fc3ff;
+}
+
+.sample-player-pitch-readout {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 0.08rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(189, 230, 145, 0.34);
+  background: rgba(200, 255, 57, 0.1);
+  color: #e2f7aa;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.sample-player-detected-pitches {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sample-player-pitch-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.sample-player-pitch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.34rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(131, 173, 216, 0.26);
+  background: rgba(13, 23, 34, 0.72);
+  color: #d7e5f4;
+  font-size: 0.72rem;
+}
+
+.sample-player-pitch-chip strong {
+  color: #f6fbff;
+}
+
+.sample-player-pitch-chip.active {
+  border-color: rgba(200, 255, 57, 0.44);
+  background: rgba(200, 255, 57, 0.16);
+  color: #f1ffd1;
+}
+
+.pitch-tracker-note-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .macro-binding-detail-card {

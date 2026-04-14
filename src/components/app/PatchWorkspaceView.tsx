@@ -2,15 +2,23 @@
 
 import type { ComponentProps } from "react";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
+import { NoteClipboardPayload } from "@/lib/clipboard";
 import { PatchWorkspaceTabStrip, PatchWorkspaceTabViewModel } from "@/components/patch-workspace/PatchWorkspaceTabStrip";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { usePatchWorkspaceQuickHelpDialog } from "@/hooks/patch/usePatchWorkspaceQuickHelpDialog";
 import { Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
+import { PatchWorkspaceProvider } from "@/components/patch/PatchWorkspaceContext";
+import { ProjectGlobalSettings } from "@/types/music";
+import { ProjectAssetLibrary } from "@/types/assets";
 
 interface PatchWorkspaceViewProps {
   patch: Patch;
+  tempo: number;
+  meter: ProjectGlobalSettings["meter"];
+  playheadBeat: number;
+  sampleAssets: ProjectAssetLibrary;
   patches: Patch[];
   probeState: PatchProbeEditorState;
   tabs: PatchWorkspaceTabViewModel[];
@@ -23,6 +31,8 @@ interface PatchWorkspaceViewProps {
   validationIssues: ComponentProps<typeof InstrumentEditor>["validationIssues"];
   invalid?: boolean;
   canRemovePatch: boolean;
+  onWriteClipboardPayload?: (payload: NoteClipboardPayload) => Promise<void>;
+  onUpsertSamplePlayerAssetData: (serializedSampleData: string, existingAssetId?: string | null) => string;
   onBackToComposer: () => void;
   onActivateTab: (tabId: string) => void;
   canCreateTab: boolean;
@@ -84,48 +94,57 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
       </div>
 
       <div className="patch-workspace-editor-shell">
-        <PatchWorkspaceTabStrip
-          tabs={props.tabs}
-          activeTabId={props.activeTabId}
-          canCreateTab={props.canCreateTab}
-          onActivateTab={props.onActivateTab}
-          onCreateTab={props.onCreateTab}
-          onCloseTab={props.onCloseTab}
-          onRenameTab={props.onRenameTab}
-        />
+        <PatchWorkspaceProvider
+          onWriteClipboardPayload={props.onWriteClipboardPayload}
+          transport={{ tempo: props.tempo, meter: props.meter, playheadBeat: props.playheadBeat }}
+          sampleAssets={{
+            assets: props.sampleAssets,
+            upsertSamplePlayerAssetData: props.onUpsertSamplePlayerAssetData
+          }}
+        >
+          <PatchWorkspaceTabStrip
+            tabs={props.tabs}
+            activeTabId={props.activeTabId}
+            canCreateTab={props.canCreateTab}
+            onActivateTab={props.onActivateTab}
+            onCreateTab={props.onCreateTab}
+            onCloseTab={props.onCloseTab}
+            onRenameTab={props.onRenameTab}
+          />
 
-        <InstrumentEditor
-          editorSessionKey={props.activeTabId}
-          patch={props.patch}
-          patches={props.patches}
-          probeState={props.probeState}
-          macroValues={props.macroValues}
-          migrationNotice={props.migrationNotice}
-          onReady={props.onInstrumentEditorReady}
-          selectedNodeId={props.selectedNodeId}
-          selectedMacroId={props.selectedMacroId}
-          validationIssues={props.validationIssues}
-          invalid={props.invalid}
-          onRenamePatch={props.onRenamePatch}
-          onSelectPatch={props.onSelectPatch}
-          onDuplicatePatch={props.onDuplicatePatch}
-          onDuplicatePatchToNewTab={props.onDuplicatePatchToNewTab}
-          onUpdatePreset={props.onUpdatePreset}
-          canRemovePatch={props.canRemovePatch}
-          onRequestRemovePatch={props.onRequestRemovePatch}
-          onSelectNode={props.onSelectNode}
-          onSelectMacro={props.onSelectMacro}
-          onClearSelectedMacro={props.onClearSelectedMacro}
-          onClearPatch={props.onClearPatch}
-          onApplyOp={props.onApplyOp}
-          probeActions={props.probeActions}
-          onExposeMacro={props.onExposeMacro}
-          onAddMacro={props.onAddMacro}
-          onRemoveMacro={props.onRemoveMacro}
-          onRenameMacro={props.onRenameMacro}
-          onSetMacroKeyframeCount={props.onSetMacroKeyframeCount}
-          onChangeMacroValue={props.onChangeMacroValue}
-        />
+          <InstrumentEditor
+            editorSessionKey={props.activeTabId}
+            patch={props.patch}
+            patches={props.patches}
+            probeState={props.probeState}
+            macroValues={props.macroValues}
+            migrationNotice={props.migrationNotice}
+            onReady={props.onInstrumentEditorReady}
+            selectedNodeId={props.selectedNodeId}
+            selectedMacroId={props.selectedMacroId}
+            validationIssues={props.validationIssues}
+            invalid={props.invalid}
+            onRenamePatch={props.onRenamePatch}
+            onSelectPatch={props.onSelectPatch}
+            onDuplicatePatch={props.onDuplicatePatch}
+            onDuplicatePatchToNewTab={props.onDuplicatePatchToNewTab}
+            onUpdatePreset={props.onUpdatePreset}
+            canRemovePatch={props.canRemovePatch}
+            onRequestRemovePatch={props.onRequestRemovePatch}
+            onSelectNode={props.onSelectNode}
+            onSelectMacro={props.onSelectMacro}
+            onClearSelectedMacro={props.onClearSelectedMacro}
+            onClearPatch={props.onClearPatch}
+            onApplyOp={props.onApplyOp}
+            probeActions={props.probeActions}
+            onExposeMacro={props.onExposeMacro}
+            onAddMacro={props.onAddMacro}
+            onRemoveMacro={props.onRemoveMacro}
+            onRenameMacro={props.onRenameMacro}
+            onSetMacroKeyframeCount={props.onSetMacroKeyframeCount}
+            onChangeMacroValue={props.onChangeMacroValue}
+          />
+        </PatchWorkspaceProvider>
       </div>
 
       <QuickHelpDialog

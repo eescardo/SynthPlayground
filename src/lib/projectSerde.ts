@@ -11,6 +11,8 @@ import { TRACK_VOLUME_DEFAULT, TRACK_VOLUME_MAX, TRACK_VOLUME_MIN } from "@/lib/
 import { Project, TrackFxSettings, PatchWorkspaceTabState } from "@/types/music";
 import { Patch, PatchConnection, PatchMacro, PatchMeta, PatchNode } from "@/types/patch";
 import { PatchProbeTarget, PatchWorkspaceProbeState } from "@/types/probes";
+import { ProjectAssetLibrary } from "@/types/assets";
+import { createEmptyProjectAssetLibrary, pickReferencedProjectAssets } from "@/lib/sampleAssetLibrary";
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -207,7 +209,7 @@ const sanitizePatchWorkspaceProbes = (raw: unknown): PatchWorkspaceProbeState[] 
   const probes = Array.isArray(raw) ? raw : [];
   return probes.map((probe, index) => {
     const entry = isObject(probe) ? probe : {};
-    const kind = entry.kind === "spectrum" ? "spectrum" : "scope";
+    const kind = entry.kind === "spectrum" ? "spectrum" : entry.kind === "pitch_tracker" ? "pitch_tracker" : "scope";
     const spectrumWindowSize = asFiniteNumber(entry.spectrumWindowSize, 0);
     const rawFrequencyView = isObject(entry.frequencyView) ? entry.frequencyView : {};
     const legacySpectrumMaxFrequencyHz = asOptionalFiniteNumber(entry.spectrumMaxFrequencyHz);
@@ -221,7 +223,7 @@ const sanitizePatchWorkspaceProbes = (raw: unknown): PatchWorkspaceProbeState[] 
     return {
       id: asString(entry.id, createId(`probe_${index}`)),
       kind,
-      name: asString(entry.name, kind === "spectrum" ? "Spectrum Probe" : "Scope Probe"),
+      name: asString(entry.name, kind === "spectrum" ? "Spectrum Probe" : kind === "pitch_tracker" ? "Pitch Tracker" : "Scope Probe"),
       x: Math.max(0, Math.floor(asFiniteNumber(entry.x, 4))),
       y: Math.max(0, Math.floor(asFiniteNumber(entry.y, 4))),
       width: Math.max(6, Math.floor(asFiniteNumber(entry.width, 10))),
@@ -255,7 +257,25 @@ const sanitizePatchWorkspaceTab = (
   };
 };
 
-export const exportProjectToJson = (project: Project): string => JSON.stringify(project, null, 2);
+interface SerializedProjectBundleV2 {
+  version: 2;
+  project: Project;
+  assets: ProjectAssetLibrary;
+}
+
+const isSerializedProjectBundleV2 = (value: unknown): value is SerializedProjectBundleV2 =>
+  isObject(value) && value.version === 2 && isObject(value.project) && isObject(value.assets);
+
+export const exportProjectToJson = (project: Project, assets: ProjectAssetLibrary = createEmptyProjectAssetLibrary()): string =>
+  JSON.stringify(
+    {
+      version: 2,
+      project,
+      assets: pickReferencedProjectAssets(project, assets)
+    } satisfies SerializedProjectBundleV2,
+    null,
+    2
+  );
 
 export const normalizeProject = (raw: unknown): Project => {
   if (!isObject(raw)) {
@@ -432,6 +452,10 @@ export const normalizeProject = (raw: unknown): Project => {
 };
 
 export const importProjectFromJson = (json: string): Project => {
+  return importProjectBundleFromJson(json).project;
+};
+
+export const importProjectBundleFromJson = (json: string): { project: Project; assets: ProjectAssetLibrary } => {
   let parsed: unknown;
   try {
     parsed = JSON.parse(json);
@@ -442,5 +466,20 @@ export const importProjectFromJson = (json: string): Project => {
   if (!isObject(parsed)) {
     throw new Error("Project JSON root must be an object");
   }
-  return normalizeProject(parsed);
+  if (isSerializedProjectBundleV2(parsed)) {
+    return {
+      project: normalizeProject(parsed.project),
+      assets: {
+        samplePlayerById: isObject(parsed.assets.samplePlayerById)
+          ? Object.fromEntries(
+              Object.entries(parsed.assets.samplePlayerById).filter((entry): entry is [string, string] => typeof entry[1] === "string")
+            )
+          : {}
+      }
+    };
+  }
+  return {
+    project: normalizeProject(parsed),
+    assets: createEmptyProjectAssetLibrary()
+  };
 };

@@ -31,6 +31,13 @@ export type PatchOp =
       value: number | string | boolean;
     }
   | {
+      type: "setParams";
+      // Apply a related group of param changes atomically so callers do not
+      // have to issue multiple setParam ops that can race or overwrite each other.
+      nodeId: string;
+      values: Record<string, number | string | boolean>;
+    }
+  | {
       type: "connect";
       connectionId: string;
       fromNodeId: string;

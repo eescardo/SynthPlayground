@@ -32,6 +32,16 @@ function createPatch(overrides: Partial<Patch> = {}): Patch {
   } satisfies Patch;
 }
 
+function createSerializedSampleData() {
+  const samples = Array.from({ length: 256 }, (_, index) => Math.sin((2 * Math.PI * index) / 32) * 0.7);
+  return JSON.stringify({
+    version: 1,
+    name: "sample.wav",
+    sampleRate: 48000,
+    samples
+  });
+}
+
 function createTrack(overrides: Partial<Track> = {}): Track {
   return {
     id: "track_1",
@@ -298,6 +308,64 @@ describe("synth worklet runtime", () => {
     const { left } = renderProcessorBlock(processor);
 
     expect(left.some((sample) => Math.abs(sample) > 1e-6)).toBe(true);
+  });
+
+  it("renders audible SamplePlayer previews from embedded sample data", async () => {
+    const { SynthWorkletProcessor } = await loadRuntimeModule();
+
+    const patch = createPatch({
+      nodes: [
+        {
+          id: "sample",
+          typeId: "SamplePlayer",
+          params: {
+            mode: "oneshot",
+            start: 0,
+            end: 1,
+            gain: 1,
+            pitchSemis: 0,
+            sampleData: createSerializedSampleData()
+          }
+        },
+        { id: "out", typeId: "Output", params: { gainDb: 0, limiter: false } }
+      ],
+      connections: [
+        {
+          id: "conn_1",
+          from: { nodeId: "sample", portId: "out" },
+          to: { nodeId: "out", portId: "in" }
+        }
+      ]
+    });
+
+    const processor = new SynthWorkletProcessor({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize: 128,
+        project: createProject({ patch })
+      }
+    });
+
+    processor.onMessage({
+      type: "PREVIEW",
+      trackId: "track_1",
+      durationSamples: 128,
+      events: [
+        {
+          id: "preview_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ]
+    });
+
+    const { left } = renderProcessorBlock(processor);
+
+    expect(sumAbs(left)).toBeGreaterThan(0.001);
   });
 
   it("can preview while respecting track volume", async () => {
