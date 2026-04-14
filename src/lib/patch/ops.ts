@@ -122,6 +122,8 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       if (!node) {
         throw new Error(`Unknown node in setParams: ${op.nodeId}`);
       }
+      // This is the multi-param atomic update affordance used when several
+      // params form one logical state change and should land together.
       for (const [paramId, value] of Object.entries(op.values)) {
         node.params[paramId] = value;
       }
