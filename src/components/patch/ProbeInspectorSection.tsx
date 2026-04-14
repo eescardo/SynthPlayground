@@ -4,10 +4,10 @@ import {
   PROBE_MAX_MAX_FREQUENCY_HZ,
   PROBE_MIN_MAX_FREQUENCY_HZ
 } from "@/lib/patch/probes";
-import { NoteClipboardPayload } from "@/lib/clipboard";
 import { buildPitchTrackerClipboardPayload, detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
 import { Patch } from "@/types/patch";
 import { PatchProbeTarget, PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
+import { usePatchWorkspaceClipboard } from "@/components/patch/PatchWorkspaceClipboardContext";
 
 interface ProbeInspectorSectionProps {
   patch: Patch;
@@ -16,7 +16,6 @@ interface ProbeInspectorSectionProps {
   previewCapture?: PreviewProbeCapture;
   previewProgress: number;
   attachingProbeId?: string | null;
-  onWriteClipboardPayload?: (payload: NoteClipboardPayload) => Promise<void>;
   onUpdateProbeSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
   onUpdateProbeFrequencyView: (probeId: string, maxHz: number) => void;
   onToggleAttachProbe: (probeId: string) => void;
@@ -25,6 +24,7 @@ interface ProbeInspectorSectionProps {
 
 export function ProbeInspectorSection(props: ProbeInspectorSectionProps) {
   const { selectedProbe } = props;
+  const onWriteClipboardPayload = usePatchWorkspaceClipboard();
   const detectedNotes =
     selectedProbe.kind === "pitch_tracker" ? detectMonophonicPitchNotes(props.previewCapture, props.tempo) : [];
   const clipboardPayload =
@@ -161,8 +161,8 @@ export function ProbeInspectorSection(props: ProbeInspectorSectionProps) {
             </div>
             <button
               type="button"
-              disabled={!clipboardPayload || !props.onWriteClipboardPayload}
-              onClick={() => clipboardPayload && props.onWriteClipboardPayload?.(clipboardPayload)}
+              disabled={!clipboardPayload || !onWriteClipboardPayload}
+              onClick={() => clipboardPayload && onWriteClipboardPayload?.(clipboardPayload)}
             >
               Copy Notes
             </button>

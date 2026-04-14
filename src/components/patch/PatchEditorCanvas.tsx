@@ -6,7 +6,6 @@ import { PatchEditorStage } from "@/components/patch/PatchEditorStage";
 import { PatchInspector } from "@/components/patch/PatchInspector";
 import { PatchMacroPanel } from "@/components/patch/PatchMacroPanel";
 import { usePatchProbeEditorState } from "@/hooks/patch/usePatchProbeEditorState";
-import { NoteClipboardPayload } from "@/lib/clipboard";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -31,7 +30,6 @@ interface PatchEditorCanvasProps {
   selectedMacroId?: string;
   validationIssues: PatchValidationIssue[];
   structureLocked?: boolean;
-  onWriteClipboardPayload?: (payload: NoteClipboardPayload) => Promise<void>;
   onSelectNode: (nodeId?: string) => void;
   onSelectMacro: (macroId?: string) => void;
   onClearSelectedMacro: () => void;
@@ -131,7 +129,6 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           attachingProbeId={attachingProbeId}
           structureLocked={props.structureLocked}
           validationIssues={props.validationIssues}
-          onWriteClipboardPayload={props.onWriteClipboardPayload}
           onApplyOp={props.onApplyOp}
           onExposeMacro={props.onExposeMacro}
           onUpdateProbeSpectrumWindow={props.probeActions.updateSpectrumWindow}

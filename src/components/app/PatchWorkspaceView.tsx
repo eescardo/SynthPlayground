@@ -9,6 +9,7 @@ import { usePatchWorkspaceQuickHelpDialog } from "@/hooks/patch/usePatchWorkspac
 import { Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
+import { PatchWorkspaceClipboardProvider } from "@/components/patch/PatchWorkspaceClipboardContext";
 
 interface PatchWorkspaceViewProps {
   patch: Patch;
@@ -87,50 +88,51 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
       </div>
 
       <div className="patch-workspace-editor-shell">
-        <PatchWorkspaceTabStrip
-          tabs={props.tabs}
-          activeTabId={props.activeTabId}
-          canCreateTab={props.canCreateTab}
-          onActivateTab={props.onActivateTab}
-          onCreateTab={props.onCreateTab}
-          onCloseTab={props.onCloseTab}
-          onRenameTab={props.onRenameTab}
-        />
+        <PatchWorkspaceClipboardProvider onWriteClipboardPayload={props.onWriteClipboardPayload}>
+          <PatchWorkspaceTabStrip
+            tabs={props.tabs}
+            activeTabId={props.activeTabId}
+            canCreateTab={props.canCreateTab}
+            onActivateTab={props.onActivateTab}
+            onCreateTab={props.onCreateTab}
+            onCloseTab={props.onCloseTab}
+            onRenameTab={props.onRenameTab}
+          />
 
-        <InstrumentEditor
-          editorSessionKey={props.activeTabId}
-          patch={props.patch}
-          tempo={props.tempo}
-          patches={props.patches}
-          probeState={props.probeState}
-          macroValues={props.macroValues}
-          migrationNotice={props.migrationNotice}
-          onReady={props.onInstrumentEditorReady}
-          selectedNodeId={props.selectedNodeId}
-          selectedMacroId={props.selectedMacroId}
-          validationIssues={props.validationIssues}
-          invalid={props.invalid}
-          onWriteClipboardPayload={props.onWriteClipboardPayload}
-          onRenamePatch={props.onRenamePatch}
-          onSelectPatch={props.onSelectPatch}
-          onDuplicatePatch={props.onDuplicatePatch}
-          onDuplicatePatchToNewTab={props.onDuplicatePatchToNewTab}
-          onUpdatePreset={props.onUpdatePreset}
-          canRemovePatch={props.canRemovePatch}
-          onRequestRemovePatch={props.onRequestRemovePatch}
-          onSelectNode={props.onSelectNode}
-          onSelectMacro={props.onSelectMacro}
-          onClearSelectedMacro={props.onClearSelectedMacro}
-          onClearPatch={props.onClearPatch}
-          onApplyOp={props.onApplyOp}
-          probeActions={props.probeActions}
-          onExposeMacro={props.onExposeMacro}
-          onAddMacro={props.onAddMacro}
-          onRemoveMacro={props.onRemoveMacro}
-          onRenameMacro={props.onRenameMacro}
-          onSetMacroKeyframeCount={props.onSetMacroKeyframeCount}
-          onChangeMacroValue={props.onChangeMacroValue}
-        />
+          <InstrumentEditor
+            editorSessionKey={props.activeTabId}
+            patch={props.patch}
+            tempo={props.tempo}
+            patches={props.patches}
+            probeState={props.probeState}
+            macroValues={props.macroValues}
+            migrationNotice={props.migrationNotice}
+            onReady={props.onInstrumentEditorReady}
+            selectedNodeId={props.selectedNodeId}
+            selectedMacroId={props.selectedMacroId}
+            validationIssues={props.validationIssues}
+            invalid={props.invalid}
+            onRenamePatch={props.onRenamePatch}
+            onSelectPatch={props.onSelectPatch}
+            onDuplicatePatch={props.onDuplicatePatch}
+            onDuplicatePatchToNewTab={props.onDuplicatePatchToNewTab}
+            onUpdatePreset={props.onUpdatePreset}
+            canRemovePatch={props.canRemovePatch}
+            onRequestRemovePatch={props.onRequestRemovePatch}
+            onSelectNode={props.onSelectNode}
+            onSelectMacro={props.onSelectMacro}
+            onClearSelectedMacro={props.onClearSelectedMacro}
+            onClearPatch={props.onClearPatch}
+            onApplyOp={props.onApplyOp}
+            probeActions={props.probeActions}
+            onExposeMacro={props.onExposeMacro}
+            onAddMacro={props.onAddMacro}
+            onRemoveMacro={props.onRemoveMacro}
+            onRenameMacro={props.onRenameMacro}
+            onSetMacroKeyframeCount={props.onSetMacroKeyframeCount}
+            onChangeMacroValue={props.onChangeMacroValue}
+          />
+        </PatchWorkspaceClipboardProvider>
       </div>
 
       <QuickHelpDialog

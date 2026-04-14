@@ -4,7 +4,6 @@ import {
 } from "@/lib/patch/macroKeyframes";
 import { SamplePlayerInspectorSection } from "@/components/patch/SamplePlayerInspectorSection";
 import { ProbeInspectorSection } from "@/components/patch/ProbeInspectorSection";
-import { NoteClipboardPayload } from "@/lib/clipboard";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch, PatchNode, ParamSchema, ParamValue, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -133,7 +132,6 @@ interface PatchInspectorProps {
   attachingProbeId?: string | null;
   structureLocked?: boolean;
   validationIssues: PatchValidationIssue[];
-  onWriteClipboardPayload?: (payload: NoteClipboardPayload) => Promise<void>;
   onApplyOp: (op: PatchOp) => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
   onUpdateProbeSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
@@ -338,7 +336,6 @@ export function PatchInspector(props: PatchInspectorProps) {
           previewCapture={props.previewCapture}
           previewProgress={props.previewProgress}
           attachingProbeId={props.attachingProbeId}
-          onWriteClipboardPayload={props.onWriteClipboardPayload}
           onUpdateProbeSpectrumWindow={props.onUpdateProbeSpectrumWindow}
           onUpdateProbeFrequencyView={props.onUpdateProbeFrequencyView}
           onToggleAttachProbe={props.onToggleAttachProbe}
