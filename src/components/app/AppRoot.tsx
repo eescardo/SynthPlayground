@@ -1109,6 +1109,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const patchWorkspaceProps: React.ComponentProps<typeof PatchWorkspaceView> = {
     patch: selectedPatch,
     tempo: project.global.tempo,
+    meter: project.global.meter,
+    playheadBeat,
     patches: project.patches,
     probeState: {
       probes: patchWorkspace.probes,

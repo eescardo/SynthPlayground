@@ -7,7 +7,7 @@ import {
 import { buildPitchTrackerClipboardPayload, detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
 import { Patch } from "@/types/patch";
 import { PatchProbeTarget, PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
-import { usePatchWorkspaceClipboard, usePatchWorkspaceTempo } from "@/components/patch/PatchWorkspaceClipboardContext";
+import { usePatchWorkspaceClipboard, usePatchWorkspaceTransport } from "@/components/patch/PatchWorkspaceContext";
 
 interface ProbeInspectorSectionProps {
   patch: Patch;
@@ -24,7 +24,7 @@ interface ProbeInspectorSectionProps {
 export function ProbeInspectorSection(props: ProbeInspectorSectionProps) {
   const { selectedProbe } = props;
   const onWriteClipboardPayload = usePatchWorkspaceClipboard();
-  const tempo = usePatchWorkspaceTempo();
+  const { tempo } = usePatchWorkspaceTransport();
   const detectedNotes =
     selectedProbe.kind === "pitch_tracker" ? detectMonophonicPitchNotes(props.previewCapture, tempo) : [];
   const clipboardPayload =

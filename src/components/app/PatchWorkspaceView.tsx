@@ -9,11 +9,14 @@ import { usePatchWorkspaceQuickHelpDialog } from "@/hooks/patch/usePatchWorkspac
 import { Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
-import { PatchWorkspaceClipboardProvider } from "@/components/patch/PatchWorkspaceClipboardContext";
+import { PatchWorkspaceProvider } from "@/components/patch/PatchWorkspaceContext";
+import { ProjectGlobalSettings } from "@/types/music";
 
 interface PatchWorkspaceViewProps {
   patch: Patch;
   tempo: number;
+  meter: ProjectGlobalSettings["meter"];
+  playheadBeat: number;
   patches: Patch[];
   probeState: PatchProbeEditorState;
   tabs: PatchWorkspaceTabViewModel[];
@@ -88,7 +91,10 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
       </div>
 
       <div className="patch-workspace-editor-shell">
-        <PatchWorkspaceClipboardProvider onWriteClipboardPayload={props.onWriteClipboardPayload} tempo={props.tempo}>
+        <PatchWorkspaceProvider
+          onWriteClipboardPayload={props.onWriteClipboardPayload}
+          transport={{ tempo: props.tempo, meter: props.meter, playheadBeat: props.playheadBeat }}
+        >
           <PatchWorkspaceTabStrip
             tabs={props.tabs}
             activeTabId={props.activeTabId}
@@ -131,7 +137,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
             onSetMacroKeyframeCount={props.onSetMacroKeyframeCount}
             onChangeMacroValue={props.onChangeMacroValue}
           />
-        </PatchWorkspaceClipboardProvider>
+        </PatchWorkspaceProvider>
       </div>
 
       <QuickHelpDialog
