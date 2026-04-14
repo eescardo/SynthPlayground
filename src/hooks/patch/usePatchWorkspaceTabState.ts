@@ -61,6 +61,10 @@ export function usePatchWorkspaceTabState(options: UsePatchWorkspaceTabStateOpti
     if (persistedWorkspaceSignature === workspaceSyncSignatureRef.current) {
       return;
     }
+    if (persistedWorkspaceSignature === projectWorkspaceSignature) {
+      workspaceSyncSignatureRef.current = persistedWorkspaceSignature;
+      return;
+    }
     workspaceSyncSignatureRef.current = persistedWorkspaceSignature;
     commitProjectChange(
       (current) => ({
@@ -73,7 +77,7 @@ export function usePatchWorkspaceTabState(options: UsePatchWorkspaceTabStateOpti
       { skipHistory: skipNextWorkspaceHistoryRef.current }
     );
     skipNextWorkspaceHistoryRef.current = true;
-  }, [commitProjectChange, persistedWorkspaceSignature, persistedWorkspaceState]);
+  }, [commitProjectChange, persistedWorkspaceSignature, persistedWorkspaceState, projectWorkspaceSignature]);
 
   const activeTab = useMemo(() => getActiveTab(tabs, activeTabId), [activeTabId, tabs]);
 
