@@ -32,7 +32,7 @@ export const compareScheduledEvents = (a, b) => {
 };
 
 class VoiceState {
-  constructor(signalCount, blockSize) {
+  constructor(signalCount, blockSize, nodeCount) {
     this.active = false;
     this.noteId = null;
     this.lastTriggeredSampleTime = 0;
@@ -43,9 +43,9 @@ class VoiceState {
       velocity: 0,
       modWheel: 0
     };
-    this.nodeState = new Map();
-    this.paramState = new Map();
-    this.paramBuffers = new Map();
+    this.nodeState = new Array(nodeCount).fill(null);
+    this.paramState = new Array(nodeCount).fill(null);
+    this.paramBuffers = new Array(nodeCount).fill(null);
     this.signalBuffers = new Array(signalCount).fill(0).map(() => new Float32Array(blockSize));
   }
 }
@@ -59,7 +59,9 @@ export class TrackRuntime {
     this.blockSize = blockSize;
     this.zeroBuffer = new Float32Array(blockSize);
     this.compiled = this.compilePatch(patch);
-    this.voices = new Array(MAX_VOICES).fill(0).map(() => new VoiceState(this.compiled.signalCount, blockSize));
+    this.voices = new Array(MAX_VOICES)
+      .fill(0)
+      .map(() => new VoiceState(this.compiled.signalCount, blockSize, this.compiled.nodeRuntimes.length));
     this.nodeRenderContext = {
       runtime: this,
       voice: null,
@@ -187,20 +189,22 @@ export class TrackRuntime {
     const fallbackOutputSignalIndex = ensureOutputIndex(outputNodeId, "out");
     const outputSignalIndex = outputPortId === "out" ? fallbackOutputSignalIndex : -1;
     const outputInputSourceSignalIndex = inputSourceByDestKey.get(`${outputNodeId}:${outputPortId}`) ?? -1;
-    const createRuntimeNode = (id, typeId, params, outIndex, inputs) => ({
+    const createRuntimeNode = (id, typeId, params, outIndex, inputs, stateIndex) => ({
       id,
       typeId,
       params,
       outIndex,
       inputs,
+      stateIndex,
+      paramValues: Object.create(null),
       processor: getNodeProcessor(typeId)
     });
 
     const nodeRuntimes = [
-      createRuntimeNode("$host.pitch", "NotePitch", {}, hostSignalIndices.pitch, {}),
-      createRuntimeNode("$host.gate", "NoteGate", {}, hostSignalIndices.gate, {}),
-      createRuntimeNode("$host.velocity", "NoteVelocity", {}, hostSignalIndices.velocity, {}),
-      createRuntimeNode("$host.modwheel", "ModWheel", {}, hostSignalIndices.modWheel, {})
+      createRuntimeNode("$host.pitch", "NotePitch", {}, hostSignalIndices.pitch, {}, 0),
+      createRuntimeNode("$host.gate", "NoteGate", {}, hostSignalIndices.gate, {}, 1),
+      createRuntimeNode("$host.velocity", "NoteVelocity", {}, hostSignalIndices.velocity, {}, 2),
+      createRuntimeNode("$host.modwheel", "ModWheel", {}, hostSignalIndices.modWheel, {}, 3)
     ];
     for (const nodeId of nodeOrder) {
       const node = nodeById.get(nodeId);
@@ -215,15 +219,21 @@ export class TrackRuntime {
         node.typeId,
         node.params || {},
         outputIndexByKey.get(`${node.id}:out`) ?? -1,
-        inputIndices
+        inputIndices,
+        nodeRuntimes.length
       ));
     }
 
+    const nodeRuntimeById = new Map(nodeRuntimes.map((runtimeNode) => [runtimeNode.id, runtimeNode]));
     const paramTargets = new Map();
     for (const node of patch.nodes) {
       const nodeParams = new Map();
+      const runtimeNode = nodeRuntimeById.get(node.id);
       for (const [paramId, value] of Object.entries(node.params || {})) {
         nodeParams.set(paramId, value);
+        if (runtimeNode) {
+          runtimeNode.paramValues[paramId] = value;
+        }
       }
       paramTargets.set(node.id, nodeParams);
     }
@@ -233,6 +243,7 @@ export class TrackRuntime {
     return {
       nodeById,
       nodeRuntimes,
+      nodeRuntimeById,
       paramTargets,
       macroById,
       outputNodeId,
@@ -300,8 +311,8 @@ export class TrackRuntime {
     voice.host.pitchVoct = event.pitchVoct;
     voice.host.velocity = event.velocity;
     voice.host.gate = 1;
-    voice.nodeState.clear();
-    voice.paramState.clear();
+    voice.nodeState.fill(null);
+    voice.paramState.fill(null);
   }
 
   noteOn(event, sampleTime) {
@@ -356,10 +367,12 @@ export class TrackRuntime {
   // ParamChange events and macro bindings both feed this compiled target map.
   setParam(nodeId, paramId, value) {
     const nodeParams = this.compiled.paramTargets.get(nodeId);
-    if (!nodeParams) {
+    const runtimeNode = this.compiled.nodeRuntimeById.get(nodeId);
+    if (!nodeParams || !runtimeNode) {
       return;
     }
     nodeParams.set(paramId, value);
+    runtimeNode.paramValues[paramId] = value;
   }
 
   // Macros stay as UI-facing normalized controls and are expanded here into the
@@ -414,39 +427,56 @@ export class TrackRuntime {
     return this.getInputBuffer(signalBuffers, inputIndex) || fallbackBuffer || this.zeroBuffer;
   }
 
-  getParamValue(nodeId, paramId, fallback) {
-    const nodeParams = this.compiled.paramTargets.get(nodeId);
-    return nodeParams && nodeParams.has(paramId) ? nodeParams.get(paramId) : fallback;
+  getParamValue(runtimeNode, paramId, fallback) {
+    return runtimeNode.paramValues[paramId] ?? fallback;
   }
 
-  getParamBuffer(voice, nodeId, paramId) {
-    const key = `${nodeId}:${paramId}`;
-    let buffer = voice.paramBuffers.get(key);
+  getNodeState(voice, runtimeNode, createState) {
+    const stateIndex = runtimeNode.stateIndex;
+    let state = voice.nodeState[stateIndex];
+    if (!state && createState) {
+      state = createState();
+      voice.nodeState[stateIndex] = state;
+    }
+    return state;
+  }
+
+  getParamBuffer(voice, runtimeNode, paramId) {
+    const stateIndex = runtimeNode.stateIndex;
+    let nodeParamBuffers = voice.paramBuffers[stateIndex];
+    if (!nodeParamBuffers) {
+      nodeParamBuffers = Object.create(null);
+      voice.paramBuffers[stateIndex] = nodeParamBuffers;
+    }
+    let buffer = nodeParamBuffers[paramId];
     if (!buffer) {
       buffer = new Float32Array(this.blockSize);
-      voice.paramBuffers.set(key, buffer);
+      nodeParamBuffers[paramId] = buffer;
     }
     return buffer;
   }
 
   // Numeric params are smoothed into per-voice block buffers before node DSP runs.
   // Nodes then read paramBuffer[i] alongside other audio/CV buffers for the frame range.
-  fillNumericParamBuffer(voice, nodeId, typeId, paramId, fallback, startFrame, endFrame) {
-    const targetRaw = this.getParamValue(nodeId, paramId, fallback);
+  fillNumericParamBuffer(voice, runtimeNode, paramId, fallback, startFrame, endFrame) {
+    const targetRaw = this.getParamValue(runtimeNode, paramId, fallback);
     const target = typeof targetRaw === "number" ? targetRaw : Number(fallback);
-    const smoothingMs = PARAM_SMOOTHING_MS[typeId] && PARAM_SMOOTHING_MS[typeId][paramId] ? PARAM_SMOOTHING_MS[typeId][paramId] : 0;
-    const buffer = this.getParamBuffer(voice, nodeId, paramId);
+    const smoothingMs =
+      PARAM_SMOOTHING_MS[runtimeNode.typeId] && PARAM_SMOOTHING_MS[runtimeNode.typeId][paramId]
+        ? PARAM_SMOOTHING_MS[runtimeNode.typeId][paramId]
+        : 0;
+    const buffer = this.getParamBuffer(voice, runtimeNode, paramId);
 
-    let nodeParamState = voice.paramState.get(nodeId);
+    let nodeParamState = voice.paramState[runtimeNode.stateIndex];
     if (!nodeParamState) {
-      nodeParamState = new Map();
-      voice.paramState.set(nodeId, nodeParamState);
+      nodeParamState = Object.create(null);
+      voice.paramState[runtimeNode.stateIndex] = nodeParamState;
     }
 
-    const prev = nodeParamState.get(paramId);
+    const prev = nodeParamState[paramId];
     const current = prev === undefined ? target : prev;
     if (prev === undefined || smoothingMs <= 0) {
-      nodeParamState.set(paramId, target);
+      nodeParamState[paramId] = target;
       buffer.fill(target, startFrame, endFrame);
       return buffer;
     }
@@ -457,7 +487,7 @@ export class TrackRuntime {
       smoothed = onePoleStep(smoothed, target, alpha);
       buffer[i] = smoothed;
     }
-    nodeParamState.set(paramId, smoothed);
+    nodeParamState[paramId] = smoothed;
     return buffer;
   }
 
@@ -489,7 +519,6 @@ export class TrackRuntime {
       this.processNodeFrames(voice, nodeRuntime, signalBuffers, startFrame, endFrame);
     }
 
-    const outNode = this.compiled.nodeById.get(this.compiled.outputNodeId);
     let outputBuffer = null;
     if (this.compiled.outputSignalIndex >= 0) {
       outputBuffer = signalBuffers[this.compiled.outputSignalIndex];
@@ -499,7 +528,7 @@ export class TrackRuntime {
       outputBuffer = signalBuffers[this.compiled.outputInputSourceSignalIndex];
     }
 
-    if (!outNode || !outputBuffer) {
+    if (!outputBuffer) {
       return null;
     }
 
@@ -518,8 +547,8 @@ export class TrackRuntime {
       voice.noteId = null;
       voice.host.gate = 0;
       voice.rms = 0;
-      voice.nodeState.clear();
-      voice.paramState.clear();
+      voice.nodeState.fill(null);
+      voice.paramState.fill(null);
       outputBuffer.fill(0, startFrame, endFrame);
       return null;
     }
@@ -635,6 +664,8 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     this.blockSize = 128;
     this.project = null;
     this.trackRuntimes = [];
+    this.trackRuntimeById = new Map();
+    this.trackRuntimesByPatchId = new Map();
     this.eventQueue = [];
     this.playing = false;
     this.previewing = false;
@@ -671,13 +702,23 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
   applyProject(project) {
     this.project = project;
     this.trackRuntimes = [];
+    this.trackRuntimeById = new Map();
+    this.trackRuntimesByPatchId = new Map();
     for (const track of this.project.tracks || []) {
       const patch = (this.project.patches || []).find((entry) => entry.id === track.instrumentPatchId);
       if (!patch) {
         continue;
       }
       try {
-        this.trackRuntimes.push(new TrackRuntime(track, patch, this.sampleRateInternal, this.blockSize));
+        const runtime = new TrackRuntime(track, patch, this.sampleRateInternal, this.blockSize);
+        this.trackRuntimes.push(runtime);
+        this.trackRuntimeById.set(track.id, runtime);
+        const runtimesForPatch = this.trackRuntimesByPatchId.get(patch.id);
+        if (runtimesForPatch) {
+          runtimesForPatch.push(runtime);
+        } else {
+          this.trackRuntimesByPatchId.set(patch.id, [runtime]);
+        }
       } catch {
         // Invalid patch graphs are rejected and skipped for runtime safety.
       }
@@ -871,24 +912,25 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     }
 
     if (event.type === "ParamChange") {
-      for (const track of this.trackRuntimes) {
-        if (track.patch.id === event.patchId) {
-          track.setParam(event.nodeId, event.paramId, event.value);
-        }
+      const patchRuntimes = this.trackRuntimesByPatchId.get(event.patchId);
+      if (!patchRuntimes) {
+        return;
+      }
+      for (const track of patchRuntimes) {
+        track.setParam(event.nodeId, event.paramId, event.value);
       }
       return;
     }
 
     if (event.type === "MacroChange") {
-      for (const track of this.trackRuntimes) {
-        if (track.track.id === event.trackId) {
-          track.applyMacro(event.macroId, event.normalized);
-        }
+      const trackRuntime = this.trackRuntimeById.get(event.trackId);
+      if (trackRuntime) {
+        trackRuntime.applyMacro(event.macroId, event.normalized);
       }
       return;
     }
 
-    const track = this.trackRuntimes.find((entry) => entry.track.id === event.trackId);
+    const track = this.trackRuntimeById.get(event.trackId);
     if (!track) {
       return;
     }
