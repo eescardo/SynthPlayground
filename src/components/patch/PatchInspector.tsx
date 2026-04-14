@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   resolveMacroBindingValue,
   resolveMacroKeyframeIndexAtValue
@@ -84,17 +85,7 @@ function ParamValueControl(props: {
   const { param, value, disabled, onChange } = props;
 
   if (param.type === "float") {
-    return (
-      <input
-        type="range"
-        min={param.range.min}
-        max={param.range.max}
-        step={param.step ?? (param.range.max - param.range.min) / 500}
-        value={Number(value)}
-        disabled={disabled}
-        onChange={(event) => onChange(Number(event.target.value))}
-      />
-    );
+    return <FloatParamValueControl param={param} value={Number(value)} disabled={disabled} onChange={onChange} />;
   }
 
   if (param.type === "enum") {
@@ -110,6 +101,45 @@ function ParamValueControl(props: {
   }
 
   return <input type="checkbox" checked={Boolean(value)} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />;
+}
+
+function FloatParamValueControl(props: {
+  param: Extract<ParamSchema, { type: "float" }>;
+  value: number;
+  disabled?: boolean;
+  onChange: (value: number) => void;
+}) {
+  const [draftValue, setDraftValue] = useState(props.value);
+
+  useEffect(() => {
+    setDraftValue(props.value);
+  }, [props.value]);
+
+  const commitDraft = (nextValue: number) => {
+    if (nextValue === props.value) {
+      return;
+    }
+    props.onChange(nextValue);
+  };
+
+  return (
+    <input
+      type="range"
+      min={props.param.range.min}
+      max={props.param.range.max}
+      step={props.param.step ?? (props.param.range.max - props.param.range.min) / 500}
+      value={draftValue}
+      disabled={props.disabled}
+      onChange={(event) => setDraftValue(Number(event.target.value))}
+      onPointerUp={(event) => commitDraft(Number(event.currentTarget.value))}
+      onBlur={(event) => commitDraft(Number(event.currentTarget.value))}
+      onKeyUp={(event) => {
+        if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(event.key)) {
+          commitDraft(Number(event.currentTarget.value));
+        }
+      }}
+    />
+  );
 }
 
 function renderParamInlineSummary(node: PatchNode, param: ParamSchema, value: ParamValue) {
