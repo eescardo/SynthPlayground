@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { exportProjectToJson, importProjectFromJson, normalizeProject } from "@/lib/projectSerde";
+import { exportProjectToJson, importProjectBundleFromJson, importProjectFromJson, normalizeProject } from "@/lib/projectSerde";
 import { createDefaultProject } from "@/lib/patch/presets";
 import { getBundledPresetLineage } from "@/lib/patch/source";
 import { validatePatch } from "@/lib/patch/validation";
@@ -91,6 +91,42 @@ describe("projectSerde", () => {
       { x: 0.5, y: 0.0075 },
       { x: 1, y: 0.0035 }
     ]);
+  });
+
+  it("bundles referenced sample assets during export and restores them on import", () => {
+    const project = createDefaultProject();
+    project.patches = [
+      {
+        ...project.patches[0],
+        id: "patch_sample",
+        nodes: [
+          {
+            id: "sample1",
+            typeId: "SamplePlayer",
+            params: {
+              mode: "oneshot",
+              start: 0,
+              end: 1,
+              gain: 1,
+              pitchSemis: 0,
+              sampleAssetId: "asset_1"
+            }
+          }
+        ]
+      }
+    ];
+
+    const json = exportProjectToJson(project, {
+      samplePlayerById: {
+        asset_1: "{\"version\":1,\"name\":\"tone.wav\",\"sampleRate\":48000,\"samples\":[0,0.25,-0.25]}",
+        unused_asset: "{\"version\":1,\"name\":\"unused.wav\",\"sampleRate\":48000,\"samples\":[0]}"
+      }
+    });
+    const imported = importProjectBundleFromJson(json);
+
+    expect(imported.project.patches[0].nodes[0].params.sampleAssetId).toBe("asset_1");
+    expect(imported.assets.samplePlayerById.asset_1).toContain("\"tone.wav\"");
+    expect(imported.assets.samplePlayerById.unused_asset).toBeUndefined();
   });
 
   it("import/export roundtrip preserves patch workspace tabs separately from patch names", () => {

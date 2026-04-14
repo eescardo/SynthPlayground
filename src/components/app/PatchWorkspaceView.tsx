@@ -11,12 +11,14 @@ import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 import { PatchWorkspaceProvider } from "@/components/patch/PatchWorkspaceContext";
 import { ProjectGlobalSettings } from "@/types/music";
+import { ProjectAssetLibrary } from "@/types/assets";
 
 interface PatchWorkspaceViewProps {
   patch: Patch;
   tempo: number;
   meter: ProjectGlobalSettings["meter"];
   playheadBeat: number;
+  sampleAssets: ProjectAssetLibrary;
   patches: Patch[];
   probeState: PatchProbeEditorState;
   tabs: PatchWorkspaceTabViewModel[];
@@ -30,6 +32,7 @@ interface PatchWorkspaceViewProps {
   invalid?: boolean;
   canRemovePatch: boolean;
   onWriteClipboardPayload?: (payload: NoteClipboardPayload) => Promise<void>;
+  onUpsertSamplePlayerAssetData: (serializedSampleData: string, existingAssetId?: string | null) => string;
   onBackToComposer: () => void;
   onActivateTab: (tabId: string) => void;
   canCreateTab: boolean;
@@ -94,6 +97,10 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
         <PatchWorkspaceProvider
           onWriteClipboardPayload={props.onWriteClipboardPayload}
           transport={{ tempo: props.tempo, meter: props.meter, playheadBeat: props.playheadBeat }}
+          sampleAssets={{
+            assets: props.sampleAssets,
+            upsertSamplePlayerAssetData: props.onUpsertSamplePlayerAssetData
+          }}
         >
           <PatchWorkspaceTabStrip
             tabs={props.tabs}

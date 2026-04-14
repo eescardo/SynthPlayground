@@ -6,10 +6,12 @@ import { toAudioProject } from "@/audio/audioProject";
 import { AudioEngine } from "@/audio/engine";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import { pitchToVoct } from "@/lib/pitch";
+import { hydratePatchSamplePlayerAssetsForRuntime } from "@/lib/sampleAssetLibrary";
 import { Patch } from "@/types/patch";
 import { Project, Track } from "@/types/music";
 import { AudioProject } from "@/types/audio";
 import { PatchWorkspaceProbeState, PreviewProbeCapture, PreviewProbeRequest } from "@/types/probes";
+import { ProjectAssetLibrary } from "@/types/assets";
 
 const PREVIEW_DURATION_BEATS = 1;
 const PREVIEW_PROGRESS_TICK_MS = 33;
@@ -35,6 +37,7 @@ const buildPatchedPreviewProject = (
 
 interface UsePatchWorkspacePreviewOptions {
   project: Project;
+  projectAssets: ProjectAssetLibrary;
   selectedPatch?: Patch;
   selectedTrack?: Track;
   probes?: PatchWorkspaceProbeState[];
@@ -46,6 +49,7 @@ interface UsePatchWorkspacePreviewOptions {
 export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOptions) {
   const {
     project,
+    projectAssets,
     selectedPatch,
     selectedTrack,
     probes = [],
@@ -53,7 +57,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
     playing,
     setRuntimeError
   } = options;
-  const audioProject = toAudioProject(project);
+  const audioProject = toAudioProject(project, projectAssets);
   const [previewPitch, setPreviewPitch] = useState(DEFAULT_NOTE_PITCH);
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
   const [pendingPreview, setPendingPreview] = useState<{
@@ -122,7 +126,9 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
       return;
     }
     const engine = audioEngineRef.current;
-    const patch = patchOverride ?? audioProject.patches.find((entry) => entry.id === patchId);
+    const patch = patchOverride
+      ? hydratePatchSamplePlayerAssetsForRuntime(patchOverride, projectAssets)
+      : audioProject.patches.find((entry) => entry.id === patchId);
     if (!engine || !patch) {
       return;
     }
@@ -150,7 +156,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
         previewId
       })
       .catch((error) => setRuntimeError((error as Error).message));
-  }, [audioEngineRef, audioProject, captureRequests, playing, previewPitch, selectedTrack, setRuntimeError]);
+  }, [audioEngineRef, audioProject, captureRequests, playing, previewPitch, projectAssets, selectedTrack, setRuntimeError]);
 
   useEffect(() => {
     if (!pendingPreview || playing) {

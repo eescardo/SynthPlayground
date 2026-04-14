@@ -13,6 +13,7 @@ import {
   samplePlayerRootPitchToPitchSemis,
   serializeSamplePlayerData
 } from "@/lib/patch/samplePlayer";
+import { usePatchWorkspaceSampleAssets } from "@/components/patch/PatchWorkspaceContext";
 import { detectDominantSamplePitches } from "@/lib/patch/pitchTracker";
 import { PatchNode } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -30,10 +31,14 @@ type SamplePlayerStatus = {
 
 export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSectionProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { assets, upsertSamplePlayerAssetData } = usePatchWorkspaceSampleAssets();
+  const sampleAssetId = typeof props.node.params.sampleAssetId === "string" ? props.node.params.sampleAssetId : "";
+  const rawSampleData = sampleAssetId ? assets.samplePlayerById[sampleAssetId] : undefined;
   const sampleAsset = useMemo(
-    () => parseSamplePlayerData(typeof props.node.params.sampleData === "string" ? props.node.params.sampleData : undefined),
-    [props.node.params.sampleData]
+    () => parseSamplePlayerData(rawSampleData),
+    [rawSampleData]
   );
+  const sampleAssetMissing = Boolean(sampleAssetId) && !sampleAsset;
   const [sourceUrl, setSourceUrl] = useState(sampleAsset?.sourceUrl ?? "");
   const [status, setStatus] = useState<SamplePlayerStatus>(null);
   const [loading, setLoading] = useState(false);
@@ -76,11 +81,12 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
   const rootPitch = samplePlayerPitchSemisToRootPitch(pitchSemis);
 
   const storeSample = (sampleData: string) => {
+    const nextAssetId = upsertSamplePlayerAssetData(sampleData);
     props.onApplyOp({
       type: "setParams",
       nodeId: props.node.id,
       values: {
-        sampleData,
+        sampleAssetId: nextAssetId,
         start: 0,
         end: 1
       }
@@ -121,6 +127,10 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
   };
 
   const previewSample = async () => {
+    if (sampleAssetMissing) {
+      setStatus({ tone: "error", message: `Sample asset not found for id ${sampleAssetId}. Re-import it to restore playback.` });
+      return;
+    }
     if (!sampleAsset || !trim) {
       setStatus({ tone: "error", message: "Load a sample first." });
       return;
@@ -152,6 +162,8 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
           <div className="macro-binding-edit-summary">
             {sampleAsset
               ? `${sampleAsset.name} · ${formatSampleDuration(sampleAsset.samples.length / sampleAsset.sampleRate)} · ${sampleAsset.sampleRate.toLocaleString()} Hz mono`
+              : sampleAssetMissing
+                ? `Missing sample asset: ${sampleAssetId}`
               : "Load from a URL or import a local file. The decoded sample is stored inside this patch."}
           </div>
         </div>
@@ -186,8 +198,18 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
         </div>
         <button
           type="button"
-          disabled={props.structureLocked || !sampleAsset}
-          onClick={() => props.onApplyOp({ type: "setParam", nodeId: props.node.id, paramId: "sampleData", value: "" })}
+          disabled={props.structureLocked || !sampleAssetId}
+          onClick={() =>
+            props.onApplyOp({
+              type: "setParams",
+              nodeId: props.node.id,
+              values: {
+                sampleAssetId: "",
+                start: 0,
+                end: 1
+              }
+            })
+          }
         >
           Clear
         </button>
@@ -220,6 +242,8 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
             <div className="macro-binding-edit-summary">
               {dominantPitches.length
                 ? "Detected dominant pitches in the trimmed region. Click one to treat the sample as that root note."
+                : sampleAssetMissing
+                  ? "This patch references a missing sample asset. Re-import a file or URL to restore it."
                 : sampleAsset
                   ? "Pitch detection works best on a monophonic trimmed phrase with audible note gaps."
                   : "Load a sample to analyze trimmed pitches."}

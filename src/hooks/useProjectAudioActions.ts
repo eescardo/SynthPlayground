@@ -5,6 +5,7 @@ import { AudioEngine } from "@/audio/engine";
 import { toAudioProject } from "@/audio/audioProject";
 import { TRACK_VOLUME_AUTOMATION_ID } from "@/lib/macroAutomation";
 import { clampTrackVolume, isTrackVolumeMuted } from "@/lib/trackVolume";
+import { ProjectAssetLibrary } from "@/types/assets";
 import { Project } from "@/types/music";
 
 interface CommitProjectChange {
@@ -13,6 +14,7 @@ interface CommitProjectChange {
 
 interface UseProjectAudioActionsOptions {
   project: Project;
+  projectAssets: ProjectAssetLibrary;
   audioEngineRef: RefObject<AudioEngine | null>;
   commitProjectChange: CommitProjectChange;
   setRuntimeError: (message: string | null | ((prev: string | null) => string | null)) => void;
@@ -28,7 +30,7 @@ const downloadBlob = (blob: Blob, filename: string) => {
 };
 
 export function useProjectAudioActions(options: UseProjectAudioActionsOptions) {
-  const { audioEngineRef, commitProjectChange, project, setRuntimeError } = options;
+  const { audioEngineRef, commitProjectChange, project, projectAssets, setRuntimeError } = options;
   const [exportingAudio, setExportingAudio] = useState(false);
 
   const setTrackVolume = useCallback((trackId: string, volume: number, actionOptions?: { commit?: boolean }) => {
@@ -57,14 +59,14 @@ export function useProjectAudioActions(options: UseProjectAudioActionsOptions) {
     }
     setExportingAudio(true);
     try {
-      const blob = await audioEngineRef.current.exportProjectAudio(toAudioProject(project));
+      const blob = await audioEngineRef.current.exportProjectAudio(toAudioProject(project, projectAssets));
       downloadBlob(blob, `${project.name.replace(/\s+/g, "_").toLowerCase()}.wav`);
     } catch (error) {
       setRuntimeError((error as Error).message);
     } finally {
       setExportingAudio(false);
     }
-  }, [audioEngineRef, exportingAudio, project, setRuntimeError]);
+  }, [audioEngineRef, exportingAudio, project, projectAssets, setRuntimeError]);
 
   return {
     exportingAudio,

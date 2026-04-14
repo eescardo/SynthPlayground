@@ -36,9 +36,11 @@ import { Project, Track } from "@/types/music";
 import { PatchOp } from "@/types/ops";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchProbeFrequencyView, PatchProbeTarget, PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
+import { ProjectAssetLibrary } from "@/types/assets";
 
 interface UsePatchWorkspaceStateOptions {
   project: Project;
+  projectAssets: ProjectAssetLibrary;
   selectedTrack?: Track;
   validationIssuesByPatchId: Map<string, PatchValidationIssue[]>;
   commitProjectChange: (
@@ -55,6 +57,7 @@ interface UsePatchWorkspaceStateOptions {
 export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   const {
     project,
+    projectAssets,
     selectedTrack,
     validationIssuesByPatchId,
     commitProjectChange,
@@ -125,6 +128,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     setPreviewPitchPickerOpen
   } = usePatchWorkspacePreview({
     project,
+    projectAssets,
     selectedPatch,
     selectedTrack,
     probes,
