@@ -115,3 +115,22 @@ export const pruneTabMacroValues = (
     Object.entries(tabMacroValuesById).filter(([tabId]) => validIdSet.has(tabId))
   );
 };
+
+export const retargetRemovedPatchTabs = (
+  tabs: LocalPatchWorkspaceTab[],
+  removedPatchId: string,
+  replacementPatchId: string
+) =>
+  tabs.map((tab) =>
+    tab.patchId === removedPatchId
+      ? {
+          ...tab,
+          patchId: replacementPatchId,
+          selectedNodeId: undefined,
+          selectedMacroId: undefined,
+          selectedProbeId: undefined,
+          probes: [],
+          migrationNotice: null
+        }
+      : tab
+  );

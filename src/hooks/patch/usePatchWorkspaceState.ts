@@ -11,7 +11,8 @@ import {
   isAudiblePatchOp,
   isTextEditingTarget,
   LocalPatchWorkspaceTab,
-  MAX_PATCH_WORKSPACE_TABS
+  MAX_PATCH_WORKSPACE_TABS,
+  retargetRemovedPatchTabs
 } from "@/hooks/patch/patchWorkspaceStateUtils";
 import { usePatchWorkspacePreviewController } from "@/hooks/patch/usePatchWorkspacePreviewController";
 import { usePatchWorkspacePreview } from "@/hooks/patch/usePatchWorkspacePreview";
@@ -746,9 +747,22 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     const affectedTracks = project.tracks.filter((track) => track.instrumentPatchId === selectedPatch.id);
     const fallbackPatchId = project.patches.find((patch) => patch.id !== selectedPatch.id)?.id ?? "";
     if (affectedTracks.length === 0) {
+      const replacementPatch = createClearPatch({
+        id: createId("patch"),
+        name: activeTab?.name || selectedPatch.name
+      });
+      const affectedTabIds = tabs.filter((tab) => tab.patchId === selectedPatch.id).map((tab) => tab.id);
+
+      skipNextWorkspaceHistoryRef.current = false;
+      setTabs((currentTabs) => retargetRemovedPatchTabs(currentTabs, selectedPatch.id, replacementPatch.id));
+      setTabMacroValuesById((current) => ({
+        ...current,
+        ...Object.fromEntries(affectedTabIds.map((tabId) => [tabId, {}]))
+      }));
+      setPreviewCaptureByProbeId({});
       commitProjectChange((current) => ({
         ...current,
-        patches: current.patches.filter((patch) => patch.id !== selectedPatch.id)
+        patches: [...current.patches.filter((patch) => patch.id !== selectedPatch.id), replacementPatch]
       }), { actionKey: `patch:${selectedPatch.id}:remove` });
       return;
     }
@@ -760,7 +774,18 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
         fallbackPatchId
       }))
     });
-  }, [commitProjectChange, project.patches, project.tracks, selectedPatch, setPatchRemovalDialog]);
+  }, [
+    activeTab?.name,
+    commitProjectChange,
+    project.patches,
+    project.tracks,
+    selectedPatch,
+    setPatchRemovalDialog,
+    setTabMacroValuesById,
+    setTabs,
+    skipNextWorkspaceHistoryRef,
+    tabs
+  ]);
 
   return {
     tabs,

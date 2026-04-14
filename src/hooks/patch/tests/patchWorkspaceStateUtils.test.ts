@@ -4,7 +4,8 @@ import {
   isAudiblePatchOp,
   MAX_PATCH_WORKSPACE_TABS,
   parseTabMacroValues,
-  pruneTabMacroValues
+  pruneTabMacroValues,
+  retargetRemovedPatchTabs
 } from "@/hooks/patch/patchWorkspaceStateUtils";
 
 describe("patchWorkspaceStateUtils", () => {
@@ -72,5 +73,51 @@ describe("patchWorkspaceStateUtils", () => {
         toPortId: "in"
       })
     ).toBe(true);
+  });
+
+  it("keeps tabs while retargeting a removed patch to a replacement clear patch", () => {
+    expect(
+      retargetRemovedPatchTabs(
+        [
+          {
+            id: "tab_a",
+            name: "Lead Sketch",
+            patchId: "patch_removed",
+            selectedNodeId: "osc1",
+            selectedMacroId: "macro_cutoff",
+            selectedProbeId: "probe_1",
+            probes: [{ id: "probe_1", kind: "scope", name: "Scope Probe", x: 0, y: 0, width: 10, height: 8 }],
+            migrationNotice: "Old notice"
+          },
+          {
+            id: "tab_b",
+            name: "Bass",
+            patchId: "patch_other",
+            probes: [],
+            migrationNotice: null
+          }
+        ],
+        "patch_removed",
+        "patch_replacement"
+      )
+    ).toEqual([
+      {
+        id: "tab_a",
+        name: "Lead Sketch",
+        patchId: "patch_replacement",
+        selectedNodeId: undefined,
+        selectedMacroId: undefined,
+        selectedProbeId: undefined,
+        probes: [],
+        migrationNotice: null
+      },
+      {
+        id: "tab_b",
+        name: "Bass",
+        patchId: "patch_other",
+        probes: [],
+        migrationNotice: null
+      }
+    ]);
   });
 });
