@@ -149,6 +149,13 @@ function renderParamInlineSummary(node: PatchNode, param: ParamSchema, value: Pa
   return null;
 }
 
+function shouldRenderParamInGenericInspector(node: PatchNode, param: ParamSchema) {
+  if (node.typeId === "SamplePlayer" && (param.id === "start" || param.id === "end")) {
+    return false;
+  }
+  return true;
+}
+
 interface PatchInspectorProps {
   patch: Patch;
   macroValues: Record<string, number>;
@@ -270,7 +277,9 @@ export function PatchInspector(props: PatchInspectorProps) {
           <h4>
             {selectedNode.typeId} <small>{selectedNode.id}</small>
           </h4>
-          {props.selectedSchema.params.map((param) => {
+          {props.selectedSchema.params
+            .filter((param) => shouldRenderParamInGenericInspector(selectedNode, param))
+            .map((param) => {
             const value = selectedNode.params[param.id] ?? param.default;
             const bindingState = resolveParamBindingState(
               props.patch,
@@ -346,7 +355,7 @@ export function PatchInspector(props: PatchInspectorProps) {
                 )}
               </div>
             );
-          })}
+            })}
           {selectedNode.typeId === "SamplePlayer" && (
             <SamplePlayerInspectorSection
               node={selectedNode}

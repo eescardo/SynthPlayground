@@ -44,17 +44,30 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
 
   const startRatio = typeof props.node.params.start === "number" ? props.node.params.start : 0;
   const endRatio = typeof props.node.params.end === "number" ? props.node.params.end : 1;
+  const [draftStartRatio, setDraftStartRatio] = useState(startRatio);
+  const [draftEndRatio, setDraftEndRatio] = useState(endRatio);
+
+  useEffect(() => {
+    setDraftStartRatio(startRatio);
+  }, [startRatio]);
+
+  useEffect(() => {
+    setDraftEndRatio(endRatio);
+  }, [endRatio]);
+
+  const visualTrim = sampleAsset ? resolveSampleTrimRange(sampleAsset, draftStartRatio, draftEndRatio) : null;
   const trim = sampleAsset ? resolveSampleTrimRange(sampleAsset, startRatio, endRatio) : null;
   const waveformPeaks = useMemo(
     () => (sampleAsset ? buildSampleWaveformPeaks(sampleAsset.samples) : []),
     [sampleAsset]
   );
   const trimmedSamples = useMemo(() => {
-    if (!sampleAsset || !trim) {
+    if (!sampleAsset || !visualTrim) {
       return undefined;
     }
-    return sampleAsset.samples.slice(trim.startSample, trim.endSample);
-  }, [sampleAsset, trim]);
+    const { startSample, endSample } = visualTrim;
+    return sampleAsset.samples.slice(startSample, endSample);
+  }, [sampleAsset, visualTrim]);
   const dominantPitches = useMemo(
     () => detectDominantSamplePitches(trimmedSamples, sampleAsset?.sampleRate),
     [trimmedSamples, sampleAsset?.sampleRate]
@@ -166,8 +179,8 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
             }}
           />
           <div className="macro-binding-edit-summary">
-            {trim
-              ? `Trimmed playback: ${formatSampleDuration(trim.startSample / (sampleAsset?.sampleRate ?? 1))} to ${formatSampleDuration(trim.endSample / (sampleAsset?.sampleRate ?? 1))}`
+            {visualTrim
+              ? `Trimmed playback: ${formatSampleDuration(visualTrim.startSample / (sampleAsset?.sampleRate ?? 1))} to ${formatSampleDuration(visualTrim.endSample / (sampleAsset?.sampleRate ?? 1))}`
               : "Imported files are downmixed to mono for the current SamplePlayer."}
           </div>
         </div>
@@ -179,10 +192,27 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
           Clear
         </button>
       </div>
+      <SampleTrimControls
+        disabled={props.structureLocked || !sampleAsset}
+        startRatio={draftStartRatio}
+        endRatio={draftEndRatio}
+        onChangeStart={setDraftStartRatio}
+        onChangeEnd={setDraftEndRatio}
+        onCommitStart={(nextStartRatio) => {
+          if (nextStartRatio !== startRatio) {
+            props.onApplyOp({ type: "setParam", nodeId: props.node.id, paramId: "start", value: nextStartRatio });
+          }
+        }}
+        onCommitEnd={(nextEndRatio) => {
+          if (nextEndRatio !== endRatio) {
+            props.onApplyOp({ type: "setParam", nodeId: props.node.id, paramId: "end", value: nextEndRatio });
+          }
+        }}
+      />
       <div className="param-row">
         <span>Preview Sample</span>
         <div className="param-control-stack">
-          <SampleWaveform peaks={waveformPeaks} startRatio={startRatio} endRatio={endRatio} />
+          <SampleWaveform peaks={waveformPeaks} startRatio={draftStartRatio} endRatio={draftEndRatio} />
           <div className={`sample-player-status${status ? ` ${status.tone}` : ""}`}>
             {status?.message ?? "This preview plays the trimmed sample directly, separate from patch note preview."}
           </div>
@@ -270,6 +300,77 @@ function SampleWaveform(props: { peaks: number[]; startRatio: number; endRatio: 
       <line x1="0" y1="30" x2="100" y2="30" stroke="rgba(141, 165, 183, 0.18)" strokeWidth="0.4" />
       {bars}
     </svg>
+  );
+}
+
+function SampleTrimControls(props: {
+  disabled?: boolean;
+  startRatio: number;
+  endRatio: number;
+  onChangeStart: (value: number) => void;
+  onChangeEnd: (value: number) => void;
+  onCommitStart: (value: number) => void;
+  onCommitEnd: (value: number) => void;
+}) {
+  const commitStart = (nextStartRatio: number) => {
+    const clampedStartRatio = Math.min(nextStartRatio, props.endRatio);
+    props.onChangeStart(clampedStartRatio);
+    props.onCommitStart(clampedStartRatio);
+  };
+
+  const commitEnd = (nextEndRatio: number) => {
+    const clampedEndRatio = Math.max(nextEndRatio, props.startRatio);
+    props.onChangeEnd(clampedEndRatio);
+    props.onCommitEnd(clampedEndRatio);
+  };
+
+  return (
+    <>
+      <div className="param-row">
+        <span>Start</span>
+        <div className="param-control-stack">
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.001}
+            value={props.startRatio}
+            disabled={props.disabled}
+            onChange={(event) => props.onChangeStart(Math.min(Number(event.target.value), props.endRatio))}
+            onPointerUp={(event) => commitStart(Number(event.currentTarget.value))}
+            onBlur={(event) => commitStart(Number(event.currentTarget.value))}
+            onKeyUp={(event) => {
+              if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(event.key)) {
+                commitStart(Number(event.currentTarget.value));
+              }
+            }}
+          />
+          <div className="macro-binding-edit-summary">Trim start: {(props.startRatio * 100).toFixed(1)}%</div>
+        </div>
+      </div>
+      <div className="param-row">
+        <span>End</span>
+        <div className="param-control-stack">
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.001}
+            value={props.endRatio}
+            disabled={props.disabled}
+            onChange={(event) => props.onChangeEnd(Math.max(Number(event.target.value), props.startRatio))}
+            onPointerUp={(event) => commitEnd(Number(event.currentTarget.value))}
+            onBlur={(event) => commitEnd(Number(event.currentTarget.value))}
+            onKeyUp={(event) => {
+              if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(event.key)) {
+                commitEnd(Number(event.currentTarget.value));
+              }
+            }}
+          />
+          <div className="macro-binding-edit-summary">Trim end: {(props.endRatio * 100).toFixed(1)}%</div>
+        </div>
+      </div>
+    </>
   );
 }
 
