@@ -12,8 +12,14 @@ import {
   isTextEditingTarget,
   LocalPatchWorkspaceTab,
   MAX_PATCH_WORKSPACE_TABS,
+  sanitizeWorkspaceTabs,
   retargetRemovedPatchTabs
 } from "@/hooks/patch/patchWorkspaceStateUtils";
+import {
+  createClearedWorkspacePatch,
+  createCustomDuplicatePatch,
+  createReplacementPatchForRemovedWorkspacePatch
+} from "@/hooks/patch/patchWorkspacePatchHelpers";
 import { usePatchWorkspacePreviewController } from "@/hooks/patch/usePatchWorkspacePreviewController";
 import { usePatchWorkspacePreview } from "@/hooks/patch/usePatchWorkspacePreview";
 import { usePatchWorkspaceTabMacroSession } from "@/hooks/patch/usePatchWorkspaceTabMacroSession";
@@ -59,6 +65,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     setPatchRemovalDialog
   } = options;
   const patchNameById = useMemo(() => new Map(project.patches.map((patch) => [patch.id, patch.name] as const)), [project.patches]);
+  const patchById = useMemo(() => new Map(project.patches.map((patch) => [patch.id, patch] as const)), [project.patches]);
   const {
     tabs,
     activeTabId,
@@ -127,40 +134,14 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   });
 
   useEffect(() => {
-    const validPatchIds = new Set(project.patches.map((patch) => patch.id));
     setTabs((currentTabs) => {
       const fallbackPatchId = selectedTrack?.instrumentPatchId ?? project.patches[0]?.id;
       if (!fallbackPatchId) {
         return currentTabs;
       }
-      const nextTabs = currentTabs
-        .filter((tab) => validPatchIds.has(tab.patchId))
-        .map((tab) => {
-          const patch = project.patches.find((entry) => entry.id === tab.patchId);
-          const probes = (tab.probes ?? []).filter((probe) => {
-            const target = probe.target;
-            if (!target) {
-              return true;
-            }
-            if (target.kind === "connection") {
-              return Boolean(patch?.connections.some((connection) => connection.id === target.connectionId));
-            }
-            return Boolean(patch?.nodes.some((node) => node.id === target.nodeId));
-          });
-          return {
-            ...tab,
-            name: tab.name || patchNameById.get(tab.patchId) || "Instrument",
-            probes,
-            selectedMacroId:
-              tab.selectedMacroId && patch?.ui.macros.some((macro) => macro.id === tab.selectedMacroId)
-                ? tab.selectedMacroId
-                : undefined,
-            selectedProbeId: tab.selectedProbeId && probes.some((probe) => probe.id === tab.selectedProbeId) ? tab.selectedProbeId : undefined
-          };
-        });
-      return nextTabs.length > 0 ? nextTabs : [{ ...createWorkspaceTab(fallbackPatchId), probes: [] }];
+      return sanitizeWorkspaceTabs(currentTabs, patchById, patchNameById, fallbackPatchId, createWorkspaceTab);
     });
-  }, [createWorkspaceTab, patchNameById, project.patches, selectedTrack?.instrumentPatchId, setTabs]);
+  }, [createWorkspaceTab, patchById, patchNameById, project.patches, selectedTrack?.instrumentPatchId, setTabs]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -508,19 +489,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       return;
     }
 
-    const existingOutputNode = selectedPatch.nodes.find((node) => node.typeId === "Output");
-    const existingOutputLayout = existingOutputNode
-      ? selectedPatch.layout.nodes.find((node) => node.nodeId === existingOutputNode.id)
-      : undefined;
-
-    const nextPatch = createClearPatch({
-      id: selectedPatch.id,
-      name: selectedPatch.name,
-      meta: selectedPatch.meta,
-      outputNodeId: existingOutputNode?.id ?? "out1",
-      outputPosition: existingOutputLayout ? { x: existingOutputLayout.x, y: existingOutputLayout.y } : undefined,
-      canvasZoom: selectedPatch.ui.canvasZoom
-    });
+    const nextPatch = createClearedWorkspacePatch(selectedPatch);
 
     commitProjectChange((current) => ({
       ...current,
@@ -686,10 +655,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       return;
     }
 
-    const duplicate = structuredClone(selectedPatch);
-    duplicate.id = createId("patch");
-    duplicate.name = `${selectedPatch.name} Copy`;
-    duplicate.meta = { source: "custom" };
+    const duplicate = createCustomDuplicatePatch(selectedPatch);
 
     commitProjectChange((current) => ({
       ...current,
@@ -713,10 +679,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       return;
     }
 
-    const duplicate = structuredClone(selectedPatch);
-    duplicate.id = createId("patch");
-    duplicate.name = `${selectedPatch.name} Copy`;
-    duplicate.meta = { source: "custom" };
+    const duplicate = createCustomDuplicatePatch(selectedPatch);
 
     const nextTab: LocalPatchWorkspaceTab = {
       ...createWorkspaceTab(duplicate.id, duplicate.name),
@@ -747,10 +710,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     const affectedTracks = project.tracks.filter((track) => track.instrumentPatchId === selectedPatch.id);
     const fallbackPatchId = project.patches.find((patch) => patch.id !== selectedPatch.id)?.id ?? "";
     if (affectedTracks.length === 0) {
-      const replacementPatch = createClearPatch({
-        id: createId("patch"),
-        name: activeTab?.name || selectedPatch.name
-      });
+      const replacementPatch = createReplacementPatchForRemovedWorkspacePatch(selectedPatch, activeTab?.name);
       const affectedTabIds = tabs.filter((tab) => tab.patchId === selectedPatch.id).map((tab) => tab.id);
 
       skipNextWorkspaceHistoryRef.current = false;

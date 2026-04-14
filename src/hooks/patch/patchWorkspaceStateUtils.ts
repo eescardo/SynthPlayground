@@ -1,4 +1,5 @@
 import { clampNormalizedMacroValue } from "@/lib/patch/macroKeyframes";
+import { Patch } from "@/types/patch";
 import { PatchWorkspaceTabState } from "@/types/music";
 import { PatchOp } from "@/types/ops";
 
@@ -121,16 +122,47 @@ export const retargetRemovedPatchTabs = (
   removedPatchId: string,
   replacementPatchId: string
 ) =>
-  tabs.map((tab) =>
-    tab.patchId === removedPatchId
-      ? {
-          ...tab,
-          patchId: replacementPatchId,
-          selectedNodeId: undefined,
-          selectedMacroId: undefined,
-          selectedProbeId: undefined,
-          probes: [],
-          migrationNotice: null
+  tabs.map((tab) => (tab.patchId === removedPatchId ? resetWorkspaceTabForPatch(tab, replacementPatchId) : tab));
+
+export const resetWorkspaceTabForPatch = (tab: LocalPatchWorkspaceTab, patchId: string): LocalPatchWorkspaceTab => ({
+  ...tab,
+  patchId,
+  selectedNodeId: undefined,
+  selectedMacroId: undefined,
+  selectedProbeId: undefined,
+  probes: [],
+  migrationNotice: null
+});
+
+export const sanitizeWorkspaceTabs = (
+  tabs: LocalPatchWorkspaceTab[],
+  patchById: Map<string, Patch>,
+  patchNameById: Map<string, string>,
+  fallbackPatchId: string,
+  createWorkspaceTab: (patchId: string) => LocalPatchWorkspaceTab
+) => {
+  const nextTabs = tabs
+    .filter((tab) => patchById.has(tab.patchId))
+    .map((tab) => {
+      const patch = patchById.get(tab.patchId);
+      const probes = (tab.probes ?? []).filter((probe) => {
+        const target = probe.target;
+        if (!target) {
+          return true;
         }
-      : tab
-  );
+        if (target.kind === "connection") {
+          return Boolean(patch?.connections.some((connection) => connection.id === target.connectionId));
+        }
+        return Boolean(patch?.nodes.some((node) => node.id === target.nodeId));
+      });
+      return {
+        ...tab,
+        name: tab.name || patchNameById.get(tab.patchId) || "Instrument",
+        probes,
+        selectedMacroId:
+          tab.selectedMacroId && patch?.ui.macros.some((macro) => macro.id === tab.selectedMacroId) ? tab.selectedMacroId : undefined,
+        selectedProbeId: tab.selectedProbeId && probes.some((probe) => probe.id === tab.selectedProbeId) ? tab.selectedProbeId : undefined
+      };
+    });
+  return nextTabs.length > 0 ? nextTabs : [{ ...createWorkspaceTab(fallbackPatchId), probes: [] }];
+};
