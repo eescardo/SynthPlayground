@@ -13,7 +13,6 @@ import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 interface InstrumentEditorProps {
   editorSessionKey?: string;
   patch: Patch;
-  tempo: number;
   patches: Patch[];
   probeState: PatchProbeEditorState;
   macroValues: Record<string, number>;
@@ -86,7 +85,6 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
 
       <PatchEditorCanvas
         patch={props.patch}
-        tempo={props.tempo}
         probeState={props.probeState}
         macroValues={props.macroValues}
         selectedNodeId={props.selectedNodeId}

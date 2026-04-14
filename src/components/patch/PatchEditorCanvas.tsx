@@ -23,7 +23,6 @@ const PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT: Record<number, number> = {
 
 interface PatchEditorCanvasProps {
   patch: Patch;
-  tempo: number;
   probeState: PatchProbeEditorState;
   macroValues: Record<string, number>;
   selectedNodeId?: string;
@@ -118,7 +117,6 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
 
         <PatchInspector
           patch={props.patch}
-          tempo={props.tempo}
           macroValues={props.macroValues}
           selectedNode={selectedNode}
           selectedProbe={selectedProbe}

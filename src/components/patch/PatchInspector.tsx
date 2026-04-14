@@ -121,7 +121,6 @@ function renderParamInlineSummary(node: PatchNode, param: ParamSchema, value: Pa
 
 interface PatchInspectorProps {
   patch: Patch;
-  tempo: number;
   macroValues: Record<string, number>;
   selectedNode?: PatchNode;
   selectedProbe?: PatchWorkspaceProbeState;
@@ -331,7 +330,6 @@ export function PatchInspector(props: PatchInspectorProps) {
       {selectedProbe && !selectedNode && (
         <ProbeInspectorSection
           patch={props.patch}
-          tempo={props.tempo}
           selectedProbe={selectedProbe}
           previewCapture={props.previewCapture}
           previewProgress={props.previewProgress}

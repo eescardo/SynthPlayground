@@ -88,7 +88,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
       </div>
 
       <div className="patch-workspace-editor-shell">
-        <PatchWorkspaceClipboardProvider onWriteClipboardPayload={props.onWriteClipboardPayload}>
+        <PatchWorkspaceClipboardProvider onWriteClipboardPayload={props.onWriteClipboardPayload} tempo={props.tempo}>
           <PatchWorkspaceTabStrip
             tabs={props.tabs}
             activeTabId={props.activeTabId}
@@ -102,7 +102,6 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           <InstrumentEditor
             editorSessionKey={props.activeTabId}
             patch={props.patch}
-            tempo={props.tempo}
             patches={props.patches}
             probeState={props.probeState}
             macroValues={props.macroValues}
