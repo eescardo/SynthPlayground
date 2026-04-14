@@ -9,6 +9,7 @@ import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch, PatchNode, ParamSchema, ParamValue, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
+import { samplePlayerPitchSemisToRootPitch } from "@/lib/patch/samplePlayer";
 
 function formatBindingValue(value: number) {
   if (!Number.isFinite(value)) {
@@ -110,6 +111,13 @@ function ParamValueControl(props: {
   }
 
   return <input type="checkbox" checked={Boolean(value)} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />;
+}
+
+function renderParamInlineSummary(node: PatchNode, param: ParamSchema, value: ParamValue) {
+  if (node.typeId === "SamplePlayer" && param.id === "pitchSemis" && typeof value === "number") {
+    return <div className="sample-player-pitch-readout">Treat as {samplePlayerPitchSemisToRootPitch(value)}</div>;
+  }
+  return null;
 }
 
 interface PatchInspectorProps {
@@ -250,6 +258,7 @@ export function PatchInspector(props: PatchInspectorProps) {
               <div key={param.id} className={`param-row${bindingState.isExposed ? " bound" : ""}`}>
                 <span>{param.label}</span>
                 <div className="param-control-stack">
+                  {renderParamInlineSummary(selectedNode, param, value)}
                   {(!bindingState.isExposed || bindingState.isEditableSelectedMacroBinding) && (
                     <ParamValueControl
                       param={param}

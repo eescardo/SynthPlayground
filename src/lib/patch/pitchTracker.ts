@@ -1,5 +1,5 @@
 import { NoteClipboardPayload } from "@/lib/clipboard";
-import { midiToPitch } from "@/lib/pitch";
+import { midiToPitch, pitchToMidi } from "@/lib/pitch";
 import { PreviewProbeCapture } from "@/types/probes";
 
 export interface DetectedPitchNote {
@@ -10,18 +10,34 @@ export interface DetectedPitchNote {
   confidence: number;
 }
 
+export interface DominantSamplePitch {
+  pitchStr: string;
+  noteCount: number;
+  totalDurationSeconds: number;
+  confidence: number;
+  suggestedPitchSemis: number;
+}
+
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 export function detectMonophonicPitchNotes(
   capture: PreviewProbeCapture | undefined,
   tempo: number
 ): DetectedPitchNote[] {
-  if (!capture || !capture.samples.length || capture.sampleRate <= 0 || tempo <= 0) {
+  return detectMonophonicPitchNotesFromSamples(capture?.samples, capture?.sampleRate, tempo);
+}
+
+export function detectMonophonicPitchNotesFromSamples(
+  samplesInput: ArrayLike<number> | undefined,
+  sampleRate: number | undefined,
+  tempo: number
+): DetectedPitchNote[] {
+  if (!samplesInput || !samplesInput.length || !sampleRate || sampleRate <= 0 || tempo <= 0) {
     return [];
   }
 
-  const samples = Float32Array.from(capture.samples);
-  const envelope = buildEnvelope(samples, capture.sampleRate);
+  const samples = Float32Array.from(samplesInput);
+  const envelope = buildEnvelope(samples, sampleRate);
   const peakEnvelope = envelope.reduce((peak, value) => Math.max(peak, value), 0);
   if (peakEnvelope <= 0.0005) {
     return [];
@@ -29,13 +45,13 @@ export function detectMonophonicPitchNotes(
 
   const onsetThreshold = Math.max(0.01, peakEnvelope * 0.22);
   const releaseThreshold = onsetThreshold * 0.55;
-  const minNoteSamples = Math.max(256, Math.floor(capture.sampleRate * 0.04));
+  const minNoteSamples = Math.max(256, Math.floor(sampleRate * 0.04));
   const segments = detectEnvelopeSegments(envelope, onsetThreshold, releaseThreshold, minNoteSamples);
   const notes: DetectedPitchNote[] = [];
   const beatsPerSecond = tempo / 60;
 
   for (const segment of segments) {
-    const windows = analyzePitchWindows(samples, capture.sampleRate, segment.startSample, segment.endSample);
+    const windows = analyzePitchWindows(samples, sampleRate, segment.startSample, segment.endSample);
     if (windows.length === 0) {
       continue;
     }
@@ -46,7 +62,7 @@ export function detectMonophonicPitchNotes(
       const shouldSplit =
         !next ||
         Math.abs(next.midi - current.midi) >= 1 ||
-        next.startSample - current.endSample > Math.floor(capture.sampleRate * 0.03);
+        next.startSample - current.endSample > Math.floor(sampleRate * 0.03);
 
       if (!shouldSplit) {
         current = {
@@ -62,8 +78,8 @@ export function detectMonophonicPitchNotes(
       if (durationSamples >= minNoteSamples) {
         notes.push({
           pitchStr: midiToPitch(current.midi),
-          startBeat: current.startSample / capture.sampleRate * beatsPerSecond,
-          durationBeats: durationSamples / capture.sampleRate * beatsPerSecond,
+          startBeat: (current.startSample / sampleRate) * beatsPerSecond,
+          durationBeats: (durationSamples / sampleRate) * beatsPerSecond,
           velocity: 1,
           confidence: current.confidence
         });
@@ -75,6 +91,51 @@ export function detectMonophonicPitchNotes(
   }
 
   return mergeAdjacentEqualPitch(notes);
+}
+
+export function detectDominantSamplePitches(
+  samplesInput: ArrayLike<number> | undefined,
+  sampleRate: number | undefined,
+  limit = 6
+): DominantSamplePitch[] {
+  const detectedNotes = detectMonophonicPitchNotesFromSamples(samplesInput, sampleRate, 60);
+  if (detectedNotes.length === 0) {
+    return [];
+  }
+
+  const aggregate = new Map<string, DominantSamplePitch>();
+  for (const note of detectedNotes) {
+    const existing = aggregate.get(note.pitchStr);
+    const totalDurationSeconds = note.durationBeats;
+    if (existing) {
+      existing.noteCount += 1;
+      existing.totalDurationSeconds += totalDurationSeconds;
+      existing.confidence = Math.max(existing.confidence, note.confidence);
+      continue;
+    }
+    aggregate.set(note.pitchStr, {
+      pitchStr: note.pitchStr,
+      noteCount: 1,
+      totalDurationSeconds,
+      confidence: note.confidence,
+      suggestedPitchSemis: clamp(60 - pitchToMidi(note.pitchStr), -48, 48)
+    });
+  }
+
+  return [...aggregate.values()]
+    .sort((left, right) => {
+      if (right.totalDurationSeconds !== left.totalDurationSeconds) {
+        return right.totalDurationSeconds - left.totalDurationSeconds;
+      }
+      if (right.noteCount !== left.noteCount) {
+        return right.noteCount - left.noteCount;
+      }
+      if (right.confidence !== left.confidence) {
+        return right.confidence - left.confidence;
+      }
+      return pitchToMidi(left.pitchStr) - pitchToMidi(right.pitchStr);
+    })
+    .slice(0, Math.max(1, limit));
 }
 
 export function buildPitchTrackerClipboardPayload(

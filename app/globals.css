@@ -2006,6 +2006,54 @@ select {
   color: #9fc3ff;
 }
 
+.sample-player-pitch-readout {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 0.08rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(189, 230, 145, 0.34);
+  background: rgba(200, 255, 57, 0.1);
+  color: #e2f7aa;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.sample-player-detected-pitches {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sample-player-pitch-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.sample-player-pitch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.34rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(131, 173, 216, 0.26);
+  background: rgba(13, 23, 34, 0.72);
+  color: #d7e5f4;
+  font-size: 0.72rem;
+}
+
+.sample-player-pitch-chip strong {
+  color: #f6fbff;
+}
+
+.sample-player-pitch-chip.active {
+  border-color: rgba(200, 255, 57, 0.44);
+  background: rgba(200, 255, 57, 0.16);
+  color: #f1ffd1;
+}
+
 .pitch-tracker-note-list {
   display: flex;
   flex-direction: column;

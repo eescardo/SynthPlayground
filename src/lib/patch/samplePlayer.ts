@@ -1,5 +1,7 @@
 "use client";
 
+import { midiToPitch, pitchToMidi } from "@/lib/pitch";
+
 export interface SerializedSamplePlayerData {
   version: 1;
   name: string;
@@ -18,6 +20,14 @@ export interface DecodedSampleAsset {
 const SAMPLE_DATA_VERSION = 1;
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+export function samplePlayerPitchSemisToRootPitch(pitchSemis: number) {
+  return midiToPitch(Math.round(60 - clamp(pitchSemis, -48, 48)));
+}
+
+export function samplePlayerRootPitchToPitchSemis(pitchStr: string) {
+  return clamp(60 - pitchToMidi(pitchStr), -48, 48);
+}
 
 export function parseSamplePlayerData(raw: string | null | undefined): DecodedSampleAsset | null {
   if (!raw) {

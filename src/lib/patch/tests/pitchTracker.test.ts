@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildPitchTrackerClipboardPayload, detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
+import {
+  buildPitchTrackerClipboardPayload,
+  detectDominantSamplePitches,
+  detectMonophonicPitchNotes,
+  detectMonophonicPitchNotesFromSamples
+} from "@/lib/patch/pitchTracker";
 import { PreviewProbeCapture } from "@/types/probes";
 
 function buildSineCapture(frequencies: Array<{ hz: number; seconds: number }>, sampleRate = 48000): PreviewProbeCapture {
@@ -39,6 +44,37 @@ describe("pitch tracker", () => {
     expect(notes[0]?.pitchStr).toBe("C4");
     expect(notes[1]?.pitchStr).toBe("E4");
     expect(notes[0]?.durationBeats).toBeGreaterThan(0.4);
+  });
+
+  it("detects notes directly from sample data", () => {
+    const capture = buildSineCapture([
+      { hz: 220, seconds: 0.28 },
+      { hz: 261.63, seconds: 0.25 }
+    ]);
+
+    const notes = detectMonophonicPitchNotesFromSamples(capture.samples, capture.sampleRate, 120);
+
+    expect(notes[0]?.pitchStr).toBe("A3");
+    expect(notes.at(-1)?.pitchStr).toBe("C4");
+    expect(notes.some((note) => note.pitchStr === "A3")).toBe(true);
+    expect(notes.some((note) => note.pitchStr === "C4")).toBe(true);
+  });
+
+  it("summarizes dominant pitches for a trimmed sample region", () => {
+    const capture = buildSineCapture([
+      { hz: 220, seconds: 0.36 },
+      { hz: 220, seconds: 0.2 },
+      { hz: 261.63, seconds: 0.14 }
+    ]);
+
+    const summary = detectDominantSamplePitches(capture.samples, capture.sampleRate);
+
+    expect(summary[0]).toMatchObject({
+      pitchStr: "A3",
+      noteCount: 2,
+      suggestedPitchSemis: 3
+    });
+    expect(summary[0]?.totalDurationSeconds).toBeGreaterThan(summary[1]?.totalDurationSeconds ?? 0);
   });
 
   it("builds a note clipboard payload from detected notes", () => {

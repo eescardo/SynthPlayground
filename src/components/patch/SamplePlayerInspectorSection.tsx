@@ -9,8 +9,11 @@ import {
   parseSamplePlayerData,
   previewSampleAsset,
   resolveSampleTrimRange,
+  samplePlayerPitchSemisToRootPitch,
+  samplePlayerRootPitchToPitchSemis,
   serializeSamplePlayerData
 } from "@/lib/patch/samplePlayer";
+import { detectDominantSamplePitches } from "@/lib/patch/pitchTracker";
 import { PatchNode } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 
@@ -46,6 +49,18 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
     () => (sampleAsset ? buildSampleWaveformPeaks(sampleAsset.samples) : []),
     [sampleAsset]
   );
+  const trimmedSamples = useMemo(() => {
+    if (!sampleAsset || !trim) {
+      return undefined;
+    }
+    return sampleAsset.samples.slice(trim.startSample, trim.endSample);
+  }, [sampleAsset, trim]);
+  const dominantPitches = useMemo(
+    () => detectDominantSamplePitches(trimmedSamples, sampleAsset?.sampleRate),
+    [trimmedSamples, sampleAsset?.sampleRate]
+  );
+  const pitchSemis = typeof props.node.params.pitchSemis === "number" ? props.node.params.pitchSemis : 0;
+  const rootPitch = samplePlayerPitchSemisToRootPitch(pitchSemis);
 
   const storeSample = (sampleData: string) => {
     props.onApplyOp({
@@ -170,6 +185,45 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
           <SampleWaveform peaks={waveformPeaks} startRatio={startRatio} endRatio={endRatio} />
           <div className={`sample-player-status${status ? ` ${status.tone}` : ""}`}>
             {status?.message ?? "This preview plays the trimmed sample directly, separate from patch note preview."}
+          </div>
+          <div className="sample-player-detected-pitches">
+            <div className="macro-binding-edit-summary">
+              {dominantPitches.length
+                ? "Detected dominant pitches in the trimmed region. Click one to treat the sample as that root note."
+                : sampleAsset
+                  ? "Pitch detection works best on a monophonic trimmed phrase with audible note gaps."
+                  : "Load a sample to analyze trimmed pitches."}
+            </div>
+            {dominantPitches.length > 0 && (
+              <div className="sample-player-pitch-chip-list">
+                {dominantPitches.map((pitch) => {
+                  const isActive = pitch.suggestedPitchSemis === pitchSemis;
+                  return (
+                    <button
+                      key={pitch.pitchStr}
+                      type="button"
+                      className={`sample-player-pitch-chip${isActive ? " active" : ""}`}
+                      disabled={props.structureLocked}
+                      onClick={() =>
+                        props.onApplyOp({
+                          type: "setParam",
+                          nodeId: props.node.id,
+                          paramId: "pitchSemis",
+                          value: samplePlayerRootPitchToPitchSemis(pitch.pitchStr)
+                        })
+                      }
+                    >
+                      <strong>{pitch.pitchStr}</strong>
+                      <span>{pitch.totalDurationSeconds.toFixed(2)}s</span>
+                      <span>{pitch.noteCount} note{pitch.noteCount === 1 ? "" : "s"}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div className="macro-binding-edit-summary">
+              Current root: {rootPitch}. Incoming note pitch then resamples this sample around that root.
+            </div>
           </div>
         </div>
         <button type="button" disabled={!sampleAsset || loading} onClick={() => void previewSample()}>
