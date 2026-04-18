@@ -23,6 +23,7 @@ export interface BaseSynthStreamStartOptions {
   events: SchedulerEvent[];
   mode: SynthRenderMode;
   sessionId?: number;
+  randomSeed?: number;
 }
 
 export interface TransportSynthStreamStartOptions extends BaseSynthStreamStartOptions {
@@ -116,6 +117,7 @@ export interface WorkletPreviewMessage {
   ignoreVolume?: boolean;
   previewId?: string;
   captureProbes?: PreviewProbeRequest[];
+  randomSeed?: number;
 }
 
 export interface WorkletPreviewCaptureMessage {
@@ -130,6 +132,7 @@ export interface WorkletTransportMessage {
   songStartSample: number;
   events?: SchedulerEvent[];
   sessionId?: number;
+  randomSeed?: number;
 }
 
 export interface WorkletRecordingMessage {

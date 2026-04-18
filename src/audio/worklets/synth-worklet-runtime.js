@@ -11,6 +11,8 @@ import {
 import { clamp, dbToGain, onePoleStep, smoothingAlpha } from "./synth-worklet-math.js";
 import { getNodeProcessor } from "./synth-worklet-node-processors.js";
 
+const DEFAULT_RANDOM_SEED = 0x1234_5678;
+
 const BaseAudioWorkletProcessor = globalThis.AudioWorkletProcessor || class {
   constructor() {
     this.port = {
@@ -51,12 +53,15 @@ class VoiceState {
 }
 
 export class TrackRuntime {
-  constructor(track, patch, sampleRate, blockSize) {
+  constructor(track, patch, sampleRate, blockSize, randomSeed = DEFAULT_RANDOM_SEED) {
     this.track = track;
     this.patch = patch;
     this.sampleRate = sampleRate;
     this.sampleRateInv = 1 / sampleRate;
     this.blockSize = blockSize;
+    this.baseRandomSeed = Number.isFinite(randomSeed) ? Number(randomSeed) >>> 0 : DEFAULT_RANDOM_SEED;
+    this.randomState = this.baseRandomSeed;
+    this.noteTriggerCount = 0;
     this.zeroBuffer = new Float32Array(blockSize);
     this.compiled = this.compilePatch(patch);
     this.voices = new Array(MAX_VOICES)
@@ -87,6 +92,17 @@ export class TrackRuntime {
     };
     this.compressorEnv = 0;
     this.initializeMacroValues();
+  }
+
+  nextNoiseSample() {
+    this.randomState = (Math.imul(this.randomState, 1664525) + 1013904223) >>> 0;
+    const normalized = (this.randomState >>> 8) / ((1 << 24) - 1);
+    return normalized * 2 - 1;
+  }
+
+  resetNoiseSequenceForNote() {
+    this.randomState = (this.baseRandomSeed + Math.imul(this.noteTriggerCount, 0x9e3779b9)) >>> 0;
+    this.noteTriggerCount = (this.noteTriggerCount + 1) >>> 0;
   }
 
   initializeMacroValues() {
@@ -313,6 +329,7 @@ export class TrackRuntime {
     voice.host.gate = 1;
     voice.nodeState.fill(null);
     voice.paramState.fill(null);
+    this.resetNoiseSequenceForNote();
   }
 
   noteOn(event, sampleTime) {
@@ -657,17 +674,17 @@ export class TrackRuntime {
   }
 }
 
-const buildTrackRuntimes = (project, sampleRate, blockSize) => {
+const buildTrackRuntimes = (project, sampleRate, blockSize, randomSeed = DEFAULT_RANDOM_SEED) => {
   const trackRuntimes = [];
   const trackRuntimeById = new Map();
   const trackRuntimesByPatchId = new Map();
-  for (const track of project?.tracks || []) {
+  for (const [trackIndex, track] of (project?.tracks || []).entries()) {
     const patch = (project.patches || []).find((entry) => entry.id === track.instrumentPatchId);
     if (!patch) {
       continue;
     }
     try {
-      const runtime = new TrackRuntime(track, patch, sampleRate, blockSize);
+      const runtime = new TrackRuntime(track, patch, sampleRate, blockSize, ((Number(randomSeed) >>> 0) + trackIndex) >>> 0);
       trackRuntimes.push(runtime);
       trackRuntimeById.set(track.id, runtime);
       const runtimesForPatch = trackRuntimesByPatchId.get(patch.id);
@@ -706,7 +723,8 @@ export class JsSynthRenderStream {
     this.masterBuffer = new Float32Array(this.blockSize);
     this.stopped = false;
 
-    const runtimeGraph = buildTrackRuntimes(this.project, this.sampleRateInternal, this.blockSize);
+    const randomSeed = Number.isFinite(options.randomSeed) ? Number(options.randomSeed) >>> 0 : DEFAULT_RANDOM_SEED;
+    const runtimeGraph = buildTrackRuntimes(this.project, this.sampleRateInternal, this.blockSize, randomSeed);
     this.trackRuntimes = runtimeGraph.trackRuntimes;
     this.trackRuntimeById = runtimeGraph.trackRuntimeById;
     this.trackRuntimesByPatchId = runtimeGraph.trackRuntimesByPatchId;
@@ -1089,6 +1107,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         songStartSample: processorOptions.transport.songStartSample,
         events: processorOptions.transport.events || [],
         sessionId: processorOptions.transport.sessionId,
+        randomSeed: processorOptions.transport.randomSeed,
         mode: "transport"
       });
       this.transportSessionId = this.currentStream?.transportSessionId ?? 0;
@@ -1121,6 +1140,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
           songStartSample: message.songStartSample || 0,
           events: message.events || [],
           sessionId: this.transportSessionId,
+          randomSeed: message.randomSeed,
           mode: "transport"
         }));
         break;
@@ -1134,7 +1154,8 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
           ignoreVolume: message.ignoreVolume,
           previewId: message.previewId,
           trackId: message.trackId,
-          captureProbes: message.captureProbes
+          captureProbes: message.captureProbes,
+          randomSeed: message.randomSeed
         }));
         break;
       case "EVENTS":

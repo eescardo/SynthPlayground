@@ -8,6 +8,7 @@ export interface OfflineRenderOptions {
   durationSamples: number;
   events?: SchedulerEvent[];
   sessionId?: number;
+  randomSeed?: number;
 }
 
 export interface OfflineRenderResult {
@@ -54,7 +55,7 @@ export const createOfflineRenderer = (
 
 export const createOfflineRenderStream = (
   project: AudioProject,
-  options: Pick<OfflineRenderOptions, "sampleRate" | "blockSize" | "durationSamples"> & {
+  options: Pick<OfflineRenderOptions, "sampleRate" | "blockSize" | "durationSamples" | "randomSeed"> & {
     events?: SchedulerEvent[];
     sessionId?: number;
   }
@@ -64,6 +65,7 @@ export const createOfflineRenderStream = (
     songStartSample: 0,
     events: options.events ?? [],
     sessionId: options.sessionId ?? 1,
+    randomSeed: options.randomSeed,
     mode: "transport"
   });
 
@@ -77,7 +79,8 @@ export const renderProjectOffline = (
     blockSize,
     durationSamples,
     events: options.events,
-    sessionId: options.sessionId
+    sessionId: options.sessionId,
+    randomSeed: options.randomSeed
   });
 
   const left = new Float32Array(durationSamples);

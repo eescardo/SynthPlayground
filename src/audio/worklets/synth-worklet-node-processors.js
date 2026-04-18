@@ -106,7 +106,7 @@ const processKarplusStrong = (context) => {
       for (let j = 0; j < delaySamples; j += 1) {
         let source = excite[i];
         if (source === 0) {
-          source = excitation === "impulse" ? (j === 0 ? 1 : 0) : Math.random() * 2 - 1;
+          source = excitation === "impulse" ? (j === 0 ? 1 : 0) : runtime.nextNoiseSample();
         }
         const bright = brightnessParam[i];
         const shaped = source * (0.25 + bright * 0.75);
@@ -261,13 +261,13 @@ const processMixer4 = (context) => {
 };
 
 const processNoise = (context) => {
-  const { voice, runtimeNode, out, startFrame, endFrame } = context;
+  const { runtime, voice, runtimeNode, out, startFrame, endFrame } = context;
   const color = getParamValue(context, "color", runtimeNode.params.color || "white");
   const gainParam = fillNumericParamBuffer(context, "gain", Number(runtimeNode.params.gain ?? 0.3));
   const state = context.runtime.getNodeState(voice, runtimeNode, () => ({ pink: 0, brown: 0 }));
 
   for (let i = startFrame; i < endFrame; i += 1) {
-    const white = Math.random() * 2 - 1;
+    const white = runtime.nextNoiseSample();
     let sample = white;
     if (color === "pink") {
       state.pink = 0.98 * state.pink + 0.02 * white;
