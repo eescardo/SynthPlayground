@@ -289,14 +289,13 @@ const processSamplePlayer = (context) => {
   const mode = getParamValue(context, "mode", runtimeNode.params.mode || "oneshot");
   const startRatio = clamp(Number(runtimeNode.params.start ?? 0), 0, 1);
   const endRatio = clamp(Number(runtimeNode.params.end ?? 1), startRatio + 0.0001, 1);
-  const state =
-    voice.nodeState.get(runtimeNode.id) || {
+  const state = runtime.getNodeState(voice, runtimeNode, () => ({
       lastSampleData: null,
       asset: null,
       position: 0,
       active: false,
       lastGate: 0
-    };
+    }));
 
   if (state.lastSampleData !== runtimeNode.params.sampleData) {
     state.lastSampleData = runtimeNode.params.sampleData;
@@ -308,7 +307,6 @@ const processSamplePlayer = (context) => {
   const asset = state.asset;
   if (!asset || !asset.samples.length) {
     out.fill(0, startFrame, endFrame);
-    voice.nodeState.set(runtimeNode.id, state);
     return;
   }
 
@@ -354,8 +352,6 @@ const processSamplePlayer = (context) => {
     const pitchFactor = Math.pow(2, pitch[i] + pitchSemisParam[i] / 12);
     state.position += pitchFactor * asset.sampleRate / runtime.sampleRate;
   }
-
-  voice.nodeState.set(runtimeNode.id, state);
 };
 
 const processDelay = (context) => {

@@ -373,6 +373,7 @@ describe("synth worklet runtime", () => {
           id: "preview_on",
           type: "NoteOn",
           sampleTime: 0,
+          source: "preview",
           trackId: "track_1",
           noteId: "note_1",
           pitchVoct: 0,
