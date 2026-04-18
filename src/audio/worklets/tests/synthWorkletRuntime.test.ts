@@ -142,8 +142,25 @@ describe("synth worklet runtime", () => {
     const { compareScheduledEvents } = await loadRuntimeModule();
 
     const events = [
-      { id: "note-on", type: "NoteOn", sampleTime: 1024 },
-      { id: "note-off", type: "NoteOff", sampleTime: 1024 }
+      {
+        id: "note-on",
+        type: "NoteOn",
+        sampleTime: 1024,
+        source: "timeline",
+        trackId: "track_1",
+        noteId: "note_1",
+        pitchVoct: 0,
+        velocity: 1
+      },
+      {
+        id: "note-off",
+        type: "NoteOff",
+        sampleTime: 1024,
+        source: "timeline",
+        trackId: "track_1",
+        noteId: "note_1",
+        pitchVoct: 0
+      }
     ];
 
     events.sort(compareScheduledEvents);
