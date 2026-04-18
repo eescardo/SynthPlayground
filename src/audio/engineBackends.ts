@@ -27,7 +27,7 @@ export interface AudioEngineBackend {
   setMacroValue(trackId: string, macroId: string, normalized: number): void;
   setRecordingTrack(trackId: string | null): void;
   recordNoteOn(trackId: string, noteId: string, pitchVoct: number, velocity?: number): Promise<number>;
-  recordNoteOff(trackId: string, noteId: string, pitchVoct: number): number;
+  recordNoteOff(trackId: string, noteId: string): number;
   previewNote(
     trackId: string,
     pitchVoct: number,
@@ -333,7 +333,7 @@ class RealAudioEngineBackend implements AudioEngineBackend {
     return sampleTime;
   }
 
-  recordNoteOff(trackId: string, noteId: string, pitchVoct: number): number {
+  recordNoteOff(trackId: string, noteId: string): number {
     if (!this.worklet || !this.isPlaying) {
       return 0;
     }
@@ -349,7 +349,6 @@ class RealAudioEngineBackend implements AudioEngineBackend {
           source: "live_input",
           sampleTime,
           trackId,
-          pitchVoct,
           noteId
         }
       ]
@@ -397,7 +396,6 @@ class RealAudioEngineBackend implements AudioEngineBackend {
         source: "preview",
         sampleTime: durationSamples,
         trackId,
-        pitchVoct,
         noteId: previewId
       }
     ];
@@ -500,10 +498,9 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
     return this.getSafeLiveSampleTime();
   }
 
-  recordNoteOff(trackId: string, noteId: string, pitchVoct: number): number {
+  recordNoteOff(trackId: string, noteId: string): number {
     void trackId;
     void noteId;
-    void pitchVoct;
     return this.getSafeLiveSampleTime();
   }
 

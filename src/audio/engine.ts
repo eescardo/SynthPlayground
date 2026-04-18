@@ -70,8 +70,8 @@ export class AudioEngine {
     return this.backend.recordNoteOn(trackId, noteId, pitchVoct, velocity);
   }
 
-  recordNoteOff(trackId: string, noteId: string, pitchVoct: number): number {
-    return this.backend.recordNoteOff(trackId, noteId, pitchVoct);
+  recordNoteOff(trackId: string, noteId: string): number {
+    return this.backend.recordNoteOff(trackId, noteId);
   }
 
   previewNote(

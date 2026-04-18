@@ -24,6 +24,8 @@ fn now_ms() -> f64 {
     js_sys::Date::now()
 }
 
+const MAX_VOICES: usize = 8;
+
 fn clamp(x: f32, min: f32, max: f32) -> f32 {
     x.max(min).min(max)
 }
@@ -249,7 +251,7 @@ struct TrackSpec {
     #[serde(rename = "trackIndex")]
     track_index: usize,
     #[serde(rename = "trackId")]
-    track_id: String,
+    _track_id: String,
     volume: f32,
     mute: bool,
     fx: TrackFxSpec,
@@ -294,8 +296,6 @@ enum EventSpec {
         track_index: usize,
         #[serde(rename = "noteId")]
         note_id: String,
-        #[serde(rename = "pitchVoct")]
-        pitch_voct: f32,
     },
     ParamChange {
         #[serde(rename = "sampleTime")]
@@ -382,7 +382,6 @@ fn input_index(inputs: &HashMap<String, i32>, key: &str) -> i32 {
 
 #[derive(Clone)]
 struct CVTransposeNode {
-    id: String,
     out_index: usize,
     input: i32,
     octaves: SmoothParam,
@@ -392,7 +391,6 @@ struct CVTransposeNode {
 
 #[derive(Clone)]
 struct CVScalerNode {
-    id: String,
     out_index: usize,
     input: i32,
     scale: SmoothParam,
@@ -400,7 +398,6 @@ struct CVScalerNode {
 
 #[derive(Clone)]
 struct CVMixer2Node {
-    id: String,
     out_index: usize,
     in1: i32,
     in2: i32,
@@ -410,7 +407,6 @@ struct CVMixer2Node {
 
 #[derive(Clone)]
 struct VcoNode {
-    id: String,
     out_index: usize,
     pitch: i32,
     fm: i32,
@@ -425,7 +421,6 @@ struct VcoNode {
 
 #[derive(Clone)]
 struct KarplusStrongNode {
-    id: String,
     out_index: usize,
     pitch: i32,
     gate: i32,
@@ -443,7 +438,6 @@ struct KarplusStrongNode {
 
 #[derive(Clone)]
 struct LfoNode {
-    id: String,
     out_index: usize,
     fm: i32,
     wave: Wave,
@@ -464,7 +458,6 @@ enum EnvelopeStage {
 
 #[derive(Clone)]
 struct AdsrNode {
-    id: String,
     out_index: usize,
     gate: i32,
     attack: SmoothParam,
@@ -479,7 +472,6 @@ struct AdsrNode {
 
 #[derive(Clone)]
 struct VcaNode {
-    id: String,
     out_index: usize,
     input: i32,
     gain_cv: i32,
@@ -489,7 +481,6 @@ struct VcaNode {
 
 #[derive(Clone)]
 struct VcfNode {
-    id: String,
     out_index: usize,
     input: i32,
     cutoff_cv: i32,
@@ -503,7 +494,6 @@ struct VcfNode {
 
 #[derive(Clone)]
 struct Mixer4Node {
-    id: String,
     out_index: usize,
     in1: i32,
     in2: i32,
@@ -517,7 +507,6 @@ struct Mixer4Node {
 
 #[derive(Clone)]
 struct NoiseNode {
-    id: String,
     out_index: usize,
     color: NoiseColor,
     gain: SmoothParam,
@@ -527,7 +516,6 @@ struct NoiseNode {
 
 #[derive(Clone)]
 struct SamplePlayerNode {
-    id: String,
     out_index: usize,
     gate: i32,
     pitch: i32,
@@ -544,7 +532,6 @@ struct SamplePlayerNode {
 
 #[derive(Clone)]
 struct DelayNode {
-    id: String,
     out_index: usize,
     input: i32,
     time_ms: SmoothParam,
@@ -556,7 +543,6 @@ struct DelayNode {
 
 #[derive(Clone)]
 struct ReverbNode {
-    id: String,
     out_index: usize,
     input: i32,
     size: SmoothParam,
@@ -571,7 +557,6 @@ struct ReverbNode {
 
 #[derive(Clone)]
 struct SaturationNode {
-    id: String,
     out_index: usize,
     input: i32,
     drive_db: SmoothParam,
@@ -581,7 +566,6 @@ struct SaturationNode {
 
 #[derive(Clone)]
 struct OverdriveNode {
-    id: String,
     out_index: usize,
     input: i32,
     gain_db: SmoothParam,
@@ -593,7 +577,6 @@ struct OverdriveNode {
 
 #[derive(Clone)]
 struct CompressorNode {
-    id: String,
     out_index: usize,
     input: i32,
     threshold_db: SmoothParam,
@@ -607,7 +590,6 @@ struct CompressorNode {
 
 #[derive(Clone)]
 struct OutputNode {
-    id: String,
     out_index: usize,
     input: i32,
     gain_db: SmoothParam,
@@ -648,28 +630,80 @@ struct TrackFxState {
 }
 
 #[derive(Clone)]
+struct VoiceRuntime {
+    signal_values: Vec<f32>,
+    nodes: Vec<RuntimeNode>,
+    active: bool,
+    note_id: Option<String>,
+    rms: f32,
+    last_triggered_sample_time: u32,
+    host_pitch_voct: f32,
+    host_gate: f32,
+    host_velocity: f32,
+    host_modwheel: f32,
+    rng_state: u32,
+}
+
+impl VoiceRuntime {
+    fn new(signal_count: usize, node_templates: &[RuntimeNode], random_seed: u32) -> Self {
+        Self {
+            signal_values: vec![0.0; signal_count.max(1)],
+            nodes: node_templates.to_vec(),
+            active: false,
+            note_id: None,
+            rms: 0.0,
+            last_triggered_sample_time: 0,
+            host_pitch_voct: 0.0,
+            host_gate: 0.0,
+            host_velocity: 0.0,
+            host_modwheel: 0.0,
+            rng_state: random_seed,
+        }
+    }
+
+    fn reset_for_note_on(
+        &mut self,
+        node_templates: &[RuntimeNode],
+        note_id: String,
+        pitch_voct: f32,
+        velocity: f32,
+        sample_time: u32,
+        random_seed: u32,
+    ) {
+        self.nodes = node_templates.to_vec();
+        for node in self.nodes.iter_mut() {
+            node.reset_dynamic_state();
+        }
+        self.active = true;
+        self.note_id = Some(note_id);
+        self.rms = 0.0;
+        self.last_triggered_sample_time = sample_time;
+        self.host_pitch_voct = pitch_voct;
+        self.host_velocity = velocity;
+        self.host_gate = 1.0;
+        self.rng_state = random_seed;
+    }
+
+    fn reset_to_inactive(&mut self) {
+        self.active = false;
+        self.note_id = None;
+        self.rms = 0.0;
+        self.host_gate = 0.0;
+    }
+}
+
+#[derive(Clone)]
 struct TrackRuntime {
-    track_index: usize,
-    track_id: String,
     mute: bool,
     volume: f32,
     fx: TrackFxSpec,
     host_signal_indices: HostSignalIndices,
     output_signal_index: usize,
-    signal_values: Vec<f32>,
     node_templates: Vec<RuntimeNode>,
-    nodes: Vec<RuntimeNode>,
     node_index_by_id: HashMap<String, usize>,
-    active: bool,
-    note_id: Option<String>,
-    rms: f32,
-    host_pitch_voct: f32,
-    host_gate: f32,
-    host_velocity: f32,
-    host_modwheel: f32,
+    voices: Vec<VoiceRuntime>,
     fx_state: TrackFxState,
     base_random_seed: u32,
-    rng_state: u32,
     note_trigger_count: u32,
 }
 
@@ -686,25 +720,26 @@ impl TrackRuntime {
             .enumerate()
             .map(|(index, node)| (node.id.clone(), index))
             .collect();
+        let base_random_seed = random_seed.wrapping_add(spec.track_index as u32);
+        let signal_count = spec.signal_count.max(1);
+        let voices = (0..MAX_VOICES)
+            .map(|voice_index| {
+                VoiceRuntime::new(
+                    signal_count,
+                    &node_templates,
+                    base_random_seed.wrapping_add((voice_index as u32).wrapping_mul(0x45d9_f3b)),
+                )
+            })
+            .collect();
         Ok(Self {
-            track_index: spec.track_index,
-            track_id: spec.track_id,
             mute: spec.mute,
             volume: spec.volume,
             fx: spec.fx,
             host_signal_indices: spec.host_signal_indices,
             output_signal_index: spec.output_signal_index,
-            signal_values: vec![0.0; spec.signal_count.max(1)],
-            nodes: node_templates.clone(),
             node_templates,
             node_index_by_id,
-            active: false,
-            note_id: None,
-            rms: 0.0,
-            host_pitch_voct: 0.0,
-            host_gate: 0.0,
-            host_velocity: 0.0,
-            host_modwheel: 0.0,
+            voices,
             fx_state: TrackFxState {
                 delay_buf: vec![0.0; (sample_rate as usize) * 3],
                 delay_write: 0,
@@ -714,34 +749,91 @@ impl TrackRuntime {
                 reverb_idx2: 0,
                 compressor_env: 0.0,
             },
-            base_random_seed: random_seed.wrapping_add(spec.track_index as u32),
-            rng_state: random_seed.wrapping_add(spec.track_index as u32),
+            base_random_seed,
             note_trigger_count: 0,
         })
     }
 
-    fn reset_nodes_for_note_on(&mut self) {
-        self.nodes = self.node_templates.clone();
-        for node in self.nodes.iter_mut() {
-            node.reset_dynamic_state();
+    fn allocate_voice_index(&self, sample_time: u32) -> usize {
+        if let Some(free_index) = self.voices.iter().position(|voice| !voice.active) {
+            return free_index;
         }
+
+        let min_age_samples = 960;
+        let mut best_index = 0;
+        let mut best_score = f32::INFINITY;
+
+        for (index, voice) in self.voices.iter().enumerate() {
+            let age = sample_time.saturating_sub(voice.last_triggered_sample_time);
+            let age_penalty = if age < min_age_samples { 1000.0 } else { 0.0 };
+            let score = voice.rms + age_penalty;
+            if score < best_score {
+                best_index = index;
+                best_score = score;
+            }
+        }
+
+        best_index
     }
 
-    fn note_on(&mut self, note_id: String, pitch_voct: f32, velocity: f32) {
-        self.active = true;
-        self.note_id = Some(note_id);
-        self.rms = 0.0;
-        self.host_pitch_voct = pitch_voct;
-        self.host_velocity = velocity;
-        self.host_gate = 1.0;
-        self.rng_state = self.base_random_seed.wrapping_add(self.note_trigger_count.wrapping_mul(0x9e37_79b9));
+    fn restart_voice(&mut self, voice_index: usize, note_id: String, pitch_voct: f32, velocity: f32, sample_time: u32) {
+        let random_seed = self
+            .base_random_seed
+            .wrapping_add(self.note_trigger_count.wrapping_mul(0x9e37_79b9))
+            .wrapping_add((voice_index as u32).wrapping_mul(0x45d9_f3b));
         self.note_trigger_count = self.note_trigger_count.wrapping_add(1);
-        self.reset_nodes_for_note_on();
+        self.voices[voice_index].reset_for_note_on(
+            &self.node_templates,
+            note_id,
+            pitch_voct,
+            velocity,
+            sample_time,
+            random_seed,
+        );
+    }
+
+    fn note_on(&mut self, note_id: String, pitch_voct: f32, velocity: f32, sample_time: u32) {
+        if let Some(existing_index) = self
+            .voices
+            .iter()
+            .position(|voice| voice.active && voice.note_id.as_deref() == Some(note_id.as_str()))
+        {
+            self.restart_voice(existing_index, note_id, pitch_voct, velocity, sample_time);
+            return;
+        }
+
+        let active_voice_index = self.voices.iter().position(|voice| voice.active);
+        let voice_index = if let Some(active_index) = active_voice_index {
+            for (index, voice) in self.voices.iter_mut().enumerate() {
+                if index != active_index {
+                    voice.reset_to_inactive();
+                }
+            }
+            active_index
+        } else {
+            self.allocate_voice_index(sample_time)
+        };
+
+        self.restart_voice(voice_index, note_id, pitch_voct, velocity, sample_time);
     }
 
     fn note_off(&mut self, note_id: &str) {
-        if self.active && (self.note_id.as_deref() == Some(note_id) || self.note_id.is_none()) {
-            self.host_gate = 0.0;
+        let mut released = false;
+        for voice in self.voices.iter_mut() {
+            if voice.active && voice.note_id.as_deref() == Some(note_id) {
+                voice.host_gate = 0.0;
+                released = true;
+            }
+        }
+        if released {
+            return;
+        }
+
+        for voice in self.voices.iter_mut() {
+            if voice.active {
+                voice.host_gate = 0.0;
+                break;
+            }
         }
     }
 
@@ -750,8 +842,10 @@ impl TrackRuntime {
             if let Some(node) = self.node_templates.get_mut(index) {
                 node.set_param(param_id, value);
             }
-            if let Some(node) = self.nodes.get_mut(index) {
-                node.set_param(param_id, value);
+            for voice in self.voices.iter_mut() {
+                if let Some(node) = voice.nodes.get_mut(index) {
+                    node.set_param(param_id, value);
+                }
             }
         }
     }
@@ -780,45 +874,49 @@ impl TrackRuntime {
     }
 
     fn render_dry_sample(&mut self, sample_rate: f32, profile: &mut EngineProfileStats, profiling_enabled: bool) -> f32 {
-        if !self.active {
-            return 0.0;
-        }
-
-        self.signal_values[self.host_signal_indices.pitch] = self.host_pitch_voct;
-        self.signal_values[self.host_signal_indices.gate] = self.host_gate;
-        self.signal_values[self.host_signal_indices.velocity] = self.host_velocity;
-        self.signal_values[self.host_signal_indices.mod_wheel] = self.host_modwheel;
-
-        let mut rng_state = self.rng_state;
         let host_indices = self.host_signal_indices.clone();
-        for node in self.nodes.iter_mut() {
-            if profiling_enabled {
-                let started = now_ms();
-                node.process_sample(&mut self.signal_values, &host_indices, sample_rate, &mut rng_state);
-                let elapsed = now_ms() - started;
-                profile.node_process_ms += elapsed;
-                profile.node_samples_processed = profile.node_samples_processed.saturating_add(1);
-                node.add_profile_time(profile, elapsed);
+        let mut mixed = 0.0;
+
+        for voice in self.voices.iter_mut() {
+            if !voice.active {
+                continue;
+            }
+
+            voice.signal_values[self.host_signal_indices.pitch] = voice.host_pitch_voct;
+            voice.signal_values[self.host_signal_indices.gate] = voice.host_gate;
+            voice.signal_values[self.host_signal_indices.velocity] = voice.host_velocity;
+            voice.signal_values[self.host_signal_indices.mod_wheel] = voice.host_modwheel;
+
+            let mut rng_state = voice.rng_state;
+            for node in voice.nodes.iter_mut() {
+                if profiling_enabled {
+                    let started = now_ms();
+                    node.process_sample(&mut voice.signal_values, &host_indices, sample_rate, &mut rng_state);
+                    let elapsed = now_ms() - started;
+                    profile.node_process_ms += elapsed;
+                    profile.node_samples_processed = profile.node_samples_processed.saturating_add(1);
+                    node.add_profile_time(profile, elapsed);
+                } else {
+                    node.process_sample(&mut voice.signal_values, &host_indices, sample_rate, &mut rng_state);
+                }
+            }
+            voice.rng_state = rng_state;
+
+            let sample = *voice.signal_values.get(self.output_signal_index).unwrap_or(&0.0);
+            if !sample.is_finite() {
+                voice.reset_to_inactive();
+                continue;
+            }
+
+            voice.rms = voice.rms * 0.995 + sample.abs() * 0.005;
+            if voice.host_gate < 0.5 && voice.rms < 0.0005 {
+                voice.reset_to_inactive();
             } else {
-                node.process_sample(&mut self.signal_values, &host_indices, sample_rate, &mut rng_state);
+                mixed += sample;
             }
         }
-        self.rng_state = rng_state;
 
-        let sample = *self.signal_values.get(self.output_signal_index).unwrap_or(&0.0);
-        if !sample.is_finite() {
-            self.active = false;
-            self.note_id = None;
-            self.host_gate = 0.0;
-            self.rms = 0.0;
-            return 0.0;
-        }
-        self.rms = self.rms * 0.995 + sample.abs() * 0.005;
-        if self.host_gate < 0.5 && self.rms < 0.0005 {
-            self.active = false;
-            self.note_id = None;
-        }
-        sample
+        mixed
     }
 
     fn apply_track_fx(&mut self, input: f32, sample_rate: f32) -> f32 {
@@ -894,7 +992,6 @@ impl RuntimeNode {
         let p = &raw.params;
         Ok(match raw.type_id.as_str() {
             "CVTranspose" => Self::CVTranspose(CVTransposeNode {
-                id: raw.id.clone(),
                 out_index: raw.out_index,
                 input: input_index(&raw.inputs, "in"),
                 octaves: SmoothParam::new(value_to_f32(p.get("octaves"), 0.0), 10.0, sample_rate),
@@ -902,13 +999,11 @@ impl RuntimeNode {
                 cents: SmoothParam::new(value_to_f32(p.get("cents"), 0.0), 10.0, sample_rate),
             }),
             "CVScaler" => Self::CVScaler(CVScalerNode {
-                id: raw.id.clone(),
                 out_index: raw.out_index,
                 input: input_index(&raw.inputs, "in"),
                 scale: SmoothParam::new(value_to_f32(p.get("scale"), 1.0), 10.0, sample_rate),
             }),
             "CVMixer2" => Self::CVMixer2(CVMixer2Node {
-                id: raw.id.clone(),
                 out_index: raw.out_index,
                 in1: input_index(&raw.inputs, "in1"),
                 in2: input_index(&raw.inputs, "in2"),
@@ -916,7 +1011,6 @@ impl RuntimeNode {
                 gain2: SmoothParam::new(value_to_f32(p.get("gain2"), 1.0), 10.0, sample_rate),
             }),
             "VCO" => Self::VCO(VcoNode {
-                id: raw.id.clone(),
                 out_index: raw.out_index,
                 pitch: input_index(&raw.inputs, "pitch"),
                 fm: input_index(&raw.inputs, "fm"),
@@ -930,7 +1024,6 @@ impl RuntimeNode {
                 phase: 0.0,
             }),
             "KarplusStrong" => Self::KarplusStrong(KarplusStrongNode {
-                id: raw.id.clone(),
                 out_index: raw.out_index,
                 pitch: input_index(&raw.inputs, "pitch"),
                 gate: input_index(&raw.inputs, "gate"),
@@ -946,7 +1039,6 @@ impl RuntimeNode {
                 last_gate: 0.0,
             }),
             "LFO" => Self::LFO(LfoNode {
-                id: raw.id.clone(),
                 out_index: raw.out_index,
                 fm: input_index(&raw.inputs, "fm"),
                 wave: serde_json::from_value::<Wave>(Value::String(value_to_string(p.get("wave"), "sine")))
@@ -957,7 +1049,6 @@ impl RuntimeNode {
                 phase: 0.0,
             }),
             "ADSR" => Self::ADSR(AdsrNode {
-                id: raw.id.clone(),
                 out_index: raw.out_index,
                 gate: input_index(&raw.inputs, "gate"),
                 attack: SmoothParam::new(value_to_f32(p.get("attack"), 0.01), 10.0, sample_rate),
@@ -971,7 +1062,6 @@ impl RuntimeNode {
                 last_gate: 0.0,
             }),
             "VCA" => Self::VCA(VcaNode {
-                id: raw.id.clone(),
                 out_index: raw.out_index,
                 input: input_index(&raw.inputs, "in"),
                 gain_cv: input_index(&raw.inputs, "gainCV"),
@@ -979,7 +1069,6 @@ impl RuntimeNode {
                 gain: SmoothParam::new(value_to_f32(p.get("gain"), 1.0), 10.0, sample_rate),
             }),
             "VCF" => Self::VCF(VcfNode {
-                id: raw.id.clone(),
                 out_index: raw.out_index,
                 input: input_index(&raw.inputs, "in"),
                 cutoff_cv: input_index(&raw.inputs, "cutoffCV"),
@@ -992,7 +1081,6 @@ impl RuntimeNode {
                 bp: 0.0,
             }),
             "Mixer4" => Self::Mixer4(Mixer4Node {
-                id: raw.id.clone(),
                 out_index: raw.out_index,
                 in1: input_index(&raw.inputs, "in1"),
                 in2: input_index(&raw.inputs, "in2"),
@@ -1004,7 +1092,6 @@ impl RuntimeNode {
                 gain4: SmoothParam::new(value_to_f32(p.get("gain4"), 1.0), 10.0, sample_rate),
             }),
             "Noise" => Self::Noise(NoiseNode {
-                id: raw.id.clone(),
                 out_index: raw.out_index,
                 color: serde_json::from_value::<NoiseColor>(Value::String(value_to_string(p.get("color"), "white")))
                     .map_err(|e| js_error(format!("Invalid Noise color: {e}")))?,
@@ -1013,7 +1100,6 @@ impl RuntimeNode {
                 brown: 0.0,
             }),
             "SamplePlayer" => Self::SamplePlayer(SamplePlayerNode {
-                id: raw.id.clone(),
                 out_index: raw.out_index,
                 gate: input_index(&raw.inputs, "gate"),
                 pitch: input_index(&raw.inputs, "pitch"),
@@ -1029,7 +1115,6 @@ impl RuntimeNode {
                 last_gate: 0.0,
             }),
             "Delay" => Self::Delay(DelayNode {
-                id: raw.id.clone(),
                 out_index: raw.out_index,
                 input: input_index(&raw.inputs, "in"),
                 time_ms: SmoothParam::new(value_to_f32(p.get("timeMs"), 300.0), 30.0, sample_rate),
@@ -1039,7 +1124,6 @@ impl RuntimeNode {
                 write: 0,
             }),
             "Reverb" => Self::Reverb(ReverbNode {
-                id: raw.id.clone(),
                 out_index: raw.out_index,
                 input: input_index(&raw.inputs, "in"),
                 size: SmoothParam::new(value_to_f32(p.get("size"), 0.5), 50.0, sample_rate),
@@ -1052,7 +1136,6 @@ impl RuntimeNode {
                 i2: 0,
             }),
             "Saturation" => Self::Saturation(SaturationNode {
-                id: raw.id.clone(),
                 out_index: raw.out_index,
                 input: input_index(&raw.inputs, "in"),
                 drive_db: SmoothParam::new(value_to_f32(p.get("driveDb"), 6.0), 20.0, sample_rate),
@@ -1061,7 +1144,6 @@ impl RuntimeNode {
                     .map_err(|e| js_error(format!("Invalid Saturation type: {e}")))?,
             }),
             "Overdrive" => Self::Overdrive(OverdriveNode {
-                id: raw.id.clone(),
                 out_index: raw.out_index,
                 input: input_index(&raw.inputs, "in"),
                 gain_db: SmoothParam::new(value_to_f32(p.get("gainDb"), 12.0), 20.0, sample_rate),
@@ -1072,7 +1154,6 @@ impl RuntimeNode {
                 tone_lp: 0.0,
             }),
             "Compressor" => Self::Compressor(CompressorNode {
-                id: raw.id.clone(),
                 out_index: raw.out_index,
                 input: input_index(&raw.inputs, "in"),
                 threshold_db: SmoothParam::new(value_to_f32(p.get("thresholdDb"), -24.0), 50.0, sample_rate),
@@ -1084,7 +1165,6 @@ impl RuntimeNode {
                 env: 0.0,
             }),
             "Output" => Self::Output(OutputNode {
-                id: raw.id.clone(),
                 out_index: raw.out_index,
                 input: input_index(&raw.inputs, "in"),
                 gain_db: SmoothParam::new(value_to_f32(p.get("gainDb"), -6.0), 30.0, sample_rate),
@@ -1599,10 +1679,9 @@ impl WasmSubsetEngine {
         self.event_queue.clear();
         self.event_cursor = 0;
         for track in self.tracks.iter_mut() {
-            track.active = false;
-            track.note_id = None;
-            track.host_gate = 0.0;
-            track.rms = 0.0;
+            for voice in track.voices.iter_mut() {
+                voice.reset_to_inactive();
+            }
         }
     }
 
@@ -1650,9 +1729,15 @@ impl WasmSubsetEngine {
     fn apply_event(&mut self, event: EventSpec) {
         let started = if self.profiling_enabled { Some(now_ms()) } else { None };
         match event {
-            EventSpec::NoteOn { track_index, note_id, pitch_voct, velocity, .. } => {
+            EventSpec::NoteOn {
+                track_index,
+                note_id,
+                pitch_voct,
+                velocity,
+                sample_time,
+            } => {
                 if let Some(track) = self.tracks.get_mut(track_index) {
-                    track.note_on(note_id, pitch_voct, velocity);
+                    track.note_on(note_id, pitch_voct, velocity, sample_time);
                 }
             }
             EventSpec::NoteOff { track_index, note_id, .. } => {

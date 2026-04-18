@@ -306,8 +306,7 @@ export const compileSchedulerEventsToWasmSubset = (project, projectSpec, events)
         type: "NoteOff",
         sampleTime: event.sampleTime,
         trackIndex: trackEntry.trackIndex,
-        noteId: event.noteId,
-        pitchVoct: event.pitchVoct
+        noteId: event.noteId
       });
       continue;
     }

@@ -175,8 +175,7 @@ describe("synth worklet runtime", () => {
         sampleTime: 1024,
         source: "timeline",
         trackId: "track_1",
-        noteId: "note_1",
-        pitchVoct: 0
+        noteId: "note_1"
       }
     ];
 

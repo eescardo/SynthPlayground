@@ -63,7 +63,6 @@ export interface NoteOnEvent extends BaseSchedulerEvent {
 export interface NoteOffEvent extends BaseSchedulerEvent {
   type: "NoteOff";
   trackId: string;
-  pitchVoct: number;
   noteId: string;
 }
 

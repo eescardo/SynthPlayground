@@ -84,7 +84,6 @@ export interface WasmNoteOffEvent {
   sampleTime: number;
   trackIndex: number;
   noteId: string;
-  pitchVoct: number;
 }
 
 export interface WasmParamChangeEvent {
@@ -424,8 +423,7 @@ export const compileSchedulerEventsToWasmSubset = (
         type: "NoteOff",
         sampleTime: event.sampleTime,
         trackIndex: trackEntry.trackIndex,
-        noteId: event.noteId,
-        pitchVoct: event.pitchVoct
+        noteId: event.noteId
       });
       continue;
     }
