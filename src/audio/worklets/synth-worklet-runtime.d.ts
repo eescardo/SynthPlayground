@@ -45,29 +45,62 @@ export class TrackRuntime {
 
 export interface SynthRenderBackend {
   port: WorkletPortLike;
-  onMessage(message: unknown): void;
-  processBlock(output: Float32Array[]): boolean;
-}
-
-export interface InspectableSynthRenderBackend extends SynthRenderBackend {
   project: Project | null;
   trackRuntimes: Array<{ track: Track }>;
   eventQueue: unknown[];
+  processBlock(output: Float32Array[]): boolean;
 }
 
-export class JsSynthRenderBackend implements InspectableSynthRenderBackend {
-  constructor(options?: unknown);
+export interface SynthRenderStream extends SynthRenderBackend {
+  enqueueEvents(events: unknown[]): void;
+  stop(): void;
+}
+
+export interface SynthRenderer {
+  port: WorkletPortLike;
+  sampleRateInternal: number;
+  blockSize: number;
+  currentStream: SynthRenderStream | null;
+  project: Project | null;
+  trackRuntimes: Array<{ track: Track }>;
+  eventQueue: unknown[];
+  configure(config: unknown): void;
+  setDefaultProject(project: Project): void;
+  startStream(options: unknown): SynthRenderStream | null;
+}
+
+export class JsSynthRenderStream implements SynthRenderStream {
+  constructor(renderer: SynthRenderer, options?: unknown);
   port: WorkletPortLike;
   project: Project | null;
   trackRuntimes: Array<{ track: Track }>;
   eventQueue: unknown[];
-  onMessage(message: unknown): void;
   processBlock(output: Float32Array[]): boolean;
+  enqueueEvents(events: unknown[]): void;
+  stop(): void;
 }
+
+export class JsSynthRenderer implements SynthRenderer {
+  constructor(options?: unknown);
+  port: WorkletPortLike;
+  sampleRateInternal: number;
+  blockSize: number;
+  currentStream: SynthRenderStream | null;
+  project: Project | null;
+  trackRuntimes: Array<{ track: Track }>;
+  eventQueue: unknown[];
+  configure(config: unknown): void;
+  setDefaultProject(project: Project): void;
+  startStream(options: unknown): SynthRenderStream | null;
+}
+
+export const createRenderer: (config?: unknown) => JsSynthRenderer;
 
 export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
   constructor(options?: unknown);
-  readonly backend: SynthRenderBackend;
+  readonly renderer: SynthRenderer;
+  currentStream: SynthRenderStream | null;
+  readonly backend: SynthRenderBackend | SynthRenderer;
   eventQueue: unknown[];
   project: Project | null;
   trackRuntimes: Array<{ track: Track }>;

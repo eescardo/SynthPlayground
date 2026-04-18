@@ -657,86 +657,89 @@ export class TrackRuntime {
   }
 }
 
-export class JsSynthRenderBackend {
-  constructor(options = {}) {
-    this.port = {
-      onmessage: null,
-      postMessage() {}
-    };
-    this.sampleRateInternal = DEFAULT_SAMPLE_RATE;
-    this.blockSize = 128;
-    this.project = null;
+const buildTrackRuntimes = (project, sampleRate, blockSize) => {
+  const trackRuntimes = [];
+  const trackRuntimeById = new Map();
+  const trackRuntimesByPatchId = new Map();
+  for (const track of project?.tracks || []) {
+    const patch = (project.patches || []).find((entry) => entry.id === track.instrumentPatchId);
+    if (!patch) {
+      continue;
+    }
+    try {
+      const runtime = new TrackRuntime(track, patch, sampleRate, blockSize);
+      trackRuntimes.push(runtime);
+      trackRuntimeById.set(track.id, runtime);
+      const runtimesForPatch = trackRuntimesByPatchId.get(patch.id);
+      if (runtimesForPatch) {
+        runtimesForPatch.push(runtime);
+      } else {
+        trackRuntimesByPatchId.set(patch.id, [runtime]);
+      }
+    } catch {
+      // Invalid patch graphs are rejected and skipped for runtime safety.
+    }
+  }
+  return { trackRuntimes, trackRuntimeById, trackRuntimesByPatchId };
+};
+
+export class JsSynthRenderStream {
+  constructor(renderer, options) {
+    this.renderer = renderer;
+    this.port = renderer.port;
+    this.sampleRateInternal = renderer.sampleRateInternal;
+    this.blockSize = renderer.blockSize;
+    this.project = options.project;
+    this.mode = options.mode || "transport";
     this.trackRuntimes = [];
     this.trackRuntimeById = new Map();
     this.trackRuntimesByPatchId = new Map();
     this.eventQueue = [];
-    this.playing = false;
-    this.previewing = false;
-    this.previewRemainingSamples = 0;
-    this.previewIgnoreVolume = true;
+    this.previewIgnoreVolume = options.ignoreVolume !== false;
+    this.previewRemainingSamples = this.mode === "preview" ? Math.max(0, options.durationSamples || 0) : 0;
     this.previewCapture = null;
     this.sampleCounter = 0;
-    this.songSampleCounter = 0;
-    this.transportSessionId = 0;
+    this.songSampleCounter = Math.max(0, options.songStartSample || 0);
+    this.transportSessionId = Number.isFinite(options.sessionId) ? options.sessionId : 1;
     this.recordingTrackId = null;
     this.masterCompressorEnv = 0;
     this.masterBuffer = new Float32Array(this.blockSize);
-    const processorOptions = options && options.processorOptions ? options.processorOptions : null;
-    if (processorOptions) {
-      this.applyInit(processorOptions);
-      if (processorOptions.project) {
-        this.applyProject(processorOptions.project);
-      }
-      if (processorOptions.transport) {
-        this.applyTransport(processorOptions.transport);
-      }
+    this.stopped = false;
+
+    const runtimeGraph = buildTrackRuntimes(this.project, this.sampleRateInternal, this.blockSize);
+    this.trackRuntimes = runtimeGraph.trackRuntimes;
+    this.trackRuntimeById = runtimeGraph.trackRuntimeById;
+    this.trackRuntimesByPatchId = runtimeGraph.trackRuntimesByPatchId;
+
+    if (Array.isArray(options.events)) {
+      this.enqueueEvents(options.events);
+    }
+    this.resetAllTrackVoices();
+    if (this.mode === "preview") {
+      this.beginPreviewCapture(options);
     }
   }
 
-  applyInit(message) {
-    this.sampleRateInternal = message.sampleRate || DEFAULT_SAMPLE_RATE;
-    this.blockSize = message.blockSize || 128;
-    this.masterBuffer = new Float32Array(this.blockSize);
+  get playing() {
+    return !this.stopped && this.mode === "transport";
   }
 
-  applyProject(project) {
-    this.project = project;
-    this.trackRuntimes = [];
-    this.trackRuntimeById = new Map();
-    this.trackRuntimesByPatchId = new Map();
-    for (const track of this.project.tracks || []) {
-      const patch = (this.project.patches || []).find((entry) => entry.id === track.instrumentPatchId);
-      if (!patch) {
-        continue;
-      }
-      try {
-        const runtime = new TrackRuntime(track, patch, this.sampleRateInternal, this.blockSize);
-        this.trackRuntimes.push(runtime);
-        this.trackRuntimeById.set(track.id, runtime);
-        const runtimesForPatch = this.trackRuntimesByPatchId.get(patch.id);
-        if (runtimesForPatch) {
-          runtimesForPatch.push(runtime);
-        } else {
-          this.trackRuntimesByPatchId.set(patch.id, [runtime]);
-        }
-      } catch {
-        // Invalid patch graphs are rejected and skipped for runtime safety.
-      }
-    }
+  get previewing() {
+    return !this.stopped && this.mode === "preview" && this.previewRemainingSamples > 0;
   }
 
-  beginPreviewCapture(message) {
-    const captureProbes = Array.isArray(message.captureProbes) ? message.captureProbes : [];
+  beginPreviewCapture(options) {
+    const captureProbes = Array.isArray(options.captureProbes) ? options.captureProbes : [];
     if (!captureProbes.length) {
       this.previewCapture = null;
       return;
     }
-    const trackRuntime = this.trackRuntimes.find((entry) => entry.track.id === message.trackId);
+    const trackRuntime = this.trackRuntimeById.get(options.trackId);
     if (!trackRuntime) {
       this.previewCapture = null;
       return;
     }
-    const durationSamples = Math.max(0, Math.floor(message.durationSamples || 0));
+    const durationSamples = Math.max(0, Math.floor(options.durationSamples || 0));
     const signalIndexByProbeId = new Map();
     const captureSamplesByProbeId = new Map();
     const captureMetaByProbeId = new Map();
@@ -751,8 +754,8 @@ export class JsSynthRenderBackend {
     }
     this.previewCapture = signalIndexByProbeId.size > 0
       ? {
-          previewId: message.previewId,
-          trackId: message.trackId,
+          previewId: options.previewId,
+          trackId: options.trackId,
           durationSamples,
           lastEmittedCapturedSamples: 0,
           signalIndexByProbeId,
@@ -815,25 +818,6 @@ export class JsSynthRenderBackend {
     }
   }
 
-  applyTransport(message) {
-    this.playing = false;
-    this.previewing = false;
-    this.previewRemainingSamples = 0;
-    this.previewIgnoreVolume = true;
-    this.previewCapture = null;
-    this.recordingTrackId = null;
-    this.transportSessionId = Number.isFinite(message.sessionId) ? message.sessionId : this.transportSessionId + 1;
-    this.songSampleCounter = Math.max(0, message.songStartSample || 0);
-    this.eventQueue.length = 0;
-    if (Array.isArray(message.events)) {
-      this.enqueueEvents(message.events);
-    }
-    this.resetAllTrackVoices();
-    this.playing = Boolean(message.isPlaying);
-  }
-
-  // Scheduler messages arrive ahead of playback and are kept ordered by absolute
-  // song-sample time so block rendering can split precisely at event boundaries.
   enqueueEvents(events) {
     for (const evt of events) {
       if (!evt || !Number.isFinite(evt.sampleTime)) {
@@ -844,68 +828,23 @@ export class JsSynthRenderBackend {
     this.eventQueue.sort(compareScheduledEvents);
   }
 
-  // Main-thread control plane: initializes the processor, swaps in a project,
-  // starts/stops transport, appends scheduled events, and applies macro changes.
-  onMessage(message) {
-    switch (message.type) {
-      case "INIT":
-        this.applyInit(message);
-        break;
-      case "SET_PROJECT":
-        this.applyProject(message.project);
-        break;
-      case "TRANSPORT":
-        this.applyTransport(message);
-        break;
-      case "RECORDING":
-        this.recordingTrackId = typeof message.trackId === "string" ? message.trackId : null;
-        if (this.recordingTrackId) {
-          const track = this.trackRuntimes.find((entry) => entry.track.id === this.recordingTrackId);
-          if (track) {
-            this.resetTrackVoices(track, { clearNoteId: true });
-          }
-        }
-        break;
-      case "PREVIEW":
-        if (message.project) {
-          this.applyProject(message.project);
-        }
-        this.previewing = false;
-        this.playing = false;
-        this.songSampleCounter = 0;
-        this.eventQueue.length = 0;
-        if (Array.isArray(message.events)) {
-          this.enqueueEvents(message.events);
-        }
-        this.resetAllTrackVoices();
-        this.previewRemainingSamples = Math.max(0, message.durationSamples || 0);
-        this.previewIgnoreVolume = message.ignoreVolume !== false;
-        this.beginPreviewCapture(message);
-        this.previewing = this.previewRemainingSamples > 0;
-        break;
-      case "EVENTS":
-        if (Number.isFinite(message.sessionId) && message.sessionId !== this.transportSessionId) {
-          break;
-        }
-        if (Array.isArray(message.events)) {
-          this.enqueueEvents(message.events);
-        }
-        break;
-      case "MACRO":
-        for (const track of this.trackRuntimes) {
-          if (track.track.id === message.trackId) {
-            track.applyMacro(message.macroId, message.normalized);
-          }
-        }
-        break;
-      default:
-        break;
+  setRecordingTrack(trackId) {
+    this.recordingTrackId = typeof trackId === "string" ? trackId : null;
+    if (this.recordingTrackId) {
+      const track = this.trackRuntimeById.get(this.recordingTrackId);
+      if (track) {
+        this.resetTrackVoices(track, { clearNoteId: true });
+      }
     }
   }
 
-  // Event dispatch separates transport-time scheduling from DSP execution. Patch
-  // internals never see these events directly; they only observe updated host values
-  // and parameter targets during rendering.
+  setMacroValue(trackId, macroId, normalized) {
+    const trackRuntime = this.trackRuntimeById.get(trackId);
+    if (trackRuntime) {
+      trackRuntime.applyMacro(macroId, normalized);
+    }
+  }
+
   handleEvent(event) {
     if (!this.project || !event || typeof event.type !== "string") {
       return;
@@ -946,8 +885,6 @@ export class JsSynthRenderBackend {
     }
   }
 
-  // Master FX run after all tracks are summed for the frame slice and before samples
-  // are copied to the stereo outputs.
   applyMasterFxRange(buffer, startFrame, endFrame) {
     if (!this.project) {
       return;
@@ -971,8 +908,6 @@ export class JsSynthRenderBackend {
     }
   }
 
-  // Drain every event whose absolute song sample time is now due before rendering the
-  // next slice of the current worklet block.
   consumeDueEvents() {
     const currentSongSample = this.songSampleCounter;
     while (this.eventQueue.length > 0) {
@@ -988,8 +923,6 @@ export class JsSynthRenderBackend {
     }
   }
 
-  // Look ahead to the next event boundary so the block can be split into contiguous
-  // frame ranges that are internally event-free.
   nextPendingEventSample() {
     while (this.eventQueue.length > 0) {
       const next = this.eventQueue[0];
@@ -1002,8 +935,6 @@ export class JsSynthRenderBackend {
     return Infinity;
   }
 
-  // Render one event-free frame slice: mix all tracks into the master buffer, run
-  // master FX, and write the resulting mono signal to both output channels.
   renderFrameRange(left, right, startFrame, endFrame) {
     this.masterBuffer.fill(0, startFrame, endFrame);
     const captureOffset = this.songSampleCounter;
@@ -1039,7 +970,6 @@ export class JsSynthRenderBackend {
       if (this.previewing) {
         this.previewRemainingSamples -= 1;
         if (this.previewRemainingSamples <= 0) {
-          this.previewing = false;
           this.eventQueue.length = 0;
           this.resetAllTrackVoices();
           previewCompleted = true;
@@ -1049,18 +979,24 @@ export class JsSynthRenderBackend {
     }
 
     if (previewCompleted) {
+      this.stop();
       this.emitPreviewCapture(true);
     } else if (this.previewCapture) {
       this.emitPreviewCapture(false);
     }
   }
 
-  // Render one full output block. The backend iterates through the output block in
-  // slices separated by pending events so note/param changes remain sample-accurate
-  // without rebuilding the graph for every individual sample.
   processBlock(output) {
     const left = output[0];
     const right = output[1] || output[0];
+
+    if (this.stopped) {
+      left.fill(0);
+      if (right !== left) {
+        right.fill(0);
+      }
+      return true;
+    }
 
     let frame = 0;
     while (frame < left.length) {
@@ -1085,18 +1021,147 @@ export class JsSynthRenderBackend {
 
     return true;
   }
+
+  stop() {
+    this.stopped = true;
+    this.eventQueue.length = 0;
+    this.previewRemainingSamples = 0;
+    this.resetAllTrackVoices();
+  }
 }
+
+export class JsSynthRenderer {
+  constructor(options = {}) {
+    this.port = {
+      onmessage: null,
+      postMessage() {}
+    };
+    this.sampleRateInternal = DEFAULT_SAMPLE_RATE;
+    this.blockSize = 128;
+    this.defaultProject = null;
+    this.currentStream = null;
+
+    const processorOptions = options && options.processorOptions ? options.processorOptions : null;
+    if (processorOptions) {
+      this.configure(processorOptions);
+      if (processorOptions.project) {
+        this.defaultProject = processorOptions.project;
+      }
+      if (processorOptions.transport?.isPlaying && this.defaultProject) {
+        this.startStream({
+          project: this.defaultProject,
+          songStartSample: processorOptions.transport.songStartSample,
+          events: processorOptions.transport.events || [],
+          sessionId: processorOptions.transport.sessionId,
+          mode: "transport"
+        });
+      }
+    }
+  }
+
+  configure(config) {
+    this.sampleRateInternal = config.sampleRate || DEFAULT_SAMPLE_RATE;
+    this.blockSize = config.blockSize || 128;
+  }
+
+  setDefaultProject(project) {
+    this.defaultProject = project;
+  }
+
+  startStream(options) {
+    if (this.currentStream) {
+      this.currentStream.stop();
+    }
+    const project = options.project || this.defaultProject;
+    if (!project) {
+      this.currentStream = null;
+      return null;
+    }
+    const stream = new JsSynthRenderStream(this, { ...options, project });
+    this.currentStream = stream;
+    return stream;
+  }
+
+  get project() {
+    return this.currentStream?.project ?? this.defaultProject;
+  }
+
+  get trackRuntimes() {
+    return this.currentStream?.trackRuntimes ?? [];
+  }
+
+  get eventQueue() {
+    return this.currentStream?.eventQueue ?? [];
+  }
+}
+
+export const createRenderer = (config = {}) => new JsSynthRenderer(config);
 
 export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
   constructor(options) {
     super();
-    this.backend = new JsSynthRenderBackend(options);
-    this.port.onmessage = (event) => this.backend.onMessage(event.data);
-    this.backend.port = this.port;
+    this.renderer = createRenderer(options);
+    this.currentStream = this.renderer.currentStream;
+    this.transportSessionId = this.currentStream?.transportSessionId ?? 0;
+    this.port.onmessage = (event) => this.onMessage(event.data);
+    this.renderer.port = this.port;
   }
 
   onMessage(message) {
-    this.backend.onMessage(message);
+    switch (message.type) {
+      case "INIT":
+        this.renderer.configure(message);
+        break;
+      case "SET_PROJECT":
+        this.renderer.setDefaultProject(message.project);
+        break;
+      case "TRANSPORT":
+        this.transportSessionId = Number.isFinite(message.sessionId) ? message.sessionId : this.transportSessionId + 1;
+        if (!message.isPlaying) {
+          this.currentStream?.stop();
+          this.currentStream = null;
+          break;
+        }
+        this.currentStream = this.renderer.startStream({
+          project: this.renderer.project,
+          songStartSample: message.songStartSample || 0,
+          events: message.events || [],
+          sessionId: this.transportSessionId,
+          mode: "transport"
+        });
+        break;
+      case "PREVIEW":
+        this.currentStream = this.renderer.startStream({
+          project: message.project || this.renderer.project,
+          songStartSample: 0,
+          events: message.events || [],
+          mode: "preview",
+          durationSamples: message.durationSamples || 0,
+          ignoreVolume: message.ignoreVolume,
+          previewId: message.previewId,
+          trackId: message.trackId,
+          captureProbes: message.captureProbes
+        });
+        break;
+      case "EVENTS":
+        if (Number.isFinite(message.sessionId) && message.sessionId !== this.transportSessionId) {
+          break;
+        }
+        this.currentStream?.enqueueEvents(message.events || []);
+        break;
+      case "MACRO":
+        this.currentStream?.setMacroValue(message.trackId, message.macroId, message.normalized);
+        break;
+      case "RECORDING":
+        this.currentStream?.setRecordingTrack(message.trackId);
+        break;
+      default:
+        break;
+    }
+  }
+
+  get backend() {
+    return this.currentStream ?? this.renderer;
   }
 
   get project() {
@@ -1108,10 +1173,23 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
   }
 
   get eventQueue() {
-    return this.backend.eventQueue;
+    return this.currentStream?.eventQueue ?? [];
   }
 
   process(_inputs, outputs) {
-    return this.backend.processBlock(outputs[0]);
+    if (!this.currentStream) {
+      const left = outputs[0][0];
+      const right = outputs[0][1] || outputs[0][0];
+      left.fill(0);
+      if (right !== left) {
+        right.fill(0);
+      }
+      return true;
+    }
+    const keepAlive = this.currentStream.processBlock(outputs[0]);
+    if (this.currentStream.stopped) {
+      this.currentStream = null;
+    }
+    return keepAlive;
   }
 }

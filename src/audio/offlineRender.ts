@@ -1,4 +1,4 @@
-import { JsSynthRenderBackend, SynthRenderBackend, SynthWorkletProcessor } from "@/audio/worklets/synth-worklet-runtime.js";
+import { createRenderer, SynthRenderStream, SynthWorkletProcessor } from "@/audio/worklets/synth-worklet-runtime.js";
 import { AudioProject, SchedulerEvent } from "@/types/audio";
 
 export interface OfflineRenderOptions {
@@ -39,11 +39,11 @@ export const createOfflineRenderProcessor = (
     }
   });
 
-export const createOfflineRenderBackend = (
+export const createOfflineRenderer = (
   project: AudioProject,
   options: Pick<OfflineRenderOptions, "sampleRate" | "blockSize">
-): SynthRenderBackend =>
-  new JsSynthRenderBackend({
+)=>
+  createRenderer({
     processorOptions: {
       sampleRate: options.sampleRate,
       blockSize: options.blockSize,
@@ -51,18 +51,32 @@ export const createOfflineRenderBackend = (
     }
   });
 
+export const createOfflineRenderStream = (
+  project: AudioProject,
+  options: Pick<OfflineRenderOptions, "sampleRate" | "blockSize" | "durationSamples"> & {
+    events?: SchedulerEvent[];
+    sessionId?: number;
+  }
+): SynthRenderStream | null =>
+  createOfflineRenderer(project, options).startStream({
+    project,
+    songStartSample: 0,
+    events: options.events ?? [],
+    sessionId: options.sessionId ?? 1,
+    mode: "transport"
+  });
+
 export const renderProjectOffline = (
   project: AudioProject,
   options: OfflineRenderOptions
 ): OfflineRenderResult => {
   const { sampleRate, blockSize, durationSamples } = options;
-  const backend = createOfflineRenderBackend(project, { sampleRate, blockSize });
-  backend.onMessage({
-    type: "TRANSPORT",
-    isPlaying: true,
-    songStartSample: 0,
-    events: options.events ?? [],
-    sessionId: options.sessionId ?? 1
+  const stream = createOfflineRenderStream(project, {
+    sampleRate,
+    blockSize,
+    durationSamples,
+    events: options.events,
+    sessionId: options.sessionId
   });
 
   const left = new Float32Array(durationSamples);
@@ -74,7 +88,7 @@ export const renderProjectOffline = (
   for (let blockIndex = 0; blockIndex < renderedBlocks; blockIndex += 1) {
     const blockLeft = new Float32Array(blockSize);
     const blockRight = new Float32Array(blockSize);
-    backend.processBlock([blockLeft, blockRight]);
+    stream?.processBlock([blockLeft, blockRight]);
 
     const blockOffset = blockIndex * blockSize;
     const validFrames = Math.min(blockSize, durationSamples - blockOffset);
