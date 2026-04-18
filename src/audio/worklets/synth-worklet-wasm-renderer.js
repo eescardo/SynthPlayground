@@ -1,4 +1,4 @@
-import initSync, { WasmSubsetEngine } from "../wasm/pkg/dsp_core.js";
+import { initSync, WasmSubsetEngine } from "./synth-worklet-dsp-bindgen.js";
 import { compareScheduledEvents } from "./synth-worklet-runtime.js";
 import { compileAudioProjectToWasmSubset, compileSchedulerEventsToWasmSubset } from "./synth-worklet-wasm-compiler.js";
 
@@ -117,11 +117,18 @@ export class WasmWorkletRenderer {
     this.sampleRateInternal = options?.processorOptions?.sampleRate ?? 48000;
     this.blockSize = options?.processorOptions?.blockSize ?? 128;
     this.defaultProject = options?.processorOptions?.project ?? null;
-    const wasmBytes = options?.processorOptions?.wasmBytes;
-    if (!wasmBytes) {
-      throw new Error("WASM worklet renderer requires processorOptions.wasmBytes.");
+    this.wasmBytes = options?.processorOptions?.wasmBytes ?? null;
+    this.memory = null;
+  }
+
+  ensureInitialized() {
+    if (this.memory) {
+      return;
     }
-    const bufferSource = wasmBytes instanceof Uint8Array ? wasmBytes : new Uint8Array(wasmBytes);
+    if (!this.wasmBytes) {
+      throw new Error("WASM worklet renderer requires wasmBytes before starting a stream.");
+    }
+    const bufferSource = this.wasmBytes instanceof Uint8Array ? this.wasmBytes : new Uint8Array(this.wasmBytes);
     const initOutput = initSync({ module: bufferSource });
     this.memory = initOutput.memory;
   }
@@ -129,6 +136,12 @@ export class WasmWorkletRenderer {
   configure(config) {
     this.sampleRateInternal = config.sampleRate || this.sampleRateInternal;
     this.blockSize = config.blockSize || this.blockSize;
+    if (config.wasmBytes) {
+      this.wasmBytes = config.wasmBytes;
+    }
+    if (this.wasmBytes && !this.memory) {
+      this.ensureInitialized();
+    }
   }
 
   setDefaultProject(project) {
@@ -140,6 +153,7 @@ export class WasmWorkletRenderer {
     if (!project) {
       return null;
     }
+    this.ensureInitialized();
     return new WasmWorkletRenderStream(this, { ...options, project });
   }
 

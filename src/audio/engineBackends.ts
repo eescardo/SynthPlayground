@@ -140,8 +140,7 @@ class RealAudioEngineBackend implements AudioEngineBackend {
       const worklet = new AudioWorkletNode(context, "synth-worklet-processor", {
         numberOfInputs: 0,
         numberOfOutputs: 1,
-        outputChannelCount: [2],
-        processorOptions: wasmBytes ? { wasmBytes } : undefined
+        outputChannelCount: [2]
       });
       worklet.port.onmessage = (event: MessageEvent<WorkletOutboundMessage>) => {
         const message = event.data;
@@ -150,12 +149,47 @@ class RealAudioEngineBackend implements AudioEngineBackend {
         }
       };
 
-      worklet.connect(context.destination);
-      worklet.port.postMessage({
-        type: "INIT",
-        sampleRate: FIXED_SAMPLE_RATE,
-        blockSize: BLOCK_SIZE
+      await new Promise<void>((resolve, reject) => {
+        let settled = false;
+        const timeout = window.setTimeout(() => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          reject(new Error("Timed out waiting for audio worklet initialization."));
+        }, 5000);
+
+        const previousOnMessage = worklet.port.onmessage;
+        worklet.port.onmessage = (event: MessageEvent<WorkletOutboundMessage>) => {
+          if (previousOnMessage) {
+            previousOnMessage.call(worklet.port, event);
+          }
+          const message = event.data;
+          if (settled) {
+            return;
+          }
+          if (message?.type === "INIT_READY") {
+            settled = true;
+            window.clearTimeout(timeout);
+            resolve();
+            return;
+          }
+          if (message?.type === "INIT_ERROR") {
+            settled = true;
+            window.clearTimeout(timeout);
+            reject(new Error(`Audio worklet init failed: ${message.error}`));
+          }
+        };
+
+        worklet.port.postMessage({
+          type: "INIT",
+          sampleRate: FIXED_SAMPLE_RATE,
+          blockSize: BLOCK_SIZE,
+          wasmBytes
+        }, wasmBytes ? [wasmBytes] : []);
       });
+
+      worklet.connect(context.destination);
 
       if (this.project) {
         worklet.port.postMessage({

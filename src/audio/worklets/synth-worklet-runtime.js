@@ -1134,7 +1134,15 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
   onMessage(message) {
     switch (message.type) {
       case "INIT":
-        this.renderer.configure(message);
+        try {
+          this.renderer.configure(message);
+          this.port.postMessage({ type: "INIT_READY" });
+        } catch (error) {
+          this.port.postMessage({
+            type: "INIT_ERROR",
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
         break;
       case "SET_PROJECT":
         this.renderer.setDefaultProject(message.project);

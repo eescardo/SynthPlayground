@@ -87,6 +87,7 @@ export interface WorkletInitMessage {
   type: "INIT";
   sampleRate: number;
   blockSize: number;
+  wasmBytes?: ArrayBuffer;
 }
 
 export interface WorkletSetProjectMessage {
@@ -125,6 +126,15 @@ export interface WorkletPreviewCaptureMessage {
   captures: PreviewProbeCapture[];
 }
 
+export interface WorkletInitReadyMessage {
+  type: "INIT_READY";
+}
+
+export interface WorkletInitErrorMessage {
+  type: "INIT_ERROR";
+  error: string;
+}
+
 export interface WorkletTransportMessage {
   type: "TRANSPORT";
   isPlaying: boolean;
@@ -148,4 +158,4 @@ export type WorkletInboundMessage =
   | WorkletRecordingMessage
   | WorkletTransportMessage;
 
-export type WorkletOutboundMessage = WorkletPreviewCaptureMessage;
+export type WorkletOutboundMessage = WorkletPreviewCaptureMessage | WorkletInitReadyMessage | WorkletInitErrorMessage;

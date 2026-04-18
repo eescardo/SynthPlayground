@@ -66,16 +66,16 @@ export interface SynthRenderer {
   sampleRateInternal: number;
   blockSize: number;
   project: AudioProject | null;
-  configure(config: Partial<SynthRendererConfig>): void;
+  configure(config: Partial<SynthRendererConfig> & { wasmBytes?: ArrayBuffer }): void;
   setDefaultProject(project: AudioProject): void;
   startStream(options: SynthStreamStartOptions): SynthRenderStream | null;
 }
 
-export const createRenderer: (config?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> } }) => SynthRenderer;
+export const createRenderer: (config?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions>; wasmBytes?: ArrayBuffer } }) => SynthRenderer;
 
 export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
-  constructor(options?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> } });
-  readonly renderer: SynthRenderer;
+  constructor(options?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions>; wasmBytes?: ArrayBuffer } });
+  renderer: SynthRenderer;
   currentStream: SynthRenderStream | null;
   readonly backend: SynthRenderStream | SynthRenderer;
   eventQueue: SchedulerEvent[];
