@@ -652,4 +652,44 @@ describe("synth worklet runtime", () => {
 
     expect(processor.eventQueue).toEqual([]);
   });
+
+  it("uses the latest project after stop and set-project before restarting transport", async () => {
+    const { SynthWorkletProcessor } = await loadRuntimeModule();
+
+    const mutedProject = createProject({
+      track: createTrack({ mute: true })
+    });
+    const audibleProject = createProject({
+      track: createTrack({ mute: false, volume: 1 })
+    });
+    const noteOn = {
+      id: "timeline_on",
+      type: "NoteOn" as const,
+      sampleTime: 0,
+      source: "timeline" as const,
+      trackId: "track_1",
+      noteId: "note_1",
+      pitchVoct: 0,
+      velocity: 1
+    };
+
+    const processor = new SynthWorkletProcessor({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize: 128,
+        project: mutedProject
+      }
+    });
+
+    processor.onMessage({ type: "TRANSPORT", isPlaying: true, sessionId: 1, songStartSample: 0, events: [noteOn] });
+    const { left: mutedLeft } = renderProcessorBlock(processor);
+    expect(sumAbs(mutedLeft)).toBe(0);
+
+    processor.onMessage({ type: "TRANSPORT", isPlaying: false, sessionId: 1, songStartSample: 0 });
+    processor.onMessage({ type: "SET_PROJECT", project: audibleProject });
+    processor.onMessage({ type: "TRANSPORT", isPlaying: true, sessionId: 2, songStartSample: 0, events: [noteOn] });
+
+    const { left: audibleLeft } = renderProcessorBlock(processor);
+    expect(sumAbs(audibleLeft)).toBeGreaterThan(0.001);
+  });
 });

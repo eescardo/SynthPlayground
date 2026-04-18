@@ -1027,6 +1027,9 @@ export class JsSynthRenderStream {
     this.eventQueue.length = 0;
     this.previewRemainingSamples = 0;
     this.resetAllTrackVoices();
+    if (this.renderer.currentStream === this) {
+      this.renderer.currentStream = null;
+    }
   }
 }
 
@@ -1119,6 +1122,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         this.transportSessionId = Number.isFinite(message.sessionId) ? message.sessionId : this.transportSessionId + 1;
         if (!message.isPlaying) {
           this.currentStream?.stop();
+          this.renderer.currentStream = null;
           this.currentStream = null;
           break;
         }
@@ -1188,6 +1192,9 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     }
     const keepAlive = this.currentStream.processBlock(outputs[0]);
     if (this.currentStream.stopped) {
+      if (this.renderer.currentStream === this.currentStream) {
+        this.renderer.currentStream = null;
+      }
       this.currentStream = null;
     }
     return keepAlive;
