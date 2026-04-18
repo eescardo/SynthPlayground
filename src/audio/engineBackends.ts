@@ -11,6 +11,7 @@ const LOOKAHEAD_MS = 300;
 const SCHEDULER_TICK_MS = 25;
 export const BLOCK_SIZE = 128;
 export const FIXED_SAMPLE_RATE = 48000;
+const USE_WASM_WORKLET = process.env.NEXT_PUBLIC_STRICT_WASM === "1";
 
 export interface AudioEngineBackend {
   init(): Promise<void>;
@@ -42,8 +43,20 @@ export interface AudioEngineBackend {
   setPreviewCaptureListener(listener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null): void;
 }
 
-const getWorkletUrl = () =>
-  process.env.NODE_ENV === "development" ? `/worklets/synth-worklet.js?v=${Date.now()}` : "/worklets/synth-worklet.js";
+const getWorkletUrl = () => {
+  const basePath = USE_WASM_WORKLET ? "/worklets/synth-worklet-wasm.js" : "/worklets/synth-worklet.js";
+  return process.env.NODE_ENV === "development" ? `${basePath}?v=${Date.now()}` : basePath;
+};
+
+const loadWorkletWasmBytes = async () => {
+  const response = await fetch(
+    process.env.NODE_ENV === "development" ? `/wasm/pkg/dsp_core_bg.wasm?v=${Date.now()}` : "/wasm/pkg/dsp_core_bg.wasm"
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to load worklet WASM binary: ${response.status} ${response.statusText}`);
+  }
+  return await response.arrayBuffer();
+};
 
 class RealAudioEngineBackend implements AudioEngineBackend {
   private context: AudioContext | null = null;
@@ -122,11 +135,13 @@ class RealAudioEngineBackend implements AudioEngineBackend {
 
     try {
       await context.audioWorklet.addModule(getWorkletUrl());
+      const wasmBytes = USE_WASM_WORKLET ? await loadWorkletWasmBytes() : undefined;
 
       const worklet = new AudioWorkletNode(context, "synth-worklet-processor", {
         numberOfInputs: 0,
         numberOfOutputs: 1,
-        outputChannelCount: [2]
+        outputChannelCount: [2],
+        processorOptions: wasmBytes ? { wasmBytes } : undefined
       });
       worklet.port.onmessage = (event: MessageEvent<WorkletOutboundMessage>) => {
         const message = event.data;

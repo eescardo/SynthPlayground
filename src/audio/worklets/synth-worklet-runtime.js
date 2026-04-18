@@ -1089,7 +1089,17 @@ export class JsSynthRenderer {
   }
 }
 
-export const createRenderer = (config = {}) => new JsSynthRenderer(config);
+let rendererFactory = (config = {}) => new JsSynthRenderer(config);
+
+export const setRendererFactory = (nextFactory) => {
+  rendererFactory = typeof nextFactory === "function" ? nextFactory : ((config = {}) => new JsSynthRenderer(config));
+};
+
+export const resetRendererFactory = () => {
+  rendererFactory = (config = {}) => new JsSynthRenderer(config);
+};
+
+export const createRenderer = (config = {}) => rendererFactory(config);
 
 export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
   constructor(options) {
