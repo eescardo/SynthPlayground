@@ -1049,6 +1049,7 @@ export class JsSynthRenderer {
     this.sampleRateInternal = DEFAULT_SAMPLE_RATE;
     this.blockSize = 128;
     this.defaultProject = null;
+    this.defaultRandomSeed = DEFAULT_RANDOM_SEED;
 
     const processorOptions = options && options.processorOptions ? options.processorOptions : null;
     if (processorOptions) {
@@ -1062,6 +1063,7 @@ export class JsSynthRenderer {
   configure(config) {
     this.sampleRateInternal = config.sampleRate || DEFAULT_SAMPLE_RATE;
     this.blockSize = config.blockSize || 128;
+    this.defaultRandomSeed = Number.isFinite(config.randomSeed) ? Number(config.randomSeed) >>> 0 : this.defaultRandomSeed;
   }
 
   setDefaultProject(project) {
@@ -1073,7 +1075,11 @@ export class JsSynthRenderer {
     if (!project) {
       return null;
     }
-    return new JsSynthRenderStream(this, { ...options, project });
+    return new JsSynthRenderStream(this, {
+      ...options,
+      project,
+      randomSeed: Number.isFinite(options.randomSeed) ? Number(options.randomSeed) >>> 0 : this.defaultRandomSeed
+    });
   }
 
   get project() {

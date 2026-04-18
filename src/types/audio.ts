@@ -13,6 +13,7 @@ export interface SynthRendererConfig {
   sampleRate: number;
   blockSize: number;
   project?: AudioProject;
+  randomSeed?: number;
 }
 
 export type SynthRenderMode = "transport" | "preview";
