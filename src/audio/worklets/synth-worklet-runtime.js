@@ -1027,9 +1027,6 @@ export class JsSynthRenderStream {
     this.eventQueue.length = 0;
     this.previewRemainingSamples = 0;
     this.resetAllTrackVoices();
-    if (this.renderer.currentStream === this) {
-      this.renderer.currentStream = null;
-    }
   }
 }
 
@@ -1042,22 +1039,12 @@ export class JsSynthRenderer {
     this.sampleRateInternal = DEFAULT_SAMPLE_RATE;
     this.blockSize = 128;
     this.defaultProject = null;
-    this.currentStream = null;
 
     const processorOptions = options && options.processorOptions ? options.processorOptions : null;
     if (processorOptions) {
       this.configure(processorOptions);
       if (processorOptions.project) {
         this.defaultProject = processorOptions.project;
-      }
-      if (processorOptions.transport?.isPlaying && this.defaultProject) {
-        this.startStream({
-          project: this.defaultProject,
-          songStartSample: processorOptions.transport.songStartSample,
-          events: processorOptions.transport.events || [],
-          sessionId: processorOptions.transport.sessionId,
-          mode: "transport"
-        });
       }
     }
   }
@@ -1072,29 +1059,15 @@ export class JsSynthRenderer {
   }
 
   startStream(options) {
-    if (this.currentStream) {
-      this.currentStream.stop();
-    }
     const project = options.project || this.defaultProject;
     if (!project) {
-      this.currentStream = null;
       return null;
     }
-    const stream = new JsSynthRenderStream(this, { ...options, project });
-    this.currentStream = stream;
-    return stream;
+    return new JsSynthRenderStream(this, { ...options, project });
   }
 
   get project() {
-    return this.currentStream?.project ?? this.defaultProject;
-  }
-
-  get trackRuntimes() {
-    return this.currentStream?.trackRuntimes ?? [];
-  }
-
-  get eventQueue() {
-    return this.currentStream?.eventQueue ?? [];
+    return this.defaultProject;
   }
 }
 
@@ -1104,10 +1077,29 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
   constructor(options) {
     super();
     this.renderer = createRenderer(options);
-    this.currentStream = this.renderer.currentStream;
-    this.transportSessionId = this.currentStream?.transportSessionId ?? 0;
+    this.currentStream = null;
+    this.transportSessionId = 0;
     this.port.onmessage = (event) => this.onMessage(event.data);
     this.renderer.port = this.port;
+
+    const processorOptions = options && options.processorOptions ? options.processorOptions : null;
+    if (processorOptions?.transport?.isPlaying && this.renderer.project) {
+      this.currentStream = this.renderer.startStream({
+        project: this.renderer.project,
+        songStartSample: processorOptions.transport.songStartSample,
+        events: processorOptions.transport.events || [],
+        sessionId: processorOptions.transport.sessionId,
+        mode: "transport"
+      });
+      this.transportSessionId = this.currentStream?.transportSessionId ?? 0;
+    }
+  }
+
+  replaceCurrentStream(nextStream) {
+    if (this.currentStream && this.currentStream !== nextStream) {
+      this.currentStream.stop();
+    }
+    this.currentStream = nextStream;
   }
 
   onMessage(message) {
@@ -1121,21 +1113,19 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
       case "TRANSPORT":
         this.transportSessionId = Number.isFinite(message.sessionId) ? message.sessionId : this.transportSessionId + 1;
         if (!message.isPlaying) {
-          this.currentStream?.stop();
-          this.renderer.currentStream = null;
-          this.currentStream = null;
+          this.replaceCurrentStream(null);
           break;
         }
-        this.currentStream = this.renderer.startStream({
+        this.replaceCurrentStream(this.renderer.startStream({
           project: this.renderer.project,
           songStartSample: message.songStartSample || 0,
           events: message.events || [],
           sessionId: this.transportSessionId,
           mode: "transport"
-        });
+        }));
         break;
       case "PREVIEW":
-        this.currentStream = this.renderer.startStream({
+        this.replaceCurrentStream(this.renderer.startStream({
           project: message.project || this.renderer.project,
           songStartSample: 0,
           events: message.events || [],
@@ -1145,7 +1135,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
           previewId: message.previewId,
           trackId: message.trackId,
           captureProbes: message.captureProbes
-        });
+        }));
         break;
       case "EVENTS":
         if (Number.isFinite(message.sessionId) && message.sessionId !== this.transportSessionId) {
@@ -1169,11 +1159,11 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
   }
 
   get project() {
-    return this.backend.project;
+    return this.currentStream?.project ?? this.renderer.project;
   }
 
   get trackRuntimes() {
-    return this.backend.trackRuntimes;
+    return this.currentStream?.trackRuntimes ?? [];
   }
 
   get eventQueue() {
@@ -1192,9 +1182,6 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     }
     const keepAlive = this.currentStream.processBlock(outputs[0]);
     if (this.currentStream.stopped) {
-      if (this.renderer.currentStream === this.currentStream) {
-        this.renderer.currentStream = null;
-      }
       this.currentStream = null;
     }
     return keepAlive;

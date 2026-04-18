@@ -65,10 +65,7 @@ export interface SynthRenderer {
   port: WorkletPortLike;
   sampleRateInternal: number;
   blockSize: number;
-  currentStream: SynthRenderStream | null;
   project: AudioProject | null;
-  trackRuntimes: Array<{ track: Track }>;
-  eventQueue: SchedulerEvent[];
   configure(config: Partial<SynthRendererConfig>): void;
   setDefaultProject(project: AudioProject): void;
   startStream(options: SynthStreamStartOptions): SynthRenderStream | null;
@@ -90,10 +87,7 @@ export class JsSynthRenderer implements SynthRenderer {
   port: WorkletPortLike;
   sampleRateInternal: number;
   blockSize: number;
-  currentStream: SynthRenderStream | null;
   project: AudioProject | null;
-  trackRuntimes: Array<{ track: Track }>;
-  eventQueue: SchedulerEvent[];
   configure(config: Partial<SynthRendererConfig>): void;
   setDefaultProject(project: AudioProject): void;
   startStream(options: SynthStreamStartOptions): SynthRenderStream | null;
