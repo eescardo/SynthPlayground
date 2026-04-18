@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Track } from "@/types/music";
 import type { Patch } from "@/types/patch";
+import type { SynthRenderStream } from "../synth-worklet-runtime.js";
 
 type RuntimeModule = typeof import("../synth-worklet-runtime.js");
 type WorkletGlobal = typeof globalThis & {
@@ -129,6 +130,13 @@ function renderProcessorBlock(
   return { left, right };
 }
 
+function renderStreamBlock(stream: SynthRenderStream, frames = 128) {
+  const left = new Float32Array(frames);
+  const right = new Float32Array(frames);
+  stream.processBlock([left, right]);
+  return { left, right };
+}
+
 const sumAbs = (buffer: Float32Array) => buffer.reduce((sum, sample) => sum + Math.abs(sample), 0);
 
 beforeEach(() => {
@@ -142,13 +150,88 @@ describe("synth worklet runtime", () => {
     const { compareScheduledEvents } = await loadRuntimeModule();
 
     const events = [
-      { id: "note-on", type: "NoteOn", sampleTime: 1024 },
-      { id: "note-off", type: "NoteOff", sampleTime: 1024 }
+      {
+        id: "note-on",
+        type: "NoteOn",
+        sampleTime: 1024,
+        source: "timeline",
+        trackId: "track_1",
+        noteId: "note_1",
+        pitchVoct: 0,
+        velocity: 1
+      },
+      {
+        id: "note-off",
+        type: "NoteOff",
+        sampleTime: 1024,
+        source: "timeline",
+        trackId: "track_1",
+        noteId: "note_1",
+        pitchVoct: 0
+      }
     ];
 
     events.sort(compareScheduledEvents);
 
     expect(events.map((event) => event.type)).toEqual(["NoteOff", "NoteOn"]);
+  });
+
+  it("creates independent render streams from the renderer factory", async () => {
+    const { createRenderer } = await loadRuntimeModule();
+
+    const project = createProject();
+    const noteOn = {
+      id: "timeline_on",
+      type: "NoteOn" as const,
+      sampleTime: 0,
+      source: "timeline" as const,
+      trackId: "track_1",
+      noteId: "note_1",
+      pitchVoct: 0,
+      velocity: 1
+    };
+
+    const renderer = createRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize: 128,
+        project
+      }
+    });
+
+    const streamA = renderer.startStream({
+      project,
+      songStartSample: 0,
+      events: [noteOn],
+      sessionId: 1,
+      mode: "transport"
+    });
+    const streamB = renderer.startStream({
+      project,
+      songStartSample: 0,
+      events: [noteOn],
+      sessionId: 2,
+      mode: "transport"
+    });
+
+    expect(streamA).not.toBeNull();
+    expect(streamB).not.toBeNull();
+    expect(streamA).not.toBe(streamB);
+    expect(renderer.project).toBe(project);
+
+    const { left: streamALeft } = renderStreamBlock(streamA!);
+    const { left: streamBLeft } = renderStreamBlock(streamB!);
+
+    expect(sumAbs(streamALeft)).toBeGreaterThan(0.001);
+    expect(sumAbs(streamBLeft)).toBeGreaterThan(0.001);
+
+    streamA!.stop();
+
+    const { left: stoppedALeft } = renderStreamBlock(streamA!);
+    const { left: stillActiveBLeft } = renderStreamBlock(streamB!);
+
+    expect(sumAbs(stoppedALeft)).toBe(0);
+    expect(sumAbs(stillActiveBLeft)).toBeGreaterThan(0.001);
   });
 
   it("applies piecewise macro bindings to compiled param targets", async () => {
@@ -297,6 +380,7 @@ describe("synth worklet runtime", () => {
           id: "preview_on",
           type: "NoteOn",
           sampleTime: 0,
+          source: "preview",
           trackId: "track_1",
           noteId: "note_1",
           pitchVoct: 0,
@@ -355,6 +439,7 @@ describe("synth worklet runtime", () => {
           id: "preview_on",
           type: "NoteOn",
           sampleTime: 0,
+          source: "preview",
           trackId: "track_1",
           noteId: "note_1",
           pitchVoct: 0,
@@ -397,6 +482,7 @@ describe("synth worklet runtime", () => {
             id: "preview_on",
             type: "NoteOn",
             sampleTime: 0,
+            source: "preview",
             trackId: "track_1",
             noteId: "note_1",
             pitchVoct: 0,
@@ -474,6 +560,7 @@ describe("synth worklet runtime", () => {
           id: "preview_on",
           type: "NoteOn",
           sampleTime: 0,
+          source: "preview",
           trackId: "track_1",
           noteId: "note_1",
           pitchVoct: 0,
@@ -524,6 +611,7 @@ describe("synth worklet runtime", () => {
           id: "preview_on",
           type: "NoteOn",
           sampleTime: 0,
+          source: "preview",
           trackId: "track_1",
           noteId: "note_1",
           pitchVoct: 0,
@@ -583,6 +671,7 @@ describe("synth worklet runtime", () => {
           id: "preview_on",
           type: "NoteOn",
           sampleTime: 0,
+          source: "preview",
           trackId: "track_1",
           noteId: "note_1",
           pitchVoct: 0,
@@ -624,9 +713,49 @@ describe("synth worklet runtime", () => {
     processor.onMessage({
       type: "EVENTS",
       sessionId: 6,
-      events: [{ id: "stale", type: "NoteOn", sampleTime: 0, trackId: "track_1", noteId: "note_1", pitchVoct: 0, velocity: 1 }]
+      events: [{ id: "stale", type: "NoteOn", sampleTime: 0, source: "timeline", trackId: "track_1", noteId: "note_1", pitchVoct: 0, velocity: 1 }]
     });
 
     expect(processor.eventQueue).toEqual([]);
+  });
+
+  it("uses the latest project after stop and set-project before restarting transport", async () => {
+    const { SynthWorkletProcessor } = await loadRuntimeModule();
+
+    const mutedProject = createProject({
+      track: createTrack({ mute: true })
+    });
+    const audibleProject = createProject({
+      track: createTrack({ mute: false, volume: 1 })
+    });
+    const noteOn = {
+      id: "timeline_on",
+      type: "NoteOn" as const,
+      sampleTime: 0,
+      source: "timeline" as const,
+      trackId: "track_1",
+      noteId: "note_1",
+      pitchVoct: 0,
+      velocity: 1
+    };
+
+    const processor = new SynthWorkletProcessor({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize: 128,
+        project: mutedProject
+      }
+    });
+
+    processor.onMessage({ type: "TRANSPORT", isPlaying: true, sessionId: 1, songStartSample: 0, events: [noteOn] });
+    const { left: mutedLeft } = renderProcessorBlock(processor);
+    expect(sumAbs(mutedLeft)).toBe(0);
+
+    processor.onMessage({ type: "TRANSPORT", isPlaying: false, sessionId: 1, songStartSample: 0 });
+    processor.onMessage({ type: "SET_PROJECT", project: audibleProject });
+    processor.onMessage({ type: "TRANSPORT", isPlaying: true, sessionId: 2, songStartSample: 0, events: [noteOn] });
+
+    const { left: audibleLeft } = renderProcessorBlock(processor);
+    expect(sumAbs(audibleLeft)).toBeGreaterThan(0.001);
   });
 });

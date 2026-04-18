@@ -1,5 +1,13 @@
 import type { Track } from "@/types/music";
 import type { Patch } from "@/types/patch";
+import type {
+  AudioProject,
+  SchedulerEvent,
+  SynthRendererConfig,
+  SynthStreamStartOptions,
+  TransportSynthStreamStartOptions,
+  WorkletInboundMessage
+} from "@/types/audio";
 
 export interface WorkletPortLike {
   onmessage: ((event: unknown) => void) | null;
@@ -43,9 +51,36 @@ export class TrackRuntime {
   ): void;
 }
 
+export interface SynthRenderStream {
+  port: WorkletPortLike;
+  project: AudioProject | null;
+  trackRuntimes: Array<{ track: Track }>;
+  eventQueue: SchedulerEvent[];
+  processBlock(output: Float32Array[]): boolean;
+  enqueueEvents(events: SchedulerEvent[]): void;
+  stop(): void;
+}
+
+export interface SynthRenderer {
+  port: WorkletPortLike;
+  sampleRateInternal: number;
+  blockSize: number;
+  project: AudioProject | null;
+  configure(config: Partial<SynthRendererConfig>): void;
+  setDefaultProject(project: AudioProject): void;
+  startStream(options: SynthStreamStartOptions): SynthRenderStream | null;
+}
+
+export const createRenderer: (config?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> } }) => SynthRenderer;
+
 export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
-  constructor(options?: unknown);
-  eventQueue: unknown[];
-  onMessage(message: unknown): void;
-  process(inputs: unknown[], outputs: unknown[], parameters?: Record<string, unknown>): boolean;
+  constructor(options?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> } });
+  readonly renderer: SynthRenderer;
+  currentStream: SynthRenderStream | null;
+  readonly backend: SynthRenderStream | SynthRenderer;
+  eventQueue: SchedulerEvent[];
+  project: AudioProject | null;
+  trackRuntimes: Array<{ track: Track }>;
+  onMessage(message: WorkletInboundMessage): void;
+  process(inputs: Float32Array[][], outputs: Float32Array[][], parameters?: Record<string, unknown>): boolean;
 }

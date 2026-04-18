@@ -9,6 +9,37 @@ export interface AudioProject {
   masterFx: MasterFxSettings;
 }
 
+export interface SynthRendererConfig {
+  sampleRate: number;
+  blockSize: number;
+  project?: AudioProject;
+}
+
+export type SynthRenderMode = "transport" | "preview";
+
+export interface BaseSynthStreamStartOptions {
+  project: AudioProject;
+  songStartSample: number;
+  events: SchedulerEvent[];
+  mode: SynthRenderMode;
+  sessionId?: number;
+}
+
+export interface TransportSynthStreamStartOptions extends BaseSynthStreamStartOptions {
+  mode: "transport";
+}
+
+export interface PreviewSynthStreamStartOptions extends BaseSynthStreamStartOptions {
+  mode: "preview";
+  durationSamples: number;
+  trackId: string;
+  ignoreVolume?: boolean;
+  previewId?: string;
+  captureProbes?: PreviewProbeRequest[];
+}
+
+export type SynthStreamStartOptions = TransportSynthStreamStartOptions | PreviewSynthStreamStartOptions;
+
 // Scheduler/worklet message contracts and event payload types for audio transport.
 export type SchedulerEventType = "NoteOn" | "NoteOff" | "ParamChange" | "MacroChange";
 export type SchedulerEventSource = "timeline" | "live_input" | "preview" | "automation";

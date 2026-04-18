@@ -9,20 +9,12 @@ import {
 
 const fillNumericParamBuffer = (context, paramId, fallback) => {
   const { runtime, runtimeNode, voice, startFrame, endFrame } = context;
-  return runtime.fillNumericParamBuffer(
-    voice,
-    runtimeNode.id,
-    runtimeNode.typeId,
-    paramId,
-    fallback,
-    startFrame,
-    endFrame
-  );
+  return runtime.fillNumericParamBuffer(voice, runtimeNode, paramId, fallback, startFrame, endFrame);
 };
 
 const getParamValue = (context, paramId, fallback) => {
   const { runtime, runtimeNode } = context;
-  return runtime.getParamValue(runtimeNode.id, paramId, fallback);
+  return runtime.getParamValue(runtimeNode, paramId, fallback);
 };
 
 const createHostValueProcessor = (hostKey) => (context) => {
@@ -66,7 +58,7 @@ const processCVMixer2 = (context) => {
 
 const processVCO = (context) => {
   const { runtime, voice, runtimeNode, out, read, hostPitchBuffer, startFrame, endFrame } = context;
-  const phaseState = voice.nodeState.get(runtimeNode.id) || { phase: 0 };
+  const phaseState = runtime.getNodeState(voice, runtimeNode, () => ({ phase: 0 }));
   const pitch = read("pitch", hostPitchBuffer);
   const fm = read("fm");
   const pwm = read("pwm");
@@ -83,8 +75,6 @@ const processVCO = (context) => {
     phaseState.phase = (phaseState.phase + hz * runtime.sampleRateInv) % 1;
     out[i] = waveformSample(wave, phaseState.phase, pulseWidth);
   }
-
-  voice.nodeState.set(runtimeNode.id, phaseState);
 };
 
 const processKarplusStrong = (context) => {
@@ -97,13 +87,13 @@ const processKarplusStrong = (context) => {
   const brightnessParam = fillNumericParamBuffer(context, "brightness", Number(runtimeNode.params.brightness ?? 0.72));
   const excitation = getParamValue(context, "excitation", runtimeNode.params.excitation || "noise");
   const state =
-    voice.nodeState.get(runtimeNode.id) || {
+    runtime.getNodeState(voice, runtimeNode, () => ({
       buf: new Float32Array(runtime.sampleRate * 2),
       write: 0,
       currentDelay: 64,
       last: 0,
       lastGate: 0
-    };
+    }));
 
   for (let i = startFrame; i < endFrame; i += 1) {
     const gateValue = gate[i];
@@ -135,13 +125,11 @@ const processKarplusStrong = (context) => {
     out[i] = delayed;
     state.lastGate = gateValue;
   }
-
-  voice.nodeState.set(runtimeNode.id, state);
 };
 
 const processLFO = (context) => {
   const { runtime, voice, runtimeNode, out, read, startFrame, endFrame } = context;
-  const state = voice.nodeState.get(runtimeNode.id) || { phase: 0 };
+  const state = runtime.getNodeState(voice, runtimeNode, () => ({ phase: 0 }));
   const fm = read("fm");
   const freqParam = fillNumericParamBuffer(context, "freqHz", Number(runtimeNode.params.freqHz ?? 1));
   const pulseWidthParam = fillNumericParamBuffer(context, "pulseWidth", Number(runtimeNode.params.pulseWidth ?? 0.5));
@@ -158,8 +146,6 @@ const processLFO = (context) => {
     }
     out[i] = sample;
   }
-
-  voice.nodeState.set(runtimeNode.id, state);
 };
 
 const processADSR = (context) => {
@@ -170,7 +156,7 @@ const processADSR = (context) => {
   const sustainParam = fillNumericParamBuffer(context, "sustain", Number(runtimeNode.params.sustain ?? 0.7));
   const releaseParam = fillNumericParamBuffer(context, "release", Number(runtimeNode.params.release ?? 0.2));
   const mode = getParamValue(context, "mode", runtimeNode.params.mode || "retrigger_from_current");
-  const state = voice.nodeState.get(runtimeNode.id) || { stage: "idle", level: 0, lastGate: 0 };
+  const state = runtime.getNodeState(voice, runtimeNode, () => ({ stage: "idle", level: 0, lastGate: 0 }));
 
   for (let i = startFrame; i < endFrame; i += 1) {
     const gateValue = gate[i];
@@ -213,8 +199,6 @@ const processADSR = (context) => {
     state.lastGate = gateValue;
     out[i] = clamp(state.level, 0, 1);
   }
-
-  voice.nodeState.set(runtimeNode.id, state);
 };
 
 const processVCA = (context) => {
@@ -240,7 +224,7 @@ const processVCF = (context) => {
   const resonanceParam = fillNumericParamBuffer(context, "resonance", Number(runtimeNode.params.resonance ?? 0.1));
   const cutoffModParam = fillNumericParamBuffer(context, "cutoffModAmountOct", Number(runtimeNode.params.cutoffModAmountOct ?? 1));
   const type = getParamValue(context, "type", runtimeNode.params.type || "lowpass");
-  const state = voice.nodeState.get(runtimeNode.id) || { lp: 0, bp: 0 };
+  const state = runtime.getNodeState(voice, runtimeNode, () => ({ lp: 0, bp: 0 }));
 
   for (let i = startFrame; i < endFrame; i += 1) {
     const cutoffEffective = clamp(cutoffHzParam[i] * Math.pow(2, cutoffCv[i] * cutoffModParam[i]), 20, 20000);
@@ -258,8 +242,6 @@ const processVCF = (context) => {
     }
     out[i] = sample;
   }
-
-  voice.nodeState.set(runtimeNode.id, state);
 };
 
 const processMixer4 = (context) => {
@@ -282,7 +264,7 @@ const processNoise = (context) => {
   const { voice, runtimeNode, out, startFrame, endFrame } = context;
   const color = getParamValue(context, "color", runtimeNode.params.color || "white");
   const gainParam = fillNumericParamBuffer(context, "gain", Number(runtimeNode.params.gain ?? 0.3));
-  const state = voice.nodeState.get(runtimeNode.id) || { pink: 0, brown: 0 };
+  const state = context.runtime.getNodeState(voice, runtimeNode, () => ({ pink: 0, brown: 0 }));
 
   for (let i = startFrame; i < endFrame; i += 1) {
     const white = Math.random() * 2 - 1;
@@ -296,8 +278,6 @@ const processNoise = (context) => {
     }
     out[i] = sample * gainParam[i];
   }
-
-  voice.nodeState.set(runtimeNode.id, state);
 };
 
 const processSamplePlayer = (context) => {
@@ -309,14 +289,13 @@ const processSamplePlayer = (context) => {
   const mode = getParamValue(context, "mode", runtimeNode.params.mode || "oneshot");
   const startRatio = clamp(Number(runtimeNode.params.start ?? 0), 0, 1);
   const endRatio = clamp(Number(runtimeNode.params.end ?? 1), startRatio + 0.0001, 1);
-  const state =
-    voice.nodeState.get(runtimeNode.id) || {
+  const state = runtime.getNodeState(voice, runtimeNode, () => ({
       lastSampleData: null,
       asset: null,
       position: 0,
       active: false,
       lastGate: 0
-    };
+    }));
 
   if (state.lastSampleData !== runtimeNode.params.sampleData) {
     state.lastSampleData = runtimeNode.params.sampleData;
@@ -328,7 +307,6 @@ const processSamplePlayer = (context) => {
   const asset = state.asset;
   if (!asset || !asset.samples.length) {
     out.fill(0, startFrame, endFrame);
-    voice.nodeState.set(runtimeNode.id, state);
     return;
   }
 
@@ -374,13 +352,14 @@ const processSamplePlayer = (context) => {
     const pitchFactor = Math.pow(2, pitch[i] + pitchSemisParam[i] / 12);
     state.position += pitchFactor * asset.sampleRate / runtime.sampleRate;
   }
-
-  voice.nodeState.set(runtimeNode.id, state);
 };
 
 const processDelay = (context) => {
   const { runtime, voice, runtimeNode, out, read, startFrame, endFrame } = context;
-  const state = voice.nodeState.get(runtimeNode.id) || { buf: new Float32Array(runtime.sampleRate * 2), write: 0 };
+  const state = runtime.getNodeState(voice, runtimeNode, () => ({
+    buf: new Float32Array(runtime.sampleRate * 2),
+    write: 0
+  }));
   const input = read("in");
   const timeMsParam = fillNumericParamBuffer(context, "timeMs", Number(runtimeNode.params.timeMs ?? 300));
   const feedbackParam = fillNumericParamBuffer(context, "feedback", Number(runtimeNode.params.feedback ?? 0.3));
@@ -398,19 +377,17 @@ const processDelay = (context) => {
     state.write = (state.write + 1) % state.buf.length;
     out[i] = inputSample * (1 - mix) + delayed * mix;
   }
-
-  voice.nodeState.set(runtimeNode.id, state);
 };
 
 const processReverb = (context) => {
   const { runtime, voice, runtimeNode, out, read, startFrame, endFrame } = context;
   const input = read("in");
-  const state = voice.nodeState.get(runtimeNode.id) || {
+  const state = runtime.getNodeState(voice, runtimeNode, () => ({
     c1: new Float32Array(Math.floor(runtime.sampleRate * 0.029)),
     c2: new Float32Array(Math.floor(runtime.sampleRate * 0.041)),
     i1: 0,
     i2: 0
-  };
+  }));
   const sizeParam = fillNumericParamBuffer(context, "size", Number(runtimeNode.params.size ?? 0.5));
   const decayParam = fillNumericParamBuffer(context, "decay", Number(runtimeNode.params.decay ?? 1.5));
   const dampingParam = fillNumericParamBuffer(context, "damping", Number(runtimeNode.params.damping ?? 0.4));
@@ -432,8 +409,6 @@ const processReverb = (context) => {
     state.i2 = (state.i2 + 1) % state.c2.length;
     out[i] = inputSample * (1 - mix) + ((c1 + c2) * 0.5) * mix;
   }
-
-  voice.nodeState.set(runtimeNode.id, state);
 };
 
 const processSaturation = (context) => {
@@ -463,7 +438,7 @@ const processOverdrive = (context) => {
   const toneParam = fillNumericParamBuffer(context, "tone", Number(runtimeNode.params.tone ?? 0.5));
   const mixParam = fillNumericParamBuffer(context, "mix", Number(runtimeNode.params.mix ?? 0.6));
   const mode = getParamValue(context, "mode", runtimeNode.params.mode || "overdrive");
-  const state = voice.nodeState.get(runtimeNode.id) || { toneLp: 0 };
+  const state = context.runtime.getNodeState(voice, runtimeNode, () => ({ toneLp: 0 }));
 
   for (let i = startFrame; i < endFrame; i += 1) {
     const inputSample = input[i];
@@ -479,8 +454,6 @@ const processOverdrive = (context) => {
     const mix = clamp(mixParam[i], 0, 1);
     out[i] = inputSample * (1 - mix) + state.toneLp * mix;
   }
-
-  voice.nodeState.set(runtimeNode.id, state);
 };
 
 const processCompressor = (context) => {
@@ -492,7 +465,7 @@ const processCompressor = (context) => {
   const releaseMsParam = fillNumericParamBuffer(context, "releaseMs", Number(runtimeNode.params.releaseMs ?? 200));
   const makeupDbParam = fillNumericParamBuffer(context, "makeupDb", Number(runtimeNode.params.makeupDb ?? 2));
   const mixParam = fillNumericParamBuffer(context, "mix", Number(runtimeNode.params.mix ?? 1));
-  const state = voice.nodeState.get(runtimeNode.id) || { env: 0 };
+  const state = runtime.getNodeState(voice, runtimeNode, () => ({ env: 0 }));
 
   for (let i = startFrame; i < endFrame; i += 1) {
     const inputSample = input[i];
@@ -510,8 +483,6 @@ const processCompressor = (context) => {
     const mix = clamp(mixParam[i], 0, 1);
     out[i] = inputSample * (1 - mix) + wet * mix;
   }
-
-  voice.nodeState.set(runtimeNode.id, state);
 };
 
 const processOutput = (context) => {
