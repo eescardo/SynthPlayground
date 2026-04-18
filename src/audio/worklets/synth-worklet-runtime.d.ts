@@ -43,7 +43,19 @@ export class TrackRuntime {
   ): void;
 }
 
-export class JsSynthRenderBackend {
+export interface SynthRenderBackend {
+  port: WorkletPortLike;
+  onMessage(message: unknown): void;
+  processBlock(output: Float32Array[]): boolean;
+}
+
+export interface InspectableSynthRenderBackend extends SynthRenderBackend {
+  project: Project | null;
+  trackRuntimes: Array<{ track: Track }>;
+  eventQueue: unknown[];
+}
+
+export class JsSynthRenderBackend implements InspectableSynthRenderBackend {
   constructor(options?: unknown);
   port: WorkletPortLike;
   project: Project | null;
@@ -55,6 +67,7 @@ export class JsSynthRenderBackend {
 
 export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
   constructor(options?: unknown);
+  readonly backend: SynthRenderBackend;
   eventQueue: unknown[];
   project: Project | null;
   trackRuntimes: Array<{ track: Track }>;

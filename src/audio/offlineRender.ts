@@ -1,4 +1,4 @@
-import { JsSynthRenderBackend, SynthWorkletProcessor } from "@/audio/worklets/synth-worklet-runtime.js";
+import { JsSynthRenderBackend, SynthRenderBackend, SynthWorkletProcessor } from "@/audio/worklets/synth-worklet-runtime.js";
 import { AudioProject, SchedulerEvent } from "@/types/audio";
 
 export interface OfflineRenderOptions {
@@ -42,7 +42,7 @@ export const createOfflineRenderProcessor = (
 export const createOfflineRenderBackend = (
   project: AudioProject,
   options: Pick<OfflineRenderOptions, "sampleRate" | "blockSize">
-): JsSynthRenderBackend =>
+): SynthRenderBackend =>
   new JsSynthRenderBackend({
     processorOptions: {
       sampleRate: options.sampleRate,
