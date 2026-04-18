@@ -92,6 +92,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const [selectedTrackId, setSelectedTrackId] = useState<string | undefined>(undefined);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [strictWasmReady, setStrictWasmReady] = useState(process.env.NEXT_PUBLIC_STRICT_WASM !== "1");
+  const [debugPopoverOpen, setDebugPopoverOpen] = useState(false);
   const [editorSelection, setEditorSelection] = useState(createEmptyEditorSelection);
   const [pitchPicker, setPitchPicker] = useState<{ trackId: string; noteId: string } | null>(null);
   const [timelineActionsPopover, setTimelineActionsPopover] = useState<TimelineActionsPopoverRequest | null>(null);
@@ -1168,12 +1169,77 @@ export function AppRoot({ children }: { children: ReactNode }) {
     composerProps,
     patchWorkspaceProps
   };
+  const rendererLabel = process.env.NEXT_PUBLIC_STRICT_WASM === "1"
+    ? strictWasmReady
+      ? "wasm-strict"
+      : "wasm-strict (loading)"
+    : "js";
+  const showDebugOverlay = process.env.NODE_ENV === "development";
   return (
     <AppRootContext.Provider value={contextValue}>
       <main className="app">
         {runtimeError && <p className="error">{runtimeError}</p>}
 
         {children}
+
+        {showDebugOverlay && (
+          <div
+            style={{
+              position: "fixed",
+              right: 16,
+              bottom: 16,
+              zIndex: 1000,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-end",
+              gap: 8
+            }}
+          >
+            {debugPopoverOpen && (
+              <div
+                role="dialog"
+                aria-label="Audio renderer debug"
+                style={{
+                  minWidth: 168,
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  background: "rgba(19, 27, 35, 0.96)",
+                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  boxShadow: "0 12px 32px rgba(0, 0, 0, 0.28)",
+                  color: "#f3f6f8",
+                  fontSize: 12,
+                  lineHeight: 1.4
+                }}
+              >
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>Audio Debug</div>
+                <div>
+                  Renderer: <span style={{ color: "#8be9c1" }}>{rendererLabel}</span>
+                </div>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setDebugPopoverOpen((current) => !current)}
+              aria-label="Toggle audio debug panel"
+              aria-expanded={debugPopoverOpen}
+              style={{
+                border: "1px solid rgba(255, 255, 255, 0.14)",
+                background: "rgba(19, 27, 35, 0.88)",
+                color: "#f3f6f8",
+                borderRadius: 999,
+                padding: "6px 10px",
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+                boxShadow: "0 8px 24px rgba(0, 0, 0, 0.22)"
+              }}
+            >
+              dbg
+            </button>
+          </div>
+        )}
 
         {loopConflictDialog && (
           <LoopConflictDialog

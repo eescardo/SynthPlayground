@@ -4,7 +4,9 @@ export interface DspWasmExports {
 }
 
 interface DspWasmBindgenModule extends DspWasmExports {
-  default: (moduleOrPath?: string | URL | Request | Response | BufferSource | WebAssembly.Module) => Promise<unknown>;
+  default: (options?: {
+    module_or_path?: string | URL | Request | Response | BufferSource | WebAssembly.Module;
+  }) => Promise<unknown>;
 }
 
 let cachedWasm: DspWasmExports | null = null;
@@ -19,7 +21,7 @@ export const loadDspWasm = async (): Promise<DspWasmExports | null> => {
   try {
     const bindgenModuleUrl = "/wasm/pkg/dsp_core.js";
     const bindgenModule = (await import(/* webpackIgnore: true */ bindgenModuleUrl)) as DspWasmBindgenModule;
-    await bindgenModule.default("/wasm/pkg/dsp_core_bg.wasm");
+    await bindgenModule.default({ module_or_path: "/wasm/pkg/dsp_core_bg.wasm" });
     cachedWasm = {
       softclip_sample: bindgenModule.softclip_sample,
       one_pole_step: bindgenModule.one_pole_step
