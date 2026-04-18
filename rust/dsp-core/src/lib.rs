@@ -375,7 +375,7 @@ struct VcoNode {
     base_tune_cents: SmoothParam,
     fine_tune_cents: SmoothParam,
     pwm_amount: SmoothParam,
-    phase: f32,
+    phase: f64,
 }
 
 #[derive(Clone)]
@@ -405,7 +405,7 @@ struct LfoNode {
     freq_hz: SmoothParam,
     pulse_width: SmoothParam,
     bipolar: bool,
-    phase: f32,
+    phase: f64,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -623,7 +623,9 @@ struct TrackRuntime {
     host_velocity: f32,
     host_modwheel: f32,
     fx_state: TrackFxState,
+    base_random_seed: u32,
     rng_state: u32,
+    note_trigger_count: u32,
 }
 
 impl TrackRuntime {
@@ -667,7 +669,9 @@ impl TrackRuntime {
                 reverb_idx2: 0,
                 compressor_env: 0.0,
             },
+            base_random_seed: random_seed.wrapping_add(spec.track_index as u32),
             rng_state: random_seed.wrapping_add(spec.track_index as u32),
+            note_trigger_count: 0,
         })
     }
 
@@ -685,6 +689,8 @@ impl TrackRuntime {
         self.host_pitch_voct = pitch_voct;
         self.host_velocity = velocity;
         self.host_gate = 1.0;
+        self.rng_state = self.base_random_seed.wrapping_add(self.note_trigger_count.wrapping_mul(0x9e37_79b9));
+        self.note_trigger_count = self.note_trigger_count.wrapping_add(1);
         self.reset_nodes_for_note_on();
     }
 
@@ -1123,9 +1129,9 @@ impl RuntimeNode {
                 let pwm = read_input(signals, node.pwm, 0.0);
                 let pulse_width = clamp(node.pulse_width.next() + node.pwm_amount.next() * pwm, 0.05, 0.95);
                 let tune_voct = (node.base_tune_cents.next() + node.fine_tune_cents.next()) / 1200.0;
-                let hz = voct_to_hz(pitch + fm + tune_voct);
-                node.phase = (node.phase + hz / sample_rate) % 1.0;
-                signals[node.out_index] = waveform_sample(node.wave, node.phase, pulse_width);
+                let hz = voct_to_hz(pitch + fm + tune_voct) as f64;
+                node.phase = (node.phase + hz / sample_rate as f64) % 1.0;
+                signals[node.out_index] = waveform_sample(node.wave, node.phase as f32, pulse_width);
             }
             Self::KarplusStrong(node) => {
                 let pitch = if node.pitch >= 0 { read_input(signals, node.pitch, 0.0) } else { signals[host.pitch] };
@@ -1160,10 +1166,10 @@ impl RuntimeNode {
             }
             Self::LFO(node) => {
                 let fm = read_input(signals, node.fm, 0.0);
-                let freq = clamp(node.freq_hz.next() * 2.0_f32.powf(fm), 0.01, 40.0);
+                let freq = clamp(node.freq_hz.next() * 2.0_f32.powf(fm), 0.01, 40.0) as f64;
                 let pulse_width = node.pulse_width.next();
-                node.phase = (node.phase + freq / sample_rate) % 1.0;
-                let mut sample = waveform_sample(node.wave, node.phase, pulse_width);
+                node.phase = (node.phase + freq / sample_rate as f64) % 1.0;
+                let mut sample = waveform_sample(node.wave, node.phase as f32, pulse_width);
                 if !node.bipolar {
                     sample = sample * 0.5 + 0.5;
                 }

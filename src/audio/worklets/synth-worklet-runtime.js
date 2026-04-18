@@ -59,7 +59,9 @@ export class TrackRuntime {
     this.sampleRate = sampleRate;
     this.sampleRateInv = 1 / sampleRate;
     this.blockSize = blockSize;
-    this.randomState = Number.isFinite(randomSeed) ? Number(randomSeed) >>> 0 : DEFAULT_RANDOM_SEED;
+    this.baseRandomSeed = Number.isFinite(randomSeed) ? Number(randomSeed) >>> 0 : DEFAULT_RANDOM_SEED;
+    this.randomState = this.baseRandomSeed;
+    this.noteTriggerCount = 0;
     this.zeroBuffer = new Float32Array(blockSize);
     this.compiled = this.compilePatch(patch);
     this.voices = new Array(MAX_VOICES)
@@ -96,6 +98,11 @@ export class TrackRuntime {
     this.randomState = (Math.imul(this.randomState, 1664525) + 1013904223) >>> 0;
     const normalized = (this.randomState >>> 8) / ((1 << 24) - 1);
     return normalized * 2 - 1;
+  }
+
+  resetNoiseSequenceForNote() {
+    this.randomState = (this.baseRandomSeed + Math.imul(this.noteTriggerCount, 0x9e3779b9)) >>> 0;
+    this.noteTriggerCount = (this.noteTriggerCount + 1) >>> 0;
   }
 
   initializeMacroValues() {
@@ -322,6 +329,7 @@ export class TrackRuntime {
     voice.host.gate = 1;
     voice.nodeState.fill(null);
     voice.paramState.fill(null);
+    this.resetNoiseSequenceForNote();
   }
 
   noteOn(event, sampleTime) {

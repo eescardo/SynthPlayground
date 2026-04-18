@@ -112,6 +112,8 @@ const HOST_NODE_IDS = {
   modWheel: "$host.modwheel"
 } as const;
 
+const HOST_NODE_ID_SET = new Set(Object.values(HOST_NODE_IDS));
+
 const SUPPORTED_NODE_TYPES = new Set<WasmNodeSpec["typeId"]>([
   "CVTranspose",
   "CVScaler",
@@ -273,7 +275,7 @@ const compileTrackPatch = (patch: Patch, track: Track, trackIndex: number): Wasm
 
   const inputSourceByDestKey = new Map<string, number>();
   for (const connection of patch.connections) {
-    const fromIsHost = connection.from.nodeId in HOST_NODE_IDS;
+    const fromIsHost = HOST_NODE_ID_SET.has(connection.from.nodeId as (typeof HOST_NODE_IDS)[keyof typeof HOST_NODE_IDS]);
     if (!fromIsHost && !nodeById.has(connection.from.nodeId)) {
       continue;
     }
