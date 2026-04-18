@@ -1,4 +1,5 @@
-import { createRenderer, SynthRenderStream, SynthWorkletProcessor } from "@/audio/worklets/synth-worklet-runtime.js";
+import { createRenderer, SynthWorkletProcessor } from "@/audio/worklets/synth-worklet-runtime.js";
+import type { SynthRenderStream } from "@/audio/worklets/synth-worklet-runtime.js";
 import { AudioProject, SchedulerEvent } from "@/types/audio";
 
 export interface OfflineRenderOptions {

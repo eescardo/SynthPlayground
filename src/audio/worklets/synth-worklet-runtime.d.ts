@@ -71,29 +71,7 @@ export interface SynthRenderer {
   startStream(options: SynthStreamStartOptions): SynthRenderStream | null;
 }
 
-export class JsSynthRenderStream implements SynthRenderStream {
-  constructor(renderer: SynthRenderer, options: SynthStreamStartOptions);
-  port: WorkletPortLike;
-  project: AudioProject | null;
-  trackRuntimes: Array<{ track: Track }>;
-  eventQueue: SchedulerEvent[];
-  processBlock(output: Float32Array[]): boolean;
-  enqueueEvents(events: SchedulerEvent[]): void;
-  stop(): void;
-}
-
-export class JsSynthRenderer implements SynthRenderer {
-  constructor(options?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> } });
-  port: WorkletPortLike;
-  sampleRateInternal: number;
-  blockSize: number;
-  project: AudioProject | null;
-  configure(config: Partial<SynthRendererConfig>): void;
-  setDefaultProject(project: AudioProject): void;
-  startStream(options: SynthStreamStartOptions): SynthRenderStream | null;
-}
-
-export const createRenderer: (config?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> } }) => JsSynthRenderer;
+export const createRenderer: (config?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> } }) => SynthRenderer;
 
 export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
   constructor(options?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> } });
