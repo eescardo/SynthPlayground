@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Track } from "@/types/music";
 import type { Patch } from "@/types/patch";
+import type { SynthRenderStream } from "../synth-worklet-runtime.js";
 
 type RuntimeModule = typeof import("../synth-worklet-runtime.js");
 type WorkletGlobal = typeof globalThis & {
@@ -129,6 +130,13 @@ function renderProcessorBlock(
   return { left, right };
 }
 
+function renderStreamBlock(stream: SynthRenderStream, frames = 128) {
+  const left = new Float32Array(frames);
+  const right = new Float32Array(frames);
+  stream.processBlock([left, right]);
+  return { left, right };
+}
+
 const sumAbs = (buffer: Float32Array) => buffer.reduce((sum, sample) => sum + Math.abs(sample), 0);
 
 beforeEach(() => {
@@ -166,6 +174,64 @@ describe("synth worklet runtime", () => {
     events.sort(compareScheduledEvents);
 
     expect(events.map((event) => event.type)).toEqual(["NoteOff", "NoteOn"]);
+  });
+
+  it("creates independent render streams from the renderer factory", async () => {
+    const { createRenderer } = await loadRuntimeModule();
+
+    const project = createProject();
+    const noteOn = {
+      id: "timeline_on",
+      type: "NoteOn" as const,
+      sampleTime: 0,
+      source: "timeline" as const,
+      trackId: "track_1",
+      noteId: "note_1",
+      pitchVoct: 0,
+      velocity: 1
+    };
+
+    const renderer = createRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize: 128,
+        project
+      }
+    });
+
+    const streamA = renderer.startStream({
+      project,
+      songStartSample: 0,
+      events: [noteOn],
+      sessionId: 1,
+      mode: "transport"
+    });
+    const streamB = renderer.startStream({
+      project,
+      songStartSample: 0,
+      events: [noteOn],
+      sessionId: 2,
+      mode: "transport"
+    });
+
+    expect(streamA).not.toBeNull();
+    expect(streamB).not.toBeNull();
+    expect(streamA).not.toBe(streamB);
+    expect(renderer.project).toBe(project);
+
+    const { left: streamALeft } = renderStreamBlock(streamA!);
+    const { left: streamBLeft } = renderStreamBlock(streamB!);
+
+    expect(sumAbs(streamALeft)).toBeGreaterThan(0.001);
+    expect(sumAbs(streamBLeft)).toBeGreaterThan(0.001);
+
+    streamA!.stop();
+
+    const { left: stoppedALeft } = renderStreamBlock(streamA!);
+    const { left: stillActiveBLeft } = renderStreamBlock(streamB!);
+
+    expect(sumAbs(stoppedALeft)).toBe(0);
+    expect(sumAbs(stillActiveBLeft)).toBeGreaterThan(0.001);
   });
 
   it("applies piecewise macro bindings to compiled param targets", async () => {
