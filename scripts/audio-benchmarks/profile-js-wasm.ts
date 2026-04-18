@@ -11,6 +11,7 @@ import { collectEventsInWindow } from "@/audio/scheduler";
 import { beatToSample } from "@/lib/musicTiming";
 
 type Backend = "js" | "wasm";
+type ProfileTree = Record<string, unknown>;
 
 const args = process.argv.slice(2);
 
@@ -105,9 +106,11 @@ const renderScenario = async (scenario: RenderableScenario) => {
         durationSamples,
         events,
         sessionId: 1,
-        randomSeed
+        randomSeed,
+        profilingEnabled: true
       });
   const renderSongMs = performance.now() - renderStart;
+  const profileStats = backend === "wasm" && "profileStats" in renderResult ? renderResult.profileStats ?? null : null;
 
   return {
     durationSamples,
@@ -116,8 +119,21 @@ const renderScenario = async (scenario: RenderableScenario) => {
     renderSongMs,
     outputAbsSum: renderResult.outputAbsSum,
     renderedBlocks: renderResult.renderedBlocks,
-    renderedSamples: renderResult.renderedSamples
+    renderedSamples: renderResult.renderedSamples,
+    profileStats
   };
+};
+
+const flattenNumericLeaves = (value: unknown, prefix = ""): Array<{ name: string; value: number }> => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return prefix ? [{ name: prefix, value }] : [];
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return [];
+  }
+  return Object.entries(value as ProfileTree).flatMap(([key, child]) =>
+    flattenNumericLeaves(child, prefix ? `${prefix}.${key}` : key)
+  );
 };
 
 const main = async () => {
@@ -161,6 +177,13 @@ const main = async () => {
       renderedBlocks: result.renderedBlocks,
       renderedSamples: result.renderedSamples
     },
+    wasmProfile: result.profileStats,
+    wasmHotspots: backend === "wasm"
+      ? flattenNumericLeaves(result.profileStats)
+          .filter((entry) => entry.name.endsWith("_ms") && entry.value > 0)
+          .sort((left, right) => right.value - left.value)
+          .slice(0, 15)
+      : [],
     artifacts: {
       cpuProfile: profilePath,
       summary: summaryPath

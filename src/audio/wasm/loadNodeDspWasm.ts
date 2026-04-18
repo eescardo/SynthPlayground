@@ -10,6 +10,9 @@ interface WasmSubsetEngineInstance {
   left_ptr(): number;
   right_ptr(): number;
   block_size(): number;
+  set_profiling_enabled(enabled: boolean): void;
+  reset_profile_stats(): void;
+  profile_stats_json(): string;
 }
 
 interface DspCoreInitOutput {

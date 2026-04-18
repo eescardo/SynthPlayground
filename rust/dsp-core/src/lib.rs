@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -18,6 +18,10 @@ pub fn one_pole_step(current: f32, target: f32, alpha: f32) -> f32 {
 
 fn js_error(message: impl Into<String>) -> JsValue {
     JsValue::from_str(&message.into())
+}
+
+fn now_ms() -> f64 {
+    js_sys::Date::now()
 }
 
 fn clamp(x: f32, min: f32, max: f32) -> f32 {
@@ -186,6 +190,47 @@ struct MasterFxSpec {
     limiter_enabled: bool,
     #[serde(rename = "makeupGain")]
     makeup_gain: f32,
+}
+
+#[derive(Default, Serialize, Clone)]
+struct NodeProfileStats {
+    cv_transpose_ms: f64,
+    cv_scaler_ms: f64,
+    cv_mixer2_ms: f64,
+    vco_ms: f64,
+    karplus_strong_ms: f64,
+    lfo_ms: f64,
+    adsr_ms: f64,
+    vca_ms: f64,
+    vcf_ms: f64,
+    mixer4_ms: f64,
+    noise_ms: f64,
+    sample_player_ms: f64,
+    delay_ms: f64,
+    reverb_ms: f64,
+    saturation_ms: f64,
+    overdrive_ms: f64,
+    compressor_ms: f64,
+    output_ms: f64,
+}
+
+#[derive(Default, Serialize, Clone)]
+struct EngineProfileStats {
+    process_block_ms: f64,
+    consume_due_events_ms: f64,
+    apply_event_ms: f64,
+    render_tracks_ms: f64,
+    render_track_sample_ms: f64,
+    render_dry_sample_ms: f64,
+    apply_track_fx_ms: f64,
+    apply_master_fx_ms: f64,
+    node_process_ms: f64,
+    blocks_processed: u64,
+    samples_processed: u64,
+    events_applied: u64,
+    track_samples_rendered: u64,
+    node_samples_processed: u64,
+    nodes: NodeProfileStats,
 }
 
 #[derive(Clone, Deserialize)]
@@ -711,16 +756,30 @@ impl TrackRuntime {
         }
     }
 
-    fn render_track_sample(&mut self, sample_rate: f32) -> f32 {
-        let dry = self.render_dry_sample(sample_rate);
-        let processed = self.apply_track_fx(dry, sample_rate);
+    fn render_track_sample(&mut self, sample_rate: f32, profile: &mut EngineProfileStats, profiling_enabled: bool) -> f32 {
+        let dry = if profiling_enabled {
+            let started = now_ms();
+            let dry = self.render_dry_sample(sample_rate, profile, true);
+            profile.render_dry_sample_ms += now_ms() - started;
+            dry
+        } else {
+            self.render_dry_sample(sample_rate, profile, false)
+        };
+        let processed = if profiling_enabled {
+            let started = now_ms();
+            let processed = self.apply_track_fx(dry, sample_rate);
+            profile.apply_track_fx_ms += now_ms() - started;
+            processed
+        } else {
+            self.apply_track_fx(dry, sample_rate)
+        };
         if self.mute {
             return 0.0;
         }
         processed * self.volume
     }
 
-    fn render_dry_sample(&mut self, sample_rate: f32) -> f32 {
+    fn render_dry_sample(&mut self, sample_rate: f32, profile: &mut EngineProfileStats, profiling_enabled: bool) -> f32 {
         if !self.active {
             return 0.0;
         }
@@ -733,7 +792,16 @@ impl TrackRuntime {
         let mut rng_state = self.rng_state;
         let host_indices = self.host_signal_indices.clone();
         for node in self.nodes.iter_mut() {
-            node.process_sample(&mut self.signal_values, &host_indices, sample_rate, &mut rng_state);
+            if profiling_enabled {
+                let started = now_ms();
+                node.process_sample(&mut self.signal_values, &host_indices, sample_rate, &mut rng_state);
+                let elapsed = now_ms() - started;
+                profile.node_process_ms += elapsed;
+                profile.node_samples_processed = profile.node_samples_processed.saturating_add(1);
+                node.add_profile_time(profile, elapsed);
+            } else {
+                node.process_sample(&mut self.signal_values, &host_indices, sample_rate, &mut rng_state);
+            }
         }
         self.rng_state = rng_state;
 
@@ -799,6 +867,29 @@ impl TrackRuntime {
 }
 
 impl RuntimeNode {
+    fn add_profile_time(&self, profile: &mut EngineProfileStats, elapsed_ms: f64) {
+        match self {
+            Self::CVTranspose(_) => profile.nodes.cv_transpose_ms += elapsed_ms,
+            Self::CVScaler(_) => profile.nodes.cv_scaler_ms += elapsed_ms,
+            Self::CVMixer2(_) => profile.nodes.cv_mixer2_ms += elapsed_ms,
+            Self::VCO(_) => profile.nodes.vco_ms += elapsed_ms,
+            Self::KarplusStrong(_) => profile.nodes.karplus_strong_ms += elapsed_ms,
+            Self::LFO(_) => profile.nodes.lfo_ms += elapsed_ms,
+            Self::ADSR(_) => profile.nodes.adsr_ms += elapsed_ms,
+            Self::VCA(_) => profile.nodes.vca_ms += elapsed_ms,
+            Self::VCF(_) => profile.nodes.vcf_ms += elapsed_ms,
+            Self::Mixer4(_) => profile.nodes.mixer4_ms += elapsed_ms,
+            Self::Noise(_) => profile.nodes.noise_ms += elapsed_ms,
+            Self::SamplePlayer(_) => profile.nodes.sample_player_ms += elapsed_ms,
+            Self::Delay(_) => profile.nodes.delay_ms += elapsed_ms,
+            Self::Reverb(_) => profile.nodes.reverb_ms += elapsed_ms,
+            Self::Saturation(_) => profile.nodes.saturation_ms += elapsed_ms,
+            Self::Overdrive(_) => profile.nodes.overdrive_ms += elapsed_ms,
+            Self::Compressor(_) => profile.nodes.compressor_ms += elapsed_ms,
+            Self::Output(_) => profile.nodes.output_ms += elapsed_ms,
+        }
+    }
+
     fn from_raw(raw: &NodeSpecRaw, sample_rate: f32) -> Result<Self, JsValue> {
         let p = &raw.params;
         Ok(match raw.type_id.as_str() {
@@ -1390,6 +1481,8 @@ pub struct WasmSubsetEngine {
     stopped: bool,
     left: Vec<f32>,
     right: Vec<f32>,
+    profiling_enabled: bool,
+    profile_stats: EngineProfileStats,
 }
 
 #[wasm_bindgen]
@@ -1408,6 +1501,8 @@ impl WasmSubsetEngine {
             stopped: true,
             left: vec![0.0; block_size],
             right: vec![0.0; block_size],
+            profiling_enabled: false,
+            profile_stats: EngineProfileStats::default(),
         }
     }
 
@@ -1433,6 +1528,7 @@ impl WasmSubsetEngine {
         self.event_cursor = 0;
         self.song_sample_counter = song_start_sample;
         self.stopped = false;
+        self.profile_stats = EngineProfileStats::default();
         Ok(())
     }
 
@@ -1445,6 +1541,7 @@ impl WasmSubsetEngine {
     }
 
     pub fn process_block(&mut self) -> bool {
+        let block_started = if self.profiling_enabled { Some(now_ms()) } else { None };
         self.left.fill(0.0);
         self.right.fill(0.0);
         if self.stopped {
@@ -1452,15 +1549,46 @@ impl WasmSubsetEngine {
         }
 
         for frame in 0..self.block_size {
-            self.consume_due_events();
-            let mut mixed = 0.0_f32;
-            for track in self.tracks.iter_mut() {
-                mixed += track.render_track_sample(self.sample_rate);
+            if self.profiling_enabled {
+                let started = now_ms();
+                self.consume_due_events();
+                self.profile_stats.consume_due_events_ms += now_ms() - started;
+            } else {
+                self.consume_due_events();
             }
-            mixed = self.apply_master_fx(mixed);
+            let mut mixed = 0.0_f32;
+            if self.profiling_enabled {
+                let started = now_ms();
+                let sample_rate = self.sample_rate;
+                let profile = &mut self.profile_stats;
+                for track in self.tracks.iter_mut() {
+                    let track_started = now_ms();
+                    mixed += track.render_track_sample(sample_rate, profile, true);
+                    profile.render_track_sample_ms += now_ms() - track_started;
+                    profile.track_samples_rendered = profile.track_samples_rendered.saturating_add(1);
+                }
+                self.profile_stats.render_tracks_ms += now_ms() - started;
+            } else {
+                for track in self.tracks.iter_mut() {
+                    mixed += track.render_track_sample(self.sample_rate, &mut self.profile_stats, false);
+                }
+            }
+            if self.profiling_enabled {
+                let started = now_ms();
+                mixed = self.apply_master_fx(mixed);
+                self.profile_stats.apply_master_fx_ms += now_ms() - started;
+                self.profile_stats.samples_processed = self.profile_stats.samples_processed.saturating_add(1);
+            } else {
+                mixed = self.apply_master_fx(mixed);
+            }
             self.left[frame] = mixed;
             self.right[frame] = mixed;
             self.song_sample_counter = self.song_sample_counter.saturating_add(1);
+        }
+
+        if let Some(started) = block_started {
+            self.profile_stats.blocks_processed = self.profile_stats.blocks_processed.saturating_add(1);
+            self.profile_stats.process_block_ms += now_ms() - started;
         }
 
         true
@@ -1489,6 +1617,22 @@ impl WasmSubsetEngine {
     pub fn block_size(&self) -> usize {
         self.block_size
     }
+
+    pub fn set_profiling_enabled(&mut self, enabled: bool) {
+        self.profiling_enabled = enabled;
+        if enabled {
+            self.profile_stats = EngineProfileStats::default();
+        }
+    }
+
+    pub fn reset_profile_stats(&mut self) {
+        self.profile_stats = EngineProfileStats::default();
+    }
+
+    pub fn profile_stats_json(&self) -> Result<String, JsValue> {
+        serde_json::to_string(&self.profile_stats)
+            .map_err(|error| js_error(format!("Failed to serialize WASM profile stats: {error}")))
+    }
 }
 
 impl WasmSubsetEngine {
@@ -1504,6 +1648,7 @@ impl WasmSubsetEngine {
     }
 
     fn apply_event(&mut self, event: EventSpec) {
+        let started = if self.profiling_enabled { Some(now_ms()) } else { None };
         match event {
             EventSpec::NoteOn { track_index, note_id, pitch_voct, velocity, .. } => {
                 if let Some(track) = self.tracks.get_mut(track_index) {
@@ -1525,6 +1670,10 @@ impl WasmSubsetEngine {
                     track.volume = clamp(value, 0.0, 2.0);
                 }
             }
+        }
+        if let Some(started) = started {
+            self.profile_stats.events_applied = self.profile_stats.events_applied.saturating_add(1);
+            self.profile_stats.apply_event_ms += now_ms() - started;
         }
     }
 

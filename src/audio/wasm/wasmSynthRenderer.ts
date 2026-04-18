@@ -23,6 +23,7 @@ export class WasmSynthRenderStream implements SynthRenderStream {
   private readonly memory: WebAssembly.Memory;
   private readonly blockSize: number;
   private readonly projectSpec: WasmProjectSpec;
+  private readonly profilingEnabled: boolean;
   private stopped = false;
 
   constructor(
@@ -30,7 +31,8 @@ export class WasmSynthRenderStream implements SynthRenderStream {
     project: AudioProject,
     projectSpec: WasmProjectSpec,
     options: SynthStreamStartOptions,
-    port: WorkletPortLike
+    port: WorkletPortLike,
+    profilingEnabled = false
   ) {
     this.port = port;
     this.project = project;
@@ -39,6 +41,11 @@ export class WasmSynthRenderStream implements SynthRenderStream {
     this.engine = new wasmModule.WasmSubsetEngine(project.global.sampleRate, projectSpec.blockSize);
     this.memory = wasmModule.memory;
     this.blockSize = projectSpec.blockSize;
+    this.profilingEnabled = profilingEnabled;
+    this.engine.set_profiling_enabled(profilingEnabled);
+    if (profilingEnabled) {
+      this.engine.reset_profile_stats();
+    }
     this.engine.start_stream(
       JSON.stringify(projectSpec),
       options.songStartSample,
@@ -81,6 +88,13 @@ export class WasmSynthRenderStream implements SynthRenderStream {
     this.engine.stop();
     this.eventQueue.length = 0;
   }
+
+  getProfileStats(): Record<string, unknown> | null {
+    if (!this.profilingEnabled) {
+      return null;
+    }
+    return JSON.parse(this.engine.profile_stats_json()) as Record<string, unknown>;
+  }
 }
 
 export class WasmSynthRenderer implements SynthRenderer {
@@ -90,13 +104,19 @@ export class WasmSynthRenderer implements SynthRenderer {
   project: AudioProject | null;
 
   private readonly module: LoadedDspCoreNodeModule;
+  private readonly profilingEnabled: boolean;
 
-  constructor(wasmModule: LoadedDspCoreNodeModule, options?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> } }) {
+  constructor(
+    wasmModule: LoadedDspCoreNodeModule,
+    options?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> } },
+    profilingEnabled = false
+  ) {
     this.module = wasmModule;
     this.port = new NullPort();
     this.sampleRateInternal = options?.processorOptions?.sampleRate ?? 48000;
     this.blockSize = options?.processorOptions?.blockSize ?? 128;
     this.project = options?.processorOptions?.project ?? null;
+    this.profilingEnabled = profilingEnabled;
   }
 
   configure(config: Partial<SynthRendererConfig>): void {
@@ -122,12 +142,13 @@ export class WasmSynthRenderer implements SynthRenderer {
       project,
       projectSpec,
       options,
-      this.port
+      this.port,
+      this.profilingEnabled
     );
   }
 }
 
-export const createWasmRenderer = async (config?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> } }) => {
+export const createWasmRenderer = async (config?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> }; profilingEnabled?: boolean }) => {
   const wasmModule = await loadNodeDspWasmModule();
-  return new WasmSynthRenderer(wasmModule, config);
+  return new WasmSynthRenderer(wasmModule, config, config?.profilingEnabled ?? false);
 };

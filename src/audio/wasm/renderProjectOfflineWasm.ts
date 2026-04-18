@@ -1,4 +1,5 @@
 import { createWasmRenderer } from "@/audio/wasm/wasmSynthRenderer";
+import type { WasmSynthRenderStream } from "@/audio/wasm/wasmSynthRenderer";
 import { AudioProject, SchedulerEvent } from "@/types/audio";
 
 export interface OfflineWasmRenderOptions {
@@ -8,6 +9,7 @@ export interface OfflineWasmRenderOptions {
   events?: SchedulerEvent[];
   sessionId?: number;
   randomSeed?: number;
+  profilingEnabled?: boolean;
 }
 
 export interface OfflineWasmRenderResult {
@@ -16,6 +18,7 @@ export interface OfflineWasmRenderResult {
   renderedBlocks: number;
   renderedSamples: number;
   outputAbsSum: number;
+  profileStats?: Record<string, unknown> | null;
 }
 
 export const renderProjectOfflineWasm = async (
@@ -23,6 +26,7 @@ export const renderProjectOfflineWasm = async (
   options: OfflineWasmRenderOptions
 ): Promise<OfflineWasmRenderResult> => {
   const renderer = await createWasmRenderer({
+    profilingEnabled: options.profilingEnabled ?? false,
     processorOptions: {
       sampleRate: options.sampleRate,
       blockSize: options.blockSize,
@@ -37,6 +41,7 @@ export const renderProjectOfflineWasm = async (
     randomSeed: options.randomSeed,
     mode: "transport"
   });
+  const wasmStream = stream as WasmSynthRenderStream | null;
 
   const left = new Float32Array(options.durationSamples);
   const right = new Float32Array(options.durationSamples);
@@ -63,6 +68,7 @@ export const renderProjectOfflineWasm = async (
     right,
     renderedBlocks,
     renderedSamples: options.durationSamples,
-    outputAbsSum
+    outputAbsSum,
+    profileStats: wasmStream?.getProfileStats() ?? null
   };
 };
