@@ -26,6 +26,7 @@ const mediumTracks = Math.max(1, Math.floor(parseNumberFlag("--tracks", 8)));
 const mediumDuration = Math.max(1, Math.floor(parseNumberFlag("--duration-beats", 96)));
 const largeTracks = Math.max(mediumTracks, Math.floor(parseNumberFlag("--large-tracks", 24)));
 const largeDuration = Math.max(mediumDuration, Math.floor(parseNumberFlag("--large-duration-beats", 256)));
+const randomSeed = Math.floor(parseNumberFlag("--random-seed", 0x1234_5678)) >>> 0;
 
 const summarize = (values: number[]) => ({
   min: Math.min(...values),
@@ -80,7 +81,8 @@ const runBackendBench = async (label: string, scenario: RenderableScenario, back
         blockSize: scenario.config.blockSize,
         durationSamples: totalSamples,
         events,
-        sessionId: 1
+        sessionId: 1,
+        randomSeed
       });
     } else {
       await renderProjectOfflineWasm(scenario.project, {
@@ -88,7 +90,8 @@ const runBackendBench = async (label: string, scenario: RenderableScenario, back
         blockSize: scenario.config.blockSize,
         durationSamples: totalSamples,
         events,
-        sessionId: 1
+        sessionId: 1,
+        randomSeed
       });
     }
     renderTimes.push(performance.now() - start);
@@ -116,14 +119,16 @@ const main = async () => {
     blockSize: medium.config.blockSize,
     durationSamples: mediumSamples,
     events: mediumEvents,
-    sessionId: 1
+    sessionId: 1,
+    randomSeed
   });
   const wasmRender = await renderProjectOfflineWasm(medium.project, {
     sampleRate: medium.config.sampleRate,
     blockSize: medium.config.blockSize,
     durationSamples: mediumSamples,
     events: mediumEvents,
-    sessionId: 1
+    sessionId: 1,
+    randomSeed
   });
 
   const mediumCompare = {
@@ -137,6 +142,7 @@ const main = async () => {
   const results = {
     generatedAt: new Date().toISOString(),
     scenarioId: medium.config.id,
+    randomSeed,
     exactParity: mediumCompare.left.exact && mediumCompare.right.exact,
     mediumCompare,
     benchmarks: [

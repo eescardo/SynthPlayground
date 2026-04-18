@@ -3,7 +3,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 interface WasmSubsetEngineInstance {
-  start_stream(projectJson: string, songStartSample: number, eventsJson: string, sessionId: number): void;
+  start_stream(projectJson: string, songStartSample: number, eventsJson: string, sessionId: number, randomSeed: number): void;
   enqueue_events(eventsJson: string): void;
   process_block(): boolean;
   stop(): void;

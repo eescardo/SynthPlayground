@@ -6,6 +6,8 @@ import { loadNodeDspWasmModule } from "@/audio/wasm/loadNodeDspWasm";
 import type { LoadedDspCoreNodeModule, WasmSubsetEngineInstance } from "@/audio/wasm/loadNodeDspWasm";
 import type { WasmProjectSpec } from "@/audio/wasm/wasmSubsetCompiler";
 
+const DEFAULT_RANDOM_SEED = 0x1234_5678;
+
 class NullPort implements WorkletPortLike {
   onmessage: ((event: unknown) => void) | null = null;
   postMessage() {}
@@ -41,7 +43,8 @@ export class WasmSynthRenderStream implements SynthRenderStream {
       JSON.stringify(projectSpec),
       options.songStartSample,
       JSON.stringify(compileSchedulerEventsToWasmSubset(project, projectSpec, options.events)),
-      options.sessionId ?? 1
+      options.sessionId ?? 1,
+      Number.isFinite(options.randomSeed) ? Number(options.randomSeed) >>> 0 : DEFAULT_RANDOM_SEED
     );
   }
 

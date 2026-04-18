@@ -137,6 +137,15 @@ function renderStreamBlock(stream: SynthRenderStream, frames = 128) {
   return { left, right };
 }
 
+function renderStreamSamples(stream: SynthRenderStream, blockCount = 4, frames = 128) {
+  const output = new Float32Array(blockCount * frames);
+  for (let blockIndex = 0; blockIndex < blockCount; blockIndex += 1) {
+    const { left } = renderStreamBlock(stream, frames);
+    output.set(left, blockIndex * frames);
+  }
+  return output;
+}
+
 const sumAbs = (buffer: Float32Array) => buffer.reduce((sum, sample) => sum + Math.abs(sample), 0);
 
 beforeEach(() => {
@@ -232,6 +241,148 @@ describe("synth worklet runtime", () => {
 
     expect(sumAbs(stoppedALeft)).toBe(0);
     expect(sumAbs(stillActiveBLeft)).toBeGreaterThan(0.001);
+  });
+
+  it("renders deterministic Noise output for a fixed random seed", async () => {
+    const { createRenderer } = await loadRuntimeModule();
+
+    const patch = createPatch({
+      nodes: [
+        { id: "noise", typeId: "Noise", params: { color: "white", gain: 1 } },
+        { id: "out", typeId: "Output", params: { gainDb: 0, limiter: false } }
+      ],
+      connections: [
+        {
+          id: "conn_1",
+          from: { nodeId: "noise", portId: "out" },
+          to: { nodeId: "out", portId: "in" }
+        }
+      ]
+    });
+    const project = createProject({ patch });
+    const noteOn = {
+      id: "noise_on",
+      type: "NoteOn" as const,
+      sampleTime: 0,
+      source: "timeline" as const,
+      trackId: "track_1",
+      noteId: "note_1",
+      pitchVoct: 0,
+      velocity: 1
+    };
+
+    const renderer = createRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize: 128,
+        project
+      }
+    });
+
+    const first = renderer.startStream({
+      project,
+      songStartSample: 0,
+      events: [noteOn],
+      sessionId: 1,
+      randomSeed: 1234,
+      mode: "transport"
+    });
+    const second = renderer.startStream({
+      project,
+      songStartSample: 0,
+      events: [noteOn],
+      sessionId: 2,
+      randomSeed: 1234,
+      mode: "transport"
+    });
+    const third = renderer.startStream({
+      project,
+      songStartSample: 0,
+      events: [noteOn],
+      sessionId: 3,
+      randomSeed: 1235,
+      mode: "transport"
+    });
+
+    const firstSamples = renderStreamSamples(first!, 3);
+    const secondSamples = renderStreamSamples(second!, 3);
+    const thirdSamples = renderStreamSamples(third!, 3);
+
+    expect(Array.from(firstSamples)).toEqual(Array.from(secondSamples));
+    expect(Array.from(firstSamples)).not.toEqual(Array.from(thirdSamples));
+  });
+
+  it("renders deterministic KarplusStrong excitation for a fixed random seed", async () => {
+    const { createRenderer } = await loadRuntimeModule();
+
+    const patch = createPatch({
+      nodes: [
+        {
+          id: "string",
+          typeId: "KarplusStrong",
+          params: { decay: 0.96, damping: 0.2, brightness: 0.7, excitation: "noise" }
+        },
+        { id: "out", typeId: "Output", params: { gainDb: 0, limiter: false } }
+      ],
+      connections: [
+        {
+          id: "conn_1",
+          from: { nodeId: "string", portId: "out" },
+          to: { nodeId: "out", portId: "in" }
+        }
+      ]
+    });
+    const project = createProject({ patch });
+    const noteOn = {
+      id: "pluck_on",
+      type: "NoteOn" as const,
+      sampleTime: 0,
+      source: "timeline" as const,
+      trackId: "track_1",
+      noteId: "note_1",
+      pitchVoct: 0,
+      velocity: 1
+    };
+
+    const renderer = createRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize: 128,
+        project
+      }
+    });
+
+    const first = renderer.startStream({
+      project,
+      songStartSample: 0,
+      events: [noteOn],
+      sessionId: 1,
+      randomSeed: 4242,
+      mode: "transport"
+    });
+    const second = renderer.startStream({
+      project,
+      songStartSample: 0,
+      events: [noteOn],
+      sessionId: 2,
+      randomSeed: 4242,
+      mode: "transport"
+    });
+    const third = renderer.startStream({
+      project,
+      songStartSample: 0,
+      events: [noteOn],
+      sessionId: 3,
+      randomSeed: 4243,
+      mode: "transport"
+    });
+
+    const firstSamples = renderStreamSamples(first!, 4);
+    const secondSamples = renderStreamSamples(second!, 4);
+    const thirdSamples = renderStreamSamples(third!, 4);
+
+    expect(Array.from(firstSamples)).toEqual(Array.from(secondSamples));
+    expect(Array.from(firstSamples)).not.toEqual(Array.from(thirdSamples));
   });
 
   it("applies piecewise macro bindings to compiled param targets", async () => {

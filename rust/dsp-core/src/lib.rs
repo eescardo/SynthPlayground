@@ -627,7 +627,7 @@ struct TrackRuntime {
 }
 
 impl TrackRuntime {
-    fn from_spec(spec: TrackSpec, sample_rate: f32) -> Result<Self, JsValue> {
+    fn from_spec(spec: TrackSpec, sample_rate: f32, random_seed: u32) -> Result<Self, JsValue> {
         let node_templates = spec
             .nodes
             .iter()
@@ -667,7 +667,7 @@ impl TrackRuntime {
                 reverb_idx2: 0,
                 compressor_env: 0.0,
             },
-            rng_state: 0x1234_5678_u32.wrapping_add(spec.track_index as u32),
+            rng_state: random_seed.wrapping_add(spec.track_index as u32),
         })
     }
 
@@ -1405,7 +1405,7 @@ impl WasmSubsetEngine {
         }
     }
 
-    pub fn start_stream(&mut self, project_json: &str, song_start_sample: u32, events_json: &str, _session_id: u32) -> Result<(), JsValue> {
+    pub fn start_stream(&mut self, project_json: &str, song_start_sample: u32, events_json: &str, _session_id: u32, random_seed: u32) -> Result<(), JsValue> {
         let project: ProjectSpec = serde_json::from_str(project_json)
             .map_err(|error| js_error(format!("Failed to parse WASM project: {error}")))?;
         let mut events: Vec<EventSpec> = serde_json::from_str(events_json)
@@ -1419,7 +1419,7 @@ impl WasmSubsetEngine {
         self.tracks = project
             .tracks
             .into_iter()
-            .map(|track| TrackRuntime::from_spec(track, self.sample_rate))
+            .map(|track| TrackRuntime::from_spec(track, self.sample_rate, random_seed))
             .collect::<Result<Vec<_>, _>>()?;
         self.master_fx = project.master_fx;
         self.master_compressor_env = 0.0;

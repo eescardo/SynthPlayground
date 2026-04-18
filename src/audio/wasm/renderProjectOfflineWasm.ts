@@ -7,6 +7,7 @@ export interface OfflineWasmRenderOptions {
   durationSamples: number;
   events?: SchedulerEvent[];
   sessionId?: number;
+  randomSeed?: number;
 }
 
 export interface OfflineWasmRenderResult {
@@ -33,6 +34,7 @@ export const renderProjectOfflineWasm = async (
     songStartSample: 0,
     events: options.events ?? [],
     sessionId: options.sessionId ?? 1,
+    randomSeed: options.randomSeed,
     mode: "transport"
   });
 

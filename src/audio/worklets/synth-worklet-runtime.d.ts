@@ -21,7 +21,7 @@ export class BaseAudioWorkletProcessor {
 export const compareScheduledEvents: (a: unknown, b: unknown) => number;
 
 export class TrackRuntime {
-  constructor(track: Track, patch: Patch, sampleRate: number, blockSize: number);
+  constructor(track: Track, patch: Patch, sampleRate: number, blockSize: number, randomSeed?: number);
   compiled: {
     paramTargets: Map<string, Map<string, number>>;
     nodeRuntimes: Array<{

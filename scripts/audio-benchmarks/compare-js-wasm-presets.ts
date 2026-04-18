@@ -10,6 +10,7 @@ const durationBeats = 32;
 const tempo = 120;
 const sampleRate = 48000;
 const blockSize = 128;
+const randomSeed = 0x1234_5678;
 
 const pitchForPatch = (patchId: string) => {
   if (patchId.includes("bassdrum")) return "C1";
@@ -85,14 +86,16 @@ const main = async () => {
       blockSize,
       durationSamples: totalSamples,
       events,
-      sessionId: 1
+      sessionId: 1,
+      randomSeed
     });
     const wasm = await renderProjectOfflineWasm(project, {
       sampleRate,
       blockSize,
       durationSamples: totalSamples,
       events,
-      sessionId: 1
+      sessionId: 1,
+      randomSeed
     });
 
     let maxDiff = 0;
