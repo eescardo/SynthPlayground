@@ -1,8 +1,9 @@
 "use client";
 
 import type { ComponentProps, RefObject } from "react";
+import type { ComposerRecordPhase } from "@/components/composer/ComposerActionsBar";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
-import { ProjectActionsBar } from "@/components/home/ProjectActionsBar";
+import { ComposerActionsBar } from "@/components/composer/ComposerActionsBar";
 import { TimelineActionsPopover } from "@/components/TimelineActionsPopover";
 import { TimelineActionsPopoverRequest, TrackCanvas, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { TransportBar } from "@/components/TransportBar";
@@ -29,7 +30,7 @@ interface ComposerViewProps {
   recordingDisabled: boolean;
   isPlaying: boolean;
   recordEnabled: boolean;
-  recordPhase: ComponentProps<typeof TransportBar>["recordPhase"];
+  recordPhase?: ComposerRecordPhase;
   exportingAudio: boolean;
   onPlay: () => void;
   onStop: () => void;
@@ -86,34 +87,34 @@ export function ComposerView(props: ComposerViewProps) {
         tempo={props.project.global.tempo}
         meter={props.project.global.meter}
         gridBeats={props.project.global.gridBeats}
-        isPlaying={props.isPlaying}
-        recordEnabled={props.recordEnabled}
-        recordPhase={props.recordPhase}
-        countInLabel={props.countInLabel}
         playheadBeat={props.playheadBeat}
-        onPlay={props.onPlay}
-        onStop={props.onStop}
-        onToggleRecord={props.onToggleRecord}
+        importInputRef={props.importInputRef}
         onOpenPatchWorkspace={props.onOpenPatchWorkspace}
         onExportAudio={props.onExportAudio}
         exportAudioDisabled={props.exportingAudio}
         onTempoChange={props.onTempoChange}
         onMeterChange={props.onMeterChange}
         onGridChange={props.onGridChange}
-        onOpenHelp={openHelp}
-      />
-
-      <ProjectActionsBar
-        recordingDisabled={props.recordingDisabled}
-        canRemoveTrack={props.project.tracks.length > 1}
-        onAddTrack={props.onAddTrack}
-        onRemoveTrack={props.onRemoveTrack}
         onExportJson={props.onExportJson}
         onImportJson={props.onImportJson}
         onClearProject={props.onClearProject}
         onResetToDefaultProject={props.onResetToDefaultProject}
-        importInputRef={props.importInputRef}
         onImportFile={props.onImportFile}
+        onOpenHelp={openHelp}
+      />
+
+      <ComposerActionsBar
+        recordingDisabled={props.recordingDisabled}
+        isPlaying={props.isPlaying}
+        recordEnabled={props.recordEnabled}
+        recordPhase={props.recordPhase}
+        countInLabel={props.countInLabel}
+        canRemoveTrack={props.project.tracks.length > 1}
+        onPlay={props.onPlay}
+        onStop={props.onStop}
+        onToggleRecord={props.onToggleRecord}
+        onAddTrack={props.onAddTrack}
+        onRemoveTrack={props.onRemoveTrack}
       />
 
       <TrackCanvas

@@ -1,56 +1,33 @@
 "use client";
 
-import { ChangeEvent } from "react";
+import { ChangeEvent, RefObject, useCallback, useState } from "react";
+import { ProjectsPopover } from "@/components/composer/ProjectsPopover";
+import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { formatBeatName } from "@/lib/musicTiming";
 
 interface TransportBarProps {
   tempo: number;
   meter: "4/4" | "3/4";
   gridBeats: number;
-  isPlaying: boolean;
-  recordEnabled: boolean;
-  recordPhase?: "idle" | "count_in" | "recording";
-  countInLabel?: string | null;
   playheadBeat: number;
-  onPlay: () => void;
-  onStop: () => void;
-  onToggleRecord: () => void;
+  importInputRef: RefObject<HTMLInputElement | null>;
   onOpenPatchWorkspace: () => void;
   onExportAudio: () => void;
   exportAudioDisabled?: boolean;
   onTempoChange: (value: number) => void;
   onMeterChange: (value: "4/4" | "3/4") => void;
   onGridChange: (value: number) => void;
+  onExportJson: () => void;
+  onImportJson: () => void;
+  onClearProject: () => void;
+  onResetToDefaultProject: () => void;
+  onImportFile: (file: File) => void;
   onOpenHelp: () => void;
 }
 
-interface RecordButtonProps {
-  recordEnabled: boolean;
-  recordPhase?: "idle" | "count_in" | "recording";
-  countInLabel?: string | null;
-  onToggleRecord: () => void;
-}
-
-function RecordButton(props: RecordButtonProps) {
-  return (
-    <div className="record-button-wrap">
-      {props.recordPhase === "count_in" && props.countInLabel && (
-        <div className="record-countdown-badge" aria-live="polite">
-          {props.countInLabel}
-        </div>
-      )}
-      <button
-        className={props.recordEnabled ? "armed toggle-active" : ""}
-        aria-pressed={props.recordEnabled}
-        onClick={props.onToggleRecord}
-      >
-        Record
-      </button>
-    </div>
-  );
-}
-
 export function TransportBar(props: TransportBarProps) {
+  const [projectsOpen, setProjectsOpen] = useState(false);
+
   const onTempoInput = (event: ChangeEvent<HTMLInputElement>) => {
     const next = Number(event.target.value);
     if (!Number.isFinite(next)) return;
@@ -61,21 +38,19 @@ export function TransportBar(props: TransportBarProps) {
     props.onGridChange(Number(event.target.value));
   };
 
+  const closeProjectsPopover = useCallback(() => {
+    setProjectsOpen(false);
+  }, []);
+
+  useDismissiblePopover({
+    active: projectsOpen,
+    popoverSelector: ".projects-popover, .projects-popover-shell",
+    onDismiss: closeProjectsPopover
+  });
+
   return (
     <div className="transport">
       <div className="transport-left">
-        <button onClick={props.onPlay} disabled={props.isPlaying || props.recordEnabled}>
-          Play
-        </button>
-        <button onClick={props.onStop} disabled={!props.isPlaying || props.recordEnabled}>
-          Stop
-        </button>
-        <RecordButton
-          recordEnabled={props.recordEnabled}
-          recordPhase={props.recordPhase}
-          countInLabel={props.countInLabel}
-          onToggleRecord={props.onToggleRecord}
-        />
         <span className="playhead">Beat {formatBeatName(props.playheadBeat, props.gridBeats)}</span>
       </div>
 
@@ -106,6 +81,28 @@ export function TransportBar(props: TransportBarProps) {
         </label>
 
         <button onClick={props.onOpenPatchWorkspace}>Open Patch Workspace</button>
+
+        <div className="projects-popover-shell">
+          <button
+            type="button"
+            aria-expanded={projectsOpen}
+            aria-haspopup="dialog"
+            onClick={() => setProjectsOpen((current) => !current)}
+          >
+            Projects
+          </button>
+          {projectsOpen && (
+            <ProjectsPopover
+              importInputRef={props.importInputRef}
+              onExportJson={props.onExportJson}
+              onImportJson={props.onImportJson}
+              onClearProject={props.onClearProject}
+              onResetToDefaultProject={props.onResetToDefaultProject}
+              onImportFile={props.onImportFile}
+              onClose={closeProjectsPopover}
+            />
+          )}
+        </div>
 
         <button className="transport-export-button" onClick={props.onExportAudio} disabled={props.exportAudioDisabled}>
           Export audio...

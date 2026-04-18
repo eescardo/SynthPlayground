@@ -244,10 +244,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const selectionMarkerTrackId = selection.kind === "none" ? null : selection.markerTrackId;
   const selectedNoteKeys = selection.kind === "note" ? selection.content.noteKeys : undefined;
   const automationKeyframeSelectionKeys = selection.kind === "note" ? selection.content.automationKeyframeSelectionKeys : undefined;
-  const selectionPopoverLeft = selectionBeatRange
-    ? HEADER_WIDTH + selectionBeatRange.endBeat * BEAT_WIDTH + 14
-    : 0;
-  const selectionPopoverTop = 10;
 
   const totalBeats = useMemo(() => {
     return getProjectTimelineEndBeat(project);
@@ -262,6 +258,17 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const fixedLaneValueFromX = (x: number) =>
     Math.max(0, Math.min(1, (x - fixedLaneSliderStartX) / Math.max(1, fixedLaneSliderEndX - fixedLaneSliderStartX)));
   const isTrackSilenced = useCallback((track: Track) => track.mute || isTrackVolumeMuted(track.volume), []);
+  const getSelectionPopoverAnchorPosition = useCallback(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper || !selectionBeatRange) {
+      return null;
+    }
+    const rect = wrapper.getBoundingClientRect();
+    return {
+      left: rect.left + HEADER_WIDTH + selectionBeatRange.endBeat * BEAT_WIDTH + 14 - wrapper.scrollLeft,
+      top: rect.top + 10
+    };
+  }, [selectionBeatRange]);
 
   const getCanvasPoint = useCallback((clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
@@ -791,9 +798,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
       />
       {selectionBeatRange && !selectionRect && !hideSelectionActionPopover && (
         <SelectionActionPopover
-          left={selectionPopoverLeft}
-          top={selectionPopoverTop}
           selectionLabel={selectionLabel ?? (selection.kind === "timeline" ? "All Tracks" : "Track 1")}
+          getAnchorPosition={getSelectionPopoverAnchorPosition}
           collapsed={selectionActions.selectionActionPopoverCollapsed}
           onPreviewScopeChange={selectionActions.onPreviewSelectionActionScopeChange}
           onExpand={selectionActions.onExpandSelectionActionPopover}

@@ -1,10 +1,11 @@
 "use client";
 
+import { useFixedPopoverPosition } from "@/hooks/useFixedPopoverPosition";
+
 interface SelectionActionPopoverProps {
-  left: number;
-  top: number;
   selectionLabel: string;
   collapsed?: boolean;
+  getAnchorPosition: () => { left: number; top: number } | null;
   onPreviewScopeChange?: (scope: "source" | "all-tracks") => void;
   onExpand?: () => void;
   onDismiss?: () => void;
@@ -18,13 +19,19 @@ interface SelectionActionPopoverProps {
 }
 
 export function SelectionActionPopover(props: SelectionActionPopoverProps) {
+  const { popoverRef, left, top } = useFixedPopoverPosition<HTMLDivElement>({
+    active: true,
+    getAnchorPosition: props.getAnchorPosition
+  });
+
   if (props.collapsed) {
     return (
       <div
+        ref={popoverRef}
         className="selection-actions-popover selection-actions-popover-collapsed"
         role="dialog"
         aria-label="Selection actions collapsed"
-        style={{ left: props.left, top: props.top }}
+        style={{ left, top }}
         onPointerDown={(event) => event.stopPropagation()}
       >
         <div className="selection-actions-popover-collapsed-label">Selection: {props.selectionLabel}</div>
@@ -50,10 +57,11 @@ export function SelectionActionPopover(props: SelectionActionPopoverProps) {
 
   return (
     <div
+      ref={popoverRef}
       className="selection-actions-popover"
       role="dialog"
       aria-label="Selection actions"
-      style={{ left: props.left, top: props.top }}
+      style={{ left, top }}
       onPointerDown={(event) => event.stopPropagation()}
       onPointerLeave={() => props.onPreviewScopeChange?.("source")}
     >
