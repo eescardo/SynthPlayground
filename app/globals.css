@@ -168,9 +168,18 @@ select {
   border-color: transparent transparent rgba(166, 45, 59, 0.88);
 }
 
-.top-actions {
+.composer-actions-bar {
   display: flex;
   flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.composer-actions-bar-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
 }
 
@@ -324,8 +333,28 @@ select {
   z-index: 70;
 }
 
-.selection-actions-popover {
+.projects-popover-shell {
+  position: relative;
+}
+
+.projects-popover {
   position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 210px;
+  padding: 0.7rem;
+  border-radius: 10px;
+  border: 1px solid rgba(125, 220, 173, 0.4);
+  background: rgba(8, 22, 17, 0.95);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.28);
+  z-index: 70;
+}
+
+.selection-actions-popover {
+  position: fixed;
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
