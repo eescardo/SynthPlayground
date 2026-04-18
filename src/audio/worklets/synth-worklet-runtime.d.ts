@@ -1,5 +1,13 @@
-import type { Project, Track } from "@/types/music";
+import type { Track } from "@/types/music";
 import type { Patch } from "@/types/patch";
+import type {
+  AudioProject,
+  SchedulerEvent,
+  SynthRendererConfig,
+  SynthStreamStartOptions,
+  TransportSynthStreamStartOptions,
+  WorkletInboundMessage
+} from "@/types/audio";
 
 export interface WorkletPortLike {
   onmessage: ((event: unknown) => void) | null;
@@ -43,16 +51,13 @@ export class TrackRuntime {
   ): void;
 }
 
-export interface SynthRenderBackend {
+export interface SynthRenderStream {
   port: WorkletPortLike;
-  project: Project | null;
+  project: AudioProject | null;
   trackRuntimes: Array<{ track: Track }>;
-  eventQueue: unknown[];
+  eventQueue: SchedulerEvent[];
   processBlock(output: Float32Array[]): boolean;
-}
-
-export interface SynthRenderStream extends SynthRenderBackend {
-  enqueueEvents(events: unknown[]): void;
+  enqueueEvents(events: SchedulerEvent[]): void;
   stop(): void;
 }
 
@@ -61,49 +66,49 @@ export interface SynthRenderer {
   sampleRateInternal: number;
   blockSize: number;
   currentStream: SynthRenderStream | null;
-  project: Project | null;
+  project: AudioProject | null;
   trackRuntimes: Array<{ track: Track }>;
-  eventQueue: unknown[];
-  configure(config: unknown): void;
-  setDefaultProject(project: Project): void;
-  startStream(options: unknown): SynthRenderStream | null;
+  eventQueue: SchedulerEvent[];
+  configure(config: Partial<SynthRendererConfig>): void;
+  setDefaultProject(project: AudioProject): void;
+  startStream(options: SynthStreamStartOptions): SynthRenderStream | null;
 }
 
 export class JsSynthRenderStream implements SynthRenderStream {
-  constructor(renderer: SynthRenderer, options?: unknown);
+  constructor(renderer: SynthRenderer, options: SynthStreamStartOptions);
   port: WorkletPortLike;
-  project: Project | null;
+  project: AudioProject | null;
   trackRuntimes: Array<{ track: Track }>;
-  eventQueue: unknown[];
+  eventQueue: SchedulerEvent[];
   processBlock(output: Float32Array[]): boolean;
-  enqueueEvents(events: unknown[]): void;
+  enqueueEvents(events: SchedulerEvent[]): void;
   stop(): void;
 }
 
 export class JsSynthRenderer implements SynthRenderer {
-  constructor(options?: unknown);
+  constructor(options?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> } });
   port: WorkletPortLike;
   sampleRateInternal: number;
   blockSize: number;
   currentStream: SynthRenderStream | null;
-  project: Project | null;
+  project: AudioProject | null;
   trackRuntimes: Array<{ track: Track }>;
-  eventQueue: unknown[];
-  configure(config: unknown): void;
-  setDefaultProject(project: Project): void;
-  startStream(options: unknown): SynthRenderStream | null;
+  eventQueue: SchedulerEvent[];
+  configure(config: Partial<SynthRendererConfig>): void;
+  setDefaultProject(project: AudioProject): void;
+  startStream(options: SynthStreamStartOptions): SynthRenderStream | null;
 }
 
-export const createRenderer: (config?: unknown) => JsSynthRenderer;
+export const createRenderer: (config?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> } }) => JsSynthRenderer;
 
 export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
-  constructor(options?: unknown);
+  constructor(options?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> } });
   readonly renderer: SynthRenderer;
   currentStream: SynthRenderStream | null;
-  readonly backend: SynthRenderBackend | SynthRenderer;
-  eventQueue: unknown[];
-  project: Project | null;
+  readonly backend: SynthRenderStream | SynthRenderer;
+  eventQueue: SchedulerEvent[];
+  project: AudioProject | null;
   trackRuntimes: Array<{ track: Track }>;
-  onMessage(message: unknown): void;
-  process(inputs: unknown[], outputs: unknown[], parameters?: Record<string, unknown>): boolean;
+  onMessage(message: WorkletInboundMessage): void;
+  process(inputs: Float32Array[][], outputs: Float32Array[][], parameters?: Record<string, unknown>): boolean;
 }

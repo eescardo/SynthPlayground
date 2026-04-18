@@ -297,6 +297,7 @@ describe("synth worklet runtime", () => {
           id: "preview_on",
           type: "NoteOn",
           sampleTime: 0,
+          source: "preview",
           trackId: "track_1",
           noteId: "note_1",
           pitchVoct: 0,
@@ -397,6 +398,7 @@ describe("synth worklet runtime", () => {
             id: "preview_on",
             type: "NoteOn",
             sampleTime: 0,
+            source: "preview",
             trackId: "track_1",
             noteId: "note_1",
             pitchVoct: 0,
@@ -474,6 +476,7 @@ describe("synth worklet runtime", () => {
           id: "preview_on",
           type: "NoteOn",
           sampleTime: 0,
+          source: "preview",
           trackId: "track_1",
           noteId: "note_1",
           pitchVoct: 0,
@@ -524,6 +527,7 @@ describe("synth worklet runtime", () => {
           id: "preview_on",
           type: "NoteOn",
           sampleTime: 0,
+          source: "preview",
           trackId: "track_1",
           noteId: "note_1",
           pitchVoct: 0,
@@ -583,6 +587,7 @@ describe("synth worklet runtime", () => {
           id: "preview_on",
           type: "NoteOn",
           sampleTime: 0,
+          source: "preview",
           trackId: "track_1",
           noteId: "note_1",
           pitchVoct: 0,
@@ -624,7 +629,7 @@ describe("synth worklet runtime", () => {
     processor.onMessage({
       type: "EVENTS",
       sessionId: 6,
-      events: [{ id: "stale", type: "NoteOn", sampleTime: 0, trackId: "track_1", noteId: "note_1", pitchVoct: 0, velocity: 1 }]
+      events: [{ id: "stale", type: "NoteOn", sampleTime: 0, source: "timeline", trackId: "track_1", noteId: "note_1", pitchVoct: 0, velocity: 1 }]
     });
 
     expect(processor.eventQueue).toEqual([]);
