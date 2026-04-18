@@ -4,7 +4,7 @@ import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { AudioEngine } from "@/audio/engine";
-import { PatchRemovalDialogState } from "@/components/home/PatchRemovalDialogModal";
+import { PatchRemovalDialogState } from "@/components/composer/PatchRemovalDialogModal";
 import { usePatchWorkspaceMacroValues } from "@/hooks/patch/usePatchWorkspaceMacroValues";
 import {
   createNextTabName,

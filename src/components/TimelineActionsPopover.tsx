@@ -1,5 +1,7 @@
 "use client";
 
+import { useCallback } from "react";
+import { useFixedPopoverPosition } from "@/hooks/useFixedPopoverPosition";
 import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping";
 
 interface TimelineActionsPopoverProps {
@@ -32,13 +34,22 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
   const hasLoopMarkerActions = Boolean(props.startMarkerId || props.endMarkerId);
   const showFirstDivider = hasPasteActions && (hasPlayheadActions || hasLoopMarkerActions);
   const showSecondDivider = !showFirstDivider && hasPlayheadActions && hasLoopMarkerActions;
+  const getAnchorPosition = useCallback(
+    () => ({ left: props.left, top: props.top }),
+    [props.left, props.top]
+  );
+  const { popoverRef, left, top } = useFixedPopoverPosition<HTMLDivElement>({
+    active: true,
+    getAnchorPosition
+  });
 
   return (
     <div
+      ref={popoverRef}
       className="timeline-actions-popover"
       role="dialog"
       aria-label="Timeline actions"
-      style={{ left: props.left, top: props.top }}
+      style={{ left, top }}
       onPointerDown={(event) => event.stopPropagation()}
     >
       {props.showPasteActions && props.onPaste && (
