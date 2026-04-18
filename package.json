@@ -17,6 +17,7 @@
     "test:ui:verify": "vitest run --config vitest.ui.config.ts",
     "benchmark:audio": "node --expose-gc --import tsx scripts/audio-benchmarks/run.ts",
     "benchmark:audio:compare": "node --import tsx scripts/audio-benchmarks/compare.ts",
+    "benchmark:audio:js-wasm": "node --expose-gc --import tsx scripts/audio-benchmarks/compare-js-wasm.ts",
     "presets:manifest": "node --import tsx scripts/generate-preset-manifest.ts --write",
     "check:presets:manifest": "node --import tsx scripts/check-preset-manifest.ts",
     "check:presets:definitions": "node --import tsx scripts/check-preset-definitions.ts",
