@@ -16,7 +16,6 @@ class NullPort implements WorkletPortLike {
 export class WasmSynthRenderStream implements SynthRenderStream {
   readonly port: WorkletPortLike;
   readonly project: AudioProject | null;
-  readonly randomSeed: number;
   readonly trackRuntimes: Array<{ track: Track }>;
   readonly eventQueue: SchedulerEvent[] = [];
 
@@ -35,7 +34,6 @@ export class WasmSynthRenderStream implements SynthRenderStream {
   ) {
     this.port = port;
     this.project = project;
-    this.randomSeed = Number.isFinite(options.randomSeed) ? Number(options.randomSeed) >>> 0 : DEFAULT_RANDOM_SEED;
     this.projectSpec = projectSpec;
     this.trackRuntimes = project.tracks.map((track) => ({ track }));
     this.engine = new wasmModule.WasmSubsetEngine(project.global.sampleRate, projectSpec.blockSize);
@@ -46,7 +44,7 @@ export class WasmSynthRenderStream implements SynthRenderStream {
       options.songStartSample,
       JSON.stringify(compileSchedulerEventsToWasmSubset(project, projectSpec, options.events)),
       options.sessionId ?? 1,
-      this.randomSeed
+      Number.isFinite(options.randomSeed) ? Number(options.randomSeed) >>> 0 : DEFAULT_RANDOM_SEED
     );
   }
 
@@ -90,7 +88,6 @@ export class WasmSynthRenderer implements SynthRenderer {
   sampleRateInternal: number;
   blockSize: number;
   project: AudioProject | null;
-  defaultRandomSeed: number;
 
   private readonly module: LoadedDspCoreNodeModule;
 
@@ -100,15 +97,11 @@ export class WasmSynthRenderer implements SynthRenderer {
     this.sampleRateInternal = options?.processorOptions?.sampleRate ?? 48000;
     this.blockSize = options?.processorOptions?.blockSize ?? 128;
     this.project = options?.processorOptions?.project ?? null;
-    this.defaultRandomSeed = Number.isFinite(options?.processorOptions?.randomSeed)
-      ? Number(options?.processorOptions?.randomSeed) >>> 0
-      : DEFAULT_RANDOM_SEED;
   }
 
   configure(config: Partial<SynthRendererConfig>): void {
     this.sampleRateInternal = config.sampleRate ?? this.sampleRateInternal;
     this.blockSize = config.blockSize ?? this.blockSize;
-    this.defaultRandomSeed = Number.isFinite(config.randomSeed) ? Number(config.randomSeed) >>> 0 : this.defaultRandomSeed;
     if (config.project) {
       this.project = config.project;
     }
@@ -128,10 +121,7 @@ export class WasmSynthRenderer implements SynthRenderer {
       this.module,
       project,
       projectSpec,
-      {
-        ...options,
-        randomSeed: Number.isFinite(options.randomSeed) ? Number(options.randomSeed) >>> 0 : this.defaultRandomSeed
-      },
+      options,
       this.port
     );
   }

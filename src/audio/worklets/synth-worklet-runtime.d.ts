@@ -54,7 +54,6 @@ export class TrackRuntime {
 export interface SynthRenderStream {
   port: WorkletPortLike;
   project: AudioProject | null;
-  randomSeed: number;
   trackRuntimes: Array<{ track: Track }>;
   eventQueue: SchedulerEvent[];
   processBlock(output: Float32Array[]): boolean;
@@ -67,7 +66,6 @@ export interface SynthRenderer {
   sampleRateInternal: number;
   blockSize: number;
   project: AudioProject | null;
-  defaultRandomSeed: number;
   configure(config: Partial<SynthRendererConfig>): void;
   setDefaultProject(project: AudioProject): void;
   startStream(options: SynthStreamStartOptions): SynthRenderStream | null;

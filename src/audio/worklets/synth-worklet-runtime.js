@@ -710,13 +710,13 @@ export class JsSynthRenderStream {
     this.sampleCounter = 0;
     this.songSampleCounter = Math.max(0, options.songStartSample || 0);
     this.transportSessionId = Number.isFinite(options.sessionId) ? options.sessionId : 1;
-    this.randomSeed = Number.isFinite(options.randomSeed) ? Number(options.randomSeed) >>> 0 : DEFAULT_RANDOM_SEED;
     this.recordingTrackId = null;
     this.masterCompressorEnv = 0;
     this.masterBuffer = new Float32Array(this.blockSize);
     this.stopped = false;
 
-    const runtimeGraph = buildTrackRuntimes(this.project, this.sampleRateInternal, this.blockSize, this.randomSeed);
+    const randomSeed = Number.isFinite(options.randomSeed) ? Number(options.randomSeed) >>> 0 : DEFAULT_RANDOM_SEED;
+    const runtimeGraph = buildTrackRuntimes(this.project, this.sampleRateInternal, this.blockSize, randomSeed);
     this.trackRuntimes = runtimeGraph.trackRuntimes;
     this.trackRuntimeById = runtimeGraph.trackRuntimeById;
     this.trackRuntimesByPatchId = runtimeGraph.trackRuntimesByPatchId;
@@ -1049,7 +1049,6 @@ export class JsSynthRenderer {
     this.sampleRateInternal = DEFAULT_SAMPLE_RATE;
     this.blockSize = 128;
     this.defaultProject = null;
-    this.defaultRandomSeed = DEFAULT_RANDOM_SEED;
 
     const processorOptions = options && options.processorOptions ? options.processorOptions : null;
     if (processorOptions) {
@@ -1063,7 +1062,6 @@ export class JsSynthRenderer {
   configure(config) {
     this.sampleRateInternal = config.sampleRate || DEFAULT_SAMPLE_RATE;
     this.blockSize = config.blockSize || 128;
-    this.defaultRandomSeed = Number.isFinite(config.randomSeed) ? Number(config.randomSeed) >>> 0 : this.defaultRandomSeed;
   }
 
   setDefaultProject(project) {
@@ -1075,11 +1073,7 @@ export class JsSynthRenderer {
     if (!project) {
       return null;
     }
-    return new JsSynthRenderStream(this, {
-      ...options,
-      project,
-      randomSeed: Number.isFinite(options.randomSeed) ? Number(options.randomSeed) >>> 0 : this.defaultRandomSeed
-    });
+    return new JsSynthRenderStream(this, { ...options, project });
   }
 
   get project() {
