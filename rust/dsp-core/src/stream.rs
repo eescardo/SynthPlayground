@@ -21,7 +21,7 @@ struct TrackFxState {
 #[derive(Clone)]
 struct TrackProbeCaptureState {
     probe_id: String,
-    signal_index: usize,
+    signal_start: usize,
     duration_samples: usize,
     samples: Vec<f32>,
 }
@@ -108,7 +108,7 @@ pub(crate) struct TrackRuntime {
     block_size: usize,
     fx: TrackFxSpec,
     host_signal_indices: HostSignalIndices,
-    output_signal_index: usize,
+    output_signal_start: usize,
     node_index_by_id: HashMap<String, usize>,
     voices: Vec<VoiceRuntime>,
     track_buffer: Vec<f32>,
@@ -155,7 +155,7 @@ impl TrackRuntime {
             block_size,
             fx: spec.fx,
             host_signal_indices: spec.host_signal_indices,
-            output_signal_index: spec.output_signal_index,
+            output_signal_start: spec.output_signal_index * block_size,
             node_index_by_id,
             voices,
             track_buffer: vec![0.0; block_size.max(1)],
@@ -182,7 +182,7 @@ impl TrackRuntime {
             .into_iter()
             .map(|spec| TrackProbeCaptureState {
                 probe_id: spec.probe_id,
-                signal_index: spec.signal_index,
+                signal_start: spec.signal_index * self.block_size,
                 duration_samples: spec.duration_samples,
                 samples: vec![0.0; spec.duration_samples],
             })
@@ -448,24 +448,34 @@ impl TrackRuntime {
             }
             voice.rng_state = rng_state;
 
-            let output_start = self.output_signal_index * self.block_size;
+            let output_start = self.output_signal_start;
             let mut all_finite = true;
-            for frame in start_frame..end_frame {
-                let sample = voice.signal_buffers[output_start + frame];
-                if !sample.is_finite() {
-                    all_finite = false;
-                    break;
-                }
-
-                let capture_index = capture_offset + (frame - start_frame);
-                for capture in self.probe_captures.iter_mut() {
-                    if capture_index < capture.duration_samples {
-                        let signal_start = capture.signal_index * self.block_size;
-                        capture.samples[capture_index] += voice.signal_buffers[signal_start + frame];
+            if self.probe_captures.is_empty() {
+                for frame in start_frame..end_frame {
+                    let sample = voice.signal_buffers[output_start + frame];
+                    if !sample.is_finite() {
+                        all_finite = false;
+                        break;
                     }
+                    voice.rms = voice.rms * 0.995 + sample.abs() * 0.005;
                 }
+            } else {
+                for frame in start_frame..end_frame {
+                    let sample = voice.signal_buffers[output_start + frame];
+                    if !sample.is_finite() {
+                        all_finite = false;
+                        break;
+                    }
 
-                voice.rms = voice.rms * 0.995 + sample.abs() * 0.005;
+                    let capture_index = capture_offset + (frame - start_frame);
+                    for capture in self.probe_captures.iter_mut() {
+                        if capture_index < capture.duration_samples {
+                            capture.samples[capture_index] += voice.signal_buffers[capture.signal_start + frame];
+                        }
+                    }
+
+                    voice.rms = voice.rms * 0.995 + sample.abs() * 0.005;
+                }
             }
 
             if !all_finite {

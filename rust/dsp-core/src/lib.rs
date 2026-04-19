@@ -32,14 +32,17 @@ fn now_ms() -> f64 {
 
 const MAX_VOICES: usize = 8;
 
+#[inline(always)]
 fn clamp(x: f32, min: f32, max: f32) -> f32 {
     x.max(min).min(max)
 }
 
+#[inline(always)]
 fn db_to_gain(db: f32) -> f32 {
     10.0_f32.powf(db / 20.0)
 }
 
+#[inline(always)]
 fn smoothing_alpha(time_ms: f32, sample_rate: f32) -> f32 {
     if time_ms <= 0.0 {
         return 0.0;
@@ -48,6 +51,7 @@ fn smoothing_alpha(time_ms: f32, sample_rate: f32) -> f32 {
     (-1.0 / tau_samples.max(1.0)).exp()
 }
 
+#[inline(always)]
 fn voct_to_hz(voct: f32) -> f32 {
     261.625565_f32 * 2.0_f32.powf(voct)
 }
@@ -57,6 +61,7 @@ fn voct_to_hz(voct: f32) -> f32 {
 /// - `wave`: waveform family to evaluate.
 /// - `phase`: normalized cycle position in the range `[0, 1)`.
 /// - `pulse_width`: square-wave duty cycle; ignored by other waveforms.
+#[inline(always)]
 fn waveform_sample(wave: Wave, phase: f32, pulse_width: f32) -> f32 {
     match wave {
         Wave::Sine => (phase * std::f32::consts::PI * 2.0).sin(),
@@ -91,6 +96,7 @@ impl SmoothParam {
         }
     }
 
+    #[inline(always)]
     fn next(&mut self) -> f32 {
         if self.alpha <= 0.0 {
             self.current = self.target;
