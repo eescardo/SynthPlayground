@@ -42,15 +42,15 @@ export function ProjectsPopover({
       <button type="button" onClick={() => runAction(onNewProject)}>
         New Project
       </button>
+      <button type="button" onClick={() => runAction(onResetToDefaultProject)}>
+        New Project From Template
+      </button>
       <div className="timeline-actions-popover-divider" aria-hidden="true" />
       <button type="button" onClick={() => runAction(onExportJson)}>
         Export Project
       </button>
       <button type="button" onClick={() => runAction(onImportJson)}>
         Import Project
-      </button>
-      <button type="button" onClick={() => runAction(onResetToDefaultProject)}>
-        New Project From Template
       </button>
       {recentProjects.length > 0 && (
         <>
