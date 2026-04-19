@@ -1,10 +1,9 @@
 "use client";
 
-import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
 import { useState } from "react";
-import { useHoverArm } from "@/hooks/useHoverArm";
 import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { useInlineRename } from "@/hooks/useInlineRename";
+import { useRenameActivation } from "@/hooks/useRenameActivation";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { Patch } from "@/types/patch";
 
@@ -56,7 +55,7 @@ function InstrumentToolbarActions(props: InstrumentToolbarActionsProps) {
 
 export function InstrumentToolbar(props: InstrumentToolbarProps) {
   const [selectorOpen, setSelectorOpen] = useState(false);
-  const renameActivation = useHoverArm<"instrument-name">();
+  const renameActivation = useRenameActivation<"instrument-name">();
   const presetLineageLabel = props.patch.meta.source === "preset" ? props.patch.meta.presetId : props.patch.id;
   const sourceLabel =
     props.presetStatus === "preset_update_available"
@@ -75,11 +74,8 @@ export function InstrumentToolbar(props: InstrumentToolbarProps) {
     onDismiss: () => setSelectorOpen(false)
   });
 
-  const startRename = (event: ReactMouseEvent | ReactKeyboardEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const startRename = () => {
     setSelectorOpen(false);
-    renameActivation.disarm("instrument-name");
     rename.setEditing(true);
   };
 
@@ -129,20 +125,10 @@ export function InstrumentToolbar(props: InstrumentToolbarProps) {
                 className={`instrument-patch-picker-name${renameActivation.isArmed("instrument-name") ? " rename-armed" : ""}`}
                 role="button"
                 tabIndex={0}
-                onMouseEnter={() => renameActivation.arm("instrument-name")}
-                onMouseLeave={() => renameActivation.disarm("instrument-name")}
-                onClick={(event) => {
-                  if (!renameActivation.isArmed("instrument-name")) {
-                    return;
-                  }
-                  startRename(event);
-                }}
-                onDoubleClick={startRename}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    startRename(event);
-                  }
-                }}
+                {...renameActivation.getRenameTriggerProps({
+                  id: "instrument-name",
+                  onStartRename: startRename
+                })}
               >
                 {props.patch.name}
               </span>

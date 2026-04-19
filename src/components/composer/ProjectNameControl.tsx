@@ -1,9 +1,8 @@
 "use client";
 
-import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
 import { useCallback } from "react";
-import { useHoverArm } from "@/hooks/useHoverArm";
 import { useInlineRename } from "@/hooks/useInlineRename";
+import { useRenameActivation } from "@/hooks/useRenameActivation";
 
 interface ProjectNameControlProps {
   name: string;
@@ -15,14 +14,11 @@ export function ProjectNameControl({ name, onRename }: ProjectNameControlProps) 
     value: name,
     onCommit: onRename
   });
-  const renameActivation = useHoverArm<"project-name">();
+  const renameActivation = useRenameActivation<"project-name">();
 
-  const startRename = useCallback((event?: ReactMouseEvent | ReactKeyboardEvent) => {
-    event?.preventDefault();
-    event?.stopPropagation();
-    renameActivation.disarm("project-name");
+  const startRename = useCallback(() => {
     rename.setEditing(true);
-  }, [rename, renameActivation]);
+  }, [rename]);
 
   return (
     <div className="transport-project-name-shell">
@@ -52,20 +48,10 @@ export function ProjectNameControl({ name, onRename }: ProjectNameControlProps) 
           className={`transport-project-name${renameActivation.isArmed("project-name") ? " rename-armed" : ""}`}
           role="button"
           tabIndex={0}
-          onMouseEnter={() => renameActivation.arm("project-name")}
-          onMouseLeave={() => renameActivation.disarm("project-name")}
-          onClick={(event) => {
-            if (!renameActivation.isArmed("project-name")) {
-              return;
-            }
-            startRename(event);
-          }}
-          onDoubleClick={startRename}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              startRename(event);
-            }
-          }}
+          {...renameActivation.getRenameTriggerProps({
+            id: "project-name",
+            onStartRename: startRename
+          })}
         >
           {name}
         </span>

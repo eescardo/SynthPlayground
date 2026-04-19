@@ -2,7 +2,7 @@ import { Dispatch, RefObject, SetStateAction, useEffect, useState } from "react"
 import { MacroPanel, MacroPanelRow } from "@/components/tracks/MacroPanel";
 import { PatchSummaryPopover } from "@/components/PatchSummaryPopover";
 import { TrackVolumePopover } from "@/components/TrackVolumePopover";
-import { useHoverArm } from "@/hooks/useHoverArm";
+import { useRenameActivation } from "@/hooks/useRenameActivation";
 import {
   AUTOMATION_LANE_COLLAPSED_HEIGHT,
   HEADER_WIDTH,
@@ -83,7 +83,7 @@ export function TrackHeaderChrome({
   patchActions,
   automationActions
 }: TrackHeaderChromeProps) {
-  const renameActivation = useHoverArm<string>();
+  const renameActivation = useRenameActivation<string>();
   const {
     patchSummaryPopover,
     setPatchSummaryPopover,
@@ -227,35 +227,26 @@ export function TrackHeaderChrome({
           <div key={track.id}>
             <button
               type="button"
-              className={`track-name-button${selected && renameActivation.isArmed(track.id) ? " rename-armed" : ""}`}
+              className={`track-name-button${renameActivation.isArmed(track.id) ? " rename-armed" : ""}`}
               aria-label={`Rename track ${track.name}`}
               style={{
                 top: `${layout.y + 8}px`,
                 cursor: selectedTrackId === track.id ? "text" : "default"
               }}
-              onMouseEnter={() => {
-                if (selected) {
-                  renameActivation.arm(track.id);
-                }
-              }}
-              onMouseLeave={() => renameActivation.disarm(track.id)}
-              onClick={(event) => {
-                event.stopPropagation();
-                if (selectedTrackId === track.id && renameActivation.isArmed(track.id)) {
+              {...renameActivation.getRenameTriggerProps({
+                id: track.id,
+                onPlainClick: (event) => {
+                  event.stopPropagation();
+                  if (selectedTrackId !== track.id) {
+                    trackActions.onSelectTrack(track.id);
+                  }
+                },
+                onStartRename: () => {
+                  trackActions.onSelectTrack(track.id);
                   setEditingTrackId(track.id);
                   setEditingTrackName(track.name);
-                } else {
-                  trackActions.onSelectTrack(track.id);
                 }
-              }}
-              onDoubleClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                trackActions.onSelectTrack(track.id);
-                renameActivation.disarm(track.id);
-                setEditingTrackId(track.id);
-                setEditingTrackName(track.name);
-              }}
+              })}
             />
             <button
               type="button"
