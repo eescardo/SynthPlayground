@@ -7,14 +7,15 @@ import { AudioEngine } from "@/audio/engine";
 import { ComposerView } from "@/components/app/ComposerView";
 import { AudioDebugPanel } from "@/components/app/AudioDebugPanel";
 import { PatchWorkspaceView } from "@/components/app/PatchWorkspaceView";
-import { PatchRemovalDialogModal, PatchRemovalDialogState } from "@/components/home/PatchRemovalDialogModal";
-import { PitchPickerModal } from "@/components/home/PitchPickerModal";
-import { RecordingDock } from "@/components/home/RecordingDock";
+import { PatchRemovalDialogModal } from "@/components/composer/PatchRemovalDialogModal";
+import { PitchPickerModal } from "@/components/composer/PitchPickerModal";
+import { RecordingDock } from "@/components/composer/RecordingDock";
 import { ExplodeSelectionDialog } from "@/components/ExplodeSelectionDialog";
 import { loadDspWasm } from "@/audio/renderers/wasm/wasmBridge";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import { TimelineActionsPopoverRequest, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { createId } from "@/lib/ids";
+import { createProjectSnapshot } from "@/lib/projectLifecycle";
 import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
 import { getProjectTimelineEndBeat, getTrackPreviewStateAtBeat } from "@/lib/macroAutomation";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
@@ -33,12 +34,17 @@ import {
   setEditorSelectionMarqueeActive,
   setEditorTimelineSelection
 } from "@/lib/clipboard";
-import { clearProjectState, loadProjectState, saveProjectState } from "@/lib/persistence";
+import {
+  loadProjectState,
+  loadRecentProjectSnapshots,
+  saveProjectState
+} from "@/lib/persistence";
 import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { createDefaultProject, createEmptyProject } from "@/lib/patch/presets";
+import { renameProjectInProject } from "@/lib/projectManagement";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
-import { importProjectBundleFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
+import { exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
 import { pitchToVoct } from "@/lib/pitch";
 import {
   buildMissingSampleAssetIssues,
@@ -53,9 +59,12 @@ import { useExplodeSelectionDialog } from "@/hooks/useExplodeSelectionDialog";
 import { useEditorClipboardEvents } from "@/hooks/useEditorClipboardEvents";
 import { useEditorKeyboardShortcuts } from "@/hooks/useEditorKeyboardShortcuts";
 import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
+import { useComposerTransientUi } from "@/hooks/useComposerTransientUi";
 import { useNoteClipboard } from "@/hooks/useNoteClipboard";
 import { usePlatformShortcuts } from "@/hooks/usePlatformShortcuts";
 import { usePlaybackController } from "@/hooks/usePlaybackController";
+import { useProjectLifecycleActions } from "@/hooks/useProjectLifecycleActions";
+import { useProjectRecents } from "@/hooks/useProjectRecents";
 import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
@@ -94,10 +103,23 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [strictWasmReady, setStrictWasmReady] = useState(process.env.NEXT_PUBLIC_STRICT_WASM !== "1");
   const [editorSelection, setEditorSelection] = useState(createEmptyEditorSelection);
-  const [pitchPicker, setPitchPicker] = useState<{ trackId: string; noteId: string } | null>(null);
-  const [timelineActionsPopover, setTimelineActionsPopover] = useState<TimelineActionsPopoverRequest | null>(null);
-  const [selectionActionPopoverMode, setSelectionActionPopoverMode] = useState<"expanded" | "collapsed">("expanded");
-  const [patchRemovalDialog, setPatchRemovalDialog] = useState<PatchRemovalDialogState | null>(null);
+  const clearEditorSelectionState = useCallback(() => {
+    setEditorSelection(clearEditorSelection());
+  }, []);
+  const { recentProjects, setRecentProjects, refreshRecentProjects } = useProjectRecents();
+  const {
+    clearTransientComposerUi,
+    patchRemovalDialog,
+    pitchPicker,
+    selectionActionPopoverMode,
+    setPatchRemovalDialog,
+    setPitchPicker,
+    setSelectionActionPopoverMode,
+    setTimelineActionsPopover,
+    timelineActionsPopover
+  } = useComposerTransientUi({
+    onClearEditorSelection: clearEditorSelectionState
+  });
 
   const router = useRouter();
   const audioEngineRef = useRef<AudioEngine | null>(null);
@@ -122,7 +144,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
     const boot = async () => {
       try {
-        const savedState = await loadProjectState();
+        const [savedState, loadedRecentProjects] = await Promise.all([
+          loadProjectState(),
+          loadRecentProjectSnapshots()
+        ]);
         const loadedProject = savedState ? normalizeProject(savedState.project) : createDefaultProject();
         const loadedAssets = savedState?.assets ?? createEmptyProjectAssetLibrary();
         const migratedState = extractInlineSamplePlayerAssets(loadedProject, loadedAssets);
@@ -137,6 +162,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         setProjectAssets(migratedState.assets);
         setProjectHistory(createHistory(migratedState.project));
         setSelectedTrackId(migratedState.project.tracks[0]?.id);
+        setRecentProjects(loadedRecentProjects.filter(({ project }) => project.id !== migratedState.project.id));
         setReady(true);
       } catch (error) {
         if (cancelled) {
@@ -146,6 +172,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         setProjectAssets(createEmptyProjectAssetLibrary());
         setProjectHistory(createHistory(fallbackProject));
         setSelectedTrackId(fallbackProject.tracks[0]?.id);
+        setRecentProjects([]);
         setRuntimeError(`Failed to load the saved project. Loaded the default project instead. ${(error as Error).message}`);
         setReady(true);
       }
@@ -156,12 +183,12 @@ export function AppRoot({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [setRecentProjects]);
 
   useEffect(() => {
     if (!ready) return;
     const timer = window.setTimeout(() => {
-      saveProjectState({ ...project, updatedAt: Date.now() }, projectAssets).catch(() => {
+      saveProjectState(createProjectSnapshot(project), projectAssets).catch(() => {
         // ignore autosave errors
       });
     }, 300);
@@ -376,18 +403,18 @@ export function AppRoot({ children }: { children: ReactNode }) {
       setSelectionActionPopoverMode("expanded");
       setEditorSelection((current) => setEditorSelectionActionScopePreview(current, "source"));
     }
-  }, [selectionBeatRange]);
+  }, [selectionBeatRange, setSelectionActionPopoverMode]);
 
   useEffect(() => {
     setSelectionActionPopoverMode("expanded");
-  }, [selectedContent]);
+  }, [selectedContent, setSelectionActionPopoverMode]);
 
   useEffect(() => {
     if (editorSelection.kind !== "timeline") {
       return;
     }
     setSelectionActionPopoverMode("expanded");
-  }, [editorSelection.kind]);
+  }, [editorSelection.kind, setSelectionActionPopoverMode]);
 
   useEffect(() => {
     if (canvasSelection.kind === "timeline") {
@@ -491,7 +518,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     setPlayheadBeat(beat);
     setEditorSelection(clearEditorSelection());
     setPitchPicker(null);
-  }, []);
+  }, [setPitchPicker]);
   const {
     applyNoteClipboardPaste,
     copyAllTracksInSelection,
@@ -527,7 +554,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   useDismissiblePopover({
     active: Boolean(timelineActionsPopover),
     popoverSelector: ".timeline-actions-popover",
-    onDismiss: useCallback(() => setTimelineActionsPopover(null), [])
+    onDismiss: useCallback(() => setTimelineActionsPopover(null), [setTimelineActionsPopover])
   });
 
   const selectionActionPopoverAvailable = Boolean(
@@ -542,7 +569,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const collapseSelectionActionPopover = useCallback(() => {
     setSelectionActionPopoverMode("collapsed");
     setEditorSelection((current) => setEditorSelectionActionScopePreview(current, "source"));
-  }, []);
+  }, [setSelectionActionPopoverMode]);
 
   const {
     explodeSelectionDialogState,
@@ -587,29 +614,29 @@ export function AppRoot({ children }: { children: ReactNode }) {
       { actionKey: `global:loop:expand:${expandableLoopRegion.startMarkerId}` }
     );
     setTimelineActionsPopover(null);
-  }, [commitProjectChange, expandableLoopRegion]);
+  }, [commitProjectChange, expandableLoopRegion, setTimelineActionsPopover]);
 
   const requestTimelineActionsPopover = useCallback((request: TimelineActionsPopoverRequest) => {
     setTimelineActionsPopover(request);
     setEditorSelection((current) => setEditorSelectionActionScopePreview(current, "source"));
     void syncNoteClipboardPayload();
-  }, [syncNoteClipboardPayload]);
+  }, [setTimelineActionsPopover, syncNoteClipboardPayload]);
 
   const openPitchPicker = useCallback((trackId: string, noteId: string) => {
     setPitchPicker({ trackId, noteId });
     const notePitch = project.tracks.find((track) => track.id === trackId)?.notes.find((note) => note.id === noteId)?.pitchStr;
     previewNoteForPitchPicker(trackId, noteId, notePitch ?? DEFAULT_NOTE_PITCH);
-  }, [previewNoteForPitchPicker, project.tracks]);
+  }, [previewNoteForPitchPicker, project.tracks, setPitchPicker]);
 
   const closePitchPicker = useCallback(() => {
     setPitchPicker(null);
-  }, []);
+  }, [setPitchPicker]);
 
   const clearCanvasSelection = useCallback(() => {
     setEditorSelection(clearEditorSelection());
     setSelectionActionPopoverMode("expanded");
     closeExplodeSelectionDialog();
-  }, [closeExplodeSelectionDialog]);
+  }, [closeExplodeSelectionDialog, setSelectionActionPopoverMode]);
 
   const confirmExplodeSelection = useCallback(() => {
     if (!explodeSelectionDialogState) {
@@ -632,13 +659,13 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const setContentSelectionFromCanvas = useCallback((selection: ContentSelection) => {
     setTimelineActionsPopover(null);
     setEditorSelection((current) => setEditorContentSelection(current, selection));
-  }, []);
+  }, [setTimelineActionsPopover]);
 
   const setTimelineSelectionFromCanvas = useCallback((range: BeatRange | null) => {
     setTimelineActionsPopover(null);
     setPitchPicker(null);
     setEditorSelection((current) => setEditorTimelineSelection(current, range));
-  }, []);
+  }, [setPitchPicker, setTimelineActionsPopover]);
 
   const undoProject = useCallback(() => {
     setProjectHistory((prev) => {
@@ -738,19 +765,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
     URL.revokeObjectURL(url);
   };
 
-  const importJson = async (file: File) => {
-    const text = await file.text();
-    try {
-      const importedBundle = importProjectBundleFromJson(text);
-      const migratedState = extractInlineSamplePlayerAssets(importedBundle.project, importedBundle.assets);
-      resetProjectState(migratedState.project, migratedState.assets);
-      setSelectedTrackId(migratedState.project.tracks[0]?.id);
-      audioEngineRef.current?.setProject(toAudioProject(migratedState.project, migratedState.assets));
-    } catch (error) {
-      setRuntimeError((error as Error).message);
-    }
-  };
-
   const addTrack = () => {
     const fallbackPatch = project.patches[0];
     if (!fallbackPatch) return;
@@ -787,6 +801,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const renameTrack = useCallback((trackId: string, name: string) => {
     commitProjectChange((current) => renameTrackInProject(current, trackId, name), { actionKey: `track:${trackId}:rename` });
+  }, [commitProjectChange]);
+
+  const renameProject = useCallback((name: string) => {
+    commitProjectChange((current) => renameProjectInProject(current, name), { actionKey: "project:rename" });
   }, [commitProjectChange]);
 
   const removeSelectedTrack = useCallback(() => {
@@ -840,7 +858,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         fallbackPatchId
       }))
     });
-  }, [commitProjectChange, patchWorkspace, project.patches, project.tracks, selectedTrackPatch]);
+  }, [commitProjectChange, patchWorkspace, project.patches, project.tracks, selectedTrackPatch, setPatchRemovalDialog]);
 
   const confirmRemovePatch = useCallback(() => {
     if (!patchRemovalDialog) {
@@ -888,7 +906,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     setSelectedTrackId(survivingSelectedTrack);
     setPatchRemovalDialog(null);
     patchWorkspace.setSelectedNodeId(undefined);
-  }, [commitProjectChange, patchRemovalDialog, patchWorkspace, project.tracks, selectedTrackId]);
+  }, [commitProjectChange, patchRemovalDialog, patchWorkspace, project.tracks, selectedTrackId, setPatchRemovalDialog]);
 
   const updateTrackPatch = (trackId: string, patchId: string) => {
     commitProjectChange((current) => switchTrackPatchInProject(current, trackId, patchId), { actionKey: `track:${trackId}:patch` });
@@ -931,20 +949,33 @@ export function AppRoot({ children }: { children: ReactNode }) {
       .catch((error) => setRuntimeError((error as Error).message));
   }, []);
 
-  if (!ready || !selectedTrack || !selectedPatch) {
-    return <main className="loading">Loading...</main>;
-  }
-
   const pitchPickerTrack = pitchPicker ? project.tracks.find((track) => track.id === pitchPicker.trackId) : undefined;
   const pitchPickerNote = pitchPickerTrack?.notes.find((note) => note.id === pitchPicker?.noteId);
   const activeRecordingTrackId = recording.activeRecordingTrackId;
   const activeRecordingTrack = activeRecordingTrackId ? project.tracks.find((track) => track.id === activeRecordingTrackId) : undefined;
-  const resetToProject = async (nextProject: Project) => {
-    playback.stopPlayback();
-    await clearProjectState();
-    resetProjectState(nextProject);
-    setSelectedTrackId(nextProject.tracks[0]?.id);
-  };
+  const {
+    clearCurrentProject,
+    createNewProject,
+    importJson,
+    openRecentProject,
+    resetToDefaultProject
+  } = useProjectLifecycleActions({
+    project,
+    projectAssets,
+    recentProjects,
+    audioEngineRef,
+    playback,
+    commitProjectChange,
+    resetProjectState,
+    refreshRecentProjects,
+    setSelectedTrackId,
+    setRuntimeError,
+    clearTransientComposerUi
+  });
+
+  if (!ready || !selectedTrack || !selectedPatch) {
+    return <main className="loading">Loading...</main>;
+  }
   const trackCanvasTrackActions = {
     onSelectTrack: setSelectedTrackId,
     onRenameTrack: renameTrack,
@@ -1019,6 +1050,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const composerProps: React.ComponentProps<typeof ComposerView> = {
     project,
+    recentProjects,
     selectedTrackId: selectedTrack.id,
     invalidPatchIds,
     canvasSelection,
@@ -1048,6 +1080,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
       playback.stopPlayback(true);
       void recording.startRecordMode();
     },
+    onClearCurrentProject: clearCurrentProject,
+    onRenameProject: renameProject,
+    onNewProject: () => {
+      void createNewProject();
+    },
     onOpenPatchWorkspace: () => patchWorkspace.openPatchWorkspace(),
     onExportAudio: () => {
       void exportAudio();
@@ -1068,8 +1105,12 @@ export function AppRoot({ children }: { children: ReactNode }) {
     onRemoveTrack: removeSelectedTrack,
     onExportJson: exportJson,
     onImportJson: () => importInputRef.current?.click(),
-    onClearProject: () => void resetToProject(createEmptyProject()),
-    onResetToDefaultProject: () => void resetToProject(createDefaultProject()),
+    onOpenRecentProject: (projectId) => {
+      void openRecentProject(projectId);
+    },
+    onResetToDefaultProject: () => {
+      void resetToDefaultProject();
+    },
     onImportFile: (file) => {
       void importJson(file);
     },

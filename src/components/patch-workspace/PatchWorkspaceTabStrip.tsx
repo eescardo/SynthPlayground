@@ -1,8 +1,8 @@
 "use client";
 
-import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
 import { useEffect, useState } from "react";
 import { useInlineRename } from "@/hooks/useInlineRename";
+import { useRenameActivation } from "@/hooks/useRenameActivation";
 
 export interface PatchWorkspaceTabViewModel {
   id: string;
@@ -22,6 +22,7 @@ interface PatchWorkspaceTabStripProps {
 
 export function PatchWorkspaceTabStrip(props: PatchWorkspaceTabStripProps) {
   const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
+  const renameActivation = useRenameActivation<string>();
   const activeTab = props.tabs.find((tab) => tab.id === props.activeTabId);
   const rename = useInlineRename({
     value: activeTab?.name ?? "",
@@ -39,9 +40,7 @@ export function PatchWorkspaceTabStrip(props: PatchWorkspaceTabStripProps) {
     }
   }, [activeTab, props.activeTabId, renamingTabId, setDraft]);
 
-  const startRename = (tabId: string, currentName: string, event: ReactMouseEvent | ReactKeyboardEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const startRename = (tabId: string, currentName: string) => {
     props.onActivateTab(tabId);
     setRenamingTabId(tabId);
     setDraft(currentName);
@@ -97,25 +96,19 @@ export function PatchWorkspaceTabStrip(props: PatchWorkspaceTabStripProps) {
                       cancel();
                       stopRenaming();
                     }
+                    event.stopPropagation();
                   }}
                 />
               ) : (
                 <>
                   <span
-                    className="patch-workspace-tab-name"
+                    className={`patch-workspace-tab-name${renameActivation.isArmed(tab.id) ? " rename-armed" : ""}`}
                     role="button"
                     tabIndex={0}
-                    onClick={(event) => {
-                      if (!active) {
-                        return;
-                      }
-                      startRename(tab.id, tab.name, event);
-                    }}
-                    onKeyDown={(event) => {
-                      if (active && (event.key === "Enter" || event.key === " ")) {
-                        startRename(tab.id, tab.name, event);
-                      }
-                    }}
+                    {...renameActivation.getRenameTriggerProps({
+                      id: tab.id,
+                      onStartRename: () => startRename(tab.id, tab.name)
+                    })}
                   >
                     {tab.name}
                   </span>

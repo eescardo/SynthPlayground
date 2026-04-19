@@ -1,6 +1,7 @@
 import { createDefaultParamsForType } from "@/lib/patch/moduleRegistry";
 import { HOST_NODE_IDS } from "@/lib/patch/constants";
 import { createDefaultProjectFromTemplate, createEmptyProjectFromPresets } from "@/lib/defaultProjectTemplate";
+import { createId } from "@/lib/ids";
 import { Project } from "@/types/music";
 import { Patch, PatchMeta } from "@/types/patch";
 
@@ -1327,9 +1328,15 @@ export const presetPatches = [bassPatch(), brassPatch(), keysPatch(), padPatch()
 // are overlaid by nodeId, so preset graph drift keeps current modules/params
 // but preserves matching editor placement where possible.
 export const createDefaultProject = (): Project => {
-  return createDefaultProjectFromTemplate(presetPatches);
+  return {
+    ...createDefaultProjectFromTemplate(presetPatches),
+    id: createId("project")
+  };
 };
 
 export const createEmptyProject = (): Project => {
-  return createEmptyProjectFromPresets(presetPatches);
+  return {
+    ...createEmptyProjectFromPresets(presetPatches),
+    id: createId("project")
+  };
 };

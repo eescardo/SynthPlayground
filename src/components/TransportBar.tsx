@@ -1,53 +1,33 @@
 "use client";
 
-import { ChangeEvent } from "react";
+import { ChangeEvent, RefObject } from "react";
+import { ProjectNameControl } from "@/components/composer/ProjectNameControl";
+import { ProjectsMenu } from "@/components/composer/ProjectsMenu";
+import { RecentProjectSnapshot } from "@/lib/persistence";
 import { formatBeatName } from "@/lib/musicTiming";
 
 interface TransportBarProps {
+  projectName: string;
   tempo: number;
   meter: "4/4" | "3/4";
   gridBeats: number;
-  isPlaying: boolean;
-  recordEnabled: boolean;
-  recordPhase?: "idle" | "count_in" | "recording";
-  countInLabel?: string | null;
   playheadBeat: number;
-  onPlay: () => void;
-  onStop: () => void;
-  onToggleRecord: () => void;
+  importInputRef: RefObject<HTMLInputElement | null>;
+  recentProjects: RecentProjectSnapshot[];
+  onRenameProject: (name: string) => void;
+  onNewProject: () => void;
   onOpenPatchWorkspace: () => void;
   onExportAudio: () => void;
   exportAudioDisabled?: boolean;
   onTempoChange: (value: number) => void;
   onMeterChange: (value: "4/4" | "3/4") => void;
   onGridChange: (value: number) => void;
+  onExportJson: () => void;
+  onImportJson: () => void;
+  onOpenRecentProject: (projectId: string) => void;
+  onResetToDefaultProject: () => void;
+  onImportFile: (file: File) => void;
   onOpenHelp: () => void;
-}
-
-interface RecordButtonProps {
-  recordEnabled: boolean;
-  recordPhase?: "idle" | "count_in" | "recording";
-  countInLabel?: string | null;
-  onToggleRecord: () => void;
-}
-
-function RecordButton(props: RecordButtonProps) {
-  return (
-    <div className="record-button-wrap">
-      {props.recordPhase === "count_in" && props.countInLabel && (
-        <div className="record-countdown-badge" aria-live="polite">
-          {props.countInLabel}
-        </div>
-      )}
-      <button
-        className={props.recordEnabled ? "armed toggle-active" : ""}
-        aria-pressed={props.recordEnabled}
-        onClick={props.onToggleRecord}
-      >
-        Record
-      </button>
-    </div>
-  );
 }
 
 export function TransportBar(props: TransportBarProps) {
@@ -64,18 +44,19 @@ export function TransportBar(props: TransportBarProps) {
   return (
     <div className="transport">
       <div className="transport-left">
-        <button onClick={props.onPlay} disabled={props.isPlaying || props.recordEnabled}>
-          Play
-        </button>
-        <button onClick={props.onStop} disabled={!props.isPlaying || props.recordEnabled}>
-          Stop
-        </button>
-        <RecordButton
-          recordEnabled={props.recordEnabled}
-          recordPhase={props.recordPhase}
-          countInLabel={props.countInLabel}
-          onToggleRecord={props.onToggleRecord}
+        <ProjectsMenu
+          importInputRef={props.importInputRef}
+          recentProjects={props.recentProjects}
+          onNewProject={props.onNewProject}
+          onExportJson={props.onExportJson}
+          onImportJson={props.onImportJson}
+          onOpenRecentProject={props.onOpenRecentProject}
+          onResetToDefaultProject={props.onResetToDefaultProject}
+          onImportFile={props.onImportFile}
         />
+
+        <ProjectNameControl name={props.projectName} onRename={props.onRenameProject} />
+        <span className="transport-project-divider" aria-hidden="true" />
         <span className="playhead">Beat {formatBeatName(props.playheadBeat, props.gridBeats)}</span>
       </div>
 
