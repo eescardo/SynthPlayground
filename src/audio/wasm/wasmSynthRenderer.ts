@@ -4,12 +4,17 @@ import type { Track } from "@/types/music";
 import { compileAudioProjectToWasmSubset, compileSchedulerEventsToWasmSubset } from "@/audio/wasm/wasmSubsetCompiler";
 import { loadNodeDspWasmModule } from "@/audio/wasm/loadNodeDspWasm";
 import type { LoadedDspCoreNodeModule, WasmSubsetEngineInstance } from "@/audio/wasm/loadNodeDspWasm";
-import type { WasmProjectSpec } from "@/audio/wasm/wasmSubsetCompiler";
-import { SharedWasmRenderStream, SharedWasmRenderer, NullPort } from "@/audio/worklets/synth-worklet-wasm-renderer-core.js";
+import {
+  SharedWasmRendererLike,
+  SharedWasmImplementation,
+  SharedWasmRenderStream,
+  SharedWasmRenderer,
+  NullPort
+} from "@/audio/worklets/synth-worklet-wasm-renderer-core.js";
 
 export class WasmSynthRenderStream extends SharedWasmRenderStream implements SynthRenderStream {
   declare readonly port: WorkletPortLike;
-  declare readonly project: AudioProject | null;
+  declare readonly project: AudioProject;
   declare readonly trackRuntimes: Array<{ track: Track }>;
   declare readonly eventQueue: SchedulerEvent[];
   declare readonly engine: WasmSubsetEngineInstance;
@@ -29,13 +34,6 @@ export class WasmSynthRenderStream extends SharedWasmRenderStream implements Syn
   }
 }
 
-type SharedImplementation = {
-  compileProject: (project: AudioProject, options: { blockSize: number }) => WasmProjectSpec;
-  compileEvents: (project: AudioProject, projectSpec: WasmProjectSpec, events: SchedulerEvent[]) => ReturnType<typeof compileSchedulerEventsToWasmSubset>;
-  createEngine: (renderer: NodeWasmSynthRenderer, project: AudioProject, projectSpec: WasmProjectSpec, options: SynthStreamStartOptions) => WasmSubsetEngineInstance;
-  getMemory: (renderer: NodeWasmSynthRenderer) => WebAssembly.Memory;
-};
-
 export class NodeWasmSynthRenderer extends SharedWasmRenderer implements SynthRenderer {
   declare readonly port: WorkletPortLike;
   declare sampleRateInternal: number;
@@ -45,25 +43,26 @@ export class NodeWasmSynthRenderer extends SharedWasmRenderer implements SynthRe
 
   readonly profilingEnabled: boolean;
   readonly module: LoadedDspCoreNodeModule;
-  readonly sharedImplementation: SharedImplementation;
+  readonly sharedImplementation: SharedWasmImplementation;
 
   constructor(
     wasmModule: LoadedDspCoreNodeModule,
     options?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> } },
     profilingEnabled = false
   ) {
-    const implementation: SharedImplementation = {
+    const implementation: SharedWasmImplementation = {
       compileProject: compileAudioProjectToWasmSubset,
       compileEvents: compileSchedulerEventsToWasmSubset,
       createEngine: (renderer, _project, projectSpec) => {
-        const engine = new renderer.module.WasmSubsetEngine(renderer.sampleRateInternal, projectSpec.blockSize);
-        engine.set_profiling_enabled(renderer.profilingEnabled);
-        if (renderer.profilingEnabled) {
+        const nodeRenderer = renderer as unknown as SharedWasmRendererLike & NodeWasmSynthRenderer;
+        const engine = new nodeRenderer.module.WasmSubsetEngine(nodeRenderer.sampleRateInternal, projectSpec.blockSize);
+        engine.set_profiling_enabled(nodeRenderer.profilingEnabled);
+        if (nodeRenderer.profilingEnabled) {
           engine.reset_profile_stats();
         }
         return engine;
       },
-      getMemory: (renderer) => renderer.module.memory
+      getMemory: (renderer) => (renderer as unknown as SharedWasmRendererLike & NodeWasmSynthRenderer).module.memory
     };
     super(options ?? {}, implementation);
     this.module = wasmModule;
@@ -76,7 +75,7 @@ export class NodeWasmSynthRenderer extends SharedWasmRenderer implements SynthRe
     this.defaultProject = project;
   }
 
-  startStream(options: SynthStreamStartOptions): SynthRenderStream | null {
+  startStream(options: SynthStreamStartOptions): WasmSynthRenderStream | null {
     const project = options.project || this.defaultProject;
     if (!project) {
       return null;

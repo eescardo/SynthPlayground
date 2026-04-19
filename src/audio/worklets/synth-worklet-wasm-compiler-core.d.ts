@@ -1,9 +1,29 @@
-export const compileAudioProjectToWasmSubsetCore: (project: unknown, options: { blockSize: number }) => unknown;
-export const compileSchedulerEventsToWasmSubsetCore: (project: unknown, projectSpec: unknown, events: unknown[]) => unknown;
+import type { AudioProject, SchedulerEvent } from "@/types/audio";
+import type { PreviewProbeRequest } from "@/types/probes";
+import type { WasmEvent, WasmProjectSpec } from "@/audio/wasm/wasmSubsetCompiler";
+
+export interface WasmPreviewProbeCaptureRequest {
+  probeId: string;
+  trackIndex: number;
+  signalIndex: number;
+  durationSamples: number;
+}
+
+export const compileAudioProjectToWasmSubsetCore: (
+  project: AudioProject,
+  options: { blockSize: number }
+) => WasmProjectSpec;
+
+export const compileSchedulerEventsToWasmSubsetCore: (
+  project: AudioProject,
+  projectSpec: WasmProjectSpec,
+  events: SchedulerEvent[]
+) => WasmEvent[];
+
 export const compilePreviewProbeCaptureRequestsCore: (
-  project: unknown,
-  projectSpec: unknown,
+  project: AudioProject,
+  projectSpec: WasmProjectSpec,
   trackId: string,
-  captureProbes: unknown[],
+  captureProbes: PreviewProbeRequest[],
   durationSamples: number
-) => unknown;
+) => WasmPreviewProbeCaptureRequest[];

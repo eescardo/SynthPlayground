@@ -1,14 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { createAudioDebugPanelViewModel } from "./audioDebugPanelModel";
 
 interface AudioDebugPanelProps {
   rendererLabel: string;
   defaultOpen?: boolean;
 }
 
-export function AudioDebugPanel({ rendererLabel, defaultOpen = false }: AudioDebugPanelProps) {
-  const [open, setOpen] = useState(defaultOpen);
+interface AudioDebugPanelViewProps {
+  rendererLabel: string;
+  open: boolean;
+  onToggle: () => void;
+}
+
+export function AudioDebugPanelView({ rendererLabel, open, onToggle }: AudioDebugPanelViewProps) {
+  const viewModel = createAudioDebugPanelViewModel({ rendererLabel, open, onToggle });
 
   return (
     <div
@@ -23,10 +30,10 @@ export function AudioDebugPanel({ rendererLabel, defaultOpen = false }: AudioDeb
         gap: 8
       }}
     >
-      {open && (
+      {viewModel.dialog && (
         <div
           role="dialog"
-          aria-label="Audio renderer debug"
+          aria-label={viewModel.dialog.ariaLabel}
           style={{
             minWidth: 168,
             padding: "10px 12px",
@@ -39,17 +46,17 @@ export function AudioDebugPanel({ rendererLabel, defaultOpen = false }: AudioDeb
             lineHeight: 1.4
           }}
         >
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>Audio Debug</div>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>{viewModel.dialog.title}</div>
           <div>
-            Renderer: <span style={{ color: "#8be9c1" }}>{rendererLabel}</span>
+            Renderer: <span style={{ color: "#8be9c1" }}>{viewModel.dialog.rendererLabel}</span>
           </div>
         </div>
       )}
       <button
         type="button"
-        onClick={() => setOpen((current) => !current)}
-        aria-label="Toggle audio debug panel"
-        aria-expanded={open}
+        onClick={viewModel.button.onClick}
+        aria-label={viewModel.button.ariaLabel}
+        aria-expanded={viewModel.button.ariaExpanded}
         style={{
           border: "1px solid rgba(255, 255, 255, 0.14)",
           background: "rgba(19, 27, 35, 0.88)",
@@ -64,8 +71,14 @@ export function AudioDebugPanel({ rendererLabel, defaultOpen = false }: AudioDeb
           boxShadow: "0 8px 24px rgba(0, 0, 0, 0.22)"
         }}
       >
-        dbg
+        {viewModel.button.label}
       </button>
     </div>
   );
+}
+
+export function AudioDebugPanel({ rendererLabel, defaultOpen = false }: AudioDebugPanelProps) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return <AudioDebugPanelView rendererLabel={rendererLabel} open={open} onToggle={() => setOpen((current) => !current)} />;
 }
