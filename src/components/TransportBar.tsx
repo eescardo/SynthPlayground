@@ -1,8 +1,7 @@
 "use client";
 
-import { ChangeEvent, RefObject, useCallback, useState } from "react";
-import { ProjectsPopover } from "@/components/composer/ProjectsPopover";
-import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
+import { ChangeEvent, RefObject } from "react";
+import { ProjectsMenu } from "@/components/composer/ProjectsMenu";
 import { formatBeatName } from "@/lib/musicTiming";
 
 interface TransportBarProps {
@@ -26,8 +25,6 @@ interface TransportBarProps {
 }
 
 export function TransportBar(props: TransportBarProps) {
-  const [projectsOpen, setProjectsOpen] = useState(false);
-
   const onTempoInput = (event: ChangeEvent<HTMLInputElement>) => {
     const next = Number(event.target.value);
     if (!Number.isFinite(next)) return;
@@ -38,40 +35,17 @@ export function TransportBar(props: TransportBarProps) {
     props.onGridChange(Number(event.target.value));
   };
 
-  const closeProjectsPopover = useCallback(() => {
-    setProjectsOpen(false);
-  }, []);
-
-  useDismissiblePopover({
-    active: projectsOpen,
-    popoverSelector: ".projects-popover, .projects-popover-shell",
-    onDismiss: closeProjectsPopover
-  });
-
   return (
     <div className="transport">
       <div className="transport-left">
-        <div className="projects-popover-shell">
-          <button
-            type="button"
-            aria-expanded={projectsOpen}
-            aria-haspopup="dialog"
-            onClick={() => setProjectsOpen((current) => !current)}
-          >
-            Projects
-          </button>
-          {projectsOpen && (
-            <ProjectsPopover
-              importInputRef={props.importInputRef}
-              onExportJson={props.onExportJson}
-              onImportJson={props.onImportJson}
-              onClearProject={props.onClearProject}
-              onResetToDefaultProject={props.onResetToDefaultProject}
-              onImportFile={props.onImportFile}
-              onClose={closeProjectsPopover}
-            />
-          )}
-        </div>
+        <ProjectsMenu
+          importInputRef={props.importInputRef}
+          onExportJson={props.onExportJson}
+          onImportJson={props.onImportJson}
+          onClearProject={props.onClearProject}
+          onResetToDefaultProject={props.onResetToDefaultProject}
+          onImportFile={props.onImportFile}
+        />
 
         <span className="playhead">Beat {formatBeatName(props.playheadBeat, props.gridBeats)}</span>
       </div>
