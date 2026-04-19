@@ -596,39 +596,89 @@ impl RuntimeNode {
         }
     }
 
-    /// Processes one sample for the current node and writes the result into its output signal slot.
+    /// Processes one contiguous frame range for the current node.
     /// Params:
-    /// - `signals`: mutable signal array holding host inputs plus upstream node outputs.
+    /// - `signal_buffers`: signal-major block buffer holding host inputs plus upstream node outputs.
+    /// - `block_size`: number of frames in each signal buffer.
+    /// - `start_frame`: inclusive frame index to process.
+    /// - `end_frame`: exclusive frame index to process.
     /// - `host`: resolved indices for host-driven pitch, gate, velocity, and mod-wheel signals.
     /// - `sample_rate`: global sample rate for time-based calculations.
     /// - `rng_state`: mutable RNG seed shared by stochastic nodes on the current voice.
-    pub(crate) fn process_sample(&mut self, signals: &mut [f32], host: &HostSignalIndices, sample_rate: f32, rng_state: &mut u32) {
+    pub(crate) fn process_frame_range(
+        &mut self,
+        signal_buffers: &mut [f32],
+        block_size: usize,
+        start_frame: usize,
+        end_frame: usize,
+        host: &HostSignalIndices,
+        sample_rate: f32,
+        rng_state: &mut u32
+    ) {
+        for frame in start_frame..end_frame {
+            self.process_frame(signal_buffers, block_size, frame, host, sample_rate, rng_state);
+        }
+    }
+
+    /// Processes one sample frame for the current node and writes the result into its output signal slot.
+    /// Params:
+    /// - `signal_buffers`: signal-major block buffer holding host inputs plus upstream node outputs.
+    /// - `block_size`: number of frames in each signal buffer.
+    /// - `frame`: frame index inside the current block.
+    /// - `host`: resolved indices for host-driven pitch, gate, velocity, and mod-wheel signals.
+    /// - `sample_rate`: global sample rate for time-based calculations.
+    /// - `rng_state`: mutable RNG seed shared by stochastic nodes on the current voice.
+    fn process_frame(
+        &mut self,
+        signal_buffers: &mut [f32],
+        block_size: usize,
+        frame: usize,
+        host: &HostSignalIndices,
+        sample_rate: f32,
+        rng_state: &mut u32
+    ) {
         match self {
             Self::CVTranspose(node) => {
-                let input = read_input(signals, node.input, 0.0);
-                signals[node.out_index] = input + node.octaves.next() + node.semitones.next() / 12.0 + node.cents.next() / 1200.0;
+                let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
+                let out = frame_signal_offset(node.out_index, block_size, frame);
+                signal_buffers[out] = input + node.octaves.next() + node.semitones.next() / 12.0 + node.cents.next() / 1200.0;
             }
             Self::CVScaler(node) => {
-                signals[node.out_index] = read_input(signals, node.input, 0.0) * node.scale.next();
+                let out = frame_signal_offset(node.out_index, block_size, frame);
+                signal_buffers[out] = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0) * node.scale.next();
             }
             Self::CVMixer2(node) => {
-                signals[node.out_index] = read_input(signals, node.in1, 0.0) * node.gain1.next()
-                    + read_input(signals, node.in2, 0.0) * node.gain2.next();
+                let out = frame_signal_offset(node.out_index, block_size, frame);
+                signal_buffers[out] = read_input_frame(signal_buffers, block_size, frame, node.in1, 0.0) * node.gain1.next()
+                    + read_input_frame(signal_buffers, block_size, frame, node.in2, 0.0) * node.gain2.next();
             }
             Self::VCO(node) => {
-                let pitch = if node.pitch >= 0 { read_input(signals, node.pitch, 0.0) } else { signals[host.pitch] };
-                let fm = read_input(signals, node.fm, 0.0);
-                let pwm = read_input(signals, node.pwm, 0.0);
+                let pitch = if node.pitch >= 0 {
+                    read_input_frame(signal_buffers, block_size, frame, node.pitch, 0.0)
+                } else {
+                    read_signal_frame(signal_buffers, block_size, frame, host.pitch, 0.0)
+                };
+                let fm = read_input_frame(signal_buffers, block_size, frame, node.fm, 0.0);
+                let pwm = read_input_frame(signal_buffers, block_size, frame, node.pwm, 0.0);
                 let pulse_width = clamp(node.pulse_width.next() + node.pwm_amount.next() * pwm, 0.05, 0.95);
                 let tune_voct = (node.base_tune_cents.next() + node.fine_tune_cents.next()) / 1200.0;
                 let hz = voct_to_hz(pitch + fm + tune_voct) as f64;
                 node.phase = (node.phase + hz / sample_rate as f64) % 1.0;
-                signals[node.out_index] = waveform_sample(node.wave, node.phase as f32, pulse_width);
+                let out = frame_signal_offset(node.out_index, block_size, frame);
+                signal_buffers[out] = waveform_sample(node.wave, node.phase as f32, pulse_width);
             }
             Self::KarplusStrong(node) => {
-                let pitch = if node.pitch >= 0 { read_input(signals, node.pitch, 0.0) } else { signals[host.pitch] };
-                let gate = if node.gate >= 0 { read_input(signals, node.gate, 0.0) } else { signals[host.gate] };
-                let excite = read_input(signals, node.excite, 0.0);
+                let pitch = if node.pitch >= 0 {
+                    read_input_frame(signal_buffers, block_size, frame, node.pitch, 0.0)
+                } else {
+                    read_signal_frame(signal_buffers, block_size, frame, host.pitch, 0.0)
+                };
+                let gate = if node.gate >= 0 {
+                    read_input_frame(signal_buffers, block_size, frame, node.gate, 0.0)
+                } else {
+                    read_signal_frame(signal_buffers, block_size, frame, host.gate, 0.0)
+                };
+                let excite = read_input_frame(signal_buffers, block_size, frame, node.excite, 0.0);
                 let hz = clamp(voct_to_hz(pitch), 20.0, sample_rate * 0.45);
                 let delay_samples = clamp((sample_rate / hz).floor(), 2.0, (node.buf.len() - 1) as f32) as usize;
                 if gate >= 0.5 && node.last_gate < 0.5 {
@@ -654,10 +704,11 @@ impl RuntimeNode {
                 node.buf[node.write] = filtered * decay;
                 node.write = (node.write + 1) % node.buf.len();
                 node.last_gate = gate;
-                signals[node.out_index] = delayed;
+                let out = frame_signal_offset(node.out_index, block_size, frame);
+                signal_buffers[out] = delayed;
             }
             Self::LFO(node) => {
-                let fm = read_input(signals, node.fm, 0.0);
+                let fm = read_input_frame(signal_buffers, block_size, frame, node.fm, 0.0);
                 let freq = clamp(node.freq_hz.next() * 2.0_f32.powf(fm), 0.01, 40.0) as f64;
                 let pulse_width = node.pulse_width.next();
                 node.phase = (node.phase + freq / sample_rate as f64) % 1.0;
@@ -665,10 +716,15 @@ impl RuntimeNode {
                 if !node.bipolar {
                     sample = sample * 0.5 + 0.5;
                 }
-                signals[node.out_index] = sample;
+                let out = frame_signal_offset(node.out_index, block_size, frame);
+                signal_buffers[out] = sample;
             }
             Self::ADSR(node) => {
-                let gate = if node.gate >= 0 { read_input(signals, node.gate, 0.0) } else { signals[host.gate] };
+                let gate = if node.gate >= 0 {
+                    read_input_frame(signal_buffers, block_size, frame, node.gate, 0.0)
+                } else {
+                    read_signal_frame(signal_buffers, block_size, frame, host.gate, 0.0)
+                };
                 let attack = node.attack.next().max(0.0001);
                 let decay = node.decay.next().max(0.0001);
                 let sustain = clamp(node.sustain.next(), 0.0, 1.0);
@@ -698,31 +754,35 @@ impl RuntimeNode {
                     EnvelopeStage::Idle => {}
                 }
                 node.last_gate = gate;
-                signals[node.out_index] = clamp(node.level, 0.0, 1.0);
+                let out = frame_signal_offset(node.out_index, block_size, frame);
+                signal_buffers[out] = clamp(node.level, 0.0, 1.0);
             }
             Self::VCA(node) => {
-                let input = read_input(signals, node.input, 0.0);
-                let gain_cv = read_input(signals, node.gain_cv, 0.0);
+                let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
+                let gain_cv = read_input_frame(signal_buffers, block_size, frame, node.gain_cv, 0.0);
                 let gain_cv_norm = if (0.0..=1.0).contains(&gain_cv) { gain_cv } else { gain_cv * 0.5 + 0.5 };
                 let gain_eff = clamp(node.bias.next() + node.gain.next() * gain_cv_norm, 0.0, 1.0);
-                signals[node.out_index] = input * gain_eff;
+                let out = frame_signal_offset(node.out_index, block_size, frame);
+                signal_buffers[out] = input * gain_eff;
             }
             Self::VCF(node) => {
-                let input = read_input(signals, node.input, 0.0);
-                let cutoff_cv = read_input(signals, node.cutoff_cv, 0.0);
+                let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
+                let cutoff_cv = read_input_frame(signal_buffers, block_size, frame, node.cutoff_cv, 0.0);
                 let cutoff_effective = clamp(node.cutoff_hz.next() * 2.0_f32.powf(cutoff_cv * node.cutoff_mod_amount_oct.next()), 20.0, 20000.0);
                 let resonance = clamp(node.resonance.next(), 0.0, 1.0);
                 let f = clamp((2.0 * std::f32::consts::PI * cutoff_effective) / sample_rate, 0.001, 0.99);
                 let hp = input - node.lp - resonance * node.bp;
                 node.bp += f * hp;
                 node.lp += f * node.bp;
-                signals[node.out_index] = match node.filter_type { FilterType::Lowpass => node.lp, FilterType::Highpass => hp, FilterType::Bandpass => node.bp };
+                let out = frame_signal_offset(node.out_index, block_size, frame);
+                signal_buffers[out] = match node.filter_type { FilterType::Lowpass => node.lp, FilterType::Highpass => hp, FilterType::Bandpass => node.bp };
             }
             Self::Mixer4(node) => {
-                signals[node.out_index] = read_input(signals, node.in1, 0.0) * node.gain1.next()
-                    + read_input(signals, node.in2, 0.0) * node.gain2.next()
-                    + read_input(signals, node.in3, 0.0) * node.gain3.next()
-                    + read_input(signals, node.in4, 0.0) * node.gain4.next();
+                let out = frame_signal_offset(node.out_index, block_size, frame);
+                signal_buffers[out] = read_input_frame(signal_buffers, block_size, frame, node.in1, 0.0) * node.gain1.next()
+                    + read_input_frame(signal_buffers, block_size, frame, node.in2, 0.0) * node.gain2.next()
+                    + read_input_frame(signal_buffers, block_size, frame, node.in3, 0.0) * node.gain3.next()
+                    + read_input_frame(signal_buffers, block_size, frame, node.in4, 0.0) * node.gain4.next();
             }
             Self::Noise(node) => {
                 let white = next_noise(rng_state);
@@ -731,26 +791,36 @@ impl RuntimeNode {
                     NoiseColor::Pink => { node.pink = 0.98 * node.pink + 0.02 * white; node.pink }
                     NoiseColor::Brown => { node.brown = clamp(node.brown + white * 0.02, -1.0, 1.0); node.brown }
                 };
-                signals[node.out_index] = sample * node.gain.next();
+                let out = frame_signal_offset(node.out_index, block_size, frame);
+                signal_buffers[out] = sample * node.gain.next();
             }
             Self::SamplePlayer(node) => {
-                let gate = if node.gate >= 0 { read_input(signals, node.gate, 0.0) } else { signals[host.gate] };
-                let pitch = if node.pitch >= 0 { read_input(signals, node.pitch, 0.0) } else { signals[host.pitch] };
-                let Some(asset) = &node.asset else { signals[node.out_index] = 0.0; return; };
-                if asset.samples.is_empty() { signals[node.out_index] = 0.0; return; }
+                let gate = if node.gate >= 0 {
+                    read_input_frame(signal_buffers, block_size, frame, node.gate, 0.0)
+                } else {
+                    read_signal_frame(signal_buffers, block_size, frame, host.gate, 0.0)
+                };
+                let pitch = if node.pitch >= 0 {
+                    read_input_frame(signal_buffers, block_size, frame, node.pitch, 0.0)
+                } else {
+                    read_signal_frame(signal_buffers, block_size, frame, host.pitch, 0.0)
+                };
+                let out = frame_signal_offset(node.out_index, block_size, frame);
+                let Some(asset) = &node.asset else { signal_buffers[out] = 0.0; return; };
+                if asset.samples.is_empty() { signal_buffers[out] = 0.0; return; }
                 let start_sample = clamp((node.start_ratio * asset.samples.len() as f32).floor(), 0.0, (asset.samples.len() - 1) as f32) as usize;
                 let end_sample = clamp((node.end_ratio * asset.samples.len() as f32).ceil(), (start_sample + 1) as f32, asset.samples.len() as f32) as usize;
                 let rising_edge = gate >= 0.5 && node.last_gate < 0.5;
                 if rising_edge { node.position = start_sample as f32; node.active = true; }
                 node.last_gate = gate;
                 if matches!(node.mode, SamplePlayerMode::Loop) && gate < 0.5 { node.active = false; }
-                if !node.active { signals[node.out_index] = 0.0; return; }
+                if !node.active { signal_buffers[out] = 0.0; return; }
                 if node.position >= end_sample as f32 {
                     if matches!(node.mode, SamplePlayerMode::Loop) && gate >= 0.5 {
                         node.position = start_sample as f32 + (node.position - start_sample as f32) % ((end_sample - start_sample).max(1) as f32);
                     } else {
                         node.active = false;
-                        signals[node.out_index] = 0.0;
+                        signal_buffers[out] = 0.0;
                         return;
                     }
                 }
@@ -760,12 +830,12 @@ impl RuntimeNode {
                 let frac = sample_index - base_index as f32;
                 let current_sample = *asset.samples.get(base_index).unwrap_or(&0.0);
                 let next_sample = *asset.samples.get(next_index).unwrap_or(&current_sample);
-                signals[node.out_index] = (current_sample + (next_sample - current_sample) * frac) * node.gain.next();
+                signal_buffers[out] = (current_sample + (next_sample - current_sample) * frac) * node.gain.next();
                 let pitch_factor = 2.0_f32.powf(pitch + node.pitch_semis.next() / 12.0);
                 node.position += pitch_factor * asset.sample_rate / sample_rate;
             }
             Self::Delay(node) => {
-                let input = read_input(signals, node.input, 0.0);
+                let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
                 let delay_samples = clamp(((node.time_ms.next() / 1000.0) * sample_rate).floor(), 1.0, (node.buf.len() - 1) as f32) as usize;
                 let read_idx = (node.write + node.buf.len() - delay_samples) % node.buf.len();
                 let delayed = node.buf[read_idx];
@@ -773,10 +843,11 @@ impl RuntimeNode {
                 let mix = clamp(node.mix.next(), 0.0, 1.0);
                 node.buf[node.write] = input + delayed * feedback;
                 node.write = (node.write + 1) % node.buf.len();
-                signals[node.out_index] = input * (1.0 - mix) + delayed * mix;
+                let out = frame_signal_offset(node.out_index, block_size, frame);
+                signal_buffers[out] = input * (1.0 - mix) + delayed * mix;
             }
             Self::Reverb(node) => {
-                let input = read_input(signals, node.input, 0.0);
+                let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
                 let size = node.size.next();
                 let decay = node.decay.next();
                 let damping = node.damping.next();
@@ -788,20 +859,22 @@ impl RuntimeNode {
                 node.c2[node.i2] = input + (c2 * fb - c2 * damping * 0.05);
                 node.i1 = (node.i1 + 1) % node.c1.len();
                 node.i2 = (node.i2 + 1) % node.c2.len();
-                signals[node.out_index] = input * (1.0 - mix) + ((c1 + c2) * 0.5) * mix;
+                let out = frame_signal_offset(node.out_index, block_size, frame);
+                signal_buffers[out] = input * (1.0 - mix) + ((c1 + c2) * 0.5) * mix;
             }
             Self::Saturation(node) => {
-                let input = read_input(signals, node.input, 0.0);
+                let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
                 let driven = input * db_to_gain(node.drive_db.next());
                 let wet = match node.mode {
                     SaturationType::Tanh => driven.tanh(),
                     SaturationType::Softclip => crate::softclip_sample(driven, 1.0),
                 };
                 let mix = clamp(node.mix.next(), 0.0, 1.0);
-                signals[node.out_index] = input * (1.0 - mix) + wet * mix;
+                let out = frame_signal_offset(node.out_index, block_size, frame);
+                signal_buffers[out] = input * (1.0 - mix) + wet * mix;
             }
             Self::Overdrive(node) => {
-                let input = read_input(signals, node.input, 0.0);
+                let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
                 let mut driven = input * db_to_gain(node.gain_db.next());
                 driven = match node.mode {
                     OverdriveMode::Fuzz => clamp(driven, -1.0, 1.0).signum() * clamp(driven, -1.0, 1.0).abs().sqrt(),
@@ -810,10 +883,11 @@ impl RuntimeNode {
                 let tone_alpha = clamp(0.01 + node.tone.next() * 0.2, 0.01, 0.3);
                 node.tone_lp = node.tone_lp + (driven - node.tone_lp) * tone_alpha;
                 let mix = clamp(node.mix.next(), 0.0, 1.0);
-                signals[node.out_index] = input * (1.0 - mix) + node.tone_lp * mix;
+                let out = frame_signal_offset(node.out_index, block_size, frame);
+                signal_buffers[out] = input * (1.0 - mix) + node.tone_lp * mix;
             }
             Self::Compressor(node) => {
-                let input = read_input(signals, node.input, 0.0);
+                let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
                 let abs_in = input.abs();
                 let att = crate::smoothing_alpha(node.attack_ms.next().max(0.1), sample_rate);
                 let rel = crate::smoothing_alpha(node.release_ms.next().max(1.0), sample_rate);
@@ -825,20 +899,32 @@ impl RuntimeNode {
                 let reduced_db = over - over / ratio.max(1.0);
                 let wet = input * db_to_gain(node.makeup_db.next() - reduced_db);
                 let mix = clamp(node.mix.next(), 0.0, 1.0);
-                signals[node.out_index] = input * (1.0 - mix) + wet * mix;
+                let out = frame_signal_offset(node.out_index, block_size, frame);
+                signal_buffers[out] = input * (1.0 - mix) + wet * mix;
             }
             Self::Output(node) => {
-                let mut sample = read_input(signals, node.input, 0.0) * db_to_gain(node.gain_db.next());
+                let mut sample = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0) * db_to_gain(node.gain_db.next());
                 if node.limiter { sample = sample.tanh(); }
-                signals[node.out_index] = sample;
+                let out = frame_signal_offset(node.out_index, block_size, frame);
+                signal_buffers[out] = sample;
             }
         }
     }
 }
 
-fn read_input(signals: &[f32], index: i32, fallback: f32) -> f32 {
+fn frame_signal_offset(signal_index: usize, block_size: usize, frame: usize) -> usize {
+    signal_index * block_size + frame
+}
+
+fn read_signal_frame(signal_buffers: &[f32], block_size: usize, frame: usize, signal_index: usize, fallback: f32) -> f32 {
+    *signal_buffers.get(frame_signal_offset(signal_index, block_size, frame)).unwrap_or(&fallback)
+}
+
+fn read_input_frame(signal_buffers: &[f32], block_size: usize, frame: usize, index: i32, fallback: f32) -> f32 {
     if index >= 0 {
-        *signals.get(index as usize).unwrap_or(&fallback)
+        *signal_buffers
+            .get(frame_signal_offset(index as usize, block_size, frame))
+            .unwrap_or(&fallback)
     } else {
         fallback
     }
