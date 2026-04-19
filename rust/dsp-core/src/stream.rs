@@ -73,14 +73,12 @@ impl VoiceRuntime {
     /// - `random_seed`: per-trigger RNG seed so repeated notes stay deterministic.
     fn reset_for_note_on(
         &mut self,
-        node_templates: &[RuntimeNode],
         note_id: String,
         pitch_voct: f32,
         velocity: f32,
         sample_time: u32,
         random_seed: u32,
     ) {
-        self.nodes = node_templates.to_vec();
         for node in self.nodes.iter_mut() {
             node.reset_dynamic_state();
         }
@@ -247,7 +245,6 @@ impl TrackRuntime {
             .wrapping_add((voice_index as u32).wrapping_mul(0x45d9_f3b));
         self.note_trigger_count = self.note_trigger_count.wrapping_add(1);
         self.voices[voice_index].reset_for_note_on(
-            &self.node_templates,
             note_id,
             pitch_voct,
             velocity,
@@ -376,7 +373,7 @@ impl TrackRuntime {
         profiling_enabled: bool,
         capture_sample_index: Option<usize>,
     ) -> f32 {
-        let host_indices = self.host_signal_indices.clone();
+        let host_indices = &self.host_signal_indices;
         let mut mixed = 0.0;
 
         for voice in self.voices.iter_mut() {
@@ -384,22 +381,22 @@ impl TrackRuntime {
                 continue;
             }
 
-            voice.signal_values[self.host_signal_indices.pitch] = voice.host_pitch_voct;
-            voice.signal_values[self.host_signal_indices.gate] = voice.host_gate;
-            voice.signal_values[self.host_signal_indices.velocity] = voice.host_velocity;
-            voice.signal_values[self.host_signal_indices.mod_wheel] = voice.host_modwheel;
+            voice.signal_values[host_indices.pitch] = voice.host_pitch_voct;
+            voice.signal_values[host_indices.gate] = voice.host_gate;
+            voice.signal_values[host_indices.velocity] = voice.host_velocity;
+            voice.signal_values[host_indices.mod_wheel] = voice.host_modwheel;
 
             let mut rng_state = voice.rng_state;
             for node in voice.nodes.iter_mut() {
                 if profiling_enabled {
                     let started = now_ms();
-                    node.process_sample(&mut voice.signal_values, &host_indices, sample_rate, &mut rng_state);
+                    node.process_sample(&mut voice.signal_values, host_indices, sample_rate, &mut rng_state);
                     let elapsed = now_ms() - started;
                     profile.node_process_ms += elapsed;
                     profile.node_samples_processed = profile.node_samples_processed.saturating_add(1);
                     node.add_profile_time(profile, elapsed);
                 } else {
-                    node.process_sample(&mut voice.signal_values, &host_indices, sample_rate, &mut rng_state);
+                    node.process_sample(&mut voice.signal_values, host_indices, sample_rate, &mut rng_state);
                 }
             }
             voice.rng_state = rng_state;

@@ -65,8 +65,10 @@ impl WasmSubsetEngine {
 
         self.sample_rate = project.sample_rate as f32;
         self.block_size = project.block_size.max(1);
-        self.left = vec![0.0; self.block_size];
-        self.right = vec![0.0; self.block_size];
+        self.left.resize(self.block_size, 0.0);
+        self.right.resize(self.block_size, 0.0);
+        self.left.fill(0.0);
+        self.right.fill(0.0);
         self.tracks = project
             .tracks
             .into_iter()
@@ -243,11 +245,11 @@ impl WasmSubsetEngine {
 impl WasmSubsetEngine {
     fn consume_due_events(&mut self) {
         while self.event_cursor < self.event_queue.len() {
-            let event = &self.event_queue[self.event_cursor];
-            if event.sample_time() > self.song_sample_counter {
+            if self.event_queue[self.event_cursor].sample_time() > self.song_sample_counter {
                 break;
             }
-            self.apply_event(event.clone());
+            let event = self.event_queue[self.event_cursor].clone();
+            self.apply_event(event);
             self.event_cursor += 1;
         }
     }
