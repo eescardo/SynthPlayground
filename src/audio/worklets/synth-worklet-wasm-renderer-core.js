@@ -35,8 +35,6 @@ export class SharedWasmRenderStream {
     this.stopped = false;
     this.implementation = implementation;
     this.engine = implementation.createEngine(renderer, this.project, this.projectSpec, options);
-    this.mirrorStream = implementation.createPreviewMirror?.(renderer, { ...options, project: this.project }) ?? null;
-    this.previewScratch = null;
 
     const compiledEvents = implementation.compileEvents(this.project, this.projectSpec, this.eventQueue);
     this.engine.start_stream(
@@ -46,22 +44,6 @@ export class SharedWasmRenderStream {
       this.transportSessionId,
       resolveRandomSeed(options.randomSeed)
     );
-  }
-
-  processMirrorBlock(frameCount) {
-    if (!this.mirrorStream) {
-      return;
-    }
-    if (!this.previewScratch || this.previewScratch.left.length !== frameCount) {
-      this.previewScratch = {
-        left: new Float32Array(frameCount),
-        right: new Float32Array(frameCount)
-      };
-    } else {
-      this.previewScratch.left.fill(0);
-      this.previewScratch.right.fill(0);
-    }
-    this.mirrorStream.processBlock([this.previewScratch.left, this.previewScratch.right]);
   }
 
   processBlock(output) {
@@ -87,17 +69,9 @@ export class SharedWasmRenderStream {
     this.songSampleCounter += leftOut.length;
 
     if (this.previewing) {
-      this.processMirrorBlock(leftOut.length);
       this.previewRemainingSamples -= leftOut.length;
       if (this.previewRemainingSamples <= 0) {
         this.stop();
-        if (this.captureProbes.length > 0 && !this.mirrorStream) {
-          this.port.postMessage({
-            type: "PREVIEW_CAPTURE",
-            previewId: this.previewId,
-            captures: []
-          });
-        }
       }
     }
 
@@ -133,7 +107,6 @@ export class SharedWasmRenderStream {
     this.stopped = true;
     this.engine.stop();
     this.eventQueue.length = 0;
-    this.mirrorStream?.stop();
   }
 }
 

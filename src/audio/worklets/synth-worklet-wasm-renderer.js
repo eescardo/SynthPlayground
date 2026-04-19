@@ -1,18 +1,10 @@
 import { initSync, WasmSubsetEngine } from "./synth-worklet-dsp-bindgen.js";
-import { JsSynthRenderStream } from "./synth-worklet-runtime.js";
 import {
   SharedWasmRenderStream,
   SharedWasmRenderer,
   defaultCompileEvents,
   defaultCompileProject
 } from "./synth-worklet-wasm-renderer-core.js";
-
-const createPreviewCaptureMirror = (renderer, options) => {
-  if (options.mode !== "preview" || !Array.isArray(options.captureProbes) || options.captureProbes.length === 0) {
-    return null;
-  }
-  return new JsSynthRenderStream(renderer, options);
-};
 
 class WasmWorkletRenderStream extends SharedWasmRenderStream {}
 
@@ -37,8 +29,7 @@ export class WasmWorkletRenderer extends SharedWasmRenderer {
         engine.set_profiling_enabled(false);
         return engine;
       },
-      getMemory: (renderer) => renderer.memory,
-      createPreviewMirror: createPreviewCaptureMirror
+      getMemory: (renderer) => renderer.memory
     };
     super(options, implementation);
     if (typeof this.wasmBytes === "undefined") {
