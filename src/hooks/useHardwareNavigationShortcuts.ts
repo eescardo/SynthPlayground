@@ -10,7 +10,7 @@ import {
 } from "@/lib/hardwareNavigation";
 import { createId } from "@/lib/ids";
 import { DEFAULT_NOTE_VELOCITY } from "@/lib/noteDefaults";
-import { snapToGrid, snapUpToGrid } from "@/lib/musicTiming";
+import { beatToSample, snapToGrid, snapUpToGrid } from "@/lib/musicTiming";
 import { pitchToVoct, transposePitch } from "@/lib/pitch";
 import { Project, Track } from "@/types/music";
 
@@ -22,7 +22,6 @@ interface ActiveKeyboardPlacement {
   startBeat: number;
   durationBeats: number;
   startedAtMs: number;
-  previewStepsPlayed: number;
 }
 
 interface GhostPreviewNote {
@@ -30,6 +29,7 @@ interface GhostPreviewNote {
   startBeat: number;
   durationBeats: number;
   pitchStr: string;
+  anchorPlayheadBeat: number;
 }
 
 interface UseHardwareNavigationShortcutsArgs {
@@ -58,6 +58,8 @@ interface UseHardwareNavigationShortcutsArgs {
 }
 
 const GHOST_PREVIEW_DELAY_MS = 2000;
+const HELD_PLACEMENT_PREVIEW_GRID_SPAN = 128;
+const HELD_PLACEMENT_PREVIEW_RELEASE_TAIL_GRIDS = 8;
 
 const isTextEditingTarget = (target: EventTarget | null) => {
   const element = target as HTMLElement | null;
@@ -99,6 +101,8 @@ export function useHardwareNavigationShortcuts({
   const [activePlacement, setActivePlacement] = useState<ActiveKeyboardPlacement | null>(null);
   const [ghostPreviewNote, setGhostPreviewNote] = useState<GhostPreviewNote | null>(null);
   const placementRafRef = useRef<number | null>(null);
+  const pendingPreviewStartIdsRef = useRef<Set<string>>(new Set());
+  const pendingPreviewReleasesRef = useRef<Map<string, { trackId: string; durationBeats: number }>>(new Map());
 
   const setPlacedNote = useCallback((
     trackId: string,
@@ -132,11 +136,54 @@ export function useHardwareNavigationShortcuts({
     );
   }, [commitProjectChange]);
 
-  const previewPlacementStep = useCallback((trackId: string) => {
-    audioEngineRef.current
-      ?.previewNote(trackId, pitchToVoct(defaultPitch), projectGridBeats, DEFAULT_NOTE_VELOCITY)
-      .catch((error) => setRuntimeError((error as Error).message));
-  }, [audioEngineRef, defaultPitch, projectGridBeats, setRuntimeError]);
+  const dispatchPlacementPreviewRelease = useCallback((trackId: string, noteId: string, durationBeats: number) => {
+    const sampleRate = audioEngineRef.current?.getSampleRate() ?? 48_000;
+    const noteOffSampleTime = Math.max(1, beatToSample(durationBeats, sampleRate, projectTempo));
+    audioEngineRef.current?.sendParamChanges([
+      {
+        id: `${noteId}_preview_off_${noteOffSampleTime}`,
+        type: "NoteOff",
+        source: "preview",
+        sampleTime: noteOffSampleTime,
+        trackId,
+        noteId
+      }
+    ]);
+  }, [audioEngineRef, projectTempo]);
+
+  const startPlacementPreview = useCallback((trackId: string, noteId: string, pitchStr: string, startBeat: number) => {
+    const previewDurationBeats = Math.max(
+      projectGridBeats,
+      projectGridBeats * HELD_PLACEMENT_PREVIEW_GRID_SPAN,
+      playbackEndBeat - startBeat + projectGridBeats * HELD_PLACEMENT_PREVIEW_RELEASE_TAIL_GRIDS
+    );
+    pendingPreviewStartIdsRef.current.add(noteId);
+    const previewPromise = audioEngineRef.current
+      ?.previewNote(trackId, pitchToVoct(pitchStr), previewDurationBeats, DEFAULT_NOTE_VELOCITY, {
+        previewId: noteId
+      })
+      ?? Promise.resolve();
+
+    previewPromise
+      .catch((error) => setRuntimeError((error as Error).message))
+      .finally(() => {
+        pendingPreviewStartIdsRef.current.delete(noteId);
+        const pendingRelease = pendingPreviewReleasesRef.current.get(noteId);
+        if (!pendingRelease) {
+          return;
+        }
+        pendingPreviewReleasesRef.current.delete(noteId);
+        dispatchPlacementPreviewRelease(pendingRelease.trackId, noteId, pendingRelease.durationBeats);
+      });
+  }, [audioEngineRef, dispatchPlacementPreviewRelease, playbackEndBeat, projectGridBeats, setRuntimeError]);
+
+  const releasePlacementPreview = useCallback((trackId: string, noteId: string, durationBeats: number) => {
+    if (pendingPreviewStartIdsRef.current.has(noteId)) {
+      pendingPreviewReleasesRef.current.set(noteId, { trackId, durationBeats });
+      return;
+    }
+    dispatchPlacementPreviewRelease(trackId, noteId, durationBeats);
+  }, [dispatchPlacementPreviewRelease]);
 
   useEffect(() => {
     if (!activePlacement) {
@@ -151,20 +198,15 @@ export function useHardwareNavigationShortcuts({
       const elapsedBeats = ((performance.now() - activePlacement.startedAtMs) / 1000) * (projectTempo / 60);
       const durationBeats = Math.max(projectGridBeats, snapUpToGrid(elapsedBeats, projectGridBeats));
       if (durationBeats !== activePlacement.durationBeats) {
-        const previewStepsPlayed = Math.max(1, Math.round(durationBeats / projectGridBeats));
         setPlacedNote(activePlacement.trackId, activePlacement.noteId, activePlacement.startBeat, durationBeats, defaultPitch);
         setActivePlacement((current) =>
           current
             ? {
                 ...current,
-                durationBeats,
-                previewStepsPlayed
+                durationBeats
               }
             : current
         );
-        if (previewStepsPlayed > activePlacement.previewStepsPlayed) {
-          previewPlacementStep(activePlacement.trackId);
-        }
       }
       placementRafRef.current = requestAnimationFrame(step);
     };
@@ -176,7 +218,7 @@ export function useHardwareNavigationShortcuts({
         placementRafRef.current = null;
       }
     };
-  }, [activePlacement, defaultPitch, previewPlacementStep, projectGridBeats, projectTempo, setPlacedNote]);
+  }, [activePlacement, defaultPitch, projectGridBeats, projectTempo, setPlacedNote]);
 
   useEffect(() => {
     if (
@@ -198,13 +240,44 @@ export function useHardwareNavigationShortcuts({
       return;
     }
 
+    const nextGhostPreviewNote: GhostPreviewNote = {
+      trackId: selectedTrack.id,
+      startBeat: snappedPlayheadBeat,
+      durationBeats: projectGridBeats,
+      pitchStr: defaultPitch,
+      anchorPlayheadBeat: playheadBeat
+    };
+
+    setGhostPreviewNote((current) => {
+      if (!current) {
+        return current;
+      }
+      const sameAnchor =
+        current.trackId === nextGhostPreviewNote.trackId &&
+        current.startBeat === nextGhostPreviewNote.startBeat &&
+        current.anchorPlayheadBeat === nextGhostPreviewNote.anchorPlayheadBeat;
+      if (!sameAnchor) {
+        return null;
+      }
+      if (
+        current.durationBeats !== nextGhostPreviewNote.durationBeats ||
+        current.pitchStr !== nextGhostPreviewNote.pitchStr
+      ) {
+        return nextGhostPreviewNote;
+      }
+      return current;
+    });
+
+    const ghostAlreadyVisible =
+      ghostPreviewNote?.trackId === nextGhostPreviewNote.trackId &&
+      ghostPreviewNote.startBeat === nextGhostPreviewNote.startBeat &&
+      ghostPreviewNote.anchorPlayheadBeat === nextGhostPreviewNote.anchorPlayheadBeat;
+    if (ghostAlreadyVisible) {
+      return;
+    }
+
     const timer = window.setTimeout(() => {
-      setGhostPreviewNote({
-        trackId: selectedTrack.id,
-        startBeat: snappedPlayheadBeat,
-        durationBeats: projectGridBeats,
-        pitchStr: defaultPitch
-      });
+      setGhostPreviewNote(nextGhostPreviewNote);
     }, GHOST_PREVIEW_DELAY_MS);
 
     return () => {
@@ -213,6 +286,7 @@ export function useHardwareNavigationShortcuts({
   }, [
     activePlacement,
     defaultPitch,
+    ghostPreviewNote,
     isPlaying,
     pitchPickerOpen,
     playheadBeat,
@@ -232,6 +306,10 @@ export function useHardwareNavigationShortcuts({
 
   useEffect(() => {
     const finishPlacement = () => {
+      if (activePlacement) {
+        releasePlacementPreview(activePlacement.trackId, activePlacement.noteId, activePlacement.durationBeats);
+        setPlayheadBeatFromUser(snapToGrid(activePlacement.startBeat + activePlacement.durationBeats, projectGridBeats));
+      }
       setActivePlacement(null);
     };
 
@@ -242,15 +320,14 @@ export function useHardwareNavigationShortcuts({
       const startBeat = Math.max(0, snapToGrid(playheadBeat, projectGridBeats));
       const noteId = createId("note");
       setPlacedNote(selectedTrack.id, noteId, startBeat, projectGridBeats, defaultPitch);
-      previewPlacementStep(selectedTrack.id);
+      startPlacementPreview(selectedTrack.id, noteId, defaultPitch, startBeat);
       setGhostPreviewNote(null);
       setActivePlacement({
         noteId,
         trackId: selectedTrack.id,
         startBeat,
         durationBeats: projectGridBeats,
-        startedAtMs: performance.now(),
-        previewStepsPlayed: 1
+        startedAtMs: performance.now()
       });
     };
 
@@ -409,7 +486,8 @@ export function useHardwareNavigationShortcuts({
     setPlayheadBeatFromUser,
     setSelectedTrackId,
     setPlacedNote,
-    previewPlacementStep,
+    releasePlacementPreview,
+    startPlacementPreview,
     toggleTrackMacroPanel,
     view
   ]);

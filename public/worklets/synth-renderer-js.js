@@ -945,6 +945,10 @@ export class JsSynthRenderStream {
     return Infinity;
   }
 
+  hasActiveVoices() {
+    return this.trackRuntimes.some((track) => track.voices.some((voice) => voice.active));
+  }
+
   renderFrameRange(left, right, startFrame, endFrame) {
     this.masterBuffer.fill(0, startFrame, endFrame);
     const captureOffset = this.songSampleCounter;
@@ -989,6 +993,9 @@ export class JsSynthRenderStream {
     }
 
     if (previewCompleted) {
+      this.stop();
+      this.emitPreviewCapture(true);
+    } else if (this.previewing && this.eventQueue.length === 0 && !this.hasActiveVoices()) {
       this.stop();
       this.emitPreviewCapture(true);
     } else if (this.previewCapture) {
