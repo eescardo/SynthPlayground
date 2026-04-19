@@ -1010,8 +1010,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
       updatedAt: Date.now()
     };
 
-    activateProjectSnapshot(nextProject, createEmptyProjectAssetLibrary());
-  }, [activateProjectSnapshot, playback, project.createdAt, project.id, project.name]);
+    clearTransientComposerUi();
+    commitProjectChange(() => nextProject, { actionKey: "project:clear" });
+    setSelectedTrackId(nextProject.tracks[0]?.id);
+  }, [clearTransientComposerUi, commitProjectChange, playback, project.createdAt, project.id, project.name]);
 
   const resetToDefaultProject = useCallback(async () => {
     const nextProject = {
