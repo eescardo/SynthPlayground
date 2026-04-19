@@ -222,7 +222,11 @@ const compileTrackPatch = (patch, track, trackIndex) => {
     signalCount: nextSignalIndex,
     hostSignalIndices,
     outputSignalIndex: outputIndexByKey.get(`${outputNodeId}:out`) ?? -1,
-    nodes
+    nodes,
+    __probeLookup: {
+      outputIndexByKey: Object.fromEntries(outputIndexByKey.entries()),
+      inputSourceByDestKey: Object.fromEntries(inputSourceByDestKey.entries())
+    }
   };
 };
 
@@ -362,4 +366,56 @@ export const compileSchedulerEventsToWasmSubsetCore = (project, projectSpec, eve
   });
 
   return compiled;
+};
+
+export const compilePreviewProbeCaptureRequestsCore = (project, projectSpec, trackId, captureProbes, durationSamples) => {
+  if (!Array.isArray(captureProbes) || captureProbes.length === 0) {
+    return [];
+  }
+  const trackIndex = (project.tracks || []).findIndex((track) => track.id === trackId);
+  if (trackIndex < 0) {
+    return [];
+  }
+  const trackSpec = projectSpec?.tracks?.[trackIndex];
+  const lookup = trackSpec?.__probeLookup;
+  if (!lookup) {
+    return [];
+  }
+
+  const resolveSignalIndex = (target) => {
+    if (!target || typeof target !== "object") {
+      return -1;
+    }
+    if (target.kind === "connection") {
+      const patchId = project.tracks?.[trackIndex]?.instrumentPatchId;
+      const patch = project.patches?.find((entry) => entry.id === patchId);
+      const connection = patch?.connections?.find((entry) => entry.id === target.connectionId);
+      if (!connection) {
+        return -1;
+      }
+      return lookup.outputIndexByKey?.[`${connection.from.nodeId}:${connection.from.portId}`] ?? -1;
+    }
+    if (target.kind === "port") {
+      if (target.portKind === "out") {
+        return lookup.outputIndexByKey?.[`${target.nodeId}:${target.portId}`] ?? -1;
+      }
+      return lookup.inputSourceByDestKey?.[`${target.nodeId}:${target.portId}`] ?? -1;
+    }
+    return -1;
+  };
+
+  return captureProbes
+    .map((probe) => {
+      const signalIndex = resolveSignalIndex(probe.target);
+      if (signalIndex < 0) {
+        return null;
+      }
+      return {
+        probeId: probe.probeId,
+        trackIndex,
+        signalIndex,
+        durationSamples: Math.max(0, Math.floor(durationSamples || 0))
+      };
+    })
+    .filter(Boolean);
 };

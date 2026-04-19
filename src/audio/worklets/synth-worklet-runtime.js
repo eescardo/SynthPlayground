@@ -1106,9 +1106,6 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     super();
     this.renderer = createRenderer(options);
     this.currentStream = null;
-    this.previewCaptureRenderer = null;
-    this.previewCaptureStream = null;
-    this.previewCaptureScratch = null;
     this.transportSessionId = 0;
     this.port.onmessage = (event) => this.onMessage(event.data);
     this.renderer.port = this.port;
@@ -1134,81 +1131,11 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     this.currentStream = nextStream;
   }
 
-  replacePreviewCaptureStream(nextStream) {
-    if (this.previewCaptureStream && this.previewCaptureStream !== nextStream) {
-      this.previewCaptureStream.stop();
-    }
-    this.previewCaptureStream = nextStream;
-    this.previewCaptureScratch = null;
-  }
-
-  createPreviewCaptureStream(message) {
-    if (!Array.isArray(message.captureProbes) || message.captureProbes.length === 0) {
-      return null;
-    }
-    const project = message.project || this.renderer.project;
-    if (!project) {
-      return null;
-    }
-    if (!this.previewCaptureRenderer) {
-      this.previewCaptureRenderer = new JsSynthRenderer({
-        processorOptions: {
-          sampleRate: this.renderer.sampleRateInternal,
-          blockSize: this.renderer.blockSize,
-          project
-        }
-      });
-      this.previewCaptureRenderer.port = this.port;
-    } else {
-      this.previewCaptureRenderer.configure({
-        sampleRate: this.renderer.sampleRateInternal,
-        blockSize: this.renderer.blockSize,
-        project
-      });
-      this.previewCaptureRenderer.setDefaultProject(project);
-    }
-    return this.previewCaptureRenderer.startStream({
-      project,
-      songStartSample: 0,
-      events: message.events || [],
-      mode: "preview",
-      durationSamples: message.durationSamples || 0,
-      ignoreVolume: message.ignoreVolume,
-      previewId: message.previewId,
-      trackId: message.trackId,
-      captureProbes: message.captureProbes,
-      randomSeed: message.randomSeed
-    });
-  }
-
-  processPreviewCapture(frameCount) {
-    if (!this.previewCaptureStream) {
-      return;
-    }
-    if (!this.previewCaptureScratch || this.previewCaptureScratch.left.length !== frameCount) {
-      this.previewCaptureScratch = {
-        left: new Float32Array(frameCount),
-        right: new Float32Array(frameCount)
-      };
-    } else {
-      this.previewCaptureScratch.left.fill(0);
-      this.previewCaptureScratch.right.fill(0);
-    }
-    this.previewCaptureStream.processBlock([this.previewCaptureScratch.left, this.previewCaptureScratch.right]);
-    if (this.previewCaptureStream.stopped) {
-      this.previewCaptureStream = null;
-      this.previewCaptureScratch = null;
-    }
-  }
-
   onMessage(message) {
     switch (message.type) {
       case "INIT":
         try {
           this.renderer.configure(message);
-          if (this.previewCaptureRenderer) {
-            this.previewCaptureRenderer.configure(message);
-          }
           this.port.postMessage({ type: "INIT_READY" });
         } catch (error) {
           this.port.postMessage({
@@ -1219,11 +1146,9 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         break;
       case "SET_PROJECT":
         this.renderer.setDefaultProject(message.project);
-        this.previewCaptureRenderer?.setDefaultProject(message.project);
         break;
       case "TRANSPORT":
         this.transportSessionId = Number.isFinite(message.sessionId) ? message.sessionId : this.transportSessionId + 1;
-        this.replacePreviewCaptureStream(null);
         if (!message.isPlaying) {
           this.replaceCurrentStream(null);
           break;
@@ -1238,7 +1163,6 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         }));
         break;
       case "PREVIEW":
-        this.replacePreviewCaptureStream(this.createPreviewCaptureStream(message));
         this.replaceCurrentStream(this.renderer.startStream({
           project: message.project || this.renderer.project,
           songStartSample: 0,
@@ -1248,6 +1172,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
           ignoreVolume: message.ignoreVolume,
           previewId: message.previewId,
           trackId: message.trackId,
+          captureProbes: message.captureProbes,
           randomSeed: message.randomSeed
         }));
         break;
@@ -1292,11 +1217,9 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
       if (right !== left) {
         right.fill(0);
       }
-      this.processPreviewCapture(left.length);
       return true;
     }
     const keepAlive = this.currentStream.processBlock(outputs[0]);
-    this.processPreviewCapture(outputs[0][0].length);
     if (this.currentStream.stopped) {
       this.currentStream = null;
     }

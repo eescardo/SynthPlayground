@@ -134,12 +134,41 @@ export class WasmSubsetEngine {
     }
   }
 
+  configure_preview_probe_capture(captureJson) {
+    const ptr0 = passStringToWasm0(captureJson, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.wasmsubsetengine_configure_preview_probe_capture(this.__wbg_ptr, ptr0, len0);
+    if (ret[1]) {
+      throw takeFromExternrefTable0(ret[0]);
+    }
+  }
+
   left_ptr() {
     return wasm.wasmsubsetengine_left_ptr(this.__wbg_ptr) >>> 0;
   }
 
   process_block() {
     return wasm.wasmsubsetengine_process_block(this.__wbg_ptr) !== 0;
+  }
+
+  preview_capture_state_json() {
+    let ptr1 = 0;
+    let len1 = 0;
+    try {
+      const ret = wasm.wasmsubsetengine_preview_capture_state_json(this.__wbg_ptr);
+      ptr1 = ret[0];
+      len1 = ret[1];
+      if (ret[3]) {
+        ptr1 = 0;
+        len1 = 0;
+        throw takeFromExternrefTable0(ret[2]);
+      }
+      return getStringFromWasm0(ptr1, len1);
+    } finally {
+      if (ptr1 || len1) {
+        wasm.__wbindgen_free(ptr1, len1, 1);
+      }
+    }
   }
 
   profile_stats_json() {

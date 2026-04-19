@@ -282,6 +282,32 @@ struct ProjectSpec {
 }
 
 #[derive(Clone, Deserialize)]
+struct PreviewProbeCaptureSpec {
+    #[serde(rename = "probeId")]
+    probe_id: String,
+    #[serde(rename = "trackIndex")]
+    track_index: usize,
+    #[serde(rename = "signalIndex")]
+    signal_index: usize,
+    #[serde(rename = "durationSamples")]
+    duration_samples: usize,
+}
+
+#[derive(Clone, Serialize)]
+struct PreviewProbeCaptureSnapshot {
+    #[serde(rename = "probeId")]
+    probe_id: String,
+    samples: Vec<f32>,
+}
+
+#[derive(Clone, Serialize)]
+struct PreviewProbeCaptureStateSnapshot {
+    #[serde(rename = "capturedSamples")]
+    captured_samples: usize,
+    captures: Vec<PreviewProbeCaptureSnapshot>,
+}
+
+#[derive(Clone, Deserialize)]
 #[serde(tag = "type")]
 enum EventSpec {
     NoteOn {

@@ -34,6 +34,7 @@ export class SharedWasmRenderStream {
     this.captureProbes = options.captureProbes || [];
     this.stopped = false;
     this.implementation = implementation;
+    this.previewCaptureState = null;
     this.engine = implementation.createEngine(renderer, this.project, this.projectSpec, options);
 
     const compiledEvents = implementation.compileEvents(this.project, this.projectSpec, this.eventQueue);
@@ -44,6 +45,46 @@ export class SharedWasmRenderStream {
       this.transportSessionId,
       resolveRandomSeed(options.randomSeed)
     );
+    if (this.previewing && this.captureProbes.length > 0) {
+      this.previewCaptureState =
+        implementation.preparePreviewCapture?.(renderer, this.project, this.projectSpec, options, this.engine) ?? null;
+    }
+  }
+
+  maybeEmitPreviewCapture(force = false) {
+    if (!this.previewCaptureState) {
+      return;
+    }
+    const snapshot = this.implementation.readPreviewCapture?.(this.renderer, this.engine, this.previewCaptureState, force);
+    if (!snapshot) {
+      return;
+    }
+    const { capturedSamples, captures } = snapshot;
+    if (!force && capturedSamples - this.previewCaptureState.lastEmittedCapturedSamples < 1024) {
+      return;
+    }
+    this.previewCaptureState.lastEmittedCapturedSamples = capturedSamples;
+    this.port.postMessage({
+      type: "PREVIEW_CAPTURE",
+      previewId: this.previewId,
+      captures: captures.map((capture) => {
+        const meta = this.previewCaptureState.metaByProbeId.get(capture.probeId);
+        return meta
+          ? {
+              probeId: capture.probeId,
+              kind: meta.kind,
+              target: meta.target,
+              sampleRate: this.renderer.sampleRateInternal,
+              durationSamples: meta.durationSamples,
+              capturedSamples,
+              samples: capture.samples
+            }
+          : null;
+      }).filter(Boolean)
+    });
+    if (force) {
+      this.previewCaptureState = null;
+    }
   }
 
   processBlock(output) {
@@ -70,6 +111,7 @@ export class SharedWasmRenderStream {
 
     if (this.previewing) {
       this.previewRemainingSamples -= leftOut.length;
+      this.maybeEmitPreviewCapture(false);
       if (this.previewRemainingSamples <= 0) {
         this.stop();
       }
@@ -105,6 +147,7 @@ export class SharedWasmRenderStream {
 
   stop() {
     this.stopped = true;
+    this.maybeEmitPreviewCapture(true);
     this.engine.stop();
     this.eventQueue.length = 0;
   }

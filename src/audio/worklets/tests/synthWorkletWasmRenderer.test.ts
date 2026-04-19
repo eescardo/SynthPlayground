@@ -1,12 +1,56 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Track } from "@/types/music";
 import type { Patch } from "@/types/patch";
 
-type RuntimeModule = typeof import("../synth-worklet-runtime.js");
-type WorkletGlobal = typeof globalThis & {
-  AudioWorkletProcessor?: new () => { port: { onmessage: ((event: unknown) => void) | null; postMessage: (...args: unknown[]) => void } };
-  registerProcessor?: (name: string, processorCtor: unknown) => void;
-};
+const sharedMemory = new WebAssembly.Memory({ initial: 1 });
+const blockSize = 128;
+const leftView = new Float32Array(sharedMemory.buffer, 0, blockSize);
+const rightView = new Float32Array(sharedMemory.buffer, blockSize * Float32Array.BYTES_PER_ELEMENT, blockSize);
+let previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
+
+vi.mock("../synth-worklet-dsp-bindgen.js", () => {
+  class MockWasmSubsetEngine {
+    constructor() {
+      leftView.fill(0.25);
+      rightView.fill(0.25);
+    }
+
+    start_stream() {}
+    enqueue_events() {}
+    configure_preview_probe_capture() {}
+    process_block() {
+      previewCaptureStateJson = JSON.stringify({
+        capturedSamples: blockSize,
+        captures: [
+          {
+            probeId: "probe_1",
+            samples: Array.from({ length: blockSize }, () => 0.5)
+          }
+        ]
+      });
+      return true;
+    }
+    preview_capture_state_json() {
+      return previewCaptureStateJson;
+    }
+    stop() {}
+    left_ptr() {
+      return 0;
+    }
+    right_ptr() {
+      return blockSize * Float32Array.BYTES_PER_ELEMENT;
+    }
+    block_size() {
+      return blockSize;
+    }
+    set_profiling_enabled() {}
+  }
+
+  return {
+    initSync: () => ({ memory: sharedMemory }),
+    WasmSubsetEngine: MockWasmSubsetEngine
+  };
+});
 
 function createPatch(overrides: Partial<Patch> = {}): Patch {
   return {
@@ -94,136 +138,39 @@ function createProject(options: { patch?: Patch; track?: Track } = {}): Project 
   } satisfies Project;
 }
 
-async function loadRuntimeModule(): Promise<RuntimeModule> {
-  vi.resetModules();
-  const workletGlobal = globalThis as WorkletGlobal;
-  workletGlobal.AudioWorkletProcessor = class {
-    port = { onmessage: null, postMessage() {} };
-  };
-  workletGlobal.registerProcessor = vi.fn();
-  return import("../synth-worklet-runtime.js");
-}
-
-function renderProcessorBlock(
-  processor: InstanceType<RuntimeModule["SynthWorkletProcessor"]>,
-  frames = 128
-) {
-  const left = new Float32Array(frames);
-  const right = new Float32Array(frames);
-  processor.process([], [[left, right]], {});
-  return { left, right };
-}
-
 beforeEach(() => {
-  const workletGlobal = globalThis as WorkletGlobal;
-  delete workletGlobal.AudioWorkletProcessor;
-  delete workletGlobal.registerProcessor;
+  vi.resetModules();
+  leftView.fill(0);
+  rightView.fill(0);
+  previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
 });
 
-afterEach(async () => {
-  const runtime = (await import("../synth-worklet-runtime.js")) as RuntimeModule & {
-    resetRendererFactory?: () => void;
-  };
-  runtime.resetRendererFactory?.();
-});
+describe("WASM worklet renderer", () => {
+  it("emits preview probe captures from backend-owned capture state", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
 
-describe("strict WASM preview capture handling", () => {
-  it("captures probes in the processor even when the active renderer does not implement probe capture", async () => {
-    const runtime = (await loadRuntimeModule()) as RuntimeModule & {
-      setRendererFactory?: (factory: (config?: unknown) => unknown) => void;
-    };
-    const { SynthWorkletProcessor, setRendererFactory } = runtime;
-
-    class FakeRenderer {
-      port: { onmessage: null; postMessage: (...args: unknown[]) => void };
-      sampleRateInternal: number;
-      blockSize: number;
-      defaultProject: Project | null;
-
-      constructor(options: { processorOptions?: { sampleRate?: number; blockSize?: number; project?: Project } } = {}) {
-        const processorOptions = options.processorOptions || {};
-        this.port = { onmessage: null, postMessage() {} };
-        this.sampleRateInternal = processorOptions.sampleRate ?? 48000;
-        this.blockSize = processorOptions.blockSize ?? 128;
-        this.defaultProject = processorOptions.project ?? null;
-      }
-
-      configure(config: { sampleRate?: number; blockSize?: number }) {
-        this.sampleRateInternal = config.sampleRate ?? this.sampleRateInternal;
-        this.blockSize = config.blockSize ?? this.blockSize;
-      }
-
-      setDefaultProject(project: Project) {
-        this.defaultProject = project;
-      }
-
-      get project() {
-        return this.defaultProject;
-      }
-
-      startStream(options: { durationSamples?: number; project?: Project; events?: unknown[] }) {
-        const durationSamples = options.durationSamples ?? this.blockSize;
-        const stream = {
-          port: this.port,
-          project: options.project || this.defaultProject,
-          trackRuntimes: [],
-          eventQueue: [...(options.events || [])],
-          stopped: false,
-          processed: 0,
-          processBlock: (output: Float32Array[]) => {
-            const left = output[0];
-            const right = output[1] || output[0];
-            left.fill(0.25);
-            if (right !== left) {
-              right.fill(0.25);
-            }
-            stream.processed += left.length;
-            if (stream.processed >= durationSamples) {
-              stream.stopped = true;
-            }
-            return true;
-          },
-          enqueueEvents: () => {},
-          setMacroValue: () => {},
-          setRecordingTrack: () => {},
-          stop: () => {
-            stream.stopped = true;
-          }
-        };
-        return stream;
-      }
-    }
-
-    setRendererFactory?.((config = {}) => new FakeRenderer(config as { processorOptions?: { sampleRate?: number; blockSize?: number; project?: Project } }));
-
-    const processor = new SynthWorkletProcessor({
+    const project = createProject();
+    const renderer = createWasmRenderer({
       processorOptions: {
         sampleRate: 48000,
-        blockSize: 128,
-        project: createProject()
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
       }
     });
+    const postMessage = vi.fn();
+    renderer.port.postMessage = postMessage;
 
-    const postMessage = vi.spyOn((processor as { port: { postMessage: (...args: unknown[]) => void } }).port, "postMessage");
-
-    processor.onMessage({
-      type: "PREVIEW",
+    const stream = renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize,
       trackId: "track_1",
-      previewId: "preview_test",
-      durationSamples: 32,
-      captureProbes: [
-        {
-          probeId: "probe_scope",
-          kind: "scope",
-          target: {
-            kind: "connection",
-            connectionId: "conn_1"
-          }
-        }
-      ],
+      previewId: "preview_1",
       events: [
         {
-          id: "preview_on",
+          id: "note_on",
           type: "NoteOn",
           sampleTime: 0,
           source: "preview",
@@ -232,19 +179,29 @@ describe("strict WASM preview capture handling", () => {
           pitchVoct: 0,
           velocity: 1
         }
-      ]
+      ],
+      captureProbes: [
+        {
+          probeId: "probe_1",
+          kind: "scope",
+          target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
+        }
+      ],
+      randomSeed: 123
     });
 
-    renderProcessorBlock(processor);
+    expect(stream).not.toBeNull();
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
 
     expect(postMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         type: "PREVIEW_CAPTURE",
-        previewId: "preview_test",
+        previewId: "preview_1",
         captures: [
           expect.objectContaining({
-            probeId: "probe_scope",
-            capturedSamples: 32
+            probeId: "probe_1",
+            capturedSamples: blockSize,
+            samples: expect.arrayContaining([0.5])
           })
         ]
       })

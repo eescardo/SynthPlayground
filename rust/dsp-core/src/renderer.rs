@@ -1,4 +1,7 @@
-use crate::{clamp, db_to_gain, js_error, now_ms, sort_events, EngineProfileStats, EventSpec, MasterFxSpec, ProjectSpec};
+use crate::{
+    clamp, db_to_gain, js_error, now_ms, sort_events, EngineProfileStats, EventSpec,
+    MasterFxSpec, PreviewProbeCaptureSpec, PreviewProbeCaptureStateSnapshot, ProjectSpec,
+};
 use crate::stream::TrackRuntime;
 use wasm_bindgen::prelude::*;
 
@@ -15,6 +18,7 @@ pub struct WasmSubsetEngine {
     stopped: bool,
     left: Vec<f32>,
     right: Vec<f32>,
+    preview_capture_sample_count: usize,
     profiling_enabled: bool,
     profile_stats: EngineProfileStats,
 }
@@ -35,6 +39,7 @@ impl WasmSubsetEngine {
             stopped: true,
             left: vec![0.0; block_size],
             right: vec![0.0; block_size],
+            preview_capture_sample_count: 0,
             profiling_enabled: false,
             profile_stats: EngineProfileStats::default(),
         }
@@ -61,6 +66,7 @@ impl WasmSubsetEngine {
         self.event_queue = events;
         self.event_cursor = 0;
         self.song_sample_counter = song_start_sample;
+        self.preview_capture_sample_count = 0;
         self.stopped = false;
         self.profile_stats = EngineProfileStats::default();
         Ok(())
@@ -72,6 +78,42 @@ impl WasmSubsetEngine {
         self.event_queue.append(&mut events);
         sort_events(&mut self.event_queue);
         Ok(())
+    }
+
+    pub fn configure_preview_probe_capture(&mut self, capture_json: &str) -> Result<(), JsValue> {
+        let captures: Vec<PreviewProbeCaptureSpec> = serde_json::from_str(capture_json)
+            .map_err(|error| js_error(format!("Failed to parse preview probe capture specs: {error}")))?;
+        for track in self.tracks.iter_mut() {
+            track.clear_probe_captures();
+        }
+        let mut captures_by_track: Vec<Vec<PreviewProbeCaptureSpec>> = vec![Vec::new(); self.tracks.len()];
+        for capture in captures.into_iter() {
+            if let Some(track_captures) = captures_by_track.get_mut(capture.track_index) {
+                track_captures.push(capture);
+            }
+        }
+        for (track_index, track_captures) in captures_by_track.into_iter().enumerate() {
+            if !track_captures.is_empty() {
+                if let Some(track) = self.tracks.get_mut(track_index) {
+                    track.configure_probe_captures(track_captures);
+                }
+            }
+        }
+        self.preview_capture_sample_count = 0;
+        Ok(())
+    }
+
+    pub fn preview_capture_state_json(&self) -> Result<String, JsValue> {
+        let captures = self
+            .tracks
+            .iter()
+            .flat_map(|track| track.preview_capture_state_snapshot(self.preview_capture_sample_count))
+            .collect();
+        serde_json::to_string(&PreviewProbeCaptureStateSnapshot {
+            captured_samples: self.preview_capture_sample_count,
+            captures,
+        })
+        .map_err(|error| js_error(format!("Failed to serialize preview capture state: {error}")))
     }
 
     pub fn process_block(&mut self) -> bool {
@@ -95,16 +137,18 @@ impl WasmSubsetEngine {
                 let started = now_ms();
                 let sample_rate = self.sample_rate;
                 let profile = &mut self.profile_stats;
+                let capture_sample_index = self.preview_capture_sample_count;
                 for track in self.tracks.iter_mut() {
                     let track_started = now_ms();
-                    mixed += track.render_track_sample(sample_rate, profile, true);
+                    mixed += track.render_track_sample(sample_rate, profile, true, Some(capture_sample_index));
                     profile.render_track_sample_ms += now_ms() - track_started;
                     profile.track_samples_rendered = profile.track_samples_rendered.saturating_add(1);
                 }
                 self.profile_stats.render_tracks_ms += now_ms() - started;
             } else {
+                let capture_sample_index = self.preview_capture_sample_count;
                 for track in self.tracks.iter_mut() {
-                    mixed += track.render_track_sample(self.sample_rate, &mut self.profile_stats, false);
+                    mixed += track.render_track_sample(self.sample_rate, &mut self.profile_stats, false, Some(capture_sample_index));
                 }
             }
             if self.profiling_enabled {
@@ -118,6 +162,7 @@ impl WasmSubsetEngine {
             self.left[frame] = mixed;
             self.right[frame] = mixed;
             self.song_sample_counter = self.song_sample_counter.saturating_add(1);
+            self.preview_capture_sample_count = self.preview_capture_sample_count.saturating_add(1);
         }
 
         if let Some(started) = block_started {
@@ -132,8 +177,10 @@ impl WasmSubsetEngine {
         self.stopped = true;
         self.event_queue.clear();
         self.event_cursor = 0;
+        self.preview_capture_sample_count = 0;
         for track in self.tracks.iter_mut() {
             track.stop_all_voices();
+            track.clear_probe_captures();
         }
     }
 

@@ -1,4 +1,7 @@
-use crate::{clamp, now_ms, EngineProfileStats, HostSignalIndices, TrackFxSpec, TrackSpec, MAX_VOICES};
+use crate::{
+    clamp, now_ms, EngineProfileStats, HostSignalIndices, PreviewProbeCaptureSnapshot,
+    PreviewProbeCaptureSpec, TrackFxSpec, TrackSpec, MAX_VOICES,
+};
 use crate::nodes::RuntimeNode;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -13,6 +16,14 @@ struct TrackFxState {
     reverb_idx1: usize,
     reverb_idx2: usize,
     compressor_env: f32,
+}
+
+#[derive(Clone)]
+struct TrackProbeCaptureState {
+    probe_id: String,
+    signal_index: usize,
+    duration_samples: usize,
+    samples: Vec<f32>,
 }
 
 #[derive(Clone)]
@@ -91,6 +102,7 @@ pub(crate) struct TrackRuntime {
     fx_state: TrackFxState,
     base_random_seed: u32,
     note_trigger_count: u32,
+    probe_captures: Vec<TrackProbeCaptureState>,
 }
 
 impl TrackRuntime {
@@ -137,7 +149,39 @@ impl TrackRuntime {
             },
             base_random_seed,
             note_trigger_count: 0,
+            probe_captures: Vec::new(),
         })
+    }
+
+    pub(crate) fn configure_probe_captures(&mut self, specs: Vec<PreviewProbeCaptureSpec>) {
+        self.probe_captures = specs
+            .into_iter()
+            .map(|spec| TrackProbeCaptureState {
+                probe_id: spec.probe_id,
+                signal_index: spec.signal_index,
+                duration_samples: spec.duration_samples,
+                samples: vec![0.0; spec.duration_samples],
+            })
+            .collect();
+    }
+
+    pub(crate) fn clear_probe_captures(&mut self) {
+        self.probe_captures.clear();
+    }
+
+    pub(crate) fn preview_capture_state_snapshot(&self, captured_samples: usize) -> Vec<PreviewProbeCaptureSnapshot> {
+        self.probe_captures
+            .iter()
+            .map(|capture| PreviewProbeCaptureSnapshot {
+                probe_id: capture.probe_id.clone(),
+                samples: capture
+                    .samples
+                    .iter()
+                    .take(captured_samples.min(capture.duration_samples))
+                    .copied()
+                    .collect(),
+            })
+            .collect()
     }
 
     fn allocate_voice_index(&self, sample_time: u32) -> usize {
@@ -236,14 +280,20 @@ impl TrackRuntime {
         }
     }
 
-    pub(crate) fn render_track_sample(&mut self, sample_rate: f32, profile: &mut EngineProfileStats, profiling_enabled: bool) -> f32 {
+    pub(crate) fn render_track_sample(
+        &mut self,
+        sample_rate: f32,
+        profile: &mut EngineProfileStats,
+        profiling_enabled: bool,
+        capture_sample_index: Option<usize>,
+    ) -> f32 {
         let dry = if profiling_enabled {
             let started = now_ms();
-            let dry = self.render_dry_sample(sample_rate, profile, true);
+            let dry = self.render_dry_sample(sample_rate, profile, true, capture_sample_index);
             profile.render_dry_sample_ms += now_ms() - started;
             dry
         } else {
-            self.render_dry_sample(sample_rate, profile, false)
+            self.render_dry_sample(sample_rate, profile, false, capture_sample_index)
         };
         let processed = if profiling_enabled {
             let started = now_ms();
@@ -259,7 +309,13 @@ impl TrackRuntime {
         processed * self.volume
     }
 
-    fn render_dry_sample(&mut self, sample_rate: f32, profile: &mut EngineProfileStats, profiling_enabled: bool) -> f32 {
+    fn render_dry_sample(
+        &mut self,
+        sample_rate: f32,
+        profile: &mut EngineProfileStats,
+        profiling_enabled: bool,
+        capture_sample_index: Option<usize>,
+    ) -> f32 {
         let host_indices = self.host_signal_indices.clone();
         let mut mixed = 0.0;
 
@@ -292,6 +348,16 @@ impl TrackRuntime {
             if !sample.is_finite() {
                 voice.reset_to_inactive();
                 continue;
+            }
+
+            if let Some(capture_index) = capture_sample_index {
+                for capture in self.probe_captures.iter_mut() {
+                    if capture_index < capture.duration_samples {
+                        if let Some(signal) = voice.signal_values.get(capture.signal_index) {
+                            capture.samples[capture_index] += *signal;
+                        }
+                    }
+                }
             }
 
             voice.rms = voice.rms * 0.995 + sample.abs() * 0.005;

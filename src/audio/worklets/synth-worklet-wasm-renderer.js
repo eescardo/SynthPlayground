@@ -5,6 +5,7 @@ import {
   defaultCompileEvents,
   defaultCompileProject
 } from "./synth-worklet-wasm-renderer-core.js";
+import { compilePreviewProbeCaptureRequestsCore } from "./synth-worklet-wasm-compiler-core.js";
 
 class WasmWorkletRenderStream extends SharedWasmRenderStream {}
 
@@ -29,7 +30,40 @@ export class WasmWorkletRenderer extends SharedWasmRenderer {
         engine.set_profiling_enabled(false);
         return engine;
       },
-      getMemory: (renderer) => renderer.memory
+      getMemory: (renderer) => renderer.memory,
+      preparePreviewCapture: (renderer, project, projectSpec, options, engine) => {
+        const compiled = compilePreviewProbeCaptureRequestsCore(
+          project,
+          projectSpec,
+          options.trackId,
+          options.captureProbes,
+          options.durationSamples || 0
+        );
+        if (!compiled.length) {
+          return null;
+        }
+        engine.configure_preview_probe_capture(JSON.stringify(compiled));
+        return {
+          lastEmittedCapturedSamples: 0,
+          metaByProbeId: new Map(
+            options.captureProbes.map((probe) => [
+              probe.probeId,
+              {
+                kind: probe.kind,
+                target: probe.target,
+                durationSamples: Math.max(0, Math.floor(options.durationSamples || 0))
+              }
+            ])
+          )
+        };
+      },
+      readPreviewCapture: (_renderer, engine) => {
+        const snapshot = JSON.parse(engine.preview_capture_state_json());
+        if (!snapshot || !Array.isArray(snapshot.captures)) {
+          return null;
+        }
+        return snapshot;
+      }
     };
     super(options, implementation);
     if (typeof this.wasmBytes === "undefined") {
