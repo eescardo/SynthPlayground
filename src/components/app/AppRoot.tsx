@@ -1159,6 +1159,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
     projectAssets,
     playheadBeat,
     selectedPatch,
+    importInputRef,
+    recentProjects,
     validationIssues,
     selectedPatchHasErrors,
     patchWorkspace,
@@ -1166,7 +1168,21 @@ export function AppRoot({ children }: { children: ReactNode }) {
     onUpsertSamplePlayerAssetData: upsertWorkspaceSamplePlayerAssetData,
     commitProjectChange,
     setProjectAssets,
-    setRuntimeError
+    setRuntimeError,
+    onNewProject: () => {
+      void createNewProject();
+    },
+    onExportJson: exportJson,
+    onImportJson: () => importInputRef.current?.click(),
+    onOpenRecentProject: (projectId) => {
+      void openRecentProject(projectId);
+    },
+    onResetToDefaultProject: () => {
+      void resetToDefaultProject();
+    },
+    onImportFile: (file) => {
+      void importJson(file);
+    }
   };
 
   const contextValue: AppRootContextValue = {

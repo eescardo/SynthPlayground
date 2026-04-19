@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, RefObject } from "react";
-import { PatchWorkspaceIcon, SiteBrand } from "@/components/branding/SiteBrand";
+import { PatchWorkspaceIcon } from "@/components/branding/SiteBrand";
 import { ProjectNameControl } from "@/components/composer/ProjectNameControl";
 import { ProjectsMenu } from "@/components/composer/ProjectsMenu";
 import { RecentProjectSnapshot } from "@/lib/persistence";
@@ -45,7 +45,19 @@ export function TransportBar(props: TransportBarProps) {
   return (
     <div className="transport">
       <div className="transport-left">
-        <SiteBrand className="transport-brand" />
+        <ProjectsMenu
+          className="transport-projects-menu"
+          iconOnly
+          triggerLabel="Projects"
+          importInputRef={props.importInputRef}
+          recentProjects={props.recentProjects}
+          onNewProject={props.onNewProject}
+          onExportJson={props.onExportJson}
+          onImportJson={props.onImportJson}
+          onOpenRecentProject={props.onOpenRecentProject}
+          onResetToDefaultProject={props.onResetToDefaultProject}
+          onImportFile={props.onImportFile}
+        />
 
         <button
           type="button"
@@ -57,17 +69,6 @@ export function TransportBar(props: TransportBarProps) {
           <PatchWorkspaceIcon className="transport-nav-button-icon transport-nav-button-icon-patch" />
           <span>Workspace</span>
         </button>
-
-        <ProjectsMenu
-          importInputRef={props.importInputRef}
-          recentProjects={props.recentProjects}
-          onNewProject={props.onNewProject}
-          onExportJson={props.onExportJson}
-          onImportJson={props.onImportJson}
-          onOpenRecentProject={props.onOpenRecentProject}
-          onResetToDefaultProject={props.onResetToDefaultProject}
-          onImportFile={props.onImportFile}
-        />
 
         <ProjectNameControl name={props.projectName} onRename={props.onRenameProject} />
         <span className="transport-project-divider" aria-hidden="true" />

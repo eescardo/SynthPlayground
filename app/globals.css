@@ -119,6 +119,27 @@ select {
   margin-right: 0.1rem;
 }
 
+.projects-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.projects-menu-trigger-icon {
+  padding: 0.22rem;
+  border-radius: 999px;
+  background: rgba(13, 23, 34, 0.34);
+}
+
+.projects-menu-brand {
+  pointer-events: none;
+}
+
+.projects-menu-brand .site-brand-mark {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
 .transport-nav-button {
   display: inline-flex;
   align-items: center;
