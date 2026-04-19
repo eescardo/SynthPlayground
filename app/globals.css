@@ -641,13 +641,11 @@ select {
 }
 
 .track-name-button.rename-armed {
-  background:
-    linear-gradient(
-      180deg,
-      transparent calc(100% - 3px),
-      rgba(167, 204, 240, 0.75) calc(100% - 3px),
-      rgba(167, 204, 240, 0.75) 100%
-    );
+  background-image:
+    radial-gradient(circle, rgba(167, 204, 240, 0.82) 1px, transparent 1.2px);
+  background-position: left calc(100% - 2px);
+  background-size: 6px 3px;
+  background-repeat: repeat-x;
 }
 
 .track-inspector-row {
