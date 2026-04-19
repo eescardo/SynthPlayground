@@ -15,6 +15,7 @@ import { loadDspWasm } from "@/audio/renderers/wasm/wasmBridge";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import { TimelineActionsPopoverRequest, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { createId } from "@/lib/ids";
+import { createProjectSnapshot } from "@/lib/projectLifecycle";
 import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
 import { getProjectTimelineEndBeat, getTrackPreviewStateAtBeat } from "@/lib/macroAutomation";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
@@ -38,15 +39,14 @@ import {
   loadRecentProjectSnapshots,
   RecentProjectSnapshot,
   removeRecentProjectSnapshot,
-  saveProjectState,
-  saveRecentProjectSnapshot
+  saveProjectState
 } from "@/lib/persistence";
 import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { createDefaultProject, createEmptyProject } from "@/lib/patch/presets";
-import { createAvailableProjectName, renameProjectInProject } from "@/lib/projectManagement";
+import { renameProjectInProject } from "@/lib/projectManagement";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
-import { importProjectBundleFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
+import { exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
 import { pitchToVoct } from "@/lib/pitch";
 import {
   buildMissingSampleAssetIssues,
@@ -64,6 +64,7 @@ import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { useNoteClipboard } from "@/hooks/useNoteClipboard";
 import { usePlatformShortcuts } from "@/hooks/usePlatformShortcuts";
 import { usePlaybackController } from "@/hooks/usePlaybackController";
+import { useProjectLifecycleActions } from "@/hooks/useProjectLifecycleActions";
 import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
@@ -175,7 +176,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!ready) return;
     const timer = window.setTimeout(() => {
-      saveProjectState({ ...project, updatedAt: Date.now() }, projectAssets).catch(() => {
+      saveProjectState(createProjectSnapshot(project), projectAssets).catch(() => {
         // ignore autosave errors
       });
     }, 300);
@@ -959,99 +960,25 @@ export function AppRoot({ children }: { children: ReactNode }) {
     setEditorSelection(clearEditorSelection());
     setSelectionActionPopoverMode("expanded");
   }, []);
-
-  const activateProjectSnapshot = useCallback((nextProject: Project, nextAssets: ProjectAssetLibrary = createEmptyProjectAssetLibrary()) => {
-    clearTransientComposerUi();
-    resetProjectState(nextProject, nextAssets);
-    setSelectedTrackId(nextProject.tracks[0]?.id);
-    audioEngineRef.current?.setProject(toAudioProject(nextProject, nextAssets));
-  }, [clearTransientComposerUi, resetProjectState]);
-
-  const snapshotCurrentProject = useCallback((): Project => {
-    return {
-      ...project,
-      updatedAt: Date.now()
-    };
-  }, [project]);
-
-  const switchToProject = useCallback(async (
-    nextProject: Project,
-    nextAssets: ProjectAssetLibrary = createEmptyProjectAssetLibrary(),
-    options?: { rememberCurrent?: boolean; removeRecentProjectId?: string }
-  ) => {
-    playback.stopPlayback();
-    if (options?.rememberCurrent) {
-      await saveRecentProjectSnapshot(snapshotCurrentProject(), projectAssets);
-    }
-    if (options?.removeRecentProjectId) {
-      await removeRecentProjectSnapshot(options.removeRecentProjectId);
-    }
-    activateProjectSnapshot(nextProject, nextAssets);
-    await refreshRecentProjects(nextProject.id);
-  }, [activateProjectSnapshot, playback, projectAssets, refreshRecentProjects, snapshotCurrentProject]);
-
-  const createNewProject = useCallback(async () => {
-    const nextProject = {
-      ...createEmptyProject(),
-      name: createAvailableProjectName([project.name, ...recentProjects.map(({ project }) => project.name)]),
-      updatedAt: Date.now()
-    };
-
-    await switchToProject(nextProject, createEmptyProjectAssetLibrary(), { rememberCurrent: true });
-  }, [project.name, recentProjects, switchToProject]);
-
-  const clearCurrentProject = useCallback(() => {
-    playback.stopPlayback();
-    const nextProject = {
-      ...createEmptyProject(),
-      id: project.id,
-      name: project.name,
-      createdAt: project.createdAt,
-      updatedAt: Date.now()
-    };
-
-    clearTransientComposerUi();
-    commitProjectChange(() => nextProject, { actionKey: "project:clear" });
-    setSelectedTrackId(nextProject.tracks[0]?.id);
-  }, [clearTransientComposerUi, commitProjectChange, playback, project.createdAt, project.id, project.name]);
-
-  const resetToDefaultProject = useCallback(async () => {
-    const nextProject = {
-      ...createDefaultProject(),
-      updatedAt: Date.now()
-    };
-
-    await switchToProject(nextProject, createEmptyProjectAssetLibrary(), { rememberCurrent: true });
-  }, [switchToProject]);
-
-  const openRecentProject = useCallback(async (projectId: string) => {
-    const recentProject = recentProjects.find(({ project }) => project.id === projectId);
-    if (!recentProject) {
-      return;
-    }
-
-    await switchToProject(recentProject.project, recentProject.assets, {
-      rememberCurrent: true,
-      removeRecentProjectId: projectId
-    });
-  }, [recentProjects, switchToProject]);
-
-  async function importJson(file: File) {
-    const text = await file.text();
-    try {
-      const importedBundle = importProjectBundleFromJson(text);
-      const migratedState = extractInlineSamplePlayerAssets(importedBundle.project, importedBundle.assets);
-      const importedProject = {
-        ...migratedState.project,
-        id: createId("project"),
-        updatedAt: Date.now()
-      };
-
-      await switchToProject(importedProject, migratedState.assets, { rememberCurrent: true });
-    } catch (error) {
-      setRuntimeError((error as Error).message);
-    }
-  }
+  const {
+    clearCurrentProject,
+    createNewProject,
+    importJson,
+    openRecentProject,
+    resetToDefaultProject
+  } = useProjectLifecycleActions({
+    project,
+    projectAssets,
+    recentProjects,
+    audioEngineRef,
+    playback,
+    commitProjectChange,
+    resetProjectState,
+    refreshRecentProjects,
+    setSelectedTrackId,
+    setRuntimeError,
+    clearTransientComposerUi
+  });
 
   if (!ready || !selectedTrack || !selectedPatch) {
     return <main className="loading">Loading...</main>;

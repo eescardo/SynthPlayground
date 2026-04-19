@@ -82,14 +82,6 @@ export const loadProjectState = async (): Promise<{ project: Project; assets: Pr
   return { project, assets };
 };
 
-export const clearProjectState = async (): Promise<void> => {
-  const db = await getDb();
-  await Promise.all([
-    db.delete(PROJECT_STORE, ACTIVE_PROJECT_KEY),
-    db.delete(ASSET_STORE, ACTIVE_PROJECT_ASSETS_KEY)
-  ]);
-};
-
 export const loadRecentProjectSnapshots = async (): Promise<RecentProjectSnapshot[]> => {
   const db = await getDb();
   const summaries = await loadRecentProjectSummaries(db);
