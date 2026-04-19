@@ -100,8 +100,8 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
         </div>
         <div className="patch-workspace-header-actions">
           <button type="button" onClick={openHelp}>Help (?)</button>
-          <button type="button" className="preview-pitch-button" onClick={props.onOpenPreviewPitchPicker}>
-            {props.previewPitch}
+          <button type="button" className="preview-pitch-button" onClick={props.onOpenPreviewPitchPicker} title="Default pitch">
+            Pitch {props.previewPitch}
           </button>
           <button type="button" onClick={props.onPreviewNow}>
             Play

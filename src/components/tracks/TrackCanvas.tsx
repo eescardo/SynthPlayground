@@ -94,6 +94,45 @@ function drawGhostPlayhead(
   ctx.textAlign = "start";
 }
 
+function drawGhostPreviewNote(
+  ctx: CanvasRenderingContext2D,
+  note: { startBeat: number; durationBeats: number; pitchStr: string },
+  trackY: number
+) {
+  const noteX = HEADER_WIDTH + note.startBeat * BEAT_WIDTH;
+  const noteW = Math.max(8, note.durationBeats * BEAT_WIDTH);
+  const noteY = trackY + 14;
+  const noteH = TRACK_HEIGHT - 28;
+
+  ctx.save();
+  ctx.globalAlpha = 0.3;
+  drawNoteBody(ctx, noteX, noteY, noteW, noteH, TRACK_CANVAS_COLORS.ghostPlacementFill);
+  ctx.restore();
+
+  strokeRoundedRect(
+    ctx,
+    noteX + 1,
+    noteY + 1,
+    Math.max(0, noteW - 2),
+    Math.max(0, noteH - 2),
+    Math.max(0, NOTE_CORNER_RADIUS - 1),
+    TRACK_CANVAS_COLORS.ghostPlacementBorder,
+    2
+  );
+
+  ctx.fillStyle = TRACK_CANVAS_COLORS.ghostPlacementLabel;
+  ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillText(note.pitchStr, noteX + 6, noteY + 16);
+
+  const badgeLabel = "Enter";
+  const badgeWidth = Math.max(34, ctx.measureText(badgeLabel).width + 12);
+  const badgeX = noteX + noteW - badgeWidth - 6;
+  const badgeY = noteY + noteH - 20;
+  fillRoundedRect(ctx, badgeX, badgeY, badgeWidth, 14, 6, TRACK_CANVAS_COLORS.ghostPlacementBadge);
+  ctx.fillStyle = TRACK_CANVAS_COLORS.ghostPlacementBadgeText;
+  ctx.fillText(badgeLabel, badgeX + 6, badgeY + 10.5);
+}
+
 function drawLoopMarker(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -229,9 +268,12 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const {
     activeRecordedNotes,
     countInLabel,
+    defaultPitch,
     ghostPlayheadBeat,
+    ghostPreviewNote,
     hideSelectionActionPopover,
     invalidPatchIds,
+    keyboardPlacementNote,
     playheadBeat,
     selectedTrackId,
     timelineActionsPopoverOpen
@@ -318,6 +360,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     trackLayouts,
     playheadBeat,
     gridBeats,
+    defaultPitch,
     selection,
     contentSelection:
       selection.kind === "note"
@@ -453,6 +496,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const overlaps = overlapNoteIds.has(note.id);
         const isHovered = hoveredNote?.trackId === track.id && hoveredNote.noteId === note.id;
         const noteSelected = selectedNoteKeys?.has(getNoteSelectionKey(track.id, note.id)) ?? false;
+        const noteBeingPlaced = keyboardPlacementNote?.trackId === track.id && keyboardPlacementNote.noteId === note.id;
 
         const noteFill = overlaps
           ? trackSilenced
@@ -508,6 +552,28 @@ export function TrackCanvas(props: TrackCanvasProps) {
           ctx.setLineDash([]);
         }
 
+        if (noteBeingPlaced) {
+          fillRoundedRect(
+            ctx,
+            noteX,
+            noteY,
+            noteW,
+            noteH,
+            NOTE_CORNER_RADIUS,
+            TRACK_CANVAS_COLORS.notePlacementOverlay
+          );
+          strokeRoundedRect(
+            ctx,
+            noteX + 1,
+            noteY + 1,
+            Math.max(0, noteW - 2),
+            Math.max(0, noteH - 2),
+            Math.max(0, NOTE_CORNER_RADIUS - 1),
+            TRACK_CANVAS_COLORS.notePlacementBorder,
+            2
+          );
+        }
+
         const labelX = noteX + 6;
         const labelY = noteY + 16;
         const labelWidth = Math.max(14, ctx.measureText(note.pitchStr).width);
@@ -535,6 +601,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const overlapW = Math.max(2, (overlap.endBeat - overlap.startBeat) * BEAT_WIDTH);
         ctx.fillStyle = TRACK_CANVAS_COLORS.overlapRange;
         ctx.fillRect(overlapX, y + 14, overlapW, TRACK_HEIGHT - 28);
+      }
+
+      if (ghostPreviewNote?.trackId === track.id) {
+        drawGhostPreviewNote(ctx, ghostPreviewNote, y);
       }
 
       for (const automationLayout of layout.automationLanes) {
@@ -664,6 +734,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   }, [
     countInLabel,
     ghostPlayheadBeat,
+    ghostPreviewNote,
     hideSelectionActionPopover,
     timelineActionsPopoverOpen,
     height,
@@ -675,6 +746,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     isTrackSilenced,
     meterBeats,
     activeRecordedNotes,
+    keyboardPlacementNote,
     invalidPatchIds,
     playheadBeat,
     gridBeats,

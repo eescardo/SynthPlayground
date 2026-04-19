@@ -14,6 +14,8 @@ export function usePatchWorkspaceQuickHelpDialog() {
   const keyboardShortcuts = useMemo(
     () => [
       { action: "Preview current tab", shortcut: "Space" },
+      { action: "Default pitch", shortcut: "- / =" },
+      { action: "Track macro lanes", shortcut: "[ / ]" },
       { action: "Next tab", shortcut: "Ctrl+`" },
       { action: "Previous tab", shortcut: "Ctrl+Shift+`" },
       { action: "Help", shortcut: "?" }

@@ -16,10 +16,13 @@ interface ComposerViewProps {
   project: Project;
   recentProjects: RecentProjectSnapshot[];
   selectedTrackId: string;
+  defaultPitch: string;
   invalidPatchIds: Set<string>;
   canvasSelection: TrackCanvasSelection;
   playheadBeat: number;
   activeRecordedNotes: Array<{ trackId: string; noteId: string; startBeat: number }>;
+  keyboardPlacementNote?: { trackId: string; noteId: string } | null;
+  ghostPreviewNote?: { trackId: string; startBeat: number; durationBeats: number; pitchStr: string } | null;
   ghostPlayheadBeat?: number;
   countInLabel?: string;
   timelineActionsPopover: TimelineActionsPopoverRequest | null;
@@ -34,6 +37,7 @@ interface ComposerViewProps {
   recordEnabled: boolean;
   recordPhase?: ComposerRecordPhase;
   exportingAudio: boolean;
+  onOpenDefaultPitchPicker: () => void;
   onPlay: () => void;
   onStop: () => void;
   onToggleRecord: () => void;
@@ -118,7 +122,9 @@ export function ComposerView(props: ComposerViewProps) {
         recordEnabled={props.recordEnabled}
         recordPhase={props.recordPhase}
         countInLabel={props.countInLabel}
+        defaultPitch={props.defaultPitch}
         canRemoveTrack={props.project.tracks.length > 1}
+        onOpenDefaultPitchPicker={props.onOpenDefaultPitchPicker}
         onPlay={props.onPlay}
         onStop={props.onStop}
         onToggleRecord={props.onToggleRecord}
@@ -131,9 +137,12 @@ export function ComposerView(props: ComposerViewProps) {
         project={props.project}
         invalidPatchIds={props.invalidPatchIds}
         selectedTrackId={props.selectedTrackId}
+        defaultPitch={props.defaultPitch}
         selection={props.canvasSelection}
         playheadBeat={props.playheadBeat}
         activeRecordedNotes={props.activeRecordedNotes}
+        keyboardPlacementNote={props.keyboardPlacementNote}
+        ghostPreviewNote={props.ghostPreviewNote}
         ghostPlayheadBeat={props.ghostPlayheadBeat}
         countInLabel={props.countInLabel}
         timelineActionsPopoverOpen={Boolean(props.timelineActionsPopover)}

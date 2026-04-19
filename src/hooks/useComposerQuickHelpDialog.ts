@@ -36,6 +36,12 @@ export function useComposerQuickHelpDialog({
   const keyboardShortcuts = useMemo(
     () => [
       { action: "Help", shortcut: "?" },
+      { action: "Play / Stop", shortcut: "Space" },
+      { action: "Move Playhead", shortcut: "Left / Right" },
+      { action: "Select Track", shortcut: "Up / Down" },
+      { action: "Default Pitch", shortcut: "- / =" },
+      { action: "Macro Lanes", shortcut: "[ / ]" },
+      { action: "Hold To Place Note", shortcut: "Enter" },
       { action: "Cut Selection", shortcut: `${primaryModifierLabel}+X` },
       { action: "Copy Selection", shortcut: `${primaryModifierLabel}+C` },
       { action: "Paste Selected Track(s)", shortcut: `${primaryModifierLabel}+V` },

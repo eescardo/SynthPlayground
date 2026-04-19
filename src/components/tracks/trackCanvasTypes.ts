@@ -115,8 +115,11 @@ export interface TrackCanvasProps {
   project: Project;
   invalidPatchIds?: Set<string>;
   selectedTrackId?: string;
+  defaultPitch: string;
   playheadBeat: number;
   activeRecordedNotes?: Array<{ trackId: string; noteId: string; startBeat: number }>;
+  keyboardPlacementNote?: { trackId: string; noteId: string } | null;
+  ghostPreviewNote?: { trackId: string; startBeat: number; durationBeats: number; pitchStr: string } | null;
   ghostPlayheadBeat?: number;
   countInLabel?: string;
   timelineActionsPopoverOpen?: boolean;

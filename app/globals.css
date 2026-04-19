@@ -1196,7 +1196,10 @@ select {
 }
 
 .preview-pitch-button {
-  min-width: 62px;
+  min-width: 94px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .patch-workspace-shell {

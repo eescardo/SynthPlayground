@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { toAudioProject } from "@/audio/audioProject";
 import { AudioEngine } from "@/audio/engine";
 import { ComposerView } from "@/components/app/ComposerView";
@@ -71,6 +71,7 @@ import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
+import { useHardwareNavigationShortcuts } from "@/hooks/useHardwareNavigationShortcuts";
 import { UsePatchWorkspaceControllerOptions } from "@/hooks/patch/usePatchWorkspaceController";
 import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
 import { resolveRemovedPatchFallbackId } from "@/hooks/patch/patchWorkspaceStateUtils";
@@ -126,6 +127,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   });
 
   const router = useRouter();
+  const pathname = usePathname();
   const audioEngineRef = useRef<AudioEngine | null>(null);
   const recordingStopSessionRef = useRef<(finalBeat?: number) => void>(() => {});
   const recordingHandleBeatRef = useRef<(beat: number) => void>(() => {});
@@ -925,14 +927,27 @@ export function AppRoot({ children }: { children: ReactNode }) {
     patchWorkspace.setSelectedNodeId(undefined);
   };
 
-  const toggleTrackMacroPanel = useCallback((trackId: string) => {
-    commitProjectChange((current) => ({
-      ...current,
-      tracks: current.tracks.map((track) =>
-        track.id === trackId ? { ...track, macroPanelExpanded: !track.macroPanelExpanded } : track
-      )
-    }), { actionKey: `track:${trackId}:macro-panel` });
+  const setTrackMacroPanelExpanded = useCallback((trackId: string, expanded: boolean) => {
+    commitProjectChange((current) => {
+      let changed = false;
+      const tracks = current.tracks.map((track) => {
+        if (track.id !== trackId || track.macroPanelExpanded === expanded) {
+          return track;
+        }
+        changed = true;
+        return { ...track, macroPanelExpanded: expanded };
+      });
+      return changed ? { ...current, tracks } : current;
+    }, { actionKey: `track:${trackId}:macro-panel` });
   }, [commitProjectChange]);
+
+  const toggleTrackMacroPanel = useCallback((trackId: string) => {
+    const track = project.tracks.find((entry) => entry.id === trackId);
+    if (!track) {
+      return;
+    }
+    setTrackMacroPanelExpanded(trackId, !track.macroPanelExpanded);
+  }, [project.tracks, setTrackMacroPanelExpanded]);
 
   const changeTrackMacro = useCallback((trackId: string, macroId: string, normalized: number, options?: { commit?: boolean }) => {
     audioEngineRef.current?.setMacroValue(trackId, macroId, normalized);
@@ -984,10 +999,36 @@ export function AppRoot({ children }: { children: ReactNode }) {
     setRuntimeError,
     clearTransientComposerUi
   });
+  const workspaceView = pathname.endsWith("/patch-workspace") ? "patch-workspace" : "composer";
+  const hardwareNavigation = useHardwareNavigationShortcuts({
+    view: workspaceView,
+    projectGridBeats: project.global.gridBeats,
+    projectTempo: project.global.tempo,
+    tracks: project.tracks,
+    selectedTrack,
+    playheadBeat,
+    playbackEndBeat,
+    isPlaying: playing,
+    recordPhase: recording.recordPhase,
+    pitchPickerOpen: Boolean(pitchPicker),
+    previewPitchPickerOpen: patchWorkspace.previewPitchPickerOpen,
+    defaultPitch: patchWorkspace.previewPitch,
+    setDefaultPitch: patchWorkspace.setPreviewPitch,
+    setSelectedTrackId,
+    setPlayheadBeatFromUser: setPlayheadFromUser,
+    toggleTrackMacroPanel: setTrackMacroPanelExpanded,
+    commitProjectChange,
+    audioEngineRef,
+    previewSelectedPatchNow: patchWorkspace.previewSelectedPatchNow,
+    onComposerPlay: playback.startPlayback,
+    onComposerStop: playback.stopPlayback,
+    setRuntimeError
+  });
 
   if (!ready || !selectedTrack || !selectedPatch) {
     return <main className="loading">Loading...</main>;
   }
+
   const trackCanvasTrackActions = {
     onSelectTrack: setSelectedTrackId,
     onRenameTrack: renameTrack,
@@ -1083,10 +1124,18 @@ export function AppRoot({ children }: { children: ReactNode }) {
     project,
     ...projectMenuProps,
     selectedTrackId: selectedTrack.id,
+    defaultPitch: patchWorkspace.previewPitch,
     invalidPatchIds,
     canvasSelection,
     playheadBeat,
     activeRecordedNotes: recording.activeRecordedNotes,
+    keyboardPlacementNote: hardwareNavigation.activePlacement
+      ? {
+          trackId: hardwareNavigation.activePlacement.trackId,
+          noteId: hardwareNavigation.activePlacement.noteId
+        }
+      : null,
+    ghostPreviewNote: hardwareNavigation.ghostPreviewNote,
     ghostPlayheadBeat: recording.ghostPlayheadBeat ?? undefined,
     countInLabel: recording.countInLabel ?? undefined,
     timelineActionsPopover,
@@ -1100,6 +1149,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     recordEnabled: recording.recordEnabled,
     recordPhase: recording.recordPhase,
     exportingAudio,
+    onOpenDefaultPitchPicker: () => patchWorkspace.setPreviewPitchPickerOpen(true),
     onPlay: playback.startPlayback,
     onStop: playback.stopPlayback,
     onToggleRecord: () => {
@@ -1263,8 +1313,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
         <PitchPickerModal
           open={patchWorkspace.previewPitchPickerOpen}
-          title="Preview Pitch"
-          description="Select the pitch used for auto-preview when an instrument sound changes."
+          title="Default Pitch"
+          description="Select the shared default pitch used for patch preview and keyboard note placement."
           selectedPitch={patchWorkspace.previewPitch}
           onClose={() => patchWorkspace.setPreviewPitchPickerOpen(false)}
           onSelectPitch={(pitch) => {

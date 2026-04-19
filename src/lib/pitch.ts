@@ -106,6 +106,10 @@ const PHYSICAL_KEY_SEQUENCE = [
   "/"
 ] as const;
 
+const HW_PITCH_EXCLUDED_KEYS = new Set(["-", "=", "[", "]", ";", "'", ",", ".", "/"]);
+
+const PHYSICAL_PIANO_KEY_SEQUENCE = PHYSICAL_KEY_SEQUENCE.filter((key) => !HW_PITCH_EXCLUDED_KEYS.has(key));
+
 const SHIFTED_KEY_ALIASES: Record<string, string> = {
   "~": "`",
   "!": "1",
@@ -129,15 +133,25 @@ const SHIFTED_KEY_ALIASES: Record<string, string> = {
   "?": "/"
 };
 
-const QWERTY_START_MIDI = 36; // C2
+const QWERTY_CENTER_KEY = "g";
+const QWERTY_CENTER_MIDI = 60; // C4
+const QWERTY_CENTER_INDEX = PHYSICAL_PIANO_KEY_SEQUENCE.findIndex((key) => key === QWERTY_CENTER_KEY);
+const QWERTY_START_MIDI = QWERTY_CENTER_MIDI - QWERTY_CENTER_INDEX;
 
-const qwertyEntries = PHYSICAL_KEY_SEQUENCE.map((key, index) => [key, midiToPitch(QWERTY_START_MIDI + index)] as const);
+const qwertyEntries = PHYSICAL_PIANO_KEY_SEQUENCE.map((key, index) => [key, midiToPitch(QWERTY_START_MIDI + index)] as const);
 
 export const QWERTY_PITCH_MAP: Record<string, string> = Object.fromEntries(qwertyEntries);
 
 export const keyToPitch = (key: string): string | undefined => {
   const normalized = SHIFTED_KEY_ALIASES[key] ?? key.toLowerCase();
   return QWERTY_PITCH_MAP[normalized];
+};
+
+export const transposePitch = (pitchStr: string, semitoneDelta: number, options?: { minPitch?: string; maxPitch?: string }): string => {
+  const minMidi = pitchToMidi(options?.minPitch ?? "C1");
+  const maxMidi = pitchToMidi(options?.maxPitch ?? "C7");
+  const nextMidi = Math.max(minMidi, Math.min(maxMidi, pitchToMidi(pitchStr) + semitoneDelta));
+  return midiToPitch(nextMidi);
 };
 
 export const qwertyKeyForPitch = (pitchStr: string): string | undefined => {
