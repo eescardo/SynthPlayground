@@ -13,7 +13,7 @@ import {
   samplePlayerRootPitchToPitchSemis,
   serializeSamplePlayerData
 } from "@/lib/patch/samplePlayer";
-import { useProjectWorkspaceSampleAssets } from "@/components/patch/ProjectWorkspaceContext";
+import { usePatchWorkspaceSampleAssets } from "@/components/patch/PatchWorkspaceContext";
 import { detectDominantSamplePitches } from "@/lib/patch/pitchTracker";
 import { PatchNode } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -31,7 +31,7 @@ type SamplePlayerStatus = {
 
 export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSectionProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const { assets, upsertSamplePlayerAssetData } = useProjectWorkspaceSampleAssets();
+  const { assets, upsertSamplePlayerAssetData } = usePatchWorkspaceSampleAssets();
   const sampleAssetId = typeof props.node.params.sampleAssetId === "string" ? props.node.params.sampleAssetId : "";
   const rawSampleData = sampleAssetId ? assets.samplePlayerById[sampleAssetId] : undefined;
   const sampleAsset = useMemo(

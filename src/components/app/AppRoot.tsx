@@ -71,7 +71,7 @@ import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
-import { UseProjectWorkspaceControllerOptions } from "@/hooks/patch/useProjectWorkspaceController";
+import { UsePatchWorkspaceControllerOptions } from "@/hooks/patch/usePatchWorkspaceController";
 import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
 import { resolveRemovedPatchFallbackId } from "@/hooks/patch/patchWorkspaceStateUtils";
 import { useTrackMacroAutomationActions } from "@/hooks/tracks/useTrackMacroAutomationActions";
@@ -82,7 +82,7 @@ import { PatchValidationIssue } from "@/types/patch";
 
 interface AppRootContextValue {
   composerProps: React.ComponentProps<typeof ComposerView>;
-  projectWorkspaceControllerProps: UseProjectWorkspaceControllerOptions;
+  patchWorkspaceControllerProps: UsePatchWorkspaceControllerOptions;
 }
 
 const AppRootContext = createContext<AppRootContextValue | null>(null);
@@ -1154,7 +1154,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     selectionActions: trackCanvasSelectionActions
   };
 
-  const projectWorkspaceControllerProps: UseProjectWorkspaceControllerOptions = {
+  const patchWorkspaceControllerProps: UsePatchWorkspaceControllerOptions = {
     project,
     projectAssets,
     playheadBeat,
@@ -1171,7 +1171,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const contextValue: AppRootContextValue = {
     composerProps,
-    projectWorkspaceControllerProps
+    patchWorkspaceControllerProps
   };
   const rendererLabel = process.env.NEXT_PUBLIC_STRICT_WASM === "1"
     ? strictWasmReady

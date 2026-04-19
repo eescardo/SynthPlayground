@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useProjectWorkspaceInstrument } from "@/components/patch/ProjectWorkspaceContext";
+import { usePatchWorkspaceInstrument } from "@/components/patch/PatchWorkspaceContext";
 import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { useInlineRename } from "@/hooks/useInlineRename";
 import { useRenameActivation } from "@/hooks/useRenameActivation";
@@ -20,7 +20,7 @@ interface InstrumentToolbarActionsProps {
 
 function InstrumentToolbarActions(props: InstrumentToolbarActionsProps) {
   const importInputRef = useRef<HTMLInputElement | null>(null);
-  const instrument = useProjectWorkspaceInstrument();
+  const instrument = usePatchWorkspaceInstrument();
 
   return (
     <div className="instrument-toolbar-actions">
@@ -62,7 +62,7 @@ function InstrumentToolbarActions(props: InstrumentToolbarActionsProps) {
 }
 
 export function InstrumentToolbar(props: InstrumentToolbarProps) {
-  const instrument = useProjectWorkspaceInstrument();
+  const instrument = usePatchWorkspaceInstrument();
   const [selectorOpen, setSelectorOpen] = useState(false);
   const renameActivation = useRenameActivation<"instrument-name">();
   const presetLineageLabel = props.patch.meta.source === "preset" ? props.patch.meta.presetId : props.patch.id;

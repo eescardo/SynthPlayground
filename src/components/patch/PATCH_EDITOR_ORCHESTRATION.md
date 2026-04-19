@@ -7,7 +7,9 @@ component responsibilities and where orchestration lives.
 
 The patch editor is split into a few layers:
 
-- `ProjectWorkspaceController`
+- `ProjectWorkspaceProvider`
+- `PatchWorkspaceController`
+- `PatchWorkspaceProvider`
 - `PatchWorkspaceView`
 - `InstrumentEditor`
 - `PatchEditorCanvas`
@@ -17,37 +19,55 @@ The patch editor is split into a few layers:
 The general flow is:
 
 1. `AppRoot` owns project-level app state and instantiates `usePatchWorkspaceState`.
-2. `ProjectWorkspaceController` and `useProjectWorkspaceController` assemble focused workspace contexts plus patch-workspace view props.
-3. The caller chooses which view to render inside `ProjectWorkspaceController`.
-4. `PatchWorkspaceView` passes the selected patch/editor state into `InstrumentEditor`.
-5. `InstrumentEditor` combines patch-level controls with the canvas editor.
-6. `PatchEditorCanvas` coordinates canvas-local concerns and lays out the main editor regions.
-7. `PatchEditorStage` owns the actual interactive patch canvas stage.
+2. `PatchWorkspaceController` and `usePatchWorkspaceController` assemble patch-workspace view props plus patch-specific provider values.
+3. `ProjectWorkspaceProvider` supplies shared workspace concerns like transport and clipboard.
+4. `PatchWorkspaceProvider` augments that shared layer with patch-specific sample-asset and instrument contexts.
+5. `PatchWorkspaceView` passes the selected patch/editor state into `InstrumentEditor`.
+6. `InstrumentEditor` combines patch-level controls with the canvas editor.
+7. `PatchEditorCanvas` coordinates canvas-local concerns and lays out the main editor regions.
+8. `PatchEditorStage` owns the actual interactive patch canvas stage.
 
 ## Workspace Context
 
-`ProjectWorkspaceProvider` exposes four focused contexts instead of one monolithic workspace object:
+`ProjectWorkspaceProvider` exposes the shared workspace substrate:
 
 - transport
 - clipboard
+
+`PatchWorkspaceProvider` layers on the patch-editor-specific contexts:
+
 - sample assets
 - instrument actions/state
 
-These are memoized independently in `useProjectWorkspaceController` so consumers only rerender when their specific workspace dependency changes.
-
-The public workspace boundary is intentionally broader than the patch route name. `ProjectWorkspace...` is the project-side workspace surface, while `PatchWorkspaceView` remains the concrete patch-editing screen within that workspace.
+All of these are memoized independently in `usePatchWorkspaceController` so consumers only rerender when their specific workspace dependency changes.
 
 ## Responsibilities
 
-### `ProjectWorkspaceController`
+### `ProjectWorkspaceProvider`
+
+Owns the reusable cross-workspace context layer:
+
+- transport
+- clipboard
+
+This layer is intentionally small so composer and patch views can both consume it without inheriting each other's domain-specific state.
+
+### `PatchWorkspaceController`
 
 Owns the workspace boundary for the patch editor route:
 
-- calling `useProjectWorkspaceController`
-- providing focused workspace contexts
-- handing workspace/view state to its children
+- calling `usePatchWorkspaceController`
+- composing the shared `ProjectWorkspaceProvider` with the patch-specific `PatchWorkspaceProvider`
+- rendering `PatchWorkspaceView`
 
-It should stay thin and should not hardcode a specific workspace view.
+It should stay thin and focus on route composition rather than patch-editor behavior.
+
+### `PatchWorkspaceProvider`
+
+Owns the patch-editor-specific context layer:
+
+- sample asset access
+- instrument toolbar state/actions
 
 ### `PatchWorkspaceView`
 
@@ -210,7 +230,8 @@ components.
 
 If you are looking for:
 
-- workspace boundary and context assembly: `ProjectWorkspaceController` / `useProjectWorkspaceController`
+- shared workspace context: `ProjectWorkspaceProvider`
+- patch workspace boundary and context assembly: `PatchWorkspaceController` / `usePatchWorkspaceController`
 - workspace-level shell orchestration: `PatchWorkspaceView`
 - instrument-editor composition: `InstrumentEditor`
 - page layout and selected-entity wiring: `PatchEditorCanvas`

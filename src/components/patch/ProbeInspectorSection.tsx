@@ -7,7 +7,7 @@ import {
 import { buildPitchTrackerClipboardPayload, detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
 import { Patch } from "@/types/patch";
 import { PatchProbeTarget, PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
-import { useProjectWorkspaceClipboard, useProjectWorkspaceTransport } from "@/components/patch/ProjectWorkspaceContext";
+import { useProjectWorkspaceClipboard, useProjectWorkspaceTransport } from "@/components/ProjectWorkspaceContext";
 
 interface ProbeInspectorSectionProps {
   patch: Patch;

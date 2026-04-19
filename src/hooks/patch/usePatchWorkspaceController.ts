@@ -1,10 +1,12 @@
 import { Dispatch, SetStateAction, useCallback, useMemo } from "react";
 import {
-  ProjectWorkspaceInstrumentContextValue,
   ProjectWorkspaceProviderProps,
-  ProjectWorkspaceSampleAssetsContextValue,
   ProjectWorkspaceTransportContextValue
-} from "@/components/patch/ProjectWorkspaceContext";
+} from "@/components/ProjectWorkspaceContext";
+import {
+  PatchWorkspaceInstrumentContextValue,
+  PatchWorkspaceSampleAssetsContextValue
+} from "@/components/patch/PatchWorkspaceContext";
 import { PatchWorkspaceView } from "@/components/app/PatchWorkspaceView";
 import { downloadJsonFile } from "@/lib/browserDownloads";
 import { NoteClipboardPayload } from "@/lib/clipboard";
@@ -23,7 +25,7 @@ type CommitProjectChange = (
   options?: { actionKey?: string; coalesce?: boolean; skipHistory?: boolean }
 ) => void;
 
-export interface UseProjectWorkspaceControllerOptions {
+export interface UsePatchWorkspaceControllerOptions {
   project: Project;
   projectAssets: ProjectAssetLibrary;
   playheadBeat: number;
@@ -56,11 +58,11 @@ const createAvailablePatchName = (existingNames: string[], baseName: string) => 
   return `${baseName} ${suffix}`;
 };
 
-export function useProjectWorkspaceController(options: UseProjectWorkspaceControllerOptions): {
+export function usePatchWorkspaceController(options: UsePatchWorkspaceControllerOptions): {
   clipboard: ProjectWorkspaceProviderProps["clipboard"];
   transport: ProjectWorkspaceTransportContextValue;
-  sampleAssets: ProjectWorkspaceSampleAssetsContextValue;
-  instrument: ProjectWorkspaceInstrumentContextValue;
+  sampleAssets: PatchWorkspaceSampleAssetsContextValue;
+  instrument: PatchWorkspaceInstrumentContextValue;
   viewProps: React.ComponentProps<typeof PatchWorkspaceView>;
 } {
   const {
@@ -122,7 +124,7 @@ export function useProjectWorkspaceController(options: UseProjectWorkspaceContro
     project.global.tempo
   ]);
 
-  const sampleAssets = useMemo<ProjectWorkspaceSampleAssetsContextValue>(() => ({
+  const sampleAssets = useMemo<PatchWorkspaceSampleAssetsContextValue>(() => ({
     assets: projectAssets,
     upsertSamplePlayerAssetData: onUpsertSamplePlayerAssetData
   }), [
@@ -134,7 +136,7 @@ export function useProjectWorkspaceController(options: UseProjectWorkspaceContro
     void importPatchJson(file);
   }, [importPatchJson]);
 
-  const instrument = useMemo<ProjectWorkspaceInstrumentContextValue>(() => ({
+  const instrument = useMemo<PatchWorkspaceInstrumentContextValue>(() => ({
     patches: project.patches,
     canRemovePatch,
     renamePatch: patchWorkspace.renameSelectedPatch,
