@@ -28,11 +28,8 @@ yarn-error.log*
 *.tsbuildinfo
 
 # local review artifacts
-/artifacts/screenshots/
-/artifacts/traces/
-/artifacts/videos/
-/artifacts/audio-benchmarks/
-/artifacts/audio-profiles/
+/artifacts/*
+!/artifacts/README.md
 
 # generated worklet runtime artifacts
 /public/worklets/synth-worklet-*.js
