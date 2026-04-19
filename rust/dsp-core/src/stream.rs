@@ -21,14 +21,14 @@ struct TrackFxState {
 #[derive(Clone)]
 struct TrackProbeCaptureState {
     probe_id: String,
-    signal_index: usize,
+    signal_start: usize,
     duration_samples: usize,
     samples: Vec<f32>,
 }
 
 #[derive(Clone)]
 pub(crate) struct VoiceRuntime {
-    signal_values: Vec<f32>,
+    signal_buffers: Vec<f32>,
     nodes: Vec<RuntimeNode>,
     active: bool,
     note_id: Option<String>,
@@ -45,11 +45,12 @@ impl VoiceRuntime {
     /// Allocates a fresh voice runtime from the compiled node templates for one track.
     /// Params:
     /// - `signal_count`: number of signal slots that each voice must expose.
+    /// - `block_size`: number of frames in the preallocated signal buffer set.
     /// - `node_templates`: compiled node graph copied into each voice instance.
     /// - `random_seed`: initial RNG state used by stochastic modules in this voice.
-    fn new(signal_count: usize, node_templates: &[RuntimeNode], random_seed: u32) -> Self {
+    fn new(signal_count: usize, block_size: usize, node_templates: &[RuntimeNode], random_seed: u32) -> Self {
         Self {
-            signal_values: vec![0.0; signal_count.max(1)],
+            signal_buffers: vec![0.0; signal_count.max(1) * block_size.max(1)],
             nodes: node_templates.to_vec(),
             active: false,
             note_id: None,
@@ -73,14 +74,12 @@ impl VoiceRuntime {
     /// - `random_seed`: per-trigger RNG seed so repeated notes stay deterministic.
     fn reset_for_note_on(
         &mut self,
-        node_templates: &[RuntimeNode],
         note_id: String,
         pitch_voct: f32,
         velocity: f32,
         sample_time: u32,
         random_seed: u32,
     ) {
-        self.nodes = node_templates.to_vec();
         for node in self.nodes.iter_mut() {
             node.reset_dynamic_state();
         }
@@ -106,12 +105,13 @@ impl VoiceRuntime {
 pub(crate) struct TrackRuntime {
     mute: bool,
     volume: f32,
+    block_size: usize,
     fx: TrackFxSpec,
     host_signal_indices: HostSignalIndices,
-    output_signal_index: usize,
-    node_templates: Vec<RuntimeNode>,
+    output_signal_start: usize,
     node_index_by_id: HashMap<String, usize>,
     voices: Vec<VoiceRuntime>,
+    track_buffer: Vec<f32>,
     fx_state: TrackFxState,
     base_random_seed: u32,
     note_trigger_count: u32,
@@ -123,8 +123,9 @@ impl TrackRuntime {
     /// Params:
     /// - `spec`: compiled track description with node graph, host indices, and track FX settings.
     /// - `sample_rate`: global render sample rate used to size delay lines and smoothing state.
+    /// - `block_size`: number of frames each render call will process at most.
     /// - `random_seed`: base seed from which per-track and per-voice RNG streams are derived.
-    pub(crate) fn from_spec(spec: TrackSpec, sample_rate: f32, random_seed: u32) -> Result<Self, JsValue> {
+    pub(crate) fn from_spec(spec: TrackSpec, sample_rate: f32, block_size: usize, random_seed: u32) -> Result<Self, JsValue> {
         let node_templates = spec
             .nodes
             .iter()
@@ -142,6 +143,7 @@ impl TrackRuntime {
             .map(|voice_index| {
                 VoiceRuntime::new(
                     signal_count,
+                    block_size,
                     &node_templates,
                     base_random_seed.wrapping_add((voice_index as u32).wrapping_mul(0x45d9_f3b)),
                 )
@@ -150,12 +152,13 @@ impl TrackRuntime {
         Ok(Self {
             mute: spec.mute,
             volume: spec.volume,
+            block_size,
             fx: spec.fx,
             host_signal_indices: spec.host_signal_indices,
-            output_signal_index: spec.output_signal_index,
-            node_templates,
+            output_signal_start: spec.output_signal_index * block_size,
             node_index_by_id,
             voices,
+            track_buffer: vec![0.0; block_size.max(1)],
             fx_state: TrackFxState {
                 delay_buf: vec![0.0; (sample_rate as usize) * 3],
                 delay_write: 0,
@@ -179,7 +182,7 @@ impl TrackRuntime {
             .into_iter()
             .map(|spec| TrackProbeCaptureState {
                 probe_id: spec.probe_id,
-                signal_index: spec.signal_index,
+                signal_start: spec.signal_index * self.block_size,
                 duration_samples: spec.duration_samples,
                 samples: vec![0.0; spec.duration_samples],
             })
@@ -247,7 +250,6 @@ impl TrackRuntime {
             .wrapping_add((voice_index as u32).wrapping_mul(0x45d9_f3b));
         self.note_trigger_count = self.note_trigger_count.wrapping_add(1);
         self.voices[voice_index].reset_for_note_on(
-            &self.node_templates,
             note_id,
             pitch_voct,
             velocity,
@@ -317,9 +319,6 @@ impl TrackRuntime {
     /// - `value`: serialized parameter value to push into the node state.
     pub(crate) fn apply_param_change(&mut self, node_id: &str, param_id: &str, value: &Value) {
         if let Some(index) = self.node_index_by_id.get(node_id).copied() {
-            if let Some(node) = self.node_templates.get_mut(index) {
-                node.set_param(param_id, value);
-            }
             for voice in self.voices.iter_mut() {
                 if let Some(node) = voice.nodes.get_mut(index) {
                     node.set_param(param_id, value);
@@ -328,114 +327,179 @@ impl TrackRuntime {
         }
     }
 
-    /// Renders one track sample from its voices and optional insert FX.
+    fn fill_host_signal_buffers(voice: &mut VoiceRuntime, host_indices: &HostSignalIndices, block_size: usize, start_frame: usize, end_frame: usize) {
+        let pitch_start = host_indices.pitch * block_size;
+        let gate_start = host_indices.gate * block_size;
+        let velocity_start = host_indices.velocity * block_size;
+        let mod_wheel_start = host_indices.mod_wheel * block_size;
+
+        voice.signal_buffers[pitch_start + start_frame..pitch_start + end_frame].fill(voice.host_pitch_voct);
+        voice.signal_buffers[gate_start + start_frame..gate_start + end_frame].fill(voice.host_gate);
+        voice.signal_buffers[velocity_start + start_frame..velocity_start + end_frame].fill(voice.host_velocity);
+        voice.signal_buffers[mod_wheel_start + start_frame..mod_wheel_start + end_frame].fill(voice.host_modwheel);
+    }
+
+    /// Renders one track frame range from its voices and optional insert FX.
     /// Params:
+    /// - `target_buffer`: shared mix buffer that receives this track's processed output.
+    /// - `start_frame`: inclusive frame index inside the current render block.
+    /// - `end_frame`: exclusive frame index inside the current render block.
     /// - `sample_rate`: global sample rate for time-based DSP calculations.
     /// - `profile`: profiling accumulator that may be updated during render.
     /// - `profiling_enabled`: whether nested render timings should be recorded.
-    /// - `capture_sample_index`: absolute preview sample index to mirror into probe buffers, if any.
-    pub(crate) fn render_track_sample(
+    /// - `capture_offset`: absolute preview sample index for the start of this render range.
+    pub(crate) fn process_track_frames(
         &mut self,
+        target_buffer: &mut [f32],
+        start_frame: usize,
+        end_frame: usize,
         sample_rate: f32,
         profile: &mut EngineProfileStats,
         profiling_enabled: bool,
-        capture_sample_index: Option<usize>,
-    ) -> f32 {
-        let dry = if profiling_enabled {
+        capture_offset: usize,
+    ) {
+        self.track_buffer[start_frame..end_frame].fill(0.0);
+
+        if profiling_enabled {
             let started = now_ms();
-            let dry = self.render_dry_sample(sample_rate, profile, true, capture_sample_index);
+            self.render_dry_range(start_frame, end_frame, sample_rate, profile, true, capture_offset);
             profile.render_dry_sample_ms += now_ms() - started;
-            dry
         } else {
-            self.render_dry_sample(sample_rate, profile, false, capture_sample_index)
-        };
-        let processed = if profiling_enabled {
-            let started = now_ms();
-            let processed = self.apply_track_fx(dry, sample_rate);
-            profile.apply_track_fx_ms += now_ms() - started;
-            processed
-        } else {
-            self.apply_track_fx(dry, sample_rate)
-        };
-        if self.mute {
-            return 0.0;
+            self.render_dry_range(start_frame, end_frame, sample_rate, profile, false, capture_offset);
         }
-        processed * self.volume
+
+        if profiling_enabled {
+            let started = now_ms();
+            self.apply_track_fx_range(start_frame, end_frame, sample_rate);
+            profile.apply_track_fx_ms += now_ms() - started;
+        } else {
+            self.apply_track_fx_range(start_frame, end_frame, sample_rate);
+        }
+
+        profile.track_samples_rendered = profile
+            .track_samples_rendered
+            .saturating_add((end_frame.saturating_sub(start_frame)) as u64);
+
+        if self.mute {
+            return;
+        }
+
+        for frame in start_frame..end_frame {
+            target_buffer[frame] += self.track_buffer[frame] * self.volume;
+        }
     }
 
-    /// Renders the track signal before insert FX by summing all active voices.
+    /// Renders the track signal before insert FX by summing all active voices across a frame range.
     /// Params:
+    /// - `start_frame`: inclusive frame index inside the current block.
+    /// - `end_frame`: exclusive frame index inside the current block.
     /// - `sample_rate`: global sample rate used by the node processors.
     /// - `profile`: profiling accumulator that records node and dry-path timing buckets.
     /// - `profiling_enabled`: whether node timing should be recorded for this render.
-    /// - `capture_sample_index`: absolute preview sample index used to write probe captures, if any.
-    fn render_dry_sample(
+    /// - `capture_offset`: absolute preview sample index for the start of this range.
+    fn render_dry_range(
         &mut self,
+        start_frame: usize,
+        end_frame: usize,
         sample_rate: f32,
         profile: &mut EngineProfileStats,
         profiling_enabled: bool,
-        capture_sample_index: Option<usize>,
-    ) -> f32 {
-        let host_indices = self.host_signal_indices.clone();
-        let mut mixed = 0.0;
+        capture_offset: usize,
+    ) {
+        let host_indices = &self.host_signal_indices;
 
         for voice in self.voices.iter_mut() {
             if !voice.active {
                 continue;
             }
 
-            voice.signal_values[self.host_signal_indices.pitch] = voice.host_pitch_voct;
-            voice.signal_values[self.host_signal_indices.gate] = voice.host_gate;
-            voice.signal_values[self.host_signal_indices.velocity] = voice.host_velocity;
-            voice.signal_values[self.host_signal_indices.mod_wheel] = voice.host_modwheel;
+            Self::fill_host_signal_buffers(voice, host_indices, self.block_size, start_frame, end_frame);
 
             let mut rng_state = voice.rng_state;
             for node in voice.nodes.iter_mut() {
                 if profiling_enabled {
                     let started = now_ms();
-                    node.process_sample(&mut voice.signal_values, &host_indices, sample_rate, &mut rng_state);
+                    node.process_frame_range(
+                        &mut voice.signal_buffers,
+                        self.block_size,
+                        start_frame,
+                        end_frame,
+                        host_indices,
+                        sample_rate,
+                        &mut rng_state
+                    );
                     let elapsed = now_ms() - started;
                     profile.node_process_ms += elapsed;
-                    profile.node_samples_processed = profile.node_samples_processed.saturating_add(1);
+                    profile.node_samples_processed = profile
+                        .node_samples_processed
+                        .saturating_add((end_frame.saturating_sub(start_frame)) as u64);
                     node.add_profile_time(profile, elapsed);
                 } else {
-                    node.process_sample(&mut voice.signal_values, &host_indices, sample_rate, &mut rng_state);
+                    node.process_frame_range(
+                        &mut voice.signal_buffers,
+                        self.block_size,
+                        start_frame,
+                        end_frame,
+                        host_indices,
+                        sample_rate,
+                        &mut rng_state
+                    );
                 }
             }
             voice.rng_state = rng_state;
 
-            let sample = *voice.signal_values.get(self.output_signal_index).unwrap_or(&0.0);
-            if !sample.is_finite() {
+            let output_start = self.output_signal_start;
+            let mut all_finite = true;
+            if self.probe_captures.is_empty() {
+                for frame in start_frame..end_frame {
+                    let sample = voice.signal_buffers[output_start + frame];
+                    if !sample.is_finite() {
+                        all_finite = false;
+                        break;
+                    }
+                    voice.rms = voice.rms * 0.995 + sample.abs() * 0.005;
+                }
+            } else {
+                for frame in start_frame..end_frame {
+                    let sample = voice.signal_buffers[output_start + frame];
+                    if !sample.is_finite() {
+                        all_finite = false;
+                        break;
+                    }
+
+                    let capture_index = capture_offset + (frame - start_frame);
+                    for capture in self.probe_captures.iter_mut() {
+                        if capture_index < capture.duration_samples {
+                            capture.samples[capture_index] += voice.signal_buffers[capture.signal_start + frame];
+                        }
+                    }
+
+                    voice.rms = voice.rms * 0.995 + sample.abs() * 0.005;
+                }
+            }
+
+            if !all_finite {
+                voice.signal_buffers[output_start + start_frame..output_start + end_frame].fill(0.0);
                 voice.reset_to_inactive();
                 continue;
             }
 
-            if let Some(capture_index) = capture_sample_index {
-                for capture in self.probe_captures.iter_mut() {
-                    if capture_index < capture.duration_samples {
-                        if let Some(signal) = voice.signal_values.get(capture.signal_index) {
-                            capture.samples[capture_index] += *signal;
-                        }
-                    }
-                }
-            }
-
-            voice.rms = voice.rms * 0.995 + sample.abs() * 0.005;
             if voice.host_gate < 0.5 && voice.rms < 0.0005 {
                 voice.reset_to_inactive();
-            } else {
-                mixed += sample;
+                continue;
+            }
+
+            for frame in start_frame..end_frame {
+                self.track_buffer[frame] += voice.signal_buffers[output_start + frame];
             }
         }
-
-        mixed
     }
 
-    /// Applies this track's insert FX chain to a single dry input sample.
+    /// Applies this track's insert FX chain to one dry input sample.
     /// Params:
     /// - `input`: dry post-voice sample before the track FX chain.
     /// - `sample_rate`: global sample rate used to convert time-based FX settings into samples.
-    fn apply_track_fx(&mut self, input: f32, sample_rate: f32) -> f32 {
+    fn apply_track_fx_sample(&mut self, input: f32, sample_rate: f32) -> f32 {
         let fx = &self.fx;
         let state = &mut self.fx_state;
         let mut out = input;
@@ -477,6 +541,18 @@ impl TrackRuntime {
         }
 
         if out.is_finite() { out } else { 0.0 }
+    }
+
+    /// Applies this track's insert FX chain across a contiguous frame range.
+    /// Params:
+    /// - `start_frame`: inclusive frame index inside the current block.
+    /// - `end_frame`: exclusive frame index inside the current block.
+    /// - `sample_rate`: global sample rate used to convert time-based FX settings into samples.
+    fn apply_track_fx_range(&mut self, start_frame: usize, end_frame: usize, sample_rate: f32) {
+        for frame in start_frame..end_frame {
+            let input = self.track_buffer[frame];
+            self.track_buffer[frame] = self.apply_track_fx_sample(input, sample_rate);
+        }
     }
 
     pub(crate) fn stop_all_voices(&mut self) {

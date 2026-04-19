@@ -98,9 +98,20 @@ export class TrackRuntime {
     }
   }
 
-  // Compile the user patch into a numeric execution plan:
-  // host sources and node outputs get fixed signal indices, inputs resolve to
-  // those indices, and runtime nodes are topologically ordered for block rendering.
+  // Planning step for the JS renderer.
+  //
+  // This does not render any audio yet. Instead it lowers the user-facing patch
+  // graph into the runtime layout that block processing will use repeatedly:
+  // - every host signal and node output gets a stable numeric signal index
+  // - every node input is resolved to one of those indices ahead of time
+  // - node execution order is fixed topologically so the render loop can just
+  //   walk an array instead of traversing the patch graph at runtime
+  // - macro-expanded parameter values and param target maps are materialized up
+  //   front so DSP code mostly performs typed-array reads/writes
+  //
+  // In other words, this is the planner for the JS backend. It decides the
+  // addressing and execution order that the stream will use later when it fills
+  // audio buffers block by block.
   compilePatch(patch) {
     const nodeById = new Map();
     for (const node of patch.nodes) {

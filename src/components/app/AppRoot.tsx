@@ -6,12 +6,14 @@ import { toAudioProject } from "@/audio/audioProject";
 import { AudioEngine } from "@/audio/engine";
 import { ComposerView } from "@/components/app/ComposerView";
 import { AudioDebugPanel } from "@/components/app/AudioDebugPanel";
+import { BrowserCompatibilityDialog } from "@/components/app/BrowserCompatibilityDialog";
 import { PatchWorkspaceView } from "@/components/app/PatchWorkspaceView";
 import { PatchRemovalDialogModal } from "@/components/composer/PatchRemovalDialogModal";
 import { PitchPickerModal } from "@/components/composer/PitchPickerModal";
 import { RecordingDock } from "@/components/composer/RecordingDock";
 import { ExplodeSelectionDialog } from "@/components/ExplodeSelectionDialog";
 import { loadDspWasm } from "@/audio/renderers/wasm/wasmBridge";
+import { BrowserCompatibilityIssue, getBrowserCompatibilityIssue } from "@/lib/browserCompatibility";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import { TimelineActionsPopoverRequest, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { createId } from "@/lib/ids";
@@ -102,6 +104,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const [selectedTrackId, setSelectedTrackId] = useState<string | undefined>(undefined);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [strictWasmReady, setStrictWasmReady] = useState(process.env.NEXT_PUBLIC_STRICT_WASM !== "1");
+  const [browserCompatibilityIssue, setBrowserCompatibilityIssue] = useState<BrowserCompatibilityIssue | null>(null);
   const [editorSelection, setEditorSelection] = useState(createEmptyEditorSelection);
   const clearEditorSelectionState = useCallback(() => {
     setEditorSelection(clearEditorSelection());
@@ -426,6 +429,17 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!ready || process.env.NEXT_PUBLIC_STRICT_WASM !== "1") return;
+    const compatibilityIssue = getBrowserCompatibilityIssue(["wasm-simd"], {
+      title: "Browser not compatible with strict WASM mode",
+      summary: "Strict WASM mode in this build requires browser features that are not available in your current browser."
+    });
+    if (compatibilityIssue) {
+      setBrowserCompatibilityIssue(compatibilityIssue);
+      setRuntimeError("Strict WASM mode requires WebAssembly SIMD support in this browser.");
+      setStrictWasmReady(false);
+      return;
+    }
+
     loadDspWasm()
       .then((exports) => {
         if (!exports) {
@@ -433,6 +447,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
           setStrictWasmReady(false);
           return;
         }
+        setBrowserCompatibilityIssue(null);
         setRuntimeError(null);
         setStrictWasmReady(true);
       })
@@ -1224,6 +1239,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
         {children}
 
         {showDebugOverlay && <AudioDebugPanel rendererLabel={rendererLabel} />}
+
+        <BrowserCompatibilityDialog
+          issue={browserCompatibilityIssue}
+          onClose={() => setBrowserCompatibilityIssue(null)}
+        />
 
         {loopConflictDialog && (
           <LoopConflictDialog

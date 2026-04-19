@@ -65,12 +65,14 @@ impl WasmSubsetEngine {
 
         self.sample_rate = project.sample_rate as f32;
         self.block_size = project.block_size.max(1);
-        self.left = vec![0.0; self.block_size];
-        self.right = vec![0.0; self.block_size];
+        self.left.resize(self.block_size, 0.0);
+        self.right.resize(self.block_size, 0.0);
+        self.left.fill(0.0);
+        self.right.fill(0.0);
         self.tracks = project
             .tracks
             .into_iter()
-            .map(|track| TrackRuntime::from_spec(track, self.sample_rate, random_seed))
+            .map(|track| TrackRuntime::from_spec(track, self.sample_rate, self.block_size, random_seed))
             .collect::<Result<Vec<_>, _>>()?;
         self.master_fx = project.master_fx;
         self.master_compressor_env = 0.0;
@@ -140,6 +142,20 @@ impl WasmSubsetEngine {
         self.preview_capture_sample_count
     }
 
+    fn next_pending_event_sample(&self) -> Option<u32> {
+        self.event_queue
+            .get(self.event_cursor)
+            .map(EventSpec::sample_time)
+    }
+
+    fn apply_master_fx_range(&mut self, start_frame: usize, end_frame: usize) {
+        for frame in start_frame..end_frame {
+            let sample = self.apply_master_fx(self.left[frame]);
+            self.left[frame] = sample;
+            self.right[frame] = sample;
+        }
+    }
+
     /// Renders one audio block by consuming due events, summing track output, and applying master FX.
     /// Params:
     /// - `self`: engine containing the live stream state, output buffers, and optional profiling counters.
@@ -151,7 +167,8 @@ impl WasmSubsetEngine {
             return true;
         }
 
-        for frame in 0..self.block_size {
+        let mut frame = 0;
+        while frame < self.block_size {
             if self.profiling_enabled {
                 let started = now_ms();
                 self.consume_due_events();
@@ -159,37 +176,58 @@ impl WasmSubsetEngine {
             } else {
                 self.consume_due_events();
             }
-            let mut mixed = 0.0_f32;
+
+            let mut segment_end = self.block_size;
+            if let Some(next_event_sample) = self.next_pending_event_sample() {
+                if next_event_sample > self.song_sample_counter {
+                    let frames_until_event = (next_event_sample - self.song_sample_counter).max(1) as usize;
+                    segment_end = segment_end.min(frame + frames_until_event);
+                }
+            }
+            if segment_end <= frame {
+                segment_end = frame + 1;
+            }
+
             if self.profiling_enabled {
                 let started = now_ms();
                 let sample_rate = self.sample_rate;
                 let profile = &mut self.profile_stats;
-                let capture_sample_index = self.preview_capture_sample_count;
+                let capture_offset = self.preview_capture_sample_count;
                 for track in self.tracks.iter_mut() {
                     let track_started = now_ms();
-                    mixed += track.render_track_sample(sample_rate, profile, true, Some(capture_sample_index));
+                    track.process_track_frames(&mut self.left, frame, segment_end, sample_rate, profile, true, capture_offset);
                     profile.render_track_sample_ms += now_ms() - track_started;
-                    profile.track_samples_rendered = profile.track_samples_rendered.saturating_add(1);
                 }
                 self.profile_stats.render_tracks_ms += now_ms() - started;
             } else {
-                let capture_sample_index = self.preview_capture_sample_count;
+                let capture_offset = self.preview_capture_sample_count;
                 for track in self.tracks.iter_mut() {
-                    mixed += track.render_track_sample(self.sample_rate, &mut self.profile_stats, false, Some(capture_sample_index));
+                    track.process_track_frames(
+                        &mut self.left,
+                        frame,
+                        segment_end,
+                        self.sample_rate,
+                        &mut self.profile_stats,
+                        false,
+                        capture_offset
+                    );
                 }
             }
             if self.profiling_enabled {
                 let started = now_ms();
-                mixed = self.apply_master_fx(mixed);
+                self.apply_master_fx_range(frame, segment_end);
                 self.profile_stats.apply_master_fx_ms += now_ms() - started;
-                self.profile_stats.samples_processed = self.profile_stats.samples_processed.saturating_add(1);
+                self.profile_stats.samples_processed = self
+                    .profile_stats
+                    .samples_processed
+                    .saturating_add((segment_end.saturating_sub(frame)) as u64);
             } else {
-                mixed = self.apply_master_fx(mixed);
+                self.apply_master_fx_range(frame, segment_end);
             }
-            self.left[frame] = mixed;
-            self.right[frame] = mixed;
-            self.song_sample_counter = self.song_sample_counter.saturating_add(1);
-            self.preview_capture_sample_count = self.preview_capture_sample_count.saturating_add(1);
+            let rendered_frames = segment_end.saturating_sub(frame) as u32;
+            self.song_sample_counter = self.song_sample_counter.saturating_add(rendered_frames);
+            self.preview_capture_sample_count = self.preview_capture_sample_count.saturating_add(rendered_frames as usize);
+            frame = segment_end;
         }
 
         if let Some(started) = block_started {
@@ -243,11 +281,11 @@ impl WasmSubsetEngine {
 impl WasmSubsetEngine {
     fn consume_due_events(&mut self) {
         while self.event_cursor < self.event_queue.len() {
-            let event = &self.event_queue[self.event_cursor];
-            if event.sample_time() > self.song_sample_counter {
+            if self.event_queue[self.event_cursor].sample_time() > self.song_sample_counter {
                 break;
             }
-            self.apply_event(event.clone());
+            let event = self.event_queue[self.event_cursor].clone();
+            self.apply_event(event);
             self.event_cursor += 1;
         }
     }

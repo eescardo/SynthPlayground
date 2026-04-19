@@ -113,6 +113,7 @@ jobs:
     if: needs.context.outputs.should_run == 'true'
     outputs:
       has_artifact: ${{ steps.base-artifact.outputs.has_artifact }}
+      has_js_wasm_artifact: ${{ steps.base-js-wasm-artifact.outputs.has_artifact }}
     steps:
       - name: Check out base ref
         uses: actions/checkout@v4
@@ -130,8 +131,14 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build WASM package
+        run: pnpm run build:wasm
 
       - name: Run base audio benchmark
         id: run-base
@@ -140,10 +147,24 @@ jobs:
           BENCHMARK_GIT_REF: ${{ needs.context.outputs.base_label }}
         run: pnpm run benchmark:audio -- --runs ${{ needs.context.outputs.run_count }} --output artifacts/audio-benchmarks/base.json
 
+      - name: Run base JS vs WASM benchmark
+        id: run-base-js-wasm
+        continue-on-error: true
+        run: pnpm run benchmark:audio:js-wasm -- --scenario-id stress-3min-35tracks --runs 1 --output artifacts/audio-benchmarks/base-js-wasm.json
+
       - name: Flag base artifact availability
         id: base-artifact
         run: |
           if [ -f artifacts/audio-benchmarks/base.json ]; then
+            echo "has_artifact=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_artifact=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Flag base JS vs WASM artifact availability
+        id: base-js-wasm-artifact
+        run: |
+          if [ -f artifacts/audio-benchmarks/base-js-wasm.json ]; then
             echo "has_artifact=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_artifact=false" >> "$GITHUB_OUTPUT"
@@ -157,11 +178,21 @@ jobs:
           path: artifacts/audio-benchmarks/base.json
           if-no-files-found: error
 
+      - name: Upload base JS vs WASM benchmark artifact
+        if: steps.base-js-wasm-artifact.outputs.has_artifact == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: audio-benchmark-base-js-wasm
+          path: artifacts/audio-benchmarks/base-js-wasm.json
+          if-no-files-found: error
+
   benchmark-head:
     name: Benchmark Head
     runs-on: ubuntu-latest
     needs: context
     if: needs.context.outputs.should_run == 'true'
+    outputs:
+      has_js_wasm_artifact: ${{ steps.head-js-wasm-artifact.outputs.has_artifact }}
     steps:
       - name: Check out head ref
         uses: actions/checkout@v4
@@ -179,8 +210,14 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build WASM package
+        run: pnpm run build:wasm
 
       - name: Run head audio benchmark
         env:
@@ -188,11 +225,34 @@ jobs:
           BENCHMARK_GIT_SHA: ${{ needs.context.outputs.head_ref }}
         run: pnpm run benchmark:audio -- --runs ${{ needs.context.outputs.run_count }} --output artifacts/audio-benchmarks/head.json
 
+      - name: Run head JS vs WASM benchmark
+        env:
+          BENCHMARK_GIT_REF: ${{ needs.context.outputs.head_label }}
+          BENCHMARK_GIT_SHA: ${{ needs.context.outputs.head_ref }}
+        run: pnpm run benchmark:audio:js-wasm -- --scenario-id stress-3min-35tracks --runs 1 --output artifacts/audio-benchmarks/head-js-wasm.json
+
       - name: Upload head benchmark artifact
         uses: actions/upload-artifact@v4
         with:
           name: audio-benchmark-head
           path: artifacts/audio-benchmarks/head.json
+          if-no-files-found: error
+
+      - name: Flag head JS vs WASM artifact availability
+        id: head-js-wasm-artifact
+        run: |
+          if [ -f artifacts/audio-benchmarks/head-js-wasm.json ]; then
+            echo "has_artifact=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_artifact=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload head JS vs WASM benchmark artifact
+        if: steps.head-js-wasm-artifact.outputs.has_artifact == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: audio-benchmark-head-js-wasm
+          path: artifacts/audio-benchmarks/head-js-wasm.json
           if-no-files-found: error
 
   compare-and-comment:
@@ -228,10 +288,24 @@ jobs:
           name: audio-benchmark-base
           path: artifacts/audio-benchmarks
 
+      - name: Download base JS vs WASM benchmark artifact
+        if: needs.benchmark-base.outputs.has_js_wasm_artifact == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: audio-benchmark-base-js-wasm
+          path: artifacts/audio-benchmarks
+
       - name: Download head benchmark artifact
         uses: actions/download-artifact@v4
         with:
           name: audio-benchmark-head
+          path: artifacts/audio-benchmarks
+
+      - name: Download head JS vs WASM benchmark artifact
+        if: needs.benchmark-head.outputs.has_js_wasm_artifact == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: audio-benchmark-head-js-wasm
           path: artifacts/audio-benchmarks
 
       - name: Compare benchmark results
@@ -249,6 +323,30 @@ jobs:
               --markdown artifacts/audio-benchmarks/comment.md
           fi
 
+      - name: Render JS vs WASM section
+        if: needs.benchmark-head.outputs.has_js_wasm_artifact == 'true'
+        run: |
+          if [ "${{ needs.benchmark-base.outputs.has_js_wasm_artifact }}" = "true" ] && [ -f artifacts/audio-benchmarks/base-js-wasm.json ]; then
+            node --import tsx scripts/audio-benchmarks/render-js-wasm-pr-section.ts \
+              --base artifacts/audio-benchmarks/base-js-wasm.json \
+              --head artifacts/audio-benchmarks/head-js-wasm.json \
+              --output artifacts/audio-benchmarks/js-wasm-comment.md
+          else
+            node --import tsx scripts/audio-benchmarks/render-js-wasm-pr-section.ts \
+              --head artifacts/audio-benchmarks/head-js-wasm.json \
+              --output artifacts/audio-benchmarks/js-wasm-comment.md
+          fi
+
+      - name: Combine benchmark comment sections
+        run: |
+          cp artifacts/audio-benchmarks/comment.md artifacts/audio-benchmarks/comment-main.md
+          : > artifacts/audio-benchmarks/comment.md
+          cat artifacts/audio-benchmarks/comment-main.md >> artifacts/audio-benchmarks/comment.md
+          if [ -f artifacts/audio-benchmarks/js-wasm-comment.md ]; then
+            printf "\n\n" >> artifacts/audio-benchmarks/comment.md
+            cat artifacts/audio-benchmarks/js-wasm-comment.md >> artifacts/audio-benchmarks/comment.md
+          fi
+
       - name: Upload benchmark comparison artifact
         uses: actions/upload-artifact@v4
         with:
@@ -257,6 +355,9 @@ jobs:
             artifacts/audio-benchmarks/head.json
             artifacts/audio-benchmarks/comparison.json
             artifacts/audio-benchmarks/comment.md
+            artifacts/audio-benchmarks/base-js-wasm.json
+            artifacts/audio-benchmarks/head-js-wasm.json
+            artifacts/audio-benchmarks/js-wasm-comment.md
           if-no-files-found: error
 
       - name: Upsert benchmark comment

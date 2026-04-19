@@ -120,6 +120,14 @@ There are two live variants:
 - default live path: JS renderer behind the worklet shell
 - strict WASM live path: WASM renderer behind the same shell, enabled by `NEXT_PUBLIC_STRICT_WASM=1`
 
+The strict WASM build is compiled for WebAssembly SIMD and expects a modern browser profile:
+
+- Chrome/Edge 91+
+- Firefox 89+
+- Safari 16.4+
+
+At app load, strict mode performs feature detection before initializing the audio path. If SIMD is unavailable, the app shows a compatibility modal instead of attempting to boot the strict WASM renderer.
+
 ### Offline mode
 
 Offline mode reuses the same renderer abstraction, but drives the stream in a normal Node/TS loop instead of through an AudioWorklet.
