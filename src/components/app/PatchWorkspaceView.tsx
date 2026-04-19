@@ -43,6 +43,8 @@ interface PatchWorkspaceViewProps {
   onRenamePatch: (name: string) => void;
   onDuplicatePatch: () => void;
   onDuplicatePatchToNewTab: () => void;
+  onExportPatchJson: () => void;
+  onImportPatchFile: (file: File) => void;
   onUpdatePreset: () => void;
   onRequestRemovePatch: () => void;
   onOpenPreviewPitchPicker: () => void;
@@ -128,6 +130,8 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
             onSelectPatch={props.onSelectPatch}
             onDuplicatePatch={props.onDuplicatePatch}
             onDuplicatePatchToNewTab={props.onDuplicatePatchToNewTab}
+            onExportPatchJson={props.onExportPatchJson}
+            onImportPatchFile={props.onImportPatchFile}
             onUpdatePreset={props.onUpdatePreset}
             canRemovePatch={props.canRemovePatch}
             onRequestRemovePatch={props.onRequestRemovePatch}

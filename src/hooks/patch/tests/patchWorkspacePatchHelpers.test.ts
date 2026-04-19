@@ -2,19 +2,30 @@ import { describe, expect, it } from "vitest";
 
 import {
   createClearedWorkspacePatch,
-  createCustomDuplicatePatch,
-  createReplacementPatchForRemovedWorkspacePatch
+  createCustomDuplicatePatch
 } from "@/hooks/patch/patchWorkspacePatchHelpers";
 import { createClearPatch } from "@/lib/patch/presets";
 
 describe("patchWorkspacePatchHelpers", () => {
   it("creates a custom duplicate patch copy", () => {
-    const source = createClearPatch({ id: "patch_source", name: "Lead" });
+    const source = createClearPatch({
+      id: "patch_source",
+      name: "Lead",
+      meta: {
+        source: "preset",
+        presetId: "preset_lead",
+        presetVersion: 3
+      }
+    });
     const duplicate = createCustomDuplicatePatch(source);
 
     expect(duplicate.id).not.toBe(source.id);
     expect(duplicate.name).toBe("Lead Copy");
-    expect(duplicate.meta).toEqual({ source: "custom" });
+    expect(duplicate.meta).toEqual({
+      source: "custom",
+      basedOnPresetId: "preset_lead",
+      basedOnPresetVersion: 3
+    });
     expect(duplicate.nodes).toEqual(source.nodes);
   });
 
@@ -50,13 +61,23 @@ describe("patchWorkspacePatchHelpers", () => {
     expect(cleared.ui.canvasZoom).toBe(1.4);
   });
 
-  it("creates a replacement patch for removed workspace tabs", () => {
-    const source = createClearPatch({ id: "patch_source", name: "Pad" });
-    const replacement = createReplacementPatchForRemovedWorkspacePatch(source, "Idea Tab");
+  it("preserves existing preset lineage when duplicating a custom clone", () => {
+    const source = createClearPatch({
+      id: "patch_source",
+      name: "Pad Copy",
+      meta: {
+        source: "custom",
+        basedOnPresetId: "preset_pad",
+        basedOnPresetVersion: 5
+      }
+    });
 
-    expect(replacement.id).not.toBe(source.id);
-    expect(replacement.name).toBe("Idea Tab");
-    expect(replacement.meta).toEqual({ source: "custom" });
-    expect(replacement.nodes).toHaveLength(1);
+    const duplicate = createCustomDuplicatePatch(source);
+
+    expect(duplicate.meta).toEqual({
+      source: "custom",
+      basedOnPresetId: "preset_pad",
+      basedOnPresetVersion: 5
+    });
   });
 });

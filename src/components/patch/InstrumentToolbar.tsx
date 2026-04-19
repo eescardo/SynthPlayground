@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { useInlineRename } from "@/hooks/useInlineRename";
 import { useRenameActivation } from "@/hooks/useRenameActivation";
-import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
+import { getPatchLineagePresetId, resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { Patch } from "@/types/patch";
 
 interface InstrumentToolbarProps {
@@ -17,6 +17,8 @@ interface InstrumentToolbarProps {
   onSelectPatch: (patchId: string) => void;
   onDuplicatePatch: () => void;
   onDuplicatePatchToNewTab: () => void;
+  onExportPatchJson: () => void;
+  onImportPatchFile: (file: File) => void;
   onUpdatePreset: () => void;
   canRemovePatch: boolean;
   onRequestRemovePatch: () => void;
@@ -28,11 +30,15 @@ interface InstrumentToolbarActionsProps {
   onUpdatePreset: () => void;
   onDuplicatePatch: () => void;
   onDuplicatePatchToNewTab: () => void;
+  onExportPatchJson: () => void;
+  onImportPatchFile: (file: File) => void;
   canRemovePatch: boolean;
   onRequestRemovePatch: () => void;
 }
 
 function InstrumentToolbarActions(props: InstrumentToolbarActionsProps) {
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+
   return (
     <div className="instrument-toolbar-actions">
       {props.presetStatus === "preset_update_available" && (
@@ -46,9 +52,28 @@ function InstrumentToolbarActions(props: InstrumentToolbarActionsProps) {
       <button type="button" onClick={props.onDuplicatePatchToNewTab}>
         Duplicate to New Tab
       </button>
+      <button type="button" onClick={props.onExportPatchJson}>
+        Export JSON
+      </button>
+      <button type="button" onClick={() => importInputRef.current?.click()}>
+        Import JSON
+      </button>
       <button type="button" disabled={!props.canRemovePatch} onClick={props.onRequestRemovePatch}>
         Remove
       </button>
+      <input
+        ref={importInputRef}
+        type="file"
+        accept="application/json,.json"
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) {
+            props.onImportPatchFile(file);
+          }
+          event.currentTarget.value = "";
+        }}
+      />
     </div>
   );
 }
@@ -56,7 +81,7 @@ function InstrumentToolbarActions(props: InstrumentToolbarActionsProps) {
 export function InstrumentToolbar(props: InstrumentToolbarProps) {
   const [selectorOpen, setSelectorOpen] = useState(false);
   const renameActivation = useRenameActivation<"instrument-name">();
-  const presetLineageLabel = props.patch.meta.source === "preset" ? props.patch.meta.presetId : props.patch.id;
+  const presetLineageLabel = getPatchLineagePresetId(props.patch) ?? props.patch.id;
   const sourceLabel =
     props.presetStatus === "preset_update_available"
       ? "Preset update"
@@ -178,6 +203,8 @@ export function InstrumentToolbar(props: InstrumentToolbarProps) {
         onUpdatePreset={props.onUpdatePreset}
         onDuplicatePatch={props.onDuplicatePatch}
         onDuplicatePatchToNewTab={props.onDuplicatePatchToNewTab}
+        onExportPatchJson={props.onExportPatchJson}
+        onImportPatchFile={props.onImportPatchFile}
         canRemovePatch={props.canRemovePatch}
         onRequestRemovePatch={props.onRequestRemovePatch}
       />

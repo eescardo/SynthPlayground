@@ -77,14 +77,22 @@ export function extractInlineSamplePlayerAssets(
 export function collectReferencedSamplePlayerAssetIds(project: Project) {
   const ids = new Set<string>();
   for (const patch of project.patches) {
-    for (const node of patch.nodes) {
-      if (node.typeId !== SAMPLE_PLAYER_NODE_TYPE) {
-        continue;
-      }
-      const assetId = typeof node.params.sampleAssetId === "string" ? node.params.sampleAssetId : "";
-      if (assetId) {
-        ids.add(assetId);
-      }
+    for (const assetId of collectReferencedPatchSamplePlayerAssetIds(patch)) {
+      ids.add(assetId);
+    }
+  }
+  return ids;
+}
+
+export function collectReferencedPatchSamplePlayerAssetIds(patch: Patch) {
+  const ids = new Set<string>();
+  for (const node of patch.nodes) {
+    if (node.typeId !== SAMPLE_PLAYER_NODE_TYPE) {
+      continue;
+    }
+    const assetId = typeof node.params.sampleAssetId === "string" ? node.params.sampleAssetId : "";
+    if (assetId) {
+      ids.add(assetId);
     }
   }
   return ids;
@@ -98,6 +106,82 @@ export function pickReferencedProjectAssets(project: Project, assets: ProjectAss
       .filter((entry): entry is [string, string] => typeof entry[1] === "string")
   );
   return { samplePlayerById };
+}
+
+export function pickReferencedPatchAssets(patch: Patch, assets: ProjectAssetLibrary): ProjectAssetLibrary {
+  const referencedIds = collectReferencedPatchSamplePlayerAssetIds(patch);
+  const samplePlayerById = Object.fromEntries(
+    Array.from(referencedIds)
+      .map((assetId) => [assetId, assets.samplePlayerById[assetId]] as const)
+      .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+  );
+  return { samplePlayerById };
+}
+
+export function mergeImportedPatchAssets(
+  patch: Patch,
+  importedAssets: ProjectAssetLibrary,
+  currentAssets: ProjectAssetLibrary
+): { patch: Patch; assets: ProjectAssetLibrary } {
+  let nextAssets = currentAssets;
+  const remappedAssetIds = new Map<string, string>();
+
+  for (const importedAssetId of collectReferencedPatchSamplePlayerAssetIds(patch)) {
+    const importedData = importedAssets.samplePlayerById[importedAssetId];
+    if (!importedData) {
+      continue;
+    }
+
+    const currentData = currentAssets.samplePlayerById[importedAssetId];
+    if (currentData === importedData) {
+      remappedAssetIds.set(importedAssetId, importedAssetId);
+      continue;
+    }
+
+    const matchingExistingAssetId = Object.entries(nextAssets.samplePlayerById).find(([, data]) => data === importedData)?.[0];
+    if (matchingExistingAssetId) {
+      remappedAssetIds.set(importedAssetId, matchingExistingAssetId);
+      continue;
+    }
+
+    const nextAssetId = currentData ? createId("sampleAsset") : importedAssetId;
+    remappedAssetIds.set(importedAssetId, nextAssetId);
+    nextAssets = {
+      ...nextAssets,
+      samplePlayerById: {
+        ...nextAssets.samplePlayerById,
+        [nextAssetId]: importedData
+      }
+    };
+  }
+
+  if (remappedAssetIds.size === 0) {
+    return { patch, assets: nextAssets };
+  }
+
+  return {
+    patch: {
+      ...patch,
+      nodes: patch.nodes.map((node) => {
+        if (node.typeId !== SAMPLE_PLAYER_NODE_TYPE) {
+          return node;
+        }
+        const assetId = typeof node.params.sampleAssetId === "string" ? node.params.sampleAssetId : "";
+        const remappedAssetId = remappedAssetIds.get(assetId);
+        if (!remappedAssetId || remappedAssetId === assetId) {
+          return node;
+        }
+        return {
+          ...node,
+          params: {
+            ...node.params,
+            sampleAssetId: remappedAssetId
+          }
+        };
+      })
+    },
+    assets: nextAssets
+  };
 }
 
 export function hydratePatchSamplePlayerAssetsForRuntime(patch: Patch, assets: ProjectAssetLibrary): Patch {

@@ -151,7 +151,15 @@ const sanitizePatch = (raw: unknown, index: number): Patch => {
           )
         }
       : {
-          source: "custom"
+          source: "custom",
+          basedOnPresetId:
+            typeof (isObject(patch.meta) ? patch.meta.basedOnPresetId : undefined) === "string"
+              ? asString(isObject(patch.meta) ? patch.meta.basedOnPresetId : undefined, "")
+              : undefined,
+          basedOnPresetVersion:
+            asOptionalFiniteNumber(isObject(patch.meta) ? patch.meta.basedOnPresetVersion : undefined) === undefined
+              ? undefined
+              : Math.max(1, Math.floor(asFiniteNumber(isObject(patch.meta) ? patch.meta.basedOnPresetVersion : undefined, 1)))
         };
 
   return {

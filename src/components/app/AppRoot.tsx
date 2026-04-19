@@ -44,6 +44,7 @@ import {
 import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { createDefaultProject, createEmptyProject } from "@/lib/patch/presets";
+import { exportPatchToJson, importPatchBundleFromJson } from "@/lib/patch/serde";
 import { renameProjectInProject } from "@/lib/projectManagement";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
@@ -52,6 +53,7 @@ import {
   buildMissingSampleAssetIssues,
   createEmptyProjectAssetLibrary,
   extractInlineSamplePlayerAssets,
+  mergeImportedPatchAssets,
   upsertSamplePlayerAssetData
 } from "@/lib/sampleAssetLibrary";
 import { removeTrackFromProject, renameTrackInProject, switchTrackPatchInProject } from "@/lib/trackEdits";
@@ -72,7 +74,7 @@ import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
 import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
-import { MAX_PATCH_WORKSPACE_TABS } from "@/hooks/patch/patchWorkspaceStateUtils";
+import { MAX_PATCH_WORKSPACE_TABS, resolveRemovedPatchFallbackId } from "@/hooks/patch/patchWorkspaceStateUtils";
 import { useTrackMacroAutomationActions } from "@/hooks/tracks/useTrackMacroAutomationActions";
 import { useTrackVolumeAutomationActions } from "@/hooks/tracks/useTrackVolumeAutomationActions";
 import { ProjectAssetLibrary } from "@/types/assets";
@@ -92,6 +94,34 @@ export const useAppRoot = () => {
     throw new Error("useAppRoot must be used within AppRoot.");
   }
   return context;
+};
+
+const downloadJsonFile = (contents: string, filename: string) => {
+  const blob = new Blob([contents], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+};
+
+const createAvailablePatchName = (existingNames: string[], baseName: string) => {
+  const normalizedReservedNames = new Set(
+    existingNames
+      .map((name) => name.trim().toLocaleLowerCase())
+      .filter((name) => name.length > 0)
+  );
+
+  if (!normalizedReservedNames.has(baseName.toLocaleLowerCase())) {
+    return baseName;
+  }
+
+  let suffix = 2;
+  while (normalizedReservedNames.has(`${baseName} ${suffix}`.toLocaleLowerCase())) {
+    suffix += 1;
+  }
+  return `${baseName} ${suffix}`;
 };
 
 export function AppRoot({ children }: { children: ReactNode }) {
@@ -770,15 +800,42 @@ export function AppRoot({ children }: { children: ReactNode }) {
   }, [patchWorkspace]));
 
   const exportJson = () => {
-    const payload = exportProjectToJson(project, projectAssets);
-    const blob = new Blob([payload], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${project.name.replace(/\s+/g, "_").toLowerCase()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadJsonFile(
+      exportProjectToJson(project, projectAssets),
+      `${project.name.replace(/\s+/g, "_").toLowerCase()}.json`
+    );
   };
+
+  const exportSelectedPatchJson = useCallback(() => {
+    downloadJsonFile(
+      exportPatchToJson(selectedPatch, projectAssets),
+      `${selectedPatch.name.replace(/\s+/g, "_").toLowerCase()}.patch.json`
+    );
+  }, [projectAssets, selectedPatch]);
+
+  const importPatchJson = useCallback(async (file: File) => {
+    try {
+      const importedBundle = importPatchBundleFromJson(await file.text());
+      const merged = mergeImportedPatchAssets(importedBundle.patch, importedBundle.assets, projectAssets);
+      const nextPatchId = project.patches.some((patch) => patch.id === merged.patch.id) ? createId("patch") : merged.patch.id;
+      const nextPatchName = createAvailablePatchName(project.patches.map((patch) => patch.name), merged.patch.name);
+      const nextPatch = {
+        ...merged.patch,
+        id: nextPatchId,
+        name: nextPatchName
+      };
+
+      setProjectAssets(merged.assets);
+      commitProjectChange((current) => ({
+        ...current,
+        patches: [...current.patches, nextPatch]
+      }), { actionKey: `patch:import:${nextPatch.id}` });
+      patchWorkspace.selectPatchInWorkspace(nextPatch.id);
+      setRuntimeError(null);
+    } catch (error) {
+      setRuntimeError((error as Error).message);
+    }
+  }, [commitProjectChange, patchWorkspace, project.patches, projectAssets, setRuntimeError]);
 
   const addTrack = () => {
     const fallbackPatch = project.patches[0];
@@ -856,7 +913,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
       return;
     }
     const affectedTracks = project.tracks.filter((track) => track.instrumentPatchId === selectedTrackPatch.id);
-    const fallbackPatchId = project.patches.find((patch) => patch.id !== selectedTrackPatch.id)?.id ?? "";
+    const fallbackPatchId = resolveRemovedPatchFallbackId(project.patches, selectedTrackPatch.id) ?? "";
     if (affectedTracks.length === 0) {
       commitProjectChange((current) => ({
         ...current,
@@ -1193,6 +1250,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
     onSelectPatch: patchWorkspace.selectPatchInWorkspace,
     onDuplicatePatch: patchWorkspace.duplicateSelectedPatchInWorkspace,
     onDuplicatePatchToNewTab: patchWorkspace.duplicateSelectedPatchToNewTab,
+    onExportPatchJson: exportSelectedPatchJson,
+    onImportPatchFile: importPatchJson,
     onUpdatePreset: patchWorkspace.updatePresetToLatest,
     onRequestRemovePatch: patchWorkspace.requestRemoveSelectedPatch,
     onOpenPreviewPitchPicker: () => patchWorkspace.setPreviewPitchPickerOpen(true),

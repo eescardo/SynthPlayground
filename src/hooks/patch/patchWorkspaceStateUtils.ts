@@ -1,4 +1,5 @@
 import { clampNormalizedMacroValue } from "@/lib/patch/macroKeyframes";
+import { getPatchLineagePresetId } from "@/lib/patch/source";
 import { Patch } from "@/types/patch";
 import { PatchWorkspaceTabState } from "@/types/music";
 import { PatchOp } from "@/types/ops";
@@ -133,6 +134,40 @@ export const resetWorkspaceTabForPatch = (tab: LocalPatchWorkspaceTab, patchId: 
   probes: [],
   migrationNotice: null
 });
+
+export const resolveRemovedPatchFallbackId = (patches: Patch[], removedPatchId: string): string | undefined => {
+  const removedIndex = patches.findIndex((patch) => patch.id === removedPatchId);
+  if (removedIndex < 0) {
+    return undefined;
+  }
+
+  const removedPatch = patches[removedIndex];
+  const lineagePresetId = getPatchLineagePresetId(removedPatch);
+  if (lineagePresetId) {
+    const matchingPreset = patches.find(
+      (patch) => patch.id !== removedPatchId && patch.meta.source === "preset" && patch.meta.presetId === lineagePresetId
+    );
+    if (matchingPreset) {
+      return matchingPreset.id;
+    }
+  }
+
+  for (let index = removedIndex - 1; index >= 0; index -= 1) {
+    const candidate = patches[index];
+    if (candidate) {
+      return candidate.id;
+    }
+  }
+
+  for (let index = removedIndex + 1; index < patches.length; index += 1) {
+    const candidate = patches[index];
+    if (candidate) {
+      return candidate.id;
+    }
+  }
+
+  return undefined;
+};
 
 export const sanitizeWorkspaceTabs = (
   tabs: LocalPatchWorkspaceTab[],

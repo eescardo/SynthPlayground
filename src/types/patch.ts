@@ -109,6 +109,8 @@ export interface PatchLayoutNode {
 export type PatchMeta =
   | {
       source: "custom";
+      basedOnPresetId?: string;
+      basedOnPresetVersion?: number;
     }
   | {
       source: "preset";

@@ -35,6 +35,30 @@ export const getBundledPresetLineage = (presetId: string | undefined): BundledPr
 export const getBundledPresetPatch = (presetId: string | undefined): Patch | undefined =>
   presetId ? bundledPresetById.get(presetId) : undefined;
 
+export const getPatchLineagePresetId = (
+  patch: { meta?: PatchMeta | null }
+): string | undefined => {
+  if (patch.meta?.source === "preset") {
+    return patch.meta.presetId;
+  }
+  if (patch.meta?.source === "custom" && typeof patch.meta.basedOnPresetId === "string" && patch.meta.basedOnPresetId) {
+    return patch.meta.basedOnPresetId;
+  }
+  return undefined;
+};
+
+export const getPatchLineagePresetVersion = (
+  patch: { meta?: PatchMeta | null }
+): number | undefined => {
+  if (patch.meta?.source === "preset") {
+    return patch.meta.presetVersion;
+  }
+  if (patch.meta?.source === "custom" && Number.isFinite(patch.meta.basedOnPresetVersion)) {
+    return patch.meta.basedOnPresetVersion;
+  }
+  return undefined;
+};
+
 export const resolvePatchPresetStatus = (
   patch: Pick<Patch, "id"> & { meta?: PatchMeta | null }
 ): PatchPresetStatus => {
@@ -43,12 +67,12 @@ export const resolvePatchPresetStatus = (
     return "custom";
   }
 
-  const presetId = patch.meta?.source === "preset" ? patch.meta.presetId : patch.id;
+  const presetId = getPatchLineagePresetId(patch) ?? patch.id;
   const bundled = getBundledPresetLineage(presetId);
   if (!bundled) {
     return "legacy_preset";
   }
 
-  const storedVersion = patch.meta?.source === "preset" ? patch.meta.presetVersion : bundled.presetVersion;
+  const storedVersion = getPatchLineagePresetVersion(patch) ?? bundled.presetVersion;
   return bundled.presetVersion > storedVersion ? "preset_update_available" : "preset";
 };

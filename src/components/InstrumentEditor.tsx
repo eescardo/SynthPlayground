@@ -26,6 +26,8 @@ interface InstrumentEditorProps {
   onSelectPatch: (patchId: string) => void;
   onDuplicatePatch: () => void;
   onDuplicatePatchToNewTab: () => void;
+  onExportPatchJson: () => void;
+  onImportPatchFile: (file: File) => void;
   onUpdatePreset: () => void;
   canRemovePatch: boolean;
   onRequestRemovePatch: () => void;
@@ -71,6 +73,8 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
         onSelectPatch={props.onSelectPatch}
         onDuplicatePatch={props.onDuplicatePatch}
         onDuplicatePatchToNewTab={props.onDuplicatePatchToNewTab}
+        onExportPatchJson={props.onExportPatchJson}
+        onImportPatchFile={props.onImportPatchFile}
         onUpdatePreset={props.onUpdatePreset}
         canRemovePatch={props.canRemovePatch}
         onRequestRemovePatch={props.onRequestRemovePatch}
