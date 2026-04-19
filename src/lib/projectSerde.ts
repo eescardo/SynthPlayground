@@ -1,18 +1,14 @@
 import { createId } from "@/lib/ids";
 import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping";
 import { sanitizeMacroAutomationMap } from "@/lib/macroAutomation";
-import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch/patchCanvasConstants";
-import { ensurePatchLayout } from "@/lib/patch/autoLayout";
 import { clampProbeMaxFrequencyHz, DEFAULT_PROBE_MAX_FREQUENCY_HZ } from "@/lib/patch/probes";
 import { presetPatches } from "@/lib/patch/presets";
-import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
-import { normalizeMacroKeyframeCount } from "@/lib/patch/macroKeyframes";
+import { normalizePatch } from "@/lib/patch/codec";
 import { TRACK_VOLUME_DEFAULT, TRACK_VOLUME_MAX, TRACK_VOLUME_MIN } from "@/lib/trackVolume";
 import { Project, TrackFxSettings, PatchWorkspaceTabState } from "@/types/music";
-import { Patch, PatchConnection, PatchMacro, PatchMeta, PatchNode } from "@/types/patch";
 import { PatchProbeTarget, PatchWorkspaceProbeState } from "@/types/probes";
 import { ProjectAssetLibrary } from "@/types/assets";
-import { createEmptyProjectAssetLibrary, pickReferencedProjectAssets } from "@/lib/sampleAssetLibrary";
+import { createEmptyProjectAssetLibrary, normalizeProjectAssetLibrary, pickReferencedProjectAssets } from "@/lib/sampleAssetLibrary";
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -49,139 +45,6 @@ const sanitizeMacroValueMap = (raw: unknown): Record<string, number> => {
     }
   }
   return values;
-};
-
-const sanitizeParamMap = (raw: unknown): Record<string, number | string | boolean> => {
-  if (!isObject(raw)) {
-    return {};
-  }
-  const params: Record<string, number | string | boolean> = {};
-  for (const [key, value] of Object.entries(raw)) {
-    if (typeof value === "number" || typeof value === "string" || typeof value === "boolean") {
-      params[key] = value;
-    }
-  }
-  return params;
-};
-
-const sanitizePatchNode = (raw: unknown, index: number): PatchNode => {
-  const node = isObject(raw) ? raw : {};
-  return {
-    id: asString(node.id, `node_${index}`),
-    typeId: asString(node.typeId, ""),
-    params: sanitizeParamMap(node.params)
-  };
-};
-
-const sanitizePatchConnection = (raw: unknown, index: number): PatchConnection => {
-  const connection = isObject(raw) ? raw : {};
-  const from = isObject(connection.from) ? connection.from : {};
-  const to = isObject(connection.to) ? connection.to : {};
-  return {
-    id: asString(connection.id, `conn_${index}`),
-    from: {
-      nodeId: asString(from.nodeId, ""),
-      portId: asString(from.portId, "")
-    },
-    to: {
-      nodeId: asString(to.nodeId, ""),
-      portId: asString(to.portId, "")
-    }
-  };
-};
-
-const sanitizePatchMacro = (raw: unknown, index: number): PatchMacro => {
-  const macro = isObject(raw) ? raw : {};
-  const bindingsRaw = Array.isArray(macro.bindings) ? macro.bindings : [];
-  return {
-    id: asString(macro.id, `macro_${index}`),
-    name: asString(macro.name, `Macro ${index + 1}`),
-    keyframeCount: normalizeMacroKeyframeCount(macro.keyframeCount),
-    defaultNormalized: clamp(asFiniteNumber(macro.defaultNormalized, 0.5), 0, 1),
-    bindings: bindingsRaw.map((binding, bindingIndex) => {
-      const item = isObject(binding) ? binding : {};
-      const pointsRaw = Array.isArray(item.points) ? item.points : [];
-      const points = pointsRaw
-        .map((point) => {
-          const entry = isObject(point) ? point : {};
-          return {
-            x: clamp(asFiniteNumber(entry.x, 0), 0, 1),
-            y: asFiniteNumber(entry.y, 0)
-          };
-        })
-        .sort((left, right) => left.x - right.x);
-      return {
-        id: asString(item.id, `binding_${bindingIndex}`),
-        nodeId: asString(item.nodeId, ""),
-        paramId: asString(item.paramId, ""),
-        map: item.map === "exp" ? "exp" : item.map === "piecewise" && points.length >= 2 ? "piecewise" : "linear",
-        min: asFiniteNumber(item.min, 0),
-        max: asFiniteNumber(item.max, 1),
-        points: points.length >= 2 ? points : undefined
-      };
-    })
-  };
-};
-
-const sanitizePatch = (raw: unknown, index: number): Patch => {
-  const patch = isObject(raw) ? raw : {};
-  const ui = isObject(patch.ui) ? patch.ui : {};
-  const layout = isObject(patch.layout) ? patch.layout : {};
-  const io = isObject(patch.io) ? patch.io : {};
-  const patchId = asString(patch.id, `patch_${index}`);
-  const sourceProbe: Pick<PatchMeta, "source"> | undefined =
-    isObject(patch.meta) && (patch.meta.source === "preset" || patch.meta.source === "custom")
-      ? { source: patch.meta.source }
-      : undefined;
-  const source = resolvePatchSource({
-    id: patchId,
-    meta: sourceProbe
-  });
-  const bundledLineage = getBundledPresetLineage(patchId);
-  const meta: PatchMeta =
-    source === "preset"
-      ? {
-          source: "preset",
-          presetId: asString(isObject(patch.meta) ? patch.meta.presetId : undefined, bundledLineage?.presetId ?? patchId),
-          presetVersion: Math.max(
-            1,
-            Math.floor(
-              asFiniteNumber(isObject(patch.meta) ? patch.meta.presetVersion : undefined, bundledLineage?.presetVersion ?? 1)
-            )
-          )
-        }
-      : {
-          source: "custom"
-        };
-
-  return {
-    schemaVersion: Math.max(1, Math.floor(asFiniteNumber(patch.schemaVersion, 1))),
-    id: patchId,
-    name: asString(patch.name, `Patch ${index + 1}`),
-    meta,
-    nodes: (Array.isArray(patch.nodes) ? patch.nodes : []).map(sanitizePatchNode),
-    connections: (Array.isArray(patch.connections) ? patch.connections : []).map(sanitizePatchConnection),
-    ui: {
-      macros: (Array.isArray(ui.macros) ? ui.macros : []).map(sanitizePatchMacro),
-      canvasZoom: asOptionalFiniteNumber(ui.canvasZoom) === undefined
-        ? undefined
-        : clamp(asFiniteNumber(ui.canvasZoom, 1), PATCH_CANVAS_MIN_ZOOM, PATCH_CANVAS_MAX_ZOOM)
-    },
-    layout: {
-      nodes: (Array.isArray(layout.nodes) ? layout.nodes : []).map((entry) => {
-        const node = isObject(entry) ? entry : {};
-        return {
-          nodeId: asString(node.nodeId, ""),
-          x: Math.max(0, Math.floor(asFiniteNumber(node.x, 0))),
-          y: Math.max(0, Math.floor(asFiniteNumber(node.y, 0)))
-        };
-      })
-    },
-    io: {
-      audioOutNodeId: asString(io.audioOutNodeId, ""),
-      audioOutPortId: asString(io.audioOutPortId, "out")
-    }
-  };
 };
 
 const sanitizeProbeTarget = (raw: unknown): PatchProbeTarget | undefined => {
@@ -283,7 +146,9 @@ export const normalizeProject = (raw: unknown): Project => {
   }
 
   const patchesRaw = Array.isArray(raw.patches) ? raw.patches : [];
-  const normalizedPatches = patchesRaw.map((patch, index) => ensurePatchLayout(sanitizePatch(patch, index)));
+  const normalizedPatches = patchesRaw.map((patch, index) =>
+    normalizePatch(patch, { fallbackId: `patch_${index}`, fallbackName: `Patch ${index + 1}` })
+  );
   const existingPatchIds = new Set(normalizedPatches.map((patch) => patch.id));
   const patches = [
     ...normalizedPatches,
@@ -469,13 +334,7 @@ export const importProjectBundleFromJson = (json: string): { project: Project; a
   if (isSerializedProjectBundleV2(parsed)) {
     return {
       project: normalizeProject(parsed.project),
-      assets: {
-        samplePlayerById: isObject(parsed.assets.samplePlayerById)
-          ? Object.fromEntries(
-              Object.entries(parsed.assets.samplePlayerById).filter((entry): entry is [string, string] => typeof entry[1] === "string")
-            )
-          : {}
-      }
+      assets: normalizeProjectAssetLibrary(parsed.assets)
     };
   }
   return {

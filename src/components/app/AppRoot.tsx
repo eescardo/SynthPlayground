@@ -7,13 +7,13 @@ import { AudioEngine } from "@/audio/engine";
 import { ComposerView } from "@/components/app/ComposerView";
 import { AudioDebugPanel } from "@/components/app/AudioDebugPanel";
 import { BrowserCompatibilityDialog } from "@/components/app/BrowserCompatibilityDialog";
-import { PatchWorkspaceView } from "@/components/app/PatchWorkspaceView";
 import { PatchRemovalDialogModal } from "@/components/composer/PatchRemovalDialogModal";
 import { PitchPickerModal } from "@/components/composer/PitchPickerModal";
 import { RecordingDock } from "@/components/composer/RecordingDock";
 import { ExplodeSelectionDialog } from "@/components/ExplodeSelectionDialog";
 import { loadDspWasm } from "@/audio/renderers/wasm/wasmBridge";
 import { BrowserCompatibilityIssue, getBrowserCompatibilityIssue } from "@/lib/browserCompatibility";
+import { downloadJsonFile } from "@/lib/browserDownloads";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import { TimelineActionsPopoverRequest, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { createId } from "@/lib/ids";
@@ -71,8 +71,9 @@ import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
+import { UsePatchWorkspaceControllerOptions } from "@/hooks/patch/usePatchWorkspaceController";
 import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
-import { MAX_PATCH_WORKSPACE_TABS } from "@/hooks/patch/patchWorkspaceStateUtils";
+import { resolveRemovedPatchFallbackId } from "@/hooks/patch/patchWorkspaceStateUtils";
 import { useTrackMacroAutomationActions } from "@/hooks/tracks/useTrackMacroAutomationActions";
 import { useTrackVolumeAutomationActions } from "@/hooks/tracks/useTrackVolumeAutomationActions";
 import { ProjectAssetLibrary } from "@/types/assets";
@@ -81,7 +82,7 @@ import { PatchValidationIssue } from "@/types/patch";
 
 interface AppRootContextValue {
   composerProps: React.ComponentProps<typeof ComposerView>;
-  patchWorkspaceProps: React.ComponentProps<typeof PatchWorkspaceView>;
+  patchWorkspaceControllerProps: UsePatchWorkspaceControllerOptions;
 }
 
 const AppRootContext = createContext<AppRootContextValue | null>(null);
@@ -770,14 +771,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
   }, [patchWorkspace]));
 
   const exportJson = () => {
-    const payload = exportProjectToJson(project, projectAssets);
-    const blob = new Blob([payload], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${project.name.replace(/\s+/g, "_").toLowerCase()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadJsonFile(
+      exportProjectToJson(project, projectAssets),
+      `${project.name.replace(/\s+/g, "_").toLowerCase()}.json`
+    );
   };
 
   const addTrack = () => {
@@ -856,7 +853,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
       return;
     }
     const affectedTracks = project.tracks.filter((track) => track.instrumentPatchId === selectedTrackPatch.id);
-    const fallbackPatchId = project.patches.find((patch) => patch.id !== selectedTrackPatch.id)?.id ?? "";
+    const fallbackPatchId = resolveRemovedPatchFallbackId(project.patches, selectedTrackPatch.id) ?? "";
     if (affectedTracks.length === 0) {
       commitProjectChange((current) => ({
         ...current,
@@ -1157,73 +1154,24 @@ export function AppRoot({ children }: { children: ReactNode }) {
     selectionActions: trackCanvasSelectionActions
   };
 
-  const patchWorkspaceProps: React.ComponentProps<typeof PatchWorkspaceView> = {
-    patch: selectedPatch,
-    tempo: project.global.tempo,
-    meter: project.global.meter,
+  const patchWorkspaceControllerProps: UsePatchWorkspaceControllerOptions = {
+    project,
+    projectAssets,
     playheadBeat,
-    sampleAssets: projectAssets,
-    patches: project.patches,
-    probeState: {
-      probes: patchWorkspace.probes,
-      selectedProbeId: patchWorkspace.selectedProbeId,
-      previewCaptureByProbeId: patchWorkspace.previewCaptureByProbeId,
-      previewProgress: patchWorkspace.previewProgress
-    },
-    tabs: patchWorkspace.tabs.map((tab) => ({ id: tab.id, name: tab.name, patchId: tab.patchId })),
-    activeTabId: patchWorkspace.activeTabId,
-    macroValues: patchWorkspace.workspaceMacroValues,
-    previewPitch: patchWorkspace.previewPitch,
-    migrationNotice: patchWorkspace.migrationNotice,
-    selectedNodeId: patchWorkspace.selectedNodeId,
-    selectedMacroId: patchWorkspace.selectedMacroId,
+    selectedPatch,
     validationIssues,
-    invalid: selectedPatchHasErrors,
+    selectedPatchHasErrors,
+    patchWorkspace,
     onWriteClipboardPayload: writeClipboardPayload,
     onUpsertSamplePlayerAssetData: upsertWorkspaceSamplePlayerAssetData,
-    canRemovePatch:
-      resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset",
-    onBackToComposer: patchWorkspace.closePatchWorkspace,
-    onActivateTab: patchWorkspace.activateWorkspaceTab,
-    canCreateTab: patchWorkspace.tabs.length < MAX_PATCH_WORKSPACE_TABS,
-    onCreateTab: patchWorkspace.createWorkspaceTabFromCurrent,
-    onCloseTab: patchWorkspace.closeWorkspaceTab,
-    onRenameTab: patchWorkspace.renameWorkspaceTab,
-    onRenamePatch: patchWorkspace.renameSelectedPatch,
-    onSelectPatch: patchWorkspace.selectPatchInWorkspace,
-    onDuplicatePatch: patchWorkspace.duplicateSelectedPatchInWorkspace,
-    onDuplicatePatchToNewTab: patchWorkspace.duplicateSelectedPatchToNewTab,
-    onUpdatePreset: patchWorkspace.updatePresetToLatest,
-    onRequestRemovePatch: patchWorkspace.requestRemoveSelectedPatch,
-    onOpenPreviewPitchPicker: () => patchWorkspace.setPreviewPitchPickerOpen(true),
-    onPreviewNow: () => patchWorkspace.previewSelectedPatchNow(),
-    onInstrumentEditorReady: patchWorkspace.handleInstrumentEditorReady,
-    onSelectNode: patchWorkspace.setSelectedNodeId,
-    onSelectMacro: patchWorkspace.setSelectedMacroId,
-    onClearSelectedMacro: patchWorkspace.clearSelectedMacro,
-    onClearPatch: patchWorkspace.clearSelectedPatchCircuit,
-    onApplyOp: patchWorkspace.applyPatchOp,
-    probeActions: {
-      addProbe: patchWorkspace.addProbeToWorkspace,
-      moveProbe: patchWorkspace.moveProbe,
-      selectProbe: patchWorkspace.setSelectedProbeId,
-      updateTarget: patchWorkspace.updateProbeTarget,
-      updateSpectrumWindow: patchWorkspace.updateProbeSpectrumWindow,
-      updateFrequencyView: (probeId, maxHz) => patchWorkspace.updateProbeFrequencyView(probeId, { maxHz }),
-      toggleExpanded: patchWorkspace.toggleProbeExpanded,
-      deleteSelected: patchWorkspace.removeSelectedProbe
-    },
-    onExposeMacro: patchWorkspace.exposePatchMacro,
-    onAddMacro: patchWorkspace.addPatchMacro,
-    onRemoveMacro: patchWorkspace.removePatchMacro,
-    onRenameMacro: patchWorkspace.renamePatchMacro,
-    onSetMacroKeyframeCount: patchWorkspace.setPatchMacroKeyframeCount,
-    onChangeMacroValue: patchWorkspace.changePatchMacroValue
+    commitProjectChange,
+    setProjectAssets,
+    setRuntimeError
   };
 
   const contextValue: AppRootContextValue = {
     composerProps,
-    patchWorkspaceProps
+    patchWorkspaceControllerProps
   };
   const rendererLabel = process.env.NEXT_PUBLIC_STRICT_WASM === "1"
     ? strictWasmReady

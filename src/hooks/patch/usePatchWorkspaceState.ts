@@ -12,13 +12,13 @@ import {
   isTextEditingTarget,
   LocalPatchWorkspaceTab,
   MAX_PATCH_WORKSPACE_TABS,
+  resolveRemovedPatchFallbackId,
   sanitizeWorkspaceTabs,
   retargetRemovedPatchTabs
 } from "@/hooks/patch/patchWorkspaceStateUtils";
 import {
   createClearedWorkspacePatch,
-  createCustomDuplicatePatch,
-  createReplacementPatchForRemovedWorkspacePatch
+  createCustomDuplicatePatch
 } from "@/hooks/patch/patchWorkspacePatchHelpers";
 import { usePatchWorkspacePreviewController } from "@/hooks/patch/usePatchWorkspacePreviewController";
 import { usePatchWorkspacePreview } from "@/hooks/patch/usePatchWorkspacePreview";
@@ -712,13 +712,16 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       return;
     }
     const affectedTracks = project.tracks.filter((track) => track.instrumentPatchId === selectedPatch.id);
-    const fallbackPatchId = project.patches.find((patch) => patch.id !== selectedPatch.id)?.id ?? "";
+    const fallbackPatchId = resolveRemovedPatchFallbackId(project.patches, selectedPatch.id) ?? "";
     if (affectedTracks.length === 0) {
-      const replacementPatch = createReplacementPatchForRemovedWorkspacePatch(selectedPatch, activeTab?.name);
+      if (!fallbackPatchId) {
+        setRuntimeError("No fallback instrument is available for this tab.");
+        return;
+      }
       const affectedTabIds = tabs.filter((tab) => tab.patchId === selectedPatch.id).map((tab) => tab.id);
 
       skipNextWorkspaceHistoryRef.current = false;
-      setTabs((currentTabs) => retargetRemovedPatchTabs(currentTabs, selectedPatch.id, replacementPatch.id));
+      setTabs((currentTabs) => retargetRemovedPatchTabs(currentTabs, selectedPatch.id, fallbackPatchId));
       setTabMacroValuesById((current) => ({
         ...current,
         ...Object.fromEntries(affectedTabIds.map((tabId) => [tabId, {}]))
@@ -726,7 +729,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       setPreviewCaptureByProbeId({});
       commitProjectChange((current) => ({
         ...current,
-        patches: [...current.patches.filter((patch) => patch.id !== selectedPatch.id), replacementPatch]
+        patches: current.patches.filter((patch) => patch.id !== selectedPatch.id)
       }), { actionKey: `patch:${selectedPatch.id}:remove` });
       return;
     }
@@ -739,7 +742,6 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       }))
     });
   }, [
-    activeTab?.name,
     commitProjectChange,
     project.patches,
     project.tracks,
@@ -747,6 +749,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     setPatchRemovalDialog,
     setTabMacroValuesById,
     setTabs,
+    setRuntimeError,
     skipNextWorkspaceHistoryRef,
     tabs
   ]);

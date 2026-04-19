@@ -1,5 +1,6 @@
 import { createId } from "@/lib/ids";
 import { createClearPatch } from "@/lib/patch/presets";
+import { resolvePatchSource } from "@/lib/patch/source";
 import { Patch } from "@/types/patch";
 
 export function createCustomDuplicatePatch(sourcePatch: Patch): Patch {
@@ -8,6 +9,13 @@ export function createCustomDuplicatePatch(sourcePatch: Patch): Patch {
   duplicate.name = `${sourcePatch.name} Copy`;
   duplicate.meta = { source: "custom" };
   return duplicate;
+}
+
+export function createImportedWorkspacePatch(sourcePatch: Patch): Patch {
+  if (resolvePatchSource(sourcePatch) === "preset") {
+    return createCustomDuplicatePatch(sourcePatch);
+  }
+  return sourcePatch;
 }
 
 export function createClearedWorkspacePatch(sourcePatch: Patch): Patch {
@@ -23,12 +31,5 @@ export function createClearedWorkspacePatch(sourcePatch: Patch): Patch {
     outputNodeId: existingOutputNode?.id ?? "out1",
     outputPosition: existingOutputLayout ? { x: existingOutputLayout.x, y: existingOutputLayout.y } : undefined,
     canvasZoom: sourcePatch.ui.canvasZoom
-  });
-}
-
-export function createReplacementPatchForRemovedWorkspacePatch(sourcePatch: Patch, replacementName?: string): Patch {
-  return createClearPatch({
-    id: createId("patch"),
-    name: replacementName || sourcePatch.name
   });
 }

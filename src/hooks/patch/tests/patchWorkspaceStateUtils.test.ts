@@ -6,6 +6,7 @@ import {
   parseTabMacroValues,
   pruneTabMacroValues,
   resetWorkspaceTabForPatch,
+  resolveRemovedPatchFallbackId,
   sanitizeWorkspaceTabs,
   retargetRemovedPatchTabs
 } from "@/hooks/patch/patchWorkspaceStateUtils";
@@ -149,6 +150,19 @@ describe("patchWorkspaceStateUtils", () => {
       probes: [],
       migrationNotice: null
     });
+  });
+
+  it("falls back to the previous patch when no preset lineage is available", () => {
+    expect(
+      resolveRemovedPatchFallbackId(
+        [
+          createClearPatch({ id: "patch_prev", name: "Prev" }),
+          createClearPatch({ id: "patch_removed", name: "Removed" }),
+          createClearPatch({ id: "patch_next", name: "Next" })
+        ],
+        "patch_removed"
+      )
+    ).toBe("patch_prev");
   });
 
   it("sanitizes tabs against the current patch graph and fallback patch", () => {

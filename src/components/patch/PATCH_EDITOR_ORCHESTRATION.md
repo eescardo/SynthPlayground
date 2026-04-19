@@ -7,6 +7,9 @@ component responsibilities and where orchestration lives.
 
 The patch editor is split into a few layers:
 
+- `ProjectWorkspaceProvider`
+- `PatchWorkspaceController`
+- `PatchWorkspaceProvider`
 - `PatchWorkspaceView`
 - `InstrumentEditor`
 - `PatchEditorCanvas`
@@ -15,13 +18,56 @@ The patch editor is split into a few layers:
 
 The general flow is:
 
-1. App/workspace state is assembled in `AppRoot` and `usePatchWorkspaceState`.
-2. `PatchWorkspaceView` passes the selected patch/editor state into `InstrumentEditor`.
-3. `InstrumentEditor` combines patch-level controls with the canvas editor.
-4. `PatchEditorCanvas` coordinates canvas-local concerns and lays out the main editor regions.
-5. `PatchEditorStage` owns the actual interactive patch canvas stage.
+1. `AppRoot` owns project-level app state and instantiates `usePatchWorkspaceState`.
+2. `PatchWorkspaceController` and `usePatchWorkspaceController` assemble patch-workspace view props plus patch-specific provider values.
+3. `ProjectWorkspaceProvider` supplies shared workspace concerns like transport and clipboard.
+4. `PatchWorkspaceProvider` augments that shared layer with patch-specific sample-asset and instrument contexts.
+5. `PatchWorkspaceView` passes the selected patch/editor state into `InstrumentEditor`.
+6. `InstrumentEditor` combines patch-level controls with the canvas editor.
+7. `PatchEditorCanvas` coordinates canvas-local concerns and lays out the main editor regions.
+8. `PatchEditorStage` owns the actual interactive patch canvas stage.
+
+## Workspace Context
+
+`ProjectWorkspaceProvider` exposes the shared workspace substrate:
+
+- transport
+- clipboard
+
+`PatchWorkspaceProvider` layers on the patch-editor-specific contexts:
+
+- sample assets
+- instrument actions/state
+
+All of these are memoized independently in `usePatchWorkspaceController` so consumers only rerender when their specific workspace dependency changes.
 
 ## Responsibilities
+
+### `ProjectWorkspaceProvider`
+
+Owns the reusable cross-workspace context layer:
+
+- transport
+- clipboard
+
+This layer is intentionally small so composer and patch views can both consume it without inheriting each other's domain-specific state.
+
+### `PatchWorkspaceController`
+
+Owns the workspace boundary for the patch editor route:
+
+- calling `usePatchWorkspaceController`
+- composing the shared `ProjectWorkspaceProvider` with the patch-specific `PatchWorkspaceProvider`
+- rendering `PatchWorkspaceView`
+
+It should stay thin and focus on route composition rather than patch-editor behavior.
+
+### `PatchWorkspaceProvider`
+
+Owns the patch-editor-specific context layer:
+
+- sample asset access
+- instrument toolbar state/actions
 
 ### `PatchWorkspaceView`
 
@@ -184,7 +230,9 @@ components.
 
 If you are looking for:
 
-- workspace-level orchestration: `PatchWorkspaceView`
+- shared workspace context: `ProjectWorkspaceProvider`
+- patch workspace boundary and context assembly: `PatchWorkspaceController` / `usePatchWorkspaceController`
+- workspace-level shell orchestration: `PatchWorkspaceView`
 - instrument-editor composition: `InstrumentEditor`
 - page layout and selected-entity wiring: `PatchEditorCanvas`
 - canvas stage behavior: `PatchEditorStage`

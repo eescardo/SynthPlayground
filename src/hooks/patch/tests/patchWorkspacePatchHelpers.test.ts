@@ -1,21 +1,41 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  createImportedWorkspacePatch,
   createClearedWorkspacePatch,
-  createCustomDuplicatePatch,
-  createReplacementPatchForRemovedWorkspacePatch
+  createCustomDuplicatePatch
 } from "@/hooks/patch/patchWorkspacePatchHelpers";
-import { createClearPatch } from "@/lib/patch/presets";
+import { createClearPatch, presetPatches } from "@/lib/patch/presets";
 
 describe("patchWorkspacePatchHelpers", () => {
   it("creates a custom duplicate patch copy", () => {
-    const source = createClearPatch({ id: "patch_source", name: "Lead" });
+    const source = createClearPatch({
+      id: "patch_source",
+      name: "Lead"
+    });
     const duplicate = createCustomDuplicatePatch(source);
 
     expect(duplicate.id).not.toBe(source.id);
     expect(duplicate.name).toBe("Lead Copy");
     expect(duplicate.meta).toEqual({ source: "custom" });
     expect(duplicate.nodes).toEqual(source.nodes);
+  });
+
+  it("imports preset patches as removable custom duplicates", () => {
+    const imported = createImportedWorkspacePatch(presetPatches[0]);
+
+    expect(imported.id).not.toBe(presetPatches[0].id);
+    expect(imported.name).toBe(`${presetPatches[0].name} Copy`);
+    expect(imported.meta).toEqual({ source: "custom" });
+  });
+
+  it("keeps imported custom patches unchanged", () => {
+    const source = createClearPatch({
+      id: "patch_imported",
+      name: "Imported Lead"
+    });
+
+    expect(createImportedWorkspacePatch(source)).toBe(source);
   });
 
   it("creates a cleared workspace patch while preserving output node placement", () => {
@@ -50,13 +70,4 @@ describe("patchWorkspacePatchHelpers", () => {
     expect(cleared.ui.canvasZoom).toBe(1.4);
   });
 
-  it("creates a replacement patch for removed workspace tabs", () => {
-    const source = createClearPatch({ id: "patch_source", name: "Pad" });
-    const replacement = createReplacementPatchForRemovedWorkspacePatch(source, "Idea Tab");
-
-    expect(replacement.id).not.toBe(source.id);
-    expect(replacement.name).toBe("Idea Tab");
-    expect(replacement.meta).toEqual({ source: "custom" });
-    expect(replacement.nodes).toHaveLength(1);
-  });
 });

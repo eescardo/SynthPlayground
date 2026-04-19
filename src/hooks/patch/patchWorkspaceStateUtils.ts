@@ -134,6 +134,29 @@ export const resetWorkspaceTabForPatch = (tab: LocalPatchWorkspaceTab, patchId: 
   migrationNotice: null
 });
 
+export const resolveRemovedPatchFallbackId = (patches: Patch[], removedPatchId: string): string | undefined => {
+  const removedIndex = patches.findIndex((patch) => patch.id === removedPatchId);
+  if (removedIndex < 0) {
+    return undefined;
+  }
+
+  for (let index = removedIndex - 1; index >= 0; index -= 1) {
+    const candidate = patches[index];
+    if (candidate) {
+      return candidate.id;
+    }
+  }
+
+  for (let index = removedIndex + 1; index < patches.length; index += 1) {
+    const candidate = patches[index];
+    if (candidate) {
+      return candidate.id;
+    }
+  }
+
+  return undefined;
+};
+
 export const sanitizeWorkspaceTabs = (
   tabs: LocalPatchWorkspaceTab[],
   patchById: Map<string, Patch>,
