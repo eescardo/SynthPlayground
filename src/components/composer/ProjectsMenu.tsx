@@ -1,10 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import { RefObject, useCallback, useState } from "react";
-import { SiteBrand } from "@/components/branding/SiteBrand";
 import { ProjectsPopover } from "@/components/composer/ProjectsPopover";
 import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { RecentProjectSnapshot } from "@/lib/persistence";
+import { brandSproutIconSrc } from "@/resources/images";
 
 interface ProjectsMenuProps {
   importInputRef: RefObject<HTMLInputElement | null>;
@@ -56,7 +57,11 @@ export function ProjectsMenu({
         title={triggerLabel}
         onClick={() => setOpen((current) => !current)}
       >
-        {iconOnly ? <SiteBrand className="projects-menu-brand" /> : "Projects"}
+        {iconOnly ? (
+          <Image className="projects-menu-brand-mark" src={brandSproutIconSrc} alt="" aria-hidden="true" width={24} height={24} unoptimized />
+        ) : (
+          "Projects"
+        )}
       </button>
       {open && (
         <ProjectsPopover

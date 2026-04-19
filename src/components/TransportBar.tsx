@@ -1,11 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import { ChangeEvent, RefObject } from "react";
-import { PatchWorkspaceIcon } from "@/components/branding/SiteBrand";
 import { ProjectNameControl } from "@/components/composer/ProjectNameControl";
 import { ProjectsMenu } from "@/components/composer/ProjectsMenu";
 import { RecentProjectSnapshot } from "@/lib/persistence";
 import { formatBeatName } from "@/lib/musicTiming";
+import { patchWorkspaceIconSrc } from "@/resources/images";
 
 interface TransportBarProps {
   projectName: string;
@@ -66,7 +67,15 @@ export function TransportBar(props: TransportBarProps) {
           aria-label="Open Patch Workspace"
           onClick={props.onOpenPatchWorkspace}
         >
-          <PatchWorkspaceIcon className="transport-nav-button-icon transport-nav-button-icon-patch" />
+          <Image
+            className="transport-nav-button-icon transport-nav-button-icon-patch"
+            src={patchWorkspaceIconSrc}
+            alt=""
+            aria-hidden="true"
+            width={20}
+            height={20}
+            unoptimized
+          />
           <span>Workspace</span>
         </button>
 

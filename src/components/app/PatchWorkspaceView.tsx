@@ -1,13 +1,14 @@
 "use client";
 
+import Image from "next/image";
 import type { ComponentProps, RefObject } from "react";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
-import { BackArrowIcon } from "@/components/branding/SiteBrand";
 import { ProjectsMenu } from "@/components/composer/ProjectsMenu";
 import { PatchWorkspaceTabStrip, PatchWorkspaceTabViewModel } from "@/components/patch-workspace/PatchWorkspaceTabStrip";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { usePatchWorkspaceQuickHelpDialog } from "@/hooks/patch/usePatchWorkspaceQuickHelpDialog";
 import { RecentProjectSnapshot } from "@/lib/persistence";
+import { backArrowIconSrc } from "@/resources/images";
 import { Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
@@ -90,7 +91,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
             aria-label="Back to Composer"
             onClick={props.onBackToComposer}
           >
-            <BackArrowIcon className="transport-nav-button-icon" />
+            <Image className="transport-nav-button-icon" src={backArrowIconSrc} alt="" aria-hidden="true" width={20} height={20} unoptimized />
             <span>Composer</span>
           </button>
           <div className="patch-workspace-title">

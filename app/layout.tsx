@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { brandSproutIconSrc } from "@/resources/images";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -6,8 +7,8 @@ export const metadata: Metadata = {
   description: "Playful browser-based synth and music playground.",
   applicationName: "SynthSprout",
   icons: {
-    icon: "/icon.svg",
-    shortcut: "/icon.svg"
+    icon: brandSproutIconSrc,
+    shortcut: brandSproutIconSrc
   }
 };
 

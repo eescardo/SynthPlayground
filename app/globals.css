@@ -89,36 +89,6 @@ select {
   border-radius: 10px;
 }
 
-.site-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.site-brand-icon-only {
-  gap: 0;
-}
-
-.site-brand-mark {
-  width: 1.35rem;
-  height: 1.35rem;
-  flex: 0 0 auto;
-  filter: drop-shadow(0 6px 14px rgba(5, 12, 19, 0.28));
-}
-
-.site-brand-label {
-  font-size: 0.71rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(216, 235, 255, 0.68);
-  white-space: nowrap;
-}
-
-.transport-brand {
-  margin-right: 0.1rem;
-}
-
 .projects-menu-trigger {
   display: inline-flex;
   align-items: center;
@@ -131,13 +101,12 @@ select {
   background: rgba(13, 23, 34, 0.34);
 }
 
-.projects-menu-brand {
-  pointer-events: none;
-}
-
-.projects-menu-brand .site-brand-mark {
+.projects-menu-brand-mark {
   width: 1.2rem;
   height: 1.2rem;
+  display: block;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 14px rgba(5, 12, 19, 0.28));
 }
 
 .transport-nav-button {
@@ -150,6 +119,7 @@ select {
 .transport-nav-button-icon {
   width: 1rem;
   height: 1rem;
+  display: block;
   flex: 0 0 auto;
 }
 
