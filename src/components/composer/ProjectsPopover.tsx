@@ -50,7 +50,7 @@ export function ProjectsPopover({
         Import Project
       </button>
       <button type="button" onClick={() => runAction(onResetToDefaultProject)}>
-        Reset To Default Project
+        New Project From Template
       </button>
       {recentProjects.length > 0 && (
         <>

@@ -32,7 +32,7 @@ export const createClearedProject = (project: Project): Project => {
   };
 };
 
-export const createResetProject = (): Project => withUpdatedTimestamp(createDefaultProject());
+export const createProjectFromDefaultTemplate = (): Project => withUpdatedTimestamp(createDefaultProject());
 
 export const prepareImportedProject = (project: Project): Project => ({
   ...project,

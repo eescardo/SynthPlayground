@@ -4,8 +4,8 @@ import { AudioEngine } from "@/audio/engine";
 import {
   createClearedProject,
   createNamedEmptyProject,
+  createProjectFromDefaultTemplate,
   createProjectSnapshot,
-  createResetProject,
   prepareImportedProject
 } from "@/lib/projectLifecycle";
 import {
@@ -90,8 +90,8 @@ export const useProjectLifecycleActions = ({
     setSelectedTrackId(nextProject.tracks[0]?.id);
   }, [clearTransientComposerUi, commitProjectChange, playback, project, setSelectedTrackId]);
 
-  const resetToDefaultProject = useCallback(async () => {
-    await switchToProject(createResetProject(), createEmptyProjectAssetLibrary(), { rememberCurrent: true });
+  const createDefaultTemplateProject = useCallback(async () => {
+    await switchToProject(createProjectFromDefaultTemplate(), createEmptyProjectAssetLibrary(), { rememberCurrent: true });
   }, [switchToProject]);
 
   const openRecentProject = useCallback(async (projectId: string) => {
@@ -124,6 +124,6 @@ export const useProjectLifecycleActions = ({
     createNewProject,
     importJson,
     openRecentProject,
-    resetToDefaultProject
+    resetToDefaultProject: createDefaultTemplateProject
   };
 };

@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createClearedProject,
   createNamedEmptyProject,
+  createProjectFromDefaultTemplate,
   createProjectSnapshot,
-  createResetProject,
   prepareImportedProject
 } from "@/lib/projectLifecycle";
 import { Project } from "@/types/music";
@@ -120,7 +120,7 @@ describe("projectLifecycle", () => {
   it("creates a fresh default project with an updated timestamp", () => {
     vi.spyOn(Date, "now").mockReturnValue(1234);
 
-    const resetProject = createResetProject();
+    const resetProject = createProjectFromDefaultTemplate();
 
     expect(resetProject.updatedAt).toBe(1234);
     expect(resetProject.id).toMatch(/^project_/);
