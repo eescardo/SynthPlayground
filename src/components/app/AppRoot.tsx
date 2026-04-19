@@ -7,7 +7,6 @@ import { AudioEngine } from "@/audio/engine";
 import { ComposerView } from "@/components/app/ComposerView";
 import { AudioDebugPanel } from "@/components/app/AudioDebugPanel";
 import { BrowserCompatibilityDialog } from "@/components/app/BrowserCompatibilityDialog";
-import { ProjectWorkspaceController } from "@/components/app/ProjectWorkspaceController";
 import { PatchRemovalDialogModal } from "@/components/composer/PatchRemovalDialogModal";
 import { PitchPickerModal } from "@/components/composer/PitchPickerModal";
 import { RecordingDock } from "@/components/composer/RecordingDock";
@@ -72,6 +71,7 @@ import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
+import { UseProjectWorkspaceControllerOptions } from "@/hooks/patch/useProjectWorkspaceController";
 import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
 import { resolveRemovedPatchFallbackId } from "@/hooks/patch/patchWorkspaceStateUtils";
 import { useTrackMacroAutomationActions } from "@/hooks/tracks/useTrackMacroAutomationActions";
@@ -82,7 +82,7 @@ import { PatchValidationIssue } from "@/types/patch";
 
 interface AppRootContextValue {
   composerProps: React.ComponentProps<typeof ComposerView>;
-  projectWorkspaceControllerProps: React.ComponentProps<typeof ProjectWorkspaceController>;
+  projectWorkspaceControllerProps: UseProjectWorkspaceControllerOptions;
 }
 
 const AppRootContext = createContext<AppRootContextValue | null>(null);
@@ -1154,7 +1154,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     selectionActions: trackCanvasSelectionActions
   };
 
-  const projectWorkspaceControllerProps: React.ComponentProps<typeof ProjectWorkspaceController> = {
+  const projectWorkspaceControllerProps: UseProjectWorkspaceControllerOptions = {
     project,
     projectAssets,
     playheadBeat,

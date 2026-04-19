@@ -17,11 +17,12 @@ The patch editor is split into a few layers:
 The general flow is:
 
 1. `AppRoot` owns project-level app state and instantiates `usePatchWorkspaceState`.
-2. `ProjectWorkspaceController` and `useProjectWorkspaceController` assemble the patch-workspace view props plus focused workspace contexts for transport, clipboard, sample assets, and instrument actions.
-3. `PatchWorkspaceView` passes the selected patch/editor state into `InstrumentEditor`.
-4. `InstrumentEditor` combines patch-level controls with the canvas editor.
-5. `PatchEditorCanvas` coordinates canvas-local concerns and lays out the main editor regions.
-6. `PatchEditorStage` owns the actual interactive patch canvas stage.
+2. `ProjectWorkspaceController` and `useProjectWorkspaceController` assemble focused workspace contexts plus patch-workspace view props.
+3. The caller chooses which view to render inside `ProjectWorkspaceController`.
+4. `PatchWorkspaceView` passes the selected patch/editor state into `InstrumentEditor`.
+5. `InstrumentEditor` combines patch-level controls with the canvas editor.
+6. `PatchEditorCanvas` coordinates canvas-local concerns and lays out the main editor regions.
+7. `PatchEditorStage` owns the actual interactive patch canvas stage.
 
 ## Workspace Context
 
@@ -44,9 +45,9 @@ Owns the workspace boundary for the patch editor route:
 
 - calling `useProjectWorkspaceController`
 - providing focused workspace contexts
-- rendering `PatchWorkspaceView` with its view-only props
+- handing workspace/view state to its children
 
-It should stay thin and should not absorb patch-editor behavior directly.
+It should stay thin and should not hardcode a specific workspace view.
 
 ### `PatchWorkspaceView`
 
