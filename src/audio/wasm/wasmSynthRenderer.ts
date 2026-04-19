@@ -5,88 +5,20 @@ import { compileAudioProjectToWasmSubset, compileSchedulerEventsToWasmSubset } f
 import { loadNodeDspWasmModule } from "@/audio/wasm/loadNodeDspWasm";
 import type { LoadedDspCoreNodeModule, WasmSubsetEngineInstance } from "@/audio/wasm/loadNodeDspWasm";
 import type { WasmProjectSpec } from "@/audio/wasm/wasmSubsetCompiler";
+import { SharedWasmRenderStream, SharedWasmRenderer, NullPort } from "@/audio/worklets/synth-worklet-wasm-renderer-core.js";
 
-const DEFAULT_RANDOM_SEED = 0x1234_5678;
+export class WasmSynthRenderStream extends SharedWasmRenderStream implements SynthRenderStream {
+  declare readonly port: WorkletPortLike;
+  declare readonly project: AudioProject | null;
+  declare readonly trackRuntimes: Array<{ track: Track }>;
+  declare readonly eventQueue: SchedulerEvent[];
+  declare readonly engine: WasmSubsetEngineInstance;
 
-class NullPort implements WorkletPortLike {
-  onmessage: ((event: unknown) => void) | null = null;
-  postMessage() {}
-}
-
-export class WasmSynthRenderStream implements SynthRenderStream {
-  readonly port: WorkletPortLike;
-  readonly project: AudioProject | null;
-  readonly trackRuntimes: Array<{ track: Track }>;
-  readonly eventQueue: SchedulerEvent[] = [];
-
-  private readonly engine: WasmSubsetEngineInstance;
-  private readonly memory: WebAssembly.Memory;
-  private readonly blockSize: number;
-  private readonly projectSpec: WasmProjectSpec;
   private readonly profilingEnabled: boolean;
-  private stopped = false;
 
-  constructor(
-    wasmModule: LoadedDspCoreNodeModule,
-    project: AudioProject,
-    projectSpec: WasmProjectSpec,
-    options: SynthStreamStartOptions,
-    port: WorkletPortLike,
-    profilingEnabled = false
-  ) {
-    this.port = port;
-    this.project = project;
-    this.projectSpec = projectSpec;
-    this.trackRuntimes = project.tracks.map((track) => ({ track }));
-    this.engine = new wasmModule.WasmSubsetEngine(project.global.sampleRate, projectSpec.blockSize);
-    this.memory = wasmModule.memory;
-    this.blockSize = projectSpec.blockSize;
-    this.profilingEnabled = profilingEnabled;
-    this.engine.set_profiling_enabled(profilingEnabled);
-    if (profilingEnabled) {
-      this.engine.reset_profile_stats();
-    }
-    this.engine.start_stream(
-      JSON.stringify(projectSpec),
-      options.songStartSample,
-      JSON.stringify(compileSchedulerEventsToWasmSubset(project, projectSpec, options.events)),
-      options.sessionId ?? 1,
-      Number.isFinite(options.randomSeed) ? Number(options.randomSeed) >>> 0 : DEFAULT_RANDOM_SEED
-    );
-  }
-
-  processBlock(output: Float32Array[]): boolean {
-    const leftOut = output[0];
-    const rightOut = output[1] || output[0];
-    if (this.stopped) {
-      leftOut.fill(0);
-      if (rightOut !== leftOut) {
-        rightOut.fill(0);
-      }
-      return true;
-    }
-
-    const keepAlive = this.engine.process_block();
-    const leftPtr = this.engine.left_ptr();
-    const rightPtr = this.engine.right_ptr();
-    const leftView = new Float32Array(this.memory.buffer, leftPtr, this.blockSize);
-    const rightView = new Float32Array(this.memory.buffer, rightPtr, this.blockSize);
-    leftOut.set(leftView.subarray(0, leftOut.length));
-    if (rightOut !== leftOut) {
-      rightOut.set(rightView.subarray(0, rightOut.length));
-    }
-    return keepAlive;
-  }
-
-  enqueueEvents(events: SchedulerEvent[]): void {
-    this.eventQueue.push(...events);
-    this.engine.enqueue_events(JSON.stringify(compileSchedulerEventsToWasmSubset(this.project!, this.projectSpec, events)));
-  }
-
-  stop(): void {
-    this.stopped = true;
-    this.engine.stop();
-    this.eventQueue.length = 0;
+  constructor(renderer: NodeWasmSynthRenderer, options: SynthStreamStartOptions) {
+    super(renderer, options, renderer.sharedImplementation);
+    this.profilingEnabled = renderer.profilingEnabled;
   }
 
   getProfileStats(): Record<string, unknown> | null {
@@ -97,58 +29,63 @@ export class WasmSynthRenderStream implements SynthRenderStream {
   }
 }
 
-export class WasmSynthRenderer implements SynthRenderer {
-  readonly port: WorkletPortLike;
-  sampleRateInternal: number;
-  blockSize: number;
-  project: AudioProject | null;
+type SharedImplementation = {
+  compileProject: (project: AudioProject, options: { blockSize: number }) => WasmProjectSpec;
+  compileEvents: (project: AudioProject, projectSpec: WasmProjectSpec, events: SchedulerEvent[]) => ReturnType<typeof compileSchedulerEventsToWasmSubset>;
+  createEngine: (renderer: NodeWasmSynthRenderer, project: AudioProject, projectSpec: WasmProjectSpec, options: SynthStreamStartOptions) => WasmSubsetEngineInstance;
+  getMemory: (renderer: NodeWasmSynthRenderer) => WebAssembly.Memory;
+};
 
-  private readonly module: LoadedDspCoreNodeModule;
-  private readonly profilingEnabled: boolean;
+export class NodeWasmSynthRenderer extends SharedWasmRenderer implements SynthRenderer {
+  declare readonly port: WorkletPortLike;
+  declare sampleRateInternal: number;
+  declare blockSize: number;
+  declare defaultProject: AudioProject | null;
+  declare readonly project: AudioProject | null;
+
+  readonly profilingEnabled: boolean;
+  readonly module: LoadedDspCoreNodeModule;
+  readonly sharedImplementation: SharedImplementation;
 
   constructor(
     wasmModule: LoadedDspCoreNodeModule,
     options?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> } },
     profilingEnabled = false
   ) {
+    const implementation: SharedImplementation = {
+      compileProject: compileAudioProjectToWasmSubset,
+      compileEvents: compileSchedulerEventsToWasmSubset,
+      createEngine: (renderer, _project, projectSpec) => {
+        const engine = new renderer.module.WasmSubsetEngine(renderer.sampleRateInternal, projectSpec.blockSize);
+        engine.set_profiling_enabled(renderer.profilingEnabled);
+        if (renderer.profilingEnabled) {
+          engine.reset_profile_stats();
+        }
+        return engine;
+      },
+      getMemory: (renderer) => renderer.module.memory
+    };
+    super(options ?? {}, implementation);
     this.module = wasmModule;
     this.port = new NullPort();
-    this.sampleRateInternal = options?.processorOptions?.sampleRate ?? 48000;
-    this.blockSize = options?.processorOptions?.blockSize ?? 128;
-    this.project = options?.processorOptions?.project ?? null;
     this.profilingEnabled = profilingEnabled;
-  }
-
-  configure(config: Partial<SynthRendererConfig>): void {
-    this.sampleRateInternal = config.sampleRate ?? this.sampleRateInternal;
-    this.blockSize = config.blockSize ?? this.blockSize;
-    if (config.project) {
-      this.project = config.project;
-    }
+    this.sharedImplementation = implementation;
   }
 
   setDefaultProject(project: AudioProject): void {
-    this.project = project;
+    this.defaultProject = project;
   }
 
   startStream(options: SynthStreamStartOptions): SynthRenderStream | null {
-    const project = options.project || this.project;
+    const project = options.project || this.defaultProject;
     if (!project) {
       return null;
     }
-    const projectSpec = compileAudioProjectToWasmSubset(project, { blockSize: this.blockSize });
-    return new WasmSynthRenderStream(
-      this.module,
-      project,
-      projectSpec,
-      options,
-      this.port,
-      this.profilingEnabled
-    );
+    return new WasmSynthRenderStream(this, { ...options, project });
   }
 }
 
 export const createWasmRenderer = async (config?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> }; profilingEnabled?: boolean }) => {
   const wasmModule = await loadNodeDspWasmModule();
-  return new WasmSynthRenderer(wasmModule, config, config?.profilingEnabled ?? false);
+  return new NodeWasmSynthRenderer(wasmModule, config, config?.profilingEnabled ?? false);
 };

@@ -1,5 +1,6 @@
 "use client";
 
+import { createInitializedWorkletNode } from "@/audio/createInitializedWorkletNode";
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { getLoopPlaybackEndBeat, getSongBeatForPlaybackBeat } from "@/lib/looping";
 import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
@@ -134,59 +135,18 @@ class RealAudioEngineBackend implements AudioEngineBackend {
     const context = new AudioContext({ sampleRate: FIXED_SAMPLE_RATE, latencyHint: "interactive" });
 
     try {
-      await context.audioWorklet.addModule(getWorkletUrl());
       const wasmBytes = USE_WASM_WORKLET ? await loadWorkletWasmBytes() : undefined;
-
-      const worklet = new AudioWorkletNode(context, "synth-worklet-processor", {
-        numberOfInputs: 0,
-        numberOfOutputs: 1,
-        outputChannelCount: [2]
-      });
-      worklet.port.onmessage = (event: MessageEvent<WorkletOutboundMessage>) => {
-        const message = event.data;
-        if (message?.type === "PREVIEW_CAPTURE") {
-          this.previewCaptureListener?.(message.previewId, message.captures);
+      const worklet = await createInitializedWorkletNode({
+        context,
+        moduleUrl: getWorkletUrl(),
+        sampleRate: FIXED_SAMPLE_RATE,
+        blockSize: BLOCK_SIZE,
+        wasmBytes,
+        onMessage: (message: WorkletOutboundMessage) => {
+          if (message?.type === "PREVIEW_CAPTURE") {
+            this.previewCaptureListener?.(message.previewId, message.captures);
+          }
         }
-      };
-
-      await new Promise<void>((resolve, reject) => {
-        let settled = false;
-        const timeout = window.setTimeout(() => {
-          if (settled) {
-            return;
-          }
-          settled = true;
-          reject(new Error("Timed out waiting for audio worklet initialization."));
-        }, 5000);
-
-        const previousOnMessage = worklet.port.onmessage;
-        worklet.port.onmessage = (event: MessageEvent<WorkletOutboundMessage>) => {
-          if (previousOnMessage) {
-            previousOnMessage.call(worklet.port, event);
-          }
-          const message = event.data;
-          if (settled) {
-            return;
-          }
-          if (message?.type === "INIT_READY") {
-            settled = true;
-            window.clearTimeout(timeout);
-            resolve();
-            return;
-          }
-          if (message?.type === "INIT_ERROR") {
-            settled = true;
-            window.clearTimeout(timeout);
-            reject(new Error(`Audio worklet init failed: ${message.error}`));
-          }
-        };
-
-        worklet.port.postMessage({
-          type: "INIT",
-          sampleRate: FIXED_SAMPLE_RATE,
-          blockSize: BLOCK_SIZE,
-          wasmBytes
-        }, wasmBytes ? [wasmBytes] : []);
       });
 
       worklet.connect(context.destination);

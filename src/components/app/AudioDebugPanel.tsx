@@ -4,10 +4,11 @@ import { useState } from "react";
 
 interface AudioDebugPanelProps {
   rendererLabel: string;
+  defaultOpen?: boolean;
 }
 
-export function AudioDebugPanel({ rendererLabel }: AudioDebugPanelProps) {
-  const [open, setOpen] = useState(false);
+export function AudioDebugPanel({ rendererLabel, defaultOpen = false }: AudioDebugPanelProps) {
+  const [open, setOpen] = useState(defaultOpen);
 
   return (
     <div
