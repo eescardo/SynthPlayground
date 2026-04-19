@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { compileAudioProjectToWasmSubset } from "@/audio/wasm/wasmSubsetCompiler";
+import { compileAudioProjectToWasmSubset } from "@/audio/renderers/wasm/wasmSubsetCompiler";
 import type { AudioProject } from "@/types/audio";
 import type { Patch } from "@/types/patch";
 

@@ -1,9 +1,9 @@
 import type { SynthRenderer, SynthRenderStream, WorkletPortLike } from "@/audio/worklets/synth-worklet-runtime.js";
 import { AudioProject, SchedulerEvent, SynthRendererConfig, SynthStreamStartOptions, TransportSynthStreamStartOptions } from "@/types/audio";
 import type { Track } from "@/types/music";
-import { compileAudioProjectToWasmSubset, compileSchedulerEventsToWasmSubset } from "@/audio/wasm/wasmSubsetCompiler";
-import { loadNodeDspWasmModule } from "@/audio/wasm/loadNodeDspWasm";
-import type { LoadedDspCoreNodeModule, WasmSubsetEngineInstance } from "@/audio/wasm/loadNodeDspWasm";
+import { compileAudioProjectToWasmSubset, compileSchedulerEventsToWasmSubset } from "@/audio/renderers/wasm/wasmSubsetCompiler";
+import { loadNodeDspWasmModule } from "@/audio/renderers/wasm/loadNodeDspWasm";
+import type { LoadedDspCoreNodeModule, WasmSubsetEngineInstance } from "@/audio/renderers/wasm/loadNodeDspWasm";
 import {
   SharedWasmRendererLike,
   SharedWasmImplementation,

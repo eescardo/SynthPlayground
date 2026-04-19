@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkletOutboundMessage } from "@/types/audio";
-import { createInitializedWorkletNode } from "@/audio/createInitializedWorkletNode";
+import { createInitializedWorkletNode } from "@/audio/worklets/createInitializedWorkletNode";
 
 interface FakePort {
   onmessage: ((event: MessageEvent<WorkletOutboundMessage>) => void) | null;

@@ -1,6 +1,6 @@
 import type { AudioProject, SchedulerEvent } from "@/types/audio";
 import type { PreviewProbeRequest } from "@/types/probes";
-import type { WasmEvent, WasmProjectSpec } from "@/audio/wasm/wasmSubsetCompiler";
+import type { WasmEvent, WasmProjectSpec } from "@/audio/renderers/wasm/wasmSubsetCompiler";
 
 export interface WasmPreviewProbeCaptureRequest {
   probeId: string;

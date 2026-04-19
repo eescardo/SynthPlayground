@@ -1,6 +1,6 @@
 import { presetPatches } from "@/lib/patch/presets";
-import { renderProjectOffline } from "@/audio/offlineRender";
-import { renderProjectOfflineWasm } from "@/audio/wasm/renderProjectOfflineWasm";
+import { renderProjectOffline } from "@/audio/offline/renderProjectOffline";
+import { renderProjectOfflineWasm } from "@/audio/offline/renderProjectOfflineWasm";
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { beatToSample } from "@/lib/musicTiming";
 import { toAudioProject } from "@/audio/audioProject";

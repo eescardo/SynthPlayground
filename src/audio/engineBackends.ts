@@ -1,6 +1,6 @@
 "use client";
 
-import { createInitializedWorkletNode } from "@/audio/createInitializedWorkletNode";
+import { createInitializedWorkletNode } from "@/audio/worklets/createInitializedWorkletNode";
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { getLoopPlaybackEndBeat, getSongBeatForPlaybackBeat } from "@/lib/looping";
 import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";

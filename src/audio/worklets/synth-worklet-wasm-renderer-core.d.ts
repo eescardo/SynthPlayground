@@ -6,7 +6,7 @@ import type {
   SynthStreamStartOptions
 } from "@/types/audio";
 import type { PreviewProbeCapture, PreviewProbeRequest } from "@/types/probes";
-import type { WasmEvent, WasmProjectSpec } from "@/audio/wasm/wasmSubsetCompiler";
+import type { WasmEvent, WasmProjectSpec } from "@/audio/renderers/wasm/wasmSubsetCompiler";
 import type { WorkletPortLike } from "./synth-worklet-runtime.js";
 import type { WasmPreviewProbeCaptureRequest } from "./synth-worklet-wasm-compiler-core.js";
 

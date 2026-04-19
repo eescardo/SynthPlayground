@@ -11,7 +11,7 @@ import { PatchRemovalDialogModal, PatchRemovalDialogState } from "@/components/h
 import { PitchPickerModal } from "@/components/home/PitchPickerModal";
 import { RecordingDock } from "@/components/home/RecordingDock";
 import { ExplodeSelectionDialog } from "@/components/ExplodeSelectionDialog";
-import { loadDspWasm } from "@/audio/wasmBridge";
+import { loadDspWasm } from "@/audio/renderers/wasm/wasmBridge";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import { TimelineActionsPopoverRequest, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { createId } from "@/lib/ids";

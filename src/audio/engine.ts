@@ -1,6 +1,6 @@
 "use client";
 
-import { renderProjectOffline } from "@/audio/offlineRender";
+import { renderProjectOffline } from "@/audio/offline/renderProjectOffline";
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { pcmStereoToWavBlob } from "@/audio/wav";
 import { getLoopPlaybackEndBeat } from "@/lib/looping";

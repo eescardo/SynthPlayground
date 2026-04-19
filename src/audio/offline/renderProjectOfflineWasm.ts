@@ -1,5 +1,5 @@
-import { createWasmRenderer } from "@/audio/wasm/wasmSynthRenderer";
-import type { WasmSynthRenderStream } from "@/audio/wasm/wasmSynthRenderer";
+import { createWasmRenderer } from "@/audio/renderers/wasm/wasmSynthRenderer";
+import type { WasmSynthRenderStream } from "@/audio/renderers/wasm/wasmSynthRenderer";
 import { AudioProject, SchedulerEvent } from "@/types/audio";
 
 export interface OfflineWasmRenderOptions {

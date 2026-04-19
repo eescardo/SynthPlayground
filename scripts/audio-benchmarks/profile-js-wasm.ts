@@ -5,8 +5,8 @@ import { performance } from "node:perf_hooks";
 
 import { createNamedBenchmarkScenario } from "@/audio/benchmarks/stressScenario";
 import { createWasmParityScenario } from "@/audio/benchmarks/wasmParityScenario";
-import { renderProjectOffline } from "@/audio/offlineRender";
-import { renderProjectOfflineWasm } from "@/audio/wasm/renderProjectOfflineWasm";
+import { renderProjectOffline } from "@/audio/offline/renderProjectOffline";
+import { renderProjectOfflineWasm } from "@/audio/offline/renderProjectOfflineWasm";
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { beatToSample } from "@/lib/musicTiming";
 
