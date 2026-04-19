@@ -62,6 +62,7 @@ export function ProjectsPopover({
                 className="projects-popover-recent-label"
                 role="button"
                 tabIndex={0}
+                title={project.name}
                 onClick={() => runAction(() => onOpenRecentProject(project.id))}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {

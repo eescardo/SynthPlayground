@@ -1,10 +1,9 @@
 "use client";
 
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback } from "react";
+import { useHoverArm } from "@/hooks/useHoverArm";
 import { useInlineRename } from "@/hooks/useInlineRename";
-
-const PROJECT_RENAME_ARM_DELAY_MS = 1000;
 
 interface ProjectNameControlProps {
   name: string;
@@ -16,27 +15,14 @@ export function ProjectNameControl({ name, onRename }: ProjectNameControlProps) 
     value: name,
     onCommit: onRename
   });
-  const [renameArmed, setRenameArmed] = useState(false);
-  const armTimerRef = useRef<number | null>(null);
-
-  const clearRenameArmTimer = useCallback(() => {
-    if (armTimerRef.current !== null) {
-      window.clearTimeout(armTimerRef.current);
-      armTimerRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    return () => clearRenameArmTimer();
-  }, [clearRenameArmTimer]);
+  const renameActivation = useHoverArm<"project-name">();
 
   const startRename = useCallback((event?: ReactMouseEvent | ReactKeyboardEvent) => {
     event?.preventDefault();
     event?.stopPropagation();
-    clearRenameArmTimer();
-    setRenameArmed(false);
+    renameActivation.disarm("project-name");
     rename.setEditing(true);
-  }, [clearRenameArmTimer, rename]);
+  }, [rename, renameActivation]);
 
   return (
     <div className="transport-project-name-shell">
@@ -63,21 +49,13 @@ export function ProjectNameControl({ name, onRename }: ProjectNameControlProps) 
         />
       ) : (
         <span
-          className={`transport-project-name${renameArmed ? " rename-armed" : ""}`}
+          className={`transport-project-name${renameActivation.isArmed("project-name") ? " rename-armed" : ""}`}
           role="button"
           tabIndex={0}
-          onMouseEnter={() => {
-            clearRenameArmTimer();
-            armTimerRef.current = window.setTimeout(() => {
-              setRenameArmed(true);
-            }, PROJECT_RENAME_ARM_DELAY_MS);
-          }}
-          onMouseLeave={() => {
-            clearRenameArmTimer();
-            setRenameArmed(false);
-          }}
+          onMouseEnter={() => renameActivation.arm("project-name")}
+          onMouseLeave={() => renameActivation.disarm("project-name")}
           onClick={(event) => {
-            if (!renameArmed) {
+            if (!renameActivation.isArmed("project-name")) {
               return;
             }
             startRename(event);

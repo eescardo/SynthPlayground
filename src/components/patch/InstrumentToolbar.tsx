@@ -2,6 +2,7 @@
 
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
 import { useState } from "react";
+import { useHoverArm } from "@/hooks/useHoverArm";
 import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { useInlineRename } from "@/hooks/useInlineRename";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
@@ -55,6 +56,7 @@ function InstrumentToolbarActions(props: InstrumentToolbarActionsProps) {
 
 export function InstrumentToolbar(props: InstrumentToolbarProps) {
   const [selectorOpen, setSelectorOpen] = useState(false);
+  const renameActivation = useHoverArm<"instrument-name">();
   const presetLineageLabel = props.patch.meta.source === "preset" ? props.patch.meta.presetId : props.patch.id;
   const sourceLabel =
     props.presetStatus === "preset_update_available"
@@ -77,6 +79,7 @@ export function InstrumentToolbar(props: InstrumentToolbarProps) {
     event.preventDefault();
     event.stopPropagation();
     setSelectorOpen(false);
+    renameActivation.disarm("instrument-name");
     rename.setEditing(true);
   };
 
@@ -123,10 +126,18 @@ export function InstrumentToolbar(props: InstrumentToolbarProps) {
               />
             ) : (
               <span
-                className="instrument-patch-picker-name"
+                className={`instrument-patch-picker-name${renameActivation.isArmed("instrument-name") ? " rename-armed" : ""}`}
                 role="button"
                 tabIndex={0}
-                onClick={startRename}
+                onMouseEnter={() => renameActivation.arm("instrument-name")}
+                onMouseLeave={() => renameActivation.disarm("instrument-name")}
+                onClick={(event) => {
+                  if (!renameActivation.isArmed("instrument-name")) {
+                    return;
+                  }
+                  startRename(event);
+                }}
+                onDoubleClick={startRename}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
                     startRename(event);

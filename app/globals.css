@@ -396,10 +396,15 @@ select {
 }
 
 .projects-popover-recent-label {
+  display: block;
   color: #a5cbef;
   font-family: "Courier New", monospace;
   font-size: 0.9rem;
   line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding-left: 0.85rem;
+  text-indent: -0.85rem;
   cursor: pointer;
 }
 
@@ -633,6 +638,16 @@ select {
   border: 0;
   padding: 0;
   cursor: text;
+}
+
+.track-name-button.rename-armed {
+  background:
+    linear-gradient(
+      180deg,
+      transparent calc(100% - 3px),
+      rgba(167, 204, 240, 0.75) calc(100% - 3px),
+      rgba(167, 204, 240, 0.75) 100%
+    );
 }
 
 .track-inspector-row {
@@ -1059,6 +1074,13 @@ select {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.instrument-patch-picker-name.rename-armed,
+.patch-workspace-tab-name.rename-armed {
+  color: #d7ebff;
+  text-decoration: underline dotted rgba(167, 204, 240, 0.75);
+  cursor: text;
 }
 
 .instrument-patch-picker-name:focus-visible {
