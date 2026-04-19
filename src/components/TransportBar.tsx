@@ -51,6 +51,28 @@ export function TransportBar(props: TransportBarProps) {
   return (
     <div className="transport">
       <div className="transport-left">
+        <div className="projects-popover-shell">
+          <button
+            type="button"
+            aria-expanded={projectsOpen}
+            aria-haspopup="dialog"
+            onClick={() => setProjectsOpen((current) => !current)}
+          >
+            Projects
+          </button>
+          {projectsOpen && (
+            <ProjectsPopover
+              importInputRef={props.importInputRef}
+              onExportJson={props.onExportJson}
+              onImportJson={props.onImportJson}
+              onClearProject={props.onClearProject}
+              onResetToDefaultProject={props.onResetToDefaultProject}
+              onImportFile={props.onImportFile}
+              onClose={closeProjectsPopover}
+            />
+          )}
+        </div>
+
         <span className="playhead">Beat {formatBeatName(props.playheadBeat, props.gridBeats)}</span>
       </div>
 
@@ -81,28 +103,6 @@ export function TransportBar(props: TransportBarProps) {
         </label>
 
         <button onClick={props.onOpenPatchWorkspace}>Open Patch Workspace</button>
-
-        <div className="projects-popover-shell">
-          <button
-            type="button"
-            aria-expanded={projectsOpen}
-            aria-haspopup="dialog"
-            onClick={() => setProjectsOpen((current) => !current)}
-          >
-            Projects
-          </button>
-          {projectsOpen && (
-            <ProjectsPopover
-              importInputRef={props.importInputRef}
-              onExportJson={props.onExportJson}
-              onImportJson={props.onImportJson}
-              onClearProject={props.onClearProject}
-              onResetToDefaultProject={props.onResetToDefaultProject}
-              onImportFile={props.onImportFile}
-              onClose={closeProjectsPopover}
-            />
-          )}
-        </div>
 
         <button className="transport-export-button" onClick={props.onExportAudio} disabled={props.exportAudioDisabled}>
           Export audio...

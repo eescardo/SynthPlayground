@@ -54,6 +54,13 @@ export function ComposerActionsBar({
   return (
     <section className="composer-actions-bar">
       <div className="composer-actions-bar-group">
+        <button disabled={recordingDisabled} onClick={onAddTrack}>Add Track</button>
+        <button disabled={recordingDisabled || !canRemoveTrack} onClick={onRemoveTrack}>
+          Remove Track
+        </button>
+      </div>
+
+      <div className="composer-actions-bar-group">
         <button onClick={onPlay} disabled={isPlaying || recordEnabled}>
           Play
         </button>
@@ -66,13 +73,6 @@ export function ComposerActionsBar({
           countInLabel={countInLabel}
           onToggleRecord={onToggleRecord}
         />
-      </div>
-
-      <div className="composer-actions-bar-group">
-        <button disabled={recordingDisabled} onClick={onAddTrack}>Add Track</button>
-        <button disabled={recordingDisabled || !canRemoveTrack} onClick={onRemoveTrack}>
-          Remove Track
-        </button>
       </div>
     </section>
   );
