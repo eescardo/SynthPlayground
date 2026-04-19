@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  createImportedWorkspacePatch,
   createClearedWorkspacePatch,
   createCustomDuplicatePatch
 } from "@/hooks/patch/patchWorkspacePatchHelpers";
-import { createClearPatch } from "@/lib/patch/presets";
+import { createClearPatch, presetPatches } from "@/lib/patch/presets";
 
 describe("patchWorkspacePatchHelpers", () => {
   it("creates a custom duplicate patch copy", () => {
@@ -18,6 +19,23 @@ describe("patchWorkspacePatchHelpers", () => {
     expect(duplicate.name).toBe("Lead Copy");
     expect(duplicate.meta).toEqual({ source: "custom" });
     expect(duplicate.nodes).toEqual(source.nodes);
+  });
+
+  it("imports preset patches as removable custom duplicates", () => {
+    const imported = createImportedWorkspacePatch(presetPatches[0]);
+
+    expect(imported.id).not.toBe(presetPatches[0].id);
+    expect(imported.name).toBe(`${presetPatches[0].name} Copy`);
+    expect(imported.meta).toEqual({ source: "custom" });
+  });
+
+  it("keeps imported custom patches unchanged", () => {
+    const source = createClearPatch({
+      id: "patch_imported",
+      name: "Imported Lead"
+    });
+
+    expect(createImportedWorkspacePatch(source)).toBe(source);
   });
 
   it("creates a cleared workspace patch while preserving output node placement", () => {

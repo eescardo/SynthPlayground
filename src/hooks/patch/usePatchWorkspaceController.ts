@@ -13,6 +13,7 @@ import { NoteClipboardPayload } from "@/lib/clipboard";
 import { createId } from "@/lib/ids";
 import { exportPatchToJson, importPatchBundleFromJson } from "@/lib/patch/serde";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
+import { createImportedWorkspacePatch } from "@/hooks/patch/patchWorkspacePatchHelpers";
 import { mergeImportedPatchAssets } from "@/lib/sampleAssetLibrary";
 import { MAX_PATCH_WORKSPACE_TABS } from "@/hooks/patch/patchWorkspaceStateUtils";
 import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
@@ -91,10 +92,11 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
     try {
       const importedBundle = importPatchBundleFromJson(await file.text());
       const merged = mergeImportedPatchAssets(importedBundle.patch, importedBundle.assets, projectAssets);
-      const nextPatchId = project.patches.some((patch) => patch.id === merged.patch.id) ? createId("patch") : merged.patch.id;
-      const nextPatchName = createAvailablePatchName(project.patches.map((patch) => patch.name), merged.patch.name);
+      const importedPatch = createImportedWorkspacePatch(merged.patch);
+      const nextPatchId = project.patches.some((patch) => patch.id === importedPatch.id) ? createId("patch") : importedPatch.id;
+      const nextPatchName = createAvailablePatchName(project.patches.map((patch) => patch.name), importedPatch.name);
       const nextPatch = {
-        ...merged.patch,
+        ...importedPatch,
         id: nextPatchId,
         name: nextPatchName
       };
