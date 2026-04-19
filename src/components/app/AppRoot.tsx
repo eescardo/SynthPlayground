@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { toAudioProject } from "@/audio/audioProject";
 import { AudioEngine } from "@/audio/engine";
 import { ComposerView } from "@/components/app/ComposerView";
+import { AudioDebugPanel } from "@/components/app/AudioDebugPanel";
 import { PatchWorkspaceView } from "@/components/app/PatchWorkspaceView";
 import { PatchRemovalDialogModal, PatchRemovalDialogState } from "@/components/home/PatchRemovalDialogModal";
 import { PitchPickerModal } from "@/components/home/PitchPickerModal";
 import { RecordingDock } from "@/components/home/RecordingDock";
 import { ExplodeSelectionDialog } from "@/components/ExplodeSelectionDialog";
-import { loadDspWasm } from "@/audio/wasmBridge";
+import { loadDspWasm } from "@/audio/renderers/wasm/wasmBridge";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import { TimelineActionsPopoverRequest, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { createId } from "@/lib/ids";
@@ -1168,12 +1169,20 @@ export function AppRoot({ children }: { children: ReactNode }) {
     composerProps,
     patchWorkspaceProps
   };
+  const rendererLabel = process.env.NEXT_PUBLIC_STRICT_WASM === "1"
+    ? strictWasmReady
+      ? "wasm-strict"
+      : "wasm-strict (loading)"
+    : "js";
+  const showDebugOverlay = process.env.NODE_ENV === "development";
   return (
     <AppRootContext.Provider value={contextValue}>
       <main className="app">
         {runtimeError && <p className="error">{runtimeError}</p>}
 
         {children}
+
+        {showDebugOverlay && <AudioDebugPanel rendererLabel={rendererLabel} />}
 
         {loopConflictDialog && (
           <LoopConflictDialog

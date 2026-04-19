@@ -1,13 +1,13 @@
-import { createRenderer, SynthWorkletProcessor } from "@/audio/worklets/synth-worklet-runtime.js";
-import type { SynthRenderStream } from "@/audio/worklets/synth-worklet-runtime.js";
+import type { SynthRenderer, SynthRenderStream } from "@/audio/renderers/shared/synth-renderer";
 import { AudioProject, SchedulerEvent } from "@/types/audio";
 
-export interface OfflineRenderOptions {
+export interface BaseOfflineRenderOptions {
   sampleRate: number;
   blockSize: number;
   durationSamples: number;
   events?: SchedulerEvent[];
   sessionId?: number;
+  randomSeed?: number;
 }
 
 export interface OfflineRenderResult {
@@ -28,57 +28,21 @@ const getHeapUsedMb = () => {
   return proc.memoryUsage().heapUsed / BYTES_PER_MB;
 };
 
-export const createOfflineRenderProcessor = (
+export const renderOfflineWithRenderer = <TStream extends SynthRenderStream = SynthRenderStream, TExtra extends object = object>(
+  renderer: SynthRenderer,
   project: AudioProject,
-  options: Pick<OfflineRenderOptions, "sampleRate" | "blockSize">
-): SynthWorkletProcessor =>
-  new SynthWorkletProcessor({
-    processorOptions: {
-      sampleRate: options.sampleRate,
-      blockSize: options.blockSize,
-      project
-    }
-  });
-
-export const createOfflineRenderer = (
-  project: AudioProject,
-  options: Pick<OfflineRenderOptions, "sampleRate" | "blockSize">
-)=>
-  createRenderer({
-    processorOptions: {
-      sampleRate: options.sampleRate,
-      blockSize: options.blockSize,
-      project
-    }
-  });
-
-export const createOfflineRenderStream = (
-  project: AudioProject,
-  options: Pick<OfflineRenderOptions, "sampleRate" | "blockSize" | "durationSamples"> & {
-    events?: SchedulerEvent[];
-    sessionId?: number;
-  }
-): SynthRenderStream | null =>
-  createOfflineRenderer(project, options).startStream({
+  options: BaseOfflineRenderOptions,
+  getExtraResult?: (stream: TStream | null) => TExtra
+): OfflineRenderResult & TExtra => {
+  const { blockSize, durationSamples } = options;
+  const stream = renderer.startStream({
     project,
     songStartSample: 0,
     events: options.events ?? [],
     sessionId: options.sessionId ?? 1,
+    randomSeed: options.randomSeed,
     mode: "transport"
-  });
-
-export const renderProjectOffline = (
-  project: AudioProject,
-  options: OfflineRenderOptions
-): OfflineRenderResult => {
-  const { sampleRate, blockSize, durationSamples } = options;
-  const stream = createOfflineRenderStream(project, {
-    sampleRate,
-    blockSize,
-    durationSamples,
-    events: options.events,
-    sessionId: options.sessionId
-  });
+  }) as TStream | null;
 
   const left = new Float32Array(durationSamples);
   const right = new Float32Array(durationSamples);
@@ -105,14 +69,20 @@ export const renderProjectOffline = (
     }
   }
 
+  stream?.stop();
   peakHeapMb = Math.max(peakHeapMb, getHeapUsedMb());
 
-  return {
+  const baseResult: OfflineRenderResult = {
     left,
     right,
     renderedBlocks,
     renderedSamples: durationSamples,
     outputAbsSum,
     peakHeapMb
+  };
+
+  return {
+    ...baseResult,
+    ...(getExtraResult ? getExtraResult(stream) : ({} as TExtra))
   };
 };

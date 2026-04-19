@@ -22,7 +22,6 @@ interface ActiveRecordNote {
   startBeat: number;
   trackId: string;
   pitchStr: string;
-  pitchVoct: number;
 }
 
 const COUNT_IN_BEATS = 3;
@@ -167,7 +166,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
       );
     }
     for (const entry of updates) {
-      audioEngineRef.current?.recordNoteOff(entry.trackId, entry.noteId, entry.pitchVoct);
+      audioEngineRef.current?.recordNoteOff(entry.trackId, entry.noteId);
     }
     activeRecordKeys.current.clear();
   }, [audioEngineRef, commitProjectChange, project.global.gridBeats]);
@@ -294,8 +293,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
       noteId,
       startBeat: currentBeat,
       trackId: recordingTrackId,
-      pitchStr: pitch,
-      pitchVoct
+      pitchStr: pitch
     };
     activeRecordKeys.current.set(inputId, noteEntry);
 
@@ -330,7 +328,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
       { durationBeats },
       { actionKey: `track:${active.trackId}:record-note:${active.noteId}`, coalesce: true }
     );
-    audioEngineRef.current?.recordNoteOff(active.trackId, active.noteId, active.pitchVoct);
+    audioEngineRef.current?.recordNoteOff(active.trackId, active.noteId);
   }, [audioEngineRef, playheadBeat, project.global.gridBeats, updateNote]);
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { createInitializedWorkletNode } from "@/audio/worklets/createInitializedWorkletNode";
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { getLoopPlaybackEndBeat, getSongBeatForPlaybackBeat } from "@/lib/looping";
 import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
@@ -11,6 +12,7 @@ const LOOKAHEAD_MS = 300;
 const SCHEDULER_TICK_MS = 25;
 export const BLOCK_SIZE = 128;
 export const FIXED_SAMPLE_RATE = 48000;
+const USE_WASM_WORKLET = process.env.NEXT_PUBLIC_STRICT_WASM === "1";
 
 export interface AudioEngineBackend {
   init(): Promise<void>;
@@ -26,7 +28,7 @@ export interface AudioEngineBackend {
   setMacroValue(trackId: string, macroId: string, normalized: number): void;
   setRecordingTrack(trackId: string | null): void;
   recordNoteOn(trackId: string, noteId: string, pitchVoct: number, velocity?: number): Promise<number>;
-  recordNoteOff(trackId: string, noteId: string, pitchVoct: number): number;
+  recordNoteOff(trackId: string, noteId: string): number;
   previewNote(
     trackId: string,
     pitchVoct: number,
@@ -42,8 +44,20 @@ export interface AudioEngineBackend {
   setPreviewCaptureListener(listener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null): void;
 }
 
-const getWorkletUrl = () =>
-  process.env.NODE_ENV === "development" ? `/worklets/synth-worklet.js?v=${Date.now()}` : "/worklets/synth-worklet.js";
+const getWorkletUrl = () => {
+  const basePath = USE_WASM_WORKLET ? "/worklets/synth-worklet-wasm.js" : "/worklets/synth-worklet.js";
+  return process.env.NODE_ENV === "development" ? `${basePath}?v=${Date.now()}` : basePath;
+};
+
+const loadWorkletWasmBytes = async () => {
+  const response = await fetch(
+    process.env.NODE_ENV === "development" ? `/wasm/pkg/dsp_core_bg.wasm?v=${Date.now()}` : "/wasm/pkg/dsp_core_bg.wasm"
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to load worklet WASM binary: ${response.status} ${response.statusText}`);
+  }
+  return await response.arrayBuffer();
+};
 
 class RealAudioEngineBackend implements AudioEngineBackend {
   private context: AudioContext | null = null;
@@ -121,26 +135,21 @@ class RealAudioEngineBackend implements AudioEngineBackend {
     const context = new AudioContext({ sampleRate: FIXED_SAMPLE_RATE, latencyHint: "interactive" });
 
     try {
-      await context.audioWorklet.addModule(getWorkletUrl());
-
-      const worklet = new AudioWorkletNode(context, "synth-worklet-processor", {
-        numberOfInputs: 0,
-        numberOfOutputs: 1,
-        outputChannelCount: [2]
-      });
-      worklet.port.onmessage = (event: MessageEvent<WorkletOutboundMessage>) => {
-        const message = event.data;
-        if (message?.type === "PREVIEW_CAPTURE") {
-          this.previewCaptureListener?.(message.previewId, message.captures);
+      const wasmBytes = USE_WASM_WORKLET ? await loadWorkletWasmBytes() : undefined;
+      const worklet = await createInitializedWorkletNode({
+        context,
+        moduleUrl: getWorkletUrl(),
+        sampleRate: FIXED_SAMPLE_RATE,
+        blockSize: BLOCK_SIZE,
+        wasmBytes,
+        onMessage: (message: WorkletOutboundMessage) => {
+          if (message?.type === "PREVIEW_CAPTURE") {
+            this.previewCaptureListener?.(message.previewId, message.captures);
+          }
         }
-      };
+      });
 
       worklet.connect(context.destination);
-      worklet.port.postMessage({
-        type: "INIT",
-        sampleRate: FIXED_SAMPLE_RATE,
-        blockSize: BLOCK_SIZE
-      });
 
       if (this.project) {
         worklet.port.postMessage({
@@ -318,7 +327,7 @@ class RealAudioEngineBackend implements AudioEngineBackend {
     return sampleTime;
   }
 
-  recordNoteOff(trackId: string, noteId: string, pitchVoct: number): number {
+  recordNoteOff(trackId: string, noteId: string): number {
     if (!this.worklet || !this.isPlaying) {
       return 0;
     }
@@ -334,7 +343,6 @@ class RealAudioEngineBackend implements AudioEngineBackend {
           source: "live_input",
           sampleTime,
           trackId,
-          pitchVoct,
           noteId
         }
       ]
@@ -382,7 +390,6 @@ class RealAudioEngineBackend implements AudioEngineBackend {
         source: "preview",
         sampleTime: durationSamples,
         trackId,
-        pitchVoct,
         noteId: previewId
       }
     ];
@@ -485,10 +492,9 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
     return this.getSafeLiveSampleTime();
   }
 
-  recordNoteOff(trackId: string, noteId: string, pitchVoct: number): number {
+  recordNoteOff(trackId: string, noteId: string): number {
     void trackId;
     void noteId;
-    void pitchVoct;
     return this.getSafeLiveSampleTime();
   }
 

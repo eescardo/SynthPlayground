@@ -1,0 +1,270 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Project, Track } from "@/types/music";
+import type { Patch } from "@/types/patch";
+
+const sharedMemory = new WebAssembly.Memory({ initial: 1 });
+const blockSize = 128;
+const leftView = new Float32Array(sharedMemory.buffer, 0, blockSize);
+const rightView = new Float32Array(sharedMemory.buffer, blockSize * Float32Array.BYTES_PER_ELEMENT, blockSize);
+let previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
+let previewCaptureSampleCount = 0;
+const engineStop = vi.fn();
+
+vi.mock("../synth-worklet-dsp-bindgen.js", () => {
+  class MockWasmSubsetEngine {
+    constructor() {
+      leftView.fill(0.25);
+      rightView.fill(0.25);
+    }
+
+    start_stream() {}
+    enqueue_events() {}
+    configure_preview_probe_capture() {}
+    process_block() {
+      previewCaptureSampleCount = blockSize;
+      previewCaptureStateJson = JSON.stringify({
+        capturedSamples: blockSize,
+        captures: [
+          {
+            probeId: "probe_1",
+            samples: Array.from({ length: blockSize }, () => 0.5)
+          }
+        ]
+      });
+      return true;
+    }
+    preview_capture_state_json() {
+      return previewCaptureStateJson;
+    }
+    preview_capture_sample_count() {
+      return previewCaptureSampleCount;
+    }
+    stop() {
+      engineStop();
+    }
+    left_ptr() {
+      return 0;
+    }
+    right_ptr() {
+      return blockSize * Float32Array.BYTES_PER_ELEMENT;
+    }
+    block_size() {
+      return blockSize;
+    }
+    set_profiling_enabled() {}
+  }
+
+  return {
+    initSync: () => ({ memory: sharedMemory }),
+    WasmSubsetEngine: MockWasmSubsetEngine
+  };
+});
+
+function createPatch(overrides: Partial<Patch> = {}): Patch {
+  return {
+    schemaVersion: 1,
+    id: "patch_1",
+    name: "Test Patch",
+    meta: { source: "custom" },
+    nodes: [
+      { id: "osc", typeId: "VCO", params: { wave: "sine" } },
+      { id: "out", typeId: "Output", params: { gainDb: 0, limiter: false } }
+    ],
+    connections: [
+      {
+        id: "conn_1",
+        from: { nodeId: "osc", portId: "out" },
+        to: { nodeId: "out", portId: "in" }
+      }
+    ],
+    ui: { macros: [] },
+    layout: { nodes: [] },
+    io: { audioOutNodeId: "out", audioOutPortId: "out" },
+    ...overrides
+  } satisfies Patch;
+}
+
+function createTrack(overrides: Partial<Track> = {}): Track {
+  return {
+    id: "track_1",
+    name: "Track 1",
+    instrumentPatchId: "patch_1",
+    notes: [],
+    macroValues: {},
+    macroAutomations: {},
+    macroPanelExpanded: true,
+    volume: 1,
+    mute: false,
+    fx: {
+      delayEnabled: false,
+      reverbEnabled: false,
+      saturationEnabled: false,
+      compressorEnabled: false,
+      delayMix: 0.2,
+      reverbMix: 0.2,
+      drive: 0.2,
+      compression: 0.4
+    },
+    ...overrides
+  } satisfies Track;
+}
+
+function createProject(options: { patch?: Patch; track?: Track } = {}): Project {
+  const { patch = createPatch(), track = createTrack() } = options;
+  return {
+    id: "project_1",
+    name: "Project",
+    global: {
+      sampleRate: 48000 as const,
+      tempo: 120,
+      meter: "4/4" as const,
+      gridBeats: 0.25,
+      loop: []
+    },
+    tracks: [track],
+    patches: [patch],
+    masterFx: {
+      compressorEnabled: false,
+      limiterEnabled: false,
+      makeupGain: 0
+    },
+    ui: {
+      patchWorkspace: {
+        activeTabId: "tab_1",
+        tabs: [
+          {
+            id: "tab_1",
+            name: patch.name,
+            patchId: patch.id,
+            probes: []
+          }
+        ]
+      }
+    },
+    createdAt: 0,
+    updatedAt: 0
+  } satisfies Project;
+}
+
+beforeEach(() => {
+  vi.resetModules();
+  engineStop.mockReset();
+  leftView.fill(0);
+  rightView.fill(0);
+  previewCaptureSampleCount = 0;
+  previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
+});
+
+describe("WASM worklet renderer", () => {
+  it("emits preview probe captures from backend-owned capture state", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+    const postMessage = vi.fn();
+    renderer.port.postMessage = postMessage;
+
+    const stream = renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize,
+      trackId: "track_1",
+      previewId: "preview_1",
+      events: [
+        {
+          id: "note_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
+      captureProbes: [
+        {
+          probeId: "probe_1",
+          kind: "scope",
+          target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
+        }
+      ],
+      randomSeed: 123
+    });
+
+    expect(stream).not.toBeNull();
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "PREVIEW_CAPTURE",
+        previewId: "preview_1",
+        captures: [
+          expect.objectContaining({
+            probeId: "probe_1",
+            capturedSamples: blockSize,
+            samples: expect.arrayContaining([0.5])
+          })
+        ]
+      })
+    );
+  });
+
+  it("does not force a final preview capture when a preview stream is stopped early", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+    const postMessage = vi.fn();
+    renderer.port.postMessage = postMessage;
+
+    const stream = renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize * 16,
+      trackId: "track_1",
+      previewId: "preview_early_stop",
+      events: [
+        {
+          id: "note_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
+      captureProbes: [
+        {
+          probeId: "probe_1",
+          kind: "scope",
+          target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
+        }
+      ],
+      randomSeed: 123
+    });
+
+    stream!.stop();
+
+    expect(engineStop).toHaveBeenCalledTimes(1);
+    expect(postMessage).not.toHaveBeenCalled();
+  });
+});

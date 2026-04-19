@@ -177,7 +177,6 @@ export const collectEventsInWindow = (project: AudioProject, window: SchedulerWi
           source: "timeline",
           sampleTime,
           trackId: track.id,
-          pitchVoct: voct,
           noteId: note.id
         });
       });

@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Track } from "@/types/music";
 import type { Patch } from "@/types/patch";
-import type { SynthRenderStream } from "../synth-worklet-runtime.js";
+import type { SynthRenderStream } from "@/audio/renderers/shared/synth-renderer";
 
 type RuntimeModule = typeof import("../synth-worklet-runtime.js");
+type JsRendererModule = typeof import("../../renderers/js/synth-renderer-js.js");
 type WorkletGlobal = typeof globalThis & {
   AudioWorkletProcessor?: new () => { port: { onmessage: ((event: unknown) => void) | null; postMessage: (...args: unknown[]) => void } };
   registerProcessor?: (name: string, processorCtor: unknown) => void;
@@ -120,6 +121,16 @@ async function loadRuntimeModule(): Promise<RuntimeModule> {
   return import("../synth-worklet-runtime.js");
 }
 
+async function loadJsRendererModule(): Promise<JsRendererModule> {
+  vi.resetModules();
+  const workletGlobal = globalThis as WorkletGlobal;
+  workletGlobal.AudioWorkletProcessor = class {
+    port = { onmessage: null, postMessage() {} };
+  };
+  workletGlobal.registerProcessor = vi.fn();
+  return import("../../renderers/js/synth-renderer-js.js");
+}
+
 function renderProcessorBlock(
   processor: InstanceType<RuntimeModule["SynthWorkletProcessor"]>,
   frames = 128
@@ -137,6 +148,15 @@ function renderStreamBlock(stream: SynthRenderStream, frames = 128) {
   return { left, right };
 }
 
+function renderStreamSamples(stream: SynthRenderStream, blockCount = 4, frames = 128) {
+  const output = new Float32Array(blockCount * frames);
+  for (let blockIndex = 0; blockIndex < blockCount; blockIndex += 1) {
+    const { left } = renderStreamBlock(stream, frames);
+    output.set(left, blockIndex * frames);
+  }
+  return output;
+}
+
 const sumAbs = (buffer: Float32Array) => buffer.reduce((sum, sample) => sum + Math.abs(sample), 0);
 
 beforeEach(() => {
@@ -147,7 +167,7 @@ beforeEach(() => {
 
 describe("synth worklet runtime", () => {
   it("orders note-off before note-on on the same sample", async () => {
-    const { compareScheduledEvents } = await loadRuntimeModule();
+    const { compareScheduledEvents } = await loadJsRendererModule();
 
     const events = [
       {
@@ -166,8 +186,7 @@ describe("synth worklet runtime", () => {
         sampleTime: 1024,
         source: "timeline",
         trackId: "track_1",
-        noteId: "note_1",
-        pitchVoct: 0
+        noteId: "note_1"
       }
     ];
 
@@ -177,7 +196,7 @@ describe("synth worklet runtime", () => {
   });
 
   it("creates independent render streams from the renderer factory", async () => {
-    const { createRenderer } = await loadRuntimeModule();
+    const { createJsRenderer: createRenderer } = await loadJsRendererModule();
 
     const project = createProject();
     const noteOn = {
@@ -234,8 +253,150 @@ describe("synth worklet runtime", () => {
     expect(sumAbs(stillActiveBLeft)).toBeGreaterThan(0.001);
   });
 
+  it("renders deterministic Noise output for a fixed random seed", async () => {
+    const { createJsRenderer: createRenderer } = await loadJsRendererModule();
+
+    const patch = createPatch({
+      nodes: [
+        { id: "noise", typeId: "Noise", params: { color: "white", gain: 1 } },
+        { id: "out", typeId: "Output", params: { gainDb: 0, limiter: false } }
+      ],
+      connections: [
+        {
+          id: "conn_1",
+          from: { nodeId: "noise", portId: "out" },
+          to: { nodeId: "out", portId: "in" }
+        }
+      ]
+    });
+    const project = createProject({ patch });
+    const noteOn = {
+      id: "noise_on",
+      type: "NoteOn" as const,
+      sampleTime: 0,
+      source: "timeline" as const,
+      trackId: "track_1",
+      noteId: "note_1",
+      pitchVoct: 0,
+      velocity: 1
+    };
+
+    const renderer = createRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize: 128,
+        project
+      }
+    });
+
+    const first = renderer.startStream({
+      project,
+      songStartSample: 0,
+      events: [noteOn],
+      sessionId: 1,
+      randomSeed: 1234,
+      mode: "transport"
+    });
+    const second = renderer.startStream({
+      project,
+      songStartSample: 0,
+      events: [noteOn],
+      sessionId: 2,
+      randomSeed: 1234,
+      mode: "transport"
+    });
+    const third = renderer.startStream({
+      project,
+      songStartSample: 0,
+      events: [noteOn],
+      sessionId: 3,
+      randomSeed: 1235,
+      mode: "transport"
+    });
+
+    const firstSamples = renderStreamSamples(first!, 3);
+    const secondSamples = renderStreamSamples(second!, 3);
+    const thirdSamples = renderStreamSamples(third!, 3);
+
+    expect(Array.from(firstSamples)).toEqual(Array.from(secondSamples));
+    expect(Array.from(firstSamples)).not.toEqual(Array.from(thirdSamples));
+  });
+
+  it("renders deterministic KarplusStrong excitation for a fixed random seed", async () => {
+    const { createJsRenderer: createRenderer } = await loadJsRendererModule();
+
+    const patch = createPatch({
+      nodes: [
+        {
+          id: "string",
+          typeId: "KarplusStrong",
+          params: { decay: 0.96, damping: 0.2, brightness: 0.7, excitation: "noise" }
+        },
+        { id: "out", typeId: "Output", params: { gainDb: 0, limiter: false } }
+      ],
+      connections: [
+        {
+          id: "conn_1",
+          from: { nodeId: "string", portId: "out" },
+          to: { nodeId: "out", portId: "in" }
+        }
+      ]
+    });
+    const project = createProject({ patch });
+    const noteOn = {
+      id: "pluck_on",
+      type: "NoteOn" as const,
+      sampleTime: 0,
+      source: "timeline" as const,
+      trackId: "track_1",
+      noteId: "note_1",
+      pitchVoct: 0,
+      velocity: 1
+    };
+
+    const renderer = createRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize: 128,
+        project
+      }
+    });
+
+    const first = renderer.startStream({
+      project,
+      songStartSample: 0,
+      events: [noteOn],
+      sessionId: 1,
+      randomSeed: 4242,
+      mode: "transport"
+    });
+    const second = renderer.startStream({
+      project,
+      songStartSample: 0,
+      events: [noteOn],
+      sessionId: 2,
+      randomSeed: 4242,
+      mode: "transport"
+    });
+    const third = renderer.startStream({
+      project,
+      songStartSample: 0,
+      events: [noteOn],
+      sessionId: 3,
+      randomSeed: 4243,
+      mode: "transport"
+    });
+
+    const firstSamples = renderStreamSamples(first!, 4);
+    const secondSamples = renderStreamSamples(second!, 4);
+    const thirdSamples = renderStreamSamples(third!, 4);
+
+    expect(Array.from(firstSamples)).toEqual(Array.from(secondSamples));
+    expect(Array.from(firstSamples)).not.toEqual(Array.from(thirdSamples));
+  });
+
   it("applies piecewise macro bindings to compiled param targets", async () => {
-    const { TrackRuntime } = await loadRuntimeModule();
+    const { TrackRuntime } = await loadJsRendererModule();
 
     const patch = createPatch({
       ui: {
@@ -271,7 +432,7 @@ describe("synth worklet runtime", () => {
   });
 
   it("throws during runtime compilation when a node type has no registered DSP processor", async () => {
-    const { TrackRuntime } = await loadRuntimeModule();
+    const { TrackRuntime } = await loadJsRendererModule();
 
     const patch = createPatch({
       nodes: [
@@ -293,7 +454,7 @@ describe("synth worklet runtime", () => {
   });
 
   it("scales track output by track volume and can bypass mute and volume when requested", async () => {
-    const { TrackRuntime } = await loadRuntimeModule();
+    const { TrackRuntime } = await loadJsRendererModule();
 
     const event = { noteId: "note_1", pitchVoct: 0, velocity: 1 };
     const fullRuntime = new TrackRuntime(createTrack({ volume: 1 }), createPatch(), 48000, 128);
@@ -321,7 +482,7 @@ describe("synth worklet runtime", () => {
   });
 
   it("follows ADSR release through the rendered track pipeline", async () => {
-    const { TrackRuntime } = await loadRuntimeModule();
+    const { TrackRuntime } = await loadJsRendererModule();
 
     const patch = createPatch({
       nodes: [

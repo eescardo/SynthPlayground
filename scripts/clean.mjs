@@ -26,6 +26,8 @@ const pathsToRemove = [
   "artifacts/screenshots",
   "artifacts/traces",
   "artifacts/videos",
+  "artifacts/audio-benchmarks",
+  "artifacts/audio-profiles",
   "public/wasm/pkg",
   "tsconfig.tsbuildinfo",
   "tsconfig.typecheck.tsbuildinfo"

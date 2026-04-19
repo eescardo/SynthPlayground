@@ -7,7 +7,7 @@ import {
   AudioBenchmarkScenarioResult,
   NumericMetricSummary
 } from "@/audio/benchmarks/types";
-import { createOfflineRenderProcessor, renderProjectOffline } from "@/audio/offlineRender";
+import { createOfflineRenderProcessor, renderProjectOffline } from "@/audio/offline/renderProjectOffline";
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { beatToSample } from "@/lib/musicTiming";
 import { SchedulerEvent } from "@/types/audio";

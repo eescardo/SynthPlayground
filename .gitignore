@@ -31,6 +31,8 @@ yarn-error.log*
 /artifacts/screenshots/
 /artifacts/traces/
 /artifacts/videos/
+/artifacts/audio-benchmarks/
+/artifacts/audio-profiles/
 
 # generated worklet runtime artifacts
 /public/worklets/synth-worklet-*.js

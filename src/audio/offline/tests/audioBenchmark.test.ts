@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderProjectOffline } from "@/audio/offlineRender";
+import { renderProjectOffline } from "@/audio/offline/renderProjectOffline";
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { runAudioBenchmarkBundle } from "@/audio/benchmarks/runBenchmark";
 import { createNamedBenchmarkScenario, createStressBenchmarkProject, DEFAULT_BENCHMARK_SCENARIO_IDS } from "@/audio/benchmarks/stressScenario";

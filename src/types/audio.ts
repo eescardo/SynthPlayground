@@ -23,6 +23,7 @@ export interface BaseSynthStreamStartOptions {
   events: SchedulerEvent[];
   mode: SynthRenderMode;
   sessionId?: number;
+  randomSeed?: number;
 }
 
 export interface TransportSynthStreamStartOptions extends BaseSynthStreamStartOptions {
@@ -62,7 +63,6 @@ export interface NoteOnEvent extends BaseSchedulerEvent {
 export interface NoteOffEvent extends BaseSchedulerEvent {
   type: "NoteOff";
   trackId: string;
-  pitchVoct: number;
   noteId: string;
 }
 
@@ -87,6 +87,7 @@ export interface WorkletInitMessage {
   type: "INIT";
   sampleRate: number;
   blockSize: number;
+  wasmBytes?: ArrayBuffer;
 }
 
 export interface WorkletSetProjectMessage {
@@ -116,6 +117,7 @@ export interface WorkletPreviewMessage {
   ignoreVolume?: boolean;
   previewId?: string;
   captureProbes?: PreviewProbeRequest[];
+  randomSeed?: number;
 }
 
 export interface WorkletPreviewCaptureMessage {
@@ -124,12 +126,22 @@ export interface WorkletPreviewCaptureMessage {
   captures: PreviewProbeCapture[];
 }
 
+export interface WorkletInitReadyMessage {
+  type: "INIT_READY";
+}
+
+export interface WorkletInitErrorMessage {
+  type: "INIT_ERROR";
+  error: string;
+}
+
 export interface WorkletTransportMessage {
   type: "TRANSPORT";
   isPlaying: boolean;
   songStartSample: number;
   events?: SchedulerEvent[];
   sessionId?: number;
+  randomSeed?: number;
 }
 
 export interface WorkletRecordingMessage {
@@ -146,4 +158,4 @@ export type WorkletInboundMessage =
   | WorkletRecordingMessage
   | WorkletTransportMessage;
 
-export type WorkletOutboundMessage = WorkletPreviewCaptureMessage;
+export type WorkletOutboundMessage = WorkletPreviewCaptureMessage | WorkletInitReadyMessage | WorkletInitErrorMessage;
