@@ -11,6 +11,20 @@ export function createEmptyProjectAssetLibrary(): ProjectAssetLibrary {
   };
 }
 
+export function normalizeProjectAssetLibrary(raw: unknown): ProjectAssetLibrary {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return createEmptyProjectAssetLibrary();
+  }
+  const samplePlayerById =
+    "samplePlayerById" in raw && typeof raw.samplePlayerById === "object" && raw.samplePlayerById !== null && !Array.isArray(raw.samplePlayerById)
+      ? Object.fromEntries(
+          Object.entries(raw.samplePlayerById).filter((entry): entry is [string, string] => typeof entry[1] === "string")
+        )
+      : {};
+
+  return { samplePlayerById };
+}
+
 export function getSamplePlayerAssetData(assets: ProjectAssetLibrary, assetId: string | null | undefined) {
   if (!assetId) {
     return undefined;

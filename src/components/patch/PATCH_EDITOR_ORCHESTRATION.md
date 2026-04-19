@@ -7,6 +7,7 @@ component responsibilities and where orchestration lives.
 
 The patch editor is split into a few layers:
 
+- `ProjectWorkspaceController`
 - `PatchWorkspaceView`
 - `InstrumentEditor`
 - `PatchEditorCanvas`
@@ -15,13 +16,37 @@ The patch editor is split into a few layers:
 
 The general flow is:
 
-1. App/workspace state is assembled in `AppRoot` and `usePatchWorkspaceState`.
-2. `PatchWorkspaceView` passes the selected patch/editor state into `InstrumentEditor`.
-3. `InstrumentEditor` combines patch-level controls with the canvas editor.
-4. `PatchEditorCanvas` coordinates canvas-local concerns and lays out the main editor regions.
-5. `PatchEditorStage` owns the actual interactive patch canvas stage.
+1. `AppRoot` owns project-level app state and instantiates `usePatchWorkspaceState`.
+2. `ProjectWorkspaceController` and `useProjectWorkspaceController` assemble the patch-workspace view props plus focused workspace contexts for transport, clipboard, sample assets, and instrument actions.
+3. `PatchWorkspaceView` passes the selected patch/editor state into `InstrumentEditor`.
+4. `InstrumentEditor` combines patch-level controls with the canvas editor.
+5. `PatchEditorCanvas` coordinates canvas-local concerns and lays out the main editor regions.
+6. `PatchEditorStage` owns the actual interactive patch canvas stage.
+
+## Workspace Context
+
+`ProjectWorkspaceProvider` exposes four focused contexts instead of one monolithic workspace object:
+
+- transport
+- clipboard
+- sample assets
+- instrument actions/state
+
+These are memoized independently in `useProjectWorkspaceController` so consumers only rerender when their specific workspace dependency changes.
+
+The public workspace boundary is intentionally broader than the patch route name. `ProjectWorkspace...` is the project-side workspace surface, while `PatchWorkspaceView` remains the concrete patch-editing screen within that workspace.
 
 ## Responsibilities
+
+### `ProjectWorkspaceController`
+
+Owns the workspace boundary for the patch editor route:
+
+- calling `useProjectWorkspaceController`
+- providing focused workspace contexts
+- rendering `PatchWorkspaceView` with its view-only props
+
+It should stay thin and should not absorb patch-editor behavior directly.
 
 ### `PatchWorkspaceView`
 
@@ -184,7 +209,8 @@ components.
 
 If you are looking for:
 
-- workspace-level orchestration: `PatchWorkspaceView`
+- workspace boundary and context assembly: `ProjectWorkspaceController` / `useProjectWorkspaceController`
+- workspace-level shell orchestration: `PatchWorkspaceView`
 - instrument-editor composition: `InstrumentEditor`
 - page layout and selected-entity wiring: `PatchEditorCanvas`
 - canvas stage behavior: `PatchEditorStage`

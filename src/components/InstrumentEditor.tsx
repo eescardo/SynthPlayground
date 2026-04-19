@@ -5,7 +5,7 @@ import { InstrumentToolbar } from "@/components/patch/InstrumentToolbar";
 import { PatchEditorCanvas } from "@/components/patch/PatchEditorCanvas";
 import { createInstrumentEditorPreviewReadyKey } from "@/components/patch/instrumentEditorPreview";
 import { useAfterStateCommit } from "@/hooks/useAfterStateCommit";
-import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
+import { resolvePatchSource } from "@/lib/patch/source";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
@@ -13,7 +13,6 @@ import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 interface InstrumentEditorProps {
   editorSessionKey?: string;
   patch: Patch;
-  patches: Patch[];
   probeState: PatchProbeEditorState;
   macroValues: Record<string, number>;
   selectedNodeId?: string;
@@ -22,15 +21,6 @@ interface InstrumentEditorProps {
   invalid?: boolean;
   migrationNotice?: string | null;
   onReady?: (macroValues: Record<string, number>) => void;
-  onRenamePatch: (name: string) => void;
-  onSelectPatch: (patchId: string) => void;
-  onDuplicatePatch: () => void;
-  onDuplicatePatchToNewTab: () => void;
-  onExportPatchJson: () => void;
-  onImportPatchFile: (file: File) => void;
-  onUpdatePreset: () => void;
-  canRemovePatch: boolean;
-  onRequestRemovePatch: () => void;
   onSelectNode: (nodeId?: string) => void;
   onSelectMacro: (macroId?: string) => void;
   onClearSelectedMacro: () => void;
@@ -48,7 +38,6 @@ interface InstrumentEditorProps {
 export function InstrumentEditor(props: InstrumentEditorProps) {
   const { editorSessionKey, invalid, macroValues, onReady, patch } = props;
   const patchSource = resolvePatchSource(props.patch);
-  const presetStatus = resolvePatchPresetStatus(props.patch);
   const structureLocked = patchSource === "preset";
   const previewReadyCommitKey = useMemo(
     () => createInstrumentEditorPreviewReadyKey(editorSessionKey, patch.id, macroValues),
@@ -63,22 +52,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
 
   return (
     <section className={`instrument-editor${invalid ? " invalid" : ""}`}>
-      <InstrumentToolbar
-        patch={props.patch}
-        patches={props.patches}
-        invalid={props.invalid}
-        presetStatus={presetStatus}
-        patchSource={patchSource}
-        onRenamePatch={props.onRenamePatch}
-        onSelectPatch={props.onSelectPatch}
-        onDuplicatePatch={props.onDuplicatePatch}
-        onDuplicatePatchToNewTab={props.onDuplicatePatchToNewTab}
-        onExportPatchJson={props.onExportPatchJson}
-        onImportPatchFile={props.onImportPatchFile}
-        onUpdatePreset={props.onUpdatePreset}
-        canRemovePatch={props.canRemovePatch}
-        onRequestRemovePatch={props.onRequestRemovePatch}
-      />
+      <InstrumentToolbar patch={props.patch} invalid={props.invalid} />
 
       {props.migrationNotice && <p className="warn">{props.migrationNotice}</p>}
       {props.invalid && (
