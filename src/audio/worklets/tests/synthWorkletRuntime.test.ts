@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Track } from "@/types/music";
 import type { Patch } from "@/types/patch";
-import type { SynthRenderStream } from "../synth-worklet-runtime.js";
+import type { SynthRenderStream } from "@/audio/renderers/shared/synth-renderer";
 
 type RuntimeModule = typeof import("../synth-worklet-runtime.js");
+type JsRendererModule = typeof import("../../renderers/js/synth-renderer-js.js");
 type WorkletGlobal = typeof globalThis & {
   AudioWorkletProcessor?: new () => { port: { onmessage: ((event: unknown) => void) | null; postMessage: (...args: unknown[]) => void } };
   registerProcessor?: (name: string, processorCtor: unknown) => void;
@@ -120,6 +121,16 @@ async function loadRuntimeModule(): Promise<RuntimeModule> {
   return import("../synth-worklet-runtime.js");
 }
 
+async function loadJsRendererModule(): Promise<JsRendererModule> {
+  vi.resetModules();
+  const workletGlobal = globalThis as WorkletGlobal;
+  workletGlobal.AudioWorkletProcessor = class {
+    port = { onmessage: null, postMessage() {} };
+  };
+  workletGlobal.registerProcessor = vi.fn();
+  return import("../../renderers/js/synth-renderer-js.js");
+}
+
 function renderProcessorBlock(
   processor: InstanceType<RuntimeModule["SynthWorkletProcessor"]>,
   frames = 128
@@ -156,7 +167,7 @@ beforeEach(() => {
 
 describe("synth worklet runtime", () => {
   it("orders note-off before note-on on the same sample", async () => {
-    const { compareScheduledEvents } = await loadRuntimeModule();
+    const { compareScheduledEvents } = await loadJsRendererModule();
 
     const events = [
       {
@@ -185,7 +196,7 @@ describe("synth worklet runtime", () => {
   });
 
   it("creates independent render streams from the renderer factory", async () => {
-    const { createRenderer } = await loadRuntimeModule();
+    const { createJsRenderer: createRenderer } = await loadJsRendererModule();
 
     const project = createProject();
     const noteOn = {
@@ -243,7 +254,7 @@ describe("synth worklet runtime", () => {
   });
 
   it("renders deterministic Noise output for a fixed random seed", async () => {
-    const { createRenderer } = await loadRuntimeModule();
+    const { createJsRenderer: createRenderer } = await loadJsRendererModule();
 
     const patch = createPatch({
       nodes: [
@@ -312,7 +323,7 @@ describe("synth worklet runtime", () => {
   });
 
   it("renders deterministic KarplusStrong excitation for a fixed random seed", async () => {
-    const { createRenderer } = await loadRuntimeModule();
+    const { createJsRenderer: createRenderer } = await loadJsRendererModule();
 
     const patch = createPatch({
       nodes: [
@@ -385,7 +396,7 @@ describe("synth worklet runtime", () => {
   });
 
   it("applies piecewise macro bindings to compiled param targets", async () => {
-    const { TrackRuntime } = await loadRuntimeModule();
+    const { TrackRuntime } = await loadJsRendererModule();
 
     const patch = createPatch({
       ui: {
@@ -421,7 +432,7 @@ describe("synth worklet runtime", () => {
   });
 
   it("throws during runtime compilation when a node type has no registered DSP processor", async () => {
-    const { TrackRuntime } = await loadRuntimeModule();
+    const { TrackRuntime } = await loadJsRendererModule();
 
     const patch = createPatch({
       nodes: [
@@ -443,7 +454,7 @@ describe("synth worklet runtime", () => {
   });
 
   it("scales track output by track volume and can bypass mute and volume when requested", async () => {
-    const { TrackRuntime } = await loadRuntimeModule();
+    const { TrackRuntime } = await loadJsRendererModule();
 
     const event = { noteId: "note_1", pitchVoct: 0, velocity: 1 };
     const fullRuntime = new TrackRuntime(createTrack({ volume: 1 }), createPatch(), 48000, 128);
@@ -471,7 +482,7 @@ describe("synth worklet runtime", () => {
   });
 
   it("follows ADSR release through the rendered track pipeline", async () => {
-    const { TrackRuntime } = await loadRuntimeModule();
+    const { TrackRuntime } = await loadJsRendererModule();
 
     const patch = createPatch({
       nodes: [

@@ -1,4 +1,4 @@
-import type { SynthRenderer, SynthRenderStream } from "./synth-worklet-runtime.js";
+import type { SynthRenderer, SynthRenderStream } from "@/audio/renderers/shared/synth-renderer";
 import type { AudioProject, SynthRendererConfig, SynthStreamStartOptions, TransportSynthStreamStartOptions } from "@/types/audio";
 
 export class WasmWorkletRenderer implements SynthRenderer {

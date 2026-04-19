@@ -1,23 +1,15 @@
-import { createWasmRenderer } from "@/audio/renderers/wasm/wasmSynthRenderer";
-import type { WasmSynthRenderStream } from "@/audio/renderers/wasm/wasmSynthRenderer";
+import { createWasmRenderer, WasmSynthRenderStream } from "@/audio/renderers/wasm/wasmSynthRenderer";
 import { AudioProject, SchedulerEvent } from "@/types/audio";
+import { BaseOfflineRenderOptions, OfflineRenderResult, renderOfflineWithRenderer } from "./renderOfflineWithRenderer";
 
-export interface OfflineWasmRenderOptions {
-  sampleRate: number;
-  blockSize: number;
-  durationSamples: number;
+export interface OfflineWasmRenderOptions extends BaseOfflineRenderOptions {
   events?: SchedulerEvent[];
   sessionId?: number;
   randomSeed?: number;
   profilingEnabled?: boolean;
 }
 
-export interface OfflineWasmRenderResult {
-  left: Float32Array;
-  right: Float32Array;
-  renderedBlocks: number;
-  renderedSamples: number;
-  outputAbsSum: number;
+export interface OfflineWasmRenderResult extends OfflineRenderResult {
   profileStats?: Record<string, unknown> | null;
 }
 
@@ -33,42 +25,10 @@ export const renderProjectOfflineWasm = async (
       project
     }
   });
-  const stream = renderer.startStream({
+  return renderOfflineWithRenderer<WasmSynthRenderStream, { profileStats?: Record<string, unknown> | null }>(
+    renderer,
     project,
-    songStartSample: 0,
-    events: options.events ?? [],
-    sessionId: options.sessionId ?? 1,
-    randomSeed: options.randomSeed,
-    mode: "transport"
-  });
-  const wasmStream = stream as WasmSynthRenderStream | null;
-
-  const left = new Float32Array(options.durationSamples);
-  const right = new Float32Array(options.durationSamples);
-  const renderedBlocks = Math.ceil(options.durationSamples / options.blockSize);
-  let outputAbsSum = 0;
-
-  for (let blockIndex = 0; blockIndex < renderedBlocks; blockIndex += 1) {
-    const blockLeft = new Float32Array(options.blockSize);
-    const blockRight = new Float32Array(options.blockSize);
-    stream?.processBlock([blockLeft, blockRight]);
-    const offset = blockIndex * options.blockSize;
-    const validFrames = Math.min(options.blockSize, options.durationSamples - offset);
-    left.set(blockLeft.subarray(0, validFrames), offset);
-    right.set(blockRight.subarray(0, validFrames), offset);
-    for (let frame = 0; frame < validFrames; frame += 1) {
-      outputAbsSum += Math.abs(blockLeft[frame]);
-    }
-  }
-
-  stream?.stop();
-
-  return {
-    left,
-    right,
-    renderedBlocks,
-    renderedSamples: options.durationSamples,
-    outputAbsSum,
-    profileStats: wasmStream?.getProfileStats() ?? null
-  };
+    options,
+    (stream) => ({ profileStats: stream?.getProfileStats() ?? null })
+  );
 };

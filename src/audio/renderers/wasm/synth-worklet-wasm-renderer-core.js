@@ -1,4 +1,4 @@
-import { compareScheduledEvents } from "./synth-worklet-runtime.js";
+import { compareScheduledEvents } from "../shared/synth-renderer-events.js";
 import {
   compileAudioProjectToWasmSubsetCore,
   compileSchedulerEventsToWasmSubsetCore

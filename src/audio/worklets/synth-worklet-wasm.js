@@ -1,4 +1,4 @@
-import { SynthWorkletProcessor, setRendererFactory } from "./synth-worklet-runtime.js";
+import { SynthWorkletProcessor, setRendererFactory } from "../worklets/synth-worklet-runtime.js";
 import { createWasmRenderer } from "./synth-worklet-wasm-renderer.js";
 
 setRendererFactory(createWasmRenderer);

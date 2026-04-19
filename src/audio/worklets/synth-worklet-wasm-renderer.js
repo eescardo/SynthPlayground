@@ -4,8 +4,8 @@ import {
   SharedWasmRenderer,
   defaultCompileEvents,
   defaultCompileProject
-} from "./synth-worklet-wasm-renderer-core.js";
-import { compilePreviewProbeCaptureRequestsCore } from "./synth-worklet-wasm-compiler-core.js";
+} from "../renderers/wasm/synth-worklet-wasm-renderer-core.js";
+import { compilePreviewProbeCaptureRequestsCore } from "../renderers/wasm/synth-worklet-wasm-compiler-core.js";
 
 class WasmWorkletRenderStream extends SharedWasmRenderStream {}
 

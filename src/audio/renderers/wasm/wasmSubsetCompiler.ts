@@ -2,7 +2,7 @@ import { AudioProject, SchedulerEvent } from "@/types/audio";
 import {
   compileAudioProjectToWasmSubsetCore,
   compileSchedulerEventsToWasmSubsetCore
-} from "@/audio/worklets/synth-worklet-wasm-compiler-core.js";
+} from "@/audio/renderers/wasm/synth-worklet-wasm-compiler-core.js";
 
 export interface WasmTrackFxSpec {
   delayEnabled: boolean;

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Track } from "@/types/music";
 import type { ParamValue, Patch } from "@/types/patch";
 
-type RuntimeModule = typeof import("../synth-worklet-runtime.js");
+type RendererModule = typeof import("../synth-renderer-js.js");
 type WorkletGlobal = typeof globalThis & {
   AudioWorkletProcessor?: new () => { port: { onmessage: ((event: unknown) => void) | null; postMessage: (...args: unknown[]) => void } };
   registerProcessor?: (name: string, processorCtor: unknown) => void;
@@ -29,7 +29,7 @@ type InternalVoice = {
   };
 };
 
-type InternalTrackRuntime = InstanceType<RuntimeModule["TrackRuntime"]> & {
+type InternalTrackRuntime = InstanceType<RendererModule["TrackRuntime"]> & {
   compiled: {
     hostSignalIndices: {
       pitch: number;
@@ -100,14 +100,14 @@ function createPatch(node: { id: string; typeId: string; params: Record<string, 
   } satisfies Patch;
 }
 
-async function loadRuntimeModule(): Promise<RuntimeModule> {
+async function loadRendererModule(): Promise<RendererModule> {
   vi.resetModules();
   const workletGlobal = globalThis as WorkletGlobal;
   workletGlobal.AudioWorkletProcessor = class {
     port = { onmessage: null, postMessage() {} };
   };
   workletGlobal.registerProcessor = vi.fn();
-  return import("../synth-worklet-runtime.js");
+  return import("../synth-renderer-js.js");
 }
 
 function sumAbs(buffer: Float32Array) {
@@ -137,7 +137,7 @@ function zeroCrossings(buffer: Float32Array) {
 }
 
 function createModuleHarness(
-  runtimeModule: RuntimeModule,
+  runtimeModule: RendererModule,
   typeId: string,
   params: Record<string, ParamValue> = {},
   options: { randomSeed?: number } = {}
@@ -198,7 +198,7 @@ beforeEach(() => {
 
 describe("synth worklet module behavior", () => {
   it("emits host values from NotePitch, NoteGate, NoteVelocity, and ModWheel", async () => {
-    const { TrackRuntime } = await loadRuntimeModule();
+    const { TrackRuntime } = await loadRendererModule();
     const patch = createPatch({ id: "osc", typeId: "VCO", params: { wave: "sine" } });
     const runtime = new TrackRuntime(createTrack(), patch, SAMPLE_RATE, BLOCK_SIZE) as InternalTrackRuntime;
     const voice = runtime.voices[0] as InternalVoice;
@@ -220,7 +220,7 @@ describe("synth worklet module behavior", () => {
   });
 
   it("applies CVTranspose offsets to the input signal", async () => {
-    const runtimeModule = await loadRuntimeModule();
+    const runtimeModule = await loadRendererModule();
     const harness = createModuleHarness(runtimeModule, "CVTranspose", { octaves: 1, semitones: 12, cents: 1200 });
     harness.assignInput("in", "pitch", 0.25);
 
@@ -229,7 +229,7 @@ describe("synth worklet module behavior", () => {
   });
 
   it("scales CV input by the configured multiplier", async () => {
-    const runtimeModule = await loadRuntimeModule();
+    const runtimeModule = await loadRendererModule();
     const harness = createModuleHarness(runtimeModule, "CVScaler", { scale: 2.5 });
     harness.assignInput("in", "pitch", Float32Array.from([0.1, -0.2, 0.3, -0.4]));
 
@@ -240,7 +240,7 @@ describe("synth worklet module behavior", () => {
   });
 
   it("mixes two CV inputs with independent gains", async () => {
-    const runtimeModule = await loadRuntimeModule();
+    const runtimeModule = await loadRendererModule();
     const harness = createModuleHarness(runtimeModule, "CVMixer2", { gain1: 0.5, gain2: 2 });
     harness.assignInput("in1", "pitch", 0.25);
     harness.assignInput("in2", "velocity", 0.1);
@@ -250,7 +250,7 @@ describe("synth worklet module behavior", () => {
   });
 
   it("renders a bounded oscillating VCO waveform", async () => {
-    const runtimeModule = await loadRuntimeModule();
+    const runtimeModule = await loadRendererModule();
     const harness = createModuleHarness(runtimeModule, "VCO", { wave: "sine", pulseWidth: 0.5 });
     harness.voice.host.pitchVoct = 0;
 
@@ -261,7 +261,7 @@ describe("synth worklet module behavior", () => {
   });
 
   it("renders a decaying KarplusStrong pluck", async () => {
-    const runtimeModule = await loadRuntimeModule();
+    const runtimeModule = await loadRendererModule();
     const harness = createModuleHarness(
       runtimeModule,
       "KarplusStrong",
@@ -281,7 +281,7 @@ describe("synth worklet module behavior", () => {
   });
 
   it("supports bipolar and unipolar LFO modes", async () => {
-    const runtimeModule = await loadRuntimeModule();
+    const runtimeModule = await loadRendererModule();
     const bipolarHarness = createModuleHarness(runtimeModule, "LFO", { wave: "sine", freqHz: 40, bipolar: true });
     const unipolarHarness = createModuleHarness(runtimeModule, "LFO", { wave: "sine", freqHz: 5, bipolar: false });
 
@@ -297,7 +297,7 @@ describe("synth worklet module behavior", () => {
   });
 
   it("follows ADSR attack and release stages", async () => {
-    const runtimeModule = await loadRuntimeModule();
+    const runtimeModule = await loadRendererModule();
     const harness = createModuleHarness(runtimeModule, "ADSR", { attack: 0.001, decay: 0.01, sustain: 0.4, release: 0.02 });
     harness.voice.host.gate = 1;
     const attack = harness.process(BLOCK_SIZE);
@@ -309,7 +309,7 @@ describe("synth worklet module behavior", () => {
   });
 
   it("uses VCA gain CV to scale an input signal", async () => {
-    const runtimeModule = await loadRuntimeModule();
+    const runtimeModule = await loadRendererModule();
     const harness = createModuleHarness(runtimeModule, "VCA", { bias: 0, gain: 1 });
     harness.assignInput("in", "pitch", 0.5);
     harness.assignInput("gainCV", "gate", 1);
@@ -319,7 +319,7 @@ describe("synth worklet module behavior", () => {
   });
 
   it("lets VCF highpass reject DC and lowpass smooth rapid alternation", async () => {
-    const runtimeModule = await loadRuntimeModule();
+    const runtimeModule = await loadRendererModule();
     const highpass = createModuleHarness(runtimeModule, "VCF", { type: "highpass", cutoffHz: 800, resonance: 0.1, cutoffModAmountOct: 0 });
     highpass.assignInput("in", "pitch", 0.75);
     highpass.process(BLOCK_SIZE);
@@ -335,7 +335,7 @@ describe("synth worklet module behavior", () => {
   });
 
   it("sums up to four Mixer4 inputs with channel gains", async () => {
-    const runtimeModule = await loadRuntimeModule();
+    const runtimeModule = await loadRendererModule();
     const harness = createModuleHarness(runtimeModule, "Mixer4", { gain1: 1, gain2: 0.5, gain3: 0.25, gain4: 0 });
     harness.assignInput("in1", "pitch", 1);
     harness.assignInput("in2", "gate", 1);
@@ -347,7 +347,7 @@ describe("synth worklet module behavior", () => {
   });
 
   it("renders seeded Noise output within the expected range", async () => {
-    const runtimeModule = await loadRuntimeModule();
+    const runtimeModule = await loadRendererModule();
     const first = createModuleHarness(runtimeModule, "Noise", { color: "white", gain: 1 }, { randomSeed: 999 });
     const second = createModuleHarness(runtimeModule, "Noise", { color: "white", gain: 1 }, { randomSeed: 999 });
 
@@ -360,7 +360,7 @@ describe("synth worklet module behavior", () => {
   });
 
   it("plays and then stops a one-shot SamplePlayer asset", async () => {
-    const runtimeModule = await loadRuntimeModule();
+    const runtimeModule = await loadRendererModule();
     const harness = createModuleHarness(runtimeModule, "SamplePlayer", {
       mode: "oneshot",
       start: 0,
@@ -379,7 +379,7 @@ describe("synth worklet module behavior", () => {
   });
 
   it("emits a delayed copy of an impulse", async () => {
-    const runtimeModule = await loadRuntimeModule();
+    const runtimeModule = await loadRendererModule();
     const harness = createModuleHarness(runtimeModule, "Delay", { timeMs: 1, feedback: 0, mix: 1 });
     const impulse = new Float32Array(BLOCK_SIZE);
     impulse[0] = 1;
@@ -391,7 +391,7 @@ describe("synth worklet module behavior", () => {
   });
 
   it("adds a reverberant tail to an impulse", async () => {
-    const runtimeModule = await loadRuntimeModule();
+    const runtimeModule = await loadRendererModule();
     const harness = createModuleHarness(runtimeModule, "Reverb", { size: 0.8, decay: 2, damping: 0.2, mix: 1 });
     const impulse = new Float32Array(BLOCK_SIZE);
     impulse[0] = 1;
@@ -406,7 +406,7 @@ describe("synth worklet module behavior", () => {
   });
 
   it("soft-clips Saturation output under heavy drive", async () => {
-    const runtimeModule = await loadRuntimeModule();
+    const runtimeModule = await loadRendererModule();
     const harness = createModuleHarness(runtimeModule, "Saturation", { driveDb: 24, mix: 1, type: "tanh" });
     harness.assignInput("in", "pitch", 1.5);
 
@@ -416,7 +416,7 @@ describe("synth worklet module behavior", () => {
   });
 
   it("changes the waveform through Overdrive processing", async () => {
-    const runtimeModule = await loadRuntimeModule();
+    const runtimeModule = await loadRendererModule();
     const harness = createModuleHarness(runtimeModule, "Overdrive", { gainDb: 24, tone: 0.4, mix: 1, mode: "overdrive" });
     const source = Float32Array.from({ length: BLOCK_SIZE }, (_, index) => Math.sin((2 * Math.PI * index) / 16) * 0.8);
     harness.assignInput("in", "pitch", source);
@@ -427,7 +427,7 @@ describe("synth worklet module behavior", () => {
   });
 
   it("reduces loud signals more than quiet ones in Compressor", async () => {
-    const runtimeModule = await loadRuntimeModule();
+    const runtimeModule = await loadRendererModule();
     const quiet = createModuleHarness(runtimeModule, "Compressor", {
       thresholdDb: -24,
       ratio: 8,
@@ -455,7 +455,7 @@ describe("synth worklet module behavior", () => {
   });
 
   it("applies Output gain and limiter", async () => {
-    const runtimeModule = await loadRuntimeModule();
+    const runtimeModule = await loadRendererModule();
     const harness = createModuleHarness(runtimeModule, "Output", { gainDb: 6, limiter: true }, { randomSeed: 1 });
     harness.assignInput("in", "pitch", 2);
 

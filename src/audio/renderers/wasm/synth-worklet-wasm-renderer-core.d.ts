@@ -7,8 +7,8 @@ import type {
 } from "@/types/audio";
 import type { PreviewProbeCapture, PreviewProbeRequest } from "@/types/probes";
 import type { WasmEvent, WasmProjectSpec } from "@/audio/renderers/wasm/wasmSubsetCompiler";
-import type { WorkletPortLike } from "./synth-worklet-runtime.js";
-import type { WasmPreviewProbeCaptureRequest } from "./synth-worklet-wasm-compiler-core.js";
+import type { WorkletPortLike } from "@/audio/renderers/shared/synth-renderer";
+import type { WasmPreviewProbeCaptureRequest } from "@/audio/renderers/wasm/synth-worklet-wasm-compiler-core.js";
 
 export const DEFAULT_RANDOM_SEED: number;
 export const MACRO_EVENT_LEAD_SAMPLES: number;

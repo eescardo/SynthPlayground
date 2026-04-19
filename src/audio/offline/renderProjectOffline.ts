@@ -1,33 +1,16 @@
-import { createRenderer, SynthWorkletProcessor } from "@/audio/worklets/synth-worklet-runtime.js";
-import type { SynthRenderStream } from "@/audio/worklets/synth-worklet-runtime.js";
+import { createJsRenderer } from "@/audio/renderers/js/synth-renderer-js.js";
+import type { SynthRenderStream } from "@/audio/renderers/shared/synth-renderer";
+import { SynthWorkletProcessor } from "@/audio/worklets/synth-worklet-runtime.js";
 import { AudioProject, SchedulerEvent } from "@/types/audio";
+import { BaseOfflineRenderOptions, OfflineRenderResult, renderOfflineWithRenderer } from "./renderOfflineWithRenderer";
 
-export interface OfflineRenderOptions {
-  sampleRate: number;
-  blockSize: number;
-  durationSamples: number;
+export interface OfflineRenderOptions extends BaseOfflineRenderOptions {
   events?: SchedulerEvent[];
   sessionId?: number;
   randomSeed?: number;
 }
 
-export interface OfflineRenderResult {
-  left: Float32Array;
-  right: Float32Array;
-  renderedBlocks: number;
-  renderedSamples: number;
-  outputAbsSum: number;
-  peakHeapMb: number;
-}
-
-const BYTES_PER_MB = 1024 * 1024;
-const getHeapUsedMb = () => {
-  const proc = globalThis.process;
-  if (!proc?.memoryUsage) {
-    return 0;
-  }
-  return proc.memoryUsage().heapUsed / BYTES_PER_MB;
-};
+export type { OfflineRenderResult };
 
 export const createOfflineRenderProcessor = (
   project: AudioProject,
@@ -44,8 +27,8 @@ export const createOfflineRenderProcessor = (
 export const createOfflineRenderer = (
   project: AudioProject,
   options: Pick<OfflineRenderOptions, "sampleRate" | "blockSize">
-)=>
-  createRenderer({
+) =>
+  createJsRenderer({
     processorOptions: {
       sampleRate: options.sampleRate,
       blockSize: options.blockSize,
@@ -73,49 +56,6 @@ export const renderProjectOffline = (
   project: AudioProject,
   options: OfflineRenderOptions
 ): OfflineRenderResult => {
-  const { sampleRate, blockSize, durationSamples } = options;
-  const stream = createOfflineRenderStream(project, {
-    sampleRate,
-    blockSize,
-    durationSamples,
-    events: options.events,
-    sessionId: options.sessionId,
-    randomSeed: options.randomSeed
-  });
-
-  const left = new Float32Array(durationSamples);
-  const right = new Float32Array(durationSamples);
-  const renderedBlocks = Math.ceil(durationSamples / blockSize);
-  let outputAbsSum = 0;
-  let peakHeapMb = getHeapUsedMb();
-
-  for (let blockIndex = 0; blockIndex < renderedBlocks; blockIndex += 1) {
-    const blockLeft = new Float32Array(blockSize);
-    const blockRight = new Float32Array(blockSize);
-    stream?.processBlock([blockLeft, blockRight]);
-
-    const blockOffset = blockIndex * blockSize;
-    const validFrames = Math.min(blockSize, durationSamples - blockOffset);
-    left.set(blockLeft.subarray(0, validFrames), blockOffset);
-    right.set(blockRight.subarray(0, validFrames), blockOffset);
-
-    for (let sampleIndex = 0; sampleIndex < validFrames; sampleIndex += 1) {
-      outputAbsSum += Math.abs(blockLeft[sampleIndex]);
-    }
-
-    if ((blockIndex & 255) === 0) {
-      peakHeapMb = Math.max(peakHeapMb, getHeapUsedMb());
-    }
-  }
-
-  peakHeapMb = Math.max(peakHeapMb, getHeapUsedMb());
-
-  return {
-    left,
-    right,
-    renderedBlocks,
-    renderedSamples: durationSamples,
-    outputAbsSum,
-    peakHeapMb
-  };
+  const renderer = createOfflineRenderer(project, options);
+  return renderOfflineWithRenderer(renderer, project, options);
 };

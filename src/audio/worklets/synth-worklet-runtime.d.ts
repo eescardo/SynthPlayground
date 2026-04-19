@@ -1,84 +1,26 @@
+import type { AudioProject, WorkletInboundMessage } from "@/types/audio";
 import type { Track } from "@/types/music";
-import type { Patch } from "@/types/patch";
 import type {
-  AudioProject,
-  SchedulerEvent,
-  SynthRendererConfig,
-  SynthStreamStartOptions,
-  TransportSynthStreamStartOptions,
-  WorkletInboundMessage
-} from "@/types/audio";
-
-export interface WorkletPortLike {
-  onmessage: ((event: unknown) => void) | null;
-  postMessage(...args: unknown[]): void;
-}
+  SynthRenderer,
+  SynthRenderStream,
+  SynthRendererFactoryConfig,
+  WorkletPortLike
+} from "@/audio/renderers/shared/synth-renderer";
 
 export class BaseAudioWorkletProcessor {
   port: WorkletPortLike;
 }
 
-export const compareScheduledEvents: (a: unknown, b: unknown) => number;
-
-export class TrackRuntime {
-  constructor(track: Track, patch: Patch, sampleRate: number, blockSize: number, randomSeed?: number);
-  compiled: {
-    paramTargets: Map<string, Map<string, number>>;
-    nodeRuntimes: Array<{
-      id: string;
-      typeId: string;
-    }>;
-  };
-  voices: Array<{
-    active: boolean;
-    signalBuffers: Float32Array[];
-  }>;
-  applyMacro(macroId: string, normalized: number): void;
-  noteOn(event: { noteId: string; pitchVoct: number; velocity: number }, sampleTime: number): void;
-  noteOff(event: { noteId: string }): void;
-  processNodeFrames(
-    voice: { signalBuffers: Float32Array[] },
-    runtimeNode: { id: string; typeId: string },
-    signalBuffers: Float32Array[],
-    startFrame: number,
-    endFrame: number
-  ): void;
-  processTrackFrames(
-    targetBuffer: Float32Array,
-    startFrame: number,
-    endFrame: number,
-    options?: { ignoreMute?: boolean; ignoreVolume?: boolean }
-  ): void;
-}
-
-export interface SynthRenderStream {
-  port: WorkletPortLike;
-  project: AudioProject | null;
-  trackRuntimes: Array<{ track: Track }>;
-  eventQueue: SchedulerEvent[];
-  processBlock(output: Float32Array[]): boolean;
-  enqueueEvents(events: SchedulerEvent[]): void;
-  stop(): void;
-}
-
-export interface SynthRenderer {
-  port: WorkletPortLike;
-  sampleRateInternal: number;
-  blockSize: number;
-  project: AudioProject | null;
-  configure(config: Partial<SynthRendererConfig> & { wasmBytes?: ArrayBuffer }): void;
-  setDefaultProject(project: AudioProject): void;
-  startStream(options: SynthStreamStartOptions): SynthRenderStream | null;
-}
-
-export const createRenderer: (config?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions>; wasmBytes?: ArrayBuffer } }) => SynthRenderer;
+export const setRendererFactory: (nextFactory: ((config?: SynthRendererFactoryConfig) => SynthRenderer) | null | undefined) => void;
+export const resetRendererFactory: () => void;
+export const createRenderer: (config?: SynthRendererFactoryConfig) => SynthRenderer;
 
 export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
-  constructor(options?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions>; wasmBytes?: ArrayBuffer } });
+  constructor(options?: SynthRendererFactoryConfig);
   renderer: SynthRenderer;
   currentStream: SynthRenderStream | null;
   readonly backend: SynthRenderStream | SynthRenderer;
-  eventQueue: SchedulerEvent[];
+  eventQueue: import("@/types/audio").SchedulerEvent[];
   project: AudioProject | null;
   trackRuntimes: Array<{ track: Track }>;
   onMessage(message: WorkletInboundMessage): void;

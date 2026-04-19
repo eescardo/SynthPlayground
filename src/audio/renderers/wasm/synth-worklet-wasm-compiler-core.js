@@ -1,4 +1,4 @@
-import { TRACK_VOLUME_AUTOMATION_ID } from "./synth-worklet-constants.js";
+import { TRACK_VOLUME_AUTOMATION_ID } from "../js/synth-worklet-constants.js";
 
 const HOST_NODE_IDS = {
   pitch: "$host.pitch",

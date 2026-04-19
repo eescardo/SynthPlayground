@@ -1,4 +1,4 @@
-import type { SynthRenderer, SynthRenderStream, WorkletPortLike } from "@/audio/worklets/synth-worklet-runtime.js";
+import type { SynthRenderer, SynthRenderStream, WorkletPortLike } from "@/audio/renderers/shared/synth-renderer";
 import { AudioProject, SchedulerEvent, SynthRendererConfig, SynthStreamStartOptions, TransportSynthStreamStartOptions } from "@/types/audio";
 import type { Track } from "@/types/music";
 import { compileAudioProjectToWasmSubset, compileSchedulerEventsToWasmSubset } from "@/audio/renderers/wasm/wasmSubsetCompiler";
@@ -10,7 +10,7 @@ import {
   SharedWasmRenderStream,
   SharedWasmRenderer,
   NullPort
-} from "@/audio/worklets/synth-worklet-wasm-renderer-core.js";
+} from "@/audio/renderers/wasm/synth-worklet-wasm-renderer-core.js";
 
 export class WasmSynthRenderStream extends SharedWasmRenderStream implements SynthRenderStream {
   declare readonly port: WorkletPortLike;
