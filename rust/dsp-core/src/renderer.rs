@@ -116,6 +116,10 @@ impl WasmSubsetEngine {
         .map_err(|error| js_error(format!("Failed to serialize preview capture state: {error}")))
     }
 
+    pub fn preview_capture_sample_count(&self) -> usize {
+        self.preview_capture_sample_count
+    }
+
     pub fn process_block(&mut self) -> bool {
         let block_started = if self.profiling_enabled { Some(now_ms()) } else { None };
         self.left.fill(0.0);

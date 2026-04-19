@@ -63,7 +63,8 @@ export class WasmWorkletRenderer extends SharedWasmRenderer {
           return null;
         }
         return snapshot;
-      }
+      },
+      getPreviewCaptureSampleCount: (_renderer, engine) => engine.preview_capture_sample_count()
     };
     super(options, implementation);
     if (typeof this.wasmBytes === "undefined") {

@@ -7,6 +7,8 @@ const blockSize = 128;
 const leftView = new Float32Array(sharedMemory.buffer, 0, blockSize);
 const rightView = new Float32Array(sharedMemory.buffer, blockSize * Float32Array.BYTES_PER_ELEMENT, blockSize);
 let previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
+let previewCaptureSampleCount = 0;
+const engineStop = vi.fn();
 
 vi.mock("../synth-worklet-dsp-bindgen.js", () => {
   class MockWasmSubsetEngine {
@@ -19,6 +21,7 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
     enqueue_events() {}
     configure_preview_probe_capture() {}
     process_block() {
+      previewCaptureSampleCount = blockSize;
       previewCaptureStateJson = JSON.stringify({
         capturedSamples: blockSize,
         captures: [
@@ -33,7 +36,12 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
     preview_capture_state_json() {
       return previewCaptureStateJson;
     }
-    stop() {}
+    preview_capture_sample_count() {
+      return previewCaptureSampleCount;
+    }
+    stop() {
+      engineStop();
+    }
     left_ptr() {
       return 0;
     }
@@ -140,8 +148,10 @@ function createProject(options: { patch?: Patch; track?: Track } = {}): Project 
 
 beforeEach(() => {
   vi.resetModules();
+  engineStop.mockReset();
   leftView.fill(0);
   rightView.fill(0);
+  previewCaptureSampleCount = 0;
   previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
 });
 
@@ -206,5 +216,55 @@ describe("WASM worklet renderer", () => {
         ]
       })
     );
+  });
+
+  it("does not force a final preview capture when a preview stream is stopped early", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+    const postMessage = vi.fn();
+    renderer.port.postMessage = postMessage;
+
+    const stream = renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize * 16,
+      trackId: "track_1",
+      previewId: "preview_early_stop",
+      events: [
+        {
+          id: "note_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
+      captureProbes: [
+        {
+          probeId: "probe_1",
+          kind: "scope",
+          target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
+        }
+      ],
+      randomSeed: 123
+    });
+
+    stream!.stop();
+
+    expect(engineStop).toHaveBeenCalledTimes(1);
+    expect(postMessage).not.toHaveBeenCalled();
   });
 });

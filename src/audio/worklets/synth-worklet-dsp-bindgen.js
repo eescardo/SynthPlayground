@@ -171,6 +171,10 @@ export class WasmSubsetEngine {
     }
   }
 
+  preview_capture_sample_count() {
+    return wasm.wasmsubsetengine_preview_capture_sample_count(this.__wbg_ptr) >>> 0;
+  }
+
   profile_stats_json() {
     let ptr1 = 0;
     let len1 = 0;

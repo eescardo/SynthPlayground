@@ -8,6 +8,7 @@ interface WasmSubsetEngineInstance {
   configure_preview_probe_capture(captureJson: string): void;
   process_block(): boolean;
   preview_capture_state_json(): string;
+  preview_capture_sample_count(): number;
   stop(): void;
   left_ptr(): number;
   right_ptr(): number;

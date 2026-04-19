@@ -55,14 +55,19 @@ export class SharedWasmRenderStream {
     if (!this.previewCaptureState) {
       return;
     }
+    const capturedSamples =
+      this.implementation.getPreviewCaptureSampleCount?.(this.renderer, this.engine, this.previewCaptureState) ?? null;
+    if (!Number.isFinite(capturedSamples)) {
+      return;
+    }
+    if (!force && capturedSamples - this.previewCaptureState.lastEmittedCapturedSamples < 1024) {
+      return;
+    }
     const snapshot = this.implementation.readPreviewCapture?.(this.renderer, this.engine, this.previewCaptureState, force);
     if (!snapshot) {
       return;
     }
-    const { capturedSamples, captures } = snapshot;
-    if (!force && capturedSamples - this.previewCaptureState.lastEmittedCapturedSamples < 1024) {
-      return;
-    }
+    const { captures } = snapshot;
     this.previewCaptureState.lastEmittedCapturedSamples = capturedSamples;
     this.port.postMessage({
       type: "PREVIEW_CAPTURE",
@@ -113,7 +118,8 @@ export class SharedWasmRenderStream {
       this.previewRemainingSamples -= leftOut.length;
       this.maybeEmitPreviewCapture(false);
       if (this.previewRemainingSamples <= 0) {
-        this.stop();
+        this.maybeEmitPreviewCapture(true);
+        this.stop({ emitPreviewCapture: false });
       }
     }
 
@@ -145,11 +151,17 @@ export class SharedWasmRenderStream {
 
   setRecordingTrack() {}
 
-  stop() {
+  stop(options = {}) {
+    const emitPreviewCapture = Boolean(options.emitPreviewCapture);
     this.stopped = true;
-    this.maybeEmitPreviewCapture(true);
+    if (emitPreviewCapture) {
+      this.maybeEmitPreviewCapture(true);
+    }
     this.engine.stop();
     this.eventQueue.length = 0;
+    if (!emitPreviewCapture) {
+      this.previewCaptureState = null;
+    }
   }
 }
 
