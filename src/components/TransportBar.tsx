@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, RefObject } from "react";
-import { SiteBrand } from "@/components/branding/SiteBrand";
+import { PatchWorkspaceIcon, SiteBrand } from "@/components/branding/SiteBrand";
 import { ProjectNameControl } from "@/components/composer/ProjectNameControl";
 import { ProjectsMenu } from "@/components/composer/ProjectsMenu";
 import { RecentProjectSnapshot } from "@/lib/persistence";
@@ -45,7 +45,18 @@ export function TransportBar(props: TransportBarProps) {
   return (
     <div className="transport">
       <div className="transport-left">
-        <SiteBrand label="SynthSprout" className="transport-brand" />
+        <SiteBrand className="transport-brand" />
+
+        <button
+          type="button"
+          className="transport-nav-button"
+          title="open patch workspace"
+          aria-label="Open Patch Workspace"
+          onClick={props.onOpenPatchWorkspace}
+        >
+          <PatchWorkspaceIcon className="transport-nav-button-icon transport-nav-button-icon-patch" />
+          <span>Workspace</span>
+        </button>
 
         <ProjectsMenu
           importInputRef={props.importInputRef}
@@ -88,8 +99,6 @@ export function TransportBar(props: TransportBarProps) {
             <option value={0.125}>1/32</option>
           </select>
         </label>
-
-        <button onClick={props.onOpenPatchWorkspace}>Open Patch Workspace</button>
 
         <button className="transport-export-button" onClick={props.onExportAudio} disabled={props.exportAudioDisabled}>
           Export audio...

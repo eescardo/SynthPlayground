@@ -119,6 +119,24 @@ select {
   margin-right: 0.1rem;
 }
 
+.transport-nav-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  white-space: nowrap;
+}
+
+.transport-nav-button-icon {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+}
+
+.transport-nav-button-icon-patch {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
 .transport-left,
 .transport-right {
   display: flex;
@@ -1215,12 +1233,13 @@ select {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  min-width: 0;
 }
 
 .patch-workspace-title {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  min-width: 0;
 }
 
 .patch-workspace-header-actions {
@@ -1235,17 +1254,16 @@ select {
   font-size: 1rem;
 }
 
-.patch-workspace-title .site-brand-mark {
-  width: 1.2rem;
-  height: 1.2rem;
-}
-
 .patch-workspace-back-button {
   white-space: nowrap;
 }
 
+.patch-workspace-title h2 {
+  white-space: nowrap;
+}
+
 @media (max-width: 720px) {
-  .site-brand-label {
+  .patch-workspace-title {
     display: none;
   }
 }

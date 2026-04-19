@@ -2,7 +2,7 @@
 
 import type { ComponentProps } from "react";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
-import { SiteBrand } from "@/components/branding/SiteBrand";
+import { BackArrowIcon, SiteBrand } from "@/components/branding/SiteBrand";
 import { NoteClipboardPayload } from "@/lib/clipboard";
 import { PatchWorkspaceTabStrip, PatchWorkspaceTabViewModel } from "@/components/patch-workspace/PatchWorkspaceTabStrip";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
@@ -61,11 +61,18 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
     <section className="patch-workspace-shell">
       <div className="patch-workspace-header">
         <div className="patch-workspace-heading">
-          <button type="button" className="patch-workspace-back-button" onClick={props.onBackToComposer}>
-            Back to Composer
+          <SiteBrand className="patch-workspace-brand" />
+          <button
+            type="button"
+            className="patch-workspace-back-button transport-nav-button"
+            title="Back to Composer"
+            aria-label="Back to Composer"
+            onClick={props.onBackToComposer}
+          >
+            <BackArrowIcon className="transport-nav-button-icon" />
+            <span>Composer</span>
           </button>
           <div className="patch-workspace-title">
-            <SiteBrand />
             <h2>Patch Workspace</h2>
           </div>
         </div>
