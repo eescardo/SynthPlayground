@@ -43,7 +43,7 @@ export function ProjectsPopover({
       <button type="button" onClick={() => runAction(onClearProject)}>
         Clear Project
       </button>
-      <button type="button" className="secondary-action" onClick={() => runAction(onResetToDefaultProject)}>
+      <button type="button" onClick={() => runAction(onResetToDefaultProject)}>
         Reset To Default Project
       </button>
       <input
