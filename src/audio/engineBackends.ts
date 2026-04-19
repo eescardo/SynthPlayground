@@ -1,5 +1,6 @@
 "use client";
 
+import { isWasmAudioRendererMode } from "@/audio/renderers/shared/audioRendererMode";
 import { createInitializedWorkletNode } from "@/audio/worklets/createInitializedWorkletNode";
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { getLoopPlaybackEndBeat, getSongBeatForPlaybackBeat } from "@/lib/looping";
@@ -12,7 +13,7 @@ const LOOKAHEAD_MS = 300;
 const SCHEDULER_TICK_MS = 25;
 export const BLOCK_SIZE = 128;
 export const FIXED_SAMPLE_RATE = 48000;
-const USE_WASM_WORKLET = process.env.NEXT_PUBLIC_STRICT_WASM === "1";
+const USE_WASM_WORKLET = isWasmAudioRendererMode();
 
 export interface AudioEngineBackend {
   init(): Promise<void>;

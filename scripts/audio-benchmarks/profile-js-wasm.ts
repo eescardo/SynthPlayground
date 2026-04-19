@@ -5,7 +5,7 @@ import { performance } from "node:perf_hooks";
 
 import { createNamedBenchmarkScenario } from "@/audio/benchmarks/stressScenario";
 import { createWasmParityScenario } from "@/audio/benchmarks/wasmParityScenario";
-import { renderProjectOffline } from "@/audio/offline/renderProjectOffline";
+import { renderProjectOfflineJs } from "@/audio/offline/renderProjectOffline";
 import { renderProjectOfflineWasm } from "@/audio/offline/renderProjectOfflineWasm";
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { beatToSample } from "@/lib/musicTiming";
@@ -48,7 +48,7 @@ interface RenderableScenario {
     tempo: number;
     blockSize: number;
   };
-  project: Parameters<typeof renderProjectOffline>[0];
+  project: Parameters<typeof renderProjectOfflineJs>[0];
 }
 
 const makeScenario = (): RenderableScenario => {
@@ -92,7 +92,7 @@ const renderScenario = async (scenario: RenderableScenario) => {
 
   const renderStart = performance.now();
   const renderResult = backend === "js"
-    ? renderProjectOffline(scenario.project, {
+    ? renderProjectOfflineJs(scenario.project, {
         sampleRate: scenario.config.sampleRate,
         blockSize: scenario.config.blockSize,
         durationSamples,

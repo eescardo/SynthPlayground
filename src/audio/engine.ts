@@ -1,6 +1,6 @@
 "use client";
 
-import { renderProjectOffline } from "@/audio/offline/renderProjectOffline";
+import { renderProjectOfflineBrowserWasm } from "@/audio/offline/renderProjectOfflineBrowserWasm";
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { pcmStereoToWavBlob } from "@/audio/wav";
 import { getLoopPlaybackEndBeat } from "@/lib/looping";
@@ -101,7 +101,7 @@ export class AudioEngine {
     const playbackEndBeat = getLoopPlaybackEndBeat(project, 0, renderEndBeat);
     const totalSamples = Math.max(BLOCK_SIZE, beatToSample(playbackEndBeat, FIXED_SAMPLE_RATE, project.global.tempo) + BLOCK_SIZE);
     const initialEvents = collectEventsInWindow(project, { fromSample: 0, toSample: totalSamples }, { cueBeat: 0 });
-    const rendered = renderProjectOffline(project, {
+    const rendered = await renderProjectOfflineBrowserWasm(project, {
       sampleRate: FIXED_SAMPLE_RATE,
       blockSize: BLOCK_SIZE,
       durationSamples: totalSamples,

@@ -44,7 +44,7 @@ const FEATURE_REQUIREMENTS: Record<BrowserCompatibilityFeatureId, BrowserCompati
   "wasm-simd": {
     id: "wasm-simd",
     label: "WebAssembly SIMD",
-    description: "Required for the strict WASM audio renderer used by this build.",
+    description: "Required for the default WASM audio renderer used by this build.",
     supportedBrowsers: "Chrome/Edge 91+, Firefox 89+, Safari 16.4+",
     detect: detectWasmSimdSupport
   }

@@ -32,18 +32,18 @@ describe("getBrowserCompatibilityIssue", () => {
     });
 
     const issue = getBrowserCompatibilityIssue(["wasm-simd"], {
-      title: "Browser not compatible with strict WASM mode",
-      summary: "Strict WASM mode in this build requires browser features that are not available in your current browser."
+      title: "Browser not compatible with the WASM renderer",
+      summary: "This build uses the WASM audio renderer by default and requires browser features that are not available in your current browser."
     });
 
     expect(issue).toEqual({
-      title: "Browser not compatible with strict WASM mode",
-      summary: "Strict WASM mode in this build requires browser features that are not available in your current browser.",
+      title: "Browser not compatible with the WASM renderer",
+      summary: "This build uses the WASM audio renderer by default and requires browser features that are not available in your current browser.",
       requirements: [
         {
           id: "wasm-simd",
           label: "WebAssembly SIMD",
-          description: "Required for the strict WASM audio renderer used by this build.",
+          description: "Required for the default WASM audio renderer used by this build.",
           supportedBrowsers: "Chrome/Edge 91+, Firefox 89+, Safari 16.4+"
         }
       ]

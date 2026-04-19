@@ -3,7 +3,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { createNamedBenchmarkScenario } from "@/audio/benchmarks/stressScenario";
 import { createWasmParityScenario } from "@/audio/benchmarks/wasmParityScenario";
-import { renderProjectOffline } from "@/audio/offline/renderProjectOffline";
+import { renderProjectOfflineJs } from "@/audio/offline/renderProjectOffline";
 import { renderProjectOfflineWasm } from "@/audio/offline/renderProjectOfflineWasm";
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { beatToSample } from "@/lib/musicTiming";
@@ -65,7 +65,7 @@ interface RenderableScenario {
     tempo: number;
     blockSize: number;
   };
-  project: Parameters<typeof renderProjectOffline>[0];
+  project: Parameters<typeof renderProjectOfflineJs>[0];
 }
 
 const runBackendBench = async (label: string, scenario: RenderableScenario, backend: "js" | "wasm", runsToUse: number) => {
@@ -76,7 +76,7 @@ const runBackendBench = async (label: string, scenario: RenderableScenario, back
     globalThis.gc?.();
     const start = performance.now();
     if (backend === "js") {
-      renderProjectOffline(scenario.project, {
+      renderProjectOfflineJs(scenario.project, {
         sampleRate: scenario.config.sampleRate,
         blockSize: scenario.config.blockSize,
         durationSamples: totalSamples,
@@ -114,7 +114,7 @@ const main = async () => {
 
   const mediumSamples = beatToSample(medium.config.durationBeats, medium.config.sampleRate, medium.config.tempo);
   const mediumEvents = collectEventsInWindow(medium.project, { fromSample: 0, toSample: mediumSamples + 1 }, { cueBeat: 0 });
-  const jsRender = renderProjectOffline(medium.project, {
+  const jsRender = renderProjectOfflineJs(medium.project, {
     sampleRate: medium.config.sampleRate,
     blockSize: medium.config.blockSize,
     durationSamples: mediumSamples,

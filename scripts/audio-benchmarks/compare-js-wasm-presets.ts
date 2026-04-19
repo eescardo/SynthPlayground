@@ -1,5 +1,5 @@
 import { presetPatches } from "@/lib/patch/presets";
-import { renderProjectOffline } from "@/audio/offline/renderProjectOffline";
+import { renderProjectOfflineJs } from "@/audio/offline/renderProjectOffline";
 import { renderProjectOfflineWasm } from "@/audio/offline/renderProjectOfflineWasm";
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { beatToSample } from "@/lib/musicTiming";
@@ -81,7 +81,7 @@ const main = async () => {
 
     const totalSamples = beatToSample(durationBeats, sampleRate, tempo);
     const events = collectEventsInWindow(project, { fromSample: 0, toSample: totalSamples + 1 }, { cueBeat: 0 });
-    const js = renderProjectOffline(project, {
+    const js = renderProjectOfflineJs(project, {
       sampleRate,
       blockSize,
       durationSamples: totalSamples,

@@ -33,7 +33,7 @@ interface UseRecordingControllerArgs {
   userCueBeat: number;
   pitchPickerOpen: boolean;
   previewPitchPickerOpen: boolean;
-  strictWasmReady: boolean;
+  wasmReady: boolean;
   audioEngineRef: RefObject<AudioEngine | null>;
   commitProjectChange: (updater: (current: Project) => Project, options?: { actionKey?: string; coalesce?: boolean }) => void;
   upsertNote: (trackId: string, note: Note, options?: { actionKey?: string; coalesce?: boolean }) => void;
@@ -52,7 +52,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
     userCueBeat,
     pitchPickerOpen,
     previewPitchPickerOpen,
-    strictWasmReady,
+    wasmReady,
     audioEngineRef,
     commitProjectChange,
     upsertNote,
@@ -210,8 +210,9 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
   }, [audioEngineRef, onBeginRecordingPlayback, setPlaying]);
 
   const startRecordMode = useCallback(async () => {
-    if (process.env.NEXT_PUBLIC_STRICT_WASM === "1" && !strictWasmReady) {
-      setRuntimeError("Strict WASM mode is enabled and WASM is not ready. Run `npm run dev:wasm:strict`.");
+    if (!wasmReady) {
+      const fallbackHint = process.env.NODE_ENV === "development" ? " Run `pnpm run dev:js` to force the JS renderer." : "";
+      setRuntimeError(`The default WASM renderer is not ready.${fallbackHint}`);
       return;
     }
     if (!selectedTrack) {
@@ -230,7 +231,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
     setRecordCountIn(countIn);
     setCountInNowMs(countIn.startedAtMs);
     setRecordPhase("count_in");
-  }, [selectedTrack, setPlayheadBeat, setRuntimeError, strictWasmReady, userCueBeat]);
+  }, [selectedTrack, setPlayheadBeat, setRuntimeError, userCueBeat, wasmReady]);
 
   useEffect(() => {
     if (!recordCountIn) {
