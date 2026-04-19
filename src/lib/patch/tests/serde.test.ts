@@ -35,23 +35,14 @@ describe("patch serde", () => {
     expect(parsed.assets.samplePlayerById.asset_unused).toBeUndefined();
   });
 
-  it("imports versioned patch bundles and preserves custom preset lineage", () => {
+  it("imports versioned patch bundles as regular custom patches", () => {
     const patch = createClearPatch({
       id: "patch_clone",
-      name: "Bass Copy",
-      meta: {
-        source: "custom",
-        basedOnPresetId: "preset_bass",
-        basedOnPresetVersion: 11
-      }
+      name: "Bass Copy"
     });
 
     const imported = importPatchBundleFromJson(exportPatchToJson(patch));
 
-    expect(imported.patch.meta).toEqual({
-      source: "custom",
-      basedOnPresetId: "preset_bass",
-      basedOnPresetVersion: 11
-    });
+    expect(imported.patch.meta).toEqual({ source: "custom" });
   });
 });

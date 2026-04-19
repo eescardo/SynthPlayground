@@ -6,20 +6,7 @@ export function createCustomDuplicatePatch(sourcePatch: Patch): Patch {
   const duplicate = structuredClone(sourcePatch);
   duplicate.id = createId("patch");
   duplicate.name = `${sourcePatch.name} Copy`;
-  duplicate.meta =
-    sourcePatch.meta.source === "preset"
-      ? {
-          source: "custom",
-          basedOnPresetId: sourcePatch.meta.presetId,
-          basedOnPresetVersion: sourcePatch.meta.presetVersion
-        }
-      : sourcePatch.meta.basedOnPresetId
-        ? {
-            source: "custom",
-            basedOnPresetId: sourcePatch.meta.basedOnPresetId,
-            basedOnPresetVersion: sourcePatch.meta.basedOnPresetVersion
-          }
-        : { source: "custom" };
+  duplicate.meta = { source: "custom" };
   return duplicate;
 }
 

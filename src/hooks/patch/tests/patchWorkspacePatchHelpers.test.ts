@@ -10,22 +10,13 @@ describe("patchWorkspacePatchHelpers", () => {
   it("creates a custom duplicate patch copy", () => {
     const source = createClearPatch({
       id: "patch_source",
-      name: "Lead",
-      meta: {
-        source: "preset",
-        presetId: "preset_lead",
-        presetVersion: 3
-      }
+      name: "Lead"
     });
     const duplicate = createCustomDuplicatePatch(source);
 
     expect(duplicate.id).not.toBe(source.id);
     expect(duplicate.name).toBe("Lead Copy");
-    expect(duplicate.meta).toEqual({
-      source: "custom",
-      basedOnPresetId: "preset_lead",
-      basedOnPresetVersion: 3
-    });
+    expect(duplicate.meta).toEqual({ source: "custom" });
     expect(duplicate.nodes).toEqual(source.nodes);
   });
 
@@ -61,23 +52,4 @@ describe("patchWorkspacePatchHelpers", () => {
     expect(cleared.ui.canvasZoom).toBe(1.4);
   });
 
-  it("preserves existing preset lineage when duplicating a custom clone", () => {
-    const source = createClearPatch({
-      id: "patch_source",
-      name: "Pad Copy",
-      meta: {
-        source: "custom",
-        basedOnPresetId: "preset_pad",
-        basedOnPresetVersion: 5
-      }
-    });
-
-    const duplicate = createCustomDuplicatePatch(source);
-
-    expect(duplicate.meta).toEqual({
-      source: "custom",
-      basedOnPresetId: "preset_pad",
-      basedOnPresetVersion: 5
-    });
-  });
 });

@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { useInlineRename } from "@/hooks/useInlineRename";
 import { useRenameActivation } from "@/hooks/useRenameActivation";
-import { getPatchLineagePresetId, resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
+import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { Patch } from "@/types/patch";
 
 interface InstrumentToolbarProps {
@@ -81,7 +81,7 @@ function InstrumentToolbarActions(props: InstrumentToolbarActionsProps) {
 export function InstrumentToolbar(props: InstrumentToolbarProps) {
   const [selectorOpen, setSelectorOpen] = useState(false);
   const renameActivation = useRenameActivation<"instrument-name">();
-  const presetLineageLabel = getPatchLineagePresetId(props.patch) ?? props.patch.id;
+  const presetLineageLabel = props.patch.meta.source === "preset" ? props.patch.meta.presetId : props.patch.id;
   const sourceLabel =
     props.presetStatus === "preset_update_available"
       ? "Preset update"

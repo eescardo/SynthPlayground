@@ -93,29 +93,6 @@ describe("projectSerde", () => {
     ]);
   });
 
-  it("preserves custom preset lineage metadata across project roundtrip", () => {
-    const project = createDefaultProject();
-    project.patches.push({
-      ...createDefaultProject().patches[0],
-      id: "patch_clone",
-      name: "Bass Copy",
-      meta: {
-        source: "custom",
-        basedOnPresetId: "preset_bass",
-        basedOnPresetVersion: 11
-      }
-    });
-
-    const roundTrip = importProjectFromJson(exportProjectToJson(project));
-    const imported = roundTrip.patches.find((patch) => patch.id === "patch_clone");
-
-    expect(imported?.meta).toEqual({
-      source: "custom",
-      basedOnPresetId: "preset_bass",
-      basedOnPresetVersion: 11
-    });
-  });
-
   it("bundles referenced sample assets during export and restores them on import", () => {
     const project = createDefaultProject();
     project.patches = [

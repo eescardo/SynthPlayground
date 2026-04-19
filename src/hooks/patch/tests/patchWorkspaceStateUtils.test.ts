@@ -152,35 +152,6 @@ describe("patchWorkspaceStateUtils", () => {
     });
   });
 
-  it("prefers a matching bundled preset when removing a detected preset clone", () => {
-    expect(
-      resolveRemovedPatchFallbackId(
-        [
-          createClearPatch({
-            id: "preset_bass",
-            name: "Bass",
-            meta: {
-              source: "preset",
-              presetId: "preset_bass",
-              presetVersion: 11
-            }
-          }),
-          createClearPatch({
-            id: "patch_clone",
-            name: "Bass Copy",
-            meta: {
-              source: "custom",
-              basedOnPresetId: "preset_bass",
-              basedOnPresetVersion: 11
-            }
-          }),
-          createClearPatch({ id: "patch_other", name: "Other" })
-        ],
-        "patch_clone"
-      )
-    ).toBe("preset_bass");
-  });
-
   it("falls back to the previous patch when no preset lineage is available", () => {
     expect(
       resolveRemovedPatchFallbackId(
