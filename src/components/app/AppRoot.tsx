@@ -1060,9 +1060,28 @@ export function AppRoot({ children }: { children: ReactNode }) {
     onDeleteAllTracksInSelection: deleteAllTracksInSelection
   };
 
+  const projectMenuProps = {
+    importInputRef,
+    recentProjects,
+    onNewProject: () => {
+      void createNewProject();
+    },
+    onExportJson: exportJson,
+    onImportJson: () => importInputRef.current?.click(),
+    onOpenRecentProject: (projectId: string) => {
+      void openRecentProject(projectId);
+    },
+    onResetToDefaultProject: () => {
+      void resetToDefaultProject();
+    },
+    onImportFile: (file: File) => {
+      void importJson(file);
+    }
+  };
+
   const composerProps: React.ComponentProps<typeof ComposerView> = {
     project,
-    recentProjects,
+    ...projectMenuProps,
     selectedTrackId: selectedTrack.id,
     invalidPatchIds,
     canvasSelection,
@@ -1076,7 +1095,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
     startMarkerAtTimelineBeat,
     endMarkerAtTimelineBeat,
     expandableLoopRegion: Boolean(expandableLoopRegion),
-    importInputRef,
     recordingDisabled: recording.recordEnabled,
     isPlaying: playing || recording.recordPhase === "count_in",
     recordEnabled: recording.recordEnabled,
@@ -1115,17 +1133,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
       }),
     onAddTrack: addTrack,
     onRemoveTrack: removeSelectedTrack,
-    onExportJson: exportJson,
-    onImportJson: () => importInputRef.current?.click(),
-    onOpenRecentProject: (projectId) => {
-      void openRecentProject(projectId);
-    },
-    onResetToDefaultProject: () => {
-      void resetToDefaultProject();
-    },
-    onImportFile: (file) => {
-      void importJson(file);
-    },
     onSetPlayheadBeat: setPlayheadFromUser,
     onRequestTimelineActionsPopover: requestTimelineActionsPopover,
     onCloseTimelineActionsPopover: () => setTimelineActionsPopover(null),
@@ -1159,6 +1166,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     projectAssets,
     playheadBeat,
     selectedPatch,
+    ...projectMenuProps,
     validationIssues,
     selectedPatchHasErrors,
     patchWorkspace,

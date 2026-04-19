@@ -1,10 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import { ChangeEvent, RefObject } from "react";
 import { ProjectNameControl } from "@/components/composer/ProjectNameControl";
 import { ProjectsMenu } from "@/components/composer/ProjectsMenu";
 import { RecentProjectSnapshot } from "@/lib/persistence";
 import { formatBeatName } from "@/lib/musicTiming";
+import { patchWorkspaceIconSrc } from "@/resources/images";
 
 interface TransportBarProps {
   projectName: string;
@@ -45,6 +47,9 @@ export function TransportBar(props: TransportBarProps) {
     <div className="transport">
       <div className="transport-left">
         <ProjectsMenu
+          className="transport-projects-menu"
+          iconOnly
+          triggerLabel="Projects"
           importInputRef={props.importInputRef}
           recentProjects={props.recentProjects}
           onNewProject={props.onNewProject}
@@ -54,6 +59,25 @@ export function TransportBar(props: TransportBarProps) {
           onResetToDefaultProject={props.onResetToDefaultProject}
           onImportFile={props.onImportFile}
         />
+
+        <button
+          type="button"
+          className="transport-nav-button"
+          title="open patch workspace"
+          aria-label="Open Patch Workspace"
+          onClick={props.onOpenPatchWorkspace}
+        >
+          <Image
+            className="transport-nav-button-icon transport-nav-button-icon-patch"
+            src={patchWorkspaceIconSrc}
+            alt=""
+            aria-hidden="true"
+            width={20}
+            height={20}
+            unoptimized
+          />
+          <span>Workspace</span>
+        </button>
 
         <ProjectNameControl name={props.projectName} onRename={props.onRenameProject} />
         <span className="transport-project-divider" aria-hidden="true" />
@@ -85,8 +109,6 @@ export function TransportBar(props: TransportBarProps) {
             <option value={0.125}>1/32</option>
           </select>
         </label>
-
-        <button onClick={props.onOpenPatchWorkspace}>Open Patch Workspace</button>
 
         <button className="transport-export-button" onClick={props.onExportAudio} disabled={props.exportAudioDisabled}>
           Export audio...

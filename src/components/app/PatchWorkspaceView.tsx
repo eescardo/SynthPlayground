@@ -1,16 +1,22 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import Image from "next/image";
+import type { ComponentProps, RefObject } from "react";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
+import { ProjectsMenu } from "@/components/composer/ProjectsMenu";
 import { PatchWorkspaceTabStrip, PatchWorkspaceTabViewModel } from "@/components/patch-workspace/PatchWorkspaceTabStrip";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { usePatchWorkspaceQuickHelpDialog } from "@/hooks/patch/usePatchWorkspaceQuickHelpDialog";
+import { RecentProjectSnapshot } from "@/lib/persistence";
+import { backArrowIconSrc } from "@/resources/images";
 import { Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 
 interface PatchWorkspaceViewProps {
   patch: Patch;
+  importInputRef: RefObject<HTMLInputElement | null>;
+  recentProjects: RecentProjectSnapshot[];
   probeState: PatchProbeEditorState;
   tabs: PatchWorkspaceTabViewModel[];
   activeTabId?: string;
@@ -29,6 +35,12 @@ interface PatchWorkspaceViewProps {
   onRenameTab: (tabId: string, name: string) => void;
   onOpenPreviewPitchPicker: () => void;
   onPreviewNow: () => void;
+  onNewProject: () => void;
+  onExportJson: () => void;
+  onImportJson: () => void;
+  onOpenRecentProject: (projectId: string) => void;
+  onResetToDefaultProject: () => void;
+  onImportFile: (file: File) => void;
   onInstrumentEditorReady: (macroValues: Record<string, number>) => void;
   onSelectNode: (nodeId?: string) => void;
   onSelectMacro: (macroId?: string) => void;
@@ -59,10 +71,32 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
     <section className="patch-workspace-shell">
       <div className="patch-workspace-header">
         <div className="patch-workspace-heading">
-          <button type="button" className="patch-workspace-back-button" onClick={props.onBackToComposer}>
-            Back to Composer
+          <ProjectsMenu
+            className="patch-workspace-projects-menu"
+            iconOnly
+            triggerLabel="Projects"
+            importInputRef={props.importInputRef}
+            recentProjects={props.recentProjects}
+            onNewProject={props.onNewProject}
+            onExportJson={props.onExportJson}
+            onImportJson={props.onImportJson}
+            onOpenRecentProject={props.onOpenRecentProject}
+            onResetToDefaultProject={props.onResetToDefaultProject}
+            onImportFile={props.onImportFile}
+          />
+          <button
+            type="button"
+            className="patch-workspace-back-button transport-nav-button"
+            title="Back to Composer"
+            aria-label="Back to Composer"
+            onClick={props.onBackToComposer}
+          >
+            <Image className="transport-nav-button-icon" src={backArrowIconSrc} alt="" aria-hidden="true" width={20} height={20} unoptimized />
+            <span>Composer</span>
           </button>
-          <h2>Patch Workspace</h2>
+          <div className="patch-workspace-title">
+            <h2>Patch Workspace</h2>
+          </div>
         </div>
         <div className="patch-workspace-header-actions">
           <button type="button" onClick={openHelp}>Help (?)</button>

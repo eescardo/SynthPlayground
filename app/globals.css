@@ -89,6 +89,45 @@ select {
   border-radius: 10px;
 }
 
+.projects-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.projects-menu-trigger-icon {
+  padding: 0.22rem;
+  border-radius: 999px;
+  background: rgba(13, 23, 34, 0.34);
+}
+
+.projects-menu-brand-mark {
+  width: 1.2rem;
+  height: 1.2rem;
+  display: block;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 14px rgba(5, 12, 19, 0.28));
+}
+
+.transport-nav-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  white-space: nowrap;
+}
+
+.transport-nav-button-icon {
+  width: 1rem;
+  height: 1rem;
+  display: block;
+  flex: 0 0 auto;
+}
+
+.transport-nav-button-icon-patch {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
 .transport-left,
 .transport-right {
   display: flex;
@@ -1185,6 +1224,13 @@ select {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  min-width: 0;
+}
+
+.patch-workspace-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
 }
 
 .patch-workspace-header-actions {
@@ -1201,6 +1247,16 @@ select {
 
 .patch-workspace-back-button {
   white-space: nowrap;
+}
+
+.patch-workspace-title h2 {
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .patch-workspace-title {
+    display: none;
+  }
 }
 
 .patch-workspace-editor-shell {

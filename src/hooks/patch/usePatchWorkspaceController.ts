@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useCallback, useMemo } from "react";
+import { Dispatch, RefObject, SetStateAction, useCallback, useMemo } from "react";
 import {
   ProjectWorkspaceProviderProps,
   ProjectWorkspaceTransportContextValue
@@ -11,6 +11,7 @@ import { PatchWorkspaceView } from "@/components/app/PatchWorkspaceView";
 import { downloadJsonFile } from "@/lib/browserDownloads";
 import { NoteClipboardPayload } from "@/lib/clipboard";
 import { createId } from "@/lib/ids";
+import { RecentProjectSnapshot } from "@/lib/persistence";
 import { exportPatchToJson, importPatchBundleFromJson } from "@/lib/patch/serde";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { createImportedWorkspacePatch } from "@/hooks/patch/patchWorkspacePatchHelpers";
@@ -30,6 +31,8 @@ export interface UsePatchWorkspaceControllerOptions {
   project: Project;
   projectAssets: ProjectAssetLibrary;
   playheadBeat: number;
+  importInputRef: RefObject<HTMLInputElement | null>;
+  recentProjects: RecentProjectSnapshot[];
   selectedPatch: Patch;
   validationIssues: PatchValidationIssue[];
   selectedPatchHasErrors: boolean;
@@ -39,6 +42,12 @@ export interface UsePatchWorkspaceControllerOptions {
   commitProjectChange: CommitProjectChange;
   setProjectAssets: Dispatch<SetStateAction<ProjectAssetLibrary>>;
   setRuntimeError: Dispatch<SetStateAction<string | null>>;
+  onNewProject: () => void;
+  onExportJson: () => void;
+  onImportJson: () => void;
+  onOpenRecentProject: (projectId: string) => void;
+  onResetToDefaultProject: () => void;
+  onImportFile: (file: File) => void;
 }
 
 const createAvailablePatchName = (existingNames: string[], baseName: string) => {
@@ -68,12 +77,20 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
 } {
   const {
     commitProjectChange,
+    importInputRef,
+    onExportJson,
+    onImportFile,
+    onImportJson,
+    onNewProject,
+    onOpenRecentProject,
+    onResetToDefaultProject,
     onUpsertSamplePlayerAssetData,
     onWriteClipboardPayload,
     patchWorkspace,
     playheadBeat,
     project,
     projectAssets,
+    recentProjects,
     selectedPatch,
     selectedPatchHasErrors,
     setProjectAssets,
@@ -164,6 +181,8 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
 
   const viewProps: React.ComponentProps<typeof PatchWorkspaceView> = {
     patch: selectedPatch,
+    importInputRef,
+    recentProjects,
     probeState: {
       probes: patchWorkspace.probes,
       selectedProbeId: patchWorkspace.selectedProbeId,
@@ -187,6 +206,12 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
     onRenameTab: patchWorkspace.renameWorkspaceTab,
     onOpenPreviewPitchPicker: () => patchWorkspace.setPreviewPitchPickerOpen(true),
     onPreviewNow: () => patchWorkspace.previewSelectedPatchNow(),
+    onNewProject,
+    onExportJson,
+    onImportJson,
+    onOpenRecentProject,
+    onResetToDefaultProject,
+    onImportFile,
     onInstrumentEditorReady: patchWorkspace.handleInstrumentEditorReady,
     onSelectNode: patchWorkspace.setSelectedNodeId,
     onSelectMacro: patchWorkspace.setSelectedMacroId,
