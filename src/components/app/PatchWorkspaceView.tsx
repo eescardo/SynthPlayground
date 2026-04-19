@@ -2,6 +2,8 @@
 
 import type { ComponentProps } from "react";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
+import { SiteBrand } from "@/components/branding/SiteBrand";
+import { NoteClipboardPayload } from "@/lib/clipboard";
 import { PatchWorkspaceTabStrip, PatchWorkspaceTabViewModel } from "@/components/patch-workspace/PatchWorkspaceTabStrip";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { usePatchWorkspaceQuickHelpDialog } from "@/hooks/patch/usePatchWorkspaceQuickHelpDialog";
@@ -62,7 +64,10 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           <button type="button" className="patch-workspace-back-button" onClick={props.onBackToComposer}>
             Back to Composer
           </button>
-          <h2>Patch Workspace</h2>
+          <div className="patch-workspace-title">
+            <SiteBrand />
+            <h2>Patch Workspace</h2>
+          </div>
         </div>
         <div className="patch-workspace-header-actions">
           <button type="button" onClick={openHelp}>Help (?)</button>

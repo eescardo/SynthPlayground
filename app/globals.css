@@ -89,6 +89,36 @@ select {
   border-radius: 10px;
 }
 
+.site-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.site-brand-icon-only {
+  gap: 0;
+}
+
+.site-brand-mark {
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 6px 14px rgba(5, 12, 19, 0.28));
+}
+
+.site-brand-label {
+  font-size: 0.71rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(216, 235, 255, 0.68);
+  white-space: nowrap;
+}
+
+.transport-brand {
+  margin-right: 0.1rem;
+}
+
 .transport-left,
 .transport-right {
   display: flex;
@@ -1187,6 +1217,12 @@ select {
   gap: 0.75rem;
 }
 
+.patch-workspace-title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
 .patch-workspace-header-actions {
   display: flex;
   align-items: center;
@@ -1199,8 +1235,19 @@ select {
   font-size: 1rem;
 }
 
+.patch-workspace-title .site-brand-mark {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
 .patch-workspace-back-button {
   white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .site-brand-label {
+    display: none;
+  }
 }
 
 .patch-workspace-editor-shell {
