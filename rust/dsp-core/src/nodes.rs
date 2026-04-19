@@ -265,6 +265,10 @@ pub(crate) enum RuntimeNode {
 }
 
 impl RuntimeNode {
+    /// Adds elapsed processing time into the profiling bucket for this node family.
+    /// Params:
+    /// - `profile`: aggregate profiling structure updated in place.
+    /// - `elapsed_ms`: wall-clock time spent processing the current node invocation.
     pub(crate) fn add_profile_time(&self, profile: &mut EngineProfileStats, elapsed_ms: f64) {
         match self {
             Self::CVTranspose(_) => profile.nodes.cv_transpose_ms += elapsed_ms,
@@ -288,6 +292,10 @@ impl RuntimeNode {
         }
     }
 
+    /// Converts one serialized node spec into its runtime DSP representation.
+    /// Params:
+    /// - `raw`: compiled node spec with resolved port indices and serialized parameter values.
+    /// - `sample_rate`: global sample rate used to size buffers and smoothing state.
     pub(crate) fn from_raw(raw: &NodeSpecRaw, sample_rate: f32) -> Result<Self, JsValue> {
         let p = &raw.params;
         Ok(match raw.type_id.as_str() {
@@ -474,6 +482,9 @@ impl RuntimeNode {
         })
     }
 
+    /// Resets dynamic DSP state while preserving each node's current parameter targets.
+    /// Params:
+    /// - `self`: runtime node whose phase, buffers, or envelope state should be rewound.
     pub(crate) fn reset_dynamic_state(&mut self) {
         match self {
             Self::CVTranspose(node) => { node.octaves.reset(); node.semitones.reset(); node.cents.reset(); }
@@ -503,6 +514,10 @@ impl RuntimeNode {
         }
     }
 
+    /// Applies a serialized parameter update to this runtime node.
+    /// Params:
+    /// - `param_id`: parameter name to update on the target node variant.
+    /// - `value`: serialized parameter payload that will be parsed into the node's native type.
     pub(crate) fn set_param(&mut self, param_id: &str, value: &Value) {
         match self {
             Self::CVTranspose(node) => match param_id {
@@ -581,6 +596,12 @@ impl RuntimeNode {
         }
     }
 
+    /// Processes one sample for the current node and writes the result into its output signal slot.
+    /// Params:
+    /// - `signals`: mutable signal array holding host inputs plus upstream node outputs.
+    /// - `host`: resolved indices for host-driven pitch, gate, velocity, and mod-wheel signals.
+    /// - `sample_rate`: global sample rate for time-based calculations.
+    /// - `rng_state`: mutable RNG seed shared by stochastic nodes on the current voice.
     pub(crate) fn process_sample(&mut self, signals: &mut [f32], host: &HostSignalIndices, sample_rate: f32, rng_state: &mut u32) {
         match self {
             Self::CVTranspose(node) => {
@@ -823,6 +844,9 @@ fn read_input(signals: &[f32], index: i32, fallback: f32) -> f32 {
     }
 }
 
+/// Parses the serialized embedded sample payload used by `SamplePlayer`.
+/// Params:
+/// - `value`: optional JSON string containing versioned sample metadata and PCM values.
 fn parse_sample_asset(value: Option<&Value>) -> Option<SampleAsset> {
     let raw = value?.as_str()?;
     if raw.is_empty() {

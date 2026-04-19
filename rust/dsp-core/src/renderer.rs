@@ -26,6 +26,10 @@ pub struct WasmSubsetEngine {
 #[wasm_bindgen]
 impl WasmSubsetEngine {
     #[wasm_bindgen(constructor)]
+    /// Creates a renderer with empty output buffers and no loaded project state.
+    /// Params:
+    /// - `sample_rate`: initial sample rate used until a project stream is started.
+    /// - `block_size`: number of samples each `process_block` call writes into the output buffers.
     pub fn new(sample_rate: u32, block_size: usize) -> Self {
         Self {
             sample_rate: sample_rate as f32,
@@ -45,6 +49,13 @@ impl WasmSubsetEngine {
         }
     }
 
+    /// Loads a compiled project and resets the engine for a brand-new stream session.
+    /// Params:
+    /// - `project_json`: serialized `ProjectSpec` containing tracks, node graphs, and FX settings.
+    /// - `song_start_sample`: absolute song position where rendering should begin.
+    /// - `events_json`: serialized event queue already compiled for the WASM runtime.
+    /// - `_session_id`: reserved transport session identifier kept for JS/WASM API parity.
+    /// - `random_seed`: base seed used to derive deterministic track and voice RNG state.
     pub fn start_stream(&mut self, project_json: &str, song_start_sample: u32, events_json: &str, _session_id: u32, random_seed: u32) -> Result<(), JsValue> {
         let project: ProjectSpec = serde_json::from_str(project_json)
             .map_err(|error| js_error(format!("Failed to parse WASM project: {error}")))?;
@@ -72,6 +83,9 @@ impl WasmSubsetEngine {
         Ok(())
     }
 
+    /// Appends precompiled events to the current stream and keeps the queue sorted by sample time.
+    /// Params:
+    /// - `events_json`: serialized event slice to merge into the live queue.
     pub fn enqueue_events(&mut self, events_json: &str) -> Result<(), JsValue> {
         let mut events: Vec<EventSpec> = serde_json::from_str(events_json)
             .map_err(|error| js_error(format!("Failed to parse appended WASM events: {error}")))?;
@@ -80,6 +94,9 @@ impl WasmSubsetEngine {
         Ok(())
     }
 
+    /// Installs preview probe capture requests on the currently loaded tracks.
+    /// Params:
+    /// - `capture_json`: serialized probe specs with resolved track indices and signal indices.
     pub fn configure_preview_probe_capture(&mut self, capture_json: &str) -> Result<(), JsValue> {
         let captures: Vec<PreviewProbeCaptureSpec> = serde_json::from_str(capture_json)
             .map_err(|error| js_error(format!("Failed to parse preview probe capture specs: {error}")))?;
@@ -103,6 +120,9 @@ impl WasmSubsetEngine {
         Ok(())
     }
 
+    /// Serializes the probe capture buffers accumulated so far for the active preview.
+    /// Params:
+    /// - `self`: engine whose tracks currently own the capture buffers.
     pub fn preview_capture_state_json(&self) -> Result<String, JsValue> {
         let captures = self
             .tracks
@@ -120,6 +140,9 @@ impl WasmSubsetEngine {
         self.preview_capture_sample_count
     }
 
+    /// Renders one audio block by consuming due events, summing track output, and applying master FX.
+    /// Params:
+    /// - `self`: engine containing the live stream state, output buffers, and optional profiling counters.
     pub fn process_block(&mut self) -> bool {
         let block_started = if self.profiling_enabled { Some(now_ms()) } else { None };
         self.left.fill(0.0);
@@ -229,6 +252,9 @@ impl WasmSubsetEngine {
         }
     }
 
+    /// Applies a single scheduled event to the live stream state.
+    /// Params:
+    /// - `event`: precompiled event whose target track, note, or parameter should be updated immediately.
     fn apply_event(&mut self, event: EventSpec) {
         let started = if self.profiling_enabled { Some(now_ms()) } else { None };
         match event {
@@ -265,6 +291,9 @@ impl WasmSubsetEngine {
         }
     }
 
+    /// Applies master-bus dynamics and limiting after all tracks have been mixed together.
+    /// Params:
+    /// - `input`: mono mix sample produced by summing the per-track outputs for the current frame.
     fn apply_master_fx(&mut self, input: f32) -> f32 {
         let mut out = input;
         if self.master_fx.compressor_enabled {

@@ -52,6 +52,11 @@ fn voct_to_hz(voct: f32) -> f32 {
     261.625565_f32 * 2.0_f32.powf(voct)
 }
 
+/// Samples a single oscillator value for the requested waveform.
+/// Params:
+/// - `wave`: waveform family to evaluate.
+/// - `phase`: normalized cycle position in the range `[0, 1)`.
+/// - `pulse_width`: square-wave duty cycle; ignored by other waveforms.
 fn waveform_sample(wave: Wave, phase: f32, pulse_width: f32) -> f32 {
     match wave {
         Wave::Sine => (phase * std::f32::consts::PI * 2.0).sin(),
@@ -367,6 +372,9 @@ impl EventSpec {
         }
     }
 
+    /// Builds a stable secondary sort key for events that share time and priority.
+    /// Params:
+    /// - `self`: event whose identifying fields are folded into the fallback sort key.
     fn sort_key(&self) -> String {
         match self {
             EventSpec::NoteOn { track_index, note_id, .. } | EventSpec::NoteOff { track_index, note_id, .. } => {

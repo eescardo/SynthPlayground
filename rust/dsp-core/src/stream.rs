@@ -42,6 +42,11 @@ pub(crate) struct VoiceRuntime {
 }
 
 impl VoiceRuntime {
+    /// Allocates a fresh voice runtime from the compiled node templates for one track.
+    /// Params:
+    /// - `signal_count`: number of signal slots that each voice must expose.
+    /// - `node_templates`: compiled node graph copied into each voice instance.
+    /// - `random_seed`: initial RNG state used by stochastic modules in this voice.
     fn new(signal_count: usize, node_templates: &[RuntimeNode], random_seed: u32) -> Self {
         Self {
             signal_values: vec![0.0; signal_count.max(1)],
@@ -58,6 +63,14 @@ impl VoiceRuntime {
         }
     }
 
+    /// Reinitializes an existing voice so it can respond to a new note-on trigger.
+    /// Params:
+    /// - `node_templates`: compiled node graph to clone back into the voice.
+    /// - `note_id`: logical note identifier used to match later note-off events.
+    /// - `pitch_voct`: host pitch value in volts-per-octave.
+    /// - `velocity`: normalized note-on velocity.
+    /// - `sample_time`: song sample where the note starts.
+    /// - `random_seed`: per-trigger RNG seed so repeated notes stay deterministic.
     fn reset_for_note_on(
         &mut self,
         node_templates: &[RuntimeNode],
@@ -106,6 +119,11 @@ pub(crate) struct TrackRuntime {
 }
 
 impl TrackRuntime {
+    /// Builds a track runtime from the serialized track spec and allocates its voice/FX state.
+    /// Params:
+    /// - `spec`: compiled track description with node graph, host indices, and track FX settings.
+    /// - `sample_rate`: global render sample rate used to size delay lines and smoothing state.
+    /// - `random_seed`: base seed from which per-track and per-voice RNG streams are derived.
     pub(crate) fn from_spec(spec: TrackSpec, sample_rate: f32, random_seed: u32) -> Result<Self, JsValue> {
         let node_templates = spec
             .nodes
@@ -153,6 +171,9 @@ impl TrackRuntime {
         })
     }
 
+    /// Configures preview probe capture buffers for this track.
+    /// Params:
+    /// - `specs`: resolved probe requests, each with a signal index and capture duration in samples.
     pub(crate) fn configure_probe_captures(&mut self, specs: Vec<PreviewProbeCaptureSpec>) {
         self.probe_captures = specs
             .into_iter()
@@ -169,6 +190,9 @@ impl TrackRuntime {
         self.probe_captures.clear();
     }
 
+    /// Clones the current probe capture buffers into a serializable snapshot.
+    /// Params:
+    /// - `captured_samples`: number of valid samples currently written into each capture buffer.
     pub(crate) fn preview_capture_state_snapshot(&self, captured_samples: usize) -> Vec<PreviewProbeCaptureSnapshot> {
         self.probe_captures
             .iter()
@@ -184,6 +208,9 @@ impl TrackRuntime {
             .collect()
     }
 
+    /// Chooses which voice should handle the next note trigger.
+    /// Params:
+    /// - `sample_time`: current song sample, used to avoid stealing very recently triggered voices.
     fn allocate_voice_index(&self, sample_time: u32) -> usize {
         if let Some(free_index) = self.voices.iter().position(|voice| !voice.active) {
             return free_index;
@@ -206,6 +233,13 @@ impl TrackRuntime {
         best_index
     }
 
+    /// Resets one specific voice slot so it can start a new note immediately.
+    /// Params:
+    /// - `voice_index`: index into the voice pool to reuse.
+    /// - `note_id`: logical note identifier assigned to the restarted voice.
+    /// - `pitch_voct`: host pitch value in volts-per-octave.
+    /// - `velocity`: normalized note-on velocity.
+    /// - `sample_time`: song sample where the note starts.
     fn restart_voice(&mut self, voice_index: usize, note_id: String, pitch_voct: f32, velocity: f32, sample_time: u32) {
         let random_seed = self
             .base_random_seed
@@ -222,6 +256,12 @@ impl TrackRuntime {
         );
     }
 
+    /// Handles note-on voice allocation while preserving the current monophonic track behavior.
+    /// Params:
+    /// - `note_id`: logical note identifier used to pair the trigger with a later note-off.
+    /// - `pitch_voct`: host pitch value in volts-per-octave.
+    /// - `velocity`: normalized note-on velocity.
+    /// - `sample_time`: song sample where the note starts.
     pub(crate) fn note_on(&mut self, note_id: String, pitch_voct: f32, velocity: f32, sample_time: u32) {
         if let Some(existing_index) = self
             .voices
@@ -247,6 +287,9 @@ impl TrackRuntime {
         self.restart_voice(voice_index, note_id, pitch_voct, velocity, sample_time);
     }
 
+    /// Releases any active voices that belong to the supplied note id.
+    /// Params:
+    /// - `note_id`: logical note identifier that should transition into release.
     pub(crate) fn note_off(&mut self, note_id: &str) {
         let mut released = false;
         for voice in self.voices.iter_mut() {
@@ -267,6 +310,11 @@ impl TrackRuntime {
         }
     }
 
+    /// Applies a parameter change to every template node and any currently active voice instances.
+    /// Params:
+    /// - `node_id`: target node identifier within the compiled graph.
+    /// - `param_id`: parameter name to update.
+    /// - `value`: serialized parameter value to push into the node state.
     pub(crate) fn apply_param_change(&mut self, node_id: &str, param_id: &str, value: &Value) {
         if let Some(index) = self.node_index_by_id.get(node_id).copied() {
             if let Some(node) = self.node_templates.get_mut(index) {
@@ -280,6 +328,12 @@ impl TrackRuntime {
         }
     }
 
+    /// Renders one track sample from its voices and optional insert FX.
+    /// Params:
+    /// - `sample_rate`: global sample rate for time-based DSP calculations.
+    /// - `profile`: profiling accumulator that may be updated during render.
+    /// - `profiling_enabled`: whether nested render timings should be recorded.
+    /// - `capture_sample_index`: absolute preview sample index to mirror into probe buffers, if any.
     pub(crate) fn render_track_sample(
         &mut self,
         sample_rate: f32,
@@ -309,6 +363,12 @@ impl TrackRuntime {
         processed * self.volume
     }
 
+    /// Renders the track signal before insert FX by summing all active voices.
+    /// Params:
+    /// - `sample_rate`: global sample rate used by the node processors.
+    /// - `profile`: profiling accumulator that records node and dry-path timing buckets.
+    /// - `profiling_enabled`: whether node timing should be recorded for this render.
+    /// - `capture_sample_index`: absolute preview sample index used to write probe captures, if any.
     fn render_dry_sample(
         &mut self,
         sample_rate: f32,
@@ -371,6 +431,10 @@ impl TrackRuntime {
         mixed
     }
 
+    /// Applies this track's insert FX chain to a single dry input sample.
+    /// Params:
+    /// - `input`: dry post-voice sample before the track FX chain.
+    /// - `sample_rate`: global sample rate used to convert time-based FX settings into samples.
     fn apply_track_fx(&mut self, input: f32, sample_rate: f32) -> f32 {
         let fx = &self.fx;
         let state = &mut self.fx_state;
