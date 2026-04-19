@@ -33,10 +33,18 @@ import {
   setEditorSelectionMarqueeActive,
   setEditorTimelineSelection
 } from "@/lib/clipboard";
-import { clearProjectState, loadProjectState, saveProjectState } from "@/lib/persistence";
+import {
+  loadProjectState,
+  loadRecentProjectSnapshots,
+  RecentProjectSnapshot,
+  removeRecentProjectSnapshot,
+  saveProjectState,
+  saveRecentProjectSnapshot
+} from "@/lib/persistence";
 import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { createDefaultProject, createEmptyProject } from "@/lib/patch/presets";
+import { createAvailableProjectName, renameProjectInProject } from "@/lib/projectManagement";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { importProjectBundleFromJson, exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
 import { pitchToVoct } from "@/lib/pitch";
@@ -98,6 +106,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const [timelineActionsPopover, setTimelineActionsPopover] = useState<TimelineActionsPopoverRequest | null>(null);
   const [selectionActionPopoverMode, setSelectionActionPopoverMode] = useState<"expanded" | "collapsed">("expanded");
   const [patchRemovalDialog, setPatchRemovalDialog] = useState<PatchRemovalDialogState | null>(null);
+  const [recentProjects, setRecentProjects] = useState<RecentProjectSnapshot[]>([]);
 
   const router = useRouter();
   const audioEngineRef = useRef<AudioEngine | null>(null);
@@ -122,7 +131,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
     const boot = async () => {
       try {
-        const savedState = await loadProjectState();
+        const [savedState, loadedRecentProjects] = await Promise.all([
+          loadProjectState(),
+          loadRecentProjectSnapshots()
+        ]);
         const loadedProject = savedState ? normalizeProject(savedState.project) : createDefaultProject();
         const loadedAssets = savedState?.assets ?? createEmptyProjectAssetLibrary();
         const migratedState = extractInlineSamplePlayerAssets(loadedProject, loadedAssets);
@@ -137,6 +149,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         setProjectAssets(migratedState.assets);
         setProjectHistory(createHistory(migratedState.project));
         setSelectedTrackId(migratedState.project.tracks[0]?.id);
+        setRecentProjects(loadedRecentProjects.filter(({ project }) => project.id !== migratedState.project.id));
         setReady(true);
       } catch (error) {
         if (cancelled) {
@@ -146,6 +159,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         setProjectAssets(createEmptyProjectAssetLibrary());
         setProjectHistory(createHistory(fallbackProject));
         setSelectedTrackId(fallbackProject.tracks[0]?.id);
+        setRecentProjects([]);
         setRuntimeError(`Failed to load the saved project. Loaded the default project instead. ${(error as Error).message}`);
         setReady(true);
       }
@@ -271,6 +285,18 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const resetProjectState = useCallback((nextProject: Project, nextAssets: ProjectAssetLibrary = createEmptyProjectAssetLibrary()) => {
     setProjectAssets(nextAssets);
     setProjectHistory(createHistory(nextProject));
+  }, []);
+
+  const refreshRecentProjects = useCallback(async (activeProjectId?: string) => {
+    const loadedRecentProjects = await loadRecentProjectSnapshots();
+    const filteredRecentProjects = activeProjectId
+      ? loadedRecentProjects.filter(({ project }) => project.id !== activeProjectId)
+      : loadedRecentProjects;
+
+    setRecentProjects(filteredRecentProjects);
+    if (activeProjectId && loadedRecentProjects.length !== filteredRecentProjects.length) {
+      await removeRecentProjectSnapshot(activeProjectId);
+    }
   }, []);
 
   const upsertWorkspaceSamplePlayerAssetData = useCallback((serializedSampleData: string, existingAssetId?: string | null) => {
@@ -738,19 +764,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
     URL.revokeObjectURL(url);
   };
 
-  const importJson = async (file: File) => {
-    const text = await file.text();
-    try {
-      const importedBundle = importProjectBundleFromJson(text);
-      const migratedState = extractInlineSamplePlayerAssets(importedBundle.project, importedBundle.assets);
-      resetProjectState(migratedState.project, migratedState.assets);
-      setSelectedTrackId(migratedState.project.tracks[0]?.id);
-      audioEngineRef.current?.setProject(toAudioProject(migratedState.project, migratedState.assets));
-    } catch (error) {
-      setRuntimeError((error as Error).message);
-    }
-  };
-
   const addTrack = () => {
     const fallbackPatch = project.patches[0];
     if (!fallbackPatch) return;
@@ -787,6 +800,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const renameTrack = useCallback((trackId: string, name: string) => {
     commitProjectChange((current) => renameTrackInProject(current, trackId, name), { actionKey: `track:${trackId}:rename` });
+  }, [commitProjectChange]);
+
+  const renameProject = useCallback((name: string) => {
+    commitProjectChange((current) => renameProjectInProject(current, name), { actionKey: "project:rename" });
   }, [commitProjectChange]);
 
   const removeSelectedTrack = useCallback(() => {
@@ -931,20 +948,112 @@ export function AppRoot({ children }: { children: ReactNode }) {
       .catch((error) => setRuntimeError((error as Error).message));
   }, []);
 
-  if (!ready || !selectedTrack || !selectedPatch) {
-    return <main className="loading">Loading...</main>;
-  }
-
   const pitchPickerTrack = pitchPicker ? project.tracks.find((track) => track.id === pitchPicker.trackId) : undefined;
   const pitchPickerNote = pitchPickerTrack?.notes.find((note) => note.id === pitchPicker?.noteId);
   const activeRecordingTrackId = recording.activeRecordingTrackId;
   const activeRecordingTrack = activeRecordingTrackId ? project.tracks.find((track) => track.id === activeRecordingTrackId) : undefined;
-  const resetToProject = async (nextProject: Project) => {
-    playback.stopPlayback();
-    await clearProjectState();
-    resetProjectState(nextProject);
+  const clearTransientComposerUi = useCallback(() => {
+    setTimelineActionsPopover(null);
+    setPitchPicker(null);
+    setPatchRemovalDialog(null);
+    setEditorSelection(clearEditorSelection());
+    setSelectionActionPopoverMode("expanded");
+  }, []);
+
+  const activateProjectSnapshot = useCallback((nextProject: Project, nextAssets: ProjectAssetLibrary = createEmptyProjectAssetLibrary()) => {
+    clearTransientComposerUi();
+    resetProjectState(nextProject, nextAssets);
     setSelectedTrackId(nextProject.tracks[0]?.id);
-  };
+    audioEngineRef.current?.setProject(toAudioProject(nextProject, nextAssets));
+  }, [clearTransientComposerUi, resetProjectState]);
+
+  const snapshotCurrentProject = useCallback((): Project => {
+    return {
+      ...project,
+      updatedAt: Date.now()
+    };
+  }, [project]);
+
+  const switchToProject = useCallback(async (
+    nextProject: Project,
+    nextAssets: ProjectAssetLibrary = createEmptyProjectAssetLibrary(),
+    options?: { rememberCurrent?: boolean; removeRecentProjectId?: string }
+  ) => {
+    playback.stopPlayback();
+    if (options?.rememberCurrent) {
+      await saveRecentProjectSnapshot(snapshotCurrentProject(), projectAssets);
+    }
+    if (options?.removeRecentProjectId) {
+      await removeRecentProjectSnapshot(options.removeRecentProjectId);
+    }
+    activateProjectSnapshot(nextProject, nextAssets);
+    await refreshRecentProjects(nextProject.id);
+  }, [activateProjectSnapshot, playback, projectAssets, refreshRecentProjects, snapshotCurrentProject]);
+
+  const createNewProject = useCallback(async () => {
+    const nextProject = {
+      ...createEmptyProject(),
+      name: createAvailableProjectName([project.name, ...recentProjects.map(({ project }) => project.name)]),
+      updatedAt: Date.now()
+    };
+
+    await switchToProject(nextProject, createEmptyProjectAssetLibrary(), { rememberCurrent: true });
+  }, [project.name, recentProjects, switchToProject]);
+
+  const clearCurrentProject = useCallback(() => {
+    playback.stopPlayback();
+    const nextProject = {
+      ...createEmptyProject(),
+      id: project.id,
+      name: project.name,
+      createdAt: project.createdAt,
+      updatedAt: Date.now()
+    };
+
+    activateProjectSnapshot(nextProject, createEmptyProjectAssetLibrary());
+  }, [activateProjectSnapshot, playback, project.createdAt, project.id, project.name]);
+
+  const resetToDefaultProject = useCallback(async () => {
+    const nextProject = {
+      ...createDefaultProject(),
+      updatedAt: Date.now()
+    };
+
+    await switchToProject(nextProject, createEmptyProjectAssetLibrary(), { rememberCurrent: true });
+  }, [switchToProject]);
+
+  const openRecentProject = useCallback(async (projectId: string) => {
+    const recentProject = recentProjects.find(({ project }) => project.id === projectId);
+    if (!recentProject) {
+      return;
+    }
+
+    await switchToProject(recentProject.project, recentProject.assets, {
+      rememberCurrent: true,
+      removeRecentProjectId: projectId
+    });
+  }, [recentProjects, switchToProject]);
+
+  async function importJson(file: File) {
+    const text = await file.text();
+    try {
+      const importedBundle = importProjectBundleFromJson(text);
+      const migratedState = extractInlineSamplePlayerAssets(importedBundle.project, importedBundle.assets);
+      const importedProject = {
+        ...migratedState.project,
+        id: createId("project"),
+        updatedAt: Date.now()
+      };
+
+      await switchToProject(importedProject, migratedState.assets, { rememberCurrent: true });
+    } catch (error) {
+      setRuntimeError((error as Error).message);
+    }
+  }
+
+  if (!ready || !selectedTrack || !selectedPatch) {
+    return <main className="loading">Loading...</main>;
+  }
   const trackCanvasTrackActions = {
     onSelectTrack: setSelectedTrackId,
     onRenameTrack: renameTrack,
@@ -1019,6 +1128,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const composerProps: React.ComponentProps<typeof ComposerView> = {
     project,
+    recentProjects,
     selectedTrackId: selectedTrack.id,
     invalidPatchIds,
     canvasSelection,
@@ -1048,6 +1158,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
       playback.stopPlayback(true);
       void recording.startRecordMode();
     },
+    onClearCurrentProject: clearCurrentProject,
+    onRenameProject: renameProject,
+    onNewProject: () => {
+      void createNewProject();
+    },
     onOpenPatchWorkspace: () => patchWorkspace.openPatchWorkspace(),
     onExportAudio: () => {
       void exportAudio();
@@ -1068,8 +1183,12 @@ export function AppRoot({ children }: { children: ReactNode }) {
     onRemoveTrack: removeSelectedTrack,
     onExportJson: exportJson,
     onImportJson: () => importInputRef.current?.click(),
-    onClearProject: () => void resetToProject(createEmptyProject()),
-    onResetToDefaultProject: () => void resetToProject(createDefaultProject()),
+    onOpenRecentProject: (projectId) => {
+      void openRecentProject(projectId);
+    },
+    onResetToDefaultProject: () => {
+      void resetToDefaultProject();
+    },
     onImportFile: (file) => {
       void importJson(file);
     },

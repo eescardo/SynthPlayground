@@ -1,15 +1,21 @@
 "use client";
 
 import { ChangeEvent, RefObject } from "react";
+import { ProjectNameControl } from "@/components/composer/ProjectNameControl";
 import { ProjectsMenu } from "@/components/composer/ProjectsMenu";
+import { RecentProjectSnapshot } from "@/lib/persistence";
 import { formatBeatName } from "@/lib/musicTiming";
 
 interface TransportBarProps {
+  projectName: string;
   tempo: number;
   meter: "4/4" | "3/4";
   gridBeats: number;
   playheadBeat: number;
   importInputRef: RefObject<HTMLInputElement | null>;
+  recentProjects: RecentProjectSnapshot[];
+  onRenameProject: (name: string) => void;
+  onNewProject: () => void;
   onOpenPatchWorkspace: () => void;
   onExportAudio: () => void;
   exportAudioDisabled?: boolean;
@@ -18,7 +24,7 @@ interface TransportBarProps {
   onGridChange: (value: number) => void;
   onExportJson: () => void;
   onImportJson: () => void;
-  onClearProject: () => void;
+  onOpenRecentProject: (projectId: string) => void;
   onResetToDefaultProject: () => void;
   onImportFile: (file: File) => void;
   onOpenHelp: () => void;
@@ -40,13 +46,17 @@ export function TransportBar(props: TransportBarProps) {
       <div className="transport-left">
         <ProjectsMenu
           importInputRef={props.importInputRef}
+          recentProjects={props.recentProjects}
+          onNewProject={props.onNewProject}
           onExportJson={props.onExportJson}
           onImportJson={props.onImportJson}
-          onClearProject={props.onClearProject}
+          onOpenRecentProject={props.onOpenRecentProject}
           onResetToDefaultProject={props.onResetToDefaultProject}
           onImportFile={props.onImportFile}
         />
 
+        <ProjectNameControl name={props.projectName} onRename={props.onRenameProject} />
+        <span className="transport-project-divider" aria-hidden="true" />
         <span className="playhead">Beat {formatBeatName(props.playheadBeat, props.gridBeats)}</span>
       </div>
 

@@ -94,6 +94,7 @@ select {
   display: flex;
   align-items: center;
   gap: 0.55rem;
+  flex-wrap: wrap;
 }
 
 .transport-export-button {
@@ -123,6 +124,41 @@ select {
   font-family: "Courier New", monospace;
   font-size: 0.9rem;
   color: #a5cbef;
+}
+
+.transport-project-name-shell {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.transport-project-name,
+.transport-project-name-input {
+  font-family: "Courier New", monospace;
+  font-size: 0.9rem;
+  color: #a5cbef;
+}
+
+.transport-project-name {
+  white-space: nowrap;
+  cursor: default;
+}
+
+.transport-project-name.rename-armed {
+  color: #d7ebff;
+  text-decoration: underline dotted rgba(167, 204, 240, 0.75);
+  cursor: text;
+}
+
+.transport-project-name-input {
+  min-width: 10ch;
+  padding: 0.18rem 0.35rem;
+}
+
+.transport-project-divider {
+  width: 1px;
+  height: 1.15rem;
+  background: rgba(167, 204, 240, 0.35);
 }
 
 .armed {
@@ -351,6 +387,27 @@ select {
   background: rgba(8, 22, 17, 0.95);
   box-shadow: 0 16px 30px rgba(0, 0, 0, 0.28);
   z-index: 70;
+}
+
+.projects-popover-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.projects-popover-recent-label {
+  color: #a5cbef;
+  font-family: "Courier New", monospace;
+  font-size: 0.9rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.projects-popover-recent-label:hover,
+.projects-popover-recent-label:focus-visible {
+  color: #d7ebff;
+  outline: none;
+  text-decoration: underline;
 }
 
 .selection-actions-popover {
@@ -2454,6 +2511,11 @@ kbd {
   .transport {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .transport-left,
+  .transport-right {
+    width: 100%;
   }
 
   .recording-dock-header {

@@ -3,21 +3,26 @@
 import { RefObject, useCallback, useState } from "react";
 import { ProjectsPopover } from "@/components/composer/ProjectsPopover";
 import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
+import { RecentProjectSnapshot } from "@/lib/persistence";
 
 interface ProjectsMenuProps {
   importInputRef: RefObject<HTMLInputElement | null>;
+  recentProjects: RecentProjectSnapshot[];
+  onNewProject: () => void;
   onExportJson: () => void;
   onImportJson: () => void;
-  onClearProject: () => void;
+  onOpenRecentProject: (projectId: string) => void;
   onResetToDefaultProject: () => void;
   onImportFile: (file: File) => void;
 }
 
 export function ProjectsMenu({
   importInputRef,
+  recentProjects,
+  onNewProject,
   onExportJson,
   onImportJson,
-  onClearProject,
+  onOpenRecentProject,
   onResetToDefaultProject,
   onImportFile
 }: ProjectsMenuProps) {
@@ -46,9 +51,11 @@ export function ProjectsMenu({
       {open && (
         <ProjectsPopover
           importInputRef={importInputRef}
+          recentProjects={recentProjects}
+          onNewProject={onNewProject}
           onExportJson={onExportJson}
           onImportJson={onImportJson}
-          onClearProject={onClearProject}
+          onOpenRecentProject={onOpenRecentProject}
           onResetToDefaultProject={onResetToDefaultProject}
           onImportFile={onImportFile}
           onClose={closeProjectsPopover}

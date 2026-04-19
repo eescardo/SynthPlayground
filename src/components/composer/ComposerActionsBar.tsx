@@ -10,6 +10,7 @@ interface ComposerActionsBarProps {
   onPlay: () => void;
   onStop: () => void;
   onToggleRecord: () => void;
+  onClearProject: () => void;
   onAddTrack: () => void;
   onRemoveTrack: () => void;
 }
@@ -48,6 +49,7 @@ export function ComposerActionsBar({
   onPlay,
   onStop,
   onToggleRecord,
+  onClearProject,
   onAddTrack,
   onRemoveTrack
 }: ComposerActionsBarProps) {
@@ -73,6 +75,9 @@ export function ComposerActionsBar({
           countInLabel={countInLabel}
           onToggleRecord={onToggleRecord}
         />
+        <button disabled={recordingDisabled} onClick={onClearProject}>
+          Clear
+        </button>
       </div>
     </section>
   );

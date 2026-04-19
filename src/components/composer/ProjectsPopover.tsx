@@ -2,11 +2,15 @@
 
 import { RefObject } from "react";
 
+import { RecentProjectSnapshot } from "@/lib/persistence";
+
 interface ProjectsPopoverProps {
   importInputRef: RefObject<HTMLInputElement | null>;
+  recentProjects: RecentProjectSnapshot[];
+  onNewProject: () => void;
   onExportJson: () => void;
   onImportJson: () => void;
-  onClearProject: () => void;
+  onOpenRecentProject: (projectId: string) => void;
   onResetToDefaultProject: () => void;
   onImportFile: (file: File) => void;
   onClose: () => void;
@@ -14,9 +18,11 @@ interface ProjectsPopoverProps {
 
 export function ProjectsPopover({
   importInputRef,
+  recentProjects,
+  onNewProject,
   onExportJson,
   onImportJson,
-  onClearProject,
+  onOpenRecentProject,
   onResetToDefaultProject,
   onImportFile,
   onClose
@@ -33,19 +39,43 @@ export function ProjectsPopover({
       aria-label="Project actions"
       onPointerDown={(event) => event.stopPropagation()}
     >
+      <button type="button" onClick={() => runAction(onNewProject)}>
+        New Project
+      </button>
+      <div className="timeline-actions-popover-divider" aria-hidden="true" />
       <button type="button" onClick={() => runAction(onExportJson)}>
         Export Project
       </button>
-      <button type="button" onClick={onImportJson}>
+      <button type="button" onClick={() => runAction(onImportJson)}>
         Import Project
-      </button>
-      <div className="timeline-actions-popover-divider" aria-hidden="true" />
-      <button type="button" onClick={() => runAction(onClearProject)}>
-        Clear Project
       </button>
       <button type="button" onClick={() => runAction(onResetToDefaultProject)}>
         Reset To Default Project
       </button>
+      {recentProjects.length > 0 && (
+        <>
+          <div className="timeline-actions-popover-divider" aria-hidden="true" />
+          <div className="projects-popover-recent-list" aria-label="Recent projects">
+            {recentProjects.map(({ project }) => (
+              <span
+                key={project.id}
+                className="projects-popover-recent-label"
+                role="button"
+                tabIndex={0}
+                onClick={() => runAction(() => onOpenRecentProject(project.id))}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    runAction(() => onOpenRecentProject(project.id));
+                  }
+                }}
+              >
+                {project.name}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
       <input
         ref={importInputRef}
         type="file"

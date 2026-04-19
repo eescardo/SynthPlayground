@@ -7,12 +7,14 @@ import { ComposerActionsBar } from "@/components/composer/ComposerActionsBar";
 import { TimelineActionsPopover } from "@/components/TimelineActionsPopover";
 import { TimelineActionsPopoverRequest, TrackCanvas, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { TransportBar } from "@/components/TransportBar";
+import { RecentProjectSnapshot } from "@/lib/persistence";
 import { useComposerQuickHelpDialog } from "@/hooks/useComposerQuickHelpDialog";
 import { usePlatformShortcuts } from "@/hooks/usePlatformShortcuts";
 import { Project } from "@/types/music";
 
 interface ComposerViewProps {
   project: Project;
+  recentProjects: RecentProjectSnapshot[];
   selectedTrackId: string;
   invalidPatchIds: Set<string>;
   canvasSelection: TrackCanvasSelection;
@@ -35,6 +37,9 @@ interface ComposerViewProps {
   onPlay: () => void;
   onStop: () => void;
   onToggleRecord: () => void;
+  onClearCurrentProject: () => void;
+  onRenameProject: (name: string) => void;
+  onNewProject: () => void;
   onOpenPatchWorkspace: () => void;
   onExportAudio: () => void;
   onTempoChange: (tempo: number) => void;
@@ -44,7 +49,7 @@ interface ComposerViewProps {
   onRemoveTrack: () => void;
   onExportJson: () => void;
   onImportJson: () => void;
-  onClearProject: () => void;
+  onOpenRecentProject: (projectId: string) => void;
   onResetToDefaultProject: () => void;
   onImportFile: (file: File) => void;
   onSetPlayheadBeat: (beat: number) => void;
@@ -84,11 +89,15 @@ export function ComposerView(props: ComposerViewProps) {
   return (
     <>
       <TransportBar
+        projectName={props.project.name}
         tempo={props.project.global.tempo}
         meter={props.project.global.meter}
         gridBeats={props.project.global.gridBeats}
         playheadBeat={props.playheadBeat}
         importInputRef={props.importInputRef}
+        recentProjects={props.recentProjects}
+        onRenameProject={props.onRenameProject}
+        onNewProject={props.onNewProject}
         onOpenPatchWorkspace={props.onOpenPatchWorkspace}
         onExportAudio={props.onExportAudio}
         exportAudioDisabled={props.exportingAudio}
@@ -97,7 +106,7 @@ export function ComposerView(props: ComposerViewProps) {
         onGridChange={props.onGridChange}
         onExportJson={props.onExportJson}
         onImportJson={props.onImportJson}
-        onClearProject={props.onClearProject}
+        onOpenRecentProject={props.onOpenRecentProject}
         onResetToDefaultProject={props.onResetToDefaultProject}
         onImportFile={props.onImportFile}
         onOpenHelp={openHelp}
@@ -113,6 +122,7 @@ export function ComposerView(props: ComposerViewProps) {
         onPlay={props.onPlay}
         onStop={props.onStop}
         onToggleRecord={props.onToggleRecord}
+        onClearProject={props.onClearCurrentProject}
         onAddTrack={props.onAddTrack}
         onRemoveTrack={props.onRemoveTrack}
       />
