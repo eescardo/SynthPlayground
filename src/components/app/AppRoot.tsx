@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { toAudioProject } from "@/audio/audioProject";
 import { AudioEngine } from "@/audio/engine";
 import { ComposerView } from "@/components/app/ComposerView";
+import { ComposerControllerProps } from "@/components/app/ComposerController";
 import { AudioDebugPanel } from "@/components/app/AudioDebugPanel";
 import { BrowserCompatibilityDialog } from "@/components/app/BrowserCompatibilityDialog";
 import { PatchRemovalDialogModal } from "@/components/composer/PatchRemovalDialogModal";
@@ -82,7 +83,7 @@ import { Project } from "@/types/music";
 import { PatchValidationIssue } from "@/types/patch";
 
 interface AppRootContextValue {
-  composerProps: React.ComponentProps<typeof ComposerView>;
+  composerControllerProps: ComposerControllerProps;
   patchWorkspaceControllerProps: UsePatchWorkspaceControllerOptions;
 }
 
@@ -1120,7 +1121,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     }
   };
 
-  const composerProps: React.ComponentProps<typeof ComposerView> = {
+  const composerViewProps: React.ComponentProps<typeof ComposerView> = {
     project,
     ...projectMenuProps,
     selectedTrackId: selectedTrack.id,
@@ -1211,6 +1212,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
     selectionActions: trackCanvasSelectionActions
   };
 
+  const composerControllerProps: ComposerControllerProps = {
+    clipboard: writeClipboardPayload,
+    viewProps: composerViewProps
+  };
+
   const patchWorkspaceControllerProps: UsePatchWorkspaceControllerOptions = {
     project,
     projectAssets,
@@ -1228,7 +1234,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   };
 
   const contextValue: AppRootContextValue = {
-    composerProps,
+    composerControllerProps,
     patchWorkspaceControllerProps
   };
   const rendererLabel = process.env.NEXT_PUBLIC_STRICT_WASM === "1"

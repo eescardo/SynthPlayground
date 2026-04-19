@@ -7,6 +7,7 @@ import { ProjectGlobalSettings } from "@/types/music";
 export interface ProjectWorkspaceTransportContextValue {
   tempo: number;
   meter: ProjectGlobalSettings["meter"];
+  gridBeats: number;
   playheadBeat: number;
 }
 
@@ -20,6 +21,7 @@ const ProjectWorkspaceClipboardContext = createContext<((payload: NoteClipboardP
 const ProjectWorkspaceTransportContext = createContext<ProjectWorkspaceTransportContextValue>({
   tempo: 120,
   meter: "4/4",
+  gridBeats: 0.25,
   playheadBeat: 0
 });
 
