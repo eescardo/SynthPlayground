@@ -69,6 +69,7 @@ import { usePlaybackController } from "@/hooks/usePlaybackController";
 import { useProjectLifecycleActions } from "@/hooks/useProjectLifecycleActions";
 import { useProjectRecents } from "@/hooks/useProjectRecents";
 import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
+import { useTrackMacroPanelState } from "@/hooks/useTrackMacroPanelState";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
@@ -961,27 +962,13 @@ export function AppRoot({ children }: { children: ReactNode }) {
     patchWorkspace.setSelectedNodeId(undefined);
   };
 
-  const setTrackMacroPanelExpanded = useCallback((trackId: string, expanded: boolean) => {
-    commitProjectChange((current) => {
-      let changed = false;
-      const tracks = current.tracks.map((track) => {
-        if (track.id !== trackId || track.macroPanelExpanded === expanded) {
-          return track;
-        }
-        changed = true;
-        return { ...track, macroPanelExpanded: expanded };
-      });
-      return changed ? { ...current, tracks } : current;
-    }, { actionKey: `track:${trackId}:macro-panel` });
-  }, [commitProjectChange]);
-
-  const toggleTrackMacroPanel = useCallback((trackId: string) => {
-    const track = project.tracks.find((entry) => entry.id === trackId);
-    if (!track) {
-      return;
-    }
-    setTrackMacroPanelExpanded(trackId, !track.macroPanelExpanded);
-  }, [project.tracks, setTrackMacroPanelExpanded]);
+  const {
+    setTrackMacroPanelExpanded,
+    toggleTrackMacroPanel
+  } = useTrackMacroPanelState({
+    tracks: project.tracks,
+    commitProjectChange
+  });
 
   const changeTrackMacro = useCallback((trackId: string, macroId: string, normalized: number, options?: { commit?: boolean }) => {
     audioEngineRef.current?.setMacroValue(trackId, macroId, normalized);

@@ -142,6 +142,10 @@ impl WasmSubsetEngine {
         self.preview_capture_sample_count
     }
 
+    pub fn has_active_voices(&self) -> bool {
+        self.tracks.iter().any(TrackRuntime::has_active_voices)
+    }
+
     fn next_pending_event_sample(&self) -> Option<u32> {
         self.event_queue
             .get(self.event_cursor)

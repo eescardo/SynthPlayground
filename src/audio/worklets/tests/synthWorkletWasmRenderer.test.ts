@@ -8,6 +8,7 @@ const leftView = new Float32Array(sharedMemory.buffer, 0, blockSize);
 const rightView = new Float32Array(sharedMemory.buffer, blockSize * Float32Array.BYTES_PER_ELEMENT, blockSize);
 let previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
 let previewCaptureSampleCount = 0;
+let hasActiveVoices = false;
 const engineStop = vi.fn();
 
 vi.mock("../synth-worklet-dsp-bindgen.js", () => {
@@ -32,6 +33,9 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
         ]
       });
       return true;
+    }
+    has_active_voices() {
+      return hasActiveVoices;
     }
     preview_capture_state_json() {
       return previewCaptureStateJson;
@@ -152,6 +156,7 @@ beforeEach(() => {
   leftView.fill(0);
   rightView.fill(0);
   previewCaptureSampleCount = 0;
+  hasActiveVoices = false;
   previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
 });
 
@@ -266,5 +271,50 @@ describe("WASM worklet renderer", () => {
 
     expect(engineStop).toHaveBeenCalledTimes(1);
     expect(postMessage).not.toHaveBeenCalled();
+  });
+
+  it("stops a long-lived preview once the released note has no active voices left", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+
+    const stream = renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize * 16,
+      trackId: "track_1",
+      previewId: "preview_release",
+      events: [
+        {
+          id: "note_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
+      randomSeed: 123
+    });
+
+    hasActiveVoices = true;
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+    expect(stream!.stopped).toBe(false);
+
+    hasActiveVoices = false;
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+    expect(stream!.stopped).toBe(true);
+    expect(engineStop).toHaveBeenCalledTimes(1);
   });
 });

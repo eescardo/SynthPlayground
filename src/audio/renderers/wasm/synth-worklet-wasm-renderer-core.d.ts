@@ -30,6 +30,7 @@ export interface SharedWasmEngine {
   ): void;
   enqueue_events(eventsJson: string): void;
   process_block(): boolean;
+  has_active_voices?(): boolean;
   stop(): void;
   left_ptr(): number;
   right_ptr(): number;
@@ -120,6 +121,7 @@ export class SharedWasmRenderStream {
   implementation: SharedWasmImplementation;
   previewCaptureState: SharedWasmPreviewCaptureState | null;
   engine: SharedWasmEngine;
+  hasActiveVoices(): boolean;
   maybeEmitPreviewCapture(force?: boolean): void;
   processBlock(output: Float32Array[]): boolean;
   enqueueEvents(events: SchedulerEvent[]): void;

@@ -92,6 +92,21 @@ export class SharedWasmRenderStream {
     }
   }
 
+  consumeProcessedEvents() {
+    while (this.eventQueue.length > 0) {
+      const next = this.eventQueue[0];
+      if (!next || !Number.isFinite(next.sampleTime) || next.sampleTime <= this.songSampleCounter) {
+        this.eventQueue.shift();
+        continue;
+      }
+      break;
+    }
+  }
+
+  hasActiveVoices() {
+    return Boolean(this.engine.has_active_voices?.());
+  }
+
   processBlock(output) {
     const leftOut = output[0];
     const rightOut = output[1] || output[0];
@@ -113,11 +128,15 @@ export class SharedWasmRenderStream {
       rightOut.set(rightView.subarray(0, rightOut.length));
     }
     this.songSampleCounter += leftOut.length;
+    this.consumeProcessedEvents();
 
     if (this.previewing) {
       this.previewRemainingSamples -= leftOut.length;
       this.maybeEmitPreviewCapture(false);
       if (this.previewRemainingSamples <= 0) {
+        this.maybeEmitPreviewCapture(true);
+        this.stop({ emitPreviewCapture: false });
+      } else if (this.eventQueue.length === 0 && !this.hasActiveVoices()) {
         this.maybeEmitPreviewCapture(true);
         this.stop({ emitPreviewCapture: false });
       }

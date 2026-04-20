@@ -193,6 +193,10 @@ impl TrackRuntime {
         self.probe_captures.clear();
     }
 
+    pub(crate) fn has_active_voices(&self) -> bool {
+        self.voices.iter().any(|voice| voice.active)
+    }
+
     /// Clones the current probe capture buffers into a serializable snapshot.
     /// Params:
     /// - `captured_samples`: number of valid samples currently written into each capture buffer.
