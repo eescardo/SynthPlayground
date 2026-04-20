@@ -38,21 +38,25 @@ export function useComposerQuickHelpDialog({
       { action: "Help", shortcut: "?" },
       { action: "Play / Stop", shortcut: "Space" },
       { action: "Move Playhead", shortcut: "Left / Right" },
+      { action: "Collapsed Selection Nudge", shortcut: "Left / Right" },
       { action: "Select Track", shortcut: "Up / Down" },
+      { action: "Backspace Note / Rewind", shortcut: "Backspace" },
       { action: "Default Pitch", shortcut: "- / =" },
       { action: "Macro Lanes", shortcut: "[ / ]" },
       { action: "Hold To Place Note", shortcut: "Enter" },
+      { action: "Select Note At Playhead", shortcut: "Tab" },
       { action: "Cut Selection", shortcut: `${primaryModifierLabel}+X` },
       { action: "Copy Selection", shortcut: `${primaryModifierLabel}+C` },
       { action: "Paste Selected Track(s)", shortcut: `${primaryModifierLabel}+V` },
-      { action: "Delete Selection", shortcut: deleteKeyLabel },
+      { action: "Delete Selection", shortcut: "Delete" },
       { action: "Insert Selected Track(s)", shortcut: `${primaryModifierLabel}+I` },
       { action: "Cut All Tracks", shortcut: `${allTracksModifierLabel}+X` },
       { action: "Copy All Tracks", shortcut: `${allTracksModifierLabel}+C` },
       { action: "Paste All Tracks", shortcut: `${allTracksModifierLabel}+V` },
       { action: "Delete All Tracks", shortcut: `${allTracksModifierLabel}+${deleteKeyLabel}` },
       { action: "Insert All Tracks", shortcut: `${allTracksModifierLabel}+I` },
-      { action: "Close Dialogs / Clear Selection", shortcut: "Esc" }
+      { action: "Close Dialogs / Collapse Selection", shortcut: "Esc" },
+      { action: "Clear Selection", shortcut: "Esc again" }
     ],
     [allTracksModifierLabel, deleteKeyLabel, primaryModifierLabel]
   );

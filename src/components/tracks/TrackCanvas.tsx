@@ -124,13 +124,32 @@ function drawGhostPreviewNote(
   ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.fillText(note.pitchStr, noteX + 6, noteY + 16);
 
-  const badgeLabel = "Enter";
-  const badgeWidth = Math.max(34, ctx.measureText(badgeLabel).width + 12);
+  const badgeWidth = 28;
+  const badgeHeight = 18;
   const badgeX = noteX + noteW - badgeWidth - 6;
-  const badgeY = noteY + noteH - 20;
-  fillRoundedRect(ctx, badgeX, badgeY, badgeWidth, 14, 6, TRACK_CANVAS_COLORS.ghostPlacementBadge);
-  ctx.fillStyle = TRACK_CANVAS_COLORS.ghostPlacementBadgeText;
-  ctx.fillText(badgeLabel, badgeX + 6, badgeY + 10.5);
+  const badgeY = noteY + noteH - badgeHeight - 4;
+  fillRoundedRect(ctx, badgeX, badgeY, badgeWidth, badgeHeight, 6, TRACK_CANVAS_COLORS.ghostPlacementBadge);
+
+  ctx.save();
+  ctx.strokeStyle = TRACK_CANVAS_COLORS.ghostPlacementBadgeText;
+  ctx.lineWidth = 1.8;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const stemX = badgeX + 18;
+  const topY = badgeY + 4.5;
+  const midY = badgeY + 10.5;
+  const leftX = badgeX + 8;
+  ctx.beginPath();
+  ctx.moveTo(stemX, topY);
+  ctx.lineTo(stemX, midY);
+  ctx.lineTo(leftX, midY);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(leftX + 4, midY - 3.5);
+  ctx.lineTo(leftX, midY);
+  ctx.lineTo(leftX + 4, midY + 3.5);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawLoopMarker(
@@ -274,6 +293,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     hideSelectionActionPopover,
     invalidPatchIds,
     keyboardPlacementNote,
+    playheadFocused,
     playheadBeat,
     selectedTrackId,
     timelineActionsPopoverOpen
@@ -628,7 +648,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     });
 
     const playheadX = HEADER_WIDTH + playheadBeat * BEAT_WIDTH;
-    if (hoveredPlayhead && !timelineActionsPopoverOpen) {
+    if ((hoveredPlayhead || playheadFocused) && !timelineActionsPopoverOpen) {
       ctx.strokeStyle = TRACK_CANVAS_COLORS.loopGhost;
       ctx.lineWidth = 8;
       ctx.beginPath();
@@ -739,6 +759,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     timelineActionsPopoverOpen,
     height,
     hoveredPlayhead,
+    playheadFocused,
     hoveredPitch,
     hoveredNote,
     hoveredAutomationKeyframe,
