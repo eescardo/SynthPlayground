@@ -693,10 +693,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
     const playheadX = HEADER_WIDTH + playheadBeat * BEAT_WIDTH;
     if ((hoveredPlayhead || playheadFocused) && !timelineActionsPopoverOpen) {
-      ctx.strokeStyle = playheadFocused
-        ? TRACK_CANVAS_COLORS.playheadFocusGlow
-        : TRACK_CANVAS_COLORS.loopGhost;
-      ctx.lineWidth = playheadFocused ? 12 : 8;
+      ctx.strokeStyle = TRACK_CANVAS_COLORS.playheadFocusGlow;
+      ctx.lineWidth = 12;
       ctx.beginPath();
       ctx.moveTo(playheadX, 0);
       ctx.lineTo(playheadX, height);
