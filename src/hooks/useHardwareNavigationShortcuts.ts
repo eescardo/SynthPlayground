@@ -86,6 +86,11 @@ const isTextEditingTarget = (target: EventTarget | null) => {
 
 const isModifierChord = (event: KeyboardEvent) => event.metaKey || event.ctrlKey || event.altKey;
 
+const isPlayheadTabStopFocused = () => {
+  const activeElement = document.activeElement as HTMLElement | null;
+  return activeElement?.classList.contains("track-canvas-playhead-tabstop") ?? false;
+};
+
 export function useHardwareNavigationShortcuts({
   view,
   projectGridBeats,
@@ -336,10 +341,12 @@ export function useHardwareNavigationShortcuts({
   ]);
 
   useEffect(() => {
+    const playheadDomFocused = isPlayheadTabStopFocused();
+
     if (
       view !== "composer" ||
       !selectedTrack ||
-      !playheadNavigationFocused ||
+      (!playheadNavigationFocused && !playheadDomFocused) ||
       activePlacement ||
       isPlaying ||
       recordPhase !== "idle" ||
@@ -399,8 +406,7 @@ export function useHardwareNavigationShortcuts({
     if (selectionKind === "none") {
       return;
     }
-    const activeElement = document.activeElement as HTMLElement | null;
-    if (!activeElement?.classList.contains("track-canvas-playhead-tabstop")) {
+    if (!isPlayheadTabStopFocused()) {
       setPlayheadNavigationFocused(false);
     }
     clearBlockedSelectionTransfer();
@@ -704,7 +710,7 @@ export function useHardwareNavigationShortcuts({
       if (event.key === "ArrowUp") {
         event.preventDefault();
         setSelectedTrackId(tracks[Math.max(0, selectedTrackIndex - 1)]!.id);
-        setPlayheadNavigationFocused(false);
+        setPlayheadNavigationFocused(playheadNavigationFocused || playheadDomFocused);
         clearBlockedSelectionTransfer();
         return;
       }
@@ -712,7 +718,7 @@ export function useHardwareNavigationShortcuts({
       if (event.key === "ArrowDown") {
         event.preventDefault();
         setSelectedTrackId(tracks[Math.min(tracks.length - 1, selectedTrackIndex + 1)]!.id);
-        setPlayheadNavigationFocused(false);
+        setPlayheadNavigationFocused(playheadNavigationFocused || playheadDomFocused);
         clearBlockedSelectionTransfer();
       }
     };
