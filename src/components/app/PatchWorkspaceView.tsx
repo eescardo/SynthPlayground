@@ -62,7 +62,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
     colorGlossaryItems,
     generalGuidanceItems,
     helpOpen,
-    keyboardShortcuts,
+    keyboardShortcutSections,
     mouseHelpItems,
     openHelp
   } = usePatchWorkspaceQuickHelpDialog();
@@ -156,7 +156,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
       </div>
 
       <QuickHelpDialog
-        keyboardShortcuts={keyboardShortcuts}
+        keyboardShortcutSections={keyboardShortcutSections}
         mouseHelpItems={mouseHelpItems}
         onClose={closeHelp}
         open={helpOpen}

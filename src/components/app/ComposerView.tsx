@@ -76,16 +76,18 @@ interface ComposerViewProps {
 export function ComposerView(props: ComposerViewProps) {
   const {
     allTracksModifierLabel,
+    deleteKeyLabel,
     primaryModifierLabel
   } = usePlatformShortcuts();
   const {
     closeHelp,
     helpOpen,
-    keyboardShortcuts,
+    keyboardShortcutSections,
     mouseHelpItems,
     openHelp
   } = useComposerQuickHelpDialog({
     allTracksModifierLabel,
+    deleteKeyLabel,
     primaryModifierLabel
   });
 
@@ -182,7 +184,7 @@ export function ComposerView(props: ComposerViewProps) {
       )}
 
       <QuickHelpDialog
-        keyboardShortcuts={keyboardShortcuts}
+        keyboardShortcutSections={keyboardShortcutSections}
         mouseHelpItems={mouseHelpItems}
         onClose={closeHelp}
         open={helpOpen}

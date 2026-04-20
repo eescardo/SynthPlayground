@@ -2357,6 +2357,18 @@ select {
   gap: 0.2rem;
 }
 
+.quick-help-shortcut-section + .quick-help-shortcut-section {
+  margin-top: 0.45rem;
+}
+
+.quick-help-shortcut-section h5 {
+  margin: 0 0 0.18rem;
+  color: #9eb9d6;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .quick-help-shortcut-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

@@ -742,6 +742,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     copyAllTracksInSelection,
     cutAllTracksInSelection,
     deletePrimarySelection: hasTimelineRangeSelection ? deleteAllTracksInSelection : deleteSelectedNoteSelection,
+    deleteAllTracksInSelection,
     hasPrimarySelection: hasTimelineRangeSelection || hasContentSelection(selectedContent),
     isDeleteShortcutKey,
     onCloseTransientUi: () => {

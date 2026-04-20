@@ -1,14 +1,24 @@
 import type { ReactNode } from "react";
 
+export interface QuickHelpShortcutEntry {
+  action: string;
+  shortcut: string;
+}
+
+export interface QuickHelpShortcutSection {
+  title: string;
+  entries: QuickHelpShortcutEntry[];
+}
+
 interface QuickHelpDialogProps {
   mouseHelpItems: Array<{ action: string; description: string }>;
-  keyboardShortcuts: Array<{ action: string; shortcut: string }>;
+  keyboardShortcutSections: QuickHelpShortcutSection[];
   children?: ReactNode;
   onClose: () => void;
   open: boolean;
 }
 
-export function QuickHelpDialog({ children, keyboardShortcuts, mouseHelpItems, onClose, open }: QuickHelpDialogProps) {
+export function QuickHelpDialog({ children, keyboardShortcutSections, mouseHelpItems, onClose, open }: QuickHelpDialogProps) {
   if (!open) {
     return null;
   }
@@ -28,18 +38,23 @@ export function QuickHelpDialog({ children, keyboardShortcuts, mouseHelpItems, o
           </div>
           <div className="quick-help-section">
             <h4>Keyboard</h4>
-            <div className="quick-help-shortcuts" role="table" aria-label="Keyboard shortcuts">
-              {keyboardShortcuts.map((entry) => (
-                <div key={entry.action} className="quick-help-shortcut-row" role="row">
-                  <div className="quick-help-shortcut-action" role="cell">{entry.action}</div>
-                  <div className="quick-help-shortcut-keys" role="cell">
-                    {entry.shortcut.split("+").map((part) => (
-                      <kbd key={`${entry.action}-${part}`}>{part}</kbd>
-                    ))}
-                  </div>
+            {keyboardShortcutSections.map((section) => (
+              <div key={section.title} className="quick-help-shortcut-section">
+                <h5>{section.title}</h5>
+                <div className="quick-help-shortcuts" role="table" aria-label={`${section.title} keyboard shortcuts`}>
+                  {section.entries.map((entry) => (
+                    <div key={`${section.title}-${entry.action}`} className="quick-help-shortcut-row" role="row">
+                      <div className="quick-help-shortcut-action" role="cell">{entry.action}</div>
+                      <div className="quick-help-shortcut-keys" role="cell">
+                        {entry.shortcut.split("+").map((part) => (
+                          <kbd key={`${section.title}-${entry.action}-${part}`}>{part}</kbd>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
         {children}

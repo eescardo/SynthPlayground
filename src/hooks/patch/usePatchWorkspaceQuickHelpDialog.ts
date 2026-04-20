@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { QuickHelpShortcutSection } from "@/components/QuickHelpDialog";
 import { PATCH_MODULE_CATEGORY_COLORS } from "@/lib/patch/moduleCategories";
 
 const isTextEditingTarget = (target: EventTarget | null) => {
@@ -11,13 +12,18 @@ const isTextEditingTarget = (target: EventTarget | null) => {
 export function usePatchWorkspaceQuickHelpDialog() {
   const [helpOpen, setHelpOpen] = useState(false);
 
-  const keyboardShortcuts = useMemo(
+  const keyboardShortcutSections = useMemo<QuickHelpShortcutSection[]>(
     () => [
-      { action: "Preview current tab", shortcut: "Space" },
-      { action: "Default pitch", shortcut: "- / =" },
-      { action: "Next tab", shortcut: "Ctrl+`" },
-      { action: "Previous tab", shortcut: "Ctrl+Shift+`" },
-      { action: "Help", shortcut: "?" }
+      {
+        title: "General",
+        entries: [
+          { action: "Preview current tab", shortcut: "Space" },
+          { action: "Default pitch", shortcut: "- / =" },
+          { action: "Next tab", shortcut: "Ctrl+`" },
+          { action: "Previous tab", shortcut: "Ctrl+Shift+`" },
+          { action: "Help", shortcut: "?" }
+        ]
+      }
     ],
     []
   );
@@ -73,7 +79,7 @@ export function usePatchWorkspaceQuickHelpDialog() {
     colorGlossaryItems,
     generalGuidanceItems,
     helpOpen,
-    keyboardShortcuts,
+    keyboardShortcutSections,
     mouseHelpItems,
     openHelp: () => setHelpOpen(true)
   };
