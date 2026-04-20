@@ -28,6 +28,7 @@ import {
 import { resolveInvalidPortKeys } from "@/components/patch/patchCanvasValidation";
 import { CanvasRect, HitPort, isHostPatchNodeId, resolveHostPatchPortRect, resolveHostPatchPortTint } from "@/components/patch/patchCanvasGeometry";
 import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
+import { PatchDiff } from "@/lib/patch/diff";
 import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch, PatchLayoutNode, PatchNode, ParamSchema, ParamValue, PatchValidationIssue, PortSchema } from "@/types/patch";
@@ -241,6 +242,7 @@ export function drawPatchModuleCard(
   y: number,
   invalidPortKeys: Set<string>,
   options: {
+    diffStatus: "unchanged" | "added" | "modified";
     hovered: boolean;
     macroSelected: boolean;
     selected: boolean;
@@ -249,6 +251,10 @@ export function drawPatchModuleCard(
   const moduleColors = resolveMutedPatchModuleColors(schema.categories);
   ctx.fillStyle = moduleColors.fill;
   ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
+  if (options.diffStatus === "added" || options.diffStatus === "modified") {
+    ctx.fillStyle = options.diffStatus === "added" ? "rgba(103, 224, 153, 0.18)" : "rgba(120, 214, 160, 0.12)";
+    ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
+  }
   if (options.macroSelected) {
     ctx.strokeStyle = "rgba(246, 176, 28, 0.88)";
     ctx.lineWidth = 3;
@@ -258,11 +264,25 @@ export function drawPatchModuleCard(
     ctx.fillStyle = PATCH_COLOR_NODE_HOVER_OVERLAY;
     ctx.fillRect(x + 2, y + 2, PATCH_NODE_WIDTH - 4, PATCH_NODE_HEIGHT - 4);
   }
-  ctx.fillStyle = moduleColors.accent;
-  ctx.globalAlpha = options.selected ? 0.24 : options.hovered ? 0.18 : 0.12;
+  ctx.fillStyle =
+    options.diffStatus === "added"
+      ? "rgba(103, 224, 153, 0.92)"
+      : options.diffStatus === "modified"
+        ? "rgba(120, 214, 160, 0.62)"
+        : moduleColors.accent;
+  ctx.globalAlpha = options.selected ? 0.26 : options.hovered ? 0.2 : options.diffStatus === "unchanged" ? 0.12 : 0.18;
   ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_BODY_TOP - 8);
   ctx.globalAlpha = 1;
-  ctx.strokeStyle = options.selected ? moduleColors.accent : options.hovered ? PATCH_COLOR_NODE_TITLE : moduleColors.stroke;
+  ctx.strokeStyle =
+    options.diffStatus === "added"
+      ? "rgba(103, 224, 153, 0.9)"
+      : options.diffStatus === "modified"
+        ? "rgba(120, 214, 160, 0.72)"
+        : options.selected
+          ? moduleColors.accent
+          : options.hovered
+            ? PATCH_COLOR_NODE_TITLE
+            : moduleColors.stroke;
   ctx.lineWidth = options.hovered ? 3 : 2;
   ctx.strokeRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
 
@@ -396,6 +416,7 @@ function drawPatchConnections(
 function drawPatchModules(
   ctx: CanvasRenderingContext2D,
   patch: Patch,
+  patchDiff: PatchDiff,
   layoutByNode: Map<string, PatchLayoutNode>,
   invalidPortKeys: Set<string>,
   hoveredNodeId: string | null,
@@ -412,6 +433,7 @@ function drawPatchModules(
     const y = layout.y * PATCH_CANVAS_GRID;
 
     drawPatchModuleCard(ctx, patch, node, schema, x, y, invalidPortKeys, {
+      diffStatus: patchDiff.nodeDiffById.get(node.id)?.status ?? "unchanged",
       hovered: hoveredNodeId === node.id,
       macroSelected: selectedMacroNodeIds.has(node.id),
       selected: selectedNodeId === node.id
@@ -515,6 +537,7 @@ function drawHoveredAttachTarget(
 export function drawPatchFacePopover(
   ctx: CanvasRenderingContext2D,
   patch: Patch,
+  patchDiff: PatchDiff,
   node: PatchNode,
   schema: NonNullable<ReturnType<typeof getModuleSchema>>,
   rect: CanvasRect,
@@ -532,6 +555,7 @@ export function drawPatchFacePopover(
   ctx.translate(rect.x, rect.y);
   ctx.scale(PATCH_FACE_POPOVER_SCALE, PATCH_FACE_POPOVER_SCALE);
   drawPatchModuleCard(ctx, patch, node, schema, 0, 0, new Set<string>(), {
+    diffStatus: patchDiff.nodeDiffById.get(node.id)?.status ?? "unchanged",
     hovered: false,
     macroSelected,
     selected: true
@@ -568,6 +592,7 @@ export function drawPatchCanvas(args: {
   layoutByNode: Map<string, PatchLayoutNode>;
   nodeById: Map<string, PatchNode>;
   patch: Patch;
+  patchDiff: PatchDiff;
   validationIssues: PatchValidationIssue[];
   pendingFromPort: HitPort | null;
   pendingWirePointer?: { x: number; y: number } | null;
@@ -586,7 +611,7 @@ export function drawPatchCanvas(args: {
   const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode);
   const invalidPortKeys = resolveInvalidPortKeys(args.validationIssues);
   drawPatchConnections(ctx, args.patch, portPositions);
-  drawPatchModules(ctx, args.patch, args.layoutByNode, invalidPortKeys, args.hoveredNodeId, args.selectedMacroNodeIds, args.selectedNodeId);
+  drawPatchModules(ctx, args.patch, args.patchDiff, args.layoutByNode, invalidPortKeys, args.hoveredNodeId, args.selectedMacroNodeIds, args.selectedNodeId);
   drawPendingPatchPort(ctx, args.pendingFromPort, portPositions);
   drawPendingPatchWire(ctx, args.pendingFromPort, args.pendingWirePointer ?? null, portPositions);
   drawHoveredAttachTarget(ctx, args.patch, portPositions, args.hoveredAttachTarget ?? null);
@@ -596,7 +621,7 @@ export function drawPatchCanvas(args: {
     const schema = node ? getModuleSchema(node.typeId) : undefined;
     const rect = args.getFacePopoverRect(args.facePopoverNodeId);
     if (node && schema && rect) {
-      drawPatchFacePopover(ctx, args.patch, node, schema, rect, args.selectedMacroNodeIds.has(node.id));
+      drawPatchFacePopover(ctx, args.patch, args.patchDiff, node, schema, rect, args.selectedMacroNodeIds.has(node.id));
     }
   }
 

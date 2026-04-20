@@ -58,6 +58,7 @@ export const toPersistedTab = (tab: LocalPatchWorkspaceTab): PatchWorkspaceTabSt
   id: tab.id,
   name: tab.name,
   patchId: tab.patchId,
+  baselinePatch: tab.baselinePatch,
   selectedNodeId: tab.selectedNodeId,
   selectedMacroId: tab.selectedMacroId,
   selectedProbeId: tab.selectedProbeId,
@@ -127,6 +128,7 @@ export const retargetRemovedPatchTabs = (
 export const resetWorkspaceTabForPatch = (tab: LocalPatchWorkspaceTab, patchId: string): LocalPatchWorkspaceTab => ({
   ...tab,
   patchId,
+  baselinePatch: undefined,
   selectedNodeId: undefined,
   selectedMacroId: undefined,
   selectedProbeId: undefined,

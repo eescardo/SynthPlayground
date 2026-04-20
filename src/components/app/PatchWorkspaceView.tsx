@@ -9,6 +9,7 @@ import { PatchWorkspaceTabStrip, PatchWorkspaceTabViewModel } from "@/components
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { usePatchWorkspaceQuickHelpDialog } from "@/hooks/patch/usePatchWorkspaceQuickHelpDialog";
 import { RecentProjectSnapshot } from "@/lib/persistence";
+import { PatchDiff } from "@/lib/patch/diff";
 import { backArrowIconSrc } from "@/resources/images";
 import { Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -22,6 +23,7 @@ interface PatchWorkspaceViewProps {
   tabs: PatchWorkspaceTabViewModel[];
   activeTabId?: string;
   macroValues: Record<string, number>;
+  patchDiff: PatchDiff;
   previewPitch: string;
   migrationNotice?: string | null;
   selectedNodeId?: string;
@@ -135,6 +137,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           patch={props.patch}
           probeState={props.probeState}
           macroValues={props.macroValues}
+          patchDiff={props.patchDiff}
           migrationNotice={props.migrationNotice}
           onReady={props.onInstrumentEditorReady}
           selectedNodeId={props.selectedNodeId}

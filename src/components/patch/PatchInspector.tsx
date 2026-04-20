@@ -3,6 +3,7 @@ import {
   resolveMacroBindingValue,
   resolveMacroKeyframeIndexAtValue
 } from "@/lib/patch/macroKeyframes";
+import { PatchBindingDiff, PatchDiff, PatchDiffStatus } from "@/lib/patch/diff";
 import { SamplePlayerInspectorSection } from "@/components/patch/SamplePlayerInspectorSection";
 import { ProbeInspectorSection } from "@/components/patch/ProbeInspectorSection";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
@@ -27,6 +28,20 @@ function formatBindingValue(value: number) {
   return value.toFixed(3);
 }
 
+function resolveDiffTone(status: PatchDiffStatus | undefined): "positive" | "negative" | null {
+  if (status === "added" || status === "modified") {
+    return "positive";
+  }
+  if (status === "removed") {
+    return "negative";
+  }
+  return null;
+}
+
+function connectionLabel(connection: Pick<Patch["connections"][number], "from" | "to">) {
+  return `${connection.from.nodeId}.${connection.from.portId} -> ${connection.to.nodeId}.${connection.to.portId}`;
+}
+
 function MacroBindingDetails(props: {
   patch: Patch;
   nodeId: string;
@@ -34,23 +49,34 @@ function MacroBindingDetails(props: {
   exposedLabel: string;
   boundMacroIds: string[];
   editableSummary?: string | null;
+  currentBindingDiffByKey: Map<string, PatchBindingDiff>;
+  removedBindingDiffs: PatchBindingDiff[];
 }) {
   const boundMacros = props.patch.ui.macros.filter((macro) => props.boundMacroIds.includes(macro.id));
 
   return (
     <>
-      <button type="button" className="macro-binding-pill" disabled title={props.exposedLabel}>
-        {props.exposedLabel}
-      </button>
+      {(boundMacros.length > 0 || props.removedBindingDiffs.length > 0) && (
+        <button type="button" className="macro-binding-pill" disabled title={props.exposedLabel}>
+          {boundMacros.length > 0 ? props.exposedLabel : "Baseline binding removed"}
+        </button>
+      )}
       <div className="macro-binding-details">
         {props.editableSummary && <div className="macro-binding-edit-summary">{props.editableSummary}</div>}
         {boundMacros.map((macro) =>
           macro.bindings
             .filter((binding) => binding.nodeId === props.nodeId && binding.paramId === props.paramId)
-            .map((binding) => (
-              <div key={binding.id} className="macro-binding-detail-card">
+            .map((binding) => {
+              const bindingDiff = props.currentBindingDiffByKey.get(`${macro.id}:${binding.id}`);
+              const diffTone = resolveDiffTone(bindingDiff?.status);
+              return (
+              <div
+                key={binding.id}
+                className={`macro-binding-detail-card${diffTone ? ` diff-${diffTone}` : ""}`}
+              >
                 <div className="macro-binding-detail-mode">
                   {binding.map === "piecewise" ? "Keyframed" : binding.map === "exp" ? "Exponential" : "Linear"}
+                  {bindingDiff && <span className="patch-diff-inline-badge">{bindingDiff.status === "added" ? "New" : "Changed"}</span>}
                 </div>
                 {binding.map === "piecewise" && binding.points && binding.points.length >= 2 ? (
                   <>
@@ -64,13 +90,34 @@ function MacroBindingDetails(props: {
                     <div className="macro-binding-segments">Segments: linear interpolation</div>
                   </>
                 ) : (
-                  <div className="macro-binding-range">
+                    <div className="macro-binding-range">
                     Range: {formatBindingValue(binding.min ?? 0)} - {formatBindingValue(binding.max ?? 1)}
                   </div>
                 )}
               </div>
-            ))
+            );
+            })
         )}
+        {props.removedBindingDiffs.map((bindingDiff) => (
+          <div key={bindingDiff.key} className="macro-binding-detail-card diff-negative">
+            <div className="macro-binding-detail-mode">
+              Removed <span className="patch-diff-inline-badge negative">{bindingDiff.macroName}</span>
+            </div>
+            {bindingDiff.baselineBinding?.map === "piecewise" && bindingDiff.baselineBinding.points && bindingDiff.baselineBinding.points.length >= 2 ? (
+              <div className="macro-binding-points">
+                {bindingDiff.baselineBinding.points.map((point, index) => (
+                  <span key={`${bindingDiff.key}_${point.x}_${index}`} className="macro-binding-point-chip">
+                    {point.x.toFixed(2)}:{formatBindingValue(point.y)}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="macro-binding-range">
+                Range: {formatBindingValue(bindingDiff.baselineBinding?.min ?? 0)} - {formatBindingValue(bindingDiff.baselineBinding?.max ?? 1)}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </>
   );
@@ -158,6 +205,7 @@ function shouldRenderParamInGenericInspector(node: PatchNode, param: ParamSchema
 
 interface PatchInspectorProps {
   patch: Patch;
+  patchDiff: PatchDiff;
   macroValues: Record<string, number>;
   selectedNode?: PatchNode;
   selectedProbe?: PatchWorkspaceProbeState;
@@ -263,6 +311,9 @@ export function PatchInspector(props: PatchInspectorProps) {
         (connection) => connection.from.nodeId === selectedNode.id || connection.to.nodeId === selectedNode.id
       )
     : props.patch.connections;
+  const visibleRemovedConnections = props.patchDiff.removedConnections.filter((connection) =>
+    selectedNode ? connection.from.nodeId === selectedNode.id || connection.to.nodeId === selectedNode.id : true
+  );
   const visibleValidationIssues = selectedNode ? resolveIssuesForNode(selectedNode.id, props.validationIssues) : props.validationIssues;
   const visibleRequiredPortIssues = resolveRequiredPortIssues(visibleValidationIssues);
   const visibleGeneralValidationIssues = visibleValidationIssues.filter((issue) => issue.code !== "required-port-unconnected");
@@ -281,6 +332,7 @@ export function PatchInspector(props: PatchInspectorProps) {
             .filter((param) => shouldRenderParamInGenericInspector(selectedNode, param))
             .map((param) => {
             const value = selectedNode.params[param.id] ?? param.default;
+            const nodeDiff = props.patchDiff.nodeDiffById.get(selectedNode.id);
             const bindingState = resolveParamBindingState(
               props.patch,
               selectedNode,
@@ -289,9 +341,27 @@ export function PatchInspector(props: PatchInspectorProps) {
               selectedMacroKeyframeIndex,
               props.structureLocked
             );
+            const removedBindingDiffs = props.patchDiff.removedBindingDiffsByNodeParamKey.get(`${selectedNode.id}:${param.id}`) ?? [];
+            const currentBindingDiffs = bindingState.boundMacros.flatMap((macro) =>
+              macro.bindings
+                .filter((binding) => binding.nodeId === selectedNode.id && binding.paramId === param.id)
+                .flatMap((binding) => {
+                  const diff = props.patchDiff.currentBindingDiffByKey.get(`${macro.id}:${binding.id}`);
+                  return diff ? [diff] : [];
+                })
+            );
+            const paramDiffTone =
+              nodeDiff?.status === "added" || nodeDiff?.changedParamIds.has(param.id) || currentBindingDiffs.length > 0
+                ? "positive"
+                : removedBindingDiffs.length > 0
+                  ? "negative"
+                  : null;
 
             return (
-              <div key={param.id} className={`param-row${bindingState.isExposed ? " bound" : ""}`}>
+              <div
+                key={param.id}
+                className={`param-row${bindingState.isExposed ? " bound" : ""}${paramDiffTone ? ` diff-${paramDiffTone}` : ""}`}
+              >
                 <span>{param.label}</span>
                 <div className="param-control-stack">
                   {renderParamInlineSummary(selectedNode, param, value)}
@@ -333,7 +403,7 @@ export function PatchInspector(props: PatchInspectorProps) {
                       }}
                     />
                   )}
-                  {bindingState.isExposed && (
+                  {(bindingState.isExposed || removedBindingDiffs.length > 0) && (
                     <MacroBindingDetails
                       patch={props.patch}
                       nodeId={selectedNode.id}
@@ -341,6 +411,8 @@ export function PatchInspector(props: PatchInspectorProps) {
                       exposedLabel={bindingState.exposedLabel}
                       boundMacroIds={bindingState.boundMacros.map((macro) => macro.id)}
                       editableSummary={bindingState.editableSummary}
+                      currentBindingDiffByKey={props.patchDiff.currentBindingDiffByKey}
+                      removedBindingDiffs={removedBindingDiffs}
                     />
                   )}
                 </div>
@@ -380,6 +452,79 @@ export function PatchInspector(props: PatchInspectorProps) {
         />
       )}
 
+      {props.patchDiff.hasBaseline && !selectedNode && !selectedProbe && (
+        <>
+          <h4>Baseline Diff</h4>
+          {!props.patchDiff.hasChanges ? (
+            <p className="ok">No changes relative to this tab&apos;s baseline patch.</p>
+          ) : (
+            <>
+              <div className="patch-diff-summary-grid">
+                {props.patchDiff.summary.addedNodeCount > 0 && <span className="patch-diff-summary-pill positive">+{props.patchDiff.summary.addedNodeCount} modules</span>}
+                {props.patchDiff.summary.modifiedNodeCount > 0 && <span className="patch-diff-summary-pill positive">{props.patchDiff.summary.modifiedNodeCount} changed modules</span>}
+                {props.patchDiff.summary.removedNodeCount > 0 && <span className="patch-diff-summary-pill negative">-{props.patchDiff.summary.removedNodeCount} modules</span>}
+                {props.patchDiff.summary.addedMacroCount > 0 && <span className="patch-diff-summary-pill positive">+{props.patchDiff.summary.addedMacroCount} macros</span>}
+                {props.patchDiff.summary.removedMacroCount > 0 && <span className="patch-diff-summary-pill negative">-{props.patchDiff.summary.removedMacroCount} macros</span>}
+                {props.patchDiff.summary.addedConnectionCount > 0 && <span className="patch-diff-summary-pill positive">+{props.patchDiff.summary.addedConnectionCount} wires</span>}
+                {props.patchDiff.summary.removedConnectionCount > 0 && <span className="patch-diff-summary-pill negative">-{props.patchDiff.summary.removedConnectionCount} wires</span>}
+              </div>
+
+              {props.patchDiff.removedNodes.length > 0 && (
+                <div className="patch-diff-section">
+                  <h5>Removed Modules</h5>
+                  <div className="patch-diff-list">
+                    {props.patchDiff.removedNodes.map((node) => (
+                      <div key={node.id} className="patch-diff-list-row negative">
+                        <strong>{node.typeId}</strong> <span>{node.id}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {props.patchDiff.removedMacros.length > 0 && (
+                <div className="patch-diff-section">
+                  <h5>Removed Macros</h5>
+                  <div className="patch-diff-list">
+                    {props.patchDiff.removedMacros.map((macro) => (
+                      <div key={macro.id} className="patch-diff-list-row negative">
+                        <strong>{macro.name}</strong> <span>{macro.id}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {props.patchDiff.removedBindingDiffs.length > 0 && (
+                <div className="patch-diff-section">
+                  <h5>Removed Macro Bindings</h5>
+                  <div className="patch-diff-list">
+                    {props.patchDiff.removedBindingDiffs.map((bindingDiff) => (
+                      <div key={bindingDiff.key} className="patch-diff-list-row negative">
+                        <strong>{bindingDiff.macroName}</strong> <span>{bindingDiff.nodeId}.{bindingDiff.paramId}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {props.patchDiff.removedConnections.length > 0 && (
+                <div className="patch-diff-section">
+                  <h5>Removed Wires</h5>
+                  <div className="patch-diff-list">
+                    {props.patchDiff.removedConnections.map((connection) => (
+                      <div key={connection.id} className="patch-diff-list-row negative">
+                        <code>{connectionLabel(connection)}</code>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
+
       <h4>{selectedNode ? "Required Connections" : "Unconnected Required Ports"}</h4>
       {visibleRequiredPortIssues.length === 0 && (
         <p className="ok">{selectedNode ? "All required module ports are connected." : "All required ports are connected."}</p>
@@ -400,11 +545,22 @@ export function PatchInspector(props: PatchInspectorProps) {
       <h4>{selectedNode ? "Module Connections" : "Connections"}</h4>
       {visibleConnections.length === 0 && <p className="muted">{selectedNode ? "No wires on this module." : "No wires yet."}</p>}
       {visibleConnections.map((connection) => (
-        <div key={connection.id} className="conn-row">
+        <div
+          key={connection.id}
+          className={`conn-row${props.patchDiff.currentConnectionStatusById.get(connection.id) === "added" ? " diff-positive" : ""}`}
+        >
           <code>
-            {connection.from.nodeId}.{connection.from.portId} {" -> "} {connection.to.nodeId}.{connection.to.portId}
+            {connectionLabel(connection)}
           </code>
           <button disabled={props.structureLocked} onClick={() => !props.structureLocked && props.onApplyOp({ type: "disconnect", connectionId: connection.id })}>x</button>
+        </div>
+      ))}
+      {visibleRemovedConnections.map((connection) => (
+        <div key={connection.id} className="conn-row diff-negative">
+          <code>{connectionLabel(connection)}</code>
+          <button type="button" disabled>
+            removed
+          </button>
         </div>
       ))}
 

@@ -6,6 +6,7 @@ import { PatchEditorStage } from "@/components/patch/PatchEditorStage";
 import { PatchInspector } from "@/components/patch/PatchInspector";
 import { PatchMacroPanel } from "@/components/patch/PatchMacroPanel";
 import { usePatchProbeEditorState } from "@/hooks/patch/usePatchProbeEditorState";
+import { PatchDiff } from "@/lib/patch/diff";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -25,6 +26,7 @@ interface PatchEditorCanvasProps {
   patch: Patch;
   probeState: PatchProbeEditorState;
   macroValues: Record<string, number>;
+  patchDiff: PatchDiff;
   selectedNodeId?: string;
   selectedMacroId?: string;
   validationIssues: PatchValidationIssue[];
@@ -87,6 +89,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
         <div className="patch-editor-main-column">
           <PatchEditorStage
             patch={props.patch}
+            patchDiff={props.patchDiff}
             validationIssues={props.validationIssues}
             probeState={canvasProbeState}
             selectedNodeId={props.selectedNodeId}
@@ -102,6 +105,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
 
           <PatchMacroPanel
             patch={props.patch}
+            patchDiff={props.patchDiff}
             macroValues={props.macroValues}
             selectedMacroId={props.selectedMacroId}
             structureLocked={props.structureLocked}
@@ -117,6 +121,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
 
         <PatchInspector
           patch={props.patch}
+          patchDiff={props.patchDiff}
           macroValues={props.macroValues}
           selectedNode={selectedNode}
           selectedProbe={selectedProbe}

@@ -5,6 +5,7 @@ import { InstrumentToolbar } from "@/components/patch/InstrumentToolbar";
 import { PatchEditorCanvas } from "@/components/patch/PatchEditorCanvas";
 import { createInstrumentEditorPreviewReadyKey } from "@/components/patch/instrumentEditorPreview";
 import { useAfterStateCommit } from "@/hooks/useAfterStateCommit";
+import { PatchDiff } from "@/lib/patch/diff";
 import { resolvePatchSource } from "@/lib/patch/source";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -15,6 +16,7 @@ interface InstrumentEditorProps {
   patch: Patch;
   probeState: PatchProbeEditorState;
   macroValues: Record<string, number>;
+  patchDiff: PatchDiff;
   selectedNodeId?: string;
   selectedMacroId?: string;
   validationIssues: PatchValidationIssue[];
@@ -65,6 +67,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
         patch={props.patch}
         probeState={props.probeState}
         macroValues={props.macroValues}
+        patchDiff={props.patchDiff}
         selectedNodeId={props.selectedNodeId}
         selectedMacroId={props.selectedMacroId}
         validationIssues={props.validationIssues}

@@ -29,6 +29,7 @@ import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { createClearPatch } from "@/lib/patch/presets";
 import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
 import { createPatchWorkspaceProbe } from "@/lib/patch/probes";
+import { buildPatchDiff } from "@/lib/patch/diff";
 import { clampNormalizedMacroValue } from "@/lib/patch/macroKeyframes";
 import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { validatePatch, validatePatchConnectionCandidate } from "@/lib/patch/validation";
@@ -109,6 +110,10 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   const selectedProbeId = activeTab?.selectedProbeId;
   const migrationNotice = activeTab?.migrationNotice ?? null;
   const probes = activeTab?.probes ?? [];
+  const patchDiff = useMemo(
+    () => buildPatchDiff(selectedPatch, activeTab?.baselinePatch),
+    [activeTab?.baselinePatch, selectedPatch]
+  );
 
   const validationIssues = useMemo(
     () => (selectedPatch ? validationIssuesByPatchId.get(selectedPatch.id) ?? [] : []),
@@ -293,6 +298,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     updateActiveTab((tab) => ({
       ...tab,
       patchId,
+      baselinePatch: undefined,
       selectedNodeId: undefined,
       selectedMacroId: undefined,
       selectedProbeId: undefined,
@@ -681,6 +687,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
 
     const nextTab: LocalPatchWorkspaceTab = {
       ...createWorkspaceTab(duplicate.id, duplicate.name),
+      baselinePatch: structuredClone(selectedPatch),
       selectedNodeId: activeTab.selectedNodeId,
       selectedMacroId: activeTab.selectedMacroId,
       selectedProbeId: undefined,
@@ -778,6 +785,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     previewPitchPickerOpen,
     setPreviewPitchPickerOpen,
     migrationNotice,
+    patchDiff,
     validationIssues,
     selectedPatchHasErrors,
     openPatchWorkspace,

@@ -8,6 +8,8 @@ export interface PatchWorkspaceTabViewModel {
   id: string;
   name: string;
   patchId: string;
+  hasBaseline: boolean;
+  hasPatchDiff: boolean;
 }
 
 interface PatchWorkspaceTabStripProps {
@@ -73,6 +75,13 @@ export function PatchWorkspaceTabStrip(props: PatchWorkspaceTabStripProps) {
               aria-selected={active}
               onClick={() => props.onActivateTab(tab.id)}
             >
+              {tab.hasBaseline && (
+                <span
+                  className={`patch-workspace-tab-baseline-indicator${tab.hasPatchDiff ? " changed" : ""}`}
+                  title={tab.hasPatchDiff ? "Has changes relative to baseline patch" : "Has baseline patch"}
+                  aria-hidden="true"
+                />
+              )}
               {editing ? (
                 <input
                   className="patch-workspace-tab-name-input"

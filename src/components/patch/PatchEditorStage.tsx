@@ -16,6 +16,7 @@ import {
   resolvePatchFacePopoverRect
 } from "@/components/patch/patchCanvasGeometry";
 import { createId } from "@/lib/ids";
+import { PatchDiff } from "@/lib/patch/diff";
 import { resolveAutoLayoutNodes } from "@/lib/patch/autoLayout";
 import { makeConnectOp } from "@/lib/patch/ops";
 import { resolveAutoLayoutProbePositions } from "@/lib/patch/probeAutoLayout";
@@ -29,6 +30,7 @@ import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 
 interface PatchEditorStageProps {
   patch: Patch;
+  patchDiff: PatchDiff;
   validationIssues: PatchValidationIssue[];
   probeState: PatchProbeEditorState;
   selectedNodeId?: string;
@@ -49,6 +51,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     onToggleAttachProbe,
     onCancelAttachProbe,
     patch,
+    patchDiff,
     probeActions,
     probeState,
     selectedMacroNodeIds,
@@ -110,6 +113,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     layoutByNode,
     nodeById,
     patch,
+    patchDiff,
     validationIssues: props.validationIssues,
     selectedMacroNodeIds,
     selectedNodeId,
