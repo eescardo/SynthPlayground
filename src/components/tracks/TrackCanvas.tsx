@@ -693,7 +693,15 @@ export function TrackCanvas(props: TrackCanvasProps) {
     });
 
     const playheadX = HEADER_WIDTH + playheadBeat * BEAT_WIDTH;
-    if ((hoveredPlayhead || playheadTabStopFocused) && !timelineActionsPopoverOpen) {
+    if (hoveredPlayhead && !timelineActionsPopoverOpen) {
+      ctx.strokeStyle = TRACK_CANVAS_COLORS.playheadHoverGlow;
+      ctx.lineWidth = 12;
+      ctx.beginPath();
+      ctx.moveTo(playheadX, 0);
+      ctx.lineTo(playheadX, height);
+      ctx.stroke();
+    }
+    if (playheadTabStopFocused && !timelineActionsPopoverOpen) {
       ctx.strokeStyle = TRACK_CANVAS_COLORS.playheadFocusGlow;
       ctx.lineWidth = 12;
       ctx.beginPath();
