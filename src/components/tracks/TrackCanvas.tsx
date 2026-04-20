@@ -274,6 +274,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     muted: null
   });
   const [speakerIconsReady, setSpeakerIconsReady] = useState(false);
+  const [playheadTabStopFocused, setPlayheadTabStopFocused] = useState(false);
   const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
   const [editingTrackName, setEditingTrackName] = useState("");
   const [selectedNoteTabStopFocused, setSelectedNoteTabStopFocused] = useState(false);
@@ -692,7 +693,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     });
 
     const playheadX = HEADER_WIDTH + playheadBeat * BEAT_WIDTH;
-    if ((hoveredPlayhead || playheadFocused) && !timelineActionsPopoverOpen) {
+    if ((hoveredPlayhead || playheadTabStopFocused) && !timelineActionsPopoverOpen) {
       ctx.strokeStyle = TRACK_CANVAS_COLORS.playheadFocusGlow;
       ctx.lineWidth = 12;
       ctx.beginPath();
@@ -803,7 +804,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     timelineActionsPopoverOpen,
     height,
     hoveredPlayhead,
-    playheadFocused,
+    playheadTabStopFocused,
     hoveredPitch,
     hoveredNote,
     hoveredAutomationKeyframe,
@@ -970,6 +971,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
           left: playheadTabStopLeft,
           height
         }}
+        onFocus={() => setPlayheadTabStopFocused(true)}
+        onBlur={() => setPlayheadTabStopFocused(false)}
       >
         <span className="track-canvas-tabstop-label">
           Playhead at beat {formatBeatName(playheadBeat, meterBeats)}
