@@ -588,7 +588,7 @@ export function useHardwareNavigationShortcuts({
         const noteAtPlayhead = findTrackNoteAtBeat(selectedTrack, playheadBeat);
         if (noteAtPlayhead) {
           event.preventDefault();
-          setSingleNoteSelection(getNoteSelectionKey(selectedTrack.id, noteAtPlayhead.id));
+          setSingleNoteSelection(getNoteSelectionKey(selectedTrack.id, noteAtPlayhead.id), { keepCollapsed: true });
           setPlayheadNavigationFocused(false);
           setSelectedNoteTabStopFocusToken((current) => current + 1);
         }
