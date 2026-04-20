@@ -61,7 +61,7 @@ interface UseHardwareNavigationShortcutsArgs {
   deleteNote: (trackId: string, noteId: string) => void;
   commitProjectChange: (updater: (current: Project) => Project, options?: { actionKey?: string; coalesce?: boolean }) => void;
   audioEngineRef: RefObject<AudioEngine | null>;
-  previewSelectedPatchNow: (pitch?: string) => void;
+  previewDefaultPitchNow: (pitch?: string) => void;
   onComposerPlay: () => void;
   onComposerStop: () => void;
   setRuntimeError: (message: string | null) => void;
@@ -109,7 +109,7 @@ export function useHardwareNavigationShortcuts({
   deleteNote,
   commitProjectChange,
   audioEngineRef,
-  previewSelectedPatchNow,
+  previewDefaultPitchNow,
   onComposerPlay,
   onComposerStop,
   setRuntimeError
@@ -380,7 +380,7 @@ export function useHardwareNavigationShortcuts({
         return;
       }
       setDefaultPitch(nextPitch);
-      previewSelectedPatchNow(nextPitch);
+      previewDefaultPitchNow(nextPitch);
     };
 
     const focusLastTrackChromeTabStop = () => {
@@ -491,7 +491,7 @@ export function useHardwareNavigationShortcuts({
           return;
         }
         if (view === "patch-workspace") {
-          previewSelectedPatchNow();
+          previewDefaultPitchNow();
           return;
         }
         if (recordPhase !== "idle") {
@@ -670,7 +670,7 @@ export function useHardwareNavigationShortcuts({
     playbackEndBeat,
     playheadBeat,
     previewPitchPickerOpen,
-    previewSelectedPatchNow,
+    previewDefaultPitchNow,
     playheadNavigationFocused,
     projectGridBeats,
     recordPhase,
