@@ -67,9 +67,18 @@ export function ComposerActionsBar({
       </div>
 
       <div className="composer-actions-bar-group">
-        <button type="button" className="preview-pitch-button" onClick={onOpenDefaultPitchPicker} title="Default pitch">
-          Pitch {defaultPitch}
-        </button>
+        <div className="toolbar-labeled-control">
+          <span className="toolbar-labeled-control-label">Pitch</span>
+          <button
+            type="button"
+            className="preview-pitch-button"
+            onClick={onOpenDefaultPitchPicker}
+            title="Default pitch"
+            aria-label={`Default pitch ${defaultPitch}`}
+          >
+            {defaultPitch}
+          </button>
+        </div>
         <button onClick={onPlay} disabled={isPlaying || recordEnabled}>
           Play
         </button>

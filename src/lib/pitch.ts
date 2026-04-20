@@ -133,10 +133,7 @@ const SHIFTED_KEY_ALIASES: Record<string, string> = {
   "?": "/"
 };
 
-const QWERTY_CENTER_KEY = "g";
-const QWERTY_CENTER_MIDI = 60; // C4
-const QWERTY_CENTER_INDEX = PHYSICAL_PIANO_KEY_SEQUENCE.findIndex((key) => key === QWERTY_CENTER_KEY);
-const QWERTY_START_MIDI = QWERTY_CENTER_MIDI - QWERTY_CENTER_INDEX;
+const QWERTY_START_MIDI = pitchToMidi("F2");
 
 const qwertyEntries = PHYSICAL_PIANO_KEY_SEQUENCE.map((key, index) => [key, midiToPitch(QWERTY_START_MIDI + index)] as const);
 

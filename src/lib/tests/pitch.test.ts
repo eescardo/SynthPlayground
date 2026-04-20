@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { keyToPitch, qwertyKeyForPitch, transposePitch } from "@/lib/pitch";
 
 describe("pitch keyboard mapping", () => {
-  it("maps the hardware center key to C4", () => {
-    expect(keyToPitch("g")).toBe("C4");
-    expect(qwertyKeyForPitch("C4")).toBe("G");
+  it("starts the hardware keyboard range at F2 and still includes middle C", () => {
+    expect(keyToPitch("`")).toBe("F2");
+    expect(qwertyKeyForPitch("F2")).toBe("`");
+    expect(keyToPitch("o")).toBe("C4");
+    expect(qwertyKeyForPitch("C4")).toBe("O");
   });
 
   it("excludes reserved navigation keys from the piano map", () => {

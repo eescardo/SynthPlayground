@@ -151,12 +151,17 @@ select {
   z-index: 20;
 }
 
-.transport label {
+.transport label,
+.toolbar-labeled-control {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   font-size: 0.9rem;
   color: var(--muted);
+}
+
+.toolbar-labeled-control-label {
+  color: inherit;
 }
 
 .playhead {
@@ -1196,7 +1201,7 @@ select {
 }
 
 .preview-pitch-button {
-  min-width: 94px;
+  min-width: 4.25rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
