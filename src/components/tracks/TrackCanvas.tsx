@@ -262,6 +262,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const { onUpdateNote } = noteActions;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const playheadTabStopRef = useRef<HTMLButtonElement | null>(null);
   const selectedNoteTabStopRef = useRef<HTMLButtonElement | null>(null);
   const noteRectsRef = useRef<NoteRect[]>([]);
   const automationKeyframeRectsRef = useRef<AutomationKeyframeRect[]>([]);
@@ -315,6 +316,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
   const width = HEADER_WIDTH + totalBeats * BEAT_WIDTH;
   const { trackLayouts, height } = useTrackCanvasLayout(project);
+  const playheadTabStopLeft = HEADER_WIDTH + playheadBeat * BEAT_WIDTH - 1;
   const selectedNoteTabStopRect = useMemo(() => {
     if (selection.kind !== "note" || selection.content.noteKeys.size !== 1 || selection.content.automationKeyframeSelectionKeys.size > 0) {
       return null;
@@ -884,6 +886,16 @@ export function TrackCanvas(props: TrackCanvasProps) {
   }, [closeVolumePopover]);
 
   useEffect(() => {
+    if (!playheadFocused) {
+      return;
+    }
+    if (document.activeElement === selectedNoteTabStopRef.current) {
+      return;
+    }
+    playheadTabStopRef.current?.focus();
+  }, [playheadBeat, playheadFocused]);
+
+  useEffect(() => {
     if (!selectedNoteTabStopFocusToken || !selectedNoteTabStopRect) {
       return;
     }
@@ -926,10 +938,26 @@ export function TrackCanvas(props: TrackCanvasProps) {
         onDoubleClick={onDoubleClick}
         onContextMenu={(event) => event.preventDefault()}
       />
+      <button
+        ref={playheadTabStopRef}
+        type="button"
+        tabIndex={playheadFocused ? 0 : -1}
+        className="track-canvas-playhead-tabstop"
+        aria-label={`Playhead at beat ${formatBeatName(playheadBeat, meterBeats)}`}
+        style={{
+          left: playheadTabStopLeft,
+          height
+        }}
+      >
+        <span className="track-canvas-tabstop-label">
+          Playhead at beat {formatBeatName(playheadBeat, meterBeats)}
+        </span>
+      </button>
       {selectedNoteTabStopRect && (
         <button
           ref={selectedNoteTabStopRef}
           type="button"
+          tabIndex={0}
           className="track-canvas-note-tabstop"
           aria-label={`Selected note ${selectedNoteTabStopRect.pitchStr}`}
           style={{
@@ -942,10 +970,16 @@ export function TrackCanvas(props: TrackCanvasProps) {
             if ((event.key === "Tab" && event.shiftKey) || event.key === "Escape") {
               event.preventDefault();
               onReturnSelectedNoteFocusToPlayhead?.();
-              selectedNoteTabStopRef.current?.blur();
+              requestAnimationFrame(() => {
+                playheadTabStopRef.current?.focus();
+              });
             }
           }}
-        />
+        >
+          <span className="track-canvas-tabstop-label">
+            Selected note {selectedNoteTabStopRect.pitchStr}
+          </span>
+        </button>
       )}
       {selectionBeatRange && !selectionRect && !hideSelectionActionPopover && (
         <SelectionActionPopover
