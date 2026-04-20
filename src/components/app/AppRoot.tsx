@@ -1010,6 +1010,15 @@ export function AppRoot({ children }: { children: ReactNode }) {
       .catch((error) => setRuntimeError((error as Error).message));
   }, []);
 
+  const previewSelectedTrackPitchNow = useCallback((pitch = patchWorkspace.previewPitch) => {
+    if (playing || !selectedTrack) {
+      return;
+    }
+    audioEngineRef.current
+      ?.previewNote(selectedTrack.id, pitchToVoct(pitch), 1, 0.9)
+      .catch((error) => setRuntimeError((error as Error).message));
+  }, [patchWorkspace.previewPitch, playing, selectedTrack]);
+
   const pitchPickerTrack = pitchPicker ? project.tracks.find((track) => track.id === pitchPicker.trackId) : undefined;
   const pitchPickerNote = pitchPickerTrack?.notes.find((note) => note.id === pitchPicker?.noteId);
   const activeRecordingTrackId = recording.activeRecordingTrackId;
@@ -1034,6 +1043,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
     clearTransientComposerUi
   });
   const workspaceView = pathname.endsWith("/patch-workspace") ? "patch-workspace" : "composer";
+  const previewPitchNowForHardwareNavigation =
+    workspaceView === "composer"
+      ? previewSelectedTrackPitchNow
+      : patchWorkspace.previewSelectedPatchNow;
   const hardwareNavigation = useHardwareNavigationShortcuts({
     view: workspaceView,
     projectGridBeats: project.global.gridBeats,
@@ -1059,7 +1072,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     deleteNote,
     commitProjectChange,
     audioEngineRef,
-    previewSelectedPatchNow: patchWorkspace.previewSelectedPatchNow,
+    previewSelectedPatchNow: previewPitchNowForHardwareNavigation,
     onComposerPlay: playback.startPlayback,
     onComposerStop: playback.stopPlayback,
     setRuntimeError

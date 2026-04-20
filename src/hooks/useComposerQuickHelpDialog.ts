@@ -60,7 +60,7 @@ export function useComposerQuickHelpDialog({
           { action: "Cut Selection", shortcut: `${primaryModifierLabel}+X` },
           { action: "Copy Selection", shortcut: `${primaryModifierLabel}+C` },
           { action: "Paste Selected Track(s)", shortcut: `${primaryModifierLabel}+V` },
-          { action: "Delete Selection", shortcut: "Delete" },
+          { action: "Delete Selection", shortcut: deleteKeyLabel },
           { action: "Insert Selected Track(s)", shortcut: `${primaryModifierLabel}+I` },
           { action: "Cut All Tracks", shortcut: `${allTracksModifierLabel}+X` },
           { action: "Copy All Tracks", shortcut: `${allTracksModifierLabel}+C` },
