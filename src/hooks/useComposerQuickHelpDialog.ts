@@ -25,6 +25,7 @@ export function useComposerQuickHelpDialog({
     () => [
       { action: "Add note", description: "Click an empty track lane when nothing is selected." },
       { action: "Select notes", description: "Drag a marquee across notes, or click an existing note." },
+      { action: "Rename things", description: "Hover for a moment and then click name text, or double-click it to rename inline." },
       { action: "Move note", description: "Drag a note block horizontally." },
       { action: "Resize note", description: "Drag near the right edge of a note block." },
       { action: "Delete note", description: "Right-click a note block." },

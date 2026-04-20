@@ -32,8 +32,8 @@ export function usePatchWorkspaceQuickHelpDialog() {
       { action: "Zoom canvas", description: "Use a trackpad pinch or notched mouse wheel over the patch canvas. Two-finger trackpad scroll pans." },
       { action: "Inspect module face", description: "Click a module to open the expanded module face." },
       {
-        action: "Rename tabs or instruments",
-        description: "Double-click the visible name text, or hover for a moment and then single-click to rename inline."
+        action: "Rename things",
+        description: "Hover for a moment and then click name text, or double-click it to rename inline."
       }
     ],
     []
