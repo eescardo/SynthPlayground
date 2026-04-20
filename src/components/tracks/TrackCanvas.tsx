@@ -46,7 +46,7 @@ import { useTrackCanvasWheelPitchEditing } from "@/hooks/tracks/useTrackCanvasWh
 import { useVolumePopover } from "@/hooks/useVolumePopover";
 import { getLoopMarkerStates } from "@/lib/looping";
 import { getProjectTimelineEndBeat } from "@/lib/macroAutomation";
-import { getNoteSelectionKey } from "@/lib/clipboard";
+import { getNoteSelectionKey, parseNoteSelectionKey } from "@/lib/clipboard";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
 import { formatBeatName } from "@/lib/musicTiming";
 import { Note, Track } from "@/types/music";
@@ -262,6 +262,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const { onUpdateNote } = noteActions;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const selectedNoteTabStopRef = useRef<HTMLButtonElement | null>(null);
   const noteRectsRef = useRef<NoteRect[]>([]);
   const automationKeyframeRectsRef = useRef<AutomationKeyframeRect[]>([]);
   const muteRectsRef = useRef<MuteRect[]>([]);
@@ -295,10 +296,11 @@ export function TrackCanvas(props: TrackCanvasProps) {
     keyboardPlacementNote,
     playheadFocused,
     playheadBeat,
+    selectedNoteTabStopFocusToken,
     selectedTrackId,
     timelineActionsPopoverOpen
   } = props;
-  const { onRequestTimelineActionsPopover, onSetPlayheadBeat } = props;
+  const { onRequestTimelineActionsPopover, onReturnSelectedNoteFocusToPlayhead, onSetPlayheadBeat } = props;
   const gridBeats = project.global.gridBeats;
   const meterBeats = project.global.meter === "4/4" ? 4 : 3;
   const selectionBeatRange = selection.kind === "none" ? null : selection.beatRange;
@@ -313,6 +315,34 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
   const width = HEADER_WIDTH + totalBeats * BEAT_WIDTH;
   const { trackLayouts, height } = useTrackCanvasLayout(project);
+  const selectedNoteTabStopRect = useMemo(() => {
+    if (selection.kind !== "note" || selection.content.noteKeys.size !== 1 || selection.content.automationKeyframeSelectionKeys.size > 0) {
+      return null;
+    }
+    const selectionKey = [...selection.content.noteKeys][0];
+    if (!selectionKey) {
+      return null;
+    }
+    const parsed = parseNoteSelectionKey(selectionKey);
+    if (!parsed) {
+      return null;
+    }
+    const track = project.tracks.find((entry) => entry.id === parsed.trackId);
+    const layout = trackLayouts.find((entry) => entry.trackId === parsed.trackId);
+    const note = track?.notes.find((entry) => entry.id === parsed.noteId);
+    if (!track || !layout || !note) {
+      return null;
+    }
+    return {
+      trackId: track.id,
+      noteId: note.id,
+      pitchStr: note.pitchStr,
+      x: HEADER_WIDTH + note.startBeat * BEAT_WIDTH,
+      y: layout.y + 14,
+      w: Math.max(8, note.durationBeats * BEAT_WIDTH),
+      h: TRACK_HEIGHT - 28
+    };
+  }, [project.tracks, selection, trackLayouts]);
 
   const beatFromX = (x: number) => (x - HEADER_WIDTH) / BEAT_WIDTH;
   const fixedLaneSliderStartX = HEADER_WIDTH + Math.min(BEAT_WIDTH * 0.25, 18);
@@ -853,6 +883,13 @@ export function TrackCanvas(props: TrackCanvasProps) {
     };
   }, [closeVolumePopover]);
 
+  useEffect(() => {
+    if (!selectedNoteTabStopFocusToken || !selectedNoteTabStopRect) {
+      return;
+    }
+    selectedNoteTabStopRef.current?.focus();
+  }, [selectedNoteTabStopFocusToken, selectedNoteTabStopRect]);
+
   return (
     <div className="track-canvas-shell" ref={wrapperRef}>
       <TrackHeaderChrome
@@ -889,6 +926,27 @@ export function TrackCanvas(props: TrackCanvasProps) {
         onDoubleClick={onDoubleClick}
         onContextMenu={(event) => event.preventDefault()}
       />
+      {selectedNoteTabStopRect && (
+        <button
+          ref={selectedNoteTabStopRef}
+          type="button"
+          className="track-canvas-note-tabstop"
+          aria-label={`Selected note ${selectedNoteTabStopRect.pitchStr}`}
+          style={{
+            left: selectedNoteTabStopRect.x,
+            top: selectedNoteTabStopRect.y,
+            width: selectedNoteTabStopRect.w,
+            height: selectedNoteTabStopRect.h
+          }}
+          onKeyDown={(event) => {
+            if ((event.key === "Tab" && event.shiftKey) || event.key === "Escape") {
+              event.preventDefault();
+              onReturnSelectedNoteFocusToPlayhead?.();
+              selectedNoteTabStopRef.current?.blur();
+            }
+          }}
+        />
+      )}
       {selectionBeatRange && !selectionRect && !hideSelectionActionPopover && (
         <SelectionActionPopover
           selectionLabel={selectionLabel ?? (selection.kind === "timeline" ? "All Tracks" : "Track 1")}

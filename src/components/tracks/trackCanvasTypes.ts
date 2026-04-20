@@ -121,12 +121,14 @@ export interface TrackCanvasProps {
   keyboardPlacementNote?: { trackId: string; noteId: string } | null;
   ghostPreviewNote?: { trackId: string; startBeat: number; durationBeats: number; pitchStr: string } | null;
   playheadFocused?: boolean;
+  selectedNoteTabStopFocusToken?: number;
   ghostPlayheadBeat?: number;
   countInLabel?: string;
   timelineActionsPopoverOpen?: boolean;
   selection: TrackCanvasSelection;
   hideSelectionActionPopover?: boolean;
   onSetPlayheadBeat: (beat: number) => void;
+  onReturnSelectedNoteFocusToPlayhead?: () => void;
   onRequestTimelineActionsPopover: (request: TimelineActionsPopoverRequest) => void;
   trackActions: TrackCanvasTrackActions;
   patchActions: TrackCanvasPatchActions;

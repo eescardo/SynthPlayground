@@ -308,6 +308,20 @@ select {
   display: block;
 }
 
+.track-canvas-note-tabstop {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  pointer-events: none;
+  outline: none;
+}
+
+.track-canvas-note-tabstop:focus-visible {
+  outline: none;
+}
+
 .track-header-overlays {
   position: absolute;
   inset: 0 auto 0 0;

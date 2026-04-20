@@ -117,6 +117,7 @@ export function useHardwareNavigationShortcuts({
   const [activePlacement, setActivePlacement] = useState<ActiveKeyboardPlacement | null>(null);
   const [ghostPreviewNote, setGhostPreviewNote] = useState<GhostPreviewNote | null>(null);
   const [playheadNavigationFocused, setPlayheadNavigationFocused] = useState(false);
+  const [selectedNoteTabStopFocusToken, setSelectedNoteTabStopFocusToken] = useState(0);
   const placementRafRef = useRef<number | null>(null);
   const pendingPreviewStartIdsRef = useRef<Set<string>>(new Set());
   const pendingPreviewReleasesRef = useRef<Map<string, { trackId: string; durationBeats: number }>>(new Map());
@@ -129,6 +130,12 @@ export function useHardwareNavigationShortcuts({
   const clearBlockedSelectionTransfer = useCallback(() => {
     blockedSelectionTransferRef.current = null;
   }, []);
+
+  const returnSelectionFocusToPlayhead = useCallback(() => {
+    setPlayheadBeatFromUser(playheadBeat);
+    setPlayheadNavigationFocused(true);
+    clearBlockedSelectionTransfer();
+  }, [clearBlockedSelectionTransfer, playheadBeat, setPlayheadBeatFromUser]);
 
   const setPlacedNote = useCallback((
     trackId: string,
@@ -583,6 +590,7 @@ export function useHardwareNavigationShortcuts({
           event.preventDefault();
           setSingleNoteSelection(getNoteSelectionKey(selectedTrack.id, noteAtPlayhead.id));
           setPlayheadNavigationFocused(false);
+          setSelectedNoteTabStopFocusToken((current) => current + 1);
         }
         return;
       }
@@ -694,5 +702,8 @@ export function useHardwareNavigationShortcuts({
     activePlacement,
     ghostPreviewNote,
     playheadNavigationFocused
+    ,
+    selectedNoteTabStopFocusToken,
+    returnSelectionFocusToPlayhead
   };
 }

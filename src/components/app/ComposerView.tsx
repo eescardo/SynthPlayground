@@ -24,6 +24,7 @@ interface ComposerViewProps {
   keyboardPlacementNote?: { trackId: string; noteId: string } | null;
   ghostPreviewNote?: { trackId: string; startBeat: number; durationBeats: number; pitchStr: string } | null;
   playheadFocused?: boolean;
+  selectedNoteTabStopFocusToken?: number;
   ghostPlayheadBeat?: number;
   countInLabel?: string;
   timelineActionsPopover: TimelineActionsPopoverRequest | null;
@@ -58,6 +59,7 @@ interface ComposerViewProps {
   onResetToDefaultProject: () => void;
   onImportFile: (file: File) => void;
   onSetPlayheadBeat: (beat: number) => void;
+  onReturnSelectedNoteFocusToPlayhead: () => void;
   onRequestTimelineActionsPopover: (request: TimelineActionsPopoverRequest) => void;
   onCloseTimelineActionsPopover: () => void;
   onPasteAtTimeline: (mode: "paste" | "paste-all-tracks" | "insert" | "insert-all-tracks", beat: number) => void;
@@ -145,11 +147,13 @@ export function ComposerView(props: ComposerViewProps) {
         keyboardPlacementNote={props.keyboardPlacementNote}
         ghostPreviewNote={props.ghostPreviewNote}
         playheadFocused={props.playheadFocused}
+        selectedNoteTabStopFocusToken={props.selectedNoteTabStopFocusToken}
         ghostPlayheadBeat={props.ghostPlayheadBeat}
         countInLabel={props.countInLabel}
         timelineActionsPopoverOpen={Boolean(props.timelineActionsPopover)}
         hideSelectionActionPopover={!props.selectionActionPopoverVisible}
         onSetPlayheadBeat={props.onSetPlayheadBeat}
+        onReturnSelectedNoteFocusToPlayhead={props.onReturnSelectedNoteFocusToPlayhead}
         onRequestTimelineActionsPopover={props.onRequestTimelineActionsPopover}
         trackActions={props.trackActions}
         patchActions={props.patchActions}
