@@ -253,6 +253,7 @@ export function useHardwareNavigationShortcuts({
       activePlacement ||
       isPlaying ||
       recordPhase !== "idle" ||
+      selectionKind !== "none" ||
       pitchPickerOpen ||
       previewPitchPickerOpen
     ) {
@@ -319,6 +320,7 @@ export function useHardwareNavigationShortcuts({
     previewPitchPickerOpen,
     projectGridBeats,
     recordPhase,
+    selectionKind,
     selectedTrack,
     view
   ]);
@@ -417,10 +419,11 @@ export function useHardwareNavigationShortcuts({
     };
 
     const hasCollapsedContentSelection =
-      selectionKind === "content" &&
       selectionActionPopoverCollapsed &&
       (contentSelection.noteKeys.length > 0 || contentSelection.automationKeyframeSelectionKeys.length > 0);
-    const hasNonPlayheadSelection = selectionKind !== "none" && !hasCollapsedContentSelection;
+    const hasNonPlayheadSelection =
+      selectionKind === "timeline" ||
+      (selectionKind === "content" && !hasCollapsedContentSelection);
 
     const nudgeCollapsedSelection = (direction: -1 | 1) => {
       let moveResult!: ReturnType<typeof shiftContentSelectionByBeats>;

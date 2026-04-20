@@ -135,6 +135,47 @@ describe("hardware navigation note placement", () => {
     ]);
   });
 
+  it("moves a collapsed multi-track note selection together when each track destination is clear", () => {
+    const trackA = createTrack([{ id: "note_a", pitchStr: "C4", startBeat: 0, durationBeats: 1, velocity: 0.8 }]);
+    const trackB: Track = {
+      ...createTrack([{ id: "note_b", pitchStr: "E4", startBeat: 2, durationBeats: 1, velocity: 0.8 }]),
+      id: "track_2",
+      name: "Track 2"
+    };
+    const project = {
+      ...createProject(trackA),
+      tracks: [trackA, trackB]
+    };
+
+    const result = shiftContentSelectionByBeats(
+      project,
+      {
+        noteKeys: [
+          getNoteSelectionKey(trackA.id, "note_a"),
+          getNoteSelectionKey(trackB.id, "note_b")
+        ],
+        automationKeyframeSelectionKeys: []
+      },
+      0.5
+    );
+
+    expect(result.status).toBe("moved");
+    if (result.status !== "moved") {
+      return;
+    }
+
+    expect(result.project.tracks).toEqual([
+      expect.objectContaining({
+        id: "track_1",
+        notes: [expect.objectContaining({ id: "note_a", startBeat: 0.5 })]
+      }),
+      expect.objectContaining({
+        id: "track_2",
+        notes: [expect.objectContaining({ id: "note_b", startBeat: 2.5 })]
+      })
+    ]);
+  });
+
   it("blocks a single-note shift that would overlap another note and reports the blocker", () => {
     const track = createTrack([
       { id: "note_a", pitchStr: "C4", startBeat: 0, durationBeats: 1, velocity: 0.8 },
