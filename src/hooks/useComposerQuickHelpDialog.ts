@@ -9,13 +9,11 @@ const isTextEditingTarget = (target: EventTarget | null) => {
 
 interface UseComposerQuickHelpDialogParams {
   allTracksModifierLabel: string;
-  deleteKeyLabel: string;
   primaryModifierLabel: string;
 }
 
 export function useComposerQuickHelpDialog({
   allTracksModifierLabel,
-  deleteKeyLabel,
   primaryModifierLabel
 }: UseComposerQuickHelpDialogParams) {
   const [helpOpen, setHelpOpen] = useState(false);
@@ -53,12 +51,11 @@ export function useComposerQuickHelpDialog({
       { action: "Cut All Tracks", shortcut: `${allTracksModifierLabel}+X` },
       { action: "Copy All Tracks", shortcut: `${allTracksModifierLabel}+C` },
       { action: "Paste All Tracks", shortcut: `${allTracksModifierLabel}+V` },
-      { action: "Delete All Tracks", shortcut: `${allTracksModifierLabel}+${deleteKeyLabel}` },
       { action: "Insert All Tracks", shortcut: `${allTracksModifierLabel}+I` },
       { action: "Close Dialogs / Collapse Selection", shortcut: "Esc" },
       { action: "Clear Selection", shortcut: "Esc again" }
     ],
-    [allTracksModifierLabel, deleteKeyLabel, primaryModifierLabel]
+    [allTracksModifierLabel, primaryModifierLabel]
   );
 
   useEffect(() => {

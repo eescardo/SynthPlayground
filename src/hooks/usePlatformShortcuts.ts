@@ -31,7 +31,6 @@ export function usePlatformShortcuts() {
   }, []);
 
   const primaryModifierLabel = useMemo(() => (isMacPlatform ? "Cmd" : "Ctrl"), [isMacPlatform]);
-  const deleteKeyLabel = useMemo(() => (isMacPlatform ? "Backspace" : "Delete"), [isMacPlatform]);
   const allTracksModifierLabel = useMemo(() => (isMacPlatform ? "Cmd+Opt" : "Ctrl+Alt"), [isMacPlatform]);
   const isDeleteShortcutKey = useCallback(
     (key: string) => key === "Delete" || (isMacPlatform && key === "Backspace"),
@@ -40,7 +39,6 @@ export function usePlatformShortcuts() {
 
   return {
     allTracksModifierLabel,
-    deleteKeyLabel,
     isDeleteShortcutKey,
     isMacPlatform,
     primaryModifierLabel

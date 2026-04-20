@@ -13,7 +13,6 @@ interface UseEditorKeyboardShortcutsParams {
   copyAllTracksInSelection: () => Promise<void>;
   cutAllTracksInSelection: () => Promise<void>;
   deletePrimarySelection: () => void;
-  deleteAllTracksInSelection: () => void;
   hasPrimarySelection: boolean;
   isDeleteShortcutKey: (key: string) => boolean;
   onCloseTransientUi: () => void;
@@ -27,7 +26,6 @@ export function useEditorKeyboardShortcuts({
   copyAllTracksInSelection,
   cutAllTracksInSelection,
   deletePrimarySelection,
-  deleteAllTracksInSelection,
   hasPrimarySelection,
   isDeleteShortcutKey,
   onCloseTransientUi,
@@ -89,12 +87,6 @@ export function useEditorKeyboardShortcuts({
         return;
       }
 
-      if (primaryModifier && event.altKey && !event.shiftKey && isDeleteKey) {
-        event.preventDefault();
-        deleteAllTracksInSelection();
-        return;
-      }
-
       if (primaryModifier && !event.altKey && !event.shiftKey && lowerKey === "i") {
         event.preventDefault();
         applyNoteClipboardPaste("insert", playheadBeat);
@@ -118,7 +110,6 @@ export function useEditorKeyboardShortcuts({
     copyAllTracksInSelection,
     cutAllTracksInSelection,
     deletePrimarySelection,
-    deleteAllTracksInSelection,
     hasPrimarySelection,
     isDeleteShortcutKey,
     onCloseTransientUi,

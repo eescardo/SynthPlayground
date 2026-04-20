@@ -76,7 +76,6 @@ interface ComposerViewProps {
 export function ComposerView(props: ComposerViewProps) {
   const {
     allTracksModifierLabel,
-    deleteKeyLabel,
     primaryModifierLabel
   } = usePlatformShortcuts();
   const {
@@ -87,7 +86,6 @@ export function ComposerView(props: ComposerViewProps) {
     openHelp
   } = useComposerQuickHelpDialog({
     allTracksModifierLabel,
-    deleteKeyLabel,
     primaryModifierLabel
   });
 
