@@ -126,7 +126,7 @@ function drawGhostPreviewNote(
 
   const badgeWidth = 28;
   const badgeHeight = 18;
-  const badgeX = noteX + noteW - badgeWidth - 6;
+  const badgeX = noteX + 1;
   const badgeY = noteY + noteH - badgeHeight - 4;
   fillRoundedRect(ctx, badgeX, badgeY, badgeWidth, badgeHeight, 6, TRACK_CANVAS_COLORS.ghostPlacementBadge);
 
