@@ -517,7 +517,7 @@ export function useHardwareNavigationShortcuts({
         return;
       }
 
-      if ((event.key === "[" || event.key === "{") && !event.repeat) {
+      if (view === "composer" && (event.key === "[" || event.key === "{") && !event.repeat) {
         if (!selectedTrack) {
           return;
         }
@@ -526,7 +526,7 @@ export function useHardwareNavigationShortcuts({
         return;
       }
 
-      if ((event.key === "]" || event.key === "}") && !event.repeat) {
+      if (view === "composer" && (event.key === "]" || event.key === "}") && !event.repeat) {
         if (!selectedTrack) {
           return;
         }
