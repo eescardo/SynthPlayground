@@ -23,6 +23,7 @@ interface ComposerViewProps {
   activeRecordedNotes: Array<{ trackId: string; noteId: string; startBeat: number }>;
   keyboardPlacementNote?: { trackId: string; noteId: string } | null;
   ghostPreviewNote?: { trackId: string; startBeat: number; durationBeats: number; pitchStr: string } | null;
+  tabSelectionPreviewNote?: { trackId: string; noteId: string } | null;
   playheadFocused?: boolean;
   selectedNoteTabStopFocusToken?: number;
   ghostPlayheadBeat?: number;
@@ -146,6 +147,7 @@ export function ComposerView(props: ComposerViewProps) {
         activeRecordedNotes={props.activeRecordedNotes}
         keyboardPlacementNote={props.keyboardPlacementNote}
         ghostPreviewNote={props.ghostPreviewNote}
+        tabSelectionPreviewNote={props.tabSelectionPreviewNote}
         playheadFocused={props.playheadFocused}
         selectedNoteTabStopFocusToken={props.selectedNoteTabStopFocusToken}
         ghostPlayheadBeat={props.ghostPlayheadBeat}

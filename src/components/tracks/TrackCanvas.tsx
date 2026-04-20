@@ -152,6 +152,31 @@ function drawGhostPreviewNote(
   ctx.restore();
 }
 
+function drawTabSelectionPreview(
+  ctx: CanvasRenderingContext2D,
+  noteRect: { x: number; y: number; w: number; h: number }
+) {
+  strokeRoundedRect(
+    ctx,
+    noteRect.x + 1,
+    noteRect.y + 1,
+    Math.max(0, noteRect.w - 2),
+    Math.max(0, noteRect.h - 2),
+    Math.max(0, NOTE_CORNER_RADIUS - 1),
+    TRACK_CANVAS_COLORS.tabSelectionPreviewBorder,
+    2
+  );
+
+  const badgeWidth = 26;
+  const badgeHeight = 18;
+  const badgeX = noteRect.x + 1;
+  const badgeY = noteRect.y + noteRect.h - badgeHeight - 4;
+  fillRoundedRect(ctx, badgeX, badgeY, badgeWidth, badgeHeight, 6, TRACK_CANVAS_COLORS.tabSelectionPreviewBadge);
+  ctx.fillStyle = TRACK_CANVAS_COLORS.tabSelectionPreviewBadgeText;
+  ctx.font = "bold 10px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillText("Tab", badgeX + 5, badgeY + 12);
+}
+
 function drawLoopMarker(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -297,6 +322,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     hideSelectionActionPopover,
     invalidPatchIds,
     keyboardPlacementNote,
+    tabSelectionPreviewNote,
     playheadFocused,
     playheadBeat,
     selectedNoteTabStopFocusToken,
@@ -639,6 +665,14 @@ export function TrackCanvas(props: TrackCanvasProps) {
           );
         }
 
+        if (
+          tabSelectionPreviewNote?.trackId === track.id &&
+          tabSelectionPreviewNote.noteId === note.id &&
+          !noteSelected
+        ) {
+          drawTabSelectionPreview(ctx, { x: noteX, y: noteY, w: noteW, h: noteH });
+        }
+
         const labelX = noteX + 6;
         const labelY = noteY + 16;
         const labelWidth = Math.max(14, ctx.measureText(note.pitchStr).width);
@@ -809,6 +843,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     ghostPlayheadBeat,
     ghostPreviewNote,
     hideSelectionActionPopover,
+    tabSelectionPreviewNote,
     timelineActionsPopoverOpen,
     height,
     hoveredPlayhead,

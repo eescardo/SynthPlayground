@@ -120,6 +120,7 @@ export interface TrackCanvasProps {
   activeRecordedNotes?: Array<{ trackId: string; noteId: string; startBeat: number }>;
   keyboardPlacementNote?: { trackId: string; noteId: string } | null;
   ghostPreviewNote?: { trackId: string; startBeat: number; durationBeats: number; pitchStr: string } | null;
+  tabSelectionPreviewNote?: { trackId: string; noteId: string } | null;
   playheadFocused?: boolean;
   selectedNoteTabStopFocusToken?: number;
   ghostPlayheadBeat?: number;

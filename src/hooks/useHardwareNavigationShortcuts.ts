@@ -69,6 +69,7 @@ interface UseHardwareNavigationShortcutsArgs {
 }
 
 const GHOST_PREVIEW_DELAY_MS = 2000;
+const TAB_SELECTION_PREVIEW_DELAY_MS = 600;
 const HELD_PLACEMENT_PREVIEW_GRID_SPAN = 128;
 const HELD_PLACEMENT_PREVIEW_RELEASE_TAIL_GRIDS = 8;
 
@@ -118,6 +119,7 @@ export function useHardwareNavigationShortcuts({
 }: UseHardwareNavigationShortcutsArgs) {
   const [activePlacement, setActivePlacement] = useState<ActiveKeyboardPlacement | null>(null);
   const [ghostPreviewNote, setGhostPreviewNote] = useState<GhostPreviewNote | null>(null);
+  const [tabSelectionPreviewNote, setTabSelectionPreviewNote] = useState<{ trackId: string; noteId: string } | null>(null);
   const [playheadNavigationFocused, setPlayheadNavigationFocused] = useState(false);
   const [selectedNoteTabStopFocusToken, setSelectedNoteTabStopFocusToken] = useState(0);
   const placementRafRef = useRef<number | null>(null);
@@ -334,6 +336,59 @@ export function useHardwareNavigationShortcuts({
   ]);
 
   useEffect(() => {
+    if (
+      view !== "composer" ||
+      !selectedTrack ||
+      !playheadNavigationFocused ||
+      activePlacement ||
+      isPlaying ||
+      recordPhase !== "idle" ||
+      pitchPickerOpen ||
+      previewPitchPickerOpen
+    ) {
+      setTabSelectionPreviewNote(null);
+      return;
+    }
+
+    const noteAtPlayhead = findTrackNoteAtBeat(selectedTrack, playheadBeat);
+    if (!noteAtPlayhead) {
+      setTabSelectionPreviewNote(null);
+      return;
+    }
+
+    const nextPreview = {
+      trackId: selectedTrack.id,
+      noteId: noteAtPlayhead.id
+    };
+
+    if (
+      tabSelectionPreviewNote?.trackId === nextPreview.trackId &&
+      tabSelectionPreviewNote.noteId === nextPreview.noteId
+    ) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setTabSelectionPreviewNote(nextPreview);
+    }, TAB_SELECTION_PREVIEW_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [
+    activePlacement,
+    isPlaying,
+    pitchPickerOpen,
+    playheadBeat,
+    playheadNavigationFocused,
+    previewPitchPickerOpen,
+    recordPhase,
+    selectedTrack,
+    tabSelectionPreviewNote,
+    view
+  ]);
+
+  useEffect(() => {
     if (!activePlacement || !selectedTrack || selectedTrack.id !== activePlacement.trackId) {
       return;
     }
@@ -487,6 +542,9 @@ export function useHardwareNavigationShortcuts({
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const playheadDomFocused = target?.classList.contains("track-canvas-playhead-tabstop") ?? false;
+
       if (isTextEditingTarget(event.target) || pitchPickerOpen || previewPitchPickerOpen) {
         return;
       }
@@ -581,7 +639,7 @@ export function useHardwareNavigationShortcuts({
         return;
       }
 
-      if (event.key === "Tab" && playheadNavigationFocused) {
+      if (event.key === "Tab" && (playheadNavigationFocused || playheadDomFocused)) {
         if (event.shiftKey) {
           if (focusLastTrackChromeTabStop()) {
             event.preventDefault();
@@ -602,7 +660,7 @@ export function useHardwareNavigationShortcuts({
 
       if (event.key === "ArrowLeft") {
         event.preventDefault();
-        if (playheadNavigationFocused) {
+        if (playheadNavigationFocused || playheadDomFocused) {
           nudgePlayhead(-1);
           return;
         }
@@ -621,7 +679,7 @@ export function useHardwareNavigationShortcuts({
 
       if (event.key === "ArrowRight") {
         event.preventDefault();
-        if (playheadNavigationFocused) {
+        if (playheadNavigationFocused || playheadDomFocused) {
           nudgePlayhead(1);
           return;
         }
@@ -715,8 +773,8 @@ export function useHardwareNavigationShortcuts({
   return {
     activePlacement,
     ghostPreviewNote,
-    playheadNavigationFocused
-    ,
+    tabSelectionPreviewNote,
+    playheadNavigationFocused,
     selectedNoteTabStopFocusToken,
     returnSelectionFocusToPlayhead
   };

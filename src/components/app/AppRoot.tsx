@@ -1183,6 +1183,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         }
       : null,
     ghostPreviewNote: hardwareNavigation.ghostPreviewNote,
+    tabSelectionPreviewNote: hardwareNavigation.tabSelectionPreviewNote,
     ghostPlayheadBeat: recording.ghostPlayheadBeat ?? undefined,
     countInLabel: recording.countInLabel ?? undefined,
     timelineActionsPopover,
