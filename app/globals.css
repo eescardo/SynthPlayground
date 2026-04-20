@@ -1201,7 +1201,7 @@ select {
 }
 
 .preview-pitch-button {
-  min-width: 4.25rem;
+  min-width: 2.4rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
