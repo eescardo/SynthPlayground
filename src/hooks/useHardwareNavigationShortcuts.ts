@@ -56,6 +56,7 @@ interface UseHardwareNavigationShortcutsArgs {
   setSelectedTrackId: (trackId: string) => void;
   setPlayheadBeatFromUser: (beat: number) => void;
   setContentSelection: (selection: ContentSelection, options?: { keepCollapsed?: boolean }) => void;
+  expandSelectionActionPopover: () => void;
   toggleTrackMacroPanel: (trackId: string, expanded: boolean) => void;
   deleteNote: (trackId: string, noteId: string) => void;
   commitProjectChange: (updater: (current: Project) => Project, options?: { actionKey?: string; coalesce?: boolean }) => void;
@@ -103,6 +104,7 @@ export function useHardwareNavigationShortcuts({
   setSelectedTrackId,
   setPlayheadBeatFromUser,
   setContentSelection,
+  expandSelectionActionPopover,
   toggleTrackMacroPanel,
   deleteNote,
   commitProjectChange,
@@ -376,9 +378,7 @@ export function useHardwareNavigationShortcuts({
         return;
       }
       setDefaultPitch(nextPitch);
-      if (view === "patch-workspace") {
-        previewSelectedPatchNow(nextPitch);
-      }
+      previewSelectedPatchNow(nextPitch);
     };
 
     const focusLastTrackChromeTabStop = () => {
@@ -487,10 +487,6 @@ export function useHardwareNavigationShortcuts({
         if (event.repeat) {
           return;
         }
-        if (view === "patch-workspace") {
-          previewSelectedPatchNow();
-          return;
-        }
         if (recordPhase !== "idle") {
           return;
         }
@@ -529,6 +525,12 @@ export function useHardwareNavigationShortcuts({
         }
         event.preventDefault();
         toggleTrackMacroPanel(selectedTrack.id, true);
+        return;
+      }
+
+      if (event.key === "Enter" && !event.repeat && selectionActionPopoverCollapsed && selectionKind !== "none") {
+        event.preventDefault();
+        expandSelectionActionPopover();
         return;
       }
 
@@ -676,6 +678,7 @@ export function useHardwareNavigationShortcuts({
     setPlacedNote,
     releasePlacementPreview,
     startPlacementPreview,
+    expandSelectionActionPopover,
     toggleTrackMacroPanel,
     view
   ]);

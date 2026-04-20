@@ -1054,6 +1054,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     setSelectedTrackId,
     setPlayheadBeatFromUser: setPlayheadFromUser,
     setContentSelection: setContentSelectionWithPopoverBehavior,
+    expandSelectionActionPopover: () => setSelectionActionPopoverMode("expanded"),
     toggleTrackMacroPanel: setTrackMacroPanelExpanded,
     deleteNote,
     commitProjectChange,

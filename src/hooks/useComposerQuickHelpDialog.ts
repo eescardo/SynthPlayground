@@ -43,7 +43,7 @@ export function useComposerQuickHelpDialog({
       { action: "Backspace Note / Rewind", shortcut: "Backspace" },
       { action: "Default Pitch", shortcut: "- / =" },
       { action: "Macro Lanes", shortcut: "[ / ]" },
-      { action: "Hold To Place Note", shortcut: "Enter" },
+      { action: "Place Note / Expand Selection", shortcut: "Enter" },
       { action: "Select Note At Playhead", shortcut: "Tab" },
       { action: "Cut Selection", shortcut: `${primaryModifierLabel}+X` },
       { action: "Copy Selection", shortcut: `${primaryModifierLabel}+C` },

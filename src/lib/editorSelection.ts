@@ -127,5 +127,16 @@ export const filterEditorSelectionToProject = (project: Project, selection: Edit
     return selection;
   }
 
+  const contentUnchanged =
+    nextContent.noteKeys.length === selection.content.noteKeys.length &&
+    nextContent.noteKeys.every((selectionKey, index) => selection.content.noteKeys[index] === selectionKey) &&
+    nextContent.automationKeyframeSelectionKeys.length === selection.content.automationKeyframeSelectionKeys.length &&
+    nextContent.automationKeyframeSelectionKeys.every(
+      (selectionKey, index) => selection.content.automationKeyframeSelectionKeys[index] === selectionKey
+    );
+  if (contentUnchanged) {
+    return selection;
+  }
+
   return setEditorContentSelection(selection, nextContent);
 };
