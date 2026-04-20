@@ -545,6 +545,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
     setEditorSelection(clearEditorSelection());
     setPitchPicker(null);
   }, [setPitchPicker]);
+  const setPlayheadPreservingSelection = useCallback((beat: number) => {
+    setUserCueBeat(beat);
+    setPlayheadBeat(beat);
+    setPitchPicker(null);
+  }, [setPitchPicker]);
   const setContentSelectionWithPopoverBehavior = useCallback((
     selection: ContentSelection,
     options?: { keepCollapsed?: boolean }
@@ -654,9 +659,13 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const requestTimelineActionsPopover = useCallback((request: TimelineActionsPopoverRequest) => {
     setTimelineActionsPopover(request);
+    setPitchPicker(null);
+    closeExplodeSelectionDialog();
+    setEditorSelection(clearEditorSelection());
+    setSelectionActionPopoverMode("expanded");
     setEditorSelection((current) => setEditorSelectionActionScopePreview(current, "source"));
     void syncNoteClipboardPayload();
-  }, [setTimelineActionsPopover, syncNoteClipboardPayload]);
+  }, [closeExplodeSelectionDialog, setPitchPicker, setSelectionActionPopoverMode, setTimelineActionsPopover, syncNoteClipboardPayload]);
 
   const openPitchPicker = useCallback((trackId: string, noteId: string) => {
     setPitchPicker({ trackId, noteId });
@@ -1050,6 +1059,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     setDefaultPitch: patchWorkspace.setPreviewPitch,
     setSelectedTrackId,
     setPlayheadBeatFromUser: setPlayheadFromUser,
+    setPlayheadBeatPreservingSelection: setPlayheadPreservingSelection,
     setContentSelection: setContentSelectionWithPopoverBehavior,
     expandSelectionActionPopover: () => setSelectionActionPopoverMode("expanded"),
     toggleTrackMacroPanel: setTrackMacroPanelExpanded,

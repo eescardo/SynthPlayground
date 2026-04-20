@@ -55,6 +55,7 @@ interface UseHardwareNavigationShortcutsArgs {
   setDefaultPitch: (pitch: string) => void;
   setSelectedTrackId: (trackId: string) => void;
   setPlayheadBeatFromUser: (beat: number) => void;
+  setPlayheadBeatPreservingSelection: (beat: number) => void;
   setContentSelection: (selection: ContentSelection, options?: { keepCollapsed?: boolean }) => void;
   expandSelectionActionPopover: () => void;
   toggleTrackMacroPanel: (trackId: string, expanded: boolean) => void;
@@ -103,6 +104,7 @@ export function useHardwareNavigationShortcuts({
   setDefaultPitch,
   setSelectedTrackId,
   setPlayheadBeatFromUser,
+  setPlayheadBeatPreservingSelection,
   setContentSelection,
   expandSelectionActionPopover,
   toggleTrackMacroPanel,
@@ -423,7 +425,7 @@ export function useHardwareNavigationShortcuts({
       const nextBeat = direction < 0
         ? Math.max(0, snapToGrid(playheadBeat - projectGridBeats, projectGridBeats))
         : Math.min(playbackEndBeat, snapToGrid(playheadBeat + projectGridBeats, projectGridBeats));
-      setPlayheadBeatFromUser(nextBeat);
+      setPlayheadBeatPreservingSelection(nextBeat);
       setPlayheadNavigationFocused(true);
       clearBlockedSelectionTransfer();
     };
@@ -700,6 +702,7 @@ export function useHardwareNavigationShortcuts({
     setContentSelection,
     setDefaultPitch,
     setPlayheadBeatFromUser,
+    setPlayheadBeatPreservingSelection,
     setSelectedTrackId,
     setPlacedNote,
     releasePlacementPreview,
