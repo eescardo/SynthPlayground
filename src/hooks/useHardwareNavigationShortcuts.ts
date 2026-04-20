@@ -487,6 +487,10 @@ export function useHardwareNavigationShortcuts({
         if (event.repeat) {
           return;
         }
+        if (view === "patch-workspace") {
+          previewSelectedPatchNow();
+          return;
+        }
         if (recordPhase !== "idle") {
           return;
         }

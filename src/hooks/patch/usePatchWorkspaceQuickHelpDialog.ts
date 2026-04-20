@@ -13,7 +13,7 @@ export function usePatchWorkspaceQuickHelpDialog() {
 
   const keyboardShortcuts = useMemo(
     () => [
-      { action: "Play / Stop", shortcut: "Space" },
+      { action: "Preview current tab", shortcut: "Space" },
       { action: "Default pitch", shortcut: "- / =" },
       { action: "Track macro lanes", shortcut: "[ / ]" },
       { action: "Next tab", shortcut: "Ctrl+`" },
