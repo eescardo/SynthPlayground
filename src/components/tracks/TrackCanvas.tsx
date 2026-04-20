@@ -276,6 +276,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const [speakerIconsReady, setSpeakerIconsReady] = useState(false);
   const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
   const [editingTrackName, setEditingTrackName] = useState("");
+  const [selectedNoteTabStopFocused, setSelectedNoteTabStopFocused] = useState(false);
   const {
     volumePopoverTrackId,
     volumePopoverPosition,
@@ -548,6 +549,11 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const overlaps = overlapNoteIds.has(note.id);
         const isHovered = hoveredNote?.trackId === track.id && hoveredNote.noteId === note.id;
         const noteSelected = selectedNoteKeys?.has(getNoteSelectionKey(track.id, note.id)) ?? false;
+        const noteFocused =
+          noteSelected &&
+          selectedNoteTabStopFocused &&
+          selectedNoteTabStopRect?.trackId === track.id &&
+          selectedNoteTabStopRect.noteId === note.id;
         const noteBeingPlaced = keyboardPlacementNote?.trackId === track.id && keyboardPlacementNote.noteId === note.id;
 
         const noteFill = overlaps
@@ -581,16 +587,18 @@ export function TrackCanvas(props: TrackCanvasProps) {
         }
 
         if (noteSelected) {
-          fillRoundedRect(
-            ctx,
-            noteX,
-            noteY,
-            noteW,
-            noteH,
-            NOTE_CORNER_RADIUS,
-            TRACK_CANVAS_COLORS.noteSelectedOverlay
-          );
-          ctx.setLineDash([5, 3]);
+          if (noteFocused) {
+            fillRoundedRect(
+              ctx,
+              noteX,
+              noteY,
+              noteW,
+              noteH,
+              NOTE_CORNER_RADIUS,
+              TRACK_CANVAS_COLORS.noteSelectedFocusOverlay
+            );
+            ctx.setLineDash([5, 3]);
+          }
           strokeRoundedRect(
             ctx,
             noteX + 1,
@@ -598,10 +606,14 @@ export function TrackCanvas(props: TrackCanvasProps) {
             Math.max(0, noteW - 2),
             Math.max(0, noteH - 2),
             Math.max(0, NOTE_CORNER_RADIUS - 1),
-            TRACK_CANVAS_COLORS.noteSelectedBorder,
+            noteFocused
+              ? TRACK_CANVAS_COLORS.noteSelectedFocusBorder
+              : TRACK_CANVAS_COLORS.noteSelectedBorder,
             2
           );
-          ctx.setLineDash([]);
+          if (noteFocused) {
+            ctx.setLineDash([]);
+          }
         }
 
         if (noteBeingPlaced) {
@@ -681,8 +693,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
     const playheadX = HEADER_WIDTH + playheadBeat * BEAT_WIDTH;
     if ((hoveredPlayhead || playheadFocused) && !timelineActionsPopoverOpen) {
-      ctx.strokeStyle = TRACK_CANVAS_COLORS.loopGhost;
-      ctx.lineWidth = 8;
+      ctx.strokeStyle = playheadFocused
+        ? TRACK_CANVAS_COLORS.playheadFocusGlow
+        : TRACK_CANVAS_COLORS.loopGhost;
+      ctx.lineWidth = playheadFocused ? 12 : 8;
       ctx.beginPath();
       ctx.moveTo(playheadX, 0);
       ctx.lineTo(playheadX, height);
@@ -807,6 +821,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
     project.patches,
     project.tracks,
     selectedNoteKeys,
+    selectedNoteTabStopFocused,
+    selectedNoteTabStopRect?.noteId,
+    selectedNoteTabStopRect?.trackId,
     automationKeyframeSelectionKeys,
     selectionBeatRange,
     selectionMarkerTrackId,
@@ -902,6 +919,13 @@ export function TrackCanvas(props: TrackCanvasProps) {
     selectedNoteTabStopRef.current?.focus();
   }, [selectedNoteTabStopFocusToken, selectedNoteTabStopRect]);
 
+  useEffect(() => {
+    if (selectedNoteTabStopRect) {
+      return;
+    }
+    setSelectedNoteTabStopFocused(false);
+  }, [selectedNoteTabStopRect]);
+
   return (
     <div className="track-canvas-shell" ref={wrapperRef}>
       <TrackHeaderChrome
@@ -975,6 +999,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
               });
             }
           }}
+          onFocus={() => setSelectedNoteTabStopFocused(true)}
+          onBlur={() => setSelectedNoteTabStopFocused(false)}
         >
           <span className="track-canvas-tabstop-label">
             Selected note {selectedNoteTabStopRect.pitchStr}
