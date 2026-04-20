@@ -132,10 +132,9 @@ export function useHardwareNavigationShortcuts({
   }, []);
 
   const returnSelectionFocusToPlayhead = useCallback(() => {
-    setPlayheadBeatFromUser(playheadBeat);
     setPlayheadNavigationFocused(true);
     clearBlockedSelectionTransfer();
-  }, [clearBlockedSelectionTransfer, playheadBeat, setPlayheadBeatFromUser]);
+  }, [clearBlockedSelectionTransfer]);
 
   const setPlacedNote = useCallback((
     trackId: string,
@@ -340,10 +339,14 @@ export function useHardwareNavigationShortcuts({
   }, [activePlacement, defaultPitch, selectedTrack, setPlacedNote]);
 
   useEffect(() => {
-    if (selectionKind !== "none") {
-      setPlayheadNavigationFocused(false);
-      clearBlockedSelectionTransfer();
+    if (selectionKind === "none") {
+      return;
     }
+    const activeElement = document.activeElement as HTMLElement | null;
+    if (!activeElement?.classList.contains("track-canvas-playhead-tabstop")) {
+      setPlayheadNavigationFocused(false);
+    }
+    clearBlockedSelectionTransfer();
   }, [clearBlockedSelectionTransfer, selectionKind]);
 
   useEffect(() => {
@@ -597,6 +600,10 @@ export function useHardwareNavigationShortcuts({
 
       if (event.key === "ArrowLeft") {
         event.preventDefault();
+        if (playheadNavigationFocused) {
+          nudgePlayhead(-1);
+          return;
+        }
         if (hasNonPlayheadSelection) {
           setPlayheadNavigationFocused(false);
           clearBlockedSelectionTransfer();
@@ -612,6 +619,10 @@ export function useHardwareNavigationShortcuts({
 
       if (event.key === "ArrowRight") {
         event.preventDefault();
+        if (playheadNavigationFocused) {
+          nudgePlayhead(1);
+          return;
+        }
         if (hasNonPlayheadSelection) {
           setPlayheadNavigationFocused(false);
           clearBlockedSelectionTransfer();
