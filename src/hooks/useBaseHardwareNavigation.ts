@@ -16,10 +16,10 @@ interface UseBaseHardwareNavigationArgs extends UseHardwareNavigationArgs {
 
 export interface BaseHardwareNavigationResult {
   playheadNavigationFocused: boolean;
-  selectedNoteTabStopFocusToken: number;
+  selectedContentTabStopFocusToken: number;
   returnSelectionFocusToPlayhead: () => void;
   setPlayheadNavigationFocused: (focused: boolean) => void;
-  focusSelectedNoteTabStop: () => void;
+  focusSelectedContentTabStop: () => void;
   setSingleNoteSelection: (selectionKey: string, options?: { keepCollapsed?: boolean }) => void;
   focusLastTrackChromeTabStop: () => boolean;
 }
@@ -36,14 +36,14 @@ export function useBaseHardwareNavigation({
   previewDefaultPitchNow
 }: UseBaseHardwareNavigationArgs): BaseHardwareNavigationResult {
   const [playheadNavigationFocused, setPlayheadNavigationFocused] = useState(false);
-  const [selectedNoteTabStopFocusToken, setSelectedNoteTabStopFocusToken] = useState(0);
+  const [selectedContentTabStopFocusToken, setSelectedContentTabStopFocusToken] = useState(0);
 
   const returnSelectionFocusToPlayhead = useCallback(() => {
     setPlayheadNavigationFocused(true);
   }, []);
 
-  const focusSelectedNoteTabStop = useCallback(() => {
-    setSelectedNoteTabStopFocusToken((current) => current + 1);
+  const focusSelectedContentTabStop = useCallback(() => {
+    setSelectedContentTabStopFocusToken((current) => current + 1);
   }, []);
 
   const setSingleNoteSelection = useCallback((selectionKey: string, options?: { keepCollapsed?: boolean }) => {
@@ -119,10 +119,10 @@ export function useBaseHardwareNavigation({
 
   return {
     playheadNavigationFocused,
-    selectedNoteTabStopFocusToken,
+    selectedContentTabStopFocusToken,
     returnSelectionFocusToPlayhead,
     setPlayheadNavigationFocused,
-    focusSelectedNoteTabStop,
+    focusSelectedContentTabStop,
     setSingleNoteSelection,
     focusLastTrackChromeTabStop
   };

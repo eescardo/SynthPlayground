@@ -28,7 +28,7 @@ export function useHardwareNavigation(args: UseHardwareNavigationArgs): Hardware
     ghostPreviewNote: composer.ghostPreviewNote,
     tabSelectionPreviewNote: composer.tabSelectionPreviewNote,
     playheadNavigationFocused: base.playheadNavigationFocused,
-    selectedNoteTabStopFocusToken: base.selectedNoteTabStopFocusToken,
+    selectedContentTabStopFocusToken: base.selectedContentTabStopFocusToken,
     returnSelectionFocusToPlayhead: base.returnSelectionFocusToPlayhead
   };
 }

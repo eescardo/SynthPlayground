@@ -8,13 +8,13 @@ interface TrackCanvasTabStopsProps {
   playheadLeft: number;
   height: number;
   playheadTabStopRef: RefObject<HTMLButtonElement | null>;
-  selectedNoteTabStopRef: RefObject<HTMLButtonElement | null>;
+  selectedContentTabStopRef: RefObject<HTMLButtonElement | null>;
   selectedContentRect: TrackCanvasSelectedContentTabStopRect | null;
   onPlayheadFocus: () => void;
   onPlayheadBlur: () => void;
-  onSelectedNoteFocus: () => void;
-  onSelectedNoteBlur: () => void;
-  onReturnSelectedNoteFocusToPlayhead?: () => void;
+  onSelectedContentFocus: () => void;
+  onSelectedContentBlur: () => void;
+  onReturnSelectedContentFocusToPlayhead?: () => void;
 }
 
 export function TrackCanvasTabStops({
@@ -22,18 +22,18 @@ export function TrackCanvasTabStops({
   playheadLeft,
   height,
   playheadTabStopRef,
-  selectedNoteTabStopRef,
+  selectedContentTabStopRef,
   selectedContentRect,
   onPlayheadFocus,
   onPlayheadBlur,
-  onSelectedNoteFocus,
-  onSelectedNoteBlur,
-  onReturnSelectedNoteFocusToPlayhead
+  onSelectedContentFocus,
+  onSelectedContentBlur,
+  onReturnSelectedContentFocusToPlayhead
 }: TrackCanvasTabStopsProps) {
-  const handleSelectedNoteKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+  const handleSelectedContentKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
     if ((event.key === "Tab" && event.shiftKey) || event.key === "Escape") {
       event.preventDefault();
-      onReturnSelectedNoteFocusToPlayhead?.();
+      onReturnSelectedContentFocusToPlayhead?.();
       requestAnimationFrame(() => {
         playheadTabStopRef.current?.focus();
       });
@@ -59,7 +59,7 @@ export function TrackCanvasTabStops({
       </button>
       {selectedContentRect && (
         <button
-          ref={selectedNoteTabStopRef}
+          ref={selectedContentTabStopRef}
           type="button"
           tabIndex={0}
           className="track-canvas-note-tabstop"
@@ -70,9 +70,9 @@ export function TrackCanvasTabStops({
             width: selectedContentRect.w,
             height: selectedContentRect.h
           }}
-          onKeyDown={handleSelectedNoteKeyDown}
-          onFocus={onSelectedNoteFocus}
-          onBlur={onSelectedNoteBlur}
+          onKeyDown={handleSelectedContentKeyDown}
+          onFocus={onSelectedContentFocus}
+          onBlur={onSelectedContentBlur}
         >
           <span className="track-canvas-tabstop-label">
             {selectedContentRect.ariaLabel}

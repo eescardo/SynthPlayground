@@ -122,7 +122,7 @@ export interface TrackCanvasProps {
   ghostPreviewNote?: { trackId: string; startBeat: number; durationBeats: number; pitchStr: string } | null;
   tabSelectionPreviewNote?: { trackId: string; noteId: string } | null;
   playheadFocused?: boolean;
-  selectedNoteTabStopFocusToken?: number;
+  selectedContentTabStopFocusToken?: number;
   ghostPlayheadBeat?: number;
   countInLabel?: string;
   timelineActionsPopoverOpen?: boolean;
