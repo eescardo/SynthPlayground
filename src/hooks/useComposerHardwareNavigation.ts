@@ -422,12 +422,10 @@ export function useComposerHardwareNavigation({
       const noteTabStopFocused = target?.classList.contains("track-canvas-note-tabstop") ?? false;
       const selectionPopoverFocused = Boolean(target?.closest(".selection-actions-popover"));
       const selectionCaptureFocused = noteTabStopFocused || selectionPopoverFocused;
-      const hasCollapsedContentSelection =
-        selectionActionPopoverCollapsed &&
+      const hasContentSelection =
+        selectionKind === "content" &&
         (contentSelection.noteKeys.length > 0 || contentSelection.automationKeyframeSelectionKeys.length > 0);
-      const hasExpandedOrTimelineSelection =
-        selectionKind === "timeline" ||
-        (selectionKind === "content" && !hasCollapsedContentSelection);
+      const hasTimelineSelection = selectionKind === "timeline";
       const playheadNavigationActive = base.playheadNavigationFocused || playheadDomFocused;
       const canHandleComposerKeyboardShortcut = isComposerView && arePitchPickersClosed;
 
@@ -440,7 +438,7 @@ export function useComposerHardwareNavigation({
         clearBlockedSelectionTransfer();
       };
 
-      const nudgeCollapsedSelection = (direction: -1 | 1) => {
+      const nudgeContentSelection = (direction: -1 | 1) => {
         let moveResult!: ReturnType<typeof shiftContentSelectionByBeats>;
         commitProjectChange((current) => {
           const nextMoveResult = shiftContentSelectionByBeats(current, contentSelection, direction * projectGridBeats);
@@ -512,17 +510,17 @@ export function useComposerHardwareNavigation({
           nudgePlayhead(-1);
           return;
         }
-        if (hasExpandedOrTimelineSelection) {
+        if (hasContentSelection) {
+          nudgeContentSelection(-1);
+          return;
+        }
+        if (hasTimelineSelection) {
           if (!selectionCaptureFocused) {
             nudgePlayhead(-1);
             return;
           }
           base.setPlayheadNavigationFocused(false);
           clearBlockedSelectionTransfer();
-          return;
-        }
-        if (hasCollapsedContentSelection) {
-          nudgeCollapsedSelection(-1);
           return;
         }
         nudgePlayhead(-1);
@@ -535,17 +533,17 @@ export function useComposerHardwareNavigation({
           nudgePlayhead(1);
           return;
         }
-        if (hasExpandedOrTimelineSelection) {
+        if (hasContentSelection) {
+          nudgeContentSelection(1);
+          return;
+        }
+        if (hasTimelineSelection) {
           if (!selectionCaptureFocused) {
             nudgePlayhead(1);
             return;
           }
           base.setPlayheadNavigationFocused(false);
           clearBlockedSelectionTransfer();
-          return;
-        }
-        if (hasCollapsedContentSelection) {
-          nudgeCollapsedSelection(1);
           return;
         }
         nudgePlayhead(1);
