@@ -944,6 +944,12 @@ export class JsSynthRenderStream {
     return Infinity;
   }
 
+  hasActiveVoices() {
+    // Preview mode can outlive the audible note duration; this lets us stop as soon as
+    // every released voice has fully decayed instead of waiting for the full preview timeout.
+    return this.trackRuntimes.some((track) => track.voices.some((voice) => voice.active));
+  }
+
   renderFrameRange(left, right, startFrame, endFrame) {
     this.masterBuffer.fill(0, startFrame, endFrame);
     const captureOffset = this.songSampleCounter;
@@ -988,6 +994,11 @@ export class JsSynthRenderStream {
     }
 
     if (previewCompleted) {
+      this.stop();
+      this.emitPreviewCapture(true);
+    } else if (this.previewing && this.eventQueue.length === 0 && !this.hasActiveVoices()) {
+      // Long-held keyboard previews schedule a generous duration up front, then rely on
+      // NoteOff plus voice-idle detection to end naturally once the release tail is done.
       this.stop();
       this.emitPreviewCapture(true);
     } else if (this.previewCapture) {

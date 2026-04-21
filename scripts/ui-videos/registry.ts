@@ -19,7 +19,7 @@ const recordCycles = Number(process.env.VIDEO_RECORD_CYCLES ?? 5);
 const postActionSettleMs = Number(process.env.VIDEO_POST_ACTION_SETTLE_MS ?? 300);
 const playbackStartTimeoutMs = Number(process.env.VIDEO_PLAYBACK_START_TIMEOUT_MS ?? 2_000);
 const getTransportButton = (page: Page, name: "Play" | "Stop" | "Record") =>
-  page.locator(".transport").getByRole("button", { name });
+  page.locator(".composer-actions-bar, .transport").getByRole("button", { name, exact: true });
 
 const getRecordingKey = (page: Page, pitch = "C4"): Locator =>
   page.locator(".recording-dock").getByRole("button", { name: new RegExp(`\\b${pitch}\\b`, "i") }).first();

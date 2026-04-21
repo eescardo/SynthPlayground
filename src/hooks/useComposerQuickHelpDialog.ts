@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { QuickHelpShortcutSection } from "@/components/QuickHelpDialog";
 
 const isTextEditingTarget = (target: EventTarget | null) => {
   const element = target as HTMLElement | null;
@@ -24,6 +25,7 @@ export function useComposerQuickHelpDialog({
     () => [
       { action: "Add note", description: "Click an empty track lane when nothing is selected." },
       { action: "Select notes", description: "Drag a marquee across notes, or click an existing note." },
+      { action: "Rename things", description: "Hover for a moment and then click name text, or double-click it to rename inline." },
       { action: "Move note", description: "Drag a note block horizontally." },
       { action: "Resize note", description: "Drag near the right edge of a note block." },
       { action: "Delete note", description: "Right-click a note block." },
@@ -33,20 +35,42 @@ export function useComposerQuickHelpDialog({
     []
   );
 
-  const keyboardShortcuts = useMemo(
+  const keyboardShortcutSections = useMemo<QuickHelpShortcutSection[]>(
     () => [
-      { action: "Help", shortcut: "?" },
-      { action: "Cut Selection", shortcut: `${primaryModifierLabel}+X` },
-      { action: "Copy Selection", shortcut: `${primaryModifierLabel}+C` },
-      { action: "Paste Selected Track(s)", shortcut: `${primaryModifierLabel}+V` },
-      { action: "Delete Selection", shortcut: deleteKeyLabel },
-      { action: "Insert Selected Track(s)", shortcut: `${primaryModifierLabel}+I` },
-      { action: "Cut All Tracks", shortcut: `${allTracksModifierLabel}+X` },
-      { action: "Copy All Tracks", shortcut: `${allTracksModifierLabel}+C` },
-      { action: "Paste All Tracks", shortcut: `${allTracksModifierLabel}+V` },
-      { action: "Delete All Tracks", shortcut: `${allTracksModifierLabel}+${deleteKeyLabel}` },
-      { action: "Insert All Tracks", shortcut: `${allTracksModifierLabel}+I` },
-      { action: "Close Dialogs / Clear Selection", shortcut: "Esc" }
+      {
+        title: "General",
+        entries: [
+          { action: "Help", shortcut: "?" },
+          { action: "Play / Stop", shortcut: "Space" },
+          { action: "Move Playhead / Reclaim Playhead Focus", shortcut: "Left / Right" },
+          { action: "Select Track", shortcut: "Up / Down" },
+          { action: "Backspace Note / Rewind", shortcut: "Backspace" },
+          { action: "Default Pitch", shortcut: "- / =" },
+          { action: "Macro Lanes", shortcut: "[ / ]" },
+          { action: "Place Note", shortcut: "Enter" },
+          { action: "Playhead / Note Tab Stops", shortcut: "Tab / Shift+Tab" },
+          { action: "Close Dialogs / Collapse Selection", shortcut: "Esc" }
+        ]
+      },
+      {
+        title: "Selection",
+        entries: [
+          { action: "Collapsed Selection Nudge", shortcut: "Left / Right" },
+          { action: "Select Note At Playhead", shortcut: "Tab" },
+          { action: "Expand Collapsed Selection", shortcut: "Enter" },
+          { action: "Cut Selection", shortcut: `${primaryModifierLabel}+X` },
+          { action: "Copy Selection", shortcut: `${primaryModifierLabel}+C` },
+          { action: "Paste Selected Track(s)", shortcut: `${primaryModifierLabel}+V` },
+          { action: "Delete Selection", shortcut: deleteKeyLabel },
+          { action: "Insert Selected Track(s)", shortcut: `${primaryModifierLabel}+I` },
+          { action: "Cut All Tracks", shortcut: `${allTracksModifierLabel}+X` },
+          { action: "Copy All Tracks", shortcut: `${allTracksModifierLabel}+C` },
+          { action: "Paste All Tracks", shortcut: `${allTracksModifierLabel}+V` },
+          { action: "Delete All Tracks", shortcut: `${allTracksModifierLabel}+${deleteKeyLabel}` },
+          { action: "Insert All Tracks", shortcut: `${allTracksModifierLabel}+I` },
+          { action: "Clear Selection", shortcut: "Esc again" }
+        ]
+      }
     ],
     [allTracksModifierLabel, deleteKeyLabel, primaryModifierLabel]
   );
@@ -68,7 +92,7 @@ export function useComposerQuickHelpDialog({
   return {
     closeHelp: () => setHelpOpen(false),
     helpOpen,
-    keyboardShortcuts,
+    keyboardShortcutSections,
     mouseHelpItems,
     openHelp: () => setHelpOpen(true)
   };

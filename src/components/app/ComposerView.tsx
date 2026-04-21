@@ -16,10 +16,16 @@ interface ComposerViewProps {
   project: Project;
   recentProjects: RecentProjectSnapshot[];
   selectedTrackId: string;
+  defaultPitch: string;
   invalidPatchIds: Set<string>;
   canvasSelection: TrackCanvasSelection;
   playheadBeat: number;
   activeRecordedNotes: Array<{ trackId: string; noteId: string; startBeat: number }>;
+  keyboardPlacementNote?: { trackId: string; noteId: string } | null;
+  ghostPreviewNote?: { trackId: string; startBeat: number; durationBeats: number; pitchStr: string } | null;
+  tabSelectionPreviewNote?: { trackId: string; noteId: string } | null;
+  playheadFocused?: boolean;
+  selectedNoteTabStopFocusToken?: number;
   ghostPlayheadBeat?: number;
   countInLabel?: string;
   timelineActionsPopover: TimelineActionsPopoverRequest | null;
@@ -34,6 +40,7 @@ interface ComposerViewProps {
   recordEnabled: boolean;
   recordPhase?: ComposerRecordPhase;
   exportingAudio: boolean;
+  onOpenDefaultPitchPicker: () => void;
   onPlay: () => void;
   onStop: () => void;
   onToggleRecord: () => void;
@@ -53,6 +60,7 @@ interface ComposerViewProps {
   onResetToDefaultProject: () => void;
   onImportFile: (file: File) => void;
   onSetPlayheadBeat: (beat: number) => void;
+  onReturnSelectedNoteFocusToPlayhead: () => void;
   onRequestTimelineActionsPopover: (request: TimelineActionsPopoverRequest) => void;
   onCloseTimelineActionsPopover: () => void;
   onPasteAtTimeline: (mode: "paste" | "paste-all-tracks" | "insert" | "insert-all-tracks", beat: number) => void;
@@ -77,7 +85,7 @@ export function ComposerView(props: ComposerViewProps) {
   const {
     closeHelp,
     helpOpen,
-    keyboardShortcuts,
+    keyboardShortcutSections,
     mouseHelpItems,
     openHelp
   } = useComposerQuickHelpDialog({
@@ -118,7 +126,9 @@ export function ComposerView(props: ComposerViewProps) {
         recordEnabled={props.recordEnabled}
         recordPhase={props.recordPhase}
         countInLabel={props.countInLabel}
+        defaultPitch={props.defaultPitch}
         canRemoveTrack={props.project.tracks.length > 1}
+        onOpenDefaultPitchPicker={props.onOpenDefaultPitchPicker}
         onPlay={props.onPlay}
         onStop={props.onStop}
         onToggleRecord={props.onToggleRecord}
@@ -131,14 +141,21 @@ export function ComposerView(props: ComposerViewProps) {
         project={props.project}
         invalidPatchIds={props.invalidPatchIds}
         selectedTrackId={props.selectedTrackId}
+        defaultPitch={props.defaultPitch}
         selection={props.canvasSelection}
         playheadBeat={props.playheadBeat}
         activeRecordedNotes={props.activeRecordedNotes}
+        keyboardPlacementNote={props.keyboardPlacementNote}
+        ghostPreviewNote={props.ghostPreviewNote}
+        tabSelectionPreviewNote={props.tabSelectionPreviewNote}
+        playheadFocused={props.playheadFocused}
+        selectedNoteTabStopFocusToken={props.selectedNoteTabStopFocusToken}
         ghostPlayheadBeat={props.ghostPlayheadBeat}
         countInLabel={props.countInLabel}
         timelineActionsPopoverOpen={Boolean(props.timelineActionsPopover)}
         hideSelectionActionPopover={!props.selectionActionPopoverVisible}
         onSetPlayheadBeat={props.onSetPlayheadBeat}
+        onReturnSelectedNoteFocusToPlayhead={props.onReturnSelectedNoteFocusToPlayhead}
         onRequestTimelineActionsPopover={props.onRequestTimelineActionsPopover}
         trackActions={props.trackActions}
         patchActions={props.patchActions}
@@ -173,7 +190,7 @@ export function ComposerView(props: ComposerViewProps) {
       )}
 
       <QuickHelpDialog
-        keyboardShortcuts={keyboardShortcuts}
+        keyboardShortcutSections={keyboardShortcutSections}
         mouseHelpItems={mouseHelpItems}
         onClose={closeHelp}
         open={helpOpen}

@@ -151,12 +151,17 @@ select {
   z-index: 20;
 }
 
-.transport label {
+.transport label,
+.toolbar-labeled-control {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   font-size: 0.9rem;
   color: var(--muted);
+}
+
+.toolbar-labeled-control-label {
+  color: inherit;
 }
 
 .playhead {
@@ -301,6 +306,39 @@ select {
 
 .track-canvas-shell canvas {
   display: block;
+}
+
+.track-canvas-tabstop-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.track-canvas-playhead-tabstop,
+.track-canvas-note-tabstop {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  pointer-events: none;
+  outline: none;
+}
+
+.track-canvas-playhead-tabstop {
+  top: 0;
+  width: 2px;
+}
+
+.track-canvas-playhead-tabstop:focus-visible,
+.track-canvas-note-tabstop:focus-visible {
+  outline: none;
 }
 
 .track-header-overlays {
@@ -1196,7 +1234,10 @@ select {
 }
 
 .preview-pitch-button {
-  min-width: 62px;
+  min-width: 2.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .patch-workspace-shell {
@@ -2308,17 +2349,20 @@ select {
   background: #0d1824;
   border: 1px solid #295071;
   border-radius: 10px;
-  padding: 1rem;
+  padding: 0.85rem;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  font-size: 0.8rem;
 }
 
 .help-modal h3 {
   margin-top: 0;
+  margin-bottom: 0.55rem;
+  font-size: 1.1rem;
 }
 
 .help-modal p {
-  margin: 0.45rem 0;
-  line-height: 1.35;
+  margin: 0.28rem 0;
+  line-height: 1.25;
 }
 
 .quick-help-modal {
@@ -2328,29 +2372,42 @@ select {
 .quick-help-grid {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  gap: 1.4rem;
+  gap: 1rem;
   align-items: start;
 }
 
 .quick-help-section {
-  margin-top: 1rem;
+  margin-top: 0.65rem;
 }
 
 .quick-help-section h4 {
-  margin: 0 0 0.55rem;
+  margin: 0 0 0.35rem;
+  font-size: 0.92rem;
 }
 
 .quick-help-shortcuts {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.2rem;
+}
+
+.quick-help-shortcut-section + .quick-help-shortcut-section {
+  margin-top: 0.45rem;
+}
+
+.quick-help-shortcut-section h5 {
+  margin: 0 0 0.18rem;
+  color: #9eb9d6;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .quick-help-shortcut-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 1rem;
+  gap: 0.7rem;
   align-items: center;
-  padding: 0.35rem 0;
+  padding: 0.16rem 0;
   border-bottom: 1px solid rgba(51, 81, 113, 0.35);
 }
 
@@ -2360,28 +2417,28 @@ select {
 
 .quick-help-shortcut-keys {
   display: flex;
-  gap: 0.35rem;
+  gap: 0.22rem;
   justify-content: flex-end;
   flex-wrap: wrap;
 }
 
 .quick-help-color-glossary {
   border-top: 1px solid rgba(51, 81, 113, 0.4);
-  padding-top: 0.85rem;
+  padding-top: 0.65rem;
 }
 
 .quick-help-color-items {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 0.45rem 1rem;
+  gap: 0.3rem 0.8rem;
 }
 
 .quick-help-color-item {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.4rem;
   align-items: baseline;
   color: #adc7df;
-  line-height: 1.35;
+  line-height: 1.25;
 }
 
 .quick-help-color-swatch {
@@ -2404,7 +2461,7 @@ kbd {
   background: #111e2d;
   border: 1px solid #335171;
   border-radius: 4px;
-  padding: 0.1rem 0.3rem;
+  padding: 0.05rem 0.22rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.85em;
 }

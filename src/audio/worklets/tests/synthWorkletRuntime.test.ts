@@ -799,6 +799,76 @@ describe("synth worklet runtime", () => {
     );
   });
 
+  it("stops a long-lived preview once a released note has decayed away", async () => {
+    const { SynthWorkletProcessor } = await loadRuntimeModule();
+
+    const patch = createPatch({
+      nodes: [
+        { id: "osc", typeId: "VCO", params: { wave: "sine" } },
+        { id: "env", typeId: "ADSR", params: { attack: 0.001, decay: 0.01, sustain: 0.4, release: 0.02 } },
+        { id: "amp", typeId: "VCA", params: { bias: 0, gain: 1 } },
+        { id: "out", typeId: "Output", params: { gainDb: 0, limiter: false } }
+      ],
+      connections: [
+        { id: "conn_1", from: { nodeId: "osc", portId: "out" }, to: { nodeId: "amp", portId: "in" } },
+        { id: "conn_2", from: { nodeId: "env", portId: "out" }, to: { nodeId: "amp", portId: "gainCV" } },
+        { id: "conn_3", from: { nodeId: "amp", portId: "out" }, to: { nodeId: "out", portId: "in" } }
+      ]
+    });
+
+    const processor = new SynthWorkletProcessor({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize: 128,
+        project: createProject({ patch })
+      }
+    });
+
+    processor.onMessage({
+      type: "PREVIEW",
+      trackId: "track_1",
+      durationSamples: 48000,
+      events: [
+        {
+          id: "preview_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ]
+    });
+
+    renderProcessorBlock(processor);
+
+    processor.onMessage({
+      type: "EVENTS",
+      events: [
+        {
+          id: "preview_off",
+          type: "NoteOff",
+          sampleTime: 128,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1"
+        }
+      ]
+    });
+
+    const processorState = processor as typeof processor & {
+      currentStream: unknown | null;
+    };
+
+    for (let index = 0; index < 512 && processorState.currentStream; index += 1) {
+      renderProcessorBlock(processor);
+    }
+
+    expect(processorState.currentStream).toBeNull();
+  });
+
   it("streams probe capture updates before preview completion", async () => {
     const { SynthWorkletProcessor } = await loadRuntimeModule();
 

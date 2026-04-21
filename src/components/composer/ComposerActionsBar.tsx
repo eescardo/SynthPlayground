@@ -6,7 +6,9 @@ interface ComposerActionsBarProps {
   recordEnabled: boolean;
   recordPhase?: ComposerRecordPhase;
   countInLabel?: string | null;
+  defaultPitch: string;
   canRemoveTrack: boolean;
+  onOpenDefaultPitchPicker: () => void;
   onPlay: () => void;
   onStop: () => void;
   onToggleRecord: () => void;
@@ -45,7 +47,9 @@ export function ComposerActionsBar({
   recordEnabled,
   recordPhase,
   countInLabel,
+  defaultPitch,
   canRemoveTrack,
+  onOpenDefaultPitchPicker,
   onPlay,
   onStop,
   onToggleRecord,
@@ -63,6 +67,18 @@ export function ComposerActionsBar({
       </div>
 
       <div className="composer-actions-bar-group">
+        <div className="toolbar-labeled-control">
+          <span className="toolbar-labeled-control-label">Pitch</span>
+          <button
+            type="button"
+            className="preview-pitch-button"
+            onClick={onOpenDefaultPitchPicker}
+            title="Default pitch"
+            aria-label={`Default pitch ${defaultPitch}`}
+          >
+            {defaultPitch}
+          </button>
+        </div>
         <button onClick={onPlay} disabled={isPlaying || recordEnabled}>
           Play
         </button>

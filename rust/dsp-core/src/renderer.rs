@@ -142,6 +142,12 @@ impl WasmSubsetEngine {
         self.preview_capture_sample_count
     }
 
+    pub fn has_active_voices(&self) -> bool {
+        // Preview streams intentionally allow a long timeout for held notes; this lets the
+        // JS wrapper stop early once every released voice has actually decayed to silence.
+        self.tracks.iter().any(TrackRuntime::has_active_voices)
+    }
+
     fn next_pending_event_sample(&self) -> Option<u32> {
         self.event_queue
             .get(self.event_cursor)

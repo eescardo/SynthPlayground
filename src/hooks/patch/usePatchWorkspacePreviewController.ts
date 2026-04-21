@@ -10,13 +10,11 @@ interface UsePatchWorkspacePreviewControllerOptions {
   previewSelectedPatchNow: (pitch?: string, macroValues?: Record<string, number>) => void;
   setActiveTabId: (tabId: string) => void;
   setSkipWorkspaceHistory: (skipHistory: boolean) => void;
-  getActiveTabMacroValues: () => Record<string, number> | undefined;
 }
 
 export function usePatchWorkspacePreviewController(options: UsePatchWorkspacePreviewControllerOptions) {
   const {
     activeTab,
-    getActiveTabMacroValues,
     previewPitch,
     previewSelectedPatchNow,
     setActiveTabId,
@@ -68,11 +66,6 @@ export function usePatchWorkspacePreviewController(options: UsePatchWorkspacePre
       if (isShortcutBlockedTarget(event.target)) {
         return;
       }
-      if (event.code === "Space") {
-        event.preventDefault();
-        previewSelectedPatchNow(previewPitch, getActiveTabMacroValues());
-        return;
-      }
       if (event.ctrlKey && !event.metaKey && !event.altKey && event.code === "Backquote") {
         event.preventDefault();
         cycleWorkspaceTabs(event.shiftKey ? -1 : 1);
@@ -80,7 +73,7 @@ export function usePatchWorkspacePreviewController(options: UsePatchWorkspacePre
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cycleWorkspaceTabs, getActiveTabMacroValues, previewPitch, previewSelectedPatchNow]);
+  }, [cycleWorkspaceTabs]);
 
   return {
     activateWorkspaceTab,

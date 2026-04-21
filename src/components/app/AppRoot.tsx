@@ -1,10 +1,11 @@
 "use client";
 
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { toAudioProject } from "@/audio/audioProject";
 import { AudioEngine } from "@/audio/engine";
 import { ComposerView } from "@/components/app/ComposerView";
+import { ComposerControllerProps } from "@/components/app/ComposerController";
 import { AudioDebugPanel } from "@/components/app/AudioDebugPanel";
 import { BrowserCompatibilityDialog } from "@/components/app/BrowserCompatibilityDialog";
 import { PatchRemovalDialogModal } from "@/components/composer/PatchRemovalDialogModal";
@@ -59,7 +60,7 @@ import { useNoteEditor } from "@/hooks/useNoteEditor";
 import { useLoopSettings } from "@/hooks/useLoopSettings";
 import { useExplodeSelectionDialog } from "@/hooks/useExplodeSelectionDialog";
 import { useEditorClipboardEvents } from "@/hooks/useEditorClipboardEvents";
-import { useEditorKeyboardShortcuts } from "@/hooks/useEditorKeyboardShortcuts";
+import { useEditActionKeyboardShortcuts } from "@/hooks/useEditActionKeyboardShortcuts";
 import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { useComposerTransientUi } from "@/hooks/useComposerTransientUi";
 import { useNoteClipboard } from "@/hooks/useNoteClipboard";
@@ -68,9 +69,12 @@ import { usePlaybackController } from "@/hooks/usePlaybackController";
 import { useProjectLifecycleActions } from "@/hooks/useProjectLifecycleActions";
 import { useProjectRecents } from "@/hooks/useProjectRecents";
 import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
+import { useTrackMacroPanelState } from "@/hooks/useTrackMacroPanelState";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
+import { useHardwareNavigation } from "@/hooks/useHardwareNavigation";
+import { useHardwareNavigationPreview } from "@/hooks/useHardwareNavigationPreview";
 import { UsePatchWorkspaceControllerOptions } from "@/hooks/patch/usePatchWorkspaceController";
 import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
 import { resolveRemovedPatchFallbackId } from "@/hooks/patch/patchWorkspaceStateUtils";
@@ -81,7 +85,7 @@ import { Project } from "@/types/music";
 import { PatchValidationIssue } from "@/types/patch";
 
 interface AppRootContextValue {
-  composerProps: React.ComponentProps<typeof ComposerView>;
+  composerControllerProps: ComposerControllerProps;
   patchWorkspaceControllerProps: UsePatchWorkspaceControllerOptions;
 }
 
@@ -126,10 +130,12 @@ export function AppRoot({ children }: { children: ReactNode }) {
   });
 
   const router = useRouter();
+  const pathname = usePathname();
   const audioEngineRef = useRef<AudioEngine | null>(null);
   const recordingStopSessionRef = useRef<(finalBeat?: number) => void>(() => {});
   const recordingHandleBeatRef = useRef<(beat: number) => void>(() => {});
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const keepSelectionPopoverCollapsedRef = useRef(false);
   const project = projectHistory.current;
   const audioProject = useMemo(
     () => toAudioProject(project, projectAssets),
@@ -410,6 +416,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
   }, [selectionBeatRange, setSelectionActionPopoverMode]);
 
   useEffect(() => {
+    if (keepSelectionPopoverCollapsedRef.current) {
+      keepSelectionPopoverCollapsedRef.current = false;
+      return;
+    }
     setSelectionActionPopoverMode("expanded");
   }, [selectedContent, setSelectionActionPopoverMode]);
 
@@ -535,6 +545,21 @@ export function AppRoot({ children }: { children: ReactNode }) {
     setEditorSelection(clearEditorSelection());
     setPitchPicker(null);
   }, [setPitchPicker]);
+  const setPlayheadPreservingSelection = useCallback((beat: number) => {
+    setUserCueBeat(beat);
+    setPlayheadBeat(beat);
+    setPitchPicker(null);
+  }, [setPitchPicker]);
+  const setContentSelectionWithPopoverBehavior = useCallback((
+    selection: ContentSelection,
+    options?: { keepCollapsed?: boolean }
+  ) => {
+    keepSelectionPopoverCollapsedRef.current = Boolean(options?.keepCollapsed);
+    if (options?.keepCollapsed) {
+      setSelectionActionPopoverMode("collapsed");
+    }
+    setEditorSelection((current) => setEditorContentSelection(current, selection));
+  }, [setSelectionActionPopoverMode]);
   const {
     applyNoteClipboardPaste,
     copyAllTracksInSelection,
@@ -556,7 +581,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     selectionBeatRange,
     setPlayheadFromUser,
     setContentSelection: (selection: ContentSelection) => {
-      setEditorSelection((current) => setEditorContentSelection(current, selection));
+      setContentSelectionWithPopoverBehavior(selection);
     },
     writeClipboardPayload
   });
@@ -634,9 +659,13 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const requestTimelineActionsPopover = useCallback((request: TimelineActionsPopoverRequest) => {
     setTimelineActionsPopover(request);
+    setPitchPicker(null);
+    closeExplodeSelectionDialog();
+    setEditorSelection(clearEditorSelection());
+    setSelectionActionPopoverMode("expanded");
     setEditorSelection((current) => setEditorSelectionActionScopePreview(current, "source"));
     void syncNoteClipboardPayload();
-  }, [setTimelineActionsPopover, syncNoteClipboardPayload]);
+  }, [closeExplodeSelectionDialog, setPitchPicker, setSelectionActionPopoverMode, setTimelineActionsPopover, syncNoteClipboardPayload]);
 
   const openPitchPicker = useCallback((trackId: string, noteId: string) => {
     setPitchPicker({ trackId, noteId });
@@ -674,8 +703,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const setContentSelectionFromCanvas = useCallback((selection: ContentSelection) => {
     setTimelineActionsPopover(null);
-    setEditorSelection((current) => setEditorContentSelection(current, selection));
-  }, [setTimelineActionsPopover]);
+    setContentSelectionWithPopoverBehavior(selection);
+  }, [setContentSelectionWithPopoverBehavior, setTimelineActionsPopover]);
 
   const setTimelineSelectionFromCanvas = useCallback((range: BeatRange | null) => {
     setTimelineActionsPopover(null);
@@ -719,7 +748,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  useEditorKeyboardShortcuts({
+  useEditActionKeyboardShortcuts({
     applyNoteClipboardPaste,
     copyAllTracksInSelection,
     cutAllTracksInSelection,
@@ -728,11 +757,29 @@ export function AppRoot({ children }: { children: ReactNode }) {
     hasPrimarySelection: hasTimelineRangeSelection || hasContentSelection(selectedContent),
     isDeleteShortcutKey,
     onCloseTransientUi: () => {
-      setPitchPicker(null);
-      patchWorkspace.setPreviewPitchPickerOpen(false);
-      setPatchRemovalDialog(null);
-      setTimelineActionsPopover(null);
-      setEditorSelection(clearEditorSelection());
+      if (pitchPicker) {
+        setPitchPicker(null);
+        return;
+      }
+      if (patchWorkspace.previewPitchPickerOpen) {
+        patchWorkspace.setPreviewPitchPickerOpen(false);
+        return;
+      }
+      if (patchRemovalDialog) {
+        setPatchRemovalDialog(null);
+        return;
+      }
+      if (timelineActionsPopover) {
+        setTimelineActionsPopover(null);
+        return;
+      }
+      if (selectionActionPopoverAvailable && !selectionActionPopoverCollapsed) {
+        collapseSelectionActionPopover();
+        return;
+      }
+      if (selectionBeatRange) {
+        clearCanvasSelection();
+      }
     },
     playheadBeat,
     redoProject,
@@ -751,7 +798,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     selectedTrackId: selectedTrack?.id,
     setNoteClipboardPayload,
     setContentSelection: (selection: ContentSelection) => {
-      setEditorSelection((current) => setEditorContentSelection(current, selection));
+      setContentSelectionWithPopoverBehavior(selection);
     }
   });
 
@@ -925,14 +972,13 @@ export function AppRoot({ children }: { children: ReactNode }) {
     patchWorkspace.setSelectedNodeId(undefined);
   };
 
-  const toggleTrackMacroPanel = useCallback((trackId: string) => {
-    commitProjectChange((current) => ({
-      ...current,
-      tracks: current.tracks.map((track) =>
-        track.id === trackId ? { ...track, macroPanelExpanded: !track.macroPanelExpanded } : track
-      )
-    }), { actionKey: `track:${trackId}:macro-panel` });
-  }, [commitProjectChange]);
+  const {
+    setTrackMacroPanelExpanded,
+    toggleTrackMacroPanel
+  } = useTrackMacroPanelState({
+    tracks: project.tracks,
+    commitProjectChange
+  });
 
   const changeTrackMacro = useCallback((trackId: string, macroId: string, normalized: number, options?: { commit?: boolean }) => {
     audioEngineRef.current?.setMacroValue(trackId, macroId, normalized);
@@ -984,10 +1030,52 @@ export function AppRoot({ children }: { children: ReactNode }) {
     setRuntimeError,
     clearTransientComposerUi
   });
+  const workspaceView = pathname.endsWith("/patch-workspace") ? "patch-workspace" : "composer";
+  const previewDefaultPitchNow = useHardwareNavigationPreview({
+    view: workspaceView,
+    selectedTrack,
+    defaultPitch: patchWorkspace.previewPitch,
+    isPlaying: playing,
+    audioEngineRef,
+    previewSelectedPatchNow: patchWorkspace.previewSelectedPatchNow,
+    setRuntimeError
+  });
+  const hardwareNavigation = useHardwareNavigation({
+    view: workspaceView,
+    projectGridBeats: project.global.gridBeats,
+    projectTempo: project.global.tempo,
+    tracks: project.tracks,
+    selectedTrack,
+    playheadBeat,
+    playbackEndBeat,
+    isPlaying: playing,
+    recordPhase: recording.recordPhase,
+    pitchPickerOpen: Boolean(pitchPicker),
+    previewPitchPickerOpen: patchWorkspace.previewPitchPickerOpen,
+    defaultPitch: patchWorkspace.previewPitch,
+    selectionKind: editorSelection.kind,
+    contentSelection: selectedContent,
+    selectionActionPopoverCollapsed,
+    setDefaultPitch: patchWorkspace.setPreviewPitch,
+    setSelectedTrackId,
+    setPlayheadBeatFromUser: setPlayheadFromUser,
+    setPlayheadBeatPreservingSelection: setPlayheadPreservingSelection,
+    setContentSelection: setContentSelectionWithPopoverBehavior,
+    expandSelectionActionPopover: () => setSelectionActionPopoverMode("expanded"),
+    toggleTrackMacroPanel: setTrackMacroPanelExpanded,
+    deleteNote,
+    commitProjectChange,
+    audioEngineRef,
+    previewDefaultPitchNow,
+    onComposerPlay: playback.startPlayback,
+    onComposerStop: playback.stopPlayback,
+    setRuntimeError
+  });
 
   if (!ready || !selectedTrack || !selectedPatch) {
     return <main className="loading">Loading...</main>;
   }
+
   const trackCanvasTrackActions = {
     onSelectTrack: setSelectedTrackId,
     onRenameTrack: renameTrack,
@@ -1079,19 +1167,30 @@ export function AppRoot({ children }: { children: ReactNode }) {
     }
   };
 
-  const composerProps: React.ComponentProps<typeof ComposerView> = {
+  const composerViewProps: React.ComponentProps<typeof ComposerView> = {
     project,
     ...projectMenuProps,
     selectedTrackId: selectedTrack.id,
+    defaultPitch: patchWorkspace.previewPitch,
     invalidPatchIds,
     canvasSelection,
     playheadBeat,
     activeRecordedNotes: recording.activeRecordedNotes,
+    keyboardPlacementNote: hardwareNavigation.activePlacement
+      ? {
+          trackId: hardwareNavigation.activePlacement.trackId,
+          noteId: hardwareNavigation.activePlacement.noteId
+        }
+      : null,
+    ghostPreviewNote: hardwareNavigation.ghostPreviewNote,
+    tabSelectionPreviewNote: hardwareNavigation.tabSelectionPreviewNote,
     ghostPlayheadBeat: recording.ghostPlayheadBeat ?? undefined,
     countInLabel: recording.countInLabel ?? undefined,
     timelineActionsPopover,
     selectionActionPopoverVisible,
     noteClipboardPayload,
+    playheadFocused: hardwareNavigation.playheadNavigationFocused,
+    selectedNoteTabStopFocusToken: hardwareNavigation.selectedNoteTabStopFocusToken,
     startMarkerAtTimelineBeat,
     endMarkerAtTimelineBeat,
     expandableLoopRegion: Boolean(expandableLoopRegion),
@@ -1100,6 +1199,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     recordEnabled: recording.recordEnabled,
     recordPhase: recording.recordPhase,
     exportingAudio,
+    onOpenDefaultPitchPicker: () => patchWorkspace.setPreviewPitchPickerOpen(true),
     onPlay: playback.startPlayback,
     onStop: playback.stopPlayback,
     onToggleRecord: () => {
@@ -1134,6 +1234,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     onAddTrack: addTrack,
     onRemoveTrack: removeSelectedTrack,
     onSetPlayheadBeat: setPlayheadFromUser,
+    onReturnSelectedNoteFocusToPlayhead: hardwareNavigation.returnSelectionFocusToPlayhead,
     onRequestTimelineActionsPopover: requestTimelineActionsPopover,
     onCloseTimelineActionsPopover: () => setTimelineActionsPopover(null),
     onPasteAtTimeline: (mode, beat) => applyNoteClipboardPaste(mode, beat),
@@ -1161,6 +1262,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
     selectionActions: trackCanvasSelectionActions
   };
 
+  const composerControllerProps: ComposerControllerProps = {
+    clipboard: writeClipboardPayload,
+    viewProps: composerViewProps
+  };
+
   const patchWorkspaceControllerProps: UsePatchWorkspaceControllerOptions = {
     project,
     projectAssets,
@@ -1178,7 +1284,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   };
 
   const contextValue: AppRootContextValue = {
-    composerProps,
+    composerControllerProps,
     patchWorkspaceControllerProps
   };
   const rendererLabel = process.env.NEXT_PUBLIC_STRICT_WASM === "1"
@@ -1263,8 +1369,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
         <PitchPickerModal
           open={patchWorkspace.previewPitchPickerOpen}
-          title="Preview Pitch"
-          description="Select the pitch used for auto-preview when an instrument sound changes."
+          title="Default Pitch"
+          description="Select the shared default pitch used for patch preview and keyboard note placement."
           selectedPitch={patchWorkspace.previewPitch}
           onClose={() => patchWorkspace.setPreviewPitchPickerOpen(false)}
           onSelectPitch={(pitch) => {

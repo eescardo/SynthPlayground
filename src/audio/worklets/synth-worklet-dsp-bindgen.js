@@ -151,6 +151,10 @@ export class WasmSubsetEngine {
     return wasm.wasmsubsetengine_process_block(this.__wbg_ptr) !== 0;
   }
 
+  has_active_voices() {
+    return wasm.wasmsubsetengine_has_active_voices(this.__wbg_ptr) !== 0;
+  }
+
   preview_capture_state_json() {
     let ptr1 = 0;
     let len1 = 0;

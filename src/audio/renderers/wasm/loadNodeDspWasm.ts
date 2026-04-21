@@ -7,6 +7,7 @@ interface WasmSubsetEngineInstance {
   enqueue_events(eventsJson: string): void;
   configure_preview_probe_capture(captureJson: string): void;
   process_block(): boolean;
+  has_active_voices(): boolean;
   preview_capture_state_json(): string;
   preview_capture_sample_count(): number;
   stop(): void;

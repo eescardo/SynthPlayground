@@ -1,9 +1,9 @@
 "use client";
 
 import { useAppRoot } from "@/components/app/AppRoot";
-import { ComposerView } from "@/components/app/ComposerView";
+import { ComposerController } from "@/components/app/ComposerController";
 
 export default function ComposerPage() {
-  const { composerProps } = useAppRoot();
-  return <ComposerView {...composerProps} />;
+  const { composerControllerProps } = useAppRoot();
+  return <ComposerController {...composerControllerProps} />;
 }

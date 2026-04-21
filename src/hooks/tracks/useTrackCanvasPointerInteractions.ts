@@ -119,6 +119,7 @@ interface UseTrackCanvasPointerInteractionsParams {
   trackLayouts: TrackLayout[];
   playheadBeat: number;
   gridBeats: number;
+  defaultPitch: string;
   selection: TrackCanvasSelection;
   contentSelection:
     | {
@@ -151,6 +152,7 @@ export function useTrackCanvasPointerInteractions({
   trackLayouts,
   playheadBeat,
   gridBeats,
+  defaultPitch,
   selection,
   contentSelection,
   noteActions,
@@ -727,7 +729,7 @@ export function useTrackCanvasPointerInteractions({
 
     const hadSelectionRect = Boolean(selectionRect);
     if (pendingAction?.kind === "track" && !hadSelectionRect) {
-      const newNote = createDefaultPlacedNote(pendingAction.beat, gridBeats);
+      const newNote = createDefaultPlacedNote(pendingAction.beat, gridBeats, defaultPitch);
       noteActions.onUpsertNote(pendingAction.trackId, newNote, {
         actionKey: `track:${pendingAction.trackId}:note:${newNote.id}:create`
       });
@@ -820,6 +822,7 @@ export function useTrackCanvasPointerInteractions({
     automationKeyframeRectsRef,
     beatFromX,
     canvasRef,
+    defaultPitch,
     fixedLaneValueFromX,
     getCanvasPoint,
     gridBeats,

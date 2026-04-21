@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SelectionActionPopover } from "@/components/SelectionActionPopover";
+import { TrackCanvasTabStops } from "@/components/tracks/TrackCanvasTabStops";
 import { TrackHeaderChrome } from "@/components/tracks/TrackCanvasChrome";
 import {
   AutomationKeyframeRect,
@@ -33,10 +34,14 @@ import {
 import { NoteRect, useTrackCanvasPointerInteractions } from "@/hooks/tracks/useTrackCanvasPointerInteractions";
 import {
   drawNoteBody,
-  fillRoundedRect,
-  NOTE_CORNER_RADIUS,
-  strokeRoundedRect
+  fillRoundedRect
 } from "@/components/tracks/trackCanvasNoteGeometry";
+import { drawTrackCanvasNoteState } from "@/components/tracks/trackCanvasNoteStateRendering";
+import {
+  drawGhostPreviewNote,
+  drawTabSelectionPreview
+} from "@/components/tracks/trackCanvasPreviewGeometry";
+import { resolveSelectedContentTabStopRect } from "@/components/tracks/trackCanvasSelection";
 import {
   TrackCanvasProps,
   TrackLayout
@@ -204,6 +209,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const { onUpdateNote } = noteActions;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const playheadTabStopRef = useRef<HTMLButtonElement | null>(null);
+  const selectedNoteTabStopRef = useRef<HTMLButtonElement | null>(null);
   const noteRectsRef = useRef<NoteRect[]>([]);
   const automationKeyframeRectsRef = useRef<AutomationKeyframeRect[]>([]);
   const muteRectsRef = useRef<MuteRect[]>([]);
@@ -214,8 +221,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
     muted: null
   });
   const [speakerIconsReady, setSpeakerIconsReady] = useState(false);
+  const [playheadTabStopFocused, setPlayheadTabStopFocused] = useState(false);
   const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
   const [editingTrackName, setEditingTrackName] = useState("");
+  const [selectedNoteTabStopFocused, setSelectedNoteTabStopFocused] = useState(false);
   const {
     volumePopoverTrackId,
     volumePopoverPosition,
@@ -229,14 +238,20 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const {
     activeRecordedNotes,
     countInLabel,
+    defaultPitch,
     ghostPlayheadBeat,
+    ghostPreviewNote,
     hideSelectionActionPopover,
     invalidPatchIds,
+    keyboardPlacementNote,
+    tabSelectionPreviewNote,
+    playheadFocused,
     playheadBeat,
+    selectedNoteTabStopFocusToken,
     selectedTrackId,
     timelineActionsPopoverOpen
   } = props;
-  const { onRequestTimelineActionsPopover, onSetPlayheadBeat } = props;
+  const { onRequestTimelineActionsPopover, onReturnSelectedNoteFocusToPlayhead, onSetPlayheadBeat } = props;
   const gridBeats = project.global.gridBeats;
   const meterBeats = project.global.meter === "4/4" ? 4 : 3;
   const selectionBeatRange = selection.kind === "none" ? null : selection.beatRange;
@@ -251,6 +266,11 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
   const width = HEADER_WIDTH + totalBeats * BEAT_WIDTH;
   const { trackLayouts, height } = useTrackCanvasLayout(project);
+  const playheadTabStopLeft = HEADER_WIDTH + playheadBeat * BEAT_WIDTH - 1;
+  const selectedContentTabStopRect = useMemo(
+    () => resolveSelectedContentTabStopRect(project.tracks, selection, trackLayouts),
+    [project.tracks, selection, trackLayouts]
+  );
 
   const beatFromX = (x: number) => (x - HEADER_WIDTH) / BEAT_WIDTH;
   const fixedLaneSliderStartX = HEADER_WIDTH + Math.min(BEAT_WIDTH * 0.25, 18);
@@ -318,6 +338,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     trackLayouts,
     playheadBeat,
     gridBeats,
+    defaultPitch,
     selection,
     contentSelection:
       selection.kind === "note"
@@ -453,6 +474,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const overlaps = overlapNoteIds.has(note.id);
         const isHovered = hoveredNote?.trackId === track.id && hoveredNote.noteId === note.id;
         const noteSelected = selectedNoteKeys?.has(getNoteSelectionKey(track.id, note.id)) ?? false;
+        const noteFocused =
+          noteSelected &&
+          selectedNoteTabStopFocused;
+        const noteBeingPlaced = keyboardPlacementNote?.trackId === track.id && keyboardPlacementNote.noteId === note.id;
 
         const noteFill = overlaps
           ? trackSilenced
@@ -471,41 +496,19 @@ export function TrackCanvas(props: TrackCanvasProps) {
               : TRACK_CANVAS_COLORS.note;
         drawNoteBody(ctx, noteX, noteY, noteW, noteH, noteFill);
 
-        if (isHovered) {
-          strokeRoundedRect(
-            ctx,
-            noteX + 1,
-            noteY + 1,
-            Math.max(0, noteW - 2),
-            Math.max(0, noteH - 2),
-            Math.max(0, NOTE_CORNER_RADIUS - 1),
-            TRACK_CANVAS_COLORS.noteHoverBorder,
-            2
-          );
-        }
+        drawTrackCanvasNoteState(ctx, { x: noteX, y: noteY, w: noteW, h: noteH }, {
+          hovered: isHovered,
+          selected: noteSelected,
+          focused: noteFocused,
+          beingPlaced: noteBeingPlaced
+        });
 
-        if (noteSelected) {
-          fillRoundedRect(
-            ctx,
-            noteX,
-            noteY,
-            noteW,
-            noteH,
-            NOTE_CORNER_RADIUS,
-            TRACK_CANVAS_COLORS.noteSelectedOverlay
-          );
-          ctx.setLineDash([5, 3]);
-          strokeRoundedRect(
-            ctx,
-            noteX + 1,
-            noteY + 1,
-            Math.max(0, noteW - 2),
-            Math.max(0, noteH - 2),
-            Math.max(0, NOTE_CORNER_RADIUS - 1),
-            TRACK_CANVAS_COLORS.noteSelectedBorder,
-            2
-          );
-          ctx.setLineDash([]);
+        if (
+          tabSelectionPreviewNote?.trackId === track.id &&
+          tabSelectionPreviewNote.noteId === note.id &&
+          !noteSelected
+        ) {
+          drawTabSelectionPreview(ctx, { x: noteX, y: noteY, w: noteW, h: noteH });
         }
 
         const labelX = noteX + 6;
@@ -537,6 +540,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
         ctx.fillRect(overlapX, y + 14, overlapW, TRACK_HEIGHT - 28);
       }
 
+      if (ghostPreviewNote?.trackId === track.id) {
+        drawGhostPreviewNote(ctx, ghostPreviewNote, y);
+      }
+
       for (const automationLayout of layout.automationLanes) {
         const spec = resolveLaneRenderSpec(track, trackPatch, automationLayout, totalBeats);
         if (!spec) {
@@ -559,8 +566,16 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
     const playheadX = HEADER_WIDTH + playheadBeat * BEAT_WIDTH;
     if (hoveredPlayhead && !timelineActionsPopoverOpen) {
-      ctx.strokeStyle = TRACK_CANVAS_COLORS.loopGhost;
-      ctx.lineWidth = 8;
+      ctx.strokeStyle = TRACK_CANVAS_COLORS.playheadHoverGlow;
+      ctx.lineWidth = 12;
+      ctx.beginPath();
+      ctx.moveTo(playheadX, 0);
+      ctx.lineTo(playheadX, height);
+      ctx.stroke();
+    }
+    if (playheadTabStopFocused && !timelineActionsPopoverOpen) {
+      ctx.strokeStyle = TRACK_CANVAS_COLORS.playheadFocusGlow;
+      ctx.lineWidth = 12;
       ctx.beginPath();
       ctx.moveTo(playheadX, 0);
       ctx.lineTo(playheadX, height);
@@ -664,10 +679,13 @@ export function TrackCanvas(props: TrackCanvasProps) {
   }, [
     countInLabel,
     ghostPlayheadBeat,
+    ghostPreviewNote,
     hideSelectionActionPopover,
+    tabSelectionPreviewNote,
     timelineActionsPopoverOpen,
     height,
     hoveredPlayhead,
+    playheadTabStopFocused,
     hoveredPitch,
     hoveredNote,
     hoveredAutomationKeyframe,
@@ -675,6 +693,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     isTrackSilenced,
     meterBeats,
     activeRecordedNotes,
+    keyboardPlacementNote,
     invalidPatchIds,
     playheadBeat,
     gridBeats,
@@ -682,6 +701,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     project.patches,
     project.tracks,
     selectedNoteKeys,
+    selectedNoteTabStopFocused,
     automationKeyframeSelectionKeys,
     selectionBeatRange,
     selectionMarkerTrackId,
@@ -760,6 +780,30 @@ export function TrackCanvas(props: TrackCanvasProps) {
     };
   }, [closeVolumePopover]);
 
+  useEffect(() => {
+    if (!playheadFocused) {
+      return;
+    }
+    if (document.activeElement === selectedNoteTabStopRef.current) {
+      return;
+    }
+    playheadTabStopRef.current?.focus();
+  }, [playheadBeat, playheadFocused]);
+
+  useEffect(() => {
+    if (!selectedNoteTabStopFocusToken || !selectedContentTabStopRect) {
+      return;
+    }
+    selectedNoteTabStopRef.current?.focus();
+  }, [selectedNoteTabStopFocusToken, selectedContentTabStopRect]);
+
+  useEffect(() => {
+    if (selectedContentTabStopRect) {
+      return;
+    }
+    setSelectedNoteTabStopFocused(false);
+  }, [selectedContentTabStopRect]);
+
   return (
     <div className="track-canvas-shell" ref={wrapperRef}>
       <TrackHeaderChrome
@@ -795,6 +839,19 @@ export function TrackCanvas(props: TrackCanvasProps) {
         onPointerLeave={onPointerLeave}
         onDoubleClick={onDoubleClick}
         onContextMenu={(event) => event.preventDefault()}
+      />
+      <TrackCanvasTabStops
+        playheadLabel={`Playhead at beat ${formatBeatName(playheadBeat, meterBeats)}`}
+        playheadLeft={playheadTabStopLeft}
+        height={height}
+        playheadTabStopRef={playheadTabStopRef}
+        selectedNoteTabStopRef={selectedNoteTabStopRef}
+        selectedContentRect={selectedContentTabStopRect}
+        onPlayheadFocus={() => setPlayheadTabStopFocused(true)}
+        onPlayheadBlur={() => setPlayheadTabStopFocused(false)}
+        onSelectedNoteFocus={() => setSelectedNoteTabStopFocused(true)}
+        onSelectedNoteBlur={() => setSelectedNoteTabStopFocused(false)}
+        onReturnSelectedNoteFocusToPlayhead={onReturnSelectedNoteFocusToPlayhead}
       />
       {selectionBeatRange && !selectionRect && !hideSelectionActionPopover && (
         <SelectionActionPopover

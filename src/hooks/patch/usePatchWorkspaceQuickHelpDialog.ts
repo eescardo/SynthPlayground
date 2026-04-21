@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { QuickHelpShortcutSection } from "@/components/QuickHelpDialog";
 import { PATCH_MODULE_CATEGORY_COLORS } from "@/lib/patch/moduleCategories";
 
 const isTextEditingTarget = (target: EventTarget | null) => {
@@ -11,12 +12,18 @@ const isTextEditingTarget = (target: EventTarget | null) => {
 export function usePatchWorkspaceQuickHelpDialog() {
   const [helpOpen, setHelpOpen] = useState(false);
 
-  const keyboardShortcuts = useMemo(
+  const keyboardShortcutSections = useMemo<QuickHelpShortcutSection[]>(
     () => [
-      { action: "Preview current tab", shortcut: "Space" },
-      { action: "Next tab", shortcut: "Ctrl+`" },
-      { action: "Previous tab", shortcut: "Ctrl+Shift+`" },
-      { action: "Help", shortcut: "?" }
+      {
+        title: "General",
+        entries: [
+          { action: "Preview current tab", shortcut: "Space" },
+          { action: "Default pitch", shortcut: "- / =" },
+          { action: "Next tab", shortcut: "Ctrl+`" },
+          { action: "Previous tab", shortcut: "Ctrl+Shift+`" },
+          { action: "Help", shortcut: "?" }
+        ]
+      }
     ],
     []
   );
@@ -25,8 +32,8 @@ export function usePatchWorkspaceQuickHelpDialog() {
       { action: "Zoom canvas", description: "Use a trackpad pinch or notched mouse wheel over the patch canvas. Two-finger trackpad scroll pans." },
       { action: "Inspect module face", description: "Click a module to open the expanded module face." },
       {
-        action: "Rename tabs or instruments",
-        description: "Double-click the visible name text, or hover for a moment and then single-click to rename inline."
+        action: "Rename things",
+        description: "Hover for a moment and then click name text, or double-click it to rename inline."
       }
     ],
     []
@@ -72,7 +79,7 @@ export function usePatchWorkspaceQuickHelpDialog() {
     colorGlossaryItems,
     generalGuidanceItems,
     helpOpen,
-    keyboardShortcuts,
+    keyboardShortcutSections,
     mouseHelpItems,
     openHelp: () => setHelpOpen(true)
   };

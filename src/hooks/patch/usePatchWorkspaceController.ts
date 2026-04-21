@@ -136,8 +136,10 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
   const transport = useMemo<ProjectWorkspaceTransportContextValue>(() => ({
     tempo: project.global.tempo,
     meter: project.global.meter,
+    gridBeats: project.global.gridBeats,
     playheadBeat
   }), [
+    project.global.gridBeats,
     playheadBeat,
     project.global.meter,
     project.global.tempo

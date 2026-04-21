@@ -166,11 +166,6 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     skipNextWorkspaceHistoryRef.current = skipHistory;
   }, [skipNextWorkspaceHistoryRef]);
 
-  const getActiveTabMacroValues = useCallback(
-    () => (activeTab ? tabMacroValuesById[activeTab.id] : undefined),
-    [activeTab, tabMacroValuesById]
-  );
-
   const {
     activateWorkspaceTab,
     handleInstrumentEditorReady,
@@ -181,8 +176,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     previewPitch,
     previewSelectedPatchNow,
     setActiveTabId,
-    setSkipWorkspaceHistory,
-    getActiveTabMacroValues
+    setSkipWorkspaceHistory
   });
 
   const openPatchWorkspace = useCallback((patchId?: string) => {

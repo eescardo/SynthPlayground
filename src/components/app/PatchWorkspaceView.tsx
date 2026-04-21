@@ -62,7 +62,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
     colorGlossaryItems,
     generalGuidanceItems,
     helpOpen,
-    keyboardShortcuts,
+    keyboardShortcutSections,
     mouseHelpItems,
     openHelp
   } = usePatchWorkspaceQuickHelpDialog();
@@ -100,9 +100,18 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
         </div>
         <div className="patch-workspace-header-actions">
           <button type="button" onClick={openHelp}>Help (?)</button>
-          <button type="button" className="preview-pitch-button" onClick={props.onOpenPreviewPitchPicker}>
-            {props.previewPitch}
-          </button>
+          <div className="toolbar-labeled-control">
+            <span className="toolbar-labeled-control-label">Pitch</span>
+            <button
+              type="button"
+              className="preview-pitch-button"
+              onClick={props.onOpenPreviewPitchPicker}
+              title="Default pitch"
+              aria-label={`Default pitch ${props.previewPitch}`}
+            >
+              {props.previewPitch}
+            </button>
+          </div>
           <button type="button" onClick={props.onPreviewNow}>
             Play
           </button>
@@ -147,7 +156,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
       </div>
 
       <QuickHelpDialog
-        keyboardShortcuts={keyboardShortcuts}
+        keyboardShortcutSections={keyboardShortcutSections}
         mouseHelpItems={mouseHelpItems}
         onClose={closeHelp}
         open={helpOpen}
