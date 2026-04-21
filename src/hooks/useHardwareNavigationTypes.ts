@@ -60,6 +60,6 @@ export interface HardwareNavigationResult {
   ghostPreviewNote: GhostPreviewNote | null;
   tabSelectionPreviewNote: { trackId: string; noteId: string } | null;
   playheadNavigationFocused: boolean;
-  selectedNoteTabStopFocusToken: number;
+  selectedContentTabStopFocusToken: number;
   returnSelectionFocusToPlayhead: () => void;
 }

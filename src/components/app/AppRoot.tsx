@@ -1192,7 +1192,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     selectionActionPopoverVisible,
     noteClipboardPayload,
     playheadFocused: hardwareNavigation.playheadNavigationFocused,
-    selectedNoteTabStopFocusToken: hardwareNavigation.selectedNoteTabStopFocusToken,
+    selectedContentTabStopFocusToken: hardwareNavigation.selectedContentTabStopFocusToken,
     startMarkerAtTimelineBeat,
     endMarkerAtTimelineBeat,
     expandableLoopRegion: Boolean(expandableLoopRegion),

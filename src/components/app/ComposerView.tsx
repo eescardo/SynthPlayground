@@ -25,7 +25,7 @@ interface ComposerViewProps {
   ghostPreviewNote?: { trackId: string; startBeat: number; durationBeats: number; pitchStr: string } | null;
   tabSelectionPreviewNote?: { trackId: string; noteId: string } | null;
   playheadFocused?: boolean;
-  selectedNoteTabStopFocusToken?: number;
+  selectedContentTabStopFocusToken?: number;
   ghostPlayheadBeat?: number;
   countInLabel?: string;
   timelineActionsPopover: TimelineActionsPopoverRequest | null;
@@ -149,7 +149,7 @@ export function ComposerView(props: ComposerViewProps) {
         ghostPreviewNote={props.ghostPreviewNote}
         tabSelectionPreviewNote={props.tabSelectionPreviewNote}
         playheadFocused={props.playheadFocused}
-        selectedNoteTabStopFocusToken={props.selectedNoteTabStopFocusToken}
+        selectedContentTabStopFocusToken={props.selectedContentTabStopFocusToken}
         ghostPlayheadBeat={props.ghostPlayheadBeat}
         countInLabel={props.countInLabel}
         timelineActionsPopoverOpen={Boolean(props.timelineActionsPopover)}

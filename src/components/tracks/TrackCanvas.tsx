@@ -210,7 +210,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const playheadTabStopRef = useRef<HTMLButtonElement | null>(null);
-  const selectedNoteTabStopRef = useRef<HTMLButtonElement | null>(null);
+  const selectedContentTabStopRef = useRef<HTMLButtonElement | null>(null);
   const noteRectsRef = useRef<NoteRect[]>([]);
   const automationKeyframeRectsRef = useRef<AutomationKeyframeRect[]>([]);
   const muteRectsRef = useRef<MuteRect[]>([]);
@@ -224,7 +224,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const [playheadTabStopFocused, setPlayheadTabStopFocused] = useState(false);
   const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
   const [editingTrackName, setEditingTrackName] = useState("");
-  const [selectedNoteTabStopFocused, setSelectedNoteTabStopFocused] = useState(false);
+  const [selectedContentTabStopFocused, setSelectedContentTabStopFocused] = useState(false);
   const {
     volumePopoverTrackId,
     volumePopoverPosition,
@@ -247,7 +247,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     tabSelectionPreviewNote,
     playheadFocused,
     playheadBeat,
-    selectedNoteTabStopFocusToken,
+    selectedContentTabStopFocusToken,
     selectedTrackId,
     timelineActionsPopoverOpen
   } = props;
@@ -476,7 +476,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const noteSelected = selectedNoteKeys?.has(getNoteSelectionKey(track.id, note.id)) ?? false;
         const noteFocused =
           noteSelected &&
-          selectedNoteTabStopFocused;
+          selectedContentTabStopFocused;
         const noteBeingPlaced = keyboardPlacementNote?.trackId === track.id && keyboardPlacementNote.noteId === note.id;
 
         const noteFill = overlaps
@@ -701,7 +701,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     project.patches,
     project.tracks,
     selectedNoteKeys,
-    selectedNoteTabStopFocused,
+    selectedContentTabStopFocused,
     automationKeyframeSelectionKeys,
     selectionBeatRange,
     selectionMarkerTrackId,
@@ -784,24 +784,24 @@ export function TrackCanvas(props: TrackCanvasProps) {
     if (!playheadFocused) {
       return;
     }
-    if (document.activeElement === selectedNoteTabStopRef.current) {
+    if (document.activeElement === selectedContentTabStopRef.current) {
       return;
     }
     playheadTabStopRef.current?.focus();
   }, [playheadBeat, playheadFocused]);
 
   useEffect(() => {
-    if (!selectedNoteTabStopFocusToken || !selectedContentTabStopRect) {
+    if (!selectedContentTabStopFocusToken || !selectedContentTabStopRect) {
       return;
     }
-    selectedNoteTabStopRef.current?.focus();
-  }, [selectedNoteTabStopFocusToken, selectedContentTabStopRect]);
+    selectedContentTabStopRef.current?.focus();
+  }, [selectedContentTabStopFocusToken, selectedContentTabStopRect]);
 
   useEffect(() => {
     if (selectedContentTabStopRect) {
       return;
     }
-    setSelectedNoteTabStopFocused(false);
+    setSelectedContentTabStopFocused(false);
   }, [selectedContentTabStopRect]);
 
   return (
@@ -845,13 +845,13 @@ export function TrackCanvas(props: TrackCanvasProps) {
         playheadLeft={playheadTabStopLeft}
         height={height}
         playheadTabStopRef={playheadTabStopRef}
-        selectedNoteTabStopRef={selectedNoteTabStopRef}
+        selectedContentTabStopRef={selectedContentTabStopRef}
         selectedContentRect={selectedContentTabStopRect}
         onPlayheadFocus={() => setPlayheadTabStopFocused(true)}
         onPlayheadBlur={() => setPlayheadTabStopFocused(false)}
-        onSelectedNoteFocus={() => setSelectedNoteTabStopFocused(true)}
-        onSelectedNoteBlur={() => setSelectedNoteTabStopFocused(false)}
-        onReturnSelectedNoteFocusToPlayhead={onReturnSelectedNoteFocusToPlayhead}
+        onSelectedContentFocus={() => setSelectedContentTabStopFocused(true)}
+        onSelectedContentBlur={() => setSelectedContentTabStopFocused(false)}
+        onReturnSelectedContentFocusToPlayhead={onReturnSelectedNoteFocusToPlayhead}
       />
       {selectionBeatRange && !selectionRect && !hideSelectionActionPopover && (
         <SelectionActionPopover

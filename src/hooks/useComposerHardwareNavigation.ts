@@ -198,7 +198,7 @@ export function useComposerHardwareNavigation({
 
     if (contentSelection.noteKeys.length > 0 || contentSelection.automationKeyframeSelectionKeys.length > 0) {
       base.setPlayheadNavigationFocused(false);
-      base.focusSelectedNoteTabStop();
+      base.focusSelectedContentTabStop();
     }
   }, [base, contentSelection, isComposerView, selectionKind]);
 
@@ -648,7 +648,7 @@ export function useComposerHardwareNavigation({
         if (hasContentSelection) {
           event.preventDefault();
           base.setPlayheadNavigationFocused(false);
-          base.focusSelectedNoteTabStop();
+          base.focusSelectedContentTabStop();
           return;
         }
 
@@ -657,7 +657,7 @@ export function useComposerHardwareNavigation({
           event.preventDefault();
           base.setSingleNoteSelection(getNoteSelectionKey(selectedTrack.id, noteAtPlayhead.id), { keepCollapsed: true });
           base.setPlayheadNavigationFocused(false);
-          base.focusSelectedNoteTabStop();
+          base.focusSelectedContentTabStop();
         }
       }
     };
