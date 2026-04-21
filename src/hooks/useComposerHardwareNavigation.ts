@@ -85,6 +85,7 @@ export function useComposerHardwareNavigation({
     selectedNoteKey: string;
     blockingSelectionKey: string;
   } | null>(null);
+  const previousSelectionSignatureRef = useRef<string | null>(null);
 
   const clearBlockedSelectionTransfer = useCallback(() => {
     blockedSelectionTransferRef.current = null;
@@ -174,6 +175,37 @@ export function useComposerHardwareNavigation({
   useEffect(() => {
     clearBlockedSelectionTransfer();
   }, [clearBlockedSelectionTransfer, contentSelection.automationKeyframeSelectionKeys, contentSelection.noteKeys, selectionKind]);
+
+  // New content selections should take keyboard ownership away from the playhead.
+  useEffect(() => {
+    if (!isComposerView || selectionKind !== "content") {
+      previousSelectionSignatureRef.current = null;
+      return;
+    }
+
+    const selectionSignature = JSON.stringify({
+      noteKeys: contentSelection.noteKeys,
+      automationKeyframeSelectionKeys: contentSelection.automationKeyframeSelectionKeys
+    });
+    if (selectionSignature === previousSelectionSignatureRef.current) {
+      return;
+    }
+    previousSelectionSignatureRef.current = selectionSignature;
+
+    if (isPlayheadTabStopFocused()) {
+      (document.activeElement as HTMLElement | null)?.blur();
+    }
+
+    if (contentSelection.noteKeys.length === 1 && contentSelection.automationKeyframeSelectionKeys.length === 0) {
+      base.setPlayheadNavigationFocused(false);
+      base.focusSelectedNoteTabStop();
+      return;
+    }
+
+    if (contentSelection.noteKeys.length > 0 || contentSelection.automationKeyframeSelectionKeys.length > 0) {
+      base.setPlayheadNavigationFocused(false);
+    }
+  }, [base, contentSelection, isComposerView, selectionKind]);
 
   // Grow the actively placed note while Enter is held.
   useEffect(() => {
@@ -490,10 +522,6 @@ export function useComposerHardwareNavigation({
           return;
         }
         if (hasCollapsedContentSelection) {
-          if (!selectionCaptureFocused) {
-            nudgePlayhead(-1);
-            return;
-          }
           nudgeCollapsedSelection(-1);
           return;
         }
@@ -517,10 +545,6 @@ export function useComposerHardwareNavigation({
           return;
         }
         if (hasCollapsedContentSelection) {
-          if (!selectionCaptureFocused) {
-            nudgePlayhead(1);
-            return;
-          }
           nudgeCollapsedSelection(1);
           return;
         }
