@@ -73,7 +73,7 @@ import { useTrackMacroPanelState } from "@/hooks/useTrackMacroPanelState";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
-import { useHardwareNavigationShortcuts } from "@/hooks/useHardwareNavigationShortcuts";
+import { useHardwareNavigation } from "@/hooks/useHardwareNavigation";
 import { useHardwareNavigationPreview } from "@/hooks/useHardwareNavigationPreview";
 import { UsePatchWorkspaceControllerOptions } from "@/hooks/patch/usePatchWorkspaceController";
 import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
@@ -1040,7 +1040,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     previewSelectedPatchNow: patchWorkspace.previewSelectedPatchNow,
     setRuntimeError
   });
-  const hardwareNavigation = useHardwareNavigationShortcuts({
+  const hardwareNavigation = useHardwareNavigation({
     view: workspaceView,
     projectGridBeats: project.global.gridBeats,
     projectTempo: project.global.tempo,
