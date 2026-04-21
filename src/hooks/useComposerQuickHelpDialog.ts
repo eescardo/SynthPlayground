@@ -48,8 +48,16 @@ export function useComposerQuickHelpDialog({
           { action: "Default Pitch", shortcut: "- / =" },
           { action: "Macro Lanes", shortcut: "[ / ]" },
           { action: "Place Note", shortcut: "Enter" },
-          { action: "Select Note At Playhead", shortcut: "Tab" },
           { action: "Close Dialogs / Collapse Selection", shortcut: "Esc" }
+        ]
+      },
+      {
+        title: "Focus",
+        entries: [
+          { action: "Playhead stays in tab order", shortcut: "Tab / Shift+Tab" },
+          { action: "Select note under playhead", shortcut: "Tab" },
+          { action: "Arrow keys return control to playhead from neutral UI", shortcut: "Left / Right" },
+          { action: "Focused note or selection UI keeps selection editing active", shortcut: "Left / Right" }
         ]
       },
       {
