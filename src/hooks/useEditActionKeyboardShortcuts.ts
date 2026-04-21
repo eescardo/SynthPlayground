@@ -8,7 +8,7 @@ const isTextEditingTarget = (target: EventTarget | null) => {
   return Boolean(element && (element.tagName === "INPUT" || element.tagName === "SELECT" || element.tagName === "TEXTAREA"));
 };
 
-interface UseEditorKeyboardShortcutsParams {
+interface UseEditActionKeyboardShortcutsParams {
   applyNoteClipboardPaste: (pasteAction: NoteClipboardPasteAction, beat: number) => void;
   copyAllTracksInSelection: () => Promise<void>;
   cutAllTracksInSelection: () => Promise<void>;
@@ -22,7 +22,7 @@ interface UseEditorKeyboardShortcutsParams {
   undoProject: () => void;
 }
 
-export function useEditorKeyboardShortcuts({
+export function useEditActionKeyboardShortcuts({
   applyNoteClipboardPaste,
   copyAllTracksInSelection,
   cutAllTracksInSelection,
@@ -34,7 +34,7 @@ export function useEditorKeyboardShortcuts({
   playheadBeat,
   redoProject,
   undoProject
-}: UseEditorKeyboardShortcutsParams) {
+}: UseEditActionKeyboardShortcutsParams) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const editingText = isTextEditingTarget(event.target);

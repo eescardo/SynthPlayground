@@ -60,7 +60,7 @@ import { useNoteEditor } from "@/hooks/useNoteEditor";
 import { useLoopSettings } from "@/hooks/useLoopSettings";
 import { useExplodeSelectionDialog } from "@/hooks/useExplodeSelectionDialog";
 import { useEditorClipboardEvents } from "@/hooks/useEditorClipboardEvents";
-import { useEditorKeyboardShortcuts } from "@/hooks/useEditorKeyboardShortcuts";
+import { useEditActionKeyboardShortcuts } from "@/hooks/useEditActionKeyboardShortcuts";
 import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { useComposerTransientUi } from "@/hooks/useComposerTransientUi";
 import { useNoteClipboard } from "@/hooks/useNoteClipboard";
@@ -748,7 +748,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  useEditorKeyboardShortcuts({
+  useEditActionKeyboardShortcuts({
     applyNoteClipboardPaste,
     copyAllTracksInSelection,
     cutAllTracksInSelection,
