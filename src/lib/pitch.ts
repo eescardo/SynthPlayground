@@ -69,8 +69,6 @@ const PHYSICAL_KEY_SEQUENCE = [
   "8",
   "9",
   "0",
-  "-",
-  "=",
   "q",
   "w",
   "e",
@@ -81,8 +79,6 @@ const PHYSICAL_KEY_SEQUENCE = [
   "i",
   "o",
   "p",
-  "[",
-  "]",
   "a",
   "s",
   "d",
@@ -92,23 +88,14 @@ const PHYSICAL_KEY_SEQUENCE = [
   "j",
   "k",
   "l",
-  ";",
-  "'",
   "z",
   "x",
   "c",
   "v",
   "b",
   "n",
-  "m",
-  ",",
-  ".",
-  "/"
+  "m"
 ] as const;
-
-const HW_PITCH_EXCLUDED_KEYS = new Set(["-", "=", "[", "]", ";", "'", ",", ".", "/"]);
-
-const PHYSICAL_PIANO_KEY_SEQUENCE = PHYSICAL_KEY_SEQUENCE.filter((key) => !HW_PITCH_EXCLUDED_KEYS.has(key));
 
 const SHIFTED_KEY_ALIASES: Record<string, string> = {
   "~": "`",
@@ -135,7 +122,7 @@ const SHIFTED_KEY_ALIASES: Record<string, string> = {
 
 const QWERTY_START_MIDI = pitchToMidi("F2");
 
-const qwertyEntries = PHYSICAL_PIANO_KEY_SEQUENCE.map((key, index) => [key, midiToPitch(QWERTY_START_MIDI + index)] as const);
+const qwertyEntries = PHYSICAL_KEY_SEQUENCE.map((key, index) => [key, midiToPitch(QWERTY_START_MIDI + index)] as const);
 
 export const QWERTY_PITCH_MAP: Record<string, string> = Object.fromEntries(qwertyEntries);
 
