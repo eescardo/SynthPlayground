@@ -1,5 +1,3 @@
-import { isWasmAudioRendererMode } from "@/audio/renderers/shared/audioRendererMode";
-
 export interface DspWasmExports {
   softclip_sample?: (x: number, drive: number) => number;
   one_pole_step?: (current: number, target: number, alpha: number) => number;
@@ -13,12 +11,10 @@ interface DspWasmBindgenModule extends DspWasmExports {
 
 let cachedWasm: DspWasmExports | null = null;
 
-export const loadDspWasm = async (): Promise<DspWasmExports | null> => {
+export const loadDspWasm = async (): Promise<DspWasmExports> => {
   if (cachedWasm) {
     return cachedWasm;
   }
-
-  const useWasmRenderer = isWasmAudioRendererMode();
 
   try {
     const bindgenModuleUrl = "/wasm/pkg/dsp_core.js";
@@ -30,9 +26,6 @@ export const loadDspWasm = async (): Promise<DspWasmExports | null> => {
     };
     return cachedWasm;
   } catch (error) {
-    if (useWasmRenderer) {
-      throw error;
-    }
-    return null;
+    throw error;
   }
 };

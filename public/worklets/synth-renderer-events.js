@@ -1,5 +1,5 @@
 // Generated from src/audio/renderers/shared/synth-renderer-events.js by scripts/worklets/sync-worklet-runtime.mjs.
-import { EVENT_SORT_PRIORITY } from "./synth-worklet-constants.js";
+import { EVENT_SORT_PRIORITY } from "./synth-renderer-constants.js";
 
 export const compareScheduledEvents = (a, b) => {
   if (a.sampleTime !== b.sampleTime) {

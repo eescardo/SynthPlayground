@@ -7,7 +7,8 @@ import {
   AudioBenchmarkScenarioResult,
   NumericMetricSummary
 } from "@/audio/benchmarks/types";
-import { createOfflineRenderProcessorJs, renderProjectOffline, renderProjectOfflineJs } from "@/audio/offline/renderProjectOffline";
+import { renderProjectOffline } from "@/audio/offline/renderProjectOffline";
+import { createWasmRenderer } from "@/audio/renderers/wasm/wasmSynthRenderer";
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { beatToSample } from "@/lib/musicTiming";
 import { SchedulerEvent } from "@/types/audio";
@@ -21,7 +22,6 @@ export type BenchmarkOptions = {
   warmupRuns?: number;
   gitRef?: string;
   gitSha?: string;
-  backend?: "wasm" | "js";
 };
 
 const numericSummary = (values: number[]): NumericMetricSummary => {
@@ -62,16 +62,19 @@ const summarizeRuns = (runs: AudioBenchmarkRunResult[]): AudioBenchmarkMetricSum
   };
 };
 
-const runSingleBenchmark = async (
-  scenario: AudioBenchmarkScenario,
-  backend: NonNullable<BenchmarkOptions["backend"]>
-): Promise<AudioBenchmarkRunMetrics> => {
+const runSingleBenchmark = async (scenario: AudioBenchmarkScenario): Promise<AudioBenchmarkRunMetrics> => {
   const { project, config } = scenario;
   const totalSamples = Math.max(1, beatToSample(config.durationBeats, config.sampleRate, config.tempo));
 
   globalThis.gc?.();
   const compileStart = performance.now();
-  createOfflineRenderProcessorJs(project, { sampleRate: config.sampleRate, blockSize: config.blockSize });
+  const transportRenderer = await createWasmRenderer({
+    processorOptions: {
+      sampleRate: config.sampleRate,
+      blockSize: config.blockSize,
+      project
+    }
+  });
   const compileProjectMs = performance.now() - compileStart;
 
   globalThis.gc?.();
@@ -81,34 +84,27 @@ const runSingleBenchmark = async (
 
   globalThis.gc?.();
   const transportStart = performance.now();
-  createOfflineRenderProcessorJs(project, { sampleRate: config.sampleRate, blockSize: config.blockSize }).onMessage({
-    type: "TRANSPORT",
-    isPlaying: true,
+  const transportStream = transportRenderer.startStream({
+    project,
     songStartSample: 0,
     events,
-    sessionId: 1
+    sessionId: 1,
+    mode: "transport"
   });
+  transportStream?.stop();
   const transportSetupMs = performance.now() - transportStart;
 
   globalThis.gc?.();
   const memoryBefore = process.memoryUsage();
   const cpuBefore = process.cpuUsage();
   const renderStart = performance.now();
-  const renderResult = backend === "js"
-    ? renderProjectOfflineJs(project, {
-        sampleRate: config.sampleRate,
-        blockSize: config.blockSize,
-        durationSamples: totalSamples,
-        events,
-        sessionId: 1
-      })
-    : await renderProjectOffline(project, {
-        sampleRate: config.sampleRate,
-        blockSize: config.blockSize,
-        durationSamples: totalSamples,
-        events,
-        sessionId: 1
-      });
+  const renderResult = await renderProjectOffline(project, {
+    sampleRate: config.sampleRate,
+    blockSize: config.blockSize,
+    durationSamples: totalSamples,
+    events,
+    sessionId: 1
+  });
   const renderSongMs = performance.now() - renderStart;
   const cpuAfter = process.cpuUsage(cpuBefore);
   const memoryAfter = process.memoryUsage();
@@ -140,19 +136,18 @@ const runSingleBenchmark = async (
 
 export const runAudioBenchmarkScenario = async (
   scenario: AudioBenchmarkScenario,
-  options: Pick<BenchmarkOptions, "runs" | "warmupRuns" | "backend">
+  options: Pick<BenchmarkOptions, "runs" | "warmupRuns">
 ): Promise<AudioBenchmarkScenarioResult> => {
   const warmupRuns = options.warmupRuns ?? DEFAULT_WARMUP_RUNS;
-  const backend = options.backend ?? "wasm";
   for (let warmupIndex = 0; warmupIndex < warmupRuns; warmupIndex += 1) {
-    await runSingleBenchmark(scenario, backend);
+    await runSingleBenchmark(scenario);
   }
 
   const runs: AudioBenchmarkRunResult[] = [];
   for (let runIndex = 0; runIndex < options.runs; runIndex += 1) {
     runs.push({
       index: runIndex + 1,
-      metrics: await runSingleBenchmark(scenario, backend)
+      metrics: await runSingleBenchmark(scenario)
     });
   }
 

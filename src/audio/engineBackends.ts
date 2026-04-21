@@ -1,6 +1,5 @@
 "use client";
 
-import { isWasmAudioRendererMode } from "@/audio/renderers/shared/audioRendererMode";
 import { createInitializedWorkletNode } from "@/audio/worklets/createInitializedWorkletNode";
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { getLoopPlaybackEndBeat, getSongBeatForPlaybackBeat } from "@/lib/looping";
@@ -13,7 +12,6 @@ const LOOKAHEAD_MS = 300;
 const SCHEDULER_TICK_MS = 25;
 export const BLOCK_SIZE = 128;
 export const FIXED_SAMPLE_RATE = 48000;
-const USE_WASM_WORKLET = isWasmAudioRendererMode();
 
 export interface AudioEngineBackend {
   init(): Promise<void>;
@@ -46,7 +44,7 @@ export interface AudioEngineBackend {
 }
 
 const getWorkletUrl = () => {
-  const basePath = USE_WASM_WORKLET ? "/worklets/synth-worklet-wasm.js" : "/worklets/synth-worklet.js";
+  const basePath = "/worklets/synth-worklet.js";
   return process.env.NODE_ENV === "development" ? `${basePath}?v=${Date.now()}` : basePath;
 };
 
@@ -136,7 +134,7 @@ class RealAudioEngineBackend implements AudioEngineBackend {
     const context = new AudioContext({ sampleRate: FIXED_SAMPLE_RATE, latencyHint: "interactive" });
 
     try {
-      const wasmBytes = USE_WASM_WORKLET ? await loadWorkletWasmBytes() : undefined;
+      const wasmBytes = await loadWorkletWasmBytes();
       const worklet = await createInitializedWorkletNode({
         context,
         moduleUrl: getWorkletUrl(),

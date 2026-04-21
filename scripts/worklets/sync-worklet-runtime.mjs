@@ -6,11 +6,10 @@ const repoRoot = process.cwd();
 const sourceDirs = [
   path.join(repoRoot, "src", "audio", "worklets"),
   path.join(repoRoot, "src", "audio", "renderers", "shared"),
-  path.join(repoRoot, "src", "audio", "renderers", "js"),
   path.join(repoRoot, "src", "audio", "renderers", "wasm")
 ];
 const publicDir = path.join(repoRoot, "public", "worklets");
-const generatedFilePattern = /^(synth-(worklet|renderer)-.*\.(js|d\.ts))$/;
+const generatedFilePattern = /^(synth-worklet\.js|synth-(worklet|renderer)-.*\.(js|d\.ts))$/;
 
 const walkFiles = (dir) => {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -34,9 +33,6 @@ const rewritePublicImportPaths = (source) =>
 fs.mkdirSync(publicDir, { recursive: true });
 
 for (const filename of fs.readdirSync(publicDir)) {
-  if (filename === "synth-worklet.js") {
-    continue;
-  }
   if (generatedFilePattern.test(filename)) {
     fs.rmSync(path.join(publicDir, filename), { force: true });
   }

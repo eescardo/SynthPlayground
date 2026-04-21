@@ -41,10 +41,7 @@ for (const relativePath of pathsToRemove) {
 const publicWorkletsDir = path.join(repoRoot, "public", "worklets");
 if (fs.existsSync(publicWorkletsDir)) {
   for (const filename of fs.readdirSync(publicWorkletsDir)) {
-    if (filename === "synth-worklet.js") {
-      continue;
-    }
-    if (/^synth-worklet-.*\.(js|d\.ts)$/.test(filename)) {
+    if (/^synth-(worklet|renderer).*\.(js|d\.ts)$/.test(filename)) {
       fs.rmSync(path.join(publicWorkletsDir, filename), { force: true });
     }
   }

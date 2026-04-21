@@ -1,4 +1,4 @@
-import { EVENT_SORT_PRIORITY } from "../js/synth-worklet-constants.js";
+import { EVENT_SORT_PRIORITY } from "./synth-renderer-constants.js";
 
 export const compareScheduledEvents = (a, b) => {
   if (a.sampleTime !== b.sampleTime) {

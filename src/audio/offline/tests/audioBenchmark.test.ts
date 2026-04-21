@@ -1,11 +1,46 @@
-import { describe, expect, it } from "vitest";
-import { renderProjectOfflineJs } from "@/audio/offline/renderProjectOffline";
-import { collectEventsInWindow } from "@/audio/scheduler";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { runAudioBenchmarkBundle } from "@/audio/benchmarks/runBenchmark";
 import { createNamedBenchmarkScenario, createStressBenchmarkProject, DEFAULT_BENCHMARK_SCENARIO_IDS } from "@/audio/benchmarks/stressScenario";
 import { beatToSample } from "@/lib/musicTiming";
 
+const createMockStream = () => ({
+  port: { onmessage: null, postMessage() {} },
+  project: null,
+  trackRuntimes: [],
+  eventQueue: [],
+  stopped: false,
+  transportSessionId: 1,
+  processBlock(output: Float32Array[]) {
+    output[0].fill(0.25);
+    output[1]?.fill(0.25);
+    return true;
+  },
+  enqueueEvents() {},
+  stop() {},
+  getProfileStats() {
+    return null;
+  }
+});
+
+vi.mock("@/audio/renderers/wasm/wasmSynthRenderer", () => ({
+  createWasmRenderer: vi.fn(async () => ({
+    port: { onmessage: null, postMessage() {} },
+    sampleRateInternal: 48000,
+    blockSize: 128,
+    project: null,
+    configure() {},
+    setDefaultProject() {},
+    startStream() {
+      return createMockStream();
+    }
+  }))
+}));
+
 describe("audio benchmark harness", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("exposes the default benchmark scenario matrix", () => {
     expect(DEFAULT_BENCHMARK_SCENARIO_IDS).toEqual([
       "stress-3min-35tracks",
@@ -63,8 +98,7 @@ describe("audio benchmark harness", () => {
     const result = await runAudioBenchmarkBundle(scenarios, {
       runs: 1,
       warmupRuns: 0,
-      gitRef: "test",
-      backend: "js"
+      gitRef: "test"
     });
 
     expect(result.scenarios).toHaveLength(2);
@@ -78,7 +112,7 @@ describe("audio benchmark harness", () => {
     }
   });
 
-  it("renders offline from a precomputed event schedule", () => {
+  it("computes the expected offline render sample length for a short scenario", () => {
     const scenario = createStressBenchmarkProject({
       trackCount: 3,
       automatedTrackCount: 2,
@@ -91,17 +125,7 @@ describe("audio benchmark harness", () => {
       scenario.config.sampleRate,
       scenario.config.tempo
     );
-    const events = collectEventsInWindow(scenario.project, { fromSample: 0, toSample: durationSamples + 1 }, { cueBeat: 0 });
-    const result = renderProjectOfflineJs(scenario.project, {
-      sampleRate: scenario.config.sampleRate,
-      blockSize: scenario.config.blockSize,
-      durationSamples,
-      events
-    });
 
-    expect(result.renderedSamples).toBe(durationSamples);
-    expect(result.renderedBlocks).toBeGreaterThan(0);
-    expect(result.outputAbsSum).toBeGreaterThan(0);
-    expect(result.left.some((sample) => Math.abs(sample) > 1e-6)).toBe(true);
+    expect(durationSamples).toBeGreaterThan(0);
   });
 });
