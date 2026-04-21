@@ -415,6 +415,234 @@ export function useComposerHardwareNavigation({
       });
     };
 
+    const nudgePlayhead = (direction: -1 | 1) => {
+      const nextBeat = direction < 0
+        ? Math.max(0, snapToGrid(playheadBeat - projectGridBeats, projectGridBeats))
+        : Math.min(playbackEndBeat, snapToGrid(playheadBeat + projectGridBeats, projectGridBeats));
+      setPlayheadBeatPreservingSelection(nextBeat);
+      base.setPlayheadNavigationFocused(true);
+      clearBlockedSelectionTransfer();
+    };
+
+    const nudgeContentSelection = (direction: -1 | 1) => {
+      let moveResult!: ReturnType<typeof shiftContentSelectionByBeats>;
+      commitProjectChange((current) => {
+        const nextMoveResult = shiftContentSelectionByBeats(current, contentSelection, direction * projectGridBeats);
+        moveResult = nextMoveResult;
+        return nextMoveResult.status === "moved" ? nextMoveResult.project : current;
+      }, {
+        actionKey: `selection:nudge:${direction < 0 ? "left" : "right"}`,
+        coalesce: true
+      });
+
+      if (moveResult.status === "moved") {
+        clearBlockedSelectionTransfer();
+        base.setPlayheadNavigationFocused(false);
+        return;
+      }
+
+      if (
+        contentSelection.noteKeys.length === 1 &&
+        contentSelection.automationKeyframeSelectionKeys.length === 0 &&
+        moveResult.block.reason === "note"
+      ) {
+        const selectedNoteKey = contentSelection.noteKeys[0]!;
+        const previousBlockedTransfer = blockedSelectionTransferRef.current;
+        if (
+          previousBlockedTransfer &&
+          previousBlockedTransfer.direction === direction &&
+          previousBlockedTransfer.selectedNoteKey === selectedNoteKey &&
+          previousBlockedTransfer.blockingSelectionKey === moveResult.block.blockingSelectionKey
+        ) {
+          base.setSingleNoteSelection(moveResult.block.blockingSelectionKey, { keepCollapsed: true });
+          clearBlockedSelectionTransfer();
+          base.setPlayheadNavigationFocused(false);
+          return;
+        }
+
+        blockedSelectionTransferRef.current = {
+          direction,
+          selectedNoteKey,
+          blockingSelectionKey: moveResult.block.blockingSelectionKey
+        };
+        base.setPlayheadNavigationFocused(false);
+        return;
+      }
+
+      clearBlockedSelectionTransfer();
+      base.setPlayheadNavigationFocused(false);
+    };
+
+    const handleHorizontalArrowNavigation = (
+      event: KeyboardEvent,
+      direction: -1 | 1,
+      options: {
+        playheadNavigationActive: boolean;
+        hasContentSelection: boolean;
+        hasTimelineSelection: boolean;
+        selectionCaptureFocused: boolean;
+      }
+    ) => {
+      const { playheadNavigationActive, hasContentSelection, hasTimelineSelection, selectionCaptureFocused } = options;
+      event.preventDefault();
+      if (playheadNavigationActive) {
+        nudgePlayhead(direction);
+        return true;
+      }
+      if (hasContentSelection) {
+        nudgeContentSelection(direction);
+        return true;
+      }
+      if (hasTimelineSelection) {
+        if (!selectionCaptureFocused) {
+          nudgePlayhead(direction);
+          return true;
+        }
+        base.setPlayheadNavigationFocused(false);
+        clearBlockedSelectionTransfer();
+        return true;
+      }
+      nudgePlayhead(direction);
+      return true;
+    };
+
+    const handleTransportKey = (event: KeyboardEvent) => {
+      if (event.key !== " " && event.code !== "Space") {
+        return false;
+      }
+      event.preventDefault();
+      if (event.repeat) {
+        return true;
+      }
+      if (isPlaying) {
+        onComposerStop();
+      } else if (recordPhase === "idle") {
+        onComposerPlay();
+      }
+      return true;
+    };
+
+    const handleMacroPanelKey = (event: KeyboardEvent) => {
+      if (!selectedTrack || event.repeat) {
+        return false;
+      }
+      if (event.key === "[" || event.key === "{") {
+        event.preventDefault();
+        toggleTrackMacroPanel(selectedTrack.id, false);
+        return true;
+      }
+      if (event.key === "]" || event.key === "}") {
+        event.preventDefault();
+        toggleTrackMacroPanel(selectedTrack.id, true);
+        return true;
+      }
+      return false;
+    };
+
+    const handleSelectionEnterKey = (event: KeyboardEvent, selectionOwnsEnter: boolean) => {
+      if (event.key !== "Enter" || event.repeat || !selectionActionPopoverCollapsed || !selectionOwnsEnter) {
+        return false;
+      }
+      event.preventDefault();
+      expandSelectionActionPopover();
+      return true;
+    };
+
+    const handleVerticalTrackNavigation = (event: KeyboardEvent, playheadNavigationActive: boolean) => {
+      if (!selectedTrack) {
+        return false;
+      }
+
+      const selectedTrackIndex = tracks.findIndex((track) => track.id === selectedTrack.id);
+      if (selectedTrackIndex === -1) {
+        return false;
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setSelectedTrackId(tracks[Math.max(0, selectedTrackIndex - 1)]!.id);
+        base.setPlayheadNavigationFocused(playheadNavigationActive);
+        clearBlockedSelectionTransfer();
+        return true;
+      }
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setSelectedTrackId(tracks[Math.min(tracks.length - 1, selectedTrackIndex + 1)]!.id);
+        base.setPlayheadNavigationFocused(playheadNavigationActive);
+        clearBlockedSelectionTransfer();
+        return true;
+      }
+
+      return false;
+    };
+
+    const handlePlacementEnterKey = (event: KeyboardEvent) => {
+      if (event.key !== "Enter" || event.repeat) {
+        return false;
+      }
+      event.preventDefault();
+      startPlacement();
+      return true;
+    };
+
+    const handleBackspaceKey = (event: KeyboardEvent) => {
+      if (!selectedTrack || !isTransportIdle || event.key !== "Backspace" || event.repeat) {
+        return false;
+      }
+      event.preventDefault();
+      const targetNote = findTrackBackspaceTargetNote(selectedTrack, playheadBeat);
+      if (targetNote) {
+        deleteNote(selectedTrack.id, targetNote.id);
+        setPlayheadBeatFromUser(targetNote.startBeat);
+      } else {
+        setPlayheadBeatFromUser(Math.max(0, snapToGrid(playheadBeat - projectGridBeats, projectGridBeats)));
+      }
+      base.setPlayheadNavigationFocused(true);
+      clearBlockedSelectionTransfer();
+      return true;
+    };
+
+    const handleTabNavigation = (
+      event: KeyboardEvent,
+      options: {
+        playheadNavigationActive: boolean;
+        hasContentSelection: boolean;
+      }
+    ) => {
+      const { playheadNavigationActive, hasContentSelection } = options;
+      if (event.key !== "Tab" || !playheadNavigationActive || !selectedTrack) {
+        return false;
+      }
+
+      if (event.shiftKey) {
+        if (base.focusLastTrackChromeTabStop()) {
+          event.preventDefault();
+          base.setPlayheadNavigationFocused(false);
+          return true;
+        }
+        return false;
+      }
+
+      if (hasContentSelection) {
+        event.preventDefault();
+        base.setPlayheadNavigationFocused(false);
+        base.focusSelectedContentTabStop();
+        return true;
+      }
+
+      const noteAtPlayhead = findTrackNoteAtBeat(selectedTrack, playheadBeat);
+      if (!noteAtPlayhead) {
+        return false;
+      }
+
+      event.preventDefault();
+      base.setSingleNoteSelection(getNoteSelectionKey(selectedTrack.id, noteAtPlayhead.id), { keepCollapsed: true });
+      base.setPlayheadNavigationFocused(false);
+      base.focusSelectedContentTabStop();
+      return true;
+    };
+
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const playheadDomFocused = target?.classList.contains("track-canvas-playhead-tabstop") ?? false;
@@ -430,64 +658,6 @@ export function useComposerHardwareNavigation({
       const selectionOwnsEnter =
         selectionKind !== "none" &&
         !playheadNavigationActive;
-
-      const nudgePlayhead = (direction: -1 | 1) => {
-        const nextBeat = direction < 0
-          ? Math.max(0, snapToGrid(playheadBeat - projectGridBeats, projectGridBeats))
-          : Math.min(playbackEndBeat, snapToGrid(playheadBeat + projectGridBeats, projectGridBeats));
-        setPlayheadBeatPreservingSelection(nextBeat);
-        base.setPlayheadNavigationFocused(true);
-        clearBlockedSelectionTransfer();
-      };
-
-      const nudgeContentSelection = (direction: -1 | 1) => {
-        let moveResult!: ReturnType<typeof shiftContentSelectionByBeats>;
-        commitProjectChange((current) => {
-          const nextMoveResult = shiftContentSelectionByBeats(current, contentSelection, direction * projectGridBeats);
-          moveResult = nextMoveResult;
-          return nextMoveResult.status === "moved" ? nextMoveResult.project : current;
-        }, {
-          actionKey: `selection:nudge:${direction < 0 ? "left" : "right"}`,
-          coalesce: true
-        });
-
-        if (moveResult.status === "moved") {
-          clearBlockedSelectionTransfer();
-          base.setPlayheadNavigationFocused(false);
-          return;
-        }
-
-        if (
-          contentSelection.noteKeys.length === 1 &&
-          contentSelection.automationKeyframeSelectionKeys.length === 0 &&
-          moveResult.block.reason === "note"
-        ) {
-          const selectedNoteKey = contentSelection.noteKeys[0]!;
-          const previousBlockedTransfer = blockedSelectionTransferRef.current;
-          if (
-            previousBlockedTransfer &&
-            previousBlockedTransfer.direction === direction &&
-            previousBlockedTransfer.selectedNoteKey === selectedNoteKey &&
-            previousBlockedTransfer.blockingSelectionKey === moveResult.block.blockingSelectionKey
-          ) {
-            base.setSingleNoteSelection(moveResult.block.blockingSelectionKey, { keepCollapsed: true });
-            clearBlockedSelectionTransfer();
-            base.setPlayheadNavigationFocused(false);
-            return;
-          }
-
-          blockedSelectionTransferRef.current = {
-            direction,
-            selectedNoteKey,
-            blockingSelectionKey: moveResult.block.blockingSelectionKey
-          };
-          base.setPlayheadNavigationFocused(false);
-          return;
-        }
-
-        clearBlockedSelectionTransfer();
-        base.setPlayheadNavigationFocused(false);
-      };
 
       if (event.defaultPrevented) {
         return;
@@ -507,114 +677,46 @@ export function useComposerHardwareNavigation({
       }
 
       if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        if (playheadNavigationActive) {
-          nudgePlayhead(-1);
-          return;
-        }
-        if (hasContentSelection) {
-          nudgeContentSelection(-1);
-          return;
-        }
-        if (hasTimelineSelection) {
-          if (!selectionCaptureFocused) {
-            nudgePlayhead(-1);
-            return;
-          }
-          base.setPlayheadNavigationFocused(false);
-          clearBlockedSelectionTransfer();
-          return;
-        }
-        nudgePlayhead(-1);
+        handleHorizontalArrowNavigation(event, -1, {
+          playheadNavigationActive,
+          hasContentSelection,
+          hasTimelineSelection,
+          selectionCaptureFocused
+        });
         return;
       }
 
       if (event.key === "ArrowRight") {
-        event.preventDefault();
-        if (playheadNavigationActive) {
-          nudgePlayhead(1);
-          return;
-        }
-        if (hasContentSelection) {
-          nudgeContentSelection(1);
-          return;
-        }
-        if (hasTimelineSelection) {
-          if (!selectionCaptureFocused) {
-            nudgePlayhead(1);
-            return;
-          }
-          base.setPlayheadNavigationFocused(false);
-          clearBlockedSelectionTransfer();
-          return;
-        }
-        nudgePlayhead(1);
+        handleHorizontalArrowNavigation(event, 1, {
+          playheadNavigationActive,
+          hasContentSelection,
+          hasTimelineSelection,
+          selectionCaptureFocused
+        });
         return;
       }
 
-      if (event.key === " " || event.code === "Space") {
-        event.preventDefault();
-        if (event.repeat) {
-          return;
-        }
-        if (isPlaying) {
-          onComposerStop();
-        } else if (recordPhase === "idle") {
-          onComposerPlay();
-        }
+      if (handleTransportKey(event)) {
         return;
       }
 
-      if ((event.key === "[" || event.key === "{") && !event.repeat) {
-        if (!selectedTrack) {
-          return;
-        }
-        event.preventDefault();
-        toggleTrackMacroPanel(selectedTrack.id, false);
+      if (handleMacroPanelKey(event)) {
         return;
       }
 
-      if ((event.key === "]" || event.key === "}") && !event.repeat) {
-        if (!selectedTrack) {
-          return;
-        }
-        event.preventDefault();
-        toggleTrackMacroPanel(selectedTrack.id, true);
+      if (handleSelectionEnterKey(event, selectionOwnsEnter)) {
         return;
       }
 
-      if (event.key === "Enter" && !event.repeat && selectionActionPopoverCollapsed && selectionOwnsEnter) {
-        event.preventDefault();
-        expandSelectionActionPopover();
+      if (handleVerticalTrackNavigation(event, playheadNavigationActive)) {
         return;
       }
 
-      if (!selectedTrack) {
+      if (handlePlacementEnterKey(event)) {
         return;
       }
 
-      const selectedTrackIndex = tracks.findIndex((track) => track.id === selectedTrack.id);
-      if (selectedTrackIndex !== -1) {
-        if (event.key === "ArrowUp") {
-          event.preventDefault();
-          setSelectedTrackId(tracks[Math.max(0, selectedTrackIndex - 1)]!.id);
-          base.setPlayheadNavigationFocused(playheadNavigationActive);
-          clearBlockedSelectionTransfer();
-          return;
-        }
-
-        if (event.key === "ArrowDown") {
-          event.preventDefault();
-          setSelectedTrackId(tracks[Math.min(tracks.length - 1, selectedTrackIndex + 1)]!.id);
-          base.setPlayheadNavigationFocused(playheadNavigationActive);
-          clearBlockedSelectionTransfer();
-          return;
-        }
-      }
-
-      if (event.key === "Enter" && !event.repeat) {
-        event.preventDefault();
-        startPlacement();
+      if (handleBackspaceKey(event)) {
         return;
       }
 
@@ -622,44 +724,7 @@ export function useComposerHardwareNavigation({
         return;
       }
 
-      if (event.key === "Backspace" && !event.repeat) {
-        event.preventDefault();
-        const targetNote = findTrackBackspaceTargetNote(selectedTrack, playheadBeat);
-        if (targetNote) {
-          deleteNote(selectedTrack.id, targetNote.id);
-          setPlayheadBeatFromUser(targetNote.startBeat);
-        } else {
-          setPlayheadBeatFromUser(Math.max(0, snapToGrid(playheadBeat - projectGridBeats, projectGridBeats)));
-        }
-        base.setPlayheadNavigationFocused(true);
-        clearBlockedSelectionTransfer();
-        return;
-      }
-
-      if (event.key === "Tab" && playheadNavigationActive) {
-        if (event.shiftKey) {
-          if (base.focusLastTrackChromeTabStop()) {
-            event.preventDefault();
-            base.setPlayheadNavigationFocused(false);
-          }
-          return;
-        }
-
-        if (hasContentSelection) {
-          event.preventDefault();
-          base.setPlayheadNavigationFocused(false);
-          base.focusSelectedContentTabStop();
-          return;
-        }
-
-        const noteAtPlayhead = findTrackNoteAtBeat(selectedTrack, playheadBeat);
-        if (noteAtPlayhead) {
-          event.preventDefault();
-          base.setSingleNoteSelection(getNoteSelectionKey(selectedTrack.id, noteAtPlayhead.id), { keepCollapsed: true });
-          base.setPlayheadNavigationFocused(false);
-          base.focusSelectedContentTabStop();
-        }
-      }
+      handleTabNavigation(event, { playheadNavigationActive, hasContentSelection });
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
