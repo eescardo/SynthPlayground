@@ -17,6 +17,14 @@ export interface TrackCanvasSelectedNoteTabStopRect extends TrackCanvasNoteSelec
   pitchStr: string;
 }
 
+export interface TrackCanvasSelectedContentTabStopRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  ariaLabel: string;
+}
+
 export interface TrackCanvasSelectionRect {
   startX: number;
   startY: number;
@@ -83,17 +91,35 @@ export function resolveSelectedNoteTabStopRect(
   tracks: Track[],
   selection: {
     kind: "none" | "note" | "timeline";
+    beatRange?: { startBeat: number; endBeat: number };
+    markerTrackId?: string;
     content?: { noteKeys: ReadonlySet<string>; automationKeyframeSelectionKeys: ReadonlySet<string> };
   },
   trackLayouts: TrackLayout[]
-): TrackCanvasSelectedNoteTabStopRect | null {
+): TrackCanvasSelectedContentTabStopRect | null {
+  if (selection.kind !== "note" || !selection.content) {
+    return null;
+  }
+
   if (
-    selection.kind !== "note" ||
-    !selection.content ||
     selection.content.noteKeys.size !== 1 ||
     selection.content.automationKeyframeSelectionKeys.size > 0
   ) {
-    return null;
+    if (!selection.beatRange || !selection.markerTrackId) {
+      return null;
+    }
+    const layout = trackLayouts.find((entry) => entry.trackId === selection.markerTrackId);
+    if (!layout) {
+      return null;
+    }
+
+    return {
+      ariaLabel: "Selected content",
+      x: HEADER_WIDTH + selection.beatRange.startBeat * BEAT_WIDTH,
+      y: layout.y + 14,
+      w: Math.max(8, (selection.beatRange.endBeat - selection.beatRange.startBeat) * BEAT_WIDTH),
+      h: TRACK_HEIGHT - 28
+    };
   }
 
   const selectionKey = [...selection.content.noteKeys][0];
@@ -114,9 +140,7 @@ export function resolveSelectedNoteTabStopRect(
   }
 
   return {
-    trackId: track.id,
-    noteId: note.id,
-    pitchStr: note.pitchStr,
+    ariaLabel: `Selected note ${note.pitchStr}`,
     x: HEADER_WIDTH + note.startBeat * BEAT_WIDTH,
     y: layout.y + 14,
     w: Math.max(8, note.durationBeats * BEAT_WIDTH),

@@ -267,7 +267,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const width = HEADER_WIDTH + totalBeats * BEAT_WIDTH;
   const { trackLayouts, height } = useTrackCanvasLayout(project);
   const playheadTabStopLeft = HEADER_WIDTH + playheadBeat * BEAT_WIDTH - 1;
-  const selectedNoteTabStopRect = useMemo(
+  const selectedContentTabStopRect = useMemo(
     () => resolveSelectedNoteTabStopRect(project.tracks, selection, trackLayouts),
     [project.tracks, selection, trackLayouts]
   );
@@ -476,9 +476,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const noteSelected = selectedNoteKeys?.has(getNoteSelectionKey(track.id, note.id)) ?? false;
         const noteFocused =
           noteSelected &&
-          selectedNoteTabStopFocused &&
-          selectedNoteTabStopRect?.trackId === track.id &&
-          selectedNoteTabStopRect.noteId === note.id;
+          selectedNoteTabStopFocused;
         const noteBeingPlaced = keyboardPlacementNote?.trackId === track.id && keyboardPlacementNote.noteId === note.id;
 
         const noteFill = overlaps
@@ -704,8 +702,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
     project.tracks,
     selectedNoteKeys,
     selectedNoteTabStopFocused,
-    selectedNoteTabStopRect?.noteId,
-    selectedNoteTabStopRect?.trackId,
     automationKeyframeSelectionKeys,
     selectionBeatRange,
     selectionMarkerTrackId,
@@ -795,18 +791,18 @@ export function TrackCanvas(props: TrackCanvasProps) {
   }, [playheadBeat, playheadFocused]);
 
   useEffect(() => {
-    if (!selectedNoteTabStopFocusToken || !selectedNoteTabStopRect) {
+    if (!selectedNoteTabStopFocusToken || !selectedContentTabStopRect) {
       return;
     }
     selectedNoteTabStopRef.current?.focus();
-  }, [selectedNoteTabStopFocusToken, selectedNoteTabStopRect]);
+  }, [selectedNoteTabStopFocusToken, selectedContentTabStopRect]);
 
   useEffect(() => {
-    if (selectedNoteTabStopRect) {
+    if (selectedContentTabStopRect) {
       return;
     }
     setSelectedNoteTabStopFocused(false);
-  }, [selectedNoteTabStopRect]);
+  }, [selectedContentTabStopRect]);
 
   return (
     <div className="track-canvas-shell" ref={wrapperRef}>
@@ -850,7 +846,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         height={height}
         playheadTabStopRef={playheadTabStopRef}
         selectedNoteTabStopRef={selectedNoteTabStopRef}
-        selectedNoteRect={selectedNoteTabStopRect}
+        selectedContentRect={selectedContentTabStopRect}
         onPlayheadFocus={() => setPlayheadTabStopFocused(true)}
         onPlayheadBlur={() => setPlayheadTabStopFocused(false)}
         onSelectedNoteFocus={() => setSelectedNoteTabStopFocused(true)}

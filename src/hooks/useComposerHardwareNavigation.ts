@@ -196,14 +196,9 @@ export function useComposerHardwareNavigation({
       (document.activeElement as HTMLElement | null)?.blur();
     }
 
-    if (contentSelection.noteKeys.length === 1 && contentSelection.automationKeyframeSelectionKeys.length === 0) {
-      base.setPlayheadNavigationFocused(false);
-      base.focusSelectedNoteTabStop();
-      return;
-    }
-
     if (contentSelection.noteKeys.length > 0 || contentSelection.automationKeyframeSelectionKeys.length > 0) {
       base.setPlayheadNavigationFocused(false);
+      base.focusSelectedNoteTabStop();
     }
   }, [base, contentSelection, isComposerView, selectionKind]);
 
@@ -640,6 +635,13 @@ export function useComposerHardwareNavigation({
             event.preventDefault();
             base.setPlayheadNavigationFocused(false);
           }
+          return;
+        }
+
+        if (hasContentSelection) {
+          event.preventDefault();
+          base.setPlayheadNavigationFocused(false);
+          base.focusSelectedNoteTabStop();
           return;
         }
 

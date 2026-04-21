@@ -1,7 +1,7 @@
 "use client";
 
 import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
-import { TrackCanvasSelectedNoteTabStopRect } from "@/components/tracks/trackCanvasSelection";
+import { TrackCanvasSelectedContentTabStopRect } from "@/components/tracks/trackCanvasSelection";
 
 interface TrackCanvasTabStopsProps {
   playheadLabel: string;
@@ -9,7 +9,7 @@ interface TrackCanvasTabStopsProps {
   height: number;
   playheadTabStopRef: RefObject<HTMLButtonElement | null>;
   selectedNoteTabStopRef: RefObject<HTMLButtonElement | null>;
-  selectedNoteRect: TrackCanvasSelectedNoteTabStopRect | null;
+  selectedContentRect: TrackCanvasSelectedContentTabStopRect | null;
   onPlayheadFocus: () => void;
   onPlayheadBlur: () => void;
   onSelectedNoteFocus: () => void;
@@ -23,7 +23,7 @@ export function TrackCanvasTabStops({
   height,
   playheadTabStopRef,
   selectedNoteTabStopRef,
-  selectedNoteRect,
+  selectedContentRect,
   onPlayheadFocus,
   onPlayheadBlur,
   onSelectedNoteFocus,
@@ -57,25 +57,25 @@ export function TrackCanvasTabStops({
       >
         <span className="track-canvas-tabstop-label">{playheadLabel}</span>
       </button>
-      {selectedNoteRect && (
+      {selectedContentRect && (
         <button
           ref={selectedNoteTabStopRef}
           type="button"
           tabIndex={0}
           className="track-canvas-note-tabstop"
-          aria-label={`Selected note ${selectedNoteRect.pitchStr}`}
+          aria-label={selectedContentRect.ariaLabel}
           style={{
-            left: selectedNoteRect.x,
-            top: selectedNoteRect.y,
-            width: selectedNoteRect.w,
-            height: selectedNoteRect.h
+            left: selectedContentRect.x,
+            top: selectedContentRect.y,
+            width: selectedContentRect.w,
+            height: selectedContentRect.h
           }}
           onKeyDown={handleSelectedNoteKeyDown}
           onFocus={onSelectedNoteFocus}
           onBlur={onSelectedNoteBlur}
         >
           <span className="track-canvas-tabstop-label">
-            Selected note {selectedNoteRect.pitchStr}
+            {selectedContentRect.ariaLabel}
           </span>
         </button>
       )}
