@@ -102,6 +102,10 @@ export function useEditorKeyboardShortcuts({
       }
 
       if (!primaryModifier && !event.altKey && !event.shiftKey && event.key === "Backspace") {
+        if (hasPrimarySelection) {
+          event.preventDefault();
+          deletePrimarySelection();
+        }
         return;
       }
 

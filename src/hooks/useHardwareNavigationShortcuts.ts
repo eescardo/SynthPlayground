@@ -551,6 +551,10 @@ export function useHardwareNavigationShortcuts({
       const target = event.target as HTMLElement | null;
       const playheadDomFocused = target?.classList.contains("track-canvas-playhead-tabstop") ?? false;
 
+      if (event.defaultPrevented) {
+        return;
+      }
+
       if (isTextEditingTarget(event.target) || pitchPickerOpen || previewPitchPickerOpen) {
         return;
       }
