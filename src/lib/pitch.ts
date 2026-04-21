@@ -126,9 +126,14 @@ const qwertyEntries = PHYSICAL_KEY_SEQUENCE.map((key, index) => [key, midiToPitc
 
 export const QWERTY_PITCH_MAP: Record<string, string> = Object.fromEntries(qwertyEntries);
 
-export const keyToPitch = (key: string): string | undefined => {
+export const normalizePhysicalPitchKey = (key: string): string | undefined => {
   const normalized = SHIFTED_KEY_ALIASES[key] ?? key.toLowerCase();
-  return QWERTY_PITCH_MAP[normalized];
+  return normalized in QWERTY_PITCH_MAP ? normalized : undefined;
+};
+
+export const keyToPitch = (key: string): string | undefined => {
+  const normalized = normalizePhysicalPitchKey(key);
+  return normalized ? QWERTY_PITCH_MAP[normalized] : undefined;
 };
 
 export const transposePitch = (pitchStr: string, semitoneDelta: number, options?: { minPitch?: string; maxPitch?: string }): string => {
