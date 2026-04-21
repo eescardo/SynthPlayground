@@ -68,6 +68,13 @@ export function useComposerHardwareNavigation({
   tracks,
   base
 }: UseComposerHardwareNavigationArgs): ComposerHardwareNavigationResult {
+  const isComposerView = view === "composer";
+  const isTransportIdle = !isPlaying && recordPhase === "idle";
+  const arePitchPickersClosed = !pitchPickerOpen && !previewPitchPickerOpen;
+  const hasActivePlacement = activePlacement !== null;
+  const hasSelectedTrack = Boolean(selectedTrack);
+  const hasNoSelection = selectionKind === "none";
+
   const [ghostPreviewNote, setGhostPreviewNote] = useState<GhostPreviewNote | null>(null);
   const [tabSelectionPreviewNote, setTabSelectionPreviewNote] = useState<{ trackId: string; noteId: string } | null>(null);
   const placementRafRef = useRef<number | null>(null);
@@ -168,6 +175,7 @@ export function useComposerHardwareNavigation({
     clearBlockedSelectionTransfer();
   }, [clearBlockedSelectionTransfer, contentSelection.automationKeyframeSelectionKeys, contentSelection.noteKeys, selectionKind]);
 
+  // Grow the actively placed note while Enter is held.
   useEffect(() => {
     if (!activePlacement) {
       if (placementRafRef.current !== null) {
@@ -203,17 +211,17 @@ export function useComposerHardwareNavigation({
     };
   }, [activePlacement, defaultPitch, projectGridBeats, projectTempo, setActivePlacement, setPlacedNote]);
 
+  // Show the delayed ghost note when the composer is idle over an empty spot.
   useEffect(() => {
-    if (
-      view !== "composer" ||
-      !selectedTrack ||
-      activePlacement ||
-      isPlaying ||
-      recordPhase !== "idle" ||
-      selectionKind !== "none" ||
-      pitchPickerOpen ||
-      previewPitchPickerOpen
-    ) {
+    const canShowGhostPreview =
+      isComposerView &&
+      hasSelectedTrack &&
+      !hasActivePlacement &&
+      isTransportIdle &&
+      hasNoSelection &&
+      arePitchPickersClosed;
+
+    if (!canShowGhostPreview || !selectedTrack) {
       setGhostPreviewNote(null);
       return;
     }
@@ -268,31 +276,31 @@ export function useComposerHardwareNavigation({
       window.clearTimeout(timer);
     };
   }, [
-    activePlacement,
+    arePitchPickersClosed,
     defaultPitch,
     ghostPreviewNote,
-    isPlaying,
-    pitchPickerOpen,
+    hasActivePlacement,
+    hasNoSelection,
+    hasSelectedTrack,
+    isComposerView,
+    isTransportIdle,
     playheadBeat,
-    previewPitchPickerOpen,
     projectGridBeats,
-    recordPhase,
-    selectionKind,
     selectedTrack,
-    view
   ]);
 
+  // Show the delayed Tab target preview when playhead navigation is the active focus model.
   useEffect(() => {
-    if (
-      view !== "composer" ||
-      !selectedTrack ||
-      (!base.playheadNavigationFocused && !isPlayheadTabStopFocused()) ||
-      activePlacement ||
-      isPlaying ||
-      recordPhase !== "idle" ||
-      pitchPickerOpen ||
-      previewPitchPickerOpen
-    ) {
+    const playheadNavigationActive = base.playheadNavigationFocused || isPlayheadTabStopFocused();
+    const canShowTabSelectionPreview =
+      isComposerView &&
+      hasSelectedTrack &&
+      playheadNavigationActive &&
+      !hasActivePlacement &&
+      isTransportIdle &&
+      arePitchPickersClosed;
+
+    if (!canShowTabSelectionPreview || !selectedTrack) {
       setTabSelectionPreviewNote(null);
       return;
     }
@@ -323,18 +331,18 @@ export function useComposerHardwareNavigation({
       window.clearTimeout(timer);
     };
   }, [
-    activePlacement,
+    arePitchPickersClosed,
     base.playheadNavigationFocused,
-    isPlaying,
-    pitchPickerOpen,
+    hasActivePlacement,
+    hasSelectedTrack,
+    isComposerView,
+    isTransportIdle,
     playheadBeat,
-    previewPitchPickerOpen,
-    recordPhase,
     selectedTrack,
     tabSelectionPreviewNote,
-    view
   ]);
 
+  // Keep the live placement aligned when default pitch changes mid-hold.
   useEffect(() => {
     if (!activePlacement || !selectedTrack || selectedTrack.id !== activePlacement.trackId) {
       return;
@@ -342,6 +350,7 @@ export function useComposerHardwareNavigation({
     setPlacedNote(activePlacement.trackId, activePlacement.noteId, activePlacement.startBeat, activePlacement.durationBeats, defaultPitch);
   }, [activePlacement, defaultPitch, selectedTrack, setPlacedNote]);
 
+  // Attach composer-only keyboard routing for placement, transport, and timeline navigation.
   useEffect(() => {
     const finishPlacement = () => {
       if (activePlacement) {
@@ -353,7 +362,12 @@ export function useComposerHardwareNavigation({
     };
 
     const startPlacement = () => {
-      if (view !== "composer" || !selectedTrack || isPlaying || recordPhase !== "idle" || activePlacement) {
+      const canStartPlacement =
+        isComposerView &&
+        Boolean(selectedTrack) &&
+        isTransportIdle &&
+        !hasActivePlacement;
+      if (!canStartPlacement || !selectedTrack) {
         return;
       }
       const startBeat = Math.max(0, snapToGrid(playheadBeat, projectGridBeats));
@@ -379,9 +393,11 @@ export function useComposerHardwareNavigation({
       const hasCollapsedContentSelection =
         selectionActionPopoverCollapsed &&
         (contentSelection.noteKeys.length > 0 || contentSelection.automationKeyframeSelectionKeys.length > 0);
-      const hasNonPlayheadSelection =
+      const hasExpandedOrTimelineSelection =
         selectionKind === "timeline" ||
         (selectionKind === "content" && !hasCollapsedContentSelection);
+      const playheadNavigationActive = base.playheadNavigationFocused || playheadDomFocused;
+      const canHandleComposerKeyboardShortcut = isComposerView && arePitchPickersClosed;
 
       const nudgePlayhead = (direction: -1 | 1) => {
         const nextBeat = direction < 0
@@ -444,7 +460,7 @@ export function useComposerHardwareNavigation({
       if (event.defaultPrevented) {
         return;
       }
-      if (isTextEditingTarget(event.target) || pitchPickerOpen || previewPitchPickerOpen) {
+      if (isTextEditingTarget(event.target) || !canHandleComposerKeyboardShortcut) {
         return;
       }
       if (isModifierChord(event)) {
@@ -454,17 +470,17 @@ export function useComposerHardwareNavigation({
         event.preventDefault();
         return;
       }
-      if (view !== "composer") {
+      if (!isComposerView) {
         return;
       }
 
       if (event.key === "ArrowLeft") {
         event.preventDefault();
-        if (base.playheadNavigationFocused || playheadDomFocused) {
+        if (playheadNavigationActive) {
           nudgePlayhead(-1);
           return;
         }
-        if (hasNonPlayheadSelection) {
+        if (hasExpandedOrTimelineSelection) {
           if (!selectionCaptureFocused) {
             nudgePlayhead(-1);
             return;
@@ -487,11 +503,11 @@ export function useComposerHardwareNavigation({
 
       if (event.key === "ArrowRight") {
         event.preventDefault();
-        if (base.playheadNavigationFocused || playheadDomFocused) {
+        if (playheadNavigationActive) {
           nudgePlayhead(1);
           return;
         }
-        if (hasNonPlayheadSelection) {
+        if (hasExpandedOrTimelineSelection) {
           if (!selectionCaptureFocused) {
             nudgePlayhead(1);
             return;
@@ -514,7 +530,7 @@ export function useComposerHardwareNavigation({
 
       if (event.key === " " || event.code === "Space") {
         event.preventDefault();
-        if (event.repeat || recordPhase !== "idle") {
+        if (event.repeat || !isTransportIdle) {
           return;
         }
         if (isPlaying) {
@@ -558,7 +574,7 @@ export function useComposerHardwareNavigation({
         if (event.key === "ArrowUp") {
           event.preventDefault();
           setSelectedTrackId(tracks[Math.max(0, selectedTrackIndex - 1)]!.id);
-          base.setPlayheadNavigationFocused(base.playheadNavigationFocused || playheadDomFocused);
+          base.setPlayheadNavigationFocused(playheadNavigationActive);
           clearBlockedSelectionTransfer();
           return;
         }
@@ -566,7 +582,7 @@ export function useComposerHardwareNavigation({
         if (event.key === "ArrowDown") {
           event.preventDefault();
           setSelectedTrackId(tracks[Math.min(tracks.length - 1, selectedTrackIndex + 1)]!.id);
-          base.setPlayheadNavigationFocused(base.playheadNavigationFocused || playheadDomFocused);
+          base.setPlayheadNavigationFocused(playheadNavigationActive);
           clearBlockedSelectionTransfer();
           return;
         }
@@ -578,7 +594,7 @@ export function useComposerHardwareNavigation({
         return;
       }
 
-      if (isPlaying || recordPhase !== "idle") {
+      if (!isTransportIdle) {
         return;
       }
 
@@ -596,7 +612,7 @@ export function useComposerHardwareNavigation({
         return;
       }
 
-      if (event.key === "Tab" && (base.playheadNavigationFocused || playheadDomFocused)) {
+      if (event.key === "Tab" && playheadNavigationActive) {
         if (event.shiftKey) {
           if (base.focusLastTrackChromeTabStop()) {
             event.preventDefault();
@@ -635,6 +651,7 @@ export function useComposerHardwareNavigation({
     };
   }, [
     activePlacement,
+    arePitchPickersClosed,
     base,
     clearBlockedSelectionTransfer,
     commitProjectChange,
@@ -642,15 +659,15 @@ export function useComposerHardwareNavigation({
     defaultPitch,
     deleteNote,
     expandSelectionActionPopover,
+    hasActivePlacement,
+    isComposerView,
     isPlaying,
+    isTransportIdle,
     onComposerPlay,
     onComposerStop,
     playbackEndBeat,
-    pitchPickerOpen,
     playheadBeat,
-    previewPitchPickerOpen,
     projectGridBeats,
-    recordPhase,
     releasePlacementPreview,
     selectionActionPopoverCollapsed,
     selectionKind,
