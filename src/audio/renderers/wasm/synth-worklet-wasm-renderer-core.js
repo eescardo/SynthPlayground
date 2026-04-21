@@ -104,6 +104,8 @@ export class SharedWasmRenderStream {
   }
 
   hasActiveVoices() {
+    // Preview mode can outlive the audible note duration; this lets us stop as soon as
+    // every released voice has fully decayed instead of waiting for the full preview timeout.
     return Boolean(this.engine.has_active_voices?.());
   }
 
@@ -137,6 +139,8 @@ export class SharedWasmRenderStream {
         this.maybeEmitPreviewCapture(true);
         this.stop({ emitPreviewCapture: false });
       } else if (this.eventQueue.length === 0 && !this.hasActiveVoices()) {
+        // Long-held keyboard previews schedule a generous duration up front, then rely on
+        // NoteOff plus voice-idle detection to end naturally once the release tail is done.
         this.maybeEmitPreviewCapture(true);
         this.stop({ emitPreviewCapture: false });
       }
