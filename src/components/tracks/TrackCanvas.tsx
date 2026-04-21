@@ -36,6 +36,12 @@ import {
   drawNoteBody,
   fillRoundedRect
 } from "@/components/tracks/trackCanvasNoteGeometry";
+import {
+  resolveTrackCanvasNoteFill,
+  resolveTrackCanvasNoteLabelFill,
+  shouldCenterTrackCanvasNoteLabel,
+  splitTrackCanvasPitchLabel
+} from "@/components/tracks/trackCanvasNoteRendering";
 import { drawTrackCanvasNoteState } from "@/components/tracks/trackCanvasNoteStateRendering";
 import {
   drawGhostPreviewNote,
@@ -479,7 +485,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
           selectedContentTabStopFocused;
         const noteBeingPlaced = keyboardPlacementNote?.trackId === track.id && keyboardPlacementNote.noteId === note.id;
 
-        const noteFill = overlaps
+        const baseNoteFill = overlaps
           ? trackSilenced
             ? isHovered
               ? TRACK_CANVAS_COLORS.noteOverlapMutedHover
@@ -494,6 +500,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
             : isHovered
               ? TRACK_CANVAS_COLORS.noteHover
               : TRACK_CANVAS_COLORS.note;
+        const pitchLabel = splitTrackCanvasPitchLabel(note.pitchStr);
+        const noteFill = resolveTrackCanvasNoteFill(baseNoteFill, pitchLabel.octaveNumber);
+        const centerLabel = shouldCenterTrackCanvasNoteLabel(visualDurationBeats, gridBeats);
         drawNoteBody(ctx, noteX, noteY, noteW, noteH, noteFill);
 
         drawTrackCanvasNoteState(ctx, { x: noteX, y: noteY, w: noteW, h: noteH }, {
@@ -511,25 +520,58 @@ export function TrackCanvas(props: TrackCanvasProps) {
           drawTabSelectionPreview(ctx, { x: noteX, y: noteY, w: noteW, h: noteH });
         }
 
-        const labelX = noteX + 6;
-        const labelY = noteY + 16;
-        const labelWidth = Math.max(14, ctx.measureText(note.pitchStr).width);
+        const noteNameFont = "bold 11px ui-monospace, SFMono-Regular, Menlo, monospace";
+        const octaveFont = "9px ui-monospace, SFMono-Regular, Menlo, monospace";
+        ctx.font = noteNameFont;
+        const noteNameWidth = Math.max(8, ctx.measureText(pitchLabel.noteName).width);
+        ctx.font = octaveFont;
+        const octaveWidth = pitchLabel.octaveText ? Math.max(6, ctx.measureText(pitchLabel.octaveText).width) : 0;
+        const labelWidth = Math.max(noteNameWidth, octaveWidth);
+        const labelHeight = pitchLabel.octaveText ? 20 : 10;
+        const labelPaddingX = 3;
+        const labelPaddingY = 2;
+        const labelX = centerLabel
+          ? noteX + Math.max(0, (noteW - labelWidth) * 0.5)
+          : noteX + 6;
+        const labelY = noteY + Math.max(4, (noteH - labelHeight) * 0.5);
+        const labelCenterX = labelX + labelWidth * 0.5;
+        const labelFill = resolveTrackCanvasNoteLabelFill(noteFill, TRACK_CANVAS_COLORS.noteLabel);
         if (hoveredPitch?.trackId === track.id && hoveredPitch.noteId === note.id) {
-          fillRoundedRect(ctx, labelX - 3, labelY - 10, labelWidth + 6, 13, 5, TRACK_CANVAS_COLORS.notePitchHover);
+          fillRoundedRect(
+            ctx,
+            labelX - labelPaddingX,
+            labelY - labelPaddingY,
+            labelWidth + labelPaddingX * 2,
+            labelHeight + labelPaddingY * 2,
+            5,
+            TRACK_CANVAS_COLORS.notePitchHover
+          );
         }
 
-        ctx.fillStyle = TRACK_CANVAS_COLORS.noteLabel;
-        ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
-        ctx.fillText(note.pitchStr, labelX, labelY);
+        ctx.fillStyle = labelFill;
+        ctx.textAlign = centerLabel ? "center" : "start";
+        ctx.textBaseline = "top";
+        ctx.font = noteNameFont;
+        ctx.fillText(pitchLabel.noteName, centerLabel ? labelCenterX : labelX, labelY);
+        if (pitchLabel.octaveText) {
+          ctx.font = octaveFont;
+          ctx.fillText(
+            pitchLabel.octaveText,
+            centerLabel ? labelCenterX : labelX + (labelWidth - octaveWidth) * 0.5,
+            labelY + 10
+          );
+        }
+        ctx.textAlign = "start";
+        ctx.textBaseline = "alphabetic";
 
         noteRectsRef.current.push({ trackId: track.id, noteId: note.id, x: noteX, y: noteY, w: noteW, h: noteH });
         pitchRectsRef.current.push({
           trackId: track.id,
           noteId: note.id,
-          x: labelX - 3,
-          y: labelY - 10,
-          w: labelWidth + 6,
-          h: 13
+          x: labelX - labelPaddingX,
+          y: labelY - labelPaddingY,
+          w: labelWidth + labelPaddingX * 2,
+          h: labelHeight + labelPaddingY * 2
         });
       }
 
