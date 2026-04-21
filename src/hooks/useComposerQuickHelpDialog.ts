@@ -42,28 +42,21 @@ export function useComposerQuickHelpDialog({
         entries: [
           { action: "Help", shortcut: "?" },
           { action: "Play / Stop", shortcut: "Space" },
-          { action: "Move Playhead", shortcut: "Left / Right" },
+          { action: "Move Playhead / Reclaim Playhead Focus", shortcut: "Left / Right" },
           { action: "Select Track", shortcut: "Up / Down" },
           { action: "Backspace Note / Rewind", shortcut: "Backspace" },
           { action: "Default Pitch", shortcut: "- / =" },
           { action: "Macro Lanes", shortcut: "[ / ]" },
           { action: "Place Note", shortcut: "Enter" },
+          { action: "Playhead / Note Tab Stops", shortcut: "Tab / Shift+Tab" },
           { action: "Close Dialogs / Collapse Selection", shortcut: "Esc" }
-        ]
-      },
-      {
-        title: "Focus",
-        entries: [
-          { action: "Playhead stays in tab order", shortcut: "Tab / Shift+Tab" },
-          { action: "Select note under playhead", shortcut: "Tab" },
-          { action: "Arrow keys return control to playhead from neutral UI", shortcut: "Left / Right" },
-          { action: "Focused note or selection UI keeps selection editing active", shortcut: "Left / Right" }
         ]
       },
       {
         title: "Selection",
         entries: [
           { action: "Collapsed Selection Nudge", shortcut: "Left / Right" },
+          { action: "Select Note At Playhead", shortcut: "Tab" },
           { action: "Expand Collapsed Selection", shortcut: "Enter" },
           { action: "Cut Selection", shortcut: `${primaryModifierLabel}+X` },
           { action: "Copy Selection", shortcut: `${primaryModifierLabel}+C` },
