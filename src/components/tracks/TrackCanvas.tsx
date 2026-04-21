@@ -41,7 +41,7 @@ import {
   drawGhostPreviewNote,
   drawTabSelectionPreview
 } from "@/components/tracks/trackCanvasPreviewGeometry";
-import { resolveSelectedNoteTabStopRect } from "@/components/tracks/trackCanvasSelection";
+import { resolveSelectedContentTabStopRect } from "@/components/tracks/trackCanvasSelection";
 import {
   TrackCanvasProps,
   TrackLayout
@@ -268,7 +268,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const { trackLayouts, height } = useTrackCanvasLayout(project);
   const playheadTabStopLeft = HEADER_WIDTH + playheadBeat * BEAT_WIDTH - 1;
   const selectedContentTabStopRect = useMemo(
-    () => resolveSelectedNoteTabStopRect(project.tracks, selection, trackLayouts),
+    () => resolveSelectedContentTabStopRect(project.tracks, selection, trackLayouts),
     [project.tracks, selection, trackLayouts]
   );
 

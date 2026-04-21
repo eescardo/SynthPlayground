@@ -13,10 +13,6 @@ export interface TrackCanvasNoteSelectionRect {
   h: number;
 }
 
-export interface TrackCanvasSelectedNoteTabStopRect extends TrackCanvasNoteSelectionRect {
-  pitchStr: string;
-}
-
 export interface TrackCanvasSelectedContentTabStopRect {
   x: number;
   y: number;
@@ -87,7 +83,7 @@ export function resolveTrackCanvasSelectionFromRect(
   };
 }
 
-export function resolveSelectedNoteTabStopRect(
+export function resolveSelectedContentTabStopRect(
   tracks: Track[],
   selection: {
     kind: "none" | "note" | "timeline";

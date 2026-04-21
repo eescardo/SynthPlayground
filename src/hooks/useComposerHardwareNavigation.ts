@@ -322,6 +322,7 @@ export function useComposerHardwareNavigation({
     const canShowTabSelectionPreview =
       isComposerView &&
       hasSelectedTrack &&
+      hasNoSelection &&
       playheadNavigationActive &&
       !hasActivePlacement &&
       isTransportIdle &&
@@ -361,6 +362,7 @@ export function useComposerHardwareNavigation({
     arePitchPickersClosed,
     base.playheadNavigationFocused,
     hasActivePlacement,
+    hasNoSelection,
     hasSelectedTrack,
     isComposerView,
     isTransportIdle,
