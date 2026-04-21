@@ -19,7 +19,7 @@ import { getNoteSelectionKey } from "@/lib/clipboard";
 import { createId } from "@/lib/ids";
 import { DEFAULT_NOTE_VELOCITY } from "@/lib/noteDefaults";
 import { beatToSample, snapToGrid, snapUpToGrid } from "@/lib/musicTiming";
-import { pitchToVoct } from "@/lib/pitch";
+import { keyToPitch, normalizePhysicalPitchKey, pitchToVoct } from "@/lib/pitch";
 
 const GHOST_PREVIEW_DELAY_MS = 2000;
 const TAB_SELECTION_PREVIEW_DELAY_MS = 600;
@@ -202,7 +202,7 @@ export function useComposerHardwareNavigation({
     }
   }, [base, contentSelection, isComposerView, selectionKind]);
 
-  // Grow the actively placed note while Enter is held.
+  // Grow the actively placed note while its placement key is held.
   useEffect(() => {
     if (!activePlacement) {
       if (placementRafRef.current !== null) {
@@ -216,7 +216,13 @@ export function useComposerHardwareNavigation({
       const elapsedBeats = ((performance.now() - activePlacement.startedAtMs) / 1000) * (projectTempo / 60);
       const durationBeats = Math.max(projectGridBeats, snapUpToGrid(elapsedBeats, projectGridBeats));
       if (durationBeats !== activePlacement.durationBeats) {
-        setPlacedNote(activePlacement.trackId, activePlacement.noteId, activePlacement.startBeat, durationBeats, defaultPitch);
+        setPlacedNote(
+          activePlacement.trackId,
+          activePlacement.noteId,
+          activePlacement.startBeat,
+          durationBeats,
+          activePlacement.pitchStr
+        );
         setActivePlacement((current) =>
           current
             ? {
@@ -236,7 +242,7 @@ export function useComposerHardwareNavigation({
         placementRafRef.current = null;
       }
     };
-  }, [activePlacement, defaultPitch, projectGridBeats, projectTempo, setActivePlacement, setPlacedNote]);
+  }, [activePlacement, projectGridBeats, projectTempo, setActivePlacement, setPlacedNote]);
 
   // Show the delayed ghost note when the composer is idle over an empty spot.
   useEffect(() => {
@@ -375,11 +381,31 @@ export function useComposerHardwareNavigation({
 
   // Keep the live placement aligned when default pitch changes mid-hold.
   useEffect(() => {
-    if (!activePlacement || !selectedTrack || selectedTrack.id !== activePlacement.trackId) {
+    if (
+      !activePlacement ||
+      !activePlacement.tracksDefaultPitch ||
+      !selectedTrack ||
+      selectedTrack.id !== activePlacement.trackId ||
+      activePlacement.pitchStr === defaultPitch
+    ) {
       return;
     }
-    setPlacedNote(activePlacement.trackId, activePlacement.noteId, activePlacement.startBeat, activePlacement.durationBeats, defaultPitch);
-  }, [activePlacement, defaultPitch, selectedTrack, setPlacedNote]);
+    setPlacedNote(
+      activePlacement.trackId,
+      activePlacement.noteId,
+      activePlacement.startBeat,
+      activePlacement.durationBeats,
+      defaultPitch
+    );
+    setActivePlacement((current) =>
+      current
+        ? {
+            ...current,
+            pitchStr: defaultPitch
+          }
+        : current
+    );
+  }, [activePlacement, defaultPitch, selectedTrack, setActivePlacement, setPlacedNote]);
 
   // Attach composer-only keyboard routing for placement, transport, and timeline navigation.
   useEffect(() => {
@@ -392,7 +418,7 @@ export function useComposerHardwareNavigation({
       setActivePlacement(null);
     };
 
-    const startPlacement = () => {
+    const startPlacement = (pitchStr: string, triggerKey: string, tracksDefaultPitch: boolean) => {
       const canStartPlacement =
         isComposerView &&
         Boolean(selectedTrack) &&
@@ -403,15 +429,18 @@ export function useComposerHardwareNavigation({
       }
       const startBeat = Math.max(0, snapToGrid(playheadBeat, projectGridBeats));
       const noteId = createId("note");
-      setPlacedNote(selectedTrack.id, noteId, startBeat, projectGridBeats, defaultPitch);
-      startPlacementPreview(selectedTrack.id, noteId, defaultPitch, startBeat);
+      setPlacedNote(selectedTrack.id, noteId, startBeat, projectGridBeats, pitchStr);
+      startPlacementPreview(selectedTrack.id, noteId, pitchStr, startBeat);
       setGhostPreviewNote(null);
       setActivePlacement({
         noteId,
         trackId: selectedTrack.id,
         startBeat,
         durationBeats: projectGridBeats,
-        startedAtMs: performance.now()
+        startedAtMs: performance.now(),
+        pitchStr,
+        triggerKey,
+        tracksDefaultPitch
       });
     };
 
@@ -578,11 +607,34 @@ export function useComposerHardwareNavigation({
     };
 
     const handlePlacementEnterKey = (event: KeyboardEvent) => {
-      if (event.key !== "Enter" || event.repeat) {
+      if (event.key !== "Enter") {
         return false;
       }
       event.preventDefault();
-      startPlacement();
+      if (event.repeat) {
+        return true;
+      }
+      startPlacement(defaultPitch, "Enter", true);
+      return true;
+    };
+
+    const handlePhysicalPitchPlacementKey = (event: KeyboardEvent, playheadNavigationActive: boolean) => {
+      const normalizedTriggerKey = normalizePhysicalPitchKey(event.key);
+      if (!normalizedTriggerKey) {
+        return false;
+      }
+
+      event.preventDefault();
+      if (event.repeat || (selectionKind !== "none" && !playheadNavigationActive)) {
+        return true;
+      }
+
+      const pitchStr = keyToPitch(event.key);
+      if (!pitchStr) {
+        return true;
+      }
+
+      startPlacement(pitchStr, normalizedTriggerKey, false);
       return true;
     };
 
@@ -668,7 +720,14 @@ export function useComposerHardwareNavigation({
       if (isModifierChord(event)) {
         return;
       }
-      if (activePlacement && event.key !== "Enter") {
+      const normalizedPhysicalTriggerKey = normalizePhysicalPitchKey(event.key);
+      const isActivePlacementTriggerKey =
+        Boolean(activePlacement) &&
+        (
+          event.key === activePlacement?.triggerKey ||
+          (normalizedPhysicalTriggerKey !== undefined && normalizedPhysicalTriggerKey === activePlacement?.triggerKey)
+        );
+      if (activePlacement && !isActivePlacementTriggerKey) {
         event.preventDefault();
         return;
       }
@@ -716,6 +775,10 @@ export function useComposerHardwareNavigation({
         return;
       }
 
+      if (handlePhysicalPitchPlacementKey(event, playheadNavigationActive)) {
+        return;
+      }
+
       if (handleBackspaceKey(event)) {
         return;
       }
@@ -728,7 +791,14 @@ export function useComposerHardwareNavigation({
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
-      if (event.key === "Enter") {
+      const normalizedTriggerKey = normalizePhysicalPitchKey(event.key);
+      if (
+        activePlacement &&
+        (
+          event.key === activePlacement.triggerKey ||
+          (normalizedTriggerKey !== undefined && normalizedTriggerKey === activePlacement.triggerKey)
+        )
+      ) {
         finishPlacement();
       }
     };

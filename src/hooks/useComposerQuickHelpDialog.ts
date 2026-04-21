@@ -48,6 +48,7 @@ export function useComposerQuickHelpDialog({
           { action: "Default Pitch", shortcut: "- / =" },
           { action: "Macro Lanes", shortcut: "[ / ]" },
           { action: "Place Note", shortcut: "Enter" },
+          { action: "Place Pitched Note", shortcut: "QWERTY piano keys" },
           { action: "Playhead / Note Tab Stops", shortcut: "Tab / Shift+Tab" },
           { action: "Close Dialogs / Collapse Selection", shortcut: "Esc" }
         ]

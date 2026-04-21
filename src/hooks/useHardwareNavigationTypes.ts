@@ -13,6 +13,9 @@ export interface ActiveKeyboardPlacement {
   startBeat: number;
   durationBeats: number;
   startedAtMs: number;
+  pitchStr: string;
+  triggerKey: string;
+  tracksDefaultPitch: boolean;
 }
 
 export interface GhostPreviewNote {
