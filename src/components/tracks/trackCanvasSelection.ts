@@ -1,6 +1,8 @@
 import { AutomationKeyframeRect } from "@/components/tracks/trackCanvasAutomationLane";
+import { BEAT_WIDTH, HEADER_WIDTH, TRACK_HEIGHT } from "@/components/tracks/trackCanvasConstants";
 import { TrackLayout } from "@/components/tracks/trackCanvasTypes";
-import { ContentSelection, getAutomationSelectionKey, getNoteSelectionKey } from "@/lib/clipboard";
+import { ContentSelection, getAutomationSelectionKey, getNoteSelectionKey, parseNoteSelectionKey } from "@/lib/clipboard";
+import { Track } from "@/types/music";
 
 export interface TrackCanvasNoteSelectionRect {
   trackId: string;
@@ -9,6 +11,10 @@ export interface TrackCanvasNoteSelectionRect {
   y: number;
   w: number;
   h: number;
+}
+
+export interface TrackCanvasSelectedNoteTabStopRect extends TrackCanvasNoteSelectionRect {
+  pitchStr: string;
 }
 
 export interface TrackCanvasSelectionRect {
@@ -70,5 +76,50 @@ export function resolveTrackCanvasSelectionFromRect(
   return {
     noteKeys: noteSelectionKeys,
     automationKeyframeSelectionKeys: automationSelectionKeys
+  };
+}
+
+export function resolveSelectedNoteTabStopRect(
+  tracks: Track[],
+  selection: {
+    kind: "none" | "note" | "timeline";
+    content?: { noteKeys: ReadonlySet<string>; automationKeyframeSelectionKeys: ReadonlySet<string> };
+  },
+  trackLayouts: TrackLayout[]
+): TrackCanvasSelectedNoteTabStopRect | null {
+  if (
+    selection.kind !== "note" ||
+    !selection.content ||
+    selection.content.noteKeys.size !== 1 ||
+    selection.content.automationKeyframeSelectionKeys.size > 0
+  ) {
+    return null;
+  }
+
+  const selectionKey = [...selection.content.noteKeys][0];
+  if (!selectionKey) {
+    return null;
+  }
+
+  const parsed = parseNoteSelectionKey(selectionKey);
+  if (!parsed) {
+    return null;
+  }
+
+  const track = tracks.find((entry) => entry.id === parsed.trackId);
+  const layout = trackLayouts.find((entry) => entry.trackId === parsed.trackId);
+  const note = track?.notes.find((entry) => entry.id === parsed.noteId);
+  if (!track || !layout || !note) {
+    return null;
+  }
+
+  return {
+    trackId: track.id,
+    noteId: note.id,
+    pitchStr: note.pitchStr,
+    x: HEADER_WIDTH + note.startBeat * BEAT_WIDTH,
+    y: layout.y + 14,
+    w: Math.max(8, note.durationBeats * BEAT_WIDTH),
+    h: TRACK_HEIGHT - 28
   };
 }

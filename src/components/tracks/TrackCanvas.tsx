@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SelectionActionPopover } from "@/components/SelectionActionPopover";
+import { TrackCanvasTabStops } from "@/components/tracks/TrackCanvasTabStops";
 import { TrackHeaderChrome } from "@/components/tracks/TrackCanvasChrome";
 import {
   AutomationKeyframeRect,
@@ -33,10 +34,14 @@ import {
 import { NoteRect, useTrackCanvasPointerInteractions } from "@/hooks/tracks/useTrackCanvasPointerInteractions";
 import {
   drawNoteBody,
-  fillRoundedRect,
-  NOTE_CORNER_RADIUS,
-  strokeRoundedRect
+  fillRoundedRect
 } from "@/components/tracks/trackCanvasNoteGeometry";
+import { drawTrackCanvasNoteState } from "@/components/tracks/trackCanvasNoteStateRendering";
+import {
+  drawGhostPreviewNote,
+  drawTabSelectionPreview
+} from "@/components/tracks/trackCanvasPreviewGeometry";
+import { resolveSelectedNoteTabStopRect } from "@/components/tracks/trackCanvasSelection";
 import {
   TrackCanvasProps,
   TrackLayout
@@ -46,7 +51,7 @@ import { useTrackCanvasWheelPitchEditing } from "@/hooks/tracks/useTrackCanvasWh
 import { useVolumePopover } from "@/hooks/useVolumePopover";
 import { getLoopMarkerStates } from "@/lib/looping";
 import { getProjectTimelineEndBeat } from "@/lib/macroAutomation";
-import { getNoteSelectionKey, parseNoteSelectionKey } from "@/lib/clipboard";
+import { getNoteSelectionKey } from "@/lib/clipboard";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
 import { formatBeatName } from "@/lib/musicTiming";
 import { Note, Track } from "@/types/music";
@@ -92,89 +97,6 @@ function drawGhostPlayhead(
   ctx.textAlign = "center";
   ctx.fillText(countInLabel, ghostX, badgeY + 16);
   ctx.textAlign = "start";
-}
-
-function drawGhostPreviewNote(
-  ctx: CanvasRenderingContext2D,
-  note: { startBeat: number; durationBeats: number; pitchStr: string },
-  trackY: number
-) {
-  const noteX = HEADER_WIDTH + note.startBeat * BEAT_WIDTH;
-  const noteW = Math.max(8, note.durationBeats * BEAT_WIDTH);
-  const noteY = trackY + 14;
-  const noteH = TRACK_HEIGHT - 28;
-
-  ctx.save();
-  ctx.globalAlpha = 0.3;
-  drawNoteBody(ctx, noteX, noteY, noteW, noteH, TRACK_CANVAS_COLORS.ghostPlacementFill);
-  ctx.restore();
-
-  strokeRoundedRect(
-    ctx,
-    noteX + 1,
-    noteY + 1,
-    Math.max(0, noteW - 2),
-    Math.max(0, noteH - 2),
-    Math.max(0, NOTE_CORNER_RADIUS - 1),
-    TRACK_CANVAS_COLORS.ghostPlacementBorder,
-    2
-  );
-
-  ctx.fillStyle = TRACK_CANVAS_COLORS.ghostPlacementLabel;
-  ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.fillText(note.pitchStr, noteX + 6, noteY + 16);
-
-  const badgeWidth = 28;
-  const badgeHeight = 18;
-  const badgeX = noteX + 1;
-  const badgeY = noteY + noteH - badgeHeight - 4;
-  fillRoundedRect(ctx, badgeX, badgeY, badgeWidth, badgeHeight, 6, TRACK_CANVAS_COLORS.ghostPlacementBadge);
-
-  ctx.save();
-  ctx.strokeStyle = TRACK_CANVAS_COLORS.ghostPlacementBadgeText;
-  ctx.lineWidth = 1.8;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  const stemX = badgeX + 18;
-  const topY = badgeY + 4.5;
-  const midY = badgeY + 10.5;
-  const leftX = badgeX + 8;
-  ctx.beginPath();
-  ctx.moveTo(stemX, topY);
-  ctx.lineTo(stemX, midY);
-  ctx.lineTo(leftX, midY);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(leftX + 4, midY - 3.5);
-  ctx.lineTo(leftX, midY);
-  ctx.lineTo(leftX + 4, midY + 3.5);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawTabSelectionPreview(
-  ctx: CanvasRenderingContext2D,
-  noteRect: { x: number; y: number; w: number; h: number }
-) {
-  strokeRoundedRect(
-    ctx,
-    noteRect.x + 1,
-    noteRect.y + 1,
-    Math.max(0, noteRect.w - 2),
-    Math.max(0, noteRect.h - 2),
-    Math.max(0, NOTE_CORNER_RADIUS - 1),
-    TRACK_CANVAS_COLORS.tabSelectionPreviewBorder,
-    2
-  );
-
-  const badgeWidth = 26;
-  const badgeHeight = 18;
-  const badgeX = noteRect.x + 1;
-  const badgeY = noteRect.y + noteRect.h - badgeHeight - 4;
-  fillRoundedRect(ctx, badgeX, badgeY, badgeWidth, badgeHeight, 6, TRACK_CANVAS_COLORS.tabSelectionPreviewBadge);
-  ctx.fillStyle = TRACK_CANVAS_COLORS.tabSelectionPreviewBadgeText;
-  ctx.font = "bold 10px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.fillText("Tab", badgeX + 5, badgeY + 12);
 }
 
 function drawLoopMarker(
@@ -345,34 +267,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const width = HEADER_WIDTH + totalBeats * BEAT_WIDTH;
   const { trackLayouts, height } = useTrackCanvasLayout(project);
   const playheadTabStopLeft = HEADER_WIDTH + playheadBeat * BEAT_WIDTH - 1;
-  const selectedNoteTabStopRect = useMemo(() => {
-    if (selection.kind !== "note" || selection.content.noteKeys.size !== 1 || selection.content.automationKeyframeSelectionKeys.size > 0) {
-      return null;
-    }
-    const selectionKey = [...selection.content.noteKeys][0];
-    if (!selectionKey) {
-      return null;
-    }
-    const parsed = parseNoteSelectionKey(selectionKey);
-    if (!parsed) {
-      return null;
-    }
-    const track = project.tracks.find((entry) => entry.id === parsed.trackId);
-    const layout = trackLayouts.find((entry) => entry.trackId === parsed.trackId);
-    const note = track?.notes.find((entry) => entry.id === parsed.noteId);
-    if (!track || !layout || !note) {
-      return null;
-    }
-    return {
-      trackId: track.id,
-      noteId: note.id,
-      pitchStr: note.pitchStr,
-      x: HEADER_WIDTH + note.startBeat * BEAT_WIDTH,
-      y: layout.y + 14,
-      w: Math.max(8, note.durationBeats * BEAT_WIDTH),
-      h: TRACK_HEIGHT - 28
-    };
-  }, [project.tracks, selection, trackLayouts]);
+  const selectedNoteTabStopRect = useMemo(
+    () => resolveSelectedNoteTabStopRect(project.tracks, selection, trackLayouts),
+    [project.tracks, selection, trackLayouts]
+  );
 
   const beatFromX = (x: number) => (x - HEADER_WIDTH) / BEAT_WIDTH;
   const fixedLaneSliderStartX = HEADER_WIDTH + Math.min(BEAT_WIDTH * 0.25, 18);
@@ -600,70 +498,12 @@ export function TrackCanvas(props: TrackCanvasProps) {
               : TRACK_CANVAS_COLORS.note;
         drawNoteBody(ctx, noteX, noteY, noteW, noteH, noteFill);
 
-        if (isHovered) {
-          strokeRoundedRect(
-            ctx,
-            noteX + 1,
-            noteY + 1,
-            Math.max(0, noteW - 2),
-            Math.max(0, noteH - 2),
-            Math.max(0, NOTE_CORNER_RADIUS - 1),
-            TRACK_CANVAS_COLORS.noteHoverBorder,
-            2
-          );
-        }
-
-        if (noteSelected) {
-          if (noteFocused) {
-            fillRoundedRect(
-              ctx,
-              noteX,
-              noteY,
-              noteW,
-              noteH,
-              NOTE_CORNER_RADIUS,
-              TRACK_CANVAS_COLORS.noteSelectedFocusOverlay
-            );
-            ctx.setLineDash([5, 3]);
-          }
-          strokeRoundedRect(
-            ctx,
-            noteX + 1,
-            noteY + 1,
-            Math.max(0, noteW - 2),
-            Math.max(0, noteH - 2),
-            Math.max(0, NOTE_CORNER_RADIUS - 1),
-            noteFocused
-              ? TRACK_CANVAS_COLORS.noteSelectedFocusBorder
-              : TRACK_CANVAS_COLORS.noteSelectedBorder,
-            2
-          );
-          if (noteFocused) {
-            ctx.setLineDash([]);
-          }
-        }
-
-        if (noteBeingPlaced) {
-          fillRoundedRect(
-            ctx,
-            noteX,
-            noteY,
-            noteW,
-            noteH,
-            NOTE_CORNER_RADIUS,
-            TRACK_CANVAS_COLORS.notePlacementOverlay
-          );
-          strokeRoundedRect(
-            ctx,
-            noteX + 1,
-            noteY + 1,
-            Math.max(0, noteW - 2),
-            Math.max(0, noteH - 2),
-            Math.max(0, NOTE_CORNER_RADIUS - 1),
-            TRACK_CANVAS_COLORS.notePlacementBorder,
-            2
-          );
-        }
+        drawTrackCanvasNoteState(ctx, { x: noteX, y: noteY, w: noteW, h: noteH }, {
+          hovered: isHovered,
+          selected: noteSelected,
+          focused: noteFocused,
+          beingPlaced: noteBeingPlaced
+        });
 
         if (
           tabSelectionPreviewNote?.trackId === track.id &&
@@ -1004,53 +844,19 @@ export function TrackCanvas(props: TrackCanvasProps) {
         onDoubleClick={onDoubleClick}
         onContextMenu={(event) => event.preventDefault()}
       />
-      <button
-        ref={playheadTabStopRef}
-        type="button"
-        tabIndex={0}
-        className="track-canvas-playhead-tabstop"
-        aria-label={`Playhead at beat ${formatBeatName(playheadBeat, meterBeats)}`}
-        style={{
-          left: playheadTabStopLeft,
-          height
-        }}
-        onFocus={() => setPlayheadTabStopFocused(true)}
-        onBlur={() => setPlayheadTabStopFocused(false)}
-      >
-        <span className="track-canvas-tabstop-label">
-          Playhead at beat {formatBeatName(playheadBeat, meterBeats)}
-        </span>
-      </button>
-      {selectedNoteTabStopRect && (
-        <button
-          ref={selectedNoteTabStopRef}
-          type="button"
-          tabIndex={0}
-          className="track-canvas-note-tabstop"
-          aria-label={`Selected note ${selectedNoteTabStopRect.pitchStr}`}
-          style={{
-            left: selectedNoteTabStopRect.x,
-            top: selectedNoteTabStopRect.y,
-            width: selectedNoteTabStopRect.w,
-            height: selectedNoteTabStopRect.h
-          }}
-          onKeyDown={(event) => {
-            if ((event.key === "Tab" && event.shiftKey) || event.key === "Escape") {
-              event.preventDefault();
-              onReturnSelectedNoteFocusToPlayhead?.();
-              requestAnimationFrame(() => {
-                playheadTabStopRef.current?.focus();
-              });
-            }
-          }}
-          onFocus={() => setSelectedNoteTabStopFocused(true)}
-          onBlur={() => setSelectedNoteTabStopFocused(false)}
-        >
-          <span className="track-canvas-tabstop-label">
-            Selected note {selectedNoteTabStopRect.pitchStr}
-          </span>
-        </button>
-      )}
+      <TrackCanvasTabStops
+        playheadLabel={`Playhead at beat ${formatBeatName(playheadBeat, meterBeats)}`}
+        playheadLeft={playheadTabStopLeft}
+        height={height}
+        playheadTabStopRef={playheadTabStopRef}
+        selectedNoteTabStopRef={selectedNoteTabStopRef}
+        selectedNoteRect={selectedNoteTabStopRect}
+        onPlayheadFocus={() => setPlayheadTabStopFocused(true)}
+        onPlayheadBlur={() => setPlayheadTabStopFocused(false)}
+        onSelectedNoteFocus={() => setSelectedNoteTabStopFocused(true)}
+        onSelectedNoteBlur={() => setSelectedNoteTabStopFocused(false)}
+        onReturnSelectedNoteFocusToPlayhead={onReturnSelectedNoteFocusToPlayhead}
+      />
       {selectionBeatRange && !selectionRect && !hideSelectionActionPopover && (
         <SelectionActionPopover
           selectionLabel={selectionLabel ?? (selection.kind === "timeline" ? "All Tracks" : "Track 1")}
