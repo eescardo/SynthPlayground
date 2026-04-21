@@ -21,7 +21,7 @@ describe("createAudioDebugPanelViewModel", () => {
 
   it("returns expanded dialog state with the renderer label", () => {
     const model = createAudioDebugPanelViewModel({
-      rendererLabel: "wasm-strict",
+      rendererLabel: "wasm",
       open: true,
       onToggle: vi.fn()
     });
@@ -29,7 +29,7 @@ describe("createAudioDebugPanelViewModel", () => {
     expect(model.dialog).toEqual({
       ariaLabel: "Audio renderer debug",
       title: "Audio Debug",
-      rendererLabel: "wasm-strict"
+      rendererLabel: "wasm"
     });
     expect(model.button.ariaExpanded).toBe(true);
   });

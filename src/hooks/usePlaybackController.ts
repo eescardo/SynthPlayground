@@ -12,7 +12,7 @@ interface UsePlaybackControllerArgs {
   playbackEndBeat: number;
   userCueBeat: number;
   playheadBeat: number;
-  strictWasmReady: boolean;
+  wasmReady: boolean;
   audioEngineRef: RefObject<AudioEngine | null>;
   setPlaying: (value: boolean) => void;
   setPlayheadBeat: (value: number) => void;
@@ -28,7 +28,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
     playbackEndBeat,
     userCueBeat,
     playheadBeat,
-    strictWasmReady,
+    wasmReady,
     audioEngineRef,
     setPlaying,
     setPlayheadBeat,
@@ -85,13 +85,14 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
   }, [audioEngineRef, audioProject, tickPlayhead]);
 
   const startPlayback = useCallback(async () => {
-    if (process.env.NEXT_PUBLIC_STRICT_WASM === "1" && !strictWasmReady) {
-      setRuntimeError("Strict WASM mode is enabled and WASM is not ready. Run `npm run dev:wasm:strict`.");
+    if (!wasmReady) {
+      const fallbackHint = process.env.NODE_ENV === "development" ? " Run `pnpm run dev:js` to force the JS renderer." : "";
+      setRuntimeError(`The default WASM renderer is not ready.${fallbackHint}`);
       return;
     }
     setPlaying(true);
     await beginPlaybackAtBeat(playheadBeat);
-  }, [beginPlaybackAtBeat, playheadBeat, setPlaying, setRuntimeError, strictWasmReady]);
+  }, [beginPlaybackAtBeat, playheadBeat, setPlaying, setRuntimeError, wasmReady]);
 
   useEffect(() => {
     return () => {

@@ -39,18 +39,25 @@ const scenarioOverrides = {
   ...(macroLanesPerTrack !== undefined ? { macroAutomationLanesPerTrack: Math.max(0, Math.floor(Number(macroLanesPerTrack))) } : {})
 };
 
-const scenarios = scenarioIds.map((scenarioId) => createNamedBenchmarkScenario(scenarioId, scenarioOverrides));
-const result = runAudioBenchmarkBundle(scenarios, {
-  runs,
-  warmupRuns,
-  gitRef: process.env.GITHUB_REF_NAME ?? process.env.BENCHMARK_GIT_REF,
-  gitSha: process.env.GITHUB_SHA ?? process.env.BENCHMARK_GIT_SHA
+const main = async () => {
+  const scenarios = scenarioIds.map((scenarioId) => createNamedBenchmarkScenario(scenarioId, scenarioOverrides));
+  const result = await runAudioBenchmarkBundle(scenarios, {
+    runs,
+    warmupRuns,
+    gitRef: process.env.GITHUB_REF_NAME ?? process.env.BENCHMARK_GIT_REF,
+    gitSha: process.env.GITHUB_SHA ?? process.env.BENCHMARK_GIT_SHA
+  });
+
+  const json = JSON.stringify(result, null, 2);
+  if (outputPath) {
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+    fs.writeFileSync(outputPath, json);
+  }
+
+  process.stdout.write(`${json}\n`);
+};
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
 });
-
-const json = JSON.stringify(result, null, 2);
-if (outputPath) {
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, json);
-}
-
-process.stdout.write(`${json}\n`);

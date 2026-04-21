@@ -113,20 +113,20 @@ Responsibilities in live mode:
 - receive transport / preview / macro / recording messages from the main thread
 - start or replace `SynthRenderStream` sessions
 - ask the current stream to render each AudioWorklet block
-- handle preview capture plumbing and strict-WASM worklet initialization
+- handle preview capture plumbing and WASM worklet initialization
 
 There are two live variants:
 
-- default live path: JS renderer behind the worklet shell
-- strict WASM live path: WASM renderer behind the same shell, enabled by `NEXT_PUBLIC_STRICT_WASM=1`
+- default live path: WASM renderer behind the same shell
+- explicit JS dev path: JS renderer behind the same shell, enabled by `NEXT_PUBLIC_AUDIO_RENDERER=js`
 
-The strict WASM build is compiled for WebAssembly SIMD and expects a modern browser profile:
+The default WASM build is compiled for WebAssembly SIMD and expects a modern browser profile:
 
 - Chrome/Edge 91+
 - Firefox 89+
 - Safari 16.4+
 
-At app load, strict mode performs feature detection before initializing the audio path. If SIMD is unavailable, the app shows a compatibility modal instead of attempting to boot the strict WASM renderer.
+At app load, WASM mode performs feature detection before initializing the audio path. If SIMD is unavailable, the app shows a compatibility modal instead of attempting to boot the renderer.
 
 ### Offline mode
 
@@ -137,6 +137,7 @@ Files:
 - [offline/renderOfflineWithRenderer.ts](/Users/eddy/code/SynthPlayground/src/audio/offline/renderOfflineWithRenderer.ts)
 - [offline/renderProjectOffline.ts](/Users/eddy/code/SynthPlayground/src/audio/offline/renderProjectOffline.ts)
 - [offline/renderProjectOfflineWasm.ts](/Users/eddy/code/SynthPlayground/src/audio/offline/renderProjectOfflineWasm.ts)
+- [offline/renderProjectOfflineBrowserWasm.ts](/Users/eddy/code/SynthPlayground/src/audio/offline/renderProjectOfflineBrowserWasm.ts)
 
 Offline mode is used for:
 
@@ -149,6 +150,9 @@ The important detail is that offline rendering is now backend-agnostic at the ho
 
 - the loop only knows about `SynthRenderer` and `SynthRenderStream`
 - JS and WASM differ only in which renderer gets constructed
+- `renderProjectOffline(...)` defaults to the Node-side WASM renderer for tooling and benchmarks
+- `renderProjectOfflineJs(...)` is the explicit legacy JS fallback for parity checks and targeted tests
+- browser export uses a browser-safe WASM helper instead of the Node-side loader
 
 ## Worklet Publishing
 
@@ -179,10 +183,10 @@ This is why the source tree can be more structured than the final worklet runtim
 
 ### Local development
 
-- normal dev:
+- default dev:
   - `pnpm run dev`
-- strict WASM dev:
-  - `pnpm run dev:wasm:strict`
+- explicit JS dev:
+  - `pnpm run dev:js`
 - build the WASM package only:
   - `pnpm run build:wasm`
 

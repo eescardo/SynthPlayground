@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderProjectOffline } from "@/audio/offline/renderProjectOffline";
+import { renderProjectOfflineJs } from "@/audio/offline/renderProjectOffline";
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { runAudioBenchmarkBundle } from "@/audio/benchmarks/runBenchmark";
 import { createNamedBenchmarkScenario, createStressBenchmarkProject, DEFAULT_BENCHMARK_SCENARIO_IDS } from "@/audio/benchmarks/stressScenario";
@@ -44,7 +44,7 @@ describe("audio benchmark harness", () => {
     expect(scenario.project.tracks.every((track) => !track.fx.delayEnabled && !track.fx.reverbEnabled && !track.fx.saturationEnabled && !track.fx.compressorEnabled)).toBe(true);
   });
 
-  it("runs a tiny benchmark bundle and produces positive timing and render metrics", () => {
+  it("runs a tiny benchmark bundle and produces positive timing and render metrics", async () => {
     const scenarios = [
       createNamedBenchmarkScenario("stress-3min-35tracks", {
         trackCount: 4,
@@ -60,10 +60,11 @@ describe("audio benchmark harness", () => {
       })
     ];
 
-    const result = runAudioBenchmarkBundle(scenarios, {
+    const result = await runAudioBenchmarkBundle(scenarios, {
       runs: 1,
       warmupRuns: 0,
-      gitRef: "test"
+      gitRef: "test",
+      backend: "js"
     });
 
     expect(result.scenarios).toHaveLength(2);
@@ -91,7 +92,7 @@ describe("audio benchmark harness", () => {
       scenario.config.tempo
     );
     const events = collectEventsInWindow(scenario.project, { fromSample: 0, toSample: durationSamples + 1 }, { cueBeat: 0 });
-    const result = renderProjectOffline(scenario.project, {
+    const result = renderProjectOfflineJs(scenario.project, {
       sampleRate: scenario.config.sampleRate,
       blockSize: scenario.config.blockSize,
       durationSamples,

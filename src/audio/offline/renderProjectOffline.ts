@@ -2,19 +2,22 @@ import { createJsRenderer } from "@/audio/renderers/js/synth-renderer-js.js";
 import type { SynthRenderStream } from "@/audio/renderers/shared/synth-renderer";
 import { SynthWorkletProcessor } from "@/audio/worklets/synth-worklet-runtime.js";
 import { AudioProject, SchedulerEvent } from "@/types/audio";
+import { OfflineWasmRenderOptions, OfflineWasmRenderResult, renderProjectOfflineWasm } from "./renderProjectOfflineWasm";
 import { BaseOfflineRenderOptions, OfflineRenderResult, renderOfflineWithRenderer } from "./renderOfflineWithRenderer";
 
-export interface OfflineRenderOptions extends BaseOfflineRenderOptions {
+export interface OfflineRenderJsOptions extends BaseOfflineRenderOptions {
   events?: SchedulerEvent[];
   sessionId?: number;
   randomSeed?: number;
 }
 
 export type { OfflineRenderResult };
+export type OfflineRenderOptions = OfflineWasmRenderOptions;
+export type { OfflineWasmRenderResult };
 
-export const createOfflineRenderProcessor = (
+export const createOfflineRenderProcessorJs = (
   project: AudioProject,
-  options: Pick<OfflineRenderOptions, "sampleRate" | "blockSize">
+  options: Pick<OfflineRenderJsOptions, "sampleRate" | "blockSize">
 ): SynthWorkletProcessor =>
   new SynthWorkletProcessor({
     processorOptions: {
@@ -24,9 +27,9 @@ export const createOfflineRenderProcessor = (
     }
   });
 
-export const createOfflineRenderer = (
+export const createOfflineRendererJs = (
   project: AudioProject,
-  options: Pick<OfflineRenderOptions, "sampleRate" | "blockSize">
+  options: Pick<OfflineRenderJsOptions, "sampleRate" | "blockSize">
 ) =>
   createJsRenderer({
     processorOptions: {
@@ -36,14 +39,14 @@ export const createOfflineRenderer = (
     }
   });
 
-export const createOfflineRenderStream = (
+export const createOfflineRenderStreamJs = (
   project: AudioProject,
-  options: Pick<OfflineRenderOptions, "sampleRate" | "blockSize" | "durationSamples" | "randomSeed"> & {
+  options: Pick<OfflineRenderJsOptions, "sampleRate" | "blockSize" | "durationSamples" | "randomSeed"> & {
     events?: SchedulerEvent[];
     sessionId?: number;
   }
 ): SynthRenderStream | null =>
-  createOfflineRenderer(project, options).startStream({
+  createOfflineRendererJs(project, options).startStream({
     project,
     songStartSample: 0,
     events: options.events ?? [],
@@ -52,10 +55,15 @@ export const createOfflineRenderStream = (
     mode: "transport"
   });
 
+export const renderProjectOfflineJs = (
+  project: AudioProject,
+  options: OfflineRenderJsOptions
+): OfflineRenderResult => {
+  const renderer = createOfflineRendererJs(project, options);
+  return renderOfflineWithRenderer(renderer, project, options);
+};
+
 export const renderProjectOffline = (
   project: AudioProject,
   options: OfflineRenderOptions
-): OfflineRenderResult => {
-  const renderer = createOfflineRenderer(project, options);
-  return renderOfflineWithRenderer(renderer, project, options);
-};
+): Promise<OfflineWasmRenderResult> => renderProjectOfflineWasm(project, options);
