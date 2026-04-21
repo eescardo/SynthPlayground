@@ -11,6 +11,7 @@ import {
 import {
   findTrackBackspaceTargetNote,
   findTrackNoteAtBeat,
+  shiftContentSelectionByBeats,
   trackHasNoteAtBeat,
   upsertKeyboardPlacedNote
 } from "@/lib/hardwareNavigation";
@@ -49,8 +50,11 @@ export function useComposerHardwareNavigation({
   previewPitchPickerOpen,
   defaultPitch,
   selectionKind,
+  contentSelection,
   selectionActionPopoverCollapsed,
+  setSelectedTrackId,
   setPlayheadBeatFromUser,
+  setPlayheadBeatPreservingSelection,
   expandSelectionActionPopover,
   toggleTrackMacroPanel,
   deleteNote,
@@ -61,6 +65,7 @@ export function useComposerHardwareNavigation({
   setRuntimeError,
   activePlacement,
   setActivePlacement,
+  tracks,
   base
 }: UseComposerHardwareNavigationArgs): ComposerHardwareNavigationResult {
   const [ghostPreviewNote, setGhostPreviewNote] = useState<GhostPreviewNote | null>(null);
@@ -68,6 +73,15 @@ export function useComposerHardwareNavigation({
   const placementRafRef = useRef<number | null>(null);
   const pendingPreviewStartIdsRef = useRef<Set<string>>(new Set());
   const pendingPreviewReleasesRef = useRef<Map<string, { trackId: string; durationBeats: number }>>(new Map());
+  const blockedSelectionTransferRef = useRef<{
+    direction: -1 | 1;
+    selectedNoteKey: string;
+    blockingSelectionKey: string;
+  } | null>(null);
+
+  const clearBlockedSelectionTransfer = useCallback(() => {
+    blockedSelectionTransferRef.current = null;
+  }, []);
 
   const setPlacedNote = useCallback((
     trackId: string,
@@ -149,6 +163,10 @@ export function useComposerHardwareNavigation({
     }
     dispatchPlacementPreviewRelease(trackId, noteId, durationBeats);
   }, [dispatchPlacementPreviewRelease]);
+
+  useEffect(() => {
+    clearBlockedSelectionTransfer();
+  }, [clearBlockedSelectionTransfer, contentSelection.automationKeyframeSelectionKeys, contentSelection.noteKeys, selectionKind]);
 
   useEffect(() => {
     if (!activePlacement) {
@@ -355,6 +373,73 @@ export function useComposerHardwareNavigation({
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const playheadDomFocused = target?.classList.contains("track-canvas-playhead-tabstop") ?? false;
+      const noteTabStopFocused = target?.classList.contains("track-canvas-note-tabstop") ?? false;
+      const selectionPopoverFocused = Boolean(target?.closest(".selection-actions-popover"));
+      const selectionCaptureFocused = noteTabStopFocused || selectionPopoverFocused;
+      const hasCollapsedContentSelection =
+        selectionActionPopoverCollapsed &&
+        (contentSelection.noteKeys.length > 0 || contentSelection.automationKeyframeSelectionKeys.length > 0);
+      const hasNonPlayheadSelection =
+        selectionKind === "timeline" ||
+        (selectionKind === "content" && !hasCollapsedContentSelection);
+
+      const nudgePlayhead = (direction: -1 | 1) => {
+        const nextBeat = direction < 0
+          ? Math.max(0, snapToGrid(playheadBeat - projectGridBeats, projectGridBeats))
+          : Math.min(playbackEndBeat, snapToGrid(playheadBeat + projectGridBeats, projectGridBeats));
+        setPlayheadBeatPreservingSelection(nextBeat);
+        base.setPlayheadNavigationFocused(true);
+        clearBlockedSelectionTransfer();
+      };
+
+      const nudgeCollapsedSelection = (direction: -1 | 1) => {
+        let moveResult!: ReturnType<typeof shiftContentSelectionByBeats>;
+        commitProjectChange((current) => {
+          const nextMoveResult = shiftContentSelectionByBeats(current, contentSelection, direction * projectGridBeats);
+          moveResult = nextMoveResult;
+          return nextMoveResult.status === "moved" ? nextMoveResult.project : current;
+        }, {
+          actionKey: `selection:nudge:${direction < 0 ? "left" : "right"}`,
+          coalesce: true
+        });
+
+        if (moveResult.status === "moved") {
+          clearBlockedSelectionTransfer();
+          base.setPlayheadNavigationFocused(false);
+          return;
+        }
+
+        if (
+          contentSelection.noteKeys.length === 1 &&
+          contentSelection.automationKeyframeSelectionKeys.length === 0 &&
+          moveResult.block.reason === "note"
+        ) {
+          const selectedNoteKey = contentSelection.noteKeys[0]!;
+          const previousBlockedTransfer = blockedSelectionTransferRef.current;
+          if (
+            previousBlockedTransfer &&
+            previousBlockedTransfer.direction === direction &&
+            previousBlockedTransfer.selectedNoteKey === selectedNoteKey &&
+            previousBlockedTransfer.blockingSelectionKey === moveResult.block.blockingSelectionKey
+          ) {
+            base.setSingleNoteSelection(moveResult.block.blockingSelectionKey, { keepCollapsed: true });
+            clearBlockedSelectionTransfer();
+            base.setPlayheadNavigationFocused(false);
+            return;
+          }
+
+          blockedSelectionTransferRef.current = {
+            direction,
+            selectedNoteKey,
+            blockingSelectionKey: moveResult.block.blockingSelectionKey
+          };
+          base.setPlayheadNavigationFocused(false);
+          return;
+        }
+
+        clearBlockedSelectionTransfer();
+        base.setPlayheadNavigationFocused(false);
+      };
 
       if (event.defaultPrevented) {
         return;
@@ -370,6 +455,60 @@ export function useComposerHardwareNavigation({
         return;
       }
       if (view !== "composer") {
+        return;
+      }
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        if (base.playheadNavigationFocused || playheadDomFocused) {
+          nudgePlayhead(-1);
+          return;
+        }
+        if (hasNonPlayheadSelection) {
+          if (!selectionCaptureFocused) {
+            nudgePlayhead(-1);
+            return;
+          }
+          base.setPlayheadNavigationFocused(false);
+          clearBlockedSelectionTransfer();
+          return;
+        }
+        if (hasCollapsedContentSelection) {
+          if (!selectionCaptureFocused) {
+            nudgePlayhead(-1);
+            return;
+          }
+          nudgeCollapsedSelection(-1);
+          return;
+        }
+        nudgePlayhead(-1);
+        return;
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        if (base.playheadNavigationFocused || playheadDomFocused) {
+          nudgePlayhead(1);
+          return;
+        }
+        if (hasNonPlayheadSelection) {
+          if (!selectionCaptureFocused) {
+            nudgePlayhead(1);
+            return;
+          }
+          base.setPlayheadNavigationFocused(false);
+          clearBlockedSelectionTransfer();
+          return;
+        }
+        if (hasCollapsedContentSelection) {
+          if (!selectionCaptureFocused) {
+            nudgePlayhead(1);
+            return;
+          }
+          nudgeCollapsedSelection(1);
+          return;
+        }
+        nudgePlayhead(1);
         return;
       }
 
@@ -414,6 +553,25 @@ export function useComposerHardwareNavigation({
         return;
       }
 
+      const selectedTrackIndex = tracks.findIndex((track) => track.id === selectedTrack.id);
+      if (selectedTrackIndex !== -1) {
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          setSelectedTrackId(tracks[Math.max(0, selectedTrackIndex - 1)]!.id);
+          base.setPlayheadNavigationFocused(base.playheadNavigationFocused || playheadDomFocused);
+          clearBlockedSelectionTransfer();
+          return;
+        }
+
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          setSelectedTrackId(tracks[Math.min(tracks.length - 1, selectedTrackIndex + 1)]!.id);
+          base.setPlayheadNavigationFocused(base.playheadNavigationFocused || playheadDomFocused);
+          clearBlockedSelectionTransfer();
+          return;
+        }
+      }
+
       if (event.key === "Enter" && !event.repeat) {
         event.preventDefault();
         startPlacement();
@@ -434,7 +592,7 @@ export function useComposerHardwareNavigation({
           setPlayheadBeatFromUser(Math.max(0, snapToGrid(playheadBeat - projectGridBeats, projectGridBeats)));
         }
         base.setPlayheadNavigationFocused(true);
-        base.clearBlockedSelectionTransfer();
+        clearBlockedSelectionTransfer();
         return;
       }
 
@@ -478,12 +636,16 @@ export function useComposerHardwareNavigation({
   }, [
     activePlacement,
     base,
+    clearBlockedSelectionTransfer,
+    commitProjectChange,
+    contentSelection,
     defaultPitch,
     deleteNote,
     expandSelectionActionPopover,
     isPlaying,
     onComposerPlay,
     onComposerStop,
+    playbackEndBeat,
     pitchPickerOpen,
     playheadBeat,
     previewPitchPickerOpen,
@@ -495,8 +657,11 @@ export function useComposerHardwareNavigation({
     selectedTrack,
     setActivePlacement,
     setPlacedNote,
+    setPlayheadBeatPreservingSelection,
     setPlayheadBeatFromUser,
+    setSelectedTrackId,
     startPlacementPreview,
+    tracks,
     toggleTrackMacroPanel,
     view
   ]);
