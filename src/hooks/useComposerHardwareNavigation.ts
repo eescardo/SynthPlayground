@@ -240,12 +240,13 @@ export function useComposerHardwareNavigation({
 
   // Show the delayed ghost note when the composer is idle over an empty spot.
   useEffect(() => {
+    const playheadNavigationActive = base.playheadNavigationFocused || isPlayheadTabStopFocused();
     const canShowGhostPreview =
       isComposerView &&
       hasSelectedTrack &&
       !hasActivePlacement &&
       isTransportIdle &&
-      hasNoSelection &&
+      (hasNoSelection || playheadNavigationActive) &&
       arePitchPickersClosed;
 
     if (!canShowGhostPreview || !selectedTrack) {
@@ -304,6 +305,7 @@ export function useComposerHardwareNavigation({
     };
   }, [
     arePitchPickersClosed,
+    base.playheadNavigationFocused,
     defaultPitch,
     ghostPreviewNote,
     hasActivePlacement,
@@ -425,6 +427,9 @@ export function useComposerHardwareNavigation({
       const hasTimelineSelection = selectionKind === "timeline";
       const playheadNavigationActive = base.playheadNavigationFocused || playheadDomFocused;
       const canHandleComposerKeyboardShortcut = isComposerView && arePitchPickersClosed;
+      const selectionOwnsEnter =
+        selectionKind !== "none" &&
+        !playheadNavigationActive;
 
       const nudgePlayhead = (direction: -1 | 1) => {
         const nextBeat = direction < 0
@@ -549,12 +554,12 @@ export function useComposerHardwareNavigation({
 
       if (event.key === " " || event.code === "Space") {
         event.preventDefault();
-        if (event.repeat || !isTransportIdle) {
+        if (event.repeat) {
           return;
         }
         if (isPlaying) {
           onComposerStop();
-        } else {
+        } else if (recordPhase === "idle") {
           onComposerPlay();
         }
         return;
@@ -578,7 +583,7 @@ export function useComposerHardwareNavigation({
         return;
       }
 
-      if (event.key === "Enter" && !event.repeat && selectionActionPopoverCollapsed && selectionKind !== "none") {
+      if (event.key === "Enter" && !event.repeat && selectionActionPopoverCollapsed && selectionOwnsEnter) {
         event.preventDefault();
         expandSelectionActionPopover();
         return;
@@ -694,6 +699,7 @@ export function useComposerHardwareNavigation({
     playbackEndBeat,
     playheadBeat,
     projectGridBeats,
+    recordPhase,
     releasePlacementPreview,
     selectionActionPopoverCollapsed,
     selectionKind,
