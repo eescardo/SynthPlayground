@@ -550,6 +550,9 @@ export function useHardwareNavigationShortcuts({
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const playheadDomFocused = target?.classList.contains("track-canvas-playhead-tabstop") ?? false;
+      const noteTabStopFocused = target?.classList.contains("track-canvas-note-tabstop") ?? false;
+      const selectionPopoverFocused = Boolean(target?.closest(".selection-actions-popover"));
+      const selectionCaptureFocused = noteTabStopFocused || selectionPopoverFocused;
 
       if (event.defaultPrevented) {
         return;
@@ -675,11 +678,19 @@ export function useHardwareNavigationShortcuts({
           return;
         }
         if (hasNonPlayheadSelection) {
+          if (!selectionCaptureFocused) {
+            nudgePlayhead(-1);
+            return;
+          }
           setPlayheadNavigationFocused(false);
           clearBlockedSelectionTransfer();
           return;
         }
         if (hasCollapsedContentSelection) {
+          if (!selectionCaptureFocused) {
+            nudgePlayhead(-1);
+            return;
+          }
           nudgeCollapsedSelection(-1);
           return;
         }
@@ -694,11 +705,19 @@ export function useHardwareNavigationShortcuts({
           return;
         }
         if (hasNonPlayheadSelection) {
+          if (!selectionCaptureFocused) {
+            nudgePlayhead(1);
+            return;
+          }
           setPlayheadNavigationFocused(false);
           clearBlockedSelectionTransfer();
           return;
         }
         if (hasCollapsedContentSelection) {
+          if (!selectionCaptureFocused) {
+            nudgePlayhead(1);
+            return;
+          }
           nudgeCollapsedSelection(1);
           return;
         }

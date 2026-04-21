@@ -1007,7 +1007,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       <button
         ref={playheadTabStopRef}
         type="button"
-        tabIndex={playheadFocused ? 0 : -1}
+        tabIndex={0}
         className="track-canvas-playhead-tabstop"
         aria-label={`Playhead at beat ${formatBeatName(playheadBeat, meterBeats)}`}
         style={{
