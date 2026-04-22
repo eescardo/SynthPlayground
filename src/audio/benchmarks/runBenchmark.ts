@@ -163,18 +163,27 @@ export const runAudioBenchmarkScenario = async (
 export const runAudioBenchmarkBundle = async (
   scenarios: AudioBenchmarkScenario[],
   options: BenchmarkOptions
-): Promise<AudioBenchmarkBundleResult> => ({
-  schemaVersion: 1,
-  generatedAt: new Date().toISOString(),
-  gitRef: options.gitRef,
-  gitSha: options.gitSha,
-  system: {
-    node: process.version,
-    platform: process.platform,
-    arch: process.arch
-  },
-  scenarios: await Promise.all(scenarios.map((scenario) => runAudioBenchmarkScenario(scenario, options)))
-});
+): Promise<AudioBenchmarkBundleResult> => {
+  const results: AudioBenchmarkScenarioResult[] = [];
+  for (const scenario of scenarios) {
+    // Run scenarios sequentially so CPU-heavy renders do not contend with each other and
+    // distort per-scenario timing on smaller CI runners.
+    results.push(await runAudioBenchmarkScenario(scenario, options));
+  }
+
+  return {
+    schemaVersion: 1,
+    generatedAt: new Date().toISOString(),
+    gitRef: options.gitRef,
+    gitSha: options.gitSha,
+    system: {
+      node: process.version,
+      platform: process.platform,
+      arch: process.arch
+    },
+    scenarios: results
+  };
+};
 
 export const countEventsByType = (events: SchedulerEvent[]) => ({
   noteEvents: events.filter((event) => event.type === "NoteOn" || event.type === "NoteOff").length,

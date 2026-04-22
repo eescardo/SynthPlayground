@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { runAudioBenchmarkBundle } from "@/audio/benchmarks/runBenchmark";
 import { createNamedBenchmarkScenario, createStressBenchmarkProject, DEFAULT_BENCHMARK_SCENARIO_IDS } from "@/audio/benchmarks/stressScenario";
+import { createWasmRenderer } from "@/audio/renderers/wasm/wasmSynthRenderer";
 import { beatToSample } from "@/lib/musicTiming";
 
 const createMockStream = () => ({
@@ -110,6 +111,50 @@ describe("audio benchmark harness", () => {
       expect(scenarioResult.summaries.eventCount.mean).toBeGreaterThan(0);
       expect(scenarioResult.summaries.outputAbsSum.mean).toBeGreaterThan(0);
     }
+  });
+
+  it("runs benchmark scenarios sequentially so heavy renders do not contend", async () => {
+    const wasmRendererMock = vi.mocked(createWasmRenderer);
+    let activeRendererCreates = 0;
+    let maxConcurrentRendererCreates = 0;
+    wasmRendererMock.mockImplementation(async () => {
+      activeRendererCreates += 1;
+      maxConcurrentRendererCreates = Math.max(maxConcurrentRendererCreates, activeRendererCreates);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      activeRendererCreates -= 1;
+      return {
+        port: { onmessage: null, postMessage() {} },
+        sampleRateInternal: 48000,
+        blockSize: 128,
+        project: null,
+        configure() {},
+        setDefaultProject() {},
+        startStream() {
+          return createMockStream();
+        }
+      } as unknown as Awaited<ReturnType<typeof createWasmRenderer>>;
+    });
+
+    const scenarios = [
+      createNamedBenchmarkScenario("stress-3min-35tracks", {
+        trackCount: 2,
+        automatedTrackCount: 1,
+        macroAutomationLanesPerTrack: 1,
+        durationBeats: 2
+      }),
+      createNamedBenchmarkScenario("notes-only-3min-35tracks", {
+        trackCount: 2,
+        durationBeats: 2
+      })
+    ];
+
+    await runAudioBenchmarkBundle(scenarios, {
+      runs: 1,
+      warmupRuns: 0,
+      gitRef: "test"
+    });
+
+    expect(maxConcurrentRendererCreates).toBe(1);
   });
 
   it("computes the expected offline render sample length for a short scenario", () => {
