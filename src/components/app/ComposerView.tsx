@@ -191,6 +191,7 @@ export function ComposerView(props: ComposerViewProps) {
 
       <QuickHelpDialog
         keyboardShortcutSections={keyboardShortcutSections}
+        keyboardLayout="two-column"
         mouseHelpItems={mouseHelpItems}
         onClose={closeHelp}
         open={helpOpen}
