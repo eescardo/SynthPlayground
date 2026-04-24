@@ -43,6 +43,15 @@ describe("resolveScreenshotScenariosFromLabelsJson", () => {
     });
   });
 
+  it("parses the microtonal pitches label", () => {
+    expect(resolveScreenshotScenariosFromLabels(["screenshots:microtonal-pitches"])).toMatchObject({
+      enabled: true,
+      value: "microtonal-pitches",
+      grep: "@microtonal-pitches",
+      error: ""
+    });
+  });
+
   it("returns a validation error for malformed JSON", () => {
     expect(resolveScreenshotScenariosFromLabelsJson("not-json")).toMatchObject({
       enabled: false,

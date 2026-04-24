@@ -1,5 +1,13 @@
 import { expect, Page } from "@playwright/test";
-import { openApp, savePageScreenshot, setupMacroAutomationLane, setupPatchWorkspaceProbes, setupSamplePlayerWorkspace } from "../ui-capture/common";
+import {
+  createMicrotonalCaptureProject,
+  openApp,
+  openSeededApp,
+  savePageScreenshot,
+  setupMacroAutomationLane,
+  setupPatchWorkspaceProbes,
+  setupSamplePlayerWorkspace
+} from "../ui-capture/common";
 import { applySelectionReviewFraming, showSelectionActionsPopover } from "../ui-capture/selectionCapture";
 import { SCREENSHOT_SCENARIO, SCREENSHOT_SCENARIOS, ScreenshotScenario } from "./scenarios";
 
@@ -15,6 +23,16 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
     description: "Full main composition view",
     capture: async (page, outputPath) => {
       await openApp(page);
+      await savePageScreenshot(page, outputPath);
+    }
+  },
+  [SCREENSHOT_SCENARIO.MICROTONAL_PITCHES]: {
+    name: SCREENSHOT_SCENARIO.MICROTONAL_PITCHES,
+    description: "Composer view with microtonal note labels and a 25-cent default pitch nudge visible",
+    capture: async (page, outputPath) => {
+      await openSeededApp(page, createMicrotonalCaptureProject());
+      await page.keyboard.press("+");
+      await expect(page.getByRole("button", { name: /Default pitch C4\+25/i })).toBeVisible();
       await savePageScreenshot(page, outputPath);
     }
   },
