@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { splitQuickHelpShortcutKeys } from "@/components/quickHelpShortcuts";
 
 export interface QuickHelpShortcutEntry {
   action: string;
@@ -34,8 +35,8 @@ function KeyboardHelpSection({
               <div key={`${section.title}-${entry.action}`} className="quick-help-shortcut-row" role="row">
                 <div className="quick-help-shortcut-action" role="cell">{entry.action}</div>
                 <div className="quick-help-shortcut-keys" role="cell">
-                  {entry.shortcut.split("+").map((part) => (
-                    <kbd key={`${section.title}-${entry.action}-${part}`}>{part}</kbd>
+                  {splitQuickHelpShortcutKeys(entry.shortcut).map((part, index) => (
+                    <kbd key={`${section.title}-${entry.action}-${index}-${part}`}>{part}</kbd>
                   ))}
                 </div>
               </div>
