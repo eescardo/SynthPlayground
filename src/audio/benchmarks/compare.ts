@@ -8,7 +8,7 @@ import {
 
 const metricLabel: Record<keyof AudioBenchmarkMetricSummaries, string> = {
   compileProjectMs: "Bootstrap renderer",
-  scheduleEventsMs: "Schedule full song",
+  scheduleEventsMs: "Collect full-song events (benchmark-only)",
   transportSetupMs: "Prime transport window",
   renderSongMs: "Render full song",
   realtimeFactor: "Realtime factor",
@@ -157,6 +157,7 @@ const renderScenarioMarkdown = (
     `- Runs: ${head.runsRequested} measured, ${head.warmupRuns} warmup`,
     `- Song: ${FORMATTERS.integer.format(head.scenario.durationBeats)} beats at ${FORMATTERS.integer.format(head.scenario.tempo)} BPM`,
     `- Tracks: ${FORMATTERS.integer.format(head.scenario.trackCount)} total, ${FORMATTERS.integer.format(head.scenario.automatedTrackCount)} with automation`,
+    "- Benchmark note: `Collect full-song events (benchmark-only)` measures a diagnostic full-song scheduler pass that the live app does not perform before playback starts.",
     ...(base ? [] : ["- Base benchmark: not available on the PR base branch"]),
     "",
     `| Metric | Base (${base ? baseGitRef : "not available"}) | Head (${headGitRef}) | Abs delta | % delta | Direction |`,

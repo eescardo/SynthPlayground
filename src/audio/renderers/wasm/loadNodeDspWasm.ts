@@ -3,8 +3,8 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 interface WasmSubsetEngineInstance {
-  start_stream(projectJson: string, songStartSample: number, eventsJson: string, sessionId: number, randomSeed: number): void;
-  enqueue_events(eventsJson: string): void;
+  start_stream(projectSpec: unknown, songStartSample: number, events: unknown, sessionId: number, randomSeed: number): void;
+  enqueue_events(events: unknown): void;
   configure_preview_probe_capture(captureJson: string): void;
   process_block(): boolean;
   has_active_voices(): boolean;
