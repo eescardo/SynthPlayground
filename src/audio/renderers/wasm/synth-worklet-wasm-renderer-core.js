@@ -240,6 +240,8 @@ export class SharedWasmRenderer {
 
   getProjectPlan(project) {
     const cached = this.projectPlanCache;
+    // Project snapshots are immutable once configured. Object identity is
+    // therefore a valid cache key for the planned WASM project layout.
     if (cached && cached.project === project && cached.blockSize === this.blockSize) {
       return cached;
     }

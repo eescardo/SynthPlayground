@@ -316,6 +316,8 @@ const createEventCompilerContext = (project) => {
 
 const getEventCompilerContext = (project, projectSpec) => {
   const cached = eventCompilerContextCache.get(projectSpec);
+  // Renderer project plans are immutable, so projectSpec identity can safely
+  // carry the precomputed event lookup tables for that planned snapshot.
   if (cached?.project === project) {
     return cached.context;
   }

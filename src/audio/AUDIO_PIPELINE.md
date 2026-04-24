@@ -42,6 +42,23 @@ What the planner does:
 
 The planner does not render audio. It decides the execution layout so the renderer can run cheaply.
 
+## Project Immutability
+
+Project snapshots are immutable once they enter app state. Composer and patch-workspace edits must return replacement
+`Project` objects, replacement `tracks`/`patches` arrays, and replacement edited child objects instead of mutating the
+current snapshot in place.
+
+This is part of the audio correctness contract, not just a React style preference:
+
+- the WASM renderer caches planned project specs by project object identity
+- the event compiler caches track, patch, and macro lookup tables for the planned project
+- same-reference mutation could reuse stale planning data for a changed patch or track
+
+The app enforces this in non-production builds by deep-freezing committed project snapshots from
+[projectImmutability.ts](/Users/eddy/code/SynthPlayground/src/lib/projectImmutability.ts). If a future editor path
+tries to mutate the current project snapshot in place, it should throw during local development/tests instead of
+silently poisoning renderer caches.
+
 ## Live Mode
 
 Live playback runs through:
