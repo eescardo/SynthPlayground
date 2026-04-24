@@ -1240,6 +1240,22 @@ select {
   justify-content: center;
 }
 
+.pitch-button-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.04rem;
+  white-space: nowrap;
+}
+
+.pitch-button-label-primary {
+  color: inherit;
+}
+
+.pitch-button-label-secondary {
+  color: inherit;
+  opacity: 0.5;
+}
+
 .patch-workspace-shell {
   display: flex;
   flex-direction: column;

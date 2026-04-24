@@ -3,6 +3,7 @@
 import Image from "next/image";
 import type { ComponentProps, RefObject } from "react";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
+import { PitchButtonLabel } from "@/components/PitchButtonLabel";
 import { ProjectsMenu } from "@/components/composer/ProjectsMenu";
 import { PatchWorkspaceTabStrip, PatchWorkspaceTabViewModel } from "@/components/patch-workspace/PatchWorkspaceTabStrip";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
@@ -109,7 +110,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
               title="Default pitch"
               aria-label={`Default pitch ${props.previewPitch}`}
             >
-              {props.previewPitch}
+              <PitchButtonLabel pitch={props.previewPitch} />
             </button>
           </div>
           <button type="button" onClick={props.onPreviewNow}>

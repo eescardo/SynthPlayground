@@ -521,13 +521,24 @@ export function TrackCanvas(props: TrackCanvasProps) {
         }
 
         const noteNameFont = "bold 11px ui-monospace, SFMono-Regular, Menlo, monospace";
-        const octaveFont = "9px ui-monospace, SFMono-Regular, Menlo, monospace";
-        ctx.font = noteNameFont;
-        const noteNameWidth = Math.max(8, ctx.measureText(pitchLabel.noteName).width);
-        ctx.font = octaveFont;
-        const octaveWidth = pitchLabel.octaveText ? Math.max(6, ctx.measureText(pitchLabel.octaveText).width) : 0;
-        const labelWidth = Math.max(noteNameWidth, octaveWidth);
-        const labelHeight = pitchLabel.octaveText ? 20 : 10;
+        const microtoneFont = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
+        const octaveFont = "8.5px ui-monospace, SFMono-Regular, Menlo, monospace";
+        const labelLines: Array<{ text: string; font: string; alpha?: number }> = [{ text: pitchLabel.noteName, font: noteNameFont }];
+        if (pitchLabel.microtoneText) {
+          labelLines.push({ text: pitchLabel.microtoneText, font: microtoneFont, alpha: 0.5 });
+        }
+        if (pitchLabel.octaveText) {
+          labelLines.push({ text: pitchLabel.octaveText, font: octaveFont });
+        }
+        const measuredWidths = labelLines.map((line, index) => {
+          ctx.font = line.font;
+          const minWidth = index === 0 ? 8 : 6;
+          return Math.max(minWidth, ctx.measureText(line.text).width);
+        });
+        const labelWidth = Math.max(...measuredWidths);
+        const lineHeights = labelLines.map((line, index) => (index === 0 ? 10 : line.font === microtoneFont ? 8 : 9));
+        const lineGap = labelLines.length <= 1 ? 0 : 1;
+        const labelHeight = lineHeights.reduce((sum, height) => sum + height, 0) + lineGap * (labelLines.length - 1);
         const labelPaddingX = 3;
         const labelPaddingY = 2;
         const labelX = centerLabel
@@ -551,16 +562,16 @@ export function TrackCanvas(props: TrackCanvasProps) {
         ctx.fillStyle = labelFill;
         ctx.textAlign = centerLabel ? "center" : "start";
         ctx.textBaseline = "top";
-        ctx.font = noteNameFont;
-        ctx.fillText(pitchLabel.noteName, centerLabel ? labelCenterX : labelX, labelY);
-        if (pitchLabel.octaveText) {
-          ctx.font = octaveFont;
-          ctx.fillText(
-            pitchLabel.octaveText,
-            centerLabel ? labelCenterX : labelX + (labelWidth - octaveWidth) * 0.5,
-            labelY + 10
-          );
-        }
+        let lineY = labelY;
+        labelLines.forEach((line, index) => {
+          ctx.save();
+          ctx.font = line.font;
+          ctx.globalAlpha = line.alpha ?? 1;
+          const lineX = centerLabel ? labelCenterX : labelX + (labelWidth - measuredWidths[index]) * 0.5;
+          ctx.fillText(line.text, lineX, lineY);
+          ctx.restore();
+          lineY += lineHeights[index] + lineGap;
+        });
         ctx.textAlign = "start";
         ctx.textBaseline = "alphabetic";
 

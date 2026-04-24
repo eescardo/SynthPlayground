@@ -1,3 +1,5 @@
+import { PitchButtonLabel } from "@/components/PitchButtonLabel";
+
 export type ComposerRecordPhase = "idle" | "count_in" | "recording";
 
 interface ComposerActionsBarProps {
@@ -76,7 +78,7 @@ export function ComposerActionsBar({
             title="Default pitch"
             aria-label={`Default pitch ${defaultPitch}`}
           >
-            {defaultPitch}
+            <PitchButtonLabel pitch={defaultPitch} />
           </button>
         </div>
         <button onClick={onPlay} disabled={isPlaying || recordEnabled}>
