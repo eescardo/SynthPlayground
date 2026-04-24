@@ -1,4 +1,5 @@
-const PITCH_LABEL_PATTERN = /^([A-G](?:#|b)?)(-?\d+)$/;
+import { parsePitchString } from "@/lib/pitch";
+
 const MIN_SHADED_OCTAVE = 1;
 const MAX_SHADED_OCTAVE = 7;
 const MIN_NOTE_LIGHTNESS = 0.25;
@@ -8,7 +9,9 @@ const GRID_NOTE_EPSILON = 1e-9;
 export interface TrackCanvasPitchLabel {
   noteName: string;
   octaveText: string | null;
+  microtoneText: string | null;
   octaveNumber: number | null;
+  lineCount: number;
 }
 
 interface RgbColor {
@@ -18,21 +21,24 @@ interface RgbColor {
 }
 
 export function splitTrackCanvasPitchLabel(pitchStr: string): TrackCanvasPitchLabel {
-  const match = PITCH_LABEL_PATTERN.exec(pitchStr.trim());
-  if (!match) {
+  try {
+    const parsed = parsePitchString(pitchStr);
+    return {
+      noteName: parsed.noteName,
+      octaveText: parsed.octaveText,
+      microtoneText: parsed.centsText,
+      octaveNumber: parsed.octave,
+      lineCount: parsed.centsText ? 3 : 2
+    };
+  } catch {
     return {
       noteName: pitchStr,
       octaveText: null,
-      octaveNumber: null
+      microtoneText: null,
+      octaveNumber: null,
+      lineCount: 1
     };
   }
-
-  const [, noteName, octaveText] = match;
-  return {
-    noteName,
-    octaveText,
-    octaveNumber: Number.parseInt(octaveText, 10)
-  };
 }
 
 export function shouldCenterTrackCanvasNoteLabel(durationBeats: number, gridBeats: number): boolean {

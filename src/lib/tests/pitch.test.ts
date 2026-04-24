@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { keyToPitch, qwertyKeyForPitch, transposePitch } from "@/lib/pitch";
+import { keyToPitch, midiToPitch, pitchToMidi, qwertyKeyForPitch, transposePitch } from "@/lib/pitch";
 
 describe("pitch keyboard mapping", () => {
   it("starts the hardware keyboard range at F2 and still includes middle C", () => {
@@ -19,5 +19,17 @@ describe("pitch keyboard mapping", () => {
     expect(transposePitch("C4", 1)).toBe("C#4");
     expect(transposePitch("C1", -1)).toBe("C1");
     expect(transposePitch("C7", 1)).toBe("C7");
+  });
+
+  it("supports 25-cent microtonal steps in both directions", () => {
+    expect(transposePitch("C4", 0.25)).toBe("C4+25");
+    expect(transposePitch("C4+25", 0.25)).toBe("C4+50");
+    expect(transposePitch("C4", -0.25)).toBe("B3+75");
+  });
+
+  it("parses and normalizes microtonal pitch strings", () => {
+    expect(pitchToMidi("F#3+75")).toBe(54.75);
+    expect(midiToPitch(54.25)).toBe("F#3+25");
+    expect(midiToPitch(59.75)).toBe("B3+75");
   });
 });

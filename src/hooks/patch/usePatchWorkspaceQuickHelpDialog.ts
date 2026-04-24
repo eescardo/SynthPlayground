@@ -18,7 +18,8 @@ export function usePatchWorkspaceQuickHelpDialog() {
         title: "General",
         entries: [
           { action: "Preview current tab", shortcut: "Space" },
-          { action: "Default pitch", shortcut: "- / =" },
+          { action: "Default pitch (semitone)", shortcut: "- / =" },
+          { action: "Default pitch (eighth-tone)", shortcut: "_ / +" },
           { action: "Next tab", shortcut: "Ctrl+`" },
           { action: "Previous tab", shortcut: "Ctrl+Shift+`" },
           { action: "Help", shortcut: "?" }

@@ -91,15 +91,27 @@ export function useBaseHardwareNavigation({
         return;
       }
 
-      if ((event.key === "-" || event.key === "_") && !event.repeat) {
+      if (event.key === "-" && !event.repeat) {
         event.preventDefault();
         shiftDefaultPitch(-1);
         return;
       }
 
-      if ((event.key === "=" || event.key === "+") && !event.repeat) {
+      if (event.key === "=" && !event.repeat) {
         event.preventDefault();
         shiftDefaultPitch(1);
+        return;
+      }
+
+      if (event.key === "_" && !event.repeat) {
+        event.preventDefault();
+        shiftDefaultPitch(-0.25);
+        return;
+      }
+
+      if (event.key === "+" && !event.repeat) {
+        event.preventDefault();
+        shiftDefaultPitch(0.25);
         return;
       }
     };

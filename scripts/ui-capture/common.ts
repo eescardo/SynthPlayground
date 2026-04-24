@@ -80,6 +80,13 @@ export const openSeededPatchWorkspaceApp = async (page: Page, project: Project) 
   await expect(page.getByRole("button", { name: "Back to Composer" })).toBeVisible();
 };
 
+export const openSeededApp = async (page: Page, project: Project) => {
+  await seedProject(page, project);
+  await page.goto("/");
+  await expect(page.locator(".track-canvas-shell")).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".track-name-button").first()).toBeVisible();
+};
+
 const getDefaultPatchWorkspacePatch = (): Patch => {
   const project = createDefaultProject();
   const initialPatchId = project.ui.patchWorkspace.tabs[0]?.patchId ?? project.tracks[0]?.instrumentPatchId;
@@ -293,6 +300,37 @@ export const setupSamplePlayerWorkspace = async (page: Page) => {
   await expect(page.getByRole("heading", { name: "Patch Workspace" })).toBeVisible();
   await expect(page.locator(".sample-waveform-preview")).toBeVisible();
   await expect(page.locator(".patch-probe-card.expanded")).toHaveCount(1);
+};
+
+export const createMicrotonalCaptureProject = (): Project => {
+  const project = createDefaultProject();
+  project.tracks[0] = {
+    ...project.tracks[0],
+    notes: [
+      {
+        id: "micro_a",
+        pitchStr: "C4+25",
+        startBeat: 0,
+        durationBeats: 1,
+        velocity: 0.8
+      },
+      {
+        id: "micro_b",
+        pitchStr: "D4+50",
+        startBeat: 1.5,
+        durationBeats: 0.5,
+        velocity: 0.82
+      },
+      {
+        id: "micro_c",
+        pitchStr: "B3+75",
+        startBeat: 2.5,
+        durationBeats: 0.25,
+        velocity: 0.78
+      }
+    ]
+  };
+  return project;
 };
 
 const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canvas");

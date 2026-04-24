@@ -1,5 +1,6 @@
 export const SCREENSHOT_SCENARIO = {
   MAIN_VIEW: "main-view",
+  MICROTONAL_PITCHES: "microtonal-pitches",
   SELECTION_POPOVER: "selection-popover",
   TRACK_NOTE_HOVER: "track-note-hover",
   HELP_MODAL: "help-modal",

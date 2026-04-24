@@ -12,12 +12,23 @@ describe("trackCanvasNoteRendering", () => {
     expect(splitTrackCanvasPitchLabel("F#3")).toEqual({
       noteName: "F#",
       octaveText: "3",
-      octaveNumber: 3
+      microtoneText: null,
+      octaveNumber: 3,
+      lineCount: 2
     });
     expect(splitTrackCanvasPitchLabel("C-1")).toEqual({
       noteName: "C",
       octaveText: "-1",
-      octaveNumber: -1
+      microtoneText: null,
+      octaveNumber: -1,
+      lineCount: 2
+    });
+    expect(splitTrackCanvasPitchLabel("D4+25")).toEqual({
+      noteName: "D",
+      octaveText: "4",
+      microtoneText: "+25",
+      octaveNumber: 4,
+      lineCount: 3
     });
   });
 
@@ -25,7 +36,9 @@ describe("trackCanvasNoteRendering", () => {
     expect(splitTrackCanvasPitchLabel("noise")).toEqual({
       noteName: "noise",
       octaveText: null,
-      octaveNumber: null
+      microtoneText: null,
+      octaveNumber: null,
+      lineCount: 1
     });
   });
 

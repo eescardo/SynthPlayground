@@ -18,6 +18,19 @@ const NOTE_TO_SEMITONE: Record<string, number> = {
   B: 11
 };
 
+const CHROMATIC_NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const MICROTONAL_STEPS_PER_SEMITONE = 4;
+const MICROTONAL_STEP_CENTS = 25;
+const PITCH_PATTERN = /^([A-G](?:#|b)?)(-?\d+)(?:([+-])(\d+))?$/;
+
+export interface ParsedPitchString {
+  noteName: string;
+  octave: number;
+  octaveText: string;
+  cents: number;
+  centsText: string | null;
+}
+
 // Pitch string format:
 // - Note letter: A..G
 // - Optional accidental: # or b
@@ -25,21 +38,16 @@ const NOTE_TO_SEMITONE: Record<string, number> = {
 // Examples: C4, F#3, Bb2, C-1
 
 /**
- * Converts a pitch string (for example "C4" or "F#3") to MIDI note number.
+ * Converts a pitch string (for example "C4", "F#3", or "C4+25") to MIDI note number.
  * MIDI convention used here is C4 = 60.
  */
 export const pitchToMidi = (pitchStr: string): number => {
-  const match = /^([A-G](?:#|b)?)(-?\d+)$/.exec(pitchStr.trim());
-  if (!match) {
-    throw new Error(`Invalid pitch: ${pitchStr}`);
-  }
-  const [, noteName, octaveStr] = match;
-  const semitone = NOTE_TO_SEMITONE[noteName];
+  const parsed = parsePitchString(pitchStr);
+  const semitone = NOTE_TO_SEMITONE[parsed.noteName];
   if (semitone === undefined) {
-    throw new Error(`Unsupported note name: ${noteName}`);
+    throw new Error(`Unsupported note name: ${parsed.noteName}`);
   }
-  const octave = Number.parseInt(octaveStr, 10);
-  return (octave + 1) * 12 + semitone;
+  return (parsed.octave + 1) * 12 + semitone + parsed.cents / 100;
 };
 
 export const midiToVoct = (midi: number): number => (midi - 60) / 12;
@@ -48,13 +56,36 @@ export const pitchToVoct = (pitchStr: string): number => midiToVoct(pitchToMidi(
 
 /**
  * Converts a MIDI note number back to pitch string using sharps for accidentals.
- * Example: 60 -> "C4", 61 -> "C#4".
+ * Microtonal values are normalized to 25-cent steps.
+ * Examples: 60 -> "C4", 60.25 -> "C4+25", 61 -> "C#4".
  */
 export const midiToPitch = (midi: number): string => {
-  const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-  const semitone = ((midi % 12) + 12) % 12;
-  const octave = Math.floor(midi / 12) - 1;
-  return `${names[semitone]}${octave}`;
+  const microtonalSteps = Math.round(midi * MICROTONAL_STEPS_PER_SEMITONE);
+  const semitone = Math.floor(microtonalSteps / MICROTONAL_STEPS_PER_SEMITONE);
+  const noteIndex = ((semitone % 12) + 12) % 12;
+  const octave = Math.floor(semitone / 12) - 1;
+  const cents = ((microtonalSteps % MICROTONAL_STEPS_PER_SEMITONE) + MICROTONAL_STEPS_PER_SEMITONE) % MICROTONAL_STEPS_PER_SEMITONE;
+  const centsSuffix = cents === 0 ? "" : `+${cents * MICROTONAL_STEP_CENTS}`;
+  return `${CHROMATIC_NOTE_NAMES[noteIndex]}${octave}${centsSuffix}`;
+};
+
+export const parsePitchString = (pitchStr: string): ParsedPitchString => {
+  const match = PITCH_PATTERN.exec(pitchStr.trim());
+  if (!match) {
+    throw new Error(`Invalid pitch: ${pitchStr}`);
+  }
+  const [, noteName, octaveText, centsSign, centsText] = match;
+  const cents = centsText ? Number.parseInt(centsText, 10) : 0;
+  if (cents % MICROTONAL_STEP_CENTS !== 0 || cents < 0 || cents >= 100) {
+    throw new Error(`Unsupported microtonal offset: ${pitchStr}`);
+  }
+  return {
+    noteName,
+    octave: Number.parseInt(octaveText, 10),
+    octaveText,
+    cents: centsSign === "-" ? -cents : cents,
+    centsText: cents === 0 ? null : `${centsSign ?? "+"}${cents}`
+  };
 };
 
 const PHYSICAL_KEY_SEQUENCE = [
