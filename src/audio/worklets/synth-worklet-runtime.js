@@ -1,4 +1,4 @@
-import { createJsRenderer } from "../renderers/js/synth-renderer-js.js";
+import { createWasmRenderer } from "./synth-worklet-wasm-renderer.js";
 
 const BaseAudioWorkletProcessor = globalThis.AudioWorkletProcessor || class {
   constructor() {
@@ -9,14 +9,14 @@ const BaseAudioWorkletProcessor = globalThis.AudioWorkletProcessor || class {
   }
 };
 
-let rendererFactory = (config = {}) => createJsRenderer(config);
+let rendererFactory = (config = {}) => createWasmRenderer(config);
 
 export const setRendererFactory = (nextFactory) => {
-  rendererFactory = typeof nextFactory === "function" ? nextFactory : ((config = {}) => createJsRenderer(config));
+  rendererFactory = typeof nextFactory === "function" ? nextFactory : ((config = {}) => createWasmRenderer(config));
 };
 
 export const resetRendererFactory = () => {
-  rendererFactory = (config = {}) => createJsRenderer(config);
+  rendererFactory = (config = {}) => createWasmRenderer(config);
 };
 
 export const createRenderer = (config = {}) => rendererFactory(config);

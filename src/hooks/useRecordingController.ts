@@ -211,8 +211,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
 
   const startRecordMode = useCallback(async () => {
     if (!wasmReady) {
-      const fallbackHint = process.env.NODE_ENV === "development" ? " Run `pnpm run dev:js` to force the JS renderer." : "";
-      setRuntimeError(`The default WASM renderer is not ready.${fallbackHint}`);
+      setRuntimeError("The default WASM renderer is not ready.");
       return;
     }
     if (!selectedTrack) {

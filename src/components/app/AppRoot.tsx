@@ -12,7 +12,6 @@ import { PatchRemovalDialogModal } from "@/components/composer/PatchRemovalDialo
 import { PitchPickerModal } from "@/components/composer/PitchPickerModal";
 import { RecordingDock } from "@/components/composer/RecordingDock";
 import { ExplodeSelectionDialog } from "@/components/ExplodeSelectionDialog";
-import { isWasmAudioRendererMode } from "@/audio/renderers/shared/audioRendererMode";
 import { loadDspWasm } from "@/audio/renderers/wasm/wasmBridge";
 import { BrowserCompatibilityIssue, getBrowserCompatibilityIssue } from "@/lib/browserCompatibility";
 import { downloadJsonFile } from "@/lib/browserDownloads";
@@ -101,7 +100,6 @@ export const useAppRoot = () => {
 };
 
 export function AppRoot({ children }: { children: ReactNode }) {
-  const useWasmRenderer = isWasmAudioRendererMode();
   const [projectHistory, setProjectHistory] = useState<HistoryState<Project>>(() => createHistory(createEmptyProject()));
   const [projectAssets, setProjectAssets] = useState<ProjectAssetLibrary>(() => createEmptyProjectAssetLibrary());
   const [ready, setReady] = useState(false);
@@ -110,7 +108,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const [userCueBeat, setUserCueBeat] = useState(0);
   const [selectedTrackId, setSelectedTrackId] = useState<string | undefined>(undefined);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
-  const [wasmReady, setWasmReady] = useState(!useWasmRenderer);
+  const [wasmReady, setWasmReady] = useState(false);
   const [browserCompatibilityIssue, setBrowserCompatibilityIssue] = useState<BrowserCompatibilityIssue | null>(null);
   const [editorSelection, setEditorSelection] = useState(createEmptyEditorSelection);
   const clearEditorSelectionState = useCallback(() => {
@@ -441,7 +439,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   }, [canvasSelection.kind, noteSelectionSourceTrackId]);
 
   useEffect(() => {
-    if (!ready || !useWasmRenderer) return;
+    if (!ready) return;
     const compatibilityIssue = getBrowserCompatibilityIssue(["wasm-simd"], {
       title: "Browser not compatible with the WASM renderer",
       summary: "This build uses the WASM audio renderer by default and requires browser features that are not available in your current browser."
@@ -454,12 +452,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     }
 
     loadDspWasm()
-      .then((exports) => {
-        if (!exports) {
-          setRuntimeError("The default WASM renderer is active, but WASM exports were not loaded.");
-          setWasmReady(false);
-          return;
-        }
+      .then(() => {
         setBrowserCompatibilityIssue(null);
         setRuntimeError(null);
         setWasmReady(true);
@@ -468,7 +461,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         setRuntimeError((error as Error).message);
         setWasmReady(false);
       });
-  }, [ready, useWasmRenderer]);
+  }, [ready]);
 
   const { upsertNote, updateNote, deleteNote } = useNoteEditor({ commitProjectChange });
 
@@ -1289,11 +1282,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     composerControllerProps,
     patchWorkspaceControllerProps
   };
-  const rendererLabel = useWasmRenderer
-    ? wasmReady
-      ? "wasm"
-      : "wasm (loading)"
-    : "js";
+  const rendererLabel = wasmReady ? "wasm" : "wasm (loading)";
   const showDebugOverlay = process.env.NODE_ENV === "development";
   return (
     <AppRootContext.Provider value={contextValue}>

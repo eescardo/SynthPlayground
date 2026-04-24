@@ -5,12 +5,10 @@ import { performance } from "node:perf_hooks";
 
 import { createNamedBenchmarkScenario } from "@/audio/benchmarks/stressScenario";
 import { createWasmParityScenario } from "@/audio/benchmarks/wasmParityScenario";
-import { renderProjectOfflineJs } from "@/audio/offline/renderProjectOffline";
-import { renderProjectOfflineWasm } from "@/audio/offline/renderProjectOfflineWasm";
+import { renderProjectOffline } from "@/audio/offline/renderProjectOffline";
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { beatToSample } from "@/lib/musicTiming";
 
-type Backend = "js" | "wasm";
 type ProfileTree = Record<string, unknown>;
 
 const args = process.argv.slice(2);
@@ -28,15 +26,12 @@ const parseNumberFlag = (name: string, fallback: number) => {
 
 const slugify = (value: string) => value.replace(/[^a-z0-9_-]+/gi, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
 
-const backend = (readFlag("--backend", "js") === "wasm" ? "wasm" : "js") as Backend;
 const scenarioId = readFlag("--scenario-id");
 const outputDir = readFlag("--output-dir", "artifacts/audio-profiles")!;
 const label = readFlag("--label");
 const warmupRuns = Math.max(0, Math.floor(parseNumberFlag("--warmup-runs", 1)));
 const mediumTracks = Math.max(1, Math.floor(parseNumberFlag("--tracks", 8)));
 const mediumDuration = Math.max(1, Math.floor(parseNumberFlag("--duration-beats", 96)));
-const largeTracks = Math.max(mediumTracks, Math.floor(parseNumberFlag("--large-tracks", 24)));
-const largeDuration = Math.max(mediumDuration, Math.floor(parseNumberFlag("--large-duration-beats", 256)));
 const randomSeed = Math.floor(parseNumberFlag("--random-seed", 0x1234_5678)) >>> 0;
 
 interface RenderableScenario {
@@ -48,7 +43,7 @@ interface RenderableScenario {
     tempo: number;
     blockSize: number;
   };
-  project: Parameters<typeof renderProjectOfflineJs>[0];
+  project: Parameters<typeof renderProjectOffline>[0];
 }
 
 const makeScenario = (): RenderableScenario => {
@@ -56,8 +51,8 @@ const makeScenario = (): RenderableScenario => {
     return createNamedBenchmarkScenario(scenarioId, { id: scenarioId });
   }
   return createWasmParityScenario({
-    id: "wasm-parity-medium",
-    name: "WASM parity medium",
+    id: "audio-profile-medium",
+    name: "Audio profile medium",
     trackCount: mediumTracks,
     durationBeats: mediumDuration
   });
@@ -65,7 +60,7 @@ const makeScenario = (): RenderableScenario => {
 
 const buildOutputPaths = (scenario: RenderableScenario) => {
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const baseName = slugify(label || `${backend}-${scenario.config.id}-${stamp}`);
+  const baseName = slugify(label || `wasm-${scenario.config.id}-${stamp}`);
   return {
     profilePath: path.join(outputDir, `${baseName}.cpuprofile`),
     summaryPath: path.join(outputDir, `${baseName}.json`)
@@ -91,26 +86,16 @@ const renderScenario = async (scenario: RenderableScenario) => {
   const scheduleEventsMs = performance.now() - scheduleStart;
 
   const renderStart = performance.now();
-  const renderResult = backend === "js"
-    ? renderProjectOfflineJs(scenario.project, {
-        sampleRate: scenario.config.sampleRate,
-        blockSize: scenario.config.blockSize,
-        durationSamples,
-        events,
-        sessionId: 1,
-        randomSeed
-      })
-    : await renderProjectOfflineWasm(scenario.project, {
-        sampleRate: scenario.config.sampleRate,
-        blockSize: scenario.config.blockSize,
-        durationSamples,
-        events,
-        sessionId: 1,
-        randomSeed,
-        profilingEnabled: true
-      });
+  const renderResult = await renderProjectOffline(scenario.project, {
+    sampleRate: scenario.config.sampleRate,
+    blockSize: scenario.config.blockSize,
+    durationSamples,
+    events,
+    sessionId: 1,
+    randomSeed,
+    profilingEnabled: true
+  });
   const renderSongMs = performance.now() - renderStart;
-  const profileStats = backend === "wasm" && "profileStats" in renderResult ? renderResult.profileStats ?? null : null;
 
   return {
     durationSamples,
@@ -120,7 +105,7 @@ const renderScenario = async (scenario: RenderableScenario) => {
     outputAbsSum: renderResult.outputAbsSum,
     renderedBlocks: renderResult.renderedBlocks,
     renderedSamples: renderResult.renderedSamples,
-    profileStats
+    profileStats: renderResult.profileStats ?? null
   };
 };
 
@@ -164,7 +149,7 @@ const main = async () => {
 
   const summary = {
     generatedAt: new Date().toISOString(),
-    backend,
+    backend: "wasm",
     scenario: scenario.config,
     randomSeed,
     warmupRuns,
@@ -178,12 +163,10 @@ const main = async () => {
       renderedSamples: result.renderedSamples
     },
     wasmProfile: result.profileStats,
-    wasmHotspots: backend === "wasm"
-      ? flattenNumericLeaves(result.profileStats)
-          .filter((entry) => entry.name.endsWith("_ms") && entry.value > 0)
-          .sort((left, right) => right.value - left.value)
-          .slice(0, 15)
-      : [],
+    wasmHotspots: flattenNumericLeaves(result.profileStats)
+      .filter((entry) => entry.name.endsWith("_ms") && entry.value > 0)
+      .sort((left, right) => right.value - left.value)
+      .slice(0, 15),
     artifacts: {
       cpuProfile: profilePath,
       summary: summaryPath

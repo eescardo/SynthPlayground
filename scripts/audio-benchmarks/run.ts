@@ -44,8 +44,8 @@ const main = async () => {
   const result = await runAudioBenchmarkBundle(scenarios, {
     runs,
     warmupRuns,
-    gitRef: process.env.GITHUB_REF_NAME ?? process.env.BENCHMARK_GIT_REF,
-    gitSha: process.env.GITHUB_SHA ?? process.env.BENCHMARK_GIT_SHA
+    gitRef: process.env.BENCHMARK_GIT_REF ?? process.env.GITHUB_REF_NAME,
+    gitSha: process.env.BENCHMARK_GIT_SHA ?? process.env.GITHUB_SHA
   });
 
   const json = JSON.stringify(result, null, 2);
