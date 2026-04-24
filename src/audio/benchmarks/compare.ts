@@ -7,9 +7,9 @@ import {
 } from "@/audio/benchmarks/types";
 
 const metricLabel: Record<keyof AudioBenchmarkMetricSummaries, string> = {
-  compileProjectMs: "Compile project",
+  compileProjectMs: "Bootstrap renderer",
   scheduleEventsMs: "Schedule full song",
-  transportSetupMs: "Transport setup",
+  transportSetupMs: "Prime transport window",
   renderSongMs: "Render full song",
   realtimeFactor: "Realtime factor",
   eventsPerSecond: "Events/sec during render",

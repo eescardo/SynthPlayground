@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { runAudioBenchmarkBundle } from "@/audio/benchmarks/runBenchmark";
 import { createNamedBenchmarkScenario, createStressBenchmarkProject, DEFAULT_BENCHMARK_SCENARIO_IDS } from "@/audio/benchmarks/stressScenario";
 import { createWasmRenderer } from "@/audio/renderers/wasm/wasmSynthRenderer";
+import { TRANSPORT_INITIAL_PRIME_MS, transportMsToSamples } from "@/audio/transportScheduling";
+import { collectEventsInWindow } from "@/audio/scheduler";
 import { beatToSample } from "@/lib/musicTiming";
+import type { SynthStreamStartOptions } from "@/types/audio";
 
 const createMockStream = () => ({
   port: { onmessage: null, postMessage() {} },
@@ -155,6 +158,59 @@ describe("audio benchmark harness", () => {
     });
 
     expect(maxConcurrentRendererCreates).toBe(1);
+  });
+
+  it("primes only a short transport event window before full offline rendering", async () => {
+    const wasmRendererMock = vi.mocked(createWasmRenderer);
+    const startStreamEventCounts: number[] = [];
+    wasmRendererMock.mockImplementation(async () => ({
+      port: { onmessage: null, postMessage() {} },
+      sampleRateInternal: 48000,
+      blockSize: 128,
+      project: null,
+      configure() {},
+      setDefaultProject() {},
+      startStream(options: SynthStreamStartOptions) {
+        startStreamEventCounts.push(options.events.length);
+        return createMockStream();
+      }
+    }) as unknown as Awaited<ReturnType<typeof createWasmRenderer>>);
+
+    const scenario = createNamedBenchmarkScenario("stress-3min-35tracks", {
+      trackCount: 4,
+      automatedTrackCount: 2,
+      macroAutomationLanesPerTrack: 1,
+      durationBeats: 16,
+      tempo: 100
+    });
+
+    await runAudioBenchmarkBundle([scenario], {
+      runs: 1,
+      warmupRuns: 0,
+      gitRef: "test"
+    });
+
+    const totalSamples = beatToSample(
+      scenario.config.durationBeats,
+      scenario.config.sampleRate,
+      scenario.config.tempo
+    );
+    const primedSamples = transportMsToSamples(TRANSPORT_INITIAL_PRIME_MS, scenario.config.sampleRate);
+    const primedEvents = collectEventsInWindow(
+      scenario.project,
+      { fromSample: 0, toSample: primedSamples },
+      { cueBeat: 0 }
+    );
+    const fullEvents = collectEventsInWindow(
+      scenario.project,
+      { fromSample: 0, toSample: totalSamples + 1 },
+      { cueBeat: 0 }
+    );
+
+    expect(startStreamEventCounts).toHaveLength(2);
+    expect(startStreamEventCounts[0]).toBe(primedEvents.length);
+    expect(startStreamEventCounts[1]).toBe(fullEvents.length);
+    expect(startStreamEventCounts[0]).toBeLessThan(startStreamEventCounts[1]);
   });
 
   it("computes the expected offline render sample length for a short scenario", () => {

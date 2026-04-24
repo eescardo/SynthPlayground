@@ -10,6 +10,7 @@ import {
 import { renderProjectOffline } from "@/audio/offline/renderProjectOffline";
 import { createWasmRenderer } from "@/audio/renderers/wasm/wasmSynthRenderer";
 import { collectEventsInWindow } from "@/audio/scheduler";
+import { TRANSPORT_INITIAL_PRIME_MS, transportMsToSamples } from "@/audio/transportScheduling";
 import { beatToSample } from "@/lib/musicTiming";
 import { SchedulerEvent } from "@/types/audio";
 import { performance } from "node:perf_hooks";
@@ -84,10 +85,12 @@ const runSingleBenchmark = async (scenario: AudioBenchmarkScenario): Promise<Aud
 
   globalThis.gc?.();
   const transportStart = performance.now();
+  const primedToSample = transportMsToSamples(TRANSPORT_INITIAL_PRIME_MS, config.sampleRate);
+  const primedEvents = collectEventsInWindow(project, { fromSample: 0, toSample: primedToSample }, { cueBeat: 0 });
   const transportStream = transportRenderer.startStream({
     project,
     songStartSample: 0,
-    events,
+    events: primedEvents,
     sessionId: 1,
     mode: "transport"
   });

@@ -2,14 +2,18 @@
 
 import { createInitializedWorkletNode } from "@/audio/worklets/createInitializedWorkletNode";
 import { collectEventsInWindow } from "@/audio/scheduler";
-import { getLoopPlaybackEndBeat, getSongBeatForPlaybackBeat } from "@/lib/looping";
+import {
+  TRANSPORT_INITIAL_PRIME_MS,
+  TRANSPORT_LOOKAHEAD_MS,
+  TRANSPORT_SCHEDULER_TICK_MS,
+  transportMsToSamples
+} from "@/audio/transportScheduling";
+import { getSongBeatForPlaybackBeat } from "@/lib/looping";
 import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
 import { createId } from "@/lib/ids";
 import { AudioProject, SchedulerEvent, WorkletOutboundMessage } from "@/types/audio";
 import { PreviewProbeCapture, PreviewProbeRequest } from "@/types/probes";
 
-const LOOKAHEAD_MS = 300;
-const SCHEDULER_TICK_MS = 25;
 export const BLOCK_SIZE = 128;
 export const FIXED_SAMPLE_RATE = 48000;
 
@@ -85,26 +89,13 @@ class RealAudioEngineBackend implements AudioEngineBackend {
     }
   }
 
-  private computeStaticScheduleEndSample(startBeat: number, lookaheadSamples: number): number {
-    if (!this.project) {
-      return lookaheadSamples;
-    }
-
-    const maxNoteEndBeat = this.project.tracks
-      .flatMap((track) => track.notes)
-      .reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);
-    const playbackEndBeat = getLoopPlaybackEndBeat(this.project, startBeat, Math.max(16, maxNoteEndBeat));
-    const maxPlaybackSamples = Math.max(1, beatToSample(playbackEndBeat - startBeat, FIXED_SAMPLE_RATE, this.project.global.tempo) + 1);
-    return Math.max(lookaheadSamples, maxPlaybackSamples);
-  }
-
   private tickSchedule(): void {
     if (!this.context || !this.worklet || !this.project || !this.isPlaying) {
       return;
     }
 
     const currentSongSample = Math.max(0, Math.round((this.context.currentTime - this.songStartContextTime) * FIXED_SAMPLE_RATE));
-    const lookaheadSamples = Math.round((LOOKAHEAD_MS / 1000) * FIXED_SAMPLE_RATE);
+    const lookaheadSamples = transportMsToSamples(TRANSPORT_LOOKAHEAD_MS, FIXED_SAMPLE_RATE);
     const fromSample = this.scheduledUntilSample;
     const toSample = currentSongSample + lookaheadSamples;
 
@@ -205,8 +196,7 @@ class RealAudioEngineBackend implements AudioEngineBackend {
     const sessionId = this.playSessionId;
 
     this.songStartContextTime = this.context.currentTime;
-    const lookaheadSamples = Math.round((LOOKAHEAD_MS / 1000) * FIXED_SAMPLE_RATE);
-    const primedToSample = this.computeStaticScheduleEndSample(startBeat, lookaheadSamples);
+    const primedToSample = transportMsToSamples(TRANSPORT_INITIAL_PRIME_MS, FIXED_SAMPLE_RATE);
     const primedEvents = collectEventsInWindow(this.project, { fromSample: 0, toSample: primedToSample }, { cueBeat: startBeat });
 
     this.scheduledUntilSample = primedToSample;
@@ -229,7 +219,7 @@ class RealAudioEngineBackend implements AudioEngineBackend {
     if (this.scheduler !== null) {
       window.clearInterval(this.scheduler);
     }
-    this.scheduler = window.setInterval(() => this.tickSchedule(), SCHEDULER_TICK_MS);
+    this.scheduler = window.setInterval(() => this.tickSchedule(), TRANSPORT_SCHEDULER_TICK_MS);
   }
 
   stop(): void {
