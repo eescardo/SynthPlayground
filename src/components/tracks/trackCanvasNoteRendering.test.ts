@@ -12,12 +12,20 @@ describe("trackCanvasNoteRendering", () => {
     expect(splitTrackCanvasPitchLabel("F#3")).toEqual({
       noteName: "F#",
       octaveText: "3",
+      offsetText: null,
       octaveNumber: 3
     });
     expect(splitTrackCanvasPitchLabel("C-1")).toEqual({
       noteName: "C",
       octaveText: "-1",
+      offsetText: null,
       octaveNumber: -1
+    });
+    expect(splitTrackCanvasPitchLabel("D4+25")).toEqual({
+      noteName: "D",
+      octaveText: "4+25",
+      offsetText: "+25",
+      octaveNumber: 4
     });
   });
 
@@ -25,6 +33,7 @@ describe("trackCanvasNoteRendering", () => {
     expect(splitTrackCanvasPitchLabel("noise")).toEqual({
       noteName: "noise",
       octaveText: null,
+      offsetText: null,
       octaveNumber: null
     });
   });

@@ -1,4 +1,4 @@
-const PITCH_LABEL_PATTERN = /^([A-G](?:#|b)?)(-?\d+)$/;
+const PITCH_LABEL_PATTERN = /^([A-G](?:#|b)?)(-?\d+)(?:([+-]\d+))?$/;
 const MIN_SHADED_OCTAVE = 1;
 const MAX_SHADED_OCTAVE = 7;
 const MIN_NOTE_LIGHTNESS = 0.25;
@@ -8,6 +8,7 @@ const GRID_NOTE_EPSILON = 1e-9;
 export interface TrackCanvasPitchLabel {
   noteName: string;
   octaveText: string | null;
+  offsetText: string | null;
   octaveNumber: number | null;
 }
 
@@ -23,14 +24,16 @@ export function splitTrackCanvasPitchLabel(pitchStr: string): TrackCanvasPitchLa
     return {
       noteName: pitchStr,
       octaveText: null,
+      offsetText: null,
       octaveNumber: null
     };
   }
 
-  const [, noteName, octaveText] = match;
+  const [, noteName, octaveText, offsetText] = match;
   return {
     noteName,
-    octaveText,
+    octaveText: offsetText ? `${octaveText}${offsetText}` : octaveText,
+    offsetText: offsetText ?? null,
     octaveNumber: Number.parseInt(octaveText, 10)
   };
 }
