@@ -6,7 +6,7 @@ import {
   isTrackVolumeAutomated,
   TRACK_VOLUME_AUTOMATION_ID
 } from "@/lib/macroAutomation";
-import { beatRangeToSampleRange } from "@/lib/musicTiming";
+import { beatRangeToSampleRange, samplesPerBeat } from "@/lib/musicTiming";
 import { pitchToVoct } from "@/lib/pitch";
 import { createId } from "@/lib/ids";
 import { AudioProject, SchedulerEvent, SchedulerEventType } from "@/types/audio";
@@ -44,6 +44,8 @@ const SCHEDULER_EVENT_SORT_PRIORITY: Record<SchedulerEventType, SchedulerEventSo
 };
 
 const stableNoteEventIds = new Map<string, NoteEventCache>();
+const AUTOMATION_STEP_BEATS = 0.125;
+const EPSILON = 1e-9;
 
 const pruneStaleNoteEventIds = (project: AudioProject): void => {
   const activeKeys = new Set<string>();
@@ -79,12 +81,45 @@ const getLoopedEventSampleTimes = (songBeat: number, cueBeat: number, project: A
   return playbackBeatTimes.map((beatOffset) => beatRangeToSampleRange(beatOffset, 0, project.global.sampleRate, project.global.tempo).startSample);
 };
 
+const getUnloopedSongBeatWindow = (project: AudioProject, window: SchedulerWindow, cueBeat: number) => {
+  const spb = samplesPerBeat(project.global.sampleRate, project.global.tempo);
+  return {
+    fromBeat: cueBeat + window.fromSample / spb,
+    toBeat: cueBeat + window.toSample / spb
+  };
+};
+
+const getAutomationStepWindow = (
+  project: AudioProject,
+  window: SchedulerWindow,
+  cueBeat: number,
+  timelineEndBeat: number
+) => {
+  if (project.global.loop.length > 0) {
+    return {
+      firstStep: 0,
+      lastStep: Math.ceil(timelineEndBeat / AUTOMATION_STEP_BEATS)
+    };
+  }
+
+  const { fromBeat, toBeat } = getUnloopedSongBeatWindow(project, window, cueBeat);
+  return {
+    firstStep: Math.max(0, Math.floor((fromBeat - EPSILON) / AUTOMATION_STEP_BEATS)),
+    lastStep: Math.min(
+      Math.ceil(timelineEndBeat / AUTOMATION_STEP_BEATS),
+      Math.ceil((toBeat + EPSILON) / AUTOMATION_STEP_BEATS)
+    )
+  };
+};
+
 export const collectEventsInWindow = (project: AudioProject, window: SchedulerWindow, options?: CollectEventsOptions): SchedulerEvent[] => {
   pruneStaleNoteEventIds(project);
   const events: SchedulerEvent[] = [];
   const cueBeat = Math.max(0, options?.cueBeat ?? 0);
   const timelineEndBeat = getProjectTimelineEndBeat(project);
-  const automationStepBeats = 0.125;
+  const hasLoops = project.global.loop.length > 0;
+  const unloopedBeatWindow = hasLoops ? null : getUnloopedSongBeatWindow(project, window, cueBeat);
+  const automationStepWindow = getAutomationStepWindow(project, window, cueBeat, timelineEndBeat);
 
   for (const track of project.tracks) {
     if (track.mute) {
@@ -97,7 +132,11 @@ export const collectEventsInWindow = (project: AudioProject, window: SchedulerWi
         if (!isTrackMacroAutomated(track, macro.id)) {
           continue;
         }
-        for (let beat = 0; beat <= timelineEndBeat + 1e-9; beat += automationStepBeats) {
+        for (let step = automationStepWindow.firstStep; step <= automationStepWindow.lastStep; step += 1) {
+          const beat = step * AUTOMATION_STEP_BEATS;
+          if (beat > timelineEndBeat + EPSILON) {
+            continue;
+          }
           const sampleTimes = getLoopedEventSampleTimes(beat, cueBeat, project);
           const normalized = getTrackMacroValueAtBeat(track, macro.id, macro.defaultNormalized ?? 0.5, beat, timelineEndBeat);
           sampleTimes.forEach((sampleTime, index) => {
@@ -119,7 +158,11 @@ export const collectEventsInWindow = (project: AudioProject, window: SchedulerWi
     }
 
     if (isTrackVolumeAutomated(track)) {
-      for (let beat = 0; beat <= timelineEndBeat + 1e-9; beat += automationStepBeats) {
+      for (let step = automationStepWindow.firstStep; step <= automationStepWindow.lastStep; step += 1) {
+        const beat = step * AUTOMATION_STEP_BEATS;
+        if (beat > timelineEndBeat + EPSILON) {
+          continue;
+        }
         const sampleTimes = getLoopedEventSampleTimes(beat, cueBeat, project);
         const normalized = getTrackMacroValueAtBeat(
           track,
@@ -146,40 +189,58 @@ export const collectEventsInWindow = (project: AudioProject, window: SchedulerWi
     }
 
     for (const note of track.notes) {
-      const voct = pitchToVoct(note.pitchStr);
+      const noteEndBeat = note.startBeat + note.durationBeats;
+      const shouldCollectNoteOn =
+        hasLoops || (
+          note.startBeat >= (unloopedBeatWindow?.fromBeat ?? 0) - EPSILON &&
+          note.startBeat < (unloopedBeatWindow?.toBeat ?? 0) + EPSILON
+        );
+      const shouldCollectNoteOff =
+        hasLoops || (
+          noteEndBeat >= (unloopedBeatWindow?.fromBeat ?? 0) - EPSILON &&
+          noteEndBeat < (unloopedBeatWindow?.toBeat ?? 0) + EPSILON
+        );
+      if (!shouldCollectNoteOn && !shouldCollectNoteOff) {
+        continue;
+      }
+
       const ids = noteEventCacheFor(track.id, note.id);
-      const startBeatTimes = getLoopedEventSampleTimes(note.startBeat, cueBeat, project);
-      const endBeatTimes = getLoopedEventSampleTimes(note.startBeat + note.durationBeats, cueBeat, project);
-
-      startBeatTimes.forEach((sampleTime, index) => {
-        if (sampleTime < window.fromSample || sampleTime >= window.toSample) {
-          return;
-        }
-        events.push({
-          id: index === 0 ? ids.onEventId : `${ids.onEventId}_loop_${index}`,
-          type: "NoteOn",
-          source: "timeline",
-          sampleTime,
-          trackId: track.id,
-          pitchVoct: voct,
-          velocity: note.velocity,
-          noteId: note.id
+      if (shouldCollectNoteOn) {
+        const voct = pitchToVoct(note.pitchStr);
+        const startBeatTimes = getLoopedEventSampleTimes(note.startBeat, cueBeat, project);
+        startBeatTimes.forEach((sampleTime, index) => {
+          if (sampleTime < window.fromSample || sampleTime >= window.toSample) {
+            return;
+          }
+          events.push({
+            id: index === 0 ? ids.onEventId : `${ids.onEventId}_loop_${index}`,
+            type: "NoteOn",
+            source: "timeline",
+            sampleTime,
+            trackId: track.id,
+            pitchVoct: voct,
+            velocity: note.velocity,
+            noteId: note.id
+          });
         });
-      });
+      }
 
-      endBeatTimes.forEach((sampleTime, index) => {
-        if (sampleTime < window.fromSample || sampleTime >= window.toSample) {
-          return;
-        }
-        events.push({
-          id: index === 0 ? ids.offEventId : `${ids.offEventId}_loop_${index}`,
-          type: "NoteOff",
-          source: "timeline",
-          sampleTime,
-          trackId: track.id,
-          noteId: note.id
+      if (shouldCollectNoteOff) {
+        const endBeatTimes = getLoopedEventSampleTimes(noteEndBeat, cueBeat, project);
+        endBeatTimes.forEach((sampleTime, index) => {
+          if (sampleTime < window.fromSample || sampleTime >= window.toSample) {
+            return;
+          }
+          events.push({
+            id: index === 0 ? ids.offEventId : `${ids.offEventId}_loop_${index}`,
+            type: "NoteOff",
+            source: "timeline",
+            sampleTime,
+            trackId: track.id,
+            noteId: note.id
+          });
         });
-      });
+      }
     }
   }
 
