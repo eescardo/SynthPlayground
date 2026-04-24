@@ -22,13 +22,13 @@ export const resolveRandomSeed: (value: unknown) => number;
 
 export interface SharedWasmEngine {
   start_stream(
-    projectSpec: WasmProjectSpec,
+    projectJson: string,
     songStartSample: number,
-    events: WasmEvent[],
+    eventsJson: string,
     sessionId: number,
     randomSeed: number
   ): void;
-  enqueue_events(events: WasmEvent[]): void;
+  enqueue_events(eventsJson: string): void;
   process_block(): boolean;
   has_active_voices?(): boolean;
   stop(): void;

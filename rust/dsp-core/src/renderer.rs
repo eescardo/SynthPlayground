@@ -51,16 +51,16 @@ impl WasmSubsetEngine {
 
     /// Loads a compiled project and resets the engine for a brand-new stream session.
     /// Params:
-    /// - `project_value`: structured `ProjectSpec` passed from JS without a JSON serialization round-trip.
+    /// - `project_json`: serialized `ProjectSpec` containing tracks, node graphs, and FX settings.
     /// - `song_start_sample`: absolute song position where rendering should begin.
-    /// - `events_value`: structured event queue already compiled for the WASM runtime.
+    /// - `events_json`: serialized event queue already compiled for the WASM runtime.
     /// - `_session_id`: reserved transport session identifier kept for JS/WASM API parity.
     /// - `random_seed`: base seed used to derive deterministic track and voice RNG state.
-    pub fn start_stream(&mut self, project_value: JsValue, song_start_sample: u32, events_value: JsValue, _session_id: u32, random_seed: u32) -> Result<(), JsValue> {
-        let project: ProjectSpec = serde_wasm_bindgen::from_value(project_value)
-            .map_err(|error| js_error(format!("Failed to decode WASM project: {error}")))?;
-        let mut events: Vec<EventSpec> = serde_wasm_bindgen::from_value(events_value)
-            .map_err(|error| js_error(format!("Failed to decode WASM events: {error}")))?;
+    pub fn start_stream(&mut self, project_json: &str, song_start_sample: u32, events_json: &str, _session_id: u32, random_seed: u32) -> Result<(), JsValue> {
+        let project: ProjectSpec = serde_json::from_str(project_json)
+            .map_err(|error| js_error(format!("Failed to parse WASM project: {error}")))?;
+        let mut events: Vec<EventSpec> = serde_json::from_str(events_json)
+            .map_err(|error| js_error(format!("Failed to parse WASM events: {error}")))?;
         sort_events(&mut events);
 
         self.sample_rate = project.sample_rate as f32;
@@ -87,10 +87,10 @@ impl WasmSubsetEngine {
 
     /// Appends precompiled events to the current stream and keeps the queue sorted by sample time.
     /// Params:
-    /// - `events_value`: structured event slice to merge into the live queue.
-    pub fn enqueue_events(&mut self, events_value: JsValue) -> Result<(), JsValue> {
-        let mut events: Vec<EventSpec> = serde_wasm_bindgen::from_value(events_value)
-            .map_err(|error| js_error(format!("Failed to decode appended WASM events: {error}")))?;
+    /// - `events_json`: serialized event slice to merge into the live queue.
+    pub fn enqueue_events(&mut self, events_json: &str) -> Result<(), JsValue> {
+        let mut events: Vec<EventSpec> = serde_json::from_str(events_json)
+            .map_err(|error| js_error(format!("Failed to parse appended WASM events: {error}")))?;
         self.event_queue.append(&mut events);
         sort_events(&mut self.event_queue);
         Ok(())

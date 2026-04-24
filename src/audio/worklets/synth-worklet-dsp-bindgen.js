@@ -126,7 +126,9 @@ export class WasmSubsetEngine {
   }
 
   enqueue_events(eventsJson) {
-    const ret = wasm.wasmsubsetengine_enqueue_events(this.__wbg_ptr, eventsJson);
+    const ptr0 = passStringToWasm0(eventsJson, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.wasmsubsetengine_enqueue_events(this.__wbg_ptr, ptr0, len0);
     if (ret[1]) {
       throw takeFromExternrefTable0(ret[0]);
     }
@@ -210,11 +212,17 @@ export class WasmSubsetEngine {
   }
 
   start_stream(projectJson, songStartSample, eventsJson, sessionId, randomSeed) {
+    const ptr0 = passStringToWasm0(projectJson, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(eventsJson, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
     const ret = wasm.wasmsubsetengine_start_stream(
       this.__wbg_ptr,
-      projectJson,
+      ptr0,
+      len0,
       songStartSample,
-      eventsJson,
+      ptr1,
+      len1,
       sessionId,
       randomSeed
     );

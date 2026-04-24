@@ -39,9 +39,9 @@ export class SharedWasmRenderStream {
 
     const compiledEvents = implementation.compileEvents(this.project, this.projectSpec, this.eventQueue);
     this.engine.start_stream(
-      this.projectSpec,
+      JSON.stringify(this.projectSpec),
       this.songSampleCounter,
-      compiledEvents,
+      JSON.stringify(compiledEvents),
       this.transportSessionId,
       resolveRandomSeed(options.randomSeed)
     );
@@ -155,7 +155,7 @@ export class SharedWasmRenderStream {
     }
     this.eventQueue.push(...events);
     this.eventQueue.sort(compareScheduledEvents);
-    this.engine.enqueue_events(this.implementation.compileEvents(this.project, this.projectSpec, events));
+    this.engine.enqueue_events(JSON.stringify(this.implementation.compileEvents(this.project, this.projectSpec, events)));
   }
 
   setMacroValue(trackId, macroId, normalized) {
