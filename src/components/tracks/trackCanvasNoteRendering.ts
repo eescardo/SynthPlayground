@@ -25,7 +25,7 @@ export function splitTrackCanvasPitchLabel(pitchStr: string): TrackCanvasPitchLa
     const parsed = parsePitchString(pitchStr);
     return {
       noteName: parsed.noteName,
-      octaveText: `o:${parsed.octaveText}`,
+      octaveText: parsed.octaveText,
       microtoneText: parsed.centsText,
       octaveNumber: parsed.octave,
       lineCount: parsed.centsText ? 3 : 2

@@ -524,11 +524,11 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const microtoneFont = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
         const octaveFont = "8.5px ui-monospace, SFMono-Regular, Menlo, monospace";
         const labelLines: Array<{ text: string; font: string; alpha?: number }> = [{ text: pitchLabel.noteName, font: noteNameFont }];
-        if (pitchLabel.microtoneText) {
-          labelLines.push({ text: pitchLabel.microtoneText, font: microtoneFont, alpha: 0.5 });
-        }
         if (pitchLabel.octaveText) {
           labelLines.push({ text: pitchLabel.octaveText, font: octaveFont });
+        }
+        if (pitchLabel.microtoneText) {
+          labelLines.push({ text: pitchLabel.microtoneText, font: microtoneFont, alpha: 0.5 });
         }
         const measuredWidths = labelLines.map((line, index) => {
           ctx.font = line.font;
