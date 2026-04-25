@@ -99,7 +99,7 @@ function MacroBindingDetails(props: {
             })
         )}
         {props.removedBindingDiffs.map((bindingDiff) => (
-          <div key={bindingDiff.key} className="macro-binding-detail-card diff-negative">
+          <div key={bindingDiff.key} className="macro-binding-detail-card diff-negative removed-diff-artifact">
             <div className="macro-binding-detail-mode">
               Removed <span className="patch-diff-inline-badge negative">{bindingDiff.macroName}</span>
             </div>
@@ -474,7 +474,7 @@ export function PatchInspector(props: PatchInspectorProps) {
                   <h5>Removed Modules</h5>
                   <div className="patch-diff-list">
                     {props.patchDiff.removedNodes.map((node) => (
-                      <div key={node.id} className="patch-diff-list-row negative">
+                      <div key={node.id} className="patch-diff-list-row negative removed-diff-artifact">
                         <strong>{node.typeId}</strong> <span>{node.id}</span>
                       </div>
                     ))}
@@ -487,7 +487,7 @@ export function PatchInspector(props: PatchInspectorProps) {
                   <h5>Removed Macros</h5>
                   <div className="patch-diff-list">
                     {props.patchDiff.removedMacros.map((macro) => (
-                      <div key={macro.id} className="patch-diff-list-row negative">
+                      <div key={macro.id} className="patch-diff-list-row negative removed-diff-artifact">
                         <strong>{macro.name}</strong> <span>{macro.id}</span>
                       </div>
                     ))}
@@ -500,7 +500,7 @@ export function PatchInspector(props: PatchInspectorProps) {
                   <h5>Removed Macro Bindings</h5>
                   <div className="patch-diff-list">
                     {props.patchDiff.removedBindingDiffs.map((bindingDiff) => (
-                      <div key={bindingDiff.key} className="patch-diff-list-row negative">
+                      <div key={bindingDiff.key} className="patch-diff-list-row negative removed-diff-artifact">
                         <strong>{bindingDiff.macroName}</strong> <span>{bindingDiff.nodeId}.{bindingDiff.paramId}</span>
                       </div>
                     ))}
@@ -513,7 +513,7 @@ export function PatchInspector(props: PatchInspectorProps) {
                   <h5>Removed Wires</h5>
                   <div className="patch-diff-list">
                     {props.patchDiff.removedConnections.map((connection) => (
-                      <div key={connection.id} className="patch-diff-list-row negative">
+                      <div key={connection.id} className="patch-diff-list-row negative removed-diff-artifact">
                         <code>{connectionLabel(connection)}</code>
                       </div>
                     ))}
@@ -556,7 +556,7 @@ export function PatchInspector(props: PatchInspectorProps) {
         </div>
       ))}
       {visibleRemovedConnections.map((connection) => (
-        <div key={connection.id} className="conn-row diff-negative">
+        <div key={connection.id} className="conn-row diff-negative removed-diff-artifact">
           <code>{connectionLabel(connection)}</code>
           <button type="button" disabled>
             removed

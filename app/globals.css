@@ -2437,8 +2437,8 @@ select {
 }
 
 .macro-binding-detail-card.diff-negative {
-  border-color: rgba(255, 143, 153, 0.28);
-  background: rgba(123, 45, 53, 0.2);
+  border-color: rgba(244, 90, 100, 0.34);
+  background: rgba(70, 20, 28, 0.46);
 }
 
 .macro-binding-detail-mode {
@@ -2490,8 +2490,8 @@ select {
 }
 
 .conn-row.diff-negative {
-  background: rgba(123, 45, 53, 0.18);
-  box-shadow: inset 0 0 0 1px rgba(255, 143, 153, 0.14);
+  background: rgba(70, 20, 28, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(244, 90, 100, 0.22);
 }
 
 .patch-diff-summary-grid {
@@ -2556,13 +2556,31 @@ select {
 }
 
 .patch-diff-list-row.negative {
-  background: rgba(123, 45, 53, 0.18);
-  box-shadow: inset 0 0 0 1px rgba(255, 143, 153, 0.14);
+  background: rgba(70, 20, 28, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(244, 90, 100, 0.22);
 }
 
 .patch-diff-list-row code {
   color: #ffd7dc;
   font-size: 0.72rem;
+}
+
+.removed-diff-artifact {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(244, 90, 100, 0.34);
+  box-shadow:
+    inset 0 0 0 1px rgba(244, 90, 100, 0.18),
+    0 0 0 1px rgba(47, 10, 18, 0.52);
+}
+
+.removed-diff-artifact::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0.24rem;
+  background: rgba(244, 90, 100, 0.42);
+  pointer-events: none;
 }
 
 .muted {
