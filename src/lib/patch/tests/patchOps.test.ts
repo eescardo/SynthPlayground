@@ -79,6 +79,24 @@ describe("patch ops", () => {
     expect(binding?.points).toHaveLength(3);
   });
 
+  it("updates the macro binding interpolation map without changing its range", () => {
+    const patch = pluckPatch();
+    const macro = patch.ui.macros.find((entry) => entry.bindings.some((binding) => binding.map === "linear")) ?? patch.ui.macros[0];
+    const binding = macro.bindings.find((entry) => entry.map === "linear") ?? macro.bindings[0];
+
+    const nextPatch = applyPatchOp(patch, {
+      type: "setMacroBindingMap",
+      macroId: macro.id,
+      bindingId: binding.id,
+      map: "exp"
+    });
+
+    const nextBinding = nextPatch.ui.macros.find((entry) => entry.id === macro.id)?.bindings.find((entry) => entry.id === binding.id);
+    expect(nextBinding?.map).toBe("exp");
+    expect(nextBinding?.min).toBe(binding.min);
+    expect(nextBinding?.max).toBe(binding.max);
+  });
+
   it("sets a parameter slider range without changing in-range macro binding values", () => {
     const patch = pluckPatch();
     const macro = patch.ui.macros.find((entry) => entry.keyframeCount === 3) ?? patch.ui.macros[0];

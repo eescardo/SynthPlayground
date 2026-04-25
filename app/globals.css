@@ -2516,6 +2516,21 @@ select {
   font-weight: 800;
 }
 
+.param-macro-map-pill {
+  width: 1.7rem;
+  min-width: 1.7rem;
+  font-size: 0.58rem;
+}
+
+.param-macro-map-popover {
+  width: auto;
+}
+
+.param-macro-map-popover-option {
+  width: 1.7rem;
+  font-size: 0.56rem;
+}
+
 .param-macro-popover {
   position: absolute;
   top: calc(100% + 0.32rem);

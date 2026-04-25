@@ -93,6 +93,12 @@ export type PatchOp =
       keyframeCount: number;
     }
   | {
+      type: "setMacroBindingMap";
+      macroId: string;
+      bindingId: string;
+      map: "linear" | "exp";
+    }
+  | {
       type: "setMacroBindingKeyframeValue";
       macroId: string;
       nodeId: string;

@@ -73,8 +73,7 @@ function formatBindingSummary(binding: MacroBinding) {
   if (binding.map === "piecewise" && binding.points && binding.points.length >= 2) {
     return `Keyframed ${binding.points.map((point) => formatBindingValue(point.y)).join(" - ")}`;
   }
-  const mode = binding.map === "exp" ? "Exponential" : "Linear";
-  return `${mode}, range ${formatBindingValue(binding.min ?? 0)} - ${formatBindingValue(binding.max ?? 1)}`;
+  return `Range ${formatBindingValue(binding.min ?? 0)} - ${formatBindingValue(binding.max ?? 1)}`;
 }
 
 function createDefaultBindingForParam(
@@ -354,21 +353,30 @@ function ParamMacroControl(props: {
   disabled?: boolean;
   editableSummary?: string | null;
   bindingMacro?: PatchMacro;
+  bindingMap?: MacroBinding["map"];
   isEditing: boolean;
   macros: PatchMacro[];
   onBindNew: () => void;
   onBindExisting: (macroId: string) => void;
+  onSetBindingMap: (map: "linear" | "exp") => void;
   onUnbind: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
   const [tooltipPinned, setTooltipPinned] = useState(false);
   useDismissiblePopover({
     active: open,
     popoverSelector: ".param-macro-control",
     onDismiss: () => setOpen(false)
   });
+  useDismissiblePopover({
+    active: mapOpen,
+    popoverSelector: ".param-macro-bound-shell",
+    onDismiss: () => setMapOpen(false)
+  });
 
   if (props.bindingMacro) {
+    const canChooseBindingMap = props.bindingMap === "linear" || props.bindingMap === "exp";
     return (
       <span className="param-macro-bound-shell">
         <button
@@ -381,6 +389,40 @@ function ParamMacroControl(props: {
           {props.bindingMacro.name}: {props.isEditing ? "editing" : "locked"}
           {props.editableSummary && <span className="param-macro-tooltip">{props.editableSummary}</span>}
         </button>
+        {canChooseBindingMap && (
+          <span className="patch-macro-keyframe-shell param-macro-map-shell">
+            <button
+              type="button"
+              className="patch-macro-keyframe-pill param-macro-map-pill"
+              disabled={props.disabled}
+              aria-label={`Macro binding interpolation ${props.bindingMap === "exp" ? "exponential" : "linear"}`}
+              aria-haspopup="menu"
+              aria-expanded={mapOpen}
+              onClick={() => setMapOpen((current) => !current)}
+            >
+              {props.bindingMap === "exp" ? "EXP" : "LIN"}
+            </button>
+            {mapOpen && (
+              <div className="patch-macro-keyframe-popover param-macro-map-popover" role="menu" aria-label="Macro binding interpolation">
+                {(["linear", "exp"] as const).map((map) => (
+                  <button
+                    key={map}
+                    type="button"
+                    className={`patch-macro-keyframe-popover-option param-macro-map-popover-option${map === props.bindingMap ? " active" : ""}`}
+                    role="menuitemradio"
+                    aria-checked={map === props.bindingMap}
+                    onClick={() => {
+                      props.onSetBindingMap(map);
+                      setMapOpen(false);
+                    }}
+                  >
+                    {map === "exp" ? "EXP" : "LIN"}
+                  </button>
+                ))}
+              </div>
+            )}
+          </span>
+        )}
         <button type="button" className="patch-macro-panel-remove param-macro-unbind-button" disabled={props.disabled} aria-label={`Remove ${props.bindingMacro.name} macro binding`} onClick={props.onUnbind}>
           X
         </button>
@@ -670,11 +712,22 @@ export function PatchInspector(props: PatchInspectorProps) {
                   <ParamMacroControl
                     disabled={props.structureLocked}
                     bindingMacro={bindingState.activeBindingMacro}
+                    bindingMap={activeBinding?.map}
                     isEditing={bindingState.isEditableSelectedMacroBinding}
                     editableSummary={macroSummary}
                     macros={props.patch.ui.macros}
                     onBindNew={() => exposeMacro(param.id, param.label)}
                     onBindExisting={(macroId) => bindParamToMacro(param, macroId)}
+                    onSetBindingMap={(map) => {
+                      if (bindingState.activeBindingMacro && activeBinding) {
+                        props.onApplyOp({
+                          type: "setMacroBindingMap",
+                          macroId: bindingState.activeBindingMacro.id,
+                          bindingId: activeBinding.id,
+                          map
+                        });
+                      }
+                    }}
                     onUnbind={() => {
                       if (bindingState.activeBindingMacro && activeBinding) {
                         unbindParamFromMacro(bindingState.activeBindingMacro.id, activeBinding.id);

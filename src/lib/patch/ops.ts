@@ -268,6 +268,37 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       return next;
     }
 
+    case "setMacroBindingMap": {
+      const macro = next.ui.macros.find((entry) => entry.id === op.macroId);
+      if (!macro) {
+        throw new Error(`Unknown macro: ${op.macroId}`);
+      }
+      const bindingIndex = macro.bindings.findIndex((binding) => binding.id === op.bindingId);
+      if (bindingIndex === -1) {
+        throw new Error(`Unknown macro binding: ${op.bindingId}`);
+      }
+      const binding = macro.bindings[bindingIndex];
+      const endpointValues =
+        binding.map === "piecewise" && binding.points && binding.points.length >= 2
+          ? {
+              min: binding.points[0]?.y ?? 0,
+              max: binding.points[binding.points.length - 1]?.y ?? 1
+            }
+          : {
+              min: binding.min ?? 0,
+              max: binding.max ?? 1
+            };
+      macro.bindings[bindingIndex] = {
+        id: binding.id,
+        nodeId: binding.nodeId,
+        paramId: binding.paramId,
+        map: op.map,
+        min: endpointValues.min,
+        max: endpointValues.max
+      };
+      return next;
+    }
+
     case "setMacroBindingKeyframeValue": {
       const macro = next.ui.macros.find((entry) => entry.id === op.macroId);
       if (!macro) {
