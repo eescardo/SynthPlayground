@@ -94,7 +94,14 @@ const compareNodeIdsTopologically = (patch) => {
 
 const mapMacroBinding = (binding, normalized) => {
   const n = clamp01(normalized);
-  if (binding.map === "piecewise" && Array.isArray(binding.points) && binding.points.length >= 2) {
+  const interpolate = (leftValue, rightValue, amount) => {
+    if (binding.map === "exp" && leftValue > 0 && rightValue > 0) {
+      return leftValue * Math.pow(rightValue / leftValue, amount);
+    }
+    return leftValue + (rightValue - leftValue) * amount;
+  };
+
+  if (Array.isArray(binding.points) && binding.points.length >= 2) {
     const points = binding.points;
     if (n <= points[0].x) {
       return points[0].y;
@@ -110,7 +117,7 @@ const mapMacroBinding = (binding, normalized) => {
     const right = points[segmentIndex];
     const span = Math.max(right.x - left.x, 0.000001);
     const segmentNorm = (n - left.x) / span;
-    return left.y + (right.y - left.y) * segmentNorm;
+    return interpolate(left.y, right.y, segmentNorm);
   }
   if (binding.map === "exp") {
     const min = Math.max(typeof binding.min === "number" ? binding.min : 0.000001, 0.000001);

@@ -5,6 +5,98 @@ import type { AudioProject } from "@/types/audio";
 import type { Patch } from "@/types/patch";
 
 describe("compileAudioProjectToWasmSubset", () => {
+  it("applies keyframed macro bindings after changing interpolation map", () => {
+    const patch: Patch = {
+      schemaVersion: 1,
+      id: "macro-points",
+      name: "Macro Points",
+      meta: { source: "custom" },
+      nodes: [
+        { id: "vcf", typeId: "VCF", params: { type: "lowpass", cutoffHz: 120, resonance: 0.2, cutoffModAmountOct: 0 } },
+        { id: "out", typeId: "Output", params: { gainDb: 0, limiter: false } }
+      ],
+      connections: [
+        { id: "c1", from: { nodeId: "vcf", portId: "out" }, to: { nodeId: "out", portId: "in" } }
+      ],
+      ui: {
+        macros: [
+          {
+            id: "macro_filter",
+            name: "Filter",
+            keyframeCount: 3,
+            defaultNormalized: 0.25,
+            bindings: [
+              {
+                id: "binding_cutoff",
+                nodeId: "vcf",
+                paramId: "cutoffHz",
+                map: "linear",
+                points: [
+                  { x: 0, y: 100 },
+                  { x: 0.5, y: 1000 },
+                  { x: 1, y: 10000 }
+                ]
+              },
+              {
+                id: "binding_resonance",
+                nodeId: "vcf",
+                paramId: "resonance",
+                map: "exp",
+                points: [
+                  { x: 0, y: 0.1 },
+                  { x: 0.5, y: 0.4 },
+                  { x: 1, y: 0.9 }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      layout: { nodes: [] },
+      io: { audioOutNodeId: "out", audioOutPortId: "in" }
+    };
+
+    const project: AudioProject = {
+      global: { sampleRate: 48000, tempo: 120, meter: "4/4", gridBeats: 0.25, loop: [] },
+      tracks: [
+        {
+          id: "track1",
+          name: "Track 1",
+          instrumentPatchId: patch.id,
+          notes: [],
+          macroValues: {},
+          macroAutomations: {},
+          macroPanelExpanded: false,
+          volume: 1,
+          mute: false,
+          solo: false,
+          fx: {
+            delayEnabled: false,
+            reverbEnabled: false,
+            saturationEnabled: false,
+            compressorEnabled: false,
+            delayMix: 0,
+            reverbMix: 0,
+            drive: 0,
+            compression: 0
+          }
+        }
+      ],
+      patches: [patch],
+      masterFx: {
+        compressorEnabled: false,
+        limiterEnabled: false,
+        makeupGain: 0
+      }
+    };
+
+    const compiled = compileAudioProjectToWasmSubset(project, { blockSize: 128 });
+    const vcfNode = compiled.tracks[0]?.nodes.find((node) => node.id === "vcf");
+
+    expect(vcfNode?.params.cutoffHz).toBeCloseTo(550);
+    expect(vcfNode?.params.resonance).toBeCloseTo(Math.sqrt(0.1 * 0.4));
+  });
+
   it("preserves explicit host-node routing when compiling track patches", () => {
     const patch: Patch = {
       schemaVersion: 1,

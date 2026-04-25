@@ -113,6 +113,18 @@ describe("patch ops", () => {
     expect(nextBinding?.map).toBe("exp");
     expect(nextBinding?.points).toEqual(binding.points);
     expect(getMacroBindingKeyframeCount(nextBinding!)).toBe(3);
+
+    const roundTrippedPatch = applyPatchOp(nextPatch, {
+      type: "setMacroBindingMap",
+      macroId: macro.id,
+      bindingId: binding.id,
+      map: "linear"
+    });
+    const roundTrippedBinding = roundTrippedPatch.ui.macros
+      .find((entry) => entry.id === macro.id)
+      ?.bindings.find((entry) => entry.id === binding.id);
+    expect(roundTrippedBinding?.map).toBe("linear");
+    expect(roundTrippedBinding?.points).toEqual(binding.points);
   });
 
   it("resolves exponential interpolation between keyframed macro points", () => {
