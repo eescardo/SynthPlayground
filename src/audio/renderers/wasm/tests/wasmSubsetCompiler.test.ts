@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { compileAudioProjectToWasmSubset } from "@/audio/renderers/wasm/wasmSubsetCompiler";
+import { compileAudioProjectToWasmSubset, compileSchedulerEventsToWasmSubset } from "@/audio/renderers/wasm/wasmSubsetCompiler";
 import type { AudioProject } from "@/types/audio";
 import type { Patch } from "@/types/patch";
 
@@ -95,6 +95,34 @@ describe("compileAudioProjectToWasmSubset", () => {
 
     expect(vcfNode?.params.cutoffHz).toBeCloseTo(550);
     expect(vcfNode?.params.resonance).toBeCloseTo(Math.sqrt(0.1 * 0.4));
+
+    const compiledEvents = compileSchedulerEventsToWasmSubset(project, compiled, [
+      {
+        id: "macro_change",
+        type: "MacroChange",
+        sampleTime: 64,
+        source: "preview",
+        trackId: "track1",
+        macroId: "macro_filter",
+        normalized: 0.25
+      }
+    ]);
+    expect(compiledEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "ParamChange",
+          nodeId: "vcf",
+          paramId: "cutoffHz",
+          value: expect.closeTo(550)
+        }),
+        expect.objectContaining({
+          type: "ParamChange",
+          nodeId: "vcf",
+          paramId: "resonance",
+          value: expect.closeTo(Math.sqrt(0.1 * 0.4))
+        })
+      ])
+    );
   });
 
   it("preserves explicit host-node routing when compiling track patches", () => {

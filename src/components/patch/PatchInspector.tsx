@@ -83,7 +83,7 @@ function createDefaultBindingForParam(
 ): Pick<MacroBinding, "map" | "min" | "max" | "points"> {
   if (macro.keyframeCount > 2) {
     return {
-      map: "piecewise",
+      map: "linear",
       points: getMacroKeyframePositions(macro.keyframeCount).map((x) => ({
         x,
         y: range.min + (range.max - range.min) * x

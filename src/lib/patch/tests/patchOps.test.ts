@@ -161,6 +161,76 @@ describe("patch ops", () => {
     expect(expValue).toBeCloseTo(Math.sqrt(100 * 1000));
   });
 
+  it("treats legacy piecewise and linear keyframed bindings identically", () => {
+    const points = [
+      { x: 0, y: 100 },
+      { x: 0.5, y: 1000 },
+      { x: 1, y: 10000 }
+    ];
+    const legacyPiecewiseValue = resolveMacroBindingValue(
+      {
+        id: "binding_piecewise_points",
+        nodeId: "vcf1",
+        paramId: "cutoffHz",
+        map: "piecewise",
+        points
+      },
+      0.25
+    );
+    const linearValue = resolveMacroBindingValue(
+      {
+        id: "binding_linear_points",
+        nodeId: "vcf1",
+        paramId: "cutoffHz",
+        map: "linear",
+        points
+      },
+      0.25
+    );
+
+    expect(linearValue).toBeCloseTo(legacyPiecewiseValue);
+    expect(linearValue).toBeCloseTo(550);
+  });
+
+  it("updates two-point linear keyframed bindings by editing their points", () => {
+    const patch = pluckPatch();
+    const macro = patch.ui.macros[0];
+    patch.ui.macros = [
+      {
+        ...macro,
+        keyframeCount: 2,
+        bindings: [
+          {
+            id: "binding_linear_two_point",
+            nodeId: "vcf1",
+            paramId: "cutoffHz",
+            map: "linear",
+            points: [
+              { x: 0, y: 120 },
+              { x: 1, y: 5000 }
+            ]
+          }
+        ]
+      }
+    ];
+
+    const nextPatch = applyPatchOp(patch, {
+      type: "setMacroBindingKeyframeValue",
+      macroId: macro.id,
+      nodeId: "vcf1",
+      paramId: "cutoffHz",
+      normalized: 1,
+      value: 7000
+    });
+
+    const binding = nextPatch.ui.macros[0].bindings[0];
+    expect(binding.points).toEqual([
+      { x: 0, y: 120 },
+      { x: 1, y: 7000 }
+    ]);
+    expect(binding.max).toBeUndefined();
+  });
+
   it("sets a parameter slider range without changing in-range macro binding values", () => {
     const patch = pluckPatch();
     const macro = patch.ui.macros.find((entry) => entry.keyframeCount === 3) ?? patch.ui.macros[0];
