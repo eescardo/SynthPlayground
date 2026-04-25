@@ -65,17 +65,92 @@ describe("patch ops", () => {
       type: "bindMacro",
       macroId: macro.id,
       bindingId: "binding_keyframed_test",
-      nodeId: "vco1",
-      paramId: "detune",
+      nodeId: "vcf1",
+      paramId: "cutoffHz",
       map: "piecewise",
       points: [
-        { x: 0, y: -12 },
-        { x: 0.5, y: 0 },
-        { x: 1, y: 12 }
+        { x: 0, y: 120 },
+        { x: 0.5, y: 980 },
+        { x: 1, y: 5000 }
       ]
     });
 
     const binding = nextPatch.ui.macros.find((entry) => entry.id === macro.id)?.bindings.find((entry) => entry.id === "binding_keyframed_test");
     expect(binding?.points).toHaveLength(3);
+  });
+
+  it("sets a parameter slider range without changing in-range macro binding values", () => {
+    const patch = pluckPatch();
+    const macro = patch.ui.macros.find((entry) => entry.keyframeCount === 3) ?? patch.ui.macros[0];
+    patch.ui.macros = [
+      {
+        ...macro,
+        bindings: [
+          {
+            id: "binding_slider_focus",
+            nodeId: "vcf1",
+            paramId: "cutoffHz",
+            map: "piecewise",
+            points: [
+              { x: 0, y: 120 },
+              { x: 0.5, y: 980 },
+              { x: 1, y: 5000 }
+            ]
+          }
+        ]
+      }
+    ];
+
+    const nextPatch = applyPatchOp(patch, {
+      type: "setParamSliderRange",
+      nodeId: "vcf1",
+      paramId: "cutoffHz",
+      min: 80,
+      max: 6000
+    });
+
+    const binding = nextPatch.ui.macros[0].bindings[0];
+    expect(nextPatch.ui.paramRanges?.["vcf1:cutoffHz"]).toEqual({ min: 80, max: 6000 });
+    expect(binding.points?.map((point) => point.y)).toEqual([120, 980, 5000]);
+  });
+
+  it("clamps parameter and macro binding values when tightening a slider range", () => {
+    const patch = pluckPatch();
+    const macro = patch.ui.macros.find((entry) => entry.keyframeCount === 3) ?? patch.ui.macros[0];
+    const node = patch.nodes.find((entry) => entry.id === "vcf1");
+    if (node) {
+      node.params.cutoffHz = 12000;
+    }
+    patch.ui.macros = [
+      {
+        ...macro,
+        bindings: [
+          {
+            id: "binding_slider_focus_clamp",
+            nodeId: "vcf1",
+            paramId: "cutoffHz",
+            map: "piecewise",
+            points: [
+              { x: 0, y: 40 },
+              { x: 0.5, y: 980 },
+              { x: 1, y: 12000 }
+            ]
+          }
+        ]
+      }
+    ];
+
+    const nextPatch = applyPatchOp(patch, {
+      type: "setParamSliderRange",
+      nodeId: "vcf1",
+      paramId: "cutoffHz",
+      min: 120,
+      max: 5000
+    });
+
+    const nextNode = nextPatch.nodes.find((entry) => entry.id === "vcf1");
+    const binding = nextPatch.ui.macros[0].bindings[0];
+    expect(nextNode?.params.cutoffHz).toBe(5000);
+    expect(binding.points?.map((point) => point.y)).toEqual([120, 980, 5000]);
   });
 });

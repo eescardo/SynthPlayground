@@ -2392,9 +2392,7 @@ select {
   min-height: 1.05rem;
 }
 
-.param-macro-button,
-.param-macro-status,
-.param-macro-unbind-button {
+.param-macro-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2412,20 +2410,28 @@ select {
 }
 
 .param-macro-status {
+  position: relative;
+  display: inline-flex;
+  min-height: 0.96rem;
+  align-items: center;
   max-width: 10.4rem;
   justify-content: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ffd69b;
+  font-size: 0.68rem;
+  font-weight: 700;
   overflow: visible;
   text-transform: none;
   letter-spacing: 0.02em;
+  line-height: 1;
   white-space: nowrap;
 }
 
 .param-macro-unbind-button {
-  width: 1.05rem;
-  padding: 0;
-  border-color: rgba(255, 143, 153, 0.32);
-  background: rgba(70, 20, 28, 0.28);
-  color: #ffd7dc;
+  font-size: 0.62rem;
+  font-weight: 800;
 }
 
 .param-macro-popover {
@@ -2482,9 +2488,14 @@ select {
 }
 
 .param-macro-status:hover .param-macro-tooltip,
-.param-macro-status:focus-visible .param-macro-tooltip {
+.param-macro-status:focus-visible .param-macro-tooltip,
+.param-macro-status.tooltip-pinned .param-macro-tooltip {
   opacity: 0.75;
   transform: translateY(0);
+}
+
+.param-macro-status.tooltip-pinned .param-macro-tooltip {
+  transition-delay: 0s;
 }
 
 .macro-binding-details {

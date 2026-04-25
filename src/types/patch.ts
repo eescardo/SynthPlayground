@@ -100,6 +100,11 @@ export interface PatchMacro {
   bindings: MacroBinding[];
 }
 
+export interface PatchParamSliderRange {
+  min: number;
+  max: number;
+}
+
 export interface PatchLayoutNode {
   nodeId: string;
   x: number;
@@ -126,6 +131,7 @@ export interface Patch {
   ui: {
     macros: PatchMacro[];
     canvasZoom?: number;
+    paramRanges?: Record<string, PatchParamSliderRange>;
   };
   layout: {
     nodes: PatchLayoutNode[];

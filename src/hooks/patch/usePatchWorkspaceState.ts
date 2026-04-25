@@ -570,8 +570,9 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
         keyframeCount: 2
       });
 
-      const min = paramSchema.type === "float" ? paramSchema.range.min : 0;
-      const max = paramSchema.type === "float" ? paramSchema.range.max : 1;
+      const sliderRange = currentPatch.ui.paramRanges?.[`${nodeId}:${paramId}`];
+      const min = paramSchema.type === "float" ? sliderRange?.min ?? paramSchema.range.min : 0;
+      const max = paramSchema.type === "float" ? sliderRange?.max ?? paramSchema.range.max : 1;
       nextPatch = applyPatchGraphOp(nextPatch, {
         type: "bindMacro",
         macroId,

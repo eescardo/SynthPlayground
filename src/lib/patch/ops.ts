@@ -15,6 +15,19 @@ const clonePatch = (patch: Patch): Patch => structuredClone(patch);
 
 const findLayoutNode = (patch: Patch, nodeId: string): number => patch.layout.nodes.findIndex((node) => node.nodeId === nodeId);
 
+const buildParamRangeKey = (nodeId: string, paramId: string) => `${nodeId}:${paramId}`;
+
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+function clampMacroBindingValues(binding: Patch["ui"]["macros"][number]["bindings"][number], min: number, max: number) {
+  if (binding.map === "piecewise" && binding.points) {
+    binding.points = binding.points.map((point) => ({ ...point, y: clamp(point.y, min, max) }));
+    return;
+  }
+  binding.min = clamp(binding.min ?? min, min, max);
+  binding.max = clamp(binding.max ?? max, min, max);
+}
+
 function applyMacroValueToPatch(patch: Patch, macroId: string, normalized: number): Patch {
   const macro = patch.ui.macros.find((entry) => entry.id === macroId);
   if (!macro) {
@@ -60,6 +73,14 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
         (connection) => connection.from.nodeId !== op.nodeId && connection.to.nodeId !== op.nodeId
       );
       next.layout.nodes = next.layout.nodes.filter((node) => node.nodeId !== op.nodeId);
+      if (next.ui.paramRanges) {
+        next.ui.paramRanges = Object.fromEntries(
+          Object.entries(next.ui.paramRanges).filter(([key]) => !key.startsWith(`${op.nodeId}:`))
+        );
+        if (Object.keys(next.ui.paramRanges).length === 0) {
+          delete next.ui.paramRanges;
+        }
+      }
       for (const macro of next.ui.macros) {
         macro.bindings = macro.bindings.filter((binding) => binding.nodeId !== op.nodeId);
       }
@@ -114,6 +135,44 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
         throw new Error(`Unknown node in setParam: ${op.nodeId}`);
       }
       node.params[op.paramId] = op.value;
+      return next;
+    }
+
+    case "setParamSliderRange": {
+      const node = next.nodes.find((entry) => entry.id === op.nodeId);
+      if (!node) {
+        throw new Error(`Unknown node in setParamSliderRange: ${op.nodeId}`);
+      }
+      const moduleSchema = getModuleSchema(node.typeId);
+      const schema = moduleSchema?.params.find((param) => param.id === op.paramId);
+      if (!schema || schema.type !== "float") {
+        throw new Error(`Slider ranges can only be set for float params: ${op.nodeId}.${op.paramId}`);
+      }
+      const rawMin = clamp(op.min, schema.range.min, schema.range.max);
+      const rawMax = clamp(op.max, schema.range.min, schema.range.max);
+      const min = Math.min(rawMin, rawMax);
+      const max = Math.max(rawMin, rawMax);
+      const key = buildParamRangeKey(op.nodeId, op.paramId);
+      next.ui.paramRanges = { ...(next.ui.paramRanges ?? {}) };
+      if (min === schema.range.min && max === schema.range.max) {
+        delete next.ui.paramRanges[key];
+      } else {
+        next.ui.paramRanges[key] = { min, max };
+      }
+      if (Object.keys(next.ui.paramRanges).length === 0) {
+        delete next.ui.paramRanges;
+      }
+      const value = node.params[op.paramId];
+      if (typeof value === "number") {
+        node.params[op.paramId] = clamp(value, min, max);
+      }
+      for (const macro of next.ui.macros) {
+        for (const binding of macro.bindings) {
+          if (binding.nodeId === op.nodeId && binding.paramId === op.paramId) {
+            clampMacroBindingValues(binding, min, max);
+          }
+        }
+      }
       return next;
     }
 

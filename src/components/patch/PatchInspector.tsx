@@ -11,7 +11,7 @@ import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { useRenameActivation } from "@/hooks/useRenameActivation";
 import { createId } from "@/lib/ids";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { MacroBinding, Patch, PatchMacro, PatchNode, ParamSchema, ParamValue, PatchValidationIssue } from "@/types/patch";
+import { MacroBinding, Patch, PatchMacro, PatchNode, PatchParamSliderRange, ParamSchema, ParamValue, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
 import { samplePlayerPitchSemisToRootPitch } from "@/lib/patch/samplePlayer";
@@ -54,6 +54,21 @@ function getParamNumericRange(param: ParamSchema) {
   return param.type === "float" ? param.range : { min: 0, max: 1 };
 }
 
+function buildParamRangeKey(nodeId: string, paramId: string) {
+  return `${nodeId}:${paramId}`;
+}
+
+function resolveParamSliderRange(patch: Patch, nodeId: string, param: ParamSchema): PatchParamSliderRange {
+  const schemaRange = getParamNumericRange(param);
+  const storedRange = patch.ui.paramRanges?.[buildParamRangeKey(nodeId, param.id)];
+  if (!storedRange || param.type !== "float") {
+    return schemaRange;
+  }
+  const min = clampNumericValue(storedRange.min, param.range.min, param.range.max);
+  const max = clampNumericValue(storedRange.max, param.range.min, param.range.max);
+  return { min: Math.min(min, max), max: Math.max(min, max) };
+}
+
 function formatBindingSummary(binding: MacroBinding) {
   if (binding.map === "piecewise" && binding.points && binding.points.length >= 2) {
     return `Keyframed ${binding.points.map((point) => formatBindingValue(point.y)).join(" - ")}`;
@@ -62,8 +77,11 @@ function formatBindingSummary(binding: MacroBinding) {
   return `${mode}, range ${formatBindingValue(binding.min ?? 0)} - ${formatBindingValue(binding.max ?? 1)}`;
 }
 
-function createDefaultBindingForParam(param: ParamSchema, macro: PatchMacro): Pick<MacroBinding, "map" | "min" | "max" | "points"> {
-  const range = getParamNumericRange(param);
+function createDefaultBindingForParam(
+  param: ParamSchema,
+  macro: PatchMacro,
+  range = getParamNumericRange(param)
+): Pick<MacroBinding, "map" | "min" | "max" | "points"> {
   if (macro.keyframeCount > 2) {
     return {
       map: "piecewise",
@@ -281,6 +299,7 @@ function ParamMacroControl(props: {
   onUnbind: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [tooltipPinned, setTooltipPinned] = useState(false);
   useDismissiblePopover({
     active: open,
     popoverSelector: ".param-macro-control",
@@ -290,12 +309,17 @@ function ParamMacroControl(props: {
   if (props.bindingMacro) {
     return (
       <span className="param-macro-bound-shell">
-        <span className="param-macro-status" tabIndex={0}>
+        <button
+          type="button"
+          className={`param-macro-status${tooltipPinned ? " tooltip-pinned" : ""}`}
+          onClick={() => setTooltipPinned((current) => !current)}
+          onBlur={() => setTooltipPinned(false)}
+        >
           {props.bindingMacro.name}: {props.isEditing ? "editing" : "locked"}
           {props.editableSummary && <span className="param-macro-tooltip">{props.editableSummary}</span>}
-        </span>
-        <button type="button" className="param-macro-unbind-button" disabled={props.disabled} aria-label={`Remove ${props.bindingMacro.name} macro binding`} onClick={props.onUnbind}>
-          x
+        </button>
+        <button type="button" className="patch-macro-panel-remove param-macro-unbind-button" disabled={props.disabled} aria-label={`Remove ${props.bindingMacro.name} macro binding`} onClick={props.onUnbind}>
+          X
         </button>
       </span>
     );
@@ -304,7 +328,7 @@ function ParamMacroControl(props: {
   return (
     <span className="param-macro-control">
       <button type="button" className="param-macro-button" disabled={props.disabled} onClick={() => setOpen((current) => !current)}>
-        Macro
+        Macro...
       </button>
       {open && (
         <div className="param-macro-popover" role="dialog" aria-label="Bind parameter to macro">
@@ -443,7 +467,7 @@ export function PatchInspector(props: PatchInspectorProps) {
     if (!macro) {
       return;
     }
-    const binding = createDefaultBindingForParam(param, macro);
+    const binding = createDefaultBindingForParam(param, macro, resolveParamSliderRange(props.patch, selectedNode.id, param));
     props.onApplyOp({
       type: "bindMacro",
       macroId,
@@ -521,23 +545,15 @@ export function PatchInspector(props: PatchInspectorProps) {
             const activeBinding = bindingState.activeBindingMacro?.bindings.find(
               (binding) => binding.nodeId === selectedNode.id && binding.paramId === param.id
             );
-            const numericRange = getParamNumericRange(param);
-            const bindingEndpointValues =
-              activeBinding?.map === "piecewise" && activeBinding.points && activeBinding.points.length >= 2
-                ? {
-                    min: activeBinding.points[0]?.y ?? numericRange.min,
-                    max: activeBinding.points[activeBinding.points.length - 1]?.y ?? numericRange.max
-                  }
-                : activeBinding
-                  ? {
-                      min: activeBinding.min ?? numericRange.min,
-                      max: activeBinding.max ?? numericRange.max
-                    }
-                  : numericRange;
+            const sliderRange = resolveParamSliderRange(props.patch, selectedNode.id, param);
             const controlValue =
               activeBinding && typeof selectedMacroValue === "number"
                 ? resolveMacroBindingValue(activeBinding, selectedMacroValue)
                 : value;
+            const sliderControlValue =
+              param.type === "float" && typeof controlValue === "number"
+                ? clampNumericValue(controlValue, sliderRange.min, sliderRange.max)
+                : controlValue;
             const controlDisabled = Boolean(
               props.structureLocked ||
               (bindingState.isExposed && !bindingState.isEditableSelectedMacroBinding)
@@ -576,9 +592,9 @@ export function PatchInspector(props: PatchInspectorProps) {
                   <div className="param-value-editor">
                     <ParamValueControl
                         param={param}
-                        value={controlValue}
-                        min={param.type === "float" ? param.range.min : undefined}
-                        max={param.type === "float" ? param.range.max : undefined}
+                        value={sliderControlValue}
+                        min={param.type === "float" ? sliderRange.min : undefined}
+                        max={param.type === "float" ? sliderRange.max : undefined}
                         disabled={controlDisabled}
                         onChange={(nextValue) => {
                           if (props.structureLocked) {
@@ -609,40 +625,34 @@ export function PatchInspector(props: PatchInspectorProps) {
                       <div className="param-range-label-row">
                         <EditableExtremeLabel
                           id={`${selectedNode.id}:${param.id}:min`}
-                          value={bindingEndpointValues.min}
+                          value={sliderRange.min}
                           min={param.range.min}
-                          max={param.range.max}
-                          disabled={!activeBinding || props.structureLocked}
+                          max={sliderRange.max}
+                          disabled={props.structureLocked}
                           onCommit={(nextValue) => {
-                            if (bindingState.activeBindingMacro) {
-                              props.onApplyOp({
-                                type: "setMacroBindingKeyframeValue",
-                                macroId: bindingState.activeBindingMacro.id,
-                                nodeId: selectedNode.id,
-                                paramId: param.id,
-                                normalized: 0,
-                                value: nextValue
-                              });
-                            }
+                            props.onApplyOp({
+                              type: "setParamSliderRange",
+                              nodeId: selectedNode.id,
+                              paramId: param.id,
+                              min: nextValue,
+                              max: sliderRange.max
+                            });
                           }}
                         />
                         <EditableExtremeLabel
                           id={`${selectedNode.id}:${param.id}:max`}
-                          value={bindingEndpointValues.max}
-                          min={param.range.min}
+                          value={sliderRange.max}
+                          min={sliderRange.min}
                           max={param.range.max}
-                          disabled={!activeBinding || props.structureLocked}
+                          disabled={props.structureLocked}
                           onCommit={(nextValue) => {
-                            if (bindingState.activeBindingMacro) {
-                              props.onApplyOp({
-                                type: "setMacroBindingKeyframeValue",
-                                macroId: bindingState.activeBindingMacro.id,
-                                nodeId: selectedNode.id,
-                                paramId: param.id,
-                                normalized: 1,
-                                value: nextValue
-                              });
-                            }
+                            props.onApplyOp({
+                              type: "setParamSliderRange",
+                              nodeId: selectedNode.id,
+                              paramId: param.id,
+                              min: sliderRange.min,
+                              max: nextValue
+                            });
                           }}
                         />
                       </div>
