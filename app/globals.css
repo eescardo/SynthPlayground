@@ -2280,13 +2280,27 @@ select {
 
 .param-row {
   display: grid;
-  grid-template-columns: 92px 1fr auto;
-  align-items: start;
-  gap: 0.4rem;
-  margin-bottom: 0.4rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.16rem;
+  margin-bottom: 0.24rem;
   font-size: 0.86rem;
-  padding: 0.35rem 0.4rem;
+  padding: 0.32rem 0.4rem 0.38rem;
   border-radius: 0.65rem;
+}
+
+.param-row-header {
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  min-width: 0;
+}
+
+.param-name {
+  min-width: 0;
+  color: #e7f3ff;
+  font-size: 0.82rem;
+  font-weight: 650;
+  line-height: 1.2;
 }
 
 .param-row.diff-positive {
@@ -2302,12 +2316,60 @@ select {
 .param-control-stack {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.18rem;
   min-width: 0;
 }
 
-.patch-inspector-status-button {
-  align-self: start;
+.param-value-editor {
+  width: 100%;
+}
+
+.param-value-editor input,
+.param-value-editor select {
+  width: 100%;
+}
+
+.param-value-slider {
+  display: block;
+}
+
+.param-range-label-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: -0.12rem;
+}
+
+.param-range-label,
+.param-range-label-input {
+  min-width: 2.8rem;
+  max-width: 6rem;
+  padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(159, 180, 201, 0.82);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.62rem;
+  text-align: center;
+}
+
+.param-range-label:not(:disabled).armed,
+.param-range-label:not(:disabled):hover,
+.param-range-label:not(:disabled):focus-visible {
+  border-color: rgba(255, 214, 153, 0.28);
+  background: rgba(255, 191, 72, 0.1);
+  color: #ffe2b2;
+}
+
+.param-range-label:disabled {
+  opacity: 1;
+}
+
+.param-range-label-input {
+  border-color: rgba(255, 214, 153, 0.34);
+  border-radius: 0.3rem;
+  background: rgba(16, 24, 32, 0.94);
+  color: #fff0d0;
 }
 
 .macro-binding-pill {
@@ -2321,15 +2383,114 @@ select {
   cursor: default;
 }
 
+.param-macro-control,
+.param-macro-bound-shell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.24rem;
+  min-height: 1.05rem;
+}
+
+.param-macro-button,
+.param-macro-status,
+.param-macro-unbind-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0.96rem;
+  padding: 0.08rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 214, 153, 0.24);
+  background: rgba(255, 206, 122, 0.12);
+  color: #ffd69b;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.param-macro-status {
+  max-width: 10.4rem;
+  justify-content: flex-start;
+  overflow: visible;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.param-macro-unbind-button {
+  width: 1.05rem;
+  padding: 0;
+  border-color: rgba(255, 143, 153, 0.32);
+  background: rgba(70, 20, 28, 0.28);
+  color: #ffd7dc;
+}
+
+.param-macro-popover {
+  position: absolute;
+  top: calc(100% + 0.32rem);
+  left: 0;
+  z-index: 18;
+  display: grid;
+  gap: 0.24rem;
+  min-width: 8rem;
+  max-width: 13rem;
+  padding: 0.32rem;
+  border: 1px solid rgba(255, 214, 153, 0.24);
+  border-radius: 0.65rem;
+  background: rgba(9, 17, 26, 0.98);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.32);
+}
+
+.param-macro-popover-option {
+  justify-content: flex-start;
+  padding: 0.3rem 0.48rem;
+  border-color: rgba(255, 214, 153, 0.18);
+  background: rgba(255, 206, 122, 0.08);
+  color: #ffd69b;
+  font-size: 0.72rem;
+  text-align: left;
+}
+
+.param-macro-popover-option.new {
+  border-color: rgba(255, 214, 153, 0.34);
+  background: rgba(255, 191, 72, 0.2);
+  color: #fff0d0;
+}
+
+.param-macro-tooltip {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0.45rem;
+  z-index: 19;
+  width: max-content;
+  max-width: 14rem;
+  padding: 0.32rem 0.42rem;
+  border: 1px solid rgba(255, 214, 153, 0.18);
+  border-radius: 0.5rem;
+  background: rgba(9, 17, 26, 0.5);
+  color: rgba(255, 226, 178, 0.92);
+  font-size: 0.68rem;
+  line-height: 1.25;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-0.12rem);
+  transition: opacity 140ms ease 1s, transform 140ms ease 1s;
+  white-space: normal;
+}
+
+.param-macro-status:hover .param-macro-tooltip,
+.param-macro-status:focus-visible .param-macro-tooltip {
+  opacity: 0.5;
+  transform: translateY(0);
+}
+
 .macro-binding-details {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-}
-
-.macro-binding-edit-summary {
-  color: #ffd69b;
-  font-size: 0.72rem;
+  gap: 0.18rem;
 }
 
 .sample-waveform-preview {

@@ -174,7 +174,8 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
         paramId: op.paramId,
         map: op.map,
         min: op.min,
-        max: op.max
+        max: op.max,
+        points: op.points
       });
       return next;
     }

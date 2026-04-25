@@ -56,4 +56,26 @@ describe("patch ops", () => {
       ?.bindings.find((entry) => entry.nodeId === binding.nodeId && entry.paramId === binding.paramId);
     expect(nextBinding?.points?.[1]?.y).toBe(432);
   });
+
+  it("preserves keyframed points when binding a macro", () => {
+    const patch = pluckPatch();
+    const macro = patch.ui.macros.find((entry) => entry.keyframeCount === 3) ?? patch.ui.macros[0];
+
+    const nextPatch = applyPatchOp(patch, {
+      type: "bindMacro",
+      macroId: macro.id,
+      bindingId: "binding_keyframed_test",
+      nodeId: "vco1",
+      paramId: "detune",
+      map: "piecewise",
+      points: [
+        { x: 0, y: -12 },
+        { x: 0.5, y: 0 },
+        { x: 1, y: 12 }
+      ]
+    });
+
+    const binding = nextPatch.ui.macros.find((entry) => entry.id === macro.id)?.bindings.find((entry) => entry.id === "binding_keyframed_test");
+    expect(binding?.points).toHaveLength(3);
+  });
 });

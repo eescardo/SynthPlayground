@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import {
+  getMacroKeyframePositions,
   resolveMacroBindingValue,
   resolveMacroKeyframeIndexAtValue
 } from "@/lib/patch/macroKeyframes";
 import { PatchBindingDiff, PatchDiff, PatchDiffStatus } from "@/lib/patch/diff";
 import { SamplePlayerInspectorSection } from "@/components/patch/SamplePlayerInspectorSection";
 import { ProbeInspectorSection } from "@/components/patch/ProbeInspectorSection";
+import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
+import { useRenameActivation } from "@/hooks/useRenameActivation";
+import { createId } from "@/lib/ids";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { Patch, PatchNode, ParamSchema, ParamValue, PatchValidationIssue } from "@/types/patch";
+import { MacroBinding, Patch, PatchMacro, PatchNode, ParamSchema, ParamValue, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
 import { samplePlayerPitchSemisToRootPitch } from "@/lib/patch/samplePlayer";
@@ -42,27 +46,114 @@ function connectionLabel(connection: Pick<Patch["connections"][number], "from" |
   return `${connection.from.nodeId}.${connection.from.portId} -> ${connection.to.nodeId}.${connection.to.portId}`;
 }
 
+function clampNumericValue(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getParamNumericRange(param: ParamSchema) {
+  return param.type === "float" ? param.range : { min: 0, max: 1 };
+}
+
+function formatBindingSummary(binding: MacroBinding) {
+  if (binding.map === "piecewise" && binding.points && binding.points.length >= 2) {
+    return `Keyframed ${binding.points.map((point) => formatBindingValue(point.y)).join(" - ")}`;
+  }
+  const mode = binding.map === "exp" ? "Exponential" : "Linear";
+  return `${mode}, range ${formatBindingValue(binding.min ?? 0)} - ${formatBindingValue(binding.max ?? 1)}`;
+}
+
+function createDefaultBindingForParam(param: ParamSchema, macro: PatchMacro): Pick<MacroBinding, "map" | "min" | "max" | "points"> {
+  const range = getParamNumericRange(param);
+  if (macro.keyframeCount > 2) {
+    return {
+      map: "piecewise",
+      points: getMacroKeyframePositions(macro.keyframeCount).map((x) => ({
+        x,
+        y: range.min + (range.max - range.min) * x
+      }))
+    };
+  }
+  return {
+    map: "linear",
+    min: range.min,
+    max: range.max
+  };
+}
+
+function EditableExtremeLabel(props: {
+  id: string;
+  value: number;
+  min: number;
+  max: number;
+  disabled?: boolean;
+  onCommit: (value: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(formatBindingValue(props.value));
+  const renameActivation = useRenameActivation<string>();
+
+  useEffect(() => {
+    if (!editing) {
+      setDraft(formatBindingValue(props.value));
+    }
+  }, [editing, props.value]);
+
+  const commit = () => {
+    const numeric = Number(draft);
+    if (Number.isFinite(numeric)) {
+      props.onCommit(clampNumericValue(numeric, props.min, props.max));
+    }
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <input
+        className="param-range-label-input"
+        value={draft}
+        autoFocus
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.currentTarget.blur();
+          } else if (event.key === "Escape") {
+            setEditing(false);
+            setDraft(formatBindingValue(props.value));
+          }
+        }}
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className={`param-range-label${renameActivation.isArmed(props.id) ? " armed" : ""}`}
+      disabled={props.disabled}
+      {...renameActivation.getRenameTriggerProps({
+        id: props.id,
+        enabled: !props.disabled,
+        onStartRename: () => setEditing(true)
+      })}
+    >
+      {formatBindingValue(props.value)}
+    </button>
+  );
+}
+
 function MacroBindingDetails(props: {
   patch: Patch;
   nodeId: string;
   paramId: string;
-  exposedLabel: string;
   boundMacroIds: string[];
-  editableSummary?: string | null;
   currentBindingDiffByKey: Map<string, PatchBindingDiff>;
   removedBindingDiffs: PatchBindingDiff[];
 }) {
   const boundMacros = props.patch.ui.macros.filter((macro) => props.boundMacroIds.includes(macro.id));
 
   return (
-    <>
-      {(boundMacros.length > 0 || props.removedBindingDiffs.length > 0) && (
-        <button type="button" className="macro-binding-pill" disabled title={props.exposedLabel}>
-          {boundMacros.length > 0 ? props.exposedLabel : "Baseline binding removed"}
-        </button>
-      )}
-      <div className="macro-binding-details">
-        {props.editableSummary && <div className="macro-binding-edit-summary">{props.editableSummary}</div>}
+    <div className="macro-binding-details">
         {boundMacros.map((macro) =>
           macro.bindings
             .filter((binding) => binding.nodeId === props.nodeId && binding.paramId === props.paramId)
@@ -75,25 +166,9 @@ function MacroBindingDetails(props: {
                 className={`macro-binding-detail-card${diffTone ? ` diff-${diffTone}` : ""}`}
               >
                 <div className="macro-binding-detail-mode">
-                  {binding.map === "piecewise" ? "Keyframed" : binding.map === "exp" ? "Exponential" : "Linear"}
+                  {formatBindingSummary(binding)}
                   {bindingDiff && <span className="patch-diff-inline-badge">{bindingDiff.status === "added" ? "New" : "Changed"}</span>}
                 </div>
-                {binding.map === "piecewise" && binding.points && binding.points.length >= 2 ? (
-                  <>
-                    <div className="macro-binding-points">
-                      {binding.points.map((point, index) => (
-                        <span key={`${binding.id}_${point.x}_${index}`} className="macro-binding-point-chip">
-                          {point.x.toFixed(2)}:{formatBindingValue(point.y)}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="macro-binding-segments">Segments: linear interpolation</div>
-                  </>
-                ) : (
-                    <div className="macro-binding-range">
-                    Range: {formatBindingValue(binding.min ?? 0)} - {formatBindingValue(binding.max ?? 1)}
-                  </div>
-                )}
               </div>
             );
             })
@@ -103,36 +178,25 @@ function MacroBindingDetails(props: {
             <div className="macro-binding-detail-mode">
               Removed <span className="patch-diff-inline-badge negative">{bindingDiff.macroName}</span>
             </div>
-            {bindingDiff.baselineBinding?.map === "piecewise" && bindingDiff.baselineBinding.points && bindingDiff.baselineBinding.points.length >= 2 ? (
-              <div className="macro-binding-points">
-                {bindingDiff.baselineBinding.points.map((point, index) => (
-                  <span key={`${bindingDiff.key}_${point.x}_${index}`} className="macro-binding-point-chip">
-                    {point.x.toFixed(2)}:{formatBindingValue(point.y)}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <div className="macro-binding-range">
-                Range: {formatBindingValue(bindingDiff.baselineBinding?.min ?? 0)} - {formatBindingValue(bindingDiff.baselineBinding?.max ?? 1)}
-              </div>
-            )}
+            {bindingDiff.baselineBinding && <div className="macro-binding-range">{formatBindingSummary(bindingDiff.baselineBinding)}</div>}
           </div>
         ))}
       </div>
-    </>
   );
 }
 
 function ParamValueControl(props: {
   param: ParamSchema;
   value: ParamValue;
+  min?: number;
+  max?: number;
   disabled?: boolean;
   onChange: (value: ParamValue) => void;
 }) {
   const { param, value, disabled, onChange } = props;
 
   if (param.type === "float") {
-    return <FloatParamValueControl param={param} value={Number(value)} disabled={disabled} onChange={onChange} />;
+    return <FloatParamValueControl param={param} value={Number(value)} min={props.min} max={props.max} disabled={disabled} onChange={onChange} />;
   }
 
   if (param.type === "enum") {
@@ -153,6 +217,8 @@ function ParamValueControl(props: {
 function FloatParamValueControl(props: {
   param: Extract<ParamSchema, { type: "float" }>;
   value: number;
+  min?: number;
+  max?: number;
   disabled?: boolean;
   onChange: (value: number) => void;
 }) {
@@ -171,10 +237,11 @@ function FloatParamValueControl(props: {
 
   return (
     <input
+      className="param-value-slider"
       type="range"
-      min={props.param.range.min}
-      max={props.param.range.max}
-      step={props.param.step ?? (props.param.range.max - props.param.range.min) / 500}
+      min={props.min ?? props.param.range.min}
+      max={props.max ?? props.param.range.max}
+      step={props.param.step ?? ((props.max ?? props.param.range.max) - (props.min ?? props.param.range.min)) / 500}
       value={draftValue}
       disabled={props.disabled}
       onChange={(event) => setDraftValue(Number(event.target.value))}
@@ -201,6 +268,73 @@ function shouldRenderParamInGenericInspector(node: PatchNode, param: ParamSchema
     return false;
   }
   return true;
+}
+
+function ParamMacroControl(props: {
+  disabled?: boolean;
+  editableSummary?: string | null;
+  bindingMacro?: PatchMacro;
+  isEditing: boolean;
+  macros: PatchMacro[];
+  onBindNew: () => void;
+  onBindExisting: (macroId: string) => void;
+  onUnbind: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  useDismissiblePopover({
+    active: open,
+    popoverSelector: ".param-macro-control",
+    onDismiss: () => setOpen(false)
+  });
+
+  if (props.bindingMacro) {
+    return (
+      <span className="param-macro-bound-shell">
+        <span className="param-macro-status" tabIndex={0}>
+          {props.bindingMacro.name}: {props.isEditing ? "editing" : "locked"}
+          {props.editableSummary && <span className="param-macro-tooltip">{props.editableSummary}</span>}
+        </span>
+        <button type="button" className="param-macro-unbind-button" disabled={props.disabled} aria-label={`Remove ${props.bindingMacro.name} macro binding`} onClick={props.onUnbind}>
+          x
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <span className="param-macro-control">
+      <button type="button" className="param-macro-button" disabled={props.disabled} onClick={() => setOpen((current) => !current)}>
+        Macro
+      </button>
+      {open && (
+        <div className="param-macro-popover" role="dialog" aria-label="Bind parameter to macro">
+          <button
+            type="button"
+            className="param-macro-popover-option new"
+            onClick={() => {
+              props.onBindNew();
+              setOpen(false);
+            }}
+          >
+            New
+          </button>
+          {props.macros.map((macro) => (
+            <button
+              key={macro.id}
+              type="button"
+              className="param-macro-popover-option"
+              onClick={() => {
+                props.onBindExisting(macro.id);
+                setOpen(false);
+              }}
+            >
+              {macro.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </span>
+  );
 }
 
 interface PatchInspectorProps {
@@ -257,10 +391,6 @@ function resolveParamBindingState(
   );
   const activeBindingMacro = boundMacros[0];
   const isExposed = boundMacros.length > 0;
-  const exposedLabel =
-    boundMacros.length === 1
-      ? `Exposed as '${boundMacros[0].name}'`
-      : `Exposed as ${boundMacros.map((macro) => `'${macro.name}'`).join(", ")}`;
   const isEditableSelectedMacroBinding =
     Boolean(activeBindingMacro) &&
     !structureLocked &&
@@ -280,7 +410,6 @@ function resolveParamBindingState(
     activeBindingMacro,
     boundMacros,
     editableSummary,
-    exposedLabel,
     isEditableSelectedMacroBinding,
     isExposed
   };
@@ -304,6 +433,39 @@ export function PatchInspector(props: PatchInspectorProps) {
       return;
     }
     props.onExposeMacro(selectedNode.id, paramId, suggestedName);
+  };
+
+  const bindParamToMacro = (param: ParamSchema, macroId: string) => {
+    if (!selectedNode || props.structureLocked) {
+      return;
+    }
+    const macro = props.patch.ui.macros.find((entry) => entry.id === macroId);
+    if (!macro) {
+      return;
+    }
+    const binding = createDefaultBindingForParam(param, macro);
+    props.onApplyOp({
+      type: "bindMacro",
+      macroId,
+      bindingId: createId("bind"),
+      nodeId: selectedNode.id,
+      paramId: param.id,
+      map: binding.map,
+      min: binding.min,
+      max: binding.max,
+      points: binding.points
+    });
+  };
+
+  const unbindParamFromMacro = (macroId: string, bindingId: string) => {
+    if (props.structureLocked) {
+      return;
+    }
+    props.onApplyOp({
+      type: "unbindMacro",
+      macroId,
+      bindingId
+    });
   };
 
   const visibleConnections = selectedNode
@@ -356,75 +518,147 @@ export function PatchInspector(props: PatchInspectorProps) {
                 : removedBindingDiffs.length > 0
                   ? "negative"
                   : null;
+            const activeBinding = bindingState.activeBindingMacro?.bindings.find(
+              (binding) => binding.nodeId === selectedNode.id && binding.paramId === param.id
+            );
+            const numericRange = getParamNumericRange(param);
+            const bindingEndpointValues =
+              activeBinding?.map === "piecewise" && activeBinding.points && activeBinding.points.length >= 2
+                ? {
+                    min: activeBinding.points[0]?.y ?? numericRange.min,
+                    max: activeBinding.points[activeBinding.points.length - 1]?.y ?? numericRange.max
+                  }
+                : activeBinding
+                  ? {
+                      min: activeBinding.min ?? numericRange.min,
+                      max: activeBinding.max ?? numericRange.max
+                    }
+                  : numericRange;
+            const controlValue =
+              activeBinding && typeof selectedMacroValue === "number"
+                ? resolveMacroBindingValue(activeBinding, selectedMacroValue)
+                : value;
+            const controlDisabled = Boolean(
+              props.structureLocked ||
+              (bindingState.isExposed && !bindingState.isEditableSelectedMacroBinding)
+            );
+            const macroSummary =
+              bindingState.activeBindingMacro && bindingState.editableSummary
+                ? bindingState.editableSummary
+                : bindingState.activeBindingMacro
+                  ? `Select ${bindingState.activeBindingMacro.name} and stop on a keyframe notch to edit this binding.`
+                  : null;
 
             return (
               <div
                 key={param.id}
                 className={`param-row${bindingState.isExposed ? " bound" : ""}${paramDiffTone ? ` diff-${paramDiffTone}` : ""}`}
               >
-                <span>{param.label}</span>
+                <div className="param-row-header">
+                  <span className="param-name">{param.label}</span>
+                  <ParamMacroControl
+                    disabled={props.structureLocked}
+                    bindingMacro={bindingState.activeBindingMacro}
+                    isEditing={bindingState.isEditableSelectedMacroBinding}
+                    editableSummary={macroSummary}
+                    macros={props.patch.ui.macros}
+                    onBindNew={() => exposeMacro(param.id, param.label)}
+                    onBindExisting={(macroId) => bindParamToMacro(param, macroId)}
+                    onUnbind={() => {
+                      if (bindingState.activeBindingMacro && activeBinding) {
+                        unbindParamFromMacro(bindingState.activeBindingMacro.id, activeBinding.id);
+                      }
+                    }}
+                  />
+                </div>
                 <div className="param-control-stack">
                   {renderParamInlineSummary(selectedNode, param, value)}
-                  {(!bindingState.isExposed || bindingState.isEditableSelectedMacroBinding) && (
+                  <div className="param-value-editor">
                     <ParamValueControl
-                      param={param}
-                      value={
-                        bindingState.isEditableSelectedMacroBinding && bindingState.activeBindingMacro
-                          ? resolveMacroBindingValue(
-                              bindingState.activeBindingMacro.bindings.find(
-                                (binding) => binding.nodeId === selectedNode.id && binding.paramId === param.id
-                              )!,
-                              selectedMacroValue ?? 0
-                            )
-                          : value
-                      }
-                      disabled={props.structureLocked}
-                      onChange={(nextValue) => {
-                        if (props.structureLocked) {
-                          return;
-                        }
-                        if (bindingState.isEditableSelectedMacroBinding && bindingState.activeBindingMacro && typeof nextValue === "number") {
-                          props.onApplyOp({
-                            type: "setMacroBindingKeyframeValue",
-                            macroId: bindingState.activeBindingMacro.id,
-                            nodeId: selectedNode.id,
-                            paramId: param.id,
-                            normalized: selectedMacroValue ?? 0,
-                            value: nextValue
-                          });
-                          return;
-                        }
-                        props.onApplyOp({
-                          type: "setParam",
-                          nodeId: selectedNode.id,
-                          paramId: param.id,
-                          value: nextValue
-                        });
-                      }}
-                    />
-                  )}
+                        param={param}
+                        value={controlValue}
+                        min={param.type === "float" ? param.range.min : undefined}
+                        max={param.type === "float" ? param.range.max : undefined}
+                        disabled={controlDisabled}
+                        onChange={(nextValue) => {
+                          if (props.structureLocked) {
+                            return;
+                          }
+                          if (bindingState.isEditableSelectedMacroBinding && bindingState.activeBindingMacro && typeof nextValue === "number") {
+                            props.onApplyOp({
+                              type: "setMacroBindingKeyframeValue",
+                              macroId: bindingState.activeBindingMacro.id,
+                              nodeId: selectedNode.id,
+                              paramId: param.id,
+                              normalized: selectedMacroValue ?? 0,
+                              value: nextValue
+                            });
+                            return;
+                          }
+                          if (!bindingState.isExposed) {
+                            props.onApplyOp({
+                              type: "setParam",
+                              nodeId: selectedNode.id,
+                              paramId: param.id,
+                              value: nextValue
+                            });
+                          }
+                        }}
+                      />
+                    {param.type === "float" && (
+                      <div className="param-range-label-row">
+                        <EditableExtremeLabel
+                          id={`${selectedNode.id}:${param.id}:min`}
+                          value={bindingEndpointValues.min}
+                          min={param.range.min}
+                          max={param.range.max}
+                          disabled={!activeBinding || props.structureLocked}
+                          onCommit={(nextValue) => {
+                            if (bindingState.activeBindingMacro) {
+                              props.onApplyOp({
+                                type: "setMacroBindingKeyframeValue",
+                                macroId: bindingState.activeBindingMacro.id,
+                                nodeId: selectedNode.id,
+                                paramId: param.id,
+                                normalized: 0,
+                                value: nextValue
+                              });
+                            }
+                          }}
+                        />
+                        <EditableExtremeLabel
+                          id={`${selectedNode.id}:${param.id}:max`}
+                          value={bindingEndpointValues.max}
+                          min={param.range.min}
+                          max={param.range.max}
+                          disabled={!activeBinding || props.structureLocked}
+                          onCommit={(nextValue) => {
+                            if (bindingState.activeBindingMacro) {
+                              props.onApplyOp({
+                                type: "setMacroBindingKeyframeValue",
+                                macroId: bindingState.activeBindingMacro.id,
+                                nodeId: selectedNode.id,
+                                paramId: param.id,
+                                normalized: 1,
+                                value: nextValue
+                              });
+                            }
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
                   {(bindingState.isExposed || removedBindingDiffs.length > 0) && (
                     <MacroBindingDetails
                       patch={props.patch}
                       nodeId={selectedNode.id}
                       paramId={param.id}
-                      exposedLabel={bindingState.exposedLabel}
                       boundMacroIds={bindingState.boundMacros.map((macro) => macro.id)}
-                      editableSummary={bindingState.editableSummary}
                       currentBindingDiffByKey={props.patchDiff.currentBindingDiffByKey}
                       removedBindingDiffs={removedBindingDiffs}
                     />
                   )}
                 </div>
-                {bindingState.isExposed ? (
-                  <button type="button" disabled className="patch-inspector-status-button">
-                    {props.structureLocked ? "Preset lock" : bindingState.isEditableSelectedMacroBinding ? "Keyframe edit" : "Locked"}
-                  </button>
-                ) : (
-                  <button type="button" disabled={props.structureLocked} onClick={() => exposeMacro(param.id, param.label)}>
-                    Expose Macro
-                  </button>
-                )}
               </div>
             );
             })}
