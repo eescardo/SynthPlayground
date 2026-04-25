@@ -24,6 +24,7 @@ interface PatchEditorToolbarProps {
   onDeleteSelected: () => void;
   onDeletePreviewChange: (previewing: boolean) => void;
   onClearPatch: () => void;
+  onClearPreviewChange: (previewing: boolean) => void;
   onSelectBaselinePatch: (patchId: string) => void;
   onClearBaselinePatch: () => void;
   onAutoLayout: () => void;
@@ -101,7 +102,17 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
       >
         Delete
       </button>
-      <button disabled={!props.canClearPatch || props.structureLocked} onClick={props.onClearPatch}>
+      <button
+        disabled={!props.canClearPatch || props.structureLocked}
+        onClick={() => {
+          props.onClearPreviewChange(false);
+          props.onClearPatch();
+        }}
+        onMouseEnter={() => props.onClearPreviewChange(props.canClearPatch && !props.structureLocked)}
+        onMouseLeave={() => props.onClearPreviewChange(false)}
+        onFocus={() => props.onClearPreviewChange(props.canClearPatch && !props.structureLocked)}
+        onBlur={() => props.onClearPreviewChange(false)}
+      >
         Clear
       </button>
       <button disabled={props.patchNodeCount === 0} onClick={props.onAutoLayout}>

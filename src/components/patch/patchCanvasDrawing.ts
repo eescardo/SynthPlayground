@@ -247,8 +247,12 @@ export function drawPatchModuleCard(
     macroSelected: boolean;
     selected: boolean;
     deletePreview: boolean;
+    clearPreview: boolean;
   }
 ) {
+  ctx.save();
+  const baseAlpha = options.clearPreview ? 0.5 : 1;
+  ctx.globalAlpha = baseAlpha;
   const moduleColors = resolveMutedPatchModuleColors(schema.categories);
   ctx.fillStyle = moduleColors.fill;
   ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
@@ -275,9 +279,9 @@ export function drawPatchModuleCard(
       : options.diffStatus === "modified"
         ? "rgba(120, 214, 160, 0.62)"
         : moduleColors.accent;
-  ctx.globalAlpha = options.selected ? 0.26 : options.hovered ? 0.2 : options.diffStatus === "unchanged" ? 0.12 : 0.18;
+  ctx.globalAlpha = baseAlpha * (options.selected ? 0.26 : options.hovered ? 0.2 : options.diffStatus === "unchanged" ? 0.12 : 0.18);
   ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_BODY_TOP - 8);
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = baseAlpha;
   ctx.strokeStyle =
     options.deletePreview
       ? "rgba(244, 90, 100, 0.95)"
@@ -320,6 +324,7 @@ export function drawPatchModuleCard(
 
   schema.portsIn.forEach((port, index) => drawPortLabel(port, index, "in"));
   schema.portsOut.forEach((port, index) => drawPortLabel(port, index, "out"));
+  ctx.restore();
 }
 
 function drawPatchGrid(ctx: CanvasRenderingContext2D, width: number, height: number) {
@@ -429,7 +434,8 @@ function drawPatchModules(
   hoveredNodeId: string | null,
   selectedMacroNodeIds: Set<string>,
   selectedNodeId: string | undefined,
-  deletePreviewNodeId: string | null | undefined
+  deletePreviewNodeId: string | null | undefined,
+  clearPreviewActive: boolean | undefined
 ) {
   patch.nodes.forEach((node) => {
     const schema = getModuleSchema(node.typeId);
@@ -445,7 +451,8 @@ function drawPatchModules(
       hovered: hoveredNodeId === node.id,
       macroSelected: selectedMacroNodeIds.has(node.id),
       selected: selectedNodeId === node.id,
-      deletePreview: deletePreviewNodeId === node.id
+      deletePreview: deletePreviewNodeId === node.id,
+      clearPreview: Boolean(clearPreviewActive)
     });
   });
 }
@@ -551,7 +558,8 @@ export function drawPatchFacePopover(
   schema: NonNullable<ReturnType<typeof getModuleSchema>>,
   rect: CanvasRect,
   macroSelected: boolean,
-  deletePreview: boolean
+  deletePreview: boolean,
+  clearPreview: boolean
 ) {
   ctx.save();
   ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
@@ -569,7 +577,8 @@ export function drawPatchFacePopover(
     hovered: false,
     macroSelected,
     selected: true,
-    deletePreview
+    deletePreview,
+    clearPreview
   });
   ctx.restore();
 }
@@ -610,6 +619,7 @@ export function drawPatchCanvas(args: {
   selectedMacroNodeIds: Set<string>;
   selectedNodeId?: string;
   deletePreviewNodeId?: string | null;
+  clearPreviewActive?: boolean;
   hoveredAttachTarget?: { kind: "port"; nodeId: string; portId: string; portKind: "in" | "out" } | { kind: "connection"; connectionId: string } | null;
 }): HitPort[] {
   const ctx = args.canvas.getContext("2d");
@@ -632,7 +642,8 @@ export function drawPatchCanvas(args: {
     args.hoveredNodeId,
     args.selectedMacroNodeIds,
     args.selectedNodeId,
-    args.deletePreviewNodeId
+    args.deletePreviewNodeId,
+    args.clearPreviewActive
   );
   drawPendingPatchPort(ctx, args.pendingFromPort, portPositions);
   drawPendingPatchWire(ctx, args.pendingFromPort, args.pendingWirePointer ?? null, portPositions);
@@ -651,7 +662,8 @@ export function drawPatchCanvas(args: {
         schema,
         rect,
         args.selectedMacroNodeIds.has(node.id),
-        args.deletePreviewNodeId === node.id
+        args.deletePreviewNodeId === node.id,
+        Boolean(args.clearPreviewActive)
       );
     }
   }

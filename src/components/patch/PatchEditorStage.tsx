@@ -69,6 +69,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [deletePreviewNodeId, setDeletePreviewNodeId] = useState<string | null>(null);
+  const [clearPreviewActive, setClearPreviewActive] = useState(false);
   const layoutByNode = useMemo(() => {
     return new Map(patch.layout.nodes.map((node) => [node.nodeId, node] as const));
   }, [patch.layout.nodes]);
@@ -125,6 +126,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     selectedMacroNodeIds,
     selectedNodeId,
     deletePreviewNodeId,
+    clearPreviewActive,
     pendingProbeId: probeState.attachingProbeId,
     structureLocked,
     onApplyOp,
@@ -185,6 +187,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           setDeletePreviewNodeId(previewing && selectedNodeId && !structureLocked ? selectedNodeId : null);
         }}
         onClearPatch={props.onClearPatch}
+        onClearPreviewChange={setClearPreviewActive}
         onSelectBaselinePatch={onSelectBaselinePatch}
         onClearBaselinePatch={onClearBaselinePatch}
         onAutoLayout={() => {
