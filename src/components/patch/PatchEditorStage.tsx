@@ -30,6 +30,7 @@ import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 
 interface PatchEditorStageProps {
   patch: Patch;
+  baselinePatch?: Patch;
   patchDiff: PatchDiff;
   validationIssues: PatchValidationIssue[];
   probeState: PatchProbeEditorState;
@@ -37,6 +38,8 @@ interface PatchEditorStageProps {
   selectedMacroNodeIds: Set<string>;
   structureLocked?: boolean;
   onClearPatch: () => void;
+  onSetBaselinePatch: () => void;
+  onClearBaselinePatch: () => void;
   onApplyOp: (op: PatchOp) => void;
   probeActions: PatchProbeEditorActions;
   onSelectNode: (nodeId?: string) => void;
@@ -47,6 +50,8 @@ interface PatchEditorStageProps {
 export function PatchEditorStage(props: PatchEditorStageProps) {
   const {
     onApplyOp,
+    onSetBaselinePatch,
+    onClearBaselinePatch,
     onSelectNode,
     onToggleAttachProbe,
     onCancelAttachProbe,
@@ -62,6 +67,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
+  const [deletePreviewNodeId, setDeletePreviewNodeId] = useState<string | null>(null);
   const layoutByNode = useMemo(() => {
     return new Map(patch.layout.nodes.map((node) => [node.nodeId, node] as const));
   }, [patch.layout.nodes]);
@@ -117,6 +123,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     validationIssues: props.validationIssues,
     selectedMacroNodeIds,
     selectedNodeId,
+    deletePreviewNodeId,
     pendingProbeId: probeState.attachingProbeId,
     structureLocked,
     onApplyOp,
@@ -145,6 +152,8 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
         structureLocked={structureLocked}
         canClearPatch={patch.nodes.length > 1 || patch.connections.length > 0 || patch.ui.macros.length > 0}
         patchNodeCount={patch.nodes.length}
+        baselinePatch={props.baselinePatch}
+        hasPatchDiff={patchDiff.hasChanges}
         selectedNodeId={selectedNodeId}
         selectedProbeId={probeState.selectedProbeId}
         pendingFromPort={Boolean(pendingFromPort)}
@@ -169,7 +178,12 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
             ? (onCancelAttachProbe(), probeActions.deleteSelected())
             : selectedNodeId && !structureLocked && onApplyOp({ type: "removeNode", nodeId: selectedNodeId })
         }
+        onDeletePreviewChange={(previewing) => {
+          setDeletePreviewNodeId(previewing && selectedNodeId && !structureLocked ? selectedNodeId : null);
+        }}
         onClearPatch={props.onClearPatch}
+        onSetBaselinePatch={onSetBaselinePatch}
+        onClearBaselinePatch={onClearBaselinePatch}
         onAutoLayout={() => {
           const nextNodeLayout = resolveAutoLayoutNodes(patch);
           onApplyOp({

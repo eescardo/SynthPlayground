@@ -14,6 +14,7 @@ import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 interface InstrumentEditorProps {
   editorSessionKey?: string;
   patch: Patch;
+  baselinePatch?: Patch;
   probeState: PatchProbeEditorState;
   macroValues: Record<string, number>;
   patchDiff: PatchDiff;
@@ -27,6 +28,8 @@ interface InstrumentEditorProps {
   onSelectMacro: (macroId?: string) => void;
   onClearSelectedMacro: () => void;
   onClearPatch: () => void;
+  onSetBaselinePatch: () => void;
+  onClearBaselinePatch: () => void;
   onApplyOp: (op: PatchOp) => void;
   probeActions: PatchProbeEditorActions;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
@@ -65,6 +68,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
 
       <PatchEditorCanvas
         patch={props.patch}
+        baselinePatch={props.baselinePatch}
         probeState={props.probeState}
         macroValues={props.macroValues}
         patchDiff={props.patchDiff}
@@ -76,6 +80,8 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
         onSelectMacro={props.onSelectMacro}
         onClearSelectedMacro={props.onClearSelectedMacro}
         onClearPatch={props.onClearPatch}
+        onSetBaselinePatch={props.onSetBaselinePatch}
+        onClearBaselinePatch={props.onClearBaselinePatch}
         onApplyOp={props.onApplyOp}
         probeActions={props.probeActions}
         onExposeMacro={props.onExposeMacro}

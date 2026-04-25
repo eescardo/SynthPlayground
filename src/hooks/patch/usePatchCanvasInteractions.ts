@@ -28,6 +28,7 @@ interface UsePatchCanvasInteractionsArgs {
   validationIssues: PatchValidationIssue[];
   selectedMacroNodeIds: Set<string>;
   selectedNodeId?: string;
+  deletePreviewNodeId?: string | null;
   pendingProbeId?: string | null;
   structureLocked?: boolean;
   onApplyOp: (op: PatchOp) => void;
@@ -57,6 +58,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     validationIssues,
     selectedMacroNodeIds,
     selectedNodeId,
+    deletePreviewNodeId,
     pendingProbeId,
     structureLocked,
     onApplyOp,
@@ -120,6 +122,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       pendingWirePointer,
       selectedMacroNodeIds,
       selectedNodeId,
+      deletePreviewNodeId,
       hoveredAttachTarget
     });
   }, [
@@ -134,6 +137,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     validationIssues,
     selectedMacroNodeIds,
     selectedNodeId,
+    deletePreviewNodeId,
     hoveredAttachTarget,
     hoveredNodeId,
     pendingFromPort,

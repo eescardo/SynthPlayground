@@ -184,6 +184,7 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
 
   const viewProps: React.ComponentProps<typeof PatchWorkspaceView> = {
     patch: selectedPatch,
+    baselinePatch: patchWorkspace.baselinePatch,
     importInputRef,
     recentProjects,
     probeState: {
@@ -227,6 +228,8 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
     onSelectMacro: patchWorkspace.setSelectedMacroId,
     onClearSelectedMacro: patchWorkspace.clearSelectedMacro,
     onClearPatch: patchWorkspace.clearSelectedPatchCircuit,
+    onSetBaselinePatch: patchWorkspace.setCurrentPatchAsBaseline,
+    onClearBaselinePatch: patchWorkspace.clearCurrentPatchBaseline,
     onApplyOp: patchWorkspace.applyPatchOp,
     probeActions: {
       addProbe: patchWorkspace.addProbeToWorkspace,

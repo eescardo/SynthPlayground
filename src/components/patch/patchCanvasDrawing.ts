@@ -246,6 +246,7 @@ export function drawPatchModuleCard(
     hovered: boolean;
     macroSelected: boolean;
     selected: boolean;
+    deletePreview: boolean;
   }
 ) {
   const moduleColors = resolveMutedPatchModuleColors(schema.categories);
@@ -259,6 +260,10 @@ export function drawPatchModuleCard(
     ctx.strokeStyle = "rgba(246, 176, 28, 0.88)";
     ctx.lineWidth = 3;
     ctx.strokeRect(x - 4, y - 4, PATCH_NODE_WIDTH + 8, PATCH_NODE_HEIGHT + 8);
+  }
+  if (options.deletePreview) {
+    ctx.fillStyle = "rgba(244, 90, 100, 0.16)";
+    ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
   }
   if (options.hovered && !options.selected) {
     ctx.fillStyle = PATCH_COLOR_NODE_HOVER_OVERLAY;
@@ -274,7 +279,9 @@ export function drawPatchModuleCard(
   ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_BODY_TOP - 8);
   ctx.globalAlpha = 1;
   ctx.strokeStyle =
-    options.diffStatus === "added"
+    options.deletePreview
+      ? "rgba(244, 90, 100, 0.95)"
+      : options.diffStatus === "added"
       ? "rgba(103, 224, 153, 0.9)"
       : options.diffStatus === "modified"
         ? "rgba(120, 214, 160, 0.72)"
@@ -283,7 +290,7 @@ export function drawPatchModuleCard(
           : options.hovered
             ? PATCH_COLOR_NODE_TITLE
             : moduleColors.stroke;
-  ctx.lineWidth = options.hovered ? 3 : 2;
+  ctx.lineWidth = options.deletePreview ? 3.5 : options.hovered ? 3 : 2;
   ctx.strokeRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
 
   ctx.fillStyle = PATCH_COLOR_NODE_TITLE;
@@ -421,7 +428,8 @@ function drawPatchModules(
   invalidPortKeys: Set<string>,
   hoveredNodeId: string | null,
   selectedMacroNodeIds: Set<string>,
-  selectedNodeId: string | undefined
+  selectedNodeId: string | undefined,
+  deletePreviewNodeId: string | null | undefined
 ) {
   patch.nodes.forEach((node) => {
     const schema = getModuleSchema(node.typeId);
@@ -436,7 +444,8 @@ function drawPatchModules(
       diffStatus: patchDiff.nodeDiffById.get(node.id)?.status ?? "unchanged",
       hovered: hoveredNodeId === node.id,
       macroSelected: selectedMacroNodeIds.has(node.id),
-      selected: selectedNodeId === node.id
+      selected: selectedNodeId === node.id,
+      deletePreview: deletePreviewNodeId === node.id
     });
   });
 }
@@ -558,7 +567,8 @@ export function drawPatchFacePopover(
     diffStatus: patchDiff.nodeDiffById.get(node.id)?.status ?? "unchanged",
     hovered: false,
     macroSelected,
-    selected: true
+    selected: true,
+    deletePreview: false
   });
   ctx.restore();
 }
@@ -598,6 +608,7 @@ export function drawPatchCanvas(args: {
   pendingWirePointer?: { x: number; y: number } | null;
   selectedMacroNodeIds: Set<string>;
   selectedNodeId?: string;
+  deletePreviewNodeId?: string | null;
   hoveredAttachTarget?: { kind: "port"; nodeId: string; portId: string; portKind: "in" | "out" } | { kind: "connection"; connectionId: string } | null;
 }): HitPort[] {
   const ctx = args.canvas.getContext("2d");
@@ -611,7 +622,17 @@ export function drawPatchCanvas(args: {
   const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode);
   const invalidPortKeys = resolveInvalidPortKeys(args.validationIssues);
   drawPatchConnections(ctx, args.patch, portPositions);
-  drawPatchModules(ctx, args.patch, args.patchDiff, args.layoutByNode, invalidPortKeys, args.hoveredNodeId, args.selectedMacroNodeIds, args.selectedNodeId);
+  drawPatchModules(
+    ctx,
+    args.patch,
+    args.patchDiff,
+    args.layoutByNode,
+    invalidPortKeys,
+    args.hoveredNodeId,
+    args.selectedMacroNodeIds,
+    args.selectedNodeId,
+    args.deletePreviewNodeId
+  );
   drawPendingPatchPort(ctx, args.pendingFromPort, portPositions);
   drawPendingPatchWire(ctx, args.pendingFromPort, args.pendingWirePointer ?? null, portPositions);
   drawHoveredAttachTarget(ctx, args.patch, portPositions, args.hoveredAttachTarget ?? null);

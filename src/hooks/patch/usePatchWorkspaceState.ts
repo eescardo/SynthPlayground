@@ -108,11 +108,12 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   const selectedNodeId = activeTab?.selectedNodeId;
   const selectedMacroId = activeTab?.selectedMacroId;
   const selectedProbeId = activeTab?.selectedProbeId;
+  const baselinePatch = activeTab?.baselinePatch;
   const migrationNotice = activeTab?.migrationNotice ?? null;
   const probes = activeTab?.probes ?? [];
   const patchDiff = useMemo(
-    () => buildPatchDiff(selectedPatch, activeTab?.baselinePatch),
-    [activeTab?.baselinePatch, selectedPatch]
+    () => buildPatchDiff(selectedPatch, baselinePatch),
+    [baselinePatch, selectedPatch]
   );
 
   const validationIssues = useMemo(
@@ -513,6 +514,23 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     setPreviewCaptureByProbeId({});
   }, [activeTab, commitProjectChange, selectedPatch, setTabMacroValuesById, updateActiveTab]);
 
+  const setCurrentPatchAsBaseline = useCallback(() => {
+    if (!selectedPatch) {
+      return;
+    }
+    updateActiveTab((tab) => ({
+      ...tab,
+      baselinePatch: structuredClone(selectedPatch)
+    }));
+  }, [selectedPatch, updateActiveTab]);
+
+  const clearCurrentPatchBaseline = useCallback(() => {
+    updateActiveTab((tab) => ({
+      ...tab,
+      baselinePatch: undefined
+    }));
+  }, [updateActiveTab]);
+
   const exposePatchMacro = useCallback((nodeId: string, paramId: string, suggestedName: string) => {
     if (!selectedPatch || resolvePatchSource(selectedPatch) === "preset") {
       return;
@@ -763,6 +781,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     closeWorkspaceTab,
     renameWorkspaceTab,
     selectedPatch: workspacePatch ?? selectedPatch,
+    baselinePatch,
     workspaceMacroValues,
     probes,
     selectedProbeId,
@@ -801,6 +820,8 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     updatePresetToLatest,
     requestRemoveSelectedPatch,
     clearSelectedPatchCircuit,
+    setCurrentPatchAsBaseline,
+    clearCurrentPatchBaseline,
     applyPatchOp,
     exposePatchMacro,
     addPatchMacro,

@@ -24,6 +24,7 @@ const PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT: Record<number, number> = {
 
 interface PatchEditorCanvasProps {
   patch: Patch;
+  baselinePatch?: Patch;
   probeState: PatchProbeEditorState;
   macroValues: Record<string, number>;
   patchDiff: PatchDiff;
@@ -35,6 +36,8 @@ interface PatchEditorCanvasProps {
   onSelectMacro: (macroId?: string) => void;
   onClearSelectedMacro: () => void;
   onClearPatch: () => void;
+  onSetBaselinePatch: () => void;
+  onClearBaselinePatch: () => void;
   onApplyOp: (op: PatchOp) => void;
   probeActions: PatchProbeEditorActions;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
@@ -89,6 +92,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
         <div className="patch-editor-main-column">
           <PatchEditorStage
             patch={props.patch}
+            baselinePatch={props.baselinePatch}
             patchDiff={props.patchDiff}
             validationIssues={props.validationIssues}
             probeState={canvasProbeState}
@@ -96,6 +100,8 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
             selectedMacroNodeIds={selectedMacroNodeIds}
             structureLocked={props.structureLocked}
             onClearPatch={props.onClearPatch}
+            onSetBaselinePatch={props.onSetBaselinePatch}
+            onClearBaselinePatch={props.onClearBaselinePatch}
             onApplyOp={props.onApplyOp}
             probeActions={props.probeActions}
             onSelectNode={props.onSelectNode}
