@@ -147,7 +147,69 @@ function EditableExtremeLabel(props: {
   return (
     <button
       type="button"
-      className={`param-range-label${renameActivation.isArmed(props.id) ? " armed" : ""}`}
+      className={`param-range-label${renameActivation.isArmed(props.id) ? " rename-armed" : ""}`}
+      disabled={props.disabled}
+      {...renameActivation.getRenameTriggerProps({
+        id: props.id,
+        enabled: !props.disabled,
+        onStartRename: () => setEditing(true)
+      })}
+    >
+      {formatBindingValue(props.value)}
+    </button>
+  );
+}
+
+function EditableParamValueLabel(props: {
+  id: string;
+  value: number;
+  min: number;
+  max: number;
+  disabled?: boolean;
+  onCommit: (value: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(formatBindingValue(props.value));
+  const renameActivation = useRenameActivation<string>();
+
+  useEffect(() => {
+    if (!editing) {
+      setDraft(formatBindingValue(props.value));
+    }
+  }, [editing, props.value]);
+
+  const commit = () => {
+    const numeric = Number(draft);
+    if (Number.isFinite(numeric)) {
+      props.onCommit(clampNumericValue(numeric, props.min, props.max));
+    }
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <input
+        className="param-current-value-input"
+        value={draft}
+        autoFocus
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.currentTarget.blur();
+          } else if (event.key === "Escape") {
+            setEditing(false);
+            setDraft(formatBindingValue(props.value));
+          }
+        }}
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className={`param-current-value-label${renameActivation.isArmed(props.id) ? " rename-armed" : ""}`}
       disabled={props.disabled}
       {...renameActivation.getRenameTriggerProps({
         id: props.id,
@@ -314,6 +376,7 @@ function ParamMacroControl(props: {
           className={`param-macro-status${tooltipPinned ? " tooltip-pinned" : ""}`}
           onClick={() => setTooltipPinned((current) => !current)}
           onBlur={() => setTooltipPinned(false)}
+          aria-expanded={tooltipPinned}
         >
           {props.bindingMacro.name}: {props.isEditing ? "editing" : "locked"}
           {props.editableSummary && <span className="param-macro-tooltip">{props.editableSummary}</span>}
@@ -359,6 +422,38 @@ function ParamMacroControl(props: {
       )}
     </span>
   );
+}
+
+function commitParamValueChange(props: {
+  patchProps: PatchInspectorProps;
+  selectedNode: PatchNode;
+  param: ParamSchema;
+  bindingState: ReturnType<typeof resolveParamBindingState>;
+  selectedMacroValue: number | undefined;
+  value: ParamValue;
+}) {
+  if (props.patchProps.structureLocked) {
+    return;
+  }
+  if (props.bindingState.isEditableSelectedMacroBinding && props.bindingState.activeBindingMacro && typeof props.value === "number") {
+    props.patchProps.onApplyOp({
+      type: "setMacroBindingKeyframeValue",
+      macroId: props.bindingState.activeBindingMacro.id,
+      nodeId: props.selectedNode.id,
+      paramId: props.param.id,
+      normalized: props.selectedMacroValue ?? 0,
+      value: props.value
+    });
+    return;
+  }
+  if (!props.bindingState.isExposed) {
+    props.patchProps.onApplyOp({
+      type: "setParam",
+      nodeId: props.selectedNode.id,
+      paramId: props.param.id,
+      value: props.value
+    });
+  }
 }
 
 interface PatchInspectorProps {
@@ -586,6 +681,25 @@ export function PatchInspector(props: PatchInspectorProps) {
                       }
                     }}
                   />
+                  {param.type === "float" && typeof sliderControlValue === "number" && (
+                    <EditableParamValueLabel
+                      id={`${selectedNode.id}:${param.id}:value`}
+                      value={sliderControlValue}
+                      min={sliderRange.min}
+                      max={sliderRange.max}
+                      disabled={controlDisabled}
+                      onCommit={(nextValue) =>
+                        commitParamValueChange({
+                          patchProps: props,
+                          selectedNode,
+                          param,
+                          bindingState,
+                          selectedMacroValue,
+                          value: nextValue
+                        })
+                      }
+                    />
+                  )}
                 </div>
                 <div className="param-control-stack">
                   {renderParamInlineSummary(selectedNode, param, value)}
@@ -597,28 +711,14 @@ export function PatchInspector(props: PatchInspectorProps) {
                         max={param.type === "float" ? sliderRange.max : undefined}
                         disabled={controlDisabled}
                         onChange={(nextValue) => {
-                          if (props.structureLocked) {
-                            return;
-                          }
-                          if (bindingState.isEditableSelectedMacroBinding && bindingState.activeBindingMacro && typeof nextValue === "number") {
-                            props.onApplyOp({
-                              type: "setMacroBindingKeyframeValue",
-                              macroId: bindingState.activeBindingMacro.id,
-                              nodeId: selectedNode.id,
-                              paramId: param.id,
-                              normalized: selectedMacroValue ?? 0,
-                              value: nextValue
-                            });
-                            return;
-                          }
-                          if (!bindingState.isExposed) {
-                            props.onApplyOp({
-                              type: "setParam",
-                              nodeId: selectedNode.id,
-                              paramId: param.id,
-                              value: nextValue
-                            });
-                          }
+                          commitParamValueChange({
+                            patchProps: props,
+                            selectedNode,
+                            param,
+                            bindingState,
+                            selectedMacroValue,
+                            value: nextValue
+                          });
                         }}
                       />
                     {param.type === "float" && (
