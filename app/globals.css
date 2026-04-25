@@ -2462,7 +2462,7 @@ select {
 
 .param-macro-tooltip {
   position: absolute;
-  top: calc(100% + 0.5rem);
+  bottom: calc(100% + 0.5rem);
   left: 0.45rem;
   z-index: 19;
   width: max-content;
@@ -2476,14 +2476,14 @@ select {
   line-height: 1.25;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(-0.12rem);
+  transform: translateY(0.12rem);
   transition: opacity 140ms ease 1s, transform 140ms ease 1s;
   white-space: normal;
 }
 
 .param-macro-status:hover .param-macro-tooltip,
 .param-macro-status:focus-visible .param-macro-tooltip {
-  opacity: 0.5;
+  opacity: 0.75;
   transform: translateY(0);
 }
 
