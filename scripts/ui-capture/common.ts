@@ -448,7 +448,7 @@ export const createBaselineDiffCaptureProject = (): Project => {
           id: "binding_drive_mix",
           nodeId: "sat1",
           paramId: "mix",
-          map: "piecewise",
+          map: "linear",
           points: [
             { x: 0, y: 0.1 },
             { x: 0.5, y: 0.46 },

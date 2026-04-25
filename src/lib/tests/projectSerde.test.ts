@@ -86,7 +86,7 @@ describe("projectSerde", () => {
     expect(popSlapMacro?.name).toBe("Pop/Slap");
     expect(popSlapMacro?.keyframeCount).toBe(3);
     const attackBinding = popSlapMacro?.bindings.find((binding) => binding.paramId === "attack");
-    expect(attackBinding?.map).toBe("piecewise");
+    expect(attackBinding?.map).toBe("linear");
     expect(attackBinding?.points).toEqual([
       { x: 0, y: 0.0032 },
       { x: 0.5, y: 0.0075 },
