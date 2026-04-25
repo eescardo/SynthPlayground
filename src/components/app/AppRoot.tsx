@@ -43,6 +43,7 @@ import {
   saveProjectState
 } from "@/lib/persistence";
 import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
+import { freezeProjectSnapshot } from "@/lib/projectImmutability";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { createDefaultProject, createEmptyProject } from "@/lib/patch/presets";
 import { renameProjectInProject } from "@/lib/projectManagement";
@@ -99,8 +100,16 @@ export const useAppRoot = () => {
   return context;
 };
 
+const createProjectHistory = (project: Project): HistoryState<Project> => {
+  const history = createHistory(project);
+  return {
+    ...history,
+    current: freezeProjectSnapshot(history.current)
+  };
+};
+
 export function AppRoot({ children }: { children: ReactNode }) {
-  const [projectHistory, setProjectHistory] = useState<HistoryState<Project>>(() => createHistory(createEmptyProject()));
+  const [projectHistory, setProjectHistory] = useState<HistoryState<Project>>(() => createProjectHistory(createEmptyProject()));
   const [projectAssets, setProjectAssets] = useState<ProjectAssetLibrary>(() => createEmptyProjectAssetLibrary());
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -170,7 +179,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
           });
         }
         setProjectAssets(migratedState.assets);
-        setProjectHistory(createHistory(migratedState.project));
+        setProjectHistory(createProjectHistory(migratedState.project));
         setSelectedTrackId(migratedState.project.tracks[0]?.id);
         setRecentProjects(loadedRecentProjects.filter(({ project }) => project.id !== migratedState.project.id));
         setReady(true);
@@ -180,7 +189,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         }
         const fallbackProject = createDefaultProject();
         setProjectAssets(createEmptyProjectAssetLibrary());
-        setProjectHistory(createHistory(fallbackProject));
+        setProjectHistory(createProjectHistory(fallbackProject));
         setSelectedTrackId(fallbackProject.tracks[0]?.id);
         setRecentProjects([]);
         setRuntimeError(`Failed to load the saved project. Loaded the default project instead. ${(error as Error).message}`);
@@ -293,13 +302,14 @@ export function AppRoot({ children }: { children: ReactNode }) {
         if (next === prev.current) {
           return prev;
         }
+        const frozenNext = freezeProjectSnapshot(next);
         if (options?.skipHistory) {
           return {
             ...prev,
-            current: next
+            current: frozenNext
           };
         }
-        return pushHistory(prev, next, options);
+        return pushHistory(prev, frozenNext, options);
       });
     },
     []
@@ -307,7 +317,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const resetProjectState = useCallback((nextProject: Project, nextAssets: ProjectAssetLibrary = createEmptyProjectAssetLibrary()) => {
     setProjectAssets(nextAssets);
-    setProjectHistory(createHistory(nextProject));
+    setProjectHistory(createProjectHistory(nextProject));
   }, []);
 
   const upsertWorkspaceSamplePlayerAssetData = useCallback((serializedSampleData: string, existingAssetId?: string | null) => {
@@ -710,36 +720,38 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const undoProject = useCallback(() => {
     setProjectHistory((prev) => {
       const next = undoHistory(prev);
-      return next === prev
-        ? prev
-        : {
-            ...next,
-            current: {
-              ...next.current,
-              ui: {
-                ...prev.current.ui,
-                patchWorkspace: next.current.ui.patchWorkspace
-              }
-            }
-          };
+      if (next === prev) {
+        return prev;
+      }
+      return {
+        ...next,
+        current: freezeProjectSnapshot({
+          ...next.current,
+          ui: {
+            ...prev.current.ui,
+            patchWorkspace: next.current.ui.patchWorkspace
+          }
+        })
+      };
     });
   }, []);
 
   const redoProject = useCallback(() => {
     setProjectHistory((prev) => {
       const next = redoHistory(prev);
-      return next === prev
-        ? prev
-        : {
-            ...next,
-            current: {
-              ...next.current,
-              ui: {
-                ...prev.current.ui,
-                patchWorkspace: next.current.ui.patchWorkspace
-              }
-            }
-          };
+      if (next === prev) {
+        return prev;
+      }
+      return {
+        ...next,
+        current: freezeProjectSnapshot({
+          ...next.current,
+          ui: {
+            ...prev.current.ui,
+            patchWorkspace: next.current.ui.patchWorkspace
+          }
+        })
+      };
     });
   }, []);
 

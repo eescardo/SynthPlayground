@@ -250,21 +250,6 @@ export const compileAudioProjectToWasmSubsetCore = (project, options) => {
   };
 };
 
-const macroBindingEvents = (patch, trackIndex, sampleTime, macroId, normalized) => {
-  const macro = patch.ui?.macros?.find((entry) => entry.id === macroId);
-  if (!macro) {
-    return [];
-  }
-  return (macro.bindings || []).map((binding) => ({
-    type: "ParamChange",
-    sampleTime,
-    trackIndex,
-    nodeId: binding.nodeId,
-    paramId: binding.paramId,
-    value: mapMacroBinding(binding, normalized)
-  }));
-};
-
 const EVENT_PRIORITY = {
   NoteOff: 0,
   ParamChange: 1,
@@ -272,10 +257,39 @@ const EVENT_PRIORITY = {
   NoteOn: 3
 };
 
-export const compileSchedulerEventsToWasmSubsetCore = (project, projectSpec, events) => {
+const compiledEventSortId = (event) =>
+  event.type === "TrackVolumeChange"
+    ? `${event.trackIndex}:volume`
+    : `${event.trackIndex}:${event.type === "ParamChange" ? `${event.nodeId}:${event.paramId}` : event.noteId}`;
+
+const compareCompiledEvents = (left, right) => {
+  if (left.sampleTime !== right.sampleTime) {
+    return left.sampleTime - right.sampleTime;
+  }
+  const priorityDelta = EVENT_PRIORITY[left.type] - EVENT_PRIORITY[right.type];
+  if (priorityDelta !== 0) {
+    return priorityDelta;
+  }
+  return compiledEventSortId(left).localeCompare(compiledEventSortId(right));
+};
+
+const areCompiledEventsSorted = (events) => {
+  for (let index = 1; index < events.length; index += 1) {
+    if (compareCompiledEvents(events[index - 1], events[index]) > 0) {
+      return false;
+    }
+  }
+  return true;
+};
+
+const eventCompilerContextCache = new WeakMap();
+
+const createEventCompilerContext = (project) => {
   const patchById = new Map((project.patches || []).map((patch) => [patch.id, patch]));
   const trackById = new Map((project.tracks || []).map((track, trackIndex) => [track.id, { track, trackIndex }]));
   const trackIndicesByPatchId = new Map();
+  const macroBindingsByTrackAndMacro = new Map();
+
   for (let trackIndex = 0; trackIndex < (project.tracks || []).length; trackIndex += 1) {
     const track = project.tracks[trackIndex];
     const existing = trackIndicesByPatchId.get(track.instrumentPatchId);
@@ -284,7 +298,50 @@ export const compileSchedulerEventsToWasmSubsetCore = (project, projectSpec, eve
     } else {
       trackIndicesByPatchId.set(track.instrumentPatchId, [trackIndex]);
     }
+    const patch = patchById.get(track.instrumentPatchId);
+    for (const macro of patch?.ui?.macros || []) {
+      macroBindingsByTrackAndMacro.set(`${track.id}:${macro.id}`, {
+        trackIndex,
+        bindings: macro.bindings || []
+      });
+    }
   }
+
+  return {
+    trackById,
+    trackIndicesByPatchId,
+    macroBindingsByTrackAndMacro
+  };
+};
+
+const getEventCompilerContext = (project, projectSpec) => {
+  const cached = eventCompilerContextCache.get(projectSpec);
+  // Renderer project plans are immutable, so projectSpec identity can safely
+  // carry the precomputed event lookup tables for that planned snapshot.
+  if (cached?.project === project) {
+    return cached.context;
+  }
+  const context = createEventCompilerContext(project);
+  eventCompilerContextCache.set(projectSpec, { project, context });
+  return context;
+};
+
+const macroBindingEventsForBindings = (bindings, trackIndex, sampleTime, normalized) =>
+  bindings.map((binding) => ({
+    type: "ParamChange",
+    sampleTime,
+    trackIndex,
+    nodeId: binding.nodeId,
+    paramId: binding.paramId,
+    value: mapMacroBinding(binding, normalized)
+  }));
+
+export const compileSchedulerEventsToWasmSubsetCore = (project, projectSpec, events) => {
+  const {
+    trackById,
+    trackIndicesByPatchId,
+    macroBindingsByTrackAndMacro
+  } = getEventCompilerContext(project, projectSpec);
 
   const compiled = [];
   for (const event of events || []) {
@@ -341,29 +398,21 @@ export const compileSchedulerEventsToWasmSubsetCore = (project, projectSpec, eve
       continue;
     }
 
-    const patch = patchById.get(trackEntry.track.instrumentPatchId);
-    assertPresent(patch, `Missing patch ${trackEntry.track.instrumentPatchId} for track ${trackEntry.track.id}.`);
-    compiled.push(...macroBindingEvents(patch, trackEntry.trackIndex, event.sampleTime, event.macroId, event.normalized));
+    const macroBindings = macroBindingsByTrackAndMacro.get(`${event.trackId}:${event.macroId}`);
+    if (!macroBindings) {
+      continue;
+    }
+    compiled.push(...macroBindingEventsForBindings(
+      macroBindings.bindings,
+      macroBindings.trackIndex,
+      event.sampleTime,
+      event.normalized
+    ));
   }
 
-  compiled.sort((left, right) => {
-    if (left.sampleTime !== right.sampleTime) {
-      return left.sampleTime - right.sampleTime;
-    }
-    const priorityDelta = EVENT_PRIORITY[left.type] - EVENT_PRIORITY[right.type];
-    if (priorityDelta !== 0) {
-      return priorityDelta;
-    }
-    const leftId =
-      left.type === "TrackVolumeChange"
-        ? `${left.trackIndex}:volume`
-        : `${left.trackIndex}:${left.type === "ParamChange" ? `${left.nodeId}:${left.paramId}` : left.noteId}`;
-    const rightId =
-      right.type === "TrackVolumeChange"
-        ? `${right.trackIndex}:volume`
-        : `${right.trackIndex}:${right.type === "ParamChange" ? `${right.nodeId}:${right.paramId}` : right.noteId}`;
-    return leftId.localeCompare(rightId);
-  });
+  if (!areCompiledEventsSorted(compiled)) {
+    compiled.sort(compareCompiledEvents);
+  }
 
   return compiled;
 };

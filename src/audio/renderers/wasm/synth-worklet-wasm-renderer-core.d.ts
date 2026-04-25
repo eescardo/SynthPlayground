@@ -66,6 +66,12 @@ export interface SharedWasmRendererLike {
   blockSize: number;
   defaultProject: AudioProject | null;
   implementation: SharedWasmImplementation;
+  getProjectPlan(project: AudioProject): {
+    project: AudioProject;
+    blockSize: number;
+    projectSpec: WasmProjectSpec;
+    projectSpecJson: string;
+  };
 }
 
 export interface SharedWasmImplementation {
@@ -109,6 +115,7 @@ export class SharedWasmRenderStream {
   renderer: SharedWasmRendererLike;
   project: AudioProject;
   projectSpec: WasmProjectSpec;
+  projectSpecJson: string;
   trackRuntimes: Array<{ track: Track }>;
   eventQueue: SchedulerEvent[];
   transportSessionId: number;
@@ -142,6 +149,12 @@ export class SharedWasmRenderer {
   implementation: SharedWasmImplementation;
   configure(config: Partial<SynthRendererConfig> & { wasmBytes?: ArrayBuffer | Uint8Array | null }): void;
   setDefaultProject(project: AudioProject): void;
+  getProjectPlan(project: AudioProject): {
+    project: AudioProject;
+    blockSize: number;
+    projectSpec: WasmProjectSpec;
+    projectSpecJson: string;
+  };
   startStream(options: SynthStreamStartOptions): SharedWasmRenderStream | null;
   readonly project: AudioProject | null;
 }

@@ -18,14 +18,26 @@ export class NullPort {
 export const resolveRandomSeed = (value) =>
   Number.isFinite(value) ? Number(value) >>> 0 : DEFAULT_RANDOM_SEED;
 
+const areEventsSorted = (events) => {
+  for (let index = 1; index < events.length; index += 1) {
+    if (compareScheduledEvents(events[index - 1], events[index]) > 0) {
+      return false;
+    }
+  }
+  return true;
+};
+
 export class SharedWasmRenderStream {
   constructor(renderer, options, implementation) {
     this.port = renderer.port;
     this.renderer = renderer;
     this.project = options.project;
-    this.projectSpec = implementation.compileProject(this.project, { blockSize: renderer.blockSize });
+    const projectPlan = renderer.getProjectPlan(this.project);
+    this.projectSpec = projectPlan.projectSpec;
+    this.projectSpecJson = projectPlan.projectSpecJson;
     this.trackRuntimes = this.project.tracks.map((track) => ({ track }));
-    this.eventQueue = [...(options.events || [])].sort(compareScheduledEvents);
+    const inputEvents = options.events || [];
+    this.eventQueue = areEventsSorted(inputEvents) ? [...inputEvents] : [...inputEvents].sort(compareScheduledEvents);
     this.transportSessionId = Number.isFinite(options.sessionId) ? options.sessionId : 1;
     this.songSampleCounter = options.songStartSample || 0;
     this.previewing = options.mode === "preview";
@@ -39,7 +51,7 @@ export class SharedWasmRenderStream {
 
     const compiledEvents = implementation.compileEvents(this.project, this.projectSpec, this.eventQueue);
     this.engine.start_stream(
-      JSON.stringify(this.projectSpec),
+      this.projectSpecJson,
       this.songSampleCounter,
       JSON.stringify(compiledEvents),
       this.transportSessionId,
@@ -195,22 +207,53 @@ export class SharedWasmRenderer {
     this.blockSize = options?.processorOptions?.blockSize ?? 128;
     this.defaultProject = options?.processorOptions?.project ?? null;
     this.implementation = implementation;
+    this.projectPlanCache = null;
     if (options?.processorOptions) {
       this.configure(options.processorOptions);
     }
   }
 
   configure(config) {
+    const nextBlockSize = config.blockSize || this.blockSize;
+    if (nextBlockSize !== this.blockSize) {
+      this.projectPlanCache = null;
+    }
     this.sampleRateInternal = config.sampleRate || this.sampleRateInternal;
-    this.blockSize = config.blockSize || this.blockSize;
+    this.blockSize = nextBlockSize;
     if (config.project) {
       this.defaultProject = config.project;
+      this.projectPlanCache = null;
     }
     this.implementation.configure?.(this, config);
+    if (config.project) {
+      this.getProjectPlan(config.project);
+    }
   }
 
   setDefaultProject(project) {
+    if (project !== this.defaultProject) {
+      this.projectPlanCache = null;
+    }
     this.defaultProject = project;
+    this.getProjectPlan(project);
+  }
+
+  getProjectPlan(project) {
+    const cached = this.projectPlanCache;
+    // Project snapshots are immutable once configured. Object identity is
+    // therefore a valid cache key for the planned WASM project layout.
+    if (cached && cached.project === project && cached.blockSize === this.blockSize) {
+      return cached;
+    }
+    const projectSpec = this.implementation.compileProject(project, { blockSize: this.blockSize });
+    const next = {
+      project,
+      blockSize: this.blockSize,
+      projectSpec,
+      projectSpecJson: JSON.stringify(projectSpec)
+    };
+    this.projectPlanCache = next;
+    return next;
   }
 
   startStream(options) {
