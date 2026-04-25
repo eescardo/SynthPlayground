@@ -4,43 +4,16 @@ import {
   resolveMacroBindingValue,
   resolveMacroKeyframeIndexAtValue
 } from "@/lib/patch/macroKeyframes";
-import { PatchBindingDiff, PatchDiff, PatchDiffStatus } from "@/lib/patch/diff";
+import { PatchDiff } from "@/lib/patch/diff";
+import { EditableNumberLabel, MacroBindingDetails, ParamMacroControl } from "@/components/patch/PatchInspectorControls";
 import { SamplePlayerInspectorSection } from "@/components/patch/SamplePlayerInspectorSection";
 import { ProbeInspectorSection } from "@/components/patch/ProbeInspectorSection";
-import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
-import { useRenameActivation } from "@/hooks/useRenameActivation";
 import { createId } from "@/lib/ids";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { MacroBinding, Patch, PatchMacro, PatchNode, PatchParamSliderRange, ParamSchema, ParamValue, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
 import { samplePlayerPitchSemisToRootPitch } from "@/lib/patch/samplePlayer";
-
-function formatBindingValue(value: number) {
-  if (!Number.isFinite(value)) {
-    return "0";
-  }
-  if (Math.abs(value) >= 100) {
-    return value.toFixed(0);
-  }
-  if (Math.abs(value) >= 10) {
-    return value.toFixed(1);
-  }
-  if (Math.abs(value) >= 1) {
-    return value.toFixed(2);
-  }
-  return value.toFixed(3);
-}
-
-function resolveDiffTone(status: PatchDiffStatus | undefined): "positive" | "negative" | null {
-  if (status === "added" || status === "modified") {
-    return "positive";
-  }
-  if (status === "removed") {
-    return "negative";
-  }
-  return null;
-}
 
 function connectionLabel(connection: Pick<Patch["connections"][number], "from" | "to">) {
   return `${connection.from.nodeId}.${connection.from.portId} -> ${connection.to.nodeId}.${connection.to.portId}`;
@@ -69,13 +42,6 @@ function resolveParamSliderRange(patch: Patch, nodeId: string, param: ParamSchem
   return { min: Math.min(min, max), max: Math.max(min, max) };
 }
 
-function formatBindingSummary(binding: MacroBinding) {
-  if (binding.points && binding.points.length >= 2) {
-    return `Keyframed ${binding.points.map((point) => formatBindingValue(point.y)).join(" - ")}`;
-  }
-  return `Range ${formatBindingValue(binding.min ?? 0)} - ${formatBindingValue(binding.max ?? 1)}`;
-}
-
 function createDefaultBindingForParam(
   param: ParamSchema,
   macro: PatchMacro,
@@ -95,173 +61,6 @@ function createDefaultBindingForParam(
     min: range.min,
     max: range.max
   };
-}
-
-function EditableExtremeLabel(props: {
-  id: string;
-  value: number;
-  min: number;
-  max: number;
-  disabled?: boolean;
-  onCommit: (value: number) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(formatBindingValue(props.value));
-  const renameActivation = useRenameActivation<string>();
-
-  useEffect(() => {
-    if (!editing) {
-      setDraft(formatBindingValue(props.value));
-    }
-  }, [editing, props.value]);
-
-  const commit = () => {
-    const numeric = Number(draft);
-    if (Number.isFinite(numeric)) {
-      props.onCommit(clampNumericValue(numeric, props.min, props.max));
-    }
-    setEditing(false);
-  };
-
-  if (editing) {
-    return (
-      <input
-        className="param-range-label-input"
-        value={draft}
-        autoFocus
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={commit}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.currentTarget.blur();
-          } else if (event.key === "Escape") {
-            setEditing(false);
-            setDraft(formatBindingValue(props.value));
-          }
-        }}
-      />
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      className={`param-range-label${renameActivation.isArmed(props.id) ? " rename-armed" : ""}`}
-      disabled={props.disabled}
-      {...renameActivation.getRenameTriggerProps({
-        id: props.id,
-        enabled: !props.disabled,
-        onStartRename: () => setEditing(true)
-      })}
-    >
-      {formatBindingValue(props.value)}
-    </button>
-  );
-}
-
-function EditableParamValueLabel(props: {
-  id: string;
-  value: number;
-  min: number;
-  max: number;
-  disabled?: boolean;
-  onCommit: (value: number) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(formatBindingValue(props.value));
-  const renameActivation = useRenameActivation<string>();
-
-  useEffect(() => {
-    if (!editing) {
-      setDraft(formatBindingValue(props.value));
-    }
-  }, [editing, props.value]);
-
-  const commit = () => {
-    const numeric = Number(draft);
-    if (Number.isFinite(numeric)) {
-      props.onCommit(clampNumericValue(numeric, props.min, props.max));
-    }
-    setEditing(false);
-  };
-
-  if (editing) {
-    return (
-      <input
-        className="param-current-value-input"
-        value={draft}
-        autoFocus
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={commit}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.currentTarget.blur();
-          } else if (event.key === "Escape") {
-            setEditing(false);
-            setDraft(formatBindingValue(props.value));
-          }
-        }}
-      />
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      className={`param-current-value-label${renameActivation.isArmed(props.id) ? " rename-armed" : ""}`}
-      disabled={props.disabled}
-      {...renameActivation.getRenameTriggerProps({
-        id: props.id,
-        enabled: !props.disabled,
-        onStartRename: () => setEditing(true)
-      })}
-    >
-      {formatBindingValue(props.value)}
-    </button>
-  );
-}
-
-function MacroBindingDetails(props: {
-  patch: Patch;
-  nodeId: string;
-  paramId: string;
-  boundMacroIds: string[];
-  currentBindingDiffByKey: Map<string, PatchBindingDiff>;
-  removedBindingDiffs: PatchBindingDiff[];
-}) {
-  const boundMacros = props.patch.ui.macros.filter((macro) => props.boundMacroIds.includes(macro.id));
-
-  return (
-    <div className="macro-binding-details">
-        {boundMacros.map((macro) =>
-          macro.bindings
-            .filter((binding) => binding.nodeId === props.nodeId && binding.paramId === props.paramId)
-            .map((binding) => {
-              const bindingDiff = props.currentBindingDiffByKey.get(`${macro.id}:${binding.id}`);
-              const diffTone = resolveDiffTone(bindingDiff?.status);
-              return (
-              <div
-                key={binding.id}
-                className={`macro-binding-detail-card${diffTone ? ` diff-${diffTone}` : ""}`}
-              >
-                <div className="macro-binding-detail-mode">
-                  {formatBindingSummary(binding)}
-                  {bindingDiff && <span className="patch-diff-inline-badge">{bindingDiff.status === "added" ? "New" : "Changed"}</span>}
-                </div>
-              </div>
-            );
-            })
-        )}
-        {props.removedBindingDiffs.map((bindingDiff) => (
-          <div key={bindingDiff.key} className="macro-binding-detail-card diff-negative removed-diff-artifact">
-            <div className="macro-binding-detail-mode">
-              Removed <span className="patch-diff-inline-badge negative">{bindingDiff.macroName}</span>
-            </div>
-            {bindingDiff.baselineBinding && <div className="macro-binding-range">{formatBindingSummary(bindingDiff.baselineBinding)}</div>}
-          </div>
-        ))}
-      </div>
-  );
 }
 
 function ParamValueControl(props: {
@@ -347,124 +146,6 @@ function shouldRenderParamInGenericInspector(node: PatchNode, param: ParamSchema
     return false;
   }
   return true;
-}
-
-function ParamMacroControl(props: {
-  disabled?: boolean;
-  editableSummary?: string | null;
-  bindingMacro?: PatchMacro;
-  bindingMap?: MacroBinding["map"];
-  isEditing: boolean;
-  macros: PatchMacro[];
-  onBindNew: () => void;
-  onBindExisting: (macroId: string) => void;
-  onSetBindingMap: (map: "linear" | "exp") => void;
-  onUnbind: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [mapOpen, setMapOpen] = useState(false);
-  const [tooltipPinned, setTooltipPinned] = useState(false);
-  useDismissiblePopover({
-    active: open,
-    popoverSelector: ".param-macro-control",
-    onDismiss: () => setOpen(false)
-  });
-  useDismissiblePopover({
-    active: mapOpen,
-    popoverSelector: ".param-macro-bound-shell",
-    onDismiss: () => setMapOpen(false)
-  });
-
-  if (props.bindingMacro) {
-    const canChooseBindingMap = props.bindingMap === "linear" || props.bindingMap === "exp" || props.bindingMap === "piecewise";
-    const selectedBindingMap = props.bindingMap === "exp" ? "exp" : "linear";
-    return (
-      <span className="param-macro-bound-shell">
-        <button
-          type="button"
-          className={`param-macro-status${tooltipPinned ? " tooltip-pinned" : ""}`}
-          onClick={() => setTooltipPinned((current) => !current)}
-          onBlur={() => setTooltipPinned(false)}
-          aria-expanded={tooltipPinned}
-        >
-          {props.bindingMacro.name}: {props.isEditing ? "editing" : "locked"}
-          {props.editableSummary && <span className="param-macro-tooltip">{props.editableSummary}</span>}
-        </button>
-        {canChooseBindingMap && (
-          <span className="patch-macro-keyframe-shell param-macro-map-shell">
-            <button
-              type="button"
-              className="patch-macro-keyframe-pill param-macro-map-pill"
-              disabled={props.disabled}
-              aria-label={`Macro binding interpolation ${props.bindingMap === "exp" ? "exponential" : "linear"}`}
-              aria-haspopup="menu"
-              aria-expanded={mapOpen}
-              onClick={() => setMapOpen((current) => !current)}
-            >
-              {selectedBindingMap === "exp" ? "EXP" : "LIN"}
-            </button>
-            {mapOpen && (
-              <div className="patch-macro-keyframe-popover param-macro-map-popover" role="menu" aria-label="Macro binding interpolation">
-                {(["linear", "exp"] as const).map((map) => (
-                  <button
-                    key={map}
-                    type="button"
-                    className={`patch-macro-keyframe-popover-option param-macro-map-popover-option${map === selectedBindingMap ? " active" : ""}`}
-                    role="menuitemradio"
-                    aria-checked={map === selectedBindingMap}
-                    onClick={() => {
-                      props.onSetBindingMap(map);
-                      setMapOpen(false);
-                    }}
-                  >
-                    {map === "exp" ? "EXP" : "LIN"}
-                  </button>
-                ))}
-              </div>
-            )}
-          </span>
-        )}
-        <button type="button" className="patch-macro-panel-remove param-macro-unbind-button" disabled={props.disabled} aria-label={`Remove ${props.bindingMacro.name} macro binding`} onClick={props.onUnbind}>
-          X
-        </button>
-      </span>
-    );
-  }
-
-  return (
-    <span className="param-macro-control">
-      <button type="button" className="param-macro-button" disabled={props.disabled} onClick={() => setOpen((current) => !current)}>
-        Macro...
-      </button>
-      {open && (
-        <div className="param-macro-popover" role="dialog" aria-label="Bind parameter to macro">
-          <button
-            type="button"
-            className="param-macro-popover-option new"
-            onClick={() => {
-              props.onBindNew();
-              setOpen(false);
-            }}
-          >
-            New
-          </button>
-          {props.macros.map((macro) => (
-            <button
-              key={macro.id}
-              type="button"
-              className="param-macro-popover-option"
-              onClick={() => {
-                props.onBindExisting(macro.id);
-                setOpen(false);
-              }}
-            >
-              {macro.name}
-            </button>
-          ))}
-        </div>
-      )}
-    </span>
-  );
 }
 
 function commitParamValueChange(props: {
@@ -736,11 +417,13 @@ export function PatchInspector(props: PatchInspectorProps) {
                     }}
                   />
                   {param.type === "float" && typeof sliderControlValue === "number" && (
-                    <EditableParamValueLabel
+                    <EditableNumberLabel
                       id={`${selectedNode.id}:${param.id}:value`}
                       value={sliderControlValue}
                       min={sliderRange.min}
                       max={sliderRange.max}
+                      className="param-current-value-label"
+                      inputClassName="param-current-value-input"
                       disabled={controlDisabled}
                       onCommit={(nextValue) =>
                         commitParamValueChange({
@@ -777,11 +460,13 @@ export function PatchInspector(props: PatchInspectorProps) {
                       />
                     {param.type === "float" && (
                       <div className="param-range-label-row">
-                        <EditableExtremeLabel
+                        <EditableNumberLabel
                           id={`${selectedNode.id}:${param.id}:min`}
                           value={sliderRange.min}
                           min={param.range.min}
                           max={sliderRange.max}
+                          className="param-range-label"
+                          inputClassName="param-range-label-input"
                           disabled={props.structureLocked}
                           onCommit={(nextValue) => {
                             props.onApplyOp({
@@ -793,11 +478,13 @@ export function PatchInspector(props: PatchInspectorProps) {
                             });
                           }}
                         />
-                        <EditableExtremeLabel
+                        <EditableNumberLabel
                           id={`${selectedNode.id}:${param.id}:max`}
                           value={sliderRange.max}
                           min={sliderRange.min}
                           max={param.range.max}
+                          className="param-range-label"
+                          inputClassName="param-range-label-input"
                           disabled={props.structureLocked}
                           onCommit={(nextValue) => {
                             props.onApplyOp({

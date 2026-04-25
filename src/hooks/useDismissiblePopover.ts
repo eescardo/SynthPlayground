@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
+import type { RefObject } from "react";
 
 interface UseDismissiblePopoverOptions {
   active: boolean;
-  popoverSelector: string;
+  popoverSelector?: string;
+  popoverRef?: RefObject<HTMLElement | null>;
   onDismiss: () => void;
 }
 
 export function useDismissiblePopover(options: UseDismissiblePopoverOptions) {
-  const { active, popoverSelector, onDismiss } = options;
+  const { active, popoverSelector, popoverRef, onDismiss } = options;
 
   useEffect(() => {
     if (!active) {
@@ -32,7 +34,10 @@ export function useDismissiblePopover(options: UseDismissiblePopoverOptions) {
         return;
       }
       const target = event.target as HTMLElement | null;
-      if (target?.closest(popoverSelector)) {
+      if (target && popoverRef?.current?.contains(target)) {
+        return;
+      }
+      if (target && popoverSelector && target.closest(popoverSelector)) {
         return;
       }
       onDismiss();
@@ -45,5 +50,5 @@ export function useDismissiblePopover(options: UseDismissiblePopoverOptions) {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("pointerdown", onPointerDown);
     };
-  }, [active, onDismiss, popoverSelector]);
+  }, [active, onDismiss, popoverRef, popoverSelector]);
 }
