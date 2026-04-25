@@ -20,7 +20,7 @@ const buildParamRangeKey = (nodeId: string, paramId: string) => `${nodeId}:${par
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 function clampMacroBindingValues(binding: Patch["ui"]["macros"][number]["bindings"][number], min: number, max: number) {
-  if (binding.map === "piecewise" && binding.points) {
+  if (binding.points) {
     binding.points = binding.points.map((point) => ({ ...point, y: clamp(point.y, min, max) }));
     return;
   }
@@ -278,23 +278,11 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
         throw new Error(`Unknown macro binding: ${op.bindingId}`);
       }
       const binding = macro.bindings[bindingIndex];
-      const endpointValues =
-        binding.map === "piecewise" && binding.points && binding.points.length >= 2
-          ? {
-              min: binding.points[0]?.y ?? 0,
-              max: binding.points[binding.points.length - 1]?.y ?? 1
-            }
-          : {
-              min: binding.min ?? 0,
-              max: binding.max ?? 1
-            };
       macro.bindings[bindingIndex] = {
-        id: binding.id,
-        nodeId: binding.nodeId,
-        paramId: binding.paramId,
+        ...binding,
         map: op.map,
-        min: endpointValues.min,
-        max: endpointValues.max
+        min: binding.points && binding.points.length >= 2 ? undefined : binding.min,
+        max: binding.points && binding.points.length >= 2 ? undefined : binding.max
       };
       return next;
     }

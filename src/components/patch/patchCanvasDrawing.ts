@@ -127,7 +127,7 @@ function getAdsrParamValues(node: PatchNode, schema: ParamSchema[]) {
 }
 
 function getBindingRangeValues(binding: Patch["ui"]["macros"][number]["bindings"][number]) {
-  if (binding.map === "piecewise" && binding.points && binding.points.length > 0) {
+  if (binding.points && binding.points.length > 0) {
     const values = binding.points.map((point) => point.y);
     return { low: Math.min(...values), high: Math.max(...values) };
   }

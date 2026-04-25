@@ -97,6 +97,58 @@ describe("patch ops", () => {
     expect(nextBinding?.max).toBe(binding.max);
   });
 
+  it("updates keyframed macro binding interpolation without removing keyframe points", () => {
+    const patch = pluckPatch();
+    const macro = patch.ui.macros.find((entry) => entry.keyframeCount === 3) ?? patch.ui.macros[0];
+    const binding = macro.bindings.find((entry) => entry.points && entry.points.length === 3) ?? macro.bindings[0];
+
+    const nextPatch = applyPatchOp(patch, {
+      type: "setMacroBindingMap",
+      macroId: macro.id,
+      bindingId: binding.id,
+      map: "exp"
+    });
+
+    const nextBinding = nextPatch.ui.macros.find((entry) => entry.id === macro.id)?.bindings.find((entry) => entry.id === binding.id);
+    expect(nextBinding?.map).toBe("exp");
+    expect(nextBinding?.points).toEqual(binding.points);
+    expect(getMacroBindingKeyframeCount(nextBinding!)).toBe(3);
+  });
+
+  it("resolves exponential interpolation between keyframed macro points", () => {
+    const linearValue = resolveMacroBindingValue(
+      {
+        id: "binding_linear_points",
+        nodeId: "vcf1",
+        paramId: "cutoffHz",
+        map: "linear",
+        points: [
+          { x: 0, y: 100 },
+          { x: 0.5, y: 1000 },
+          { x: 1, y: 10000 }
+        ]
+      },
+      0.25
+    );
+    const expValue = resolveMacroBindingValue(
+      {
+        id: "binding_exp_points",
+        nodeId: "vcf1",
+        paramId: "cutoffHz",
+        map: "exp",
+        points: [
+          { x: 0, y: 100 },
+          { x: 0.5, y: 1000 },
+          { x: 1, y: 10000 }
+        ]
+      },
+      0.25
+    );
+
+    expect(linearValue).toBeCloseTo(550);
+    expect(expValue).toBeCloseTo(Math.sqrt(100 * 1000));
+  });
+
   it("sets a parameter slider range without changing in-range macro binding values", () => {
     const patch = pluckPatch();
     const macro = patch.ui.macros.find((entry) => entry.keyframeCount === 3) ?? patch.ui.macros[0];

@@ -70,7 +70,7 @@ function resolveParamSliderRange(patch: Patch, nodeId: string, param: ParamSchem
 }
 
 function formatBindingSummary(binding: MacroBinding) {
-  if (binding.map === "piecewise" && binding.points && binding.points.length >= 2) {
+  if (binding.points && binding.points.length >= 2) {
     return `Keyframed ${binding.points.map((point) => formatBindingValue(point.y)).join(" - ")}`;
   }
   return `Range ${formatBindingValue(binding.min ?? 0)} - ${formatBindingValue(binding.max ?? 1)}`;
@@ -376,7 +376,8 @@ function ParamMacroControl(props: {
   });
 
   if (props.bindingMacro) {
-    const canChooseBindingMap = props.bindingMap === "linear" || props.bindingMap === "exp";
+    const canChooseBindingMap = props.bindingMap === "linear" || props.bindingMap === "exp" || props.bindingMap === "piecewise";
+    const selectedBindingMap = props.bindingMap === "exp" ? "exp" : "linear";
     return (
       <span className="param-macro-bound-shell">
         <button
@@ -400,7 +401,7 @@ function ParamMacroControl(props: {
               aria-expanded={mapOpen}
               onClick={() => setMapOpen((current) => !current)}
             >
-              {props.bindingMap === "exp" ? "EXP" : "LIN"}
+              {selectedBindingMap === "exp" ? "EXP" : "LIN"}
             </button>
             {mapOpen && (
               <div className="patch-macro-keyframe-popover param-macro-map-popover" role="menu" aria-label="Macro binding interpolation">
@@ -408,9 +409,9 @@ function ParamMacroControl(props: {
                   <button
                     key={map}
                     type="button"
-                    className={`patch-macro-keyframe-popover-option param-macro-map-popover-option${map === props.bindingMap ? " active" : ""}`}
+                    className={`patch-macro-keyframe-popover-option param-macro-map-popover-option${map === selectedBindingMap ? " active" : ""}`}
                     role="menuitemradio"
-                    aria-checked={map === props.bindingMap}
+                    aria-checked={map === selectedBindingMap}
                     onClick={() => {
                       props.onSetBindingMap(map);
                       setMapOpen(false);
