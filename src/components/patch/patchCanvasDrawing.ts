@@ -33,6 +33,10 @@ import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/p
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch, PatchLayoutNode, PatchNode, ParamSchema, ParamValue, PatchValidationIssue, PortSchema } from "@/types/patch";
 
+const PATCH_DIFF_PEDESTAL_INSET = 8;
+const PATCH_DIFF_PEDESTAL_RADIUS = 10;
+const PATCH_DIFF_PEDESTAL_STROKE_WIDTH = 8;
+
 interface ResolvedPortPosition {
   x: number;
   y: number;
@@ -41,6 +45,20 @@ interface ResolvedPortPosition {
   anchorX: number;
   anchorY: number;
   schema: PortSchema;
+}
+
+function drawRoundedRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
 }
 
 function resolvePortLabelWidth(ctx: CanvasRenderingContext2D, port: PortSchema) {
@@ -254,6 +272,19 @@ export function drawPatchModuleCard(
   const baseAlpha = options.clearPreview ? 0.5 : 1;
   ctx.globalAlpha = baseAlpha;
   const moduleColors = resolveMutedPatchModuleColors(schema.categories);
+  if (options.diffStatus === "added" || options.diffStatus === "modified") {
+    const pedestalX = x - PATCH_DIFF_PEDESTAL_INSET;
+    const pedestalY = y - PATCH_DIFF_PEDESTAL_INSET;
+    const pedestalWidth = PATCH_NODE_WIDTH + PATCH_DIFF_PEDESTAL_INSET * 2;
+    const pedestalHeight = PATCH_NODE_HEIGHT + PATCH_DIFF_PEDESTAL_INSET * 2;
+    ctx.fillStyle = "rgba(18, 74, 48, 0.14)";
+    drawRoundedRectPath(ctx, pedestalX, pedestalY, pedestalWidth, pedestalHeight, PATCH_DIFF_PEDESTAL_RADIUS);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(49, 150, 94, 0.3)";
+    ctx.lineWidth = PATCH_DIFF_PEDESTAL_STROKE_WIDTH;
+    drawRoundedRectPath(ctx, pedestalX, pedestalY, pedestalWidth, pedestalHeight, PATCH_DIFF_PEDESTAL_RADIUS);
+    ctx.stroke();
+  }
   ctx.fillStyle = moduleColors.fill;
   ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
   if (options.diffStatus === "added" || options.diffStatus === "modified") {
