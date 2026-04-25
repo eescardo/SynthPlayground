@@ -18,6 +18,7 @@ import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 interface PatchWorkspaceViewProps {
   patch: Patch;
   baselinePatch?: Patch;
+  patches: Patch[];
   importInputRef: RefObject<HTMLInputElement | null>;
   recentProjects: RecentProjectSnapshot[];
   probeState: PatchProbeEditorState;
@@ -50,7 +51,7 @@ interface PatchWorkspaceViewProps {
   onSelectMacro: (macroId?: string) => void;
   onClearSelectedMacro: () => void;
   onClearPatch: () => void;
-  onSetBaselinePatch: () => void;
+  onSelectBaselinePatch: (patchId: string) => void;
   onClearBaselinePatch: () => void;
   onApplyOp: (op: PatchOp) => void;
   probeActions: PatchProbeEditorActions;
@@ -139,6 +140,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           editorSessionKey={props.activeTabId}
           patch={props.patch}
           baselinePatch={props.baselinePatch}
+          patches={props.patches}
           probeState={props.probeState}
           macroValues={props.macroValues}
           patchDiff={props.patchDiff}
@@ -152,7 +154,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           onSelectMacro={props.onSelectMacro}
           onClearSelectedMacro={props.onClearSelectedMacro}
           onClearPatch={props.onClearPatch}
-          onSetBaselinePatch={props.onSetBaselinePatch}
+          onSelectBaselinePatch={props.onSelectBaselinePatch}
           onClearBaselinePatch={props.onClearBaselinePatch}
           onApplyOp={props.onApplyOp}
           probeActions={props.probeActions}

@@ -1483,6 +1483,7 @@ select {
 
 .patch-baseline-control {
   margin-left: auto;
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 0.32rem;
@@ -1527,6 +1528,66 @@ select {
 .patch-baseline-action.danger {
   border-color: rgba(244, 90, 100, 0.38);
   color: #ff9ba2;
+}
+
+.patch-baseline-popover {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 18;
+  display: grid;
+  gap: 0.38rem;
+  width: min(20rem, calc(100vw - 2rem));
+  max-height: 20rem;
+  padding: 0.45rem;
+  overflow: auto;
+  border: 1px solid rgba(131, 173, 216, 0.24);
+  border-radius: 12px;
+  background: rgba(9, 17, 26, 0.98);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.34);
+}
+
+.patch-baseline-popover-title {
+  padding: 0 0.18rem 0.12rem;
+  color: #8fb4d4;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.patch-baseline-option-list {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.patch-baseline-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.42rem 0.5rem;
+  text-align: left;
+}
+
+.patch-baseline-option.selected {
+  border-color: rgba(103, 224, 153, 0.46);
+  background: rgba(32, 68, 48, 0.36);
+}
+
+.patch-baseline-option-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patch-baseline-option-meta {
+  color: var(--muted);
+  font-size: 0.72rem;
 }
 
 .patch-zoom-readout {

@@ -1,5 +1,6 @@
 "use client";
 
+import { PatchBaselineControl } from "@/components/patch/PatchBaselineControl";
 import { PatchToolbarPicker } from "@/components/patch/PatchToolbarPicker";
 import { modulePalette } from "@/lib/patch/moduleRegistry";
 import { Patch } from "@/types/patch";
@@ -9,8 +10,10 @@ interface PatchEditorToolbarProps {
   structureLocked?: boolean;
   canClearPatch: boolean;
   patchNodeCount: number;
+  currentPatchId: string;
   baselinePatch?: Patch;
   hasPatchDiff: boolean;
+  patches: Patch[];
   selectedNodeId?: string;
   selectedProbeId?: string;
   pendingFromPort: boolean;
@@ -21,7 +24,7 @@ interface PatchEditorToolbarProps {
   onDeleteSelected: () => void;
   onDeletePreviewChange: (previewing: boolean) => void;
   onClearPatch: () => void;
-  onSetBaselinePatch: () => void;
+  onSelectBaselinePatch: (patchId: string) => void;
   onClearBaselinePatch: () => void;
   onAutoLayout: () => void;
 }
@@ -107,20 +110,14 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
       {props.structureLocked && <span className="muted">Preset structure is locked. Move nodes for clarity or edit macros.</span>}
       {props.pendingFromPort && <span className="muted">Select a compatible port to complete connection.</span>}
       {props.pendingProbeId && <span className="muted">Click a port or wire to attach the selected probe.</span>}
-      <div className={`patch-baseline-control${props.hasPatchDiff ? " changed" : ""}`}>
-        <span className="patch-baseline-label">Baseline</span>
-        <span className="patch-baseline-name" title={props.baselinePatch ? `Baseline patch: ${props.baselinePatch.name}` : "No baseline patch"}>
-          {props.baselinePatch?.name ?? "None"}
-        </span>
-        <button type="button" className="patch-baseline-action" onClick={props.onSetBaselinePatch}>
-          {props.baselinePatch ? "Update" : "Set"}
-        </button>
-        {props.baselinePatch && (
-          <button type="button" className="patch-baseline-action danger" onClick={props.onClearBaselinePatch}>
-            Remove
-          </button>
-        )}
-      </div>
+      <PatchBaselineControl
+        baselinePatch={props.baselinePatch}
+        currentPatchId={props.currentPatchId}
+        hasPatchDiff={props.hasPatchDiff}
+        patches={props.patches}
+        onSelectBaselinePatch={props.onSelectBaselinePatch}
+        onClearBaselinePatch={props.onClearBaselinePatch}
+      />
       <span className="patch-zoom-readout">Zoom {Math.round(props.zoom * 100)}%</span>
     </div>
   );

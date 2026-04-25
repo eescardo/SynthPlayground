@@ -514,15 +514,16 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     setPreviewCaptureByProbeId({});
   }, [activeTab, commitProjectChange, selectedPatch, setTabMacroValuesById, updateActiveTab]);
 
-  const setCurrentPatchAsBaseline = useCallback(() => {
-    if (!selectedPatch) {
+  const setBaselinePatchFromPatchId = useCallback((patchId: string) => {
+    const baselineSourcePatch = project.patches.find((patch) => patch.id === patchId);
+    if (!baselineSourcePatch) {
       return;
     }
     updateActiveTab((tab) => ({
       ...tab,
-      baselinePatch: structuredClone(selectedPatch)
+      baselinePatch: structuredClone(baselineSourcePatch)
     }));
-  }, [selectedPatch, updateActiveTab]);
+  }, [project.patches, updateActiveTab]);
 
   const clearCurrentPatchBaseline = useCallback(() => {
     updateActiveTab((tab) => ({
@@ -820,7 +821,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     updatePresetToLatest,
     requestRemoveSelectedPatch,
     clearSelectedPatchCircuit,
-    setCurrentPatchAsBaseline,
+    setBaselinePatchFromPatchId,
     clearCurrentPatchBaseline,
     applyPatchOp,
     exposePatchMacro,

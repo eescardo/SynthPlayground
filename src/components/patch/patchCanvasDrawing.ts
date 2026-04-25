@@ -550,7 +550,8 @@ export function drawPatchFacePopover(
   node: PatchNode,
   schema: NonNullable<ReturnType<typeof getModuleSchema>>,
   rect: CanvasRect,
-  macroSelected: boolean
+  macroSelected: boolean,
+  deletePreview: boolean
 ) {
   ctx.save();
   ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
@@ -568,7 +569,7 @@ export function drawPatchFacePopover(
     hovered: false,
     macroSelected,
     selected: true,
-    deletePreview: false
+    deletePreview
   });
   ctx.restore();
 }
@@ -642,7 +643,16 @@ export function drawPatchCanvas(args: {
     const schema = node ? getModuleSchema(node.typeId) : undefined;
     const rect = args.getFacePopoverRect(args.facePopoverNodeId);
     if (node && schema && rect) {
-      drawPatchFacePopover(ctx, args.patch, args.patchDiff, node, schema, rect, args.selectedMacroNodeIds.has(node.id));
+      drawPatchFacePopover(
+        ctx,
+        args.patch,
+        args.patchDiff,
+        node,
+        schema,
+        rect,
+        args.selectedMacroNodeIds.has(node.id),
+        args.deletePreviewNodeId === node.id
+      );
     }
   }
 

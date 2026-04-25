@@ -32,13 +32,14 @@ interface PatchEditorStageProps {
   patch: Patch;
   baselinePatch?: Patch;
   patchDiff: PatchDiff;
+  patches: Patch[];
   validationIssues: PatchValidationIssue[];
   probeState: PatchProbeEditorState;
   selectedNodeId?: string;
   selectedMacroNodeIds: Set<string>;
   structureLocked?: boolean;
   onClearPatch: () => void;
-  onSetBaselinePatch: () => void;
+  onSelectBaselinePatch: (patchId: string) => void;
   onClearBaselinePatch: () => void;
   onApplyOp: (op: PatchOp) => void;
   probeActions: PatchProbeEditorActions;
@@ -50,7 +51,7 @@ interface PatchEditorStageProps {
 export function PatchEditorStage(props: PatchEditorStageProps) {
   const {
     onApplyOp,
-    onSetBaselinePatch,
+    onSelectBaselinePatch,
     onClearBaselinePatch,
     onSelectNode,
     onToggleAttachProbe,
@@ -152,8 +153,10 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
         structureLocked={structureLocked}
         canClearPatch={patch.nodes.length > 1 || patch.connections.length > 0 || patch.ui.macros.length > 0}
         patchNodeCount={patch.nodes.length}
+        currentPatchId={patch.id}
         baselinePatch={props.baselinePatch}
         hasPatchDiff={patchDiff.hasChanges}
+        patches={props.patches}
         selectedNodeId={selectedNodeId}
         selectedProbeId={probeState.selectedProbeId}
         pendingFromPort={Boolean(pendingFromPort)}
@@ -182,7 +185,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           setDeletePreviewNodeId(previewing && selectedNodeId && !structureLocked ? selectedNodeId : null);
         }}
         onClearPatch={props.onClearPatch}
-        onSetBaselinePatch={onSetBaselinePatch}
+        onSelectBaselinePatch={onSelectBaselinePatch}
         onClearBaselinePatch={onClearBaselinePatch}
         onAutoLayout={() => {
           const nextNodeLayout = resolveAutoLayoutNodes(patch);
