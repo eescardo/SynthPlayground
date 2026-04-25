@@ -2404,13 +2404,16 @@ select {
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-top: -0.12rem;
+  margin-top: 0.2rem;
 }
 
 .param-range-label,
 .param-range-label-input {
-  min-width: 2.8rem;
-  max-width: 6rem;
+  box-sizing: border-box;
+  flex: 0 0 4.2rem;
+  width: 4.2rem;
+  min-width: 4.2rem;
+  max-width: 4.2rem;
   padding: 0;
   border: 1px solid transparent;
   background: transparent;
@@ -2418,6 +2421,20 @@ select {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.62rem;
   text-align: center;
+}
+
+.param-range-label-row > :first-child {
+  text-align: left;
+}
+
+.param-range-label-row > :last-child {
+  text-align: right;
+}
+
+.param-range-label:not(:disabled):hover,
+.param-range-label:not(:disabled):focus-visible {
+  border-color: transparent;
+  background: transparent;
 }
 
 .param-range-label:not(:disabled).rename-armed {
@@ -2431,10 +2448,10 @@ select {
 }
 
 .param-range-label-input {
-  border-color: rgba(255, 214, 153, 0.34);
+  border-color: rgba(167, 204, 240, 0.36);
   border-radius: 0.3rem;
   background: rgba(16, 24, 32, 0.94);
-  color: #fff0d0;
+  color: #d7ebff;
 }
 
 .macro-binding-pill {
