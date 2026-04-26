@@ -1,13 +1,19 @@
 "use client";
 
+import { PatchBaselineControl } from "@/components/patch/PatchBaselineControl";
 import { PatchToolbarPicker } from "@/components/patch/PatchToolbarPicker";
 import { modulePalette } from "@/lib/patch/moduleRegistry";
+import { Patch } from "@/types/patch";
 import { PatchWorkspaceProbeState } from "@/types/probes";
 
 interface PatchEditorToolbarProps {
   structureLocked?: boolean;
   canClearPatch: boolean;
   patchNodeCount: number;
+  currentPatchId: string;
+  baselinePatch?: Patch;
+  hasPatchDiff: boolean;
+  patches: Patch[];
   selectedNodeId?: string;
   selectedProbeId?: string;
   pendingFromPort: boolean;
@@ -16,11 +22,18 @@ interface PatchEditorToolbarProps {
   onAddNode: (typeId: string) => void;
   onAddProbe: (kind: PatchWorkspaceProbeState["kind"]) => void;
   onDeleteSelected: () => void;
+  onDeletePreviewChange: (previewing: boolean) => void;
   onClearPatch: () => void;
+  onClearPreviewChange: (previewing: boolean) => void;
+  onSelectBaselinePatch: (patchId: string) => void;
+  onClearBaselinePatch: () => void;
   onAutoLayout: () => void;
 }
 
 export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
+  const canDeleteNode = Boolean(props.selectedNodeId && !props.structureLocked);
+  const canDeleteSelection = Boolean(props.selectedProbeId || canDeleteNode);
+
   return (
     <div className="patch-toolbar">
       <PatchToolbarPicker
@@ -77,12 +90,29 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
         )}
       </PatchToolbarPicker>
       <button
-        disabled={!props.selectedProbeId && (!props.selectedNodeId || props.structureLocked)}
-        onClick={props.onDeleteSelected}
+        disabled={!canDeleteSelection}
+        onClick={() => {
+          props.onDeletePreviewChange(false);
+          props.onDeleteSelected();
+        }}
+        onMouseEnter={() => props.onDeletePreviewChange(canDeleteNode)}
+        onMouseLeave={() => props.onDeletePreviewChange(false)}
+        onFocus={() => props.onDeletePreviewChange(canDeleteNode)}
+        onBlur={() => props.onDeletePreviewChange(false)}
       >
-        Delete Selected
+        Delete
       </button>
-      <button disabled={!props.canClearPatch || props.structureLocked} onClick={props.onClearPatch}>
+      <button
+        disabled={!props.canClearPatch || props.structureLocked}
+        onClick={() => {
+          props.onClearPreviewChange(false);
+          props.onClearPatch();
+        }}
+        onMouseEnter={() => props.onClearPreviewChange(props.canClearPatch && !props.structureLocked)}
+        onMouseLeave={() => props.onClearPreviewChange(false)}
+        onFocus={() => props.onClearPreviewChange(props.canClearPatch && !props.structureLocked)}
+        onBlur={() => props.onClearPreviewChange(false)}
+      >
         Clear
       </button>
       <button disabled={props.patchNodeCount === 0} onClick={props.onAutoLayout}>
@@ -91,6 +121,14 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
       {props.structureLocked && <span className="muted">Preset structure is locked. Move nodes for clarity or edit macros.</span>}
       {props.pendingFromPort && <span className="muted">Select a compatible port to complete connection.</span>}
       {props.pendingProbeId && <span className="muted">Click a port or wire to attach the selected probe.</span>}
+      <PatchBaselineControl
+        baselinePatch={props.baselinePatch}
+        currentPatchId={props.currentPatchId}
+        hasPatchDiff={props.hasPatchDiff}
+        patches={props.patches}
+        onSelectBaselinePatch={props.onSelectBaselinePatch}
+        onClearBaselinePatch={props.onClearBaselinePatch}
+      />
       <span className="patch-zoom-readout">Zoom {Math.round(props.zoom * 100)}%</span>
     </div>
   );

@@ -1,16 +1,36 @@
 import {
   PATCH_CANVAS_GRID,
+  PATCH_COLOR_ADSR_GRAPH_BORDER,
+  PATCH_COLOR_ADSR_MACRO_HIGH,
+  PATCH_COLOR_ADSR_MACRO_LOW,
   PATCH_COLOR_CANVAS_BG,
   PATCH_COLOR_CONNECTION_FALLBACK,
+  PATCH_COLOR_FACE_POPOVER_BACKDROP,
+  PATCH_COLOR_FACE_POPOVER_SHADOW,
   PATCH_COLOR_GRID_MAJOR,
   PATCH_COLOR_GRID_MINOR,
+  PATCH_COLOR_MODULE_DELETE_PREVIEW_FILL,
+  PATCH_COLOR_MODULE_DELETE_PREVIEW_STROKE,
+  PATCH_COLOR_MODULE_DIFF_ADDED_ACCENT,
+  PATCH_COLOR_MODULE_DIFF_ADDED_FILL,
+  PATCH_COLOR_MODULE_DIFF_ADDED_STROKE,
+  PATCH_COLOR_MODULE_DIFF_MODIFIED_ACCENT,
+  PATCH_COLOR_MODULE_DIFF_MODIFIED_FILL,
+  PATCH_COLOR_MODULE_DIFF_MODIFIED_STROKE,
+  PATCH_COLOR_MODULE_DIFF_PEDESTAL_FILL,
+  PATCH_COLOR_MODULE_DIFF_PEDESTAL_STROKE,
+  PATCH_COLOR_MODULE_FACE_ROW_BG,
+  PATCH_COLOR_MODULE_MACRO_SELECTED_STROKE,
   PATCH_COLOR_NODE_HOVER_OVERLAY,
   PATCH_COLOR_NODE_SUBTITLE,
   PATCH_COLOR_NODE_TITLE,
   PATCH_COLOR_PENDING_PORT,
   PATCH_COLOR_PENDING_WIRE,
+  PATCH_COLOR_PORT_LABEL_BG,
+  PATCH_COLOR_PORT_LABEL_INVALID_BG,
   PATCH_COLOR_PORT_LABEL,
   PATCH_COLOR_VALID_TARGET,
+  PATCH_COLOR_VALID_TARGET_FILL,
   PATCH_FACE_POPOVER_SCALE,
   PATCH_MODULE_FACE_BOTTOM_INSET,
   PATCH_MODULE_FACE_INSET_X,
@@ -28,9 +48,14 @@ import {
 import { resolveInvalidPortKeys } from "@/components/patch/patchCanvasValidation";
 import { CanvasRect, HitPort, isHostPatchNodeId, resolveHostPatchPortRect, resolveHostPatchPortTint } from "@/components/patch/patchCanvasGeometry";
 import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
+import { PatchDiff } from "@/lib/patch/diff";
 import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch, PatchLayoutNode, PatchNode, ParamSchema, ParamValue, PatchValidationIssue, PortSchema } from "@/types/patch";
+
+const PATCH_DIFF_PEDESTAL_INSET = 8;
+const PATCH_DIFF_PEDESTAL_RADIUS = 10;
+const PATCH_DIFF_PEDESTAL_STROKE_WIDTH = 8;
 
 interface ResolvedPortPosition {
   x: number;
@@ -40,6 +65,20 @@ interface ResolvedPortPosition {
   anchorX: number;
   anchorY: number;
   schema: PortSchema;
+}
+
+function drawRoundedRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
 }
 
 function resolvePortLabelWidth(ctx: CanvasRenderingContext2D, port: PortSchema) {
@@ -108,7 +147,7 @@ function getAdsrParamValues(node: PatchNode, schema: ParamSchema[]) {
 }
 
 function getBindingRangeValues(binding: Patch["ui"]["macros"][number]["bindings"][number]) {
-  if (binding.map === "piecewise" && binding.points && binding.points.length > 0) {
+  if (binding.points && binding.points.length > 0) {
     const values = binding.points.map((point) => point.y);
     return { low: Math.min(...values), high: Math.max(...values) };
   }
@@ -192,16 +231,16 @@ function drawAdsrModuleFace(
     macroRange ? (macroRange.high.attack + macroRange.high.decay + macroRange.high.release) * 1000 : 0
   );
 
-  ctx.strokeStyle = "rgba(231, 243, 255, 0.12)";
+  ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
   ctx.lineWidth = 1;
   ctx.strokeRect(graphX, graphY, graphW, graphH);
 
   if (macroRange) {
     ctx.lineWidth = 1.4;
     ctx.setLineDash([3, 3]);
-    ctx.strokeStyle = "rgba(151, 214, 255, 0.84)";
+    ctx.strokeStyle = PATCH_COLOR_ADSR_MACRO_LOW;
     drawAdsrEnvelopePath(ctx, macroRange.low, graph, longestDurationMs);
-    ctx.strokeStyle = "rgba(255, 214, 145, 0.88)";
+    ctx.strokeStyle = PATCH_COLOR_ADSR_MACRO_HIGH;
     drawAdsrEnvelopePath(ctx, macroRange.high, graph, longestDurationMs);
     ctx.setLineDash([]);
   }
@@ -225,7 +264,7 @@ function drawGenericModuleFace(
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
   faceParams.forEach((param, index) => {
     const py = rowTop + index * 20;
-    ctx.fillStyle = "rgba(158, 192, 223, 0.28)";
+    ctx.fillStyle = PATCH_COLOR_MODULE_FACE_ROW_BG;
     ctx.fillRect(rowX, py - 11, rowW, 16);
     ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
     ctx.fillText(`${param.label}: ${formatParamFaceValue(param, node.params[param.id])}`, rowX + 6, py);
@@ -241,29 +280,72 @@ export function drawPatchModuleCard(
   y: number,
   invalidPortKeys: Set<string>,
   options: {
+    diffStatus: "unchanged" | "added" | "modified";
     hovered: boolean;
     macroSelected: boolean;
     selected: boolean;
+    deletePreview: boolean;
+    clearPreview: boolean;
   }
 ) {
+  ctx.save();
+  const baseAlpha = options.clearPreview ? 0.5 : 1;
+  ctx.globalAlpha = baseAlpha;
   const moduleColors = resolveMutedPatchModuleColors(schema.categories);
+  if (options.diffStatus === "added" || options.diffStatus === "modified") {
+    const pedestalX = x - PATCH_DIFF_PEDESTAL_INSET;
+    const pedestalY = y - PATCH_DIFF_PEDESTAL_INSET;
+    const pedestalWidth = PATCH_NODE_WIDTH + PATCH_DIFF_PEDESTAL_INSET * 2;
+    const pedestalHeight = PATCH_NODE_HEIGHT + PATCH_DIFF_PEDESTAL_INSET * 2;
+    ctx.fillStyle = PATCH_COLOR_MODULE_DIFF_PEDESTAL_FILL;
+    drawRoundedRectPath(ctx, pedestalX, pedestalY, pedestalWidth, pedestalHeight, PATCH_DIFF_PEDESTAL_RADIUS);
+    ctx.fill();
+    ctx.strokeStyle = PATCH_COLOR_MODULE_DIFF_PEDESTAL_STROKE;
+    ctx.lineWidth = PATCH_DIFF_PEDESTAL_STROKE_WIDTH;
+    drawRoundedRectPath(ctx, pedestalX, pedestalY, pedestalWidth, pedestalHeight, PATCH_DIFF_PEDESTAL_RADIUS);
+    ctx.stroke();
+  }
   ctx.fillStyle = moduleColors.fill;
   ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
+  if (options.diffStatus === "added" || options.diffStatus === "modified") {
+    ctx.fillStyle = options.diffStatus === "added" ? PATCH_COLOR_MODULE_DIFF_ADDED_FILL : PATCH_COLOR_MODULE_DIFF_MODIFIED_FILL;
+    ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
+  }
   if (options.macroSelected) {
-    ctx.strokeStyle = "rgba(246, 176, 28, 0.88)";
+    ctx.strokeStyle = PATCH_COLOR_MODULE_MACRO_SELECTED_STROKE;
     ctx.lineWidth = 3;
     ctx.strokeRect(x - 4, y - 4, PATCH_NODE_WIDTH + 8, PATCH_NODE_HEIGHT + 8);
+  }
+  if (options.deletePreview) {
+    ctx.fillStyle = PATCH_COLOR_MODULE_DELETE_PREVIEW_FILL;
+    ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
   }
   if (options.hovered && !options.selected) {
     ctx.fillStyle = PATCH_COLOR_NODE_HOVER_OVERLAY;
     ctx.fillRect(x + 2, y + 2, PATCH_NODE_WIDTH - 4, PATCH_NODE_HEIGHT - 4);
   }
-  ctx.fillStyle = moduleColors.accent;
-  ctx.globalAlpha = options.selected ? 0.24 : options.hovered ? 0.18 : 0.12;
+  ctx.fillStyle =
+    options.diffStatus === "added"
+      ? PATCH_COLOR_MODULE_DIFF_ADDED_ACCENT
+      : options.diffStatus === "modified"
+        ? PATCH_COLOR_MODULE_DIFF_MODIFIED_ACCENT
+        : moduleColors.accent;
+  ctx.globalAlpha = baseAlpha * (options.selected ? 0.26 : options.hovered ? 0.2 : options.diffStatus === "unchanged" ? 0.12 : 0.18);
   ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_BODY_TOP - 8);
-  ctx.globalAlpha = 1;
-  ctx.strokeStyle = options.selected ? moduleColors.accent : options.hovered ? PATCH_COLOR_NODE_TITLE : moduleColors.stroke;
-  ctx.lineWidth = options.hovered ? 3 : 2;
+  ctx.globalAlpha = baseAlpha;
+  ctx.strokeStyle =
+    options.deletePreview
+      ? PATCH_COLOR_MODULE_DELETE_PREVIEW_STROKE
+      : options.diffStatus === "added"
+      ? PATCH_COLOR_MODULE_DIFF_ADDED_STROKE
+      : options.diffStatus === "modified"
+        ? PATCH_COLOR_MODULE_DIFF_MODIFIED_STROKE
+        : options.selected
+          ? moduleColors.accent
+          : options.hovered
+            ? PATCH_COLOR_NODE_TITLE
+            : moduleColors.stroke;
+  ctx.lineWidth = options.deletePreview ? 3.5 : options.hovered ? 3 : 2;
   ctx.strokeRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
 
   ctx.fillStyle = PATCH_COLOR_NODE_TITLE;
@@ -283,7 +365,7 @@ export function drawPatchModuleCard(
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
   const drawPortLabel = (port: PortSchema, index: number, kind: "in" | "out") => {
     const rect = resolvePortLabelRect(ctx, port, kind, x, y, index);
-    ctx.fillStyle = invalidPortKeys.has(`${node.id}:${kind}:${port.id}`) ? "rgba(153, 28, 28, 0.94)" : "rgba(7, 14, 21, 0.94)";
+    ctx.fillStyle = invalidPortKeys.has(`${node.id}:${kind}:${port.id}`) ? PATCH_COLOR_PORT_LABEL_INVALID_BG : PATCH_COLOR_PORT_LABEL_BG;
     ctx.fillRect(rect.x, rect.y - rect.height / 2, rect.width, rect.height);
     ctx.fillStyle = PATCH_COLOR_PORT_LABEL;
     ctx.textAlign = "center";
@@ -293,6 +375,7 @@ export function drawPatchModuleCard(
 
   schema.portsIn.forEach((port, index) => drawPortLabel(port, index, "in"));
   schema.portsOut.forEach((port, index) => drawPortLabel(port, index, "out"));
+  ctx.restore();
 }
 
 function drawPatchGrid(ctx: CanvasRenderingContext2D, width: number, height: number) {
@@ -396,11 +479,14 @@ function drawPatchConnections(
 function drawPatchModules(
   ctx: CanvasRenderingContext2D,
   patch: Patch,
+  patchDiff: PatchDiff,
   layoutByNode: Map<string, PatchLayoutNode>,
   invalidPortKeys: Set<string>,
   hoveredNodeId: string | null,
   selectedMacroNodeIds: Set<string>,
-  selectedNodeId: string | undefined
+  selectedNodeId: string | undefined,
+  deletePreviewNodeId: string | null | undefined,
+  clearPreviewActive: boolean | undefined
 ) {
   patch.nodes.forEach((node) => {
     const schema = getModuleSchema(node.typeId);
@@ -412,9 +498,12 @@ function drawPatchModules(
     const y = layout.y * PATCH_CANVAS_GRID;
 
     drawPatchModuleCard(ctx, patch, node, schema, x, y, invalidPortKeys, {
+      diffStatus: patchDiff.nodeDiffById.get(node.id)?.status ?? "unchanged",
       hovered: hoveredNodeId === node.id,
       macroSelected: selectedMacroNodeIds.has(node.id),
-      selected: selectedNodeId === node.id
+      selected: selectedNodeId === node.id,
+      deletePreview: deletePreviewNodeId === node.id,
+      clearPreview: Boolean(clearPreviewActive)
     });
   });
 }
@@ -476,7 +565,7 @@ function drawHoveredAttachTarget(
 
   ctx.save();
   ctx.strokeStyle = PATCH_COLOR_VALID_TARGET;
-  ctx.fillStyle = "rgba(200, 255, 57, 0.16)";
+  ctx.fillStyle = PATCH_COLOR_VALID_TARGET_FILL;
   ctx.lineWidth = 2;
   ctx.setLineDash([4, 4]);
 
@@ -515,16 +604,19 @@ function drawHoveredAttachTarget(
 export function drawPatchFacePopover(
   ctx: CanvasRenderingContext2D,
   patch: Patch,
+  patchDiff: PatchDiff,
   node: PatchNode,
   schema: NonNullable<ReturnType<typeof getModuleSchema>>,
   rect: CanvasRect,
-  macroSelected: boolean
+  macroSelected: boolean,
+  deletePreview: boolean,
+  clearPreview: boolean
 ) {
   ctx.save();
-  ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
+  ctx.shadowColor = PATCH_COLOR_FACE_POPOVER_SHADOW;
   ctx.shadowBlur = 24;
   ctx.shadowOffsetY = 12;
-  ctx.fillStyle = "rgba(4, 10, 17, 0.78)";
+  ctx.fillStyle = PATCH_COLOR_FACE_POPOVER_BACKDROP;
   ctx.fillRect(rect.x - 10, rect.y - 10, rect.width + 20, rect.height + 20);
   ctx.restore();
 
@@ -532,9 +624,12 @@ export function drawPatchFacePopover(
   ctx.translate(rect.x, rect.y);
   ctx.scale(PATCH_FACE_POPOVER_SCALE, PATCH_FACE_POPOVER_SCALE);
   drawPatchModuleCard(ctx, patch, node, schema, 0, 0, new Set<string>(), {
+    diffStatus: patchDiff.nodeDiffById.get(node.id)?.status ?? "unchanged",
     hovered: false,
     macroSelected,
-    selected: true
+    selected: true,
+    deletePreview,
+    clearPreview
   });
   ctx.restore();
 }
@@ -568,11 +663,14 @@ export function drawPatchCanvas(args: {
   layoutByNode: Map<string, PatchLayoutNode>;
   nodeById: Map<string, PatchNode>;
   patch: Patch;
+  patchDiff: PatchDiff;
   validationIssues: PatchValidationIssue[];
   pendingFromPort: HitPort | null;
   pendingWirePointer?: { x: number; y: number } | null;
   selectedMacroNodeIds: Set<string>;
   selectedNodeId?: string;
+  deletePreviewNodeId?: string | null;
+  clearPreviewActive?: boolean;
   hoveredAttachTarget?: { kind: "port"; nodeId: string; portId: string; portKind: "in" | "out" } | { kind: "connection"; connectionId: string } | null;
 }): HitPort[] {
   const ctx = args.canvas.getContext("2d");
@@ -586,7 +684,18 @@ export function drawPatchCanvas(args: {
   const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode);
   const invalidPortKeys = resolveInvalidPortKeys(args.validationIssues);
   drawPatchConnections(ctx, args.patch, portPositions);
-  drawPatchModules(ctx, args.patch, args.layoutByNode, invalidPortKeys, args.hoveredNodeId, args.selectedMacroNodeIds, args.selectedNodeId);
+  drawPatchModules(
+    ctx,
+    args.patch,
+    args.patchDiff,
+    args.layoutByNode,
+    invalidPortKeys,
+    args.hoveredNodeId,
+    args.selectedMacroNodeIds,
+    args.selectedNodeId,
+    args.deletePreviewNodeId,
+    args.clearPreviewActive
+  );
   drawPendingPatchPort(ctx, args.pendingFromPort, portPositions);
   drawPendingPatchWire(ctx, args.pendingFromPort, args.pendingWirePointer ?? null, portPositions);
   drawHoveredAttachTarget(ctx, args.patch, portPositions, args.hoveredAttachTarget ?? null);
@@ -596,7 +705,17 @@ export function drawPatchCanvas(args: {
     const schema = node ? getModuleSchema(node.typeId) : undefined;
     const rect = args.getFacePopoverRect(args.facePopoverNodeId);
     if (node && schema && rect) {
-      drawPatchFacePopover(ctx, args.patch, node, schema, rect, args.selectedMacroNodeIds.has(node.id));
+      drawPatchFacePopover(
+        ctx,
+        args.patch,
+        args.patchDiff,
+        node,
+        schema,
+        rect,
+        args.selectedMacroNodeIds.has(node.id),
+        args.deletePreviewNodeId === node.id,
+        Boolean(args.clearPreviewActive)
+      );
     }
   }
 

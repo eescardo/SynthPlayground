@@ -5,6 +5,7 @@ import { InstrumentToolbar } from "@/components/patch/InstrumentToolbar";
 import { PatchEditorCanvas } from "@/components/patch/PatchEditorCanvas";
 import { createInstrumentEditorPreviewReadyKey } from "@/components/patch/instrumentEditorPreview";
 import { useAfterStateCommit } from "@/hooks/useAfterStateCommit";
+import { PatchDiff } from "@/lib/patch/diff";
 import { resolvePatchSource } from "@/lib/patch/source";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -13,8 +14,11 @@ import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 interface InstrumentEditorProps {
   editorSessionKey?: string;
   patch: Patch;
+  baselinePatch?: Patch;
+  patches: Patch[];
   probeState: PatchProbeEditorState;
   macroValues: Record<string, number>;
+  patchDiff: PatchDiff;
   selectedNodeId?: string;
   selectedMacroId?: string;
   validationIssues: PatchValidationIssue[];
@@ -25,6 +29,8 @@ interface InstrumentEditorProps {
   onSelectMacro: (macroId?: string) => void;
   onClearSelectedMacro: () => void;
   onClearPatch: () => void;
+  onSelectBaselinePatch: (patchId: string) => void;
+  onClearBaselinePatch: () => void;
   onApplyOp: (op: PatchOp) => void;
   probeActions: PatchProbeEditorActions;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
@@ -63,8 +69,11 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
 
       <PatchEditorCanvas
         patch={props.patch}
+        baselinePatch={props.baselinePatch}
+        patches={props.patches}
         probeState={props.probeState}
         macroValues={props.macroValues}
+        patchDiff={props.patchDiff}
         selectedNodeId={props.selectedNodeId}
         selectedMacroId={props.selectedMacroId}
         validationIssues={props.validationIssues}
@@ -73,6 +82,8 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
         onSelectMacro={props.onSelectMacro}
         onClearSelectedMacro={props.onClearSelectedMacro}
         onClearPatch={props.onClearPatch}
+        onSelectBaselinePatch={props.onSelectBaselinePatch}
+        onClearBaselinePatch={props.onClearBaselinePatch}
         onApplyOp={props.onApplyOp}
         probeActions={props.probeActions}
         onExposeMacro={props.onExposeMacro}

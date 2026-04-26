@@ -29,6 +29,7 @@ import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { createClearPatch } from "@/lib/patch/presets";
 import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
 import { createPatchWorkspaceProbe } from "@/lib/patch/probes";
+import { buildPatchDiff } from "@/lib/patch/diff";
 import { clampNormalizedMacroValue } from "@/lib/patch/macroKeyframes";
 import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { validatePatch, validatePatchConnectionCandidate } from "@/lib/patch/validation";
@@ -107,8 +108,13 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   const selectedNodeId = activeTab?.selectedNodeId;
   const selectedMacroId = activeTab?.selectedMacroId;
   const selectedProbeId = activeTab?.selectedProbeId;
+  const baselinePatch = activeTab?.baselinePatch;
   const migrationNotice = activeTab?.migrationNotice ?? null;
   const probes = activeTab?.probes ?? [];
+  const patchDiff = useMemo(
+    () => buildPatchDiff(selectedPatch, baselinePatch),
+    [baselinePatch, selectedPatch]
+  );
 
   const validationIssues = useMemo(
     () => (selectedPatch ? validationIssuesByPatchId.get(selectedPatch.id) ?? [] : []),
@@ -293,6 +299,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     updateActiveTab((tab) => ({
       ...tab,
       patchId,
+      baselinePatch: undefined,
       selectedNodeId: undefined,
       selectedMacroId: undefined,
       selectedProbeId: undefined,
@@ -507,6 +514,24 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     setPreviewCaptureByProbeId({});
   }, [activeTab, commitProjectChange, selectedPatch, setTabMacroValuesById, updateActiveTab]);
 
+  const setBaselinePatchFromPatchId = useCallback((patchId: string) => {
+    const baselineSourcePatch = project.patches.find((patch) => patch.id === patchId);
+    if (!baselineSourcePatch) {
+      return;
+    }
+    updateActiveTab((tab) => ({
+      ...tab,
+      baselinePatch: structuredClone(baselineSourcePatch)
+    }));
+  }, [project.patches, updateActiveTab]);
+
+  const clearCurrentPatchBaseline = useCallback(() => {
+    updateActiveTab((tab) => ({
+      ...tab,
+      baselinePatch: undefined
+    }));
+  }, [updateActiveTab]);
+
   const exposePatchMacro = useCallback((nodeId: string, paramId: string, suggestedName: string) => {
     if (!selectedPatch || resolvePatchSource(selectedPatch) === "preset") {
       return;
@@ -545,8 +570,9 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
         keyframeCount: 2
       });
 
-      const min = paramSchema.type === "float" ? paramSchema.range.min : 0;
-      const max = paramSchema.type === "float" ? paramSchema.range.max : 1;
+      const sliderRange = currentPatch.ui.paramRanges?.[`${nodeId}:${paramId}`];
+      const min = paramSchema.type === "float" ? sliderRange?.min ?? paramSchema.range.min : 0;
+      const max = paramSchema.type === "float" ? sliderRange?.max ?? paramSchema.range.max : 1;
       nextPatch = applyPatchGraphOp(nextPatch, {
         type: "bindMacro",
         macroId,
@@ -681,6 +707,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
 
     const nextTab: LocalPatchWorkspaceTab = {
       ...createWorkspaceTab(duplicate.id, duplicate.name),
+      baselinePatch: structuredClone(selectedPatch),
       selectedNodeId: activeTab.selectedNodeId,
       selectedMacroId: activeTab.selectedMacroId,
       selectedProbeId: undefined,
@@ -756,6 +783,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     closeWorkspaceTab,
     renameWorkspaceTab,
     selectedPatch: workspacePatch ?? selectedPatch,
+    baselinePatch,
     workspaceMacroValues,
     probes,
     selectedProbeId,
@@ -778,6 +806,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     previewPitchPickerOpen,
     setPreviewPitchPickerOpen,
     migrationNotice,
+    patchDiff,
     validationIssues,
     selectedPatchHasErrors,
     openPatchWorkspace,
@@ -793,6 +822,8 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     updatePresetToLatest,
     requestRemoveSelectedPatch,
     clearSelectedPatchCircuit,
+    setBaselinePatchFromPatchId,
+    clearCurrentPatchBaseline,
     applyPatchOp,
     exposePatchMacro,
     addPatchMacro,

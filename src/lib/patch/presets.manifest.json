@@ -1,7 +1,7 @@
 [
   {
     "presetId": "preset_bass",
-    "presetVersion": 11,
+    "presetVersion": 12,
     "name": "Bass",
     "macroIds": [
       "macro_cutoff",
@@ -57,7 +57,7 @@
   },
   {
     "presetId": "preset_pluck",
-    "presetVersion": 26,
+    "presetVersion": 27,
     "name": "Pluck",
     "macroIds": [
       "macro_tone",

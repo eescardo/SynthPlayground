@@ -17,6 +17,7 @@ import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source
 import { createImportedWorkspacePatch } from "@/hooks/patch/patchWorkspacePatchHelpers";
 import { mergeImportedPatchAssets } from "@/lib/sampleAssetLibrary";
 import { MAX_PATCH_WORKSPACE_TABS } from "@/hooks/patch/patchWorkspaceStateUtils";
+import { buildPatchDiff } from "@/lib/patch/diff";
 import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
 import { ProjectAssetLibrary } from "@/types/assets";
 import { Project } from "@/types/music";
@@ -183,6 +184,8 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
 
   const viewProps: React.ComponentProps<typeof PatchWorkspaceView> = {
     patch: selectedPatch,
+    baselinePatch: patchWorkspace.baselinePatch,
+    patches: project.patches,
     importInputRef,
     recentProjects,
     probeState: {
@@ -191,9 +194,16 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
       previewCaptureByProbeId: patchWorkspace.previewCaptureByProbeId,
       previewProgress: patchWorkspace.previewProgress
     },
-    tabs: patchWorkspace.tabs.map((tab) => ({ id: tab.id, name: tab.name, patchId: tab.patchId })),
+    tabs: patchWorkspace.tabs.map((tab) => ({
+      id: tab.id,
+      name: tab.name,
+      patchId: tab.patchId,
+      hasBaseline: Boolean(tab.baselinePatch),
+      hasPatchDiff: buildPatchDiff(project.patches.find((patch) => patch.id === tab.patchId), tab.baselinePatch).hasChanges
+    })),
     activeTabId: patchWorkspace.activeTabId,
     macroValues: patchWorkspace.workspaceMacroValues,
+    patchDiff: patchWorkspace.patchDiff,
     previewPitch: patchWorkspace.previewPitch,
     migrationNotice: patchWorkspace.migrationNotice,
     selectedNodeId: patchWorkspace.selectedNodeId,
@@ -219,6 +229,8 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
     onSelectMacro: patchWorkspace.setSelectedMacroId,
     onClearSelectedMacro: patchWorkspace.clearSelectedMacro,
     onClearPatch: patchWorkspace.clearSelectedPatchCircuit,
+    onSelectBaselinePatch: patchWorkspace.setBaselinePatchFromPatchId,
+    onClearBaselinePatch: patchWorkspace.clearCurrentPatchBaseline,
     onApplyOp: patchWorkspace.applyPatchOp,
     probeActions: {
       addProbe: patchWorkspace.addProbeToWorkspace,

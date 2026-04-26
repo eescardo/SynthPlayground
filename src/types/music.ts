@@ -85,6 +85,7 @@ export interface PatchWorkspaceTabState {
   id: string;
   name: string;
   patchId: string;
+  baselinePatch?: Patch;
   selectedNodeId?: string;
   selectedMacroId?: string;
   selectedProbeId?: string;

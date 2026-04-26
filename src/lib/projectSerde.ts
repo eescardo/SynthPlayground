@@ -113,6 +113,12 @@ const sanitizePatchWorkspaceTab = (
     id: asString(tab.id, createId(`patch_tab_${index}`)),
     name: asString(tab.name, patchNameById.get(resolvedPatchId) ?? `Tab ${index + 1}`),
     patchId: resolvedPatchId,
+    baselinePatch: isObject(tab.baselinePatch)
+      ? normalizePatch(tab.baselinePatch, {
+          fallbackId: `${resolvedPatchId}_baseline`,
+          fallbackName: `${patchNameById.get(resolvedPatchId) ?? `Tab ${index + 1}`} Baseline`
+        })
+      : undefined,
     selectedNodeId: typeof tab.selectedNodeId === "string" ? tab.selectedNodeId : undefined,
     selectedMacroId: typeof tab.selectedMacroId === "string" ? tab.selectedMacroId : undefined,
     selectedProbeId: typeof tab.selectedProbeId === "string" ? tab.selectedProbeId : undefined,

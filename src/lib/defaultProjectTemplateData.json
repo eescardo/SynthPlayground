@@ -906,7 +906,7 @@
                 "id": "b2",
                 "nodeId": "env1",
                 "paramId": "attack",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -926,7 +926,7 @@
                 "id": "b3",
                 "nodeId": "env1",
                 "paramId": "decay",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -946,7 +946,7 @@
                 "id": "b4",
                 "nodeId": "env1",
                 "paramId": "sustain",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -966,7 +966,7 @@
                 "id": "b5",
                 "nodeId": "env1",
                 "paramId": "release",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -986,7 +986,7 @@
                 "id": "b6",
                 "nodeId": "mix1",
                 "paramId": "gain1",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -1006,7 +1006,7 @@
                 "id": "b7",
                 "nodeId": "mix1",
                 "paramId": "gain2",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -1026,7 +1026,7 @@
                 "id": "b8",
                 "nodeId": "env2",
                 "paramId": "attack",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -1046,7 +1046,7 @@
                 "id": "b9",
                 "nodeId": "env2",
                 "paramId": "decay",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -1066,7 +1066,7 @@
                 "id": "b10",
                 "nodeId": "cvmix1",
                 "paramId": "gain2",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -1086,7 +1086,7 @@
                 "id": "b11",
                 "nodeId": "vcf1",
                 "paramId": "cutoffModAmountOct",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -1106,7 +1106,7 @@
                 "id": "b12",
                 "nodeId": "vcf1",
                 "paramId": "resonance",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -1126,7 +1126,7 @@
                 "id": "b13",
                 "nodeId": "sat1",
                 "paramId": "driveDb",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -1146,7 +1146,7 @@
                 "id": "b14",
                 "nodeId": "sat1",
                 "paramId": "mix",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -2303,7 +2303,7 @@
                 "id": "b1b",
                 "nodeId": "karplus1",
                 "paramId": "damping",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -2323,7 +2323,7 @@
                 "id": "b1ba",
                 "nodeId": "karplus2",
                 "paramId": "damping",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -2343,7 +2343,7 @@
                 "id": "b1bb",
                 "nodeId": "karplus3",
                 "paramId": "damping",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -2363,7 +2363,7 @@
                 "id": "b1bc",
                 "nodeId": "karplus4",
                 "paramId": "damping",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -2383,7 +2383,7 @@
                 "id": "b1c",
                 "nodeId": "vcf1",
                 "paramId": "cutoffModAmountOct",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -2403,7 +2403,7 @@
                 "id": "b1d",
                 "nodeId": "vca2",
                 "paramId": "gain",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -2477,7 +2477,7 @@
                 "id": "b6",
                 "nodeId": "karplus1",
                 "paramId": "brightness",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -2497,7 +2497,7 @@
                 "id": "b7",
                 "nodeId": "karplus2",
                 "paramId": "brightness",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -2517,7 +2517,7 @@
                 "id": "b7b",
                 "nodeId": "karplus3",
                 "paramId": "brightness",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -2537,7 +2537,7 @@
                 "id": "b7c",
                 "nodeId": "karplus4",
                 "paramId": "brightness",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -2557,7 +2557,7 @@
                 "id": "b8",
                 "nodeId": "vcf1",
                 "paramId": "resonance",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -2577,7 +2577,7 @@
                 "id": "b8b",
                 "nodeId": "mix1",
                 "paramId": "gain1",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -2597,7 +2597,7 @@
                 "id": "b8c",
                 "nodeId": "mix1",
                 "paramId": "gain2",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -2617,7 +2617,7 @@
                 "id": "b8d",
                 "nodeId": "mix1",
                 "paramId": "gain3",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -2637,7 +2637,7 @@
                 "id": "b8e",
                 "nodeId": "mix1",
                 "paramId": "gain4",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -2657,7 +2657,7 @@
                 "id": "b9",
                 "nodeId": "env1",
                 "paramId": "decay",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,
@@ -2677,7 +2677,7 @@
                 "id": "b10",
                 "nodeId": "env1",
                 "paramId": "sustain",
-                "map": "piecewise",
+                "map": "linear",
                 "points": [
                   {
                     "x": 0,

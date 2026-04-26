@@ -16,6 +16,7 @@ import {
   resolvePatchFacePopoverRect
 } from "@/components/patch/patchCanvasGeometry";
 import { createId } from "@/lib/ids";
+import { PatchDiff } from "@/lib/patch/diff";
 import { resolveAutoLayoutNodes } from "@/lib/patch/autoLayout";
 import { makeConnectOp } from "@/lib/patch/ops";
 import { resolveAutoLayoutProbePositions } from "@/lib/patch/probeAutoLayout";
@@ -29,12 +30,17 @@ import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 
 interface PatchEditorStageProps {
   patch: Patch;
+  baselinePatch?: Patch;
+  patchDiff: PatchDiff;
+  patches: Patch[];
   validationIssues: PatchValidationIssue[];
   probeState: PatchProbeEditorState;
   selectedNodeId?: string;
   selectedMacroNodeIds: Set<string>;
   structureLocked?: boolean;
   onClearPatch: () => void;
+  onSelectBaselinePatch: (patchId: string) => void;
+  onClearBaselinePatch: () => void;
   onApplyOp: (op: PatchOp) => void;
   probeActions: PatchProbeEditorActions;
   onSelectNode: (nodeId?: string) => void;
@@ -45,10 +51,13 @@ interface PatchEditorStageProps {
 export function PatchEditorStage(props: PatchEditorStageProps) {
   const {
     onApplyOp,
+    onSelectBaselinePatch,
+    onClearBaselinePatch,
     onSelectNode,
     onToggleAttachProbe,
     onCancelAttachProbe,
     patch,
+    patchDiff,
     probeActions,
     probeState,
     selectedMacroNodeIds,
@@ -59,6 +68,8 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
+  const [deletePreviewNodeId, setDeletePreviewNodeId] = useState<string | null>(null);
+  const [clearPreviewActive, setClearPreviewActive] = useState(false);
   const layoutByNode = useMemo(() => {
     return new Map(patch.layout.nodes.map((node) => [node.nodeId, node] as const));
   }, [patch.layout.nodes]);
@@ -110,9 +121,12 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     layoutByNode,
     nodeById,
     patch,
+    patchDiff,
     validationIssues: props.validationIssues,
     selectedMacroNodeIds,
     selectedNodeId,
+    deletePreviewNodeId,
+    clearPreviewActive,
     pendingProbeId: probeState.attachingProbeId,
     structureLocked,
     onApplyOp,
@@ -141,6 +155,10 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
         structureLocked={structureLocked}
         canClearPatch={patch.nodes.length > 1 || patch.connections.length > 0 || patch.ui.macros.length > 0}
         patchNodeCount={patch.nodes.length}
+        currentPatchId={patch.id}
+        baselinePatch={props.baselinePatch}
+        hasPatchDiff={patchDiff.hasChanges}
+        patches={props.patches}
         selectedNodeId={selectedNodeId}
         selectedProbeId={probeState.selectedProbeId}
         pendingFromPort={Boolean(pendingFromPort)}
@@ -165,7 +183,13 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
             ? (onCancelAttachProbe(), probeActions.deleteSelected())
             : selectedNodeId && !structureLocked && onApplyOp({ type: "removeNode", nodeId: selectedNodeId })
         }
+        onDeletePreviewChange={(previewing) => {
+          setDeletePreviewNodeId(previewing && selectedNodeId && !structureLocked ? selectedNodeId : null);
+        }}
         onClearPatch={props.onClearPatch}
+        onClearPreviewChange={setClearPreviewActive}
+        onSelectBaselinePatch={onSelectBaselinePatch}
+        onClearBaselinePatch={onClearBaselinePatch}
         onAutoLayout={() => {
           const nextNodeLayout = resolveAutoLayoutNodes(patch);
           onApplyOp({

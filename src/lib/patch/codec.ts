@@ -2,7 +2,7 @@ import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch
 import { ensurePatchLayout } from "@/lib/patch/autoLayout";
 import { normalizeMacroKeyframeCount } from "@/lib/patch/macroKeyframes";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
-import { Patch, PatchConnection, PatchMacro, PatchMeta, PatchNode } from "@/types/patch";
+import { Patch, PatchConnection, PatchMacro, PatchMeta, PatchNode, PatchParamSliderRange } from "@/types/patch";
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -54,6 +54,22 @@ const sanitizePatchConnection = (raw: unknown, fallbackId: string): PatchConnect
       portId: asString(to.portId, "")
     }
   };
+};
+
+const sanitizePatchParamRanges = (raw: unknown): Record<string, PatchParamSliderRange> | undefined => {
+  if (!isObject(raw)) {
+    return undefined;
+  }
+  const ranges: Record<string, PatchParamSliderRange> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const range = isObject(value) ? value : {};
+    const min = asOptionalFiniteNumber(range.min);
+    const max = asOptionalFiniteNumber(range.max);
+    if (min !== undefined && max !== undefined) {
+      ranges[key] = { min: Math.min(min, max), max: Math.max(min, max) };
+    }
+  }
+  return Object.keys(ranges).length > 0 ? ranges : undefined;
 };
 
 const sanitizePatchMacro = (raw: unknown, index: number): PatchMacro => {
@@ -135,6 +151,7 @@ export function normalizePatch(
     ),
     ui: {
       macros: (Array.isArray(ui.macros) ? ui.macros : []).map(sanitizePatchMacro),
+      paramRanges: sanitizePatchParamRanges(ui.paramRanges),
       canvasZoom:
         asOptionalFiniteNumber(ui.canvasZoom) === undefined
           ? undefined

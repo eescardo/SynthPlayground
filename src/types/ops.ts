@@ -31,6 +31,13 @@ export type PatchOp =
       value: number | string | boolean;
     }
   | {
+      type: "setParamSliderRange";
+      nodeId: string;
+      paramId: string;
+      min: number;
+      max: number;
+    }
+  | {
       type: "setParams";
       // Apply a related group of param changes atomically so callers do not
       // have to issue multiple setParam ops that can race or overwrite each other.
@@ -84,6 +91,12 @@ export type PatchOp =
       type: "setMacroKeyframeCount";
       macroId: string;
       keyframeCount: number;
+    }
+  | {
+      type: "setMacroBindingMap";
+      macroId: string;
+      bindingId: string;
+      map: "linear" | "exp";
     }
   | {
       type: "setMacroBindingKeyframeValue";

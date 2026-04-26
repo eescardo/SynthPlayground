@@ -6,6 +6,7 @@ import { PatchEditorStage } from "@/components/patch/PatchEditorStage";
 import { PatchInspector } from "@/components/patch/PatchInspector";
 import { PatchMacroPanel } from "@/components/patch/PatchMacroPanel";
 import { usePatchProbeEditorState } from "@/hooks/patch/usePatchProbeEditorState";
+import { PatchDiff } from "@/lib/patch/diff";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -23,8 +24,11 @@ const PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT: Record<number, number> = {
 
 interface PatchEditorCanvasProps {
   patch: Patch;
+  baselinePatch?: Patch;
+  patches: Patch[];
   probeState: PatchProbeEditorState;
   macroValues: Record<string, number>;
+  patchDiff: PatchDiff;
   selectedNodeId?: string;
   selectedMacroId?: string;
   validationIssues: PatchValidationIssue[];
@@ -33,6 +37,8 @@ interface PatchEditorCanvasProps {
   onSelectMacro: (macroId?: string) => void;
   onClearSelectedMacro: () => void;
   onClearPatch: () => void;
+  onSelectBaselinePatch: (patchId: string) => void;
+  onClearBaselinePatch: () => void;
   onApplyOp: (op: PatchOp) => void;
   probeActions: PatchProbeEditorActions;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
@@ -87,12 +93,17 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
         <div className="patch-editor-main-column">
           <PatchEditorStage
             patch={props.patch}
+            baselinePatch={props.baselinePatch}
+            patchDiff={props.patchDiff}
+            patches={props.patches}
             validationIssues={props.validationIssues}
             probeState={canvasProbeState}
             selectedNodeId={props.selectedNodeId}
             selectedMacroNodeIds={selectedMacroNodeIds}
             structureLocked={props.structureLocked}
             onClearPatch={props.onClearPatch}
+            onSelectBaselinePatch={props.onSelectBaselinePatch}
+            onClearBaselinePatch={props.onClearBaselinePatch}
             onApplyOp={props.onApplyOp}
             probeActions={props.probeActions}
             onSelectNode={props.onSelectNode}
@@ -102,6 +113,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
 
           <PatchMacroPanel
             patch={props.patch}
+            patchDiff={props.patchDiff}
             macroValues={props.macroValues}
             selectedMacroId={props.selectedMacroId}
             structureLocked={props.structureLocked}
@@ -117,6 +129,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
 
         <PatchInspector
           patch={props.patch}
+          patchDiff={props.patchDiff}
           macroValues={props.macroValues}
           selectedNode={selectedNode}
           selectedProbe={selectedProbe}
