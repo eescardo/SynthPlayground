@@ -131,25 +131,9 @@ export function PatchInspector(props: PatchInspectorProps) {
         />
       )}
 
-      {props.patchDiff.removedNodes.length > 0 && !selectedNode && !selectedProbe && (
-        <>
-          <h4>Modules</h4>
-          <div className="patch-diff-section">
-            <h5>Removed Relative To Baseline</h5>
-            <div className="patch-diff-list">
-              {props.patchDiff.removedNodes.map((node) => (
-                <div key={node.id} className="patch-diff-list-row negative removed-diff-artifact">
-                  <strong>{node.typeId}</strong> <span>{node.id}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-
       {props.patchDiff.hasBaseline && !selectedNode && !selectedProbe && (
         <>
-          <h4>Baseline Diff</h4>
+          <h4>Changes from Baseline</h4>
           {!props.patchDiff.hasChanges ? (
             <p className="ok">No changes relative to this tab&apos;s baseline patch.</p>
           ) : (
@@ -163,6 +147,19 @@ export function PatchInspector(props: PatchInspectorProps) {
                 {props.patchDiff.summary.addedConnectionCount > 0 && <span className="patch-diff-summary-pill positive">+{props.patchDiff.summary.addedConnectionCount} wires</span>}
                 {props.patchDiff.summary.removedConnectionCount > 0 && <span className="patch-diff-summary-pill negative">-{props.patchDiff.summary.removedConnectionCount} wires</span>}
               </div>
+
+              {props.patchDiff.removedNodes.length > 0 && (
+                <div className="patch-diff-section">
+                  <h5>Removed Modules</h5>
+                  <div className="patch-diff-list">
+                    {props.patchDiff.removedNodes.map((node) => (
+                      <div key={node.id} className="patch-diff-list-row negative removed-diff-artifact">
+                        <strong>{node.typeId}</strong> <span>{node.id}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {props.patchDiff.removedMacros.length > 0 && (
                 <div className="patch-diff-section">
