@@ -10,7 +10,6 @@ export const PATCH_HOST_STRIP_Y = 92;
 export const PATCH_HOST_STRIP_WIDTH = 0;
 export const PATCH_HOST_STRIP_ROW_GAP = 52;
 export const PATCH_OUTPUT_HOST_STRIP_X_INSET = 18;
-export const PATCH_OUTPUT_HOST_STRIP_MAX_X = 690;
 export const PATCH_OUTPUT_HOST_STRIP_Y = 92;
 export const PATCH_CANVAS_MIN_ZOOM = 0.2;
 export const PATCH_CANVAS_MAX_ZOOM = 2.5;

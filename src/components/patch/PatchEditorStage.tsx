@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PatchHostPortOverlay } from "@/components/patch/PatchHostPortOverlay";
 import { PatchEditorToolbar } from "@/components/patch/PatchEditorToolbar";
 import { PatchProbeOverlay } from "@/components/patch/PatchProbeOverlay";
@@ -61,7 +61,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [scrollTop, setScrollTop] = useState(0);
+  const [scrollViewport, setScrollViewport] = useState({ left: 0, top: 0, width: 0 });
   const [deletePreviewNodeId, setDeletePreviewNodeId] = useState<string | null>(null);
   const [clearPreviewActive, setClearPreviewActive] = useState(false);
   const layoutByNode = useMemo(() => {
@@ -72,6 +72,13 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   const visibleNodeCount = useMemo(() => patch.nodes.filter((node) => node.id !== outputNodeId).length, [outputNodeId, patch.nodes]);
   const canvasSize = useMemo(() => resolvePatchCanvasSize(patch.layout.nodes), [patch.layout.nodes]);
   const diagramSize = useMemo(() => resolvePatchDiagramSize(patch.layout.nodes), [patch.layout.nodes]);
+  const updateScrollViewport = useCallback((element: HTMLDivElement) => {
+    setScrollViewport({
+      left: element.scrollLeft,
+      top: element.scrollTop,
+      width: element.clientWidth
+    });
+  }, []);
 
   const handleZoomChange = useCallback((zoom: number) => {
     onApplyOp({ type: "setCanvasZoom", zoom });
@@ -86,6 +93,18 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     savedZoom: patch.ui.canvasZoom,
     scrollRef
   });
+  const outputHostRightEdge = useMemo(() => {
+    if (scrollViewport.width <= 0) {
+      return canvasSize.width;
+    }
+    return Math.min(canvasSize.width, (scrollViewport.left + scrollViewport.width) / zoom);
+  }, [canvasSize.width, scrollViewport.left, scrollViewport.width, zoom]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      updateScrollViewport(scrollRef.current);
+    }
+  }, [canvasSize.width, updateScrollViewport, zoom]);
 
   const getFacePopoverRect = useCallback((nodeId: string) => resolvePatchFacePopoverRect(nodeId, layoutByNode, canvasSize), [canvasSize, layoutByNode]);
   const nodeExists = useCallback((nodeId: string) => nodeById.has(nodeId), [nodeById]);
@@ -117,6 +136,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     layoutByNode,
     nodeById,
     patch,
+    outputHostRightEdge,
     patchDiff: baselineDiff.patchDiff,
     validationIssues: props.validationIssues,
     selectedMacroNodeIds,
@@ -200,7 +220,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           className="patch-canvas-scroll"
           ref={scrollRef}
           onScroll={(event) => {
-            setScrollTop(event.currentTarget.scrollTop);
+            updateScrollViewport(event.currentTarget);
           }}
         >
           <div className="patch-canvas-overlay-shell" style={{ width: `${canvasSize.width * zoom}px`, height: `${canvasSize.height * zoom}px` }}>
@@ -245,10 +265,11 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           </div>
         </div>
         <PatchHostPortOverlay
-          canvasWidth={canvasSize.width}
+          outputHostRightEdge={outputHostRightEdge}
           patch={patch}
           pendingFromPort={pendingFromPort}
-          scrollTop={scrollTop}
+          scrollLeft={scrollViewport.left}
+          scrollTop={scrollViewport.top}
           zoom={zoom}
           onPortSelection={handlePortSelection}
           onPortHover={handlePortHover}

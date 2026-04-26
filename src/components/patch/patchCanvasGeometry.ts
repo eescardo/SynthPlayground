@@ -9,7 +9,6 @@ import {
   PATCH_HOST_STRIP_X,
   PATCH_HOST_STRIP_Y,
   PATCH_OUTPUT_HOST_STRIP_X_INSET,
-  PATCH_OUTPUT_HOST_STRIP_MAX_X,
   PATCH_OUTPUT_HOST_STRIP_Y,
   PATCH_NODE_HEIGHT,
   PATCH_NODE_HIT_PADDING,
@@ -124,7 +123,7 @@ export function resolveOutputHostPatchPortRect(canvasWidth: number) {
   const label = resolveHostPatchPortLabel("$host.output");
   const width = Math.max(38, label.length * 6 + 8);
   return {
-    x: Math.max(PATCH_HOST_STRIP_X + 180, Math.min(PATCH_OUTPUT_HOST_STRIP_MAX_X, canvasWidth - PATCH_OUTPUT_HOST_STRIP_X_INSET - width)),
+    x: canvasWidth - PATCH_OUTPUT_HOST_STRIP_X_INSET,
     y: PATCH_OUTPUT_HOST_STRIP_Y,
     width,
     height: 14

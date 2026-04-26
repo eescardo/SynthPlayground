@@ -63,10 +63,10 @@ describe("patch canvas geometry", () => {
     expect(findPatchPortAtPoint(hitPorts, 156, 70)).toBeNull();
   });
 
-  it("keeps the managed output host port within the default viewport area", () => {
+  it("anchors the managed output host port to the canvas right edge", () => {
     const rect = resolveOutputHostPatchPortRect(1400);
 
-    expect(rect.x).toBeLessThan(720);
-    expect(rect.x).toBeGreaterThan(180);
+    expect(rect.x).toBe(1382);
+    expect(rect.width).toBeGreaterThan(0);
   });
 });
