@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { PatchBindingDiff, PatchDiffStatus } from "@/lib/patch/diff";
+import { resolveDiffHighlightClass } from "@/components/patch/patchDiffHighlight";
+import { PatchBindingDiff } from "@/lib/patch/diff";
 import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { useRenameActivation } from "@/hooks/useRenameActivation";
 import { clamp } from "@/lib/numeric";
@@ -19,16 +20,6 @@ export function formatBindingValue(value: number) {
     return value.toFixed(2);
   }
   return value.toFixed(3);
-}
-
-export function resolveDiffHighlightClass(status: PatchDiffStatus | undefined): "positive" | "negative" | null {
-  if (status === "added" || status === "modified") {
-    return "positive";
-  }
-  if (status === "removed") {
-    return "negative";
-  }
-  return null;
 }
 
 function formatBindingSummary(binding: MacroBinding) {
