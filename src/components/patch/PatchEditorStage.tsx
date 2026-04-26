@@ -68,6 +68,8 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     return new Map(patch.layout.nodes.map((node) => [node.nodeId, node] as const));
   }, [patch.layout.nodes]);
   const nodeById = useMemo(() => new Map(patch.nodes.map((node) => [node.id, node] as const)), [patch.nodes]);
+  const outputNodeId = patch.io.audioOutNodeId;
+  const visibleNodeCount = useMemo(() => patch.nodes.filter((node) => node.id !== outputNodeId).length, [outputNodeId, patch.nodes]);
   const canvasSize = useMemo(() => resolvePatchCanvasSize(patch.layout.nodes), [patch.layout.nodes]);
   const diagramSize = useMemo(() => resolvePatchDiagramSize(patch.layout.nodes), [patch.layout.nodes]);
 
@@ -147,10 +149,11 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     <div className="patch-canvas-stage" ref={rootRef}>
       <PatchEditorToolbar
         structureLocked={structureLocked}
-        canClearPatch={patch.nodes.length > 1 || patch.connections.length > 0 || patch.ui.macros.length > 0}
-        patchNodeCount={patch.nodes.length}
+        canClearPatch={visibleNodeCount > 0 || patch.connections.length > 0 || patch.ui.macros.length > 0}
+        patchNodeCount={visibleNodeCount}
         baselineControl={{ ...baselineDiff, currentPatchId: patch.id }}
         selectedNodeId={selectedNodeId}
+        protectedNodeId={outputNodeId}
         selectedProbeId={probeState.selectedProbeId}
         pendingFromPort={Boolean(pendingFromPort)}
         pendingProbeId={probeState.attachingProbeId}
@@ -172,10 +175,10 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
         onDeleteSelected={() =>
           probeState.selectedProbeId
             ? (onCancelAttachProbe(), probeActions.deleteSelected())
-            : selectedNodeId && !structureLocked && onApplyOp({ type: "removeNode", nodeId: selectedNodeId })
+            : selectedNodeId && selectedNodeId !== outputNodeId && !structureLocked && onApplyOp({ type: "removeNode", nodeId: selectedNodeId })
         }
         onDeletePreviewChange={(previewing) => {
-          setDeletePreviewNodeId(previewing && selectedNodeId && !structureLocked ? selectedNodeId : null);
+          setDeletePreviewNodeId(previewing && selectedNodeId && selectedNodeId !== outputNodeId && !structureLocked ? selectedNodeId : null);
         }}
         onClearPatch={props.onClearPatch}
         onClearPreviewChange={setClearPreviewActive}
@@ -242,11 +245,14 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           </div>
         </div>
         <PatchHostPortOverlay
+          canvasWidth={canvasSize.width}
+          patch={patch}
           pendingFromPort={pendingFromPort}
           scrollTop={scrollTop}
           zoom={zoom}
           onPortSelection={handlePortSelection}
           onPortHover={handlePortHover}
+          onSelectOutput={() => onSelectNode(outputNodeId)}
         />
       </div>
     </div>

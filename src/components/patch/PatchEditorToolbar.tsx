@@ -12,6 +12,7 @@ interface PatchEditorToolbarProps {
   patchNodeCount: number;
   baselineControl: PatchBaselineControlState;
   selectedNodeId?: string;
+  protectedNodeId?: string;
   selectedProbeId?: string;
   pendingFromPort: boolean;
   pendingProbeId?: string | null;
@@ -26,7 +27,7 @@ interface PatchEditorToolbarProps {
 }
 
 export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
-  const canDeleteNode = Boolean(props.selectedNodeId && !props.structureLocked);
+  const canDeleteNode = Boolean(props.selectedNodeId && props.selectedNodeId !== props.protectedNodeId && !props.structureLocked);
   const canDeleteSelection = Boolean(props.selectedProbeId || canDeleteNode);
 
   return (

@@ -149,7 +149,12 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
   ]);
 
   const getNodeAtPointer = useCallback((rawX: number, rawY: number) => {
-    return findPatchNodeAtPoint(patch, layoutByNode, rawX, rawY);
+    return findPatchNodeAtPoint(
+      { nodes: patch.nodes.filter((node) => node.id !== patch.io.audioOutNodeId) },
+      layoutByNode,
+      rawX,
+      rawY
+    );
   }, [layoutByNode, patch]);
 
   const handlePortSelection = useCallback((hitPort: HitPort, pointer: { x: number; y: number }) => {

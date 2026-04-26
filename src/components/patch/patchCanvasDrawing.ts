@@ -46,7 +46,15 @@ import {
   PATCH_PORT_START_Y
 } from "@/components/patch/patchCanvasConstants";
 import { resolveInvalidPortKeys } from "@/components/patch/patchCanvasValidation";
-import { CanvasRect, HitPort, isHostPatchNodeId, resolveHostPatchPortRect, resolveHostPatchPortTint } from "@/components/patch/patchCanvasGeometry";
+import {
+  CanvasRect,
+  HitPort,
+  isHostPatchNodeId,
+  isManagedOutputNode,
+  resolveHostPatchPortRect,
+  resolveHostPatchPortTint,
+  resolveOutputHostPatchPortRect
+} from "@/components/patch/patchCanvasGeometry";
 import { clamp, clamp01 } from "@/lib/numeric";
 import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
 import { PatchDiff } from "@/lib/patch/diff";
@@ -251,6 +259,131 @@ function drawAdsrModuleFace(
   drawAdsrEnvelopePath(ctx, currentValues, graph, longestDurationMs);
 }
 
+function drawWavePath(
+  ctx: CanvasRenderingContext2D,
+  points: number[],
+  graph: { x: number; y: number; width: number; height: number }
+) {
+  const midY = graph.y + graph.height / 2;
+  const amp = graph.height * 0.34;
+  ctx.beginPath();
+  points.forEach((point, index) => {
+    const px = graph.x + (index / Math.max(points.length - 1, 1)) * graph.width;
+    const py = midY - clamp(point, -1, 1) * amp;
+    if (index === 0) {
+      ctx.moveTo(px, py);
+    } else {
+      ctx.lineTo(px, py);
+    }
+  });
+  ctx.stroke();
+}
+
+function drawVcoModuleFace(
+  ctx: CanvasRenderingContext2D,
+  node: PatchNode,
+  x: number,
+  y: number,
+  accentColor: string
+) {
+  const graph = {
+    x: x + PATCH_MODULE_FACE_INSET_X,
+    y: y + PATCH_MODULE_FACE_TOP + 4,
+    width: PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2,
+    height: PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 8
+  };
+  const wave = String(node.params.wave ?? "saw");
+  const pulseWidth = clamp(typeof node.params.pulseWidth === "number" ? node.params.pulseWidth : 0.5, 0.05, 0.95);
+  const points = Array.from({ length: 48 }, (_, index) => {
+    const phase = index / 47;
+    switch (wave) {
+      case "sine":
+        return Math.sin(phase * Math.PI * 2);
+      case "triangle":
+        return 1 - Math.abs(phase * 4 - 2);
+      case "square":
+        return phase < pulseWidth ? 1 : -1;
+      default:
+        return 1 - phase * 2;
+    }
+  });
+  ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2;
+  drawWavePath(ctx, points, graph);
+}
+
+function drawVcfModuleFace(
+  ctx: CanvasRenderingContext2D,
+  node: PatchNode,
+  schema: ParamSchema[],
+  x: number,
+  y: number,
+  accentColor: string
+) {
+  const graph = {
+    x: x + PATCH_MODULE_FACE_INSET_X,
+    y: y + PATCH_MODULE_FACE_TOP + 4,
+    width: PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2,
+    height: PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 8
+  };
+  const cutoffParam = schema.find((param) => param.id === "cutoffHz" && param.type === "float");
+  const cutoff = getNumericParam(node, schema, "cutoffHz");
+  const min = cutoffParam?.type === "float" ? cutoffParam.range.min : 20;
+  const max = cutoffParam?.type === "float" ? cutoffParam.range.max : 20000;
+  const t = clamp01((Math.log(Math.max(cutoff, min)) - Math.log(min)) / (Math.log(max) - Math.log(min)));
+  const cutoffX = graph.x + t * graph.width;
+  const type = String(node.params.type ?? "lowpass");
+  ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  if (type === "highpass") {
+    ctx.moveTo(graph.x, graph.y + graph.height - 10);
+    ctx.quadraticCurveTo(cutoffX, graph.y + graph.height - 8, graph.x + graph.width, graph.y + 8);
+  } else if (type === "bandpass") {
+    ctx.moveTo(graph.x, graph.y + graph.height - 8);
+    ctx.quadraticCurveTo(cutoffX, graph.y - 4, graph.x + graph.width, graph.y + graph.height - 8);
+  } else {
+    ctx.moveTo(graph.x, graph.y + 8);
+    ctx.quadraticCurveTo(cutoffX, graph.y + 8, graph.x + graph.width, graph.y + graph.height - 10);
+  }
+  ctx.stroke();
+  ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
+  ctx.fillRect(cutoffX - 1, graph.y + 4, 2, graph.height - 8);
+}
+
+function drawMixerModuleFace(
+  ctx: CanvasRenderingContext2D,
+  node: PatchNode,
+  schema: ParamSchema[],
+  x: number,
+  y: number,
+  accentColor: string
+) {
+  const graphX = x + PATCH_MODULE_FACE_INSET_X;
+  const graphY = y + PATCH_MODULE_FACE_TOP + 4;
+  const graphW = PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2;
+  const graphH = PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 8;
+  ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(graphX, graphY, graphW, graphH);
+  for (let index = 0; index < 4; index += 1) {
+    const value = clamp01(getNumericParam(node, schema, `gain${index + 1}`));
+    const barWidth = (graphW - 22) / 4;
+    const barX = graphX + 8 + index * (barWidth + 2);
+    const barH = Math.max(4, value * (graphH - 12));
+    ctx.fillStyle = PATCH_COLOR_MODULE_FACE_ROW_BG;
+    ctx.fillRect(barX, graphY + 6, barWidth, graphH - 12);
+    ctx.fillStyle = accentColor;
+    ctx.fillRect(barX, graphY + graphH - 6 - barH, barWidth, barH);
+  }
+}
+
 function drawGenericModuleFace(
   ctx: CanvasRenderingContext2D,
   node: PatchNode,
@@ -359,6 +492,12 @@ export function drawPatchModuleCard(
 
   if (node.typeId === "ADSR") {
     drawAdsrModuleFace(ctx, patch, node, schema.params, x, y, moduleColors.accent);
+  } else if (node.typeId === "VCO") {
+    drawVcoModuleFace(ctx, node, x, y, moduleColors.accent);
+  } else if (node.typeId === "VCF") {
+    drawVcfModuleFace(ctx, node, schema.params, x, y, moduleColors.accent);
+  } else if (node.typeId === "Mixer4") {
+    drawMixerModuleFace(ctx, node, schema.params, x, y, moduleColors.accent);
   } else {
     drawGenericModuleFace(ctx, node, schema.params, x, y);
   }
@@ -402,7 +541,8 @@ function drawPatchGrid(ctx: CanvasRenderingContext2D, width: number, height: num
 function resolvePortPositions(
   ctx: CanvasRenderingContext2D,
   patch: Patch,
-  layoutByNode: Map<string, PatchLayoutNode>
+  layoutByNode: Map<string, PatchLayoutNode>,
+  canvasSize: { width: number; height: number }
 ) {
   const portPositions = new Map<string, ResolvedPortPosition>();
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
@@ -410,6 +550,7 @@ function resolvePortPositions(
   patch.nodes.forEach((node) => {
     const schema = getModuleSchema(node.typeId);
     if (!schema) return;
+    if (isManagedOutputNode(patch, node.id)) return;
     const layout = layoutByNode.get(node.id);
     if (!layout) return;
 
@@ -424,6 +565,21 @@ function resolvePortPositions(
       portPositions.set(`${node.id}:out:${port.id}`, resolvePortLabelRect(ctx, port, "out", x, y, index));
     });
   });
+
+  const outputNode = patch.nodes.find((node) => isManagedOutputNode(patch, node.id));
+  const outputPort = outputNode ? getModuleSchema(outputNode.typeId)?.portsIn.find((port) => port.id === patch.io.audioOutPortId) : undefined;
+  if (outputNode && outputPort) {
+    const rect = resolveOutputHostPatchPortRect(canvasSize.width);
+    portPositions.set(`${outputNode.id}:in:${outputPort.id}`, {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+      anchorX: rect.x,
+      anchorY: rect.y,
+      schema: outputPort
+    });
+  }
 
   SOURCE_HOST_NODE_IDS.forEach((hostId) => {
     const schema = getModuleSchema(SOURCE_HOST_NODE_TYPE_BY_ID[hostId]);
@@ -457,11 +613,18 @@ function drawPatchConnections(
     if (!from || !to) continue;
 
     const commonCapability = from.schema.capabilities.find((cap) => to.schema.capabilities.includes(cap)) ?? "AUDIO";
-    const isHostConnection = isHostPatchNodeId(connection.from.nodeId) || isHostPatchNodeId(connection.to.nodeId);
+    const isHostConnection =
+      isHostPatchNodeId(connection.from.nodeId) ||
+      isHostPatchNodeId(connection.to.nodeId) ||
+      isManagedOutputNode(patch, connection.to.nodeId);
     ctx.save();
     ctx.strokeStyle = isHostConnection
       ? resolveHostPatchPortTint(
-          isHostPatchNodeId(connection.from.nodeId) ? connection.from.nodeId : connection.to.nodeId
+          isManagedOutputNode(patch, connection.to.nodeId)
+            ? "$host.output"
+            : isHostPatchNodeId(connection.from.nodeId)
+              ? connection.from.nodeId
+              : connection.to.nodeId
         ).wire
       : getSignalCapabilityColor(commonCapability) ?? PATCH_COLOR_CONNECTION_FALLBACK;
     ctx.lineWidth = 2;
@@ -492,6 +655,7 @@ function drawPatchModules(
   patch.nodes.forEach((node) => {
     const schema = getModuleSchema(node.typeId);
     if (!schema) return;
+    if (isManagedOutputNode(patch, node.id)) return;
     const layout = layoutByNode.get(node.id);
     if (!layout) return;
 
@@ -682,7 +846,7 @@ export function drawPatchCanvas(args: {
   args.canvas.height = height;
 
   drawPatchGrid(ctx, width, height);
-  const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode);
+  const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode, args.canvasSize);
   const invalidPortKeys = resolveInvalidPortKeys(args.validationIssues);
   drawPatchConnections(ctx, args.patch, portPositions);
   drawPatchModules(

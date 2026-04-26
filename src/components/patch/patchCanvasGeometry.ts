@@ -8,6 +8,9 @@ import {
   PATCH_HOST_STRIP_WIDTH,
   PATCH_HOST_STRIP_X,
   PATCH_HOST_STRIP_Y,
+  PATCH_OUTPUT_HOST_STRIP_X_INSET,
+  PATCH_OUTPUT_HOST_STRIP_MAX_X,
+  PATCH_OUTPUT_HOST_STRIP_Y,
   PATCH_NODE_HEIGHT,
   PATCH_NODE_HIT_PADDING,
   PATCH_NODE_WIDTH,
@@ -49,6 +52,10 @@ export function isHostPatchNodeId(nodeId: string) {
   return SOURCE_HOST_NODE_IDS.includes(nodeId as (typeof SOURCE_HOST_NODE_IDS)[number]);
 }
 
+export function isManagedOutputNode(patch: Pick<Patch, "io">, nodeId: string) {
+  return nodeId === patch.io.audioOutNodeId;
+}
+
 export function resolveHostPatchPortLabel(nodeId: string) {
   switch (nodeId) {
     case "$host.pitch":
@@ -59,6 +66,8 @@ export function resolveHostPatchPortLabel(nodeId: string) {
       return "velocity";
     case "$host.modwheel":
       return "modwheel";
+    case "$host.output":
+      return "output";
     default:
       return "host";
   }
@@ -94,6 +103,13 @@ export function resolveHostPatchPortTint(nodeId: string) {
         text: "#443514",
         wire: "#d2ac4f"
       };
+    case "$host.output":
+      return {
+        fill: "#f0d4df",
+        stroke: "#c27d98",
+        text: "#441d2f",
+        wire: "#e393b2"
+      };
     default:
       return {
         fill: "#c9d6de",
@@ -102,6 +118,17 @@ export function resolveHostPatchPortTint(nodeId: string) {
         wire: "#c7d8e8"
       };
   }
+}
+
+export function resolveOutputHostPatchPortRect(canvasWidth: number) {
+  const label = resolveHostPatchPortLabel("$host.output");
+  const width = Math.max(38, label.length * 6 + 8);
+  return {
+    x: Math.max(PATCH_HOST_STRIP_X + 180, Math.min(PATCH_OUTPUT_HOST_STRIP_MAX_X, canvasWidth - PATCH_OUTPUT_HOST_STRIP_X_INSET - width)),
+    y: PATCH_OUTPUT_HOST_STRIP_Y,
+    width,
+    height: 14
+  };
 }
 
 export function resolveHostPatchPortRect(nodeId: string) {
@@ -241,6 +268,14 @@ export function resolvePatchPortAnchorPoint(
     };
   }
   const node = patch.nodes.find((entry) => entry.id === nodeId);
+  if (node?.typeId === "Output" && portKind === "in") {
+    const canvasSize = resolvePatchCanvasSize(layoutByNode ? [...layoutByNode.values()] : []);
+    const rect = resolveOutputHostPatchPortRect(canvasSize.width);
+    return {
+      x: rect.x,
+      y: rect.y
+    };
+  }
   const layout = layoutByNode.get(nodeId);
   const schema = node ? getModuleSchema(node.typeId) : undefined;
   const ports = portKind === "in" ? schema?.portsIn : schema?.portsOut;

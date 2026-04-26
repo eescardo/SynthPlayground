@@ -3,6 +3,7 @@ import {
   findPatchNodeAtPoint,
   findPatchPortAtPoint,
   HitPort,
+  resolveOutputHostPatchPortRect,
   resolvePatchCanvasSize,
   resolvePatchDiagramSize,
   resolvePatchFacePopoverRect
@@ -60,5 +61,12 @@ describe("patch canvas geometry", () => {
 
     expect(findPatchPortAtPoint(hitPorts, 124, 51)).toEqual(hitPorts[0]);
     expect(findPatchPortAtPoint(hitPorts, 156, 70)).toBeNull();
+  });
+
+  it("keeps the managed output host port within the default viewport area", () => {
+    const rect = resolveOutputHostPatchPortRect(1400);
+
+    expect(rect.x).toBeLessThan(720);
+    expect(rect.x).toBeGreaterThan(180);
   });
 });

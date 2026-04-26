@@ -439,4 +439,4 @@ export const createDefaultParamsForType = (typeId: string): Record<string, numbe
   return Object.fromEntries(schema.params.map((param) => [param.id, param.default]));
 };
 
-export const modulePalette = moduleRegistry.filter((module) => !module.hostOnly);
+export const modulePalette = moduleRegistry.filter((module) => !module.hostOnly && module.typeId !== "Output");
