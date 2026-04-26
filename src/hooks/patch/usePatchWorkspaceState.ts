@@ -22,6 +22,7 @@ import {
 } from "@/hooks/patch/patchWorkspacePatchHelpers";
 import { usePatchWorkspacePreviewController } from "@/hooks/patch/usePatchWorkspacePreviewController";
 import { usePatchWorkspacePreview } from "@/hooks/patch/usePatchWorkspacePreview";
+import { usePatchWorkspaceBaseline } from "@/hooks/patch/usePatchWorkspaceBaseline";
 import { usePatchWorkspaceTabMacroSession } from "@/hooks/patch/usePatchWorkspaceTabMacroSession";
 import { usePatchWorkspaceTabState } from "@/hooks/patch/usePatchWorkspaceTabState";
 import { createId } from "@/lib/ids";
@@ -29,7 +30,6 @@ import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { createClearPatch } from "@/lib/patch/presets";
 import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
 import { createPatchWorkspaceProbe } from "@/lib/patch/probes";
-import { buildPatchDiff } from "@/lib/patch/diff";
 import { clampNormalizedMacroValue } from "@/lib/patch/macroKeyframes";
 import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { validatePatch, validatePatchConnectionCandidate } from "@/lib/patch/validation";
@@ -108,13 +108,19 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   const selectedNodeId = activeTab?.selectedNodeId;
   const selectedMacroId = activeTab?.selectedMacroId;
   const selectedProbeId = activeTab?.selectedProbeId;
-  const baselinePatch = activeTab?.baselinePatch;
   const migrationNotice = activeTab?.migrationNotice ?? null;
   const probes = activeTab?.probes ?? [];
-  const patchDiff = useMemo(
-    () => buildPatchDiff(selectedPatch, baselinePatch),
-    [baselinePatch, selectedPatch]
-  );
+  const {
+    baselinePatch,
+    patchDiff,
+    setBaselinePatchFromPatchId,
+    clearCurrentPatchBaseline
+  } = usePatchWorkspaceBaseline({
+    activeTab,
+    patches: project.patches,
+    selectedPatch,
+    updateActiveTab
+  });
 
   const validationIssues = useMemo(
     () => (selectedPatch ? validationIssuesByPatchId.get(selectedPatch.id) ?? [] : []),
@@ -513,24 +519,6 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     }
     setPreviewCaptureByProbeId({});
   }, [activeTab, commitProjectChange, selectedPatch, setTabMacroValuesById, updateActiveTab]);
-
-  const setBaselinePatchFromPatchId = useCallback((patchId: string) => {
-    const baselineSourcePatch = project.patches.find((patch) => patch.id === patchId);
-    if (!baselineSourcePatch) {
-      return;
-    }
-    updateActiveTab((tab) => ({
-      ...tab,
-      baselinePatch: structuredClone(baselineSourcePatch)
-    }));
-  }, [project.patches, updateActiveTab]);
-
-  const clearCurrentPatchBaseline = useCallback(() => {
-    updateActiveTab((tab) => ({
-      ...tab,
-      baselinePatch: undefined
-    }));
-  }, [updateActiveTab]);
 
   const exposePatchMacro = useCallback((nodeId: string, paramId: string, suggestedName: string) => {
     if (!selectedPatch || resolvePatchSource(selectedPatch) === "preset") {

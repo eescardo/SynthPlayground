@@ -6,7 +6,7 @@ import {
   getMacroKeyframePositions,
   snapNormalizedToMacroKeyframe
 } from "@/lib/patch/macroKeyframes";
-import { resolveDiffHighlightClass } from "@/components/patch/patchDiffHighlight";
+import { resolveDiffHighlightClass } from "@/components/patch/patchDiffPresentation";
 import { PatchDiff } from "@/lib/patch/diff";
 import { Patch } from "@/types/patch";
 
