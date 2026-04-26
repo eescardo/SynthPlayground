@@ -119,10 +119,6 @@ describe("patch diff", () => {
     expect(diff.removedBindingDiffs.map((bindingDiff) => bindingDiff.key)).toEqual(["macro_gain:binding_gain"]);
     expect(diff.addedConnections.map((connection) => connection.id)).toEqual(["conn_sample2_out"]);
     expect(diff.removedConnections.map((connection) => connection.id)).toEqual(["conn_sample1_out"]);
-    expect([...diff.affected.nodeIds].sort()).toEqual([baseline.io.audioOutNodeId, "sample1", "sample2"].sort());
-    expect([...diff.affected.macroIds].sort()).toEqual(["macro_gain", "macro_pitch", "macro_texture"].sort());
-    expect([...diff.affected.bindingKeys].sort()).toEqual(["macro_gain:binding_gain", "macro_pitch:binding_pitch"].sort());
-    expect([...diff.affected.connectionIds].sort()).toEqual(["conn_sample1_out", "conn_sample2_out"].sort());
     expect(diff.summary).toMatchObject({
       addedNodeCount: 1,
       modifiedNodeCount: 2,

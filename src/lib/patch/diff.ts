@@ -51,18 +51,9 @@ export interface PatchDiffSummary {
   removedBindingCount: number;
 }
 
-export interface PatchDiffAffectedKeys {
-  nodeIds: Set<string>;
-  macroIds: Set<string>;
-  bindingKeys: Set<string>;
-  connectionIds: Set<string>;
-}
-
 export interface PatchDiff {
   hasBaseline: boolean;
   hasChanges: boolean;
-  // Stable keyed summary for consumers that only need invalidation/visibility decisions.
-  affected: PatchDiffAffectedKeys;
   nodeDiffById: Map<string, PatchNodeDiff>;
   removedNodes: PatchNode[];
   macroDiffById: Map<string, PatchMacroDiff>;
@@ -92,20 +83,10 @@ function createEmptySummary(): PatchDiffSummary {
   };
 }
 
-function createEmptyAffectedKeys(): PatchDiffAffectedKeys {
-  return {
-    nodeIds: new Set(),
-    macroIds: new Set(),
-    bindingKeys: new Set(),
-    connectionIds: new Set()
-  };
-}
-
 function createEmptyDiff(): PatchDiff {
   return {
     hasBaseline: false,
     hasChanges: false,
-    affected: createEmptyAffectedKeys(),
     nodeDiffById: new Map(),
     removedNodes: [],
     macroDiffById: new Map(),
@@ -145,6 +126,53 @@ function buildBindingKey(macroId: string, bindingId: string) {
 
 function buildNodeParamKey(nodeId: string, paramId: string) {
   return `${nodeId}:${paramId}`;
+}
+
+function addSetEntry(map: Map<string, Set<string>>, key: string, value: string) {
+  const entries = map.get(key) ?? new Set<string>();
+  entries.add(value);
+  map.set(key, entries);
+}
+
+function buildBindingIndexes(macros: PatchMacro[]) {
+  const byKey = new Map<string, { macro: PatchMacro; binding: MacroBinding }>();
+  const keysByMacroId = new Map<string, Set<string>>();
+  const keysByNodeId = new Map<string, Set<string>>();
+
+  macros.forEach((macro) => {
+    macro.bindings.forEach((binding) => {
+      const key = buildBindingKey(macro.id, binding.id);
+      byKey.set(key, { macro, binding });
+      addSetEntry(keysByMacroId, macro.id, key);
+      addSetEntry(keysByNodeId, binding.nodeId, key);
+    });
+  });
+
+  return { byKey, keysByMacroId, keysByNodeId };
+}
+
+function buildConnectionIdsByNodeId(connections: PatchConnection[]) {
+  const idsByNodeId = new Map<string, Set<string>>();
+  connections.forEach((connection) => {
+    addSetEntry(idsByNodeId, connection.from.nodeId, connection.id);
+    addSetEntry(idsByNodeId, connection.to.nodeId, connection.id);
+  });
+  return idsByNodeId;
+}
+
+function hasConnectionMissingFrom(
+  connectionIds: Set<string> | undefined,
+  comparisonConnectionsById: Map<string, PatchConnection>
+) {
+  if (!connectionIds) {
+    return false;
+  }
+  for (const connectionId of connectionIds) {
+    if (!comparisonConnectionsById.has(connectionId)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function collectParamIds(currentNode: PatchNode, baselineNode: PatchNode): Set<string> {
@@ -197,20 +225,14 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
   const baselineNodesById = new Map(baselinePatch.nodes.map((node) => [node.id, node] as const));
   const currentNodesById = new Map(currentPatch.nodes.map((node) => [node.id, node] as const));
   const baselineMacrosById = new Map(baselinePatch.ui.macros.map((macro) => [macro.id, macro] as const));
-
-  const currentBindingsByKey = new Map<string, { macro: PatchMacro; binding: MacroBinding }>();
-  currentPatch.ui.macros.forEach((macro) => {
-    macro.bindings.forEach((binding) => {
-      currentBindingsByKey.set(buildBindingKey(macro.id, binding.id), { macro, binding });
-    });
-  });
-
-  const baselineBindingsByKey = new Map<string, { macro: PatchMacro; binding: MacroBinding }>();
-  baselinePatch.ui.macros.forEach((macro) => {
-    macro.bindings.forEach((binding) => {
-      baselineBindingsByKey.set(buildBindingKey(macro.id, binding.id), { macro, binding });
-    });
-  });
+  const currentBindingIndexes = buildBindingIndexes(currentPatch.ui.macros);
+  const baselineBindingIndexes = buildBindingIndexes(baselinePatch.ui.macros);
+  const currentBindingsByKey = currentBindingIndexes.byKey;
+  const baselineBindingsByKey = baselineBindingIndexes.byKey;
+  const currentConnectionsById = new Map(currentPatch.connections.map((connection) => [connection.id, connection] as const));
+  const baselineConnectionsById = new Map(baselinePatch.connections.map((connection) => [connection.id, connection] as const));
+  const currentConnectionIdsByNodeId = buildConnectionIdsByNodeId(currentPatch.connections);
+  const baselineConnectionIdsByNodeId = buildConnectionIdsByNodeId(baselinePatch.connections);
 
   currentPatch.nodes.forEach((node) => {
     const baselineNode = baselineNodesById.get(node.id);
@@ -221,16 +243,10 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
         typeId: node.typeId,
         status: "added",
         changedParamIds: new Set(Object.keys(node.params)),
-        addedBindingKeys: new Set(
-          Array.from(currentBindingsByKey.entries())
-            .filter(([, entry]) => entry.binding.nodeId === node.id)
-            .map(([key]) => key)
-        ),
+        addedBindingKeys: new Set(currentBindingIndexes.keysByNodeId.get(node.id)),
         changedBindingKeys: new Set(),
         removedBindingKeys: new Set(),
-        hasConnectionChanges: currentPatch.connections.some(
-          (connection) => connection.from.nodeId === node.id || connection.to.nodeId === node.id
-        )
+        hasConnectionChanges: (currentConnectionIdsByNodeId.get(node.id)?.size ?? 0) > 0
       });
       return;
     }
@@ -250,8 +266,9 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
     const addedBindingKeys = new Set<string>();
     const changedBindingKeys = new Set<string>();
     const removedBindingKeys = new Set<string>();
-    currentBindingsByKey.forEach((entry, key) => {
-      if (entry.binding.nodeId !== node.id) {
+    currentBindingIndexes.keysByNodeId.get(node.id)?.forEach((key) => {
+      const entry = currentBindingsByKey.get(key);
+      if (!entry) {
         return;
       }
       const baselineEntry = baselineBindingsByKey.get(key);
@@ -263,23 +280,15 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
         changedBindingKeys.add(key);
       }
     });
-    baselineBindingsByKey.forEach((entry, key) => {
-      if (entry.binding.nodeId === node.id && !currentBindingsByKey.has(key)) {
+    baselineBindingIndexes.keysByNodeId.get(node.id)?.forEach((key) => {
+      if (!currentBindingsByKey.has(key)) {
         removedBindingKeys.add(key);
       }
     });
 
     const hasConnectionChanges =
-      currentPatch.connections.some(
-        (connection) =>
-          (connection.from.nodeId === node.id || connection.to.nodeId === node.id) &&
-          !baselinePatch.connections.some((baselineConnection) => baselineConnection.id === connection.id)
-      ) ||
-      baselinePatch.connections.some(
-        (connection) =>
-          (connection.from.nodeId === node.id || connection.to.nodeId === node.id) &&
-          !currentPatch.connections.some((currentConnection) => currentConnection.id === connection.id)
-      );
+      hasConnectionMissingFrom(currentConnectionIdsByNodeId.get(node.id), baselineConnectionsById) ||
+      hasConnectionMissingFrom(baselineConnectionIdsByNodeId.get(node.id), currentConnectionsById);
 
     const modified =
       node.typeId !== baselineNode.typeId ||
@@ -322,7 +331,7 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
         status: "added",
         nameChanged: false,
         keyframeCountChanged: false,
-        addedBindingKeys: new Set(macro.bindings.map((binding) => buildBindingKey(macro.id, binding.id))),
+        addedBindingKeys: new Set(currentBindingIndexes.keysByMacroId.get(macro.id)),
         changedBindingKeys: new Set(),
         removedBindingKeys: new Set()
       });
@@ -332,20 +341,23 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
     const addedBindingKeys = new Set<string>();
     const changedBindingKeys = new Set<string>();
     const removedBindingKeys = new Set<string>();
-    macro.bindings.forEach((binding) => {
-      const key = buildBindingKey(macro.id, binding.id);
-      const baselineBinding = baselineMacro.bindings.find((entry) => entry.id === binding.id);
-      if (!baselineBinding) {
+    currentBindingIndexes.keysByMacroId.get(macro.id)?.forEach((key) => {
+      const entry = currentBindingsByKey.get(key);
+      if (!entry) {
+        return;
+      }
+      const baselineEntry = baselineBindingsByKey.get(key);
+      if (!baselineEntry) {
         addedBindingKeys.add(key);
         return;
       }
-      if (serializeBinding(binding) !== serializeBinding(baselineBinding)) {
+      if (serializeBinding(entry.binding) !== serializeBinding(baselineEntry.binding)) {
         changedBindingKeys.add(key);
       }
     });
-    baselineMacro.bindings.forEach((binding) => {
-      if (!macro.bindings.some((entry) => entry.id === binding.id)) {
-        removedBindingKeys.add(buildBindingKey(macro.id, binding.id));
+    baselineBindingIndexes.keysByMacroId.get(baselineMacro.id)?.forEach((key) => {
+      if (!currentBindingsByKey.has(key)) {
+        removedBindingKeys.add(key);
       }
     });
 
@@ -427,7 +439,6 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
     addRemovedBindingDiff(removedBindingDiffsByNodeParamKey, diff);
   });
 
-  const baselineConnectionsById = new Map(baselinePatch.connections.map((connection) => [connection.id, connection] as const));
   currentPatch.connections.forEach((connection) => {
     if (baselineConnectionsById.has(connection.id)) {
       currentConnectionStatusById.set(connection.id, "unchanged");
@@ -443,33 +454,10 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
 
   const hasChanges =
     Object.values(summary).some((count) => count > 0);
-  const affected: PatchDiffAffectedKeys = {
-    nodeIds: new Set([
-      ...Array.from(nodeDiffById.values())
-        .filter((diff) => diff.status !== "unchanged")
-        .map((diff) => diff.nodeId),
-      ...removedNodes.map((node) => node.id)
-    ]),
-    macroIds: new Set([
-      ...Array.from(macroDiffById.values())
-        .filter((diff) => diff.status !== "unchanged")
-        .map((diff) => diff.macroId),
-      ...removedMacros.map((macro) => macro.id)
-    ]),
-    bindingKeys: new Set([
-      ...currentBindingDiffByKey.keys(),
-      ...removedBindingDiffs.map((diff) => diff.key)
-    ]),
-    connectionIds: new Set([
-      ...addedConnections.map((connection) => connection.id),
-      ...removedConnections.map((connection) => connection.id)
-    ])
-  };
 
   return {
     hasBaseline: true,
     hasChanges,
-    affected,
     nodeDiffById,
     removedNodes,
     macroDiffById,
