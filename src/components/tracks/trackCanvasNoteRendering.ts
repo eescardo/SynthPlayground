@@ -1,3 +1,4 @@
+import { clamp } from "@/lib/numeric";
 import { parsePitchString } from "@/lib/pitch";
 
 const MIN_SHADED_OCTAVE = 1;
@@ -56,7 +57,7 @@ export function resolveTrackCanvasNoteFill(baseColor: string, octaveNumber: numb
   }
 
   const hsl = rgbToHsl(rgb);
-  const clampedOctave = Math.max(MIN_SHADED_OCTAVE, Math.min(MAX_SHADED_OCTAVE, octaveNumber));
+  const clampedOctave = clamp(octaveNumber, MIN_SHADED_OCTAVE, MAX_SHADED_OCTAVE);
   const octaveRatio =
     (clampedOctave - MIN_SHADED_OCTAVE) / (MAX_SHADED_OCTAVE - MIN_SHADED_OCTAVE);
   const nextLightness =
@@ -88,7 +89,7 @@ function parseHexColor(color: string): RgbColor | null {
 }
 
 function rgbToHex({ r, g, b }: RgbColor): string {
-  const toHex = (value: number) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0");
+  const toHex = (value: number) => clamp(Math.round(value), 0, 255).toString(16).padStart(2, "0");
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 

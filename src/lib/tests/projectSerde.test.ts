@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { PATCH_CANVAS_MAX_ZOOM } from "@/components/patch/patchCanvasConstants";
 import { exportProjectToJson, importProjectBundleFromJson, importProjectFromJson, normalizeProject } from "@/lib/projectSerde";
+import { normalizePatch } from "@/lib/patch/normalize";
 import { createDefaultProject } from "@/lib/patch/presets";
 import { getBundledPresetLineage } from "@/lib/patch/source";
 import { validatePatch } from "@/lib/patch/validation";
@@ -85,7 +87,7 @@ describe("projectSerde", () => {
     expect(popSlapMacro?.name).toBe("Pop/Slap");
     expect(popSlapMacro?.keyframeCount).toBe(3);
     const attackBinding = popSlapMacro?.bindings.find((binding) => binding.paramId === "attack");
-    expect(attackBinding?.map).toBe("piecewise");
+    expect(attackBinding?.map).toBe("linear");
     expect(attackBinding?.points).toEqual([
       { x: 0, y: 0.0032 },
       { x: 0.5, y: 0.0075 },
@@ -136,6 +138,10 @@ describe("projectSerde", () => {
         id: "tab_a",
         name: "Bass Ideas",
         patchId: "preset_bass",
+        baselinePatch: normalizePatch(structuredClone(project.patches[0]), {
+          fallbackId: "preset_bass_baseline",
+          fallbackName: "Bass Baseline"
+        }),
         selectedNodeId: "vcf1",
         selectedMacroId: "macro_decay",
         selectedProbeId: undefined,
@@ -180,6 +186,7 @@ describe("projectSerde", () => {
         id: "tab_b",
         name: "Transient Test",
         patchId: "preset_bass",
+        baselinePatch: undefined,
         selectedNodeId: undefined,
         selectedMacroId: undefined,
         selectedProbeId: undefined,
@@ -192,6 +199,43 @@ describe("projectSerde", () => {
 
     expect(roundTrip.ui.patchWorkspace.activeTabId).toBe("tab_b");
     expect(roundTrip.ui.patchWorkspace.tabs).toEqual(project.ui.patchWorkspace.tabs);
+  });
+
+  it("normalizes baseline patch snapshots stored on patch workspace tabs", () => {
+    const project = createDefaultProject();
+    const baselinePatch = structuredClone(project.patches[0]) as unknown as {
+      ui: {
+        canvasZoom?: number;
+        paramRanges?: Record<string, { min: number; max: number }>;
+      };
+    };
+    baselinePatch.ui = {
+      ...baselinePatch.ui,
+      canvasZoom: 99,
+      paramRanges: {
+        "vcf1:cutoffHz": { min: 5000, max: 120 }
+      }
+    };
+    project.ui.patchWorkspace.tabs = [
+      {
+        id: "tab_a",
+        name: "Bass Ideas",
+        patchId: "preset_bass",
+        baselinePatch: baselinePatch as never,
+        selectedNodeId: undefined,
+        selectedMacroId: undefined,
+        selectedProbeId: undefined,
+        probes: []
+      }
+    ];
+
+    const normalized = normalizeProject(project);
+
+    expect(normalized.ui.patchWorkspace.tabs[0].baselinePatch?.ui.canvasZoom).toBe(PATCH_CANVAS_MAX_ZOOM);
+    expect(normalized.ui.patchWorkspace.tabs[0].baselinePatch?.ui.paramRanges?.["vcf1:cutoffHz"]).toEqual({
+      min: 120,
+      max: 5000
+    });
   });
 
   it("preserves invalid preset snapshots so UI can surface validation failures", () => {

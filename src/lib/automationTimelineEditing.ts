@@ -1,4 +1,5 @@
 import { createId } from "@/lib/ids";
+import { clamp01 } from "@/lib/numeric";
 import {
   getAutomationKeyframeIncomingValue,
   getAutomationKeyframeOutgoingValue,
@@ -101,7 +102,7 @@ export const getAutomationLaneValueAtBeat = (
       continue;
     }
     const span = Math.max(point.beat - previous.beat, EPSILON);
-    const t = Math.max(0, Math.min(1, (beat - previous.beat) / span));
+    const t = clamp01((beat - previous.beat) / span);
     return previous.rightValue + (point.leftValue - previous.rightValue) * t;
   }
 

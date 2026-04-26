@@ -1,5 +1,6 @@
 import { toAudioProject } from "@/audio/audioProject";
 import { AudioBenchmarkScenario, AudioBenchmarkScenarioConfig } from "@/audio/benchmarks/types";
+import { clamp01 } from "@/lib/numeric";
 import { createEmptyProjectAssetLibrary } from "@/lib/sampleAssetLibrary";
 import { TRACK_VOLUME_AUTOMATION_ID, createTrackMacroAutomationLane } from "@/lib/macroAutomation";
 import { presetPatches } from "@/lib/patch/presets";
@@ -65,8 +66,6 @@ const PITCH_SETS_BY_PATCH_ID: Record<string, string[]> = {
   preset_pad: ["C4", "G4", "A4", "D5"],
   preset_pluck: ["C5", "E5", "G5", "B5"]
 };
-
-const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 
 const createAutomationLane = (macroId: string, trackIndex: number, laneIndex: number, durationBeats: number) => {
   const lane = createTrackMacroAutomationLane(macroId, clamp01(((trackIndex + laneIndex) % 7) / 6));

@@ -1,4 +1,5 @@
 import { createId } from "@/lib/ids";
+import { clamp } from "@/lib/numeric";
 import { PatchProbeFrequencyView, PatchWorkspaceProbeState } from "@/types/probes";
 
 export const DEFAULT_SCOPE_PROBE_SIZE = { width: 10, height: 6 } as const;
@@ -31,7 +32,7 @@ export const createPatchWorkspaceProbe = (
 });
 
 export const clampProbeMaxFrequencyHz = (frequency: number) =>
-  Math.max(PROBE_MIN_MAX_FREQUENCY_HZ, Math.min(PROBE_MAX_MAX_FREQUENCY_HZ, Math.round(frequency)));
+  clamp(Math.round(frequency), PROBE_MIN_MAX_FREQUENCY_HZ, PROBE_MAX_MAX_FREQUENCY_HZ);
 
 export const resolveProbeFrequencyView = (frequencyView?: PatchProbeFrequencyView): PatchProbeFrequencyView => ({
   maxHz: clampProbeMaxFrequencyHz(frequencyView?.maxHz ?? DEFAULT_PROBE_MAX_FREQUENCY_HZ)
@@ -57,13 +58,13 @@ export const resolveProbeCaptureWindow = (
   progress: number,
   requestedWindowSize: number
 ) => {
-  const safeCapturedSamples = Math.max(0, Math.min(samples.length, capturedSamples || samples.length, durationSamples || samples.length));
+  const safeCapturedSamples = clamp(capturedSamples || samples.length, 0, Math.min(samples.length, durationSamples || samples.length));
   if (safeCapturedSamples <= 0) {
     return [];
   }
-  const frameSize = Math.max(32, Math.min(requestedWindowSize, safeCapturedSamples));
-  const progressIndex = Math.max(0, Math.min(safeCapturedSamples - 1, Math.floor(progress * Math.max(0, durationSamples - 1))));
-  const windowEnd = Math.max(frameSize, Math.min(safeCapturedSamples, progressIndex + 1));
+  const frameSize = clamp(requestedWindowSize, 32, safeCapturedSamples);
+  const progressIndex = clamp(Math.floor(progress * Math.max(0, durationSamples - 1)), 0, safeCapturedSamples - 1);
+  const windowEnd = clamp(progressIndex + 1, frameSize, safeCapturedSamples);
   const windowStart = Math.max(0, windowEnd - frameSize);
   return Array.from({ length: windowEnd - windowStart }, (_, index) => Number(samples[windowStart + index] ?? 0));
 };
@@ -77,7 +78,7 @@ export const buildSpectrumBins = (
   capturedSamples = samples.length
 ) => {
   const activeWindow = resolveProbeCaptureWindow(samples, durationSamples, capturedSamples, progress, windowSize);
-  const frameSize = Math.max(32, Math.min(windowSize, activeWindow.length));
+  const frameSize = clamp(windowSize, 32, activeWindow.length);
   if (frameSize < 32) {
     return new Array(binCount).fill(0);
   }
@@ -123,7 +124,7 @@ export const buildProbeSpectrogram = (
   maxFrequencyHz = DEFAULT_PROBE_MAX_FREQUENCY_HZ
 ) => {
   const safeDurationSamples = Math.max(durationSamples, samples.length, 1);
-  const safeCapturedSamples = Math.max(0, Math.min(capturedSamples, samples.length, safeDurationSamples));
+  const safeCapturedSamples = clamp(capturedSamples, 0, Math.min(samples.length, safeDurationSamples));
   const grid = Array.from({ length: freqBinCount }, () => new Array(timeBinCount).fill(0));
   if (safeCapturedSamples < SPECTROGRAM_MIN_FRAME_SIZE) {
     return grid;
@@ -151,7 +152,7 @@ export const buildProbeSpectrogram = (
     if (centerSample >= safeCapturedSamples) {
       continue;
     }
-    const frameStart = Math.max(0, Math.min(safeCapturedSamples - frameSize, centerSample - Math.floor(frameSize / 2)));
+    const frameStart = clamp(centerSample - Math.floor(frameSize / 2), 0, safeCapturedSamples - frameSize);
     const peak = resolveProbeFramePeak(samples, frameStart, frameSize);
     for (let freqIndex = 0; freqIndex < freqBinCount; freqIndex += 1) {
       const magnitude = measureGoertzelMagnitude(samples, frameStart, frameSize, bandCenters[freqIndex], peak, hannWindow);
@@ -167,7 +168,7 @@ export const buildProbeSpectrogram = (
   for (let freqIndex = 0; freqIndex < freqBinCount; freqIndex += 1) {
     for (let timeIndex = 0; timeIndex < timeBinCount; timeIndex += 1) {
       const normalizedMagnitude = grid[freqIndex][timeIndex] / peakMagnitude;
-      grid[freqIndex][timeIndex] = Math.max(0.02, Math.min(1, Math.pow(normalizedMagnitude, 0.48)));
+      grid[freqIndex][timeIndex] = clamp(Math.pow(normalizedMagnitude, 0.48), 0.02, 1);
     }
   }
 

@@ -6,6 +6,7 @@ import { ProjectNameControl } from "@/components/composer/ProjectNameControl";
 import { ProjectsMenu } from "@/components/composer/ProjectsMenu";
 import { RecentProjectSnapshot } from "@/lib/persistence";
 import { formatBeatName } from "@/lib/musicTiming";
+import { clamp } from "@/lib/numeric";
 import { patchWorkspaceIconSrc } from "@/resources/images";
 
 interface TransportBarProps {
@@ -36,7 +37,7 @@ export function TransportBar(props: TransportBarProps) {
   const onTempoInput = (event: ChangeEvent<HTMLInputElement>) => {
     const next = Number(event.target.value);
     if (!Number.isFinite(next)) return;
-    props.onTempoChange(Math.max(40, Math.min(220, next)));
+    props.onTempoChange(clamp(next, 40, 220));
   };
 
   const onGridInput = (event: ChangeEvent<HTMLSelectElement>) => {

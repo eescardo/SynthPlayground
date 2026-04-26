@@ -5,7 +5,7 @@ import { expect, Locator, Page } from "@playwright/test";
 import { createDefaultProject } from "../../src/lib/patch/presets";
 import { createId } from "../../src/lib/ids";
 import { HOST_NODE_IDS } from "../../src/lib/patch/constants";
-import { getModuleSchema } from "../../src/lib/patch/moduleRegistry";
+import { createDefaultParamsForType, getModuleSchema } from "../../src/lib/patch/moduleRegistry";
 import { Project } from "../../src/types/music";
 import { Patch } from "../../src/types/patch";
 
@@ -333,6 +333,197 @@ export const createMicrotonalCaptureProject = (): Project => {
   return project;
 };
 
+export const createBaselineDiffCaptureProject = (): Project => {
+  const project = createDefaultProject();
+  const baselinePatchId = "patch_baseline_capture";
+  const diffPatchId = "patch_diff_capture";
+  const baselineTabId = "patch_tab_baseline";
+  const diffTabId = "patch_tab_diff";
+
+  const baselinePatch: Patch = {
+    schemaVersion: 1,
+    id: baselinePatchId,
+    name: "Baseline Lead",
+    meta: { source: "custom" },
+    nodes: [
+      {
+        id: "vco1",
+        typeId: "VCO",
+        params: { ...createDefaultParamsForType("VCO"), wave: "triangle" }
+      },
+      {
+        id: "env1",
+        typeId: "ADSR",
+        params: { ...createDefaultParamsForType("ADSR"), attack: 0.02, decay: 0.24, sustain: 0.36, release: 0.42 }
+      },
+      {
+        id: "vca1",
+        typeId: "VCA",
+        params: { ...createDefaultParamsForType("VCA"), gain: 1, bias: 0 }
+      },
+      {
+        id: "out1",
+        typeId: "Output",
+        params: { ...createDefaultParamsForType("Output"), gainDb: -8, limiter: true }
+      }
+    ],
+    connections: [
+      {
+        id: "pitch_to_vco",
+        from: { nodeId: HOST_NODE_IDS.pitch, portId: "out" },
+        to: { nodeId: "vco1", portId: "pitch" }
+      },
+      {
+        id: "gate_to_env",
+        from: { nodeId: HOST_NODE_IDS.gate, portId: "out" },
+        to: { nodeId: "env1", portId: "gate" }
+      },
+      {
+        id: "vco_to_vca",
+        from: { nodeId: "vco1", portId: "out" },
+        to: { nodeId: "vca1", portId: "in" }
+      },
+      {
+        id: "env_to_vca",
+        from: { nodeId: "env1", portId: "out" },
+        to: { nodeId: "vca1", portId: "gainCV" }
+      },
+      {
+        id: "vca_to_out",
+        from: { nodeId: "vca1", portId: "out" },
+        to: { nodeId: "out1", portId: "in" }
+      }
+    ],
+    ui: {
+      macros: [
+        {
+          id: "macro_shape",
+          name: "Shape",
+          keyframeCount: 2,
+          bindings: [
+            {
+              id: "binding_shape_attack",
+              nodeId: "env1",
+              paramId: "attack",
+              map: "linear",
+              min: 0.01,
+              max: 0.28
+            }
+          ]
+        }
+      ]
+    },
+    layout: {
+      nodes: [
+        { nodeId: "vco1", x: 6, y: 6 },
+        { nodeId: "env1", x: 6, y: 12 },
+        { nodeId: "vca1", x: 14, y: 8 },
+        { nodeId: "out1", x: 24, y: 8 }
+      ]
+    },
+    io: {
+      audioOutNodeId: "out1",
+      audioOutPortId: "out"
+    }
+  };
+
+  const diffPatch = structuredClone(baselinePatch);
+  diffPatch.id = diffPatchId;
+  diffPatch.name = "Baseline Lead Copy";
+  diffPatch.nodes = diffPatch.nodes.filter((node) => node.id !== "env1");
+  diffPatch.connections = diffPatch.connections.filter((connection) => !["gate_to_env", "env_to_vca", "vca_to_out"].includes(connection.id));
+  diffPatch.ui.macros = [
+    {
+      id: "macro_shape",
+      name: "Contour",
+      keyframeCount: 2,
+      bindings: []
+    },
+    {
+      id: "macro_drive",
+      name: "Drive",
+      keyframeCount: 3,
+      bindings: [
+        {
+          id: "binding_drive_mix",
+          nodeId: "sat1",
+          paramId: "mix",
+          map: "linear",
+          points: [
+            { x: 0, y: 0.1 },
+            { x: 0.5, y: 0.46 },
+            { x: 1, y: 0.82 }
+          ]
+        }
+      ]
+    }
+  ];
+  const vco = diffPatch.nodes.find((node) => node.id === "vco1");
+  const vca = diffPatch.nodes.find((node) => node.id === "vca1");
+  if (!vco || !vca) {
+    throw new Error("Could not resolve baseline diff capture nodes.");
+  }
+  vco.params.wave = "square";
+  vco.params.pulseWidth = 0.34;
+  vca.params.bias = 0.68;
+  diffPatch.nodes.splice(diffPatch.nodes.length - 1, 0, {
+    id: "sat1",
+    typeId: "Saturation",
+    params: { ...createDefaultParamsForType("Saturation"), driveDb: 14, mix: 0.42, type: "softclip" }
+  });
+  diffPatch.layout.nodes = diffPatch.layout.nodes
+    .filter((entry) => entry.nodeId !== "env1")
+    .map((entry) => (entry.nodeId === "out1" ? { ...entry, x: 30, y: 8 } : entry));
+  diffPatch.layout.nodes.splice(diffPatch.layout.nodes.length - 1, 0, { nodeId: "sat1", x: 22, y: 8 });
+  diffPatch.connections.push(
+    {
+      id: "vca_to_sat",
+      from: { nodeId: "vca1", portId: "out" },
+      to: { nodeId: "sat1", portId: "in" }
+    },
+    {
+      id: "sat_to_out",
+      from: { nodeId: "sat1", portId: "out" },
+      to: { nodeId: "out1", portId: "in" }
+    }
+  );
+
+  project.patches = [baselinePatch, diffPatch, ...project.patches];
+  project.tracks[0] = {
+    ...project.tracks[0],
+    instrumentPatchId: diffPatchId
+  };
+  project.ui.patchWorkspace = {
+    activeTabId: diffTabId,
+    tabs: [
+      {
+        id: baselineTabId,
+        name: "Original",
+        patchId: baselinePatchId,
+        probes: []
+      },
+      {
+        id: diffTabId,
+        name: "Diff View",
+        patchId: diffPatchId,
+        probes: []
+      }
+    ]
+  };
+  // Keep this assignment dynamic so the capture helper still compiles against the base revision
+  // when the PR screenshot workflow overlays the latest tooling onto the PR base checkout.
+  ((project.ui.patchWorkspace.tabs[1] as unknown) as Record<string, unknown>).baselinePatch = structuredClone(baselinePatch);
+  return project;
+};
+
+export const setupBaselineDiffWorkspace = async (page: Page) => {
+  await openSeededPatchWorkspaceApp(page, createBaselineDiffCaptureProject());
+  await expect(page.getByRole("heading", { name: "Patch Workspace" })).toBeVisible();
+  await expect(page.locator(".patch-workspace-tab")).toHaveCount(2);
+  await expect(page.locator(".patch-workspace-tab").first()).toContainText("Original");
+  await expect(page.locator(".patch-workspace-tab").last()).toContainText("Diff View");
+  await expect(page.locator(".patch-macro-row")).toHaveCount(2);
+};
 const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canvas");
 
 export const setupMacroAutomationLane = async (page: Page, options?: { settleMs?: number }) => {

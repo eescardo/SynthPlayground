@@ -1,6 +1,7 @@
 import { createDefaultParamsForType, getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { createId } from "@/lib/ids";
 import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch/patchCanvasConstants";
+import { clamp, clampRange } from "@/lib/numeric";
 import {
   clampNormalizedMacroValue,
   convertBindingToKeyframeCount,
@@ -8,12 +9,23 @@ import {
   resolveMacroBindingValue,
   setMacroBindingValueAtKeyframe
 } from "@/lib/patch/macroKeyframes";
-import { Patch } from "@/types/patch";
+import { MacroBinding, Patch } from "@/types/patch";
 import { PatchHistoryState, PatchOp } from "@/types/ops";
 
 const clonePatch = (patch: Patch): Patch => structuredClone(patch);
 
 const findLayoutNode = (patch: Patch, nodeId: string): number => patch.layout.nodes.findIndex((node) => node.nodeId === nodeId);
+
+const buildParamRangeKey = (nodeId: string, paramId: string) => `${nodeId}:${paramId}`;
+
+function clampMacroBindingValues(binding: MacroBinding, min: number, max: number) {
+  if (binding.points) {
+    binding.points = binding.points.map((point) => ({ ...point, y: clamp(point.y, min, max) }));
+    return;
+  }
+  binding.min = clamp(binding.min ?? min, min, max);
+  binding.max = clamp(binding.max ?? max, min, max);
+}
 
 function applyMacroValueToPatch(patch: Patch, macroId: string, normalized: number): Patch {
   const macro = patch.ui.macros.find((entry) => entry.id === macroId);
@@ -60,6 +72,14 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
         (connection) => connection.from.nodeId !== op.nodeId && connection.to.nodeId !== op.nodeId
       );
       next.layout.nodes = next.layout.nodes.filter((node) => node.nodeId !== op.nodeId);
+      if (next.ui.paramRanges) {
+        next.ui.paramRanges = Object.fromEntries(
+          Object.entries(next.ui.paramRanges).filter(([key]) => !key.startsWith(`${op.nodeId}:`))
+        );
+        if (Object.keys(next.ui.paramRanges).length === 0) {
+          delete next.ui.paramRanges;
+        }
+      }
       for (const macro of next.ui.macros) {
         macro.bindings = macro.bindings.filter((binding) => binding.nodeId !== op.nodeId);
       }
@@ -104,7 +124,7 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
     }
 
     case "setCanvasZoom": {
-      next.ui.canvasZoom = Math.max(PATCH_CANVAS_MIN_ZOOM, Math.min(PATCH_CANVAS_MAX_ZOOM, op.zoom));
+      next.ui.canvasZoom = clamp(op.zoom, PATCH_CANVAS_MIN_ZOOM, PATCH_CANVAS_MAX_ZOOM);
       return next;
     }
 
@@ -114,6 +134,43 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
         throw new Error(`Unknown node in setParam: ${op.nodeId}`);
       }
       node.params[op.paramId] = op.value;
+      return next;
+    }
+
+    case "setParamSliderRange": {
+      const node = next.nodes.find((entry) => entry.id === op.nodeId);
+      if (!node) {
+        throw new Error(`Unknown node in setParamSliderRange: ${op.nodeId}`);
+      }
+      const moduleSchema = getModuleSchema(node.typeId);
+      const schema = moduleSchema?.params.find((param) => param.id === op.paramId);
+      if (!schema || schema.type !== "float") {
+        throw new Error(`Slider ranges can only be set for float params: ${op.nodeId}.${op.paramId}`);
+      }
+      const rawMin = clamp(op.min, schema.range.min, schema.range.max);
+      const rawMax = clamp(op.max, schema.range.min, schema.range.max);
+      const { min, max } = clampRange(rawMin, rawMax);
+      const key = buildParamRangeKey(op.nodeId, op.paramId);
+      next.ui.paramRanges = { ...(next.ui.paramRanges ?? {}) };
+      if (min === schema.range.min && max === schema.range.max) {
+        delete next.ui.paramRanges[key];
+      } else {
+        next.ui.paramRanges[key] = { min, max };
+      }
+      if (Object.keys(next.ui.paramRanges).length === 0) {
+        delete next.ui.paramRanges;
+      }
+      const value = node.params[op.paramId];
+      if (typeof value === "number") {
+        node.params[op.paramId] = clamp(value, min, max);
+      }
+      for (const macro of next.ui.macros) {
+        for (const binding of macro.bindings) {
+          if (binding.nodeId === op.nodeId && binding.paramId === op.paramId) {
+            clampMacroBindingValues(binding, min, max);
+          }
+        }
+      }
       return next;
     }
 
@@ -174,7 +231,8 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
         paramId: op.paramId,
         map: op.map,
         min: op.min,
-        max: op.max
+        max: op.max,
+        points: op.points
       });
       return next;
     }
@@ -205,6 +263,25 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       const keyframeCount = normalizeMacroKeyframeCount(op.keyframeCount);
       macro.keyframeCount = keyframeCount;
       macro.bindings = macro.bindings.map((binding) => convertBindingToKeyframeCount(binding, keyframeCount));
+      return next;
+    }
+
+    case "setMacroBindingMap": {
+      const macro = next.ui.macros.find((entry) => entry.id === op.macroId);
+      if (!macro) {
+        throw new Error(`Unknown macro: ${op.macroId}`);
+      }
+      const bindingIndex = macro.bindings.findIndex((binding) => binding.id === op.bindingId);
+      if (bindingIndex === -1) {
+        throw new Error(`Unknown macro binding: ${op.bindingId}`);
+      }
+      const binding = macro.bindings[bindingIndex];
+      macro.bindings[bindingIndex] = {
+        ...binding,
+        map: op.map,
+        min: binding.points && binding.points.length >= 2 ? undefined : binding.min,
+        max: binding.points && binding.points.length >= 2 ? undefined : binding.max
+      };
       return next;
     }
 

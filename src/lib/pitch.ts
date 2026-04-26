@@ -1,3 +1,5 @@
+import { clamp } from "@/lib/numeric";
+
 const NOTE_TO_SEMITONE: Record<string, number> = {
   C: 0,
   "C#": 1,
@@ -170,7 +172,7 @@ export const keyToPitch = (key: string): string | undefined => {
 export const transposePitch = (pitchStr: string, semitoneDelta: number, options?: { minPitch?: string; maxPitch?: string }): string => {
   const minMidi = pitchToMidi(options?.minPitch ?? "C1");
   const maxMidi = pitchToMidi(options?.maxPitch ?? "C7");
-  const nextMidi = Math.max(minMidi, Math.min(maxMidi, pitchToMidi(pitchStr) + semitoneDelta));
+  const nextMidi = clamp(pitchToMidi(pitchStr) + semitoneDelta, minMidi, maxMidi);
   return midiToPitch(nextMidi);
 };
 

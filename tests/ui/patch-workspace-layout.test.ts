@@ -128,9 +128,65 @@ describe.sequential("patch workspace layout regression", () => {
       await browser.close();
     }
   }, 120_000);
+
+  test("sets, updates, and removes a patch baseline from the toolbar control", async () => {
+    const devServer = startDevServer(PORT);
+    cleanupProcesses.add(devServer);
+
+    await waitForServer(BASE_URL, 120_000);
+
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const context = await browser.newContext({
+        baseURL: BASE_URL,
+        viewport: { width: 1400, height: 900 }
+      });
+
+      try {
+        const page = await context.newPage();
+        try {
+          await openPatchWorkspaceApp(page);
+
+          const baselineControl = page.locator(".patch-baseline-control");
+          await expect(baselineControl.locator(".patch-baseline-name")).toHaveText("None");
+
+          await baselineControl.getByRole("button", { name: "Set" }).click();
+          const firstBaselineName = await selectBaselineOption(page, 0);
+          await expect(baselineControl.locator(".patch-baseline-name")).toHaveText(firstBaselineName);
+
+          await baselineControl.getByRole("button", { name: "Update" }).click();
+          const secondBaselineName = await selectBaselineOption(page, 1);
+          await expect(baselineControl.locator(".patch-baseline-name")).toHaveText(secondBaselineName);
+
+          await baselineControl.getByRole("button", { name: "Remove" }).click();
+          await expect(baselineControl.locator(".patch-baseline-name")).toHaveText("None");
+          await expect(baselineControl.getByRole("button", { name: "Set" })).toBeVisible();
+        } finally {
+          await page.close();
+        }
+      } finally {
+        await context.close();
+      }
+    } finally {
+      await browser.close();
+    }
+  }, 120_000);
 });
 
 const activeTabLabel = (page: Page) => page.locator(".patch-workspace-tab.active .patch-workspace-tab-name");
+
+async function selectBaselineOption(page: Page, index: number): Promise<string> {
+  const popover = page.getByRole("dialog", { name: "Select baseline patch" });
+  await expect(popover).toBeVisible();
+  const option = popover.locator(".patch-baseline-option").nth(index);
+  const optionName = (await option.locator(".patch-baseline-option-name").textContent())?.trim();
+  if (!optionName) {
+    throw new Error(`Could not read baseline option name at index ${index}.`);
+  }
+  await option.click();
+  await expect(popover).toBeHidden();
+  return optionName;
+}
 
 async function zoomCanvasOut(page: Page, steps: number) {
   const target = page.locator(".patch-canvas-scroll");

@@ -4,6 +4,7 @@ import {
   openApp,
   openSeededApp,
   savePageScreenshot,
+  setupBaselineDiffWorkspace,
   setupMacroAutomationLane,
   setupPatchWorkspaceProbes,
   setupSamplePlayerWorkspace
@@ -83,6 +84,14 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
     description: "Patch workspace focused on the SamplePlayer inspector with a seeded pitch tracker probe",
     capture: async (page, outputPath) => {
       await setupSamplePlayerWorkspace(page);
+      await savePageScreenshot(page, outputPath, ".patch-workspace-shell");
+    }
+  },
+  [SCREENSHOT_SCENARIO.PATCH_BASELINE_DIFF]: {
+    name: SCREENSHOT_SCENARIO.PATCH_BASELINE_DIFF,
+    description: "Patch workspace with a duplicated tab showing baseline diff cues in the tab strip, canvas, inspector, and macro panel",
+    capture: async (page, outputPath) => {
+      await setupBaselineDiffWorkspace(page);
       await savePageScreenshot(page, outputPath, ".patch-workspace-shell");
     }
   },

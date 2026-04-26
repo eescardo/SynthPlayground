@@ -1,3 +1,5 @@
+import { clamp } from "@/lib/numeric";
+
 export const NOTE_CORNER_RADIUS = 8;
 export const NOTE_EDGE_GRADIENT_WIDTH = 3;
 
@@ -9,7 +11,7 @@ function roundedRectPath(
   height: number,
   radius: number
 ) {
-  const clampedRadius = Math.max(0, Math.min(radius, width * 0.5, height * 0.5));
+  const clampedRadius = clamp(radius, 0, Math.min(width * 0.5, height * 0.5));
   ctx.beginPath();
   ctx.moveTo(x + clampedRadius, y);
   ctx.lineTo(x + width - clampedRadius, y);
@@ -31,7 +33,7 @@ function darkenHexColor(color: string, factor: number) {
 
   const channel = (offset: number) => {
     const value = Number.parseInt(normalized.slice(offset, offset + 2), 16);
-    const darkened = Math.max(0, Math.min(255, Math.round(value * (1 - factor))));
+    const darkened = clamp(Math.round(value * (1 - factor)), 0, 255);
     return darkened.toString(16).padStart(2, "0");
   };
 
@@ -78,7 +80,7 @@ export function drawNoteBody(
 ) {
   const radius = Math.min(NOTE_CORNER_RADIUS, width * 0.5, height * 0.5);
   const edgeShade = darkenHexColor(fillColor, 0.32);
-  const gradientWidth = Math.max(2, Math.min(NOTE_EDGE_GRADIENT_WIDTH, width * 0.35, height * 0.35));
+  const gradientWidth = clamp(NOTE_EDGE_GRADIENT_WIDTH, 2, Math.min(width * 0.35, height * 0.35));
 
   fillRoundedRect(ctx, x, y, width, height, radius, fillColor);
 

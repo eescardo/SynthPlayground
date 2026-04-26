@@ -11,6 +11,7 @@ import {
   pointerEventToPatchCanvasPoint
 } from "@/components/patch/patchCanvasGeometry";
 import { PATCH_CANVAS_GRID } from "@/components/patch/patchCanvasConstants";
+import { PatchDiff } from "@/lib/patch/diff";
 import { PatchLayoutNode, PatchNode, Patch, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { validatePatchConnectionCandidate } from "@/lib/patch/validation";
@@ -23,9 +24,12 @@ interface UsePatchCanvasInteractionsArgs {
   layoutByNode: Map<string, PatchLayoutNode>;
   nodeById: Map<string, PatchNode>;
   patch: Patch;
+  patchDiff: PatchDiff;
   validationIssues: PatchValidationIssue[];
   selectedMacroNodeIds: Set<string>;
   selectedNodeId?: string;
+  deletePreviewNodeId?: string | null;
+  clearPreviewActive?: boolean;
   pendingProbeId?: string | null;
   structureLocked?: boolean;
   onApplyOp: (op: PatchOp) => void;
@@ -51,9 +55,12 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     layoutByNode,
     nodeById,
     patch,
+    patchDiff,
     validationIssues,
     selectedMacroNodeIds,
     selectedNodeId,
+    deletePreviewNodeId,
+    clearPreviewActive,
     pendingProbeId,
     structureLocked,
     onApplyOp,
@@ -111,11 +118,14 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       layoutByNode,
       nodeById,
       patch,
+      patchDiff,
       validationIssues,
       pendingFromPort,
       pendingWirePointer,
       selectedMacroNodeIds,
       selectedNodeId,
+      deletePreviewNodeId,
+      clearPreviewActive,
       hoveredAttachTarget
     });
   }, [
@@ -126,9 +136,12 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     layoutByNode,
     nodeById,
     patch,
+    patchDiff,
     validationIssues,
     selectedMacroNodeIds,
     selectedNodeId,
+    deletePreviewNodeId,
+    clearPreviewActive,
     hoveredAttachTarget,
     hoveredNodeId,
     pendingFromPort,

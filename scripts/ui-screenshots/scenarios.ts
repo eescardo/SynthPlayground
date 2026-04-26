@@ -6,6 +6,7 @@ export const SCREENSHOT_SCENARIO = {
   HELP_MODAL: "help-modal",
   RECORD_MODE: "record-mode",
   PATCH_EDITOR: "patch-editor",
+  PATCH_BASELINE_DIFF: "patch-baseline-diff",
   MACRO_AUTOMATION_LANE: "macro-automation-lane"
 } as const;
 

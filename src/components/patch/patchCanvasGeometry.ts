@@ -15,6 +15,7 @@ import {
   PATCH_PORT_START_Y
 } from "@/components/patch/patchCanvasConstants";
 import { PointerEvent as ReactPointerEvent } from "react";
+import { clamp, clamp01 } from "@/lib/numeric";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
 import { Patch, PatchLayoutNode } from "@/types/patch";
@@ -155,8 +156,8 @@ export function resolvePatchFacePopoverRect(
   const centerX = layout.x * PATCH_CANVAS_GRID + PATCH_NODE_WIDTH / 2;
   const centerY = layout.y * PATCH_CANVAS_GRID + PATCH_NODE_HEIGHT / 2;
   return {
-    x: Math.max(8, Math.min(canvasSize.width - width - 8, centerX - width / 2)),
-    y: Math.max(8, Math.min(canvasSize.height - height - 8, centerY - height / 2)),
+    x: clamp(centerX - width / 2, 8, canvasSize.width - width - 8),
+    y: clamp(centerY - height / 2, 8, canvasSize.height - height - 8),
     width,
     height
   };
@@ -293,7 +294,7 @@ export function findPatchConnectionAtPoint(
     if (lengthSquared <= 0) {
       continue;
     }
-    const t = Math.max(0, Math.min(1, ((rawX - from.x) * dx + (rawY - from.y) * dy) / lengthSquared));
+    const t = clamp01(((rawX - from.x) * dx + (rawY - from.y) * dy) / lengthSquared);
     const closestX = from.x + dx * t;
     const closestY = from.y + dy * t;
     const distance = Math.hypot(rawX - closestX, rawY - closestY);

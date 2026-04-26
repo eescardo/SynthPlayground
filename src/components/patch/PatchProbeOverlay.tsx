@@ -11,6 +11,7 @@ import {
   EXPANDED_PROBE_SIZE,
   resolveProbeFrequencyView,
 } from "@/lib/patch/probes";
+import { clamp } from "@/lib/numeric";
 import { detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
 import {
   buildScopeRenderData,
@@ -435,7 +436,7 @@ function SpectrumProbeGraph(props: {
       const row = props.spectrogram[rowIndex] ?? [];
       for (let columnIndex = 0; columnIndex < columns; columnIndex += 1) {
         const value = row[columnIndex] ?? 0;
-        const alpha = Math.max(0.03, Math.min(0.96, value * 0.95));
+        const alpha = clamp(value * 0.95, 0.03, 0.96);
         context.fillStyle = `rgba(255, 214, 145, ${alpha})`;
         context.fillRect(
           columnIndex * cellWidth,

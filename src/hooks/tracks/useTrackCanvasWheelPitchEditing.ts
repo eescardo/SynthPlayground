@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
 import { findPitchRect, PitchRect } from "@/components/tracks/trackCanvasGeometry";
+import { clamp } from "@/lib/numeric";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
 import type { Track } from "@/types/music";
 
@@ -85,7 +86,7 @@ export function useTrackCanvasWheelPitchEditing({
       }
 
       const semitone = event.deltaY < 0 ? 1 : -1;
-      const nextPitch = midiToPitch(Math.max(21, Math.min(108, midi + semitone)));
+      const nextPitch = midiToPitch(clamp(midi + semitone, 21, 108));
       onUpdateNote(hitPitch.trackId, hitPitch.noteId, { pitchStr: nextPitch }, {
         actionKey: `track:${hitPitch.trackId}:pitch:${hitPitch.noteId}`
       });

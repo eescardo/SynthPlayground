@@ -5,7 +5,9 @@ import { useMemo } from "react";
 import { PatchEditorStage } from "@/components/patch/PatchEditorStage";
 import { PatchInspector } from "@/components/patch/PatchInspector";
 import { PatchMacroPanel } from "@/components/patch/PatchMacroPanel";
+import { PatchBaselineDiffState } from "@/components/patch/patchBaselineDiffState";
 import { usePatchProbeEditorState } from "@/hooks/patch/usePatchProbeEditorState";
+import { clamp } from "@/lib/numeric";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -23,6 +25,7 @@ const PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT: Record<number, number> = {
 
 interface PatchEditorCanvasProps {
   patch: Patch;
+  baselineDiff: PatchBaselineDiffState;
   probeState: PatchProbeEditorState;
   macroValues: Record<string, number>;
   selectedNodeId?: string;
@@ -44,7 +47,7 @@ interface PatchEditorCanvasProps {
 }
 
 export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
-  const macroVisibleRows = Math.max(PATCH_MACRO_VISIBLE_ROW_MIN, Math.min(PATCH_MACRO_VISIBLE_ROW_MAX, props.patch.ui.macros.length || 1));
+  const macroVisibleRows = clamp(props.patch.ui.macros.length || 1, PATCH_MACRO_VISIBLE_ROW_MIN, PATCH_MACRO_VISIBLE_ROW_MAX);
   const macroDockHeightRem =
     PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT[macroVisibleRows] ?? PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT[PATCH_MACRO_VISIBLE_ROW_MAX];
   const selectedMacroNodeIds = useMemo(() => {
@@ -87,6 +90,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
         <div className="patch-editor-main-column">
           <PatchEditorStage
             patch={props.patch}
+            baselineDiff={props.baselineDiff}
             validationIssues={props.validationIssues}
             probeState={canvasProbeState}
             selectedNodeId={props.selectedNodeId}
@@ -102,6 +106,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
 
           <PatchMacroPanel
             patch={props.patch}
+            patchDiff={props.baselineDiff.patchDiff}
             macroValues={props.macroValues}
             selectedMacroId={props.selectedMacroId}
             structureLocked={props.structureLocked}
@@ -117,6 +122,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
 
         <PatchInspector
           patch={props.patch}
+          patchDiff={props.baselineDiff.patchDiff}
           macroValues={props.macroValues}
           selectedNode={selectedNode}
           selectedProbe={selectedProbe}

@@ -6,10 +6,13 @@ import {
   getMacroKeyframePositions,
   snapNormalizedToMacroKeyframe
 } from "@/lib/patch/macroKeyframes";
+import { resolveDiffHighlightClass } from "@/components/patch/patchDiffPresentation";
+import { PatchDiff } from "@/lib/patch/diff";
 import { Patch } from "@/types/patch";
 
 interface PatchMacroPanelProps {
   patch: Patch;
+  patchDiff: PatchDiff;
   macroValues: Record<string, number>;
   selectedMacroId?: string;
   structureLocked?: boolean;
@@ -123,10 +126,11 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
             const isEditing = editingMacroId === macro.id;
             const isSelected = props.selectedMacroId === macro.id;
             const keyframePositions = getMacroKeyframePositions(macro.keyframeCount);
+            const diffHighlightClass = resolveDiffHighlightClass(props.patchDiff.macroDiffById.get(macro.id)?.status);
             return (
               <div
                 key={macro.id}
-                className={`patch-macro-row${isSelected ? " selected" : ""}`}
+                className={`patch-macro-row${isSelected ? " selected" : ""}${diffHighlightClass ? ` diff-${diffHighlightClass}` : ""}`}
                 onPointerDown={() => props.onSelectMacro(macro.id)}
               >
                 {isEditing ? (

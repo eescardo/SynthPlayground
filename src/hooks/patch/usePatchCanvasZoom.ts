@@ -2,13 +2,10 @@
 
 import { RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch/patchCanvasConstants";
+import { clamp } from "@/lib/numeric";
 
 const ZOOM_WHEEL_SENSITIVITY = 0.0012;
 const MOUSE_WHEEL_ZOOM_DELTA_THRESHOLD = 48;
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
 
 function shouldZoomFromWheel(event: WheelEvent, isOverCanvasScroll: boolean) {
   if (event.ctrlKey) {

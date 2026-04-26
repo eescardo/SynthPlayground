@@ -73,7 +73,7 @@ export const bassPatch = (): Patch => {
     schemaVersion: 1,
     id: patchId,
     name: "Bass",
-    meta: { source: "preset", presetId: "preset_bass", presetVersion: 11 },
+    meta: { source: "preset", presetId: "preset_bass", presetVersion: 12 },
     nodes: [
       {
         id: pitchTrackId,
@@ -292,7 +292,7 @@ export const bassPatch = (): Patch => {
               id: "b2",
               nodeId: envId,
               paramId: "attack",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.0032 },
                 { x: 0.5, y: 0.0075 },
@@ -303,7 +303,7 @@ export const bassPatch = (): Patch => {
               id: "b3",
               nodeId: envId,
               paramId: "decay",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.0035 },
                 { x: 0.5, y: 0.14 },
@@ -314,7 +314,7 @@ export const bassPatch = (): Patch => {
               id: "b4",
               nodeId: envId,
               paramId: "sustain",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.48 },
                 { x: 0.5, y: 0.72 },
@@ -325,7 +325,7 @@ export const bassPatch = (): Patch => {
               id: "b5",
               nodeId: envId,
               paramId: "release",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.003 },
                 { x: 0.5, y: 0.028 },
@@ -336,7 +336,7 @@ export const bassPatch = (): Patch => {
               id: "b6",
               nodeId: mixId,
               paramId: "gain1",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.5 },
                 { x: 0.5, y: 0 },
@@ -347,7 +347,7 @@ export const bassPatch = (): Patch => {
               id: "b7",
               nodeId: mixId,
               paramId: "gain2",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.66 },
                 { x: 0.5, y: 0.92 },
@@ -358,7 +358,7 @@ export const bassPatch = (): Patch => {
               id: "b8",
               nodeId: filterEnvId,
               paramId: "attack",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.002 },
                 { x: 0.5, y: 0.004 },
@@ -369,7 +369,7 @@ export const bassPatch = (): Patch => {
               id: "b9",
               nodeId: filterEnvId,
               paramId: "decay",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.02 },
                 { x: 0.5, y: 0.11 },
@@ -380,7 +380,7 @@ export const bassPatch = (): Patch => {
               id: "b10",
               nodeId: cutoffMixId,
               paramId: "gain2",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.18 },
                 { x: 0.5, y: 0.52 },
@@ -391,7 +391,7 @@ export const bassPatch = (): Patch => {
               id: "b11",
               nodeId: vcfId,
               paramId: "cutoffModAmountOct",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.38 },
                 { x: 0.5, y: 1.9 },
@@ -402,7 +402,7 @@ export const bassPatch = (): Patch => {
               id: "b12",
               nodeId: vcfId,
               paramId: "resonance",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.06 },
                 { x: 0.5, y: 0.16 },
@@ -413,7 +413,7 @@ export const bassPatch = (): Patch => {
               id: "b13",
               nodeId: satId,
               paramId: "driveDb",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 2.5 },
                 { x: 0.5, y: 2.2 },
@@ -424,7 +424,7 @@ export const bassPatch = (): Patch => {
               id: "b14",
               nodeId: satId,
               paramId: "mix",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.12 },
                 { x: 0.5, y: 0.06 },
@@ -586,7 +586,7 @@ export const pluckPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_pluck",
     name: "Pluck",
-    meta: { source: "preset", presetId: "preset_pluck", presetVersion: 26 },
+    meta: { source: "preset", presetId: "preset_pluck", presetVersion: 27 },
     nodes: [
       {
         id: string,
@@ -705,7 +705,7 @@ export const pluckPatch = (): Patch => {
               id: "b1",
               nodeId: filter,
               paramId: "cutoffHz",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 620 },
                 { x: 0.5, y: 1269.645569 },
@@ -716,7 +716,7 @@ export const pluckPatch = (): Patch => {
               id: "b1b",
               nodeId: string,
               paramId: "damping",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.62 },
                 { x: 0.5, y: 0.492 },
@@ -727,7 +727,7 @@ export const pluckPatch = (): Patch => {
               id: "b1ba",
               nodeId: bodyString,
               paramId: "damping",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.68 },
                 { x: 0.5, y: 0.6 },
@@ -738,7 +738,7 @@ export const pluckPatch = (): Patch => {
               id: "b1bb",
               nodeId: warmthString,
               paramId: "damping",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.76 },
                 { x: 0.5, y: 0.744 },
@@ -749,7 +749,7 @@ export const pluckPatch = (): Patch => {
               id: "b1bc",
               nodeId: shimmerString,
               paramId: "damping",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.74 },
                 { x: 0.5, y: 0.692 },
@@ -760,7 +760,7 @@ export const pluckPatch = (): Patch => {
               id: "b1c",
               nodeId: filter,
               paramId: "cutoffModAmountOct",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.2 },
                 { x: 0.5, y: 0.344 },
@@ -771,7 +771,7 @@ export const pluckPatch = (): Patch => {
               id: "b1d",
               nodeId: ampVca,
               paramId: "gain",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 2.8 },
                 { x: 0.5, y: 1.376 },
@@ -803,7 +803,7 @@ export const pluckPatch = (): Patch => {
               id: "b6",
               nodeId: string,
               paramId: "brightness",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 1 },
                 { x: 0.5, y: 0.22 },
@@ -814,7 +814,7 @@ export const pluckPatch = (): Patch => {
               id: "b7",
               nodeId: bodyString,
               paramId: "brightness",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.03 },
                 { x: 0.5, y: 0.18 },
@@ -825,7 +825,7 @@ export const pluckPatch = (): Patch => {
               id: "b7b",
               nodeId: warmthString,
               paramId: "brightness",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.03 },
                 { x: 0.5, y: 0.06 },
@@ -836,7 +836,7 @@ export const pluckPatch = (): Patch => {
               id: "b7c",
               nodeId: shimmerString,
               paramId: "brightness",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.02 },
                 { x: 0.5, y: 0.08 },
@@ -847,7 +847,7 @@ export const pluckPatch = (): Patch => {
               id: "b8",
               nodeId: filter,
               paramId: "resonance",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.305 },
                 { x: 0.5, y: 0.05 },
@@ -858,7 +858,7 @@ export const pluckPatch = (): Patch => {
               id: "b8b",
               nodeId: mix,
               paramId: "gain1",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 1.27 },
                 { x: 0.5, y: 0.88 },
@@ -869,7 +869,7 @@ export const pluckPatch = (): Patch => {
               id: "b8c",
               nodeId: mix,
               paramId: "gain2",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0 },
                 { x: 0.5, y: 0.22 },
@@ -880,7 +880,7 @@ export const pluckPatch = (): Patch => {
               id: "b8d",
               nodeId: mix,
               paramId: "gain3",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0 },
                 { x: 0.5, y: 0.08 },
@@ -891,7 +891,7 @@ export const pluckPatch = (): Patch => {
               id: "b8e",
               nodeId: mix,
               paramId: "gain4",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0 },
                 { x: 0.5, y: 0.02 },
@@ -902,7 +902,7 @@ export const pluckPatch = (): Patch => {
               id: "b9",
               nodeId: ampEnv,
               paramId: "decay",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.0025 },
                 { x: 0.5, y: 0.04 },
@@ -913,7 +913,7 @@ export const pluckPatch = (): Patch => {
               id: "b10",
               nodeId: ampEnv,
               paramId: "sustain",
-              map: "piecewise",
+              map: "linear",
               points: [
                 { x: 0, y: 0.85 },
                 { x: 0.5, y: 1 },

@@ -52,6 +52,15 @@ describe("resolveScreenshotScenariosFromLabelsJson", () => {
     });
   });
 
+  it("parses the patch baseline diff label", () => {
+    expect(resolveScreenshotScenariosFromLabels(["screenshots:patch-baseline-diff"])).toMatchObject({
+      enabled: true,
+      value: "patch-baseline-diff",
+      grep: "@patch-baseline-diff",
+      error: ""
+    });
+  });
+
   it("returns a validation error for malformed JSON", () => {
     expect(resolveScreenshotScenariosFromLabelsJson("not-json")).toMatchObject({
       enabled: false,

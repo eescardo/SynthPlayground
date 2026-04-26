@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { InstrumentToolbar } from "@/components/patch/InstrumentToolbar";
 import { PatchEditorCanvas } from "@/components/patch/PatchEditorCanvas";
+import { PatchBaselineDiffState } from "@/components/patch/patchBaselineDiffState";
 import { createInstrumentEditorPreviewReadyKey } from "@/components/patch/instrumentEditorPreview";
 import { useAfterStateCommit } from "@/hooks/useAfterStateCommit";
 import { resolvePatchSource } from "@/lib/patch/source";
@@ -13,6 +14,7 @@ import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 interface InstrumentEditorProps {
   editorSessionKey?: string;
   patch: Patch;
+  baselineDiff: PatchBaselineDiffState;
   probeState: PatchProbeEditorState;
   macroValues: Record<string, number>;
   selectedNodeId?: string;
@@ -63,6 +65,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
 
       <PatchEditorCanvas
         patch={props.patch}
+        baselineDiff={props.baselineDiff}
         probeState={props.probeState}
         macroValues={props.macroValues}
         selectedNodeId={props.selectedNodeId}

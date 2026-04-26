@@ -6,6 +6,7 @@ import { InstrumentEditor } from "@/components/InstrumentEditor";
 import { PitchButtonLabel } from "@/components/PitchButtonLabel";
 import { ProjectsMenu } from "@/components/composer/ProjectsMenu";
 import { PatchWorkspaceTabStrip, PatchWorkspaceTabViewModel } from "@/components/patch-workspace/PatchWorkspaceTabStrip";
+import { PatchBaselineDiffState } from "@/components/patch/patchBaselineDiffState";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { usePatchWorkspaceQuickHelpDialog } from "@/hooks/patch/usePatchWorkspaceQuickHelpDialog";
 import { RecentProjectSnapshot } from "@/lib/persistence";
@@ -16,6 +17,7 @@ import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 
 interface PatchWorkspaceViewProps {
   patch: Patch;
+  baselineDiff: PatchBaselineDiffState;
   importInputRef: RefObject<HTMLInputElement | null>;
   recentProjects: RecentProjectSnapshot[];
   probeState: PatchProbeEditorState;
@@ -133,6 +135,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
         <InstrumentEditor
           editorSessionKey={props.activeTabId}
           patch={props.patch}
+          baselineDiff={props.baselineDiff}
           probeState={props.probeState}
           macroValues={props.macroValues}
           migrationNotice={props.migrationNotice}

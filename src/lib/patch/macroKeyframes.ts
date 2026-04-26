@@ -1,6 +1,7 @@
+import { clamp01 } from "@/lib/numeric";
 import { MacroBinding, Patch, PatchMacro } from "@/types/patch";
 
-export const clampNormalizedMacroValue = (normalized: number) => Math.max(0, Math.min(1, normalized));
+export const clampNormalizedMacroValue = clamp01;
 export const MACRO_KEYFRAME_SNAP_THRESHOLD = 0.035;
 
 export function getMacroKeyframePositions(keyframeCount: number) {
@@ -45,7 +46,14 @@ export function resolveMacroKeyframeIndexAtValue(
 
 export function resolveMacroBindingValue(binding: MacroBinding, normalized: number) {
   const norm = clampNormalizedMacroValue(normalized);
-  if (binding.map === "piecewise" && binding.points && binding.points.length >= 2) {
+  const interpolate = (left: number, right: number, amount: number) => {
+    if (binding.map === "exp" && left > 0 && right > 0) {
+      return left * Math.pow(right / left, amount);
+    }
+    return left + (right - left) * amount;
+  };
+
+  if (binding.points && binding.points.length >= 2) {
     const points = binding.points;
     if (norm <= points[0].x) {
       return points[0].y;
@@ -59,7 +67,7 @@ export function resolveMacroBindingValue(binding: MacroBinding, normalized: numb
     const left = points[segmentIndex - 1];
     const segmentSpan = Math.max(right.x - left.x, 0.000001);
     const segmentNorm = (norm - left.x) / segmentSpan;
-    return left.y + (right.y - left.y) * segmentNorm;
+    return interpolate(left.y, right.y, segmentNorm);
   }
 
   if (binding.map === "exp") {
@@ -74,7 +82,7 @@ export function resolveMacroBindingValue(binding: MacroBinding, normalized: numb
 }
 
 export function getMacroBindingKeyframeCount(binding: MacroBinding) {
-  return binding.map === "piecewise" && binding.points && binding.points.length >= 2 ? binding.points.length : 2;
+  return binding.points && binding.points.length >= 2 ? binding.points.length : 2;
 }
 
 export function normalizeMacroKeyframeCount(value: unknown) {
@@ -90,7 +98,7 @@ export function convertBindingToKeyframeCount(binding: MacroBinding, keyframeCou
 
     return {
       ...binding,
-      map: "piecewise",
+      map: binding.map === "piecewise" ? "linear" : binding.map,
       points: [
         { x: 0, y: resolveMacroBindingValue(binding, 0) },
         { x: 1, y: resolveMacroBindingValue(binding, 1) }
@@ -108,7 +116,7 @@ export function convertBindingToKeyframeCount(binding: MacroBinding, keyframeCou
 
   return {
     ...binding,
-    map: "piecewise",
+    map: binding.map === "piecewise" ? "linear" : binding.map,
     points
   };
 }
@@ -123,7 +131,7 @@ export function setMacroBindingValueAtKeyframe(
   const keyframeIndex = findNearestMacroKeyframeIndex(normalizedKeyframeCount, normalized);
 
   if (normalizedKeyframeCount <= 2) {
-    if (binding.map === "piecewise" && binding.points && binding.points.length >= 2) {
+    if (binding.points && binding.points.length >= 2) {
       const nextPoints = binding.points.map((point, index) => (index === keyframeIndex ? { ...point, y: nextValue } : point));
       return { ...binding, points: nextPoints };
     }
@@ -134,11 +142,10 @@ export function setMacroBindingValueAtKeyframe(
     return { ...binding, max: nextValue };
   }
 
-  const piecewiseBinding = convertBindingToKeyframeCount(binding, normalizedKeyframeCount);
-  const nextPoints = (piecewiseBinding.points ?? []).map((point, index) => (index === keyframeIndex ? { ...point, y: nextValue } : point));
+  const keyframedBinding = convertBindingToKeyframeCount(binding, normalizedKeyframeCount);
+  const nextPoints = (keyframedBinding.points ?? []).map((point, index) => (index === keyframeIndex ? { ...point, y: nextValue } : point));
   return {
-    ...piecewiseBinding,
-    map: "piecewise",
+    ...keyframedBinding,
     points: nextPoints
   };
 }

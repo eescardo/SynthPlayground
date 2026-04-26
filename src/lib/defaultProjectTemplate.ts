@@ -2,6 +2,7 @@ import defaultProjectTemplateData from "@/lib/defaultProjectTemplateData.json";
 import { createId } from "@/lib/ids";
 import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping";
 import { sanitizeMacroAutomationMap } from "@/lib/macroAutomation";
+import { clamp, clamp01 } from "@/lib/numeric";
 import { ensurePatchLayout } from "@/lib/patch/autoLayout";
 import { Project, Track, PatchWorkspaceTabState } from "@/types/music";
 import { Patch } from "@/types/patch";
@@ -45,7 +46,6 @@ type RawTemplateProject = {
 
 const templateProject = defaultProjectTemplateData as RawTemplateProject;
 
-const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
 const asString = (value: unknown, fallback: string): string => (typeof value === "string" ? value : fallback);
 const asFiniteNumber = (value: unknown, fallback: number): number => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
 
@@ -55,7 +55,7 @@ const sanitizeTemplateTrack = (track: RawTemplateTrack, index: number): Track =>
   const macroValuesRaw = typeof track.macroValues === "object" && track.macroValues !== null ? track.macroValues : {};
   const macroValues = Object.fromEntries(
     Object.entries(macroValuesRaw).flatMap(([key, value]) =>
-      typeof value === "number" && Number.isFinite(value) ? [[key, clamp(value, 0, 1)]] : []
+      typeof value === "number" && Number.isFinite(value) ? [[key, clamp01(value)]] : []
     )
   );
 
@@ -77,7 +77,7 @@ const sanitizeTemplateTrack = (track: RawTemplateTrack, index: number): Track =>
           pitchStr,
           startBeat: Math.max(0, startBeat),
           durationBeats,
-          velocity: clamp(asFiniteNumber((note as { velocity?: unknown }).velocity, 0.85), 0, 1)
+          velocity: clamp01(asFiniteNumber((note as { velocity?: unknown }).velocity, 0.85))
         }
       ];
     }),
@@ -92,10 +92,10 @@ const sanitizeTemplateTrack = (track: RawTemplateTrack, index: number): Track =>
       reverbEnabled: Boolean((fx as { reverbEnabled?: unknown }).reverbEnabled),
       saturationEnabled: Boolean((fx as { saturationEnabled?: unknown }).saturationEnabled),
       compressorEnabled: Boolean((fx as { compressorEnabled?: unknown }).compressorEnabled),
-      delayMix: clamp(asFiniteNumber((fx as { delayMix?: unknown }).delayMix, 0.2), 0, 1),
-      reverbMix: clamp(asFiniteNumber((fx as { reverbMix?: unknown }).reverbMix, 0.2), 0, 1),
-      drive: clamp(asFiniteNumber((fx as { drive?: unknown }).drive, 0.2), 0, 1),
-      compression: clamp(asFiniteNumber((fx as { compression?: unknown }).compression, 0.4), 0, 1)
+      delayMix: clamp01(asFiniteNumber((fx as { delayMix?: unknown }).delayMix, 0.2)),
+      reverbMix: clamp01(asFiniteNumber((fx as { reverbMix?: unknown }).reverbMix, 0.2)),
+      drive: clamp01(asFiniteNumber((fx as { drive?: unknown }).drive, 0.2)),
+      compression: clamp01(asFiniteNumber((fx as { compression?: unknown }).compression, 0.4))
     }
   };
 };

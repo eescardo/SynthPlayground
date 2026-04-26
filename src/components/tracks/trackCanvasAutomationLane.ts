@@ -1,4 +1,5 @@
 import { AutomationKeyframeSide, AutomationPoint } from "@/lib/macroAutomation";
+import { clamp01 } from "@/lib/numeric";
 
 export interface AutomationKeyframeRect {
   trackId: string;
@@ -43,7 +44,7 @@ const AUTOMATION_SPLIT_CENTER_OFFSET = 3;
 const LANE_LABEL_X = 18;
 
 export const automationValueFromY = (y: number, laneY: number, laneHeight: number): number =>
-  Math.max(0, Math.min(1, 1 - (y - (laneY + 6)) / Math.max(1, laneHeight - 12)));
+  clamp01(1 - (y - (laneY + 6)) / Math.max(1, laneHeight - 12));
 
 export const automationYFromValue = (value: number, laneY: number, laneHeight: number): number =>
   laneY + 6 + (1 - value) * Math.max(1, laneHeight - 12);
@@ -314,9 +315,9 @@ export function renderFixedLane({
   const sliderStartX = headerWidth + Math.min(beatWidth * 0.25, 18);
   const sliderEndX = Math.min(width - 10, sliderStartX + beatWidth * 3.8);
   const sliderCenterY = laneY + height * 0.5;
-  const normalized = Math.max(0, Math.min(1, value));
+  const normalized = clamp01(value);
   const thumbX = sliderStartX + (sliderEndX - sliderStartX) * normalized;
-  const defaultNormalized = Math.max(0, Math.min(1, defaultValue));
+  const defaultNormalized = clamp01(defaultValue);
   const defaultX = sliderStartX + (sliderEndX - sliderStartX) * defaultNormalized;
 
   ctx.fillStyle = veilTimeline ? colors.automationLaneTimelineVeil : colors.automationLaneBg;
