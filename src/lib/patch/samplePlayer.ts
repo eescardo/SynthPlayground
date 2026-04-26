@@ -1,5 +1,6 @@
 "use client";
 
+import { clamp, clampBipolar } from "@/lib/numeric";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
 
 export interface SerializedSamplePlayerData {
@@ -18,8 +19,6 @@ export interface DecodedSampleAsset {
 }
 
 const SAMPLE_DATA_VERSION = 1;
-
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 export function samplePlayerPitchSemisToRootPitch(pitchSemis: number) {
   return midiToPitch(Math.round(60 - clamp(pitchSemis, -48, 48)));
@@ -46,7 +45,7 @@ export function parseSamplePlayerData(raw: string | null | undefined): DecodedSa
       return null;
     }
     const samples = Float32Array.from(
-      parsed.samples.map((sample) => (typeof sample === "number" && Number.isFinite(sample) ? clamp(sample, -1, 1) : 0))
+      parsed.samples.map((sample) => (typeof sample === "number" && Number.isFinite(sample) ? clampBipolar(sample) : 0))
     );
     if (samples.length === 0) {
       return null;

@@ -1,4 +1,5 @@
 import { NoteClipboardPayload } from "@/lib/clipboard";
+import { clamp, clamp01 } from "@/lib/numeric";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
 import { PreviewProbeCapture } from "@/types/probes";
 
@@ -17,8 +18,6 @@ export interface DominantSamplePitch {
   confidence: number;
   suggestedPitchSemis: number;
 }
-
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 export function detectMonophonicPitchNotes(
   capture: PreviewProbeCapture | undefined,
@@ -214,7 +213,7 @@ function analyzePitchWindows(
   startSample: number,
   endSample: number
 ) {
-  const windowSize = Math.max(512, Math.min(2048, endSample - startSample));
+  const windowSize = clamp(endSample - startSample, 512, 2048);
   const hopSize = Math.max(128, Math.floor(windowSize / 4));
   const windows: Array<{ midi: number; startSample: number; endSample: number; confidence: number }> = [];
   for (let windowStart = startSample; windowStart + windowSize <= endSample; windowStart += hopSize) {
@@ -273,7 +272,7 @@ function detectAutocorrelationFrequency(
 
   return {
     frequency: sampleRate / bestLag,
-    confidence: clamp(bestCorrelation / Math.max(1, windowSize), 0, 1)
+    confidence: clamp01(bestCorrelation / Math.max(1, windowSize))
   };
 }
 

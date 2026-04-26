@@ -1,6 +1,7 @@
 "use client";
 
 import { RefObject, useLayoutEffect, useRef, useState } from "react";
+import { clamp } from "@/lib/numeric";
 
 interface AnchorPosition {
   left: number;
@@ -39,8 +40,8 @@ export function useFixedPopoverPosition<T extends HTMLElement>({
       const maxTop = Math.max(margin, window.innerHeight - height - margin);
 
       setPosition({
-        left: Math.min(Math.max(anchor.left, margin), maxLeft),
-        top: Math.min(Math.max(anchor.top, margin), maxTop)
+        left: clamp(anchor.left, margin, maxLeft),
+        top: clamp(anchor.top, margin, maxTop)
       });
     };
 

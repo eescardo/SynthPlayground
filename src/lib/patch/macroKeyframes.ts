@@ -1,6 +1,7 @@
+import { clamp01 } from "@/lib/numeric";
 import { MacroBinding, Patch, PatchMacro } from "@/types/patch";
 
-export const clampNormalizedMacroValue = (normalized: number) => Math.max(0, Math.min(1, normalized));
+export const clampNormalizedMacroValue = clamp01;
 export const MACRO_KEYFRAME_SNAP_THRESHOLD = 0.035;
 
 export function getMacroKeyframePositions(keyframeCount: number) {

@@ -1,3 +1,4 @@
+import { clamp } from "@/lib/numeric";
 import { normalizeProbeSamples, PROBE_MAX_MAX_FREQUENCY_HZ, resolveProbePeakAmplitude } from "@/lib/patch/probes";
 import { PreviewProbeCapture } from "@/types/probes";
 
@@ -126,7 +127,7 @@ export function resolveSpectrumFrequencyMarkers(maxFrequencyHz: number): Spectru
     .sort((left, right) => left - right)
     .map((frequency) => ({
       frequency,
-      bottomPercent: Math.sqrt(frequency / Math.max(1, Math.min(maxFrequencyHz, PROBE_MAX_MAX_FREQUENCY_HZ))) * 100
+      bottomPercent: Math.sqrt(frequency / clamp(maxFrequencyHz, 1, PROBE_MAX_MAX_FREQUENCY_HZ)) * 100
     }));
 }
 

@@ -55,6 +55,7 @@ import {
 import { useTrackCanvasLayout } from "@/hooks/tracks/useTrackCanvasLayout";
 import { useTrackCanvasWheelPitchEditing } from "@/hooks/tracks/useTrackCanvasWheelPitchEditing";
 import { useVolumePopover } from "@/hooks/useVolumePopover";
+import { clamp01 } from "@/lib/numeric";
 import { getLoopMarkerStates } from "@/lib/looping";
 import { getProjectTimelineEndBeat } from "@/lib/macroAutomation";
 import { getNoteSelectionKey } from "@/lib/clipboard";
@@ -282,7 +283,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const fixedLaneSliderStartX = HEADER_WIDTH + Math.min(BEAT_WIDTH * 0.25, 18);
   const fixedLaneSliderEndX = Math.min(width - 10, fixedLaneSliderStartX + BEAT_WIDTH * 3.8);
   const fixedLaneValueFromX = (x: number) =>
-    Math.max(0, Math.min(1, (x - fixedLaneSliderStartX) / Math.max(1, fixedLaneSliderEndX - fixedLaneSliderStartX)));
+    clamp01((x - fixedLaneSliderStartX) / Math.max(1, fixedLaneSliderEndX - fixedLaneSliderStartX));
   const isTrackSilenced = useCallback((track: Track) => track.mute || isTrackVolumeMuted(track.volume), []);
   const getSelectionPopoverAnchorPosition = useCallback(() => {
     const wrapper = wrapperRef.current;

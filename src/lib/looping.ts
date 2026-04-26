@@ -1,5 +1,6 @@
 import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
 import { createId } from "@/lib/ids";
+import { clamp } from "@/lib/numeric";
 import {
   cloneAutomationKeyframeAtBeat,
   getProjectTimelineEndBeat,
@@ -64,7 +65,7 @@ type LoopMarkerInput = ProjectGlobalSettings["loop"][number];
 
 const clampRepeatCount = (repeatCount: unknown): number =>
   typeof repeatCount === "number" && Number.isFinite(repeatCount)
-    ? Math.max(DEFAULT_LOOP_REPEAT_COUNT, Math.min(MAX_LOOP_REPEAT_COUNT, Math.round(repeatCount)))
+    ? clamp(Math.round(repeatCount), DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT)
     : DEFAULT_LOOP_REPEAT_COUNT;
 
 const sortMarkers = (markers: SanitizedLoopMarker[]): SanitizedLoopMarker[] =>

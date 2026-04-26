@@ -47,6 +47,7 @@ import {
 } from "@/components/patch/patchCanvasConstants";
 import { resolveInvalidPortKeys } from "@/components/patch/patchCanvasValidation";
 import { CanvasRect, HitPort, isHostPatchNodeId, resolveHostPatchPortRect, resolveHostPatchPortTint } from "@/components/patch/patchCanvasGeometry";
+import { clamp, clamp01 } from "@/lib/numeric";
 import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
 import { PatchDiff } from "@/lib/patch/diff";
 import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
@@ -185,10 +186,10 @@ function drawAdsrEnvelopePath(
 ) {
   const attackMs = Math.max(1, values.attack * 1000);
   const decayMs = Math.max(1, values.decay * 1000);
-  const sustain = Math.max(0, Math.min(1, values.sustain));
+  const sustain = clamp01(values.sustain);
   const releaseMs = Math.max(1, values.release * 1000);
   const scaledDurationMs = Math.max(longestDurationMs, attackMs + decayMs + releaseMs, 1);
-  const sustainHoldWidth = Math.max(10, Math.min(graph.width * 0.16, 18));
+  const sustainHoldWidth = clamp(graph.width * 0.16, 10, 18);
   const timedWidth = Math.max(graph.width - sustainHoldWidth, graph.width * 0.6);
   const timeScale = timedWidth / scaledDurationMs;
   const ax = graph.x + attackMs * timeScale;

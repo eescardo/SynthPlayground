@@ -1,6 +1,7 @@
 import { createDefaultParamsForType, getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { createId } from "@/lib/ids";
 import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch/patchCanvasConstants";
+import { clamp, clampRange } from "@/lib/numeric";
 import {
   clampNormalizedMacroValue,
   convertBindingToKeyframeCount,
@@ -16,8 +17,6 @@ const clonePatch = (patch: Patch): Patch => structuredClone(patch);
 const findLayoutNode = (patch: Patch, nodeId: string): number => patch.layout.nodes.findIndex((node) => node.nodeId === nodeId);
 
 const buildParamRangeKey = (nodeId: string, paramId: string) => `${nodeId}:${paramId}`;
-
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 function clampMacroBindingValues(binding: Patch["ui"]["macros"][number]["bindings"][number], min: number, max: number) {
   if (binding.points) {
@@ -125,7 +124,7 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
     }
 
     case "setCanvasZoom": {
-      next.ui.canvasZoom = Math.max(PATCH_CANVAS_MIN_ZOOM, Math.min(PATCH_CANVAS_MAX_ZOOM, op.zoom));
+      next.ui.canvasZoom = clamp(op.zoom, PATCH_CANVAS_MIN_ZOOM, PATCH_CANVAS_MAX_ZOOM);
       return next;
     }
 
@@ -150,8 +149,7 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       }
       const rawMin = clamp(op.min, schema.range.min, schema.range.max);
       const rawMax = clamp(op.max, schema.range.min, schema.range.max);
-      const min = Math.min(rawMin, rawMax);
-      const max = Math.max(rawMin, rawMax);
+      const { min, max } = clampRange(rawMin, rawMax);
       const key = buildParamRangeKey(op.nodeId, op.paramId);
       next.ui.paramRanges = { ...(next.ui.paramRanges ?? {}) };
       if (min === schema.range.min && max === schema.range.max) {

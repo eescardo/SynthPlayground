@@ -3,6 +3,7 @@
 import { RefObject, useCallback } from "react";
 import { AudioEngine } from "@/audio/engine";
 import { createTrackVolumeAutomationLane, TRACK_VOLUME_AUTOMATION_ID } from "@/lib/macroAutomation";
+import { clamp } from "@/lib/numeric";
 import { pitchToVoct } from "@/lib/pitch";
 import { Project } from "@/types/music";
 
@@ -95,7 +96,7 @@ export function useTrackVolumeAutomationActions({
   }, [commitProjectChange]);
 
   const previewTrackVolume = useCallback((trackId: string, volume: number) => {
-    audioEngineRef.current?.setMacroValue(trackId, TRACK_VOLUME_AUTOMATION_ID, Math.max(0, Math.min(2, volume)) / 2);
+    audioEngineRef.current?.setMacroValue(trackId, TRACK_VOLUME_AUTOMATION_ID, clamp(volume, 0, 2) / 2);
     audioEngineRef.current
       ?.previewNote(trackId, pitchToVoct(previewPitch), 1, 0.9, { ignoreVolume: false })
       .catch((error) => setRuntimeError((error as Error).message));

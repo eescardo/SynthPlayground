@@ -1,4 +1,5 @@
 import { createId } from "@/lib/ids";
+import { clamp01 } from "@/lib/numeric";
 import {
   ProjectGlobalCarrier,
   Project,
@@ -9,7 +10,7 @@ import {
 } from "@/types/music";
 import { Patch } from "@/types/patch";
 
-const clampNormalized = (value: number): number => Math.max(0, Math.min(1, value));
+const clampNormalized = clamp01;
 const EPSILON = 1e-9;
 const SPLIT_OFFSET = 0.1;
 export const TRACK_VOLUME_AUTOMATION_ID = "__track_volume__";

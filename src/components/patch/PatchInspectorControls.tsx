@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { PatchBindingDiff, PatchDiffStatus } from "@/lib/patch/diff";
 import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { useRenameActivation } from "@/hooks/useRenameActivation";
+import { clamp } from "@/lib/numeric";
 import { MacroBinding, Patch, PatchMacro } from "@/types/patch";
 
 export function formatBindingValue(value: number) {
@@ -28,10 +29,6 @@ export function resolveDiffTone(status: PatchDiffStatus | undefined): "positive"
     return "negative";
   }
   return null;
-}
-
-function clampNumericValue(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
 }
 
 function formatBindingSummary(binding: MacroBinding) {
@@ -64,7 +61,7 @@ export function EditableNumberLabel(props: {
   const commit = () => {
     const numeric = Number(draft);
     if (Number.isFinite(numeric)) {
-      props.onCommit(clampNumericValue(numeric, props.min, props.max));
+      props.onCommit(clamp(numeric, props.min, props.max));
     }
     setEditing(false);
   };

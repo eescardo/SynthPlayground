@@ -10,7 +10,7 @@ export const TRACK_VOLUME_DEFAULT_LABEL = `${TRACK_VOLUME_DEFAULT * TRACK_VOLUME
 export const TRACK_VOLUME_MAX_LABEL = `${TRACK_VOLUME_MAX * TRACK_VOLUME_PERCENT_MULTIPLIER}%`;
 
 export const clampTrackVolume = (volume: number): number =>
-  Math.max(TRACK_VOLUME_MIN, Math.min(TRACK_VOLUME_MAX, volume));
+  clamp(volume, TRACK_VOLUME_MIN, TRACK_VOLUME_MAX);
 
 export const isTrackVolumeMuted = (volume: number): boolean => volume <= TRACK_VOLUME_MIN;
 
@@ -31,3 +31,4 @@ export const trackVolumeFromClientY = (clientY: number, element: HTMLElement): n
   const normalized = 1 - (clientY - rect.top) / rect.height;
   return clampTrackVolume(normalized * TRACK_VOLUME_MAX);
 };
+import { clamp } from "@/lib/numeric";

@@ -1,6 +1,7 @@
 import { createId } from "@/lib/ids";
 import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping";
 import { sanitizeMacroAutomationMap } from "@/lib/macroAutomation";
+import { clamp, clamp01 } from "@/lib/numeric";
 import { clampProbeMaxFrequencyHz, DEFAULT_PROBE_MAX_FREQUENCY_HZ } from "@/lib/patch/probes";
 import { presetPatches } from "@/lib/patch/presets";
 import { normalizePatch } from "@/lib/patch/codec";
@@ -17,8 +18,6 @@ const asFiniteNumber = (value: unknown, fallback: number): number =>
   typeof value === "number" && Number.isFinite(value) ? value : fallback;
 
 const asString = (value: unknown, fallback: string): string => (typeof value === "string" ? value : fallback);
-
-const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
 
 const asOptionalFiniteNumber = (value: unknown): number | undefined =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
@@ -41,7 +40,7 @@ const sanitizeMacroValueMap = (raw: unknown): Record<string, number> => {
   const values: Record<string, number> = {};
   for (const [key, value] of Object.entries(raw)) {
     if (typeof value === "number" && Number.isFinite(value)) {
-      values[key] = clamp(value, 0, 1);
+      values[key] = clamp01(value);
     }
   }
   return values;
@@ -195,7 +194,7 @@ export const normalizeProject = (raw: unknown): Project => {
             pitchStr,
             startBeat: Math.max(0, startBeat),
             durationBeats,
-            velocity: clamp(asFiniteNumber(note.velocity, 0.85), 0, 1)
+            velocity: clamp01(asFiniteNumber(note.velocity, 0.85))
           };
         })
         .filter((note): note is NonNullable<typeof note> => Boolean(note))
@@ -218,10 +217,10 @@ export const normalizeProject = (raw: unknown): Project => {
           reverbEnabled: Boolean(fxRaw.reverbEnabled),
           saturationEnabled: Boolean(fxRaw.saturationEnabled),
           compressorEnabled: Boolean(fxRaw.compressorEnabled),
-          delayMix: clamp(asFiniteNumber(fxRaw.delayMix, defaultTrackFx().delayMix), 0, 1),
-          reverbMix: clamp(asFiniteNumber(fxRaw.reverbMix, defaultTrackFx().reverbMix), 0, 1),
-          drive: clamp(asFiniteNumber(fxRaw.drive, defaultTrackFx().drive), 0, 1),
-          compression: clamp(asFiniteNumber(fxRaw.compression, defaultTrackFx().compression), 0, 1)
+          delayMix: clamp01(asFiniteNumber(fxRaw.delayMix, defaultTrackFx().delayMix)),
+          reverbMix: clamp01(asFiniteNumber(fxRaw.reverbMix, defaultTrackFx().reverbMix)),
+          drive: clamp01(asFiniteNumber(fxRaw.drive, defaultTrackFx().drive)),
+          compression: clamp01(asFiniteNumber(fxRaw.compression, defaultTrackFx().compression))
         }
       };
     })

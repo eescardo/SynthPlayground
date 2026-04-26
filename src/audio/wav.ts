@@ -1,3 +1,5 @@
+import { clampBipolar } from "@/lib/numeric";
+
 export interface PcmStereoData {
   left: Float32Array;
   right: Float32Array;
@@ -35,8 +37,8 @@ export const pcmStereoToWavBlob = ({ left, right, sampleRate }: PcmStereoData): 
 
   let offset = 44;
   for (let frame = 0; frame < numFrames; frame += 1) {
-    const leftSample = Math.max(-1, Math.min(1, left[frame] ?? 0));
-    const rightSample = Math.max(-1, Math.min(1, right[frame] ?? 0));
+    const leftSample = clampBipolar(left[frame] ?? 0);
+    const rightSample = clampBipolar(right[frame] ?? 0);
     view.setInt16(offset, leftSample < 0 ? leftSample * 0x8000 : leftSample * 0x7fff, true);
     offset += bytesPerSample;
     view.setInt16(offset, rightSample < 0 ? rightSample * 0x8000 : rightSample * 0x7fff, true);

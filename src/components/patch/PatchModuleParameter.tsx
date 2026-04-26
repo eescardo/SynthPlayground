@@ -6,13 +6,10 @@ import {
 import { PatchDiff } from "@/lib/patch/diff";
 import { EditableNumberLabel, MacroBindingDetails, ParamMacroControl } from "@/components/patch/PatchInspectorControls";
 import { createId } from "@/lib/ids";
+import { clamp, clampRange } from "@/lib/numeric";
 import { MacroBinding, Patch, PatchMacro, PatchNode, PatchParamSliderRange, ParamSchema, ParamValue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { samplePlayerPitchSemisToRootPitch } from "@/lib/patch/samplePlayer";
-
-function clampNumericValue(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
 
 function getParamNumericRange(param: ParamSchema) {
   return param.type === "float" ? param.range : { min: 0, max: 1 };
@@ -28,9 +25,9 @@ function resolveParamSliderRange(patch: Patch, nodeId: string, param: ParamSchem
   if (!storedRange || param.type !== "float") {
     return schemaRange;
   }
-  const min = clampNumericValue(storedRange.min, param.range.min, param.range.max);
-  const max = clampNumericValue(storedRange.max, param.range.min, param.range.max);
-  return { min: Math.min(min, max), max: Math.max(min, max) };
+  const min = clamp(storedRange.min, param.range.min, param.range.max);
+  const max = clamp(storedRange.max, param.range.min, param.range.max);
+  return clampRange(min, max);
 }
 
 function createDefaultBindingForParam(
@@ -259,7 +256,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
       : value;
   const sliderControlValue =
     props.param.type === "float" && typeof controlValue === "number"
-      ? clampNumericValue(controlValue, sliderRange.min, sliderRange.max)
+      ? clamp(controlValue, sliderRange.min, sliderRange.max)
       : controlValue;
   const controlDisabled = Boolean(
     props.structureLocked ||

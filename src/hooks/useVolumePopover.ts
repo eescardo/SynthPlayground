@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { clamp } from "@/lib/numeric";
 
 const VOLUME_POPOVER_WIDTH = 96;
 const VOLUME_POPOVER_HEIGHT = 220;
@@ -15,11 +16,11 @@ function getVolumePopoverPosition(anchor: HTMLElement) {
   const left =
     preferredLeft <= maxLeft
       ? preferredLeft
-      : Math.max(VIEWPORT_MARGIN, Math.min(fallbackLeft, maxLeft));
+      : clamp(fallbackLeft, VIEWPORT_MARGIN, maxLeft);
 
   const preferredTop = rect.top - 3;
   const maxTop = Math.max(VIEWPORT_MARGIN, window.innerHeight - VOLUME_POPOVER_HEIGHT - VIEWPORT_MARGIN);
-  const top = Math.max(VIEWPORT_MARGIN, Math.min(preferredTop, maxTop));
+  const top = clamp(preferredTop, VIEWPORT_MARGIN, maxTop);
 
   return { left, top };
 }

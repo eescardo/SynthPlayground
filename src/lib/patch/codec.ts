@@ -1,4 +1,5 @@
 import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch/patchCanvasConstants";
+import { clamp, clamp01, clampRange } from "@/lib/numeric";
 import { ensurePatchLayout } from "@/lib/patch/autoLayout";
 import { normalizeMacroKeyframeCount } from "@/lib/patch/macroKeyframes";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
@@ -14,8 +15,6 @@ const asOptionalFiniteNumber = (value: unknown): number | undefined =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
 const asString = (value: unknown, fallback: string): string => (typeof value === "string" ? value : fallback);
-
-const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
 
 const sanitizeParamMap = (raw: unknown): Record<string, number | string | boolean> => {
   if (!isObject(raw)) {
@@ -66,7 +65,7 @@ const sanitizePatchParamRanges = (raw: unknown): Record<string, PatchParamSlider
     const min = asOptionalFiniteNumber(range.min);
     const max = asOptionalFiniteNumber(range.max);
     if (min !== undefined && max !== undefined) {
-      ranges[key] = { min: Math.min(min, max), max: Math.max(min, max) };
+      ranges[key] = clampRange(min, max);
     }
   }
   return Object.keys(ranges).length > 0 ? ranges : undefined;
@@ -79,7 +78,7 @@ const sanitizePatchMacro = (raw: unknown, index: number): PatchMacro => {
     id: asString(macro.id, `macro_${index}`),
     name: asString(macro.name, `Macro ${index + 1}`),
     keyframeCount: normalizeMacroKeyframeCount(macro.keyframeCount),
-    defaultNormalized: clamp(asFiniteNumber(macro.defaultNormalized, 0.5), 0, 1),
+    defaultNormalized: clamp01(asFiniteNumber(macro.defaultNormalized, 0.5)),
     bindings: bindingsRaw.map((binding, bindingIndex) => {
       const item = isObject(binding) ? binding : {};
       const pointsRaw = Array.isArray(item.points) ? item.points : [];
@@ -87,7 +86,7 @@ const sanitizePatchMacro = (raw: unknown, index: number): PatchMacro => {
         .map((point) => {
           const entry = isObject(point) ? point : {};
           return {
-            x: clamp(asFiniteNumber(entry.x, 0), 0, 1),
+            x: clamp01(asFiniteNumber(entry.x, 0)),
             y: asFiniteNumber(entry.y, 0)
           };
         })
