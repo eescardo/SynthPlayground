@@ -9,7 +9,7 @@ import {
   resolveMacroBindingValue,
   setMacroBindingValueAtKeyframe
 } from "@/lib/patch/macroKeyframes";
-import { Patch } from "@/types/patch";
+import { MacroBinding, Patch } from "@/types/patch";
 import { PatchHistoryState, PatchOp } from "@/types/ops";
 
 const clonePatch = (patch: Patch): Patch => structuredClone(patch);
@@ -18,7 +18,7 @@ const findLayoutNode = (patch: Patch, nodeId: string): number => patch.layout.no
 
 const buildParamRangeKey = (nodeId: string, paramId: string) => `${nodeId}:${paramId}`;
 
-function clampMacroBindingValues(binding: Patch["ui"]["macros"][number]["bindings"][number], min: number, max: number) {
+function clampMacroBindingValues(binding: MacroBinding, min: number, max: number) {
   if (binding.points) {
     binding.points = binding.points.map((point) => ({ ...point, y: clamp(point.y, min, max) }));
     return;
