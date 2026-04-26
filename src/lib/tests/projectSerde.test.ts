@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { exportProjectToJson, importProjectBundleFromJson, importProjectFromJson, normalizeProject } from "@/lib/projectSerde";
-import { normalizePatch } from "@/lib/patch/codec";
+import { normalizePatch } from "@/lib/patch/normalize";
 import { createDefaultProject } from "@/lib/patch/presets";
 import { getBundledPresetLineage } from "@/lib/patch/source";
 import { validatePatch } from "@/lib/patch/validation";

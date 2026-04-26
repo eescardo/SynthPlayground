@@ -4,7 +4,7 @@ import { sanitizeMacroAutomationMap } from "@/lib/macroAutomation";
 import { clamp, clamp01 } from "@/lib/numeric";
 import { clampProbeMaxFrequencyHz, DEFAULT_PROBE_MAX_FREQUENCY_HZ } from "@/lib/patch/probes";
 import { presetPatches } from "@/lib/patch/presets";
-import { normalizePatch } from "@/lib/patch/codec";
+import { normalizePatch } from "@/lib/patch/normalize";
 import { TRACK_VOLUME_DEFAULT, TRACK_VOLUME_MAX, TRACK_VOLUME_MIN } from "@/lib/trackVolume";
 import { Project, TrackFxSettings, PatchWorkspaceTabState } from "@/types/music";
 import { PatchProbeTarget, PatchWorkspaceProbeState } from "@/types/probes";

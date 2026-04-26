@@ -1,4 +1,4 @@
-import { normalizePatch } from "@/lib/patch/codec";
+import { normalizePatch } from "@/lib/patch/normalize";
 import { createEmptyProjectAssetLibrary, normalizeProjectAssetLibrary, pickReferencedPatchAssets } from "@/lib/sampleAssetLibrary";
 import { ProjectAssetLibrary } from "@/types/assets";
 import { Patch } from "@/types/patch";
