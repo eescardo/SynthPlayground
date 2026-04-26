@@ -63,7 +63,6 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const nodeById = useMemo(() => new Map(props.patch.nodes.map((node) => [node.id, node] as const)), [props.patch.nodes]);
   const selectedNode = props.selectedNodeId ? nodeById.get(props.selectedNodeId) : undefined;
   const selectedSchema = selectedNode ? getModuleSchema(selectedNode.typeId) : undefined;
-  const { patchDiff } = props.baselineDiff;
   const {
     attachingProbeId,
     cancelAttachProbe,
@@ -106,7 +105,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
 
           <PatchMacroPanel
             patch={props.patch}
-            patchDiff={patchDiff}
+            patchDiff={props.baselineDiff.patchDiff}
             macroValues={props.macroValues}
             selectedMacroId={props.selectedMacroId}
             structureLocked={props.structureLocked}
@@ -122,7 +121,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
 
         <PatchInspector
           patch={props.patch}
-          patchDiff={patchDiff}
+          patchDiff={props.baselineDiff.patchDiff}
           macroValues={props.macroValues}
           selectedNode={selectedNode}
           selectedProbe={selectedProbe}
