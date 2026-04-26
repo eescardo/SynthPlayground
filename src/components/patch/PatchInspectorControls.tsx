@@ -21,7 +21,7 @@ export function formatBindingValue(value: number) {
   return value.toFixed(3);
 }
 
-export function resolveDiffTone(status: PatchDiffStatus | undefined): "positive" | "negative" | null {
+export function resolveDiffHighlightClass(status: PatchDiffStatus | undefined): "positive" | "negative" | null {
   if (status === "added" || status === "modified") {
     return "positive";
   }
@@ -119,11 +119,11 @@ export function MacroBindingDetails(props: {
           .filter((binding) => binding.nodeId === props.nodeId && binding.paramId === props.paramId)
           .map((binding) => {
             const bindingDiff = props.currentBindingDiffByKey.get(`${macro.id}:${binding.id}`);
-            const diffTone = resolveDiffTone(bindingDiff?.status);
+            const diffHighlightClass = resolveDiffHighlightClass(bindingDiff?.status);
             return (
               <div
                 key={binding.id}
-                className={`macro-binding-detail-card${diffTone ? ` diff-${diffTone}` : ""}`}
+                className={`macro-binding-detail-card${diffHighlightClass ? ` diff-${diffHighlightClass}` : ""}`}
               >
                 <div className="macro-binding-detail-mode">
                   {formatBindingSummary(binding)}

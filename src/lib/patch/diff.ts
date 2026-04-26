@@ -51,9 +51,18 @@ export interface PatchDiffSummary {
   removedBindingCount: number;
 }
 
+export interface PatchDiffAffectedKeys {
+  nodeIds: Set<string>;
+  macroIds: Set<string>;
+  bindingKeys: Set<string>;
+  connectionIds: Set<string>;
+}
+
 export interface PatchDiff {
   hasBaseline: boolean;
   hasChanges: boolean;
+  // Stable keyed summary for consumers that only need invalidation/visibility decisions.
+  affected: PatchDiffAffectedKeys;
   nodeDiffById: Map<string, PatchNodeDiff>;
   removedNodes: PatchNode[];
   macroDiffById: Map<string, PatchMacroDiff>;
@@ -83,10 +92,20 @@ function createEmptySummary(): PatchDiffSummary {
   };
 }
 
+function createEmptyAffectedKeys(): PatchDiffAffectedKeys {
+  return {
+    nodeIds: new Set(),
+    macroIds: new Set(),
+    bindingKeys: new Set(),
+    connectionIds: new Set()
+  };
+}
+
 function createEmptyDiff(): PatchDiff {
   return {
     hasBaseline: false,
     hasChanges: false,
+    affected: createEmptyAffectedKeys(),
     nodeDiffById: new Map(),
     removedNodes: [],
     macroDiffById: new Map(),
@@ -424,10 +443,33 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
 
   const hasChanges =
     Object.values(summary).some((count) => count > 0);
+  const affected: PatchDiffAffectedKeys = {
+    nodeIds: new Set([
+      ...Array.from(nodeDiffById.values())
+        .filter((diff) => diff.status !== "unchanged")
+        .map((diff) => diff.nodeId),
+      ...removedNodes.map((node) => node.id)
+    ]),
+    macroIds: new Set([
+      ...Array.from(macroDiffById.values())
+        .filter((diff) => diff.status !== "unchanged")
+        .map((diff) => diff.macroId),
+      ...removedMacros.map((macro) => macro.id)
+    ]),
+    bindingKeys: new Set([
+      ...currentBindingDiffByKey.keys(),
+      ...removedBindingDiffs.map((diff) => diff.key)
+    ]),
+    connectionIds: new Set([
+      ...addedConnections.map((connection) => connection.id),
+      ...removedConnections.map((connection) => connection.id)
+    ])
+  };
 
   return {
     hasBaseline: true,
     hasChanges,
+    affected,
     nodeDiffById,
     removedNodes,
     macroDiffById,
