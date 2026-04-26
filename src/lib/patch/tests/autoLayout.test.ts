@@ -49,7 +49,7 @@ describe("patch auto layout", () => {
     const xByNode = new Map(layout.map((node) => [node.nodeId, node.x]));
 
     expect(xByNode.get("pitch")).toBeLessThan(xByNode.get("vco") ?? 0);
-    expect(xByNode.get("vco")).toBeLessThan(xByNode.get("out") ?? 0);
+    expect(xByNode.has("out")).toBe(false);
     expect(xByNode.get("pitch")).toBeGreaterThanOrEqual(4);
   });
 
@@ -73,7 +73,7 @@ describe("patch auto layout", () => {
 
     const xByNode = new Map(patch.layout.nodes.map((node) => [node.nodeId, node.x]));
     expect(xByNode.get("pitch")).toBeLessThan(xByNode.get("vco") ?? 0);
-    expect(xByNode.get("vco")).toBeLessThan(xByNode.get("out") ?? 0);
+    expect(xByNode.get("out")).toBe(0);
     expect(xByNode.get("vco")).toBeGreaterThanOrEqual((xByNode.get("pitch") ?? 0) + 12);
   });
 

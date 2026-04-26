@@ -6,6 +6,7 @@ import { PatchEditorToolbar } from "@/components/patch/PatchEditorToolbar";
 import { PatchProbeOverlay } from "@/components/patch/PatchProbeOverlay";
 import { PatchBaselineDiffState } from "@/components/patch/patchBaselineDiffState";
 import {
+  PATCH_OUTPUT_HOST_PORT_OVERHANG,
   PATCH_ATTACH_CURSOR_CLOSED,
   PATCH_ATTACH_CURSOR_OPEN,
   PATCH_MOVE_CURSOR,
@@ -14,7 +15,8 @@ import {
 import {
   resolvePatchCanvasSize,
   resolvePatchDiagramSize,
-  resolvePatchFacePopoverRect
+  resolvePatchFacePopoverRect,
+  resolveOutputHostPatchPortWidth
 } from "@/components/patch/patchCanvasGeometry";
 import { createId } from "@/lib/ids";
 import { resolveAutoLayoutNodes } from "@/lib/patch/autoLayout";
@@ -70,8 +72,12 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   const nodeById = useMemo(() => new Map(patch.nodes.map((node) => [node.id, node] as const)), [patch.nodes]);
   const outputNodeId = patch.io.audioOutNodeId;
   const visibleNodeCount = useMemo(() => patch.nodes.filter((node) => node.id !== outputNodeId).length, [outputNodeId, patch.nodes]);
-  const canvasSize = useMemo(() => resolvePatchCanvasSize(patch.layout.nodes), [patch.layout.nodes]);
-  const diagramSize = useMemo(() => resolvePatchDiagramSize(patch.layout.nodes), [patch.layout.nodes]);
+  const visibleLayoutNodes = useMemo(
+    () => patch.layout.nodes.filter((node) => node.nodeId !== outputNodeId),
+    [outputNodeId, patch.layout.nodes]
+  );
+  const contentCanvasSize = useMemo(() => resolvePatchCanvasSize(visibleLayoutNodes), [visibleLayoutNodes]);
+  const diagramSize = useMemo(() => resolvePatchDiagramSize(visibleLayoutNodes), [visibleLayoutNodes]);
   const updateScrollViewport = useCallback((element: HTMLDivElement) => {
     setScrollViewport({
       left: element.scrollLeft,
@@ -85,7 +91,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   }, [onApplyOp]);
 
   const { zoom } = usePatchCanvasZoom({
-    canvasSize,
+    canvasSize: contentCanvasSize,
     fitSize: diagramSize,
     onZoomChange: handleZoomChange,
     patchId: patch.id,
@@ -93,11 +99,28 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     savedZoom: patch.ui.canvasZoom,
     scrollRef
   });
-  const outputHostRightEdge = useMemo(() => {
+  const canvasSize = useMemo(
+    () => ({
+      width: Math.max(
+        contentCanvasSize.width,
+        scrollViewport.width > 0 ? Math.ceil((scrollViewport.left + scrollViewport.width + PATCH_OUTPUT_HOST_PORT_OVERHANG) / zoom) : 0
+      ),
+      height: contentCanvasSize.height
+    }),
+    [contentCanvasSize.height, contentCanvasSize.width, scrollViewport.left, scrollViewport.width, zoom]
+  );
+  const outputHostCanvasLeft = useMemo(() => {
     if (scrollViewport.width <= 0) {
       return canvasSize.width;
     }
-    return Math.min(canvasSize.width, (scrollViewport.left + scrollViewport.width) / zoom);
+    const screenLeft = scrollViewport.width + PATCH_OUTPUT_HOST_PORT_OVERHANG - resolveOutputHostPatchPortWidth();
+    return (scrollViewport.left + screenLeft) / zoom;
+  }, [canvasSize.width, scrollViewport.left, scrollViewport.width, zoom]);
+  const outputHostScreenLeft = useMemo(() => {
+    if (scrollViewport.width <= 0) {
+      return canvasSize.width * zoom - scrollViewport.left - resolveOutputHostPatchPortWidth();
+    }
+    return scrollViewport.width + PATCH_OUTPUT_HOST_PORT_OVERHANG - resolveOutputHostPatchPortWidth();
   }, [canvasSize.width, scrollViewport.left, scrollViewport.width, zoom]);
 
   useEffect(() => {
@@ -136,7 +159,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     layoutByNode,
     nodeById,
     patch,
-    outputHostRightEdge,
+    outputHostCanvasLeft,
     patchDiff: baselineDiff.patchDiff,
     validationIssues: props.validationIssues,
     selectedMacroNodeIds,
@@ -265,10 +288,10 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           </div>
         </div>
         <PatchHostPortOverlay
-          outputHostRightEdge={outputHostRightEdge}
+          outputHostCanvasLeft={outputHostCanvasLeft}
+          outputHostScreenLeft={outputHostScreenLeft}
           patch={patch}
           pendingFromPort={pendingFromPort}
-          scrollLeft={scrollViewport.left}
           scrollTop={scrollViewport.top}
           zoom={zoom}
           onPortSelection={handlePortSelection}

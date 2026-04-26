@@ -129,6 +129,10 @@ export function resolveOutputHostPatchPortRect(canvasWidth: number) {
   };
 }
 
+export function resolveOutputHostPatchPortWidth() {
+  return resolveOutputHostPatchPortRect(0).width;
+}
+
 export function resolveHostPatchPortRect(nodeId: string) {
   const hostIndex = SOURCE_HOST_NODE_IDS.indexOf(nodeId as (typeof SOURCE_HOST_NODE_IDS)[number]);
   if (hostIndex < 0) {

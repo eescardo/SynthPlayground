@@ -542,7 +542,7 @@ function resolvePortPositions(
   ctx: CanvasRenderingContext2D,
   patch: Patch,
   layoutByNode: Map<string, PatchLayoutNode>,
-  outputHostRightEdge: number
+  outputHostCanvasLeft: number
 ) {
   const portPositions = new Map<string, ResolvedPortPosition>();
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
@@ -569,7 +569,7 @@ function resolvePortPositions(
   const outputNode = patch.nodes.find((node) => isManagedOutputNode(patch, node.id));
   const outputPort = outputNode ? getModuleSchema(outputNode.typeId)?.portsIn.find((port) => port.id === patch.io.audioOutPortId) : undefined;
   if (outputNode && outputPort) {
-    const rect = resolveOutputHostPatchPortRect(outputHostRightEdge);
+    const rect = resolveOutputHostPatchPortRect(outputHostCanvasLeft);
     portPositions.set(`${outputNode.id}:in:${outputPort.id}`, {
       x: rect.x,
       y: rect.y,
@@ -828,7 +828,7 @@ export function drawPatchCanvas(args: {
   layoutByNode: Map<string, PatchLayoutNode>;
   nodeById: Map<string, PatchNode>;
   patch: Patch;
-  outputHostRightEdge: number;
+  outputHostCanvasLeft: number;
   patchDiff: PatchDiff;
   validationIssues: PatchValidationIssue[];
   pendingFromPort: HitPort | null;
@@ -847,7 +847,7 @@ export function drawPatchCanvas(args: {
   args.canvas.height = height;
 
   drawPatchGrid(ctx, width, height);
-  const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode, args.outputHostRightEdge);
+  const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode, args.outputHostCanvasLeft);
   const invalidPortKeys = resolveInvalidPortKeys(args.validationIssues);
   drawPatchConnections(ctx, args.patch, portPositions);
   drawPatchModules(

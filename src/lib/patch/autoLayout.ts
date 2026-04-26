@@ -34,6 +34,9 @@ export function resolveAutoLayoutNodes(patch: Pick<Patch, "nodes" | "connections
 
   const nodesByRank = new Map<number, PatchNode[]>();
   for (const node of patch.nodes) {
+    if (node.typeId === "Output") {
+      continue;
+    }
     const rank = rankByNodeId.get(node.id) ?? 0;
     const siblings = nodesByRank.get(rank) ?? [];
     siblings.push(node);

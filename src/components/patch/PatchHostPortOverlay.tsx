@@ -20,10 +20,10 @@ interface HostOverlayPort {
 }
 
 interface PatchHostPortOverlayProps {
-  outputHostRightEdge: number;
+  outputHostCanvasLeft: number;
+  outputHostScreenLeft: number;
   patch: Patch;
   pendingFromPort: HitPort | null;
-  scrollLeft: number;
   scrollTop: number;
   zoom: number;
   onPortSelection: (hitPort: HitPort, pointer: { x: number; y: number }) => void;
@@ -31,7 +31,13 @@ interface PatchHostPortOverlayProps {
   onSelectOutput: () => void;
 }
 
-function resolveOverlayPorts(patch: Patch, outputHostRightEdge: number, scrollLeft: number, scrollTop: number, zoom: number): HostOverlayPort[] {
+function resolveOverlayPorts(
+  patch: Patch,
+  outputHostCanvasLeft: number,
+  outputHostScreenLeft: number,
+  scrollTop: number,
+  zoom: number
+): HostOverlayPort[] {
   const sourcePorts: HostOverlayPort[] = SOURCE_HOST_NODE_IDS.map((nodeId): HostOverlayPort | null => {
     const rect = resolveHostPatchPortRect(nodeId);
     if (!rect) {
@@ -66,7 +72,7 @@ function resolveOverlayPorts(patch: Patch, outputHostRightEdge: number, scrollLe
   if (!outputNode) {
     return sourcePorts;
   }
-  const outputRect = resolveOutputHostPatchPortRect(outputHostRightEdge);
+  const outputRect = resolveOutputHostPatchPortRect(outputHostCanvasLeft);
   const outputTint = resolveHostPatchPortTint("$host.output");
   return [
     ...sourcePorts,
@@ -86,7 +92,7 @@ function resolveOverlayPorts(patch: Patch, outputHostRightEdge: number, scrollLe
         "--patch-host-port-bg": outputTint.fill,
         "--patch-host-port-border": outputTint.stroke,
         "--patch-host-port-text": outputTint.text,
-        left: `${outputRect.x * zoom - scrollLeft - outputRect.width}px`,
+        left: `${outputHostScreenLeft}px`,
         top: `${outputRect.y * zoom - scrollTop - outputRect.height / 2}px`,
         width: `${outputRect.width}px`,
         height: `${outputRect.height}px`
@@ -104,8 +110,8 @@ function resolveHostPortPointer(hitPort: HitPort) {
 
 export function PatchHostPortOverlay(props: PatchHostPortOverlayProps) {
   const ports = useMemo(
-    () => resolveOverlayPorts(props.patch, props.outputHostRightEdge, props.scrollLeft, props.scrollTop, props.zoom),
-    [props.outputHostRightEdge, props.patch, props.scrollLeft, props.scrollTop, props.zoom]
+    () => resolveOverlayPorts(props.patch, props.outputHostCanvasLeft, props.outputHostScreenLeft, props.scrollTop, props.zoom),
+    [props.outputHostCanvasLeft, props.outputHostScreenLeft, props.patch, props.scrollTop, props.zoom]
   );
 
   return (

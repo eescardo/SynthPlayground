@@ -24,7 +24,7 @@ interface UsePatchCanvasInteractionsArgs {
   layoutByNode: Map<string, PatchLayoutNode>;
   nodeById: Map<string, PatchNode>;
   patch: Patch;
-  outputHostRightEdge: number;
+  outputHostCanvasLeft: number;
   patchDiff: PatchDiff;
   validationIssues: PatchValidationIssue[];
   selectedMacroNodeIds: Set<string>;
@@ -56,7 +56,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     layoutByNode,
     nodeById,
     patch,
-    outputHostRightEdge,
+    outputHostCanvasLeft,
     patchDiff,
     validationIssues,
     selectedMacroNodeIds,
@@ -120,7 +120,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       layoutByNode,
       nodeById,
       patch,
-      outputHostRightEdge,
+      outputHostCanvasLeft,
       patchDiff,
       validationIssues,
       pendingFromPort,
@@ -139,7 +139,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     layoutByNode,
     nodeById,
     patch,
-    outputHostRightEdge,
+    outputHostCanvasLeft,
     patchDiff,
     validationIssues,
     selectedMacroNodeIds,
