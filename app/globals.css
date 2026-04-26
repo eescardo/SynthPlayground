@@ -2330,18 +2330,33 @@ select {
 }
 
 .param-value-slider {
+  --param-slider-track: rgba(167, 204, 240, 0.24);
+  --param-slider-fill: #d7ebff;
+  --param-slider-percent: 0%;
   display: block;
   width: 100%;
   margin: 0;
   appearance: none;
   background: transparent;
+  cursor: pointer;
+}
+
+.param-value-slider:disabled {
+  --param-slider-fill: rgba(215, 235, 255, 0.5);
+  cursor: not-allowed;
 }
 
 .param-value-slider::-webkit-slider-runnable-track {
   height: 0.18rem;
   border-radius: 999px;
-  background: rgba(167, 204, 240, 0.24);
+  background:
+    linear-gradient(
+      to right,
+      var(--param-slider-fill) 0 var(--param-slider-percent),
+      var(--param-slider-track) var(--param-slider-percent) 100%
+    );
   box-shadow: inset 0 0 0 1px rgba(197, 224, 250, 0.1);
+  cursor: pointer;
 }
 
 .param-value-slider::-webkit-slider-thumb {
@@ -2351,16 +2366,30 @@ select {
   margin-top: -0.2rem;
   border-radius: 999px;
   border: 1px solid rgba(196, 222, 248, 0.48);
-  background: #d7ebff;
+  background: var(--param-slider-fill);
   box-shadow: 0 1px 3px rgba(2, 8, 16, 0.35);
+  cursor: pointer;
+}
+
+.param-value-slider:disabled::-webkit-slider-runnable-track,
+.param-value-slider:disabled::-webkit-slider-thumb {
+  cursor: not-allowed;
 }
 
 .param-value-slider::-moz-range-track {
   height: 0.18rem;
   border: 0;
   border-radius: 999px;
-  background: rgba(167, 204, 240, 0.24);
+  background: var(--param-slider-track);
   box-shadow: inset 0 0 0 1px rgba(197, 224, 250, 0.1);
+  cursor: pointer;
+}
+
+.param-value-slider::-moz-range-progress {
+  height: 0.18rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--param-slider-fill);
 }
 
 .param-value-slider::-moz-range-thumb {
@@ -2368,8 +2397,15 @@ select {
   height: 0.58rem;
   border-radius: 999px;
   border: 1px solid rgba(196, 222, 248, 0.48);
-  background: #d7ebff;
+  background: var(--param-slider-fill);
   box-shadow: 0 1px 3px rgba(2, 8, 16, 0.35);
+  cursor: pointer;
+}
+
+.param-value-slider:disabled::-moz-range-track,
+.param-value-slider:disabled::-moz-range-progress,
+.param-value-slider:disabled::-moz-range-thumb {
+  cursor: not-allowed;
 }
 
 .param-current-value-label,

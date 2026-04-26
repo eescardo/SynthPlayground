@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import {
   getMacroKeyframePositions,
   resolveMacroBindingValue
@@ -89,6 +89,9 @@ function FloatParamValueControl(props: {
   onChange: (value: number) => void;
 }) {
   const [draftValue, setDraftValue] = useState(props.value);
+  const min = props.min ?? props.param.range.min;
+  const max = props.max ?? props.param.range.max;
+  const sliderPercent = max === min ? 0 : clamp(((draftValue - min) / (max - min)) * 100, 0, 100);
 
   useEffect(() => {
     setDraftValue(props.value);
@@ -105,11 +108,12 @@ function FloatParamValueControl(props: {
     <input
       className="param-value-slider"
       type="range"
-      min={props.min ?? props.param.range.min}
-      max={props.max ?? props.param.range.max}
-      step={props.param.step ?? ((props.max ?? props.param.range.max) - (props.min ?? props.param.range.min)) / 500}
+      min={min}
+      max={max}
+      step={props.param.step ?? Math.max((max - min) / 500, 0.000001)}
       value={draftValue}
       disabled={props.disabled}
+      style={{ "--param-slider-percent": `${sliderPercent}%` } as CSSProperties}
       onChange={(event) => setDraftValue(Number(event.target.value))}
       onPointerUp={(event) => commitDraft(Number(event.currentTarget.value))}
       onBlur={(event) => commitDraft(Number(event.currentTarget.value))}
