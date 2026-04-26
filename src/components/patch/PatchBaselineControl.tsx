@@ -2,18 +2,9 @@
 
 import { useState } from "react";
 import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
-import { Patch } from "@/types/patch";
+import { PatchBaselineControlState } from "@/components/patch/patchBaselineDiffState";
 
-interface PatchBaselineControlProps {
-  baselinePatch?: Patch;
-  currentPatchId: string;
-  hasPatchDiff: boolean;
-  patches: Patch[];
-  onSelectBaselinePatch: (patchId: string) => void;
-  onClearBaselinePatch: () => void;
-}
-
-export function PatchBaselineControl(props: PatchBaselineControlProps) {
+export function PatchBaselineControl(props: PatchBaselineControlState) {
   const [open, setOpen] = useState(false);
   const wrapperClassName = "patch-baseline-control";
 
@@ -24,7 +15,7 @@ export function PatchBaselineControl(props: PatchBaselineControlProps) {
   });
 
   return (
-    <div className={`${wrapperClassName}${props.hasPatchDiff ? " changed" : ""}`}>
+    <div className={`${wrapperClassName}${props.patchDiff.hasChanges ? " changed" : ""}`}>
       <span className="patch-baseline-label">Baseline</span>
       <span className="patch-baseline-name" title={props.baselinePatch ? `Baseline patch: ${props.baselinePatch.name}` : "No baseline patch"}>
         {props.baselinePatch?.name ?? "None"}
@@ -41,7 +32,7 @@ export function PatchBaselineControl(props: PatchBaselineControlProps) {
         <div className="patch-baseline-popover" role="dialog" aria-label="Select baseline patch">
           <div className="patch-baseline-popover-title">Select baseline patch</div>
           <div className="patch-baseline-option-list">
-            {props.patches.map((patch) => {
+            {props.availablePatches.map((patch) => {
               const isCurrentPatch = patch.id === props.currentPatchId;
               const isSelectedBaseline = patch.id === props.baselinePatch?.id;
               return (

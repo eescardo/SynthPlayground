@@ -184,8 +184,13 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
 
   const viewProps: React.ComponentProps<typeof PatchWorkspaceView> = {
     patch: selectedPatch,
-    baselinePatch: patchWorkspace.baselinePatch,
-    patches: project.patches,
+    baselineDiff: {
+      baselinePatch: patchWorkspace.baselinePatch,
+      patchDiff: patchWorkspace.patchDiff,
+      availablePatches: project.patches,
+      onSelectBaselinePatch: patchWorkspace.setBaselinePatchFromPatchId,
+      onClearBaselinePatch: patchWorkspace.clearCurrentPatchBaseline
+    },
     importInputRef,
     recentProjects,
     probeState: {
@@ -203,7 +208,6 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
     })),
     activeTabId: patchWorkspace.activeTabId,
     macroValues: patchWorkspace.workspaceMacroValues,
-    patchDiff: patchWorkspace.patchDiff,
     previewPitch: patchWorkspace.previewPitch,
     migrationNotice: patchWorkspace.migrationNotice,
     selectedNodeId: patchWorkspace.selectedNodeId,
@@ -229,8 +233,6 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
     onSelectMacro: patchWorkspace.setSelectedMacroId,
     onClearSelectedMacro: patchWorkspace.clearSelectedMacro,
     onClearPatch: patchWorkspace.clearSelectedPatchCircuit,
-    onSelectBaselinePatch: patchWorkspace.setBaselinePatchFromPatchId,
-    onClearBaselinePatch: patchWorkspace.clearCurrentPatchBaseline,
     onApplyOp: patchWorkspace.applyPatchOp,
     probeActions: {
       addProbe: patchWorkspace.addProbeToWorkspace,

@@ -2,18 +2,15 @@
 
 import { PatchBaselineControl } from "@/components/patch/PatchBaselineControl";
 import { PatchToolbarPicker } from "@/components/patch/PatchToolbarPicker";
+import { PatchBaselineControlState } from "@/components/patch/patchBaselineDiffState";
 import { modulePalette } from "@/lib/patch/moduleRegistry";
-import { Patch } from "@/types/patch";
 import { PatchWorkspaceProbeState } from "@/types/probes";
 
 interface PatchEditorToolbarProps {
   structureLocked?: boolean;
   canClearPatch: boolean;
   patchNodeCount: number;
-  currentPatchId: string;
-  baselinePatch?: Patch;
-  hasPatchDiff: boolean;
-  patches: Patch[];
+  baselineControl: PatchBaselineControlState;
   selectedNodeId?: string;
   selectedProbeId?: string;
   pendingFromPort: boolean;
@@ -25,8 +22,6 @@ interface PatchEditorToolbarProps {
   onDeletePreviewChange: (previewing: boolean) => void;
   onClearPatch: () => void;
   onClearPreviewChange: (previewing: boolean) => void;
-  onSelectBaselinePatch: (patchId: string) => void;
-  onClearBaselinePatch: () => void;
   onAutoLayout: () => void;
 }
 
@@ -121,14 +116,7 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
       {props.structureLocked && <span className="muted">Preset structure is locked. Move nodes for clarity or edit macros.</span>}
       {props.pendingFromPort && <span className="muted">Select a compatible port to complete connection.</span>}
       {props.pendingProbeId && <span className="muted">Click a port or wire to attach the selected probe.</span>}
-      <PatchBaselineControl
-        baselinePatch={props.baselinePatch}
-        currentPatchId={props.currentPatchId}
-        hasPatchDiff={props.hasPatchDiff}
-        patches={props.patches}
-        onSelectBaselinePatch={props.onSelectBaselinePatch}
-        onClearBaselinePatch={props.onClearBaselinePatch}
-      />
+      <PatchBaselineControl {...props.baselineControl} />
       <span className="patch-zoom-readout">Zoom {Math.round(props.zoom * 100)}%</span>
     </div>
   );

@@ -6,10 +6,10 @@ import { InstrumentEditor } from "@/components/InstrumentEditor";
 import { PitchButtonLabel } from "@/components/PitchButtonLabel";
 import { ProjectsMenu } from "@/components/composer/ProjectsMenu";
 import { PatchWorkspaceTabStrip, PatchWorkspaceTabViewModel } from "@/components/patch-workspace/PatchWorkspaceTabStrip";
+import { PatchBaselineDiffState } from "@/components/patch/patchBaselineDiffState";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { usePatchWorkspaceQuickHelpDialog } from "@/hooks/patch/usePatchWorkspaceQuickHelpDialog";
 import { RecentProjectSnapshot } from "@/lib/persistence";
-import { PatchDiff } from "@/lib/patch/diff";
 import { backArrowIconSrc } from "@/resources/images";
 import { Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -17,15 +17,13 @@ import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 
 interface PatchWorkspaceViewProps {
   patch: Patch;
-  baselinePatch?: Patch;
-  patches: Patch[];
+  baselineDiff: PatchBaselineDiffState;
   importInputRef: RefObject<HTMLInputElement | null>;
   recentProjects: RecentProjectSnapshot[];
   probeState: PatchProbeEditorState;
   tabs: PatchWorkspaceTabViewModel[];
   activeTabId?: string;
   macroValues: Record<string, number>;
-  patchDiff: PatchDiff;
   previewPitch: string;
   migrationNotice?: string | null;
   selectedNodeId?: string;
@@ -51,8 +49,6 @@ interface PatchWorkspaceViewProps {
   onSelectMacro: (macroId?: string) => void;
   onClearSelectedMacro: () => void;
   onClearPatch: () => void;
-  onSelectBaselinePatch: (patchId: string) => void;
-  onClearBaselinePatch: () => void;
   onApplyOp: (op: PatchOp) => void;
   probeActions: PatchProbeEditorActions;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
@@ -139,11 +135,9 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
         <InstrumentEditor
           editorSessionKey={props.activeTabId}
           patch={props.patch}
-          baselinePatch={props.baselinePatch}
-          patches={props.patches}
+          baselineDiff={props.baselineDiff}
           probeState={props.probeState}
           macroValues={props.macroValues}
-          patchDiff={props.patchDiff}
           migrationNotice={props.migrationNotice}
           onReady={props.onInstrumentEditorReady}
           selectedNodeId={props.selectedNodeId}
@@ -154,8 +148,6 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           onSelectMacro={props.onSelectMacro}
           onClearSelectedMacro={props.onClearSelectedMacro}
           onClearPatch={props.onClearPatch}
-          onSelectBaselinePatch={props.onSelectBaselinePatch}
-          onClearBaselinePatch={props.onClearBaselinePatch}
           onApplyOp={props.onApplyOp}
           probeActions={props.probeActions}
           onExposeMacro={props.onExposeMacro}
