@@ -12,6 +12,20 @@ interface UsePatchWorkspaceBaselineOptions {
   updateActiveTab: (updater: (tab: LocalPatchWorkspaceTab) => LocalPatchWorkspaceTab) => void;
 }
 
+export function setBaselinePatchForTab(tab: LocalPatchWorkspaceTab, baselineSourcePatch: Patch): LocalPatchWorkspaceTab {
+  return {
+    ...tab,
+    baselinePatch: structuredClone(baselineSourcePatch)
+  };
+}
+
+export function clearBaselinePatchForTab(tab: LocalPatchWorkspaceTab): LocalPatchWorkspaceTab {
+  return {
+    ...tab,
+    baselinePatch: undefined
+  };
+}
+
 export function usePatchWorkspaceBaseline({
   activeTab,
   patches,
@@ -29,17 +43,11 @@ export function usePatchWorkspaceBaseline({
     if (!baselineSourcePatch) {
       return;
     }
-    updateActiveTab((tab) => ({
-      ...tab,
-      baselinePatch: structuredClone(baselineSourcePatch)
-    }));
+    updateActiveTab((tab) => setBaselinePatchForTab(tab, baselineSourcePatch));
   }, [patches, updateActiveTab]);
 
   const clearCurrentPatchBaseline = useCallback(() => {
-    updateActiveTab((tab) => ({
-      ...tab,
-      baselinePatch: undefined
-    }));
+    updateActiveTab(clearBaselinePatchForTab);
   }, [updateActiveTab]);
 
   return {

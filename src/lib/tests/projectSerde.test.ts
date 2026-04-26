@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { PATCH_CANVAS_MAX_ZOOM } from "@/components/patch/patchCanvasConstants";
 import { exportProjectToJson, importProjectBundleFromJson, importProjectFromJson, normalizeProject } from "@/lib/projectSerde";
 import { normalizePatch } from "@/lib/patch/normalize";
 import { createDefaultProject } from "@/lib/patch/presets";
@@ -198,6 +199,43 @@ describe("projectSerde", () => {
 
     expect(roundTrip.ui.patchWorkspace.activeTabId).toBe("tab_b");
     expect(roundTrip.ui.patchWorkspace.tabs).toEqual(project.ui.patchWorkspace.tabs);
+  });
+
+  it("normalizes baseline patch snapshots stored on patch workspace tabs", () => {
+    const project = createDefaultProject();
+    const baselinePatch = structuredClone(project.patches[0]) as unknown as {
+      ui: {
+        canvasZoom?: number;
+        paramRanges?: Record<string, { min: number; max: number }>;
+      };
+    };
+    baselinePatch.ui = {
+      ...baselinePatch.ui,
+      canvasZoom: 99,
+      paramRanges: {
+        "vcf1:cutoffHz": { min: 5000, max: 120 }
+      }
+    };
+    project.ui.patchWorkspace.tabs = [
+      {
+        id: "tab_a",
+        name: "Bass Ideas",
+        patchId: "preset_bass",
+        baselinePatch: baselinePatch as never,
+        selectedNodeId: undefined,
+        selectedMacroId: undefined,
+        selectedProbeId: undefined,
+        probes: []
+      }
+    ];
+
+    const normalized = normalizeProject(project);
+
+    expect(normalized.ui.patchWorkspace.tabs[0].baselinePatch?.ui.canvasZoom).toBe(PATCH_CANVAS_MAX_ZOOM);
+    expect(normalized.ui.patchWorkspace.tabs[0].baselinePatch?.ui.paramRanges?.["vcf1:cutoffHz"]).toEqual({
+      min: 120,
+      max: 5000
+    });
   });
 
   it("preserves invalid preset snapshots so UI can surface validation failures", () => {

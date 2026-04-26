@@ -39,6 +39,32 @@ interface UsePatchWorkspaceLifecycleActionsOptions {
   updateActiveTab: (updater: (tab: LocalPatchWorkspaceTab) => LocalPatchWorkspaceTab) => void;
 }
 
+interface CreateDuplicatePatchWorkspaceTabOptions {
+  activeTab: LocalPatchWorkspaceTab;
+  createWorkspaceTab: (patchId: string, name?: string) => LocalPatchWorkspaceTab;
+  duplicatePatch: Patch;
+  selectedPatch: Patch;
+}
+
+export function createDuplicatePatchWorkspaceTab({
+  activeTab,
+  createWorkspaceTab,
+  duplicatePatch,
+  selectedPatch
+}: CreateDuplicatePatchWorkspaceTabOptions): LocalPatchWorkspaceTab {
+  return {
+    ...createWorkspaceTab(duplicatePatch.id, duplicatePatch.name),
+    baselinePatch: structuredClone(selectedPatch),
+    selectedNodeId: activeTab.selectedNodeId,
+    selectedMacroId: activeTab.selectedMacroId,
+    selectedProbeId: undefined,
+    probes: activeTab.probes.map((probe) => ({
+      ...structuredClone(probe),
+      id: createId("probe")
+    }))
+  };
+}
+
 export function usePatchWorkspaceLifecycleActions({
   activeTab,
   clearPreviewCaptures,
@@ -197,17 +223,12 @@ export function usePatchWorkspaceLifecycleActions({
 
     const duplicate = createCustomDuplicatePatch(selectedPatch);
 
-    const nextTab: LocalPatchWorkspaceTab = {
-      ...createWorkspaceTab(duplicate.id, duplicate.name),
-      baselinePatch: structuredClone(selectedPatch),
-      selectedNodeId: activeTab.selectedNodeId,
-      selectedMacroId: activeTab.selectedMacroId,
-      selectedProbeId: undefined,
-      probes: activeTab.probes.map((probe) => ({
-        ...structuredClone(probe),
-        id: createId("probe")
-      }))
-    };
+    const nextTab = createDuplicatePatchWorkspaceTab({
+      activeTab,
+      createWorkspaceTab,
+      duplicatePatch: duplicate,
+      selectedPatch
+    });
 
     commitProjectChange((current) => ({
       ...current,

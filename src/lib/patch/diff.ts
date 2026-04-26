@@ -1,5 +1,14 @@
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { MacroBinding, Patch, PatchConnection, PatchMacro, PatchNode, ParamSchema, ParamValue } from "@/types/patch";
+import {
+  MacroBinding,
+  Patch,
+  PatchConnection,
+  PatchMacro,
+  PatchNode,
+  PatchParamSliderRange,
+  ParamSchema,
+  ParamValue
+} from "@/types/patch";
 
 export type PatchDiffStatus = "unchanged" | "added" | "removed" | "modified";
 
@@ -128,6 +137,21 @@ function buildNodeParamKey(nodeId: string, paramId: string) {
   return `${nodeId}:${paramId}`;
 }
 
+function parseNodeParamKey(key: string): { nodeId: string; paramId: string } | undefined {
+  const separatorIndex = key.indexOf(":");
+  if (separatorIndex <= 0 || separatorIndex === key.length - 1) {
+    return undefined;
+  }
+  return {
+    nodeId: key.slice(0, separatorIndex),
+    paramId: key.slice(separatorIndex + 1)
+  };
+}
+
+function isSameParamRange(left?: PatchParamSliderRange, right?: PatchParamSliderRange): boolean {
+  return left?.min === right?.min && left?.max === right?.max;
+}
+
 function addSetEntry(map: Map<string, Set<string>>, key: string, value: string) {
   const entries = map.get(key) ?? new Set<string>();
   entries.add(value);
@@ -188,6 +212,17 @@ function collectParamIds(currentNode: PatchNode, baselineNode: PatchNode): Set<s
   return paramIds;
 }
 
+function buildParamRangeIdsByNodeId(patch: Patch): Map<string, Set<string>> {
+  const paramIdsByNodeId = new Map<string, Set<string>>();
+  Object.keys(patch.ui.paramRanges ?? {}).forEach((key) => {
+    const parsed = parseNodeParamKey(key);
+    if (parsed) {
+      addSetEntry(paramIdsByNodeId, parsed.nodeId, parsed.paramId);
+    }
+  });
+  return paramIdsByNodeId;
+}
+
 function resolveParam(currentNode: PatchNode, baselineNode: PatchNode, paramId: string): {
   currentSchema?: ParamSchema;
   baselineSchema?: ParamSchema;
@@ -233,6 +268,8 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
   const baselineConnectionsById = new Map(baselinePatch.connections.map((connection) => [connection.id, connection] as const));
   const currentConnectionIdsByNodeId = buildConnectionIdsByNodeId(currentPatch.connections);
   const baselineConnectionIdsByNodeId = buildConnectionIdsByNodeId(baselinePatch.connections);
+  const currentParamRangeIdsByNodeId = buildParamRangeIdsByNodeId(currentPatch);
+  const baselineParamRangeIdsByNodeId = buildParamRangeIdsByNodeId(baselinePatch);
 
   currentPatch.nodes.forEach((node) => {
     const baselineNode = baselineNodesById.get(node.id);
@@ -252,7 +289,16 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
     }
 
     const changedParamIds = new Set<string>();
-    collectParamIds(node, baselineNode).forEach((paramId) => {
+    const paramIds = collectParamIds(node, baselineNode);
+    currentParamRangeIdsByNodeId.get(node.id)?.forEach((paramId) => paramIds.add(paramId));
+    baselineParamRangeIdsByNodeId.get(node.id)?.forEach((paramId) => paramIds.add(paramId));
+    paramIds.forEach((paramId) => {
+      const paramRangeKey = buildNodeParamKey(node.id, paramId);
+      if (!isSameParamRange(currentPatch.ui.paramRanges?.[paramRangeKey], baselinePatch.ui.paramRanges?.[paramRangeKey])) {
+        changedParamIds.add(paramId);
+        return;
+      }
+
       const { currentSchema, baselineSchema } = resolveParam(node, baselineNode, paramId);
       if (!currentSchema || !baselineSchema) {
         changedParamIds.add(paramId);

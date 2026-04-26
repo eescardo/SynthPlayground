@@ -132,4 +132,89 @@ describe("patch diff", () => {
       removedBindingCount: 1
     });
   });
+
+  it("tracks parameter slider range-only changes as module modifications", () => {
+    const baseline = createClearPatch({ id: "patch_a", name: "Lead" });
+    baseline.ui.paramRanges = {
+      "out1:gain": { min: 0, max: 1 }
+    };
+    const current = structuredClone(baseline);
+    current.ui.paramRanges = {
+      "out1:gain": { min: 0.25, max: 0.9 }
+    };
+
+    const diff = buildPatchDiff(current, baseline);
+
+    expect(diff.nodeDiffById.get("out1")?.status).toBe("modified");
+    expect(diff.nodeDiffById.get("out1")?.changedParamIds.has("gain")).toBe(true);
+    expect(diff.summary.modifiedNodeCount).toBe(1);
+  });
+
+  it("tracks a removed macro binding on an otherwise unchanged module", () => {
+    const baseline = createClearPatch({ id: "patch_a", name: "Lead" });
+    baseline.ui.macros = [
+      {
+        id: "macro_gain",
+        name: "Gain",
+        keyframeCount: 2,
+        bindings: [
+          {
+            id: "binding_gain",
+            nodeId: "out1",
+            paramId: "gain",
+            map: "linear",
+            min: 0.2,
+            max: 1
+          }
+        ]
+      }
+    ];
+    const current = structuredClone(baseline);
+    current.ui.macros[0].bindings = [];
+
+    const diff = buildPatchDiff(current, baseline);
+
+    expect(diff.nodeDiffById.get("out1")?.status).toBe("modified");
+    expect(diff.nodeDiffById.get("out1")?.removedBindingKeys.has("macro_gain:binding_gain")).toBe(true);
+    expect(diff.macroDiffById.get("macro_gain")?.status).toBe("modified");
+    expect(diff.removedBindingDiffs.map((bindingDiff) => bindingDiff.key)).toEqual(["macro_gain:binding_gain"]);
+    expect(diff.removedBindingDiffsByNodeParamKey.get("out1:gain")?.map((bindingDiff) => bindingDiff.key)).toEqual([
+      "macro_gain:binding_gain"
+    ]);
+  });
+
+  it("marks both endpoint modules modified when connections are added or removed", () => {
+    const baseline = createClearPatch({ id: "patch_a", name: "Lead" });
+    baseline.nodes.unshift(
+      { id: "osc1", typeId: "Oscillator", params: {} },
+      { id: "filter1", typeId: "Filter", params: {} }
+    );
+    baseline.connections = [
+      {
+        id: "conn_osc_filter",
+        from: { nodeId: "osc1", portId: "out" },
+        to: { nodeId: "filter1", portId: "in" }
+      }
+    ];
+
+    const current = structuredClone(baseline);
+    current.connections = [
+      {
+        id: "conn_osc_out",
+        from: { nodeId: "osc1", portId: "out" },
+        to: { nodeId: current.io.audioOutNodeId, portId: current.io.audioOutPortId }
+      }
+    ];
+
+    const diff = buildPatchDiff(current, baseline);
+
+    expect(diff.nodeDiffById.get("osc1")?.hasConnectionChanges).toBe(true);
+    expect(diff.nodeDiffById.get("filter1")?.hasConnectionChanges).toBe(true);
+    expect(diff.nodeDiffById.get(current.io.audioOutNodeId)?.hasConnectionChanges).toBe(true);
+    expect(diff.nodeDiffById.get("osc1")?.status).toBe("modified");
+    expect(diff.nodeDiffById.get("filter1")?.status).toBe("modified");
+    expect(diff.nodeDiffById.get(current.io.audioOutNodeId)?.status).toBe("modified");
+    expect(diff.addedConnections.map((connection) => connection.id)).toEqual(["conn_osc_out"]);
+    expect(diff.removedConnections.map((connection) => connection.id)).toEqual(["conn_osc_filter"]);
+  });
 });
