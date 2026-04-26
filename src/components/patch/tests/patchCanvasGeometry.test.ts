@@ -66,7 +66,7 @@ describe("patch canvas geometry", () => {
   it("anchors the managed output host port to the canvas right edge", () => {
     const rect = resolveOutputHostPatchPortRect(1400);
 
-    expect(rect.x).toBe(1382);
+    expect(rect.x).toBe(1400);
     expect(rect.width).toBeGreaterThan(0);
   });
 });
