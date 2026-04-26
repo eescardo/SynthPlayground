@@ -1,16 +1,36 @@
 import {
   PATCH_CANVAS_GRID,
+  PATCH_COLOR_ADSR_GRAPH_BORDER,
+  PATCH_COLOR_ADSR_MACRO_HIGH,
+  PATCH_COLOR_ADSR_MACRO_LOW,
   PATCH_COLOR_CANVAS_BG,
   PATCH_COLOR_CONNECTION_FALLBACK,
+  PATCH_COLOR_FACE_POPOVER_BACKDROP,
+  PATCH_COLOR_FACE_POPOVER_SHADOW,
   PATCH_COLOR_GRID_MAJOR,
   PATCH_COLOR_GRID_MINOR,
+  PATCH_COLOR_MODULE_DELETE_PREVIEW_FILL,
+  PATCH_COLOR_MODULE_DELETE_PREVIEW_STROKE,
+  PATCH_COLOR_MODULE_DIFF_ADDED_ACCENT,
+  PATCH_COLOR_MODULE_DIFF_ADDED_FILL,
+  PATCH_COLOR_MODULE_DIFF_ADDED_STROKE,
+  PATCH_COLOR_MODULE_DIFF_MODIFIED_ACCENT,
+  PATCH_COLOR_MODULE_DIFF_MODIFIED_FILL,
+  PATCH_COLOR_MODULE_DIFF_MODIFIED_STROKE,
+  PATCH_COLOR_MODULE_DIFF_PEDESTAL_FILL,
+  PATCH_COLOR_MODULE_DIFF_PEDESTAL_STROKE,
+  PATCH_COLOR_MODULE_FACE_ROW_BG,
+  PATCH_COLOR_MODULE_MACRO_SELECTED_STROKE,
   PATCH_COLOR_NODE_HOVER_OVERLAY,
   PATCH_COLOR_NODE_SUBTITLE,
   PATCH_COLOR_NODE_TITLE,
   PATCH_COLOR_PENDING_PORT,
   PATCH_COLOR_PENDING_WIRE,
+  PATCH_COLOR_PORT_LABEL_BG,
+  PATCH_COLOR_PORT_LABEL_INVALID_BG,
   PATCH_COLOR_PORT_LABEL,
   PATCH_COLOR_VALID_TARGET,
+  PATCH_COLOR_VALID_TARGET_FILL,
   PATCH_FACE_POPOVER_SCALE,
   PATCH_MODULE_FACE_BOTTOM_INSET,
   PATCH_MODULE_FACE_INSET_X,
@@ -211,16 +231,16 @@ function drawAdsrModuleFace(
     macroRange ? (macroRange.high.attack + macroRange.high.decay + macroRange.high.release) * 1000 : 0
   );
 
-  ctx.strokeStyle = "rgba(231, 243, 255, 0.12)";
+  ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
   ctx.lineWidth = 1;
   ctx.strokeRect(graphX, graphY, graphW, graphH);
 
   if (macroRange) {
     ctx.lineWidth = 1.4;
     ctx.setLineDash([3, 3]);
-    ctx.strokeStyle = "rgba(151, 214, 255, 0.84)";
+    ctx.strokeStyle = PATCH_COLOR_ADSR_MACRO_LOW;
     drawAdsrEnvelopePath(ctx, macroRange.low, graph, longestDurationMs);
-    ctx.strokeStyle = "rgba(255, 214, 145, 0.88)";
+    ctx.strokeStyle = PATCH_COLOR_ADSR_MACRO_HIGH;
     drawAdsrEnvelopePath(ctx, macroRange.high, graph, longestDurationMs);
     ctx.setLineDash([]);
   }
@@ -244,7 +264,7 @@ function drawGenericModuleFace(
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
   faceParams.forEach((param, index) => {
     const py = rowTop + index * 20;
-    ctx.fillStyle = "rgba(158, 192, 223, 0.28)";
+    ctx.fillStyle = PATCH_COLOR_MODULE_FACE_ROW_BG;
     ctx.fillRect(rowX, py - 11, rowW, 16);
     ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
     ctx.fillText(`${param.label}: ${formatParamFaceValue(param, node.params[param.id])}`, rowX + 6, py);
@@ -277,10 +297,10 @@ export function drawPatchModuleCard(
     const pedestalY = y - PATCH_DIFF_PEDESTAL_INSET;
     const pedestalWidth = PATCH_NODE_WIDTH + PATCH_DIFF_PEDESTAL_INSET * 2;
     const pedestalHeight = PATCH_NODE_HEIGHT + PATCH_DIFF_PEDESTAL_INSET * 2;
-    ctx.fillStyle = "rgba(18, 74, 48, 0.14)";
+    ctx.fillStyle = PATCH_COLOR_MODULE_DIFF_PEDESTAL_FILL;
     drawRoundedRectPath(ctx, pedestalX, pedestalY, pedestalWidth, pedestalHeight, PATCH_DIFF_PEDESTAL_RADIUS);
     ctx.fill();
-    ctx.strokeStyle = "rgba(49, 150, 94, 0.3)";
+    ctx.strokeStyle = PATCH_COLOR_MODULE_DIFF_PEDESTAL_STROKE;
     ctx.lineWidth = PATCH_DIFF_PEDESTAL_STROKE_WIDTH;
     drawRoundedRectPath(ctx, pedestalX, pedestalY, pedestalWidth, pedestalHeight, PATCH_DIFF_PEDESTAL_RADIUS);
     ctx.stroke();
@@ -288,16 +308,16 @@ export function drawPatchModuleCard(
   ctx.fillStyle = moduleColors.fill;
   ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
   if (options.diffStatus === "added" || options.diffStatus === "modified") {
-    ctx.fillStyle = options.diffStatus === "added" ? "rgba(103, 224, 153, 0.18)" : "rgba(120, 214, 160, 0.12)";
+    ctx.fillStyle = options.diffStatus === "added" ? PATCH_COLOR_MODULE_DIFF_ADDED_FILL : PATCH_COLOR_MODULE_DIFF_MODIFIED_FILL;
     ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
   }
   if (options.macroSelected) {
-    ctx.strokeStyle = "rgba(246, 176, 28, 0.88)";
+    ctx.strokeStyle = PATCH_COLOR_MODULE_MACRO_SELECTED_STROKE;
     ctx.lineWidth = 3;
     ctx.strokeRect(x - 4, y - 4, PATCH_NODE_WIDTH + 8, PATCH_NODE_HEIGHT + 8);
   }
   if (options.deletePreview) {
-    ctx.fillStyle = "rgba(244, 90, 100, 0.16)";
+    ctx.fillStyle = PATCH_COLOR_MODULE_DELETE_PREVIEW_FILL;
     ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
   }
   if (options.hovered && !options.selected) {
@@ -306,20 +326,20 @@ export function drawPatchModuleCard(
   }
   ctx.fillStyle =
     options.diffStatus === "added"
-      ? "rgba(103, 224, 153, 0.92)"
+      ? PATCH_COLOR_MODULE_DIFF_ADDED_ACCENT
       : options.diffStatus === "modified"
-        ? "rgba(120, 214, 160, 0.62)"
+        ? PATCH_COLOR_MODULE_DIFF_MODIFIED_ACCENT
         : moduleColors.accent;
   ctx.globalAlpha = baseAlpha * (options.selected ? 0.26 : options.hovered ? 0.2 : options.diffStatus === "unchanged" ? 0.12 : 0.18);
   ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_BODY_TOP - 8);
   ctx.globalAlpha = baseAlpha;
   ctx.strokeStyle =
     options.deletePreview
-      ? "rgba(244, 90, 100, 0.95)"
+      ? PATCH_COLOR_MODULE_DELETE_PREVIEW_STROKE
       : options.diffStatus === "added"
-      ? "rgba(103, 224, 153, 0.9)"
+      ? PATCH_COLOR_MODULE_DIFF_ADDED_STROKE
       : options.diffStatus === "modified"
-        ? "rgba(120, 214, 160, 0.72)"
+        ? PATCH_COLOR_MODULE_DIFF_MODIFIED_STROKE
         : options.selected
           ? moduleColors.accent
           : options.hovered
@@ -345,7 +365,7 @@ export function drawPatchModuleCard(
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
   const drawPortLabel = (port: PortSchema, index: number, kind: "in" | "out") => {
     const rect = resolvePortLabelRect(ctx, port, kind, x, y, index);
-    ctx.fillStyle = invalidPortKeys.has(`${node.id}:${kind}:${port.id}`) ? "rgba(153, 28, 28, 0.94)" : "rgba(7, 14, 21, 0.94)";
+    ctx.fillStyle = invalidPortKeys.has(`${node.id}:${kind}:${port.id}`) ? PATCH_COLOR_PORT_LABEL_INVALID_BG : PATCH_COLOR_PORT_LABEL_BG;
     ctx.fillRect(rect.x, rect.y - rect.height / 2, rect.width, rect.height);
     ctx.fillStyle = PATCH_COLOR_PORT_LABEL;
     ctx.textAlign = "center";
@@ -545,7 +565,7 @@ function drawHoveredAttachTarget(
 
   ctx.save();
   ctx.strokeStyle = PATCH_COLOR_VALID_TARGET;
-  ctx.fillStyle = "rgba(200, 255, 57, 0.16)";
+  ctx.fillStyle = PATCH_COLOR_VALID_TARGET_FILL;
   ctx.lineWidth = 2;
   ctx.setLineDash([4, 4]);
 
@@ -593,10 +613,10 @@ export function drawPatchFacePopover(
   clearPreview: boolean
 ) {
   ctx.save();
-  ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
+  ctx.shadowColor = PATCH_COLOR_FACE_POPOVER_SHADOW;
   ctx.shadowBlur = 24;
   ctx.shadowOffsetY = 12;
-  ctx.fillStyle = "rgba(4, 10, 17, 0.78)";
+  ctx.fillStyle = PATCH_COLOR_FACE_POPOVER_BACKDROP;
   ctx.fillRect(rect.x - 10, rect.y - 10, rect.width + 20, rect.height + 20);
   ctx.restore();
 
