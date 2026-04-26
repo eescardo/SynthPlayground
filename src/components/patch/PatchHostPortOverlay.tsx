@@ -86,7 +86,7 @@ function resolveOverlayPorts(patch: Patch, outputHostRightEdge: number, scrollLe
         "--patch-host-port-bg": outputTint.fill,
         "--patch-host-port-border": outputTint.stroke,
         "--patch-host-port-text": outputTint.text,
-        left: `${outputRect.x * zoom - scrollLeft}px`,
+        left: `${outputRect.x * zoom - scrollLeft - outputRect.width}px`,
         top: `${outputRect.y * zoom - scrollTop - outputRect.height / 2}px`,
         width: `${outputRect.width}px`,
         height: `${outputRect.height}px`
