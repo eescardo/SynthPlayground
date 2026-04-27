@@ -13,6 +13,9 @@ import {
 import { clamp, clamp01 } from "@/lib/numeric";
 import { Patch, PatchNode, ParamSchema, ParamValue, ModuleTypeSchema } from "@/types/patch";
 
+const VCF_FACE_SAMPLE_RATE_HZ = 48000;
+const VCF_FACE_NYQUIST_HZ = VCF_FACE_SAMPLE_RATE_HZ / 2;
+
 function formatParamFaceValue(param: ParamSchema, value: ParamValue | undefined): string {
   const resolved = value ?? param.default;
   if (param.type === "bool") {
@@ -231,10 +234,9 @@ function divComplex(a: Complex, b: Complex): Complex {
 }
 
 function vcfMagnitudeAtFrequency(type: string, cutoff: number, resonance: number, frequency: number): number {
-  const sampleRate = 48000;
-  const f = clamp((2 * Math.PI * cutoff) / sampleRate, 0.001, 0.99);
+  const f = clamp((2 * Math.PI * cutoff) / VCF_FACE_SAMPLE_RATE_HZ, 0.001, 0.99);
   const damping = clamp(1 - resonance, 0.001, 1);
-  const omega = (2 * Math.PI * frequency) / sampleRate;
+  const omega = (2 * Math.PI * frequency) / VCF_FACE_SAMPLE_RATE_HZ;
   const zInv = { re: Math.cos(omega), im: -Math.sin(omega) };
   const one = { re: 1, im: 0 };
   const zero = { re: 0, im: 0 };
@@ -282,7 +284,7 @@ function drawVcfModuleFace(
   const cutoffModAmountOct = Math.max(0, getNumericParam(node, schema, "cutoffModAmountOct"));
   const min = cutoffParam?.type === "float" ? cutoffParam.range.min : 20;
   const max = cutoffParam?.type === "float" ? cutoffParam.range.max : 20000;
-  const graphDisplayMax = Math.max(max, 40000);
+  const graphDisplayMax = Math.min(Math.max(max, 40000), VCF_FACE_NYQUIST_HZ);
   const cutoffClamped = clamp(cutoff, min, max);
   const graphMin = clamp(cutoffClamped / 10, 2, graphDisplayMax);
   const graphMax = clamp(cutoffClamped * 10, min, graphDisplayMax);
