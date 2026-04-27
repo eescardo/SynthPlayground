@@ -326,9 +326,9 @@ function drawVcfModuleFace(
 ) {
   const graph = {
     x: x + PATCH_MODULE_FACE_INSET_X,
-    y: y + PATCH_MODULE_FACE_TOP + 8,
+    y: y + PATCH_MODULE_FACE_TOP + 10,
     width: PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2,
-    height: PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 18
+    height: PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 10
   };
   const cutoffParam = schema.find((param) => param.id === "cutoffHz" && param.type === "float");
   const cutoff = getNumericParam(node, schema, "cutoffHz");
@@ -381,7 +381,7 @@ function drawMixerModuleFace(
   const graphX = x + PATCH_MODULE_FACE_INSET_X;
   const graphY = y + PATCH_MODULE_FACE_TOP + 4;
   const graphW = PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2;
-  const graphH = PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 18;
+  const graphH = PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 10;
   const barTopInset = 6;
   const barBottomInset = 6;
   const barGap = 3;
