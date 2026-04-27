@@ -386,9 +386,12 @@ function drawVcaModuleFace(
   const bias = clamp01(getNumericParam(node, schema, "bias"));
   const gain = clamp01(getNumericParam(node, schema, "gain"));
   const top = clamp01(bias + gain);
+  const baseY = graph.y + graph.height;
   const biasY = graph.y + graph.height * (1 - bias);
   const topY = graph.y + graph.height * (1 - top);
   const startX = graph.x + 8;
+  const biasX = graph.x + graph.width * 0.25;
+  const topX = graph.x + graph.width * 0.75;
   const endX = graph.x + graph.width - 8;
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
@@ -410,7 +413,11 @@ function drawVcaModuleFace(
   ctx.strokeStyle = accentColor;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(startX, biasY);
+  ctx.moveTo(startX, baseY - 5);
+  ctx.lineTo(biasX, baseY - 5);
+  ctx.lineTo(biasX, biasY);
+  ctx.lineTo(topX, biasY);
+  ctx.lineTo(topX, topY);
   ctx.lineTo(endX, topY);
   ctx.stroke();
 
@@ -435,8 +442,9 @@ function drawVcaModuleFace(
   ctx.fillText("0", graph.x - 2, graph.y + graph.height);
   ctx.fillStyle = accentColor;
   ctx.textAlign = "left";
-  ctx.fillText(`bias ${bias.toFixed(2)}`, graph.x + 6, clamp(biasY - 3, graph.y + 10, graph.y + graph.height - 14));
-  ctx.fillText(`+gain ${gain.toFixed(2)}`, graph.x + graph.width * 0.48, clamp(topY + 10, graph.y + 11, graph.y + graph.height - 3));
+  ctx.fillText(`bias ${bias.toFixed(2)}`, graph.x + 6, graph.y + 11);
+  ctx.textAlign = "right";
+  ctx.fillText(`+gain ${gain.toFixed(2)}`, graph.x + graph.width - 6, graph.y + 11);
   ctx.textAlign = "left";
 }
 
