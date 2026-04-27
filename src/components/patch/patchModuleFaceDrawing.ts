@@ -225,6 +225,22 @@ function drawVcfModuleFace(
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
   ctx.lineWidth = 1;
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
+
+  ctx.lineWidth = 1;
+  for (const ratio of [0.25, 0.5, 1, 2, 4]) {
+    const guideFrequency = cutoff * ratio;
+    if (guideFrequency < min || guideFrequency > max) {
+      continue;
+    }
+    const guideT = clamp01((guideFrequency - min) / (max - min));
+    const guideX = graph.x + guideT * graph.width;
+    ctx.strokeStyle = ratio === 1 ? "rgba(158, 192, 223, 0.22)" : "rgba(158, 192, 223, 0.13)";
+    ctx.beginPath();
+    ctx.moveTo(guideX, graph.y + 4);
+    ctx.lineTo(guideX, graph.y + graph.height - 4);
+    ctx.stroke();
+  }
+
   ctx.strokeStyle = accentColor;
   ctx.lineWidth = 2;
   ctx.beginPath();
