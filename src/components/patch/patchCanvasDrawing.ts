@@ -326,15 +326,15 @@ function drawVcfModuleFace(
 ) {
   const graph = {
     x: x + PATCH_MODULE_FACE_INSET_X,
-    y: y + PATCH_MODULE_FACE_TOP + 4,
+    y: y + PATCH_MODULE_FACE_TOP + 8,
     width: PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2,
-    height: PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 8
+    height: PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 18
   };
   const cutoffParam = schema.find((param) => param.id === "cutoffHz" && param.type === "float");
   const cutoff = getNumericParam(node, schema, "cutoffHz");
   const min = cutoffParam?.type === "float" ? cutoffParam.range.min : 20;
   const max = cutoffParam?.type === "float" ? cutoffParam.range.max : 20000;
-  const t = clamp01((Math.log(Math.max(cutoff, min)) - Math.log(min)) / (Math.log(max) - Math.log(min)));
+  const t = clamp01((clamp(cutoff, min, max) - min) / (max - min));
   const cutoffX = graph.x + t * graph.width;
   const type = String(node.params.type ?? "lowpass");
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
@@ -359,13 +359,13 @@ function drawVcfModuleFace(
   ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = "left";
-  ctx.fillText("20", graph.x + 3, graph.y + graph.height - 3);
+  ctx.fillText("20", graph.x, graph.y + graph.height + 10);
   ctx.textAlign = "right";
-  ctx.fillText("20k", graph.x + graph.width - 3, graph.y + graph.height - 3);
+  ctx.fillText("20k", graph.x + graph.width, graph.y + graph.height + 10);
   ctx.textAlign = cutoffX > graph.x + graph.width * 0.72 ? "right" : cutoffX < graph.x + graph.width * 0.28 ? "left" : "center";
   const cutoffLabel = cutoff >= 1000 ? `${(cutoff / 1000).toFixed(cutoff >= 10000 ? 0 : 1)}k` : `${Math.round(cutoff)}`;
   const cutoffLabelX = clamp(cutoffX, graph.x + 10, graph.x + graph.width - 10);
-  ctx.fillText(cutoffLabel, cutoffLabelX, graph.y + 10);
+  ctx.fillText(cutoffLabel, cutoffLabelX, graph.y - 3);
   ctx.textAlign = "left";
 }
 
@@ -381,7 +381,7 @@ function drawMixerModuleFace(
   const graphX = x + PATCH_MODULE_FACE_INSET_X;
   const graphY = y + PATCH_MODULE_FACE_TOP + 4;
   const graphW = PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2;
-  const graphH = PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 8;
+  const graphH = PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 18;
   const barTopInset = 6;
   const barBottomInset = 6;
   const barGap = 3;
@@ -402,7 +402,7 @@ function drawMixerModuleFace(
     ctx.fillStyle = accentColor;
     ctx.fillRect(barX, graphY + graphH - barBottomInset - barH, barWidth, barH);
     ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
-    ctx.fillText(String(index + 1), barX + barWidth / 2, graphY + graphH - 3);
+    ctx.fillText(String(index + 1), barX + barWidth / 2, graphY + graphH + 10);
   }
   ctx.textAlign = "left";
 }
