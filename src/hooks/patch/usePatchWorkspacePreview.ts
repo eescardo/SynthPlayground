@@ -4,6 +4,7 @@ import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toAudioProject } from "@/audio/audioProject";
 import { AudioEngine } from "@/audio/engine";
+import { resolvePatchWorkspaceMacroValues } from "@/hooks/patch/usePatchWorkspaceMacroValues";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import { pitchToVoct } from "@/lib/pitch";
 import { hydratePatchSamplePlayerAssetsForRuntime } from "@/lib/sampleAssetLibrary";
@@ -16,24 +17,37 @@ import { ProjectAssetLibrary } from "@/types/assets";
 const PREVIEW_DURATION_BEATS = 1;
 const PREVIEW_PROGRESS_TICK_MS = 33;
 
-const buildPatchedPreviewProject = (
+export const buildPatchedPreviewProject = (
   project: AudioProject,
   sourceTrack: Track,
   patch: Patch,
   macroValues?: Record<string, number>
-): AudioProject => ({
-  ...project,
-  patches: project.patches.map((entry) => (entry.id === patch.id ? patch : entry)),
-  tracks: project.tracks.map((track) =>
-    track.id === sourceTrack.id
-      ? {
-          ...track,
-          instrumentPatchId: patch.id,
-          macroValues: macroValues ? { ...track.macroValues, ...macroValues } : track.macroValues
-        }
-      : track
-  )
-});
+): AudioProject => {
+  const patchMacroIds = new Set(patch.ui.macros.map((macro) => macro.id));
+  const nonPatchMacroValues = Object.fromEntries(
+    Object.entries(sourceTrack.macroValues).filter(([macroId]) => !patchMacroIds.has(macroId))
+  );
+  const previewMacroValues = macroValues
+    ? {
+        ...nonPatchMacroValues,
+        ...resolvePatchWorkspaceMacroValues(patch, macroValues)
+      }
+    : sourceTrack.macroValues;
+
+  return {
+    ...project,
+    patches: project.patches.map((entry) => (entry.id === patch.id ? patch : entry)),
+    tracks: project.tracks.map((track) =>
+      track.id === sourceTrack.id
+        ? {
+            ...track,
+            instrumentPatchId: patch.id,
+            macroValues: previewMacroValues
+          }
+        : track
+    )
+  };
+};
 
 interface UsePatchWorkspacePreviewOptions {
   project: Project;

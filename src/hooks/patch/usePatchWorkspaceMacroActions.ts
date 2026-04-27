@@ -2,6 +2,7 @@
 
 import { Dispatch, SetStateAction, useCallback } from "react";
 import { LocalPatchWorkspaceTab } from "@/hooks/patch/patchWorkspaceStateUtils";
+import { resolvePatchWorkspaceMacroValues } from "@/hooks/patch/usePatchWorkspaceMacroValues";
 import { createId } from "@/lib/ids";
 import { createMacroBindingId } from "@/lib/patch/macroBindings";
 import { clampNormalizedMacroValue } from "@/lib/patch/macroKeyframes";
@@ -174,7 +175,7 @@ export function usePatchWorkspaceMacroActions({
     }
 
     if (changeOptions?.commit) {
-      previewSelectedPatchNow(previewPitch, nextMacroValues);
+      previewSelectedPatchNow(previewPitch, resolvePatchWorkspaceMacroValues(selectedPatch, nextMacroValues));
     }
   }, [activeTab, previewPitch, previewSelectedPatchNow, selectedPatch, setTabMacroValuesById, tabMacroValuesById]);
 
