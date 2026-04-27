@@ -208,6 +208,57 @@ function formatFrequencyFaceLabel(frequency: number): string {
   return `${Math.round(frequency)}`;
 }
 
+type Complex = { re: number; im: number };
+
+function addComplex(a: Complex, b: Complex): Complex {
+  return { re: a.re + b.re, im: a.im + b.im };
+}
+
+function subComplex(a: Complex, b: Complex): Complex {
+  return { re: a.re - b.re, im: a.im - b.im };
+}
+
+function mulComplex(a: Complex, b: Complex): Complex {
+  return { re: a.re * b.re - a.im * b.im, im: a.re * b.im + a.im * b.re };
+}
+
+function divComplex(a: Complex, b: Complex): Complex {
+  const denominator = b.re * b.re + b.im * b.im || 1;
+  return {
+    re: (a.re * b.re + a.im * b.im) / denominator,
+    im: (a.im * b.re - a.re * b.im) / denominator
+  };
+}
+
+function vcfMagnitudeAtFrequency(type: string, cutoff: number, resonance: number, frequency: number): number {
+  const sampleRate = 48000;
+  const f = clamp((2 * Math.PI * cutoff) / sampleRate, 0.001, 0.99);
+  const omega = (2 * Math.PI * frequency) / sampleRate;
+  const zInv = { re: Math.cos(omega), im: -Math.sin(omega) };
+  const one = { re: 1, im: 0 };
+  const zero = { re: 0, im: 0 };
+  const fValue = { re: f, im: 0 };
+
+  const a11 = addComplex(one, mulComplex(zInv, { re: -1 + f * resonance, im: 0 }));
+  const a12 = mulComplex(zInv, fValue);
+  const a21 = { re: -f, im: 0 };
+  const a22 = subComplex(one, zInv);
+  const determinant = subComplex(mulComplex(a11, a22), mulComplex(a12, a21));
+  const bp = divComplex(subComplex(mulComplex(fValue, a22), mulComplex(a12, zero)), determinant);
+  const lp = divComplex(subComplex(mulComplex(a11, zero), mulComplex(fValue, a21)), determinant);
+  const hp = subComplex(subComplex(one, mulComplex(zInv, lp)), mulComplex({ re: resonance, im: 0 }, mulComplex(zInv, bp)));
+  const response = type === "highpass" ? hp : type === "bandpass" ? bp : lp;
+  return Math.hypot(response.re, response.im);
+}
+
+function magnitudeToDb(magnitude: number): number {
+  return 20 * Math.log10(Math.max(magnitude, 0.000001));
+}
+
+function formatDbFaceLabel(db: number): string {
+  return `${db > 0 ? "+" : ""}${Math.round(db)}dB`;
+}
+
 function drawVcfModuleFace(
   ctx: CanvasRenderingContext2D,
   node: PatchNode,
@@ -216,7 +267,7 @@ function drawVcfModuleFace(
   y: number,
   accentColor: string
 ) {
-  const graphLeftInset = PATCH_MODULE_FACE_INSET_X + 12;
+  const graphLeftInset = PATCH_MODULE_FACE_INSET_X + 24;
   const graph = {
     x: x + graphLeftInset,
     y: y + PATCH_MODULE_FACE_TOP + 10,
@@ -225,6 +276,7 @@ function drawVcfModuleFace(
   };
   const cutoffParam = schema.find((param) => param.id === "cutoffHz" && param.type === "float");
   const cutoff = getNumericParam(node, schema, "cutoffHz");
+  const resonance = clamp(getNumericParam(node, schema, "resonance"), 0, 1);
   const min = cutoffParam?.type === "float" ? cutoffParam.range.min : 20;
   const max = cutoffParam?.type === "float" ? cutoffParam.range.max : 20000;
   const cutoffClamped = clamp(cutoff, min, max);
@@ -238,6 +290,18 @@ function drawVcfModuleFace(
   };
   const cutoffX = frequencyToX(cutoffClamped);
   const type = String(node.params.type ?? "lowpass");
+  const responsePoints = Array.from({ length: 72 }, (_, index) => {
+    const t = index / 71;
+    const frequency = 10 ** (graphLogMin + t * (graphLogMax - graphLogMin));
+    return {
+      x: graph.x + t * graph.width,
+      db: magnitudeToDb(vcfMagnitudeAtFrequency(type, cutoffClamped, resonance, frequency))
+    };
+  });
+  const dbMin = -48;
+  const peakDb = Math.max(0, ...responsePoints.map((point) => point.db));
+  const dbMax = clamp(Math.max(6, Math.ceil(peakDb / 6) * 6), 6, 36);
+  const dbToY = (db: number) => graph.y + ((dbMax - clamp(db, dbMin, dbMax)) / (dbMax - dbMin)) * graph.height;
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
   ctx.lineWidth = 1;
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
@@ -256,27 +320,32 @@ function drawVcfModuleFace(
     ctx.stroke();
   }
 
+  const zeroDbY = dbToY(0);
+  ctx.strokeStyle = "rgba(158, 192, 223, 0.18)";
+  ctx.beginPath();
+  ctx.moveTo(graph.x + 4, zeroDbY);
+  ctx.lineTo(graph.x + graph.width - 4, zeroDbY);
+  ctx.stroke();
+
   ctx.strokeStyle = accentColor;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  if (type === "highpass") {
-    ctx.moveTo(graph.x, graph.y + graph.height - 10);
-    ctx.quadraticCurveTo(cutoffX, graph.y + graph.height - 8, graph.x + graph.width, graph.y + 8);
-  } else if (type === "bandpass") {
-    ctx.moveTo(graph.x, graph.y + graph.height - 8);
-    ctx.quadraticCurveTo(cutoffX, graph.y - 4, graph.x + graph.width, graph.y + graph.height - 8);
-  } else {
-    ctx.moveTo(graph.x, graph.y + 8);
-    ctx.quadraticCurveTo(cutoffX, graph.y + 8, graph.x + graph.width, graph.y + graph.height - 10);
-  }
+  responsePoints.forEach((point, index) => {
+    const py = dbToY(point.db);
+    if (index === 0) {
+      ctx.moveTo(point.x, py);
+    } else {
+      ctx.lineTo(point.x, py);
+    }
+  });
   ctx.stroke();
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
   ctx.fillRect(cutoffX - 1, graph.y + 4, 2, graph.height - 8);
   ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = "right";
-  ctx.fillText("1.0", graph.x - 2, graph.y + 7);
-  ctx.fillText("0", graph.x - 2, graph.y + graph.height);
+  ctx.fillText(formatDbFaceLabel(dbMax), graph.x - 2, graph.y + 7);
+  ctx.fillText(formatDbFaceLabel(dbMin), graph.x - 2, graph.y + graph.height);
   ctx.textAlign = "left";
   ctx.fillText(formatFrequencyFaceLabel(graphMin), graph.x, graph.y + graph.height + 10);
   ctx.textAlign = "right";
