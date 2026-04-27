@@ -2755,8 +2755,8 @@ select {
   gap: 0.25rem;
   padding: 0.45rem 0.55rem;
   border-radius: 0.5rem;
-  border: 1px solid rgba(131, 173, 216, 0.28);
-  background: rgba(143, 196, 245, 0.1);
+  border: 1px solid rgba(131, 173, 216, 0.16);
+  background: rgba(143, 196, 245, 0.035);
 }
 
 .macro-binding-detail-card.diff-positive {
