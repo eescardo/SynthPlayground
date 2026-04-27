@@ -29,6 +29,7 @@ interface PatchInspectorProps {
   structureLocked?: boolean;
   validationIssues: PatchValidationIssue[];
   onApplyOp: (op: PatchOp) => void;
+  onPreviewParamValue?: (nodeId: string, paramId: string, value: PatchNode["params"][string]) => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
   onUpdateProbeSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
   onUpdateProbeFrequencyView: (probeId: string, maxHz: number) => void;
@@ -105,6 +106,7 @@ export function PatchInspector(props: PatchInspectorProps) {
                 selectedMacroKeyframeIndex={selectedMacroKeyframeIndex}
                 structureLocked={props.structureLocked}
                 onApplyOp={props.onApplyOp}
+                onPreviewParamValue={props.onPreviewParamValue}
                 onExposeMacro={props.onExposeMacro}
               />
             ))}

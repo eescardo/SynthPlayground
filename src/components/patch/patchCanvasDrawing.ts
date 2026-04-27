@@ -407,6 +407,89 @@ function drawMixerModuleFace(
   ctx.textAlign = "left";
 }
 
+function formatSignedValue(value: number, digits = 2) {
+  const rounded = Math.abs(value) >= 10 ? value.toFixed(1) : value.toFixed(digits);
+  return value > 0 ? `+${rounded}` : rounded;
+}
+
+function drawCvAxisModuleFace(
+  ctx: CanvasRenderingContext2D,
+  value: number,
+  range: { min: number; max: number },
+  label: string,
+  x: number,
+  y: number,
+  accentColor: string
+) {
+  const graph = {
+    x: x + PATCH_MODULE_FACE_INSET_X + 20,
+    y: y + PATCH_MODULE_FACE_TOP + 4,
+    width: PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2 - 40,
+    height: PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 10
+  };
+  const t = clamp01((clamp(value, range.min, range.max) - range.min) / (range.max - range.min));
+  const markerY = graph.y + graph.height * (1 - t);
+  const zeroT = clamp01((0 - range.min) / (range.max - range.min));
+  const zeroY = graph.y + graph.height * (1 - zeroT);
+  const axisX = graph.x + graph.width / 2;
+
+  ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
+  ctx.strokeStyle = PATCH_COLOR_MODULE_FACE_ROW_BG;
+  ctx.beginPath();
+  ctx.moveTo(axisX, graph.y + 4);
+  ctx.lineTo(axisX, graph.y + graph.height - 4);
+  ctx.moveTo(graph.x + 6, zeroY);
+  ctx.lineTo(graph.x + graph.width - 6, zeroY);
+  ctx.stroke();
+
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(graph.x + 8, markerY);
+  ctx.lineTo(graph.x + graph.width - 8, markerY);
+  ctx.stroke();
+
+  ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
+  ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.textAlign = "right";
+  ctx.fillText(String(range.max), graph.x - 4, graph.y + 6);
+  ctx.fillText("0", graph.x - 4, zeroY + 3);
+  ctx.fillText(String(range.min), graph.x - 4, graph.y + graph.height);
+  ctx.textAlign = markerY < graph.y + 10 ? "left" : "right";
+  const labelX = markerY < graph.y + 10 ? graph.x + graph.width + 4 : graph.x + graph.width - 4;
+  ctx.fillText(label, labelX, clamp(markerY + 3, graph.y + 7, graph.y + graph.height - 4));
+  ctx.textAlign = "left";
+}
+
+function drawCvTransposeModuleFace(
+  ctx: CanvasRenderingContext2D,
+  node: PatchNode,
+  schema: ParamSchema[],
+  x: number,
+  y: number,
+  accentColor: string
+) {
+  const octaves = getNumericParam(node, schema, "octaves");
+  const semitones = getNumericParam(node, schema, "semitones");
+  const cents = getNumericParam(node, schema, "cents");
+  const transposeOctaves = octaves + semitones / 12 + cents / 1200;
+  drawCvAxisModuleFace(ctx, transposeOctaves, { min: -4, max: 4 }, `${formatSignedValue(transposeOctaves)} oct`, x, y, accentColor);
+}
+
+function drawCvScalerModuleFace(
+  ctx: CanvasRenderingContext2D,
+  node: PatchNode,
+  schema: ParamSchema[],
+  x: number,
+  y: number,
+  accentColor: string
+) {
+  const scale = getNumericParam(node, schema, "scale");
+  drawCvAxisModuleFace(ctx, scale, { min: -2, max: 2 }, `${formatSignedValue(scale)}x`, x, y, accentColor);
+}
+
 function drawGenericModuleFace(
   ctx: CanvasRenderingContext2D,
   node: PatchNode,
@@ -523,6 +606,10 @@ export function drawPatchModuleCard(
     drawMixerModuleFace(ctx, node, schema.params, x, y, moduleColors.accent, 4);
   } else if (node.typeId === "CVMixer2") {
     drawMixerModuleFace(ctx, node, schema.params, x, y, moduleColors.accent, 2);
+  } else if (node.typeId === "CVTranspose") {
+    drawCvTransposeModuleFace(ctx, node, schema.params, x, y, moduleColors.accent);
+  } else if (node.typeId === "CVScaler") {
+    drawCvScalerModuleFace(ctx, node, schema.params, x, y, moduleColors.accent);
   } else {
     drawGenericModuleFace(ctx, node, schema.params, x, y);
   }

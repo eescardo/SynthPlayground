@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PatchEditorStage } from "@/components/patch/PatchEditorStage";
 import { PatchInspector } from "@/components/patch/PatchInspector";
 import { PatchMacroPanel } from "@/components/patch/PatchMacroPanel";
@@ -9,7 +9,7 @@ import { PatchBaselineDiffState } from "@/components/patch/patchBaselineDiffStat
 import { usePatchProbeEditorState } from "@/hooks/patch/usePatchProbeEditorState";
 import { clamp } from "@/lib/numeric";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { PatchValidationIssue, Patch } from "@/types/patch";
+import { PatchValidationIssue, Patch, ParamValue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 
@@ -22,6 +22,41 @@ const PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT: Record<number, number> = {
   4: 4.98,
   5: 6.18
 };
+
+function buildParamDraftKey(nodeId: string, paramId: string) {
+  return `${nodeId}:${paramId}`;
+}
+
+function applyDraftParamValues(patch: Patch, draftValues: Record<string, ParamValue>): Patch {
+  if (Object.keys(draftValues).length === 0) {
+    return patch;
+  }
+  const nextNodes = patch.nodes.map((node) => {
+    const nextParams = { ...node.params };
+    let changed = false;
+    for (const [key, value] of Object.entries(draftValues)) {
+      const [nodeId, paramId] = key.split(":");
+      if (nodeId === node.id && paramId) {
+        nextParams[paramId] = value;
+        changed = true;
+      }
+    }
+    return changed ? { ...node, params: nextParams } : node;
+  });
+  const nextPorts = patch.ports?.map((port) => {
+    const nextParams = { ...port.params };
+    let changed = false;
+    for (const [key, value] of Object.entries(draftValues)) {
+      const [nodeId, paramId] = key.split(":");
+      if (nodeId === port.id && paramId) {
+        nextParams[paramId] = value;
+        changed = true;
+      }
+    }
+    return changed ? { ...port, params: nextParams } : port;
+  });
+  return { ...patch, nodes: nextNodes, ports: nextPorts };
+}
 
 interface PatchEditorCanvasProps {
   patch: Patch;
@@ -47,6 +82,11 @@ interface PatchEditorCanvasProps {
 }
 
 export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
+  const [draftParamValues, setDraftParamValues] = useState<Record<string, ParamValue>>({});
+  useEffect(() => {
+    setDraftParamValues({});
+  }, [props.patch]);
+  const previewPatch = useMemo(() => applyDraftParamValues(props.patch, draftParamValues), [draftParamValues, props.patch]);
   const macroVisibleRows = clamp(props.patch.ui.macros.length || 1, PATCH_MACRO_VISIBLE_ROW_MIN, PATCH_MACRO_VISIBLE_ROW_MAX);
   const macroDockHeightRem =
     PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT[macroVisibleRows] ?? PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT[PATCH_MACRO_VISIBLE_ROW_MAX];
@@ -55,15 +95,15 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       return new Set<string>();
     }
     return new Set(
-      props.patch.ui.macros
+      previewPatch.ui.macros
         .find((macro) => macro.id === props.selectedMacroId)
         ?.bindings.map((binding) => binding.nodeId) ?? []
     );
-  }, [props.patch.ui.macros, props.selectedMacroId]);
+  }, [previewPatch.ui.macros, props.selectedMacroId]);
 
   const nodeById = useMemo(
-    () => new Map([...props.patch.nodes, ...(props.patch.ports ?? [])].map((node) => [node.id, node] as const)),
-    [props.patch.nodes, props.patch.ports]
+    () => new Map([...previewPatch.nodes, ...(previewPatch.ports ?? [])].map((node) => [node.id, node] as const)),
+    [previewPatch.nodes, previewPatch.ports]
   );
   const selectedNode = props.selectedNodeId ? nodeById.get(props.selectedNodeId) : undefined;
   const selectedSchema = selectedNode ? getModuleSchema(selectedNode.typeId) : undefined;
@@ -92,7 +132,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       <div className="patch-layout">
         <div className="patch-editor-main-column">
           <PatchEditorStage
-            patch={props.patch}
+            patch={previewPatch}
             baselineDiff={props.baselineDiff}
             validationIssues={props.validationIssues}
             probeState={canvasProbeState}
@@ -124,7 +164,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
         </div>
 
         <PatchInspector
-          patch={props.patch}
+          patch={previewPatch}
           patchDiff={props.baselineDiff.patchDiff}
           macroValues={props.macroValues}
           selectedNode={selectedNode}
@@ -137,6 +177,12 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           structureLocked={props.structureLocked}
           validationIssues={props.validationIssues}
           onApplyOp={props.onApplyOp}
+          onPreviewParamValue={(nodeId, paramId, value) => {
+            setDraftParamValues((current) => ({
+              ...current,
+              [buildParamDraftKey(nodeId, paramId)]: value
+            }));
+          }}
           onExposeMacro={props.onExposeMacro}
           onUpdateProbeSpectrumWindow={props.probeActions.updateSpectrumWindow}
           onUpdateProbeFrequencyView={props.probeActions.updateFrequencyView}

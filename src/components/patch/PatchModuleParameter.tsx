@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   getMacroKeyframePositions,
   resolveMacroBindingValue
@@ -58,11 +58,22 @@ function ParamValueControl(props: {
   max?: number;
   disabled?: boolean;
   onChange: (value: ParamValue) => void;
+  onPreviewChange?: (value: ParamValue) => void;
 }) {
   const { param, value, disabled, onChange } = props;
 
   if (param.type === "float") {
-    return <FloatParamValueControl param={param} value={Number(value)} min={props.min} max={props.max} disabled={disabled} onChange={onChange} />;
+    return (
+      <FloatParamValueControl
+        param={param}
+        value={Number(value)}
+        min={props.min}
+        max={props.max}
+        disabled={disabled}
+        onChange={onChange}
+        onPreviewChange={props.onPreviewChange}
+      />
+    );
   }
 
   if (param.type === "enum") {
@@ -87,8 +98,10 @@ function FloatParamValueControl(props: {
   max?: number;
   disabled?: boolean;
   onChange: (value: number) => void;
+  onPreviewChange?: (value: number) => void;
 }) {
   const [draftValue, setDraftValue] = useState(props.value);
+  const pendingCommitRef = useRef(false);
   const min = props.min ?? props.param.range.min;
   const max = props.max ?? props.param.range.max;
   const sliderPercent = max === min ? 0 : clamp(((draftValue - min) / (max - min)) * 100, 0, 100);
@@ -98,9 +111,10 @@ function FloatParamValueControl(props: {
   }, [props.value]);
 
   const commitDraft = (nextValue: number) => {
-    if (nextValue === props.value) {
+    if (!pendingCommitRef.current) {
       return;
     }
+    pendingCommitRef.current = false;
     props.onChange(nextValue);
   };
 
@@ -114,7 +128,12 @@ function FloatParamValueControl(props: {
       value={draftValue}
       disabled={props.disabled}
       style={{ "--param-slider-percent": `${sliderPercent}%` } as CSSProperties}
-      onChange={(event) => setDraftValue(Number(event.target.value))}
+      onChange={(event) => {
+        const nextValue = Number(event.target.value);
+        pendingCommitRef.current = true;
+        setDraftValue(nextValue);
+        props.onPreviewChange?.(nextValue);
+      }}
       onPointerUp={(event) => commitDraft(Number(event.currentTarget.value))}
       onBlur={(event) => commitDraft(Number(event.currentTarget.value))}
       onKeyUp={(event) => {
@@ -221,6 +240,7 @@ interface PatchModuleParameterProps {
   selectedMacroKeyframeIndex: number | null;
   structureLocked?: boolean;
   onApplyOp: (op: PatchOp) => void;
+  onPreviewParamValue?: (nodeId: string, paramId: string, value: ParamValue) => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
 }
 
@@ -371,6 +391,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
             max={props.param.type === "float" ? sliderRange.max : undefined}
             disabled={controlDisabled}
             onChange={commitValue}
+            onPreviewChange={(nextValue) => props.onPreviewParamValue?.(props.selectedNode.id, props.param.id, nextValue)}
           />
           {props.param.type === "float" && (
             <div className={`param-range-label-row${hasParamRangeDiff ? " diff-positive" : ""}`}>
