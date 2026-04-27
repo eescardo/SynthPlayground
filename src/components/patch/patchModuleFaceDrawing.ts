@@ -320,12 +320,10 @@ function drawVcaModuleFace(
 
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
   ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.textAlign = "left";
-  ctx.fillText("cv", graph.x + 2, graph.y + graph.height + 10);
-  ctx.textAlign = "right";
-  ctx.fillText("1", graph.x + graph.width, graph.y + graph.height + 10);
   ctx.fillText("1.0", graph.x - 2, graph.y + 7);
   ctx.fillText("0", graph.x - 2, graph.y + graph.height);
+  ctx.textAlign = "left";
+  ctx.fillText("cv 0-1", topX + 4, graph.y + graph.height + 10);
   ctx.fillStyle = accentColor;
   ctx.textAlign = "left";
   ctx.fillText(`bias ${bias.toFixed(2)}`, graph.x + 6, graph.y + 11);
