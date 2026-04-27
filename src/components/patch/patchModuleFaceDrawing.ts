@@ -303,6 +303,7 @@ function drawVcfModuleFace(
   });
   const dbMin = -48;
   const peakDb = Math.max(0, ...responsePoints.map((point) => point.db));
+  const peakPoint = responsePoints.reduce((best, point) => (point.db > best.db ? point : best));
   const dbMax = clamp(Math.max(6, Math.ceil(peakDb / 6) * 6), 6, 36);
   const dbToY = (db: number) => graph.y + ((dbMax - clamp(db, dbMin, dbMax)) / (dbMax - dbMin)) * graph.height;
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
@@ -362,6 +363,18 @@ function drawVcfModuleFace(
     }
   });
   ctx.stroke();
+  if (peakPoint && peakPoint.db > 0.5) {
+    const peakY = dbToY(peakPoint.db);
+    ctx.strokeStyle = PATCH_COLOR_ADSR_MACRO_HIGH;
+    ctx.fillStyle = PATCH_COLOR_ADSR_MACRO_HIGH;
+    ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(peakPoint.x, peakY, 2.5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.textAlign = peakPoint.x > graph.x + graph.width * 0.76 ? "right" : "left";
+    ctx.fillText("pk", peakPoint.x + (ctx.textAlign === "right" ? -5 : 5), clamp(peakY - 3, graph.y + 7, graph.y + graph.height - 2));
+  }
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
   ctx.fillRect(cutoffX - 1, graph.y + 4, 2, graph.height - 8);
   ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
