@@ -282,9 +282,10 @@ function drawVcfModuleFace(
   const cutoffModAmountOct = Math.max(0, getNumericParam(node, schema, "cutoffModAmountOct"));
   const min = cutoffParam?.type === "float" ? cutoffParam.range.min : 20;
   const max = cutoffParam?.type === "float" ? cutoffParam.range.max : 20000;
+  const graphDisplayMax = Math.max(max, 40000);
   const cutoffClamped = clamp(cutoff, min, max);
-  const graphMin = clamp(cutoffClamped / 10, 2, max);
-  const graphMax = clamp(cutoffClamped * 10, min, max);
+  const graphMin = clamp(cutoffClamped / 10, 2, graphDisplayMax);
+  const graphMax = clamp(cutoffClamped * 10, min, graphDisplayMax);
   const graphLogMin = Math.log10(graphMin);
   const graphLogMax = Math.log10(graphMax);
   const frequencyToX = (frequency: number) => {
