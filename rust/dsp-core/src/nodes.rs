@@ -741,9 +741,9 @@ impl RuntimeNode {
                         20.0,
                         20000.0
                     );
-                    let resonance = clamp(node.resonance.next(), 0.0, 1.0);
+                    let damping = clamp(1.0 - node.resonance.next(), 0.001, 1.0);
                     let f = clamp(sample_rate_scale * cutoff_effective, 0.001, 0.99);
-                    let hp = input - node.lp - resonance * node.bp;
+                    let hp = input - node.lp - damping * node.bp;
                     node.bp += f * hp;
                     node.lp += f * node.bp;
                     signal_buffers[out_start + frame] = match node.filter_type {
@@ -994,9 +994,9 @@ impl RuntimeNode {
                 let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
                 let cutoff_cv = read_input_frame(signal_buffers, block_size, frame, node.cutoff_cv, 0.0);
                 let cutoff_effective = clamp(node.cutoff_hz.next() * 2.0_f32.powf(cutoff_cv * node.cutoff_mod_amount_oct.next()), 20.0, 20000.0);
-                let resonance = clamp(node.resonance.next(), 0.0, 1.0);
+                let damping = clamp(1.0 - node.resonance.next(), 0.001, 1.0);
                 let f = clamp((2.0 * std::f32::consts::PI * cutoff_effective) / sample_rate, 0.001, 0.99);
-                let hp = input - node.lp - resonance * node.bp;
+                let hp = input - node.lp - damping * node.bp;
                 node.bp += f * hp;
                 node.lp += f * node.bp;
                 let out = frame_signal_offset(node.out_index, block_size, frame);

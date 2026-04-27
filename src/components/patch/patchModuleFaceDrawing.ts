@@ -233,20 +233,21 @@ function divComplex(a: Complex, b: Complex): Complex {
 function vcfMagnitudeAtFrequency(type: string, cutoff: number, resonance: number, frequency: number): number {
   const sampleRate = 48000;
   const f = clamp((2 * Math.PI * cutoff) / sampleRate, 0.001, 0.99);
+  const damping = clamp(1 - resonance, 0.001, 1);
   const omega = (2 * Math.PI * frequency) / sampleRate;
   const zInv = { re: Math.cos(omega), im: -Math.sin(omega) };
   const one = { re: 1, im: 0 };
   const zero = { re: 0, im: 0 };
   const fValue = { re: f, im: 0 };
 
-  const a11 = addComplex(one, mulComplex(zInv, { re: -1 + f * resonance, im: 0 }));
+  const a11 = addComplex(one, mulComplex(zInv, { re: -1 + f * damping, im: 0 }));
   const a12 = mulComplex(zInv, fValue);
   const a21 = { re: -f, im: 0 };
   const a22 = subComplex(one, zInv);
   const determinant = subComplex(mulComplex(a11, a22), mulComplex(a12, a21));
   const bp = divComplex(subComplex(mulComplex(fValue, a22), mulComplex(a12, zero)), determinant);
   const lp = divComplex(subComplex(mulComplex(a11, zero), mulComplex(fValue, a21)), determinant);
-  const hp = subComplex(subComplex(one, mulComplex(zInv, lp)), mulComplex({ re: resonance, im: 0 }, mulComplex(zInv, bp)));
+  const hp = subComplex(subComplex(one, mulComplex(zInv, lp)), mulComplex({ re: damping, im: 0 }, mulComplex(zInv, bp)));
   const response = type === "highpass" ? hp : type === "bandpass" ? bp : lp;
   return Math.hypot(response.re, response.im);
 }

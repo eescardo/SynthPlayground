@@ -74,7 +74,7 @@ export const bassPatch = (): Patch => {
     schemaVersion: 1,
     id: patchId,
     name: "Bass",
-    meta: { source: "preset", presetId: "preset_bass", presetVersion: 13 },
+    meta: { source: "preset", presetId: "preset_bass", presetVersion: 14 },
     nodes: [
       {
         id: pitchTrackId,
@@ -167,7 +167,7 @@ export const bassPatch = (): Patch => {
           ...createDefaultParamsForType("VCF"),
           type: "lowpass",
           cutoffHz: 320,
-          resonance: 0.22,
+          resonance: 0.78,
           cutoffModAmountOct: 1.8
         }
       },
@@ -405,9 +405,9 @@ export const bassPatch = (): Patch => {
               paramId: "resonance",
               map: "linear",
               points: [
-                { x: 0, y: 0.06 },
-                { x: 0.5, y: 0.16 },
-                { x: 1, y: 0.28 }
+                { x: 0, y: 0.94 },
+                { x: 0.5, y: 0.84 },
+                { x: 1, y: 0.72 }
               ]
             },
             {
@@ -473,7 +473,7 @@ export const padPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_pad",
     name: "Pad",
-    meta: { source: "preset", presetId: "preset_pad", presetVersion: 6 },
+    meta: { source: "preset", presetId: "preset_pad", presetVersion: 7 },
     nodes: [
       {
         id: vco1,
@@ -507,7 +507,7 @@ export const padPatch = (): Patch => {
       {
         id: vcf,
         typeId: "VCF",
-        params: { ...createDefaultParamsForType("VCF"), cutoffHz: 1450, resonance: 0.16, cutoffModAmountOct: 1.6 }
+        params: { ...createDefaultParamsForType("VCF"), cutoffHz: 1450, resonance: 0.84, cutoffModAmountOct: 1.6 }
       },
       { id: vca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), bias: 0, gain: 1 } },
       outputNode(out)
@@ -587,7 +587,7 @@ export const pluckPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_pluck",
     name: "Pluck",
-    meta: { source: "preset", presetId: "preset_pluck", presetVersion: 28 },
+    meta: { source: "preset", presetId: "preset_pluck", presetVersion: 29 },
     nodes: [
       {
         id: string,
@@ -668,7 +668,7 @@ export const pluckPatch = (): Patch => {
       {
         id: filter,
         typeId: "VCF",
-        params: { ...createDefaultParamsForType("VCF"), cutoffHz: 980, resonance: 0.06, cutoffModAmountOct: 0.45 }
+        params: { ...createDefaultParamsForType("VCF"), cutoffHz: 980, resonance: 0.94, cutoffModAmountOct: 0.45 }
       },
       { id: ampVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), bias: 0, gain: 1 } },
       outputNode(out)
@@ -850,9 +850,9 @@ export const pluckPatch = (): Patch => {
               paramId: "resonance",
               map: "linear",
               points: [
-                { x: 0, y: 0.305 },
-                { x: 0.5, y: 0.05 },
-                { x: 1, y: 0.122 }
+                { x: 0, y: 0.695 },
+                { x: 0.5, y: 0.95 },
+                { x: 1, y: 0.878 }
               ]
             },
             {
@@ -1010,7 +1010,7 @@ export const brassPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_brass",
     name: "Brass-ish",
-    meta: { source: "preset", presetId: "preset_brass", presetVersion: 3 },
+    meta: { source: "preset", presetId: "preset_brass", presetVersion: 4 },
     nodes: [
       { id: vco, typeId: "VCO", params: { ...createDefaultParamsForType("VCO"), wave: "square", pulseWidth: 0.35 } },
       { id: lfo, typeId: "LFO", params: { ...createDefaultParamsForType("LFO"), freqHz: 5, bipolar: true } },
@@ -1019,7 +1019,7 @@ export const brassPatch = (): Patch => {
         typeId: "ADSR",
         params: { ...createDefaultParamsForType("ADSR"), attack: 0.06, decay: 0.2, sustain: 0.7, release: 0.4 }
       },
-      { id: vcf, typeId: "VCF", params: { ...createDefaultParamsForType("VCF"), cutoffHz: 900, resonance: 0.2 } },
+      { id: vcf, typeId: "VCF", params: { ...createDefaultParamsForType("VCF"), cutoffHz: 900, resonance: 0.8 } },
       { id: vca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 1, bias: 0 } },
       outputNode(out)
     ],
@@ -1040,7 +1040,7 @@ export const brassPatch = (): Patch => {
           name: "Bite",
           keyframeCount: 2,
           defaultNormalized: 0.18,
-          bindings: [{ id: "b1", nodeId: vcf, paramId: "resonance", map: "linear", min: 0.05, max: 0.9 }]
+          bindings: [{ id: "b1", nodeId: vcf, paramId: "resonance", map: "linear", min: 0.95, max: 0.1 }]
         }
       ]
     },
@@ -1074,7 +1074,7 @@ export const drumPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_drumish",
     name: "Drum-ish",
-    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 10 },
+    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 11 },
     nodes: [
       {
         id: vco,
@@ -1095,7 +1095,7 @@ export const drumPatch = (): Patch => {
       {
         id: noiseFilter,
         typeId: "VCF",
-        params: { ...createDefaultParamsForType("VCF"), type: "bandpass", cutoffHz: 4200, resonance: 0.62, cutoffModAmountOct: 0.25 }
+        params: { ...createDefaultParamsForType("VCF"), type: "bandpass", cutoffHz: 4200, resonance: 0.38, cutoffModAmountOct: 0.25 }
       },
       { id: bodyVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.34, bias: 0 } },
       { id: noiseVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.82, bias: 0 } },
@@ -1148,7 +1148,7 @@ export const drumPatch = (): Patch => {
             { id: "b5", nodeId: noiseEnv, paramId: "decay", map: "linear", min: 0.03, max: 0.22 },
             { id: "b6", nodeId: noiseEnv, paramId: "release", map: "linear", min: 0.01, max: 0.18 },
             { id: "b7", nodeId: noiseFilter, paramId: "cutoffHz", map: "exp", min: 2400, max: 4800 },
-            { id: "b8", nodeId: noiseFilter, paramId: "resonance", map: "linear", min: 0.28, max: 0.58 },
+            { id: "b8", nodeId: noiseFilter, paramId: "resonance", map: "linear", min: 0.72, max: 0.42 },
             { id: "b9", nodeId: sat, paramId: "mix", map: "linear", min: 0.04, max: 0.18 }
           ]
         },
@@ -1198,7 +1198,7 @@ export const bassDrumPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_bassdrum",
     name: "Bass Drum",
-    meta: { source: "preset", presetId: "preset_bassdrum", presetVersion: 11 },
+    meta: { source: "preset", presetId: "preset_bassdrum", presetVersion: 12 },
     nodes: [
       {
         id: vco,
@@ -1229,7 +1229,7 @@ export const bassDrumPatch = (): Patch => {
       {
         id: clickFilter,
         typeId: "VCF",
-        params: { ...createDefaultParamsForType("VCF"), type: "bandpass", cutoffHz: 3200, resonance: 0.34, cutoffModAmountOct: 0.12 }
+        params: { ...createDefaultParamsForType("VCF"), type: "bandpass", cutoffHz: 3200, resonance: 0.66, cutoffModAmountOct: 0.12 }
       },
       { id: bodyMix, typeId: "Mixer4", params: { ...createDefaultParamsForType("Mixer4"), gain1: 1, gain2: 1, gain3: 0 } },
       { id: bodyVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 1, bias: 0 } },
