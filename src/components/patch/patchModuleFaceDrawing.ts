@@ -227,8 +227,19 @@ function drawVcfModuleFace(
   const min = cutoffParam?.type === "float" ? cutoffParam.range.min : 20;
   const max = cutoffParam?.type === "float" ? cutoffParam.range.max : 20000;
   const cutoffClamped = clamp(cutoff, min, max);
-  const graphMin = clamp(cutoffClamped / 10, min, max);
-  const graphMax = clamp(cutoffClamped * 10, min, max);
+  let graphMin = cutoffClamped / 10;
+  let graphMax = cutoffClamped * 10;
+  if (graphMin < min) {
+    graphMin = min;
+    graphMax = Math.max(graphMin, Math.min(max, (cutoffClamped * cutoffClamped) / graphMin));
+  }
+  if (graphMax > max) {
+    graphMax = max;
+    graphMin = Math.min(graphMax, Math.max(min, (cutoffClamped * cutoffClamped) / graphMax));
+  }
+  if (graphMax <= graphMin) {
+    graphMax = Math.min(max, graphMin * 10);
+  }
   const graphLogMin = Math.log10(graphMin);
   const graphLogMax = Math.log10(graphMax);
   const frequencyToX = (frequency: number) => {
