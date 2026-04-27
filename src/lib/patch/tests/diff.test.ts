@@ -386,4 +386,34 @@ describe("patch diff", () => {
     expect(diff.addedConnections.map((connection) => connection.id)).toEqual(["conn_osc_out"]);
     expect(diff.removedConnections.map((connection) => connection.id)).toEqual(["conn_osc_filter"]);
   });
+
+  it("treats remove and re-add of the same output connection as unchanged", () => {
+    const baseline = createClearPatch({ id: "patch_a", name: "Lead" });
+    baseline.nodes.unshift({ id: "sat1", typeId: "Saturation", params: {} });
+    baseline.connections = [
+      {
+        id: "old_sat_output_connection",
+        from: { nodeId: "sat1", portId: "out" },
+        to: { nodeId: baseline.io.audioOutNodeId, portId: baseline.io.audioOutPortId }
+      }
+    ];
+
+    const current = structuredClone(baseline);
+    current.connections = [
+      {
+        id: "new_sat_output_connection",
+        from: { nodeId: "sat1", portId: "out" },
+        to: { nodeId: current.io.audioOutNodeId, portId: current.io.audioOutPortId }
+      }
+    ];
+
+    const diff = buildPatchDiff(current, baseline);
+
+    expect(diff.hasChanges).toBe(false);
+    expect(diff.currentConnectionStatusById.get("new_sat_output_connection")).toBe("unchanged");
+    expect(diff.addedConnections).toEqual([]);
+    expect(diff.removedConnections).toEqual([]);
+    expect(diff.nodeDiffById.get("sat1")?.status).toBe("unchanged");
+    expect(diff.nodeDiffById.get(current.io.audioOutNodeId)?.status).toBe("unchanged");
+  });
 });

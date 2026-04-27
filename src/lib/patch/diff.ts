@@ -125,6 +125,23 @@ function normalizeBindingNodeIdForDiff(patch: Patch, nodeId: string) {
   return nodeId === patch.io.audioOutNodeId || nodeId === "$host.output" ? "$patch.output" : nodeId;
 }
 
+function normalizeConnectionEndpointForDiff(
+  patch: Patch,
+  endpoint: PatchConnection["from"] | PatchConnection["to"]
+) {
+  const nodeId = normalizeBindingNodeIdForDiff(patch, endpoint.nodeId);
+  return {
+    nodeId,
+    portId: nodeId === "$patch.output" ? "in" : endpoint.portId
+  };
+}
+
+function createConnectionDiffKey(patch: Patch, connection: PatchConnection) {
+  const from = normalizeConnectionEndpointForDiff(patch, connection.from);
+  const to = normalizeConnectionEndpointForDiff(patch, connection.to);
+  return `${from.nodeId}:${from.portId}->${to.nodeId}:${to.portId}`;
+}
+
 function serializeBinding(patch: Patch, binding: MacroBinding): string {
   return JSON.stringify({
     nodeId: normalizeBindingNodeIdForDiff(patch, binding.nodeId),
@@ -180,24 +197,25 @@ function buildBindingIndexes(patch: Patch) {
   return { byKey, keysByMacroId, keysByNodeId, keysByNodeParamKey };
 }
 
-function buildConnectionIdsByNodeId(connections: PatchConnection[]) {
-  const idsByNodeId = new Map<string, Set<string>>();
-  connections.forEach((connection) => {
-    addSetEntry(idsByNodeId, connection.from.nodeId, connection.id);
-    addSetEntry(idsByNodeId, connection.to.nodeId, connection.id);
+function buildConnectionKeysByNodeId(patch: Patch) {
+  const keysByNodeId = new Map<string, Set<string>>();
+  patch.connections.forEach((connection) => {
+    const key = createConnectionDiffKey(patch, connection);
+    addSetEntry(keysByNodeId, connection.from.nodeId, key);
+    addSetEntry(keysByNodeId, connection.to.nodeId, key);
   });
-  return idsByNodeId;
+  return keysByNodeId;
 }
 
 function hasConnectionMissingFrom(
-  connectionIds: Set<string> | undefined,
-  comparisonConnectionsById: Map<string, PatchConnection>
+  connectionKeys: Set<string> | undefined,
+  comparisonConnectionsByKey: Map<string, PatchConnection>
 ) {
-  if (!connectionIds) {
+  if (!connectionKeys) {
     return false;
   }
-  for (const connectionId of connectionIds) {
-    if (!comparisonConnectionsById.has(connectionId)) {
+  for (const connectionKey of connectionKeys) {
+    if (!comparisonConnectionsByKey.has(connectionKey)) {
       return true;
     }
   }
@@ -294,10 +312,10 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
   const baselineBindingIndexes = buildBindingIndexes(baselinePatch);
   const currentBindingsByKey = currentBindingIndexes.byKey;
   const baselineBindingsByKey = baselineBindingIndexes.byKey;
-  const currentConnectionsById = new Map(currentPatch.connections.map((connection) => [connection.id, connection] as const));
-  const baselineConnectionsById = new Map(baselinePatch.connections.map((connection) => [connection.id, connection] as const));
-  const currentConnectionIdsByNodeId = buildConnectionIdsByNodeId(currentPatch.connections);
-  const baselineConnectionIdsByNodeId = buildConnectionIdsByNodeId(baselinePatch.connections);
+  const currentConnectionsByKey = new Map(currentPatch.connections.map((connection) => [createConnectionDiffKey(currentPatch, connection), connection] as const));
+  const baselineConnectionsByKey = new Map(baselinePatch.connections.map((connection) => [createConnectionDiffKey(baselinePatch, connection), connection] as const));
+  const currentConnectionKeysByNodeId = buildConnectionKeysByNodeId(currentPatch);
+  const baselineConnectionKeysByNodeId = buildConnectionKeysByNodeId(baselinePatch);
   const currentParamRangeIdsByNodeId = buildParamRangeIdsByNodeId(currentPatch);
   const baselineParamRangeIdsByNodeId = buildParamRangeIdsByNodeId(baselinePatch);
 
@@ -314,7 +332,7 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
         addedBindingKeys: new Set(currentBindingIndexes.keysByNodeId.get(node.id)),
         changedBindingKeys: new Set(),
         removedBindingKeys: new Set(),
-        hasConnectionChanges: (currentConnectionIdsByNodeId.get(node.id)?.size ?? 0) > 0
+        hasConnectionChanges: (currentConnectionKeysByNodeId.get(node.id)?.size ?? 0) > 0
       });
       return;
     }
@@ -374,8 +392,8 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
     });
 
     const hasConnectionChanges =
-      hasConnectionMissingFrom(currentConnectionIdsByNodeId.get(node.id), baselineConnectionsById) ||
-      hasConnectionMissingFrom(baselineConnectionIdsByNodeId.get(node.id), currentConnectionsById);
+      hasConnectionMissingFrom(currentConnectionKeysByNodeId.get(node.id), baselineConnectionsByKey) ||
+      hasConnectionMissingFrom(baselineConnectionKeysByNodeId.get(node.id), currentConnectionsByKey);
 
     const modified =
       node.typeId !== baselineNode.typeId ||
@@ -528,7 +546,8 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
   });
 
   currentPatch.connections.forEach((connection) => {
-    if (baselineConnectionsById.has(connection.id)) {
+    const key = createConnectionDiffKey(currentPatch, connection);
+    if (baselineConnectionsByKey.has(key)) {
       currentConnectionStatusById.set(connection.id, "unchanged");
       return;
     }
@@ -537,7 +556,8 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
   });
 
   const addedConnections = currentPatch.connections.filter((connection) => currentConnectionStatusById.get(connection.id) === "added");
-  const removedConnections = baselinePatch.connections.filter((connection) => !currentConnectionStatusById.has(connection.id));
+  const currentConnectionKeys = new Set(currentPatch.connections.map((connection) => createConnectionDiffKey(currentPatch, connection)));
+  const removedConnections = baselinePatch.connections.filter((connection) => !currentConnectionKeys.has(createConnectionDiffKey(baselinePatch, connection)));
   summary.removedConnectionCount = removedConnections.length;
 
   const hasChanges =
