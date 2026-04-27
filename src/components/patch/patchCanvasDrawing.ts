@@ -369,6 +369,160 @@ function drawVcfModuleFace(
   ctx.textAlign = "left";
 }
 
+function drawVcaModuleFace(
+  ctx: CanvasRenderingContext2D,
+  node: PatchNode,
+  schema: ParamSchema[],
+  x: number,
+  y: number,
+  accentColor: string
+) {
+  const graph = {
+    x: x + PATCH_MODULE_FACE_INSET_X,
+    y: y + PATCH_MODULE_FACE_TOP + 4,
+    width: PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2,
+    height: PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 10
+  };
+  const bias = clamp01(getNumericParam(node, schema, "bias"));
+  const gain = clamp01(getNumericParam(node, schema, "gain"));
+  const top = clamp01(bias + gain);
+  const biasY = graph.y + graph.height * (1 - bias);
+  const topY = graph.y + graph.height * (1 - top);
+  const startX = graph.x + 8;
+  const endX = graph.x + graph.width - 8;
+
+  ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
+
+  ctx.fillStyle = "rgba(158, 192, 223, 0.14)";
+  ctx.fillRect(graph.x + 1, biasY, graph.width - 2, graph.y + graph.height - biasY - 1);
+  ctx.fillStyle = "rgba(158, 192, 223, 0.24)";
+  ctx.fillRect(graph.x + 1, topY, graph.width - 2, Math.max(0, biasY - topY));
+
+  ctx.strokeStyle = PATCH_COLOR_MODULE_FACE_ROW_BG;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(graph.x + 5, biasY);
+  ctx.lineTo(graph.x + graph.width - 5, biasY);
+  ctx.stroke();
+
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(startX, biasY);
+  ctx.lineTo(endX, topY);
+  ctx.stroke();
+
+  if (bias + gain > 1) {
+    ctx.strokeStyle = "rgba(255, 214, 145, 0.82)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(graph.x + 4, graph.y + 4);
+    ctx.lineTo(graph.x + graph.width - 4, graph.y + 4);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
+  ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.textAlign = "left";
+  ctx.fillText("cv", graph.x + 2, graph.y + graph.height + 10);
+  ctx.textAlign = "right";
+  ctx.fillText("1", graph.x + graph.width, graph.y + graph.height + 10);
+  ctx.fillText("1.0", graph.x - 2, graph.y + 7);
+  ctx.fillText("0", graph.x - 2, graph.y + graph.height);
+  ctx.fillStyle = accentColor;
+  ctx.textAlign = "left";
+  ctx.fillText(`bias ${bias.toFixed(2)}`, graph.x + 6, clamp(biasY - 3, graph.y + 10, graph.y + graph.height - 14));
+  ctx.fillText(`+gain ${gain.toFixed(2)}`, graph.x + graph.width * 0.48, clamp(topY + 10, graph.y + 11, graph.y + graph.height - 3));
+  ctx.textAlign = "left";
+}
+
+function softclipTransfer(value: number) {
+  const clipped = clamp(value, -1.5, 1.5);
+  return clipped - (clipped * clipped * clipped) / 3;
+}
+
+function drawSaturationModuleFace(
+  ctx: CanvasRenderingContext2D,
+  node: PatchNode,
+  schema: ParamSchema[],
+  x: number,
+  y: number,
+  accentColor: string
+) {
+  const graph = {
+    x: x + PATCH_MODULE_FACE_INSET_X,
+    y: y + PATCH_MODULE_FACE_TOP + 4,
+    width: PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2,
+    height: PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 10
+  };
+  const driveDb = getNumericParam(node, schema, "driveDb");
+  const drive = 10 ** (driveDb / 20);
+  const mix = clamp01(getNumericParam(node, schema, "mix"));
+  const type = String(node.params.type ?? "tanh");
+  const resolveOutput = (input: number) => {
+    const driven = input * drive;
+    const wet = type === "softclip" ? softclipTransfer(driven) : Math.tanh(driven);
+    return clamp(input * (1 - mix) + wet * mix, -1, 1);
+  };
+
+  ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
+
+  const centerX = graph.x + graph.width / 2;
+  const centerY = graph.y + graph.height / 2;
+  ctx.strokeStyle = PATCH_COLOR_MODULE_FACE_ROW_BG;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(centerX, graph.y + 4);
+  ctx.lineTo(centerX, graph.y + graph.height - 4);
+  ctx.moveTo(graph.x + 4, centerY);
+  ctx.lineTo(graph.x + graph.width - 4, centerY);
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(158, 192, 223, 0.38)";
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(graph.x + 5, graph.y + graph.height - 5);
+  ctx.lineTo(graph.x + graph.width - 5, graph.y + 5);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let index = 0; index <= 48; index += 1) {
+    const t = index / 48;
+    const input = t * 2 - 1;
+    const output = resolveOutput(input);
+    const px = graph.x + t * graph.width;
+    const py = graph.y + graph.height * (1 - (output + 1) / 2);
+    if (index === 0) {
+      ctx.moveTo(px, py);
+    } else {
+      ctx.lineTo(px, py);
+    }
+  }
+  ctx.stroke();
+
+  ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
+  ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.textAlign = "left";
+  ctx.fillText("-in", graph.x, graph.y + graph.height + 10);
+  ctx.textAlign = "right";
+  ctx.fillText("+in", graph.x + graph.width, graph.y + graph.height + 10);
+  ctx.fillStyle = accentColor;
+  ctx.textAlign = "left";
+  ctx.fillText(`${type}`, graph.x + 6, graph.y + 11);
+  ctx.textAlign = "right";
+  ctx.fillText(`${driveDb.toFixed(0)}dB ${Math.round(mix * 100)}%`, graph.x + graph.width - 6, graph.y + graph.height - 5);
+  ctx.textAlign = "left";
+}
+
 function drawMixerModuleFace(
   ctx: CanvasRenderingContext2D,
   node: PatchNode,
@@ -627,6 +781,10 @@ export function drawPatchModuleCard(
     drawVcoModuleFace(ctx, node, x, y, moduleColors.accent);
   } else if (node.typeId === "VCF") {
     drawVcfModuleFace(ctx, node, schema.params, x, y, moduleColors.accent);
+  } else if (node.typeId === "VCA") {
+    drawVcaModuleFace(ctx, node, schema.params, x, y, moduleColors.accent);
+  } else if (node.typeId === "Saturation") {
+    drawSaturationModuleFace(ctx, node, schema.params, x, y, moduleColors.accent);
   } else if (node.typeId === "Mixer4") {
     drawMixerModuleFace(ctx, node, schema.params, x, y, moduleColors.accent, 4, resolveConnectedInputPortIds(patch, node.id));
   } else if (node.typeId === "CVMixer2") {
