@@ -356,6 +356,17 @@ function drawVcfModuleFace(
   ctx.stroke();
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
   ctx.fillRect(cutoffX - 1, graph.y + 4, 2, graph.height - 8);
+  ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "left";
+  ctx.fillText("20", graph.x + 3, graph.y + graph.height - 3);
+  ctx.textAlign = "right";
+  ctx.fillText("20k", graph.x + graph.width - 3, graph.y + graph.height - 3);
+  ctx.textAlign = cutoffX > graph.x + graph.width * 0.72 ? "right" : cutoffX < graph.x + graph.width * 0.28 ? "left" : "center";
+  const cutoffLabel = cutoff >= 1000 ? `${(cutoff / 1000).toFixed(cutoff >= 10000 ? 0 : 1)}k` : `${Math.round(cutoff)}`;
+  const cutoffLabelX = clamp(cutoffX, graph.x + 10, graph.x + graph.width - 10);
+  ctx.fillText(cutoffLabel, cutoffLabelX, graph.y + 10);
+  ctx.textAlign = "left";
 }
 
 function drawMixerModuleFace(
