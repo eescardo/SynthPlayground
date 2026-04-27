@@ -161,6 +161,7 @@ function buildBindingIndexes(macros: PatchMacro[]) {
   const byKey = new Map<string, { macro: PatchMacro; binding: MacroBinding }>();
   const keysByMacroId = new Map<string, Set<string>>();
   const keysByNodeId = new Map<string, Set<string>>();
+  const keysByNodeParamKey = new Map<string, Set<string>>();
 
   macros.forEach((macro) => {
     macro.bindings.forEach((binding) => {
@@ -168,10 +169,11 @@ function buildBindingIndexes(macros: PatchMacro[]) {
       byKey.set(key, { macro, binding });
       addSetEntry(keysByMacroId, macro.id, key);
       addSetEntry(keysByNodeId, binding.nodeId, key);
+      addSetEntry(keysByNodeParamKey, buildNodeParamKey(binding.nodeId, binding.paramId), key);
     });
   });
 
-  return { byKey, keysByMacroId, keysByNodeId };
+  return { byKey, keysByMacroId, keysByNodeId, keysByNodeParamKey };
 }
 
 function buildConnectionIdsByNodeId(connections: PatchConnection[]) {
@@ -239,6 +241,27 @@ function addRemovedBindingDiff(
   const current = map.get(nodeParamKey) ?? [];
   current.push(diff);
   map.set(nodeParamKey, current);
+}
+
+function hasUnchangedMacroBindingForParam(
+  bindingKeys: Set<string> | undefined,
+  currentBindingsByKey: Map<string, { macro: PatchMacro; binding: MacroBinding }>,
+  baselineBindingsByKey: Map<string, { macro: PatchMacro; binding: MacroBinding }>
+) {
+  if (!bindingKeys) {
+    return false;
+  }
+  for (const key of bindingKeys) {
+    const currentEntry = currentBindingsByKey.get(key);
+    const baselineEntry = baselineBindingsByKey.get(key);
+    if (!currentEntry || !baselineEntry) {
+      continue;
+    }
+    if (serializeBinding(currentEntry.binding) === serializeBinding(baselineEntry.binding)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): PatchDiff {
@@ -309,6 +332,14 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
         return;
       }
       if (!isSameParamValue(getParamValue(node, currentSchema), getParamValue(baselineNode, baselineSchema))) {
+        const currentBindingKeys = currentBindingIndexes.keysByNodeParamKey.get(paramRangeKey);
+        const baselineBindingKeys = baselineBindingIndexes.keysByNodeParamKey.get(paramRangeKey);
+        if (hasUnchangedMacroBindingForParam(currentBindingKeys, currentBindingsByKey, baselineBindingsByKey)) {
+          return;
+        }
+        if (hasUnchangedMacroBindingForParam(baselineBindingKeys, currentBindingsByKey, baselineBindingsByKey)) {
+          return;
+        }
         changedParamIds.add(paramId);
       }
     });

@@ -233,6 +233,48 @@ describe("patch diff", () => {
     expect(diff.nodeDiffById.get("vcf1")?.status).toBe("unchanged");
   });
 
+  it("ignores raw parameter value changes for unchanged macro-bound parameters", () => {
+    const baseline = createClearPatch({ id: "patch_a", name: "Lead" });
+    baseline.nodes.unshift({
+      id: "vcf1",
+      typeId: "VCF",
+      params: {
+        type: "lowpass",
+        cutoffHz: 600,
+        resonance: 0.06,
+        cutoffModAmountOct: 0
+      }
+    });
+    baseline.ui.macros = [
+      {
+        id: "macro_decay",
+        name: "Pop/Slap",
+        keyframeCount: 3,
+        bindings: [
+          {
+            id: "macro_decay:vcf1:resonance",
+            nodeId: "vcf1",
+            paramId: "resonance",
+            map: "linear",
+            points: [
+              { x: 0, y: 0.06 },
+              { x: 0.5, y: 0.16 },
+              { x: 1, y: 0.28 }
+            ]
+          }
+        ]
+      }
+    ];
+    const current = structuredClone(baseline);
+    current.nodes[0].params.resonance = 0.16;
+
+    const diff = buildPatchDiff(current, baseline);
+
+    expect(diff.hasChanges).toBe(false);
+    expect(diff.nodeDiffById.get("vcf1")?.status).toBe("unchanged");
+    expect(diff.nodeDiffById.get("vcf1")?.changedParamIds.has("resonance")).toBe(false);
+  });
+
   it("marks both endpoint modules modified when connections are added or removed", () => {
     const baseline = createClearPatch({ id: "patch_a", name: "Lead" });
     baseline.nodes.unshift(
