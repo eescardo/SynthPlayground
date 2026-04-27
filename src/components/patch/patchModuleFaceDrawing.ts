@@ -262,6 +262,7 @@ function formatDbFaceLabel(db: number): string {
 
 function drawVcfModuleFace(
   ctx: CanvasRenderingContext2D,
+  patch: Patch,
   node: PatchNode,
   schema: ParamSchema[],
   x: number,
@@ -278,6 +279,7 @@ function drawVcfModuleFace(
   const cutoffParam = schema.find((param) => param.id === "cutoffHz" && param.type === "float");
   const cutoff = getNumericParam(node, schema, "cutoffHz");
   const resonance = clamp(getNumericParam(node, schema, "resonance"), 0, 1);
+  const cutoffModAmountOct = Math.max(0, getNumericParam(node, schema, "cutoffModAmountOct"));
   const min = cutoffParam?.type === "float" ? cutoffParam.range.min : 20;
   const max = cutoffParam?.type === "float" ? cutoffParam.range.max : 20000;
   const cutoffClamped = clamp(cutoff, min, max);
@@ -306,6 +308,26 @@ function drawVcfModuleFace(
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
   ctx.lineWidth = 1;
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
+
+  const cutoffCvConnected = patch.connections.some((connection) => connection.to.nodeId === node.id && connection.to.portId === "cutoffCV");
+  if (cutoffCvConnected && cutoffModAmountOct > 0.001) {
+    const modLow = clamp(cutoffClamped * 2 ** -cutoffModAmountOct, min, max);
+    const modHigh = clamp(cutoffClamped * 2 ** cutoffModAmountOct, min, max);
+    const modLowX = frequencyToX(modLow);
+    const modHighX = frequencyToX(modHigh);
+    const bandX = Math.min(modLowX, modHighX);
+    const bandWidth = Math.max(2, Math.abs(modHighX - modLowX));
+    ctx.fillStyle = "rgba(112, 211, 150, 0.10)";
+    ctx.fillRect(bandX, graph.y + 2, bandWidth, graph.height - 4);
+    ctx.strokeStyle = "rgba(112, 211, 150, 0.28)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(modLowX, graph.y + 5);
+    ctx.lineTo(modLowX, graph.y + graph.height - 5);
+    ctx.moveTo(modHighX, graph.y + 5);
+    ctx.lineTo(modHighX, graph.y + graph.height - 5);
+    ctx.stroke();
+  }
 
   ctx.lineWidth = 1;
   for (const ratio of [0.25, 0.5, 1, 2, 4]) {
@@ -706,7 +728,7 @@ export function drawPatchModuleFaceContent(
   } else if (node.typeId === "VCO") {
     drawVcoModuleFace(ctx, node, x, y, accentColor);
   } else if (node.typeId === "VCF") {
-    drawVcfModuleFace(ctx, node, schema.params, x, y, accentColor);
+    drawVcfModuleFace(ctx, patch, node, schema.params, x, y, accentColor);
   } else if (node.typeId === "VCA") {
     drawVcaModuleFace(ctx, node, schema.params, x, y, accentColor);
   } else if (node.typeId === "Saturation") {
