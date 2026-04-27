@@ -147,6 +147,7 @@ describe("patch diff", () => {
 
     expect(diff.nodeDiffById.get("out1")?.status).toBe("modified");
     expect(diff.nodeDiffById.get("out1")?.changedParamIds.has("gain")).toBe(true);
+    expect(diff.nodeDiffById.get("out1")?.changedParamRangeIds.has("gain")).toBe(true);
     expect(diff.summary.modifiedNodeCount).toBe(1);
   });
 

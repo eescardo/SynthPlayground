@@ -31,6 +31,7 @@ export interface PatchNodeDiff {
   typeId: string;
   status: Exclude<PatchDiffStatus, "removed">;
   changedParamIds: Set<string>;
+  changedParamRangeIds: Set<string>;
   addedBindingKeys: Set<string>;
   changedBindingKeys: Set<string>;
   removedBindingKeys: Set<string>;
@@ -280,6 +281,7 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
         typeId: node.typeId,
         status: "added",
         changedParamIds: new Set(Object.keys(node.params)),
+        changedParamRangeIds: new Set(currentParamRangeIdsByNodeId.get(node.id)),
         addedBindingKeys: new Set(currentBindingIndexes.keysByNodeId.get(node.id)),
         changedBindingKeys: new Set(),
         removedBindingKeys: new Set(),
@@ -289,6 +291,7 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
     }
 
     const changedParamIds = new Set<string>();
+    const changedParamRangeIds = new Set<string>();
     const paramIds = collectParamIds(node, baselineNode);
     currentParamRangeIdsByNodeId.get(node.id)?.forEach((paramId) => paramIds.add(paramId));
     baselineParamRangeIdsByNodeId.get(node.id)?.forEach((paramId) => paramIds.add(paramId));
@@ -296,6 +299,7 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
       const paramRangeKey = buildNodeParamKey(node.id, paramId);
       if (!isSameParamRange(currentPatch.ui.paramRanges?.[paramRangeKey], baselinePatch.ui.paramRanges?.[paramRangeKey])) {
         changedParamIds.add(paramId);
+        changedParamRangeIds.add(paramId);
         return;
       }
 
@@ -353,6 +357,7 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
       typeId: node.typeId,
       status: modified ? "modified" : "unchanged",
       changedParamIds,
+      changedParamRangeIds,
       addedBindingKeys,
       changedBindingKeys,
       removedBindingKeys,

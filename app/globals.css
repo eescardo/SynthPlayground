@@ -2438,9 +2438,32 @@ select {
 
 .param-range-label-row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
   margin-top: 0.2rem;
+  min-height: 1.1rem;
+  border-radius: 999px;
+  padding: 0 0.18rem;
+}
+
+.param-range-label-row.diff-positive {
+  background: rgba(68, 135, 99, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(103, 224, 153, 0.26);
+}
+
+.param-range-diff-badge {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.04rem 0.32rem;
+  border-radius: 999px;
+  background: rgba(103, 224, 153, 0.18);
+  color: rgba(210, 255, 222, 0.92);
+  font-size: 0.56rem;
+  font-weight: 750;
+  line-height: 1.1;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 .param-range-label,

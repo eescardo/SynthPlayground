@@ -5,7 +5,7 @@ import {
 } from "@/lib/patch/macroKeyframes";
 import { PatchDiff } from "@/lib/patch/diff";
 import { EditableNumberLabel, MacroBindingDetails, ParamMacroControl } from "@/components/patch/PatchInspectorControls";
-import { createMacroBindingId } from "@/lib/patch/macroBindings";
+import { createMacroBindingId, createMacroBindingKey } from "@/lib/patch/macroBindings";
 import { clamp, clampRange } from "@/lib/numeric";
 import { MacroBinding, Patch, PatchMacro, PatchNode, PatchParamSliderRange, ParamSchema, ParamValue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -240,10 +240,11 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
     macro.bindings
       .filter((binding) => binding.nodeId === props.selectedNode.id && binding.paramId === props.param.id)
       .flatMap((binding) => {
-        const diff = props.patchDiff.currentBindingDiffByKey.get(`${macro.id}:${binding.id}`);
+        const diff = props.patchDiff.currentBindingDiffByKey.get(createMacroBindingKey(macro.id, binding));
         return diff ? [diff] : [];
       })
   );
+  const hasParamRangeDiff = Boolean(nodeDiff?.changedParamRangeIds.has(props.param.id));
   const paramDiffTone =
     nodeDiff?.status === "added" || nodeDiff?.changedParamIds.has(props.param.id) || currentBindingDiffs.length > 0
       ? "positive"
@@ -372,7 +373,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
             onChange={commitValue}
           />
           {props.param.type === "float" && (
-            <div className="param-range-label-row">
+            <div className={`param-range-label-row${hasParamRangeDiff ? " diff-positive" : ""}`}>
               <EditableNumberLabel
                 id={`${props.selectedNode.id}:${props.param.id}:min`}
                 value={sliderRange.min}
@@ -391,6 +392,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
                   });
                 }}
               />
+              {hasParamRangeDiff && <span className="param-range-diff-badge">Range changed</span>}
               <EditableNumberLabel
                 id={`${props.selectedNode.id}:${props.param.id}:max`}
                 value={sliderRange.max}
