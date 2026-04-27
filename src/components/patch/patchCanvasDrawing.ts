@@ -377,10 +377,11 @@ function drawVcaModuleFace(
   y: number,
   accentColor: string
 ) {
+  const graphLeftInset = PATCH_MODULE_FACE_INSET_X + 12;
   const graph = {
-    x: x + PATCH_MODULE_FACE_INSET_X,
+    x: x + graphLeftInset,
     y: y + PATCH_MODULE_FACE_TOP + 4,
-    width: PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2,
+    width: PATCH_NODE_WIDTH - graphLeftInset - PATCH_MODULE_FACE_INSET_X,
     height: PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 10
   };
   const bias = clamp01(getNumericParam(node, schema, "bias"));
