@@ -296,7 +296,7 @@ function drawVcoModuleFace(
   const wave = String(node.params.wave ?? "saw");
   const pulseWidth = clamp(typeof node.params.pulseWidth === "number" ? node.params.pulseWidth : 0.5, 0.05, 0.95);
   const points = Array.from({ length: 48 }, (_, index) => {
-    const phase = index / 47;
+    const phase = (index / 47 + 0.25) % 1;
     switch (wave) {
       case "sine":
         return Math.sin(phase * Math.PI * 2);
