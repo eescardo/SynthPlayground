@@ -1,6 +1,7 @@
 import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch/patchCanvasConstants";
 import { clamp, clamp01, clampRange } from "@/lib/numeric";
 import { ensurePatchLayout } from "@/lib/patch/autoLayout";
+import { createMacroBindingId, normalizeMacroBindingIds } from "@/lib/patch/macroBindings";
 import { normalizeMacroKeyframeCount } from "@/lib/patch/macroKeyframes";
 import { migrateLegacyOutputNodeToPort } from "@/lib/patch/ports";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
@@ -90,7 +91,7 @@ const sanitizePatchMacro = (raw: unknown, index: number): PatchMacro => {
     name: asString(macro.name, `Macro ${index + 1}`),
     keyframeCount: normalizeMacroKeyframeCount(macro.keyframeCount),
     defaultNormalized: clamp01(asFiniteNumber(macro.defaultNormalized, 0.5)),
-    bindings: bindingsRaw.map((binding, bindingIndex) => {
+    bindings: bindingsRaw.map((binding) => {
       const item = isObject(binding) ? binding : {};
       const pointsRaw = Array.isArray(item.points) ? item.points : [];
       const points = pointsRaw
@@ -104,7 +105,11 @@ const sanitizePatchMacro = (raw: unknown, index: number): PatchMacro => {
         .sort((left, right) => left.x - right.x);
 
       return {
-        id: asString(item.id, `binding_${bindingIndex}`),
+        id: createMacroBindingId(
+          asString(macro.id, `macro_${index}`),
+          asString(item.nodeId, ""),
+          asString(item.paramId, "")
+        ),
         nodeId: asString(item.nodeId, ""),
         paramId: asString(item.paramId, ""),
         map: item.map === "exp" ? "exp" : item.map === "piecewise" && points.length >= 2 ? "piecewise" : "linear",
@@ -153,7 +158,7 @@ export function normalizePatch(
   const nodes = (Array.isArray(patch.nodes) ? patch.nodes : []).map((node, index) => sanitizePatchNode(node, `node_${index}`));
   const portsRaw = (Array.isArray(patch.ports) ? patch.ports : []).map((port, index) => sanitizePatchPort(port, `port_${index}`));
 
-  return ensurePatchLayout(migrateLegacyOutputNodeToPort({
+  return ensurePatchLayout(normalizeMacroBindingIds(migrateLegacyOutputNodeToPort({
     schemaVersion: Math.max(1, Math.floor(asFiniteNumber(patch.schemaVersion, 1))),
     id: patchId,
     name: asString(patch.name, options.fallbackName),
@@ -185,5 +190,5 @@ export function normalizePatch(
       audioOutNodeId: asString(io.audioOutNodeId, ""),
       audioOutPortId: asString(io.audioOutPortId, "out")
     }
-  }));
+  })));
 }

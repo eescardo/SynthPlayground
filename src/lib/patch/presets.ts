@@ -2,6 +2,7 @@ import { createDefaultParamsForType } from "@/lib/patch/moduleRegistry";
 import { HOST_NODE_IDS } from "@/lib/patch/constants";
 import { createDefaultProjectFromTemplate, createEmptyProjectFromPresets } from "@/lib/defaultProjectTemplate";
 import { createId } from "@/lib/ids";
+import { normalizeMacroBindingIds } from "@/lib/patch/macroBindings";
 import { createDefaultAudioOutputPort, migrateLegacyOutputNodeToPort } from "@/lib/patch/ports";
 import { Project } from "@/types/music";
 import { Patch, PatchMeta } from "@/types/patch";
@@ -1329,7 +1330,7 @@ export const presetPatches = [
   pluckPatch(),
   drumPatch(),
   bassDrumPatch()
-].map((patch) => migrateLegacyOutputNodeToPort(patch));
+].map((patch) => normalizeMacroBindingIds(migrateLegacyOutputNodeToPort(patch)));
 
 // Build a fresh default project from the checked-in song template while always
 // sourcing preset patches from the latest bundled definitions. Template layouts

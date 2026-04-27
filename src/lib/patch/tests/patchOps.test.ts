@@ -65,8 +65,8 @@ describe("patch ops", () => {
       type: "bindMacro",
       macroId: macro.id,
       bindingId: "binding_keyframed_test",
-      nodeId: "vcf1",
-      paramId: "cutoffHz",
+      nodeId: "out1",
+      paramId: "gainDb",
       map: "piecewise",
       points: [
         { x: 0, y: 120 },
@@ -75,7 +75,9 @@ describe("patch ops", () => {
       ]
     });
 
-    const binding = nextPatch.ui.macros.find((entry) => entry.id === macro.id)?.bindings.find((entry) => entry.id === "binding_keyframed_test");
+    const binding = nextPatch.ui.macros
+      .find((entry) => entry.id === macro.id)
+      ?.bindings.find((entry) => entry.id === `${macro.id}:out1:gainDb`);
     expect(binding?.points).toHaveLength(3);
   });
 

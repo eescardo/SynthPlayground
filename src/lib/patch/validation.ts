@@ -1,5 +1,6 @@
 import { getModuleSchema, moduleRegistryById } from "@/lib/patch/moduleRegistry";
 import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
+import { createMacroBindingKey } from "@/lib/patch/macroBindings";
 import { getMacroBindingKeyframeCount } from "@/lib/patch/macroKeyframes";
 import { getPatchPorts, migrateLegacyOutputNodeToPort } from "@/lib/patch/ports";
 import { CompiledNode, CompiledOp, CompiledPlan, Patch, PatchValidationIssue, PatchValidationResult, ParamValue, PatchNode } from "@/types/patch";
@@ -173,6 +174,7 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
   const issues: PatchValidationIssue[] = [];
   const macroIds = new Set<string>();
   const macroBindingIds = new Set<string>();
+  const macroBindingTargetKeys = new Set<string>();
   const macroTargetToMacroId = new Map<string, string>();
 
   const uniqueNodeIds = new Set<string>();
@@ -207,6 +209,15 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
         pushError(issues, `Duplicate macro binding id: ${binding.id}`, { bindingId: binding.id, macroId: macro.id });
       }
       macroBindingIds.add(binding.id);
+      const bindingIdentityKey = createMacroBindingKey(macro.id, binding);
+      if (macroBindingTargetKeys.has(bindingIdentityKey)) {
+        pushError(issues, `Duplicate macro binding target`, {
+          macroId: macro.id,
+          nodeId: binding.nodeId,
+          paramId: binding.paramId
+        });
+      }
+      macroBindingTargetKeys.add(bindingIdentityKey);
 
       const node = [...patch.nodes, ...getPatchPorts(patch)].find((entry) => entry.id === binding.nodeId);
       if (!node) {

@@ -108,15 +108,15 @@ describe("patch diff", () => {
     expect(diff.hasChanges).toBe(true);
     expect(diff.nodeDiffById.get("sample1")?.status).toBe("modified");
     expect(diff.nodeDiffById.get("sample1")?.changedParamIds.has("gain")).toBe(true);
-    expect(diff.nodeDiffById.get("sample1")?.changedBindingKeys.has("macro_pitch:binding_pitch")).toBe(true);
-    expect(diff.nodeDiffById.get("sample1")?.removedBindingKeys.has("macro_gain:binding_gain")).toBe(true);
+    expect(diff.nodeDiffById.get("sample1")?.changedBindingKeys.has("macro_pitch:sample1:pitchSemis")).toBe(true);
+    expect(diff.nodeDiffById.get("sample1")?.removedBindingKeys.has("macro_gain:sample1:gain")).toBe(true);
     expect(diff.nodeDiffById.get("sample1")?.hasConnectionChanges).toBe(true);
     expect(diff.nodeDiffById.get("sample2")?.status).toBe("added");
     expect(diff.macroDiffById.get("macro_pitch")?.status).toBe("modified");
     expect(diff.macroDiffById.get("macro_texture")?.status).toBe("added");
     expect(diff.removedMacros.map((macro) => macro.id)).toEqual(["macro_gain"]);
-    expect(diff.currentBindingDiffByKey.get("macro_pitch:binding_pitch")?.status).toBe("modified");
-    expect(diff.removedBindingDiffs.map((bindingDiff) => bindingDiff.key)).toEqual(["macro_gain:binding_gain"]);
+    expect(diff.currentBindingDiffByKey.get("macro_pitch:sample1:pitchSemis")?.status).toBe("modified");
+    expect(diff.removedBindingDiffs.map((bindingDiff) => bindingDiff.key)).toEqual(["macro_gain:sample1:gain"]);
     expect(diff.addedConnections.map((connection) => connection.id)).toEqual(["conn_sample2_out"]);
     expect(diff.removedConnections.map((connection) => connection.id)).toEqual(["conn_sample1_out"]);
     expect(diff.summary).toMatchObject({
@@ -175,12 +175,61 @@ describe("patch diff", () => {
     const diff = buildPatchDiff(current, baseline);
 
     expect(diff.nodeDiffById.get("out1")?.status).toBe("modified");
-    expect(diff.nodeDiffById.get("out1")?.removedBindingKeys.has("macro_gain:binding_gain")).toBe(true);
+    expect(diff.nodeDiffById.get("out1")?.removedBindingKeys.has("macro_gain:out1:gain")).toBe(true);
     expect(diff.macroDiffById.get("macro_gain")?.status).toBe("modified");
-    expect(diff.removedBindingDiffs.map((bindingDiff) => bindingDiff.key)).toEqual(["macro_gain:binding_gain"]);
+    expect(diff.removedBindingDiffs.map((bindingDiff) => bindingDiff.key)).toEqual(["macro_gain:out1:gain"]);
     expect(diff.removedBindingDiffsByNodeParamKey.get("out1:gain")?.map((bindingDiff) => bindingDiff.key)).toEqual([
-      "macro_gain:binding_gain"
+      "macro_gain:out1:gain"
     ]);
+  });
+
+  it("treats remove and re-add of the same macro target as the same binding", () => {
+    const baseline = createClearPatch({ id: "patch_a", name: "Lead" });
+    baseline.nodes.unshift({
+      id: "vcf1",
+      typeId: "VCF",
+      params: {
+        type: "lowpass",
+        cutoffHz: 600,
+        resonance: 0.3,
+        cutoffModAmountOct: 0
+      }
+    });
+    baseline.ui.macros = [
+      {
+        id: "macro_cutoff",
+        name: "Cutoff",
+        keyframeCount: 2,
+        bindings: [
+          {
+            id: "macro_cutoff:vcf1:cutoffHz",
+            nodeId: "vcf1",
+            paramId: "cutoffHz",
+            map: "linear",
+            min: 120,
+            max: 4200
+          }
+        ]
+      }
+    ];
+    const current = structuredClone(baseline);
+    current.ui.macros[0].bindings = [
+      {
+        id: "some_new_bind_id",
+        nodeId: "vcf1",
+        paramId: "cutoffHz",
+        map: "linear",
+        min: 120,
+        max: 4200
+      }
+    ];
+
+    const diff = buildPatchDiff(current, baseline);
+
+    expect(diff.hasChanges).toBe(false);
+    expect(diff.currentBindingDiffByKey.size).toBe(0);
+    expect(diff.removedBindingDiffs).toEqual([]);
+    expect(diff.nodeDiffById.get("vcf1")?.status).toBe("unchanged");
   });
 
   it("marks both endpoint modules modified when connections are added or removed", () => {

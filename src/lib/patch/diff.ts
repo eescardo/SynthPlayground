@@ -1,4 +1,5 @@
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
+import { createMacroBindingKey } from "@/lib/patch/macroBindings";
 import { getPatchParameterTargets } from "@/lib/patch/ports";
 import {
   MacroBinding,
@@ -130,10 +131,6 @@ function serializeBinding(binding: MacroBinding): string {
   });
 }
 
-function buildBindingKey(macroId: string, bindingId: string) {
-  return `${macroId}:${bindingId}`;
-}
-
 function buildNodeParamKey(nodeId: string, paramId: string) {
   return `${nodeId}:${paramId}`;
 }
@@ -166,7 +163,7 @@ function buildBindingIndexes(macros: PatchMacro[]) {
 
   macros.forEach((macro) => {
     macro.bindings.forEach((binding) => {
-      const key = buildBindingKey(macro.id, binding.id);
+      const key = createMacroBindingKey(macro.id, binding);
       byKey.set(key, { macro, binding });
       addSetEntry(keysByMacroId, macro.id, key);
       addSetEntry(keysByNodeId, binding.nodeId, key);

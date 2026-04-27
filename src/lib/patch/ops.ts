@@ -2,6 +2,7 @@ import { createDefaultParamsForType, getModuleSchema } from "@/lib/patch/moduleR
 import { createId } from "@/lib/ids";
 import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch/patchCanvasConstants";
 import { clamp, clampRange } from "@/lib/numeric";
+import { createMacroBindingId } from "@/lib/patch/macroBindings";
 import {
   clampNormalizedMacroValue,
   convertBindingToKeyframeCount,
@@ -225,11 +226,12 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       if (!macro) {
         throw new Error(`Unknown macro: ${op.macroId}`);
       }
-      if (macro.bindings.some((binding) => binding.id === op.bindingId)) {
-        throw new Error(`Binding already exists: ${op.bindingId}`);
+      const bindingId = createMacroBindingId(op.macroId, op.nodeId, op.paramId);
+      if (macro.bindings.some((binding) => binding.id === bindingId || (binding.nodeId === op.nodeId && binding.paramId === op.paramId))) {
+        throw new Error(`Binding already exists: ${bindingId}`);
       }
       macro.bindings.push({
-        id: op.bindingId,
+        id: bindingId,
         nodeId: op.nodeId,
         paramId: op.paramId,
         map: op.map,
