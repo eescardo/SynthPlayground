@@ -293,8 +293,9 @@ function drawVcfModuleFace(
   };
   const cutoffX = frequencyToX(cutoffClamped);
   const type = String(node.params.type ?? "lowpass");
-  const responsePoints = Array.from({ length: 72 }, (_, index) => {
-    const t = index / 71;
+  const responseSampleCount = 160;
+  const responsePoints = Array.from({ length: responseSampleCount }, (_, index) => {
+    const t = index / (responseSampleCount - 1);
     const frequency = 10 ** (graphLogMin + t * (graphLogMax - graphLogMin));
     return {
       x: graph.x + t * graph.width,
