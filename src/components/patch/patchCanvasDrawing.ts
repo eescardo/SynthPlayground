@@ -376,7 +376,8 @@ function drawMixerModuleFace(
   x: number,
   y: number,
   accentColor: string,
-  inputCount: number
+  inputCount: number,
+  connectedInputPortIds: Set<string>
 ) {
   const graphX = x + PATCH_MODULE_FACE_INSET_X;
   const graphY = y + PATCH_MODULE_FACE_TOP + 4;
@@ -393,18 +394,32 @@ function drawMixerModuleFace(
   ctx.font = "9px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textAlign = "center";
   for (let index = 0; index < inputCount; index += 1) {
+    const inputPortId = `in${index + 1}`;
+    const connected = connectedInputPortIds.has(inputPortId);
     const value = clamp01(getNumericParam(node, schema, `gain${index + 1}`));
     const barX = graphX + sideInset + index * (barWidth + barGap);
     const barAvailableH = graphH - barTopInset - barBottomInset;
     const barH = Math.max(4, value * barAvailableH);
-    ctx.fillStyle = PATCH_COLOR_MODULE_FACE_ROW_BG;
+    ctx.fillStyle = connected ? PATCH_COLOR_MODULE_FACE_ROW_BG : "rgba(158, 192, 223, 0.12)";
     ctx.fillRect(barX, graphY + barTopInset, barWidth, barAvailableH);
-    ctx.fillStyle = accentColor;
+    ctx.fillStyle = connected ? accentColor : "rgba(158, 192, 223, 0.22)";
     ctx.fillRect(barX, graphY + graphH - barBottomInset - barH, barWidth, barH);
-    ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
+    if (!connected) {
+      ctx.strokeStyle = "rgba(231, 243, 255, 0.16)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(barX + 2, graphY + graphH - barBottomInset - 2);
+      ctx.lineTo(barX + barWidth - 2, graphY + barTopInset + 2);
+      ctx.stroke();
+    }
+    ctx.fillStyle = connected ? PATCH_COLOR_NODE_SUBTITLE : "rgba(140, 179, 213, 0.42)";
     ctx.fillText(String(index + 1), barX + barWidth / 2, graphY + graphH + 10);
   }
   ctx.textAlign = "left";
+}
+
+function resolveConnectedInputPortIds(patch: Patch, nodeId: string) {
+  return new Set(patch.connections.filter((connection) => connection.to.nodeId === nodeId).map((connection) => connection.to.portId));
 }
 
 function formatSignedValue(value: number, digits = 2) {
@@ -603,9 +618,9 @@ export function drawPatchModuleCard(
   } else if (node.typeId === "VCF") {
     drawVcfModuleFace(ctx, node, schema.params, x, y, moduleColors.accent);
   } else if (node.typeId === "Mixer4") {
-    drawMixerModuleFace(ctx, node, schema.params, x, y, moduleColors.accent, 4);
+    drawMixerModuleFace(ctx, node, schema.params, x, y, moduleColors.accent, 4, resolveConnectedInputPortIds(patch, node.id));
   } else if (node.typeId === "CVMixer2") {
-    drawMixerModuleFace(ctx, node, schema.params, x, y, moduleColors.accent, 2);
+    drawMixerModuleFace(ctx, node, schema.params, x, y, moduleColors.accent, 2, resolveConnectedInputPortIds(patch, node.id));
   } else if (node.typeId === "CVTranspose") {
     drawCvTransposeModuleFace(ctx, node, schema.params, x, y, moduleColors.accent);
   } else if (node.typeId === "CVScaler") {
