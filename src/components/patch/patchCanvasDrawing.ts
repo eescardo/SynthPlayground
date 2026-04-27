@@ -413,8 +413,8 @@ function drawVcaModuleFace(
   ctx.strokeStyle = accentColor;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(startX, baseY - 5);
-  ctx.lineTo(biasX, baseY - 5);
+  ctx.moveTo(startX, baseY);
+  ctx.lineTo(biasX, baseY);
   ctx.lineTo(biasX, biasY);
   ctx.lineTo(topX, biasY);
   ctx.lineTo(topX, topY);
