@@ -427,8 +427,8 @@ function drawVcaModuleFace(
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
-    ctx.moveTo(graph.x + 4, graph.y + 4);
-    ctx.lineTo(graph.x + graph.width - 4, graph.y + 4);
+    ctx.moveTo(graph.x + 4, graph.y);
+    ctx.lineTo(graph.x + graph.width - 4, graph.y);
     ctx.stroke();
     ctx.setLineDash([]);
   }
