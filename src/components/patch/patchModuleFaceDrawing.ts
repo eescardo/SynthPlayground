@@ -227,7 +227,7 @@ function drawVcfModuleFace(
   const min = cutoffParam?.type === "float" ? cutoffParam.range.min : 20;
   const max = cutoffParam?.type === "float" ? cutoffParam.range.max : 20000;
   const cutoffClamped = clamp(cutoff, min, max);
-  const graphMin = clamp(cutoffClamped / 10, 5, max);
+  const graphMin = clamp(cutoffClamped / 10, 2, max);
   const graphMax = clamp(cutoffClamped * 10, min, max);
   const graphLogMin = Math.log10(graphMin);
   const graphLogMax = Math.log10(graphMax);
