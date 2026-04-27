@@ -2087,7 +2087,6 @@ select {
 }
 
 .patch-macro-row.diff-positive {
-  padding-inline: 0.26rem 0.16rem;
   border-radius: 0.5rem;
   background: rgba(68, 135, 99, 0.22);
   box-shadow: inset 0 0 0 1px rgba(103, 224, 153, 0.22);
