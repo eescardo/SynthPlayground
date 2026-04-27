@@ -272,6 +272,7 @@ function drawVcaModuleFace(
   const bias = clamp01(getNumericParam(node, schema, "bias"));
   const gain = clamp01(getNumericParam(node, schema, "gain"));
   const top = clamp01(bias + gain);
+  const effectiveGain = top - bias;
   const baseY = graph.y + graph.height;
   const biasY = graph.y + graph.height * (1 - bias);
   const topY = graph.y + graph.height * (1 - top);
@@ -322,8 +323,13 @@ function drawVcaModuleFace(
   ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.fillText("1.0", graph.x - 2, graph.y + 7);
   ctx.fillText("0", graph.x - 2, graph.y + graph.height);
-  ctx.textAlign = "left";
-  ctx.fillText("cv 0-1", topX + 4, graph.y + graph.height + 10);
+  if (effectiveGain >= 0.1) {
+    ctx.textAlign = "right";
+    ctx.fillText("cv", topX - 4, biasY - (biasY - topY) / 2 + 3);
+    ctx.textAlign = "left";
+    ctx.fillText("0", topX + 4, biasY + 3);
+    ctx.fillText("1", topX + 4, topY + 8);
+  }
   ctx.fillStyle = accentColor;
   ctx.textAlign = "left";
   ctx.fillText(`bias ${bias.toFixed(2)}`, graph.x + 6, graph.y + 11);
