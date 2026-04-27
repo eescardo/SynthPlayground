@@ -364,25 +364,36 @@ function drawMixerModuleFace(
   schema: ParamSchema[],
   x: number,
   y: number,
-  accentColor: string
+  accentColor: string,
+  inputCount: number
 ) {
   const graphX = x + PATCH_MODULE_FACE_INSET_X;
   const graphY = y + PATCH_MODULE_FACE_TOP + 4;
   const graphW = PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2;
   const graphH = PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 8;
+  const barTopInset = 6;
+  const barBottomInset = 6;
+  const barGap = 3;
+  const sideInset = 8;
+  const barWidth = (graphW - sideInset * 2 - barGap * (inputCount - 1)) / inputCount;
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
   ctx.lineWidth = 1;
   ctx.strokeRect(graphX, graphY, graphW, graphH);
-  for (let index = 0; index < 4; index += 1) {
+  ctx.font = "9px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.textAlign = "center";
+  for (let index = 0; index < inputCount; index += 1) {
     const value = clamp01(getNumericParam(node, schema, `gain${index + 1}`));
-    const barWidth = (graphW - 22) / 4;
-    const barX = graphX + 8 + index * (barWidth + 2);
-    const barH = Math.max(4, value * (graphH - 12));
+    const barX = graphX + sideInset + index * (barWidth + barGap);
+    const barAvailableH = graphH - barTopInset - barBottomInset;
+    const barH = Math.max(4, value * barAvailableH);
     ctx.fillStyle = PATCH_COLOR_MODULE_FACE_ROW_BG;
-    ctx.fillRect(barX, graphY + 6, barWidth, graphH - 12);
+    ctx.fillRect(barX, graphY + barTopInset, barWidth, barAvailableH);
     ctx.fillStyle = accentColor;
-    ctx.fillRect(barX, graphY + graphH - 6 - barH, barWidth, barH);
+    ctx.fillRect(barX, graphY + graphH - barBottomInset - barH, barWidth, barH);
+    ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
+    ctx.fillText(String(index + 1), barX + barWidth / 2, graphY + graphH - 3);
   }
+  ctx.textAlign = "left";
 }
 
 function drawGenericModuleFace(
@@ -498,7 +509,9 @@ export function drawPatchModuleCard(
   } else if (node.typeId === "VCF") {
     drawVcfModuleFace(ctx, node, schema.params, x, y, moduleColors.accent);
   } else if (node.typeId === "Mixer4") {
-    drawMixerModuleFace(ctx, node, schema.params, x, y, moduleColors.accent);
+    drawMixerModuleFace(ctx, node, schema.params, x, y, moduleColors.accent, 4);
+  } else if (node.typeId === "CVMixer2") {
+    drawMixerModuleFace(ctx, node, schema.params, x, y, moduleColors.accent, 2);
   } else {
     drawGenericModuleFace(ctx, node, schema.params, x, y);
   }

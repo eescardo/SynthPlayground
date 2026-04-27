@@ -2138,7 +2138,7 @@ select {
 
 .patch-macro-slider-keyframes {
   position: absolute;
-  inset: 0.02rem 0;
+  inset: 0.02rem 0.26rem;
   pointer-events: none;
 }
 
