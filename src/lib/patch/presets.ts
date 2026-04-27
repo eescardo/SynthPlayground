@@ -74,7 +74,7 @@ export const bassPatch = (): Patch => {
     schemaVersion: 1,
     id: patchId,
     name: "Bass",
-    meta: { source: "preset", presetId: "preset_bass", presetVersion: 12 },
+    meta: { source: "preset", presetId: "preset_bass", presetVersion: 13 },
     nodes: [
       {
         id: pitchTrackId,
@@ -473,7 +473,7 @@ export const padPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_pad",
     name: "Pad",
-    meta: { source: "preset", presetId: "preset_pad", presetVersion: 5 },
+    meta: { source: "preset", presetId: "preset_pad", presetVersion: 6 },
     nodes: [
       {
         id: vco1,
@@ -587,7 +587,7 @@ export const pluckPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_pluck",
     name: "Pluck",
-    meta: { source: "preset", presetId: "preset_pluck", presetVersion: 27 },
+    meta: { source: "preset", presetId: "preset_pluck", presetVersion: 28 },
     nodes: [
       {
         id: string,
@@ -954,7 +954,7 @@ export const keysPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_keys",
     name: "Simple Piano-ish",
-    meta: { source: "preset", presetId: "preset_keys", presetVersion: 2 },
+    meta: { source: "preset", presetId: "preset_keys", presetVersion: 3 },
     nodes: [
       { id: vco, typeId: "VCO", params: { ...createDefaultParamsForType("VCO"), wave: "triangle" } },
       {
@@ -1010,7 +1010,7 @@ export const brassPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_brass",
     name: "Brass-ish",
-    meta: { source: "preset", presetId: "preset_brass", presetVersion: 2 },
+    meta: { source: "preset", presetId: "preset_brass", presetVersion: 3 },
     nodes: [
       { id: vco, typeId: "VCO", params: { ...createDefaultParamsForType("VCO"), wave: "square", pulseWidth: 0.35 } },
       { id: lfo, typeId: "LFO", params: { ...createDefaultParamsForType("LFO"), freqHz: 5, bipolar: true } },
@@ -1074,7 +1074,7 @@ export const drumPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_drumish",
     name: "Drum-ish",
-    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 9 },
+    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 10 },
     nodes: [
       {
         id: vco,
@@ -1198,7 +1198,7 @@ export const bassDrumPatch = (): Patch => {
     schemaVersion: 1,
     id: "preset_bassdrum",
     name: "Bass Drum",
-    meta: { source: "preset", presetId: "preset_bassdrum", presetVersion: 10 },
+    meta: { source: "preset", presetId: "preset_bassdrum", presetVersion: 11 },
     nodes: [
       {
         id: vco,
