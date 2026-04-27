@@ -9,6 +9,7 @@ import {
   resolveMacroBindingValue,
   setMacroBindingValueAtKeyframe
 } from "@/lib/patch/macroKeyframes";
+import { getPatchParameterTargets } from "@/lib/patch/ports";
 import { MacroBinding, Patch } from "@/types/patch";
 import { PatchHistoryState, PatchOp } from "@/types/ops";
 
@@ -17,6 +18,8 @@ const clonePatch = (patch: Patch): Patch => structuredClone(patch);
 const findLayoutNode = (patch: Patch, nodeId: string): number => patch.layout.nodes.findIndex((node) => node.nodeId === nodeId);
 
 const buildParamRangeKey = (nodeId: string, paramId: string) => `${nodeId}:${paramId}`;
+
+const findParameterTarget = (patch: Patch, nodeId: string) => getPatchParameterTargets(patch).find((entry) => entry.id === nodeId);
 
 function clampMacroBindingValues(binding: MacroBinding, min: number, max: number) {
   if (binding.points) {
@@ -35,7 +38,7 @@ function applyMacroValueToPatch(patch: Patch, macroId: string, normalized: numbe
 
   const norm = clampNormalizedMacroValue(normalized);
   for (const binding of macro.bindings) {
-    const node = patch.nodes.find((entry) => entry.id === binding.nodeId);
+    const node = findParameterTarget(patch, binding.nodeId);
     if (!node) {
       continue;
     }
@@ -129,7 +132,7 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
     }
 
     case "setParam": {
-      const node = next.nodes.find((entry) => entry.id === op.nodeId);
+      const node = findParameterTarget(next, op.nodeId);
       if (!node) {
         throw new Error(`Unknown node in setParam: ${op.nodeId}`);
       }
@@ -138,7 +141,7 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
     }
 
     case "setParamSliderRange": {
-      const node = next.nodes.find((entry) => entry.id === op.nodeId);
+      const node = findParameterTarget(next, op.nodeId);
       if (!node) {
         throw new Error(`Unknown node in setParamSliderRange: ${op.nodeId}`);
       }
@@ -175,7 +178,7 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
     }
 
     case "setParams": {
-      const node = next.nodes.find((entry) => entry.id === op.nodeId);
+      const node = findParameterTarget(next, op.nodeId);
       if (!node) {
         throw new Error(`Unknown node in setParams: ${op.nodeId}`);
       }

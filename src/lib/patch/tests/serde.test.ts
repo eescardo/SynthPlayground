@@ -45,4 +45,39 @@ describe("patch serde", () => {
 
     expect(imported.patch.meta).toEqual({ source: "custom" });
   });
+
+  it("migrates legacy output nodes into ports while preserving params", () => {
+    const legacyPatch = createClearPatch({
+      id: "patch_legacy",
+      name: "Legacy"
+    });
+    legacyPatch.nodes = [
+      {
+        id: "out1",
+        typeId: "Output",
+        params: {
+          gainDb: -9,
+          limiter: false
+        }
+      }
+    ];
+    legacyPatch.ports = undefined;
+    legacyPatch.layout.nodes = [{ nodeId: "out1", x: 18, y: 6 }];
+
+    const imported = importPatchBundleFromJson(exportPatchToJson(legacyPatch));
+
+    expect(imported.patch.nodes).toEqual([]);
+    expect(imported.patch.layout.nodes).toEqual([]);
+    expect(imported.patch.ports).toEqual([
+      {
+        id: "out1",
+        typeId: "Output",
+        label: "output",
+        params: {
+          gainDb: -9,
+          limiter: false
+        }
+      }
+    ]);
+  });
 });

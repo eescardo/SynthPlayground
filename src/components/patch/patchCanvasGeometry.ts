@@ -18,6 +18,7 @@ import {
 import { PointerEvent as ReactPointerEvent } from "react";
 import { clamp, clamp01 } from "@/lib/numeric";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
+import { isPatchPortId } from "@/lib/patch/ports";
 import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
 import { Patch, PatchLayoutNode } from "@/types/patch";
 
@@ -251,7 +252,7 @@ export function findPatchPortAtPoint(hitPorts: HitPort[], rawX: number, rawY: nu
 }
 
 export function resolvePatchPortAnchorPoint(
-  patch: Pick<Patch, "nodes">,
+  patch: Pick<Patch, "nodes" | "ports" | "io">,
   layoutByNode: Map<string, PatchLayoutNode>,
   nodeId: string,
   portId: string,
@@ -266,6 +267,14 @@ export function resolvePatchPortAnchorPoint(
     }
     return {
       x: rect.x + rect.width,
+      y: rect.y
+    };
+  }
+  if (isPatchPortId(patch, nodeId) && portKind === "in") {
+    const canvasSize = resolvePatchCanvasSize(layoutByNode ? [...layoutByNode.values()] : []);
+    const rect = resolveOutputHostPatchPortRect(canvasSize.width);
+    return {
+      x: rect.x,
       y: rect.y
     };
   }
@@ -292,7 +301,7 @@ export function resolvePatchPortAnchorPoint(
 }
 
 export function resolvePatchConnectionMidpoint(
-  patch: Pick<Patch, "nodes" | "connections">,
+  patch: Pick<Patch, "nodes" | "ports" | "io" | "connections">,
   layoutByNode: Map<string, PatchLayoutNode>,
   connectionId: string
 ) {
@@ -312,7 +321,7 @@ export function resolvePatchConnectionMidpoint(
 }
 
 export function findPatchConnectionAtPoint(
-  patch: Pick<Patch, "nodes" | "connections">,
+  patch: Pick<Patch, "nodes" | "ports" | "io" | "connections">,
   layoutByNode: Map<string, PatchLayoutNode>,
   rawX: number,
   rawY: number

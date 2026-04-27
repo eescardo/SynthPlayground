@@ -61,7 +61,10 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     );
   }, [props.patch.ui.macros, props.selectedMacroId]);
 
-  const nodeById = useMemo(() => new Map(props.patch.nodes.map((node) => [node.id, node] as const)), [props.patch.nodes]);
+  const nodeById = useMemo(
+    () => new Map([...props.patch.nodes, ...(props.patch.ports ?? [])].map((node) => [node.id, node] as const)),
+    [props.patch.nodes, props.patch.ports]
+  );
   const selectedNode = props.selectedNodeId ? nodeById.get(props.selectedNodeId) : undefined;
   const selectedSchema = selectedNode ? getModuleSchema(selectedNode.typeId) : undefined;
   const {

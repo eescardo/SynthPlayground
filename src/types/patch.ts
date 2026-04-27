@@ -71,6 +71,10 @@ export interface PatchNode {
   params: Record<string, ParamValue>;
 }
 
+export interface PatchPort extends PatchNode {
+  label: string;
+}
+
 export interface PatchConnection {
   id: string;
   from: { nodeId: string; portId: string };
@@ -127,6 +131,7 @@ export interface Patch {
   name: string;
   meta: PatchMeta;
   nodes: PatchNode[];
+  ports?: PatchPort[];
   connections: PatchConnection[];
   ui: {
     macros: PatchMacro[];

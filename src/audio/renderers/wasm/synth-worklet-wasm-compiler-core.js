@@ -59,9 +59,37 @@ const assertPresent = (condition, message) => {
   }
 };
 
+const createOutputPortFromLegacyNode = (node) =>
+  node
+    ? {
+        id: node.id,
+        typeId: "Output",
+        params: { ...(node.params || {}) },
+        label: "output"
+      }
+    : undefined;
+
+const getPatchCompileNodes = (patch) => {
+  const nodes = patch.nodes || [];
+  const ports = patch.ports || [];
+  const hasOutputPort = ports.some((port) => port.id === patch.io?.audioOutNodeId || port.typeId === "Output");
+  if (hasOutputPort) {
+    return [
+      ...nodes.filter((node) => node.typeId !== "Output"),
+      ...ports
+    ];
+  }
+  const legacyOutputNode =
+    nodes.find((node) => node.id === patch.io?.audioOutNodeId && node.typeId === "Output") ??
+    nodes.find((node) => node.typeId === "Output");
+  const outputPort = createOutputPortFromLegacyNode(legacyOutputNode);
+  return outputPort ? [...nodes.filter((node) => node.typeId !== "Output"), outputPort] : nodes;
+};
+
 const compareNodeIdsTopologically = (patch) => {
-  const nodeById = new Map((patch.nodes || []).map((node) => [node.id, node]));
-  const nodeIds = (patch.nodes || []).map((node) => node.id);
+  const patchNodes = getPatchCompileNodes(patch);
+  const nodeById = new Map(patchNodes.map((node) => [node.id, node]));
+  const nodeIds = patchNodes.map((node) => node.id);
   const indegree = new Map(nodeIds.map((id) => [id, 0]));
   const adjacency = new Map(nodeIds.map((id) => [id, []]));
 
@@ -88,7 +116,7 @@ const compareNodeIdsTopologically = (patch) => {
     }
   }
 
-  assertPresent(ordered.length === (patch.nodes || []).length, `WASM compiler rejects cyclic patch ${patch.id}.`);
+  assertPresent(ordered.length === patchNodes.length, `WASM compiler rejects cyclic patch ${patch.id}.`);
   return ordered;
 };
 
@@ -148,15 +176,16 @@ const applyInitialMacrosToNodeParams = (patch, track, nodeParamTargets) => {
 };
 
 const compileTrackPatch = (patch, track, trackIndex) => {
-  const nodeById = new Map((patch.nodes || []).map((node) => [node.id, node]));
+  const patchNodes = getPatchCompileNodes(patch);
+  const nodeById = new Map(patchNodes.map((node) => [node.id, node]));
   const nodeOrder = compareNodeIdsTopologically(patch);
 
-  for (const node of patch.nodes || []) {
+  for (const node of patchNodes) {
     assertPresent(SUPPORTED_NODE_TYPES.has(node.typeId), `Unsupported node type ${node.typeId} in patch ${patch.id}.`);
   }
 
   const outputNodeId = patch.io?.audioOutNodeId;
-  assertPresent(outputNodeId && nodeById.has(outputNodeId), `Invalid output node in patch ${patch.id}.`);
+  assertPresent(outputNodeId && nodeById.has(outputNodeId), `Invalid output port in patch ${patch.id}.`);
 
   let nextSignalIndex = 0;
   const outputIndexByKey = new Map();
@@ -189,11 +218,11 @@ const compileTrackPatch = (patch, track, trackIndex) => {
     inputSourceByDestKey.set(`${connection.to.nodeId}:${connection.to.portId}`, sourceSignalIndex);
   }
 
-  for (const node of patch.nodes || []) {
+  for (const node of patchNodes) {
     ensureOutputIndex(node.id, "out");
   }
 
-  const nodeParamTargets = new Map((patch.nodes || []).map((node) => [node.id, { ...(node.params || {}) }]));
+  const nodeParamTargets = new Map(patchNodes.map((node) => [node.id, { ...(node.params || {}) }]));
   applyInitialMacrosToNodeParams(patch, track, nodeParamTargets);
 
   const nodes = nodeOrder.map((nodeId) => {

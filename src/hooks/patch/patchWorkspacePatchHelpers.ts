@@ -1,5 +1,6 @@
 import { createId } from "@/lib/ids";
 import { createClearPatch } from "@/lib/patch/presets";
+import { getPatchOutputPort } from "@/lib/patch/ports";
 import { resolvePatchSource } from "@/lib/patch/source";
 import { Patch } from "@/types/patch";
 
@@ -19,17 +20,13 @@ export function createImportedWorkspacePatch(sourcePatch: Patch): Patch {
 }
 
 export function createClearedWorkspacePatch(sourcePatch: Patch): Patch {
-  const existingOutputNode = sourcePatch.nodes.find((node) => node.typeId === "Output");
-  const existingOutputLayout = existingOutputNode
-    ? sourcePatch.layout.nodes.find((node) => node.nodeId === existingOutputNode.id)
-    : undefined;
+  const existingOutputPort = getPatchOutputPort(sourcePatch);
 
   return createClearPatch({
     id: sourcePatch.id,
     name: sourcePatch.name,
     meta: sourcePatch.meta,
-    outputNodeId: existingOutputNode?.id ?? "out1",
-    outputPosition: existingOutputLayout ? { x: existingOutputLayout.x, y: existingOutputLayout.y } : undefined,
+    outputNodeId: existingOutputPort?.id ?? "out1",
     canvasZoom: sourcePatch.ui.canvasZoom
   });
 }

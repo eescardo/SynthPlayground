@@ -2,6 +2,7 @@ import { createDefaultParamsForType } from "@/lib/patch/moduleRegistry";
 import { HOST_NODE_IDS } from "@/lib/patch/constants";
 import { createDefaultProjectFromTemplate, createEmptyProjectFromPresets } from "@/lib/defaultProjectTemplate";
 import { createId } from "@/lib/ids";
+import { createDefaultAudioOutputPort, migrateLegacyOutputNodeToPort } from "@/lib/patch/ports";
 import { Project } from "@/types/music";
 import { Patch, PatchMeta } from "@/types/patch";
 
@@ -25,28 +26,27 @@ export const createClearPatch = ({
   name = "New Patch",
   meta = { source: "custom" } satisfies PatchMeta,
   outputNodeId = "out1",
-  outputPosition = { x: 18, y: 6 },
   canvasZoom
 }: {
   id: string;
   name?: string;
   meta?: PatchMeta;
   outputNodeId?: string;
-  outputPosition?: { x: number; y: number };
   canvasZoom?: number;
 }): Patch => ({
   schemaVersion: 1,
   id,
   name,
   meta,
-  nodes: [outputNode(outputNodeId)],
+  nodes: [],
+  ports: [createDefaultAudioOutputPort(outputNodeId)],
   connections: [],
   ui: {
     macros: [],
     canvasZoom
   },
   layout: {
-    nodes: [{ nodeId: outputNodeId, x: outputPosition.x, y: outputPosition.y }]
+    nodes: []
   },
   io: {
     audioOutNodeId: outputNodeId,
@@ -1321,7 +1321,15 @@ export const bassDrumPatch = (): Patch => {
   };
 };
 
-export const presetPatches = [bassPatch(), brassPatch(), keysPatch(), padPatch(), pluckPatch(), drumPatch(), bassDrumPatch()];
+export const presetPatches = [
+  bassPatch(),
+  brassPatch(),
+  keysPatch(),
+  padPatch(),
+  pluckPatch(),
+  drumPatch(),
+  bassDrumPatch()
+].map((patch) => migrateLegacyOutputNodeToPort(patch));
 
 // Build a fresh default project from the checked-in song template while always
 // sourcing preset patches from the latest bundled definitions. Template layouts

@@ -69,7 +69,10 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   const layoutByNode = useMemo(() => {
     return new Map(patch.layout.nodes.map((node) => [node.nodeId, node] as const));
   }, [patch.layout.nodes]);
-  const nodeById = useMemo(() => new Map(patch.nodes.map((node) => [node.id, node] as const)), [patch.nodes]);
+  const nodeById = useMemo(
+    () => new Map([...patch.nodes, ...(patch.ports ?? [])].map((node) => [node.id, node] as const)),
+    [patch.nodes, patch.ports]
+  );
   const outputNodeId = patch.io.audioOutNodeId;
   const visibleNodeCount = useMemo(() => patch.nodes.filter((node) => node.id !== outputNodeId).length, [outputNodeId, patch.nodes]);
   const visibleLayoutNodes = useMemo(

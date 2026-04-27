@@ -135,9 +135,9 @@ describe("compileAudioProjectToWasmSubset", () => {
         { id: "transpose", typeId: "CVTranspose", params: { octaves: -1, semitones: 0, cents: 0 } },
         { id: "osc", typeId: "VCO", params: { wave: "sine", pulseWidth: 0.5, baseTuneCents: 0, fineTuneCents: 0, pwmAmount: 0 } },
         { id: "env", typeId: "ADSR", params: { attack: 0, decay: 0.1, sustain: 0, release: 0.1, mode: "retrigger_from_current" } },
-        { id: "amp", typeId: "VCA", params: { gain: 1, bias: 0 } },
-        { id: "out", typeId: "Output", params: { gainDb: 0, limiter: false } }
+        { id: "amp", typeId: "VCA", params: { gain: 1, bias: 0 } }
       ],
+      ports: [{ id: "out", typeId: "Output", label: "output", params: { gainDb: -3, limiter: true } }],
       connections: [
         { id: "c1", from: { nodeId: "$host.pitch", portId: "out" }, to: { nodeId: "transpose", portId: "in" } },
         { id: "c2", from: { nodeId: "transpose", portId: "out" }, to: { nodeId: "osc", portId: "pitch" } },
@@ -190,9 +190,13 @@ describe("compileAudioProjectToWasmSubset", () => {
     const transposeNode = track.nodes.find((node) => node.id === "transpose");
     const oscNode = track.nodes.find((node) => node.id === "osc");
     const envNode = track.nodes.find((node) => node.id === "env");
+    const outputPort = track.nodes.find((node) => node.id === "out");
 
     expect(transposeNode?.inputs.in).toBe(track.hostSignalIndices.pitch);
     expect(oscNode?.inputs.pitch).toBe(transposeNode?.outIndex);
     expect(envNode?.inputs.gate).toBe(track.hostSignalIndices.gate);
+    expect(outputPort?.typeId).toBe("Output");
+    expect(outputPort?.params.gainDb).toBe(-3);
+    expect(outputPort?.params.limiter).toBe(true);
   });
 });

@@ -2,8 +2,9 @@ import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch
 import { clamp, clamp01, clampRange } from "@/lib/numeric";
 import { ensurePatchLayout } from "@/lib/patch/autoLayout";
 import { normalizeMacroKeyframeCount } from "@/lib/patch/macroKeyframes";
+import { migrateLegacyOutputNodeToPort } from "@/lib/patch/ports";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
-import { Patch, PatchConnection, PatchMacro, PatchMeta, PatchNode, PatchParamSliderRange } from "@/types/patch";
+import { Patch, PatchConnection, PatchMacro, PatchMeta, PatchNode, PatchParamSliderRange, PatchPort } from "@/types/patch";
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -35,6 +36,16 @@ const sanitizePatchNode = (raw: unknown, fallbackId: string): PatchNode => {
     id: asString(node.id, fallbackId),
     typeId: asString(node.typeId, ""),
     params: sanitizeParamMap(node.params)
+  };
+};
+
+const sanitizePatchPort = (raw: unknown, fallbackId: string): PatchPort => {
+  const port = isObject(raw) ? raw : {};
+  return {
+    id: asString(port.id, fallbackId),
+    typeId: asString(port.typeId, "Output"),
+    label: asString(port.label, "output"),
+    params: sanitizeParamMap(port.params)
   };
 };
 
@@ -139,12 +150,16 @@ export function normalizePatch(
           source: "custom"
         };
 
-  return ensurePatchLayout({
+  const nodes = (Array.isArray(patch.nodes) ? patch.nodes : []).map((node, index) => sanitizePatchNode(node, `node_${index}`));
+  const portsRaw = (Array.isArray(patch.ports) ? patch.ports : []).map((port, index) => sanitizePatchPort(port, `port_${index}`));
+
+  return ensurePatchLayout(migrateLegacyOutputNodeToPort({
     schemaVersion: Math.max(1, Math.floor(asFiniteNumber(patch.schemaVersion, 1))),
     id: patchId,
     name: asString(patch.name, options.fallbackName),
     meta,
-    nodes: (Array.isArray(patch.nodes) ? patch.nodes : []).map((node, index) => sanitizePatchNode(node, `node_${index}`)),
+    nodes,
+    ports: portsRaw,
     connections: (Array.isArray(patch.connections) ? patch.connections : []).map((connection, index) =>
       sanitizePatchConnection(connection, `conn_${index}`)
     ),
@@ -170,5 +185,5 @@ export function normalizePatch(
       audioOutNodeId: asString(io.audioOutNodeId, ""),
       audioOutPortId: asString(io.audioOutPortId, "out")
     }
-  });
+  }));
 }

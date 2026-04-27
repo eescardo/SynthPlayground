@@ -1,4 +1,5 @@
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
+import { getPatchParameterTargets } from "@/lib/patch/ports";
 import {
   MacroBinding,
   Patch,
@@ -257,8 +258,10 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
   const removedBindingDiffsByNodeParamKey = new Map<string, PatchBindingDiff[]>();
   const currentConnectionStatusById = new Map<string, "unchanged" | "added">();
 
-  const baselineNodesById = new Map(baselinePatch.nodes.map((node) => [node.id, node] as const));
-  const currentNodesById = new Map(currentPatch.nodes.map((node) => [node.id, node] as const));
+  const currentNodes = getPatchParameterTargets(currentPatch);
+  const baselineNodes = getPatchParameterTargets(baselinePatch);
+  const baselineNodesById = new Map(baselineNodes.map((node) => [node.id, node] as const));
+  const currentNodesById = new Map(currentNodes.map((node) => [node.id, node] as const));
   const baselineMacrosById = new Map(baselinePatch.ui.macros.map((macro) => [macro.id, macro] as const));
   const currentBindingIndexes = buildBindingIndexes(currentPatch.ui.macros);
   const baselineBindingIndexes = buildBindingIndexes(baselinePatch.ui.macros);
@@ -271,7 +274,7 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
   const currentParamRangeIdsByNodeId = buildParamRangeIdsByNodeId(currentPatch);
   const baselineParamRangeIdsByNodeId = buildParamRangeIdsByNodeId(baselinePatch);
 
-  currentPatch.nodes.forEach((node) => {
+  currentNodes.forEach((node) => {
     const baselineNode = baselineNodesById.get(node.id);
     if (!baselineNode) {
       summary.addedNodeCount += 1;
@@ -360,7 +363,7 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
     });
   });
 
-  baselinePatch.nodes.forEach((node) => {
+  baselineNodes.forEach((node) => {
     if (!currentNodesById.has(node.id)) {
       summary.removedNodeCount += 1;
       removedNodes.push(node);

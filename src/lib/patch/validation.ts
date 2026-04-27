@@ -1,7 +1,8 @@
 import { getModuleSchema, moduleRegistryById } from "@/lib/patch/moduleRegistry";
 import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
 import { getMacroBindingKeyframeCount } from "@/lib/patch/macroKeyframes";
-import { CompiledNode, CompiledOp, CompiledPlan, Patch, PatchValidationIssue, PatchValidationResult, ParamValue } from "@/types/patch";
+import { getPatchPorts, migrateLegacyOutputNodeToPort } from "@/lib/patch/ports";
+import { CompiledNode, CompiledOp, CompiledPlan, Patch, PatchValidationIssue, PatchValidationResult, ParamValue, PatchNode } from "@/types/patch";
 
 const pushError = (
   issues: PatchValidationIssue[],
@@ -13,11 +14,16 @@ const pushError = (
 };
 
 export const patchHasNode = (patch: Patch, nodeId: string): boolean => patch.nodes.some((node) => node.id === nodeId);
+const patchHasEndpointNode = (patch: Patch, nodeId: string): boolean =>
+  patch.nodes.some((node) => node.id === nodeId) || getPatchPorts(patch).some((port) => port.id === nodeId);
 
 const resolveAllNodeTypes = (patch: Patch): Map<string, string> => {
   const allNodeTypes = new Map<string, string>();
   for (const node of patch.nodes) {
     allNodeTypes.set(node.id, node.typeId);
+  }
+  for (const port of getPatchPorts(patch)) {
+    allNodeTypes.set(port.id, port.typeId);
   }
   for (const hostId of SOURCE_HOST_NODE_IDS) {
     allNodeTypes.set(hostId, SOURCE_HOST_NODE_TYPE_BY_ID[hostId]);
@@ -91,7 +97,7 @@ const wouldCreateCycle = (patch: Patch, fromNodeId: string, toNodeId: string) =>
   if (fromNodeId === toNodeId) {
     return true;
   }
-  if (!patchHasNode(patch, fromNodeId) || !patchHasNode(patch, toNodeId)) {
+  if (!patchHasEndpointNode(patch, fromNodeId) || !patchHasEndpointNode(patch, toNodeId)) {
     return false;
   }
 
@@ -99,8 +105,11 @@ const wouldCreateCycle = (patch: Patch, fromNodeId: string, toNodeId: string) =>
   for (const node of patch.nodes) {
     adjacency.set(node.id, []);
   }
+  for (const port of getPatchPorts(patch)) {
+    adjacency.set(port.id, []);
+  }
   for (const connection of patch.connections) {
-    if (!patchHasNode(patch, connection.from.nodeId) || !patchHasNode(patch, connection.to.nodeId)) {
+    if (!patchHasEndpointNode(patch, connection.from.nodeId) || !patchHasEndpointNode(patch, connection.to.nodeId)) {
       continue;
     }
     adjacency.get(connection.from.nodeId)?.push(connection.to.nodeId);
@@ -125,12 +134,13 @@ const wouldCreateCycle = (patch: Patch, fromNodeId: string, toNodeId: string) =>
 };
 
 export const validatePatchConnectionCandidate = (
-  patch: Patch,
+  inputPatch: Patch,
   fromNodeId: string,
   fromPortId: string,
   toNodeId: string,
   toPortId: string
 ): PatchValidationIssue[] => {
+  const patch = migrateLegacyOutputNodeToPort(inputPatch);
   const issues: PatchValidationIssue[] = [];
   const allNodeTypes = resolveAllNodeTypes(patch);
   const resolved = resolveConnectionValidation(issues, allNodeTypes, fromNodeId, fromPortId, toNodeId, toPortId);
@@ -158,7 +168,8 @@ export const validatePatchConnectionCandidate = (
   return issues;
 };
 
-export const validatePatch = (patch: Patch): PatchValidationResult => {
+export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
+  const patch = migrateLegacyOutputNodeToPort(inputPatch);
   const issues: PatchValidationIssue[] = [];
   const macroIds = new Set<string>();
   const macroBindingIds = new Set<string>();
@@ -197,7 +208,7 @@ export const validatePatch = (patch: Patch): PatchValidationResult => {
       }
       macroBindingIds.add(binding.id);
 
-      const node = patch.nodes.find((entry) => entry.id === binding.nodeId);
+      const node = [...patch.nodes, ...getPatchPorts(patch)].find((entry) => entry.id === binding.nodeId);
       if (!node) {
         pushError(issues, `Macro binding references missing node`, {
           macroId: macro.id,
@@ -289,7 +300,7 @@ export const validatePatch = (patch: Patch): PatchValidationResult => {
     }
   }
 
-  for (const node of patch.nodes) {
+  for (const node of [...patch.nodes, ...getPatchPorts(patch)]) {
     const schema = getModuleSchema(node.typeId);
     if (!schema) {
       continue;
@@ -342,9 +353,10 @@ export const validatePatch = (patch: Patch): PatchValidationResult => {
     }
   }
 
-  const nodeById = new Set(patch.nodes.map((node) => node.id));
+  const graphNodes = [...patch.nodes, ...getPatchPorts(patch)];
+  const nodeById = new Set(graphNodes.map((node) => node.id));
   const adjacency = new Map<string, string[]>();
-  for (const node of patch.nodes) {
+  for (const node of graphNodes) {
     adjacency.set(node.id, []);
   }
 
@@ -377,23 +389,27 @@ export const validatePatch = (patch: Patch): PatchValidationResult => {
     return false;
   };
 
-  for (const node of patch.nodes) {
+  for (const node of graphNodes) {
     if ((visitState.get(node.id) ?? 0) === 0 && detectCycle(node.id)) {
       break;
     }
   }
 
   const outputNodes = patch.nodes.filter((node) => node.typeId === "Output");
-  if (outputNodes.length !== 1) {
-    pushError(issues, `Patch must include exactly one Output node`, { outputCount: String(outputNodes.length) });
+  if (outputNodes.length > 0) {
+    pushError(issues, `Output must be declared as a patch port`, { outputCount: String(outputNodes.length) }, "output-node-not-allowed");
+  }
+  const outputPorts = getPatchPorts(patch).filter((port) => port.typeId === "Output");
+  if (outputPorts.length !== 1) {
+    pushError(issues, `Patch must include exactly one Output port`, { outputCount: String(outputPorts.length) }, "output-port-count");
   }
 
   if (!patch.io.audioOutNodeId || !patch.io.audioOutPortId) {
     pushError(issues, "Patch io.audioOutNodeId/io.audioOutPortId must be set");
   } else {
-    const outNode = patch.nodes.find((node) => node.id === patch.io.audioOutNodeId);
-    if (!outNode) {
-      pushError(issues, "io.audioOutNodeId does not exist", { nodeId: patch.io.audioOutNodeId });
+    const outPort = getPatchPorts(patch).find((port) => port.id === patch.io.audioOutNodeId);
+    if (!outPort) {
+      pushError(issues, "io.audioOutNodeId does not reference an output port", { nodeId: patch.io.audioOutNodeId });
     }
   }
 
@@ -451,13 +467,15 @@ const topologicalSort = (nodes: string[], edges: Array<{ from: string; to: strin
   return ordered;
 };
 
-export const compilePatchPlan = (patch: Patch, sampleRate = 48000, blockSize = 128): CompiledPlan => {
+export const compilePatchPlan = (inputPatch: Patch, sampleRate = 48000, blockSize = 128): CompiledPlan => {
+  const patch = migrateLegacyOutputNodeToPort(inputPatch);
   const validation = validatePatch(patch);
   if (!validation.ok) {
     throw new Error(`Patch validation failed: ${validation.issues.map((issue) => issue.message).join("; ")}`);
   }
 
-  const nodeIds = patch.nodes.map((node) => node.id);
+  const compileNodes: PatchNode[] = [...patch.nodes, ...getPatchPorts(patch)];
+  const nodeIds = compileNodes.map((node) => node.id);
   const edges = patch.connections
     .filter((connection) => nodeIds.includes(connection.from.nodeId) && nodeIds.includes(connection.to.nodeId))
     .map((connection) => ({ from: connection.from.nodeId, to: connection.to.nodeId }));
@@ -469,7 +487,7 @@ export const compilePatchPlan = (patch: Patch, sampleRate = 48000, blockSize = 1
   const ops: CompiledOp[] = [];
 
   for (const nodeId of orderedNodeIds) {
-    const node = patch.nodes.find((entry) => entry.id === nodeId)!;
+    const node = compileNodes.find((entry) => entry.id === nodeId)!;
     const schema = getModuleSchema(node.typeId);
     if (!schema) {
       throw new Error(`Unknown schema during compile: ${node.typeId}`);
