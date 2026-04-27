@@ -176,11 +176,11 @@ describe("patch diff", () => {
     const diff = buildPatchDiff(current, baseline);
 
     expect(diff.nodeDiffById.get("out1")?.status).toBe("modified");
-    expect(diff.nodeDiffById.get("out1")?.removedBindingKeys.has("macro_gain:out1:gain")).toBe(true);
+    expect(diff.nodeDiffById.get("out1")?.removedBindingKeys.has("macro_gain:$patch.output:gain")).toBe(true);
     expect(diff.macroDiffById.get("macro_gain")?.status).toBe("modified");
-    expect(diff.removedBindingDiffs.map((bindingDiff) => bindingDiff.key)).toEqual(["macro_gain:out1:gain"]);
+    expect(diff.removedBindingDiffs.map((bindingDiff) => bindingDiff.key)).toEqual(["macro_gain:$patch.output:gain"]);
     expect(diff.removedBindingDiffsByNodeParamKey.get("out1:gain")?.map((bindingDiff) => bindingDiff.key)).toEqual([
-      "macro_gain:out1:gain"
+      "macro_gain:$patch.output:gain"
     ]);
   });
 
@@ -231,6 +231,83 @@ describe("patch diff", () => {
     expect(diff.currentBindingDiffByKey.size).toBe(0);
     expect(diff.removedBindingDiffs).toEqual([]);
     expect(diff.nodeDiffById.get("vcf1")?.status).toBe("unchanged");
+  });
+
+  it("treats remove and re-add of the same output port macro target as the same binding", () => {
+    const baseline = createClearPatch({ id: "patch_a", name: "Lead" });
+    baseline.ui.macros = [
+      {
+        id: "macro_output",
+        name: "Output",
+        keyframeCount: 2,
+        bindings: [
+          {
+            id: "old_random_binding",
+            nodeId: baseline.io.audioOutNodeId,
+            paramId: "gainDb",
+            map: "linear",
+            min: -18,
+            max: 0
+          }
+        ]
+      }
+    ];
+    const current = structuredClone(baseline);
+    current.ui.macros[0].bindings = [
+      {
+        id: "new_random_binding",
+        nodeId: current.io.audioOutNodeId,
+        paramId: "gainDb",
+        map: "linear",
+        min: -18,
+        max: 0
+      }
+    ];
+
+    const diff = buildPatchDiff(current, baseline);
+
+    expect(diff.hasChanges).toBe(false);
+    expect(diff.currentBindingDiffByKey.size).toBe(0);
+    expect(diff.removedBindingDiffs).toEqual([]);
+    expect(diff.nodeDiffById.get(current.io.audioOutNodeId)?.status).toBe("unchanged");
+  });
+
+  it("treats legacy host output aliases as the same output port macro target", () => {
+    const baseline = createClearPatch({ id: "patch_a", name: "Lead" });
+    baseline.ui.macros = [
+      {
+        id: "macro_output",
+        name: "Output",
+        keyframeCount: 2,
+        bindings: [
+          {
+            id: "old_host_output_binding",
+            nodeId: "$host.output",
+            paramId: "gainDb",
+            map: "linear",
+            min: -18,
+            max: 0
+          }
+        ]
+      }
+    ];
+    const current = structuredClone(baseline);
+    current.ui.macros[0].bindings = [
+      {
+        id: "new_output_port_binding",
+        nodeId: current.io.audioOutNodeId,
+        paramId: "gainDb",
+        map: "linear",
+        min: -18,
+        max: 0
+      }
+    ];
+
+    const diff = buildPatchDiff(current, baseline);
+
+    expect(diff.hasChanges).toBe(false);
+    expect(diff.currentBindingDiffByKey.size).toBe(0);
+    expect(diff.removedBindingDiffs).toEqual([]);
   });
 
   it("ignores raw parameter value changes for unchanged macro-bound parameters", () => {

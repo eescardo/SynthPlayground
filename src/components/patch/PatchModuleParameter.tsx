@@ -5,7 +5,7 @@ import {
 } from "@/lib/patch/macroKeyframes";
 import { PatchDiff } from "@/lib/patch/diff";
 import { EditableNumberLabel, MacroBindingDetails, ParamMacroControl } from "@/components/patch/PatchInspectorControls";
-import { createMacroBindingId, createMacroBindingKey } from "@/lib/patch/macroBindings";
+import { createMacroBindingId, createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
 import { clamp, clampRange } from "@/lib/numeric";
 import { MacroBinding, Patch, PatchMacro, PatchNode, PatchParamSliderRange, ParamSchema, ParamValue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -240,7 +240,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
     macro.bindings
       .filter((binding) => binding.nodeId === props.selectedNode.id && binding.paramId === props.param.id)
       .flatMap((binding) => {
-        const diff = props.patchDiff.currentBindingDiffByKey.get(createMacroBindingKey(macro.id, binding));
+        const diff = props.patchDiff.currentBindingDiffByKey.get(createPatchMacroBindingKey(props.patch, macro.id, binding));
         return diff ? [diff] : [];
       })
   );

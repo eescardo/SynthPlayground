@@ -1,5 +1,5 @@
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { createMacroBindingKey } from "@/lib/patch/macroBindings";
+import { createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
 import { getPatchParameterTargets } from "@/lib/patch/ports";
 import {
   MacroBinding,
@@ -121,9 +121,13 @@ function isSameParamValue(left: ParamValue, right: ParamValue): boolean {
   return left === right;
 }
 
-function serializeBinding(binding: MacroBinding): string {
+function normalizeBindingNodeIdForDiff(patch: Patch, nodeId: string) {
+  return nodeId === patch.io.audioOutNodeId || nodeId === "$host.output" ? "$patch.output" : nodeId;
+}
+
+function serializeBinding(patch: Patch, binding: MacroBinding): string {
   return JSON.stringify({
-    nodeId: binding.nodeId,
+    nodeId: normalizeBindingNodeIdForDiff(patch, binding.nodeId),
     paramId: binding.paramId,
     map: binding.map,
     min: binding.min,
@@ -157,15 +161,15 @@ function addSetEntry(map: Map<string, Set<string>>, key: string, value: string) 
   map.set(key, entries);
 }
 
-function buildBindingIndexes(macros: PatchMacro[]) {
+function buildBindingIndexes(patch: Patch) {
   const byKey = new Map<string, { macro: PatchMacro; binding: MacroBinding }>();
   const keysByMacroId = new Map<string, Set<string>>();
   const keysByNodeId = new Map<string, Set<string>>();
   const keysByNodeParamKey = new Map<string, Set<string>>();
 
-  macros.forEach((macro) => {
+  patch.ui.macros.forEach((macro) => {
     macro.bindings.forEach((binding) => {
-      const key = createMacroBindingKey(macro.id, binding);
+      const key = createPatchMacroBindingKey(patch, macro.id, binding);
       byKey.set(key, { macro, binding });
       addSetEntry(keysByMacroId, macro.id, key);
       addSetEntry(keysByNodeId, binding.nodeId, key);
@@ -245,6 +249,8 @@ function addRemovedBindingDiff(
 
 function hasUnchangedMacroBindingForParam(
   bindingKeys: Set<string> | undefined,
+  currentPatch: Patch,
+  baselinePatch: Patch,
   currentBindingsByKey: Map<string, { macro: PatchMacro; binding: MacroBinding }>,
   baselineBindingsByKey: Map<string, { macro: PatchMacro; binding: MacroBinding }>
 ) {
@@ -257,7 +263,7 @@ function hasUnchangedMacroBindingForParam(
     if (!currentEntry || !baselineEntry) {
       continue;
     }
-    if (serializeBinding(currentEntry.binding) === serializeBinding(baselineEntry.binding)) {
+    if (serializeBinding(currentPatch, currentEntry.binding) === serializeBinding(baselinePatch, baselineEntry.binding)) {
       return true;
     }
   }
@@ -284,8 +290,8 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
   const baselineNodesById = new Map(baselineNodes.map((node) => [node.id, node] as const));
   const currentNodesById = new Map(currentNodes.map((node) => [node.id, node] as const));
   const baselineMacrosById = new Map(baselinePatch.ui.macros.map((macro) => [macro.id, macro] as const));
-  const currentBindingIndexes = buildBindingIndexes(currentPatch.ui.macros);
-  const baselineBindingIndexes = buildBindingIndexes(baselinePatch.ui.macros);
+  const currentBindingIndexes = buildBindingIndexes(currentPatch);
+  const baselineBindingIndexes = buildBindingIndexes(baselinePatch);
   const currentBindingsByKey = currentBindingIndexes.byKey;
   const baselineBindingsByKey = baselineBindingIndexes.byKey;
   const currentConnectionsById = new Map(currentPatch.connections.map((connection) => [connection.id, connection] as const));
@@ -334,10 +340,10 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
       if (!isSameParamValue(getParamValue(node, currentSchema), getParamValue(baselineNode, baselineSchema))) {
         const currentBindingKeys = currentBindingIndexes.keysByNodeParamKey.get(paramRangeKey);
         const baselineBindingKeys = baselineBindingIndexes.keysByNodeParamKey.get(paramRangeKey);
-        if (hasUnchangedMacroBindingForParam(currentBindingKeys, currentBindingsByKey, baselineBindingsByKey)) {
+        if (hasUnchangedMacroBindingForParam(currentBindingKeys, currentPatch, baselinePatch, currentBindingsByKey, baselineBindingsByKey)) {
           return;
         }
-        if (hasUnchangedMacroBindingForParam(baselineBindingKeys, currentBindingsByKey, baselineBindingsByKey)) {
+        if (hasUnchangedMacroBindingForParam(baselineBindingKeys, currentPatch, baselinePatch, currentBindingsByKey, baselineBindingsByKey)) {
           return;
         }
         changedParamIds.add(paramId);
@@ -357,7 +363,7 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
         addedBindingKeys.add(key);
         return;
       }
-      if (serializeBinding(entry.binding) !== serializeBinding(baselineEntry.binding)) {
+      if (serializeBinding(currentPatch, entry.binding) !== serializeBinding(baselinePatch, baselineEntry.binding)) {
         changedBindingKeys.add(key);
       }
     });
@@ -433,7 +439,7 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
         addedBindingKeys.add(key);
         return;
       }
-      if (serializeBinding(entry.binding) !== serializeBinding(baselineEntry.binding)) {
+      if (serializeBinding(currentPatch, entry.binding) !== serializeBinding(baselinePatch, baselineEntry.binding)) {
         changedBindingKeys.add(key);
       }
     });
@@ -486,7 +492,7 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
       });
       return;
     }
-    if (serializeBinding(entry.binding) !== serializeBinding(baselineEntry.binding)) {
+    if (serializeBinding(currentPatch, entry.binding) !== serializeBinding(baselinePatch, baselineEntry.binding)) {
       summary.changedBindingCount += 1;
       currentBindingDiffByKey.set(key, {
         key,
