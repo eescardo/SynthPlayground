@@ -436,11 +436,20 @@ function drawCvAxisModuleFace(
   y: number,
   accentColor: string
 ) {
+  const faceX = x + PATCH_MODULE_FACE_INSET_X;
+  const faceWidth = PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2;
+  const graphWidth = Math.floor(faceWidth * 0.48);
   const graph = {
-    x: x + PATCH_MODULE_FACE_INSET_X + 20,
+    x: faceX + 18,
     y: y + PATCH_MODULE_FACE_TOP + 4,
-    width: PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2 - 40,
+    width: graphWidth - 18,
     height: PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 10
+  };
+  const labelArea = {
+    x: faceX + graphWidth + 10,
+    y: graph.y,
+    width: faceWidth - graphWidth - 10,
+    height: graph.height
   };
   const t = clamp01((clamp(value, range.min, range.max) - range.min) / (range.max - range.min));
   const markerY = graph.y + graph.height * (1 - t);
@@ -472,9 +481,10 @@ function drawCvAxisModuleFace(
   ctx.fillText(String(range.max), graph.x - 4, graph.y + 6);
   ctx.fillText("0", graph.x - 4, zeroY + 3);
   ctx.fillText(String(range.min), graph.x - 4, graph.y + graph.height);
-  ctx.textAlign = markerY < graph.y + 10 ? "left" : "right";
-  const labelX = markerY < graph.y + 10 ? graph.x + graph.width + 4 : graph.x + graph.width - 4;
-  ctx.fillText(label, labelX, clamp(markerY + 3, graph.y + 7, graph.y + graph.height - 4));
+  ctx.fillStyle = accentColor;
+  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.textAlign = "left";
+  ctx.fillText(label, labelArea.x, clamp(markerY + 3, labelArea.y + 10, labelArea.y + labelArea.height - 4));
   ctx.textAlign = "left";
 }
 
