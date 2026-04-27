@@ -201,6 +201,13 @@ function drawVcoModuleFace(
   drawWavePath(ctx, points, graph);
 }
 
+function formatFrequencyFaceLabel(frequency: number): string {
+  if (frequency >= 1000) {
+    return `${(frequency / 1000).toFixed(frequency >= 10000 ? 0 : 1)}k`;
+  }
+  return `${Math.round(frequency)}`;
+}
+
 function drawVcfModuleFace(
   ctx: CanvasRenderingContext2D,
   node: PatchNode,
@@ -219,8 +226,16 @@ function drawVcfModuleFace(
   const cutoff = getNumericParam(node, schema, "cutoffHz");
   const min = cutoffParam?.type === "float" ? cutoffParam.range.min : 20;
   const max = cutoffParam?.type === "float" ? cutoffParam.range.max : 20000;
-  const t = clamp01((clamp(cutoff, min, max) - min) / (max - min));
-  const cutoffX = graph.x + t * graph.width;
+  const cutoffClamped = clamp(cutoff, min, max);
+  const graphMin = clamp(cutoffClamped / 10, min, max);
+  const graphMax = clamp(cutoffClamped * 10, min, max);
+  const graphLogMin = Math.log10(graphMin);
+  const graphLogMax = Math.log10(graphMax);
+  const frequencyToX = (frequency: number) => {
+    const logT = (Math.log10(clamp(frequency, graphMin, graphMax)) - graphLogMin) / (graphLogMax - graphLogMin || 1);
+    return graph.x + clamp01(logT) * graph.width;
+  };
+  const cutoffX = frequencyToX(cutoffClamped);
   const type = String(node.params.type ?? "lowpass");
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
   ctx.lineWidth = 1;
@@ -228,12 +243,11 @@ function drawVcfModuleFace(
 
   ctx.lineWidth = 1;
   for (const ratio of [0.25, 0.5, 1, 2, 4]) {
-    const guideFrequency = cutoff * ratio;
-    if (guideFrequency < min || guideFrequency > max) {
+    const guideFrequency = cutoffClamped * ratio;
+    if (guideFrequency < graphMin || guideFrequency > graphMax) {
       continue;
     }
-    const guideT = clamp01((guideFrequency - min) / (max - min));
-    const guideX = graph.x + guideT * graph.width;
+    const guideX = frequencyToX(guideFrequency);
     ctx.strokeStyle = ratio === 1 ? "rgba(158, 192, 223, 0.22)" : "rgba(158, 192, 223, 0.13)";
     ctx.beginPath();
     ctx.moveTo(guideX, graph.y + 4);
@@ -260,11 +274,11 @@ function drawVcfModuleFace(
   ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = "left";
-  ctx.fillText("20", graph.x, graph.y + graph.height + 10);
+  ctx.fillText(formatFrequencyFaceLabel(graphMin), graph.x, graph.y + graph.height + 10);
   ctx.textAlign = "right";
-  ctx.fillText("20k", graph.x + graph.width, graph.y + graph.height + 10);
+  ctx.fillText(formatFrequencyFaceLabel(graphMax), graph.x + graph.width, graph.y + graph.height + 10);
   ctx.textAlign = cutoffX > graph.x + graph.width * 0.72 ? "right" : cutoffX < graph.x + graph.width * 0.28 ? "left" : "center";
-  const cutoffLabel = cutoff >= 1000 ? `${(cutoff / 1000).toFixed(cutoff >= 10000 ? 0 : 1)}k` : `${Math.round(cutoff)}`;
+  const cutoffLabel = formatFrequencyFaceLabel(cutoffClamped);
   const cutoffLabelX = clamp(cutoffX, graph.x + 10, graph.x + graph.width - 10);
   ctx.fillText(cutoffLabel, cutoffLabelX, graph.y - 3);
   ctx.textAlign = "left";
