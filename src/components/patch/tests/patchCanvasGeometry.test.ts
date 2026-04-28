@@ -10,7 +10,8 @@ import {
   resolvePatchConnectionAnchorPoint,
   resolvePatchConnectionMidpoint,
   resolvePatchDiagramSize,
-  resolvePatchFacePopoverRect
+  resolvePatchFacePopoverRect,
+  resolvePatchPortAnchorPoint
 } from "@/components/patch/patchCanvasGeometry";
 import { PATCH_CANVAS_GRID, PATCH_NODE_HEIGHT, PATCH_NODE_WIDTH, PATCH_OUTPUT_HOST_STRIP_Y } from "@/components/patch/patchCanvasConstants";
 import { Patch, PatchLayoutNode } from "@/types/patch";
@@ -84,9 +85,10 @@ describe("patch canvas geometry", () => {
     };
     const layoutByNode = new Map<string, PatchLayoutNode>([["vco1", { nodeId: "vco1", x: 4, y: 4 }]]);
     const outputHostCanvasLeft = 1234;
+    const fromAnchor = resolvePatchPortAnchorPoint(patch, layoutByNode, "vco1", "out", "out", outputHostCanvasLeft);
     const midpoint = resolvePatchConnectionMidpoint(patch, layoutByNode, "conn1", outputHostCanvasLeft);
 
-    expect(midpoint?.x).toBeCloseTo((4 * PATCH_CANVAS_GRID + PATCH_NODE_WIDTH + outputHostCanvasLeft) / 2);
+    expect(midpoint?.x).toBeCloseTo(((fromAnchor?.x ?? 0) + outputHostCanvasLeft) / 2);
     expect(findPatchConnectionAtPoint(patch, layoutByNode, midpoint?.x ?? 0, midpoint?.y ?? 0, outputHostCanvasLeft)).toBe("conn1");
   });
 
@@ -105,8 +107,9 @@ describe("patch canvas geometry", () => {
       { x: 1000, y: 440 },
       1234
     );
+    const fromAnchor = resolvePatchPortAnchorPoint(patch, layoutByNode, "vco1", "out", "out", 1234);
 
-    expect(anchor?.x).toBeGreaterThan(4 * PATCH_CANVAS_GRID + PATCH_NODE_WIDTH);
+    expect(anchor?.x).toBeGreaterThan(fromAnchor?.x ?? 0);
     expect(anchor?.x).toBeLessThan(1234);
     expect(anchor?.y).toBeGreaterThan(PATCH_OUTPUT_HOST_STRIP_Y);
   });

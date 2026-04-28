@@ -30,13 +30,7 @@ import {
   PATCH_FACE_POPOVER_SCALE,
   PATCH_NODE_BODY_TOP,
   PATCH_NODE_HEIGHT,
-  PATCH_NODE_WIDTH,
-  PATCH_PORT_LABEL_HEIGHT,
-  PATCH_PORT_LABEL_MIN_TEXT,
-  PATCH_PORT_LABEL_OVERHANG_RATIO,
-  PATCH_PORT_LABEL_X_PADDING,
-  PATCH_PORT_ROW_GAP,
-  PATCH_PORT_START_Y
+  PATCH_NODE_WIDTH
 } from "@/components/patch/patchCanvasConstants";
 import { resolveInvalidPortKeys } from "@/components/patch/patchCanvasValidation";
 import { drawPatchModuleFaceContent } from "@/components/patch/patchModuleFaceDrawing";
@@ -47,6 +41,7 @@ import {
   isManagedOutputNode,
   resolveHostPatchPortRect,
   resolveHostPatchPortTint,
+  resolvePatchNodePortLabelRect,
   resolveOutputHostPatchPortRect
 } from "@/components/patch/patchCanvasGeometry";
 import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
@@ -84,39 +79,16 @@ function drawRoundedRectPath(ctx: CanvasRenderingContext2D, x: number, y: number
   ctx.quadraticCurveTo(x, y, x + r, y);
 }
 
-function resolvePortLabelWidth(ctx: CanvasRenderingContext2D, port: PortSchema) {
-  const minWidth = Math.ceil(ctx.measureText(PATCH_PORT_LABEL_MIN_TEXT).width) + PATCH_PORT_LABEL_X_PADDING * 2;
-  return Math.max(minWidth, Math.ceil(ctx.measureText(port.id).width) + PATCH_PORT_LABEL_X_PADDING * 2);
-}
-
-function resolvePortLabelInset(ctx: CanvasRenderingContext2D) {
-  const minWidth = Math.ceil(ctx.measureText(PATCH_PORT_LABEL_MIN_TEXT).width) + PATCH_PORT_LABEL_X_PADDING * 2;
-  return minWidth * (1 - PATCH_PORT_LABEL_OVERHANG_RATIO);
-}
-
 function resolvePortLabelRect(
-  ctx: CanvasRenderingContext2D,
   port: PortSchema,
   kind: "in" | "out",
   nodeX: number,
   nodeY: number,
   index: number
 ): ResolvedPortPosition {
-  const width = resolvePortLabelWidth(ctx, port);
-  const height = PATCH_PORT_LABEL_HEIGHT;
-  const moduleInset = resolvePortLabelInset(ctx);
-  const y = nodeY + PATCH_PORT_START_Y + index * PATCH_PORT_ROW_GAP;
-  const labelX =
-    kind === "in"
-      ? nodeX + moduleInset - width
-      : nodeX + PATCH_NODE_WIDTH - moduleInset;
+  const rect = resolvePatchNodePortLabelRect(port.id, kind, nodeX, nodeY, index);
   return {
-    x: labelX,
-    y,
-    width,
-    height,
-    anchorX: kind === "in" ? labelX : labelX + width,
-    anchorY: y,
+    ...rect,
     schema: port
   };
 }
@@ -210,7 +182,7 @@ export function drawPatchModuleCard(
 
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
   const drawPortLabel = (port: PortSchema, index: number, kind: "in" | "out") => {
-    const rect = resolvePortLabelRect(ctx, port, kind, x, y, index);
+    const rect = resolvePortLabelRect(port, kind, x, y, index);
     ctx.fillStyle = invalidPortKeys.has(`${node.id}:${kind}:${port.id}`) ? PATCH_COLOR_PORT_LABEL_INVALID_BG : PATCH_COLOR_PORT_LABEL_BG;
     ctx.fillRect(rect.x, rect.y - rect.height / 2, rect.width, rect.height);
     ctx.fillStyle = PATCH_COLOR_PORT_LABEL;
@@ -264,11 +236,11 @@ function resolvePortPositions(
     const y = layout.y * PATCH_CANVAS_GRID;
 
     schema.portsIn.forEach((port, index) => {
-      portPositions.set(`${node.id}:in:${port.id}`, resolvePortLabelRect(ctx, port, "in", x, y, index));
+      portPositions.set(`${node.id}:in:${port.id}`, resolvePortLabelRect(port, "in", x, y, index));
     });
 
     schema.portsOut.forEach((port, index) => {
-      portPositions.set(`${node.id}:out:${port.id}`, resolvePortLabelRect(ctx, port, "out", x, y, index));
+      portPositions.set(`${node.id}:out:${port.id}`, resolvePortLabelRect(port, "out", x, y, index));
     });
   });
 

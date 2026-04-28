@@ -12,6 +12,10 @@ import {
   PATCH_NODE_HEIGHT,
   PATCH_NODE_HIT_PADDING,
   PATCH_NODE_WIDTH,
+  PATCH_PORT_LABEL_HEIGHT,
+  PATCH_PORT_LABEL_MIN_TEXT,
+  PATCH_PORT_LABEL_OVERHANG_RATIO,
+  PATCH_PORT_LABEL_X_PADDING,
   PATCH_PORT_ROW_GAP,
   PATCH_PORT_START_Y
 } from "@/components/patch/patchCanvasConstants";
@@ -45,6 +49,41 @@ export interface HitPort {
   y: number;
   width: number;
   height: number;
+}
+
+function resolvePortLabelTextWidth(label: string) {
+  return Math.ceil(label.length * 6);
+}
+
+export function resolvePatchPortLabelWidth(portId: string) {
+  const minWidth = resolvePortLabelTextWidth(PATCH_PORT_LABEL_MIN_TEXT) + PATCH_PORT_LABEL_X_PADDING * 2;
+  return Math.max(minWidth, resolvePortLabelTextWidth(portId) + PATCH_PORT_LABEL_X_PADDING * 2);
+}
+
+export function resolvePatchPortLabelInset() {
+  return resolvePatchPortLabelWidth(PATCH_PORT_LABEL_MIN_TEXT) * (1 - PATCH_PORT_LABEL_OVERHANG_RATIO);
+}
+
+export function resolvePatchNodePortLabelRect(
+  portId: string,
+  kind: "in" | "out",
+  nodeX: number,
+  nodeY: number,
+  index: number
+) {
+  const width = resolvePatchPortLabelWidth(portId);
+  const height = PATCH_PORT_LABEL_HEIGHT;
+  const moduleInset = resolvePatchPortLabelInset();
+  const y = nodeY + PATCH_PORT_START_Y + index * PATCH_PORT_ROW_GAP;
+  const labelX = kind === "in" ? nodeX + moduleInset - width : nodeX + PATCH_NODE_WIDTH - moduleInset;
+  return {
+    x: labelX,
+    y,
+    width,
+    height,
+    anchorX: kind === "in" ? labelX : labelX + width,
+    anchorY: y
+  };
 }
 
 export function isHostPatchNodeId(nodeId: string) {
@@ -321,9 +360,16 @@ export function resolvePatchPortAnchorPoint(
   if (!layout || !schema || portIndex < 0) {
     return null;
   }
+  const rect = resolvePatchNodePortLabelRect(
+    portId,
+    portKind,
+    layout.x * PATCH_CANVAS_GRID,
+    layout.y * PATCH_CANVAS_GRID,
+    portIndex
+  );
   return {
-    x: layout.x * PATCH_CANVAS_GRID + (portKind === "in" ? 0 : PATCH_NODE_WIDTH),
-    y: layout.y * PATCH_CANVAS_GRID + PATCH_PORT_START_Y + portIndex * PATCH_PORT_ROW_GAP
+    x: rect.anchorX,
+    y: rect.anchorY
   };
 }
 
