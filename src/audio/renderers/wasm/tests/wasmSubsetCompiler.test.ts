@@ -12,9 +12,9 @@ describe("compileAudioProjectToWasmSubset", () => {
       name: "Macro Points",
       meta: { source: "custom" },
       nodes: [
-        { id: "vcf", typeId: "VCF", params: { type: "lowpass", cutoffHz: 120, resonance: 0.2, cutoffModAmountOct: 0 } },
-        { id: "out", typeId: "Output", params: { gainDb: 0, limiter: false } }
+        { id: "vcf", typeId: "VCF", params: { type: "lowpass", cutoffHz: 120, resonance: 0.2, cutoffModAmountOct: 0 } }
       ],
+      ports: [{ id: "out", typeId: "Output", label: "output", params: { gainDb: 0, limiter: false } }],
       connections: [
         { id: "c1", from: { nodeId: "vcf", portId: "out" }, to: { nodeId: "out", portId: "in" } }
       ],

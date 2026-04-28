@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import {
+  resolveNearestRectEdgePoint,
   resolvePatchConnectionAnchorPoint,
   resolvePatchConnectionMidpoint,
   resolvePatchPortAnchorPoint
@@ -48,15 +49,7 @@ function resolveNearestProbeEdgePoint(probe: PatchWorkspaceProbeState, zoom: num
   const y = probe.y * PATCH_CANVAS_GRID;
   const width = resolveRenderedProbeWidth(probe, zoom) / zoom;
   const height = resolveRenderedProbeHeight(probe, zoom) / zoom;
-  const clampedX = clamp(targetPoint.x, x, x + width);
-  const clampedY = clamp(targetPoint.y, y, y + height);
-  const candidates = [
-    { x: clampedX, y, distance: Math.hypot(targetPoint.x - clampedX, targetPoint.y - y) },
-    { x: clampedX, y: y + height, distance: Math.hypot(targetPoint.x - clampedX, targetPoint.y - (y + height)) },
-    { x, y: clampedY, distance: Math.hypot(targetPoint.x - x, targetPoint.y - clampedY) },
-    { x: x + width, y: clampedY, distance: Math.hypot(targetPoint.x - (x + width), targetPoint.y - clampedY) }
-  ];
-  return candidates.reduce((best, candidate) => (candidate.distance < best.distance ? candidate : best));
+  return resolveNearestRectEdgePoint({ x, y, width, height }, targetPoint);
 }
 
 export function PatchProbeOverlay(props: PatchProbeOverlayProps) {

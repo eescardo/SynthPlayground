@@ -16,7 +16,7 @@ import {
   resolvePatchCanvasSize,
   resolvePatchDiagramSize,
   resolvePatchFacePopoverRect,
-  resolveOutputHostPatchPortWidth
+  resolveOutputHostPlacement
 } from "@/components/patch/patchCanvasGeometry";
 import { createId } from "@/lib/ids";
 import { resolveAutoLayoutNodes } from "@/lib/patch/autoLayout";
@@ -112,19 +112,19 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     }),
     [contentCanvasSize.height, contentCanvasSize.width, scrollViewport.left, scrollViewport.width, zoom]
   );
-  const outputHostCanvasLeft = useMemo(() => {
-    if (scrollViewport.width <= 0) {
-      return canvasSize.width;
-    }
-    const screenLeft = scrollViewport.width + PATCH_OUTPUT_HOST_PORT_OVERHANG - resolveOutputHostPatchPortWidth();
-    return (scrollViewport.left + screenLeft) / zoom;
-  }, [canvasSize.width, scrollViewport.left, scrollViewport.width, zoom]);
-  const outputHostScreenLeft = useMemo(() => {
-    if (scrollViewport.width <= 0) {
-      return canvasSize.width * zoom - scrollViewport.left - resolveOutputHostPatchPortWidth();
-    }
-    return scrollViewport.width + PATCH_OUTPUT_HOST_PORT_OVERHANG - resolveOutputHostPatchPortWidth();
-  }, [canvasSize.width, scrollViewport.left, scrollViewport.width, zoom]);
+  const outputHostPlacement = useMemo(
+    () =>
+      resolveOutputHostPlacement({
+        canvasWidth: canvasSize.width,
+        overhang: PATCH_OUTPUT_HOST_PORT_OVERHANG,
+        scrollLeft: scrollViewport.left,
+        viewportWidth: scrollViewport.width,
+        zoom
+      }),
+    [canvasSize.width, scrollViewport.left, scrollViewport.width, zoom]
+  );
+  const outputHostCanvasLeft = outputHostPlacement.canvasLeft;
+  const outputHostScreenLeft = outputHostPlacement.screenLeft;
 
   useEffect(() => {
     if (scrollRef.current) {

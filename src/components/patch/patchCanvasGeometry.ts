@@ -51,6 +51,48 @@ export interface HitPort {
   height: number;
 }
 
+export interface PatchOutputHostPlacement {
+  canvasLeft: number;
+  screenLeft: number;
+}
+
+export function resolveOutputHostPlacement(args: {
+  canvasWidth: number;
+  overhang: number;
+  scrollLeft: number;
+  viewportWidth: number;
+  zoom: number;
+}): PatchOutputHostPlacement {
+  const portWidth = resolveOutputHostPatchPortWidth();
+  if (args.viewportWidth <= 0) {
+    return {
+      canvasLeft: args.canvasWidth,
+      screenLeft: args.canvasWidth * args.zoom - args.scrollLeft - portWidth
+    };
+  }
+  const screenLeft = args.viewportWidth + args.overhang - portWidth;
+  return {
+    canvasLeft: (args.scrollLeft + screenLeft) / args.zoom,
+    screenLeft
+  };
+}
+
+export function resolveNearestRectEdgePoint(
+  rect: CanvasRect,
+  targetPoint: { x: number; y: number }
+) {
+  const clampedX = clamp(targetPoint.x, rect.x, rect.x + rect.width);
+  const clampedY = clamp(targetPoint.y, rect.y, rect.y + rect.height);
+  const candidates = [
+    { x: clampedX, y: rect.y, distance: Math.hypot(targetPoint.x - clampedX, targetPoint.y - rect.y) },
+    { x: clampedX, y: rect.y + rect.height, distance: Math.hypot(targetPoint.x - clampedX, targetPoint.y - (rect.y + rect.height)) },
+    { x: rect.x, y: clampedY, distance: Math.hypot(targetPoint.x - rect.x, targetPoint.y - clampedY) },
+    { x: rect.x + rect.width, y: clampedY, distance: Math.hypot(targetPoint.x - (rect.x + rect.width), targetPoint.y - clampedY) }
+  ];
+  const nearest = candidates.reduce((best, candidate) => (candidate.distance < best.distance ? candidate : best));
+  return { x: nearest.x, y: nearest.y };
+}
+
 function resolvePortLabelTextWidth(label: string) {
   return Math.ceil(label.length * 6);
 }

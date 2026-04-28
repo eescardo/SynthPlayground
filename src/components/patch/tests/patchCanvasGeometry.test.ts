@@ -6,12 +6,14 @@ import {
   findPatchPortAtPointWithPadding,
   HitPort,
   resolveOutputHostPatchPortRect,
+  resolveOutputHostPlacement,
   resolvePatchCanvasSize,
   resolvePatchConnectionAnchorPoint,
   resolvePatchConnectionMidpoint,
   resolvePatchDiagramSize,
   resolvePatchFacePopoverRect,
-  resolvePatchPortAnchorPoint
+  resolvePatchPortAnchorPoint,
+  resolveNearestRectEdgePoint
 } from "@/components/patch/patchCanvasGeometry";
 import { PATCH_CANVAS_GRID, PATCH_NODE_HEIGHT, PATCH_NODE_WIDTH, PATCH_OUTPUT_HOST_STRIP_Y } from "@/components/patch/patchCanvasConstants";
 import { Patch, PatchLayoutNode } from "@/types/patch";
@@ -74,6 +76,35 @@ describe("patch canvas geometry", () => {
 
     expect(rect.x).toBe(1400);
     expect(rect.width).toBeGreaterThan(0);
+  });
+
+  it("keeps output host placement fixed on screen while zoom and scroll change", () => {
+    const zoomed = resolveOutputHostPlacement({
+      canvasWidth: 1200,
+      overhang: 8,
+      scrollLeft: 320,
+      viewportWidth: 900,
+      zoom: 0.5
+    });
+    const unzoomed = resolveOutputHostPlacement({
+      canvasWidth: 1200,
+      overhang: 8,
+      scrollLeft: 320,
+      viewportWidth: 900,
+      zoom: 1
+    });
+
+    expect(zoomed.screenLeft).toBe(unzoomed.screenLeft);
+    expect(zoomed.canvasLeft).toBeGreaterThan(unzoomed.canvasLeft);
+  });
+
+  it("resolves the nearest edge point on a rectangle", () => {
+    const rect = { x: 100, y: 200, width: 80, height: 40 };
+
+    expect(resolveNearestRectEdgePoint(rect, { x: 130, y: 150 })).toEqual({ x: 130, y: 200 });
+    expect(resolveNearestRectEdgePoint(rect, { x: 130, y: 280 })).toEqual({ x: 130, y: 240 });
+    expect(resolveNearestRectEdgePoint(rect, { x: 40, y: 215 })).toEqual({ x: 100, y: 215 });
+    expect(resolveNearestRectEdgePoint(rect, { x: 240, y: 215 })).toEqual({ x: 180, y: 215 });
   });
 
   it("uses the fixed output host anchor for connection geometry", () => {

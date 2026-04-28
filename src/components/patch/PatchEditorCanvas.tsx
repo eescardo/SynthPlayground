@@ -6,6 +6,7 @@ import { PatchEditorStage } from "@/components/patch/PatchEditorStage";
 import { PatchInspector } from "@/components/patch/PatchInspector";
 import { PatchMacroPanel } from "@/components/patch/PatchMacroPanel";
 import { PatchBaselineDiffState } from "@/components/patch/patchBaselineDiffState";
+import { applyDraftParamValues, buildParamDraftKey } from "@/components/patch/patchEditorCanvasDrafts";
 import { usePatchProbeEditorState } from "@/hooks/patch/usePatchProbeEditorState";
 import { clamp } from "@/lib/numeric";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
@@ -22,41 +23,6 @@ const PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT: Record<number, number> = {
   4: 4.98,
   5: 6.18
 };
-
-function buildParamDraftKey(nodeId: string, paramId: string) {
-  return `${nodeId}:${paramId}`;
-}
-
-function applyDraftParamValues(patch: Patch, draftValues: Record<string, ParamValue>): Patch {
-  if (Object.keys(draftValues).length === 0) {
-    return patch;
-  }
-  const nextNodes = patch.nodes.map((node) => {
-    const nextParams = { ...node.params };
-    let changed = false;
-    for (const [key, value] of Object.entries(draftValues)) {
-      const [nodeId, paramId] = key.split(":");
-      if (nodeId === node.id && paramId) {
-        nextParams[paramId] = value;
-        changed = true;
-      }
-    }
-    return changed ? { ...node, params: nextParams } : node;
-  });
-  const nextPorts = patch.ports?.map((port) => {
-    const nextParams = { ...port.params };
-    let changed = false;
-    for (const [key, value] of Object.entries(draftValues)) {
-      const [nodeId, paramId] = key.split(":");
-      if (nodeId === port.id && paramId) {
-        nextParams[paramId] = value;
-        changed = true;
-      }
-    }
-    return changed ? { ...port, params: nextParams } : port;
-  });
-  return { ...patch, nodes: nextNodes, ports: nextPorts };
-}
 
 interface PatchEditorCanvasProps {
   patch: Patch;

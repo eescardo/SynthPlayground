@@ -59,31 +59,13 @@ const assertPresent = (condition, message) => {
   }
 };
 
-const createOutputPortFromLegacyNode = (node) =>
-  node
-    ? {
-        id: node.id,
-        typeId: "Output",
-        params: { ...(node.params || {}) },
-        label: "output"
-      }
-    : undefined;
-
 const getPatchCompileNodes = (patch) => {
   const nodes = patch.nodes || [];
   const ports = patch.ports || [];
-  const hasOutputPort = ports.some((port) => port.id === patch.io?.audioOutNodeId || port.typeId === "Output");
-  if (hasOutputPort) {
-    return [
-      ...nodes.filter((node) => node.typeId !== "Output"),
-      ...ports
-    ];
-  }
-  const legacyOutputNode =
-    nodes.find((node) => node.id === patch.io?.audioOutNodeId && node.typeId === "Output") ??
-    nodes.find((node) => node.typeId === "Output");
-  const outputPort = createOutputPortFromLegacyNode(legacyOutputNode);
-  return outputPort ? [...nodes.filter((node) => node.typeId !== "Output"), outputPort] : nodes;
+  return [
+    ...nodes.filter((node) => node.typeId !== "Output"),
+    ...ports
+  ];
 };
 
 const compareNodeIdsTopologically = (patch) => {

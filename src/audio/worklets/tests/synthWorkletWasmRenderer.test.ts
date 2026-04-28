@@ -71,9 +71,9 @@ function createPatch(overrides: Partial<Patch> = {}): Patch {
     name: "Test Patch",
     meta: { source: "custom" },
     nodes: [
-      { id: "osc", typeId: "VCO", params: { wave: "sine" } },
-      { id: "out", typeId: "Output", params: { gainDb: 0, limiter: false } }
+      { id: "osc", typeId: "VCO", params: { wave: "sine" } }
     ],
+    ports: [{ id: "out", typeId: "Output", label: "output", params: { gainDb: 0, limiter: false } }],
     connections: [
       {
         id: "conn_1",
@@ -83,7 +83,7 @@ function createPatch(overrides: Partial<Patch> = {}): Patch {
     ],
     ui: { macros: [] },
     layout: { nodes: [] },
-    io: { audioOutNodeId: "out", audioOutPortId: "out" },
+    io: { audioOutNodeId: "out", audioOutPortId: "in" },
     ...overrides
   } satisfies Patch;
 }

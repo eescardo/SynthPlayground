@@ -13,8 +13,8 @@ import {
 import { clamp, clamp01 } from "@/lib/numeric";
 import { Patch, PatchNode, ParamSchema, ParamValue, ModuleTypeSchema } from "@/types/patch";
 
-const VCF_FACE_SAMPLE_RATE_HZ = 48000;
-const VCF_FACE_NYQUIST_HZ = VCF_FACE_SAMPLE_RATE_HZ / 2;
+export const VCF_FACE_SAMPLE_RATE_HZ = 48000;
+export const VCF_FACE_NYQUIST_HZ = VCF_FACE_SAMPLE_RATE_HZ / 2;
 
 function formatParamFaceValue(param: ParamSchema, value: ParamValue | undefined): string {
   const resolved = value ?? param.default;
@@ -233,7 +233,7 @@ function divComplex(a: Complex, b: Complex): Complex {
   };
 }
 
-function vcfMagnitudeAtFrequency(type: string, cutoff: number, resonance: number, frequency: number): number {
+export function vcfMagnitudeAtFrequency(type: string, cutoff: number, resonance: number, frequency: number): number {
   const f = clamp((2 * Math.PI * cutoff) / VCF_FACE_SAMPLE_RATE_HZ, 0.001, 0.99);
   const damping = clamp(1 - resonance, 0.001, 1);
   const omega = (2 * Math.PI * frequency) / VCF_FACE_SAMPLE_RATE_HZ;
