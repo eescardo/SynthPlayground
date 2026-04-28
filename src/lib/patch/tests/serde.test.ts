@@ -53,7 +53,15 @@ describe("patch serde", () => {
     });
     legacyPatch.nodes = [
       {
-        id: "out1",
+        id: "vca1",
+        typeId: "VCA",
+        params: {
+          bias: 0,
+          gain: 1
+        }
+      },
+      {
+        id: "legacy_output",
         typeId: "Output",
         params: {
           gainDb: -9,
@@ -61,16 +69,65 @@ describe("patch serde", () => {
         }
       }
     ];
+    legacyPatch.connections = [
+      {
+        id: "conn_output",
+        from: { nodeId: "vca1", portId: "out" },
+        to: { nodeId: "legacy_output", portId: "in" }
+      }
+    ];
     legacyPatch.ports = undefined;
-    legacyPatch.layout.nodes = [{ nodeId: "out1", x: 18, y: 6 }];
+    legacyPatch.layout.nodes = [{ nodeId: "legacy_output", x: 18, y: 6 }];
+    legacyPatch.io.audioOutNodeId = "legacy_output";
+    legacyPatch.ui.paramRanges = {
+      "legacy_output:gainDb": { min: -24, max: 0 }
+    };
+    legacyPatch.ui.macros = [
+      {
+        id: "macro_output",
+        name: "Output",
+        keyframeCount: 2,
+        bindings: [
+          {
+            id: "old_output_binding",
+            nodeId: "legacy_output",
+            paramId: "gainDb",
+            map: "linear",
+            min: -18,
+            max: 0
+          }
+        ]
+      }
+    ];
 
     const imported = importPatchBundleFromJson(exportPatchToJson(legacyPatch));
 
-    expect(imported.patch.nodes).toEqual([]);
-    expect(imported.patch.layout.nodes).toEqual([]);
+    expect(imported.patch.nodes).toEqual([
+      {
+        id: "vca1",
+        typeId: "VCA",
+        params: {
+          bias: 0,
+          gain: 1
+        }
+      }
+    ]);
+    expect(imported.patch.layout.nodes).toEqual([{ nodeId: "vca1", x: 4, y: 2 }]);
+    expect(imported.patch.connections).toEqual([
+      {
+        id: "conn_output",
+        from: { nodeId: "vca1", portId: "out" },
+        to: { nodeId: "output", portId: "in" }
+      }
+    ]);
+    expect(imported.patch.io.audioOutNodeId).toBe("output");
+    expect(imported.patch.ui.paramRanges).toEqual({
+      "output:gainDb": { min: -24, max: 0 }
+    });
+    expect(imported.patch.ui.macros[0]?.bindings[0]?.nodeId).toBe("output");
     expect(imported.patch.ports).toEqual([
       {
-        id: "out1",
+        id: "output",
         typeId: "Output",
         label: "output",
         direction: "sink",

@@ -42,7 +42,6 @@ describe("patchWorkspacePatchHelpers", () => {
     const source = createClearPatch({
       id: "patch_source",
       name: "Sampler",
-      outputNodeId: "main_out",
       canvasZoom: 1.4
     });
     source.nodes.unshift({
@@ -65,7 +64,7 @@ describe("patchWorkspacePatchHelpers", () => {
     expect(cleared.name).toBe(source.name);
     expect(cleared.nodes).toHaveLength(0);
     expect(cleared.ports).toEqual(source.ports);
-    expect(cleared.io.audioOutNodeId).toBe("main_out");
+    expect(cleared.io.audioOutNodeId).toBe("output");
     expect(cleared.layout.nodes).toEqual([]);
     expect(cleared.ui.canvasZoom).toBe(1.4);
   });

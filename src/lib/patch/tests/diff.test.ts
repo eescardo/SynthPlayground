@@ -136,18 +136,18 @@ describe("patch diff", () => {
   it("tracks parameter slider range-only changes as module modifications", () => {
     const baseline = createClearPatch({ id: "patch_a", name: "Lead" });
     baseline.ui.paramRanges = {
-      "out1:gain": { min: 0, max: 1 }
+      "output:gain": { min: 0, max: 1 }
     };
     const current = structuredClone(baseline);
     current.ui.paramRanges = {
-      "out1:gain": { min: 0.25, max: 0.9 }
+      "output:gain": { min: 0.25, max: 0.9 }
     };
 
     const diff = buildPatchDiff(current, baseline);
 
-    expect(diff.nodeDiffById.get("out1")?.status).toBe("modified");
-    expect(diff.nodeDiffById.get("out1")?.changedParamIds.has("gain")).toBe(true);
-    expect(diff.nodeDiffById.get("out1")?.changedParamRangeIds.has("gain")).toBe(true);
+    expect(diff.nodeDiffById.get("output")?.status).toBe("modified");
+    expect(diff.nodeDiffById.get("output")?.changedParamIds.has("gain")).toBe(true);
+    expect(diff.nodeDiffById.get("output")?.changedParamRangeIds.has("gain")).toBe(true);
     expect(diff.summary.modifiedNodeCount).toBe(1);
   });
 
@@ -161,7 +161,7 @@ describe("patch diff", () => {
         bindings: [
           {
             id: "binding_gain",
-            nodeId: "out1",
+            nodeId: "output",
             paramId: "gain",
             map: "linear",
             min: 0.2,
@@ -175,11 +175,11 @@ describe("patch diff", () => {
 
     const diff = buildPatchDiff(current, baseline);
 
-    expect(diff.nodeDiffById.get("out1")?.status).toBe("modified");
-    expect(diff.nodeDiffById.get("out1")?.removedBindingKeys.has("macro_gain:$patch.output:gain")).toBe(true);
+    expect(diff.nodeDiffById.get("output")?.status).toBe("modified");
+    expect(diff.nodeDiffById.get("output")?.removedBindingKeys.has("macro_gain:$patch.output:gain")).toBe(true);
     expect(diff.macroDiffById.get("macro_gain")?.status).toBe("modified");
     expect(diff.removedBindingDiffs.map((bindingDiff) => bindingDiff.key)).toEqual(["macro_gain:$patch.output:gain"]);
-    expect(diff.removedBindingDiffsByNodeParamKey.get("out1:gain")?.map((bindingDiff) => bindingDiff.key)).toEqual([
+    expect(diff.removedBindingDiffsByNodeParamKey.get("output:gain")?.map((bindingDiff) => bindingDiff.key)).toEqual([
       "macro_gain:$patch.output:gain"
     ]);
   });

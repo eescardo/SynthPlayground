@@ -26,7 +26,7 @@ export const createClearPatch = ({
   id,
   name = "New Patch",
   meta = { source: "custom" } satisfies PatchMeta,
-  outputNodeId = "out1",
+  outputNodeId = "output",
   canvasZoom
 }: {
   id: string;
@@ -68,7 +68,7 @@ export const bassPatch = (): Patch => {
   const vcaId = "vca1";
   const vcfId = "vcf1";
   const satId = "sat1";
-  const outId = "out1";
+  const outId = "output";
 
   return {
     schemaVersion: 1,
@@ -467,7 +467,7 @@ export const padPatch = (): Patch => {
   const env = "env1";
   const vcf = "vcf1";
   const vca = "vca1";
-  const out = "out1";
+  const out = "output";
 
   return {
     schemaVersion: 1,
@@ -581,7 +581,7 @@ export const pluckPatch = (): Patch => {
   const mix = "mix1";
   const filter = "vcf1";
   const ampVca = "vca2";
-  const out = "out1";
+  const out = "output";
 
   return {
     schemaVersion: 1,
@@ -948,7 +948,7 @@ export const keysPatch = (): Patch => {
   const env = "env1";
   const vca = "vca1";
   const sat = "sat1";
-  const out = "out1";
+  const out = "output";
 
   return {
     schemaVersion: 1,
@@ -1004,7 +1004,7 @@ export const brassPatch = (): Patch => {
   const env = "env1";
   const vcf = "vcf1";
   const vca = "vca1";
-  const out = "out1";
+  const out = "output";
 
   return {
     schemaVersion: 1,
@@ -1068,7 +1068,7 @@ export const drumPatch = (): Patch => {
   const noiseVca = "vca2";
   const mix = "mix1";
   const sat = "sat1";
-  const out = "out1";
+  const out = "output";
 
   return {
     schemaVersion: 1,
@@ -1192,7 +1192,7 @@ export const bassDrumPatch = (): Patch => {
   const clickVca = "vca2";
   const mix = "mix1";
   const sat = "sat1";
-  const out = "out1";
+  const out = "output";
 
   return {
     schemaVersion: 1,

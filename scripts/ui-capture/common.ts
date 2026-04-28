@@ -203,7 +203,7 @@ export const createSamplePlayerCaptureProject = (): Project => {
   const project = createDefaultProject();
   const patchId = createId("patch");
   const sampleNodeId = "sample1";
-  const outputNodeId = "out1";
+  const outputNodeId = "output";
   const patch: Patch = {
     schemaVersion: 1,
     id: patchId,
@@ -362,7 +362,7 @@ export const createBaselineDiffCaptureProject = (): Project => {
         params: { ...createDefaultParamsForType("VCA"), gain: 1, bias: 0 }
       },
       {
-        id: "out1",
+        id: "output",
         typeId: "Output",
         params: { ...createDefaultParamsForType("Output"), gainDb: -8, limiter: true }
       }
@@ -391,7 +391,7 @@ export const createBaselineDiffCaptureProject = (): Project => {
       {
         id: "vca_to_out",
         from: { nodeId: "vca1", portId: "out" },
-        to: { nodeId: "out1", portId: "in" }
+        to: { nodeId: "output", portId: "in" }
       }
     ],
     ui: {
@@ -418,11 +418,11 @@ export const createBaselineDiffCaptureProject = (): Project => {
         { nodeId: "vco1", x: 6, y: 6 },
         { nodeId: "env1", x: 6, y: 12 },
         { nodeId: "vca1", x: 14, y: 8 },
-        { nodeId: "out1", x: 24, y: 8 }
+        { nodeId: "output", x: 24, y: 8 }
       ]
     },
     io: {
-      audioOutNodeId: "out1",
+      audioOutNodeId: "output",
       audioOutPortId: "out"
     }
   };
@@ -473,7 +473,7 @@ export const createBaselineDiffCaptureProject = (): Project => {
   });
   diffPatch.layout.nodes = diffPatch.layout.nodes
     .filter((entry) => entry.nodeId !== "env1")
-    .map((entry) => (entry.nodeId === "out1" ? { ...entry, x: 30, y: 8 } : entry));
+    .map((entry) => (entry.nodeId === "output" ? { ...entry, x: 30, y: 8 } : entry));
   diffPatch.layout.nodes.splice(diffPatch.layout.nodes.length - 1, 0, { nodeId: "sat1", x: 22, y: 8 });
   diffPatch.connections.push(
     {
@@ -484,7 +484,7 @@ export const createBaselineDiffCaptureProject = (): Project => {
     {
       id: "sat_to_out",
       from: { nodeId: "sat1", portId: "out" },
-      to: { nodeId: "out1", portId: "in" }
+      to: { nodeId: "output", portId: "in" }
     }
   );
 

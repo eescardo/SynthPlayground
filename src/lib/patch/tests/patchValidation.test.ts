@@ -158,7 +158,7 @@ describe("patch validation", () => {
           }
         },
         {
-          id: "out1",
+          id: "output",
           typeId: "Output",
           params: {
             gainDb: -6,
@@ -175,13 +175,13 @@ describe("patch validation", () => {
         {
           id: "c2",
           from: { nodeId: "vca1", portId: "out" },
-          to: { nodeId: "out1", portId: "in" }
+          to: { nodeId: "output", portId: "in" }
         }
       ],
       ui: { macros: [] },
       layout: { nodes: [] },
       io: {
-        audioOutNodeId: "out1",
+        audioOutNodeId: "output",
         audioOutPortId: "in"
       }
     };
@@ -208,7 +208,7 @@ describe("patch validation", () => {
     });
     patch.layout.nodes.unshift({ nodeId: "vco1", x: 8, y: 6 });
 
-    const issues = validatePatchConnectionCandidate(patch, "vco1", "out", "out1", "in");
+    const issues = validatePatchConnectionCandidate(patch, "vco1", "out", "output", "in");
 
     expect(issues).toEqual([]);
   });
@@ -243,7 +243,7 @@ describe("patch validation", () => {
       ["$host.gate", "source", "NoteGate"],
       ["$host.velocity", "source", "NoteVelocity"],
       ["$host.modwheel", "source", "ModWheel"],
-      ["out1", "sink", "Output"]
+      ["output", "sink", "Output"]
     ]);
   });
 
@@ -253,6 +253,6 @@ describe("patch validation", () => {
     const result = validatePatch(patch);
 
     expect(result.ok).toBe(false);
-    expect(findIssue(patch, "required-port-unconnected", "out1", "in")).toBeTruthy();
+    expect(findIssue(patch, "required-port-unconnected", "output", "in")).toBeTruthy();
   });
 });

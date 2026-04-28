@@ -694,7 +694,7 @@
           }
         },
         {
-          "id": "out1",
+          "id": "output",
           "typeId": "Output",
           "params": {
             "gainDb": -6,
@@ -875,7 +875,7 @@
             "portId": "out"
           },
           "to": {
-            "nodeId": "out1",
+            "nodeId": "output",
             "portId": "in"
           }
         }
@@ -1224,14 +1224,14 @@
             "y": 3
           },
           {
-            "nodeId": "out1",
+            "nodeId": "output",
             "x": 54,
             "y": 3
           }
         ]
       },
       "io": {
-        "audioOutNodeId": "out1",
+        "audioOutNodeId": "output",
         "audioOutPortId": "in"
       }
     },
@@ -1296,7 +1296,7 @@
           }
         },
         {
-          "id": "out1",
+          "id": "output",
           "typeId": "Output",
           "params": {
             "gainDb": -6,
@@ -1389,7 +1389,7 @@
             "portId": "out"
           },
           "to": {
-            "nodeId": "out1",
+            "nodeId": "output",
             "portId": "in"
           }
         }
@@ -1441,14 +1441,14 @@
             "y": 4
           },
           {
-            "nodeId": "out1",
+            "nodeId": "output",
             "x": 16,
             "y": 4
           }
         ]
       },
       "io": {
-        "audioOutNodeId": "out1",
+        "audioOutNodeId": "output",
         "audioOutPortId": "in"
       }
     },
@@ -1502,7 +1502,7 @@
           }
         },
         {
-          "id": "out1",
+          "id": "output",
           "typeId": "Output",
           "params": {
             "gainDb": -6,
@@ -1573,7 +1573,7 @@
             "portId": "out"
           },
           "to": {
-            "nodeId": "out1",
+            "nodeId": "output",
             "portId": "in"
           }
         }
@@ -1620,14 +1620,14 @@
             "y": 4
           },
           {
-            "nodeId": "out1",
+            "nodeId": "output",
             "x": 16,
             "y": 4
           }
         ]
       },
       "io": {
-        "audioOutNodeId": "out1",
+        "audioOutNodeId": "output",
         "audioOutPortId": "in"
       }
     },
@@ -1713,7 +1713,7 @@
           }
         },
         {
-          "id": "out1",
+          "id": "output",
           "typeId": "Output",
           "params": {
             "gainDb": -6,
@@ -1839,7 +1839,7 @@
             "portId": "out"
           },
           "to": {
-            "nodeId": "out1",
+            "nodeId": "output",
             "portId": "in"
           }
         }
@@ -1955,14 +1955,14 @@
             "y": 4
           },
           {
-            "nodeId": "out1",
+            "nodeId": "output",
             "x": 19,
             "y": 4
           }
         ]
       },
       "io": {
-        "audioOutNodeId": "out1",
+        "audioOutNodeId": "output",
         "audioOutPortId": "in"
       }
     },
@@ -2065,7 +2065,7 @@
           }
         },
         {
-          "id": "out1",
+          "id": "output",
           "typeId": "Output",
           "params": {
             "gainDb": -6,
@@ -2279,7 +2279,7 @@
             "portId": "out"
           },
           "to": {
-            "nodeId": "out1",
+            "nodeId": "output",
             "portId": "in"
           }
         }
@@ -2745,14 +2745,14 @@
             "y": 5
           },
           {
-            "nodeId": "out1",
+            "nodeId": "output",
             "x": 19,
             "y": 5
           }
         ]
       },
       "io": {
-        "audioOutNodeId": "out1",
+        "audioOutNodeId": "output",
         "audioOutPortId": "in"
       }
     },
@@ -2854,7 +2854,7 @@
           }
         },
         {
-          "id": "out1",
+          "id": "output",
           "typeId": "Output",
           "params": {
             "gainDb": -6,
@@ -3002,7 +3002,7 @@
             "portId": "out"
           },
           "to": {
-            "nodeId": "out1",
+            "nodeId": "output",
             "portId": "in"
           }
         }
@@ -3175,14 +3175,14 @@
             "y": 4
           },
           {
-            "nodeId": "out1",
+            "nodeId": "output",
             "x": 47,
             "y": 4
           }
         ]
       },
       "io": {
-        "audioOutNodeId": "out1",
+        "audioOutNodeId": "output",
         "audioOutPortId": "in"
       }
     },
@@ -3314,7 +3314,7 @@
           }
         },
         {
-          "id": "out1",
+          "id": "output",
           "typeId": "Output",
           "params": {
             "gainDb": 6,
@@ -3506,7 +3506,7 @@
             "portId": "out"
           },
           "to": {
-            "nodeId": "out1",
+            "nodeId": "output",
             "portId": "in"
           }
         }
@@ -3671,14 +3671,14 @@
             "y": 4
           },
           {
-            "nodeId": "out1",
+            "nodeId": "output",
             "x": 53,
             "y": 4
           }
         ]
       },
       "io": {
-        "audioOutNodeId": "out1",
+        "audioOutNodeId": "output",
         "audioOutPortId": "in"
       }
     }
