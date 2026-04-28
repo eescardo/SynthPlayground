@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   findPatchNodeAtPoint,
+  findPatchConnectionAtPoint,
   findPatchPortAtPoint,
   HitPort,
   resolveOutputHostPatchPortRect,
   resolvePatchCanvasSize,
+  resolvePatchConnectionMidpoint,
   resolvePatchDiagramSize,
   resolvePatchFacePopoverRect
 } from "@/components/patch/patchCanvasGeometry";
@@ -68,5 +70,20 @@ describe("patch canvas geometry", () => {
 
     expect(rect.x).toBe(1400);
     expect(rect.width).toBeGreaterThan(0);
+  });
+
+  it("uses the fixed output host anchor for connection geometry", () => {
+    const patch: Pick<Patch, "nodes" | "ports" | "io" | "connections"> = {
+      nodes: [{ id: "vco1", typeId: "VCO", params: {} }],
+      ports: [{ id: "out1", typeId: "Output", label: "output", params: {} }],
+      connections: [{ id: "conn1", from: { nodeId: "vco1", portId: "out" }, to: { nodeId: "out1", portId: "in" } }],
+      io: { audioOutNodeId: "out1", audioOutPortId: "in" }
+    };
+    const layoutByNode = new Map<string, PatchLayoutNode>([["vco1", { nodeId: "vco1", x: 4, y: 4 }]]);
+    const outputHostCanvasLeft = 1234;
+    const midpoint = resolvePatchConnectionMidpoint(patch, layoutByNode, "conn1", outputHostCanvasLeft);
+
+    expect(midpoint?.x).toBeCloseTo((4 * PATCH_CANVAS_GRID + PATCH_NODE_WIDTH + outputHostCanvasLeft) / 2);
+    expect(findPatchConnectionAtPoint(patch, layoutByNode, midpoint?.x ?? 0, midpoint?.y ?? 0, outputHostCanvasLeft)).toBe("conn1");
   });
 });

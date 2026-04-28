@@ -256,7 +256,8 @@ export function resolvePatchPortAnchorPoint(
   layoutByNode: Map<string, PatchLayoutNode>,
   nodeId: string,
   portId: string,
-  portKind: "in" | "out"
+  portKind: "in" | "out",
+  outputHostCanvasLeft?: number
 ) {
   if (isHostPatchNodeId(nodeId)) {
     const rect = resolveHostPatchPortRect(nodeId);
@@ -271,8 +272,8 @@ export function resolvePatchPortAnchorPoint(
     };
   }
   if (isPatchPortId(patch, nodeId) && portKind === "in") {
-    const canvasSize = resolvePatchCanvasSize(layoutByNode ? [...layoutByNode.values()] : []);
-    const rect = resolveOutputHostPatchPortRect(canvasSize.width);
+    const canvasSize = outputHostCanvasLeft === undefined ? resolvePatchCanvasSize([...layoutByNode.values()]) : null;
+    const rect = resolveOutputHostPatchPortRect(outputHostCanvasLeft ?? canvasSize?.width ?? 0);
     return {
       x: rect.x,
       y: rect.y
@@ -280,8 +281,8 @@ export function resolvePatchPortAnchorPoint(
   }
   const node = patch.nodes.find((entry) => entry.id === nodeId);
   if (node?.typeId === "Output" && portKind === "in") {
-    const canvasSize = resolvePatchCanvasSize(layoutByNode ? [...layoutByNode.values()] : []);
-    const rect = resolveOutputHostPatchPortRect(canvasSize.width);
+    const canvasSize = outputHostCanvasLeft === undefined ? resolvePatchCanvasSize([...layoutByNode.values()]) : null;
+    const rect = resolveOutputHostPatchPortRect(outputHostCanvasLeft ?? canvasSize?.width ?? 0);
     return {
       x: rect.x,
       y: rect.y
@@ -303,14 +304,15 @@ export function resolvePatchPortAnchorPoint(
 export function resolvePatchConnectionMidpoint(
   patch: Pick<Patch, "nodes" | "ports" | "io" | "connections">,
   layoutByNode: Map<string, PatchLayoutNode>,
-  connectionId: string
+  connectionId: string,
+  outputHostCanvasLeft?: number
 ) {
   const connection = patch.connections.find((entry) => entry.id === connectionId);
   if (!connection) {
     return null;
   }
-  const from = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.from.nodeId, connection.from.portId, "out");
-  const to = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.to.nodeId, connection.to.portId, "in");
+  const from = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.from.nodeId, connection.from.portId, "out", outputHostCanvasLeft);
+  const to = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.to.nodeId, connection.to.portId, "in", outputHostCanvasLeft);
   if (!from || !to) {
     return null;
   }
@@ -324,13 +326,14 @@ export function findPatchConnectionAtPoint(
   patch: Pick<Patch, "nodes" | "ports" | "io" | "connections">,
   layoutByNode: Map<string, PatchLayoutNode>,
   rawX: number,
-  rawY: number
+  rawY: number,
+  outputHostCanvasLeft?: number
 ): string | null {
   const threshold = 8;
   for (let index = patch.connections.length - 1; index >= 0; index -= 1) {
     const connection = patch.connections[index];
-    const from = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.from.nodeId, connection.from.portId, "out");
-    const to = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.to.nodeId, connection.to.portId, "in");
+    const from = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.from.nodeId, connection.from.portId, "out", outputHostCanvasLeft);
+    const to = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.to.nodeId, connection.to.portId, "in", outputHostCanvasLeft);
     if (!from || !to) {
       continue;
     }

@@ -116,7 +116,16 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
       </button>
       {props.structureLocked && <span className="muted">Preset structure is locked. Move nodes for clarity or edit macros.</span>}
       {props.pendingFromPort && <span className="muted">Select a compatible port to complete connection.</span>}
-      {props.pendingProbeId && <span className="muted">Click a port or wire to attach the selected probe.</span>}
+      {props.pendingProbeId && (
+        <span
+          className="patch-toolbar-hint"
+          tabIndex={0}
+          title="Click a port or wire to attach the selected probe."
+          aria-label="Click a port or wire to attach the selected probe."
+        >
+          Attach probe
+        </span>
+      )}
       <PatchBaselineControl {...props.baselineControl} />
       <span className="patch-zoom-readout">Zoom {Math.round(props.zoom * 100)}%</span>
     </div>

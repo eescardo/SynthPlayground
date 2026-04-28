@@ -276,6 +276,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
             <PatchProbeOverlay
               patch={patch}
               layoutByNode={layoutByNode}
+              outputHostCanvasLeft={outputHostCanvasLeft}
               probes={probeState.probes}
               selectedProbeId={probeState.selectedProbeId}
               previewCaptureByProbeId={probeState.previewCaptureByProbeId}

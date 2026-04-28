@@ -25,6 +25,7 @@ import { PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
 interface PatchProbeOverlayProps {
   patch: Patch;
   layoutByNode: Map<string, PatchLayoutNode>;
+  outputHostCanvasLeft: number;
   probes: PatchWorkspaceProbeState[];
   selectedProbeId?: string;
   previewCaptureByProbeId: Record<string, PreviewProbeCapture>;
@@ -50,13 +51,14 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
         }
         const targetPoint =
           probe.target.kind === "connection"
-            ? resolvePatchConnectionMidpoint(props.patch, props.layoutByNode, probe.target.connectionId)
+            ? resolvePatchConnectionMidpoint(props.patch, props.layoutByNode, probe.target.connectionId, props.outputHostCanvasLeft)
             : resolvePatchPortAnchorPoint(
                 props.patch,
                 props.layoutByNode,
                 probe.target.nodeId,
                 probe.target.portId,
-                probe.target.portKind
+                probe.target.portKind,
+                props.outputHostCanvasLeft
               );
         if (!targetPoint) {
           return [];
@@ -72,7 +74,7 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
           targetKind: probe.target.kind
         }];
       }),
-    [props.layoutByNode, props.patch, props.probes, props.zoom]
+    [props.layoutByNode, props.outputHostCanvasLeft, props.patch, props.probes, props.zoom]
   );
 
   return (
