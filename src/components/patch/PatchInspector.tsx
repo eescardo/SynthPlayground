@@ -5,7 +5,12 @@ import { PatchDiff } from "@/lib/patch/diff";
 import { PatchModuleParameter, shouldRenderParamInGenericInspector } from "@/components/patch/PatchModuleParameter";
 import { SamplePlayerInspectorSection } from "@/components/patch/SamplePlayerInspectorSection";
 import { ProbeInspectorSection } from "@/components/patch/ProbeInspectorSection";
-import { formatPatchEndpointLabel, resolveInspectablePortForNode } from "@/components/patch/patchInspectablePorts";
+import {
+  formatPatchEndpointLabel,
+  formatPatchParamTargetLabel,
+  isPatchOutputEndpoint,
+  resolveInspectablePortForNode
+} from "@/components/patch/patchInspectablePorts";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch, PatchNode, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -13,6 +18,22 @@ import { PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
 
 function connectionLabel(patch: Patch, connection: Pick<Patch["connections"][number], "from" | "to">) {
   return `${formatPatchEndpointLabel(patch, connection.from)} -> ${formatPatchEndpointLabel(patch, connection.to)}`;
+}
+
+function requiredPortIssueLabel(patch: Patch, issue: PatchValidationIssue, selectedNode?: PatchNode) {
+  const portId = issue.context?.portId ?? "unknown";
+  const direction = issue.context?.direction === "out" ? "output" : "input";
+  const nodeId = issue.context?.nodeId;
+  if (nodeId && isPatchOutputEndpoint(patch, { nodeId, portId })) {
+    return {
+      subject: "output",
+      target: formatPatchEndpointLabel(patch, { nodeId, portId })
+    };
+  }
+  return {
+    subject: issue.context?.typeId ?? "Module",
+    target: selectedNode || !nodeId ? `${direction} '${portId}'` : `${nodeId}.${portId}`
+  };
 }
 
 interface PatchInspectorProps {
@@ -183,7 +204,8 @@ export function PatchInspector(props: PatchInspectorProps) {
                   <div className="patch-diff-list">
                     {props.patchDiff.removedBindingDiffs.map((bindingDiff) => (
                       <div key={bindingDiff.key} className="patch-diff-list-row negative removed-diff-artifact">
-                        <strong>{bindingDiff.macroName}</strong> <span>{bindingDiff.nodeId}.{bindingDiff.paramId}</span>
+                        <strong>{bindingDiff.macroName}</strong>
+                        <span>{formatPatchParamTargetLabel(props.patch, bindingDiff)}</span>
                       </div>
                     ))}
                   </div>
@@ -218,14 +240,10 @@ export function PatchInspector(props: PatchInspectorProps) {
         </p>
       )}
       {visibleRequiredPortIssues.map((issue, index) => {
-        const typeId = selectedPort ? "Output port" : issue.context?.typeId ?? "Module";
-        const portId = issue.context?.portId ?? "unknown";
-        const direction = issue.context?.direction === "out" ? "output" : "input";
-        const nodeId = issue.context?.nodeId;
-        const label = selectedNode || !nodeId ? `${direction} '${portId}'` : `${nodeId}.${portId}`;
+        const label = requiredPortIssueLabel(props.patch, issue, selectedNode);
         return (
-          <p key={`${issue.message}_${portId}_${index}`} className="error">
-            {typeId}: required {label} is unconnected.
+          <p key={`${issue.message}_${label.target}_${index}`} className="error">
+            {label.subject}: required {label.target} is unconnected.
           </p>
         );
       })}

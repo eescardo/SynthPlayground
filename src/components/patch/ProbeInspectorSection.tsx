@@ -4,6 +4,7 @@ import {
   PROBE_MAX_MAX_FREQUENCY_HZ,
   PROBE_MIN_MAX_FREQUENCY_HZ
 } from "@/lib/patch/probes";
+import { formatPatchEndpointLabel } from "@/components/patch/patchInspectablePorts";
 import { buildPitchTrackerClipboardPayload, detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
 import { Patch } from "@/types/patch";
 import { PatchProbeTarget, PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
@@ -183,8 +184,8 @@ function formatProbeTarget(patch: Patch, target?: PatchProbeTarget) {
   if (target.kind === "connection") {
     const connection = patch.connections.find((entry) => entry.id === target.connectionId);
     return connection
-      ? `${connection.from.nodeId}.${connection.from.portId} -> ${connection.to.nodeId}.${connection.to.portId}`
+      ? `${formatPatchEndpointLabel(patch, connection.from)} -> ${formatPatchEndpointLabel(patch, connection.to)}`
       : "Wire target unavailable";
   }
-  return `${target.nodeId}.${target.portId} (${target.portKind})`;
+  return `${formatPatchEndpointLabel(patch, target)} (${target.portKind})`;
 }
