@@ -237,7 +237,15 @@ export function findPatchNodeAtPoint(
 }
 
 export function findPatchPortAtPoint(hitPorts: HitPort[], rawX: number, rawY: number): HitPort | null {
-  const padding = 3;
+  return findPatchPortAtPointWithPadding(hitPorts, rawX, rawY, 3);
+}
+
+export function findPatchPortAtPointWithPadding(
+  hitPorts: HitPort[],
+  rawX: number,
+  rawY: number,
+  padding: number
+): HitPort | null {
   for (const port of hitPorts) {
     if (
       rawX >= port.x - padding &&
@@ -249,6 +257,24 @@ export function findPatchPortAtPoint(hitPorts: HitPort[], rawX: number, rawY: nu
     }
   }
   return null;
+}
+
+function closestPointOnSegment(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  point: { x: number; y: number }
+) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared <= 0) {
+    return from;
+  }
+  const t = clamp01(((point.x - from.x) * dx + (point.y - from.y) * dy) / lengthSquared);
+  return {
+    x: from.x + dx * t,
+    y: from.y + dy * t
+  };
 }
 
 export function resolvePatchPortAnchorPoint(
@@ -322,14 +348,33 @@ export function resolvePatchConnectionMidpoint(
   };
 }
 
+export function resolvePatchConnectionAnchorPoint(
+  patch: Pick<Patch, "nodes" | "ports" | "io" | "connections">,
+  layoutByNode: Map<string, PatchLayoutNode>,
+  connectionId: string,
+  sourcePoint: { x: number; y: number },
+  outputHostCanvasLeft?: number
+) {
+  const connection = patch.connections.find((entry) => entry.id === connectionId);
+  if (!connection) {
+    return null;
+  }
+  const from = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.from.nodeId, connection.from.portId, "out", outputHostCanvasLeft);
+  const to = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.to.nodeId, connection.to.portId, "in", outputHostCanvasLeft);
+  if (!from || !to) {
+    return null;
+  }
+  return closestPointOnSegment(from, to, sourcePoint);
+}
+
 export function findPatchConnectionAtPoint(
   patch: Pick<Patch, "nodes" | "ports" | "io" | "connections">,
   layoutByNode: Map<string, PatchLayoutNode>,
   rawX: number,
   rawY: number,
-  outputHostCanvasLeft?: number
+  outputHostCanvasLeft?: number,
+  threshold = 8
 ): string | null {
-  const threshold = 8;
   for (let index = patch.connections.length - 1; index >= 0; index -= 1) {
     const connection = patch.connections[index];
     const from = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.from.nodeId, connection.from.portId, "out", outputHostCanvasLeft);
@@ -337,16 +382,8 @@ export function findPatchConnectionAtPoint(
     if (!from || !to) {
       continue;
     }
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const lengthSquared = dx * dx + dy * dy;
-    if (lengthSquared <= 0) {
-      continue;
-    }
-    const t = clamp01(((rawX - from.x) * dx + (rawY - from.y) * dy) / lengthSquared);
-    const closestX = from.x + dx * t;
-    const closestY = from.y + dy * t;
-    const distance = Math.hypot(rawX - closestX, rawY - closestY);
+    const closest = closestPointOnSegment(from, to, { x: rawX, y: rawY });
+    const distance = Math.hypot(rawX - closest.x, rawY - closest.y);
     if (distance <= threshold) {
       return connection.id;
     }

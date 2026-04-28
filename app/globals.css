@@ -1495,26 +1495,6 @@ select {
   color: var(--muted);
 }
 
-.patch-toolbar-hint {
-  max-width: 6.4rem;
-  padding: 0.18rem 0.42rem;
-  border: 1px solid rgba(131, 173, 216, 0.2);
-  border-radius: 999px;
-  background: rgba(12, 22, 32, 0.68);
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-  line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.patch-toolbar-hint:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
 .patch-baseline-control.changed {
   border-color: rgba(103, 224, 153, 0.32);
   background: rgba(32, 68, 48, 0.28);
@@ -1731,6 +1711,24 @@ select {
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
   pointer-events: auto;
   user-select: none;
+}
+
+.patch-probe-attach-tooltip {
+  position: absolute;
+  top: 0.35rem;
+  left: calc(100% + 0.45rem);
+  z-index: 5;
+  width: max-content;
+  max-width: 13rem;
+  padding: 0.34rem 0.48rem;
+  border: 1px solid rgba(200, 255, 57, 0.38);
+  border-radius: 0.45rem;
+  background: rgba(7, 13, 19, 0.94);
+  color: #e7f3ff;
+  font-size: 0.7rem;
+  line-height: 1.25;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+  white-space: normal;
 }
 
 .patch-probe-card.expanded {

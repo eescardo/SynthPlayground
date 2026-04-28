@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import {
+  resolvePatchConnectionAnchorPoint,
   resolvePatchConnectionMidpoint,
   resolvePatchPortAnchorPoint
 } from "@/components/patch/patchCanvasGeometry";
@@ -49,9 +50,16 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
         if (!probe.target) {
           return [];
         }
+        const renderedWidth = resolveRenderedProbeWidth(probe, props.zoom);
+        const renderedHeight = resolveRenderedProbeHeight(probe, props.zoom);
+        const sourcePoint = {
+          x: probe.x * PATCH_CANVAS_GRID + renderedWidth / props.zoom,
+          y: probe.y * PATCH_CANVAS_GRID + renderedHeight / props.zoom / 2
+        };
         const targetPoint =
           probe.target.kind === "connection"
-            ? resolvePatchConnectionMidpoint(props.patch, props.layoutByNode, probe.target.connectionId, props.outputHostCanvasLeft)
+            ? resolvePatchConnectionAnchorPoint(props.patch, props.layoutByNode, probe.target.connectionId, sourcePoint, props.outputHostCanvasLeft) ??
+              resolvePatchConnectionMidpoint(props.patch, props.layoutByNode, probe.target.connectionId, props.outputHostCanvasLeft)
             : resolvePatchPortAnchorPoint(
                 props.patch,
                 props.layoutByNode,
@@ -63,8 +71,6 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
         if (!targetPoint) {
           return [];
         }
-        const renderedWidth = resolveRenderedProbeWidth(probe, props.zoom);
-        const renderedHeight = resolveRenderedProbeHeight(probe, props.zoom);
         return [{
           id: probe.id,
           x1: probe.x * PATCH_CANVAS_GRID * props.zoom + renderedWidth,
@@ -246,6 +252,11 @@ function ProbeCard(props: {
           {props.attaching ? "Cancel" : "Attach"}
         </button>
       </div>
+      {props.attaching && (
+        <div className="patch-probe-attach-tooltip" role="status">
+          Click a port or wire to attach the selected probe.
+        </div>
+      )}
       <div className="patch-probe-card-body patch-probe-face-toggle">
         <ProbeGraphBody
           probe={props.probe}

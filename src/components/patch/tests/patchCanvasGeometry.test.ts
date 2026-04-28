@@ -3,14 +3,16 @@ import {
   findPatchNodeAtPoint,
   findPatchConnectionAtPoint,
   findPatchPortAtPoint,
+  findPatchPortAtPointWithPadding,
   HitPort,
   resolveOutputHostPatchPortRect,
   resolvePatchCanvasSize,
+  resolvePatchConnectionAnchorPoint,
   resolvePatchConnectionMidpoint,
   resolvePatchDiagramSize,
   resolvePatchFacePopoverRect
 } from "@/components/patch/patchCanvasGeometry";
-import { PATCH_CANVAS_GRID, PATCH_NODE_HEIGHT, PATCH_NODE_WIDTH } from "@/components/patch/patchCanvasConstants";
+import { PATCH_CANVAS_GRID, PATCH_NODE_HEIGHT, PATCH_NODE_WIDTH, PATCH_OUTPUT_HOST_STRIP_Y } from "@/components/patch/patchCanvasConstants";
 import { Patch, PatchLayoutNode } from "@/types/patch";
 
 const patchWithNodes = (nodeIds: string[]): Pick<Patch, "nodes"> => ({
@@ -63,6 +65,7 @@ describe("patch canvas geometry", () => {
 
     expect(findPatchPortAtPoint(hitPorts, 124, 51)).toEqual(hitPorts[0]);
     expect(findPatchPortAtPoint(hitPorts, 156, 70)).toBeNull();
+    expect(findPatchPortAtPointWithPadding(hitPorts, 156, 51, 6)).toEqual(hitPorts[0]);
   });
 
   it("anchors the managed output host port to the canvas right edge", () => {
@@ -85,5 +88,26 @@ describe("patch canvas geometry", () => {
 
     expect(midpoint?.x).toBeCloseTo((4 * PATCH_CANVAS_GRID + PATCH_NODE_WIDTH + outputHostCanvasLeft) / 2);
     expect(findPatchConnectionAtPoint(patch, layoutByNode, midpoint?.x ?? 0, midpoint?.y ?? 0, outputHostCanvasLeft)).toBe("conn1");
+  });
+
+  it("anchors connection probe lines to the nearest point on the wire", () => {
+    const patch: Pick<Patch, "nodes" | "ports" | "io" | "connections"> = {
+      nodes: [{ id: "vco1", typeId: "VCO", params: {} }],
+      ports: [{ id: "out1", typeId: "Output", label: "output", params: {} }],
+      connections: [{ id: "conn1", from: { nodeId: "vco1", portId: "out" }, to: { nodeId: "out1", portId: "in" } }],
+      io: { audioOutNodeId: "out1", audioOutPortId: "in" }
+    };
+    const layoutByNode = new Map<string, PatchLayoutNode>([["vco1", { nodeId: "vco1", x: 4, y: 4 }]]);
+    const anchor = resolvePatchConnectionAnchorPoint(
+      patch,
+      layoutByNode,
+      "conn1",
+      { x: 1000, y: 440 },
+      1234
+    );
+
+    expect(anchor?.x).toBeGreaterThan(4 * PATCH_CANVAS_GRID + PATCH_NODE_WIDTH);
+    expect(anchor?.x).toBeLessThan(1234);
+    expect(anchor?.y).toBeGreaterThan(PATCH_OUTPUT_HOST_STRIP_Y);
   });
 });

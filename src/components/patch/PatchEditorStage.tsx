@@ -163,6 +163,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     nodeById,
     patch,
     outputHostCanvasLeft,
+    zoom,
     patchDiff: baselineDiff.patchDiff,
     validationIssues: props.validationIssues,
     selectedMacroNodeIds,
@@ -202,7 +203,6 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
         protectedNodeId={outputNodeId}
         selectedProbeId={probeState.selectedProbeId}
         pendingFromPort={Boolean(pendingFromPort)}
-        pendingProbeId={probeState.attachingProbeId}
         zoom={zoom}
         onAddNode={(typeId) => {
           if (structureLocked) {
