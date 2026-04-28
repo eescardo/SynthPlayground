@@ -46,6 +46,7 @@ const sanitizePatchPort = (raw: unknown, fallbackId: string): PatchPort => {
     id: asString(port.id, fallbackId),
     typeId: asString(port.typeId, "Output"),
     label: asString(port.label, "output"),
+    direction: port.direction === "source" || port.direction === "sink" ? port.direction : undefined,
     params: sanitizeParamMap(port.params)
   };
 };

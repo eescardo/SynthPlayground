@@ -73,6 +73,7 @@ export interface PatchNode {
 
 export interface PatchPort extends PatchNode {
   label: string;
+  direction?: "source" | "sink";
 }
 
 export interface PatchConnection {

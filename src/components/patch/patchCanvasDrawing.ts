@@ -44,7 +44,7 @@ import {
   resolvePatchNodePortLabelRect,
   resolveOutputHostPatchPortRect
 } from "@/components/patch/patchCanvasGeometry";
-import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
+import { HOST_PORT_IDS, SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
 import { PatchDiff } from "@/lib/patch/diff";
 import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
@@ -299,7 +299,7 @@ function drawPatchConnections(
     ctx.strokeStyle = isHostConnection
       ? resolveHostPatchPortTint(
           isManagedOutputNode(patch, connection.to.nodeId)
-            ? "$host.output"
+            ? HOST_PORT_IDS.output
             : isHostPatchNodeId(connection.from.nodeId)
               ? connection.from.nodeId
               : connection.to.nodeId

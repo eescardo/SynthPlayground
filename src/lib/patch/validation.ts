@@ -1,8 +1,12 @@
 import { getModuleSchema, moduleRegistryById } from "@/lib/patch/moduleRegistry";
-import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
-import { createMacroBindingKey } from "@/lib/patch/macroBindings";
+import { createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
 import { getMacroBindingKeyframeCount } from "@/lib/patch/macroKeyframes";
-import { getPatchPorts, migrateLegacyOutputNodeToPort } from "@/lib/patch/ports";
+import {
+  getHostSourcePatchPorts,
+  getPatchBoundaryPorts,
+  getPatchPorts,
+  migrateLegacyOutputNodeToPort
+} from "@/lib/patch/ports";
 import { CompiledNode, CompiledOp, CompiledPlan, Patch, PatchValidationIssue, PatchValidationResult, ParamValue, PatchNode } from "@/types/patch";
 
 const pushError = (
@@ -16,18 +20,15 @@ const pushError = (
 
 export const patchHasNode = (patch: Patch, nodeId: string): boolean => patch.nodes.some((node) => node.id === nodeId);
 const patchHasEndpointNode = (patch: Patch, nodeId: string): boolean =>
-  patch.nodes.some((node) => node.id === nodeId) || getPatchPorts(patch).some((port) => port.id === nodeId);
+  patch.nodes.some((node) => node.id === nodeId) || getPatchBoundaryPorts(patch).some((port) => port.id === nodeId);
 
 const resolveAllNodeTypes = (patch: Patch): Map<string, string> => {
   const allNodeTypes = new Map<string, string>();
   for (const node of patch.nodes) {
     allNodeTypes.set(node.id, node.typeId);
   }
-  for (const port of getPatchPorts(patch)) {
+  for (const port of getPatchBoundaryPorts(patch)) {
     allNodeTypes.set(port.id, port.typeId);
-  }
-  for (const hostId of SOURCE_HOST_NODE_IDS) {
-    allNodeTypes.set(hostId, SOURCE_HOST_NODE_TYPE_BY_ID[hostId]);
   }
   return allNodeTypes;
 };
@@ -107,6 +108,9 @@ const wouldCreateCycle = (patch: Patch, fromNodeId: string, toNodeId: string) =>
     adjacency.set(node.id, []);
   }
   for (const port of getPatchPorts(patch)) {
+    adjacency.set(port.id, []);
+  }
+  for (const port of getHostSourcePatchPorts()) {
     adjacency.set(port.id, []);
   }
   for (const connection of patch.connections) {
@@ -209,7 +213,7 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
         pushError(issues, `Duplicate macro binding id: ${binding.id}`, { bindingId: binding.id, macroId: macro.id });
       }
       macroBindingIds.add(binding.id);
-      const bindingIdentityKey = createMacroBindingKey(macro.id, binding);
+      const bindingIdentityKey = createPatchMacroBindingKey(patch, macro.id, binding);
       if (macroBindingTargetKeys.has(bindingIdentityKey)) {
         pushError(issues, `Duplicate macro binding target`, {
           macroId: macro.id,
@@ -219,7 +223,7 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
       }
       macroBindingTargetKeys.add(bindingIdentityKey);
 
-      const node = [...patch.nodes, ...getPatchPorts(patch)].find((entry) => entry.id === binding.nodeId);
+      const node = [...patch.nodes, ...getPatchBoundaryPorts(patch)].find((entry) => entry.id === binding.nodeId);
       if (!node) {
         pushError(issues, `Macro binding references missing node`, {
           macroId: macro.id,
@@ -251,7 +255,7 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
         });
       }
 
-      const targetKey = `${binding.nodeId}:${binding.paramId}`;
+      const targetKey = createPatchMacroBindingKey(patch, "", binding);
       const existingMacroId = macroTargetToMacroId.get(targetKey);
       if (existingMacroId && existingMacroId !== macro.id) {
         pushError(issues, `Conflicting macro bindings target the same parameter`, {
@@ -311,7 +315,7 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
     }
   }
 
-  for (const node of [...patch.nodes, ...getPatchPorts(patch)]) {
+  for (const node of [...patch.nodes, ...getPatchBoundaryPorts(patch)]) {
     const schema = getModuleSchema(node.typeId);
     if (!schema) {
       continue;
@@ -364,7 +368,7 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
     }
   }
 
-  const graphNodes = [...patch.nodes, ...getPatchPorts(patch)];
+  const graphNodes = [...patch.nodes, ...getPatchBoundaryPorts(patch)];
   const nodeById = new Set(graphNodes.map((node) => node.id));
   const adjacency = new Map<string, string[]>();
   for (const node of graphNodes) {

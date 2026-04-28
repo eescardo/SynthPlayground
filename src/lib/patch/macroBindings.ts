@@ -1,3 +1,4 @@
+import { HOST_PORT_IDS } from "@/lib/patch/constants";
 import { MacroBinding, Patch } from "@/types/patch";
 
 export function createMacroBindingId(macroId: string, nodeId: string, paramId: string) {
@@ -13,7 +14,7 @@ export function createPatchMacroBindingKey(
   macroId: string,
   binding: Pick<MacroBinding, "nodeId" | "paramId">
 ) {
-  const nodeId = binding.nodeId === patch.io.audioOutNodeId || binding.nodeId === "$host.output" ? "$patch.output" : binding.nodeId;
+  const nodeId = binding.nodeId === patch.io.audioOutNodeId || binding.nodeId === HOST_PORT_IDS.output ? "$patch.output" : binding.nodeId;
   return createMacroBindingId(macroId, nodeId, binding.paramId);
 }
 

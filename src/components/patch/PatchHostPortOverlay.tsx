@@ -9,7 +9,7 @@ import {
   resolveHostPatchPortTint,
   resolveOutputHostPatchPortRect
 } from "@/components/patch/patchCanvasGeometry";
-import { SOURCE_HOST_NODE_IDS } from "@/lib/patch/constants";
+import { HOST_PORT_IDS, SOURCE_HOST_NODE_IDS } from "@/lib/patch/constants";
 import { getPatchOutputPort } from "@/lib/patch/ports";
 import { Patch } from "@/types/patch";
 
@@ -74,12 +74,12 @@ function resolveOverlayPorts(
     return sourcePorts;
   }
   const outputRect = resolveOutputHostPatchPortRect(outputHostCanvasLeft);
-  const outputTint = resolveHostPatchPortTint("$host.output");
+  const outputTint = resolveHostPatchPortTint(HOST_PORT_IDS.output);
   return [
     ...sourcePorts,
     {
-      nodeId: "$host.output",
-      label: resolveHostPatchPortLabel("$host.output"),
+      nodeId: HOST_PORT_IDS.output,
+      label: resolveHostPatchPortLabel(HOST_PORT_IDS.output),
       hitPort: {
         nodeId: outputPort.id,
         portId: patch.io.audioOutPortId,

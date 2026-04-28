@@ -1,4 +1,11 @@
 import { createDefaultParamsForType, getModuleSchema } from "@/lib/patch/moduleRegistry";
+import {
+  HOST_PATCH_PORT_DIRECTION_BY_ID,
+  HOST_PATCH_PORT_IDS,
+  HOST_PATCH_PORT_TYPE_BY_ID,
+  HOST_PORT_IDS,
+  SOURCE_HOST_NODE_IDS
+} from "@/lib/patch/constants";
 import { Patch, PatchNode, PatchPort } from "@/types/patch";
 
 export const DEFAULT_AUDIO_OUTPUT_PORT_ID = "out1";
@@ -9,11 +16,37 @@ export function createDefaultAudioOutputPort(id = DEFAULT_AUDIO_OUTPUT_PORT_ID, 
     id,
     typeId: AUDIO_OUTPUT_PORT_TYPE_ID,
     label: "output",
+    direction: "sink",
     params: {
       ...createDefaultParamsForType(AUDIO_OUTPUT_PORT_TYPE_ID),
       ...(params ?? {})
     }
   };
+}
+
+const HOST_SOURCE_PORT_LABEL_BY_ID: Record<(typeof SOURCE_HOST_NODE_IDS)[number], string> = {
+  [HOST_PORT_IDS.pitch]: "pitch",
+  [HOST_PORT_IDS.gate]: "gate",
+  [HOST_PORT_IDS.velocity]: "velocity",
+  [HOST_PORT_IDS.modWheel]: "modwheel"
+};
+
+export function isHostPatchPortId(id: string): id is (typeof HOST_PATCH_PORT_IDS)[number] {
+  return HOST_PATCH_PORT_IDS.includes(id as (typeof HOST_PATCH_PORT_IDS)[number]);
+}
+
+export function createHostSourcePatchPort(id: (typeof SOURCE_HOST_NODE_IDS)[number]): PatchPort {
+  return {
+    id,
+    typeId: HOST_PATCH_PORT_TYPE_BY_ID[id],
+    label: HOST_SOURCE_PORT_LABEL_BY_ID[id],
+    direction: HOST_PATCH_PORT_DIRECTION_BY_ID[id],
+    params: {}
+  };
+}
+
+export function getHostSourcePatchPorts(): PatchPort[] {
+  return SOURCE_HOST_NODE_IDS.map((id) => createHostSourcePatchPort(id));
 }
 
 export function getPatchPorts(patch: Pick<Patch, "ports">): PatchPort[] {
@@ -32,12 +65,17 @@ export function getPatchOutputPort(patch: Pick<Patch, "io" | "nodes" | "ports">)
   const ports = getPatchPorts(patch);
   const port = ports.find((entry) => entry.id === patch.io.audioOutNodeId) ?? ports.find((entry) => entry.typeId === AUDIO_OUTPUT_PORT_TYPE_ID);
   if (port) {
-    return port;
+    return { ...port, direction: "sink" };
   }
   const legacyOutputNode =
     patch.nodes.find((node) => node.id === patch.io.audioOutNodeId && node.typeId === AUDIO_OUTPUT_PORT_TYPE_ID) ??
     patch.nodes.find((node) => node.typeId === AUDIO_OUTPUT_PORT_TYPE_ID);
   return legacyOutputNode ? createDefaultAudioOutputPort(legacyOutputNode.id, legacyOutputNode.params) : undefined;
+}
+
+export function getPatchBoundaryPorts(patch: Pick<Patch, "io" | "nodes" | "ports">): PatchPort[] {
+  const outputPort = getPatchOutputPort(patch);
+  return outputPort ? [...getHostSourcePatchPorts(), outputPort] : getHostSourcePatchPorts();
 }
 
 export function getPatchParameterTargets(patch: Pick<Patch, "nodes" | "ports">): PatchNode[] {

@@ -73,6 +73,7 @@ describe("patch serde", () => {
         id: "out1",
         typeId: "Output",
         label: "output",
+        direction: "sink",
         params: {
           gainDb: -9,
           limiter: false

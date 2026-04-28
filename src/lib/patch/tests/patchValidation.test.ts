@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { bassPatch, createClearPatch, drumPatch, pluckPatch, presetPatches } from "@/lib/patch/presets";
 import { moduleRegistryById } from "@/lib/patch/moduleRegistry";
+import { getPatchBoundaryPorts } from "@/lib/patch/ports";
 import { validatePatch, validatePatchConnectionCandidate } from "@/lib/patch/validation";
 import { Patch } from "@/types/patch";
 
@@ -230,5 +231,28 @@ describe("patch validation", () => {
     const issues = validatePatchConnectionCandidate(patch, "$host.pitch", "out", "vco1", "pitch");
 
     expect(issues).toEqual([]);
+  });
+
+  it("models host sources and output as patch boundary ports", () => {
+    const patch = createClearPatch({ id: "boundary_ports", name: "Boundary Ports" });
+
+    const boundaryPorts = getPatchBoundaryPorts(patch);
+
+    expect(boundaryPorts.map((port) => [port.id, port.direction, port.typeId])).toEqual([
+      ["$host.pitch", "source", "NotePitch"],
+      ["$host.gate", "source", "NoteGate"],
+      ["$host.velocity", "source", "NoteVelocity"],
+      ["$host.modwheel", "source", "ModWheel"],
+      ["out1", "sink", "Output"]
+    ]);
+  });
+
+  it("requires the output boundary port input to be connected for a valid patch", () => {
+    const patch = createClearPatch({ id: "unconnected_output", name: "Unconnected Output" });
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(false);
+    expect(findIssue(patch, "required-port-unconnected", "out1", "in")).toBeTruthy();
   });
 });
