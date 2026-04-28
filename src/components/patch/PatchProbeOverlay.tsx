@@ -43,6 +43,22 @@ interface PatchProbeOverlayProps {
 const PROBE_SPECTRUM_WINDOWS = [256, 512, 1024, 2048];
 const PROBE_DRAG_THRESHOLD_PX = 6;
 
+function resolveNearestProbeEdgePoint(probe: PatchWorkspaceProbeState, zoom: number, targetPoint: { x: number; y: number }) {
+  const x = probe.x * PATCH_CANVAS_GRID;
+  const y = probe.y * PATCH_CANVAS_GRID;
+  const width = resolveRenderedProbeWidth(probe, zoom) / zoom;
+  const height = resolveRenderedProbeHeight(probe, zoom) / zoom;
+  const clampedX = clamp(targetPoint.x, x, x + width);
+  const clampedY = clamp(targetPoint.y, y, y + height);
+  const candidates = [
+    { x: clampedX, y, distance: Math.hypot(targetPoint.x - clampedX, targetPoint.y - y) },
+    { x: clampedX, y: y + height, distance: Math.hypot(targetPoint.x - clampedX, targetPoint.y - (y + height)) },
+    { x, y: clampedY, distance: Math.hypot(targetPoint.x - x, targetPoint.y - clampedY) },
+    { x: x + width, y: clampedY, distance: Math.hypot(targetPoint.x - (x + width), targetPoint.y - clampedY) }
+  ];
+  return candidates.reduce((best, candidate) => (candidate.distance < best.distance ? candidate : best));
+}
+
 export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
   const connectionLines = useMemo(
     () =>
@@ -52,13 +68,13 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
         }
         const renderedWidth = resolveRenderedProbeWidth(probe, props.zoom);
         const renderedHeight = resolveRenderedProbeHeight(probe, props.zoom);
-        const sourcePoint = {
+        const probeReferencePoint = {
           x: probe.x * PATCH_CANVAS_GRID + renderedWidth / props.zoom,
           y: probe.y * PATCH_CANVAS_GRID + renderedHeight / props.zoom / 2
         };
         const targetPoint =
           probe.target.kind === "connection"
-            ? resolvePatchConnectionAnchorPoint(props.patch, props.layoutByNode, probe.target.connectionId, sourcePoint, props.outputHostCanvasLeft) ??
+            ? resolvePatchConnectionAnchorPoint(props.patch, props.layoutByNode, probe.target.connectionId, probeReferencePoint, props.outputHostCanvasLeft) ??
               resolvePatchConnectionMidpoint(props.patch, props.layoutByNode, probe.target.connectionId, props.outputHostCanvasLeft)
             : resolvePatchPortAnchorPoint(
                 props.patch,
@@ -71,10 +87,11 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
         if (!targetPoint) {
           return [];
         }
+        const probeEdgePoint = resolveNearestProbeEdgePoint(probe, props.zoom, targetPoint);
         return [{
           id: probe.id,
-          x1: probe.x * PATCH_CANVAS_GRID * props.zoom + renderedWidth,
-          y1: probe.y * PATCH_CANVAS_GRID * props.zoom + renderedHeight * 0.5,
+          x1: probeEdgePoint.x * props.zoom,
+          y1: probeEdgePoint.y * props.zoom,
           x2: targetPoint.x * props.zoom,
           y2: targetPoint.y * props.zoom,
           targetKind: probe.target.kind
