@@ -62,10 +62,11 @@ const assertPresent = (condition, message) => {
 const getPatchCompileNodes = (patch) => {
   const nodes = patch.nodes || [];
   const ports = patch.ports || [];
-  return [
-    ...nodes.filter((node) => node.typeId !== "Output"),
-    ...ports
-  ];
+  assertPresent(
+    nodes.every((node) => node.typeId !== "Output"),
+    `Output must be declared as a patch port in patch ${patch.id}.`
+  );
+  return [...nodes, ...ports];
 };
 
 const compareNodeIdsTopologically = (patch) => {

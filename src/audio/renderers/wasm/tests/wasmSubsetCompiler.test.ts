@@ -199,4 +199,57 @@ describe("compileAudioProjectToWasmSubset", () => {
     expect(outputPort?.params.gainDb).toBe(-3);
     expect(outputPort?.params.limiter).toBe(true);
   });
+
+  it("rejects legacy Output nodes in the compiler", () => {
+    const patch: Patch = {
+      schemaVersion: 1,
+      id: "legacy-output-node",
+      name: "Legacy Output Node",
+      meta: { source: "custom" },
+      nodes: [
+        { id: "output", typeId: "Output", params: { gainDb: -3, limiter: true } }
+      ],
+      ports: [],
+      connections: [],
+      ui: { macros: [] },
+      layout: { nodes: [] },
+      io: { audioOutNodeId: "output", audioOutPortId: "in" }
+    };
+
+    const project: AudioProject = {
+      global: { sampleRate: 48000, tempo: 120, meter: "4/4", gridBeats: 0.25, loop: [] },
+      tracks: [
+        {
+          id: "track1",
+          name: "Track 1",
+          instrumentPatchId: patch.id,
+          notes: [],
+          macroValues: {},
+          macroAutomations: {},
+          macroPanelExpanded: false,
+          volume: 1,
+          mute: false,
+          solo: false,
+          fx: {
+            delayEnabled: false,
+            reverbEnabled: false,
+            saturationEnabled: false,
+            compressorEnabled: false,
+            delayMix: 0,
+            reverbMix: 0,
+            drive: 0,
+            compression: 0
+          }
+        }
+      ],
+      patches: [patch],
+      masterFx: {
+        compressorEnabled: false,
+        limiterEnabled: false,
+        makeupGain: 0
+      }
+    };
+
+    expect(() => compileAudioProjectToWasmSubset(project, { blockSize: 128 })).toThrow("Output must be declared as a patch port");
+  });
 });
