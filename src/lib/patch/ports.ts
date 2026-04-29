@@ -72,6 +72,10 @@ export function getPatchOutputPort(patch: Pick<Patch, "io" | "nodes" | "ports">)
   return undefined;
 }
 
+export function isPatchOutputPortId(patch: Pick<Patch, "io" | "nodes" | "ports">, id: string) {
+  return getPatchOutputPort(patch)?.id === id;
+}
+
 export function getPatchBoundaryPorts(patch: Pick<Patch, "io" | "nodes" | "ports">): PatchPort[] {
   const outputPort = getPatchOutputPort(patch);
   return outputPort ? [...getHostSourcePatchPorts(), outputPort] : getHostSourcePatchPorts();

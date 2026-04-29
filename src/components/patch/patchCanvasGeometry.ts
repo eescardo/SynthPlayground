@@ -132,10 +132,6 @@ export function isHostSourcePatchPortId(nodeId: string) {
   return SOURCE_HOST_PORT_IDS.includes(nodeId as (typeof SOURCE_HOST_PORT_IDS)[number]);
 }
 
-export function isManagedOutputNode(patch: Pick<Patch, "io">, nodeId: string) {
-  return nodeId === patch.io.audioOutNodeId;
-}
-
 export function resolveHostPatchPortLabel(nodeId: string) {
   switch (nodeId) {
     case "$host.pitch":

@@ -37,7 +37,6 @@ import { drawPatchModuleFaceContent } from "@/components/patch/patchModuleFaceDr
 import {
   CanvasRect,
   HitPort,
-  isManagedOutputNode,
   resolveHostPatchPortRect,
   resolveHostPatchPortTint,
   resolvePatchNodePortLabelRect,
@@ -47,7 +46,7 @@ import { HOST_PORT_IDS, SOURCE_HOST_PORT_IDS, SOURCE_HOST_PORT_TYPE_BY_ID } from
 import { PatchDiff } from "@/lib/patch/diff";
 import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { getPatchOutputPort, isHostPatchPortId } from "@/lib/patch/ports";
+import { getPatchOutputPort, isHostPatchPortId, isPatchOutputPortId } from "@/lib/patch/ports";
 import { Patch, PatchLayoutNode, PatchNode, PatchValidationIssue, PortSchema } from "@/types/patch";
 
 const PATCH_DIFF_PEDESTAL_INSET = 8;
@@ -227,7 +226,7 @@ function resolvePortPositions(
   patch.nodes.forEach((node) => {
     const schema = getModuleSchema(node.typeId);
     if (!schema) return;
-    if (isManagedOutputNode(patch, node.id)) return;
+    if (isPatchOutputPortId(patch, node.id)) return;
     const layout = layoutByNode.get(node.id);
     if (!layout) return;
 
@@ -293,11 +292,11 @@ function drawPatchConnections(
     const isHostConnection =
       isHostPatchPortId(connection.from.nodeId) ||
       isHostPatchPortId(connection.to.nodeId) ||
-      isManagedOutputNode(patch, connection.to.nodeId);
+      isPatchOutputPortId(patch, connection.to.nodeId);
     ctx.save();
     ctx.strokeStyle = isHostConnection
       ? resolveHostPatchPortTint(
-          isManagedOutputNode(patch, connection.to.nodeId)
+          isPatchOutputPortId(patch, connection.to.nodeId)
             ? HOST_PORT_IDS.output
             : isHostPatchPortId(connection.from.nodeId)
               ? connection.from.nodeId
@@ -332,7 +331,7 @@ function drawPatchModules(
   patch.nodes.forEach((node) => {
     const schema = getModuleSchema(node.typeId);
     if (!schema) return;
-    if (isManagedOutputNode(patch, node.id)) return;
+    if (isPatchOutputPortId(patch, node.id)) return;
     const layout = layoutByNode.get(node.id);
     if (!layout) return;
 

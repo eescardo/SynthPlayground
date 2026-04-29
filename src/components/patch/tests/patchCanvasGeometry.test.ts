@@ -71,7 +71,7 @@ describe("patch canvas geometry", () => {
     expect(findPatchPortAtPointWithPadding(hitPorts, 156, 51, 6)).toEqual(hitPorts[0]);
   });
 
-  it("anchors the managed output host port to the canvas right edge", () => {
+  it("anchors the patch output port to the canvas right edge", () => {
     const rect = resolveOutputHostPatchPortRect(1400);
 
     expect(rect.x).toBe(1400);
