@@ -53,8 +53,7 @@ describe("compileAudioProjectToWasmSubset", () => {
           }
         ]
       },
-      layout: { nodes: [] },
-      io: { audioOutNodeId: PATCH_OUTPUT_PORT_ID, audioOutPortId: "in" }
+      layout: { nodes: [] }
     };
 
     const project: AudioProject = {
@@ -148,8 +147,7 @@ describe("compileAudioProjectToWasmSubset", () => {
         { id: "c6", from: { nodeId: "amp", portId: "out" }, to: { nodeId: PATCH_OUTPUT_PORT_ID, portId: "in" } }
       ],
       ui: { macros: [] },
-      layout: { nodes: [] },
-      io: { audioOutNodeId: PATCH_OUTPUT_PORT_ID, audioOutPortId: "in" }
+      layout: { nodes: [] }
     };
 
     const project: AudioProject = {
@@ -213,8 +211,7 @@ describe("compileAudioProjectToWasmSubset", () => {
       ports: [],
       connections: [],
       ui: { macros: [] },
-      layout: { nodes: [] },
-      io: { audioOutNodeId: "output", audioOutPortId: "in" }
+      layout: { nodes: [] }
     };
 
     const project: AudioProject = {

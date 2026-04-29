@@ -64,7 +64,6 @@ describe("patchWorkspacePatchHelpers", () => {
     expect(cleared.name).toBe(source.name);
     expect(cleared.nodes).toHaveLength(0);
     expect(cleared.ports).toEqual(source.ports);
-    expect(cleared.io.audioOutNodeId).toBe("output");
     expect(cleared.layout.nodes).toEqual([]);
     expect(cleared.ui.canvasZoom).toBe(1.4);
   });

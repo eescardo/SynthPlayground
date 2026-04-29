@@ -21,6 +21,7 @@ import {
 import { createId } from "@/lib/ids";
 import { resolveAutoLayoutNodes } from "@/lib/patch/autoLayout";
 import { makeConnectOp } from "@/lib/patch/ops";
+import { getPatchOutputPort } from "@/lib/patch/ports";
 import { resolveAutoLayoutProbePositions } from "@/lib/patch/probeAutoLayout";
 import { usePatchCanvasInteractions } from "@/hooks/patch/usePatchCanvasInteractions";
 import { usePatchProbeDrag } from "@/hooks/patch/usePatchProbeDrag";
@@ -73,7 +74,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     () => new Map([...patch.nodes, ...(patch.ports ?? [])].map((node) => [node.id, node] as const)),
     [patch.nodes, patch.ports]
   );
-  const outputNodeId = patch.io.audioOutNodeId;
+  const outputNodeId = getPatchOutputPort(patch)?.id;
   const visibleNodeCount = useMemo(() => patch.nodes.filter((node) => node.id !== outputNodeId).length, [outputNodeId, patch.nodes]);
   const visibleLayoutNodes = useMemo(
     () => patch.layout.nodes.filter((node) => node.nodeId !== outputNodeId),

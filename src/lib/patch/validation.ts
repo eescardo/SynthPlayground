@@ -423,15 +423,6 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
     pushError(issues, `Patch must include exactly one Output port`, { outputCount: String(outputPorts.length) }, "output-port-count");
   }
 
-  if (!patch.io.audioOutNodeId || !patch.io.audioOutPortId) {
-    pushError(issues, "Patch io.audioOutNodeId/io.audioOutPortId must be set");
-  } else {
-    const outPort = getPatchPorts(patch).find((port) => port.id === patch.io.audioOutNodeId);
-    if (!outPort) {
-      pushError(issues, "io.audioOutNodeId does not reference an output port", { nodeId: patch.io.audioOutNodeId });
-    }
-  }
-
   return {
     ok: !issues.some((issue) => issue.level === "error"),
     issues

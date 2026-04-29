@@ -1,4 +1,5 @@
 import { HOST_PORT_IDS } from "@/lib/patch/constants";
+import { isPatchOutputPortId } from "@/lib/patch/ports";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
 import { getPatchParameterTargets } from "@/lib/patch/ports";
@@ -123,7 +124,7 @@ function isSameParamValue(left: ParamValue, right: ParamValue): boolean {
 }
 
 function normalizeBindingNodeIdForDiff(patch: Patch, nodeId: string) {
-  return nodeId === patch.io.audioOutNodeId || nodeId === HOST_PORT_IDS.output ? "$patch.output" : nodeId;
+  return isPatchOutputPortId(patch, nodeId) || nodeId === HOST_PORT_IDS.output ? "$patch.output" : nodeId;
 }
 
 function normalizeConnectionEndpointForDiff(

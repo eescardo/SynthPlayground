@@ -179,11 +179,7 @@ describe("patch validation", () => {
         }
       ],
       ui: { macros: [] },
-      layout: { nodes: [] },
-      io: {
-        audioOutNodeId: "output",
-        audioOutPortId: "in"
-      }
+      layout: { nodes: [] }
     };
 
     const result = validatePatch(patch);

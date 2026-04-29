@@ -87,13 +87,6 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       for (const macro of next.ui.macros) {
         macro.bindings = macro.bindings.filter((binding) => binding.nodeId !== op.nodeId);
       }
-      if (next.io.audioOutNodeId === op.nodeId) {
-        const outputNode = next.nodes.find((node) => node.typeId === "Output");
-        if (outputNode) {
-          next.io.audioOutNodeId = outputNode.id;
-          next.io.audioOutPortId = "in";
-        }
-      }
       return next;
     }
 

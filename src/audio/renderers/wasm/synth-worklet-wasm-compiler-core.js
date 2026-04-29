@@ -74,6 +74,11 @@ const getPatchCompileNodes = (patch) => {
   return [...nodes, ...ports];
 };
 
+const getPatchOutputPort = (patch) => {
+  const ports = patch.ports || [];
+  return ports.find((port) => port.id === "output") || ports.find((port) => port.typeId === "Output");
+};
+
 const compareNodeIdsTopologically = (patch) => {
   const patchNodes = getPatchCompileNodes(patch);
   const nodeById = new Map(patchNodes.map((node) => [node.id, node]));
@@ -172,7 +177,7 @@ const compileTrackPatch = (patch, track, trackIndex) => {
     assertPresent(SUPPORTED_NODE_TYPES.has(node.typeId), `Unsupported node type ${node.typeId} in patch ${patch.id}.`);
   }
 
-  const outputNodeId = patch.io?.audioOutNodeId;
+  const outputNodeId = getPatchOutputPort(patch)?.id;
   assertPresent(outputNodeId && nodeById.has(outputNodeId), `Invalid output port in patch ${patch.id}.`);
 
   let nextSignalIndex = 0;

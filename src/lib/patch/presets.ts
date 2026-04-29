@@ -3,7 +3,7 @@ import { HOST_PORT_IDS } from "@/lib/patch/constants";
 import { createDefaultProjectFromTemplate, createEmptyProjectFromPresets } from "@/lib/defaultProjectTemplate";
 import { createId } from "@/lib/ids";
 import { normalizeMacroBindingIds } from "@/lib/patch/macroBindings";
-import { createPatchOutputPort, PATCH_OUTPUT_PORT_ID } from "@/lib/patch/ports";
+import { createPatchOutputPort } from "@/lib/patch/ports";
 import { Project } from "@/types/music";
 import { Patch, PatchMeta } from "@/types/patch";
 
@@ -38,10 +38,6 @@ export const createClearPatch = ({
   },
   layout: {
     nodes: []
-  },
-  io: {
-    audioOutNodeId: PATCH_OUTPUT_PORT_ID,
-    audioOutPortId: "in"
   }
 });
 
@@ -438,13 +434,8 @@ export const bassPatch = (): Patch => {
         { nodeId: mixId, x: 14, y: 3 },
         { nodeId: vcfId, x: 18, y: 3 },
         { nodeId: vcaId, x: 22, y: 3 },
-        { nodeId: satId, x: 26, y: 3 },
-        { nodeId: outId, x: 30, y: 3 }
+        { nodeId: satId, x: 26, y: 3 }
       ]
-    },
-    io: {
-      audioOutNodeId: outId,
-      audioOutPortId: "in"
     }
   };
 };
@@ -553,11 +544,9 @@ export const padPatch = (): Patch => {
         { nodeId: mix, x: 7, y: 4 },
         { nodeId: env, x: 7, y: 10 },
         { nodeId: vcf, x: 11, y: 4 },
-        { nodeId: vca, x: 15, y: 4 },
-        { nodeId: out, x: 19, y: 4 }
+        { nodeId: vca, x: 15, y: 4 }
       ]
-    },
-    io: { audioOutNodeId: out, audioOutPortId: "in" }
+    }
   };
 };
 
@@ -925,11 +914,9 @@ export const pluckPatch = (): Patch => {
         { nodeId: ampEnv, x: 2, y: 13 },
         { nodeId: mix, x: 7, y: 5 },
         { nodeId: filter, x: 11, y: 5 },
-        { nodeId: ampVca, x: 15, y: 5 },
-        { nodeId: out, x: 19, y: 5 }
+        { nodeId: ampVca, x: 15, y: 5 }
       ]
-    },
-    io: { audioOutNodeId: out, audioOutPortId: "in" }
+    }
   };
 };
 
@@ -980,11 +967,9 @@ export const keysPatch = (): Patch => {
         { nodeId: vco, x: 2, y: 4 },
         { nodeId: env, x: 2, y: 9 },
         { nodeId: vca, x: 8, y: 4 },
-        { nodeId: sat, x: 12, y: 4 },
-        { nodeId: out, x: 16, y: 4 }
+        { nodeId: sat, x: 12, y: 4 }
       ]
-    },
-    io: { audioOutNodeId: out, audioOutPortId: "in" }
+    }
   };
 };
 
@@ -1040,11 +1025,9 @@ export const brassPatch = (): Patch => {
         { nodeId: lfo, x: 2, y: 9 },
         { nodeId: env, x: 7, y: 9 },
         { nodeId: vcf, x: 7, y: 4 },
-        { nodeId: vca, x: 12, y: 4 },
-        { nodeId: out, x: 16, y: 4 }
+        { nodeId: vca, x: 12, y: 4 }
       ]
-    },
-    io: { audioOutNodeId: out, audioOutPortId: "in" }
+    }
   };
 };
 
@@ -1161,11 +1144,9 @@ export const drumPatch = (): Patch => {
         { nodeId: bodyVca, x: 12, y: 2 },
         { nodeId: noiseVca, x: 17, y: 8 },
         { nodeId: mix, x: 17, y: 4 },
-        { nodeId: sat, x: 21, y: 4 },
-        { nodeId: out, x: 25, y: 4 }
+        { nodeId: sat, x: 21, y: 4 }
       ]
-    },
-    io: { audioOutNodeId: out, audioOutPortId: "in" }
+    }
   };
 };
 
@@ -1297,11 +1278,9 @@ export const bassDrumPatch = (): Patch => {
         { nodeId: bodyVca, x: 15, y: 2 },
         { nodeId: clickVca, x: 17, y: 8 },
         { nodeId: mix, x: 19, y: 4 },
-        { nodeId: sat, x: 21, y: 4 },
-        { nodeId: out, x: 25, y: 4 }
+        { nodeId: sat, x: 21, y: 4 }
       ]
-    },
-    io: { audioOutNodeId: out, audioOutPortId: "in" }
+    }
   };
 };
 

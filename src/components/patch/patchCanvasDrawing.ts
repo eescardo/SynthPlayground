@@ -46,7 +46,7 @@ import { HOST_PORT_IDS, SOURCE_HOST_PORT_IDS, SOURCE_HOST_PORT_TYPE_BY_ID } from
 import { PatchDiff } from "@/lib/patch/diff";
 import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { getPatchOutputPort, isHostPatchPortId, isPatchOutputPortId } from "@/lib/patch/ports";
+import { getPatchOutputInputPortId, getPatchOutputPort, isHostPatchPortId, isPatchOutputPortId } from "@/lib/patch/ports";
 import { Patch, PatchLayoutNode, PatchNode, PatchValidationIssue, PortSchema } from "@/types/patch";
 
 const PATCH_DIFF_PEDESTAL_INSET = 8;
@@ -243,7 +243,8 @@ function resolvePortPositions(
   });
 
   const outputPatchPort = getPatchOutputPort(patch);
-  const outputPort = outputPatchPort ? getModuleSchema(outputPatchPort.typeId)?.portsIn.find((port) => port.id === patch.io.audioOutPortId) : undefined;
+  const outputInputPortId = getPatchOutputInputPortId(patch);
+  const outputPort = outputPatchPort ? getModuleSchema(outputPatchPort.typeId)?.portsIn.find((port) => port.id === outputInputPortId) : undefined;
   if (outputPatchPort && outputPort) {
     const rect = resolveOutputHostPatchPortRect(outputHostCanvasLeft);
     portPositions.set(`${outputPatchPort.id}:in:${outputPort.id}`, {

@@ -355,7 +355,7 @@ function closestPointOnSegment(
 }
 
 export function resolvePatchPortAnchorPoint(
-  patch: Pick<Patch, "nodes" | "ports" | "io">,
+  patch: Pick<Patch, "nodes" | "ports">,
   layoutByNode: Map<string, PatchLayoutNode>,
   nodeId: string,
   portId: string,
@@ -413,7 +413,7 @@ export function resolvePatchPortAnchorPoint(
 }
 
 export function resolvePatchConnectionMidpoint(
-  patch: Pick<Patch, "nodes" | "ports" | "io" | "connections">,
+  patch: Pick<Patch, "nodes" | "ports" | "connections">,
   layoutByNode: Map<string, PatchLayoutNode>,
   connectionId: string,
   outputHostCanvasLeft?: number
@@ -434,7 +434,7 @@ export function resolvePatchConnectionMidpoint(
 }
 
 export function resolvePatchConnectionAnchorPoint(
-  patch: Pick<Patch, "nodes" | "ports" | "io" | "connections">,
+  patch: Pick<Patch, "nodes" | "ports" | "connections">,
   layoutByNode: Map<string, PatchLayoutNode>,
   connectionId: string,
   sourcePoint: { x: number; y: number },
@@ -453,7 +453,7 @@ export function resolvePatchConnectionAnchorPoint(
 }
 
 export function findPatchConnectionAtPoint(
-  patch: Pick<Patch, "nodes" | "ports" | "io" | "connections">,
+  patch: Pick<Patch, "nodes" | "ports" | "connections">,
   layoutByNode: Map<string, PatchLayoutNode>,
   rawX: number,
   rawY: number,

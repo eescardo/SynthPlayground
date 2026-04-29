@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildPatchDiff } from "@/lib/patch/diff";
 import { createClearPatch } from "@/lib/patch/presets";
+import { PATCH_OUTPUT_PORT_ID } from "@/lib/patch/ports";
 
 describe("patch diff", () => {
   it("tracks added, changed, and removed patch structure against a baseline snapshot", () => {
@@ -25,7 +26,7 @@ describe("patch diff", () => {
     baseline.connections.unshift({
       id: "conn_sample1_out",
       from: { nodeId: "sample1", portId: "out" },
-      to: { nodeId: baseline.io.audioOutNodeId, portId: baseline.io.audioOutPortId }
+      to: { nodeId: PATCH_OUTPUT_PORT_ID, portId: "in" }
     });
     baseline.ui.macros.push(
       {
@@ -92,7 +93,7 @@ describe("patch diff", () => {
       {
         id: "conn_sample2_out",
         from: { nodeId: "sample2", portId: "out" },
-        to: { nodeId: current.io.audioOutNodeId, portId: current.io.audioOutPortId }
+        to: { nodeId: PATCH_OUTPUT_PORT_ID, portId: "in" }
       }
     ];
     current.ui.macros.push({
@@ -243,7 +244,7 @@ describe("patch diff", () => {
         bindings: [
           {
             id: "old_random_binding",
-            nodeId: baseline.io.audioOutNodeId,
+            nodeId: PATCH_OUTPUT_PORT_ID,
             paramId: "gainDb",
             map: "linear",
             min: -18,
@@ -256,7 +257,7 @@ describe("patch diff", () => {
     current.ui.macros[0].bindings = [
       {
         id: "new_random_binding",
-        nodeId: current.io.audioOutNodeId,
+        nodeId: PATCH_OUTPUT_PORT_ID,
         paramId: "gainDb",
         map: "linear",
         min: -18,
@@ -269,7 +270,7 @@ describe("patch diff", () => {
     expect(diff.hasChanges).toBe(false);
     expect(diff.currentBindingDiffByKey.size).toBe(0);
     expect(diff.removedBindingDiffs).toEqual([]);
-    expect(diff.nodeDiffById.get(current.io.audioOutNodeId)?.status).toBe("unchanged");
+    expect(diff.nodeDiffById.get(PATCH_OUTPUT_PORT_ID)?.status).toBe("unchanged");
   });
 
   it("treats legacy host output aliases as the same output port macro target", () => {
@@ -295,7 +296,7 @@ describe("patch diff", () => {
     current.ui.macros[0].bindings = [
       {
         id: "new_output_port_binding",
-        nodeId: current.io.audioOutNodeId,
+        nodeId: PATCH_OUTPUT_PORT_ID,
         paramId: "gainDb",
         map: "linear",
         min: -18,
@@ -371,7 +372,7 @@ describe("patch diff", () => {
       {
         id: "conn_osc_out",
         from: { nodeId: "osc1", portId: "out" },
-        to: { nodeId: current.io.audioOutNodeId, portId: current.io.audioOutPortId }
+        to: { nodeId: PATCH_OUTPUT_PORT_ID, portId: "in" }
       }
     ];
 
@@ -379,10 +380,10 @@ describe("patch diff", () => {
 
     expect(diff.nodeDiffById.get("osc1")?.hasConnectionChanges).toBe(true);
     expect(diff.nodeDiffById.get("filter1")?.hasConnectionChanges).toBe(true);
-    expect(diff.nodeDiffById.get(current.io.audioOutNodeId)?.hasConnectionChanges).toBe(true);
+    expect(diff.nodeDiffById.get(PATCH_OUTPUT_PORT_ID)?.hasConnectionChanges).toBe(true);
     expect(diff.nodeDiffById.get("osc1")?.status).toBe("modified");
     expect(diff.nodeDiffById.get("filter1")?.status).toBe("modified");
-    expect(diff.nodeDiffById.get(current.io.audioOutNodeId)?.status).toBe("modified");
+    expect(diff.nodeDiffById.get(PATCH_OUTPUT_PORT_ID)?.status).toBe("modified");
     expect(diff.addedConnections.map((connection) => connection.id)).toEqual(["conn_osc_out"]);
     expect(diff.removedConnections.map((connection) => connection.id)).toEqual(["conn_osc_filter"]);
   });
@@ -394,7 +395,7 @@ describe("patch diff", () => {
       {
         id: "old_sat_output_connection",
         from: { nodeId: "sat1", portId: "out" },
-        to: { nodeId: baseline.io.audioOutNodeId, portId: baseline.io.audioOutPortId }
+        to: { nodeId: PATCH_OUTPUT_PORT_ID, portId: "in" }
       }
     ];
 
@@ -403,7 +404,7 @@ describe("patch diff", () => {
       {
         id: "new_sat_output_connection",
         from: { nodeId: "sat1", portId: "out" },
-        to: { nodeId: current.io.audioOutNodeId, portId: current.io.audioOutPortId }
+        to: { nodeId: PATCH_OUTPUT_PORT_ID, portId: "in" }
       }
     ];
 
@@ -414,6 +415,6 @@ describe("patch diff", () => {
     expect(diff.addedConnections).toEqual([]);
     expect(diff.removedConnections).toEqual([]);
     expect(diff.nodeDiffById.get("sat1")?.status).toBe("unchanged");
-    expect(diff.nodeDiffById.get(current.io.audioOutNodeId)?.status).toBe("unchanged");
+    expect(diff.nodeDiffById.get(PATCH_OUTPUT_PORT_ID)?.status).toBe("unchanged");
   });
 });

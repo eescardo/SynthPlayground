@@ -142,10 +142,6 @@ export interface Patch {
   layout: {
     nodes: PatchLayoutNode[];
   };
-  io: {
-    audioOutNodeId: string;
-    audioOutPortId: string;
-  };
 }
 
 export type PatchValidationIssueLevel = "error" | "warning";

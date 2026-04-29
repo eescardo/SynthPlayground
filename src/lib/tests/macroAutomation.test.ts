@@ -53,8 +53,7 @@ const createPatch = (): Patch => ({
       { id: "macro_resonance", name: "Resonance", keyframeCount: 2, defaultNormalized: 0.3, bindings: [] }
     ]
   },
-  layout: { nodes: [] },
-  io: { audioOutNodeId: "out", audioOutPortId: "out" }
+  layout: { nodes: [] }
 });
 
 describe("macroAutomation", () => {

@@ -61,22 +61,28 @@ export function getPatchPortSchema(port: PatchPort) {
   return getModuleSchema(port.typeId);
 }
 
-export function getPatchOutputPort(patch: Pick<Patch, "io" | "nodes" | "ports">): PatchPort | undefined {
+export function getPatchOutputPort(patch: Pick<Patch, "ports">): PatchPort | undefined {
   const ports = getPatchPorts(patch);
-  // TODO(output-port-legacy): Once every patch is normalized to `io.audioOutNodeId === "output"`,
-  // remove the type-based fallback and require the canonical output port id.
-  const port = ports.find((entry) => entry.id === patch.io.audioOutNodeId) ?? ports.find((entry) => entry.typeId === AUDIO_OUTPUT_PORT_TYPE_ID);
+  // TODO(output-port-legacy): Once every imported/saved patch has been re-saved
+  // with the canonical output id, remove the type-based fallback.
+  const port = ports.find((entry) => entry.id === PATCH_OUTPUT_PORT_ID) ?? ports.find((entry) => entry.typeId === AUDIO_OUTPUT_PORT_TYPE_ID);
   if (port) {
     return { ...port, direction: "sink" };
   }
   return undefined;
 }
 
-export function isPatchOutputPortId(patch: Pick<Patch, "io" | "nodes" | "ports">, id: string) {
+export function getPatchOutputInputPortId(patch: Pick<Patch, "ports">) {
+  const outputPort = getPatchOutputPort(patch);
+  const schema = outputPort ? getModuleSchema(outputPort.typeId) : undefined;
+  return schema?.requiredPortIds?.in?.[0] ?? schema?.portsIn[0]?.id ?? "in";
+}
+
+export function isPatchOutputPortId(patch: Pick<Patch, "ports">, id: string) {
   return getPatchOutputPort(patch)?.id === id;
 }
 
-export function getPatchBoundaryPorts(patch: Pick<Patch, "io" | "nodes" | "ports">): PatchPort[] {
+export function getPatchBoundaryPorts(patch: Pick<Patch, "ports">): PatchPort[] {
   const outputPort = getPatchOutputPort(patch);
   return outputPort ? [...getHostSourcePatchPorts(), outputPort] : getHostSourcePatchPorts();
 }

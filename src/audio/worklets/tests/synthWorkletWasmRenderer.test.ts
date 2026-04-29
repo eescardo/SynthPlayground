@@ -84,7 +84,6 @@ function createPatch(overrides: Partial<Patch> = {}): Patch {
     ],
     ui: { macros: [] },
     layout: { nodes: [] },
-    io: { audioOutNodeId: PATCH_OUTPUT_PORT_ID, audioOutPortId: "in" },
     ...overrides
   } satisfies Patch;
 }

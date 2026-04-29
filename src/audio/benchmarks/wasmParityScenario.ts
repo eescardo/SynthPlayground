@@ -1,6 +1,7 @@
 import { AudioProject } from "@/types/audio";
 import { Patch } from "@/types/patch";
 import { Track } from "@/types/music";
+import { createPatchOutputPort } from "@/lib/patch/ports";
 
 export interface WasmParityScenarioConfig {
   id: string;
@@ -29,17 +30,16 @@ const createParityPatch = (): Patch => ({
   nodes: [
     { id: "osc", typeId: "VCO", params: { wave: "square", pulseWidth: 0.5, baseTuneCents: 0, fineTuneCents: 0, pwmAmount: 0 } },
     { id: "env", typeId: "ADSR", params: { attack: 0.002, decay: 0.08, sustain: 0.65, release: 0.08, mode: "retrigger_from_current" } },
-    { id: "amp", typeId: "VCA", params: { bias: 0, gain: 1 } },
-    { id: "out", typeId: "Output", params: { gainDb: 0, limiter: false } }
+    { id: "amp", typeId: "VCA", params: { bias: 0, gain: 1 } }
   ],
+  ports: [createPatchOutputPort({ gainDb: 0, limiter: false })],
   connections: [
     { id: "c1", from: { nodeId: "osc", portId: "out" }, to: { nodeId: "amp", portId: "in" } },
     { id: "c2", from: { nodeId: "env", portId: "out" }, to: { nodeId: "amp", portId: "gainCV" } },
-    { id: "c3", from: { nodeId: "amp", portId: "out" }, to: { nodeId: "out", portId: "in" } }
+    { id: "c3", from: { nodeId: "amp", portId: "out" }, to: { nodeId: "output", portId: "in" } }
   ],
   ui: { macros: [] },
-  layout: { nodes: [] },
-  io: { audioOutNodeId: "out", audioOutPortId: "out" }
+  layout: { nodes: [] }
 });
 
 const createTrack = (trackIndex: number, config: WasmParityScenarioConfig): Track => {

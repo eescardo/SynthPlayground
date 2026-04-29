@@ -122,10 +122,18 @@ const sanitizePatchMacro = (raw: unknown, index: number): PatchMacro => {
   };
 };
 
-export function normalizePatchOutputPort<T extends Patch>(patch: T): T {
+type LegacyPatchIo = {
+  audioOutNodeId?: string;
+};
+
+type PatchWithLegacyOutput = Patch & {
+  io?: LegacyPatchIo;
+};
+
+export function normalizePatchOutputPort<T extends PatchWithLegacyOutput>(patch: T): Omit<T, "io"> {
   // TODO(output-port-legacy): Remove this compatibility adapter once all saved
   // projects/imports are guaranteed to declare the canonical `output` patch port.
-  const ioOutputId = patch.io.audioOutNodeId;
+  const ioOutputId = asString(patch.io?.audioOutNodeId, "");
   const legacyOutputNode =
     patch.nodes.find((node) => node.id === ioOutputId && node.typeId === AUDIO_OUTPUT_PORT_TYPE_ID) ??
     patch.nodes.find((node) => node.typeId === AUDIO_OUTPUT_PORT_TYPE_ID);
@@ -143,9 +151,11 @@ export function normalizePatchOutputPort<T extends Patch>(patch: T): T {
       .map((port) => [port.id, port] as const)
   );
   outputPortById.set(canonicalOutputPort.id, canonicalOutputPort);
+  const patchWithoutIo = { ...patch };
+  delete patchWithoutIo.io;
 
   return {
-    ...patch,
+    ...patchWithoutIo,
     nodes: patch.nodes.filter((node) => node.typeId !== AUDIO_OUTPUT_PORT_TYPE_ID),
     ports: [...outputPortById.values()],
     connections: patch.connections.map((connection) => ({
@@ -184,10 +194,6 @@ export function normalizePatchOutputPort<T extends Patch>(patch: T): T {
     },
     layout: {
       nodes: patch.layout.nodes.filter((node) => rewriteOutputId(node.nodeId) !== PATCH_OUTPUT_PORT_ID)
-    },
-    io: {
-      audioOutNodeId: PATCH_OUTPUT_PORT_ID,
-      audioOutPortId: "in"
     }
   };
 }
@@ -258,8 +264,7 @@ export function normalizePatch(
       })
     },
     io: {
-      audioOutNodeId: asString(io.audioOutNodeId, ""),
-      audioOutPortId: asString(io.audioOutPortId, "out")
+      audioOutNodeId: asString(io.audioOutNodeId, "")
     }
   })));
 }

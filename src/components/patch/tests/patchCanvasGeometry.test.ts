@@ -108,11 +108,10 @@ describe("patch canvas geometry", () => {
   });
 
   it("uses the fixed output host anchor for connection geometry", () => {
-    const patch: Pick<Patch, "nodes" | "ports" | "io" | "connections"> = {
+    const patch: Pick<Patch, "nodes" | "ports" | "connections"> = {
       nodes: [{ id: "vco1", typeId: "VCO", params: {} }],
       ports: [{ id: "output", typeId: "Output", label: "output", params: {} }],
-      connections: [{ id: "conn1", from: { nodeId: "vco1", portId: "out" }, to: { nodeId: "output", portId: "in" } }],
-      io: { audioOutNodeId: "output", audioOutPortId: "in" }
+      connections: [{ id: "conn1", from: { nodeId: "vco1", portId: "out" }, to: { nodeId: "output", portId: "in" } }]
     };
     const layoutByNode = new Map<string, PatchLayoutNode>([["vco1", { nodeId: "vco1", x: 4, y: 4 }]]);
     const outputHostCanvasLeft = 1234;
@@ -124,11 +123,10 @@ describe("patch canvas geometry", () => {
   });
 
   it("anchors connection probe lines to the nearest point on the wire", () => {
-    const patch: Pick<Patch, "nodes" | "ports" | "io" | "connections"> = {
+    const patch: Pick<Patch, "nodes" | "ports" | "connections"> = {
       nodes: [{ id: "vco1", typeId: "VCO", params: {} }],
       ports: [{ id: "output", typeId: "Output", label: "output", params: {} }],
-      connections: [{ id: "conn1", from: { nodeId: "vco1", portId: "out" }, to: { nodeId: "output", portId: "in" } }],
-      io: { audioOutNodeId: "output", audioOutPortId: "in" }
+      connections: [{ id: "conn1", from: { nodeId: "vco1", portId: "out" }, to: { nodeId: "output", portId: "in" } }]
     };
     const layoutByNode = new Map<string, PatchLayoutNode>([["vco1", { nodeId: "vco1", x: 4, y: 4 }]]);
     const anchor = resolvePatchConnectionAnchorPoint(

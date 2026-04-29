@@ -692,14 +692,6 @@
             "mix": 0.22,
             "type": "tanh"
           }
-        },
-        {
-          "id": "output",
-          "typeId": "Output",
-          "params": {
-            "gainDb": -6,
-            "limiter": true
-          }
         }
       ],
       "connections": [
@@ -1222,18 +1214,21 @@
             "nodeId": "sat1",
             "x": 46,
             "y": 3
-          },
-          {
-            "nodeId": "output",
-            "x": 54,
-            "y": 3
           }
         ]
       },
-      "io": {
-        "audioOutNodeId": "output",
-        "audioOutPortId": "in"
-      }
+      "ports": [
+        {
+          "id": "output",
+          "typeId": "Output",
+          "label": "output",
+          "direction": "sink",
+          "params": {
+            "gainDb": -6,
+            "limiter": true
+          }
+        }
+      ]
     },
     {
       "schemaVersion": 1,
@@ -1293,14 +1288,6 @@
           "params": {
             "bias": 0,
             "gain": 1
-          }
-        },
-        {
-          "id": "output",
-          "typeId": "Output",
-          "params": {
-            "gainDb": -6,
-            "limiter": true
           }
         }
       ],
@@ -1439,18 +1426,21 @@
             "nodeId": "vca1",
             "x": 12,
             "y": 4
-          },
-          {
-            "nodeId": "output",
-            "x": 16,
-            "y": 4
           }
         ]
       },
-      "io": {
-        "audioOutNodeId": "output",
-        "audioOutPortId": "in"
-      }
+      "ports": [
+        {
+          "id": "output",
+          "typeId": "Output",
+          "label": "output",
+          "direction": "sink",
+          "params": {
+            "gainDb": -6,
+            "limiter": true
+          }
+        }
+      ]
     },
     {
       "schemaVersion": 1,
@@ -1499,14 +1489,6 @@
             "driveDb": 6,
             "mix": 0.25,
             "type": "tanh"
-          }
-        },
-        {
-          "id": "output",
-          "typeId": "Output",
-          "params": {
-            "gainDb": -6,
-            "limiter": true
           }
         }
       ],
@@ -1618,18 +1600,21 @@
             "nodeId": "sat1",
             "x": 12,
             "y": 4
-          },
-          {
-            "nodeId": "output",
-            "x": 16,
-            "y": 4
           }
         ]
       },
-      "io": {
-        "audioOutNodeId": "output",
-        "audioOutPortId": "in"
-      }
+      "ports": [
+        {
+          "id": "output",
+          "typeId": "Output",
+          "label": "output",
+          "direction": "sink",
+          "params": {
+            "gainDb": -6,
+            "limiter": true
+          }
+        }
+      ]
     },
     {
       "schemaVersion": 1,
@@ -1710,14 +1695,6 @@
           "params": {
             "bias": 0,
             "gain": 1
-          }
-        },
-        {
-          "id": "output",
-          "typeId": "Output",
-          "params": {
-            "gainDb": -6,
-            "limiter": true
           }
         }
       ],
@@ -1953,18 +1930,21 @@
             "nodeId": "vca1",
             "x": 15,
             "y": 4
-          },
-          {
-            "nodeId": "output",
-            "x": 19,
-            "y": 4
           }
         ]
       },
-      "io": {
-        "audioOutNodeId": "output",
-        "audioOutPortId": "in"
-      }
+      "ports": [
+        {
+          "id": "output",
+          "typeId": "Output",
+          "label": "output",
+          "direction": "sink",
+          "params": {
+            "gainDb": -6,
+            "limiter": true
+          }
+        }
+      ]
     },
     {
       "schemaVersion": 1,
@@ -2062,14 +2042,6 @@
           "params": {
             "bias": 0,
             "gain": 1
-          }
-        },
-        {
-          "id": "output",
-          "typeId": "Output",
-          "params": {
-            "gainDb": -6,
-            "limiter": true
           }
         }
       ],
@@ -2743,18 +2715,21 @@
             "nodeId": "vca2",
             "x": 15,
             "y": 5
-          },
-          {
-            "nodeId": "output",
-            "x": 19,
-            "y": 5
           }
         ]
       },
-      "io": {
-        "audioOutNodeId": "output",
-        "audioOutPortId": "in"
-      }
+      "ports": [
+        {
+          "id": "output",
+          "typeId": "Output",
+          "label": "output",
+          "direction": "sink",
+          "params": {
+            "gainDb": -6,
+            "limiter": true
+          }
+        }
+      ]
     },
     {
       "schemaVersion": 1,
@@ -2851,14 +2826,6 @@
             "tone": 0.5,
             "mix": 0.14,
             "mode": "overdrive"
-          }
-        },
-        {
-          "id": "output",
-          "typeId": "Output",
-          "params": {
-            "gainDb": -6,
-            "limiter": true
           }
         }
       ],
@@ -3173,18 +3140,21 @@
             "nodeId": "sat1",
             "x": 39,
             "y": 4
-          },
-          {
-            "nodeId": "output",
-            "x": 47,
-            "y": 4
           }
         ]
       },
-      "io": {
-        "audioOutNodeId": "output",
-        "audioOutPortId": "in"
-      }
+      "ports": [
+        {
+          "id": "output",
+          "typeId": "Output",
+          "label": "output",
+          "direction": "sink",
+          "params": {
+            "gainDb": -6,
+            "limiter": true
+          }
+        }
+      ]
     },
     {
       "schemaVersion": 1,
@@ -3311,14 +3281,6 @@
             "tone": 0.5,
             "mix": 0.34,
             "mode": "overdrive"
-          }
-        },
-        {
-          "id": "output",
-          "typeId": "Output",
-          "params": {
-            "gainDb": 6,
-            "limiter": true
           }
         }
       ],
@@ -3669,18 +3631,21 @@
             "nodeId": "sat1",
             "x": 45,
             "y": 4
-          },
-          {
-            "nodeId": "output",
-            "x": 53,
-            "y": 4
           }
         ]
       },
-      "io": {
-        "audioOutNodeId": "output",
-        "audioOutPortId": "in"
-      }
+      "ports": [
+        {
+          "id": "output",
+          "typeId": "Output",
+          "label": "output",
+          "direction": "sink",
+          "params": {
+            "gainDb": 6,
+            "limiter": true
+          }
+        }
+      ]
     }
   ],
   "masterFx": {

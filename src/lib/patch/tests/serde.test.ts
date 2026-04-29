@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { exportPatchToJson, importPatchBundleFromJson, PATCH_BUNDLE_KIND, PATCH_BUNDLE_VERSION } from "@/lib/patch/serde";
 import { createClearPatch } from "@/lib/patch/presets";
+import { Patch } from "@/types/patch";
 
 describe("patch serde", () => {
   it("exports a versioned patch bundle with referenced sample assets only", () => {
@@ -78,7 +79,9 @@ describe("patch serde", () => {
     ];
     legacyPatch.ports = undefined;
     legacyPatch.layout.nodes = [{ nodeId: "legacy_output", x: 18, y: 6 }];
-    legacyPatch.io.audioOutNodeId = "legacy_output";
+    (legacyPatch as Patch & { io: { audioOutNodeId: string } }).io = {
+      audioOutNodeId: "legacy_output"
+    };
     legacyPatch.ui.paramRanges = {
       "legacy_output:gainDb": { min: -24, max: 0 }
     };
@@ -120,7 +123,7 @@ describe("patch serde", () => {
         to: { nodeId: "output", portId: "in" }
       }
     ]);
-    expect(imported.patch.io.audioOutNodeId).toBe("output");
+    expect(imported.patch).not.toHaveProperty("io");
     expect(imported.patch.ui.paramRanges).toEqual({
       "output:gainDb": { min: -24, max: 0 }
     });

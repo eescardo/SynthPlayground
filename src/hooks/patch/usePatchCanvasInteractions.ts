@@ -12,6 +12,7 @@ import {
 } from "@/components/patch/patchCanvasGeometry";
 import { PATCH_CANVAS_GRID } from "@/components/patch/patchCanvasConstants";
 import { PatchDiff } from "@/lib/patch/diff";
+import { isPatchOutputPortId } from "@/lib/patch/ports";
 import { PatchLayoutNode, PatchNode, Patch, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { validatePatchConnectionCandidate } from "@/lib/patch/validation";
@@ -156,7 +157,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
 
   const getNodeAtPointer = useCallback((rawX: number, rawY: number) => {
     return findPatchNodeAtPoint(
-      { nodes: patch.nodes.filter((node) => node.id !== patch.io.audioOutNodeId) },
+      { nodes: patch.nodes.filter((node) => !isPatchOutputPortId(patch, node.id)) },
       layoutByNode,
       rawX,
       rawY
