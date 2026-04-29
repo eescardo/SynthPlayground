@@ -1,5 +1,8 @@
 import { TRACK_VOLUME_AUTOMATION_ID } from "../shared/synth-renderer-constants.js";
 
+// TODO(host-boundary-ports): Host source ports are still compiled as implicit
+// renderer-fed signal indices. Once patch input ports become serialized peers
+// of the output port, derive these from patch.ports instead of this table.
 const HOST_NODE_IDS = {
   pitch: "$host.pitch",
   gate: "$host.gate",
