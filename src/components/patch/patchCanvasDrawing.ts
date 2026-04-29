@@ -37,18 +37,17 @@ import { drawPatchModuleFaceContent } from "@/components/patch/patchModuleFaceDr
 import {
   CanvasRect,
   HitPort,
-  isHostPatchNodeId,
   isManagedOutputNode,
   resolveHostPatchPortRect,
   resolveHostPatchPortTint,
   resolvePatchNodePortLabelRect,
   resolveOutputHostPatchPortRect
 } from "@/components/patch/patchCanvasGeometry";
-import { HOST_PORT_IDS, SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
+import { HOST_PORT_IDS, SOURCE_HOST_PORT_IDS, SOURCE_HOST_PORT_TYPE_BY_ID } from "@/lib/patch/constants";
 import { PatchDiff } from "@/lib/patch/diff";
 import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { getPatchOutputPort } from "@/lib/patch/ports";
+import { getPatchOutputPort, isHostPatchPortId } from "@/lib/patch/ports";
 import { Patch, PatchLayoutNode, PatchNode, PatchValidationIssue, PortSchema } from "@/types/patch";
 
 const PATCH_DIFF_PEDESTAL_INSET = 8;
@@ -259,8 +258,8 @@ function resolvePortPositions(
     });
   }
 
-  SOURCE_HOST_NODE_IDS.forEach((hostId) => {
-    const schema = getModuleSchema(SOURCE_HOST_NODE_TYPE_BY_ID[hostId]);
+  SOURCE_HOST_PORT_IDS.forEach((hostId) => {
+    const schema = getModuleSchema(SOURCE_HOST_PORT_TYPE_BY_ID[hostId]);
     const rect = resolveHostPatchPortRect(hostId);
     const port = schema?.portsOut[0];
     if (!rect || !port) {
@@ -292,15 +291,15 @@ function drawPatchConnections(
 
     const commonCapability = from.schema.capabilities.find((cap) => to.schema.capabilities.includes(cap)) ?? "AUDIO";
     const isHostConnection =
-      isHostPatchNodeId(connection.from.nodeId) ||
-      isHostPatchNodeId(connection.to.nodeId) ||
+      isHostPatchPortId(connection.from.nodeId) ||
+      isHostPatchPortId(connection.to.nodeId) ||
       isManagedOutputNode(patch, connection.to.nodeId);
     ctx.save();
     ctx.strokeStyle = isHostConnection
       ? resolveHostPatchPortTint(
           isManagedOutputNode(patch, connection.to.nodeId)
             ? HOST_PORT_IDS.output
-            : isHostPatchNodeId(connection.from.nodeId)
+            : isHostPatchPortId(connection.from.nodeId)
               ? connection.from.nodeId
               : connection.to.nodeId
         ).wire
@@ -481,7 +480,7 @@ function buildHitPorts(portPositions: Map<string, ResolvedPortPosition>) {
   const hitPorts: HitPort[] = [];
   for (const [key, value] of portPositions.entries()) {
     const [nodeId, kind, portId] = key.split(":");
-    if (isHostPatchNodeId(nodeId)) {
+    if (isHostPatchPortId(nodeId)) {
       continue;
     }
     hitPorts.push({

@@ -15,11 +15,7 @@ export type HostSourcePortId =
   | typeof HOST_PORT_IDS.modWheel;
 export type HostSinkPortId = typeof HOST_PORT_IDS.output;
 
-// Backwards-compatible alias for code that still models runtime sources as host nodes.
-export const HOST_NODE_IDS = HOST_PORT_IDS;
-export type HostNodeId = HostSourcePortId;
-
-export const SOURCE_HOST_NODE_IDS: readonly HostSourcePortId[] = [
+export const SOURCE_HOST_PORT_IDS: readonly HostSourcePortId[] = [
   HOST_PORT_IDS.pitch,
   HOST_PORT_IDS.gate,
   HOST_PORT_IDS.velocity,
@@ -27,9 +23,9 @@ export const SOURCE_HOST_NODE_IDS: readonly HostSourcePortId[] = [
 ];
 
 export const SINK_HOST_PORT_IDS: readonly HostSinkPortId[] = [HOST_PORT_IDS.output];
-export const HOST_PATCH_PORT_IDS: readonly HostPatchPortId[] = [...SOURCE_HOST_NODE_IDS, ...SINK_HOST_PORT_IDS];
+export const HOST_PATCH_PORT_IDS: readonly HostPatchPortId[] = [...SOURCE_HOST_PORT_IDS, ...SINK_HOST_PORT_IDS];
 
-export const SOURCE_HOST_NODE_TYPE_BY_ID: Record<HostSourcePortId, "NotePitch" | "NoteGate" | "NoteVelocity" | "ModWheel"> = {
+export const SOURCE_HOST_PORT_TYPE_BY_ID: Record<HostSourcePortId, "NotePitch" | "NoteGate" | "NoteVelocity" | "ModWheel"> = {
   [HOST_PORT_IDS.pitch]: "NotePitch",
   [HOST_PORT_IDS.gate]: "NoteGate",
   [HOST_PORT_IDS.velocity]: "NoteVelocity",
@@ -37,7 +33,7 @@ export const SOURCE_HOST_NODE_TYPE_BY_ID: Record<HostSourcePortId, "NotePitch" |
 };
 
 export const HOST_PATCH_PORT_TYPE_BY_ID: Record<HostPatchPortId, "NotePitch" | "NoteGate" | "NoteVelocity" | "ModWheel" | "Output"> = {
-  ...SOURCE_HOST_NODE_TYPE_BY_ID,
+  ...SOURCE_HOST_PORT_TYPE_BY_ID,
   [HOST_PORT_IDS.output]: "Output"
 };
 

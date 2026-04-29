@@ -22,8 +22,8 @@ import {
 import { PointerEvent as ReactPointerEvent } from "react";
 import { clamp, clamp01 } from "@/lib/numeric";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { getPatchOutputPort, isHostPatchPortId } from "@/lib/patch/ports";
-import { HOST_PORT_IDS, SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
+import { getPatchOutputPort } from "@/lib/patch/ports";
+import { HOST_PORT_IDS, SOURCE_HOST_PORT_IDS, SOURCE_HOST_PORT_TYPE_BY_ID } from "@/lib/patch/constants";
 import { Patch, PatchLayoutNode } from "@/types/patch";
 
 export interface CanvasPoint {
@@ -128,12 +128,8 @@ export function resolvePatchNodePortLabelRect(
   };
 }
 
-export function isHostPatchNodeId(nodeId: string) {
-  return isHostPatchPortId(nodeId);
-}
-
 export function isHostSourcePatchPortId(nodeId: string) {
-  return SOURCE_HOST_NODE_IDS.includes(nodeId as (typeof SOURCE_HOST_NODE_IDS)[number]);
+  return SOURCE_HOST_PORT_IDS.includes(nodeId as (typeof SOURCE_HOST_PORT_IDS)[number]);
 }
 
 export function isManagedOutputNode(patch: Pick<Patch, "io">, nodeId: string) {
@@ -220,7 +216,7 @@ export function resolveOutputHostPatchPortWidth() {
 }
 
 export function resolveHostPatchPortRect(nodeId: string) {
-  const hostIndex = SOURCE_HOST_NODE_IDS.indexOf(nodeId as (typeof SOURCE_HOST_NODE_IDS)[number]);
+  const hostIndex = SOURCE_HOST_PORT_IDS.indexOf(nodeId as (typeof SOURCE_HOST_PORT_IDS)[number]);
   if (hostIndex < 0) {
     return null;
   }
@@ -372,7 +368,7 @@ export function resolvePatchPortAnchorPoint(
 ) {
   if (isHostSourcePatchPortId(nodeId)) {
     const rect = resolveHostPatchPortRect(nodeId);
-    const schema = getModuleSchema(SOURCE_HOST_NODE_TYPE_BY_ID[nodeId as keyof typeof SOURCE_HOST_NODE_TYPE_BY_ID]);
+    const schema = getModuleSchema(SOURCE_HOST_PORT_TYPE_BY_ID[nodeId as keyof typeof SOURCE_HOST_PORT_TYPE_BY_ID]);
     const hasPort = portKind === "out" && portId === "out" && schema?.portsOut.some((port) => port.id === portId);
     if (!rect || !hasPort) {
       return null;

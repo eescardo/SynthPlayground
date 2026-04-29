@@ -3,14 +3,14 @@ import { TRACK_VOLUME_AUTOMATION_ID } from "../shared/synth-renderer-constants.j
 // TODO(host-boundary-ports): Host source ports are still compiled as implicit
 // renderer-fed signal indices. Once patch input ports become serialized peers
 // of the output port, derive these from patch.ports instead of this table.
-const HOST_NODE_IDS = {
+const HOST_SOURCE_PORT_IDS = {
   pitch: "$host.pitch",
   gate: "$host.gate",
   velocity: "$host.velocity",
   modWheel: "$host.modwheel"
 };
 
-const HOST_NODE_ID_SET = new Set(Object.values(HOST_NODE_IDS));
+const HOST_SOURCE_PORT_ID_SET = new Set(Object.values(HOST_SOURCE_PORT_IDS));
 
 const SUPPORTED_NODE_TYPES = new Set([
   "CVTranspose",
@@ -187,15 +187,15 @@ const compileTrackPatch = (patch, track, trackIndex) => {
   };
 
   const hostSignalIndices = {
-    pitch: ensureOutputIndex(HOST_NODE_IDS.pitch, "out"),
-    gate: ensureOutputIndex(HOST_NODE_IDS.gate, "out"),
-    velocity: ensureOutputIndex(HOST_NODE_IDS.velocity, "out"),
-    modWheel: ensureOutputIndex(HOST_NODE_IDS.modWheel, "out")
+    pitch: ensureOutputIndex(HOST_SOURCE_PORT_IDS.pitch, "out"),
+    gate: ensureOutputIndex(HOST_SOURCE_PORT_IDS.gate, "out"),
+    velocity: ensureOutputIndex(HOST_SOURCE_PORT_IDS.velocity, "out"),
+    modWheel: ensureOutputIndex(HOST_SOURCE_PORT_IDS.modWheel, "out")
   };
 
   const inputSourceByDestKey = new Map();
   for (const connection of patch.connections || []) {
-    const fromIsHost = HOST_NODE_ID_SET.has(connection.from.nodeId);
+    const fromIsHost = HOST_SOURCE_PORT_ID_SET.has(connection.from.nodeId);
     if (!fromIsHost && !nodeById.has(connection.from.nodeId)) {
       continue;
     }

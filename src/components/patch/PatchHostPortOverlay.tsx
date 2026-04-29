@@ -9,7 +9,7 @@ import {
   resolveHostPatchPortTint,
   resolveOutputHostPatchPortRect
 } from "@/components/patch/patchCanvasGeometry";
-import { HOST_PORT_IDS, SOURCE_HOST_NODE_IDS } from "@/lib/patch/constants";
+import { HOST_PORT_IDS, SOURCE_HOST_PORT_IDS } from "@/lib/patch/constants";
 import { getPatchOutputPort } from "@/lib/patch/ports";
 import { Patch } from "@/types/patch";
 
@@ -39,7 +39,7 @@ function resolveOverlayPorts(
   scrollTop: number,
   zoom: number
 ): HostOverlayPort[] {
-  const sourcePorts: HostOverlayPort[] = SOURCE_HOST_NODE_IDS.map((nodeId): HostOverlayPort | null => {
+  const sourcePorts: HostOverlayPort[] = SOURCE_HOST_PORT_IDS.map((nodeId): HostOverlayPort | null => {
     const rect = resolveHostPatchPortRect(nodeId);
     if (!rect) {
       return null;

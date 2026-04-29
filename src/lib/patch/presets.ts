@@ -1,5 +1,5 @@
 import { createDefaultParamsForType } from "@/lib/patch/moduleRegistry";
-import { HOST_NODE_IDS } from "@/lib/patch/constants";
+import { HOST_PORT_IDS } from "@/lib/patch/constants";
 import { createDefaultProjectFromTemplate, createEmptyProjectFromPresets } from "@/lib/defaultProjectTemplate";
 import { createId } from "@/lib/ids";
 import { normalizeMacroBindingIds } from "@/lib/patch/macroBindings";
@@ -8,10 +8,10 @@ import { Project } from "@/types/music";
 import { Patch, PatchMeta } from "@/types/patch";
 
 const noteCore = {
-  pitch: HOST_NODE_IDS.pitch,
-  gate: HOST_NODE_IDS.gate,
-  velocity: HOST_NODE_IDS.velocity,
-  mod: HOST_NODE_IDS.modWheel
+  pitch: HOST_PORT_IDS.pitch,
+  gate: HOST_PORT_IDS.gate,
+  velocity: HOST_PORT_IDS.velocity,
+  mod: HOST_PORT_IDS.modWheel
 };
 
 export const createClearPatch = ({

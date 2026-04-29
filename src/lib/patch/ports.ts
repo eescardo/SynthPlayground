@@ -4,7 +4,7 @@ import {
   HOST_PATCH_PORT_IDS,
   HOST_PATCH_PORT_TYPE_BY_ID,
   HOST_PORT_IDS,
-  SOURCE_HOST_NODE_IDS
+  SOURCE_HOST_PORT_IDS
 } from "@/lib/patch/constants";
 import { Patch, PatchNode, PatchPort } from "@/types/patch";
 
@@ -24,7 +24,7 @@ export function createPatchOutputPort(params?: PatchNode["params"]): PatchPort {
   };
 }
 
-const HOST_SOURCE_PORT_LABEL_BY_ID: Record<(typeof SOURCE_HOST_NODE_IDS)[number], string> = {
+const HOST_SOURCE_PORT_LABEL_BY_ID: Record<(typeof SOURCE_HOST_PORT_IDS)[number], string> = {
   [HOST_PORT_IDS.pitch]: "pitch",
   [HOST_PORT_IDS.gate]: "gate",
   [HOST_PORT_IDS.velocity]: "velocity",
@@ -35,7 +35,7 @@ export function isHostPatchPortId(id: string): id is (typeof HOST_PATCH_PORT_IDS
   return HOST_PATCH_PORT_IDS.includes(id as (typeof HOST_PATCH_PORT_IDS)[number]);
 }
 
-export function createHostSourcePatchPort(id: (typeof SOURCE_HOST_NODE_IDS)[number]): PatchPort {
+export function createHostSourcePatchPort(id: (typeof SOURCE_HOST_PORT_IDS)[number]): PatchPort {
   return {
     id,
     typeId: HOST_PATCH_PORT_TYPE_BY_ID[id],
@@ -46,7 +46,7 @@ export function createHostSourcePatchPort(id: (typeof SOURCE_HOST_NODE_IDS)[numb
 }
 
 export function getHostSourcePatchPorts(): PatchPort[] {
-  return SOURCE_HOST_NODE_IDS.map((id) => createHostSourcePatchPort(id));
+  return SOURCE_HOST_PORT_IDS.map((id) => createHostSourcePatchPort(id));
 }
 
 export function getPatchPorts(patch: Pick<Patch, "ports">): PatchPort[] {

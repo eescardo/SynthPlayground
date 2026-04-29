@@ -4,7 +4,7 @@ import { ChildProcess, spawn } from "node:child_process";
 import { expect, Locator, Page } from "@playwright/test";
 import { createDefaultProject } from "../../src/lib/patch/presets";
 import { createId } from "../../src/lib/ids";
-import { HOST_NODE_IDS } from "../../src/lib/patch/constants";
+import { HOST_PORT_IDS } from "../../src/lib/patch/constants";
 import { createDefaultParamsForType, getModuleSchema } from "../../src/lib/patch/moduleRegistry";
 import { Project } from "../../src/types/music";
 import { Patch } from "../../src/types/patch";
@@ -234,12 +234,12 @@ export const createSamplePlayerCaptureProject = (): Project => {
     connections: [
       {
         id: "sample_gate",
-        from: { nodeId: HOST_NODE_IDS.gate, portId: "out" },
+        from: { nodeId: HOST_PORT_IDS.gate, portId: "out" },
         to: { nodeId: sampleNodeId, portId: "gate" }
       },
       {
         id: "sample_pitch",
-        from: { nodeId: HOST_NODE_IDS.pitch, portId: "out" },
+        from: { nodeId: HOST_PORT_IDS.pitch, portId: "out" },
         to: { nodeId: sampleNodeId, portId: "pitch" }
       },
       {
@@ -370,12 +370,12 @@ export const createBaselineDiffCaptureProject = (): Project => {
     connections: [
       {
         id: "pitch_to_vco",
-        from: { nodeId: HOST_NODE_IDS.pitch, portId: "out" },
+        from: { nodeId: HOST_PORT_IDS.pitch, portId: "out" },
         to: { nodeId: "vco1", portId: "pitch" }
       },
       {
         id: "gate_to_env",
-        from: { nodeId: HOST_NODE_IDS.gate, portId: "out" },
+        from: { nodeId: HOST_PORT_IDS.gate, portId: "out" },
         to: { nodeId: "env1", portId: "gate" }
       },
       {
