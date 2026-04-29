@@ -251,4 +251,21 @@ describe("patch validation", () => {
     expect(result.ok).toBe(false);
     expect(findIssue(patch, "required-port-unconnected", "output", "in")).toBeTruthy();
   });
+
+  it("rejects patches without an Output port", () => {
+    const patch = createClearPatch({ id: "missing_output", name: "Missing Output" });
+    patch.ports = [];
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "output-port-count",
+          context: { outputCount: "0" }
+        })
+      ])
+    );
+  });
 });

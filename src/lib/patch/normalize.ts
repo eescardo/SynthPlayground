@@ -140,6 +140,11 @@ export function normalizePatchOutputPort<T extends PatchWithLegacyOutput>(patch:
   const existingOutputPort =
     getPatchPorts(patch).find((port) => port.id === ioOutputId && port.typeId === AUDIO_OUTPUT_PORT_TYPE_ID) ??
     getPatchPorts(patch).find((port) => port.typeId === AUDIO_OUTPUT_PORT_TYPE_ID);
+  const patchWithoutIo = { ...patch };
+  delete patchWithoutIo.io;
+  if (!existingOutputPort && !legacyOutputNode) {
+    return patchWithoutIo;
+  }
   const outputParams = existingOutputPort?.params ?? legacyOutputNode?.params;
   const canonicalOutputPort = createPatchOutputPort(outputParams);
   const legacyOutputId = existingOutputPort?.id ?? legacyOutputNode?.id ?? ioOutputId;
@@ -151,8 +156,6 @@ export function normalizePatchOutputPort<T extends PatchWithLegacyOutput>(patch:
       .map((port) => [port.id, port] as const)
   );
   outputPortById.set(canonicalOutputPort.id, canonicalOutputPort);
-  const patchWithoutIo = { ...patch };
-  delete patchWithoutIo.io;
 
   return {
     ...patchWithoutIo,
