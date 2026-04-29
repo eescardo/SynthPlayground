@@ -8,12 +8,12 @@ import {
 } from "@/lib/patch/constants";
 import { Patch, PatchNode, PatchPort } from "@/types/patch";
 
-export const DEFAULT_AUDIO_OUTPUT_PORT_ID = "output";
+export const PATCH_OUTPUT_PORT_ID = "output";
 export const AUDIO_OUTPUT_PORT_TYPE_ID = "Output";
 
-export function createDefaultAudioOutputPort(id = DEFAULT_AUDIO_OUTPUT_PORT_ID, params?: PatchNode["params"]): PatchPort {
+export function createPatchOutputPort(params?: PatchNode["params"]): PatchPort {
   return {
-    id,
+    id: PATCH_OUTPUT_PORT_ID,
     typeId: AUDIO_OUTPUT_PORT_TYPE_ID,
     label: "output",
     direction: "sink",
@@ -67,10 +67,7 @@ export function getPatchOutputPort(patch: Pick<Patch, "io" | "nodes" | "ports">)
   if (port) {
     return { ...port, direction: "sink" };
   }
-  const legacyOutputNode =
-    patch.nodes.find((node) => node.id === patch.io.audioOutNodeId && node.typeId === AUDIO_OUTPUT_PORT_TYPE_ID) ??
-    patch.nodes.find((node) => node.typeId === AUDIO_OUTPUT_PORT_TYPE_ID);
-  return legacyOutputNode ? createDefaultAudioOutputPort(legacyOutputNode.id, legacyOutputNode.params) : undefined;
+  return undefined;
 }
 
 export function getPatchBoundaryPorts(patch: Pick<Patch, "io" | "nodes" | "ports">): PatchPort[] {
@@ -80,79 +77,4 @@ export function getPatchBoundaryPorts(patch: Pick<Patch, "io" | "nodes" | "ports
 
 export function getPatchParameterTargets(patch: Pick<Patch, "nodes" | "ports">): PatchNode[] {
   return [...patch.nodes, ...getPatchPorts(patch)];
-}
-
-export function migrateLegacyOutputNodeToPort<T extends Patch>(patch: T): T {
-  const explicitOutputId = patch.io.audioOutNodeId;
-  const legacyOutputNode =
-    patch.nodes.find((node) => node.id === explicitOutputId && node.typeId === AUDIO_OUTPUT_PORT_TYPE_ID) ??
-    patch.nodes.find((node) => node.typeId === AUDIO_OUTPUT_PORT_TYPE_ID);
-  const existingOutputPort =
-    getPatchPorts(patch).find((port) => port.id === explicitOutputId && port.typeId === AUDIO_OUTPUT_PORT_TYPE_ID) ??
-    getPatchPorts(patch).find((port) => port.typeId === AUDIO_OUTPUT_PORT_TYPE_ID);
-  const sourceOutputPort =
-    existingOutputPort ??
-    createDefaultAudioOutputPort((legacyOutputNode?.id ?? explicitOutputId) || DEFAULT_AUDIO_OUTPUT_PORT_ID, legacyOutputNode?.params);
-  const previousOutputId = sourceOutputPort.id;
-  const outputPort = {
-    ...sourceOutputPort,
-    id: DEFAULT_AUDIO_OUTPUT_PORT_ID,
-    label: "output",
-    direction: "sink" as const
-  };
-  const rewriteOutputNodeId = (nodeId: string) =>
-    nodeId === previousOutputId || (explicitOutputId.length > 0 && nodeId === explicitOutputId) ? outputPort.id : nodeId;
-  const outputPortById = new Map(
-    getPatchPorts(patch)
-      .filter((port) => port.typeId !== AUDIO_OUTPUT_PORT_TYPE_ID)
-      .map((port) => [port.id, port] as const)
-  );
-  outputPortById.set(outputPort.id, outputPort);
-
-  return {
-    ...patch,
-    nodes: patch.nodes.filter((node) => node.typeId !== AUDIO_OUTPUT_PORT_TYPE_ID),
-    ports: [...outputPortById.values()],
-    connections: patch.connections.map((connection) => ({
-      ...connection,
-      from: {
-        ...connection.from,
-        nodeId: rewriteOutputNodeId(connection.from.nodeId)
-      },
-      to: {
-        ...connection.to,
-        nodeId: rewriteOutputNodeId(connection.to.nodeId)
-      }
-    })),
-    ui: {
-      ...patch.ui,
-      macros: patch.ui.macros.map((macro) => ({
-        ...macro,
-        bindings: macro.bindings.map((binding) => ({
-          ...binding,
-          nodeId: rewriteOutputNodeId(binding.nodeId)
-        }))
-      })),
-      paramRanges: patch.ui.paramRanges
-        ? Object.fromEntries(
-            Object.entries(patch.ui.paramRanges).map(([key, range]) => {
-              const separatorIndex = key.indexOf(":");
-              if (separatorIndex < 0) {
-                return [key, range];
-              }
-              const nodeId = key.slice(0, separatorIndex);
-              const paramId = key.slice(separatorIndex + 1);
-              return [`${rewriteOutputNodeId(nodeId)}:${paramId}`, range];
-            })
-          )
-        : undefined
-    },
-    layout: {
-      nodes: patch.layout.nodes.filter((node) => rewriteOutputNodeId(node.nodeId) !== outputPort.id)
-    },
-    io: {
-      audioOutNodeId: outputPort.id,
-      audioOutPortId: "in"
-    }
-  };
 }

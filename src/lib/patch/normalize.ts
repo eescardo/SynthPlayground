@@ -3,7 +3,7 @@ import { clamp, clamp01, clampRange } from "@/lib/numeric";
 import { ensurePatchLayout } from "@/lib/patch/autoLayout";
 import { createMacroBindingId, normalizeMacroBindingIds } from "@/lib/patch/macroBindings";
 import { normalizeMacroKeyframeCount } from "@/lib/patch/macroKeyframes";
-import { migrateLegacyOutputNodeToPort } from "@/lib/patch/ports";
+import { AUDIO_OUTPUT_PORT_TYPE_ID, createPatchOutputPort, getPatchPorts, PATCH_OUTPUT_PORT_ID } from "@/lib/patch/ports";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
 import { Patch, PatchConnection, PatchMacro, PatchMeta, PatchNode, PatchParamSliderRange, PatchPort } from "@/types/patch";
 
@@ -122,6 +122,74 @@ const sanitizePatchMacro = (raw: unknown, index: number): PatchMacro => {
   };
 };
 
+export function normalizePatchOutputPort<T extends Patch>(patch: T): T {
+  const ioOutputId = patch.io.audioOutNodeId;
+  const legacyOutputNode =
+    patch.nodes.find((node) => node.id === ioOutputId && node.typeId === AUDIO_OUTPUT_PORT_TYPE_ID) ??
+    patch.nodes.find((node) => node.typeId === AUDIO_OUTPUT_PORT_TYPE_ID);
+  const existingOutputPort =
+    getPatchPorts(patch).find((port) => port.id === ioOutputId && port.typeId === AUDIO_OUTPUT_PORT_TYPE_ID) ??
+    getPatchPorts(patch).find((port) => port.typeId === AUDIO_OUTPUT_PORT_TYPE_ID);
+  const outputParams = existingOutputPort?.params ?? legacyOutputNode?.params;
+  const canonicalOutputPort = createPatchOutputPort(outputParams);
+  const legacyOutputId = existingOutputPort?.id ?? legacyOutputNode?.id ?? ioOutputId;
+  const rewriteOutputId = (nodeId: string) =>
+    nodeId === legacyOutputId || (ioOutputId.length > 0 && nodeId === ioOutputId) ? PATCH_OUTPUT_PORT_ID : nodeId;
+  const outputPortById = new Map(
+    getPatchPorts(patch)
+      .filter((port) => port.typeId !== AUDIO_OUTPUT_PORT_TYPE_ID)
+      .map((port) => [port.id, port] as const)
+  );
+  outputPortById.set(canonicalOutputPort.id, canonicalOutputPort);
+
+  return {
+    ...patch,
+    nodes: patch.nodes.filter((node) => node.typeId !== AUDIO_OUTPUT_PORT_TYPE_ID),
+    ports: [...outputPortById.values()],
+    connections: patch.connections.map((connection) => ({
+      ...connection,
+      from: {
+        ...connection.from,
+        nodeId: rewriteOutputId(connection.from.nodeId)
+      },
+      to: {
+        ...connection.to,
+        nodeId: rewriteOutputId(connection.to.nodeId)
+      }
+    })),
+    ui: {
+      ...patch.ui,
+      macros: patch.ui.macros.map((macro) => ({
+        ...macro,
+        bindings: macro.bindings.map((binding) => ({
+          ...binding,
+          nodeId: rewriteOutputId(binding.nodeId)
+        }))
+      })),
+      paramRanges: patch.ui.paramRanges
+        ? Object.fromEntries(
+            Object.entries(patch.ui.paramRanges).map(([key, range]) => {
+              const separatorIndex = key.indexOf(":");
+              if (separatorIndex < 0) {
+                return [key, range];
+              }
+              const nodeId = key.slice(0, separatorIndex);
+              const paramId = key.slice(separatorIndex + 1);
+              return [`${rewriteOutputId(nodeId)}:${paramId}`, range];
+            })
+          )
+        : undefined
+    },
+    layout: {
+      nodes: patch.layout.nodes.filter((node) => rewriteOutputId(node.nodeId) !== PATCH_OUTPUT_PORT_ID)
+    },
+    io: {
+      audioOutNodeId: PATCH_OUTPUT_PORT_ID,
+      audioOutPortId: "in"
+    }
+  };
+}
+
 export function normalizePatch(
   raw: unknown,
   options: { fallbackId: string; fallbackName: string }
@@ -159,7 +227,7 @@ export function normalizePatch(
   const nodes = (Array.isArray(patch.nodes) ? patch.nodes : []).map((node, index) => sanitizePatchNode(node, `node_${index}`));
   const portsRaw = (Array.isArray(patch.ports) ? patch.ports : []).map((port, index) => sanitizePatchPort(port, `port_${index}`));
 
-  return ensurePatchLayout(normalizeMacroBindingIds(migrateLegacyOutputNodeToPort({
+  return ensurePatchLayout(normalizeMacroBindingIds(normalizePatchOutputPort({
     schemaVersion: Math.max(1, Math.floor(asFiniteNumber(patch.schemaVersion, 1))),
     id: patchId,
     name: asString(patch.name, options.fallbackName),

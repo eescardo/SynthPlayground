@@ -4,9 +4,9 @@ import { getMacroBindingKeyframeCount } from "@/lib/patch/macroKeyframes";
 import {
   getHostSourcePatchPorts,
   getPatchBoundaryPorts,
-  getPatchPorts,
-  migrateLegacyOutputNodeToPort
+  getPatchPorts
 } from "@/lib/patch/ports";
+import { normalizePatchOutputPort } from "@/lib/patch/normalize";
 import { CompiledNode, CompiledOp, CompiledPlan, Patch, PatchValidationIssue, PatchValidationResult, ParamValue, PatchNode } from "@/types/patch";
 
 const pushError = (
@@ -145,7 +145,7 @@ export const validatePatchConnectionCandidate = (
   toNodeId: string,
   toPortId: string
 ): PatchValidationIssue[] => {
-  const patch = migrateLegacyOutputNodeToPort(inputPatch);
+  const patch = normalizePatchOutputPort(inputPatch);
   const issues: PatchValidationIssue[] = [];
   const allNodeTypes = resolveAllNodeTypes(patch);
   const resolved = resolveConnectionValidation(issues, allNodeTypes, fromNodeId, fromPortId, toNodeId, toPortId);
@@ -174,7 +174,7 @@ export const validatePatchConnectionCandidate = (
 };
 
 export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
-  const patch = migrateLegacyOutputNodeToPort(inputPatch);
+  const patch = normalizePatchOutputPort(inputPatch);
   const issues: PatchValidationIssue[] = [];
   const macroIds = new Set<string>();
   const macroBindingIds = new Set<string>();
@@ -483,7 +483,7 @@ const topologicalSort = (nodes: string[], edges: Array<{ from: string; to: strin
 };
 
 export const compilePatchPlan = (inputPatch: Patch, sampleRate = 48000, blockSize = 128): CompiledPlan => {
-  const patch = migrateLegacyOutputNodeToPort(inputPatch);
+  const patch = normalizePatchOutputPort(inputPatch);
   const validation = validatePatch(patch);
   if (!validation.ok) {
     throw new Error(`Patch validation failed: ${validation.issues.map((issue) => issue.message).join("; ")}`);

@@ -3,17 +3,9 @@ import { HOST_NODE_IDS } from "@/lib/patch/constants";
 import { createDefaultProjectFromTemplate, createEmptyProjectFromPresets } from "@/lib/defaultProjectTemplate";
 import { createId } from "@/lib/ids";
 import { normalizeMacroBindingIds } from "@/lib/patch/macroBindings";
-import { createDefaultAudioOutputPort, migrateLegacyOutputNodeToPort } from "@/lib/patch/ports";
+import { createPatchOutputPort, PATCH_OUTPUT_PORT_ID } from "@/lib/patch/ports";
 import { Project } from "@/types/music";
 import { Patch, PatchMeta } from "@/types/patch";
-
-const outputNode = (id: string) => ({
-  id,
-  typeId: "Output",
-  params: {
-    ...createDefaultParamsForType("Output")
-  }
-});
 
 const noteCore = {
   pitch: HOST_NODE_IDS.pitch,
@@ -26,13 +18,11 @@ export const createClearPatch = ({
   id,
   name = "New Patch",
   meta = { source: "custom" } satisfies PatchMeta,
-  outputNodeId = "output",
   canvasZoom
 }: {
   id: string;
   name?: string;
   meta?: PatchMeta;
-  outputNodeId?: string;
   canvasZoom?: number;
 }): Patch => ({
   schemaVersion: 1,
@@ -40,7 +30,7 @@ export const createClearPatch = ({
   name,
   meta,
   nodes: [],
-  ports: [createDefaultAudioOutputPort(outputNodeId)],
+  ports: [createPatchOutputPort()],
   connections: [],
   ui: {
     macros: [],
@@ -50,7 +40,7 @@ export const createClearPatch = ({
     nodes: []
   },
   io: {
-    audioOutNodeId: outputNodeId,
+    audioOutNodeId: PATCH_OUTPUT_PORT_ID,
     audioOutPortId: "in"
   }
 });
@@ -180,9 +170,9 @@ export const bassPatch = (): Patch => {
           mix: 0.22,
           type: "tanh"
         }
-      },
-      outputNode(outId)
+      }
     ],
+    ports: [createPatchOutputPort()],
     connections: [
       {
         id: "c1",
@@ -509,9 +499,9 @@ export const padPatch = (): Patch => {
         typeId: "VCF",
         params: { ...createDefaultParamsForType("VCF"), cutoffHz: 1450, resonance: 0.84, cutoffModAmountOct: 1.6 }
       },
-      { id: vca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), bias: 0, gain: 1 } },
-      outputNode(out)
+      { id: vca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), bias: 0, gain: 1 } }
     ],
+    ports: [createPatchOutputPort()],
     connections: [
       { id: "c1", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: vco1, portId: "pitch" } },
       { id: "c2", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: vco2, portId: "pitch" } },
@@ -670,9 +660,9 @@ export const pluckPatch = (): Patch => {
         typeId: "VCF",
         params: { ...createDefaultParamsForType("VCF"), cutoffHz: 980, resonance: 0.94, cutoffModAmountOct: 0.45 }
       },
-      { id: ampVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), bias: 0, gain: 1 } },
-      outputNode(out)
+      { id: ampVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), bias: 0, gain: 1 } }
     ],
+    ports: [createPatchOutputPort()],
     connections: [
       { id: "c1", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: string, portId: "pitch" } },
       { id: "c1b", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: bodyTranspose, portId: "in" } },
@@ -963,9 +953,9 @@ export const keysPatch = (): Patch => {
         params: { ...createDefaultParamsForType("ADSR"), attack: 0.001, decay: 0.25, sustain: 0.1, release: 0.3 }
       },
       { id: vca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 1, bias: 0 } },
-      { id: sat, typeId: "Saturation", params: { ...createDefaultParamsForType("Saturation"), driveDb: 6, mix: 0.25 } },
-      outputNode(out)
+      { id: sat, typeId: "Saturation", params: { ...createDefaultParamsForType("Saturation"), driveDb: 6, mix: 0.25 } }
     ],
+    ports: [createPatchOutputPort()],
     connections: [
       { id: "c1", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: vco, portId: "pitch" } },
       { id: "c2", from: { nodeId: noteCore.gate, portId: "out" }, to: { nodeId: env, portId: "gate" } },
@@ -1020,9 +1010,9 @@ export const brassPatch = (): Patch => {
         params: { ...createDefaultParamsForType("ADSR"), attack: 0.06, decay: 0.2, sustain: 0.7, release: 0.4 }
       },
       { id: vcf, typeId: "VCF", params: { ...createDefaultParamsForType("VCF"), cutoffHz: 900, resonance: 0.8 } },
-      { id: vca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 1, bias: 0 } },
-      outputNode(out)
+      { id: vca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 1, bias: 0 } }
     ],
+    ports: [createPatchOutputPort()],
     connections: [
       { id: "c1", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: vco, portId: "pitch" } },
       { id: "c2", from: { nodeId: noteCore.gate, portId: "out" }, to: { nodeId: env, portId: "gate" } },
@@ -1100,9 +1090,9 @@ export const drumPatch = (): Patch => {
       { id: bodyVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.34, bias: 0 } },
       { id: noiseVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.82, bias: 0 } },
       { id: mix, typeId: "Mixer4", params: { ...createDefaultParamsForType("Mixer4"), gain1: 0.62, gain2: 0.92 } },
-      { id: sat, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), gainDb: 6, mix: 0.14 } },
-      outputNode(out)
+      { id: sat, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), gainDb: 6, mix: 0.14 } }
     ],
+    ports: [createPatchOutputPort()],
     connections: [
       { id: "c1", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: vco, portId: "pitch" } },
       { id: "c2", from: { nodeId: noteCore.gate, portId: "out" }, to: { nodeId: bodyEnv, portId: "gate" } },
@@ -1235,16 +1225,9 @@ export const bassDrumPatch = (): Patch => {
       { id: bodyVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 1, bias: 0 } },
       { id: clickVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.34, bias: 0 } },
       { id: mix, typeId: "Mixer4", params: { ...createDefaultParamsForType("Mixer4"), gain1: 1, gain2: 0.34, gain3: 0 } },
-      { id: sat, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), gainDb: 20, mix: 0.34 } },
-      {
-        id: out,
-        typeId: "Output",
-        params: {
-          ...createDefaultParamsForType("Output"),
-          gainDb: 6
-        }
-      }
+      { id: sat, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), gainDb: 20, mix: 0.34 } }
     ],
+    ports: [createPatchOutputPort({ gainDb: 6 })],
     connections: [
       { id: "c1", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: vco, portId: "pitch" } },
       { id: "c1a", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: subTranspose, portId: "in" } },
@@ -1330,7 +1313,7 @@ export const presetPatches = [
   pluckPatch(),
   drumPatch(),
   bassDrumPatch()
-].map((patch) => normalizeMacroBindingIds(migrateLegacyOutputNodeToPort(patch)));
+].map(normalizeMacroBindingIds);
 
 // Build a fresh default project from the checked-in song template while always
 // sourcing preset patches from the latest bundled definitions. Template layouts
