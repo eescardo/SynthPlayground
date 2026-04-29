@@ -63,6 +63,8 @@ export function getPatchPortSchema(port: PatchPort) {
 
 export function getPatchOutputPort(patch: Pick<Patch, "io" | "nodes" | "ports">): PatchPort | undefined {
   const ports = getPatchPorts(patch);
+  // TODO(output-port-legacy): Once every patch is normalized to `io.audioOutNodeId === "output"`,
+  // remove the type-based fallback and require the canonical output port id.
   const port = ports.find((entry) => entry.id === patch.io.audioOutNodeId) ?? ports.find((entry) => entry.typeId === AUDIO_OUTPUT_PORT_TYPE_ID);
   if (port) {
     return { ...port, direction: "sink" };

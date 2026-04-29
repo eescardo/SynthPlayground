@@ -123,6 +123,8 @@ const sanitizePatchMacro = (raw: unknown, index: number): PatchMacro => {
 };
 
 export function normalizePatchOutputPort<T extends Patch>(patch: T): T {
+  // TODO(output-port-legacy): Remove this compatibility adapter once all saved
+  // projects/imports are guaranteed to declare the canonical `output` patch port.
   const ioOutputId = patch.io.audioOutNodeId;
   const legacyOutputNode =
     patch.nodes.find((node) => node.id === ioOutputId && node.typeId === AUDIO_OUTPUT_PORT_TYPE_ID) ??

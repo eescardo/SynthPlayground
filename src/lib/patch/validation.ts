@@ -145,6 +145,8 @@ export const validatePatchConnectionCandidate = (
   toNodeId: string,
   toPortId: string
 ): PatchValidationIssue[] => {
+  // TODO(output-port-legacy): Drop this defensive normalization when callers only
+  // pass patches that have already gone through normalizePatch.
   const patch = normalizePatchOutputPort(inputPatch);
   const issues: PatchValidationIssue[] = [];
   const allNodeTypes = resolveAllNodeTypes(patch);
@@ -174,6 +176,8 @@ export const validatePatchConnectionCandidate = (
 };
 
 export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
+  // TODO(output-port-legacy): Drop this defensive normalization when callers only
+  // pass patches that have already gone through normalizePatch.
   const patch = normalizePatchOutputPort(inputPatch);
   const issues: PatchValidationIssue[] = [];
   const macroIds = new Set<string>();
@@ -483,6 +487,8 @@ const topologicalSort = (nodes: string[], edges: Array<{ from: string; to: strin
 };
 
 export const compilePatchPlan = (inputPatch: Patch, sampleRate = 48000, blockSize = 128): CompiledPlan => {
+  // TODO(output-port-legacy): Drop this defensive normalization when callers only
+  // pass patches that have already gone through normalizePatch.
   const patch = normalizePatchOutputPort(inputPatch);
   const validation = validatePatch(patch);
   if (!validation.ok) {
