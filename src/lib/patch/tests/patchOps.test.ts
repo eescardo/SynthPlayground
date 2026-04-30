@@ -2,9 +2,22 @@ import { describe, expect, it } from "vitest";
 
 import { applyMacroValue, applyPatchOp } from "@/lib/patch/ops";
 import { getMacroBindingKeyframeCount, resolveMacroBindingValue } from "@/lib/patch/macroKeyframes";
-import { pluckPatch } from "@/lib/patch/presets";
+import { createClearPatch, pluckPatch } from "@/lib/patch/presets";
 
 describe("patch ops", () => {
+  it("rejects adding nodes with ids reserved for patch boundary ports", () => {
+    const patch = createClearPatch({ id: "reserved_ids", name: "Reserved IDs" });
+
+    expect(() =>
+      applyPatchOp(patch, {
+        type: "addNode",
+        nodeId: "pitch",
+        typeId: "CVTranspose",
+        layoutPos: { x: 0, y: 0 }
+      })
+    ).toThrow("Node id is reserved for a patch boundary port: pitch");
+  });
+
   it("applies macro slider moves to bound params without mutating defaults", () => {
     const patch = pluckPatch();
     const macro = patch.ui.macros[0];

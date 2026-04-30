@@ -54,6 +54,26 @@ describe("patch validation", () => {
     expect(result.issues.some((issue) => issue.message.includes("Macro binds the same parameter more than once"))).toBe(true);
   });
 
+  it("rejects module ids reserved for patch boundary ports", () => {
+    const patch = createClearPatch({ id: "reserved_ids", name: "Reserved IDs" });
+    patch.nodes.push(
+      { id: "pitch", typeId: "CVTranspose", params: {} },
+      { id: "$host.gate", typeId: "ADSR", params: {} },
+      { id: "output", typeId: "VCA", params: {} }
+    );
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "reserved-node-id", context: { nodeId: "pitch" } }),
+        expect.objectContaining({ code: "reserved-node-id", context: { nodeId: "$host.gate" } }),
+        expect.objectContaining({ code: "reserved-node-id", context: { nodeId: "output" } })
+      ])
+    );
+  });
+
   it("rejects bindings whose keyframe count differs from the macro", () => {
     const patch = pluckPatch();
     patch.ui.macros[0].keyframeCount = 2;

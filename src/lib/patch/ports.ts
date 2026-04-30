@@ -10,6 +10,14 @@ import { Patch, PatchNode, PatchPort } from "@/types/patch";
 
 export const PATCH_OUTPUT_PORT_ID = "output";
 export const AUDIO_OUTPUT_PORT_TYPE_ID = "Output";
+export const RESERVED_PATCH_MODULE_IDS = new Set<string>([
+  PATCH_OUTPUT_PORT_ID,
+  ...HOST_PATCH_PORT_IDS,
+  "pitch",
+  "gate",
+  "velocity",
+  "modwheel"
+]);
 
 export function createPatchOutputPort(params?: PatchNode["params"]): PatchPort {
   return {

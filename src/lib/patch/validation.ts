@@ -4,7 +4,8 @@ import { getMacroBindingKeyframeCount } from "@/lib/patch/macroKeyframes";
 import {
   getHostSourcePatchPorts,
   getPatchBoundaryPorts,
-  getPatchPorts
+  getPatchPorts,
+  RESERVED_PATCH_MODULE_IDS
 } from "@/lib/patch/ports";
 import { normalizePatchOutputPort } from "@/lib/patch/normalize";
 import { CompiledNode, CompiledOp, CompiledPlan, Patch, PatchValidationIssue, PatchValidationResult, ParamValue, PatchNode } from "@/types/patch";
@@ -191,6 +192,9 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
       pushError(issues, `Duplicate node id: ${node.id}`, { nodeId: node.id });
     }
     uniqueNodeIds.add(node.id);
+    if (RESERVED_PATCH_MODULE_IDS.has(node.id)) {
+      pushError(issues, `Node id is reserved for a patch boundary port: ${node.id}`, { nodeId: node.id }, "reserved-node-id");
+    }
 
     if (!moduleRegistryById.has(node.typeId)) {
       pushError(issues, `Unknown node type: ${node.typeId}`, { nodeId: node.id, typeId: node.typeId });

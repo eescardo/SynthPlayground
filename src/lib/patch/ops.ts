@@ -10,7 +10,7 @@ import {
   resolveMacroBindingValue,
   setMacroBindingValueAtKeyframe
 } from "@/lib/patch/macroKeyframes";
-import { getPatchParameterTargets } from "@/lib/patch/ports";
+import { getPatchParameterTargets, RESERVED_PATCH_MODULE_IDS } from "@/lib/patch/ports";
 import { MacroBinding, Patch } from "@/types/patch";
 import { PatchHistoryState, PatchOp } from "@/types/ops";
 
@@ -56,6 +56,9 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
     case "addNode": {
       if (next.nodes.some((node) => node.id === op.nodeId)) {
         throw new Error(`Node already exists: ${op.nodeId}`);
+      }
+      if (RESERVED_PATCH_MODULE_IDS.has(op.nodeId)) {
+        throw new Error(`Node id is reserved for a patch boundary port: ${op.nodeId}`);
       }
       getModuleSchema(op.typeId);
       next.nodes.push({
