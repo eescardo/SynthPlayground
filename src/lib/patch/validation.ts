@@ -418,10 +418,6 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
     }
   }
 
-  const outputNodes = patch.nodes.filter((node) => node.typeId === "Output");
-  if (outputNodes.length > 0) {
-    pushError(issues, `Output must be declared as a patch port`, { outputCount: String(outputNodes.length) }, "output-node-not-allowed");
-  }
   const outputPorts = getPatchPorts(patch).filter((port) => port.typeId === "Output");
   if (outputPorts.length !== 1) {
     pushError(issues, `Patch must include exactly one Output port`, { outputCount: String(outputPorts.length) }, "output-port-count");
