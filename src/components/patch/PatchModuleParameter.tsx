@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
-  getMacroKeyframePositions,
-  resolveMacroBindingValue
+  getMacroKeyframePositions
 } from "@/lib/patch/macroKeyframes";
 import { PatchDiff } from "@/lib/patch/diff";
 import { EditableNumberLabel, MacroBindingDetails, ParamMacroControl } from "@/components/patch/PatchInspectorControls";
+import { resolveParamBindingState, resolveParamControlValue } from "@/components/patch/patchModuleParameterState";
 import { createMacroBindingId, createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
 import { clamp, clampRange } from "@/lib/numeric";
 import { MacroBinding, Patch, PatchMacro, PatchNode, PatchParamSliderRange, ParamSchema, ParamValue } from "@/types/patch";
@@ -163,43 +163,6 @@ export function shouldRenderParamInGenericInspector(node: PatchNode, param: Para
   return true;
 }
 
-function resolveParamBindingState(
-  patch: Patch,
-  selectedNode: PatchNode,
-  param: ParamSchema,
-  selectedMacroId: string | undefined,
-  selectedMacroKeyframeIndex: number | null,
-  structureLocked: boolean | undefined
-) {
-  const boundMacros = patch.ui.macros.filter((macro) =>
-    macro.bindings.some((binding) => binding.nodeId === selectedNode.id && binding.paramId === param.id)
-  );
-  const activeBindingMacro = boundMacros[0];
-  const isExposed = boundMacros.length > 0;
-  const isEditableSelectedMacroBinding =
-    Boolean(activeBindingMacro) &&
-    !structureLocked &&
-    selectedMacroId === activeBindingMacro?.id &&
-    selectedMacroKeyframeIndex !== null &&
-    param.type === "float";
-  const editableSummary =
-    activeBindingMacro && selectedMacroId === activeBindingMacro.id
-      ? selectedMacroKeyframeIndex !== null
-        ? `Editing ${activeBindingMacro.name} at keyframe ${selectedMacroKeyframeIndex + 1}/${activeBindingMacro.keyframeCount}`
-        : "Bound values unlock when the selected macro is parked on a keyframe notch."
-      : activeBindingMacro
-        ? `Select ${activeBindingMacro.name} and stop on a keyframe notch to edit this binding.`
-        : null;
-
-  return {
-    activeBindingMacro,
-    boundMacros,
-    editableSummary,
-    isEditableSelectedMacroBinding,
-    isExposed
-  };
-}
-
 function commitParamValueChange(props: {
   patch: Patch;
   selectedNode: PatchNode;
@@ -279,10 +242,13 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
     (binding) => binding.nodeId === props.selectedNode.id && binding.paramId === props.param.id
   );
   const sliderRange = resolveParamSliderRange(props.patch, props.selectedNode.id, props.param);
-  const controlValue =
-    activeBinding && typeof props.selectedMacroValue === "number"
-      ? resolveMacroBindingValue(activeBinding, props.selectedMacroValue)
-      : value;
+  const controlValue = resolveParamControlValue({
+    activeBinding,
+    activeBindingMacroId: bindingState.activeBindingMacro?.id,
+    selectedMacroId: props.selectedMacroId,
+    selectedMacroValue: props.selectedMacroValue,
+    value
+  });
   const sliderControlValue =
     props.param.type === "float" && typeof controlValue === "number"
       ? clamp(controlValue, sliderRange.min, sliderRange.max)

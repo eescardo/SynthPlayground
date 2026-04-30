@@ -297,17 +297,17 @@ function drawLfoModuleFace(
   }
 
   ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 1.4;
   drawWavePath(ctx, points, graph);
 
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
   ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textAlign = "left";
-  ctx.fillText(wave, graph.x + 6, graph.y + 11);
+  ctx.fillText(wave, graph.x, graph.y - 3);
   ctx.textAlign = "right";
   const frequencyLabel =
     frequency <= 10 ? `${frequency.toFixed(frequency < 1 ? 2 : 1)}Hz` : `${Math.round(frequency)}Hz fast`;
-  ctx.fillText(frequencyLabel, graph.x + graph.width - 6, graph.y + graph.height - 5);
+  ctx.fillText(frequencyLabel, graph.x + graph.width, graph.y + graph.height + 10);
   ctx.textAlign = "left";
 }
 
@@ -753,6 +753,15 @@ function drawNoiseModuleFace(
   ctx.lineWidth = 1;
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
 
+  ctx.strokeStyle = "rgba(158, 192, 223, 0.14)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(graph.x + 5, graph.y + graph.height - 5);
+  ctx.lineTo(graph.x + graph.width - 5, graph.y + graph.height - 5);
+  ctx.moveTo(graph.x + 5, graph.y + 5);
+  ctx.lineTo(graph.x + 5, graph.y + graph.height - 5);
+  ctx.stroke();
+
   ctx.fillStyle = "rgba(158, 192, 223, 0.10)";
   ctx.fillRect(graph.x + 1, levelToY(gain), graph.width - 2, graph.y + graph.height - levelToY(gain) - 1);
 
@@ -793,8 +802,11 @@ function drawNoiseModuleFace(
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
   ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textAlign = "left";
-  ctx.fillText(color, graph.x + 6, graph.y + 11);
+  ctx.fillText(color, graph.x + 8, graph.y + 11);
+  ctx.fillText("low", graph.x, graph.y + graph.height + 10);
+  ctx.fillText("lvl", graph.x + 8, graph.y + 20);
   ctx.textAlign = "right";
+  ctx.fillText("high freq", graph.x + graph.width, graph.y + graph.height + 10);
   ctx.fillText(`gain ${gain.toFixed(2)}`, graph.x + graph.width - 6, graph.y + graph.height - 5);
   ctx.textAlign = "left";
 }
@@ -855,9 +867,9 @@ function drawKarplusStrongModuleFace(
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
   ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textAlign = "left";
-  ctx.fillText(excitation, graph.x + 6, graph.y + 11);
+  ctx.fillText(excitation, graph.x, graph.y - 3);
   ctx.textAlign = "right";
-  ctx.fillText(`damp ${damping.toFixed(2)}`, graph.x + graph.width - 6, graph.y + graph.height - 5);
+  ctx.fillText(`damp ${damping.toFixed(2)}`, graph.x + graph.width, graph.y + graph.height + 10);
   ctx.textAlign = "left";
 }
 
