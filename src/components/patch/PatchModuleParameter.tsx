@@ -23,11 +23,36 @@ function resolveParamSliderRange(patch: Patch, nodeId: string, param: ParamSchem
   const schemaRange = getParamNumericRange(param);
   const storedRange = patch.ui.paramRanges?.[buildParamRangeKey(nodeId, param.id)];
   if (!storedRange || param.type !== "float") {
+    if (param.id === "attack" || param.id === "decay" || param.id === "release") {
+      return { min: schemaRange.min, max: Math.min(schemaRange.max, 1000) };
+    }
     return schemaRange;
   }
   const min = clamp(storedRange.min, param.range.min, param.range.max);
   const max = clamp(storedRange.max, param.range.min, param.range.max);
   return clampRange(min, max);
+}
+
+function resolveCurrentValueUnitDisplay(param: ParamSchema) {
+  if (param.type !== "float") {
+    return null;
+  }
+  const isNormalizedPercent = param.range.min === 0 && param.range.max === 1 && (param.unit === "linear" || param.unit === "ratio");
+  if (isNormalizedPercent && param.id !== "curve") {
+    return { label: "%", scale: 100 };
+  }
+  switch (param.unit) {
+    case "Hz":
+    case "ms":
+    case "s":
+    case "dB":
+    case "oct":
+    case "semitones":
+    case "cents":
+      return { label: param.unit, scale: 1 };
+    default:
+      return null;
+  }
 }
 
 function createDefaultBindingForParam(
@@ -263,6 +288,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
       : bindingState.activeBindingMacro
         ? `Select ${bindingState.activeBindingMacro.name} and stop on a keyframe notch to edit this binding.`
         : null;
+  const unitDisplay = resolveCurrentValueUnitDisplay(props.param);
 
   const bindParamToMacro = (macroId: string) => {
     if (props.structureLocked) {
@@ -339,16 +365,22 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
           }}
         />
         {props.param.type === "float" && typeof sliderControlValue === "number" && (
-          <EditableNumberLabel
-            id={`${props.selectedNode.id}:${props.param.id}:value`}
-            value={sliderControlValue}
-            min={sliderRange.min}
-            max={sliderRange.max}
-            className="param-current-value-label"
-            inputClassName="param-current-value-input"
-            disabled={controlDisabled}
-            onCommit={commitValue}
-          />
+          <span className="param-current-value-shell">
+            <EditableNumberLabel
+              id={`${props.selectedNode.id}:${props.param.id}:value`}
+              value={sliderControlValue}
+              min={sliderRange.min}
+              max={sliderRange.max}
+              className="param-current-value-label"
+              inputClassName="param-current-value-input"
+              displayScale={unitDisplay?.scale}
+              disabled={controlDisabled}
+              onCommit={commitValue}
+            />
+            {unitDisplay && (
+              <span className="param-current-value-unit">{unitDisplay.label}</span>
+            )}
+          </span>
         )}
       </div>
       <div className="param-control-stack">

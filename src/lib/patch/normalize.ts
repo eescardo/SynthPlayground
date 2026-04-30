@@ -4,6 +4,7 @@ import { ensurePatchLayout } from "@/lib/patch/autoLayout";
 import { createMacroBindingId, normalizeMacroBindingIds } from "@/lib/patch/macroBindings";
 import { normalizeMacroKeyframeCount } from "@/lib/patch/macroKeyframes";
 import { AUDIO_OUTPUT_PORT_TYPE_ID, createPatchOutputPort, getPatchPorts, PATCH_OUTPUT_PORT_ID } from "@/lib/patch/ports";
+import { CURRENT_PATCH_SCHEMA_VERSION } from "@/lib/patch/schemaVersion";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
 import { Patch, PatchConnection, PatchMacro, PatchMeta, PatchNode, PatchParamSliderRange, PatchPort } from "@/types/patch";
 
@@ -130,6 +131,77 @@ type PatchWithLegacyOutput = Patch & {
   io?: LegacyPatchIo;
 };
 
+const ADSR_TIMING_PARAM_IDS = new Set(["attack", "decay", "release"]);
+
+const secondsToMilliseconds = (value: number): number => value * 1000;
+
+function migrateLegacyAdsrTimingUnits(
+  schemaVersion: number,
+  nodes: PatchNode[],
+  macros: PatchMacro[],
+  paramRanges?: Record<string, PatchParamSliderRange>
+): Pick<Patch, "nodes"> & { macros: PatchMacro[]; paramRanges?: Record<string, PatchParamSliderRange> } {
+  if (schemaVersion >= 2) {
+    return { nodes, macros, paramRanges };
+  }
+
+  const adsrNodeIds = new Set(nodes.filter((node) => node.typeId === "ADSR").map((node) => node.id));
+  if (adsrNodeIds.size === 0) {
+    return { nodes, macros, paramRanges };
+  }
+
+  const migratedNodes = nodes.map((node) => {
+    if (!adsrNodeIds.has(node.id)) {
+      return node;
+    }
+    const params = { ...node.params };
+    for (const paramId of ADSR_TIMING_PARAM_IDS) {
+      const value = params[paramId];
+      if (typeof value === "number" && Number.isFinite(value)) {
+        params[paramId] = secondsToMilliseconds(value);
+      }
+    }
+    return { ...node, params };
+  });
+
+  const migratedMacros = macros.map((macro) => ({
+    ...macro,
+    bindings: macro.bindings.map((binding) => {
+      if (!adsrNodeIds.has(binding.nodeId) || !ADSR_TIMING_PARAM_IDS.has(binding.paramId)) {
+        return binding;
+      }
+      return {
+        ...binding,
+        min: binding.min === undefined ? undefined : secondsToMilliseconds(binding.min),
+        max: binding.max === undefined ? undefined : secondsToMilliseconds(binding.max),
+        points: binding.points?.map((point) => ({
+          ...point,
+          y: secondsToMilliseconds(point.y)
+        }))
+      };
+    })
+  }));
+
+  const migratedParamRanges = paramRanges
+    ? Object.fromEntries(
+        Object.entries(paramRanges).map(([key, range]) => {
+          const separatorIndex = key.indexOf(":");
+          if (separatorIndex < 0) {
+            return [key, range];
+          }
+          const nodeId = key.slice(0, separatorIndex);
+          const paramId = key.slice(separatorIndex + 1);
+          if (!adsrNodeIds.has(nodeId) || !ADSR_TIMING_PARAM_IDS.has(paramId)) {
+            return [key, range];
+          }
+          return [key, { min: secondsToMilliseconds(range.min), max: secondsToMilliseconds(range.max) }];
+        })
+      )
+    : undefined;
+
+  return { nodes: migratedNodes, macros: migratedMacros, paramRanges: migratedParamRanges };
+}
+
 export function normalizePatchOutputPort<T extends PatchWithLegacyOutput>(patch: T): Omit<T, "io"> {
   // TODO(output-port-legacy): Remove this compatibility adapter once all saved
   // projects/imports are guaranteed to declare the canonical `output` patch port.
@@ -237,20 +309,24 @@ export function normalizePatch(
 
   const nodes = (Array.isArray(patch.nodes) ? patch.nodes : []).map((node, index) => sanitizePatchNode(node, `node_${index}`));
   const portsRaw = (Array.isArray(patch.ports) ? patch.ports : []).map((port, index) => sanitizePatchPort(port, `port_${index}`));
+  const schemaVersion = Math.max(1, Math.floor(asFiniteNumber(patch.schemaVersion, 1)));
+  const sanitizedMacros = (Array.isArray(ui.macros) ? ui.macros : []).map(sanitizePatchMacro);
+  const sanitizedParamRanges = sanitizePatchParamRanges(ui.paramRanges);
+  const migrated = migrateLegacyAdsrTimingUnits(schemaVersion, nodes, sanitizedMacros, sanitizedParamRanges);
 
   return ensurePatchLayout(normalizeMacroBindingIds(normalizePatchOutputPort({
-    schemaVersion: Math.max(1, Math.floor(asFiniteNumber(patch.schemaVersion, 1))),
+    schemaVersion: Math.max(schemaVersion, CURRENT_PATCH_SCHEMA_VERSION),
     id: patchId,
     name: asString(patch.name, options.fallbackName),
     meta,
-    nodes,
+    nodes: migrated.nodes,
     ports: portsRaw,
     connections: (Array.isArray(patch.connections) ? patch.connections : []).map((connection, index) =>
       sanitizePatchConnection(connection, `conn_${index}`)
     ),
     ui: {
-      macros: (Array.isArray(ui.macros) ? ui.macros : []).map(sanitizePatchMacro),
-      paramRanges: sanitizePatchParamRanges(ui.paramRanges),
+      macros: migrated.macros,
+      paramRanges: migrated.paramRanges,
       canvasZoom:
         asOptionalFiniteNumber(ui.canvasZoom) === undefined
           ? undefined

@@ -47,6 +47,75 @@ describe("patch serde", () => {
     expect(imported.patch.meta).toEqual({ source: "custom" });
   });
 
+  it("migrates legacy ADSR timing values from seconds to milliseconds", () => {
+    const legacyPatch = createClearPatch({
+      id: "patch_legacy_adsr",
+      name: "Legacy ADSR"
+    });
+    legacyPatch.schemaVersion = 1;
+    legacyPatch.nodes = [
+      {
+        id: "env1",
+        typeId: "ADSR",
+        params: {
+          attack: 0.01,
+          decay: 0.2,
+          sustain: 0.7,
+          release: 0.25
+        }
+      }
+    ];
+    legacyPatch.ui.paramRanges = {
+      "env1:attack": { min: 0, max: 1 },
+      "env1:decay": { min: 0, max: 10 }
+    };
+    legacyPatch.ui.macros = [
+      {
+        id: "macro_env",
+        name: "Env",
+        keyframeCount: 3,
+        bindings: [
+          {
+            id: "legacy_attack",
+            nodeId: "env1",
+            paramId: "attack",
+            map: "piecewise",
+            min: 0.003,
+            max: 0.25,
+            points: [
+              { x: 0, y: 0.003 },
+              { x: 0.5, y: 0.01 },
+              { x: 1, y: 0.25 }
+            ]
+          }
+        ]
+      }
+    ];
+
+    const imported = importPatchBundleFromJson(exportPatchToJson(legacyPatch));
+
+    expect(imported.patch.schemaVersion).toBe(2);
+    expect(imported.patch.nodes[0]?.params).toEqual({
+      attack: 10,
+      decay: 200,
+      sustain: 0.7,
+      release: 250
+    });
+    expect(imported.patch.ui.paramRanges).toEqual({
+      "env1:attack": { min: 0, max: 1000 },
+      "env1:decay": { min: 0, max: 10000 }
+    });
+    expect(imported.patch.ui.macros[0]?.bindings[0]).toMatchObject({
+      min: 3,
+      max: 250,
+      points: [
+        { x: 0, y: 3 },
+        { x: 0.5, y: 10 },
+        { x: 1, y: 250 }
+      ]
+    });
+  });
+
   it("migrates legacy output nodes into ports while preserving params", () => {
     const legacyPatch = createClearPatch({
       id: "patch_legacy",

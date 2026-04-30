@@ -18,23 +18,25 @@ export function EditableNumberLabel(props: {
   max: number;
   className: string;
   inputClassName: string;
+  displayScale?: number;
   disabled?: boolean;
   onCommit: (value: number) => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(formatBindingValue(props.value));
+  const displayScale = props.displayScale ?? 1;
+  const [draft, setDraft] = useState(formatBindingValue(props.value * displayScale));
   const renameActivation = useRenameActivation<string>();
 
   useEffect(() => {
     if (!editing) {
-      setDraft(formatBindingValue(props.value));
+      setDraft(formatBindingValue(props.value * displayScale));
     }
-  }, [editing, props.value]);
+  }, [displayScale, editing, props.value]);
 
   const commit = () => {
     const numeric = Number(draft);
     if (Number.isFinite(numeric)) {
-      props.onCommit(clamp(numeric, props.min, props.max));
+      props.onCommit(clamp(numeric / displayScale, props.min, props.max));
     }
     setEditing(false);
   };
@@ -52,7 +54,7 @@ export function EditableNumberLabel(props: {
             event.currentTarget.blur();
           } else if (event.key === "Escape") {
             setEditing(false);
-            setDraft(formatBindingValue(props.value));
+            setDraft(formatBindingValue(props.value * displayScale));
           }
         }}
       />
@@ -70,7 +72,7 @@ export function EditableNumberLabel(props: {
         onStartRename: () => setEditing(true)
       })}
     >
-      {formatBindingValue(props.value)}
+      {formatBindingValue(props.value * displayScale)}
     </button>
   );
 }

@@ -1,0 +1,1 @@
+export const CURRENT_PATCH_SCHEMA_VERSION = 2;

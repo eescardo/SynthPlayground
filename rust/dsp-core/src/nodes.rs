@@ -11,6 +11,10 @@ fn value_to_f32(value: Option<&Value>, fallback: f32) -> f32 {
     value.and_then(|entry| entry.as_f64()).map(|entry| entry as f32).unwrap_or(fallback)
 }
 
+fn value_ms_to_seconds(value: Option<&Value>, fallback_ms: f32) -> f32 {
+    value_to_f32(value, fallback_ms) / 1000.0
+}
+
 fn value_to_bool(value: Option<&Value>, fallback: bool) -> bool {
     value.and_then(|entry| entry.as_bool()).unwrap_or(fallback)
 }
@@ -411,10 +415,10 @@ impl RuntimeNode {
             "ADSR" => Self::ADSR(AdsrNode {
                 out_index: raw.out_index,
                 gate: input_index(&raw.inputs, "gate"),
-                attack: SmoothParam::new(value_to_f32(p.get("attack"), 0.01), 10.0, sample_rate),
-                decay: SmoothParam::new(value_to_f32(p.get("decay"), 0.2), 10.0, sample_rate),
+                attack: SmoothParam::new(value_ms_to_seconds(p.get("attack"), 10.0), 10.0, sample_rate),
+                decay: SmoothParam::new(value_ms_to_seconds(p.get("decay"), 200.0), 10.0, sample_rate),
                 sustain: SmoothParam::new(value_to_f32(p.get("sustain"), 0.7), 10.0, sample_rate),
-                release: SmoothParam::new(value_to_f32(p.get("release"), 0.2), 10.0, sample_rate),
+                release: SmoothParam::new(value_ms_to_seconds(p.get("release"), 250.0), 10.0, sample_rate),
                 curve: SmoothParam::new(value_to_f32(p.get("curve"), 0.0), 10.0, sample_rate),
                 mode: serde_json::from_value::<AdsrMode>(Value::String(value_to_string(p.get("mode"), "retrigger_from_current")))
                     .map_err(|e| js_error(format!("Invalid ADSR mode: {e}")))?,
@@ -606,10 +610,10 @@ impl RuntimeNode {
                 _ => {}
             },
             Self::ADSR(node) => match param_id {
-                "attack" => node.attack.set_target(value_to_f32(Some(value), node.attack.target)),
-                "decay" => node.decay.set_target(value_to_f32(Some(value), node.decay.target)),
+                "attack" => node.attack.set_target(value_ms_to_seconds(Some(value), node.attack.target * 1000.0)),
+                "decay" => node.decay.set_target(value_ms_to_seconds(Some(value), node.decay.target * 1000.0)),
                 "sustain" => node.sustain.set_target(value_to_f32(Some(value), node.sustain.target)),
-                "release" => node.release.set_target(value_to_f32(Some(value), node.release.target)),
+                "release" => node.release.set_target(value_ms_to_seconds(Some(value), node.release.target * 1000.0)),
                 "curve" => node.curve.set_target(value_to_f32(Some(value), node.curve.target)),
                 "mode" => if let Ok(parsed) = serde_json::from_value::<AdsrMode>(Value::String(value_to_string(Some(value), "retrigger_from_current"))) { node.mode = parsed; },
                 _ => {}

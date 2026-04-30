@@ -297,7 +297,7 @@ export const createPatchModuleFacesCaptureProject = (): Project => {
     {
       id: "env_shape",
       typeId: "ADSR",
-      params: { ...createDefaultParamsForType("ADSR"), attack: 0.06, decay: 0.32, sustain: 0.46, release: 0.62, curve: -0.65 }
+      params: { ...createDefaultParamsForType("ADSR"), attack: 60, decay: 320, sustain: 0.46, release: 620, curve: -0.65 }
     },
     {
       id: "lfo_shape",
@@ -464,7 +464,7 @@ export const createBaselineDiffCaptureProject = (): Project => {
       {
         id: "env1",
         typeId: "ADSR",
-        params: { ...createDefaultParamsForType("ADSR"), attack: 0.02, decay: 0.24, sustain: 0.36, release: 0.42 }
+        params: { ...createDefaultParamsForType("ADSR"), attack: 20, decay: 240, sustain: 0.36, release: 420 }
       },
       {
         id: "vca1",
@@ -512,8 +512,8 @@ export const createBaselineDiffCaptureProject = (): Project => {
               nodeId: "env1",
               paramId: "attack",
               map: "linear",
-              min: 0.01,
-              max: 0.28
+              min: 10,
+              max: 280
             }
           ]
         }

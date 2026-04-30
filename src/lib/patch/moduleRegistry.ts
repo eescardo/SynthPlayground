@@ -240,10 +240,10 @@ export const moduleRegistry: ModuleTypeSchema[] = [
     doc: { summary: "Envelope generator triggered by gate." },
     requiredPortIds: { in: ["gate"], out: ["out"] },
     params: [
-      floatParam("attack", "Attack", 0, 10, "s", "Attack time", { default: 0.01, smoothingMs: 10 }),
-      floatParam("decay", "Decay", 0, 10, "s", "Decay time", { default: 0.2, smoothingMs: 10 }),
+      floatParam("attack", "Attack", 0, 10000, "ms", "Attack time", { default: 10, smoothingMs: 10 }),
+      floatParam("decay", "Decay", 0, 10000, "ms", "Decay time", { default: 200, smoothingMs: 10 }),
       floatParam("sustain", "Sustain", 0, 1, "linear", "Sustain level", { default: 0.7, smoothingMs: 10 }),
-      floatParam("release", "Release", 0, 10, "s", "Release time", { default: 0.25, smoothingMs: 10 }),
+      floatParam("release", "Release", 0, 10000, "ms", "Release time", { default: 250, smoothingMs: 10 }),
       floatParam("curve", "Curve", -1, 1, "linear", "Envelope curve: exponential through linear to logarithmic", {
         default: 0,
         smoothingMs: 10,
