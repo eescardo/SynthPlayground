@@ -7,12 +7,13 @@ import { SamplePlayerInspectorSection } from "@/components/patch/SamplePlayerIns
 import { ProbeInspectorSection } from "@/components/patch/ProbeInspectorSection";
 import {
   formatPatchEndpointLabel,
+  formatPatchPortLabel,
   formatPatchParamTargetLabel,
-  isPatchOutputEndpoint,
-  resolveInspectablePortForNode
+  isPatchOutputEndpoint
 } from "@/components/patch/patchInspectablePorts";
+import { isPatchOutputPortId } from "@/lib/patch/ports";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { Patch, PatchNode, PatchValidationIssue } from "@/types/patch";
+import { Patch, PatchNode, PatchPort, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
 
@@ -81,7 +82,7 @@ function resolveRequiredPortIssues(issues: PatchValidationIssue[]) {
 export function PatchInspector(props: PatchInspectorProps) {
   const selectedNode = props.selectedNode;
   const selectedProbe = props.selectedProbe;
-  const selectedPort = resolveInspectablePortForNode(props.patch, selectedNode);
+  const selectedPort = selectedNode && isPatchOutputPortId(props.patch, selectedNode.id) ? (selectedNode as PatchPort) : null;
   const selectedSubjectKind = selectedPort ? "port" : selectedNode ? "module" : null;
   const selectedMacro = props.selectedMacroId
     ? props.patch.ui.macros.find((macro) => macro.id === props.selectedMacroId)
@@ -112,7 +113,7 @@ export function PatchInspector(props: PatchInspectorProps) {
 
       {selectedNode && props.selectedSchema && (
         <>
-          <h4>{selectedPort ? selectedPort.label : <>{selectedNode.typeId} <small>{selectedNode.id}</small></>}</h4>
+          <h4>{selectedPort ? formatPatchPortLabel(props.patch, selectedPort) : <>{selectedNode.typeId} <small>{selectedNode.id}</small></>}</h4>
           {props.selectedSchema.params
             .filter((param) => shouldRenderParamInGenericInspector(selectedNode, param))
             .map((param) => (

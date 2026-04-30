@@ -1,25 +1,13 @@
 import { resolveHostPatchPortLabel } from "@/components/patch/patchCanvasGeometry";
 import { HOST_PORT_IDS } from "@/lib/patch/constants";
 import { getPatchOutputInputPortId, getPatchOutputPort, isPatchOutputPortId } from "@/lib/patch/ports";
-import { Patch, PatchNode } from "@/types/patch";
+import { Patch, PatchPort } from "@/types/patch";
 
-export interface InspectablePatchPort {
-  kind: "host-output";
-  label: string;
-  nodeId: string;
-  portId: string;
-}
-
-export function resolveInspectablePortForNode(patch: Patch, node: PatchNode | undefined): InspectablePatchPort | null {
-  if (!node || !isPatchOutputPortId(patch, node.id)) {
-    return null;
+export function formatPatchPortLabel(_patch: Patch, port: PatchPort) {
+  if (port.typeId === "Output") {
+    return resolveHostPatchPortLabel(HOST_PORT_IDS.output);
   }
-  return {
-    kind: "host-output",
-    label: resolveHostPatchPortLabel(HOST_PORT_IDS.output),
-    nodeId: node.id,
-    portId: getPatchOutputInputPortId(patch)
-  };
+  return port.label || port.id;
 }
 
 export function formatPatchEndpointLabel(patch: Patch, endpoint: { nodeId: string; portId: string }) {
