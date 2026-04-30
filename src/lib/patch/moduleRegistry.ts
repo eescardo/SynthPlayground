@@ -416,6 +416,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   {
     typeId: "Output",
     categories: categories("host", "mix"),
+    hostOnly: true,
     doc: { summary: "Final output sink for instrument patch." },
     requiredPortIds: { in: ["in"] },
     params: [
@@ -439,4 +440,4 @@ export const createDefaultParamsForType = (typeId: string): Record<string, numbe
   return Object.fromEntries(schema.params.map((param) => [param.id, param.default]));
 };
 
-export const modulePalette = moduleRegistry.filter((module) => !module.hostOnly && module.typeId !== "Output");
+export const modulePalette = moduleRegistry.filter((module) => !module.hostOnly);
