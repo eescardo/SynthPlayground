@@ -27,6 +27,24 @@ fn input_index(inputs: &HashMap<String, i32>, key: &str) -> i32 {
 }
 
 #[inline(always)]
+fn envelope_curve_progress(t: f32, curve: f32) -> f32 {
+    let clamped_t = clamp(t, 0.0, 1.0);
+    let clamped_curve = clamp(curve, -1.0, 1.0);
+    let exponent = if clamped_curve < 0.0 {
+        1.0 + clamped_curve * 0.65
+    } else {
+        1.0 + clamped_curve * 1.8
+    };
+    clamped_t.powf(exponent.max(0.35))
+}
+
+#[inline(always)]
+fn advance_adsr_stage_pos(node: &mut AdsrNode, duration_seconds: f32, sample_rate: f32) -> f32 {
+    node.stage_pos = (node.stage_pos + 1.0 / (duration_seconds * sample_rate)).min(1.0);
+    node.stage_pos
+}
+
+#[inline(always)]
 fn signal_start(signal_index: usize, block_size: usize) -> usize {
     signal_index * block_size
 }
@@ -120,8 +138,11 @@ pub(crate) struct AdsrNode {
     decay: SmoothParam,
     sustain: SmoothParam,
     release: SmoothParam,
+    curve: SmoothParam,
     mode: AdsrMode,
     stage: EnvelopeStage,
+    stage_pos: f32,
+    stage_start_level: f32,
     level: f32,
     last_gate: f32,
 }
@@ -394,9 +415,12 @@ impl RuntimeNode {
                 decay: SmoothParam::new(value_to_f32(p.get("decay"), 0.2), 10.0, sample_rate),
                 sustain: SmoothParam::new(value_to_f32(p.get("sustain"), 0.7), 10.0, sample_rate),
                 release: SmoothParam::new(value_to_f32(p.get("release"), 0.2), 10.0, sample_rate),
+                curve: SmoothParam::new(value_to_f32(p.get("curve"), 0.0), 10.0, sample_rate),
                 mode: serde_json::from_value::<AdsrMode>(Value::String(value_to_string(p.get("mode"), "retrigger_from_current")))
                     .map_err(|e| js_error(format!("Invalid ADSR mode: {e}")))?,
                 stage: EnvelopeStage::Idle,
+                stage_pos: 0.0,
+                stage_start_level: 0.0,
                 level: 0.0,
                 last_gate: 0.0,
             }),
@@ -528,8 +552,8 @@ impl RuntimeNode {
             }
             Self::LFO(node) => { node.phase = 0.0; node.freq_hz.reset(); node.pulse_width.reset(); }
             Self::ADSR(node) => {
-                node.attack.reset(); node.decay.reset(); node.sustain.reset(); node.release.reset();
-                node.stage = EnvelopeStage::Idle; node.level = 0.0; node.last_gate = 0.0;
+                node.attack.reset(); node.decay.reset(); node.sustain.reset(); node.release.reset(); node.curve.reset();
+                node.stage = EnvelopeStage::Idle; node.stage_pos = 0.0; node.stage_start_level = 0.0; node.level = 0.0; node.last_gate = 0.0;
             }
             Self::VCA(node) => { node.bias.reset(); node.gain.reset(); }
             Self::VCF(node) => { node.cutoff_hz.reset(); node.resonance.reset(); node.cutoff_mod_amount_oct.reset(); node.lp = 0.0; node.bp = 0.0; }
@@ -586,6 +610,7 @@ impl RuntimeNode {
                 "decay" => node.decay.set_target(value_to_f32(Some(value), node.decay.target)),
                 "sustain" => node.sustain.set_target(value_to_f32(Some(value), node.sustain.target)),
                 "release" => node.release.set_target(value_to_f32(Some(value), node.release.target)),
+                "curve" => node.curve.set_target(value_to_f32(Some(value), node.curve.target)),
                 "mode" => if let Ok(parsed) = serde_json::from_value::<AdsrMode>(Value::String(value_to_string(Some(value), "retrigger_from_current"))) { node.mode = parsed; },
                 _ => {}
             },
@@ -698,33 +723,43 @@ impl RuntimeNode {
                     let decay = node.decay.next().max(0.0001);
                     let sustain = clamp(node.sustain.next(), 0.0, 1.0);
                     let release = node.release.next().max(0.0001);
+                    let curve = node.curve.next();
                     if gate >= 0.5 && node.last_gate < 0.5 {
                         if matches!(node.mode, AdsrMode::RetriggerFromZero) {
                             node.level = 0.0;
                         }
+                        node.stage_pos = 0.0;
+                        node.stage_start_level = node.level;
                         node.stage = EnvelopeStage::Attack;
                     } else if gate < 0.5 && node.last_gate >= 0.5 {
+                        node.stage_pos = 0.0;
+                        node.stage_start_level = node.level;
                         node.stage = EnvelopeStage::Release;
                     }
                     match node.stage {
                         EnvelopeStage::Attack => {
-                            node.level += 1.0 / (attack * sample_rate);
-                            if node.level >= 1.0 {
+                            let progress = envelope_curve_progress(advance_adsr_stage_pos(node, attack, sample_rate), curve);
+                            node.level = node.stage_start_level + (1.0 - node.stage_start_level) * progress;
+                            if node.stage_pos >= 1.0 {
                                 node.level = 1.0;
+                                node.stage_pos = 0.0;
+                                node.stage_start_level = 1.0;
                                 node.stage = EnvelopeStage::Decay;
                             }
                         }
                         EnvelopeStage::Decay => {
-                            node.level -= (1.0 - sustain) / (decay * sample_rate);
-                            if node.level <= sustain {
+                            let progress = envelope_curve_progress(advance_adsr_stage_pos(node, decay, sample_rate), curve);
+                            node.level = 1.0 - (1.0 - sustain) * progress;
+                            if node.stage_pos >= 1.0 {
                                 node.level = sustain;
                                 node.stage = EnvelopeStage::Sustain;
                             }
                         }
                         EnvelopeStage::Sustain => node.level = sustain,
                         EnvelopeStage::Release => {
-                            node.level -= node.level.max(0.001) / (release * sample_rate);
-                            if node.level <= 0.0001 {
+                            let progress = envelope_curve_progress(advance_adsr_stage_pos(node, release, sample_rate), curve);
+                            node.level = node.stage_start_level * (1.0 - progress);
+                            if node.stage_pos >= 1.0 || node.level <= 0.0001 {
                                 node.level = 0.0;
                                 node.stage = EnvelopeStage::Idle;
                             }
@@ -961,27 +996,35 @@ impl RuntimeNode {
                 let decay = node.decay.next().max(0.0001);
                 let sustain = clamp(node.sustain.next(), 0.0, 1.0);
                 let release = node.release.next().max(0.0001);
+                let curve = node.curve.next();
                 if gate >= 0.5 && node.last_gate < 0.5 {
                     if matches!(node.mode, AdsrMode::RetriggerFromZero) {
                         node.level = 0.0;
                     }
+                    node.stage_pos = 0.0;
+                    node.stage_start_level = node.level;
                     node.stage = EnvelopeStage::Attack;
                 } else if gate < 0.5 && node.last_gate >= 0.5 {
+                    node.stage_pos = 0.0;
+                    node.stage_start_level = node.level;
                     node.stage = EnvelopeStage::Release;
                 }
                 match node.stage {
                     EnvelopeStage::Attack => {
-                        node.level += 1.0 / (attack * sample_rate);
-                        if node.level >= 1.0 { node.level = 1.0; node.stage = EnvelopeStage::Decay; }
+                        let progress = envelope_curve_progress(advance_adsr_stage_pos(node, attack, sample_rate), curve);
+                        node.level = node.stage_start_level + (1.0 - node.stage_start_level) * progress;
+                        if node.stage_pos >= 1.0 { node.level = 1.0; node.stage_pos = 0.0; node.stage_start_level = 1.0; node.stage = EnvelopeStage::Decay; }
                     }
                     EnvelopeStage::Decay => {
-                        node.level -= (1.0 - sustain) / (decay * sample_rate);
-                        if node.level <= sustain { node.level = sustain; node.stage = EnvelopeStage::Sustain; }
+                        let progress = envelope_curve_progress(advance_adsr_stage_pos(node, decay, sample_rate), curve);
+                        node.level = 1.0 - (1.0 - sustain) * progress;
+                        if node.stage_pos >= 1.0 { node.level = sustain; node.stage = EnvelopeStage::Sustain; }
                     }
                     EnvelopeStage::Sustain => node.level = sustain,
                     EnvelopeStage::Release => {
-                        node.level -= node.level.max(0.001) / (release * sample_rate);
-                        if node.level <= 0.0001 { node.level = 0.0; node.stage = EnvelopeStage::Idle; }
+                        let progress = envelope_curve_progress(advance_adsr_stage_pos(node, release, sample_rate), curve);
+                        node.level = node.stage_start_level * (1.0 - progress);
+                        if node.stage_pos >= 1.0 || node.level <= 0.0001 { node.level = 0.0; node.stage = EnvelopeStage::Idle; }
                     }
                     EnvelopeStage::Idle => {}
                 }

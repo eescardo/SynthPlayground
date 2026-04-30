@@ -290,6 +290,128 @@ export const setupSamplePlayerWorkspace = async (page: Page) => {
   await expect(page.locator(".patch-probe-card.expanded")).toHaveCount(1);
 };
 
+export const createPatchModuleFacesCaptureProject = (): Project => {
+  const project = createDefaultProject();
+  const patchId = "patch_module_faces_capture";
+  const nodes: Patch["nodes"] = [
+    {
+      id: "env_shape",
+      typeId: "ADSR",
+      params: { ...createDefaultParamsForType("ADSR"), attack: 0.06, decay: 0.32, sustain: 0.46, release: 0.62, curve: -0.65 }
+    },
+    {
+      id: "lfo_shape",
+      typeId: "LFO",
+      params: { ...createDefaultParamsForType("LFO"), wave: "triangle", freqHz: 7.5, pulseWidth: 0.42, bipolar: true }
+    },
+    {
+      id: "string_shape",
+      typeId: "KarplusStrong",
+      params: { ...createDefaultParamsForType("KarplusStrong"), decay: 0.97, damping: 0.38, brightness: 0.86, excitation: "noise" }
+    },
+    {
+      id: "noise_shape",
+      typeId: "Noise",
+      params: { ...createDefaultParamsForType("Noise"), color: "pink", gain: 0.72 }
+    },
+    {
+      id: "delay_shape",
+      typeId: "Delay",
+      params: { ...createDefaultParamsForType("Delay"), timeMs: 420, feedback: 0.62, mix: 0.38 }
+    },
+    {
+      id: "reverb_shape",
+      typeId: "Reverb",
+      params: { ...createDefaultParamsForType("Reverb"), size: 0.72, decay: 3.8, damping: 0.52, mix: 0.42 }
+    },
+    {
+      id: "drive_shape",
+      typeId: "Overdrive",
+      params: { ...createDefaultParamsForType("Overdrive"), gainDb: 24, tone: 0.72, mix: 0.68, mode: "fuzz" }
+    },
+    {
+      id: "comp_shape",
+      typeId: "Compressor",
+      params: { ...createDefaultParamsForType("Compressor"), thresholdDb: -30, ratio: 6, attackMs: 12, releaseMs: 260, makeupDb: 5, mix: 0.86 }
+    },
+    {
+      id: "vca_shape",
+      typeId: "VCA",
+      params: { ...createDefaultParamsForType("VCA"), gain: 0.84, bias: 0.05 }
+    },
+    {
+      id: "mix_shape",
+      typeId: "Mixer4",
+      params: { ...createDefaultParamsForType("Mixer4"), gain1: 0.78, gain2: 0.58, gain3: 0, gain4: 0 }
+    }
+  ];
+  const patch: Patch = {
+    schemaVersion: 1,
+    id: patchId,
+    name: "Module Face Visuals",
+    meta: { source: "custom" },
+    nodes,
+    ports: [createPatchOutputPort({ gainDb: -8, limiter: true })],
+    connections: [
+      { id: "host_gate_env", from: { nodeId: HOST_PORT_IDS.gate, portId: "out" }, to: { nodeId: "env_shape", portId: "gate" } },
+      { id: "host_gate_string", from: { nodeId: HOST_PORT_IDS.gate, portId: "out" }, to: { nodeId: "string_shape", portId: "gate" } },
+      { id: "lfo_to_string_pitch", from: { nodeId: "lfo_shape", portId: "out" }, to: { nodeId: "string_shape", portId: "pitch" } },
+      { id: "noise_to_vca", from: { nodeId: "noise_shape", portId: "out" }, to: { nodeId: "vca_shape", portId: "in" } },
+      { id: "env_to_vca", from: { nodeId: "env_shape", portId: "out" }, to: { nodeId: "vca_shape", portId: "gainCV" } },
+      { id: "vca_to_delay", from: { nodeId: "vca_shape", portId: "out" }, to: { nodeId: "delay_shape", portId: "in" } },
+      { id: "delay_to_reverb", from: { nodeId: "delay_shape", portId: "out" }, to: { nodeId: "reverb_shape", portId: "in" } },
+      { id: "reverb_to_drive", from: { nodeId: "reverb_shape", portId: "out" }, to: { nodeId: "drive_shape", portId: "in" } },
+      { id: "drive_to_comp", from: { nodeId: "drive_shape", portId: "out" }, to: { nodeId: "comp_shape", portId: "in" } },
+      { id: "comp_to_mix", from: { nodeId: "comp_shape", portId: "out" }, to: { nodeId: "mix_shape", portId: "in1" } },
+      { id: "string_to_mix", from: { nodeId: "string_shape", portId: "out" }, to: { nodeId: "mix_shape", portId: "in2" } },
+      { id: "mix_to_output", from: { nodeId: "mix_shape", portId: "out" }, to: { nodeId: "output", portId: "in" } }
+    ],
+    ui: { macros: [] },
+    layout: {
+      nodes: [
+        { nodeId: "env_shape", x: 4, y: 3 },
+        { nodeId: "lfo_shape", x: 15, y: 3 },
+        { nodeId: "string_shape", x: 26, y: 3 },
+        { nodeId: "noise_shape", x: 4, y: 11 },
+        { nodeId: "vca_shape", x: 15, y: 11 },
+        { nodeId: "delay_shape", x: 26, y: 11 },
+        { nodeId: "reverb_shape", x: 4, y: 19 },
+        { nodeId: "drive_shape", x: 15, y: 19 },
+        { nodeId: "comp_shape", x: 26, y: 19 },
+        { nodeId: "mix_shape", x: 37, y: 11 }
+      ]
+    }
+  };
+
+  project.patches = [patch, ...project.patches];
+  project.tracks[0] = {
+    ...project.tracks[0],
+    instrumentPatchId: patchId
+  };
+  project.ui.patchWorkspace = {
+    activeTabId: "patch_tab_module_faces",
+    tabs: [
+      {
+        id: "patch_tab_module_faces",
+        name: patch.name,
+        patchId,
+        selectedNodeId: "env_shape",
+        probes: []
+      }
+    ]
+  };
+  return project;
+};
+
+export const setupPatchModuleFacesWorkspace = async (page: Page) => {
+  await openSeededPatchWorkspaceApp(page, createPatchModuleFacesCaptureProject());
+  await expect(page.getByRole("heading", { name: "Patch Workspace" })).toBeVisible();
+  await expect(page.locator(".patch-workspace-tab-name", { hasText: "Module Face Visuals" })).toBeVisible();
+  await expect(page.locator(".param-curve-label-row")).toContainText("exp");
+  await expect(page.locator(".param-curve-label-row")).toContainText("linear");
+  await expect(page.locator(".param-curve-label-row")).toContainText("log");
+};
+
 export const createMicrotonalCaptureProject = (): Project => {
   const project = createDefaultProject();
   project.tracks[0] = {

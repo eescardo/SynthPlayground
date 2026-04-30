@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   VCF_FACE_NYQUIST_HZ,
   VCF_FACE_SAMPLE_RATE_HZ,
+  compressorOutputDb,
+  envelopeCurveProgress,
   vcfMagnitudeAtFrequency
 } from "@/components/patch/patchModuleFaceDrawing";
 
@@ -25,5 +27,26 @@ describe("VCF module face response math", () => {
 
     expect(aboveClamp).toBeCloseTo(muchFurtherAboveClamp, 6);
     expect(aboveClamp).not.toBeCloseTo(belowClamp, 3);
+  });
+});
+
+describe("ADSR module face curve math", () => {
+  it("keeps linear curve centered between exponential and logarithmic shapes", () => {
+    const midpoint = 0.5;
+
+    expect(envelopeCurveProgress(midpoint, -1)).toBeGreaterThan(envelopeCurveProgress(midpoint, 0));
+    expect(envelopeCurveProgress(midpoint, 0)).toBeCloseTo(midpoint, 6);
+    expect(envelopeCurveProgress(midpoint, 1)).toBeLessThan(envelopeCurveProgress(midpoint, 0));
+  });
+});
+
+describe("Compressor module face response math", () => {
+  it("compresses levels above threshold while preserving levels below threshold", () => {
+    expect(compressorOutputDb(-40, -24, 4, 0, 1)).toBeCloseTo(-40);
+    expect(compressorOutputDb(-12, -24, 4, 0, 1)).toBeCloseTo(-21);
+  });
+
+  it("blends dry and wet response with mix", () => {
+    expect(compressorOutputDb(-12, -24, 4, 0, 0.5)).toBeCloseTo(-16.5);
   });
 });

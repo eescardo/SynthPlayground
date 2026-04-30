@@ -152,6 +152,10 @@ function renderParamInlineSummary(node: PatchNode, param: ParamSchema, value: Pa
   return null;
 }
 
+function shouldRenderCurveScaleLabels(node: PatchNode, param: ParamSchema) {
+  return node.typeId === "ADSR" && param.id === "curve" && param.type === "float";
+}
+
 export function shouldRenderParamInGenericInspector(node: PatchNode, param: ParamSchema) {
   if (node.typeId === "SamplePlayer" && (param.id === "start" || param.id === "end")) {
     return false;
@@ -393,7 +397,14 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
             onChange={commitValue}
             onPreviewChange={(nextValue) => props.onPreviewParamValue?.(props.selectedNode.id, props.param.id, nextValue)}
           />
-          {props.param.type === "float" && (
+          {props.param.type === "float" && shouldRenderCurveScaleLabels(props.selectedNode, props.param) && (
+            <div className="param-curve-label-row" aria-hidden="true">
+              <span>exp</span>
+              <span>linear</span>
+              <span>log</span>
+            </div>
+          )}
+          {props.param.type === "float" && !shouldRenderCurveScaleLabels(props.selectedNode, props.param) && (
             <div className={`param-range-label-row${hasParamRangeDiff ? " diff-positive" : ""}`}>
               <EditableNumberLabel
                 id={`${props.selectedNode.id}:${props.param.id}:min`}

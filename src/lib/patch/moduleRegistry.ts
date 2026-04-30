@@ -244,6 +244,11 @@ export const moduleRegistry: ModuleTypeSchema[] = [
       floatParam("decay", "Decay", 0, 10, "s", "Decay time", { default: 0.2, smoothingMs: 10 }),
       floatParam("sustain", "Sustain", 0, 1, "linear", "Sustain level", { default: 0.7, smoothingMs: 10 }),
       floatParam("release", "Release", 0, 10, "s", "Release time", { default: 0.25, smoothingMs: 10 }),
+      floatParam("curve", "Curve", -1, 1, "linear", "Envelope curve: exponential through linear to logarithmic", {
+        default: 0,
+        smoothingMs: 10,
+        step: 0.01
+      }),
       enumParam(
         "mode",
         "Retrigger Mode",

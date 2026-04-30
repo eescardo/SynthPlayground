@@ -2469,6 +2469,24 @@ select {
   box-shadow: inset 0 0 0 1px rgba(103, 224, 153, 0.26);
 }
 
+.param-curve-label-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 0.22rem;
+  color: rgba(159, 180, 201, 0.82);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.62rem;
+  line-height: 1.1;
+}
+
+.param-curve-label-row > :nth-child(2) {
+  text-align: center;
+}
+
+.param-curve-label-row > :last-child {
+  text-align: right;
+}
+
 .param-range-diff-badge {
   flex: 1 1 auto;
   min-width: 0;

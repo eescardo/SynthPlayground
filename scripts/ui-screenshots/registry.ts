@@ -6,6 +6,7 @@ import {
   savePageScreenshot,
   setupBaselineDiffWorkspace,
   setupMacroAutomationLane,
+  setupPatchModuleFacesWorkspace,
   setupPatchWorkspaceProbes,
   setupSamplePlayerWorkspace
 } from "../ui-capture/common";
@@ -84,6 +85,14 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
     description: "Patch workspace focused on the SamplePlayer inspector with a seeded pitch tracker probe",
     capture: async (page, outputPath) => {
       await setupSamplePlayerWorkspace(page);
+      await savePageScreenshot(page, outputPath, ".patch-workspace-shell");
+    }
+  },
+  [SCREENSHOT_SCENARIO.PATCH_MODULE_FACES]: {
+    name: SCREENSHOT_SCENARIO.PATCH_MODULE_FACES,
+    description: "Patch workspace with ADSR, LFO, string, noise, delay, reverb, overdrive, and compressor module faces visible",
+    capture: async (page, outputPath) => {
+      await setupPatchModuleFacesWorkspace(page);
       await savePageScreenshot(page, outputPath, ".patch-workspace-shell");
     }
   },
