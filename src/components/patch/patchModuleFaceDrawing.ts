@@ -820,9 +820,8 @@ function drawNoiseModuleFace(
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
   ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textAlign = "left";
-  ctx.fillText(color, graph.x + 8, graph.y + 11);
+  ctx.fillText(color, graph.x, graph.y - 3);
   ctx.fillText("low", graph.x, graph.y + graph.height + 10);
-  ctx.fillText("lvl", graph.x + 8, graph.y + 20);
   ctx.textAlign = "right";
   ctx.fillText("high freq", graph.x + graph.width, graph.y + graph.height + 10);
   ctx.fillText(`gain ${gain.toFixed(2)}`, graph.x + graph.width - 6, graph.y + graph.height - 5);
