@@ -13,9 +13,6 @@ const AUTO_LAYOUT_CATEGORY_SEED_ORDER: PatchModuleCategory[] = ["source", "mix",
 const getAutoLayoutSeedPriority = (node: PatchNode): number => {
   // Used only as a deterministic fallback before barycenter crossing reduction has
   // enough graph-neighbor information to order modules within a column.
-  if (node.typeId === "Output") {
-    return AUTO_LAYOUT_CATEGORY_SEED_ORDER.length;
-  }
   const schema = getModuleSchema(node.typeId);
   const categoryIndex = AUTO_LAYOUT_CATEGORY_SEED_ORDER.findIndex((category) => schema?.categories.includes(category));
   return categoryIndex === -1 ? AUTO_LAYOUT_CATEGORY_SEED_ORDER.length + 1 : categoryIndex;
@@ -34,9 +31,6 @@ export function resolveAutoLayoutNodes(patch: Pick<Patch, "nodes" | "connections
 
   const nodesByRank = new Map<number, PatchNode[]>();
   for (const node of patch.nodes) {
-    if (node.typeId === "Output") {
-      continue;
-    }
     const rank = rankByNodeId.get(node.id) ?? 0;
     const siblings = nodesByRank.get(rank) ?? [];
     siblings.push(node);
