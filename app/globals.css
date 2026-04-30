@@ -2359,6 +2359,8 @@ select {
   font-size: 0.86rem;
   padding: 0.32rem 0.4rem 0.38rem;
   border-radius: 0.65rem;
+  border: 1px solid rgba(131, 173, 216, 0.1);
+  background: rgba(8, 17, 27, 0.28);
 }
 
 .param-row-header {
@@ -2374,6 +2376,87 @@ select {
   font-size: 0.82rem;
   font-weight: 650;
   line-height: 1.2;
+}
+
+.param-authoring-mode {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.3rem;
+  padding: 0.12rem 0.38rem;
+  border-radius: 999px;
+  border: 1px solid rgba(131, 173, 216, 0.22);
+  background: rgba(131, 173, 216, 0.08);
+  color: rgba(215, 235, 255, 0.78);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.56rem;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.param-authoring-mode.macro {
+  border-color: rgba(255, 214, 153, 0.28);
+  background: rgba(255, 206, 122, 0.1);
+  color: rgba(255, 226, 178, 0.88);
+}
+
+.param-authoring-mode.editing {
+  border-color: rgba(103, 224, 153, 0.34);
+  background: rgba(68, 135, 99, 0.2);
+  color: rgba(219, 255, 229, 0.94);
+}
+
+.param-authoring-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 0.18rem 0.24rem;
+  border-radius: 0.5rem;
+  background: rgba(4, 10, 17, 0.22);
+}
+
+.param-authoring-copy {
+  min-width: 0;
+  color: rgba(178, 204, 229, 0.82);
+  font-size: 0.68rem;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.param-authoring-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.param-binding-details-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0.96rem;
+  padding: 0.08rem 0.42rem;
+  border-radius: 999px;
+  border: 1px solid rgba(131, 173, 216, 0.2);
+  background: rgba(131, 173, 216, 0.08);
+  color: rgba(215, 235, 255, 0.82);
+  font-size: 0.58rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.param-binding-details-toggle.active {
+  border-color: rgba(167, 204, 240, 0.34);
+  background: rgba(143, 196, 245, 0.14);
+  color: #e7f3ff;
 }
 
 .param-row.diff-positive {
@@ -2704,8 +2787,18 @@ select {
 }
 
 .param-macro-unbind-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0.96rem;
+  padding: 0.08rem 0.38rem;
+  border-radius: 999px;
+  border: 1px solid rgba(244, 150, 150, 0.22);
+  background: rgba(244, 90, 100, 0.08);
+  color: rgba(255, 200, 200, 0.88);
   font-size: 0.62rem;
   font-weight: 800;
+  line-height: 1;
 }
 
 .param-macro-map-pill {

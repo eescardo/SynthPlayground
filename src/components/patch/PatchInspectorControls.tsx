@@ -142,7 +142,6 @@ export function ParamMacroControl(props: {
 }) {
   const [open, setOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
-  const [tooltipPinned, setTooltipPinned] = useState(false);
   const unboundPopoverRef = useRef<HTMLSpanElement | null>(null);
   const boundPopoverRef = useRef<HTMLSpanElement | null>(null);
 
@@ -163,16 +162,6 @@ export function ParamMacroControl(props: {
     const selectedBindingMap = props.bindingMap === "exp" ? "exp" : "linear";
     return (
       <span className="param-macro-bound-shell" ref={boundPopoverRef}>
-        <button
-          type="button"
-          className={`param-macro-status${tooltipPinned ? " tooltip-pinned" : ""}`}
-          onClick={() => setTooltipPinned((current) => !current)}
-          onBlur={() => setTooltipPinned(false)}
-          aria-expanded={tooltipPinned}
-        >
-          {props.bindingMacro.name}: {props.isEditing ? "editing" : "locked"}
-          {props.editableSummary && <span className="param-macro-tooltip">{props.editableSummary}</span>}
-        </button>
         {canChooseBindingMap && (
           <span className="patch-macro-keyframe-shell param-macro-map-shell">
             <button
@@ -213,12 +202,12 @@ export function ParamMacroControl(props: {
         )}
         <button
           type="button"
-          className="patch-macro-panel-remove param-macro-unbind-button"
+          className="param-macro-unbind-button"
           disabled={props.disabled}
-          aria-label={`Remove ${props.bindingMacro.name} macro binding`}
+          aria-label={`Use direct value instead of ${props.bindingMacro.name} macro binding`}
           onClick={props.onUnbind}
         >
-          X
+          Direct
         </button>
       </span>
     );
@@ -232,7 +221,7 @@ export function ParamMacroControl(props: {
         disabled={props.disabled}
         onClick={() => setOpen((current) => !current)}
       >
-        Macro...
+        Bind
       </button>
       {open && (
         <div className="param-macro-popover" role="dialog" aria-label="Bind parameter to macro">
