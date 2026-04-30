@@ -3,21 +3,15 @@ import {
   HOST_PATCH_PORT_DIRECTION_BY_ID,
   HOST_PATCH_PORT_IDS,
   HOST_PATCH_PORT_TYPE_BY_ID,
-  HOST_PORT_IDS,
+  PATCH_BOUNDARY_PORT_NAMES,
+  PATCH_OUTPUT_PORT_ID,
   SOURCE_HOST_PORT_IDS
 } from "@/lib/patch/constants";
 import { Patch, PatchNode, PatchPort } from "@/types/patch";
 
-export const PATCH_OUTPUT_PORT_ID = "output";
+export { PATCH_OUTPUT_PORT_ID } from "@/lib/patch/constants";
 export const AUDIO_OUTPUT_PORT_TYPE_ID = "Output";
-export const RESERVED_PATCH_MODULE_IDS = new Set<string>([
-  PATCH_OUTPUT_PORT_ID,
-  ...HOST_PATCH_PORT_IDS,
-  "pitch",
-  "gate",
-  "velocity",
-  "modwheel"
-]);
+export const RESERVED_PATCH_MODULE_IDS = new Set<string>([...PATCH_BOUNDARY_PORT_NAMES, ...HOST_PATCH_PORT_IDS]);
 
 export function createPatchOutputPort(params?: PatchNode["params"]): PatchPort {
   return {
@@ -32,12 +26,7 @@ export function createPatchOutputPort(params?: PatchNode["params"]): PatchPort {
   };
 }
 
-const HOST_SOURCE_PORT_LABEL_BY_ID: Record<(typeof SOURCE_HOST_PORT_IDS)[number], string> = {
-  [HOST_PORT_IDS.pitch]: "pitch",
-  [HOST_PORT_IDS.gate]: "gate",
-  [HOST_PORT_IDS.velocity]: "velocity",
-  [HOST_PORT_IDS.modWheel]: "modwheel"
-};
+const toHostSourcePortLabel = (id: (typeof SOURCE_HOST_PORT_IDS)[number]) => id.replace("$host.", "");
 
 export function isHostPatchPortId(id: string): id is (typeof HOST_PATCH_PORT_IDS)[number] {
   return HOST_PATCH_PORT_IDS.includes(id as (typeof HOST_PATCH_PORT_IDS)[number]);
@@ -47,7 +36,7 @@ export function createHostSourcePatchPort(id: (typeof SOURCE_HOST_PORT_IDS)[numb
   return {
     id,
     typeId: HOST_PATCH_PORT_TYPE_BY_ID[id],
-    label: HOST_SOURCE_PORT_LABEL_BY_ID[id],
+    label: toHostSourcePortLabel(id),
     direction: HOST_PATCH_PORT_DIRECTION_BY_ID[id],
     params: {}
   };
