@@ -234,7 +234,7 @@ export function PatchInspector(props: PatchInspectorProps) {
       {visibleRequiredPortIssues.length === 0 && (
         <p className="ok">
           {selectedPort
-            ? "All required port inputs are connected."
+            ? "All required port terminals are connected."
             : selectedNode
               ? "All required module ports are connected."
               : "All required ports are connected."}
