@@ -9,12 +9,12 @@ import {
   resolveHostPatchPortTint,
   resolveOutputHostPatchPortRect
 } from "@/components/patch/patchCanvasGeometry";
-import { HOST_PORT_IDS, SOURCE_HOST_PORT_IDS } from "@/lib/patch/constants";
+import { HOST_PORT_IDS, HostPatchPortId, SOURCE_HOST_PORT_IDS } from "@/lib/patch/constants";
 import { getPatchOutputInputPortId, getPatchOutputPort } from "@/lib/patch/ports";
 import { Patch } from "@/types/patch";
 
 interface HostOverlayPort {
-  nodeId: string;
+  nodeId: HostPatchPortId;
   label: string;
   hitPort: HitPort;
   style: CSSProperties;
