@@ -129,10 +129,9 @@ function normalizeConnectionEndpointForDiff(
   patch: Patch,
   endpoint: PatchConnection["from"] | PatchConnection["to"]
 ) {
-  const nodeId = normalizeBindingNodeIdForDiff(patch, endpoint.nodeId);
   return {
-    nodeId,
-    portId: nodeId === "$patch.output" ? "in" : endpoint.portId
+    nodeId: normalizeBindingNodeIdForDiff(patch, endpoint.nodeId),
+    portId: endpoint.portId
   };
 }
 
