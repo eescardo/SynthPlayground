@@ -1,6 +1,4 @@
 // Canonical host-facing patch boundary ports.
-export const PATCH_OUTPUT_PORT_ID = "output";
-
 export const HOST_SOURCE_PORT_NAMES = {
   pitch: "pitch",
   gate: "gate",
@@ -8,18 +6,24 @@ export const HOST_SOURCE_PORT_NAMES = {
   modWheel: "modwheel"
 } as const;
 
+export const HOST_SINK_PORT_NAMES = {
+  output: "output"
+} as const;
+
+export const PATCH_OUTPUT_PORT_ID = HOST_SINK_PORT_NAMES.output;
+
 export const PATCH_BOUNDARY_PORT_NAMES: readonly [
   typeof HOST_SOURCE_PORT_NAMES.pitch,
   typeof HOST_SOURCE_PORT_NAMES.gate,
   typeof HOST_SOURCE_PORT_NAMES.velocity,
   typeof HOST_SOURCE_PORT_NAMES.modWheel,
-  typeof PATCH_OUTPUT_PORT_ID
+  typeof HOST_SINK_PORT_NAMES.output
 ] = [
   HOST_SOURCE_PORT_NAMES.pitch,
   HOST_SOURCE_PORT_NAMES.gate,
   HOST_SOURCE_PORT_NAMES.velocity,
   HOST_SOURCE_PORT_NAMES.modWheel,
-  PATCH_OUTPUT_PORT_ID
+  HOST_SINK_PORT_NAMES.output
 ];
 
 const toHostPortId = <T extends string>(name: T): `$host.${T}` => `$host.${name}`;
@@ -29,7 +33,7 @@ export const HOST_PORT_IDS = {
   gate: toHostPortId(HOST_SOURCE_PORT_NAMES.gate),
   velocity: toHostPortId(HOST_SOURCE_PORT_NAMES.velocity),
   modWheel: toHostPortId(HOST_SOURCE_PORT_NAMES.modWheel),
-  output: toHostPortId(PATCH_OUTPUT_PORT_ID)
+  output: toHostPortId(HOST_SINK_PORT_NAMES.output)
 } as const;
 
 export type HostPatchPortId = (typeof HOST_PORT_IDS)[keyof typeof HOST_PORT_IDS];
