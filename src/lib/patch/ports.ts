@@ -3,14 +3,14 @@ import {
   HOST_PATCH_PORT_DIRECTION_BY_ID,
   HOST_PATCH_PORT_IDS,
   HOST_PATCH_PORT_TYPE_BY_ID,
+  AUDIO_OUTPUT_PORT_TYPE_ID,
   PATCH_BOUNDARY_PORT_NAMES,
   PATCH_OUTPUT_PORT_ID,
   SOURCE_HOST_PORT_IDS
 } from "@/lib/patch/constants";
 import { Patch, PatchNode, PatchPort } from "@/types/patch";
 
-export { PATCH_OUTPUT_PORT_ID } from "@/lib/patch/constants";
-export const AUDIO_OUTPUT_PORT_TYPE_ID = "Output";
+export { AUDIO_OUTPUT_PORT_TYPE_ID, PATCH_OUTPUT_PORT_ID } from "@/lib/patch/constants";
 export const RESERVED_PATCH_MODULE_IDS = new Set<string>([...PATCH_BOUNDARY_PORT_NAMES, ...HOST_PATCH_PORT_IDS]);
 
 export function createPatchOutputPort(params?: PatchNode["params"]): PatchPort {

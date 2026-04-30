@@ -11,6 +11,7 @@ export const HOST_SINK_PORT_NAMES = {
 } as const;
 
 export const PATCH_OUTPUT_PORT_ID = HOST_SINK_PORT_NAMES.output;
+export const AUDIO_OUTPUT_PORT_TYPE_ID = "Output";
 
 export const PATCH_BOUNDARY_PORT_NAMES: readonly [
   typeof HOST_SOURCE_PORT_NAMES.pitch,
@@ -63,7 +64,7 @@ export const SOURCE_HOST_PORT_TYPE_BY_ID: Record<HostSourcePortId, "NotePitch" |
 
 export const HOST_PATCH_PORT_TYPE_BY_ID: Record<HostPatchPortId, "NotePitch" | "NoteGate" | "NoteVelocity" | "ModWheel" | "Output"> = {
   ...SOURCE_HOST_PORT_TYPE_BY_ID,
-  [HOST_PORT_IDS.output]: "Output"
+  [HOST_PORT_IDS.output]: AUDIO_OUTPUT_PORT_TYPE_ID
 };
 
 export const HOST_PATCH_PORT_DIRECTION_BY_ID: Record<HostPatchPortId, "source" | "sink"> = {
