@@ -71,6 +71,11 @@ export interface PatchNode {
   params: Record<string, ParamValue>;
 }
 
+export interface PatchPort extends PatchNode {
+  label: string;
+  direction?: "source" | "sink";
+}
+
 export interface PatchConnection {
   id: string;
   from: { nodeId: string; portId: string };
@@ -127,6 +132,7 @@ export interface Patch {
   name: string;
   meta: PatchMeta;
   nodes: PatchNode[];
+  ports?: PatchPort[];
   connections: PatchConnection[];
   ui: {
     macros: PatchMacro[];
@@ -135,10 +141,6 @@ export interface Patch {
   };
   layout: {
     nodes: PatchLayoutNode[];
-  };
-  io: {
-    audioOutNodeId: string;
-    audioOutPortId: string;
   };
 }
 

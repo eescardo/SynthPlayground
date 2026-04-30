@@ -416,7 +416,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     selectPatchInWorkspace: lifecycleActions.selectPatchInWorkspace,
     previewPatchById,
     previewSelectedPatchNow: (pitch = previewPitch) =>
-      previewSelectedPatchNow(pitch, activeTab ? tabMacroValuesById[activeTab.id] : undefined),
+      previewSelectedPatchNow(pitch, activeTab ? workspaceMacroValues : undefined),
     handleInstrumentEditorReady,
     renameSelectedPatch: lifecycleActions.renameSelectedPatch,
     duplicateSelectedPatchInWorkspace: lifecycleActions.duplicateSelectedPatchInWorkspace,

@@ -1,8 +1,5 @@
 import {
   PATCH_CANVAS_GRID,
-  PATCH_COLOR_ADSR_GRAPH_BORDER,
-  PATCH_COLOR_ADSR_MACRO_HIGH,
-  PATCH_COLOR_ADSR_MACRO_LOW,
   PATCH_COLOR_CANVAS_BG,
   PATCH_COLOR_CONNECTION_FALLBACK,
   PATCH_COLOR_FACE_POPOVER_BACKDROP,
@@ -19,7 +16,6 @@ import {
   PATCH_COLOR_MODULE_DIFF_MODIFIED_STROKE,
   PATCH_COLOR_MODULE_DIFF_PEDESTAL_FILL,
   PATCH_COLOR_MODULE_DIFF_PEDESTAL_STROKE,
-  PATCH_COLOR_MODULE_FACE_ROW_BG,
   PATCH_COLOR_MODULE_MACRO_SELECTED_STROKE,
   PATCH_COLOR_NODE_HOVER_OVERLAY,
   PATCH_COLOR_NODE_SUBTITLE,
@@ -32,27 +28,26 @@ import {
   PATCH_COLOR_VALID_TARGET,
   PATCH_COLOR_VALID_TARGET_FILL,
   PATCH_FACE_POPOVER_SCALE,
-  PATCH_MODULE_FACE_BOTTOM_INSET,
-  PATCH_MODULE_FACE_INSET_X,
-  PATCH_MODULE_FACE_TOP,
   PATCH_NODE_BODY_TOP,
   PATCH_NODE_HEIGHT,
-  PATCH_NODE_WIDTH,
-  PATCH_PORT_LABEL_HEIGHT,
-  PATCH_PORT_LABEL_MIN_TEXT,
-  PATCH_PORT_LABEL_OVERHANG_RATIO,
-  PATCH_PORT_LABEL_X_PADDING,
-  PATCH_PORT_ROW_GAP,
-  PATCH_PORT_START_Y
+  PATCH_NODE_WIDTH
 } from "@/components/patch/patchCanvasConstants";
 import { resolveInvalidPortKeys } from "@/components/patch/patchCanvasValidation";
-import { CanvasRect, HitPort, isHostPatchNodeId, resolveHostPatchPortRect, resolveHostPatchPortTint } from "@/components/patch/patchCanvasGeometry";
-import { clamp, clamp01 } from "@/lib/numeric";
-import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
+import { drawPatchModuleFaceContent } from "@/components/patch/patchModuleFaceDrawing";
+import {
+  CanvasRect,
+  HitPort,
+  resolveHostPatchPortRect,
+  resolveHostPatchPortTint,
+  resolvePatchNodePortLabelRect,
+  resolveOutputHostPatchPortRect
+} from "@/components/patch/patchCanvasGeometry";
+import { HOST_PORT_IDS, SOURCE_HOST_PORT_IDS, SOURCE_HOST_PORT_TYPE_BY_ID } from "@/lib/patch/constants";
 import { PatchDiff } from "@/lib/patch/diff";
 import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { Patch, PatchLayoutNode, PatchNode, ParamSchema, ParamValue, PatchValidationIssue, PortSchema } from "@/types/patch";
+import { getPatchOutputInputPortId, getPatchOutputPort, isHostPatchPortId, isPatchOutputPortId } from "@/lib/patch/ports";
+import { Patch, PatchLayoutNode, PatchNode, PatchValidationIssue, PortSchema } from "@/types/patch";
 
 const PATCH_DIFF_PEDESTAL_INSET = 8;
 const PATCH_DIFF_PEDESTAL_RADIUS = 10;
@@ -82,194 +77,18 @@ function drawRoundedRectPath(ctx: CanvasRenderingContext2D, x: number, y: number
   ctx.quadraticCurveTo(x, y, x + r, y);
 }
 
-function resolvePortLabelWidth(ctx: CanvasRenderingContext2D, port: PortSchema) {
-  const minWidth = Math.ceil(ctx.measureText(PATCH_PORT_LABEL_MIN_TEXT).width) + PATCH_PORT_LABEL_X_PADDING * 2;
-  return Math.max(minWidth, Math.ceil(ctx.measureText(port.id).width) + PATCH_PORT_LABEL_X_PADDING * 2);
-}
-
-function resolvePortLabelInset(ctx: CanvasRenderingContext2D) {
-  const minWidth = Math.ceil(ctx.measureText(PATCH_PORT_LABEL_MIN_TEXT).width) + PATCH_PORT_LABEL_X_PADDING * 2;
-  return minWidth * (1 - PATCH_PORT_LABEL_OVERHANG_RATIO);
-}
-
 function resolvePortLabelRect(
-  ctx: CanvasRenderingContext2D,
   port: PortSchema,
   kind: "in" | "out",
   nodeX: number,
   nodeY: number,
   index: number
 ): ResolvedPortPosition {
-  const width = resolvePortLabelWidth(ctx, port);
-  const height = PATCH_PORT_LABEL_HEIGHT;
-  const moduleInset = resolvePortLabelInset(ctx);
-  const y = nodeY + PATCH_PORT_START_Y + index * PATCH_PORT_ROW_GAP;
-  const labelX =
-    kind === "in"
-      ? nodeX + moduleInset - width
-      : nodeX + PATCH_NODE_WIDTH - moduleInset;
+  const rect = resolvePatchNodePortLabelRect(port.id, kind, nodeX, nodeY, index);
   return {
-    x: labelX,
-    y,
-    width,
-    height,
-    anchorX: kind === "in" ? labelX : labelX + width,
-    anchorY: y,
+    ...rect,
     schema: port
   };
-}
-
-function formatParamFaceValue(param: ParamSchema, value: ParamValue | undefined): string {
-  const resolved = value ?? param.default;
-  if (param.type === "bool") {
-    return resolved ? "on" : "off";
-  }
-  if (param.type === "enum") {
-    return String(resolved);
-  }
-  const numeric = typeof resolved === "number" ? resolved : param.default;
-  const formatted = Math.abs(numeric) >= 10 ? numeric.toFixed(1) : numeric.toFixed(2);
-  return param.unit === "linear" ? formatted : `${formatted}${param.unit}`;
-}
-
-function getNumericParam(node: PatchNode, schema: ParamSchema[], paramId: string): number {
-  const param = schema.find((entry) => entry.id === paramId);
-  const value = node.params[paramId] ?? param?.default;
-  return typeof value === "number" ? value : 0;
-}
-
-function getAdsrParamValues(node: PatchNode, schema: ParamSchema[]) {
-  return {
-    attack: getNumericParam(node, schema, "attack"),
-    decay: getNumericParam(node, schema, "decay"),
-    sustain: getNumericParam(node, schema, "sustain"),
-    release: getNumericParam(node, schema, "release")
-  };
-}
-
-function getBindingRangeValues(binding: Patch["ui"]["macros"][number]["bindings"][number]) {
-  if (binding.points && binding.points.length > 0) {
-    const values = binding.points.map((point) => point.y);
-    return { low: Math.min(...values), high: Math.max(...values) };
-  }
-  const min = binding.min ?? 0;
-  const max = binding.max ?? 1;
-  return { low: Math.min(min, max), high: Math.max(min, max) };
-}
-
-function resolveAdsrMacroRangeValues(patch: Patch, node: PatchNode, schema: ParamSchema[]) {
-  const low = getAdsrParamValues(node, schema);
-  const high = getAdsrParamValues(node, schema);
-  let hasRange = false;
-
-  for (const macro of patch.ui.macros) {
-    for (const binding of macro.bindings) {
-      if (binding.nodeId !== node.id || !(binding.paramId in low)) {
-        continue;
-      }
-      const range = getBindingRangeValues(binding);
-      const paramId = binding.paramId as keyof typeof low;
-      low[paramId] = Math.min(low[paramId], range.low);
-      high[paramId] = Math.max(high[paramId], range.high);
-      hasRange = true;
-    }
-  }
-
-  return hasRange ? { low, high } : null;
-}
-
-function drawAdsrEnvelopePath(
-  ctx: CanvasRenderingContext2D,
-  values: { attack: number; decay: number; sustain: number; release: number },
-  graph: { x: number; y: number; width: number; height: number },
-  longestDurationMs: number
-) {
-  const attackMs = Math.max(1, values.attack * 1000);
-  const decayMs = Math.max(1, values.decay * 1000);
-  const sustain = clamp01(values.sustain);
-  const releaseMs = Math.max(1, values.release * 1000);
-  const scaledDurationMs = Math.max(longestDurationMs, attackMs + decayMs + releaseMs, 1);
-  const sustainHoldWidth = clamp(graph.width * 0.16, 10, 18);
-  const timedWidth = Math.max(graph.width - sustainHoldWidth, graph.width * 0.6);
-  const timeScale = timedWidth / scaledDurationMs;
-  const ax = graph.x + attackMs * timeScale;
-  const dx = ax + decayMs * timeScale;
-  const sx = dx + sustainHoldWidth;
-  const rx = graph.x + graph.width;
-  const highY = graph.y + 6;
-  const sustainY = graph.y + graph.height - 6 - sustain * (graph.height - 12);
-  const baseY = graph.y + graph.height - 4;
-
-  ctx.beginPath();
-  ctx.moveTo(graph.x, baseY);
-  ctx.lineTo(ax, highY);
-  ctx.lineTo(dx, sustainY);
-  ctx.lineTo(sx, sustainY);
-  ctx.lineTo(rx, baseY);
-  ctx.stroke();
-}
-
-function drawAdsrModuleFace(
-  ctx: CanvasRenderingContext2D,
-  patch: Patch,
-  node: PatchNode,
-  schema: ParamSchema[],
-  x: number,
-  y: number,
-  accentColor: string
-) {
-  const graphX = x + PATCH_MODULE_FACE_INSET_X;
-  const graphY = y + PATCH_MODULE_FACE_TOP;
-  const graphW = PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2;
-  const graphH = PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET;
-  const graph = { x: graphX, y: graphY, width: graphW, height: graphH };
-  const currentValues = getAdsrParamValues(node, schema);
-  const macroRange = resolveAdsrMacroRangeValues(patch, node, schema);
-  const longestDurationMs = Math.max(
-    1,
-    (currentValues.attack + currentValues.decay + currentValues.release) * 1000,
-    macroRange ? (macroRange.low.attack + macroRange.low.decay + macroRange.low.release) * 1000 : 0,
-    macroRange ? (macroRange.high.attack + macroRange.high.decay + macroRange.high.release) * 1000 : 0
-  );
-
-  ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
-  ctx.lineWidth = 1;
-  ctx.strokeRect(graphX, graphY, graphW, graphH);
-
-  if (macroRange) {
-    ctx.lineWidth = 1.4;
-    ctx.setLineDash([3, 3]);
-    ctx.strokeStyle = PATCH_COLOR_ADSR_MACRO_LOW;
-    drawAdsrEnvelopePath(ctx, macroRange.low, graph, longestDurationMs);
-    ctx.strokeStyle = PATCH_COLOR_ADSR_MACRO_HIGH;
-    drawAdsrEnvelopePath(ctx, macroRange.high, graph, longestDurationMs);
-    ctx.setLineDash([]);
-  }
-
-  ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 2;
-  drawAdsrEnvelopePath(ctx, currentValues, graph, longestDurationMs);
-}
-
-function drawGenericModuleFace(
-  ctx: CanvasRenderingContext2D,
-  node: PatchNode,
-  schema: ParamSchema[],
-  x: number,
-  y: number
-) {
-  const faceParams = schema.slice(0, 3);
-  const rowX = x + PATCH_MODULE_FACE_INSET_X;
-  const rowW = PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2;
-  const rowTop = y + PATCH_MODULE_FACE_TOP + 2;
-  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-  faceParams.forEach((param, index) => {
-    const py = rowTop + index * 20;
-    ctx.fillStyle = PATCH_COLOR_MODULE_FACE_ROW_BG;
-    ctx.fillRect(rowX, py - 11, rowW, 16);
-    ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
-    ctx.fillText(`${param.label}: ${formatParamFaceValue(param, node.params[param.id])}`, rowX + 6, py);
-  });
 }
 
 export function drawPatchModuleCard(
@@ -357,15 +176,11 @@ export function drawPatchModuleCard(
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.fillText(node.id, x + 18 + titleWidth, y + 18);
 
-  if (node.typeId === "ADSR") {
-    drawAdsrModuleFace(ctx, patch, node, schema.params, x, y, moduleColors.accent);
-  } else {
-    drawGenericModuleFace(ctx, node, schema.params, x, y);
-  }
+  drawPatchModuleFaceContent(ctx, patch, node, schema, x, y, moduleColors.accent);
 
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
   const drawPortLabel = (port: PortSchema, index: number, kind: "in" | "out") => {
-    const rect = resolvePortLabelRect(ctx, port, kind, x, y, index);
+    const rect = resolvePortLabelRect(port, kind, x, y, index);
     ctx.fillStyle = invalidPortKeys.has(`${node.id}:${kind}:${port.id}`) ? PATCH_COLOR_PORT_LABEL_INVALID_BG : PATCH_COLOR_PORT_LABEL_BG;
     ctx.fillRect(rect.x, rect.y - rect.height / 2, rect.width, rect.height);
     ctx.fillStyle = PATCH_COLOR_PORT_LABEL;
@@ -402,7 +217,8 @@ function drawPatchGrid(ctx: CanvasRenderingContext2D, width: number, height: num
 function resolvePortPositions(
   ctx: CanvasRenderingContext2D,
   patch: Patch,
-  layoutByNode: Map<string, PatchLayoutNode>
+  layoutByNode: Map<string, PatchLayoutNode>,
+  outputHostCanvasLeft: number
 ) {
   const portPositions = new Map<string, ResolvedPortPosition>();
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
@@ -410,6 +226,7 @@ function resolvePortPositions(
   patch.nodes.forEach((node) => {
     const schema = getModuleSchema(node.typeId);
     if (!schema) return;
+    if (isPatchOutputPortId(patch, node.id)) return;
     const layout = layoutByNode.get(node.id);
     if (!layout) return;
 
@@ -417,16 +234,32 @@ function resolvePortPositions(
     const y = layout.y * PATCH_CANVAS_GRID;
 
     schema.portsIn.forEach((port, index) => {
-      portPositions.set(`${node.id}:in:${port.id}`, resolvePortLabelRect(ctx, port, "in", x, y, index));
+      portPositions.set(`${node.id}:in:${port.id}`, resolvePortLabelRect(port, "in", x, y, index));
     });
 
     schema.portsOut.forEach((port, index) => {
-      portPositions.set(`${node.id}:out:${port.id}`, resolvePortLabelRect(ctx, port, "out", x, y, index));
+      portPositions.set(`${node.id}:out:${port.id}`, resolvePortLabelRect(port, "out", x, y, index));
     });
   });
 
-  SOURCE_HOST_NODE_IDS.forEach((hostId) => {
-    const schema = getModuleSchema(SOURCE_HOST_NODE_TYPE_BY_ID[hostId]);
+  const outputPatchPort = getPatchOutputPort(patch);
+  const outputInputPortId = getPatchOutputInputPortId(patch);
+  const outputPort = outputPatchPort ? getModuleSchema(outputPatchPort.typeId)?.portsIn.find((port) => port.id === outputInputPortId) : undefined;
+  if (outputPatchPort && outputPort) {
+    const rect = resolveOutputHostPatchPortRect(outputHostCanvasLeft);
+    portPositions.set(`${outputPatchPort.id}:in:${outputPort.id}`, {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+      anchorX: rect.x,
+      anchorY: rect.y,
+      schema: outputPort
+    });
+  }
+
+  SOURCE_HOST_PORT_IDS.forEach((hostId) => {
+    const schema = getModuleSchema(SOURCE_HOST_PORT_TYPE_BY_ID[hostId]);
     const rect = resolveHostPatchPortRect(hostId);
     const port = schema?.portsOut[0];
     if (!rect || !port) {
@@ -457,11 +290,18 @@ function drawPatchConnections(
     if (!from || !to) continue;
 
     const commonCapability = from.schema.capabilities.find((cap) => to.schema.capabilities.includes(cap)) ?? "AUDIO";
-    const isHostConnection = isHostPatchNodeId(connection.from.nodeId) || isHostPatchNodeId(connection.to.nodeId);
+    const isHostConnection =
+      isHostPatchPortId(connection.from.nodeId) ||
+      isHostPatchPortId(connection.to.nodeId) ||
+      isPatchOutputPortId(patch, connection.to.nodeId);
     ctx.save();
     ctx.strokeStyle = isHostConnection
       ? resolveHostPatchPortTint(
-          isHostPatchNodeId(connection.from.nodeId) ? connection.from.nodeId : connection.to.nodeId
+          isPatchOutputPortId(patch, connection.to.nodeId)
+            ? HOST_PORT_IDS.output
+            : isHostPatchPortId(connection.from.nodeId)
+              ? connection.from.nodeId
+              : connection.to.nodeId
         ).wire
       : getSignalCapabilityColor(commonCapability) ?? PATCH_COLOR_CONNECTION_FALLBACK;
     ctx.lineWidth = 2;
@@ -492,6 +332,7 @@ function drawPatchModules(
   patch.nodes.forEach((node) => {
     const schema = getModuleSchema(node.typeId);
     if (!schema) return;
+    if (isPatchOutputPortId(patch, node.id)) return;
     const layout = layoutByNode.get(node.id);
     if (!layout) return;
 
@@ -639,7 +480,7 @@ function buildHitPorts(portPositions: Map<string, ResolvedPortPosition>) {
   const hitPorts: HitPort[] = [];
   for (const [key, value] of portPositions.entries()) {
     const [nodeId, kind, portId] = key.split(":");
-    if (isHostPatchNodeId(nodeId)) {
+    if (isHostPatchPortId(nodeId)) {
       continue;
     }
     hitPorts.push({
@@ -664,6 +505,7 @@ export function drawPatchCanvas(args: {
   layoutByNode: Map<string, PatchLayoutNode>;
   nodeById: Map<string, PatchNode>;
   patch: Patch;
+  outputHostCanvasLeft: number;
   patchDiff: PatchDiff;
   validationIssues: PatchValidationIssue[];
   pendingFromPort: HitPort | null;
@@ -682,7 +524,7 @@ export function drawPatchCanvas(args: {
   args.canvas.height = height;
 
   drawPatchGrid(ctx, width, height);
-  const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode);
+  const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode, args.outputHostCanvasLeft);
   const invalidPortKeys = resolveInvalidPortKeys(args.validationIssues);
   drawPatchConnections(ctx, args.patch, portPositions);
   drawPatchModules(

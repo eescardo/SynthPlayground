@@ -7,7 +7,7 @@ import { createClearPatch } from "@/lib/patch/presets";
 describe("patch workspace lifecycle action helpers", () => {
   it("creates a duplicated tab with a baseline snapshot, copied selections, and fresh probe ids", () => {
     const selectedPatch = createClearPatch({ id: "patch_source", name: "Source" });
-    selectedPatch.nodes[0].params.gain = 0.75;
+    selectedPatch.ports![0].params.gainDb = -4;
     const duplicatePatch = createClearPatch({ id: "patch_duplicate", name: "Source Copy" });
     const activeTab: LocalPatchWorkspaceTab = {
       id: "tab_source",
@@ -59,14 +59,14 @@ describe("patch workspace lifecycle action helpers", () => {
     });
 
     selectedPatch.name = "Mutated Source";
-    selectedPatch.nodes[0].params.gain = 0.1;
+    selectedPatch.ports![0].params.gainDb = -18;
 
     expect(nextTab.id).toBe("tab_duplicate");
     expect(nextTab.patchId).toBe(duplicatePatch.id);
     expect(nextTab.name).toBe(duplicatePatch.name);
     expect(nextTab.baselinePatch).not.toBe(selectedPatch);
     expect(nextTab.baselinePatch?.name).toBe("Source");
-    expect(nextTab.baselinePatch?.nodes[0].params.gain).toBe(0.75);
+    expect(nextTab.baselinePatch?.ports?.[0].params.gainDb).toBe(-4);
     expect(nextTab.selectedNodeId).toBe(activeTab.selectedNodeId);
     expect(nextTab.selectedMacroId).toBe(activeTab.selectedMacroId);
     expect(nextTab.selectedProbeId).toBeUndefined();

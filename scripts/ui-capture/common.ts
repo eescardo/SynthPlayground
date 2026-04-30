@@ -4,8 +4,9 @@ import { ChildProcess, spawn } from "node:child_process";
 import { expect, Locator, Page } from "@playwright/test";
 import { createDefaultProject } from "../../src/lib/patch/presets";
 import { createId } from "../../src/lib/ids";
-import { HOST_NODE_IDS } from "../../src/lib/patch/constants";
+import { HOST_PORT_IDS } from "../../src/lib/patch/constants";
 import { createDefaultParamsForType, getModuleSchema } from "../../src/lib/patch/moduleRegistry";
+import { createPatchOutputPort } from "../../src/lib/patch/ports";
 import { Project } from "../../src/types/music";
 import { Patch } from "../../src/types/patch";
 
@@ -203,7 +204,6 @@ export const createSamplePlayerCaptureProject = (): Project => {
   const project = createDefaultProject();
   const patchId = createId("patch");
   const sampleNodeId = "sample1";
-  const outputNodeId = "out1";
   const patch: Patch = {
     schemaVersion: 1,
     id: patchId,
@@ -221,43 +221,31 @@ export const createSamplePlayerCaptureProject = (): Project => {
           pitchSemis: 0,
           sampleData: createSerializedCaptureSampleData()
         }
-      },
-      {
-        id: outputNodeId,
-        typeId: "Output",
-        params: {
-          gainDb: -6,
-          limiter: true
-        }
       }
     ],
+    ports: [createPatchOutputPort({ gainDb: -6, limiter: true })],
     connections: [
       {
         id: "sample_gate",
-        from: { nodeId: HOST_NODE_IDS.gate, portId: "out" },
+        from: { nodeId: HOST_PORT_IDS.gate, portId: "out" },
         to: { nodeId: sampleNodeId, portId: "gate" }
       },
       {
         id: "sample_pitch",
-        from: { nodeId: HOST_NODE_IDS.pitch, portId: "out" },
+        from: { nodeId: HOST_PORT_IDS.pitch, portId: "out" },
         to: { nodeId: sampleNodeId, portId: "pitch" }
       },
       {
         id: "sample_out",
         from: { nodeId: sampleNodeId, portId: "out" },
-        to: { nodeId: outputNodeId, portId: "in" }
+        to: { nodeId: "output", portId: "in" }
       }
     ],
     ui: { macros: [] },
     layout: {
       nodes: [
-        { nodeId: sampleNodeId, x: 8, y: 6 },
-        { nodeId: outputNodeId, x: 18, y: 6 }
+        { nodeId: sampleNodeId, x: 8, y: 6 }
       ]
-    },
-    io: {
-      audioOutNodeId: outputNodeId,
-      audioOutPortId: "out"
     }
   };
 
@@ -360,22 +348,18 @@ export const createBaselineDiffCaptureProject = (): Project => {
         id: "vca1",
         typeId: "VCA",
         params: { ...createDefaultParamsForType("VCA"), gain: 1, bias: 0 }
-      },
-      {
-        id: "out1",
-        typeId: "Output",
-        params: { ...createDefaultParamsForType("Output"), gainDb: -8, limiter: true }
       }
     ],
+    ports: [createPatchOutputPort({ gainDb: -8, limiter: true })],
     connections: [
       {
         id: "pitch_to_vco",
-        from: { nodeId: HOST_NODE_IDS.pitch, portId: "out" },
+        from: { nodeId: HOST_PORT_IDS.pitch, portId: "out" },
         to: { nodeId: "vco1", portId: "pitch" }
       },
       {
         id: "gate_to_env",
-        from: { nodeId: HOST_NODE_IDS.gate, portId: "out" },
+        from: { nodeId: HOST_PORT_IDS.gate, portId: "out" },
         to: { nodeId: "env1", portId: "gate" }
       },
       {
@@ -391,7 +375,7 @@ export const createBaselineDiffCaptureProject = (): Project => {
       {
         id: "vca_to_out",
         from: { nodeId: "vca1", portId: "out" },
-        to: { nodeId: "out1", portId: "in" }
+        to: { nodeId: "output", portId: "in" }
       }
     ],
     ui: {
@@ -417,13 +401,8 @@ export const createBaselineDiffCaptureProject = (): Project => {
       nodes: [
         { nodeId: "vco1", x: 6, y: 6 },
         { nodeId: "env1", x: 6, y: 12 },
-        { nodeId: "vca1", x: 14, y: 8 },
-        { nodeId: "out1", x: 24, y: 8 }
+        { nodeId: "vca1", x: 14, y: 8 }
       ]
-    },
-    io: {
-      audioOutNodeId: "out1",
-      audioOutPortId: "out"
     }
   };
 
@@ -473,7 +452,7 @@ export const createBaselineDiffCaptureProject = (): Project => {
   });
   diffPatch.layout.nodes = diffPatch.layout.nodes
     .filter((entry) => entry.nodeId !== "env1")
-    .map((entry) => (entry.nodeId === "out1" ? { ...entry, x: 30, y: 8 } : entry));
+    .map((entry) => (entry.nodeId === "output" ? { ...entry, x: 30, y: 8 } : entry));
   diffPatch.layout.nodes.splice(diffPatch.layout.nodes.length - 1, 0, { nodeId: "sat1", x: 22, y: 8 });
   diffPatch.connections.push(
     {
@@ -484,7 +463,7 @@ export const createBaselineDiffCaptureProject = (): Project => {
     {
       id: "sat_to_out",
       from: { nodeId: "sat1", portId: "out" },
-      to: { nodeId: "out1", portId: "in" }
+      to: { nodeId: "output", portId: "in" }
     }
   );
 

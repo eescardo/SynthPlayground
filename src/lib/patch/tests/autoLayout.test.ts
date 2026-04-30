@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { ensurePatchLayout, resolveAutoLayoutNodes } from "@/lib/patch/autoLayout";
 import { padPatch } from "@/lib/patch/presets";
+import { createPatchOutputPort } from "@/lib/patch/ports";
 import { Patch } from "@/types/patch";
 
 const makePatch = (layout: Patch["layout"] = { nodes: [] }): Patch => ({
@@ -11,16 +12,15 @@ const makePatch = (layout: Patch["layout"] = { nodes: [] }): Patch => ({
   meta: { source: "custom" },
   nodes: [
     { id: "pitch", typeId: "NotePitch", params: {} },
-    { id: "vco", typeId: "VCO", params: {} },
-    { id: "out", typeId: "Output", params: {} }
+    { id: "vco", typeId: "VCO", params: {} }
   ],
+  ports: [createPatchOutputPort()],
   connections: [
     { id: "c1", from: { nodeId: "pitch", portId: "out" }, to: { nodeId: "vco", portId: "pitch" } },
-    { id: "c2", from: { nodeId: "vco", portId: "out" }, to: { nodeId: "out", portId: "in" } }
+    { id: "c2", from: { nodeId: "vco", portId: "out" }, to: { nodeId: "output", portId: "in" } }
   ],
   ui: { macros: [] },
-  layout,
-  io: { audioOutNodeId: "out", audioOutPortId: "in" }
+  layout
 });
 
 const crossingPatch = (): Patch => ({
@@ -39,8 +39,7 @@ const crossingPatch = (): Patch => ({
     { id: "c2", from: { nodeId: "b", portId: "out" }, to: { nodeId: "x", portId: "in" } }
   ],
   ui: { macros: [] },
-  layout: { nodes: [] },
-  io: { audioOutNodeId: "y", audioOutPortId: "out" }
+  layout: { nodes: [] }
 });
 
 describe("patch auto layout", () => {
@@ -49,17 +48,17 @@ describe("patch auto layout", () => {
     const xByNode = new Map(layout.map((node) => [node.nodeId, node.x]));
 
     expect(xByNode.get("pitch")).toBeLessThan(xByNode.get("vco") ?? 0);
-    expect(xByNode.get("vco")).toBeLessThan(xByNode.get("out") ?? 0);
+    expect(xByNode.has("out")).toBe(false);
     expect(xByNode.get("pitch")).toBeGreaterThanOrEqual(4);
   });
 
   it("fills missing layout without replacing saved positions", () => {
     const patch = ensurePatchLayout(makePatch({ nodes: [{ nodeId: "pitch", x: 42, y: 7 }] }));
 
-    expect(patch.layout.nodes).toHaveLength(3);
+    expect(patch.layout.nodes).toHaveLength(2);
     expect(patch.layout.nodes.find((node) => node.nodeId === "pitch")).toEqual({ nodeId: "pitch", x: 42, y: 7 });
     expect(patch.layout.nodes.find((node) => node.nodeId === "vco")).toBeDefined();
-    expect(patch.layout.nodes.find((node) => node.nodeId === "out")).toBeDefined();
+    expect(patch.layout.nodes.find((node) => node.nodeId === "output")).toBeUndefined();
   });
 
   it("replaces complete saved layouts when module boxes overlap", () => {
@@ -67,13 +66,13 @@ describe("patch auto layout", () => {
       nodes: [
         { nodeId: "pitch", x: 2, y: 2 },
         { nodeId: "vco", x: 4, y: 2 },
-        { nodeId: "out", x: 6, y: 2 }
+        { nodeId: "output", x: 6, y: 2 }
       ]
     }));
 
     const xByNode = new Map(patch.layout.nodes.map((node) => [node.nodeId, node.x]));
     expect(xByNode.get("pitch")).toBeLessThan(xByNode.get("vco") ?? 0);
-    expect(xByNode.get("vco")).toBeLessThan(xByNode.get("out") ?? 0);
+    expect(xByNode.get("output")).toBeUndefined();
     expect(xByNode.get("vco")).toBeGreaterThanOrEqual((xByNode.get("pitch") ?? 0) + 12);
   });
 

@@ -37,10 +37,6 @@ const createPatch = (id: string, macroName: string): Patch => ({
   },
   layout: {
     nodes: []
-  },
-  io: {
-    audioOutNodeId: "out",
-    audioOutPortId: "audio"
   }
 });
 

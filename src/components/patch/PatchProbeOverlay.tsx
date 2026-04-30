@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import {
+  resolveNearestRectEdgePoint,
+  resolvePatchConnectionAnchorPoint,
   resolvePatchConnectionMidpoint,
   resolvePatchPortAnchorPoint
 } from "@/components/patch/patchCanvasGeometry";
@@ -25,6 +27,7 @@ import { PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
 interface PatchProbeOverlayProps {
   patch: Patch;
   layoutByNode: Map<string, PatchLayoutNode>;
+  outputHostCanvasLeft: number;
   probes: PatchWorkspaceProbeState[];
   selectedProbeId?: string;
   previewCaptureByProbeId: Record<string, PreviewProbeCapture>;
@@ -41,6 +44,14 @@ interface PatchProbeOverlayProps {
 const PROBE_SPECTRUM_WINDOWS = [256, 512, 1024, 2048];
 const PROBE_DRAG_THRESHOLD_PX = 6;
 
+function resolveNearestProbeEdgePoint(probe: PatchWorkspaceProbeState, zoom: number, targetPoint: { x: number; y: number }) {
+  const x = probe.x * PATCH_CANVAS_GRID;
+  const y = probe.y * PATCH_CANVAS_GRID;
+  const width = resolveRenderedProbeWidth(probe, zoom) / zoom;
+  const height = resolveRenderedProbeHeight(probe, zoom) / zoom;
+  return resolveNearestRectEdgePoint({ x, y, width, height }, targetPoint);
+}
+
 export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
   const connectionLines = useMemo(
     () =>
@@ -48,31 +59,38 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
         if (!probe.target) {
           return [];
         }
+        const renderedWidth = resolveRenderedProbeWidth(probe, props.zoom);
+        const renderedHeight = resolveRenderedProbeHeight(probe, props.zoom);
+        const probeReferencePoint = {
+          x: probe.x * PATCH_CANVAS_GRID + renderedWidth / props.zoom,
+          y: probe.y * PATCH_CANVAS_GRID + renderedHeight / props.zoom / 2
+        };
         const targetPoint =
           probe.target.kind === "connection"
-            ? resolvePatchConnectionMidpoint(props.patch, props.layoutByNode, probe.target.connectionId)
+            ? resolvePatchConnectionAnchorPoint(props.patch, props.layoutByNode, probe.target.connectionId, probeReferencePoint, props.outputHostCanvasLeft) ??
+              resolvePatchConnectionMidpoint(props.patch, props.layoutByNode, probe.target.connectionId, props.outputHostCanvasLeft)
             : resolvePatchPortAnchorPoint(
                 props.patch,
                 props.layoutByNode,
                 probe.target.nodeId,
                 probe.target.portId,
-                probe.target.portKind
+                probe.target.portKind,
+                props.outputHostCanvasLeft
               );
         if (!targetPoint) {
           return [];
         }
-        const renderedWidth = resolveRenderedProbeWidth(probe, props.zoom);
-        const renderedHeight = resolveRenderedProbeHeight(probe, props.zoom);
+        const probeEdgePoint = resolveNearestProbeEdgePoint(probe, props.zoom, targetPoint);
         return [{
           id: probe.id,
-          x1: probe.x * PATCH_CANVAS_GRID * props.zoom + renderedWidth,
-          y1: probe.y * PATCH_CANVAS_GRID * props.zoom + renderedHeight * 0.5,
+          x1: probeEdgePoint.x * props.zoom,
+          y1: probeEdgePoint.y * props.zoom,
           x2: targetPoint.x * props.zoom,
           y2: targetPoint.y * props.zoom,
           targetKind: probe.target.kind
         }];
       }),
-    [props.layoutByNode, props.patch, props.probes, props.zoom]
+    [props.layoutByNode, props.outputHostCanvasLeft, props.patch, props.probes, props.zoom]
   );
 
   return (
@@ -244,6 +262,11 @@ function ProbeCard(props: {
           {props.attaching ? "Cancel" : "Attach"}
         </button>
       </div>
+      {props.attaching && (
+        <div className="patch-probe-attach-tooltip" role="status">
+          Click a port or wire to attach the selected probe.
+        </div>
+      )}
       <div className="patch-probe-card-body patch-probe-face-toggle">
         <ProbeGraphBody
           probe={props.probe}

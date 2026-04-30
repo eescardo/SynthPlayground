@@ -2,9 +2,22 @@ import { describe, expect, it } from "vitest";
 
 import { applyMacroValue, applyPatchOp } from "@/lib/patch/ops";
 import { getMacroBindingKeyframeCount, resolveMacroBindingValue } from "@/lib/patch/macroKeyframes";
-import { pluckPatch } from "@/lib/patch/presets";
+import { createClearPatch, pluckPatch } from "@/lib/patch/presets";
 
 describe("patch ops", () => {
+  it("rejects adding nodes with ids reserved for patch boundary ports", () => {
+    const patch = createClearPatch({ id: "reserved_ids", name: "Reserved IDs" });
+
+    expect(() =>
+      applyPatchOp(patch, {
+        type: "addNode",
+        nodeId: "pitch",
+        typeId: "CVTranspose",
+        layoutPos: { x: 0, y: 0 }
+      })
+    ).toThrow("Node id is reserved for a patch boundary port: pitch");
+  });
+
   it("applies macro slider moves to bound params without mutating defaults", () => {
     const patch = pluckPatch();
     const macro = patch.ui.macros[0];
@@ -65,8 +78,8 @@ describe("patch ops", () => {
       type: "bindMacro",
       macroId: macro.id,
       bindingId: "binding_keyframed_test",
-      nodeId: "vcf1",
-      paramId: "cutoffHz",
+      nodeId: "output",
+      paramId: "gainDb",
       map: "piecewise",
       points: [
         { x: 0, y: 120 },
@@ -75,7 +88,9 @@ describe("patch ops", () => {
       ]
     });
 
-    const binding = nextPatch.ui.macros.find((entry) => entry.id === macro.id)?.bindings.find((entry) => entry.id === "binding_keyframed_test");
+    const binding = nextPatch.ui.macros
+      .find((entry) => entry.id === macro.id)
+      ?.bindings.find((entry) => entry.id === `${macro.id}:output:gainDb`);
     expect(binding?.points).toHaveLength(3);
   });
 

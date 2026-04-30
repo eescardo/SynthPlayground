@@ -4,6 +4,11 @@ import { useMemo } from "react";
 import { applyMacroValue } from "@/lib/patch/ops";
 import { Patch } from "@/types/patch";
 
+export const resolvePatchWorkspaceMacroValues = (patch: Patch, macroValues?: Record<string, number>) =>
+  Object.fromEntries(
+    patch.ui.macros.map((macro) => [macro.id, macroValues?.[macro.id] ?? macro.defaultNormalized ?? 0.5])
+  );
+
 export const buildPatchWithWorkspaceMacroValues = (patch: Patch, macroValues?: Record<string, number>) => {
   if (!macroValues || Object.keys(macroValues).length === 0) {
     return patch;
@@ -27,10 +32,7 @@ export function usePatchWorkspaceMacroValues(options: UsePatchWorkspaceMacroValu
     if (!selectedPatch) {
       return {};
     }
-    const persistedValues = macroValues ?? {};
-    return Object.fromEntries(
-      selectedPatch.ui.macros.map((macro) => [macro.id, persistedValues[macro.id] ?? macro.defaultNormalized ?? 0.5])
-    );
+    return resolvePatchWorkspaceMacroValues(selectedPatch, macroValues);
   }, [macroValues, selectedPatch]);
 
   const workspacePatch = useMemo(

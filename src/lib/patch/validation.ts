@@ -1,7 +1,14 @@
 import { getModuleSchema, moduleRegistryById } from "@/lib/patch/moduleRegistry";
-import { SOURCE_HOST_NODE_IDS, SOURCE_HOST_NODE_TYPE_BY_ID } from "@/lib/patch/constants";
+import { createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
 import { getMacroBindingKeyframeCount } from "@/lib/patch/macroKeyframes";
-import { CompiledNode, CompiledOp, CompiledPlan, Patch, PatchValidationIssue, PatchValidationResult, ParamValue } from "@/types/patch";
+import {
+  getHostSourcePatchPorts,
+  getPatchBoundaryPorts,
+  getPatchPorts,
+  RESERVED_PATCH_MODULE_IDS
+} from "@/lib/patch/ports";
+import { normalizePatchOutputPort } from "@/lib/patch/normalize";
+import { CompiledNode, CompiledOp, CompiledPlan, Patch, PatchValidationIssue, PatchValidationResult, ParamValue, PatchNode } from "@/types/patch";
 
 const pushError = (
   issues: PatchValidationIssue[],
@@ -13,14 +20,16 @@ const pushError = (
 };
 
 export const patchHasNode = (patch: Patch, nodeId: string): boolean => patch.nodes.some((node) => node.id === nodeId);
+const patchHasEndpointNode = (patch: Patch, nodeId: string): boolean =>
+  patch.nodes.some((node) => node.id === nodeId) || getPatchBoundaryPorts(patch).some((port) => port.id === nodeId);
 
 const resolveAllNodeTypes = (patch: Patch): Map<string, string> => {
   const allNodeTypes = new Map<string, string>();
   for (const node of patch.nodes) {
     allNodeTypes.set(node.id, node.typeId);
   }
-  for (const hostId of SOURCE_HOST_NODE_IDS) {
-    allNodeTypes.set(hostId, SOURCE_HOST_NODE_TYPE_BY_ID[hostId]);
+  for (const port of getPatchBoundaryPorts(patch)) {
+    allNodeTypes.set(port.id, port.typeId);
   }
   return allNodeTypes;
 };
@@ -91,7 +100,7 @@ const wouldCreateCycle = (patch: Patch, fromNodeId: string, toNodeId: string) =>
   if (fromNodeId === toNodeId) {
     return true;
   }
-  if (!patchHasNode(patch, fromNodeId) || !patchHasNode(patch, toNodeId)) {
+  if (!patchHasEndpointNode(patch, fromNodeId) || !patchHasEndpointNode(patch, toNodeId)) {
     return false;
   }
 
@@ -99,8 +108,14 @@ const wouldCreateCycle = (patch: Patch, fromNodeId: string, toNodeId: string) =>
   for (const node of patch.nodes) {
     adjacency.set(node.id, []);
   }
+  for (const port of getPatchPorts(patch)) {
+    adjacency.set(port.id, []);
+  }
+  for (const port of getHostSourcePatchPorts()) {
+    adjacency.set(port.id, []);
+  }
   for (const connection of patch.connections) {
-    if (!patchHasNode(patch, connection.from.nodeId) || !patchHasNode(patch, connection.to.nodeId)) {
+    if (!patchHasEndpointNode(patch, connection.from.nodeId) || !patchHasEndpointNode(patch, connection.to.nodeId)) {
       continue;
     }
     adjacency.get(connection.from.nodeId)?.push(connection.to.nodeId);
@@ -125,12 +140,15 @@ const wouldCreateCycle = (patch: Patch, fromNodeId: string, toNodeId: string) =>
 };
 
 export const validatePatchConnectionCandidate = (
-  patch: Patch,
+  inputPatch: Patch,
   fromNodeId: string,
   fromPortId: string,
   toNodeId: string,
   toPortId: string
 ): PatchValidationIssue[] => {
+  // TODO(output-port-legacy): Drop this defensive normalization when callers only
+  // pass patches that have already gone through normalizePatch.
+  const patch = normalizePatchOutputPort(inputPatch);
   const issues: PatchValidationIssue[] = [];
   const allNodeTypes = resolveAllNodeTypes(patch);
   const resolved = resolveConnectionValidation(issues, allNodeTypes, fromNodeId, fromPortId, toNodeId, toPortId);
@@ -158,10 +176,14 @@ export const validatePatchConnectionCandidate = (
   return issues;
 };
 
-export const validatePatch = (patch: Patch): PatchValidationResult => {
+export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
+  // TODO(output-port-legacy): Drop this defensive normalization when callers only
+  // pass patches that have already gone through normalizePatch.
+  const patch = normalizePatchOutputPort(inputPatch);
   const issues: PatchValidationIssue[] = [];
   const macroIds = new Set<string>();
   const macroBindingIds = new Set<string>();
+  const macroBindingTargetKeys = new Set<string>();
   const macroTargetToMacroId = new Map<string, string>();
 
   const uniqueNodeIds = new Set<string>();
@@ -170,6 +192,9 @@ export const validatePatch = (patch: Patch): PatchValidationResult => {
       pushError(issues, `Duplicate node id: ${node.id}`, { nodeId: node.id });
     }
     uniqueNodeIds.add(node.id);
+    if (RESERVED_PATCH_MODULE_IDS.has(node.id)) {
+      pushError(issues, `Node id is reserved for a patch boundary port: ${node.id}`, { nodeId: node.id }, "reserved-node-id");
+    }
 
     if (!moduleRegistryById.has(node.typeId)) {
       pushError(issues, `Unknown node type: ${node.typeId}`, { nodeId: node.id, typeId: node.typeId });
@@ -196,8 +221,17 @@ export const validatePatch = (patch: Patch): PatchValidationResult => {
         pushError(issues, `Duplicate macro binding id: ${binding.id}`, { bindingId: binding.id, macroId: macro.id });
       }
       macroBindingIds.add(binding.id);
+      const bindingIdentityKey = createPatchMacroBindingKey(patch, macro.id, binding);
+      if (macroBindingTargetKeys.has(bindingIdentityKey)) {
+        pushError(issues, `Duplicate macro binding target`, {
+          macroId: macro.id,
+          nodeId: binding.nodeId,
+          paramId: binding.paramId
+        });
+      }
+      macroBindingTargetKeys.add(bindingIdentityKey);
 
-      const node = patch.nodes.find((entry) => entry.id === binding.nodeId);
+      const node = [...patch.nodes, ...getPatchBoundaryPorts(patch)].find((entry) => entry.id === binding.nodeId);
       if (!node) {
         pushError(issues, `Macro binding references missing node`, {
           macroId: macro.id,
@@ -229,7 +263,7 @@ export const validatePatch = (patch: Patch): PatchValidationResult => {
         });
       }
 
-      const targetKey = `${binding.nodeId}:${binding.paramId}`;
+      const targetKey = createPatchMacroBindingKey(patch, "", binding);
       const existingMacroId = macroTargetToMacroId.get(targetKey);
       if (existingMacroId && existingMacroId !== macro.id) {
         pushError(issues, `Conflicting macro bindings target the same parameter`, {
@@ -289,7 +323,7 @@ export const validatePatch = (patch: Patch): PatchValidationResult => {
     }
   }
 
-  for (const node of patch.nodes) {
+  for (const node of [...patch.nodes, ...getPatchBoundaryPorts(patch)]) {
     const schema = getModuleSchema(node.typeId);
     if (!schema) {
       continue;
@@ -342,9 +376,10 @@ export const validatePatch = (patch: Patch): PatchValidationResult => {
     }
   }
 
-  const nodeById = new Set(patch.nodes.map((node) => node.id));
+  const graphNodes = [...patch.nodes, ...getPatchBoundaryPorts(patch)];
+  const nodeById = new Set(graphNodes.map((node) => node.id));
   const adjacency = new Map<string, string[]>();
-  for (const node of patch.nodes) {
+  for (const node of graphNodes) {
     adjacency.set(node.id, []);
   }
 
@@ -377,24 +412,15 @@ export const validatePatch = (patch: Patch): PatchValidationResult => {
     return false;
   };
 
-  for (const node of patch.nodes) {
+  for (const node of graphNodes) {
     if ((visitState.get(node.id) ?? 0) === 0 && detectCycle(node.id)) {
       break;
     }
   }
 
-  const outputNodes = patch.nodes.filter((node) => node.typeId === "Output");
-  if (outputNodes.length !== 1) {
-    pushError(issues, `Patch must include exactly one Output node`, { outputCount: String(outputNodes.length) });
-  }
-
-  if (!patch.io.audioOutNodeId || !patch.io.audioOutPortId) {
-    pushError(issues, "Patch io.audioOutNodeId/io.audioOutPortId must be set");
-  } else {
-    const outNode = patch.nodes.find((node) => node.id === patch.io.audioOutNodeId);
-    if (!outNode) {
-      pushError(issues, "io.audioOutNodeId does not exist", { nodeId: patch.io.audioOutNodeId });
-    }
+  const outputPorts = getPatchPorts(patch).filter((port) => port.typeId === "Output");
+  if (outputPorts.length !== 1) {
+    pushError(issues, `Patch must include exactly one Output port`, { outputCount: String(outputPorts.length) }, "output-port-count");
   }
 
   return {
@@ -451,13 +477,17 @@ const topologicalSort = (nodes: string[], edges: Array<{ from: string; to: strin
   return ordered;
 };
 
-export const compilePatchPlan = (patch: Patch, sampleRate = 48000, blockSize = 128): CompiledPlan => {
+export const compilePatchPlan = (inputPatch: Patch, sampleRate = 48000, blockSize = 128): CompiledPlan => {
+  // TODO(output-port-legacy): Drop this defensive normalization when callers only
+  // pass patches that have already gone through normalizePatch.
+  const patch = normalizePatchOutputPort(inputPatch);
   const validation = validatePatch(patch);
   if (!validation.ok) {
     throw new Error(`Patch validation failed: ${validation.issues.map((issue) => issue.message).join("; ")}`);
   }
 
-  const nodeIds = patch.nodes.map((node) => node.id);
+  const compileNodes: PatchNode[] = [...patch.nodes, ...getPatchPorts(patch)];
+  const nodeIds = compileNodes.map((node) => node.id);
   const edges = patch.connections
     .filter((connection) => nodeIds.includes(connection.from.nodeId) && nodeIds.includes(connection.to.nodeId))
     .map((connection) => ({ from: connection.from.nodeId, to: connection.to.nodeId }));
@@ -469,7 +499,7 @@ export const compilePatchPlan = (patch: Patch, sampleRate = 48000, blockSize = 1
   const ops: CompiledOp[] = [];
 
   for (const nodeId of orderedNodeIds) {
-    const node = patch.nodes.find((entry) => entry.id === nodeId)!;
+    const node = compileNodes.find((entry) => entry.id === nodeId)!;
     const schema = getModuleSchema(node.typeId);
     if (!schema) {
       throw new Error(`Unknown schema during compile: ${node.typeId}`);

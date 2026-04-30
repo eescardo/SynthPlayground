@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { exportPatchToJson, importPatchBundleFromJson, PATCH_BUNDLE_KIND, PATCH_BUNDLE_VERSION } from "@/lib/patch/serde";
 import { createClearPatch } from "@/lib/patch/presets";
+import { Patch } from "@/types/patch";
 
 describe("patch serde", () => {
   it("exports a versioned patch bundle with referenced sample assets only", () => {
@@ -44,5 +45,100 @@ describe("patch serde", () => {
     const imported = importPatchBundleFromJson(exportPatchToJson(patch));
 
     expect(imported.patch.meta).toEqual({ source: "custom" });
+  });
+
+  it("migrates legacy output nodes into ports while preserving params", () => {
+    const legacyPatch = createClearPatch({
+      id: "patch_legacy",
+      name: "Legacy"
+    });
+    legacyPatch.nodes = [
+      {
+        id: "vca1",
+        typeId: "VCA",
+        params: {
+          bias: 0,
+          gain: 1
+        }
+      },
+      {
+        id: "legacy_output",
+        typeId: "Output",
+        params: {
+          gainDb: -9,
+          limiter: false
+        }
+      }
+    ];
+    legacyPatch.connections = [
+      {
+        id: "conn_output",
+        from: { nodeId: "vca1", portId: "out" },
+        to: { nodeId: "legacy_output", portId: "in" }
+      }
+    ];
+    legacyPatch.ports = undefined;
+    legacyPatch.layout.nodes = [{ nodeId: "legacy_output", x: 18, y: 6 }];
+    (legacyPatch as Patch & { io: { audioOutNodeId: string } }).io = {
+      audioOutNodeId: "legacy_output"
+    };
+    legacyPatch.ui.paramRanges = {
+      "legacy_output:gainDb": { min: -24, max: 0 }
+    };
+    legacyPatch.ui.macros = [
+      {
+        id: "macro_output",
+        name: "Output",
+        keyframeCount: 2,
+        bindings: [
+          {
+            id: "old_output_binding",
+            nodeId: "legacy_output",
+            paramId: "gainDb",
+            map: "linear",
+            min: -18,
+            max: 0
+          }
+        ]
+      }
+    ];
+
+    const imported = importPatchBundleFromJson(exportPatchToJson(legacyPatch));
+
+    expect(imported.patch.nodes).toEqual([
+      {
+        id: "vca1",
+        typeId: "VCA",
+        params: {
+          bias: 0,
+          gain: 1
+        }
+      }
+    ]);
+    expect(imported.patch.layout.nodes).toEqual([{ nodeId: "vca1", x: 4, y: 2 }]);
+    expect(imported.patch.connections).toEqual([
+      {
+        id: "conn_output",
+        from: { nodeId: "vca1", portId: "out" },
+        to: { nodeId: "output", portId: "in" }
+      }
+    ]);
+    expect(imported.patch).not.toHaveProperty("io");
+    expect(imported.patch.ui.paramRanges).toEqual({
+      "output:gainDb": { min: -24, max: 0 }
+    });
+    expect(imported.patch.ui.macros[0]?.bindings[0]?.nodeId).toBe("output");
+    expect(imported.patch.ports).toEqual([
+      {
+        id: "output",
+        typeId: "Output",
+        label: "output",
+        direction: "sink",
+        params: {
+          gainDb: -9,
+          limiter: false
+        }
+      }
+    ]);
   });
 });

@@ -5,13 +5,36 @@ import { PatchDiff } from "@/lib/patch/diff";
 import { PatchModuleParameter, shouldRenderParamInGenericInspector } from "@/components/patch/PatchModuleParameter";
 import { SamplePlayerInspectorSection } from "@/components/patch/SamplePlayerInspectorSection";
 import { ProbeInspectorSection } from "@/components/patch/ProbeInspectorSection";
+import {
+  formatPatchEndpointLabel,
+  formatPatchPortLabel,
+  formatPatchParamTargetLabel,
+  isPatchOutputEndpoint
+} from "@/components/patch/patchInspectablePorts";
+import { isPatchOutputPortId } from "@/lib/patch/ports";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { Patch, PatchNode, PatchValidationIssue } from "@/types/patch";
+import { Patch, PatchNode, PatchPort, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
 
-function connectionLabel(connection: Pick<Patch["connections"][number], "from" | "to">) {
-  return `${connection.from.nodeId}.${connection.from.portId} -> ${connection.to.nodeId}.${connection.to.portId}`;
+function connectionLabel(patch: Patch, connection: Pick<Patch["connections"][number], "from" | "to">) {
+  return `${formatPatchEndpointLabel(patch, connection.from)} -> ${formatPatchEndpointLabel(patch, connection.to)}`;
+}
+
+function requiredPortIssueLabel(patch: Patch, issue: PatchValidationIssue, selectedNode?: PatchNode) {
+  const portId = issue.context?.portId ?? "unknown";
+  const direction = issue.context?.direction === "out" ? "output" : "input";
+  const nodeId = issue.context?.nodeId;
+  if (nodeId && isPatchOutputEndpoint(patch, { nodeId, portId })) {
+    return {
+      subject: "output",
+      target: formatPatchEndpointLabel(patch, { nodeId, portId })
+    };
+  }
+  return {
+    subject: issue.context?.typeId ?? "Module",
+    target: selectedNode || !nodeId ? `${direction} '${portId}'` : `${nodeId}.${portId}`
+  };
 }
 
 interface PatchInspectorProps {
@@ -28,6 +51,7 @@ interface PatchInspectorProps {
   structureLocked?: boolean;
   validationIssues: PatchValidationIssue[];
   onApplyOp: (op: PatchOp) => void;
+  onPreviewParamValue?: (nodeId: string, paramId: string, value: PatchNode["params"][string]) => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
   onUpdateProbeSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
   onUpdateProbeFrequencyView: (probeId: string, maxHz: number) => void;
@@ -58,6 +82,8 @@ function resolveRequiredPortIssues(issues: PatchValidationIssue[]) {
 export function PatchInspector(props: PatchInspectorProps) {
   const selectedNode = props.selectedNode;
   const selectedProbe = props.selectedProbe;
+  const selectedPort = selectedNode && isPatchOutputPortId(props.patch, selectedNode.id) ? (selectedNode as PatchPort) : null;
+  const selectedSubjectKind = selectedPort ? "port" : selectedNode ? "module" : null;
   const selectedMacro = props.selectedMacroId
     ? props.patch.ui.macros.find((macro) => macro.id === props.selectedMacroId)
     : undefined;
@@ -83,13 +109,11 @@ export function PatchInspector(props: PatchInspectorProps) {
   return (
     <aside className="patch-inspector">
       <h3>Inspector</h3>
-      {!selectedNode && !selectedProbe && <p className="muted">Select a module or probe to edit parameters.</p>}
+      {!selectedNode && !selectedProbe && <p className="muted">Select a module, port, or probe to edit parameters.</p>}
 
       {selectedNode && props.selectedSchema && (
         <>
-          <h4>
-            {selectedNode.typeId} <small>{selectedNode.id}</small>
-          </h4>
+          <h4>{selectedPort ? formatPatchPortLabel(props.patch, selectedPort) : <>{selectedNode.typeId} <small>{selectedNode.id}</small></>}</h4>
           {props.selectedSchema.params
             .filter((param) => shouldRenderParamInGenericInspector(selectedNode, param))
             .map((param) => (
@@ -104,6 +128,7 @@ export function PatchInspector(props: PatchInspectorProps) {
                 selectedMacroKeyframeIndex={selectedMacroKeyframeIndex}
                 structureLocked={props.structureLocked}
                 onApplyOp={props.onApplyOp}
+                onPreviewParamValue={props.onPreviewParamValue}
                 onExposeMacro={props.onExposeMacro}
               />
             ))}
@@ -180,7 +205,8 @@ export function PatchInspector(props: PatchInspectorProps) {
                   <div className="patch-diff-list">
                     {props.patchDiff.removedBindingDiffs.map((bindingDiff) => (
                       <div key={bindingDiff.key} className="patch-diff-list-row negative removed-diff-artifact">
-                        <strong>{bindingDiff.macroName}</strong> <span>{bindingDiff.nodeId}.{bindingDiff.paramId}</span>
+                        <strong>{bindingDiff.macroName}</strong>
+                        <span>{formatPatchParamTargetLabel(props.patch, bindingDiff)}</span>
                       </div>
                     ))}
                   </div>
@@ -193,7 +219,7 @@ export function PatchInspector(props: PatchInspectorProps) {
                   <div className="patch-diff-list">
                     {props.patchDiff.removedConnections.map((connection) => (
                       <div key={connection.id} className="patch-diff-list-row negative removed-diff-artifact">
-                        <code>{connectionLabel(connection)}</code>
+                        <code>{connectionLabel(props.patch, connection)}</code>
                       </div>
                     ))}
                   </div>
@@ -204,54 +230,60 @@ export function PatchInspector(props: PatchInspectorProps) {
         </>
       )}
 
-      <h4>{selectedNode ? "Required Connections" : "Unconnected Required Ports"}</h4>
+      <h4>{selectedPort ? "Required Connections" : selectedNode ? "Required Connections" : "Unconnected Required Ports"}</h4>
       {visibleRequiredPortIssues.length === 0 && (
-        <p className="ok">{selectedNode ? "All required module ports are connected." : "All required ports are connected."}</p>
+        <p className="ok">
+          {selectedPort
+            ? "All required port terminals are connected."
+            : selectedNode
+              ? "All required module ports are connected."
+              : "All required ports are connected."}
+        </p>
       )}
       {visibleRequiredPortIssues.map((issue, index) => {
-        const typeId = issue.context?.typeId ?? "Module";
-        const portId = issue.context?.portId ?? "unknown";
-        const direction = issue.context?.direction === "out" ? "output" : "input";
-        const nodeId = issue.context?.nodeId;
-        const label = selectedNode || !nodeId ? `${direction} '${portId}'` : `${nodeId}.${portId}`;
+        const label = requiredPortIssueLabel(props.patch, issue, selectedNode);
         return (
-          <p key={`${issue.message}_${portId}_${index}`} className="error">
-            {typeId}: required {label} is unconnected.
+          <p key={`${issue.message}_${label.target}_${index}`} className="error">
+            {label.subject}: required {label.target} is unconnected.
           </p>
         );
       })}
 
-      <h4>{selectedNode ? "Module Connections" : "Connections"}</h4>
-      {visibleConnections.length === 0 && <p className="muted">{selectedNode ? "No wires on this module." : "No wires yet."}</p>}
+      <h4>{selectedPort ? "Port Connections" : selectedNode ? "Module Connections" : "Connections"}</h4>
+      {visibleConnections.length === 0 && (
+        <p className="muted">
+          {selectedPort ? "No wires on this port." : selectedNode ? "No wires on this module." : "No wires yet."}
+        </p>
+      )}
       {visibleConnections.map((connection) => (
         <div
           key={connection.id}
           className={`conn-row${props.patchDiff.currentConnectionStatusById.get(connection.id) === "added" ? " diff-positive" : ""}`}
         >
           <code>
-            {connectionLabel(connection)}
+            {connectionLabel(props.patch, connection)}
           </code>
           <button disabled={props.structureLocked} onClick={() => !props.structureLocked && props.onApplyOp({ type: "disconnect", connectionId: connection.id })}>x</button>
         </div>
       ))}
       {visibleRemovedConnections.map((connection) => (
         <div key={connection.id} className="conn-row diff-negative removed-diff-artifact">
-          <code>{connectionLabel(connection)}</code>
+          <code>{connectionLabel(props.patch, connection)}</code>
           <button type="button" disabled>
             removed
           </button>
         </div>
       ))}
 
-      <h4>{selectedNode ? "Module Validation" : "Validation"}</h4>
+      <h4>{selectedPort ? "Port Validation" : selectedNode ? "Module Validation" : "Validation"}</h4>
       {visibleGeneralValidationIssues.length === 0 && (
         <p className={visibleValidationHasErrors ? "error" : "ok"}>
           {visibleValidationHasErrors
-            ? selectedNode
-              ? "Module invalid. Fix required connections above."
+            ? selectedSubjectKind
+              ? `${selectedSubjectKind === "port" ? "Port" : "Module"} invalid. Fix required connections above.`
               : "Patch invalid. Fix required connections above."
-            : selectedNode
-              ? "Module valid."
+            : selectedSubjectKind
+              ? `${selectedSubjectKind === "port" ? "Port" : "Module"} valid.`
               : "Patch valid."}
         </p>
       )}

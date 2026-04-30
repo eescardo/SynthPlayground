@@ -1,15 +1,16 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PatchEditorStage } from "@/components/patch/PatchEditorStage";
 import { PatchInspector } from "@/components/patch/PatchInspector";
 import { PatchMacroPanel } from "@/components/patch/PatchMacroPanel";
 import { PatchBaselineDiffState } from "@/components/patch/patchBaselineDiffState";
+import { applyDraftParamValues, buildParamDraftKey } from "@/components/patch/patchEditorCanvasDrafts";
 import { usePatchProbeEditorState } from "@/hooks/patch/usePatchProbeEditorState";
 import { clamp } from "@/lib/numeric";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { PatchValidationIssue, Patch } from "@/types/patch";
+import { PatchValidationIssue, Patch, ParamValue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 
@@ -47,6 +48,11 @@ interface PatchEditorCanvasProps {
 }
 
 export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
+  const [draftParamValues, setDraftParamValues] = useState<Record<string, ParamValue>>({});
+  useEffect(() => {
+    setDraftParamValues({});
+  }, [props.patch]);
+  const previewPatch = useMemo(() => applyDraftParamValues(props.patch, draftParamValues), [draftParamValues, props.patch]);
   const macroVisibleRows = clamp(props.patch.ui.macros.length || 1, PATCH_MACRO_VISIBLE_ROW_MIN, PATCH_MACRO_VISIBLE_ROW_MAX);
   const macroDockHeightRem =
     PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT[macroVisibleRows] ?? PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT[PATCH_MACRO_VISIBLE_ROW_MAX];
@@ -55,13 +61,16 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       return new Set<string>();
     }
     return new Set(
-      props.patch.ui.macros
+      previewPatch.ui.macros
         .find((macro) => macro.id === props.selectedMacroId)
         ?.bindings.map((binding) => binding.nodeId) ?? []
     );
-  }, [props.patch.ui.macros, props.selectedMacroId]);
+  }, [previewPatch.ui.macros, props.selectedMacroId]);
 
-  const nodeById = useMemo(() => new Map(props.patch.nodes.map((node) => [node.id, node] as const)), [props.patch.nodes]);
+  const nodeById = useMemo(
+    () => new Map([...previewPatch.nodes, ...(previewPatch.ports ?? [])].map((node) => [node.id, node] as const)),
+    [previewPatch.nodes, previewPatch.ports]
+  );
   const selectedNode = props.selectedNodeId ? nodeById.get(props.selectedNodeId) : undefined;
   const selectedSchema = selectedNode ? getModuleSchema(selectedNode.typeId) : undefined;
   const {
@@ -89,7 +98,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       <div className="patch-layout">
         <div className="patch-editor-main-column">
           <PatchEditorStage
-            patch={props.patch}
+            patch={previewPatch}
             baselineDiff={props.baselineDiff}
             validationIssues={props.validationIssues}
             probeState={canvasProbeState}
@@ -121,7 +130,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
         </div>
 
         <PatchInspector
-          patch={props.patch}
+          patch={previewPatch}
           patchDiff={props.baselineDiff.patchDiff}
           macroValues={props.macroValues}
           selectedNode={selectedNode}
@@ -134,6 +143,12 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           structureLocked={props.structureLocked}
           validationIssues={props.validationIssues}
           onApplyOp={props.onApplyOp}
+          onPreviewParamValue={(nodeId, paramId, value) => {
+            setDraftParamValues((current) => ({
+              ...current,
+              [buildParamDraftKey(nodeId, paramId)]: value
+            }));
+          }}
           onExposeMacro={props.onExposeMacro}
           onUpdateProbeSpectrumWindow={props.probeActions.updateSpectrumWindow}
           onUpdateProbeFrequencyView={props.probeActions.updateFrequencyView}

@@ -148,6 +148,27 @@ pub(crate) struct VcfNode {
     bp: f32,
 }
 
+impl VcfNode {
+    #[inline(always)]
+    fn process_sample(&mut self, input: f32, cutoff_cv: f32, sample_rate_scale: f32) -> f32 {
+        let cutoff_effective = clamp(
+            self.cutoff_hz.next() * 2.0_f32.powf(cutoff_cv * self.cutoff_mod_amount_oct.next()),
+            20.0,
+            20000.0
+        );
+        let damping = clamp(1.0 - self.resonance.next(), 0.001, 1.0);
+        let f = clamp(sample_rate_scale * cutoff_effective, 0.001, 0.99);
+        let hp = input - self.lp - damping * self.bp;
+        self.bp += f * hp;
+        self.lp += f * self.bp;
+        match self.filter_type {
+            FilterType::Lowpass => self.lp,
+            FilterType::Highpass => hp,
+            FilterType::Bandpass => self.bp,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct Mixer4Node {
     out_index: usize,
@@ -736,21 +757,7 @@ impl RuntimeNode {
                 for frame in start_frame..end_frame {
                     let input = input_buffer_start.map(|start| signal_buffers[start + frame]).unwrap_or(0.0);
                     let cutoff_cv = cutoff_cv_start.map(|start| signal_buffers[start + frame]).unwrap_or(0.0);
-                    let cutoff_effective = clamp(
-                        node.cutoff_hz.next() * 2.0_f32.powf(cutoff_cv * node.cutoff_mod_amount_oct.next()),
-                        20.0,
-                        20000.0
-                    );
-                    let resonance = clamp(node.resonance.next(), 0.0, 1.0);
-                    let f = clamp(sample_rate_scale * cutoff_effective, 0.001, 0.99);
-                    let hp = input - node.lp - resonance * node.bp;
-                    node.bp += f * hp;
-                    node.lp += f * node.bp;
-                    signal_buffers[out_start + frame] = match node.filter_type {
-                        FilterType::Lowpass => node.lp,
-                        FilterType::Highpass => hp,
-                        FilterType::Bandpass => node.bp,
-                    };
+                    signal_buffers[out_start + frame] = node.process_sample(input, cutoff_cv, sample_rate_scale);
                 }
             }
             Self::Mixer4(node) => {
@@ -993,14 +1000,8 @@ impl RuntimeNode {
             Self::VCF(node) => {
                 let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
                 let cutoff_cv = read_input_frame(signal_buffers, block_size, frame, node.cutoff_cv, 0.0);
-                let cutoff_effective = clamp(node.cutoff_hz.next() * 2.0_f32.powf(cutoff_cv * node.cutoff_mod_amount_oct.next()), 20.0, 20000.0);
-                let resonance = clamp(node.resonance.next(), 0.0, 1.0);
-                let f = clamp((2.0 * std::f32::consts::PI * cutoff_effective) / sample_rate, 0.001, 0.99);
-                let hp = input - node.lp - resonance * node.bp;
-                node.bp += f * hp;
-                node.lp += f * node.bp;
                 let out = frame_signal_offset(node.out_index, block_size, frame);
-                signal_buffers[out] = match node.filter_type { FilterType::Lowpass => node.lp, FilterType::Highpass => hp, FilterType::Bandpass => node.bp };
+                signal_buffers[out] = node.process_sample(input, cutoff_cv, (2.0 * std::f32::consts::PI) / sample_rate);
             }
             Self::Mixer4(node) => {
                 let out = frame_signal_offset(node.out_index, block_size, frame);

@@ -6,27 +6,40 @@ import {
   HitPort,
   resolveHostPatchPortLabel,
   resolveHostPatchPortRect,
-  resolveHostPatchPortTint
+  resolveHostPatchPortTint,
+  resolveOutputHostPatchPortRect
 } from "@/components/patch/patchCanvasGeometry";
-import { HostNodeId, SOURCE_HOST_NODE_IDS } from "@/lib/patch/constants";
+import { HOST_PORT_IDS, HostPatchPortId, SOURCE_HOST_PORT_IDS } from "@/lib/patch/constants";
+import { getPatchOutputInputPortId, getPatchOutputPort } from "@/lib/patch/ports";
+import { Patch } from "@/types/patch";
 
 interface HostOverlayPort {
-  nodeId: HostNodeId;
+  nodeId: HostPatchPortId;
   label: string;
   hitPort: HitPort;
   style: CSSProperties;
 }
 
 interface PatchHostPortOverlayProps {
+  outputHostCanvasLeft: number;
+  outputHostScreenLeft: number;
+  patch: Patch;
   pendingFromPort: HitPort | null;
   scrollTop: number;
   zoom: number;
   onPortSelection: (hitPort: HitPort, pointer: { x: number; y: number }) => void;
   onPortHover: (hitPort: HitPort | null, pointer: { x: number; y: number } | null) => void;
+  onSelectOutput: () => void;
 }
 
-function resolveOverlayPorts(scrollTop: number, zoom: number): HostOverlayPort[] {
-  return SOURCE_HOST_NODE_IDS.map((nodeId) => {
+function resolveOverlayPorts(
+  patch: Patch,
+  outputHostCanvasLeft: number,
+  outputHostScreenLeft: number,
+  scrollTop: number,
+  zoom: number
+): HostOverlayPort[] {
+  const sourcePorts: HostOverlayPort[] = SOURCE_HOST_PORT_IDS.map((nodeId): HostOverlayPort | null => {
     const rect = resolveHostPatchPortRect(nodeId);
     if (!rect) {
       return null;
@@ -56,17 +69,51 @@ function resolveOverlayPorts(scrollTop: number, zoom: number): HostOverlayPort[]
       } as CSSProperties
     };
   }).filter((entry): entry is HostOverlayPort => entry !== null);
+  const outputPort = getPatchOutputPort(patch);
+  if (!outputPort) {
+    return sourcePorts;
+  }
+  const outputRect = resolveOutputHostPatchPortRect(outputHostCanvasLeft);
+  const outputTint = resolveHostPatchPortTint(HOST_PORT_IDS.output);
+  return [
+    ...sourcePorts,
+    {
+      nodeId: HOST_PORT_IDS.output,
+      label: resolveHostPatchPortLabel(HOST_PORT_IDS.output),
+      hitPort: {
+        nodeId: outputPort.id,
+        portId: getPatchOutputInputPortId(patch),
+        kind: "in",
+        x: outputRect.x,
+        y: outputRect.y,
+        width: outputRect.width,
+        height: outputRect.height
+      },
+      style: {
+        "--patch-host-port-bg": outputTint.fill,
+        "--patch-host-port-border": outputTint.stroke,
+        "--patch-host-port-text": outputTint.text,
+        left: `${outputHostScreenLeft}px`,
+        top: `${outputRect.y * zoom - scrollTop - outputRect.height / 2}px`,
+        width: `${outputRect.width}px`,
+        height: `${outputRect.height}px`
+      } as CSSProperties
+    }
+  ];
 }
 
 function resolveHostPortPointer(hitPort: HitPort) {
   return {
-    x: hitPort.x + hitPort.width,
+    x: hitPort.kind === "in" ? hitPort.x : hitPort.x + hitPort.width,
     y: hitPort.y
   };
 }
 
 export function PatchHostPortOverlay(props: PatchHostPortOverlayProps) {
-  const ports = useMemo(() => resolveOverlayPorts(props.scrollTop, props.zoom), [props.scrollTop, props.zoom]);
+  const ports = useMemo(
+    () => resolveOverlayPorts(props.patch, props.outputHostCanvasLeft, props.outputHostScreenLeft, props.scrollTop, props.zoom),
+    [props.outputHostCanvasLeft, props.outputHostScreenLeft, props.patch, props.scrollTop, props.zoom]
+  );
 
   return (
     <div className="patch-host-port-layer">
@@ -79,6 +126,10 @@ export function PatchHostPortOverlay(props: PatchHostPortOverlayProps) {
           onPointerDown={(event) => {
             event.preventDefault();
             event.stopPropagation();
+            if (port.hitPort.kind === "in" && !props.pendingFromPort) {
+              props.onSelectOutput();
+              return;
+            }
             props.onPortSelection(port.hitPort, resolveHostPortPointer(port.hitPort));
           }}
           onPointerEnter={() => props.onPortHover(port.hitPort, resolveHostPortPointer(port.hitPort))}

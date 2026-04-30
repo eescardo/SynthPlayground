@@ -72,6 +72,7 @@ describe("normalizePatch", () => {
     );
 
     expect(patch.ui.macros[0].bindings[0]).toMatchObject({
+      id: "macro_1:vcf1:cutoffHz",
       map: "piecewise",
       points: [
         { x: 0, y: 120 },
@@ -80,6 +81,7 @@ describe("normalizePatch", () => {
       ]
     });
     expect(patch.ui.macros[0].bindings[1]).toMatchObject({
+      id: "macro_1:vcf1:resonance",
       map: "linear",
       points: undefined
     });

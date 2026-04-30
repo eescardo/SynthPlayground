@@ -1,13 +1,16 @@
 import { TRACK_VOLUME_AUTOMATION_ID } from "../shared/synth-renderer-constants.js";
 
-const HOST_NODE_IDS = {
+// TODO(host-boundary-ports): Host source ports are still compiled as implicit
+// renderer-fed signal indices. Once patch input ports become serialized peers
+// of the output port, derive these from patch.ports instead of this table.
+const HOST_SOURCE_PORT_IDS = {
   pitch: "$host.pitch",
   gate: "$host.gate",
   velocity: "$host.velocity",
   modWheel: "$host.modwheel"
 };
 
-const HOST_NODE_ID_SET = new Set(Object.values(HOST_NODE_IDS));
+const HOST_SOURCE_PORT_ID_SET = new Set(Object.values(HOST_SOURCE_PORT_IDS));
 
 const SUPPORTED_NODE_TYPES = new Set([
   "CVTranspose",
@@ -59,9 +62,27 @@ const assertPresent = (condition, message) => {
   }
 };
 
+const getPatchCompileNodes = (patch) => {
+  const nodes = patch.nodes || [];
+  const ports = patch.ports || [];
+  // TODO(output-port-legacy): Remove this transition guard once legacy Output
+  // nodes cannot reach the WASM compiler from saved projects or tests.
+  assertPresent(
+    nodes.every((node) => node.typeId !== "Output"),
+    `Output must be declared as a patch port in patch ${patch.id}.`
+  );
+  return [...nodes, ...ports];
+};
+
+const getPatchOutputPort = (patch) => {
+  const ports = patch.ports || [];
+  return ports.find((port) => port.id === "output") || ports.find((port) => port.typeId === "Output");
+};
+
 const compareNodeIdsTopologically = (patch) => {
-  const nodeById = new Map((patch.nodes || []).map((node) => [node.id, node]));
-  const nodeIds = (patch.nodes || []).map((node) => node.id);
+  const patchNodes = getPatchCompileNodes(patch);
+  const nodeById = new Map(patchNodes.map((node) => [node.id, node]));
+  const nodeIds = patchNodes.map((node) => node.id);
   const indegree = new Map(nodeIds.map((id) => [id, 0]));
   const adjacency = new Map(nodeIds.map((id) => [id, []]));
 
@@ -88,7 +109,7 @@ const compareNodeIdsTopologically = (patch) => {
     }
   }
 
-  assertPresent(ordered.length === (patch.nodes || []).length, `WASM compiler rejects cyclic patch ${patch.id}.`);
+  assertPresent(ordered.length === patchNodes.length, `WASM compiler rejects cyclic patch ${patch.id}.`);
   return ordered;
 };
 
@@ -148,15 +169,16 @@ const applyInitialMacrosToNodeParams = (patch, track, nodeParamTargets) => {
 };
 
 const compileTrackPatch = (patch, track, trackIndex) => {
-  const nodeById = new Map((patch.nodes || []).map((node) => [node.id, node]));
+  const patchNodes = getPatchCompileNodes(patch);
+  const nodeById = new Map(patchNodes.map((node) => [node.id, node]));
   const nodeOrder = compareNodeIdsTopologically(patch);
 
-  for (const node of patch.nodes || []) {
+  for (const node of patchNodes) {
     assertPresent(SUPPORTED_NODE_TYPES.has(node.typeId), `Unsupported node type ${node.typeId} in patch ${patch.id}.`);
   }
 
-  const outputNodeId = patch.io?.audioOutNodeId;
-  assertPresent(outputNodeId && nodeById.has(outputNodeId), `Invalid output node in patch ${patch.id}.`);
+  const outputNodeId = getPatchOutputPort(patch)?.id;
+  assertPresent(outputNodeId && nodeById.has(outputNodeId), `Invalid output port in patch ${patch.id}.`);
 
   let nextSignalIndex = 0;
   const outputIndexByKey = new Map();
@@ -170,15 +192,15 @@ const compileTrackPatch = (patch, track, trackIndex) => {
   };
 
   const hostSignalIndices = {
-    pitch: ensureOutputIndex(HOST_NODE_IDS.pitch, "out"),
-    gate: ensureOutputIndex(HOST_NODE_IDS.gate, "out"),
-    velocity: ensureOutputIndex(HOST_NODE_IDS.velocity, "out"),
-    modWheel: ensureOutputIndex(HOST_NODE_IDS.modWheel, "out")
+    pitch: ensureOutputIndex(HOST_SOURCE_PORT_IDS.pitch, "out"),
+    gate: ensureOutputIndex(HOST_SOURCE_PORT_IDS.gate, "out"),
+    velocity: ensureOutputIndex(HOST_SOURCE_PORT_IDS.velocity, "out"),
+    modWheel: ensureOutputIndex(HOST_SOURCE_PORT_IDS.modWheel, "out")
   };
 
   const inputSourceByDestKey = new Map();
   for (const connection of patch.connections || []) {
-    const fromIsHost = HOST_NODE_ID_SET.has(connection.from.nodeId);
+    const fromIsHost = HOST_SOURCE_PORT_ID_SET.has(connection.from.nodeId);
     if (!fromIsHost && !nodeById.has(connection.from.nodeId)) {
       continue;
     }
@@ -189,11 +211,11 @@ const compileTrackPatch = (patch, track, trackIndex) => {
     inputSourceByDestKey.set(`${connection.to.nodeId}:${connection.to.portId}`, sourceSignalIndex);
   }
 
-  for (const node of patch.nodes || []) {
+  for (const node of patchNodes) {
     ensureOutputIndex(node.id, "out");
   }
 
-  const nodeParamTargets = new Map((patch.nodes || []).map((node) => [node.id, { ...(node.params || {}) }]));
+  const nodeParamTargets = new Map(patchNodes.map((node) => [node.id, { ...(node.params || {}) }]));
   applyInitialMacrosToNodeParams(patch, track, nodeParamTargets);
 
   const nodes = nodeOrder.map((nodeId) => {

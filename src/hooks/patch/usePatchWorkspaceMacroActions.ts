@@ -2,10 +2,13 @@
 
 import { Dispatch, SetStateAction, useCallback } from "react";
 import { LocalPatchWorkspaceTab } from "@/hooks/patch/patchWorkspaceStateUtils";
+import { resolvePatchWorkspaceMacroValues } from "@/hooks/patch/usePatchWorkspaceMacroValues";
 import { createId } from "@/lib/ids";
+import { createMacroBindingId } from "@/lib/patch/macroBindings";
 import { clampNormalizedMacroValue } from "@/lib/patch/macroKeyframes";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
+import { getPatchParameterTargets } from "@/lib/patch/ports";
 import { resolvePatchSource } from "@/lib/patch/source";
 import { Project } from "@/types/music";
 import { Patch } from "@/types/patch";
@@ -45,7 +48,7 @@ export function usePatchWorkspaceMacroActions({
         return current;
       }
 
-      const node = currentPatch.nodes.find((entry) => entry.id === nodeId);
+      const node = getPatchParameterTargets(currentPatch).find((entry) => entry.id === nodeId);
       if (!node) {
         return current;
       }
@@ -78,7 +81,7 @@ export function usePatchWorkspaceMacroActions({
       nextPatch = applyPatchGraphOp(nextPatch, {
         type: "bindMacro",
         macroId,
-        bindingId: createId("bind"),
+        bindingId: createMacroBindingId(macroId, nodeId, paramId),
         nodeId,
         paramId,
         map: "linear",
@@ -172,7 +175,7 @@ export function usePatchWorkspaceMacroActions({
     }
 
     if (changeOptions?.commit) {
-      previewSelectedPatchNow(previewPitch, nextMacroValues);
+      previewSelectedPatchNow(previewPitch, resolvePatchWorkspaceMacroValues(selectedPatch, nextMacroValues));
     }
   }, [activeTab, previewPitch, previewSelectedPatchNow, selectedPatch, setTabMacroValuesById, tabMacroValuesById]);
 

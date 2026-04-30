@@ -29,7 +29,7 @@ export function formatBindingValue(value: number) {
 
 export function formatBindingSummary(binding: MacroBinding) {
   if (binding.points && binding.points.length >= 2) {
-    return `Keyframed ${binding.points.map((point) => formatBindingValue(point.y)).join(" - ")}`;
+    return `Macro ${binding.points.map((point) => formatBindingValue(point.y)).join(" - ")}`;
   }
-  return `Range ${formatBindingValue(binding.min ?? 0)} - ${formatBindingValue(binding.max ?? 1)}`;
+  return `Macro ${formatBindingValue(binding.min ?? 0)} - ${formatBindingValue(binding.max ?? 1)}`;
 }

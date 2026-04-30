@@ -12,9 +12,9 @@ interface PatchEditorToolbarProps {
   patchNodeCount: number;
   baselineControl: PatchBaselineControlState;
   selectedNodeId?: string;
+  protectedNodeId?: string;
   selectedProbeId?: string;
   pendingFromPort: boolean;
-  pendingProbeId?: string | null;
   zoom: number;
   onAddNode: (typeId: string) => void;
   onAddProbe: (kind: PatchWorkspaceProbeState["kind"]) => void;
@@ -26,7 +26,7 @@ interface PatchEditorToolbarProps {
 }
 
 export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
-  const canDeleteNode = Boolean(props.selectedNodeId && !props.structureLocked);
+  const canDeleteNode = Boolean(props.selectedNodeId && props.selectedNodeId !== props.protectedNodeId && !props.structureLocked);
   const canDeleteSelection = Boolean(props.selectedProbeId || canDeleteNode);
 
   return (
@@ -115,7 +115,6 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
       </button>
       {props.structureLocked && <span className="muted">Preset structure is locked. Move nodes for clarity or edit macros.</span>}
       {props.pendingFromPort && <span className="muted">Select a compatible port to complete connection.</span>}
-      {props.pendingProbeId && <span className="muted">Click a port or wire to attach the selected probe.</span>}
       <PatchBaselineControl {...props.baselineControl} />
       <span className="patch-zoom-readout">Zoom {Math.round(props.zoom * 100)}%</span>
     </div>

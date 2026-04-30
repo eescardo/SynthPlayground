@@ -1,7 +1,7 @@
 [
   {
     "presetId": "preset_bass",
-    "presetVersion": 12,
+    "presetVersion": 14,
     "name": "Bass",
     "macroIds": [
       "macro_cutoff",
@@ -10,7 +10,7 @@
   },
   {
     "presetId": "preset_bassdrum",
-    "presetVersion": 10,
+    "presetVersion": 12,
     "name": "Bass Drum",
     "macroIds": [
       "macro_body",
@@ -20,7 +20,7 @@
   },
   {
     "presetId": "preset_brass",
-    "presetVersion": 2,
+    "presetVersion": 4,
     "name": "Brass-ish",
     "macroIds": [
       "macro_bite"
@@ -28,7 +28,7 @@
   },
   {
     "presetId": "preset_drumish",
-    "presetVersion": 9,
+    "presetVersion": 11,
     "name": "Drum-ish",
     "macroIds": [
       "macro_shell",
@@ -39,7 +39,7 @@
   },
   {
     "presetId": "preset_keys",
-    "presetVersion": 2,
+    "presetVersion": 3,
     "name": "Simple Piano-ish",
     "macroIds": [
       "macro_brightness"
@@ -47,7 +47,7 @@
   },
   {
     "presetId": "preset_pad",
-    "presetVersion": 5,
+    "presetVersion": 7,
     "name": "Pad",
     "macroIds": [
       "macro_attack",
@@ -57,7 +57,7 @@
   },
   {
     "presetId": "preset_pluck",
-    "presetVersion": 27,
+    "presetVersion": 29,
     "name": "Pluck",
     "macroIds": [
       "macro_tone",

@@ -1,9 +1,11 @@
 import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch/patchCanvasConstants";
 import { clamp, clamp01, clampRange } from "@/lib/numeric";
 import { ensurePatchLayout } from "@/lib/patch/autoLayout";
+import { createMacroBindingId, normalizeMacroBindingIds } from "@/lib/patch/macroBindings";
 import { normalizeMacroKeyframeCount } from "@/lib/patch/macroKeyframes";
+import { AUDIO_OUTPUT_PORT_TYPE_ID, createPatchOutputPort, getPatchPorts, PATCH_OUTPUT_PORT_ID } from "@/lib/patch/ports";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
-import { Patch, PatchConnection, PatchMacro, PatchMeta, PatchNode, PatchParamSliderRange } from "@/types/patch";
+import { Patch, PatchConnection, PatchMacro, PatchMeta, PatchNode, PatchParamSliderRange, PatchPort } from "@/types/patch";
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -35,6 +37,17 @@ const sanitizePatchNode = (raw: unknown, fallbackId: string): PatchNode => {
     id: asString(node.id, fallbackId),
     typeId: asString(node.typeId, ""),
     params: sanitizeParamMap(node.params)
+  };
+};
+
+const sanitizePatchPort = (raw: unknown, fallbackId: string): PatchPort => {
+  const port = isObject(raw) ? raw : {};
+  return {
+    id: asString(port.id, fallbackId),
+    typeId: asString(port.typeId, "Output"),
+    label: asString(port.label, "output"),
+    direction: port.direction === "source" || port.direction === "sink" ? port.direction : undefined,
+    params: sanitizeParamMap(port.params)
   };
 };
 
@@ -79,7 +92,7 @@ const sanitizePatchMacro = (raw: unknown, index: number): PatchMacro => {
     name: asString(macro.name, `Macro ${index + 1}`),
     keyframeCount: normalizeMacroKeyframeCount(macro.keyframeCount),
     defaultNormalized: clamp01(asFiniteNumber(macro.defaultNormalized, 0.5)),
-    bindings: bindingsRaw.map((binding, bindingIndex) => {
+    bindings: bindingsRaw.map((binding) => {
       const item = isObject(binding) ? binding : {};
       const pointsRaw = Array.isArray(item.points) ? item.points : [];
       const points = pointsRaw
@@ -93,7 +106,11 @@ const sanitizePatchMacro = (raw: unknown, index: number): PatchMacro => {
         .sort((left, right) => left.x - right.x);
 
       return {
-        id: asString(item.id, `binding_${bindingIndex}`),
+        id: createMacroBindingId(
+          asString(macro.id, `macro_${index}`),
+          asString(item.nodeId, ""),
+          asString(item.paramId, "")
+        ),
         nodeId: asString(item.nodeId, ""),
         paramId: asString(item.paramId, ""),
         map: item.map === "exp" ? "exp" : item.map === "piecewise" && points.length >= 2 ? "piecewise" : "linear",
@@ -104,6 +121,85 @@ const sanitizePatchMacro = (raw: unknown, index: number): PatchMacro => {
     })
   };
 };
+
+type LegacyPatchIo = {
+  audioOutNodeId?: string;
+};
+
+type PatchWithLegacyOutput = Patch & {
+  io?: LegacyPatchIo;
+};
+
+export function normalizePatchOutputPort<T extends PatchWithLegacyOutput>(patch: T): Omit<T, "io"> {
+  // TODO(output-port-legacy): Remove this compatibility adapter once all saved
+  // projects/imports are guaranteed to declare the canonical `output` patch port.
+  const ioOutputId = asString(patch.io?.audioOutNodeId, "");
+  const legacyOutputNode =
+    patch.nodes.find((node) => node.id === ioOutputId && node.typeId === AUDIO_OUTPUT_PORT_TYPE_ID) ??
+    patch.nodes.find((node) => node.typeId === AUDIO_OUTPUT_PORT_TYPE_ID);
+  const existingOutputPort =
+    getPatchPorts(patch).find((port) => port.id === ioOutputId && port.typeId === AUDIO_OUTPUT_PORT_TYPE_ID) ??
+    getPatchPorts(patch).find((port) => port.typeId === AUDIO_OUTPUT_PORT_TYPE_ID);
+  const patchWithoutIo = { ...patch };
+  delete patchWithoutIo.io;
+  if (!existingOutputPort && !legacyOutputNode) {
+    return patchWithoutIo;
+  }
+  const outputParams = existingOutputPort?.params ?? legacyOutputNode?.params;
+  const canonicalOutputPort = createPatchOutputPort(outputParams);
+  const legacyOutputId = existingOutputPort?.id ?? legacyOutputNode?.id ?? ioOutputId;
+  const rewriteOutputId = (nodeId: string) =>
+    nodeId === legacyOutputId || (ioOutputId.length > 0 && nodeId === ioOutputId) ? PATCH_OUTPUT_PORT_ID : nodeId;
+  const outputPortById = new Map(
+    getPatchPorts(patch)
+      .filter((port) => port.typeId !== AUDIO_OUTPUT_PORT_TYPE_ID)
+      .map((port) => [port.id, port] as const)
+  );
+  outputPortById.set(canonicalOutputPort.id, canonicalOutputPort);
+
+  return {
+    ...patchWithoutIo,
+    nodes: patch.nodes.filter((node) => node.typeId !== AUDIO_OUTPUT_PORT_TYPE_ID),
+    ports: [...outputPortById.values()],
+    connections: patch.connections.map((connection) => ({
+      ...connection,
+      from: {
+        ...connection.from,
+        nodeId: rewriteOutputId(connection.from.nodeId)
+      },
+      to: {
+        ...connection.to,
+        nodeId: rewriteOutputId(connection.to.nodeId)
+      }
+    })),
+    ui: {
+      ...patch.ui,
+      macros: patch.ui.macros.map((macro) => ({
+        ...macro,
+        bindings: macro.bindings.map((binding) => ({
+          ...binding,
+          nodeId: rewriteOutputId(binding.nodeId)
+        }))
+      })),
+      paramRanges: patch.ui.paramRanges
+        ? Object.fromEntries(
+            Object.entries(patch.ui.paramRanges).map(([key, range]) => {
+              const separatorIndex = key.indexOf(":");
+              if (separatorIndex < 0) {
+                return [key, range];
+              }
+              const nodeId = key.slice(0, separatorIndex);
+              const paramId = key.slice(separatorIndex + 1);
+              return [`${rewriteOutputId(nodeId)}:${paramId}`, range];
+            })
+          )
+        : undefined
+    },
+    layout: {
+      nodes: patch.layout.nodes.filter((node) => rewriteOutputId(node.nodeId) !== PATCH_OUTPUT_PORT_ID)
+    }
+  };
+}
 
 export function normalizePatch(
   raw: unknown,
@@ -139,12 +235,16 @@ export function normalizePatch(
           source: "custom"
         };
 
-  return ensurePatchLayout({
+  const nodes = (Array.isArray(patch.nodes) ? patch.nodes : []).map((node, index) => sanitizePatchNode(node, `node_${index}`));
+  const portsRaw = (Array.isArray(patch.ports) ? patch.ports : []).map((port, index) => sanitizePatchPort(port, `port_${index}`));
+
+  return ensurePatchLayout(normalizeMacroBindingIds(normalizePatchOutputPort({
     schemaVersion: Math.max(1, Math.floor(asFiniteNumber(patch.schemaVersion, 1))),
     id: patchId,
     name: asString(patch.name, options.fallbackName),
     meta,
-    nodes: (Array.isArray(patch.nodes) ? patch.nodes : []).map((node, index) => sanitizePatchNode(node, `node_${index}`)),
+    nodes,
+    ports: portsRaw,
     connections: (Array.isArray(patch.connections) ? patch.connections : []).map((connection, index) =>
       sanitizePatchConnection(connection, `conn_${index}`)
     ),
@@ -167,8 +267,7 @@ export function normalizePatch(
       })
     },
     io: {
-      audioOutNodeId: asString(io.audioOutNodeId, ""),
-      audioOutPortId: asString(io.audioOutPortId, "out")
+      audioOutNodeId: asString(io.audioOutNodeId, "")
     }
-  });
+  })));
 }

@@ -5,6 +5,7 @@ import {
   resolveDiffHighlightClass
 } from "@/components/patch/patchDiffPresentation";
 import { PatchBindingDiff } from "@/lib/patch/diff";
+import { createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
 import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { useRenameActivation } from "@/hooks/useRenameActivation";
 import { clamp } from "@/lib/numeric";
@@ -90,7 +91,7 @@ export function MacroBindingDetails(props: {
         macro.bindings
           .filter((binding) => binding.nodeId === props.nodeId && binding.paramId === props.paramId)
           .map((binding) => {
-            const bindingDiff = props.currentBindingDiffByKey.get(`${macro.id}:${binding.id}`);
+            const bindingDiff = props.currentBindingDiffByKey.get(createPatchMacroBindingKey(props.patch, macro.id, binding));
             const diffHighlightClass = resolveDiffHighlightClass(bindingDiff?.status);
             return (
               <div

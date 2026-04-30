@@ -38,12 +38,10 @@ describe("patchWorkspacePatchHelpers", () => {
     expect(createImportedWorkspacePatch(source)).toBe(source);
   });
 
-  it("creates a cleared workspace patch while preserving output node placement", () => {
+  it("creates a cleared workspace patch while preserving the output port", () => {
     const source = createClearPatch({
       id: "patch_source",
       name: "Sampler",
-      outputNodeId: "main_out",
-      outputPosition: { x: 30, y: 12 },
       canvasZoom: 1.4
     });
     source.nodes.unshift({
@@ -64,9 +62,9 @@ describe("patchWorkspacePatchHelpers", () => {
 
     expect(cleared.id).toBe(source.id);
     expect(cleared.name).toBe(source.name);
-    expect(cleared.nodes).toHaveLength(1);
-    expect(cleared.nodes[0]?.id).toBe("main_out");
-    expect(cleared.layout.nodes).toEqual([{ nodeId: "main_out", x: 30, y: 12 }]);
+    expect(cleared.nodes).toHaveLength(0);
+    expect(cleared.ports).toEqual(source.ports);
+    expect(cleared.layout.nodes).toEqual([]);
     expect(cleared.ui.canvasZoom).toBe(1.4);
   });
 

@@ -416,6 +416,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   {
     typeId: "Output",
     categories: categories("host", "mix"),
+    hostOnly: true,
     doc: { summary: "Final output sink for instrument patch." },
     requiredPortIds: { in: ["in"] },
     params: [

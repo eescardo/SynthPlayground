@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { bassPatch, createClearPatch, drumPatch, pluckPatch, presetPatches } from "@/lib/patch/presets";
 import { moduleRegistryById } from "@/lib/patch/moduleRegistry";
+import { getPatchBoundaryPorts } from "@/lib/patch/ports";
 import { validatePatch, validatePatchConnectionCandidate } from "@/lib/patch/validation";
 import { Patch } from "@/types/patch";
 
@@ -51,6 +52,26 @@ describe("patch validation", () => {
 
     expect(result.ok).toBe(false);
     expect(result.issues.some((issue) => issue.message.includes("Macro binds the same parameter more than once"))).toBe(true);
+  });
+
+  it("rejects module ids reserved for patch boundary ports", () => {
+    const patch = createClearPatch({ id: "reserved_ids", name: "Reserved IDs" });
+    patch.nodes.push(
+      { id: "pitch", typeId: "CVTranspose", params: {} },
+      { id: "$host.gate", typeId: "ADSR", params: {} },
+      { id: "output", typeId: "VCA", params: {} }
+    );
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "reserved-node-id", context: { nodeId: "pitch" } }),
+        expect.objectContaining({ code: "reserved-node-id", context: { nodeId: "$host.gate" } }),
+        expect.objectContaining({ code: "reserved-node-id", context: { nodeId: "output" } })
+      ])
+    );
   });
 
   it("rejects bindings whose keyframe count differs from the macro", () => {
@@ -157,7 +178,7 @@ describe("patch validation", () => {
           }
         },
         {
-          id: "out1",
+          id: "output",
           typeId: "Output",
           params: {
             gainDb: -6,
@@ -174,15 +195,11 @@ describe("patch validation", () => {
         {
           id: "c2",
           from: { nodeId: "vca1", portId: "out" },
-          to: { nodeId: "out1", portId: "in" }
+          to: { nodeId: "output", portId: "in" }
         }
       ],
       ui: { macros: [] },
-      layout: { nodes: [] },
-      io: {
-        audioOutNodeId: "out1",
-        audioOutPortId: "in"
-      }
+      layout: { nodes: [] }
     };
 
     const result = validatePatch(patch);
@@ -207,7 +224,7 @@ describe("patch validation", () => {
     });
     patch.layout.nodes.unshift({ nodeId: "vco1", x: 8, y: 6 });
 
-    const issues = validatePatchConnectionCandidate(patch, "vco1", "out", "out1", "in");
+    const issues = validatePatchConnectionCandidate(patch, "vco1", "out", "output", "in");
 
     expect(issues).toEqual([]);
   });
@@ -230,5 +247,45 @@ describe("patch validation", () => {
     const issues = validatePatchConnectionCandidate(patch, "$host.pitch", "out", "vco1", "pitch");
 
     expect(issues).toEqual([]);
+  });
+
+  it("models host sources and output as patch boundary ports", () => {
+    const patch = createClearPatch({ id: "boundary_ports", name: "Boundary Ports" });
+
+    const boundaryPorts = getPatchBoundaryPorts(patch);
+
+    expect(boundaryPorts.map((port) => [port.id, port.direction, port.typeId])).toEqual([
+      ["$host.pitch", "source", "NotePitch"],
+      ["$host.gate", "source", "NoteGate"],
+      ["$host.velocity", "source", "NoteVelocity"],
+      ["$host.modwheel", "source", "ModWheel"],
+      ["output", "sink", "Output"]
+    ]);
+  });
+
+  it("requires the output boundary port input to be connected for a valid patch", () => {
+    const patch = createClearPatch({ id: "unconnected_output", name: "Unconnected Output" });
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(false);
+    expect(findIssue(patch, "required-port-unconnected", "output", "in")).toBeTruthy();
+  });
+
+  it("rejects patches without an Output port", () => {
+    const patch = createClearPatch({ id: "missing_output", name: "Missing Output" });
+    patch.ports = [];
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "output-port-count",
+          context: { outputCount: "0" }
+        })
+      ])
+    );
   });
 });

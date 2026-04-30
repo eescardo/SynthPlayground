@@ -1713,6 +1713,24 @@ select {
   user-select: none;
 }
 
+.patch-probe-attach-tooltip {
+  position: absolute;
+  top: 0.35rem;
+  left: calc(100% + 0.45rem);
+  z-index: 5;
+  width: max-content;
+  max-width: 13rem;
+  padding: 0.34rem 0.48rem;
+  border: 1px solid rgba(200, 255, 57, 0.38);
+  border-radius: 0.45rem;
+  background: rgba(7, 13, 19, 0.94);
+  color: #e7f3ff;
+  font-size: 0.7rem;
+  line-height: 1.25;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+  white-space: normal;
+}
+
 .patch-probe-card.expanded {
   z-index: 4;
   gap: 0.5rem;
@@ -2087,7 +2105,6 @@ select {
 }
 
 .patch-macro-row.diff-positive {
-  padding-inline: 0.26rem 0.16rem;
   border-radius: 0.5rem;
   background: rgba(68, 135, 99, 0.22);
   box-shadow: inset 0 0 0 1px rgba(103, 224, 153, 0.22);
@@ -2138,7 +2155,7 @@ select {
 
 .patch-macro-slider-keyframes {
   position: absolute;
-  inset: 0.02rem 0;
+  inset: 0.02rem 0.26rem;
   pointer-events: none;
 }
 
@@ -2438,9 +2455,32 @@ select {
 
 .param-range-label-row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
   margin-top: 0.2rem;
+  min-height: 1.1rem;
+  border-radius: 999px;
+  padding: 0 0.18rem;
+}
+
+.param-range-label-row.diff-positive {
+  background: rgba(68, 135, 99, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(103, 224, 153, 0.26);
+}
+
+.param-range-diff-badge {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.04rem 0.32rem;
+  border-radius: 999px;
+  background: rgba(103, 224, 153, 0.18);
+  color: rgba(210, 255, 222, 0.92);
+  font-size: 0.56rem;
+  font-weight: 750;
+  line-height: 1.1;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 .param-range-label,
@@ -2732,8 +2772,8 @@ select {
   gap: 0.25rem;
   padding: 0.45rem 0.55rem;
   border-radius: 0.5rem;
-  border: 1px solid rgba(131, 173, 216, 0.28);
-  background: rgba(143, 196, 245, 0.1);
+  border: 1px solid rgba(131, 173, 216, 0.16);
+  background: rgba(143, 196, 245, 0.035);
 }
 
 .macro-binding-detail-card.diff-positive {

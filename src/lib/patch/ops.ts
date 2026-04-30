@@ -2,6 +2,7 @@ import { createDefaultParamsForType, getModuleSchema } from "@/lib/patch/moduleR
 import { createId } from "@/lib/ids";
 import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch/patchCanvasConstants";
 import { clamp, clampRange } from "@/lib/numeric";
+import { createMacroBindingId } from "@/lib/patch/macroBindings";
 import {
   clampNormalizedMacroValue,
   convertBindingToKeyframeCount,
@@ -9,6 +10,7 @@ import {
   resolveMacroBindingValue,
   setMacroBindingValueAtKeyframe
 } from "@/lib/patch/macroKeyframes";
+import { getPatchParameterTargets, RESERVED_PATCH_MODULE_IDS } from "@/lib/patch/ports";
 import { MacroBinding, Patch } from "@/types/patch";
 import { PatchHistoryState, PatchOp } from "@/types/ops";
 
@@ -17,6 +19,8 @@ const clonePatch = (patch: Patch): Patch => structuredClone(patch);
 const findLayoutNode = (patch: Patch, nodeId: string): number => patch.layout.nodes.findIndex((node) => node.nodeId === nodeId);
 
 const buildParamRangeKey = (nodeId: string, paramId: string) => `${nodeId}:${paramId}`;
+
+const findParameterTarget = (patch: Patch, nodeId: string) => getPatchParameterTargets(patch).find((entry) => entry.id === nodeId);
 
 function clampMacroBindingValues(binding: MacroBinding, min: number, max: number) {
   if (binding.points) {
@@ -35,7 +39,7 @@ function applyMacroValueToPatch(patch: Patch, macroId: string, normalized: numbe
 
   const norm = clampNormalizedMacroValue(normalized);
   for (const binding of macro.bindings) {
-    const node = patch.nodes.find((entry) => entry.id === binding.nodeId);
+    const node = findParameterTarget(patch, binding.nodeId);
     if (!node) {
       continue;
     }
@@ -52,6 +56,9 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
     case "addNode": {
       if (next.nodes.some((node) => node.id === op.nodeId)) {
         throw new Error(`Node already exists: ${op.nodeId}`);
+      }
+      if (RESERVED_PATCH_MODULE_IDS.has(op.nodeId)) {
+        throw new Error(`Node id is reserved for a patch boundary port: ${op.nodeId}`);
       }
       getModuleSchema(op.typeId);
       next.nodes.push({
@@ -82,13 +89,6 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       }
       for (const macro of next.ui.macros) {
         macro.bindings = macro.bindings.filter((binding) => binding.nodeId !== op.nodeId);
-      }
-      if (next.io.audioOutNodeId === op.nodeId) {
-        const outputNode = next.nodes.find((node) => node.typeId === "Output");
-        if (outputNode) {
-          next.io.audioOutNodeId = outputNode.id;
-          next.io.audioOutPortId = "in";
-        }
       }
       return next;
     }
@@ -129,7 +129,7 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
     }
 
     case "setParam": {
-      const node = next.nodes.find((entry) => entry.id === op.nodeId);
+      const node = findParameterTarget(next, op.nodeId);
       if (!node) {
         throw new Error(`Unknown node in setParam: ${op.nodeId}`);
       }
@@ -138,7 +138,7 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
     }
 
     case "setParamSliderRange": {
-      const node = next.nodes.find((entry) => entry.id === op.nodeId);
+      const node = findParameterTarget(next, op.nodeId);
       if (!node) {
         throw new Error(`Unknown node in setParamSliderRange: ${op.nodeId}`);
       }
@@ -175,7 +175,7 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
     }
 
     case "setParams": {
-      const node = next.nodes.find((entry) => entry.id === op.nodeId);
+      const node = findParameterTarget(next, op.nodeId);
       if (!node) {
         throw new Error(`Unknown node in setParams: ${op.nodeId}`);
       }
@@ -222,11 +222,12 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       if (!macro) {
         throw new Error(`Unknown macro: ${op.macroId}`);
       }
-      if (macro.bindings.some((binding) => binding.id === op.bindingId)) {
-        throw new Error(`Binding already exists: ${op.bindingId}`);
+      const bindingId = createMacroBindingId(op.macroId, op.nodeId, op.paramId);
+      if (macro.bindings.some((binding) => binding.id === bindingId || (binding.nodeId === op.nodeId && binding.paramId === op.paramId))) {
+        throw new Error(`Binding already exists: ${bindingId}`);
       }
       macro.bindings.push({
-        id: op.bindingId,
+        id: bindingId,
         nodeId: op.nodeId,
         paramId: op.paramId,
         map: op.map,

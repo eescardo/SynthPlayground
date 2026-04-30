@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createPatchOutputPort, PATCH_OUTPUT_PORT_ID } from "@/lib/patch/ports";
 import type { Project, Track } from "@/types/music";
 import type { Patch } from "@/types/patch";
 
@@ -71,19 +72,18 @@ function createPatch(overrides: Partial<Patch> = {}): Patch {
     name: "Test Patch",
     meta: { source: "custom" },
     nodes: [
-      { id: "osc", typeId: "VCO", params: { wave: "sine" } },
-      { id: "out", typeId: "Output", params: { gainDb: 0, limiter: false } }
+      { id: "osc", typeId: "VCO", params: { wave: "sine" } }
     ],
+    ports: [createPatchOutputPort({ gainDb: 0, limiter: false })],
     connections: [
       {
         id: "conn_1",
         from: { nodeId: "osc", portId: "out" },
-        to: { nodeId: "out", portId: "in" }
+        to: { nodeId: PATCH_OUTPUT_PORT_ID, portId: "in" }
       }
     ],
     ui: { macros: [] },
     layout: { nodes: [] },
-    io: { audioOutNodeId: "out", audioOutPortId: "out" },
     ...overrides
   } satisfies Patch;
 }
