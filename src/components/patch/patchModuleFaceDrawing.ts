@@ -10,7 +10,7 @@ import {
   PATCH_NODE_HEIGHT,
   PATCH_NODE_WIDTH
 } from "@/components/patch/patchCanvasConstants";
-import { clamp, clamp01 } from "@/lib/numeric";
+import { addComplex, clamp, clamp01, divComplex, mulComplex, subComplex } from "@/lib/numeric";
 import { Patch, PatchNode, ParamSchema, ParamValue, ModuleTypeSchema } from "@/types/patch";
 
 export const VCF_FACE_SAMPLE_RATE_HZ = 48000;
@@ -209,28 +209,6 @@ function formatFrequencyFaceLabel(frequency: number): string {
     return `${(frequency / 1000).toFixed(frequency >= 10000 ? 0 : 1)}k`;
   }
   return `${Math.round(frequency)}`;
-}
-
-type Complex = { re: number; im: number };
-
-function addComplex(a: Complex, b: Complex): Complex {
-  return { re: a.re + b.re, im: a.im + b.im };
-}
-
-function subComplex(a: Complex, b: Complex): Complex {
-  return { re: a.re - b.re, im: a.im - b.im };
-}
-
-function mulComplex(a: Complex, b: Complex): Complex {
-  return { re: a.re * b.re - a.im * b.im, im: a.re * b.im + a.im * b.re };
-}
-
-function divComplex(a: Complex, b: Complex): Complex {
-  const denominator = b.re * b.re + b.im * b.im || 1;
-  return {
-    re: (a.re * b.re + a.im * b.im) / denominator,
-    im: (a.im * b.re - a.re * b.im) / denominator
-  };
 }
 
 export function vcfMagnitudeAtFrequency(type: string, cutoff: number, resonance: number, frequency: number): number {
