@@ -202,6 +202,71 @@ function migrateLegacyAdsrTimingUnits(
   return { nodes: migratedNodes, macros: migratedMacros, paramRanges: migratedParamRanges };
 }
 
+function migrateLegacyOverdriveParams(
+  schemaVersion: number,
+  nodes: PatchNode[],
+  macros: PatchMacro[],
+  paramRanges?: Record<string, PatchParamSliderRange>
+): Pick<Patch, "nodes"> & { macros: PatchMacro[]; paramRanges?: Record<string, PatchParamSliderRange> } {
+  if (schemaVersion >= 3) {
+    return { nodes, macros, paramRanges };
+  }
+
+  const overdriveNodeIds = new Set(nodes.filter((node) => node.typeId === "Overdrive").map((node) => node.id));
+  if (overdriveNodeIds.size === 0) {
+    return { nodes, macros, paramRanges };
+  }
+
+  const migratedNodes = nodes.map((node) => {
+    if (!overdriveNodeIds.has(node.id)) {
+      return node;
+    }
+    const params = { ...node.params };
+    if (typeof params.driveDb !== "number" && typeof params.gainDb === "number") {
+      params.driveDb = params.gainDb;
+    }
+    delete params.gainDb;
+    delete params.mix;
+    return { ...node, params };
+  });
+
+  const migratedMacros = macros.map((macro) => ({
+    ...macro,
+    bindings: macro.bindings
+      .filter((binding) => !overdriveNodeIds.has(binding.nodeId) || binding.paramId !== "mix")
+      .map((binding) =>
+        overdriveNodeIds.has(binding.nodeId) && binding.paramId === "gainDb"
+          ? { ...binding, paramId: "driveDb" }
+          : binding
+      )
+  }));
+
+  const migratedParamRanges = paramRanges
+    ? Object.fromEntries(
+        Object.entries(paramRanges).flatMap(([key, range]) => {
+          const separatorIndex = key.indexOf(":");
+          if (separatorIndex < 0) {
+            return [[key, range]];
+          }
+          const nodeId = key.slice(0, separatorIndex);
+          const paramId = key.slice(separatorIndex + 1);
+          if (!overdriveNodeIds.has(nodeId)) {
+            return [[key, range]];
+          }
+          if (paramId === "mix") {
+            return [];
+          }
+          if (paramId === "gainDb") {
+            return [[`${nodeId}:driveDb`, range]];
+          }
+          return [[key, range]];
+        })
+      )
+    : undefined;
+
+  return { nodes: migratedNodes, macros: migratedMacros, paramRanges: migratedParamRanges };
+}
+
 export function normalizePatchOutputPort<T extends PatchWithLegacyOutput>(patch: T): Omit<T, "io"> {
   // TODO(output-port-legacy): Remove this compatibility adapter once all saved
   // projects/imports are guaranteed to declare the canonical `output` patch port.
@@ -312,7 +377,8 @@ export function normalizePatch(
   const schemaVersion = Math.max(1, Math.floor(asFiniteNumber(patch.schemaVersion, 1)));
   const sanitizedMacros = (Array.isArray(ui.macros) ? ui.macros : []).map(sanitizePatchMacro);
   const sanitizedParamRanges = sanitizePatchParamRanges(ui.paramRanges);
-  const migrated = migrateLegacyAdsrTimingUnits(schemaVersion, nodes, sanitizedMacros, sanitizedParamRanges);
+  const adsrMigrated = migrateLegacyAdsrTimingUnits(schemaVersion, nodes, sanitizedMacros, sanitizedParamRanges);
+  const migrated = migrateLegacyOverdriveParams(schemaVersion, adsrMigrated.nodes, adsrMigrated.macros, adsrMigrated.paramRanges);
 
   return ensurePatchLayout(normalizeMacroBindingIds(normalizePatchOutputPort({
     schemaVersion: Math.max(schemaVersion, CURRENT_PATCH_SCHEMA_VERSION),

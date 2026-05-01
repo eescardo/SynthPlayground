@@ -1074,7 +1074,7 @@ export const drumPatch = (): Patch => {
       { id: bodyVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.34, bias: 0 } },
       { id: noiseVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.82, bias: 0 } },
       { id: mix, typeId: "Mixer4", params: { ...createDefaultParamsForType("Mixer4"), gain1: 0.62, gain2: 0.92 } },
-      { id: sat, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), gainDb: 6, mix: 0.14 } }
+      { id: sat, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), driveDb: 6 } }
     ],
     ports: [createPatchOutputPort()],
     connections: [
@@ -1123,7 +1123,7 @@ export const drumPatch = (): Patch => {
             { id: "b6", nodeId: noiseEnv, paramId: "release", map: "linear", min: 10, max: 180 },
             { id: "b7", nodeId: noiseFilter, paramId: "cutoffHz", map: "exp", min: 2400, max: 4800 },
             { id: "b8", nodeId: noiseFilter, paramId: "resonance", map: "linear", min: 0.72, max: 0.42 },
-            { id: "b9", nodeId: sat, paramId: "mix", map: "linear", min: 0.04, max: 0.18 }
+            { id: "b9", nodeId: sat, paramId: "driveDb", map: "linear", min: 2, max: 9 }
           ]
         },
         {
@@ -1207,7 +1207,7 @@ export const bassDrumPatch = (): Patch => {
       { id: bodyVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 1, bias: 0 } },
       { id: clickVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.34, bias: 0 } },
       { id: mix, typeId: "Mixer4", params: { ...createDefaultParamsForType("Mixer4"), gain1: 1, gain2: 0.34, gain3: 0 } },
-      { id: sat, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), gainDb: 20, mix: 0.34 } }
+      { id: sat, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), driveDb: 20 } }
     ],
     ports: [createPatchOutputPort({ gainDb: 6 })],
     connections: [
@@ -1260,8 +1260,7 @@ export const bassDrumPatch = (): Patch => {
           keyframeCount: 2,
           defaultNormalized: 0.42,
           bindings: [
-            { id: "b7", nodeId: sat, paramId: "gainDb", map: "linear", min: 12, max: 24 },
-            { id: "b8", nodeId: sat, paramId: "mix", map: "linear", min: 0.18, max: 0.5 }
+            { id: "b7", nodeId: sat, paramId: "driveDb", map: "linear", min: 12, max: 28 }
           ]
         }
       ]

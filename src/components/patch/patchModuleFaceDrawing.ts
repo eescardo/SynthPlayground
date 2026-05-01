@@ -667,8 +667,12 @@ function drawSaturationModuleFace(
   ctx.textAlign = "left";
 }
 
-function overdriveWetShape(input: number, gainDb: number, mode: string) {
-  const gain = 10 ** (gainDb / 20);
+function overdriveDriveAmount(driveDb: number) {
+  return clamp(driveDb / 50, 0, 1);
+}
+
+function overdriveWetShape(input: number, driveDb: number, mode: string) {
+  const gain = 10 ** (driveDb / 20);
   const driven = input * gain;
   if (mode !== "fuzz") {
     return Math.tanh(driven);
@@ -680,11 +684,12 @@ function overdriveWetShape(input: number, gainDb: number, mode: string) {
   return clamp(asymmetric + asymmetric ** 3 * 0.12, -1, 1);
 }
 
-function overdriveTransfer(input: number, gainDb: number, tone: number, mode: string, mix: number) {
-  const wet = overdriveWetShape(input, gainDb, mode);
+export function overdriveTransfer(input: number, driveDb: number, tone: number, mode: string) {
+  const driveAmount = overdriveDriveAmount(driveDb);
+  const wet = overdriveWetShape(input, driveDb, mode);
   const steadyTone = wet * (1 + (1 - tone) * 0.35);
   const toned = wet * tone + steadyTone * (1 - tone);
-  return clamp(input * (1 - mix) + toned * mix, -1, 1);
+  return clamp(input * (1 - driveAmount) + toned * driveAmount, -1, 1);
 }
 
 function drawOverdriveModuleFace(
@@ -713,12 +718,12 @@ function drawOverdriveModuleFace(
     width: graph.width - 12,
     height: 6
   };
-  const gainDb = getNumericParam(node, schema, "gainDb");
+  const driveDb = getNumericParam(node, schema, "driveDb");
   const tone = clamp01(getNumericParam(node, schema, "tone"));
-  const mix = clamp01(getNumericParam(node, schema, "mix"));
   const mode = String(node.params.mode ?? "overdrive");
-  const toneDisplay = tone * mix + (1 - mix);
-  const toneAlpha = 0.16 + mix * 0.48;
+  const driveAmount = overdriveDriveAmount(driveDb);
+  const toneDisplay = tone * driveAmount + (1 - driveAmount);
+  const toneAlpha = 0.16 + driveAmount * 0.48;
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
   ctx.lineWidth = 1;
@@ -765,7 +770,7 @@ function drawOverdriveModuleFace(
   for (let index = 0; index <= 64; index += 1) {
     const t = index / 64;
     const input = t * 2 - 1;
-    const output = overdriveTransfer(input, gainDb, tone, mode, mix);
+    const output = overdriveTransfer(input, driveDb, tone, mode);
     const px = transferGraph.x + t * transferGraph.width;
     const py = transferGraph.y + transferGraph.height * (1 - (output + 1) / 2);
     if (index === 0) {

@@ -327,7 +327,7 @@ export const createPatchModuleFacesCaptureProject = (): Project => {
     {
       id: "drive_shape",
       typeId: "Overdrive",
-      params: { ...createDefaultParamsForType("Overdrive"), gainDb: 24, tone: 0.72, mix: 0.68, mode: "fuzz" }
+      params: { ...createDefaultParamsForType("Overdrive"), driveDb: 24, tone: 0.72, mode: "fuzz" }
     },
     {
       id: "comp_shape",
@@ -546,14 +546,14 @@ export const createBaselineDiffCaptureProject = (): Project => {
       keyframeCount: 3,
       bindings: [
         {
-          id: "binding_drive_mix",
+          id: "binding_drive_amount",
           nodeId: "sat1",
-          paramId: "mix",
+          paramId: "driveDb",
           map: "linear",
           points: [
-            { x: 0, y: 0.1 },
-            { x: 0.5, y: 0.46 },
-            { x: 1, y: 0.82 }
+            { x: 0, y: 3 },
+            { x: 0.5, y: 18 },
+            { x: 1, y: 36 }
           ]
         }
       ]

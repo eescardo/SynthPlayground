@@ -94,7 +94,7 @@ describe("patch serde", () => {
 
     const imported = importPatchBundleFromJson(exportPatchToJson(legacyPatch));
 
-    expect(imported.patch.schemaVersion).toBe(2);
+    expect(imported.patch.schemaVersion).toBe(3);
     expect(imported.patch.nodes[0]?.params).toEqual({
       attack: 10,
       decay: 200,
@@ -113,6 +113,74 @@ describe("patch serde", () => {
         { x: 0.5, y: 10 },
         { x: 1, y: 250 }
       ]
+    });
+  });
+
+  it("migrates legacy Overdrive gain and removes local mix", () => {
+    const legacyPatch = createClearPatch({
+      id: "patch_legacy_overdrive",
+      name: "Legacy Overdrive"
+    });
+    legacyPatch.schemaVersion = 2;
+    legacyPatch.nodes = [
+      {
+        id: "drive1",
+        typeId: "Overdrive",
+        params: {
+          gainDb: 18,
+          tone: 0.7,
+          mix: 0.5,
+          mode: "fuzz"
+        }
+      }
+    ];
+    legacyPatch.ui.paramRanges = {
+      "drive1:gainDb": { min: 0, max: 36 },
+      "drive1:mix": { min: 0, max: 1 }
+    };
+    legacyPatch.ui.macros = [
+      {
+        id: "macro_drive",
+        name: "Drive",
+        keyframeCount: 2,
+        bindings: [
+          {
+            id: "legacy_drive",
+            nodeId: "drive1",
+            paramId: "gainDb",
+            map: "linear",
+            min: 3,
+            max: 24
+          },
+          {
+            id: "legacy_mix",
+            nodeId: "drive1",
+            paramId: "mix",
+            map: "linear",
+            min: 0.1,
+            max: 0.8
+          }
+        ]
+      }
+    ];
+
+    const imported = importPatchBundleFromJson(exportPatchToJson(legacyPatch));
+
+    expect(imported.patch.schemaVersion).toBe(3);
+    expect(imported.patch.nodes[0]?.params).toEqual({
+      driveDb: 18,
+      tone: 0.7,
+      mode: "fuzz"
+    });
+    expect(imported.patch.ui.paramRanges).toEqual({
+      "drive1:driveDb": { min: 0, max: 36 }
+    });
+    expect(imported.patch.ui.macros[0]?.bindings).toHaveLength(1);
+    expect(imported.patch.ui.macros[0]?.bindings[0]).toMatchObject({
+      nodeId: "drive1",
+      paramId: "driveDb",
+      min: 3,
+      max: 24
     });
   });
 

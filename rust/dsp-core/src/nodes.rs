@@ -52,6 +52,11 @@ fn overdrive_tone_alpha(tone: f32) -> f32 {
 }
 
 #[inline(always)]
+fn overdrive_drive_amount(drive_db: f32) -> f32 {
+    clamp(drive_db / 50.0, 0.0, 1.0)
+}
+
+#[inline(always)]
 fn apply_overdrive_tone(input: f32, lowpassed: f32, tone: f32) -> f32 {
     let t = clamp(tone, 0.0, 1.0);
     let darker = lowpassed * (1.0 + (1.0 - t) * 0.35);
@@ -302,9 +307,8 @@ pub(crate) struct SaturationNode {
 pub(crate) struct OverdriveNode {
     out_index: usize,
     input: i32,
-    gain_db: SmoothParam,
+    drive_db: SmoothParam,
     tone: SmoothParam,
-    mix: SmoothParam,
     mode: OverdriveMode,
     tone_lp: f32,
 }
@@ -545,9 +549,8 @@ impl RuntimeNode {
             "Overdrive" => Self::Overdrive(OverdriveNode {
                 out_index: raw.out_index,
                 input: input_index(&raw.inputs, "in"),
-                gain_db: SmoothParam::new(value_to_f32(p.get("gainDb"), 12.0), 20.0, sample_rate),
+                drive_db: SmoothParam::new(value_to_f32(p.get("driveDb").or_else(|| p.get("gainDb")), 12.0), 20.0, sample_rate),
                 tone: SmoothParam::new(value_to_f32(p.get("tone"), 0.5), 20.0, sample_rate),
-                mix: SmoothParam::new(value_to_f32(p.get("mix"), 0.6), 10.0, sample_rate),
                 mode: serde_json::from_value::<OverdriveMode>(Value::String(value_to_string(p.get("mode"), "overdrive")))
                     .map_err(|e| js_error(format!("Invalid Overdrive mode: {e}")))?,
                 tone_lp: 0.0,
@@ -599,7 +602,7 @@ impl RuntimeNode {
             Self::Delay(node) => { node.time_ms.reset(); node.feedback.reset(); node.mix.reset(); node.buf.fill(0.0); node.write = 0; }
             Self::Reverb(node) => { node.size.reset(); node.decay.reset(); node.damping.reset(); node.mix.reset(); node.c1.fill(0.0); node.c2.fill(0.0); node.i1 = 0; node.i2 = 0; }
             Self::Saturation(node) => { node.drive_db.reset(); node.mix.reset(); }
-            Self::Overdrive(node) => { node.gain_db.reset(); node.tone.reset(); node.mix.reset(); node.tone_lp = 0.0; }
+            Self::Overdrive(node) => { node.drive_db.reset(); node.tone.reset(); node.tone_lp = 0.0; }
             Self::Compressor(node) => { node.threshold_db.reset(); node.ratio.reset(); node.attack_ms.reset(); node.release_ms.reset(); node.makeup_db.reset(); node.mix.reset(); node.env = 0.0; }
             Self::Output(node) => node.gain_db.reset(),
         }
@@ -682,7 +685,7 @@ impl RuntimeNode {
             Self::Delay(node) => match param_id { "timeMs" => node.time_ms.set_target(value_to_f32(Some(value), node.time_ms.target)), "feedback" => node.feedback.set_target(value_to_f32(Some(value), node.feedback.target)), "mix" => node.mix.set_target(value_to_f32(Some(value), node.mix.target)), _ => {} },
             Self::Reverb(node) => match param_id { "size" => node.size.set_target(value_to_f32(Some(value), node.size.target)), "decay" => node.decay.set_target(value_to_f32(Some(value), node.decay.target)), "damping" => node.damping.set_target(value_to_f32(Some(value), node.damping.target)), "mix" => node.mix.set_target(value_to_f32(Some(value), node.mix.target)), _ => {} },
             Self::Saturation(node) => match param_id { "driveDb" => node.drive_db.set_target(value_to_f32(Some(value), node.drive_db.target)), "mix" => node.mix.set_target(value_to_f32(Some(value), node.mix.target)), "type" => if let Ok(parsed) = serde_json::from_value::<SaturationType>(Value::String(value_to_string(Some(value), "tanh"))) { node.mode = parsed; }, _ => {} },
-            Self::Overdrive(node) => match param_id { "gainDb" => node.gain_db.set_target(value_to_f32(Some(value), node.gain_db.target)), "tone" => node.tone.set_target(value_to_f32(Some(value), node.tone.target)), "mix" => node.mix.set_target(value_to_f32(Some(value), node.mix.target)), "mode" => if let Ok(parsed) = serde_json::from_value::<OverdriveMode>(Value::String(value_to_string(Some(value), "overdrive"))) { node.mode = parsed; }, _ => {} },
+            Self::Overdrive(node) => match param_id { "driveDb" | "gainDb" => node.drive_db.set_target(value_to_f32(Some(value), node.drive_db.target)), "tone" => node.tone.set_target(value_to_f32(Some(value), node.tone.target)), "mode" => if let Ok(parsed) = serde_json::from_value::<OverdriveMode>(Value::String(value_to_string(Some(value), "overdrive"))) { node.mode = parsed; }, _ => {} },
             Self::Compressor(node) => match param_id { "thresholdDb" => node.threshold_db.set_target(value_to_f32(Some(value), node.threshold_db.target)), "ratio" => node.ratio.set_target(value_to_f32(Some(value), node.ratio.target)), "attackMs" => node.attack_ms.set_target(value_to_f32(Some(value), node.attack_ms.target)), "releaseMs" => node.release_ms.set_target(value_to_f32(Some(value), node.release_ms.target)), "makeupDb" => node.makeup_db.set_target(value_to_f32(Some(value), node.makeup_db.target)), "mix" => node.mix.set_target(value_to_f32(Some(value), node.mix.target)), _ => {} },
             Self::Output(node) => match param_id { "gainDb" => node.gain_db.set_target(value_to_f32(Some(value), node.gain_db.target)), "limiter" => node.limiter = value_to_bool(Some(value), node.limiter), _ => {} },
         }
@@ -885,7 +888,9 @@ impl RuntimeNode {
 
                 for frame in start_frame..end_frame {
                     let input = input_start.map(|start| signal_buffers[start + frame]).unwrap_or(0.0);
-                    let mut driven = input * db_to_gain(node.gain_db.next());
+                    let drive_db = node.drive_db.next();
+                    let drive_amount = overdrive_drive_amount(drive_db);
+                    let mut driven = input * db_to_gain(drive_db);
                     driven = match node.mode {
                         OverdriveMode::Fuzz => shape_fuzz_sample(driven),
                         OverdriveMode::Overdrive => shape_overdrive_sample(driven),
@@ -893,9 +898,8 @@ impl RuntimeNode {
                     let tone = node.tone.next();
                     let tone_alpha = overdrive_tone_alpha(tone);
                     node.tone_lp = node.tone_lp + (driven - node.tone_lp) * tone_alpha;
-                    let mix = clamp(node.mix.next(), 0.0, 1.0);
                     let toned = apply_overdrive_tone(driven, node.tone_lp, tone);
-                    signal_buffers[out_start + frame] = input * (1.0 - mix) + toned * mix;
+                    signal_buffers[out_start + frame] = input * (1.0 - drive_amount) + toned * drive_amount;
                 }
             }
             Self::Output(node) => {
@@ -1179,7 +1183,9 @@ impl RuntimeNode {
             }
             Self::Overdrive(node) => {
                 let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
-                let mut driven = input * db_to_gain(node.gain_db.next());
+                let drive_db = node.drive_db.next();
+                let drive_amount = overdrive_drive_amount(drive_db);
+                let mut driven = input * db_to_gain(drive_db);
                 driven = match node.mode {
                     OverdriveMode::Fuzz => shape_fuzz_sample(driven),
                     OverdriveMode::Overdrive => shape_overdrive_sample(driven),
@@ -1187,10 +1193,9 @@ impl RuntimeNode {
                 let tone = node.tone.next();
                 let tone_alpha = overdrive_tone_alpha(tone);
                 node.tone_lp = node.tone_lp + (driven - node.tone_lp) * tone_alpha;
-                let mix = clamp(node.mix.next(), 0.0, 1.0);
                 let out = frame_signal_offset(node.out_index, block_size, frame);
                 let toned = apply_overdrive_tone(driven, node.tone_lp, tone);
-                signal_buffers[out] = input * (1.0 - mix) + toned * mix;
+                signal_buffers[out] = input * (1.0 - drive_amount) + toned * drive_amount;
             }
             Self::Compressor(node) => {
                 let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
@@ -1241,7 +1246,7 @@ fn read_input_frame(signal_buffers: &[f32], block_size: usize, frame: usize, ind
 
 #[cfg(test)]
 mod tests {
-    use super::{apply_overdrive_tone, overdrive_tone_alpha, shape_fuzz_sample, shape_overdrive_sample};
+    use super::{apply_overdrive_tone, overdrive_drive_amount, overdrive_tone_alpha, shape_fuzz_sample, shape_overdrive_sample};
 
     #[test]
     fn fuzz_shaper_is_harder_and_asymmetric() {
@@ -1261,6 +1266,12 @@ mod tests {
     fn tone_blend_leaves_bright_setting_unchanged() {
         assert_eq!(apply_overdrive_tone(0.5, 0.1, 1.0), 0.5);
         assert!(apply_overdrive_tone(0.5, 0.1, 0.0) < 0.2);
+    }
+
+    #[test]
+    fn drive_amount_starts_at_identity() {
+        assert_eq!(overdrive_drive_amount(0.0), 0.0);
+        assert_eq!(overdrive_drive_amount(50.0), 1.0);
     }
 }
 

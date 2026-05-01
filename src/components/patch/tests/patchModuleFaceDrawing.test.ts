@@ -4,6 +4,7 @@ import {
   VCF_FACE_SAMPLE_RATE_HZ,
   compressorOutputDb,
   envelopeCurveProgress,
+  overdriveTransfer,
   vcfMagnitudeAtFrequency
 } from "@/components/patch/patchModuleFaceDrawing";
 
@@ -48,5 +49,18 @@ describe("Compressor module face response math", () => {
 
   it("blends dry and wet response with mix", () => {
     expect(compressorOutputDb(-12, -24, 4, 0, 0.5)).toBeCloseTo(-16.5);
+  });
+});
+
+describe("Overdrive module face response math", () => {
+  it("renders drive zero as identity regardless of tone or mode", () => {
+    expect(overdriveTransfer(0.75, 0, 0, "overdrive")).toBeCloseTo(0.75);
+    expect(overdriveTransfer(0.75, 0, 1, "fuzz")).toBeCloseTo(0.75);
+  });
+
+  it("shows stronger bending as drive increases", () => {
+    const input = 0.5;
+
+    expect(overdriveTransfer(input, 36, 1, "fuzz")).toBeGreaterThan(overdriveTransfer(input, 12, 1, "fuzz"));
   });
 });
