@@ -917,6 +917,7 @@ function drawDelayModuleFace(
   const barMaxHeight = baseY - topY;
   const barWidth = 3;
   const delayedColor = "rgba(231, 243, 255, 0.64)";
+  const visibleEchoThreshold = 0.01;
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
   ctx.lineWidth = 1;
@@ -936,8 +937,12 @@ function drawDelayModuleFace(
     ctx.lineWidth = 1;
     ctx.setLineDash([2, 2]);
     ctx.beginPath();
-    ctx.moveTo(dryX + barWidth + 2, measureY);
-    ctx.lineTo(firstEchoX - 2, measureY);
+    ctx.moveTo(dryX + barWidth / 2, measureY);
+    ctx.lineTo(firstEchoX + barWidth / 2, measureY);
+    ctx.moveTo(dryX + barWidth / 2, measureY);
+    ctx.lineTo(dryX + barWidth / 2, baseY);
+    ctx.moveTo(firstEchoX + barWidth / 2, measureY);
+    ctx.lineTo(firstEchoX + barWidth / 2, baseY);
     ctx.stroke();
     ctx.setLineDash([]);
   }
@@ -954,12 +959,17 @@ function drawDelayModuleFace(
   };
 
   drawDelayBar(dryX, 1 - mix, accentColor, 0.8);
-  for (let echo = 1; echo <= 8; echo += 1) {
+  const maxEchoesInView = echoGap > 0 ? Math.floor((timelineEndX - dryX) / echoGap) : 0;
+  const maxDrawableEchoes = Math.min(maxEchoesInView, 64);
+  for (let echo = 1; echo <= maxDrawableEchoes; echo += 1) {
     const px = dryX + echo * echoGap;
     if (px > timelineEndX) {
       break;
     }
     const amp = mix * feedback ** (echo - 1);
+    if (amp < visibleEchoThreshold) {
+      break;
+    }
     drawDelayBar(px, amp, delayedColor, clamp(0.2 + amp * 0.8, 0.2, 0.9));
   }
 
