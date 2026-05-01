@@ -672,9 +672,13 @@ function overdriveTransfer(input: number, gainDb: number, mode: string, mix: num
   const driven = input * gain;
   const wet =
     mode === "fuzz"
-      ? driven >= 0
-        ? clamp(driven * 1.8, 0, 0.72) / 0.72
-        : clamp(driven * 1.8, -0.46, 0) / 0.46
+      ? (() => {
+          const pushed = driven * 3.2;
+          const clipped = pushed >= 0 ? clamp(pushed, 0, 0.45) / 0.45 : clamp(pushed, -0.28, 0) / 0.28;
+          const squared = Math.sign(clipped) * Math.abs(clipped) ** 0.42;
+          const asymmetric = squared >= 0 ? squared * 0.88 : squared * 1.08;
+          return clamp(asymmetric + asymmetric ** 3 * 0.12, -1, 1);
+        })()
       : Math.tanh(driven);
   return clamp(input * (1 - mix) + wet * mix, -1, 1);
 }
@@ -738,7 +742,7 @@ function drawOverdriveModuleFace(
   ctx.beginPath();
   for (let index = 0; index <= 24; index += 1) {
     const t = index / 24;
-    const response = clamp01(1 - (1 - tone) * t ** 0.7);
+    const response = clamp01(tone + (1 - tone) * (1 - t) ** 1.35);
     const px = toneGraph.x + t * toneGraph.width;
     const py = toneGraph.y + toneGraph.height * (1 - response);
     if (index === 0) {
@@ -770,10 +774,11 @@ function drawOverdriveModuleFace(
   ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textAlign = "left";
   ctx.fillText(mode, graph.x, graph.y - 3);
+  ctx.fillText("low", toneGraph.x, toneGraph.y - 1);
   ctx.fillText("-in", graph.x, graph.y + graph.height + 10);
   ctx.textAlign = "right";
   ctx.fillText("+in", graph.x + graph.width, graph.y + graph.height + 10);
-  ctx.fillText(`tone`, toneGraph.x + toneGraph.width, toneGraph.y + toneGraph.height);
+  ctx.fillText("high", toneGraph.x + toneGraph.width, toneGraph.y - 1);
   ctx.textAlign = "left";
 }
 
