@@ -907,8 +907,16 @@ function drawDelayModuleFace(
   const timeMs = Math.max(1, getNumericParam(node, schema, "timeMs"));
   const feedback = clamp(getNumericParam(node, schema, "feedback"), 0, 0.95);
   const mix = clamp01(getNumericParam(node, schema, "mix"));
-  const spacing = clamp((Math.log10(timeMs) - Math.log10(1)) / (Math.log10(2000) - Math.log10(1)), 0, 1);
-  const echoGap = 10 + spacing * 24;
+  const timeMaxMs = 2000;
+  const dryX = graph.x + 10;
+  const timelineStartX = dryX;
+  const timelineEndX = graph.x + graph.width - 8;
+  const echoGap = (timeMs / timeMaxMs) * (timelineEndX - timelineStartX);
+  const baseY = graph.y + graph.height - 8;
+  const topY = graph.y + 13;
+  const barMaxHeight = baseY - topY;
+  const barWidth = 3;
+  const delayedColor = "rgba(231, 243, 255, 0.64)";
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
   ctx.lineWidth = 1;
@@ -917,29 +925,48 @@ function drawDelayModuleFace(
   ctx.strokeStyle = "rgba(158, 192, 223, 0.28)";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(graph.x + 7, graph.y + graph.height - 8);
-  ctx.lineTo(graph.x + graph.width - 7, graph.y + graph.height - 8);
+  ctx.moveTo(graph.x + 7, baseY);
+  ctx.lineTo(graph.x + graph.width - 7, baseY);
   ctx.stroke();
 
-  for (let echo = 0; echo < 6; echo += 1) {
-    const amp = (echo === 0 ? 1 : feedback ** echo) * (echo === 0 ? 1 - mix * 0.45 : mix);
-    const px = graph.x + 10 + echo * echoGap;
-    if (px > graph.x + graph.width - 8) {
+  if (echoGap >= 6) {
+    const measureY = graph.y + 6;
+    const firstEchoX = dryX + echoGap;
+    ctx.strokeStyle = "rgba(231, 243, 255, 0.26)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath();
+    ctx.moveTo(dryX + barWidth + 2, measureY);
+    ctx.lineTo(firstEchoX - 2, measureY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  const drawDelayBar = (px: number, amplitude: number, fillStyle: string, alpha: number) => {
+    if (amplitude <= 0.001) {
+      return;
+    }
+    const barH = amplitude * barMaxHeight;
+    ctx.fillStyle = fillStyle;
+    ctx.globalAlpha = alpha;
+    ctx.fillRect(px, baseY - barH, barWidth, barH);
+    ctx.globalAlpha = 1;
+  };
+
+  drawDelayBar(dryX, 1 - mix, accentColor, 0.8);
+  for (let echo = 1; echo <= 8; echo += 1) {
+    const px = dryX + echo * echoGap;
+    if (px > timelineEndX) {
       break;
     }
-    const barH = Math.max(4, amp * (graph.height - 16));
-    ctx.fillStyle = echo === 0 ? "rgba(158, 192, 223, 0.42)" : accentColor;
-    ctx.globalAlpha = echo === 0 ? 0.75 : clamp(0.25 + amp, 0.25, 0.9);
-    ctx.fillRect(px, graph.y + graph.height - 8 - barH, 3, barH);
-    ctx.globalAlpha = 1;
+    const amp = mix * feedback ** (echo - 1);
+    drawDelayBar(px, amp, delayedColor, clamp(0.2 + amp * 0.8, 0.2, 0.9));
   }
 
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
   ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.textAlign = "left";
-  ctx.fillText(`${Math.round(timeMs)}ms`, graph.x + 6, graph.y + 11);
-  ctx.textAlign = "right";
-  ctx.fillText(`fb ${feedback.toFixed(2)} mix ${Math.round(mix * 100)}%`, graph.x + graph.width - 6, graph.y + graph.height - 5);
+  ctx.textAlign = "center";
+  ctx.fillText(`${Math.round(timeMs)}ms`, clamp(dryX + echoGap / 2, graph.x + 18, graph.x + graph.width - 18), graph.y - 3);
   ctx.textAlign = "left";
 }
 
