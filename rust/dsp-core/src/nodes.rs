@@ -1241,7 +1241,7 @@ fn read_input_frame(signal_buffers: &[f32], block_size: usize, frame: usize, ind
 
 #[cfg(test)]
 mod tests {
-    use super::{overdrive_tone_alpha, shape_fuzz_sample, shape_overdrive_sample};
+    use super::{apply_overdrive_tone, overdrive_tone_alpha, shape_fuzz_sample, shape_overdrive_sample};
 
     #[test]
     fn fuzz_shaper_is_harder_and_asymmetric() {
@@ -1255,6 +1255,12 @@ mod tests {
     fn tone_alpha_reaches_a_brighter_range() {
         assert!(overdrive_tone_alpha(0.0) < 0.05);
         assert!(overdrive_tone_alpha(1.0) > 0.7);
+    }
+
+    #[test]
+    fn tone_blend_leaves_bright_setting_unchanged() {
+        assert_eq!(apply_overdrive_tone(0.5, 0.1, 1.0), 0.5);
+        assert!(apply_overdrive_tone(0.5, 0.1, 0.0) < 0.2);
     }
 }
 

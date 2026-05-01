@@ -394,7 +394,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
     doc: { summary: "Heavier distortion/fuzz-style overdrive." },
     requiredPortIds: { in: ["in"], out: ["out"] },
     params: [
-      floatParam("gainDb", "Gain", 0, 36, "dB", "Drive gain", { default: 12, smoothingMs: 20 }),
+      floatParam("gainDb", "Gain", 0, 50, "dB", "Drive gain", { default: 12, smoothingMs: 20 }),
       floatParam("tone", "Tone", 0, 1, "linear", "Tone tilt", { default: 0.5, smoothingMs: 20 }),
       floatParam("mix", "Mix", 0, 1, "linear", "Wet mix", { default: 0.6, smoothingMs: 10 }),
       enumParam("mode", "Mode", ["overdrive", "fuzz"], "overdrive", "Drive mode")
