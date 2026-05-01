@@ -26,6 +26,27 @@ fn value_to_string(value: Option<&Value>, fallback: &str) -> String {
         .unwrap_or_else(|| fallback.to_string())
 }
 
+#[inline(always)]
+fn shape_overdrive_sample(input: f32) -> f32 {
+    input.tanh()
+}
+
+#[inline(always)]
+fn shape_fuzz_sample(input: f32) -> f32 {
+    let driven = input * 1.8;
+    if driven >= 0.0 {
+        clamp(driven, 0.0, 0.72) / 0.72
+    } else {
+        clamp(driven, -0.46, 0.0) / 0.46
+    }
+}
+
+#[inline(always)]
+fn overdrive_tone_alpha(tone: f32) -> f32 {
+    let t = clamp(tone, 0.0, 1.0);
+    clamp(0.015 + t * t * 0.72, 0.015, 0.75)
+}
+
 fn input_index(inputs: &HashMap<String, i32>, key: &str) -> i32 {
     *inputs.get(key).unwrap_or(&-1)
 }
@@ -855,13 +876,10 @@ impl RuntimeNode {
                     let input = input_start.map(|start| signal_buffers[start + frame]).unwrap_or(0.0);
                     let mut driven = input * db_to_gain(node.gain_db.next());
                     driven = match node.mode {
-                        OverdriveMode::Fuzz => {
-                            let clipped = clamp(driven, -1.0, 1.0);
-                            clipped.signum() * clipped.abs().sqrt()
-                        }
-                        OverdriveMode::Overdrive => driven.tanh(),
+                        OverdriveMode::Fuzz => shape_fuzz_sample(driven),
+                        OverdriveMode::Overdrive => shape_overdrive_sample(driven),
                     };
-                    let tone_alpha = clamp(0.01 + node.tone.next() * 0.2, 0.01, 0.3);
+                    let tone_alpha = overdrive_tone_alpha(node.tone.next());
                     node.tone_lp = node.tone_lp + (driven - node.tone_lp) * tone_alpha;
                     let mix = clamp(node.mix.next(), 0.0, 1.0);
                     signal_buffers[out_start + frame] = input * (1.0 - mix) + node.tone_lp * mix;
@@ -1150,10 +1168,10 @@ impl RuntimeNode {
                 let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
                 let mut driven = input * db_to_gain(node.gain_db.next());
                 driven = match node.mode {
-                    OverdriveMode::Fuzz => clamp(driven, -1.0, 1.0).signum() * clamp(driven, -1.0, 1.0).abs().sqrt(),
-                    OverdriveMode::Overdrive => driven.tanh(),
+                    OverdriveMode::Fuzz => shape_fuzz_sample(driven),
+                    OverdriveMode::Overdrive => shape_overdrive_sample(driven),
                 };
-                let tone_alpha = clamp(0.01 + node.tone.next() * 0.2, 0.01, 0.3);
+                let tone_alpha = overdrive_tone_alpha(node.tone.next());
                 node.tone_lp = node.tone_lp + (driven - node.tone_lp) * tone_alpha;
                 let mix = clamp(node.mix.next(), 0.0, 1.0);
                 let out = frame_signal_offset(node.out_index, block_size, frame);
@@ -1203,6 +1221,25 @@ fn read_input_frame(signal_buffers: &[f32], block_size: usize, frame: usize, ind
             .unwrap_or(&fallback)
     } else {
         fallback
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{overdrive_tone_alpha, shape_fuzz_sample, shape_overdrive_sample};
+
+    #[test]
+    fn fuzz_shaper_is_harder_and_asymmetric() {
+        assert!(shape_fuzz_sample(0.5) > shape_overdrive_sample(0.5));
+        assert!(shape_fuzz_sample(-0.5).abs() > shape_overdrive_sample(-0.5).abs());
+        assert!(shape_fuzz_sample(-0.5).abs() > shape_fuzz_sample(0.5).abs() * 0.95);
+        assert_eq!(shape_fuzz_sample(0.0), 0.0);
+    }
+
+    #[test]
+    fn tone_alpha_reaches_a_brighter_range() {
+        assert!(overdrive_tone_alpha(0.0) < 0.05);
+        assert!(overdrive_tone_alpha(1.0) > 0.7);
     }
 }
 

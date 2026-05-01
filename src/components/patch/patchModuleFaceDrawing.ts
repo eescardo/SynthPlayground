@@ -670,7 +670,12 @@ function drawSaturationModuleFace(
 function overdriveTransfer(input: number, gainDb: number, mode: string, mix: number) {
   const gain = 10 ** (gainDb / 20);
   const driven = input * gain;
-  const wet = mode === "fuzz" ? Math.sign(driven) * (1 - Math.exp(-Math.abs(driven) * 1.8)) : Math.tanh(driven * 0.85);
+  const wet =
+    mode === "fuzz"
+      ? driven >= 0
+        ? clamp(driven * 1.8, 0, 0.72) / 0.72
+        : clamp(driven * 1.8, -0.46, 0) / 0.46
+      : Math.tanh(driven);
   return clamp(input * (1 - mix) + wet * mix, -1, 1);
 }
 
@@ -688,6 +693,18 @@ function drawOverdriveModuleFace(
     width: PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2,
     height: PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 10
   };
+  const transferGraph = {
+    x: graph.x,
+    y: graph.y,
+    width: graph.width,
+    height: graph.height - 11
+  };
+  const toneGraph = {
+    x: graph.x + 6,
+    y: graph.y + graph.height - 8,
+    width: graph.width - 12,
+    height: 6
+  };
   const gainDb = getNumericParam(node, schema, "gainDb");
   const tone = clamp01(getNumericParam(node, schema, "tone"));
   const mix = clamp01(getNumericParam(node, schema, "mix"));
@@ -697,29 +714,39 @@ function drawOverdriveModuleFace(
   ctx.lineWidth = 1;
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
 
-  const centerY = graph.y + graph.height / 2;
+  const centerY = transferGraph.y + transferGraph.height / 2;
+  const centerX = transferGraph.x + transferGraph.width / 2;
   ctx.strokeStyle = PATCH_COLOR_MODULE_FACE_ROW_BG;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(graph.x + 4, centerY);
-  ctx.lineTo(graph.x + graph.width - 4, centerY);
+  ctx.moveTo(transferGraph.x + 4, centerY);
+  ctx.lineTo(transferGraph.x + transferGraph.width - 4, centerY);
+  ctx.moveTo(centerX, transferGraph.y + 4);
+  ctx.lineTo(centerX, transferGraph.y + transferGraph.height - 4);
   ctx.stroke();
 
   ctx.strokeStyle = "rgba(158, 192, 223, 0.34)";
   ctx.setLineDash([3, 3]);
   ctx.beginPath();
-  ctx.moveTo(graph.x + 5, graph.y + graph.height - 5);
-  ctx.lineTo(graph.x + graph.width - 5, graph.y + 5);
+  ctx.moveTo(transferGraph.x + 5, transferGraph.y + transferGraph.height - 5);
+  ctx.lineTo(transferGraph.x + transferGraph.width - 5, transferGraph.y + 5);
   ctx.stroke();
   ctx.setLineDash([]);
 
-  const toneLowY = graph.y + graph.height * (0.78 - tone * 0.28);
-  const toneHighY = graph.y + graph.height * (0.5 - tone * 0.28);
   ctx.strokeStyle = "rgba(255, 214, 145, 0.56)";
-  ctx.lineWidth = 1.4;
+  ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.moveTo(graph.x + 10, toneLowY);
-  ctx.lineTo(graph.x + graph.width - 10, toneHighY);
+  for (let index = 0; index <= 24; index += 1) {
+    const t = index / 24;
+    const response = clamp01(1 - (1 - tone) * t ** 0.7);
+    const px = toneGraph.x + t * toneGraph.width;
+    const py = toneGraph.y + toneGraph.height * (1 - response);
+    if (index === 0) {
+      ctx.moveTo(px, py);
+    } else {
+      ctx.lineTo(px, py);
+    }
+  }
   ctx.stroke();
 
   ctx.strokeStyle = accentColor;
@@ -729,8 +756,8 @@ function drawOverdriveModuleFace(
     const t = index / 64;
     const input = t * 2 - 1;
     const output = overdriveTransfer(input, gainDb, mode, mix);
-    const px = graph.x + t * graph.width;
-    const py = graph.y + graph.height * (1 - (output + 1) / 2);
+    const px = transferGraph.x + t * transferGraph.width;
+    const py = transferGraph.y + transferGraph.height * (1 - (output + 1) / 2);
     if (index === 0) {
       ctx.moveTo(px, py);
     } else {
@@ -742,9 +769,11 @@ function drawOverdriveModuleFace(
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
   ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textAlign = "left";
-  ctx.fillText(mode, graph.x + 6, graph.y + 11);
+  ctx.fillText(mode, graph.x, graph.y - 3);
+  ctx.fillText("-in", graph.x, graph.y + graph.height + 10);
   ctx.textAlign = "right";
-  ctx.fillText(`${gainDb.toFixed(0)}dB tone ${tone.toFixed(2)}`, graph.x + graph.width - 6, graph.y + graph.height - 5);
+  ctx.fillText("+in", graph.x + graph.width, graph.y + graph.height + 10);
+  ctx.fillText(`tone`, toneGraph.x + toneGraph.width, toneGraph.y + toneGraph.height);
   ctx.textAlign = "left";
 }
 
