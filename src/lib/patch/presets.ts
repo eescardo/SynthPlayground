@@ -1048,7 +1048,7 @@ export const drumPatch = (): Patch => {
     schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: "preset_drumish",
     name: "Drum-ish",
-    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 11 },
+    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 12 },
     nodes: [
       {
         id: vco,
@@ -1170,7 +1170,7 @@ export const bassDrumPatch = (): Patch => {
     schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: "preset_bassdrum",
     name: "Bass Drum",
-    meta: { source: "preset", presetId: "preset_bassdrum", presetVersion: 12 },
+    meta: { source: "preset", presetId: "preset_bassdrum", presetVersion: 13 },
     nodes: [
       {
         id: vco,

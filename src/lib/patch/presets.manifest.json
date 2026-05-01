@@ -10,7 +10,7 @@
   },
   {
     "presetId": "preset_bassdrum",
-    "presetVersion": 12,
+    "presetVersion": 13,
     "name": "Bass Drum",
     "macroIds": [
       "macro_body",
@@ -28,7 +28,7 @@
   },
   {
     "presetId": "preset_drumish",
-    "presetVersion": 11,
+    "presetVersion": 12,
     "name": "Drum-ish",
     "macroIds": [
       "macro_shell",
