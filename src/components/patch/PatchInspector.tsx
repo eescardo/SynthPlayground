@@ -79,6 +79,14 @@ function resolveRequiredPortIssues(issues: PatchValidationIssue[]) {
   return issues.filter((issue) => issue.code === "required-port-unconnected");
 }
 
+function resolveBrokenMacroBindingIssues(issues: PatchValidationIssue[], macroId?: string) {
+  return issues.filter(
+    (issue) =>
+      (issue.code === "macro-binding-missing-node" || issue.code === "macro-binding-invalid-param") &&
+      (!macroId || issue.context?.macroId === macroId)
+  );
+}
+
 export function PatchInspector(props: PatchInspectorProps) {
   const selectedNode = props.selectedNode;
   const selectedProbe = props.selectedProbe;
@@ -106,6 +114,7 @@ export function PatchInspector(props: PatchInspectorProps) {
   const visibleRequiredPortIssues = resolveRequiredPortIssues(visibleValidationIssues);
   const visibleGeneralValidationIssues = visibleValidationIssues.filter((issue) => issue.code !== "required-port-unconnected");
   const visibleValidationHasErrors = visibleValidationIssues.some((issue) => issue.level === "error");
+  const selectedMacroBindingIssues = resolveBrokenMacroBindingIssues(props.validationIssues, selectedMacro?.id);
   return (
     <aside className="patch-inspector">
       <h3>Inspector</h3>
@@ -154,6 +163,30 @@ export function PatchInspector(props: PatchInspectorProps) {
           onToggleAttachProbe={props.onToggleAttachProbe}
           onClearProbeTarget={props.onClearProbeTarget}
         />
+      )}
+
+      {selectedMacro && selectedMacroBindingIssues.length > 0 && (
+        <>
+          <h4>Broken Macro Bindings</h4>
+          {selectedMacroBindingIssues.map((issue) => {
+            const bindingId = issue.context?.bindingId;
+            const targetLabel = `${issue.context?.nodeId ?? "missing"}.${issue.context?.paramId ?? "param"}`;
+            return (
+              <div key={`${selectedMacro.id}_${bindingId ?? targetLabel}`} className="patch-macro-binding-issue">
+                <p className="error">{issue.message}</p>
+                {bindingId && (
+                  <button
+                    type="button"
+                    disabled={props.structureLocked}
+                    onClick={() => props.onApplyOp({ type: "unbindMacro", macroId: selectedMacro.id, bindingId })}
+                  >
+                    Remove {targetLabel}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </>
       )}
 
       {props.patchDiff.hasBaseline && !selectedNode && !selectedProbe && (

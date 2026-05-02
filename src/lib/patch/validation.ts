@@ -233,24 +233,35 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
 
       const node = [...patch.nodes, ...getPatchBoundaryPorts(patch)].find((entry) => entry.id === binding.nodeId);
       if (!node) {
-        pushError(issues, `Macro binding references missing node`, {
-          macroId: macro.id,
-          bindingId: binding.id,
-          nodeId: binding.nodeId,
-          paramId: binding.paramId
-        });
+        pushError(
+          issues,
+          `Macro "${macro.name}" binding targets missing node ${binding.nodeId}.${binding.paramId}`,
+          {
+            macroId: macro.id,
+            bindingId: binding.id,
+            nodeId: binding.nodeId,
+            paramId: binding.paramId
+          },
+          "macro-binding-missing-node"
+        );
         continue;
       }
 
       const schema = getModuleSchema(node.typeId);
       const paramSchema = schema?.params.find((param) => param.id === binding.paramId);
       if (!schema || !paramSchema) {
-        pushError(issues, `Macro binding references invalid parameter`, {
-          macroId: macro.id,
-          bindingId: binding.id,
-          nodeId: binding.nodeId,
-          paramId: binding.paramId
-        });
+        pushError(
+          issues,
+          `Macro "${macro.name}" binding targets missing parameter ${binding.nodeId}.${binding.paramId}`,
+          {
+            macroId: macro.id,
+            bindingId: binding.id,
+            nodeId: binding.nodeId,
+            paramId: binding.paramId,
+            typeId: node.typeId
+          },
+          "macro-binding-invalid-param"
+        );
         continue;
       }
 

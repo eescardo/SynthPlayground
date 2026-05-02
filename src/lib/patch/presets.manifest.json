@@ -1,7 +1,7 @@
 [
   {
     "presetId": "preset_bass",
-    "presetVersion": 14,
+    "presetVersion": 15,
     "name": "Bass",
     "macroIds": [
       "macro_cutoff",
@@ -10,7 +10,7 @@
   },
   {
     "presetId": "preset_bassdrum",
-    "presetVersion": 13,
+    "presetVersion": 14,
     "name": "Bass Drum",
     "macroIds": [
       "macro_body",
@@ -28,7 +28,7 @@
   },
   {
     "presetId": "preset_drumish",
-    "presetVersion": 12,
+    "presetVersion": 13,
     "name": "Drum-ish",
     "macroIds": [
       "macro_shell",
@@ -39,7 +39,7 @@
   },
   {
     "presetId": "preset_keys",
-    "presetVersion": 3,
+    "presetVersion": 4,
     "name": "Simple Piano-ish",
     "macroIds": [
       "macro_brightness"

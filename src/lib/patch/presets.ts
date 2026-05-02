@@ -54,14 +54,14 @@ export const bassPatch = (): Patch => {
   const mixId = "mix1";
   const vcaId = "vca1";
   const vcfId = "vcf1";
-  const satId = "sat1";
+  const satId = "sat";
   const outId = "output";
 
   return {
     schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: patchId,
     name: "Bass",
-    meta: { source: "preset", presetId: "preset_bass", presetVersion: 14 },
+    meta: { source: "preset", presetId: "preset_bass", presetVersion: 15 },
     nodes: [
       {
         id: pitchTrackId,
@@ -925,14 +925,14 @@ export const keysPatch = (): Patch => {
   const vco = "vco1";
   const env = "env1";
   const vca = "vca1";
-  const sat = "sat1";
+  const sat = "sat";
   const out = "output";
 
   return {
     schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: "preset_keys",
     name: "Simple Piano-ish",
-    meta: { source: "preset", presetId: "preset_keys", presetVersion: 3 },
+    meta: { source: "preset", presetId: "preset_keys", presetVersion: 4 },
     nodes: [
       { id: vco, typeId: "VCO", params: { ...createDefaultParamsForType("VCO"), wave: "triangle" } },
       {
@@ -1041,14 +1041,14 @@ export const drumPatch = (): Patch => {
   const bodyVca = "vca1";
   const noiseVca = "vca2";
   const mix = "mix1";
-  const sat = "sat1";
+  const drive = "drive";
   const out = "output";
 
   return {
     schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: "preset_drumish",
     name: "Drum-ish",
-    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 12 },
+    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 13 },
     nodes: [
       {
         id: vco,
@@ -1074,7 +1074,7 @@ export const drumPatch = (): Patch => {
       { id: bodyVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.34, bias: 0 } },
       { id: noiseVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.82, bias: 0 } },
       { id: mix, typeId: "Mixer4", params: { ...createDefaultParamsForType("Mixer4"), gain1: 0.62, gain2: 0.92 } },
-      { id: sat, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), driveDb: 6 } }
+      { id: drive, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), driveDb: 6 } }
     ],
     ports: [createPatchOutputPort()],
     connections: [
@@ -1089,8 +1089,8 @@ export const drumPatch = (): Patch => {
       { id: "c9", from: { nodeId: noiseEnv, portId: "out" }, to: { nodeId: noiseVca, portId: "gainCV" } },
       { id: "c10", from: { nodeId: bodyVca, portId: "out" }, to: { nodeId: mix, portId: "in1" } },
       { id: "c11", from: { nodeId: noiseVca, portId: "out" }, to: { nodeId: mix, portId: "in2" } },
-      { id: "c12", from: { nodeId: mix, portId: "out" }, to: { nodeId: sat, portId: "in" } },
-      { id: "c13", from: { nodeId: sat, portId: "out" }, to: { nodeId: out, portId: "in" } }
+      { id: "c12", from: { nodeId: mix, portId: "out" }, to: { nodeId: drive, portId: "in" } },
+      { id: "c13", from: { nodeId: drive, portId: "out" }, to: { nodeId: out, portId: "in" } }
     ],
     ui: {
       macros: [
@@ -1123,7 +1123,7 @@ export const drumPatch = (): Patch => {
             { id: "b6", nodeId: noiseEnv, paramId: "release", map: "linear", min: 10, max: 180 },
             { id: "b7", nodeId: noiseFilter, paramId: "cutoffHz", map: "exp", min: 2400, max: 4800 },
             { id: "b8", nodeId: noiseFilter, paramId: "resonance", map: "linear", min: 0.72, max: 0.42 },
-            { id: "b9", nodeId: sat, paramId: "driveDb", map: "linear", min: 2, max: 9 }
+            { id: "b9", nodeId: drive, paramId: "driveDb", map: "linear", min: 2, max: 9 }
           ]
         },
         {
@@ -1145,7 +1145,7 @@ export const drumPatch = (): Patch => {
         { nodeId: bodyVca, x: 12, y: 2 },
         { nodeId: noiseVca, x: 17, y: 8 },
         { nodeId: mix, x: 17, y: 4 },
-        { nodeId: sat, x: 21, y: 4 }
+        { nodeId: drive, x: 21, y: 4 }
       ]
     }
   };
@@ -1163,14 +1163,14 @@ export const bassDrumPatch = (): Patch => {
   const bodyVca = "vca1";
   const clickVca = "vca2";
   const mix = "mix1";
-  const sat = "sat1";
+  const drive = "drive";
   const out = "output";
 
   return {
     schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: "preset_bassdrum",
     name: "Bass Drum",
-    meta: { source: "preset", presetId: "preset_bassdrum", presetVersion: 13 },
+    meta: { source: "preset", presetId: "preset_bassdrum", presetVersion: 14 },
     nodes: [
       {
         id: vco,
@@ -1207,7 +1207,7 @@ export const bassDrumPatch = (): Patch => {
       { id: bodyVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 1, bias: 0 } },
       { id: clickVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.34, bias: 0 } },
       { id: mix, typeId: "Mixer4", params: { ...createDefaultParamsForType("Mixer4"), gain1: 1, gain2: 0.34, gain3: 0 } },
-      { id: sat, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), driveDb: 20 } }
+      { id: drive, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), driveDb: 20 } }
     ],
     ports: [createPatchOutputPort({ gainDb: 6 })],
     connections: [
@@ -1226,8 +1226,8 @@ export const bassDrumPatch = (): Patch => {
       { id: "c9", from: { nodeId: clickEnv, portId: "out" }, to: { nodeId: clickVca, portId: "gainCV" } },
       { id: "c10", from: { nodeId: bodyVca, portId: "out" }, to: { nodeId: mix, portId: "in1" } },
       { id: "c11", from: { nodeId: clickVca, portId: "out" }, to: { nodeId: mix, portId: "in2" } },
-      { id: "c12", from: { nodeId: mix, portId: "out" }, to: { nodeId: sat, portId: "in" } },
-      { id: "c13", from: { nodeId: sat, portId: "out" }, to: { nodeId: out, portId: "in" } }
+      { id: "c12", from: { nodeId: mix, portId: "out" }, to: { nodeId: drive, portId: "in" } },
+      { id: "c13", from: { nodeId: drive, portId: "out" }, to: { nodeId: out, portId: "in" } }
     ],
     ui: {
       macros: [
@@ -1260,7 +1260,7 @@ export const bassDrumPatch = (): Patch => {
           keyframeCount: 2,
           defaultNormalized: 0.42,
           bindings: [
-            { id: "b7", nodeId: sat, paramId: "driveDb", map: "linear", min: 12, max: 28 }
+            { id: "b7", nodeId: drive, paramId: "driveDb", map: "linear", min: 12, max: 28 }
           ]
         }
       ]
@@ -1278,7 +1278,7 @@ export const bassDrumPatch = (): Patch => {
         { nodeId: bodyVca, x: 15, y: 2 },
         { nodeId: clickVca, x: 17, y: 8 },
         { nodeId: mix, x: 19, y: 4 },
-        { nodeId: sat, x: 21, y: 4 }
+        { nodeId: drive, x: 21, y: 4 }
       ]
     }
   };

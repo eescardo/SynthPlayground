@@ -54,6 +54,37 @@ describe("patch validation", () => {
     expect(result.issues.some((issue) => issue.message.includes("Macro binds the same parameter more than once"))).toBe(true);
   });
 
+  it("reports stale macro bindings with the macro and target names", () => {
+    const patch = pluckPatch();
+    patch.ui.macros[0] = {
+      ...patch.ui.macros[0],
+      name: "Drive",
+      bindings: [
+        {
+          id: "stale_binding",
+          nodeId: "karplus1",
+          paramId: "mix",
+          map: "linear",
+          min: 0,
+          max: 1
+        }
+      ]
+    };
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "macro-binding-invalid-param",
+          message: 'Macro "Drive" binding targets missing parameter karplus1.mix',
+          context: expect.objectContaining({ macroId: patch.ui.macros[0].id, bindingId: "stale_binding" })
+        })
+      ])
+    );
+  });
+
   it("rejects module ids reserved for patch boundary ports", () => {
     const patch = createClearPatch({ id: "reserved_ids", name: "Reserved IDs" });
     patch.nodes.push(
@@ -131,13 +162,13 @@ describe("patch validation", () => {
   it("rejects modules with unconnected required output ports", () => {
     const patch = bassPatch();
     patch.connections = patch.connections.filter(
-      (connection) => !(connection.from.nodeId === "sat1" && connection.from.portId === "out")
+      (connection) => !(connection.from.nodeId === "sat" && connection.from.portId === "out")
     );
 
     const result = validatePatch(patch);
 
     expect(result.ok).toBe(false);
-    expect(findIssue(patch, "required-port-unconnected", "sat1", "out")).toBeTruthy();
+    expect(findIssue(patch, "required-port-unconnected", "sat", "out")).toBeTruthy();
   });
 
   it("rejects module schemas that declare missing required ports", () => {

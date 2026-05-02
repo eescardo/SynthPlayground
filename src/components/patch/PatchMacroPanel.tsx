@@ -8,12 +8,13 @@ import {
 } from "@/lib/patch/macroKeyframes";
 import { resolveDiffHighlightClass } from "@/components/patch/patchDiffPresentation";
 import { PatchDiff } from "@/lib/patch/diff";
-import { Patch } from "@/types/patch";
+import { Patch, PatchValidationIssue } from "@/types/patch";
 
 interface PatchMacroPanelProps {
   patch: Patch;
   patchDiff: PatchDiff;
   macroValues: Record<string, number>;
+  validationIssues: PatchValidationIssue[];
   selectedMacroId?: string;
   structureLocked?: boolean;
   onAddMacro: () => void;
@@ -93,6 +94,18 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
     props.onChangeMacroValue(macroId, normalized, { commit: true });
   };
 
+  const brokenBindingIssuesByMacroId = new Map<string, PatchValidationIssue[]>();
+  for (const issue of props.validationIssues) {
+    if (issue.code !== "macro-binding-missing-node" && issue.code !== "macro-binding-invalid-param") {
+      continue;
+    }
+    const macroId = issue.context?.macroId;
+    if (!macroId) {
+      continue;
+    }
+    brokenBindingIssuesByMacroId.set(macroId, [...(brokenBindingIssuesByMacroId.get(macroId) ?? []), issue]);
+  }
+
   return (
     <section className="patch-macro-panel" aria-label="Patch macros">
       <div className="patch-macro-panel-header">
@@ -127,10 +140,11 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
             const isSelected = props.selectedMacroId === macro.id;
             const keyframePositions = getMacroKeyframePositions(macro.keyframeCount);
             const diffHighlightClass = resolveDiffHighlightClass(props.patchDiff.macroDiffById.get(macro.id)?.status);
+            const brokenBindingIssues = brokenBindingIssuesByMacroId.get(macro.id) ?? [];
             return (
               <div
                 key={macro.id}
-                className={`patch-macro-row${isSelected ? " selected" : ""}${diffHighlightClass ? ` diff-${diffHighlightClass}` : ""}`}
+                className={`patch-macro-row${isSelected ? " selected" : ""}${diffHighlightClass ? ` diff-${diffHighlightClass}` : ""}${brokenBindingIssues.length > 0 ? " invalid" : ""}`}
                 onPointerDown={() => props.onSelectMacro(macro.id)}
               >
                 {isEditing ? (
@@ -262,6 +276,16 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
                     </div>
                   )}
                 </div>
+
+                {brokenBindingIssues.length > 0 && (
+                  <span
+                    className="patch-macro-binding-warning"
+                    title={brokenBindingIssues.map((issue) => issue.message).join("\n")}
+                    aria-label={`${macro.name} has ${brokenBindingIssues.length} broken macro binding${brokenBindingIssues.length === 1 ? "" : "s"}`}
+                  >
+                    !
+                  </span>
+                )}
 
                 <button
                   type="button"

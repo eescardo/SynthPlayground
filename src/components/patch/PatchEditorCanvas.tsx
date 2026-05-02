@@ -117,6 +117,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
             patch={props.patch}
             patchDiff={props.baselineDiff.patchDiff}
             macroValues={props.macroValues}
+            validationIssues={props.validationIssues}
             selectedMacroId={props.selectedMacroId}
             structureLocked={props.structureLocked}
             onAddMacro={props.onAddMacro}

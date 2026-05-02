@@ -43,6 +43,10 @@ function applyMacroValueToPatch(patch: Patch, macroId: string, normalized: numbe
     if (!node) {
       continue;
     }
+    const paramSchema = getModuleSchema(node.typeId)?.params.find((param) => param.id === binding.paramId);
+    if (!paramSchema) {
+      continue;
+    }
     node.params[binding.paramId] = resolveMacroBindingValue(binding, norm);
   }
 

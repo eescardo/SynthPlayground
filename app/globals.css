@@ -2092,7 +2092,7 @@ select {
 
 .patch-macro-row {
   display: grid;
-  grid-template-columns: minmax(104px, 160px) minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(104px, 160px) minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 0.26rem;
   min-height: 1.02rem;
@@ -2108,6 +2108,12 @@ select {
   border-radius: 0.5rem;
   background: rgba(68, 135, 99, 0.22);
   box-shadow: inset 0 0 0 1px rgba(103, 224, 153, 0.22);
+}
+
+.patch-macro-row.invalid {
+  border-radius: 0.5rem;
+  background: rgba(123, 45, 53, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(255, 143, 153, 0.18);
 }
 
 .patch-macro-name-button,
@@ -2288,6 +2294,42 @@ select {
   border-color: rgba(255, 215, 136, 0.44);
   background: rgba(255, 191, 72, 0.18);
   color: #fff5de;
+}
+
+.patch-macro-binding-warning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 0.92rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 154, 168, 0.34);
+  background: rgba(244, 90, 100, 0.18);
+  color: #ffb6c0;
+  font-family: "Courier New", monospace;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.patch-macro-binding-issue {
+  display: grid;
+  gap: 0.28rem;
+  margin-bottom: 0.48rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: 0.55rem;
+  background: rgba(123, 45, 53, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 143, 153, 0.14);
+}
+
+.patch-macro-binding-issue p {
+  margin: 0;
+}
+
+.patch-macro-binding-issue button {
+  justify-self: start;
+  padding: 0.24rem 0.48rem;
+  font-size: 0.72rem;
 }
 
 .patch-inspector h3,

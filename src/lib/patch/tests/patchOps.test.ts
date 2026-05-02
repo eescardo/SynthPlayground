@@ -33,6 +33,33 @@ describe("patch ops", () => {
     expect(boundNode?.params[binding.paramId]).toBeCloseTo(resolveMacroBindingValue(binding, 0.75));
   });
 
+  it("skips stale macro bindings without writing removed params back onto modules", () => {
+    const patch = pluckPatch();
+    const macro = patch.ui.macros[0];
+    const node = patch.nodes.find((entry) => entry.id === "karplus1");
+    expect(node).toBeDefined();
+    patch.ui.macros = [
+      {
+        ...macro,
+        bindings: [
+          {
+            id: "binding_removed_param",
+            nodeId: "karplus1",
+            paramId: "oldParam",
+            map: "linear",
+            min: 0,
+            max: 1
+          }
+        ]
+      }
+    ];
+
+    const nextPatch = applyMacroValue(patch, macro.id, 1);
+    const nextNode = nextPatch.nodes.find((entry) => entry.id === "karplus1");
+
+    expect(nextNode?.params.oldParam).toBeUndefined();
+  });
+
   it("updates all macro bindings when the macro keyframe count changes", () => {
     const patch = pluckPatch();
     const macro = patch.ui.macros.find((entry) => entry.keyframeCount === 3) ?? patch.ui.macros[0];
