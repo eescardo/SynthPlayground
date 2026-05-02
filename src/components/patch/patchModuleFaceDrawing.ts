@@ -671,6 +671,30 @@ function overdriveDriveAmount(driveDb: number) {
   return clamp(driveDb / 50, 0, 1);
 }
 
+function overdriveToneAlpha(tone: number) {
+  const t = clamp01(tone);
+  return clamp(0.012 + t * t * 0.9, 0.012, 0.92);
+}
+
+function overdriveToneMakeup(tone: number) {
+  return 1 + (1 - clamp01(tone)) ** 1.35 * 2.1;
+}
+
+function overdriveToneLowpassMagnitude(tone: number, frequencyHz: number) {
+  const alpha = overdriveToneAlpha(tone);
+  const omega = 2 * Math.PI * clamp(frequencyHz, 0, VCF_FACE_NYQUIST_HZ) / VCF_FACE_SAMPLE_RATE_HZ;
+  const feedback = 1 - alpha;
+  const denominator = Math.sqrt(1 + feedback * feedback - 2 * feedback * Math.cos(omega));
+  return denominator > 0 ? alpha / denominator : 1;
+}
+
+export function overdriveToneResponse(tone: number, driveDb: number, frequencyHz: number) {
+  const t = clamp01(tone);
+  const driveAmount = overdriveDriveAmount(driveDb);
+  const wetResponse = t + (1 - t) * overdriveToneLowpassMagnitude(t, frequencyHz) * overdriveToneMakeup(t);
+  return (1 - driveAmount) + driveAmount * wetResponse;
+}
+
 function overdriveWetShape(input: number, driveDb: number, mode: string) {
   const gain = 10 ** (driveDb / 20);
   const driven = input * gain;
@@ -687,8 +711,9 @@ function overdriveWetShape(input: number, driveDb: number, mode: string) {
 export function overdriveTransfer(input: number, driveDb: number, tone: number, mode: string) {
   const driveAmount = overdriveDriveAmount(driveDb);
   const wet = overdriveWetShape(input, driveDb, mode);
-  const steadyTone = wet * (1 + (1 - tone) * 0.35);
-  const toned = wet * tone + steadyTone * (1 - tone);
+  const t = clamp01(tone);
+  const steadyTone = Math.tanh(wet * overdriveToneMakeup(t));
+  const toned = wet * t + steadyTone * (1 - t);
   return clamp(input * (1 - driveAmount) + toned * driveAmount, -1, 1);
 }
 
@@ -709,35 +734,33 @@ function drawOverdriveModuleFace(
   const transferGraph = {
     x: graph.x,
     y: graph.y,
-    width: graph.width,
-    height: graph.height - 11
+    width: (graph.width - 8) / 2,
+    height: graph.height
   };
   const toneGraph = {
-    x: graph.x + 6,
-    y: graph.y + graph.height - 8,
-    width: graph.width - 12,
-    height: 6
+    x: transferGraph.x + transferGraph.width + 8,
+    y: graph.y,
+    width: (graph.width - 8) / 2,
+    height: graph.height
   };
   const driveDb = getNumericParam(node, schema, "driveDb");
   const tone = clamp01(getNumericParam(node, schema, "tone"));
   const mode = String(node.params.mode ?? "overdrive");
-  const driveAmount = overdriveDriveAmount(driveDb);
-  const toneDisplay = tone * driveAmount + (1 - driveAmount);
-  const toneAlpha = 0.16 + driveAmount * 0.48;
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
   ctx.lineWidth = 1;
-  ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
+  ctx.strokeRect(transferGraph.x, transferGraph.y, transferGraph.width, transferGraph.height);
+  ctx.strokeRect(toneGraph.x, toneGraph.y, toneGraph.width, toneGraph.height);
 
-  const centerY = transferGraph.y + transferGraph.height / 2;
-  const centerX = transferGraph.x + transferGraph.width / 2;
   ctx.strokeStyle = PATCH_COLOR_MODULE_FACE_ROW_BG;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(transferGraph.x + 4, centerY);
-  ctx.lineTo(transferGraph.x + transferGraph.width - 4, centerY);
-  ctx.moveTo(centerX, transferGraph.y + 4);
-  ctx.lineTo(centerX, transferGraph.y + transferGraph.height - 4);
+  ctx.moveTo(transferGraph.x + 4, transferGraph.y + transferGraph.height - 5);
+  ctx.lineTo(transferGraph.x + transferGraph.width - 4, transferGraph.y + transferGraph.height - 5);
+  ctx.moveTo(transferGraph.x + 5, transferGraph.y + 4);
+  ctx.lineTo(transferGraph.x + 5, transferGraph.y + transferGraph.height - 4);
+  ctx.moveTo(toneGraph.x + 4, toneGraph.y + toneGraph.height / 2);
+  ctx.lineTo(toneGraph.x + toneGraph.width - 4, toneGraph.y + toneGraph.height / 2);
   ctx.stroke();
 
   ctx.strokeStyle = "rgba(158, 192, 223, 0.34)";
@@ -745,17 +768,20 @@ function drawOverdriveModuleFace(
   ctx.beginPath();
   ctx.moveTo(transferGraph.x + 5, transferGraph.y + transferGraph.height - 5);
   ctx.lineTo(transferGraph.x + transferGraph.width - 5, transferGraph.y + 5);
+  ctx.moveTo(toneGraph.x + 5, toneGraph.y + toneGraph.height * 0.38);
+  ctx.lineTo(toneGraph.x + toneGraph.width - 5, toneGraph.y + toneGraph.height * 0.38);
   ctx.stroke();
   ctx.setLineDash([]);
 
-  ctx.strokeStyle = `rgba(255, 214, 145, ${toneAlpha})`;
-  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = "rgba(255, 214, 145, 0.82)";
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
-  for (let index = 0; index <= 24; index += 1) {
-    const t = index / 24;
-    const response = clamp01(toneDisplay + (1 - toneDisplay) * (1 - t) ** 1.35);
-    const px = toneGraph.x + t * toneGraph.width;
-    const py = toneGraph.y + toneGraph.height * (1 - response);
+  for (let index = 0; index <= 48; index += 1) {
+    const ratio = index / 48;
+    const frequency = 60 * (12000 / 60) ** ratio;
+    const response = clamp(overdriveToneResponse(tone, driveDb, frequency), 0, 1.45);
+    const px = toneGraph.x + ratio * toneGraph.width;
+    const py = toneGraph.y + toneGraph.height * (1 - response / 1.45);
     if (index === 0) {
       ctx.moveTo(px, py);
     } else {
@@ -769,10 +795,10 @@ function drawOverdriveModuleFace(
   ctx.beginPath();
   for (let index = 0; index <= 64; index += 1) {
     const t = index / 64;
-    const input = t * 2 - 1;
-    const output = overdriveTransfer(input, driveDb, tone, mode);
+    const input = t;
+    const output = overdriveTransfer(input, driveDb, 1, mode);
     const px = transferGraph.x + t * transferGraph.width;
-    const py = transferGraph.y + transferGraph.height * (1 - (output + 1) / 2);
+    const py = transferGraph.y + transferGraph.height * (1 - clamp01(output));
     if (index === 0) {
       ctx.moveTo(px, py);
     } else {
@@ -785,11 +811,11 @@ function drawOverdriveModuleFace(
   ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textAlign = "left";
   ctx.fillText(mode, graph.x, graph.y - 3);
-  ctx.fillText("low", toneGraph.x, toneGraph.y - 1);
-  ctx.fillText("-in", graph.x, graph.y + graph.height + 10);
+  ctx.fillText("drive", transferGraph.x, graph.y + graph.height + 10);
+  ctx.fillText("tone", toneGraph.x, graph.y + graph.height + 10);
   ctx.textAlign = "right";
-  ctx.fillText("+in", graph.x + graph.width, graph.y + graph.height + 10);
-  ctx.fillText("high", toneGraph.x + toneGraph.width, toneGraph.y - 1);
+  ctx.fillText("+in", transferGraph.x + transferGraph.width, graph.y + graph.height + 10);
+  ctx.fillText("high", toneGraph.x + toneGraph.width, graph.y + graph.height + 10);
   ctx.textAlign = "left";
 }
 

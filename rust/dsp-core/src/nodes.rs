@@ -59,7 +59,8 @@ fn overdrive_drive_amount(drive_db: f32) -> f32 {
 #[inline(always)]
 fn apply_overdrive_tone(input: f32, lowpassed: f32, tone: f32) -> f32 {
     let t = clamp(tone, 0.0, 1.0);
-    let darker = lowpassed * (1.0 + (1.0 - t) * 0.35);
+    let makeup = 1.0 + (1.0 - t).powf(1.35) * 2.1;
+    let darker = (lowpassed * makeup).tanh();
     input * t + darker * (1.0 - t)
 }
 
@@ -1265,7 +1266,8 @@ mod tests {
     #[test]
     fn tone_blend_leaves_bright_setting_unchanged() {
         assert_eq!(apply_overdrive_tone(0.5, 0.1, 1.0), 0.5);
-        assert!(apply_overdrive_tone(0.5, 0.1, 0.0) < 0.2);
+        assert!(apply_overdrive_tone(0.5, 0.1, 0.0) > 0.25);
+        assert!(apply_overdrive_tone(0.5, 0.1, 0.0) < 0.35);
     }
 
     #[test]

@@ -4,6 +4,7 @@ import {
   VCF_FACE_SAMPLE_RATE_HZ,
   compressorOutputDb,
   envelopeCurveProgress,
+  overdriveToneResponse,
   overdriveTransfer,
   vcfMagnitudeAtFrequency
 } from "@/components/patch/patchModuleFaceDrawing";
@@ -62,5 +63,13 @@ describe("Overdrive module face response math", () => {
     const input = 0.5;
 
     expect(overdriveTransfer(input, 36, 1, "fuzz")).toBeGreaterThan(overdriveTransfer(input, 12, 1, "fuzz"));
+  });
+
+  it("keeps low tone darker while compensating low-frequency level", () => {
+    const lowFrequency = overdriveToneResponse(0, 50, 120);
+    const highFrequency = overdriveToneResponse(0, 50, 8000);
+
+    expect(lowFrequency).toBeGreaterThan(1);
+    expect(highFrequency).toBeLessThan(lowFrequency);
   });
 });
