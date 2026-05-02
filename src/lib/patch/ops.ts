@@ -22,6 +22,10 @@ const buildParamRangeKey = (nodeId: string, paramId: string) => `${nodeId}:${par
 
 const findParameterTarget = (patch: Patch, nodeId: string) => getPatchParameterTargets(patch).find((entry) => entry.id === nodeId);
 
+function isParamBoundToAnyMacro(patch: Patch, nodeId: string, paramId: string) {
+  return patch.ui.macros.some((macro) => macro.bindings.some((binding) => binding.nodeId === nodeId && binding.paramId === paramId));
+}
+
 function clampMacroBindingValues(binding: MacroBinding, min: number, max: number) {
   if (binding.points) {
     binding.points = binding.points.map((point) => ({ ...point, y: clamp(point.y, min, max) }));
@@ -48,6 +52,9 @@ function applyMacroValueToPatch(patch: Patch, macroId: string, normalized: numbe
       continue;
     }
     node.params[binding.paramId] = resolveMacroBindingValue(binding, norm);
+    if (node.typeId === "Compressor" && binding.paramId === "makeupDb") {
+      node.params.autoMakeup = false;
+    }
   }
 
   return patch;
@@ -136,6 +143,9 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       const node = findParameterTarget(next, op.nodeId);
       if (!node) {
         throw new Error(`Unknown node in setParam: ${op.nodeId}`);
+      }
+      if (node.typeId === "Compressor" && op.paramId === "autoMakeup" && op.value === true && isParamBoundToAnyMacro(next, op.nodeId, "makeupDb")) {
+        return next;
       }
       node.params[op.paramId] = op.value;
       return next;
@@ -239,6 +249,10 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
         max: op.max,
         points: op.points
       });
+      const node = findParameterTarget(next, op.nodeId);
+      if (node?.typeId === "Compressor" && op.paramId === "makeupDb") {
+        node.params.autoMakeup = false;
+      }
       return next;
     }
 

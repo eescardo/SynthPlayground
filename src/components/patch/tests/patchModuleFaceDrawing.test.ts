@@ -8,6 +8,7 @@ import {
   overdriveTransfer,
   vcfMagnitudeAtFrequency
 } from "@/components/patch/patchModuleFaceDrawing";
+import { compressorAutoMakeupDb } from "@/lib/patch/compressor";
 
 describe("VCF module face response math", () => {
   it("uses the app sample rate and Nyquist ceiling for face calculations", () => {
@@ -50,6 +51,12 @@ describe("Compressor module face response math", () => {
 
   it("blends dry and wet response with mix", () => {
     expect(compressorOutputDb(-12, -24, 4, 0, 0.5)).toBeCloseTo(-16.5);
+  });
+
+  it("estimates conservative auto makeup from threshold and ratio", () => {
+    expect(compressorAutoMakeupDb(0, 4)).toBe(0);
+    expect(compressorAutoMakeupDb(-24, 4)).toBeCloseTo(9);
+    expect(compressorAutoMakeupDb(-60, 20)).toBe(24);
   });
 });
 

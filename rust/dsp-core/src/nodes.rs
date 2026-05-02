@@ -64,6 +64,13 @@ fn apply_overdrive_tone(input: f32, lowpassed: f32, tone: f32) -> f32 {
     input * t + darker * (1.0 - t)
 }
 
+#[inline(always)]
+fn compressor_auto_makeup_db(threshold_db: f32, ratio: f32) -> f32 {
+    let safe_ratio = ratio.max(1.0);
+    let reduction_at_ceiling = (-threshold_db).max(0.0) * (1.0 - 1.0 / safe_ratio);
+    clamp(reduction_at_ceiling * 0.5, 0.0, 24.0)
+}
+
 fn input_index(inputs: &HashMap<String, i32>, key: &str) -> i32 {
     *inputs.get(key).unwrap_or(&-1)
 }
@@ -323,6 +330,7 @@ pub(crate) struct CompressorNode {
     attack_ms: SmoothParam,
     release_ms: SmoothParam,
     makeup_db: SmoothParam,
+    auto_makeup: bool,
     mix: SmoothParam,
     env: f32,
 }
@@ -564,6 +572,7 @@ impl RuntimeNode {
                 attack_ms: SmoothParam::new(value_to_f32(p.get("attackMs"), 10.0), 50.0, sample_rate),
                 release_ms: SmoothParam::new(value_to_f32(p.get("releaseMs"), 200.0), 50.0, sample_rate),
                 makeup_db: SmoothParam::new(value_to_f32(p.get("makeupDb"), 2.0), 50.0, sample_rate),
+                auto_makeup: value_to_bool(p.get("autoMakeup"), false),
                 mix: SmoothParam::new(value_to_f32(p.get("mix"), 1.0), 10.0, sample_rate),
                 env: 0.0,
             }),
@@ -687,7 +696,7 @@ impl RuntimeNode {
             Self::Reverb(node) => match param_id { "size" => node.size.set_target(value_to_f32(Some(value), node.size.target)), "decay" => node.decay.set_target(value_to_f32(Some(value), node.decay.target)), "damping" => node.damping.set_target(value_to_f32(Some(value), node.damping.target)), "mix" => node.mix.set_target(value_to_f32(Some(value), node.mix.target)), _ => {} },
             Self::Saturation(node) => match param_id { "driveDb" => node.drive_db.set_target(value_to_f32(Some(value), node.drive_db.target)), "mix" => node.mix.set_target(value_to_f32(Some(value), node.mix.target)), "type" => if let Ok(parsed) = serde_json::from_value::<SaturationType>(Value::String(value_to_string(Some(value), "tanh"))) { node.mode = parsed; }, _ => {} },
             Self::Overdrive(node) => match param_id { "driveDb" | "gainDb" => node.drive_db.set_target(value_to_f32(Some(value), node.drive_db.target)), "tone" => node.tone.set_target(value_to_f32(Some(value), node.tone.target)), "mode" => if let Ok(parsed) = serde_json::from_value::<OverdriveMode>(Value::String(value_to_string(Some(value), "overdrive"))) { node.mode = parsed; }, _ => {} },
-            Self::Compressor(node) => match param_id { "thresholdDb" => node.threshold_db.set_target(value_to_f32(Some(value), node.threshold_db.target)), "ratio" => node.ratio.set_target(value_to_f32(Some(value), node.ratio.target)), "attackMs" => node.attack_ms.set_target(value_to_f32(Some(value), node.attack_ms.target)), "releaseMs" => node.release_ms.set_target(value_to_f32(Some(value), node.release_ms.target)), "makeupDb" => node.makeup_db.set_target(value_to_f32(Some(value), node.makeup_db.target)), "mix" => node.mix.set_target(value_to_f32(Some(value), node.mix.target)), _ => {} },
+            Self::Compressor(node) => match param_id { "thresholdDb" => node.threshold_db.set_target(value_to_f32(Some(value), node.threshold_db.target)), "ratio" => node.ratio.set_target(value_to_f32(Some(value), node.ratio.target)), "attackMs" => node.attack_ms.set_target(value_to_f32(Some(value), node.attack_ms.target)), "releaseMs" => node.release_ms.set_target(value_to_f32(Some(value), node.release_ms.target)), "makeupDb" => node.makeup_db.set_target(value_to_f32(Some(value), node.makeup_db.target)), "autoMakeup" => node.auto_makeup = value_to_bool(Some(value), node.auto_makeup), "mix" => node.mix.set_target(value_to_f32(Some(value), node.mix.target)), _ => {} },
             Self::Output(node) => match param_id { "gainDb" => node.gain_db.set_target(value_to_f32(Some(value), node.gain_db.target)), "limiter" => node.limiter = value_to_bool(Some(value), node.limiter), _ => {} },
         }
     }
@@ -1209,7 +1218,8 @@ impl RuntimeNode {
                 let level_db = 20.0 * node.env.max(0.00001).log10();
                 let over = (level_db - threshold_db).max(0.0);
                 let reduced_db = over - over / ratio.max(1.0);
-                let wet = input * db_to_gain(node.makeup_db.next() - reduced_db);
+                let makeup_db = if node.auto_makeup { compressor_auto_makeup_db(threshold_db, ratio) } else { node.makeup_db.next() };
+                let wet = input * db_to_gain(makeup_db - reduced_db);
                 let mix = clamp(node.mix.next(), 0.0, 1.0);
                 let out = frame_signal_offset(node.out_index, block_size, frame);
                 signal_buffers[out] = input * (1.0 - mix) + wet * mix;
@@ -1247,7 +1257,7 @@ fn read_input_frame(signal_buffers: &[f32], block_size: usize, frame: usize, ind
 
 #[cfg(test)]
 mod tests {
-    use super::{apply_overdrive_tone, overdrive_drive_amount, overdrive_tone_alpha, shape_fuzz_sample, shape_overdrive_sample};
+    use super::{apply_overdrive_tone, compressor_auto_makeup_db, overdrive_drive_amount, overdrive_tone_alpha, shape_fuzz_sample, shape_overdrive_sample};
 
     #[test]
     fn fuzz_shaper_is_harder_and_asymmetric() {
@@ -1274,6 +1284,13 @@ mod tests {
     fn drive_amount_starts_at_identity() {
         assert_eq!(overdrive_drive_amount(0.0), 0.0);
         assert_eq!(overdrive_drive_amount(50.0), 1.0);
+    }
+
+    #[test]
+    fn compressor_auto_makeup_tracks_static_gain_reduction_conservatively() {
+        assert_eq!(compressor_auto_makeup_db(0.0, 4.0), 0.0);
+        assert!((compressor_auto_makeup_db(-24.0, 4.0) - 9.0).abs() < 0.001);
+        assert_eq!(compressor_auto_makeup_db(-60.0, 20.0), 24.0);
     }
 }
 

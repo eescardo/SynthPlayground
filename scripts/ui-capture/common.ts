@@ -332,7 +332,7 @@ export const createPatchModuleFacesCaptureProject = (): Project => {
     {
       id: "comp_shape",
       typeId: "Compressor",
-      params: { ...createDefaultParamsForType("Compressor"), thresholdDb: -30, ratio: 6, attackMs: 12, releaseMs: 260, makeupDb: 5, mix: 0.86 }
+      params: { ...createDefaultParamsForType("Compressor"), thresholdDb: -30, ratio: 6, attackMs: 12, releaseMs: 260, autoMakeup: true, mix: 0.86 }
     },
     {
       id: "vca_shape",

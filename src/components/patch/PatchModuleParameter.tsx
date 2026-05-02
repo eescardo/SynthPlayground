@@ -7,6 +7,7 @@ import { EditableNumberLabel, MacroBindingDetails, ParamMacroControl } from "@/c
 import { resolveParamBindingState, resolveParamControlValue } from "@/components/patch/patchModuleParameterState";
 import { createMacroBindingId, createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
 import { clamp, clampRange } from "@/lib/numeric";
+import { compressorAutoMakeupDb } from "@/lib/patch/compressor";
 import { MacroBinding, Patch, PatchMacro, PatchNode, PatchParamSliderRange, ParamSchema, ParamValue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { samplePlayerPitchSemisToRootPitch } from "@/lib/patch/samplePlayer";
@@ -181,6 +182,22 @@ function shouldRenderCurveScaleLabels(node: PatchNode, param: ParamSchema) {
   return node.typeId === "ADSR" && param.id === "curve" && param.type === "float";
 }
 
+function resolveCompressorMakeupDisplayValue(node: PatchNode) {
+  return compressorAutoMakeupDb(Number(node.params.thresholdDb ?? -24), Number(node.params.ratio ?? 4));
+}
+
+function isCompressorMakeupAutoControlled(node: PatchNode, param: ParamSchema) {
+  return node.typeId === "Compressor" && param.id === "makeupDb" && Boolean(node.params.autoMakeup);
+}
+
+function isCompressorAutoMakeupBlockedByMacro(node: PatchNode, param: ParamSchema, patch: Patch) {
+  return (
+    node.typeId === "Compressor" &&
+    param.id === "autoMakeup" &&
+    patch.ui.macros.some((macro) => macro.bindings.some((binding) => binding.nodeId === node.id && binding.paramId === "makeupDb"))
+  );
+}
+
 export function shouldRenderParamInGenericInspector(node: PatchNode, param: ParamSchema) {
   if (node.typeId === "SamplePlayer" && (param.id === "start" || param.id === "end")) {
     return false;
@@ -237,7 +254,10 @@ interface PatchModuleParameterProps {
 }
 
 export function PatchModuleParameter(props: PatchModuleParameterProps) {
-  const value = props.selectedNode.params[props.param.id] ?? props.param.default;
+  const rawValue = props.selectedNode.params[props.param.id] ?? props.param.default;
+  const autoControlledMakeup = isCompressorMakeupAutoControlled(props.selectedNode, props.param);
+  const autoMakeupBlockedByMacro = isCompressorAutoMakeupBlockedByMacro(props.selectedNode, props.param, props.patch);
+  const value = autoControlledMakeup ? resolveCompressorMakeupDisplayValue(props.selectedNode) : autoMakeupBlockedByMacro ? false : rawValue;
   const nodeDiff = props.patchDiff.nodeDiffById.get(props.selectedNode.id);
   const bindingState = resolveParamBindingState(
     props.patch,
@@ -280,6 +300,8 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
       : controlValue;
   const controlDisabled = Boolean(
     props.structureLocked ||
+    autoControlledMakeup ||
+    autoMakeupBlockedByMacro ||
     (bindingState.isExposed && !bindingState.isEditableSelectedMacroBinding)
   );
   const macroSummary =
@@ -291,7 +313,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
   const unitDisplay = resolveCurrentValueUnitDisplay(props.param);
 
   const bindParamToMacro = (macroId: string) => {
-    if (props.structureLocked) {
+    if (props.structureLocked || autoControlledMakeup || autoMakeupBlockedByMacro) {
       return;
     }
     const macro = props.patch.ui.macros.find((entry) => entry.id === macroId);
@@ -313,6 +335,9 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
   };
 
   const commitValue = (nextValue: ParamValue) => {
+    if (autoControlledMakeup || autoMakeupBlockedByMacro) {
+      return;
+    }
     commitParamValueChange({
       patch: props.patch,
       selectedNode: props.selectedNode,
@@ -332,7 +357,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
       <div className="param-row-header">
         <span className="param-name">{props.param.label}</span>
         <ParamMacroControl
-          disabled={props.structureLocked}
+          disabled={props.structureLocked || autoControlledMakeup || autoMakeupBlockedByMacro}
           bindingMacro={bindingState.activeBindingMacro}
           bindingMap={activeBinding?.map}
           isEditing={bindingState.isEditableSelectedMacroBinding}

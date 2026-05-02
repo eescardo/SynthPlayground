@@ -10,6 +10,7 @@ import {
   PATCH_NODE_WIDTH
 } from "@/components/patch/patchCanvasConstants";
 import { addComplex, clamp, clamp01, divComplex, mulComplex, subComplex } from "@/lib/numeric";
+import { compressorAutoMakeupDb } from "@/lib/patch/compressor";
 import { Patch, PatchNode, ParamSchema, ParamValue, ModuleTypeSchema } from "@/types/patch";
 
 export const VCF_FACE_SAMPLE_RATE_HZ = 48000;
@@ -1146,7 +1147,10 @@ function drawCompressorModuleFace(
   };
   const thresholdDb = getNumericParam(node, schema, "thresholdDb");
   const ratio = Math.max(1, getNumericParam(node, schema, "ratio"));
-  const makeupDb = getNumericParam(node, schema, "makeupDb");
+  const autoMakeup = Boolean(node.params.autoMakeup);
+  const makeupDb = autoMakeup
+    ? compressorAutoMakeupDb(thresholdDb, ratio)
+    : getNumericParam(node, schema, "makeupDb");
   const mix = clamp01(getNumericParam(node, schema, "mix"));
   const minDb = -60;
   const maxDb = 6;
@@ -1195,10 +1199,12 @@ function drawCompressorModuleFace(
   ctx.textAlign = "right";
   ctx.fillText("0", graph.x - 3, dbToY(0) + 3);
   ctx.fillText("-60", graph.x - 3, graph.y + graph.height);
-  ctx.textAlign = "left";
-  ctx.fillText(`${Math.round(thresholdDb)}dB`, graph.x + 6, graph.y + 11);
+  const thresholdRatio = (clamp(thresholdDb, minDb, maxDb) - minDb) / (maxDb - minDb);
+  const thresholdLabelRight = thresholdRatio <= 0.25;
+  ctx.textAlign = thresholdLabelRight ? "left" : "right";
+  ctx.fillText(`${Math.round(thresholdDb)}dB`, thresholdX + (thresholdLabelRight ? 4 : -4), graph.y + 11);
   ctx.textAlign = "right";
-  ctx.fillText(`${ratio.toFixed(ratio >= 10 ? 0 : 1)}:1 +${makeupDb.toFixed(0)}`, graph.x + graph.width - 6, graph.y + graph.height - 5);
+  ctx.fillText(`${ratio.toFixed(ratio >= 10 ? 0 : 1)}:1 ${autoMakeup ? "auto +" : "+"}${makeupDb.toFixed(0)}`, graph.x + graph.width - 6, graph.y + graph.height - 5);
   ctx.textAlign = "left";
 }
 
