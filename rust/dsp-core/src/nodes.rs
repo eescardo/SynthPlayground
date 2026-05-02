@@ -348,6 +348,8 @@ pub(crate) struct CompressorNode {
     auto_makeup: bool,
     mix: SmoothParam,
     env: f32,
+    rms_energy: f32,
+    gain_reduction_db: f32,
 }
 
 #[derive(Clone)]
@@ -590,6 +592,8 @@ impl RuntimeNode {
                 auto_makeup: value_to_bool(p.get("autoMakeup"), true),
                 mix: SmoothParam::new(value_to_f32(p.get("mix"), 1.0), 10.0, sample_rate),
                 env: 0.0,
+                rms_energy: 0.0,
+                gain_reduction_db: 0.0,
             }),
             "Output" => Self::Output(OutputNode {
                 out_index: raw.out_index,
@@ -628,7 +632,7 @@ impl RuntimeNode {
             Self::Reverb(node) => { node.size.reset(); node.decay.reset(); node.damping.reset(); node.mix.reset(); node.c1.fill(0.0); node.c2.fill(0.0); node.i1 = 0; node.i2 = 0; }
             Self::Saturation(node) => { node.drive_db.reset(); node.mix.reset(); }
             Self::Overdrive(node) => { node.drive_db.reset(); node.tone.reset(); node.tone_lp = 0.0; }
-            Self::Compressor(node) => { node.threshold_db.reset(); node.ratio.reset(); node.attack_ms.reset(); node.release_ms.reset(); node.makeup_db.reset(); node.mix.reset(); node.env = 0.0; }
+            Self::Compressor(node) => { node.threshold_db.reset(); node.ratio.reset(); node.attack_ms.reset(); node.release_ms.reset(); node.makeup_db.reset(); node.mix.reset(); node.env = 0.0; node.rms_energy = 0.0; node.gain_reduction_db = 0.0; }
             Self::Output(node) => node.gain_db.reset(),
         }
     }
@@ -1224,16 +1228,24 @@ impl RuntimeNode {
             }
             Self::Compressor(node) => {
                 let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
-                let abs_in = input.abs();
+                let rms_alpha = crate::smoothing_alpha(8.0, sample_rate);
+                node.rms_energy = one_pole_step(node.rms_energy, input * input, rms_alpha);
+                let rms_in = node.rms_energy.max(0.0).sqrt();
                 let att = crate::smoothing_alpha(node.attack_ms.next().max(0.1), sample_rate);
                 let rel = crate::smoothing_alpha(node.release_ms.next().max(1.0), sample_rate);
-                node.env = if abs_in > node.env { one_pole_step(node.env, abs_in, att) } else { one_pole_step(node.env, abs_in, rel) };
+                node.env = if rms_in > node.env { one_pole_step(node.env, rms_in, att) } else { one_pole_step(node.env, rms_in, rel) };
                 let threshold_db = node.threshold_db.next();
                 let ratio = node.ratio.next();
                 let level_db = 20.0 * node.env.max(0.00001).log10();
-                let reduced_db = compressor_gain_reduction_db(level_db, threshold_db, ratio);
+                let target_reduction_db = compressor_gain_reduction_db(level_db, threshold_db, ratio);
+                let gain_alpha = if target_reduction_db > node.gain_reduction_db {
+                    crate::smoothing_alpha(8.0, sample_rate)
+                } else {
+                    crate::smoothing_alpha(35.0, sample_rate)
+                };
+                node.gain_reduction_db = one_pole_step(node.gain_reduction_db, target_reduction_db, gain_alpha);
                 let makeup_db = if node.auto_makeup { compressor_auto_makeup_db(threshold_db, ratio) } else { node.makeup_db.next() };
-                let wet = input * db_to_gain(makeup_db - reduced_db);
+                let wet = input * db_to_gain(makeup_db - node.gain_reduction_db);
                 let mix = clamp(node.mix.next(), 0.0, 1.0);
                 let out = frame_signal_offset(node.out_index, block_size, frame);
                 signal_buffers[out] = input * (1.0 - mix) + wet * mix;
