@@ -395,7 +395,16 @@ impl EventSpec {
     /// - `self`: event whose identifying fields are folded into the fallback sort key.
     fn sort_key(&self) -> String {
         match self {
-            EventSpec::NoteOn { track_index, note_id, .. } | EventSpec::NoteOff { track_index, note_id, .. } => {
+            EventSpec::NoteOn {
+                track_index,
+                note_id,
+                ..
+            }
+            | EventSpec::NoteOff {
+                track_index,
+                note_id,
+                ..
+            } => {
                 format!("{}:{}", track_index, note_id)
             }
             EventSpec::ParamChange {
