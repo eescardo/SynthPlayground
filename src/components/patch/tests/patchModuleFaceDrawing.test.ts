@@ -60,10 +60,11 @@ describe("Compressor module face response math", () => {
   });
 
   it("uses a soft knee around the compression threshold", () => {
-    expect(compressorGainReductionDb(-28, -24, 4)).toBe(0);
+    expect(compressorGainReductionDb(-28, -24, 4)).toBeGreaterThan(0);
+    expect(compressorGainReductionDb(-28, -24, 4)).toBeLessThan(1);
     expect(compressorGainReductionDb(-12, -24, 4)).toBeCloseTo(9);
     expect(compressorGainReductionDb(-24, -24, 4)).toBeGreaterThan(0);
-    expect(compressorGainReductionDb(-24, -24, 4)).toBeLessThan(1);
+    expect(compressorGainReductionDb(-24, -24, 4)).toBeLessThan(2);
   });
 });
 

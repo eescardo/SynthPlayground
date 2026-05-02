@@ -1,6 +1,6 @@
 import { clamp } from "@/lib/numeric";
 
-export const COMPRESSOR_SOFT_KNEE_DB = 6;
+export const COMPRESSOR_SOFT_KNEE_DB = 12;
 
 export function compressorAutoMakeupDb(thresholdDb: number, ratio: number) {
   const safeRatio = Math.max(1, ratio);

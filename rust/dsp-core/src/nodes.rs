@@ -74,7 +74,7 @@ fn compressor_auto_makeup_db(threshold_db: f32, ratio: f32) -> f32 {
 #[inline(always)]
 fn compressor_gain_reduction_db(level_db: f32, threshold_db: f32, ratio: f32) -> f32 {
     let safe_ratio = ratio.max(1.0);
-    let knee_db = 6.0;
+    let knee_db = 12.0;
     let over_threshold_db = level_db - threshold_db;
     let over_db = if over_threshold_db <= -knee_db / 2.0 {
         0.0
@@ -1309,10 +1309,11 @@ mod tests {
 
     #[test]
     fn compressor_gain_reduction_uses_soft_knee_near_threshold() {
-        assert_eq!(compressor_gain_reduction_db(-28.0, -24.0, 4.0), 0.0);
+        assert!(compressor_gain_reduction_db(-28.0, -24.0, 4.0) > 0.0);
+        assert!(compressor_gain_reduction_db(-28.0, -24.0, 4.0) < 1.0);
         assert_eq!(compressor_gain_reduction_db(-12.0, -24.0, 4.0), 9.0);
         assert!(compressor_gain_reduction_db(-24.0, -24.0, 4.0) > 0.0);
-        assert!(compressor_gain_reduction_db(-24.0, -24.0, 4.0) < 1.0);
+        assert!(compressor_gain_reduction_db(-24.0, -24.0, 4.0) < 2.0);
     }
 }
 
