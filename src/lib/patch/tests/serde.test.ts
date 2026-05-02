@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { exportPatchToJson, importPatchBundleFromJson, PATCH_BUNDLE_KIND, PATCH_BUNDLE_VERSION } from "@/lib/patch/serde";
+import {
+  exportPatchToJson,
+  importPatchBundleFromJson,
+  PATCH_BUNDLE_KIND,
+  PATCH_BUNDLE_VERSION
+} from "@/lib/patch/serde";
 import { createClearPatch } from "@/lib/patch/presets";
 import { validatePatch } from "@/lib/patch/validation";
 import { Patch } from "@/types/patch";
@@ -33,12 +38,14 @@ describe("patch serde", () => {
       }
     });
 
-    const parsed = JSON.parse(exportPatchToJson(patch, {
-      samplePlayerById: {
-        asset_used: "{\"version\":1,\"name\":\"used.wav\",\"sampleRate\":48000,\"samples\":[0,0.2]}",
-        asset_unused: "{\"version\":1,\"name\":\"unused.wav\",\"sampleRate\":48000,\"samples\":[0]}"
-      }
-    })) as {
+    const parsed = JSON.parse(
+      exportPatchToJson(patch, {
+        samplePlayerById: {
+          asset_used: '{"version":1,"name":"used.wav","sampleRate":48000,"samples":[0,0.2]}',
+          asset_unused: '{"version":1,"name":"unused.wav","sampleRate":48000,"samples":[0]}'
+        }
+      })
+    ) as {
       kind: string;
       version: number;
       assets: { samplePlayerById: Record<string, string> };
@@ -46,7 +53,7 @@ describe("patch serde", () => {
 
     expect(parsed.kind).toBe(PATCH_BUNDLE_KIND);
     expect(parsed.version).toBe(PATCH_BUNDLE_VERSION);
-    expect(parsed.assets.samplePlayerById.asset_used).toContain("\"used.wav\"");
+    expect(parsed.assets.samplePlayerById.asset_used).toContain('"used.wav"');
     expect(parsed.assets.samplePlayerById.asset_unused).toBeUndefined();
   });
 

@@ -88,9 +88,7 @@ export const setEditorSelectionActionScopePreview = (
   current: EditorSelectionState,
   actionScopePreview: SelectionActionScope
 ): EditorSelectionState =>
-  current.kind === "timeline"
-    ? { ...current, actionScopePreview: "all-tracks" }
-    : { ...current, actionScopePreview };
+  current.kind === "timeline" ? { ...current, actionScopePreview: "all-tracks" } : { ...current, actionScopePreview };
 
 export const getEditorSelectionBeatRange = (project: Project, selection: EditorSelectionState): BeatRange | null =>
   selection.kind === "timeline"
@@ -104,7 +102,10 @@ export const getEditorSelectionSourceTrackId = (project: Project, selection: Edi
     ? getSelectionSourceTrackId(project, selection.content.noteKeys, selection.content.automationKeyframeSelectionKeys)
     : null;
 
-export const filterEditorSelectionToProject = (project: Project, selection: EditorSelectionState): EditorSelectionState => {
+export const filterEditorSelectionToProject = (
+  project: Project,
+  selection: EditorSelectionState
+): EditorSelectionState => {
   const existingNoteSelectionKeys = new Set(
     project.tracks.flatMap((track) => track.notes.map((note) => `${track.id}:${note.id}`))
   );

@@ -46,7 +46,9 @@ export interface AudioEngineBackend {
     }
   ): Promise<void>;
   releasePreviewNote(trackId: string, previewId: string): void;
-  setPreviewCaptureListener(listener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null): void;
+  setPreviewCaptureListener(
+    listener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null
+  ): void;
 }
 
 const getWorkletUrl = () => {
@@ -75,7 +77,8 @@ class RealAudioEngineBackend implements AudioEngineBackend {
   private playSessionId = 0;
   private recordingTrackId: string | null = null;
   private cueBeat = 0;
-  private previewCaptureListener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null = null;
+  private previewCaptureListener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null =
+    null;
 
   private async disposeContext(): Promise<void> {
     this.worklet?.disconnect();
@@ -96,7 +99,10 @@ class RealAudioEngineBackend implements AudioEngineBackend {
       return;
     }
 
-    const currentSongSample = Math.max(0, Math.round((this.context.currentTime - this.songStartContextTime) * FIXED_SAMPLE_RATE));
+    const currentSongSample = Math.max(
+      0,
+      Math.round((this.context.currentTime - this.songStartContextTime) * FIXED_SAMPLE_RATE)
+    );
     const lookaheadSamples = transportMsToSamples(TRANSPORT_LOOKAHEAD_MS, FIXED_SAMPLE_RATE);
     const fromSample = this.scheduledUntilSample;
     const toSample = currentSongSample + lookaheadSamples;
@@ -185,7 +191,9 @@ class RealAudioEngineBackend implements AudioEngineBackend {
     });
   }
 
-  setPreviewCaptureListener(listener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null): void {
+  setPreviewCaptureListener(
+    listener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null
+  ): void {
     this.previewCaptureListener = listener;
   }
 
@@ -201,7 +209,11 @@ class RealAudioEngineBackend implements AudioEngineBackend {
 
     this.songStartContextTime = this.context.currentTime;
     const primedToSample = transportMsToSamples(TRANSPORT_INITIAL_PRIME_MS, FIXED_SAMPLE_RATE);
-    const primedEvents = collectEventsInWindow(this.project, { fromSample: 0, toSample: primedToSample }, { cueBeat: startBeat });
+    const primedEvents = collectEventsInWindow(
+      this.project,
+      { fromSample: 0, toSample: primedToSample },
+      { cueBeat: startBeat }
+    );
 
     this.scheduledUntilSample = primedToSample;
     this.isPlaying = true;
@@ -271,8 +283,10 @@ class RealAudioEngineBackend implements AudioEngineBackend {
     if (!this.context || !this.isPlaying) {
       return 0;
     }
-    return Math.max(0, Math.round((this.context.currentTime - this.songStartContextTime) * FIXED_SAMPLE_RATE)) /
-      samplesPerBeat(FIXED_SAMPLE_RATE, this.project?.global.tempo ?? 120);
+    return (
+      Math.max(0, Math.round((this.context.currentTime - this.songStartContextTime) * FIXED_SAMPLE_RATE)) /
+      samplesPerBeat(FIXED_SAMPLE_RATE, this.project?.global.tempo ?? 120)
+    );
   }
 
   sendParamChanges(events: SchedulerEvent[]): void {
@@ -470,7 +484,7 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
     if (!this.isPlaying) {
       return 0;
     }
-    return ((performance.now() - this.fakeSongStartTimeMs) / 1000) / (60 / (this.project?.global.tempo ?? 120));
+    return (performance.now() - this.fakeSongStartTimeMs) / 1000 / (60 / (this.project?.global.tempo ?? 120));
   }
 
   sendParamChanges(events: SchedulerEvent[]): void {

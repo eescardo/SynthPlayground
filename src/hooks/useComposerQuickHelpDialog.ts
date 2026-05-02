@@ -5,7 +5,9 @@ import { QuickHelpShortcutSection } from "@/components/QuickHelpDialog";
 
 const isTextEditingTarget = (target: EventTarget | null) => {
   const element = target as HTMLElement | null;
-  return Boolean(element && (element.tagName === "INPUT" || element.tagName === "SELECT" || element.tagName === "TEXTAREA"));
+  return Boolean(
+    element && (element.tagName === "INPUT" || element.tagName === "SELECT" || element.tagName === "TEXTAREA")
+  );
 };
 
 interface UseComposerQuickHelpDialogParams {
@@ -25,7 +27,10 @@ export function useComposerQuickHelpDialog({
     () => [
       { action: "Add note", description: "Click an empty track lane when nothing is selected." },
       { action: "Select notes", description: "Drag a marquee across notes, or click an existing note." },
-      { action: "Rename things", description: "Hover for a moment and then click name text, or double-click it to rename inline." },
+      {
+        action: "Rename things",
+        description: "Hover for a moment and then click name text, or double-click it to rename inline."
+      },
       { action: "Move note", description: "Drag a note block horizontally." },
       { action: "Resize note", description: "Drag near the right edge of a note block." },
       { action: "Delete note", description: "Right-click a note block." },

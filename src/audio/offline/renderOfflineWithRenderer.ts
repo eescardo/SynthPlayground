@@ -28,7 +28,10 @@ const getHeapUsedMb = () => {
   return proc.memoryUsage().heapUsed / BYTES_PER_MB;
 };
 
-export const renderOfflineWithRenderer = <TStream extends SynthRenderStream = SynthRenderStream, TExtra extends object = object>(
+export const renderOfflineWithRenderer = <
+  TStream extends SynthRenderStream = SynthRenderStream,
+  TExtra extends object = object
+>(
   renderer: SynthRenderer,
   project: AudioProject,
   options: BaseOfflineRenderOptions,

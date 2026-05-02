@@ -47,7 +47,9 @@ function PatchCircuitThumbnail({ patch }: { patch: Patch }) {
   const offsetY = THUMBNAIL_PADDING_Y + (availableHeight - spanY * scale) * 0.5;
   const nodeById = new Map(nodes.map((node) => [node.nodeId, node] as const));
   const graphNodeById = new Map(patch.nodes.map((node) => [node.id, node] as const));
-  const visibleConnections = patch.connections.filter((connection) => nodeById.has(connection.from.nodeId) && nodeById.has(connection.to.nodeId));
+  const visibleConnections = patch.connections.filter(
+    (connection) => nodeById.has(connection.from.nodeId) && nodeById.has(connection.to.nodeId)
+  );
   const projectPoint = (x: number, y: number) => ({
     x: offsetX + (x - minX) * scale,
     y: offsetY + (y - minY) * scale
@@ -119,11 +121,21 @@ export function PatchSummaryPopover(props: PatchSummaryPopoverProps) {
     return (
       <div
         className="track-patch-summary-popover teaser"
-        style={{ position: props.fixed ? "fixed" : undefined, top: `${props.top}px`, left: `${props.left}px`, height: `${props.height}px` }}
+        style={{
+          position: props.fixed ? "fixed" : undefined,
+          top: `${props.top}px`,
+          left: `${props.left}px`,
+          height: `${props.height}px`
+        }}
         onMouseEnter={props.onMouseEnter}
         onMouseLeave={props.onMouseLeave}
       >
-        <button type="button" className="track-patch-summary-teaser-button" onClick={props.onExpand} aria-label="Open patch summary">
+        <button
+          type="button"
+          className="track-patch-summary-teaser-button"
+          onClick={props.onExpand}
+          aria-label="Open patch summary"
+        >
           &gt;&gt;
         </button>
       </div>
@@ -133,7 +145,12 @@ export function PatchSummaryPopover(props: PatchSummaryPopoverProps) {
   return (
     <div
       className="track-patch-summary-popover expanded"
-      style={{ position: props.fixed ? "fixed" : undefined, top: `${props.top}px`, left: `${props.left}px`, height: `${props.height}px` }}
+      style={{
+        position: props.fixed ? "fixed" : undefined,
+        top: `${props.top}px`,
+        left: `${props.left}px`,
+        height: `${props.height}px`
+      }}
       onMouseEnter={props.onMouseEnter}
       onMouseLeave={props.onMouseLeave}
       onPointerDown={(event) => event.stopPropagation()}
@@ -156,14 +173,24 @@ export function PatchSummaryPopover(props: PatchSummaryPopoverProps) {
           </div>
           <div className="track-patch-summary-badges">
             {props.invalid && <span className="track-patch-summary-status invalid">Invalid</span>}
-            {presetStatus === "preset_update_available" && <span className="track-patch-summary-status update">Update Available</span>}
-            {presetStatus === "legacy_preset" && <span className="track-patch-summary-status legacy">Legacy Preset</span>}
+            {presetStatus === "preset_update_available" && (
+              <span className="track-patch-summary-status update">Update Available</span>
+            )}
+            {presetStatus === "legacy_preset" && (
+              <span className="track-patch-summary-status legacy">Legacy Preset</span>
+            )}
           </div>
         </div>
         <div className="track-patch-summary-actions">
-          <button type="button" onClick={props.onDuplicate}>Duplicate Instrument</button>
-          <button type="button" onClick={props.onRemove} disabled={!props.canRemove}>Remove Instrument</button>
-          <button type="button" className="transport-export-button" onClick={props.onOpenWorkspace}>Open Patch Workspace</button>
+          <button type="button" onClick={props.onDuplicate}>
+            Duplicate Instrument
+          </button>
+          <button type="button" onClick={props.onRemove} disabled={!props.canRemove}>
+            Remove Instrument
+          </button>
+          <button type="button" className="transport-export-button" onClick={props.onOpenWorkspace}>
+            Open Patch Workspace
+          </button>
         </div>
       </div>
     </div>

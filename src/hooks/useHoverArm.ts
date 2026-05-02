@@ -23,22 +23,28 @@ export function useHoverArm<T>({ delayMs = DEFAULT_HOVER_ARM_DELAY_MS }: UseHove
     return () => clearArmTimer();
   }, [clearArmTimer]);
 
-  const arm = useCallback((id: T) => {
-    clearArmTimer();
-    armTimerRef.current = window.setTimeout(() => {
-      setArmedId(id);
-    }, delayMs);
-  }, [clearArmTimer, delayMs]);
+  const arm = useCallback(
+    (id: T) => {
+      clearArmTimer();
+      armTimerRef.current = window.setTimeout(() => {
+        setArmedId(id);
+      }, delayMs);
+    },
+    [clearArmTimer, delayMs]
+  );
 
-  const disarm = useCallback((id?: T) => {
-    clearArmTimer();
-    setArmedId((current) => {
-      if (id === undefined || Object.is(current, id)) {
-        return null;
-      }
-      return current;
-    });
-  }, [clearArmTimer]);
+  const disarm = useCallback(
+    (id?: T) => {
+      clearArmTimer();
+      setArmedId((current) => {
+        if (id === undefined || Object.is(current, id)) {
+          return null;
+        }
+        return current;
+      });
+    },
+    [clearArmTimer]
+  );
 
   const isArmed = useCallback((id: T) => Object.is(armedId, id), [armedId]);
 

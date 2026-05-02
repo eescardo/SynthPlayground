@@ -58,7 +58,15 @@ export function ProjectsMenu({
         onClick={() => setOpen((current) => !current)}
       >
         {iconOnly ? (
-          <Image className="projects-menu-brand-mark" src={brandSproutIconSrc} alt="" aria-hidden="true" width={24} height={24} unoptimized />
+          <Image
+            className="projects-menu-brand-mark"
+            src={brandSproutIconSrc}
+            alt=""
+            aria-hidden="true"
+            width={24}
+            height={24}
+            unoptimized
+          />
         ) : (
           "Projects"
         )}

@@ -33,12 +33,14 @@ describe("getBrowserCompatibilityIssue", () => {
 
     const issue = getBrowserCompatibilityIssue(["wasm-simd"], {
       title: "Browser not compatible with the WASM renderer",
-      summary: "This build uses the WASM audio renderer by default and requires browser features that are not available in your current browser."
+      summary:
+        "This build uses the WASM audio renderer by default and requires browser features that are not available in your current browser."
     });
 
     expect(issue).toEqual({
       title: "Browser not compatible with the WASM renderer",
-      summary: "This build uses the WASM audio renderer by default and requires browser features that are not available in your current browser.",
+      summary:
+        "This build uses the WASM audio renderer by default and requires browser features that are not available in your current browser.",
       requirements: [
         {
           id: "wasm-simd",

@@ -286,9 +286,7 @@ describe("looping", () => {
           expanded: true,
           startValue: 0.2,
           endValue: 0.6,
-          keyframes: [
-            { id: "cutoff_mid", beat: 10, type: "whole", value: 0.8 }
-          ]
+          keyframes: [{ id: "cutoff_mid", beat: 10, type: "whole", value: 0.8 }]
         }
       }
     };
@@ -299,7 +297,9 @@ describe("looping", () => {
     const expanded = expandLoopRegionToNotes(project, region!);
     const lane = expanded.tracks[0]!.macroAutomations.macro_cutoff;
 
-    expect(lane.keyframes[0]).toEqual(expect.objectContaining({ id: "cutoff_mid", beat: 10, type: "whole", value: 0.8 }));
+    expect(lane.keyframes[0]).toEqual(
+      expect.objectContaining({ id: "cutoff_mid", beat: 10, type: "whole", value: 0.8 })
+    );
     expect(lane.keyframes[1]).toEqual(expect.objectContaining({ beat: 11, type: "split" }));
     expect(isSplitAutomationKeyframe(lane.keyframes[1]!)).toBe(true);
     if (!isSplitAutomationKeyframe(lane.keyframes[1]!)) {

@@ -75,7 +75,10 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     [patch.nodes, patch.ports]
   );
   const outputNodeId = getPatchOutputPort(patch)?.id;
-  const visibleNodeCount = useMemo(() => patch.nodes.filter((node) => node.id !== outputNodeId).length, [outputNodeId, patch.nodes]);
+  const visibleNodeCount = useMemo(
+    () => patch.nodes.filter((node) => node.id !== outputNodeId).length,
+    [outputNodeId, patch.nodes]
+  );
   const visibleLayoutNodes = useMemo(
     () => patch.layout.nodes.filter((node) => node.nodeId !== outputNodeId),
     [outputNodeId, patch.layout.nodes]
@@ -90,9 +93,12 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     });
   }, []);
 
-  const handleZoomChange = useCallback((zoom: number) => {
-    onApplyOp({ type: "setCanvasZoom", zoom });
-  }, [onApplyOp]);
+  const handleZoomChange = useCallback(
+    (zoom: number) => {
+      onApplyOp({ type: "setCanvasZoom", zoom });
+    },
+    [onApplyOp]
+  );
 
   const { zoom } = usePatchCanvasZoom({
     canvasSize: contentCanvasSize,
@@ -107,7 +113,9 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     () => ({
       width: Math.max(
         contentCanvasSize.width,
-        scrollViewport.width > 0 ? Math.ceil((scrollViewport.left + scrollViewport.width + PATCH_OUTPUT_HOST_PORT_OVERHANG) / zoom) : 0
+        scrollViewport.width > 0
+          ? Math.ceil((scrollViewport.left + scrollViewport.width + PATCH_OUTPUT_HOST_PORT_OVERHANG) / zoom)
+          : 0
       ),
       height: contentCanvasSize.height
     }),
@@ -133,13 +141,12 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     }
   }, [canvasSize.width, updateScrollViewport, zoom]);
 
-  const getFacePopoverRect = useCallback((nodeId: string) => resolvePatchFacePopoverRect(nodeId, layoutByNode, canvasSize), [canvasSize, layoutByNode]);
+  const getFacePopoverRect = useCallback(
+    (nodeId: string) => resolvePatchFacePopoverRect(nodeId, layoutByNode, canvasSize),
+    [canvasSize, layoutByNode]
+  );
   const nodeExists = useCallback((nodeId: string) => nodeById.has(nodeId), [nodeById]);
-  const {
-    handleCanvasPointerDown,
-    popoverNodeId,
-    togglePopoverForNode
-  } = usePatchModuleFacePopover({
+  const { handleCanvasPointerDown, popoverNodeId, togglePopoverForNode } = usePatchModuleFacePopover({
     getPopoverRect: getFacePopoverRect,
     nodeExists
   });
@@ -222,10 +229,15 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
         onDeleteSelected={() =>
           probeState.selectedProbeId
             ? (onCancelAttachProbe(), probeActions.deleteSelected())
-            : selectedNodeId && selectedNodeId !== outputNodeId && !structureLocked && onApplyOp({ type: "removeNode", nodeId: selectedNodeId })
+            : selectedNodeId &&
+              selectedNodeId !== outputNodeId &&
+              !structureLocked &&
+              onApplyOp({ type: "removeNode", nodeId: selectedNodeId })
         }
         onDeletePreviewChange={(previewing) => {
-          setDeletePreviewNodeId(previewing && selectedNodeId && selectedNodeId !== outputNodeId && !structureLocked ? selectedNodeId : null);
+          setDeletePreviewNodeId(
+            previewing && selectedNodeId && selectedNodeId !== outputNodeId && !structureLocked ? selectedNodeId : null
+          );
         }}
         onClearPatch={props.onClearPatch}
         onClearPreviewChange={setClearPreviewActive}
@@ -250,7 +262,10 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
             updateScrollViewport(event.currentTarget);
           }}
         >
-          <div className="patch-canvas-overlay-shell" style={{ width: `${canvasSize.width * zoom}px`, height: `${canvasSize.height * zoom}px` }}>
+          <div
+            className="patch-canvas-overlay-shell"
+            style={{ width: `${canvasSize.width * zoom}px`, height: `${canvasSize.height * zoom}px` }}
+          >
             <canvas
               ref={canvasRef}
               width={canvasSize.width}

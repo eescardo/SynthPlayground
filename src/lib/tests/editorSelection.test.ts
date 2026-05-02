@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { getNoteSelectionKey } from "@/lib/clipboard";
-import { createEmptyEditorSelection, filterEditorSelectionToProject, setEditorContentSelection } from "@/lib/editorSelection";
+import {
+  createEmptyEditorSelection,
+  filterEditorSelectionToProject,
+  setEditorContentSelection
+} from "@/lib/editorSelection";
 import { Project, Track } from "@/types/music";
 
 const createTrack = (notes: Track["notes"]): Track => ({

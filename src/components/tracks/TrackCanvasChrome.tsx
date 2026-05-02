@@ -132,19 +132,23 @@ export function TrackHeaderChrome({
         const volumeLaneLayout = layout.automationLanes.find((entry) => entry.laneType === "volume") ?? null;
         const macroLaneLayouts = layout.automationLanes.filter((entry) => entry.laneType === "macro");
         const volumeLaneTop = volumeLaneLayout?.y ?? null;
-        const macroRows = trackPatch?.ui.macros
-          .map((macro) => ({
-            macro,
-            lane: getTrackMacroLane(track, macro.id),
-            laneLayout: layout.automationLanes.find((entry) => entry.macroId === macro.id) ?? null
-          }))
-          .filter((entry) => entry.laneLayout !== null) ?? [];
+        const macroRows =
+          trackPatch?.ui.macros
+            .map((macro) => ({
+              macro,
+              lane: getTrackMacroLane(track, macro.id),
+              laneLayout: layout.automationLanes.find((entry) => entry.macroId === macro.id) ?? null
+            }))
+            .filter((entry) => entry.laneLayout !== null) ?? [];
         const macroPanelTop = volumeLaneTop ?? macroLaneLayouts[0]?.y ?? null;
         const macroPanelBottom =
           macroLaneLayouts.length > 0
             ? Math.max(
                 ...macroLaneLayouts.map((entry) => entry.y + entry.height),
-                volumeLane ? (volumeLaneLayout?.y ?? layout.y + 72) + (volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT) : 0
+                volumeLane
+                  ? (volumeLaneLayout?.y ?? layout.y + 72) +
+                      (volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT)
+                  : 0
               )
             : volumeLane
               ? (volumeLaneLayout?.y ?? layout.y + 72) + (volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT)
@@ -165,12 +169,18 @@ export function TrackHeaderChrome({
         const hasPatchSummaryPopover = patchSummaryPopover?.trackId === track.id;
         const patchSummaryAnchorTop = layout.y + 8;
         const patchSummaryAnchorBottom =
-          macroPanelShellTop !== null ? macroPanelShellTop + macroPanelShellHeight : layout.y + 8 + TRACK_PATCH_CONTROL_SIZE;
-        const patchSummaryAnchorHeight = Math.max(TRACK_PATCH_CONTROL_SIZE, patchSummaryAnchorBottom - patchSummaryAnchorTop);
+          macroPanelShellTop !== null
+            ? macroPanelShellTop + macroPanelShellHeight
+            : layout.y + 8 + TRACK_PATCH_CONTROL_SIZE;
+        const patchSummaryAnchorHeight = Math.max(
+          TRACK_PATCH_CONTROL_SIZE,
+          patchSummaryAnchorBottom - patchSummaryAnchorTop
+        );
         const patchSummaryExpandedHeight = Math.max(PATCH_SUMMARY_EXPANDED_MIN_HEIGHT, patchSummaryAnchorHeight);
         const patchSummaryExpandedTop =
           patchSummaryAnchorTop + (patchSummaryAnchorHeight - patchSummaryExpandedHeight) * 0.5;
-        const patchSummaryLocalTop = patchSummaryPopover?.mode === "expanded" ? patchSummaryExpandedTop : patchSummaryAnchorTop;
+        const patchSummaryLocalTop =
+          patchSummaryPopover?.mode === "expanded" ? patchSummaryExpandedTop : patchSummaryAnchorTop;
         const patchSummaryLeft = HEADER_WIDTH;
         const patchSummaryViewportLeft = canvasViewport.left + patchSummaryLeft - canvasViewport.scrollLeft;
         const patchSummaryViewportTop = canvasViewport.top + patchSummaryLocalTop - canvasViewport.scrollTop;
@@ -182,7 +192,10 @@ export function TrackHeaderChrome({
             id: `${track.id}:volume`,
             top:
               (volumeLaneLayout?.y ?? layout.y + 72) +
-              Math.max(0, ((volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT) - TRACK_INSPECTOR_ROW_HEIGHT) / 2) +
+              Math.max(
+                0,
+                ((volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT) - TRACK_INSPECTOR_ROW_HEIGHT) / 2
+              ) +
               TRACK_INSPECTOR_ROW_Y_OFFSET,
             bindTitle: "Use fixed value",
             bindAriaLabel: "Use fixed value",
@@ -218,7 +231,9 @@ export function TrackHeaderChrome({
             expandTitle: lane ? (lane.expanded ? "Collapse lane" : "Expand lane") : undefined,
             expandAriaLabel: lane ? (lane.expanded ? "Collapse lane" : "Expand lane") : undefined,
             expandIcon: lane ? (lane.expanded ? "^" : "v") : undefined,
-            onExpandToggle: lane ? () => automationActions.onToggleTrackMacroAutomationLane(track.id, macro.id) : undefined,
+            onExpandToggle: lane
+              ? () => automationActions.onToggleTrackMacroAutomationLane(track.id, macro.id)
+              : undefined,
             expandPlaceholder: !lane
           });
         }

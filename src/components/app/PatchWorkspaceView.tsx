@@ -5,7 +5,10 @@ import type { ComponentProps, RefObject } from "react";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
 import { PitchButtonLabel } from "@/components/PitchButtonLabel";
 import { ProjectsMenu } from "@/components/composer/ProjectsMenu";
-import { PatchWorkspaceTabStrip, PatchWorkspaceTabViewModel } from "@/components/patch-workspace/PatchWorkspaceTabStrip";
+import {
+  PatchWorkspaceTabStrip,
+  PatchWorkspaceTabViewModel
+} from "@/components/patch-workspace/PatchWorkspaceTabStrip";
 import { PatchBaselineDiffState } from "@/components/patch/patchBaselineDiffState";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { usePatchWorkspaceQuickHelpDialog } from "@/hooks/patch/usePatchWorkspaceQuickHelpDialog";
@@ -94,7 +97,15 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
             aria-label="Back to Composer"
             onClick={props.onBackToComposer}
           >
-            <Image className="transport-nav-button-icon" src={backArrowIconSrc} alt="" aria-hidden="true" width={20} height={20} unoptimized />
+            <Image
+              className="transport-nav-button-icon"
+              src={backArrowIconSrc}
+              alt=""
+              aria-hidden="true"
+              width={20}
+              height={20}
+              unoptimized
+            />
             <span>Composer</span>
           </button>
           <div className="patch-workspace-title">
@@ -102,7 +113,9 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           </div>
         </div>
         <div className="patch-workspace-header-actions">
-          <button type="button" onClick={openHelp}>Help (?)</button>
+          <button type="button" onClick={openHelp}>
+            Help (?)
+          </button>
           <div className="toolbar-labeled-control">
             <span className="toolbar-labeled-control-label">Pitch</span>
             <button

@@ -111,7 +111,14 @@ function resolveHostPortPointer(hitPort: HitPort) {
 
 export function PatchHostPortOverlay(props: PatchHostPortOverlayProps) {
   const ports = useMemo(
-    () => resolveOverlayPorts(props.patch, props.outputHostCanvasLeft, props.outputHostScreenLeft, props.scrollTop, props.zoom),
+    () =>
+      resolveOverlayPorts(
+        props.patch,
+        props.outputHostCanvasLeft,
+        props.outputHostScreenLeft,
+        props.scrollTop,
+        props.zoom
+      ),
     [props.outputHostCanvasLeft, props.outputHostScreenLeft, props.patch, props.scrollTop, props.zoom]
   );
 

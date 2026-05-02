@@ -33,7 +33,9 @@ function KeyboardHelpSection({
           <div className="quick-help-shortcuts" role="table" aria-label={`${section.title} keyboard shortcuts`}>
             {section.entries.map((entry) => (
               <div key={`${section.title}-${entry.action}`} className="quick-help-shortcut-row" role="row">
-                <div className="quick-help-shortcut-action" role="cell">{entry.action}</div>
+                <div className="quick-help-shortcut-action" role="cell">
+                  {entry.action}
+                </div>
                 <div className="quick-help-shortcut-keys" role="cell">
                   {splitQuickHelpShortcutKeys(entry.shortcut).map((part, index) => (
                     <kbd key={`${section.title}-${entry.action}-${index}-${part}`}>{part}</kbd>
@@ -82,18 +84,26 @@ export function QuickHelpDialog({
         <div className={keyboardFirst ? "quick-help-grid quick-help-grid-keyboard-first" : "quick-help-grid"}>
           {keyboardFirst ? (
             <>
-              <KeyboardHelpSection keyboardLayout={keyboardLayout} keyboardShortcutSections={keyboardShortcutSections} />
+              <KeyboardHelpSection
+                keyboardLayout={keyboardLayout}
+                keyboardShortcutSections={keyboardShortcutSections}
+              />
               <MouseHelpSection mouseHelpItems={mouseHelpItems} />
             </>
           ) : (
             <>
               <MouseHelpSection mouseHelpItems={mouseHelpItems} />
-              <KeyboardHelpSection keyboardLayout={keyboardLayout} keyboardShortcutSections={keyboardShortcutSections} />
+              <KeyboardHelpSection
+                keyboardLayout={keyboardLayout}
+                keyboardShortcutSections={keyboardShortcutSections}
+              />
             </>
           )}
         </div>
         {children}
-        <p className="muted">Press <kbd>Esc</kbd> to close this help panel.</p>
+        <p className="muted">
+          Press <kbd>Esc</kbd> to close this help panel.
+        </p>
       </div>
     </div>
   );

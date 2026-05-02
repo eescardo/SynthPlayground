@@ -34,10 +34,7 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
   const hasLoopMarkerActions = Boolean(props.startMarkerId || props.endMarkerId);
   const showFirstDivider = hasPasteActions && (hasPlayheadActions || hasLoopMarkerActions);
   const showSecondDivider = !showFirstDivider && hasPlayheadActions && hasLoopMarkerActions;
-  const getAnchorPosition = useCallback(
-    () => ({ left: props.left, top: props.top }),
-    [props.left, props.top]
-  );
+  const getAnchorPosition = useCallback(() => ({ left: props.left, top: props.top }), [props.left, props.top]);
   const { popoverRef, left, top } = useFixedPopoverPosition<HTMLDivElement>({
     active: true,
     getAnchorPosition
@@ -76,9 +73,7 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
         </button>
       )}
 
-      {showFirstDivider && (
-        <div className="timeline-actions-popover-divider" aria-hidden="true" />
-      )}
+      {showFirstDivider && <div className="timeline-actions-popover-divider" aria-hidden="true" />}
 
       {props.showAddStart && (
         <button type="button" onClick={props.onAddStart}>
@@ -98,9 +93,7 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
         </button>
       )}
 
-      {showSecondDivider && (
-        <div className="timeline-actions-popover-divider" aria-hidden="true" />
-      )}
+      {showSecondDivider && <div className="timeline-actions-popover-divider" aria-hidden="true" />}
 
       {props.startMarkerId && (
         <button type="button" onClick={props.onRemoveStart}>

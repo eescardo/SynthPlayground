@@ -1,14 +1,20 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import {
-  getMacroKeyframePositions
-} from "@/lib/patch/macroKeyframes";
+import { getMacroKeyframePositions } from "@/lib/patch/macroKeyframes";
 import { PatchDiff } from "@/lib/patch/diff";
 import { EditableNumberLabel, MacroBindingDetails, ParamMacroControl } from "@/components/patch/PatchInspectorControls";
 import { resolveParamBindingState, resolveParamControlValue } from "@/components/patch/patchModuleParameterState";
 import { applyMagneticSliderSnap, MagneticSliderPoint } from "@/components/patch/patchModuleParameterControls";
 import { createMacroBindingId, createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
 import { clamp, clampRange } from "@/lib/numeric";
-import { MacroBinding, Patch, PatchMacro, PatchNode, PatchParamSliderRange, ParamSchema, ParamValue } from "@/types/patch";
+import {
+  MacroBinding,
+  Patch,
+  PatchMacro,
+  PatchNode,
+  PatchParamSliderRange,
+  ParamSchema,
+  ParamValue
+} from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { samplePlayerPitchSemisToRootPitch } from "@/lib/patch/samplePlayer";
 
@@ -38,7 +44,8 @@ function resolveCurrentValueUnitDisplay(param: ParamSchema) {
   if (param.type !== "float") {
     return null;
   }
-  const isNormalizedPercent = param.range.min === 0 && param.range.max === 1 && (param.unit === "linear" || param.unit === "ratio");
+  const isNormalizedPercent =
+    param.range.min === 0 && param.range.max === 1 && (param.unit === "linear" || param.unit === "ratio");
   if (isNormalizedPercent && param.id !== "curve") {
     return { label: "%", scale: 100 };
   }
@@ -116,7 +123,14 @@ function ParamValueControl(props: {
     );
   }
 
-  return <input type="checkbox" checked={Boolean(value)} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />;
+  return (
+    <input
+      type="checkbox"
+      checked={Boolean(value)}
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.checked)}
+    />
+  );
 }
 
 function FloatParamValueControl(props: {
@@ -167,7 +181,9 @@ function FloatParamValueControl(props: {
       onPointerUp={(event) => commitDraft(Number(event.currentTarget.value))}
       onBlur={(event) => commitDraft(Number(event.currentTarget.value))}
       onKeyUp={(event) => {
-        if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(event.key)) {
+        if (
+          ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(event.key)
+        ) {
           commitDraft(Number(event.currentTarget.value));
         }
       }}
@@ -206,7 +222,11 @@ function commitParamValueChange(props: {
   if (props.structureLocked) {
     return;
   }
-  if (props.bindingState.isEditableSelectedMacroBinding && props.bindingState.activeBindingMacro && typeof props.value === "number") {
+  if (
+    props.bindingState.isEditableSelectedMacroBinding &&
+    props.bindingState.activeBindingMacro &&
+    typeof props.value === "number"
+  ) {
     props.onApplyOp({
       type: "setMacroBindingKeyframeValue",
       macroId: props.bindingState.activeBindingMacro.id,
@@ -253,12 +273,15 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
     props.selectedMacroKeyframeIndex,
     props.structureLocked
   );
-  const removedBindingDiffs = props.patchDiff.removedBindingDiffsByNodeParamKey.get(`${props.selectedNode.id}:${props.param.id}`) ?? [];
+  const removedBindingDiffs =
+    props.patchDiff.removedBindingDiffsByNodeParamKey.get(`${props.selectedNode.id}:${props.param.id}`) ?? [];
   const currentBindingDiffs = bindingState.boundMacros.flatMap((macro) =>
     macro.bindings
       .filter((binding) => binding.nodeId === props.selectedNode.id && binding.paramId === props.param.id)
       .flatMap((binding) => {
-        const diff = props.patchDiff.currentBindingDiffByKey.get(createPatchMacroBindingKey(props.patch, macro.id, binding));
+        const diff = props.patchDiff.currentBindingDiffByKey.get(
+          createPatchMacroBindingKey(props.patch, macro.id, binding)
+        );
         return diff ? [diff] : [];
       })
   );
@@ -285,8 +308,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
       ? clamp(controlValue, sliderRange.min, sliderRange.max)
       : controlValue;
   const controlDisabled = Boolean(
-    props.structureLocked ||
-    (bindingState.isExposed && !bindingState.isEditableSelectedMacroBinding)
+    props.structureLocked || (bindingState.isExposed && !bindingState.isEditableSelectedMacroBinding)
   );
   const macroSummary =
     bindingState.activeBindingMacro && bindingState.editableSummary
@@ -299,7 +321,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
   const currentDisplayValue = sliderControlValue;
   const currentDisplayMin = sliderRange.min;
   const currentDisplayMax = sliderRange.max;
-  const magnetPoints = props.param.type === "float" ? props.param.magnetPoints ?? [] : [];
+  const magnetPoints = props.param.type === "float" ? (props.param.magnetPoints ?? []) : [];
 
   const bindParamToMacro = (macroId: string) => {
     if (props.structureLocked) {
@@ -389,9 +411,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
               disabled={controlDisabled}
               onCommit={commitDisplayedValue}
             />
-            {unitDisplay && (
-              <span className="param-current-value-unit">{unitDisplay.label}</span>
-            )}
+            {unitDisplay && <span className="param-current-value-unit">{unitDisplay.label}</span>}
           </span>
         )}
       </div>
@@ -406,7 +426,9 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
             disabled={controlDisabled}
             magnetPoints={magnetPoints}
             onChange={commitValue}
-            onPreviewChange={(nextValue) => props.onPreviewParamValue?.(props.selectedNode.id, props.param.id, nextValue)}
+            onPreviewChange={(nextValue) =>
+              props.onPreviewParamValue?.(props.selectedNode.id, props.param.id, nextValue)
+            }
           />
           {floatParam && shouldRenderCurveScaleLabels(props.selectedNode, props.param) && (
             <div className="param-curve-label-row" aria-hidden="true">

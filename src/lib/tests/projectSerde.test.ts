@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { PATCH_CANVAS_MAX_ZOOM } from "@/components/patch/patchCanvasConstants";
-import { exportProjectToJson, importProjectBundleFromJson, importProjectFromJson, normalizeProject } from "@/lib/projectSerde";
+import {
+  exportProjectToJson,
+  importProjectBundleFromJson,
+  importProjectFromJson,
+  normalizeProject
+} from "@/lib/projectSerde";
 import { normalizePatch } from "@/lib/patch/normalize";
 import { createDefaultProject } from "@/lib/patch/presets";
 import { getBundledPresetLineage } from "@/lib/patch/source";
@@ -15,7 +20,11 @@ describe("projectSerde", () => {
       tracks: Array<Record<string, unknown>>;
     };
     legacy.patches = legacy.patches.map((patch) =>
-      patch.meta && typeof patch.meta === "object" && patch.meta !== null && "source" in patch.meta && patch.meta.source === "preset"
+      patch.meta &&
+      typeof patch.meta === "object" &&
+      patch.meta !== null &&
+      "source" in patch.meta &&
+      patch.meta.source === "preset"
         ? {
             ...patch,
             meta: { source: "preset" as const }
@@ -120,14 +129,14 @@ describe("projectSerde", () => {
 
     const json = exportProjectToJson(project, {
       samplePlayerById: {
-        asset_1: "{\"version\":1,\"name\":\"tone.wav\",\"sampleRate\":48000,\"samples\":[0,0.25,-0.25]}",
-        unused_asset: "{\"version\":1,\"name\":\"unused.wav\",\"sampleRate\":48000,\"samples\":[0]}"
+        asset_1: '{"version":1,"name":"tone.wav","sampleRate":48000,"samples":[0,0.25,-0.25]}',
+        unused_asset: '{"version":1,"name":"unused.wav","sampleRate":48000,"samples":[0]}'
       }
     });
     const imported = importProjectBundleFromJson(json);
 
     expect(imported.project.patches[0].nodes[0].params.sampleAssetId).toBe("asset_1");
-    expect(imported.assets.samplePlayerById.asset_1).toContain("\"tone.wav\"");
+    expect(imported.assets.samplePlayerById.asset_1).toContain('"tone.wav"');
     expect(imported.assets.samplePlayerById.unused_asset).toBeUndefined();
   });
 
@@ -262,7 +271,9 @@ describe("projectSerde", () => {
     }
     const validation = validatePatch(repairedPluck);
     expect(validation.ok).toBe(false);
-    expect(validation.issues.some((issue) => issue.message.includes("Macro binds the same parameter more than once"))).toBe(true);
+    expect(
+      validation.issues.some((issue) => issue.message.includes("Macro binds the same parameter more than once"))
+    ).toBe(true);
   });
 
   it("treats legacy three-keyframe macros without macro keyframe count as invalid snapshots", () => {

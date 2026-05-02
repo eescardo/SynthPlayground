@@ -3,7 +3,9 @@ import { compareScheduledEvents } from "@/audio/renderers/shared/synth-renderer-
 
 type RuntimeModule = typeof import("../synth-worklet-runtime.js");
 type WorkletGlobal = typeof globalThis & {
-  AudioWorkletProcessor?: new () => { port: { onmessage: ((event: unknown) => void) | null; postMessage: (...args: unknown[]) => void } };
+  AudioWorkletProcessor?: new () => {
+    port: { onmessage: ((event: unknown) => void) | null; postMessage: (...args: unknown[]) => void };
+  };
   registerProcessor?: (name: string, processorCtor: unknown) => void;
 };
 
@@ -82,7 +84,12 @@ describe("synth worklet runtime", () => {
     const runtime = await loadRuntimeModule();
     const portMessages: unknown[] = [];
     runtime.setRendererFactory(() => ({
-      port: { onmessage: null, postMessage(message: unknown) { portMessages.push(message); } },
+      port: {
+        onmessage: null,
+        postMessage(message: unknown) {
+          portMessages.push(message);
+        }
+      },
       sampleRateInternal: 48000,
       blockSize: 128,
       project: null,
@@ -110,7 +117,12 @@ describe("synth worklet runtime", () => {
     const runtime = await loadRuntimeModule();
     const portMessages: unknown[] = [];
     runtime.setRendererFactory(() => ({
-      port: { onmessage: null, postMessage(message: unknown) { portMessages.push(message); } },
+      port: {
+        onmessage: null,
+        postMessage(message: unknown) {
+          portMessages.push(message);
+        }
+      },
       sampleRateInternal: 48000,
       blockSize: 128,
       project: null,
@@ -177,14 +189,40 @@ describe("synth worklet runtime", () => {
       events: [],
       sessionId: 7
     });
-    processor.onMessage({ type: "EVENTS", events: [{ id: "e1", type: "MacroChange", sampleTime: 1, source: "live_input", trackId: "t", macroId: "m", normalized: 0.5 }], sessionId: 6 });
-    processor.onMessage({ type: "EVENTS", events: [{ id: "e2", type: "MacroChange", sampleTime: 2, source: "live_input", trackId: "t", macroId: "m", normalized: 0.8 }], sessionId: 7 });
+    processor.onMessage({
+      type: "EVENTS",
+      events: [
+        {
+          id: "e1",
+          type: "MacroChange",
+          sampleTime: 1,
+          source: "live_input",
+          trackId: "t",
+          macroId: "m",
+          normalized: 0.5
+        }
+      ],
+      sessionId: 6
+    });
+    processor.onMessage({
+      type: "EVENTS",
+      events: [
+        {
+          id: "e2",
+          type: "MacroChange",
+          sampleTime: 2,
+          source: "live_input",
+          trackId: "t",
+          macroId: "m",
+          normalized: 0.8
+        }
+      ],
+      sessionId: 7
+    });
 
     expect(startStream).toHaveBeenCalledTimes(1);
     expect(enqueueEvents).toHaveBeenCalledTimes(1);
-    expect(enqueueEvents).toHaveBeenCalledWith([
-      expect.objectContaining({ id: "e2" })
-    ]);
+    expect(enqueueEvents).toHaveBeenCalledWith([expect.objectContaining({ id: "e2" })]);
     runtime.resetRendererFactory();
   });
 
@@ -226,7 +264,18 @@ describe("synth worklet runtime", () => {
       type: "PREVIEW",
       trackId: "track_1",
       previewId: "preview_held",
-      events: [{ id: "preview_held_on", type: "NoteOn", sampleTime: 0, source: "preview", trackId: "track_1", noteId: "preview_held", pitchVoct: 0, velocity: 1 }],
+      events: [
+        {
+          id: "preview_held_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "preview_held",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
       durationSamples: 48000
     });
     processor.onMessage({ type: "PREVIEW_RELEASE", trackId: "track_1", previewId: "preview_held" });
@@ -282,13 +331,15 @@ describe("synth worklet runtime", () => {
       setRecordingTrack() {}
     };
 
-    expect(() => processor.onMessage({
-      type: "TRANSPORT",
-      isPlaying: true,
-      songStartSample: 0,
-      events: [],
-      sessionId: 8
-    })).not.toThrow();
+    expect(() =>
+      processor.onMessage({
+        type: "TRANSPORT",
+        isPlaying: true,
+        songStartSample: 0,
+        events: [],
+        sessionId: 8
+      })
+    ).not.toThrow();
 
     expect(stop).toHaveBeenCalledTimes(1);
     expect(startStream).toHaveBeenCalledTimes(1);

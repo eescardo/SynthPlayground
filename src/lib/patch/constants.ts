@@ -55,14 +55,20 @@ export const SOURCE_HOST_PORT_IDS: readonly HostSourcePortId[] = [
 export const SINK_HOST_PORT_IDS: readonly HostSinkPortId[] = [HOST_PORT_IDS.output];
 export const HOST_PATCH_PORT_IDS: readonly HostPatchPortId[] = [...SOURCE_HOST_PORT_IDS, ...SINK_HOST_PORT_IDS];
 
-export const SOURCE_HOST_PORT_TYPE_BY_ID: Record<HostSourcePortId, "NotePitch" | "NoteGate" | "NoteVelocity" | "ModWheel"> = {
+export const SOURCE_HOST_PORT_TYPE_BY_ID: Record<
+  HostSourcePortId,
+  "NotePitch" | "NoteGate" | "NoteVelocity" | "ModWheel"
+> = {
   [HOST_PORT_IDS.pitch]: "NotePitch",
   [HOST_PORT_IDS.gate]: "NoteGate",
   [HOST_PORT_IDS.velocity]: "NoteVelocity",
   [HOST_PORT_IDS.modWheel]: "ModWheel"
 };
 
-export const HOST_PATCH_PORT_TYPE_BY_ID: Record<HostPatchPortId, "NotePitch" | "NoteGate" | "NoteVelocity" | "ModWheel" | "Output"> = {
+export const HOST_PATCH_PORT_TYPE_BY_ID: Record<
+  HostPatchPortId,
+  "NotePitch" | "NoteGate" | "NoteVelocity" | "ModWheel" | "Output"
+> = {
   ...SOURCE_HOST_PORT_TYPE_BY_ID,
   [HOST_PORT_IDS.output]: AUDIO_OUTPUT_PORT_TYPE_ID
 };

@@ -12,7 +12,10 @@ interface UsePatchWorkspaceBaselineOptions {
   updateActiveTab: (updater: (tab: LocalPatchWorkspaceTab) => LocalPatchWorkspaceTab) => void;
 }
 
-export function setBaselinePatchForTab(tab: LocalPatchWorkspaceTab, baselineSourcePatch: Patch): LocalPatchWorkspaceTab {
+export function setBaselinePatchForTab(
+  tab: LocalPatchWorkspaceTab,
+  baselineSourcePatch: Patch
+): LocalPatchWorkspaceTab {
   return {
     ...tab,
     baselinePatch: structuredClone(baselineSourcePatch)
@@ -33,18 +36,18 @@ export function usePatchWorkspaceBaseline({
   updateActiveTab
 }: UsePatchWorkspaceBaselineOptions) {
   const baselinePatch = activeTab?.baselinePatch;
-  const patchDiff = useMemo(
-    () => buildPatchDiff(selectedPatch, baselinePatch),
-    [baselinePatch, selectedPatch]
-  );
+  const patchDiff = useMemo(() => buildPatchDiff(selectedPatch, baselinePatch), [baselinePatch, selectedPatch]);
 
-  const setBaselinePatchFromPatchId = useCallback((patchId: string) => {
-    const baselineSourcePatch = patches.find((patch) => patch.id === patchId);
-    if (!baselineSourcePatch) {
-      return;
-    }
-    updateActiveTab((tab) => setBaselinePatchForTab(tab, baselineSourcePatch));
-  }, [patches, updateActiveTab]);
+  const setBaselinePatchFromPatchId = useCallback(
+    (patchId: string) => {
+      const baselineSourcePatch = patches.find((patch) => patch.id === patchId);
+      if (!baselineSourcePatch) {
+        return;
+      }
+      updateActiveTab((tab) => setBaselinePatchForTab(tab, baselineSourcePatch));
+    },
+    [patches, updateActiveTab]
+  );
 
   const clearCurrentPatchBaseline = useCallback(() => {
     updateActiveTab(clearBaselinePatchForTab);

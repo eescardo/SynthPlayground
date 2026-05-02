@@ -24,7 +24,7 @@ describe("sampleAssetLibrary", () => {
               end: 1,
               gain: 1,
               pitchSemis: 0,
-              sampleData: "{\"version\":1,\"name\":\"tone.wav\",\"sampleRate\":48000,\"samples\":[0,0.1,-0.1]}"
+              sampleData: '{"version":1,"name":"tone.wav","sampleRate":48000,"samples":[0,0.1,-0.1]}'
             }
           }
         ]
@@ -38,7 +38,7 @@ describe("sampleAssetLibrary", () => {
     expect(migrated.migrated).toBe(true);
     expect(typeof migratedNode.params.sampleAssetId).toBe("string");
     expect(migratedNode.params.sampleData).toBeUndefined();
-    expect(migrated.assets.samplePlayerById[migratedAssetId]).toContain("\"tone.wav\"");
+    expect(migrated.assets.samplePlayerById[migratedAssetId]).toContain('"tone.wav"');
   });
 
   it("reports missing referenced sample assets", () => {
@@ -86,12 +86,12 @@ describe("sampleAssetLibrary", () => {
       patch,
       {
         samplePlayerById: {
-          asset_1: "{\"version\":1,\"name\":\"imported.wav\",\"sampleRate\":48000,\"samples\":[0,0.2]}"
+          asset_1: '{"version":1,"name":"imported.wav","sampleRate":48000,"samples":[0,0.2]}'
         }
       },
       {
         samplePlayerById: {
-          asset_1: "{\"version\":1,\"name\":\"existing.wav\",\"sampleRate\":48000,\"samples\":[0,0.1]}"
+          asset_1: '{"version":1,"name":"existing.wav","sampleRate":48000,"samples":[0,0.1]}'
         }
       }
     );
@@ -99,7 +99,7 @@ describe("sampleAssetLibrary", () => {
     const remappedAssetId = String(merged.patch.nodes[0]?.params.sampleAssetId);
 
     expect(remappedAssetId).not.toBe("asset_1");
-    expect(merged.assets.samplePlayerById.asset_1).toContain("\"existing.wav\"");
-    expect(merged.assets.samplePlayerById[remappedAssetId]).toContain("\"imported.wav\"");
+    expect(merged.assets.samplePlayerById.asset_1).toContain('"existing.wav"');
+    expect(merged.assets.samplePlayerById[remappedAssetId]).toContain('"imported.wav"');
   });
 });

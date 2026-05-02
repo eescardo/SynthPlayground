@@ -15,7 +15,12 @@ import {
   resolvePatchPortAnchorPoint,
   resolveNearestRectEdgePoint
 } from "@/components/patch/patchCanvasGeometry";
-import { PATCH_CANVAS_GRID, PATCH_NODE_HEIGHT, PATCH_NODE_WIDTH, PATCH_OUTPUT_HOST_STRIP_Y } from "@/components/patch/patchCanvasConstants";
+import {
+  PATCH_CANVAS_GRID,
+  PATCH_NODE_HEIGHT,
+  PATCH_NODE_WIDTH,
+  PATCH_OUTPUT_HOST_STRIP_Y
+} from "@/components/patch/patchCanvasConstants";
 import { Patch, PatchLayoutNode } from "@/types/patch";
 
 const patchWithNodes = (nodeIds: string[]): Pick<Patch, "nodes"> => ({
@@ -60,7 +65,9 @@ describe("patch canvas geometry", () => {
       ["front", { nodeId: "front", x: 2, y: 2 }]
     ]);
 
-    expect(findPatchNodeAtPoint(patch, layoutByNode, 2 * PATCH_CANVAS_GRID + 10, 2 * PATCH_CANVAS_GRID + 10)).toBe("front");
+    expect(findPatchNodeAtPoint(patch, layoutByNode, 2 * PATCH_CANVAS_GRID + 10, 2 * PATCH_CANVAS_GRID + 10)).toBe(
+      "front"
+    );
   });
 
   it("hit tests ports by label rect", () => {
@@ -119,7 +126,9 @@ describe("patch canvas geometry", () => {
     const midpoint = resolvePatchConnectionMidpoint(patch, layoutByNode, "conn1", outputHostCanvasLeft);
 
     expect(midpoint?.x).toBeCloseTo(((fromAnchor?.x ?? 0) + outputHostCanvasLeft) / 2);
-    expect(findPatchConnectionAtPoint(patch, layoutByNode, midpoint?.x ?? 0, midpoint?.y ?? 0, outputHostCanvasLeft)).toBe("conn1");
+    expect(
+      findPatchConnectionAtPoint(patch, layoutByNode, midpoint?.x ?? 0, midpoint?.y ?? 0, outputHostCanvasLeft)
+    ).toBe("conn1");
   });
 
   it("anchors connection probe lines to the nearest point on the wire", () => {
@@ -129,13 +138,7 @@ describe("patch canvas geometry", () => {
       connections: [{ id: "conn1", from: { nodeId: "vco1", portId: "out" }, to: { nodeId: "output", portId: "in" } }]
     };
     const layoutByNode = new Map<string, PatchLayoutNode>([["vco1", { nodeId: "vco1", x: 4, y: 4 }]]);
-    const anchor = resolvePatchConnectionAnchorPoint(
-      patch,
-      layoutByNode,
-      "conn1",
-      { x: 1000, y: 440 },
-      1234
-    );
+    const anchor = resolvePatchConnectionAnchorPoint(patch, layoutByNode, "conn1", { x: 1000, y: 440 }, 1234);
     const fromAnchor = resolvePatchPortAnchorPoint(patch, layoutByNode, "vco1", "out", "out", 1234);
 
     expect(anchor?.x).toBeGreaterThan(fromAnchor?.x ?? 0);

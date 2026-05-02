@@ -25,7 +25,11 @@ function InstrumentToolbarActions(props: InstrumentToolbarActionsProps) {
   return (
     <div className="instrument-toolbar-actions">
       {props.presetStatus === "preset_update_available" && (
-        <button type="button" className={props.invalid ? "prominent-action" : undefined} onClick={instrument.updatePreset}>
+        <button
+          type="button"
+          className={props.invalid ? "prominent-action" : undefined}
+          onClick={instrument.updatePreset}
+        >
           Update Preset
         </button>
       )}

@@ -28,8 +28,16 @@ const createParityPatch = (): Patch => ({
   name: "WASM Subset Patch",
   meta: { source: "custom" },
   nodes: [
-    { id: "osc", typeId: "VCO", params: { wave: "square", pulseWidth: 0.5, baseTuneCents: 0, fineTuneCents: 0, pwmAmount: 0 } },
-    { id: "env", typeId: "ADSR", params: { attack: 2, decay: 80, sustain: 0.65, release: 80, mode: "retrigger_from_current" } },
+    {
+      id: "osc",
+      typeId: "VCO",
+      params: { wave: "square", pulseWidth: 0.5, baseTuneCents: 0, fineTuneCents: 0, pwmAmount: 0 }
+    },
+    {
+      id: "env",
+      typeId: "ADSR",
+      params: { attack: 2, decay: 80, sustain: 0.65, release: 80, mode: "retrigger_from_current" }
+    },
     { id: "amp", typeId: "VCA", params: { bias: 0, gain: 1 } }
   ],
   ports: [createPatchOutputPort({ gainDb: 0, limiter: false })],

@@ -4,10 +4,10 @@ export const isTextEditingTarget = (target: EventTarget | null) => {
   const element = target as HTMLElement | null;
   return Boolean(
     element &&
-      (element.tagName === "INPUT" ||
-        element.tagName === "SELECT" ||
-        element.tagName === "TEXTAREA" ||
-        element.isContentEditable)
+    (element.tagName === "INPUT" ||
+      element.tagName === "SELECT" ||
+      element.tagName === "TEXTAREA" ||
+      element.isContentEditable)
   );
 };
 

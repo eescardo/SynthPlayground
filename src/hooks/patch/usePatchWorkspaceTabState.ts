@@ -31,13 +31,16 @@ export function usePatchWorkspaceTabState(options: UsePatchWorkspaceTabStateOpti
   const projectWorkspaceSignature = JSON.stringify(project.ui.patchWorkspace);
   const workspaceSyncSignatureRef = useRef(projectWorkspaceSignature);
 
-  const createWorkspaceTab = useCallback((patchId: string, name?: string): LocalPatchWorkspaceTab => ({
-    id: createId("patchTab"),
-    name: name ?? patchNameById.get(patchId) ?? "Instrument",
-    patchId,
-    probes: [],
-    migrationNotice: null
-  }), [patchNameById]);
+  const createWorkspaceTab = useCallback(
+    (patchId: string, name?: string): LocalPatchWorkspaceTab => ({
+      id: createId("patchTab"),
+      name: name ?? patchNameById.get(patchId) ?? "Instrument",
+      patchId,
+      probes: [],
+      migrationNotice: null
+    }),
+    [patchNameById]
+  );
 
   useEffect(() => {
     if (projectWorkspaceSignature === workspaceSyncSignatureRef.current) {
@@ -109,7 +112,9 @@ export function usePatchWorkspaceTabState(options: UsePatchWorkspaceTabStateOpti
           name: tab.name || patchNameById.get(tab.patchId) || "Instrument",
           selectedMacroId:
             tab.selectedMacroId &&
-            project.patches.find((patch) => patch.id === tab.patchId)?.ui.macros.some((macro) => macro.id === tab.selectedMacroId)
+            project.patches
+              .find((patch) => patch.id === tab.patchId)
+              ?.ui.macros.some((macro) => macro.id === tab.selectedMacroId)
               ? tab.selectedMacroId
               : undefined
         }));

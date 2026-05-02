@@ -77,17 +77,22 @@ export function resolveOutputHostPlacement(args: {
   };
 }
 
-export function resolveNearestRectEdgePoint(
-  rect: CanvasRect,
-  targetPoint: { x: number; y: number }
-) {
+export function resolveNearestRectEdgePoint(rect: CanvasRect, targetPoint: { x: number; y: number }) {
   const clampedX = clamp(targetPoint.x, rect.x, rect.x + rect.width);
   const clampedY = clamp(targetPoint.y, rect.y, rect.y + rect.height);
   const candidates = [
     { x: clampedX, y: rect.y, distance: Math.hypot(targetPoint.x - clampedX, targetPoint.y - rect.y) },
-    { x: clampedX, y: rect.y + rect.height, distance: Math.hypot(targetPoint.x - clampedX, targetPoint.y - (rect.y + rect.height)) },
+    {
+      x: clampedX,
+      y: rect.y + rect.height,
+      distance: Math.hypot(targetPoint.x - clampedX, targetPoint.y - (rect.y + rect.height))
+    },
     { x: rect.x, y: clampedY, distance: Math.hypot(targetPoint.x - rect.x, targetPoint.y - clampedY) },
-    { x: rect.x + rect.width, y: clampedY, distance: Math.hypot(targetPoint.x - (rect.x + rect.width), targetPoint.y - clampedY) }
+    {
+      x: rect.x + rect.width,
+      y: clampedY,
+      distance: Math.hypot(targetPoint.x - (rect.x + rect.width), targetPoint.y - clampedY)
+    }
   ];
   const nearest = candidates.reduce((best, candidate) => (candidate.distance < best.distance ? candidate : best));
   return { x: nearest.x, y: nearest.y };
@@ -270,7 +275,10 @@ export function resolvePatchFacePopoverRect(
   };
 }
 
-export function pointerEventToPatchCanvasPoint(canvas: HTMLCanvasElement | null, event: ReactPointerEvent<HTMLCanvasElement>): CanvasPoint {
+export function pointerEventToPatchCanvasPoint(
+  canvas: HTMLCanvasElement | null,
+  event: ReactPointerEvent<HTMLCanvasElement>
+): CanvasPoint {
   if (!canvas) {
     return { x: 0, y: 0, rawX: 0, rawY: 0 };
   }
@@ -422,8 +430,22 @@ export function resolvePatchConnectionMidpoint(
   if (!connection) {
     return null;
   }
-  const from = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.from.nodeId, connection.from.portId, "out", outputHostCanvasLeft);
-  const to = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.to.nodeId, connection.to.portId, "in", outputHostCanvasLeft);
+  const from = resolvePatchPortAnchorPoint(
+    patch,
+    layoutByNode,
+    connection.from.nodeId,
+    connection.from.portId,
+    "out",
+    outputHostCanvasLeft
+  );
+  const to = resolvePatchPortAnchorPoint(
+    patch,
+    layoutByNode,
+    connection.to.nodeId,
+    connection.to.portId,
+    "in",
+    outputHostCanvasLeft
+  );
   if (!from || !to) {
     return null;
   }
@@ -444,8 +466,22 @@ export function resolvePatchConnectionAnchorPoint(
   if (!connection) {
     return null;
   }
-  const from = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.from.nodeId, connection.from.portId, "out", outputHostCanvasLeft);
-  const to = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.to.nodeId, connection.to.portId, "in", outputHostCanvasLeft);
+  const from = resolvePatchPortAnchorPoint(
+    patch,
+    layoutByNode,
+    connection.from.nodeId,
+    connection.from.portId,
+    "out",
+    outputHostCanvasLeft
+  );
+  const to = resolvePatchPortAnchorPoint(
+    patch,
+    layoutByNode,
+    connection.to.nodeId,
+    connection.to.portId,
+    "in",
+    outputHostCanvasLeft
+  );
   if (!from || !to) {
     return null;
   }
@@ -462,8 +498,22 @@ export function findPatchConnectionAtPoint(
 ): string | null {
   for (let index = patch.connections.length - 1; index >= 0; index -= 1) {
     const connection = patch.connections[index];
-    const from = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.from.nodeId, connection.from.portId, "out", outputHostCanvasLeft);
-    const to = resolvePatchPortAnchorPoint(patch, layoutByNode, connection.to.nodeId, connection.to.portId, "in", outputHostCanvasLeft);
+    const from = resolvePatchPortAnchorPoint(
+      patch,
+      layoutByNode,
+      connection.from.nodeId,
+      connection.from.portId,
+      "out",
+      outputHostCanvasLeft
+    );
+    const to = resolvePatchPortAnchorPoint(
+      patch,
+      layoutByNode,
+      connection.to.nodeId,
+      connection.to.portId,
+      "in",
+      outputHostCanvasLeft
+    );
     if (!from || !to) {
       continue;
     }

@@ -89,11 +89,27 @@ describe("normalizePatch", () => {
 
   it("clamps persisted canvas zoom into the supported range", () => {
     const tooLarge = normalizePatch(
-      { id: "patch_large", name: "Large", nodes: [], connections: [], ui: { canvasZoom: 99 }, layout: { nodes: [] }, io: {} },
+      {
+        id: "patch_large",
+        name: "Large",
+        nodes: [],
+        connections: [],
+        ui: { canvasZoom: 99 },
+        layout: { nodes: [] },
+        io: {}
+      },
       { fallbackId: "fallback", fallbackName: "Fallback" }
     );
     const tooSmall = normalizePatch(
-      { id: "patch_small", name: "Small", nodes: [], connections: [], ui: { canvasZoom: -10 }, layout: { nodes: [] }, io: {} },
+      {
+        id: "patch_small",
+        name: "Small",
+        nodes: [],
+        connections: [],
+        ui: { canvasZoom: -10 },
+        layout: { nodes: [] },
+        io: {}
+      },
       { fallbackId: "fallback", fallbackName: "Fallback" }
     );
 

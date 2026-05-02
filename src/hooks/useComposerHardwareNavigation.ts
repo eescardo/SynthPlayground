@@ -76,7 +76,9 @@ export function useComposerHardwareNavigation({
   const hasNoSelection = selectionKind === "none";
 
   const [ghostPreviewNote, setGhostPreviewNote] = useState<GhostPreviewNote | null>(null);
-  const [tabSelectionPreviewNote, setTabSelectionPreviewNote] = useState<{ trackId: string; noteId: string } | null>(null);
+  const [tabSelectionPreviewNote, setTabSelectionPreviewNote] = useState<{ trackId: string; noteId: string } | null>(
+    null
+  );
   const placementRafRef = useRef<number | null>(null);
   const pendingPreviewStartIdsRef = useRef<Set<string>>(new Set());
   const pendingPreviewReleasesRef = useRef<Map<string, { trackId: string; durationBeats: number }>>(new Map());
@@ -91,90 +93,112 @@ export function useComposerHardwareNavigation({
     blockedSelectionTransferRef.current = null;
   }, []);
 
-  const setPlacedNote = useCallback((
-    trackId: string,
-    noteId: string,
-    startBeat: number,
-    durationBeats: number,
-    pitchStr: string,
-    actionKey = `track:${trackId}:keyboard-place:${noteId}`
-  ) => {
-    commitProjectChange(
-      (current) => {
-        let changed = false;
-        const tracks = current.tracks.map((track) => {
-          if (track.id !== trackId) {
-            return track;
-          }
-          const nextTrack = upsertKeyboardPlacedNote(track, {
-            id: noteId,
-            pitchStr,
-            startBeat,
-            durationBeats
+  const setPlacedNote = useCallback(
+    (
+      trackId: string,
+      noteId: string,
+      startBeat: number,
+      durationBeats: number,
+      pitchStr: string,
+      actionKey = `track:${trackId}:keyboard-place:${noteId}`
+    ) => {
+      commitProjectChange(
+        (current) => {
+          let changed = false;
+          const tracks = current.tracks.map((track) => {
+            if (track.id !== trackId) {
+              return track;
+            }
+            const nextTrack = upsertKeyboardPlacedNote(track, {
+              id: noteId,
+              pitchStr,
+              startBeat,
+              durationBeats
+            });
+            if (nextTrack !== track) {
+              changed = true;
+            }
+            return nextTrack;
           });
-          if (nextTrack !== track) {
-            changed = true;
-          }
-          return nextTrack;
-        });
-        return changed ? { ...current, tracks } : current;
-      },
-      { actionKey, coalesce: true }
-    );
-  }, [commitProjectChange]);
+          return changed ? { ...current, tracks } : current;
+        },
+        { actionKey, coalesce: true }
+      );
+    },
+    [commitProjectChange]
+  );
 
-  const dispatchPlacementPreviewRelease = useCallback((trackId: string, noteId: string, durationBeats: number) => {
-    const sampleRate = audioEngineRef.current?.getSampleRate() ?? 48_000;
-    const noteOffSampleTime = Math.max(1, beatToSample(durationBeats, sampleRate, projectTempo));
-    audioEngineRef.current?.sendParamChanges([
-      {
-        id: `${noteId}_preview_off_${noteOffSampleTime}`,
-        type: "NoteOff",
-        source: "preview",
-        sampleTime: noteOffSampleTime,
-        trackId,
-        noteId
-      }
-    ]);
-  }, [audioEngineRef, projectTempo]);
-
-  const startPlacementPreview = useCallback((trackId: string, noteId: string, pitchStr: string, startBeat: number) => {
-    const previewDurationBeats = Math.max(
-      projectGridBeats,
-      projectGridBeats * HELD_PLACEMENT_PREVIEW_GRID_SPAN,
-      playbackEndBeat - startBeat + projectGridBeats * HELD_PLACEMENT_PREVIEW_RELEASE_TAIL_GRIDS
-    );
-    pendingPreviewStartIdsRef.current.add(noteId);
-    const previewPromise = audioEngineRef.current
-      ?.previewNote(trackId, pitchToVoct(pitchStr), previewDurationBeats, DEFAULT_NOTE_VELOCITY, {
-        previewId: noteId
-      })
-      ?? Promise.resolve();
-
-    previewPromise
-      .catch((error) => setRuntimeError((error as Error).message))
-      .finally(() => {
-        pendingPreviewStartIdsRef.current.delete(noteId);
-        const pendingRelease = pendingPreviewReleasesRef.current.get(noteId);
-        if (!pendingRelease) {
-          return;
+  const dispatchPlacementPreviewRelease = useCallback(
+    (trackId: string, noteId: string, durationBeats: number) => {
+      const sampleRate = audioEngineRef.current?.getSampleRate() ?? 48_000;
+      const noteOffSampleTime = Math.max(1, beatToSample(durationBeats, sampleRate, projectTempo));
+      audioEngineRef.current?.sendParamChanges([
+        {
+          id: `${noteId}_preview_off_${noteOffSampleTime}`,
+          type: "NoteOff",
+          source: "preview",
+          sampleTime: noteOffSampleTime,
+          trackId,
+          noteId
         }
-        pendingPreviewReleasesRef.current.delete(noteId);
-        dispatchPlacementPreviewRelease(pendingRelease.trackId, noteId, pendingRelease.durationBeats);
-      });
-  }, [audioEngineRef, dispatchPlacementPreviewRelease, playbackEndBeat, projectGridBeats, setRuntimeError]);
+      ]);
+    },
+    [audioEngineRef, projectTempo]
+  );
 
-  const releasePlacementPreview = useCallback((trackId: string, noteId: string, durationBeats: number) => {
-    if (pendingPreviewStartIdsRef.current.has(noteId)) {
-      pendingPreviewReleasesRef.current.set(noteId, { trackId, durationBeats });
-      return;
-    }
-    dispatchPlacementPreviewRelease(trackId, noteId, durationBeats);
-  }, [dispatchPlacementPreviewRelease]);
+  const startPlacementPreview = useCallback(
+    (trackId: string, noteId: string, pitchStr: string, startBeat: number) => {
+      const previewDurationBeats = Math.max(
+        projectGridBeats,
+        projectGridBeats * HELD_PLACEMENT_PREVIEW_GRID_SPAN,
+        playbackEndBeat - startBeat + projectGridBeats * HELD_PLACEMENT_PREVIEW_RELEASE_TAIL_GRIDS
+      );
+      pendingPreviewStartIdsRef.current.add(noteId);
+      const previewPromise =
+        audioEngineRef.current?.previewNote(
+          trackId,
+          pitchToVoct(pitchStr),
+          previewDurationBeats,
+          DEFAULT_NOTE_VELOCITY,
+          {
+            previewId: noteId
+          }
+        ) ?? Promise.resolve();
+
+      previewPromise
+        .catch((error) => setRuntimeError((error as Error).message))
+        .finally(() => {
+          pendingPreviewStartIdsRef.current.delete(noteId);
+          const pendingRelease = pendingPreviewReleasesRef.current.get(noteId);
+          if (!pendingRelease) {
+            return;
+          }
+          pendingPreviewReleasesRef.current.delete(noteId);
+          dispatchPlacementPreviewRelease(pendingRelease.trackId, noteId, pendingRelease.durationBeats);
+        });
+    },
+    [audioEngineRef, dispatchPlacementPreviewRelease, playbackEndBeat, projectGridBeats, setRuntimeError]
+  );
+
+  const releasePlacementPreview = useCallback(
+    (trackId: string, noteId: string, durationBeats: number) => {
+      if (pendingPreviewStartIdsRef.current.has(noteId)) {
+        pendingPreviewReleasesRef.current.set(noteId, { trackId, durationBeats });
+        return;
+      }
+      dispatchPlacementPreviewRelease(trackId, noteId, durationBeats);
+    },
+    [dispatchPlacementPreviewRelease]
+  );
 
   useEffect(() => {
     clearBlockedSelectionTransfer();
-  }, [clearBlockedSelectionTransfer, contentSelection.automationKeyframeSelectionKeys, contentSelection.noteKeys, selectionKind]);
+  }, [
+    clearBlockedSelectionTransfer,
+    contentSelection.automationKeyframeSelectionKeys,
+    contentSelection.noteKeys,
+    selectionKind
+  ]);
 
   // New content selections should take keyboard ownership away from the playhead.
   useEffect(() => {
@@ -321,7 +345,7 @@ export function useComposerHardwareNavigation({
     isTransportIdle,
     playheadBeat,
     projectGridBeats,
-    selectedTrack,
+    selectedTrack
   ]);
 
   // Show the delayed Tab target preview when playhead navigation is the active focus model.
@@ -376,7 +400,7 @@ export function useComposerHardwareNavigation({
     isTransportIdle,
     playheadBeat,
     selectedTrack,
-    tabSelectionPreviewNote,
+    tabSelectionPreviewNote
   ]);
 
   // Keep the live placement aligned when default pitch changes mid-hold.
@@ -412,18 +436,16 @@ export function useComposerHardwareNavigation({
     const finishPlacement = () => {
       if (activePlacement) {
         releasePlacementPreview(activePlacement.trackId, activePlacement.noteId, activePlacement.durationBeats);
-        setPlayheadBeatFromUser(snapToGrid(activePlacement.startBeat + activePlacement.durationBeats, projectGridBeats));
+        setPlayheadBeatFromUser(
+          snapToGrid(activePlacement.startBeat + activePlacement.durationBeats, projectGridBeats)
+        );
         base.setPlayheadNavigationFocused(true);
       }
       setActivePlacement(null);
     };
 
     const startPlacement = (pitchStr: string, triggerKey: string, tracksDefaultPitch: boolean) => {
-      const canStartPlacement =
-        isComposerView &&
-        Boolean(selectedTrack) &&
-        isTransportIdle &&
-        !hasActivePlacement;
+      const canStartPlacement = isComposerView && Boolean(selectedTrack) && isTransportIdle && !hasActivePlacement;
       if (!canStartPlacement || !selectedTrack) {
         return;
       }
@@ -445,9 +467,10 @@ export function useComposerHardwareNavigation({
     };
 
     const nudgePlayhead = (direction: -1 | 1) => {
-      const nextBeat = direction < 0
-        ? Math.max(0, snapToGrid(playheadBeat - projectGridBeats, projectGridBeats))
-        : Math.min(playbackEndBeat, snapToGrid(playheadBeat + projectGridBeats, projectGridBeats));
+      const nextBeat =
+        direction < 0
+          ? Math.max(0, snapToGrid(playheadBeat - projectGridBeats, projectGridBeats))
+          : Math.min(playbackEndBeat, snapToGrid(playheadBeat + projectGridBeats, projectGridBeats));
       setPlayheadBeatPreservingSelection(nextBeat);
       base.setPlayheadNavigationFocused(true);
       clearBlockedSelectionTransfer();
@@ -455,14 +478,17 @@ export function useComposerHardwareNavigation({
 
     const nudgeContentSelection = (direction: -1 | 1) => {
       let moveResult!: ReturnType<typeof shiftContentSelectionByBeats>;
-      commitProjectChange((current) => {
-        const nextMoveResult = shiftContentSelectionByBeats(current, contentSelection, direction * projectGridBeats);
-        moveResult = nextMoveResult;
-        return nextMoveResult.status === "moved" ? nextMoveResult.project : current;
-      }, {
-        actionKey: `selection:nudge:${direction < 0 ? "left" : "right"}`,
-        coalesce: true
-      });
+      commitProjectChange(
+        (current) => {
+          const nextMoveResult = shiftContentSelectionByBeats(current, contentSelection, direction * projectGridBeats);
+          moveResult = nextMoveResult;
+          return nextMoveResult.status === "moved" ? nextMoveResult.project : current;
+        },
+        {
+          actionKey: `selection:nudge:${direction < 0 ? "left" : "right"}`,
+          coalesce: true
+        }
+      );
 
       if (moveResult.status === "moved") {
         clearBlockedSelectionTransfer();
@@ -707,9 +733,7 @@ export function useComposerHardwareNavigation({
       const hasTimelineSelection = selectionKind === "timeline";
       const playheadNavigationActive = base.playheadNavigationFocused || playheadDomFocused;
       const canHandleComposerKeyboardShortcut = isComposerView && arePitchPickersClosed;
-      const selectionOwnsEnter =
-        selectionKind !== "none" &&
-        !playheadNavigationActive;
+      const selectionOwnsEnter = selectionKind !== "none" && !playheadNavigationActive;
 
       if (event.defaultPrevented) {
         return;
@@ -723,10 +747,8 @@ export function useComposerHardwareNavigation({
       const normalizedPhysicalTriggerKey = normalizePhysicalPitchKey(event.key);
       const isActivePlacementTriggerKey =
         Boolean(activePlacement) &&
-        (
-          event.key === activePlacement?.triggerKey ||
-          (normalizedPhysicalTriggerKey !== undefined && normalizedPhysicalTriggerKey === activePlacement?.triggerKey)
-        );
+        (event.key === activePlacement?.triggerKey ||
+          (normalizedPhysicalTriggerKey !== undefined && normalizedPhysicalTriggerKey === activePlacement?.triggerKey));
       if (activePlacement && !isActivePlacementTriggerKey) {
         event.preventDefault();
         return;
@@ -794,10 +816,8 @@ export function useComposerHardwareNavigation({
       const normalizedTriggerKey = normalizePhysicalPitchKey(event.key);
       if (
         activePlacement &&
-        (
-          event.key === activePlacement.triggerKey ||
-          (normalizedTriggerKey !== undefined && normalizedTriggerKey === activePlacement.triggerKey)
-        )
+        (event.key === activePlacement.triggerKey ||
+          (normalizedTriggerKey !== undefined && normalizedTriggerKey === activePlacement.triggerKey))
       ) {
         finishPlacement();
       }

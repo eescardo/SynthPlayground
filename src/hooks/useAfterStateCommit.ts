@@ -12,9 +12,7 @@ interface UseAfterStateCommitOptions {
 // commit phase. For the patch-workspace preview path, we only need to know
 // when the current props/state for the active editor have committed so the
 // workspace can preview with those values.
-export function useAfterStateCommit(
-  options: UseAfterStateCommitOptions
-) {
+export function useAfterStateCommit(options: UseAfterStateCommitOptions) {
   const { enabled = true, commitKey, onCommit } = options;
   const onCommitRef = useRef(onCommit);
 

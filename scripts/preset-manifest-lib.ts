@@ -11,12 +11,14 @@ export const buildPresetManifest = (): PresetManifestEntry[] =>
   presetPatches
     .flatMap((patch) =>
       patch.meta.source === "preset"
-        ? [{
-            presetId: patch.meta.presetId,
-            presetVersion: patch.meta.presetVersion,
-            name: patch.name,
-            macroIds: patch.ui.macros.map((macro) => macro.id)
-          }]
+        ? [
+            {
+              presetId: patch.meta.presetId,
+              presetVersion: patch.meta.presetVersion,
+              name: patch.name,
+              macroIds: patch.ui.macros.map((macro) => macro.id)
+            }
+          ]
         : []
     )
     .sort((a, b) => a.presetId.localeCompare(b.presetId));

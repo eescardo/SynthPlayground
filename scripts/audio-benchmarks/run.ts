@@ -26,17 +26,25 @@ const blockSize = readFlag("--block-size");
 const macroLanesPerTrack = readFlag("--macro-lanes-per-track");
 const scenarioArg = readFlag("--scenario", "all") ?? "all";
 
-const scenarioIds = scenarioArg === "all"
-  ? DEFAULT_BENCHMARK_SCENARIO_IDS
-  : scenarioArg.split(",").map((value) => value.trim()).filter(Boolean);
+const scenarioIds =
+  scenarioArg === "all"
+    ? DEFAULT_BENCHMARK_SCENARIO_IDS
+    : scenarioArg
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
 
 const scenarioOverrides = {
   ...(trackCount !== undefined ? { trackCount: Math.max(1, Math.floor(Number(trackCount))) } : {}),
-  ...(automatedTrackCount !== undefined ? { automatedTrackCount: Math.max(0, Math.floor(Number(automatedTrackCount))) } : {}),
+  ...(automatedTrackCount !== undefined
+    ? { automatedTrackCount: Math.max(0, Math.floor(Number(automatedTrackCount))) }
+    : {}),
   ...(durationBeats !== undefined ? { durationBeats: Math.max(1, Number(durationBeats)) } : {}),
   ...(tempo !== undefined ? { tempo: Math.max(20, Number(tempo)) } : {}),
   ...(blockSize !== undefined ? { blockSize: Math.max(32, Math.floor(Number(blockSize))) } : {}),
-  ...(macroLanesPerTrack !== undefined ? { macroAutomationLanesPerTrack: Math.max(0, Math.floor(Number(macroLanesPerTrack))) } : {})
+  ...(macroLanesPerTrack !== undefined
+    ? { macroAutomationLanesPerTrack: Math.max(0, Math.floor(Number(macroLanesPerTrack))) }
+    : {})
 };
 
 const main = async () => {

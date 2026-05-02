@@ -58,10 +58,8 @@ export function resolveTrackCanvasNoteFill(baseColor: string, octaveNumber: numb
 
   const hsl = rgbToHsl(rgb);
   const clampedOctave = clamp(octaveNumber, MIN_SHADED_OCTAVE, MAX_SHADED_OCTAVE);
-  const octaveRatio =
-    (clampedOctave - MIN_SHADED_OCTAVE) / (MAX_SHADED_OCTAVE - MIN_SHADED_OCTAVE);
-  const nextLightness =
-    MIN_NOTE_LIGHTNESS + octaveRatio * (MAX_NOTE_LIGHTNESS - MIN_NOTE_LIGHTNESS);
+  const octaveRatio = (clampedOctave - MIN_SHADED_OCTAVE) / (MAX_SHADED_OCTAVE - MIN_SHADED_OCTAVE);
+  const nextLightness = MIN_NOTE_LIGHTNESS + octaveRatio * (MAX_NOTE_LIGHTNESS - MIN_NOTE_LIGHTNESS);
   return rgbToHex(hslToRgb({ ...hsl, l: nextLightness }));
 }
 
@@ -129,15 +127,7 @@ function rgbToHsl({ r, g, b }: RgbColor): { h: number; s: number; l: number } {
   return { h: hue, s: saturation, l: lightness };
 }
 
-function hslToRgb({
-  h,
-  s,
-  l
-}: {
-  h: number;
-  s: number;
-  l: number;
-}): RgbColor {
+function hslToRgb({ h, s, l }: { h: number; s: number; l: number }): RgbColor {
   const chroma = (1 - Math.abs(2 * l - 1)) * s;
   const huePrime = h / 60;
   const second = chroma * (1 - Math.abs((huePrime % 2) - 1));

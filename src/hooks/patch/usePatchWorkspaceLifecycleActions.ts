@@ -7,10 +7,7 @@ import {
   resolveRemovedPatchFallbackId,
   retargetRemovedPatchTabs
 } from "@/hooks/patch/patchWorkspaceStateUtils";
-import {
-  createClearedWorkspacePatch,
-  createCustomDuplicatePatch
-} from "@/hooks/patch/patchWorkspacePatchHelpers";
+import { createClearedWorkspacePatch, createCustomDuplicatePatch } from "@/hooks/patch/patchWorkspacePatchHelpers";
 import { createId } from "@/lib/ids";
 import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { Project } from "@/types/music";
@@ -83,40 +80,48 @@ export function usePatchWorkspaceLifecycleActions({
   tabs,
   updateActiveTab
 }: UsePatchWorkspaceLifecycleActionsOptions) {
-  const renameSelectedPatch = useCallback((name: string) => {
-    if (!selectedPatch) {
-      return;
-    }
-    const nextName = name.trim();
-    if (!nextName) {
-      return;
-    }
-    commitProjectChange(
-      (current) => ({
-        ...current,
-        patches: current.patches.map((patch) => (patch.id === selectedPatch.id ? { ...patch, name: nextName } : patch))
-      }),
-      { actionKey: `patch:${selectedPatch.id}:rename`, coalesce: true }
-    );
-  }, [commitProjectChange, selectedPatch]);
+  const renameSelectedPatch = useCallback(
+    (name: string) => {
+      if (!selectedPatch) {
+        return;
+      }
+      const nextName = name.trim();
+      if (!nextName) {
+        return;
+      }
+      commitProjectChange(
+        (current) => ({
+          ...current,
+          patches: current.patches.map((patch) =>
+            patch.id === selectedPatch.id ? { ...patch, name: nextName } : patch
+          )
+        }),
+        { actionKey: `patch:${selectedPatch.id}:rename`, coalesce: true }
+      );
+    },
+    [commitProjectChange, selectedPatch]
+  );
 
-  const selectPatchInWorkspace = useCallback((patchId: string) => {
-    if (!activeTab) {
-      return;
-    }
-    updateActiveTab((tab) => ({
-      ...tab,
-      patchId,
-      baselinePatch: undefined,
-      selectedNodeId: undefined,
-      selectedMacroId: undefined,
-      selectedProbeId: undefined,
-      probes: [],
-      migrationNotice: null
-    }));
-    setTabMacroValuesById((current) => ({ ...current, [activeTab.id]: {} }));
-    clearPreviewCaptures();
-  }, [activeTab, clearPreviewCaptures, setTabMacroValuesById, updateActiveTab]);
+  const selectPatchInWorkspace = useCallback(
+    (patchId: string) => {
+      if (!activeTab) {
+        return;
+      }
+      updateActiveTab((tab) => ({
+        ...tab,
+        patchId,
+        baselinePatch: undefined,
+        selectedNodeId: undefined,
+        selectedMacroId: undefined,
+        selectedProbeId: undefined,
+        probes: [],
+        migrationNotice: null
+      }));
+      setTabMacroValuesById((current) => ({ ...current, [activeTab.id]: {} }));
+      clearPreviewCaptures();
+    },
+    [activeTab, clearPreviewCaptures, setTabMacroValuesById, updateActiveTab]
+  );
 
   const updatePresetToLatest = useCallback(() => {
     if (!selectedPatch || selectedPatch.meta.source !== "preset") {
@@ -174,10 +179,13 @@ export function usePatchWorkspaceLifecycleActions({
 
     const nextPatch = createClearedWorkspacePatch(selectedPatch);
 
-    commitProjectChange((current) => ({
-      ...current,
-      patches: current.patches.map((patch) => (patch.id === selectedPatch.id ? nextPatch : patch))
-    }), { actionKey: `patch:${selectedPatch.id}:clear-circuit` });
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        patches: current.patches.map((patch) => (patch.id === selectedPatch.id ? nextPatch : patch))
+      }),
+      { actionKey: `patch:${selectedPatch.id}:clear-circuit` }
+    );
     updateActiveTab((tab) => ({
       ...tab,
       selectedNodeId: undefined,
@@ -199,10 +207,13 @@ export function usePatchWorkspaceLifecycleActions({
 
     const duplicate = createCustomDuplicatePatch(selectedPatch);
 
-    commitProjectChange((current) => ({
-      ...current,
-      patches: [...current.patches, duplicate]
-    }), { actionKey: `patch:duplicate:${duplicate.id}` });
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        patches: [...current.patches, duplicate]
+      }),
+      { actionKey: `patch:duplicate:${duplicate.id}` }
+    );
     updateActiveTab((tab) => ({
       ...tab,
       patchId: duplicate.id,
@@ -230,15 +241,29 @@ export function usePatchWorkspaceLifecycleActions({
       selectedPatch
     });
 
-    commitProjectChange((current) => ({
-      ...current,
-      patches: [...current.patches, duplicate]
-    }), { actionKey: `patch:duplicate:new-tab:${duplicate.id}` });
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        patches: [...current.patches, duplicate]
+      }),
+      { actionKey: `patch:duplicate:new-tab:${duplicate.id}` }
+    );
     setTabs((currentTabs) => [...currentTabs, nextTab]);
     setTabMacroValuesById((current) => ({ ...current, [nextTab.id]: { ...(tabMacroValuesById[activeTab.id] ?? {}) } }));
     setActiveTabId(nextTab.id);
     schedulePatchPreview(duplicate.id, undefined, tabMacroValuesById[activeTab.id]);
-  }, [activeTab, commitProjectChange, createWorkspaceTab, schedulePatchPreview, setActiveTabId, setTabMacroValuesById, setTabs, selectedPatch, tabMacroValuesById, tabs.length]);
+  }, [
+    activeTab,
+    commitProjectChange,
+    createWorkspaceTab,
+    schedulePatchPreview,
+    setActiveTabId,
+    setTabMacroValuesById,
+    setTabs,
+    selectedPatch,
+    tabMacroValuesById,
+    tabs.length
+  ]);
 
   const requestRemoveSelectedPatch = useCallback(() => {
     const patchStatus = selectedPatch ? resolvePatchPresetStatus(selectedPatch) : "custom";
@@ -261,10 +286,13 @@ export function usePatchWorkspaceLifecycleActions({
         ...Object.fromEntries(affectedTabIds.map((tabId) => [tabId, {}]))
       }));
       clearPreviewCaptures();
-      commitProjectChange((current) => ({
-        ...current,
-        patches: current.patches.filter((patch) => patch.id !== selectedPatch.id)
-      }), { actionKey: `patch:${selectedPatch.id}:remove` });
+      commitProjectChange(
+        (current) => ({
+          ...current,
+          patches: current.patches.filter((patch) => patch.id !== selectedPatch.id)
+        }),
+        { actionKey: `patch:${selectedPatch.id}:remove` }
+      );
       return;
     }
     setPatchRemovalDialog({

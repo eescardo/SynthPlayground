@@ -11,7 +11,9 @@ export class BaseAudioWorkletProcessor {
   port: WorkletPortLike;
 }
 
-export const setRendererFactory: (nextFactory: ((config?: SynthRendererFactoryConfig) => SynthRenderer) | null | undefined) => void;
+export const setRendererFactory: (
+  nextFactory: ((config?: SynthRendererFactoryConfig) => SynthRenderer) | null | undefined
+) => void;
 export const resetRendererFactory: () => void;
 export const createRenderer: (config?: SynthRendererFactoryConfig) => SynthRenderer;
 

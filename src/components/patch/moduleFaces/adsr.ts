@@ -169,7 +169,11 @@ export const drawAdsrModuleFace: ModuleFaceRenderer = (ctx, _patch, node, schema
   }
   ctx.fillStyle = accentColor;
   ctx.textAlign = "right";
-  ctx.fillText(`S ${sustain.toFixed(2)}`, graph.x + graph.width - 5, clamp(points.sustainY - 4, graph.y + 8, graph.y + graph.height - 3));
+  ctx.fillText(
+    `S ${sustain.toFixed(2)}`,
+    graph.x + graph.width - 5,
+    clamp(points.sustainY - 4, graph.y + 8, graph.y + graph.height - 3)
+  );
   ctx.textAlign = "left";
   ctx.fillText(formatAdsrCurveLabel(currentValues.curve), graph.x, graph.y - 3);
   ctx.textAlign = "left";

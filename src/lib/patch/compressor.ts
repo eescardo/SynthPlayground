@@ -20,7 +20,12 @@ export function compressorDerivedParamsForSquash(squash: number, attackMs = 20):
   };
 }
 
-export function compressorGainReductionDb(inputDb: number, thresholdDb: number, ratio: number, kneeDb = COMPRESSOR_SOFT_KNEE_DB) {
+export function compressorGainReductionDb(
+  inputDb: number,
+  thresholdDb: number,
+  ratio: number,
+  kneeDb = COMPRESSOR_SOFT_KNEE_DB
+) {
   const safeRatio = Math.max(1, ratio);
   const overThresholdDb = inputDb - thresholdDb;
   const safeKneeDb = Math.max(0, kneeDb);

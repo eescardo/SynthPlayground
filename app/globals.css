@@ -214,7 +214,9 @@ select {
   background: linear-gradient(180deg, #b33043, #7c1829);
   border-color: #ff7f93;
   color: #fff3f5;
-  box-shadow: 0 0 0 1px rgba(255, 156, 171, 0.24), 0 8px 18px rgba(124, 24, 41, 0.28);
+  box-shadow:
+    0 0 0 1px rgba(255, 156, 171, 0.24),
+    0 8px 18px rgba(124, 24, 41, 0.28);
 }
 
 .record-countdown-badge {
@@ -718,8 +720,7 @@ select {
 }
 
 .track-name-button.rename-armed {
-  background-image:
-    radial-gradient(circle, rgba(167, 204, 240, 0.82) 1px, transparent 1.2px);
+  background-image: radial-gradient(circle, rgba(167, 204, 240, 0.82) 1px, transparent 1.2px);
   background-position: left calc(100% - 2px);
   background-size: 6px 3px;
   background-repeat: repeat-x;
@@ -1675,7 +1676,11 @@ select {
   border-radius: 0.2rem;
   background: var(--patch-host-port-bg, #c9d6de);
   color: var(--patch-host-port-text, #10202c);
-  font: 600 8px ui-monospace, SFMono-Regular, Menlo, monospace;
+  font:
+    600 8px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
   letter-spacing: 0.01em;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.16);
   white-space: nowrap;
@@ -1683,7 +1688,9 @@ select {
 
 .patch-host-port.pending {
   border-color: #ff5d8f;
-  box-shadow: 0 0 0 1px rgba(255, 93, 143, 0.2), 0 6px 12px rgba(0, 0, 0, 0.18);
+  box-shadow:
+    0 0 0 1px rgba(255, 93, 143, 0.2),
+    0 6px 12px rgba(0, 0, 0, 0.18);
 }
 
 .patch-probe-overlay {
@@ -1744,11 +1751,15 @@ select {
 
 .patch-probe-card.selected {
   border-color: rgba(200, 255, 57, 0.88);
-  box-shadow: 0 0 0 1px rgba(200, 255, 57, 0.2), 0 12px 24px rgba(0, 0, 0, 0.32);
+  box-shadow:
+    0 0 0 1px rgba(200, 255, 57, 0.2),
+    0 12px 24px rgba(0, 0, 0, 0.32);
 }
 
 .patch-probe-card.expanded.selected {
-  box-shadow: 0 0 0 1px rgba(200, 255, 57, 0.24), 0 22px 40px rgba(0, 0, 0, 0.38);
+  box-shadow:
+    0 0 0 1px rgba(200, 255, 57, 0.24),
+    0 22px 40px rgba(0, 0, 0, 0.38);
 }
 
 .patch-probe-card.attaching {
@@ -2180,8 +2191,11 @@ select {
 .patch-macro-slider::-webkit-slider-runnable-track {
   height: 0.16rem;
   border-radius: 999px;
-  background:
-    linear-gradient(90deg, rgba(246, 176, 28, 0.96) 0 var(--macro-slider-percent, 50%), rgba(255, 236, 192, 0.18) var(--macro-slider-percent, 50%) 100%);
+  background: linear-gradient(
+    90deg,
+    rgba(246, 176, 28, 0.96) 0 var(--macro-slider-percent, 50%),
+    rgba(255, 236, 192, 0.18) var(--macro-slider-percent, 50%) 100%
+  );
   box-shadow:
     inset 0 0 0 1px rgba(255, 205, 110, 0.14),
     0 0 0 1px rgba(20, 12, 6, 0.22);
@@ -2425,12 +2439,11 @@ select {
 .param-value-slider::-webkit-slider-runnable-track {
   height: 0.18rem;
   border-radius: 999px;
-  background:
-    linear-gradient(
-      to right,
-      var(--param-slider-fill) 0 var(--param-slider-percent),
-      var(--param-slider-track) var(--param-slider-percent) 100%
-    );
+  background: linear-gradient(
+    to right,
+    var(--param-slider-fill) 0 var(--param-slider-percent),
+    var(--param-slider-track) var(--param-slider-percent) 100%
+  );
   box-shadow: inset 0 0 0 1px rgba(197, 224, 250, 0.1);
   cursor: pointer;
 }
@@ -2759,7 +2772,9 @@ select {
   opacity: 0;
   pointer-events: none;
   transform: translateY(0.12rem);
-  transition: opacity 140ms ease 1s, transform 140ms ease 1s;
+  transition:
+    opacity 140ms ease 1s,
+    transform 140ms ease 1s;
   white-space: normal;
 }
 
@@ -2771,7 +2786,9 @@ select {
 }
 
 .param-macro-status.tooltip-pinned .param-macro-tooltip {
-  transition: opacity 140ms ease 0s, transform 140ms ease 0s;
+  transition:
+    opacity 140ms ease 0s,
+    transform 140ms ease 0s;
 }
 
 .macro-binding-details {

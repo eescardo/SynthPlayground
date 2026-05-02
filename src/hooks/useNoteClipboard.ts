@@ -1,11 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import {
-  NoteClipboardPayload,
-  parseNoteClipboardPayload,
-  serializeNoteClipboardPayload
-} from "@/lib/clipboard";
+import { NoteClipboardPayload, parseNoteClipboardPayload, serializeNoteClipboardPayload } from "@/lib/clipboard";
 
 export function useNoteClipboard() {
   const [noteClipboardPayload, setNoteClipboardPayload] = useState<NoteClipboardPayload | null>(null);

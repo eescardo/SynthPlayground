@@ -15,8 +15,7 @@ export class NullPort {
   postMessage() {}
 }
 
-export const resolveRandomSeed = (value) =>
-  Number.isFinite(value) ? Number(value) >>> 0 : DEFAULT_RANDOM_SEED;
+export const resolveRandomSeed = (value) => (Number.isFinite(value) ? Number(value) >>> 0 : DEFAULT_RANDOM_SEED);
 
 const areEventsSorted = (events) => {
   for (let index = 1; index < events.length; index += 1) {
@@ -89,20 +88,22 @@ export class SharedWasmRenderStream {
     this.port.postMessage({
       type: "PREVIEW_CAPTURE",
       previewId: this.previewId,
-      captures: captures.map((capture) => {
-        const meta = this.previewCaptureState.metaByProbeId.get(capture.probeId);
-        return meta
-          ? {
-              probeId: capture.probeId,
-              kind: meta.kind,
-              target: meta.target,
-              sampleRate: this.renderer.sampleRateInternal,
-              durationSamples: meta.durationSamples,
-              capturedSamples,
-              samples: capture.samples
-            }
-          : null;
-      }).filter(Boolean)
+      captures: captures
+        .map((capture) => {
+          const meta = this.previewCaptureState.metaByProbeId.get(capture.probeId);
+          return meta
+            ? {
+                probeId: capture.probeId,
+                kind: meta.kind,
+                target: meta.target,
+                sampleRate: this.renderer.sampleRateInternal,
+                durationSamples: meta.durationSamples,
+                capturedSamples,
+                samples: capture.samples
+              }
+            : null;
+        })
+        .filter(Boolean)
     });
     if (force) {
       this.previewCaptureState = null;
@@ -172,7 +173,9 @@ export class SharedWasmRenderStream {
     }
     this.eventQueue.push(...events);
     this.eventQueue.sort(compareScheduledEvents);
-    this.engine.enqueue_events(JSON.stringify(this.implementation.compileEvents(this.project, this.projectSpec, events)));
+    this.engine.enqueue_events(
+      JSON.stringify(this.implementation.compileEvents(this.project, this.projectSpec, events))
+    );
   }
 
   setMacroValue(trackId, macroId, normalized) {

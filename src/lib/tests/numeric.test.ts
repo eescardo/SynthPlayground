@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { addComplex, clamp, clamp01, clampBipolar, clampFinite, clampRange, divComplex, mulComplex, subComplex } from "@/lib/numeric";
+import {
+  addComplex,
+  clamp,
+  clamp01,
+  clampBipolar,
+  clampFinite,
+  clampRange,
+  divComplex,
+  mulComplex,
+  subComplex
+} from "@/lib/numeric";
 
 describe("numeric helpers", () => {
   it("clamps values into arbitrary ranges", () => {

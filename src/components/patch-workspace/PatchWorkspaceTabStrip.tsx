@@ -57,7 +57,12 @@ export function PatchWorkspaceTabStrip(props: PatchWorkspaceTabStripProps) {
   return (
     <div className="patch-workspace-tabs" role="tablist" aria-label="Open instrument tabs">
       {props.canCreateTab !== false && (
-        <button type="button" className="patch-workspace-tab-add" aria-label="New instrument tab" onClick={props.onCreateTab}>
+        <button
+          type="button"
+          className="patch-workspace-tab-add"
+          aria-label="New instrument tab"
+          onClick={props.onCreateTab}
+        >
           +
         </button>
       )}

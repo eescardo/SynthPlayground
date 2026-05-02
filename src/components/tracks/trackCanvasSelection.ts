@@ -1,7 +1,12 @@
 import { AutomationKeyframeRect } from "@/components/tracks/trackCanvasAutomationLane";
 import { BEAT_WIDTH, HEADER_WIDTH, TRACK_HEIGHT } from "@/components/tracks/trackCanvasConstants";
 import { TrackLayout } from "@/components/tracks/trackCanvasTypes";
-import { ContentSelection, getAutomationSelectionKey, getNoteSelectionKey, parseNoteSelectionKey } from "@/lib/clipboard";
+import {
+  ContentSelection,
+  getAutomationSelectionKey,
+  getNoteSelectionKey,
+  parseNoteSelectionKey
+} from "@/lib/clipboard";
 import { Track } from "@/types/music";
 
 export interface TrackCanvasNoteSelectionRect {
@@ -57,8 +62,9 @@ export function resolveTrackCanvasSelectionFromRect(
     intersectedTrackLayouts.length === 1 &&
     intersectedTrackLayouts[0]!.automationLanes.length > 0 &&
     top >= intersectedTrackLayouts[0]!.automationLanes[0]!.y &&
-    bottom <= intersectedTrackLayouts[0]!.automationLanes[intersectedTrackLayouts[0]!.automationLanes.length - 1]!.y +
-      intersectedTrackLayouts[0]!.automationLanes[intersectedTrackLayouts[0]!.automationLanes.length - 1]!.height;
+    bottom <=
+      intersectedTrackLayouts[0]!.automationLanes[intersectedTrackLayouts[0]!.automationLanes.length - 1]!.y +
+        intersectedTrackLayouts[0]!.automationLanes[intersectedTrackLayouts[0]!.automationLanes.length - 1]!.height;
 
   const automationSelectionKeys = automationKeyframeRects
     .filter((rect) =>
@@ -97,10 +103,7 @@ export function resolveSelectedContentTabStopRect(
     return null;
   }
 
-  if (
-    selection.content.noteKeys.size !== 1 ||
-    selection.content.automationKeyframeSelectionKeys.size > 0
-  ) {
+  if (selection.content.noteKeys.size !== 1 || selection.content.automationKeyframeSelectionKeys.size > 0) {
     if (!selection.beatRange || !selection.markerTrackId) {
       return null;
     }

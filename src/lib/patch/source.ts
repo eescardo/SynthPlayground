@@ -22,7 +22,9 @@ for (const patch of presetPatches) {
   }
 }
 
-export const resolvePatchSource = (patch: Pick<Patch, "id"> & { meta?: Pick<PatchMeta, "source"> | null }): PatchSource => {
+export const resolvePatchSource = (
+  patch: Pick<Patch, "id"> & { meta?: Pick<PatchMeta, "source"> | null }
+): PatchSource => {
   if (patch.meta?.source === "preset" || patch.meta?.source === "custom") {
     return patch.meta.source;
   }
@@ -35,9 +37,7 @@ export const getBundledPresetLineage = (presetId: string | undefined): BundledPr
 export const getBundledPresetPatch = (presetId: string | undefined): Patch | undefined =>
   presetId ? bundledPresetById.get(presetId) : undefined;
 
-export const resolvePatchPresetStatus = (
-  patch: Pick<Patch, "id"> & { meta?: PatchMeta | null }
-): PatchPresetStatus => {
+export const resolvePatchPresetStatus = (patch: Pick<Patch, "id"> & { meta?: PatchMeta | null }): PatchPresetStatus => {
   const source = resolvePatchSource(patch);
   if (source === "custom") {
     return "custom";

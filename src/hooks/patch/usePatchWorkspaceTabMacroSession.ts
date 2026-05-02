@@ -11,7 +11,9 @@ export function usePatchWorkspaceTabMacroSession(tabIds: string[]) {
   const [tabMacroValuesById, setTabMacroValuesById] = useState<Record<string, Record<string, number>>>({});
 
   useEffect(() => {
-    setTabMacroValuesById(parseTabMacroValues(window.sessionStorage.getItem(PATCH_WORKSPACE_TAB_MACRO_VALUES_SESSION_KEY)));
+    setTabMacroValuesById(
+      parseTabMacroValues(window.sessionStorage.getItem(PATCH_WORKSPACE_TAB_MACRO_VALUES_SESSION_KEY))
+    );
   }, []);
 
   useEffect(() => {

@@ -74,9 +74,7 @@ function createPatch(overrides: Partial<Patch> = {}): Patch {
     id: "patch_1",
     name: "Test Patch",
     meta: { source: "custom" },
-    nodes: [
-      { id: "osc", typeId: "VCO", params: { wave: "sine" } }
-    ],
+    nodes: [{ id: "osc", typeId: "VCO", params: { wave: "sine" } }],
     ports: [createPatchOutputPort({ gainDb: 0, limiter: false })],
     connections: [
       {

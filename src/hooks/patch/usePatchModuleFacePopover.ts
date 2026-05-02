@@ -33,24 +33,23 @@ export function usePatchModuleFacePopover({ getPopoverRect, nodeExists }: UsePat
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const handleCanvasPointerDown = useCallback((rawX: number, rawY: number) => {
-    if (!popoverNodeId) {
-      return { kind: "none" } as const;
-    }
-    const rect = getPopoverRect(popoverNodeId);
-    const insidePopover =
-      rect &&
-      rawX >= rect.x &&
-      rawX <= rect.x + rect.width &&
-      rawY >= rect.y &&
-      rawY <= rect.y + rect.height;
-    const nodeId = popoverNodeId;
-    if (insidePopover) {
-      return { kind: "inside-popover", nodeId } as const;
-    }
-    setPopoverNodeId(null);
-    return { kind: "dismissed" } as const;
-  }, [getPopoverRect, popoverNodeId]);
+  const handleCanvasPointerDown = useCallback(
+    (rawX: number, rawY: number) => {
+      if (!popoverNodeId) {
+        return { kind: "none" } as const;
+      }
+      const rect = getPopoverRect(popoverNodeId);
+      const insidePopover =
+        rect && rawX >= rect.x && rawX <= rect.x + rect.width && rawY >= rect.y && rawY <= rect.y + rect.height;
+      const nodeId = popoverNodeId;
+      if (insidePopover) {
+        return { kind: "inside-popover", nodeId } as const;
+      }
+      setPopoverNodeId(null);
+      return { kind: "dismissed" } as const;
+    },
+    [getPopoverRect, popoverNodeId]
+  );
 
   return {
     closePopover: () => setPopoverNodeId(null),

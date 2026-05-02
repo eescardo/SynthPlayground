@@ -30,32 +30,30 @@ export function useHardwareNavigationPreview({
   startHeldPatchPreview,
   setRuntimeError
 }: UseHardwareNavigationPreviewArgs) {
-  const previewDefaultPitchNow = useCallback((pitch = defaultPitch) => {
-    if (view === "patch-workspace") {
-      previewSelectedPatchNow(pitch);
-      return;
-    }
-    if (isPlaying || !selectedTrack) {
-      return;
-    }
-    audioEngineRef.current
-      ?.previewNote(selectedTrack.id, pitchToVoct(pitch), 1, 0.9)
-      .catch((error) => setRuntimeError((error as Error).message));
-  }, [
-    audioEngineRef,
-    defaultPitch,
-    isPlaying,
-    previewSelectedPatchNow,
-    selectedTrack,
-    setRuntimeError,
-    view
-  ]);
+  const previewDefaultPitchNow = useCallback(
+    (pitch = defaultPitch) => {
+      if (view === "patch-workspace") {
+        previewSelectedPatchNow(pitch);
+        return;
+      }
+      if (isPlaying || !selectedTrack) {
+        return;
+      }
+      audioEngineRef.current
+        ?.previewNote(selectedTrack.id, pitchToVoct(pitch), 1, 0.9)
+        .catch((error) => setRuntimeError((error as Error).message));
+    },
+    [audioEngineRef, defaultPitch, isPlaying, previewSelectedPatchNow, selectedTrack, setRuntimeError, view]
+  );
 
-  const startHeldDefaultPitchPreview = useCallback((pitch = defaultPitch) => {
-    if (view === "patch-workspace") {
-      startHeldPatchPreview(pitch);
-    }
-  }, [defaultPitch, startHeldPatchPreview, view]);
+  const startHeldDefaultPitchPreview = useCallback(
+    (pitch = defaultPitch) => {
+      if (view === "patch-workspace") {
+        startHeldPatchPreview(pitch);
+      }
+    },
+    [defaultPitch, startHeldPatchPreview, view]
+  );
 
   return {
     previewDefaultPitchNow,

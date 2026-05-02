@@ -13,12 +13,7 @@ interface PatchRemovalDialogModalProps {
   onConfirm: () => void;
 }
 
-export function PatchRemovalDialogModal({
-  dialog,
-  project,
-  setDialog,
-  onConfirm
-}: PatchRemovalDialogModalProps) {
+export function PatchRemovalDialogModal({ dialog, project, setDialog, onConfirm }: PatchRemovalDialogModalProps) {
   if (!dialog) {
     return null;
   }
@@ -42,7 +37,9 @@ export function PatchRemovalDialogModal({
                       ? {
                           ...prev,
                           rows: prev.rows.map((entry) =>
-                            entry.trackId === row.trackId ? { ...entry, mode: event.target.value as "fallback" | "remove" } : entry
+                            entry.trackId === row.trackId
+                              ? { ...entry, mode: event.target.value as "fallback" | "remove" }
+                              : entry
                           )
                         }
                       : prev

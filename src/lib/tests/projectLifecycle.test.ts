@@ -82,34 +82,36 @@ describe("projectLifecycle", () => {
   it("clears a project while preserving identity and name", () => {
     vi.spyOn(Date, "now").mockReturnValue(1234);
 
-    const cleared = createClearedProject(createProject({
-      id: "project_current",
-      name: "Current Project",
-      createdAt: 99,
-      tracks: [
-        {
-          id: "track_old",
-          name: "Old Track",
-          instrumentPatchId: "patch_old",
-          notes: [],
-          mute: false,
-          volume: 1,
-          macroValues: {},
-          macroAutomations: {},
-          macroPanelExpanded: false,
-          fx: {
-            delayEnabled: false,
-            reverbEnabled: false,
-            saturationEnabled: false,
-            compressorEnabled: false,
-            delayMix: 0.2,
-            reverbMix: 0.2,
-            drive: 0.2,
-            compression: 0.4
+    const cleared = createClearedProject(
+      createProject({
+        id: "project_current",
+        name: "Current Project",
+        createdAt: 99,
+        tracks: [
+          {
+            id: "track_old",
+            name: "Old Track",
+            instrumentPatchId: "patch_old",
+            notes: [],
+            mute: false,
+            volume: 1,
+            macroValues: {},
+            macroAutomations: {},
+            macroPanelExpanded: false,
+            fx: {
+              delayEnabled: false,
+              reverbEnabled: false,
+              saturationEnabled: false,
+              compressorEnabled: false,
+              delayMix: 0.2,
+              reverbMix: 0.2,
+              drive: 0.2,
+              compression: 0.4
+            }
           }
-        }
-      ]
-    }));
+        ]
+      })
+    );
 
     expect(cleared.id).toBe("project_current");
     expect(cleared.name).toBe("Current Project");
@@ -164,7 +166,7 @@ describe("projectLifecycle", () => {
               end: 1,
               gain: 1,
               pitchSemis: 0,
-              sampleData: "{\"version\":1,\"name\":\"tone.wav\",\"sampleRate\":48000,\"samples\":[0,0.1,-0.1]}"
+              sampleData: '{"version":1,"name":"tone.wav","sampleRate":48000,"samples":[0,0.1,-0.1]}'
             }
           }
         ]
@@ -173,7 +175,7 @@ describe("projectLifecycle", () => {
 
     const hydrated = hydrateProjectSnapshot(project, {
       samplePlayerById: {
-        valid_asset: "{\"version\":1,\"name\":\"kept.wav\",\"sampleRate\":48000,\"samples\":[0]}",
+        valid_asset: '{"version":1,"name":"kept.wav","sampleRate":48000,"samples":[0]}',
         invalid_asset: 123
       }
     });
@@ -189,8 +191,8 @@ describe("projectLifecycle", () => {
     const sampleParams = hydrated.project.patches[0].nodes[1].params;
     const migratedAssetId = String(sampleParams.sampleAssetId);
     expect(sampleParams.sampleData).toBeUndefined();
-    expect(hydrated.assets.samplePlayerById[migratedAssetId]).toContain("\"tone.wav\"");
-    expect(hydrated.assets.samplePlayerById.valid_asset).toContain("\"kept.wav\"");
+    expect(hydrated.assets.samplePlayerById[migratedAssetId]).toContain('"tone.wav"');
+    expect(hydrated.assets.samplePlayerById.valid_asset).toContain('"kept.wav"');
     expect(hydrated.assets.samplePlayerById.invalid_asset).toBeUndefined();
   });
 });

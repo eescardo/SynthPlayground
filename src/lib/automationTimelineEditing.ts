@@ -28,7 +28,11 @@ export interface ClipboardAutomationLaneData {
 export const sortAutomationKeyframes = (keyframes: TrackMacroAutomationKeyframe[]) =>
   keyframes.slice().sort((left, right) => left.beat - right.beat || left.id.localeCompare(right.id));
 
-const makeWholeAutomationKeyframe = (beat: number, value: number, id = createId("automation_keyframe")): TrackMacroAutomationKeyframe => ({
+const makeWholeAutomationKeyframe = (
+  beat: number,
+  value: number,
+  id = createId("automation_keyframe")
+): TrackMacroAutomationKeyframe => ({
   id,
   beat,
   type: "whole",
@@ -143,7 +147,9 @@ export const replaceAutomationLaneBeatRange = (
   const outgoingAtEnd = getAutomationLaneValueAtBeat(lane, endBeat, timelineEndBeat, "outgoing");
   const nextKeyframes = lane.keyframes
     .filter((keyframe) => keyframe.beat < startBeat - EPSILON || keyframe.beat > endBeat + EPSILON)
-    .concat(segment.keyframes.map((keyframe) => makeTrackAutomationKeyframeFromClipboard(keyframe, startBeat + keyframe.beat)));
+    .concat(
+      segment.keyframes.map((keyframe) => makeTrackAutomationKeyframeFromClipboard(keyframe, startBeat + keyframe.beat))
+    );
 
   if (startBeat > EPSILON) {
     nextKeyframes.push(makeAutomationBoundaryKeyframe(startBeat, incomingAtStart, segment.startValue));

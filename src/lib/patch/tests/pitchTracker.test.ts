@@ -7,7 +7,10 @@ import {
 } from "@/lib/patch/pitchTracker";
 import { PreviewProbeCapture } from "@/types/probes";
 
-function buildSineCapture(frequencies: Array<{ hz: number; seconds: number }>, sampleRate = 48000): PreviewProbeCapture {
+function buildSineCapture(
+  frequencies: Array<{ hz: number; seconds: number }>,
+  sampleRate = 48000
+): PreviewProbeCapture {
   const silenceSeconds = 0.03;
   const samples: number[] = [];
   for (const segment of frequencies) {

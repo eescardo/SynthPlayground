@@ -4,9 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SelectionActionPopover } from "@/components/SelectionActionPopover";
 import { TrackCanvasTabStops } from "@/components/tracks/TrackCanvasTabStops";
 import { TrackHeaderChrome } from "@/components/tracks/TrackCanvasChrome";
-import {
-  AutomationKeyframeRect,
-} from "@/components/tracks/trackCanvasAutomationLane";
+import { AutomationKeyframeRect } from "@/components/tracks/trackCanvasAutomationLane";
 import { renderLaneSpec, resolveLaneRenderSpec } from "@/components/tracks/trackCanvasLaneRendering";
 import {
   BEAT_WIDTH,
@@ -29,13 +27,10 @@ import {
   LOOP_MARKER_HOVER_RING_RADIUS,
   LoopMarkerRect,
   MuteRect,
-  PitchRect,
+  PitchRect
 } from "@/components/tracks/trackCanvasGeometry";
 import { NoteRect, useTrackCanvasPointerInteractions } from "@/hooks/tracks/useTrackCanvasPointerInteractions";
-import {
-  drawNoteBody,
-  fillRoundedRect
-} from "@/components/tracks/trackCanvasNoteGeometry";
+import { drawNoteBody, fillRoundedRect } from "@/components/tracks/trackCanvasNoteGeometry";
 import {
   resolveTrackCanvasNoteFill,
   resolveTrackCanvasNoteLabelFill,
@@ -43,15 +38,9 @@ import {
   splitTrackCanvasPitchLabel
 } from "@/components/tracks/trackCanvasNoteRendering";
 import { drawTrackCanvasNoteState } from "@/components/tracks/trackCanvasNoteStateRendering";
-import {
-  drawGhostPreviewNote,
-  drawTabSelectionPreview
-} from "@/components/tracks/trackCanvasPreviewGeometry";
+import { drawGhostPreviewNote, drawTabSelectionPreview } from "@/components/tracks/trackCanvasPreviewGeometry";
 import { resolveSelectedContentTabStopRect } from "@/components/tracks/trackCanvasSelection";
-import {
-  TrackCanvasProps,
-  TrackLayout
-} from "@/components/tracks/trackCanvasTypes";
+import { TrackCanvasProps, TrackLayout } from "@/components/tracks/trackCanvasTypes";
 import { useTrackCanvasLayout } from "@/hooks/tracks/useTrackCanvasLayout";
 import { useTrackCanvasWheelPitchEditing } from "@/hooks/tracks/useTrackCanvasWheelPitchEditing";
 import { useVolumePopover } from "@/hooks/useVolumePopover";
@@ -62,7 +51,11 @@ import { getNoteSelectionKey } from "@/lib/clipboard";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
 import { formatBeatName } from "@/lib/musicTiming";
 import { Note, Track } from "@/types/music";
-export type { TimelineActionsPopoverRequest, TrackCanvasProps, TrackCanvasSelection } from "@/components/tracks/trackCanvasTypes";
+export type {
+  TimelineActionsPopoverRequest,
+  TrackCanvasProps,
+  TrackCanvasSelection
+} from "@/components/tracks/trackCanvasTypes";
 
 function drawGhostPlayhead(
   ctx: CanvasRenderingContext2D,
@@ -155,7 +148,9 @@ function drawLoopMarker(
   ctx.restore();
 }
 
-const findTrackOverlaps = (notes: Note[]): {
+const findTrackOverlaps = (
+  notes: Note[]
+): {
   overlapNoteIds: Set<string>;
   overlapRanges: Array<{ startBeat: number; endBeat: number }>;
 } => {
@@ -202,17 +197,8 @@ const findTrackOverlaps = (notes: Note[]): {
   return { overlapNoteIds, overlapRanges: merged };
 };
 
-
 export function TrackCanvas(props: TrackCanvasProps) {
-  const {
-    automationActions,
-    noteActions,
-    patchActions,
-    project,
-    selection,
-    selectionActions,
-    trackActions
-  } = props;
+  const { automationActions, noteActions, patchActions, project, selection, selectionActions, trackActions } = props;
   const { onUpdateNote } = noteActions;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -265,7 +251,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const selectionLabel = selection.kind === "none" ? null : selection.label;
   const selectionMarkerTrackId = selection.kind === "none" ? null : selection.markerTrackId;
   const selectedNoteKeys = selection.kind === "note" ? selection.content.noteKeys : undefined;
-  const automationKeyframeSelectionKeys = selection.kind === "note" ? selection.content.automationKeyframeSelectionKeys : undefined;
+  const automationKeyframeSelectionKeys =
+    selection.kind === "note" ? selection.content.automationKeyframeSelectionKeys : undefined;
 
   const totalBeats = useMemo(() => {
     return getProjectTimelineEndBeat(project);
@@ -319,12 +306,15 @@ export function TrackCanvas(props: TrackCanvasProps) {
     onUpdateNote
   });
 
-  const getTrackLayoutAtY = useCallback((y: number): TrackLayout | null => {
-    if (y < RULER_HEIGHT) {
-      return null;
-    }
-    return trackLayouts.find((layout) => y >= layout.y && y <= layout.y + layout.height) ?? null;
-  }, [trackLayouts]);
+  const getTrackLayoutAtY = useCallback(
+    (y: number): TrackLayout | null => {
+      if (y < RULER_HEIGHT) {
+        return null;
+      }
+      return trackLayouts.find((layout) => y >= layout.y && y <= layout.y + layout.height) ?? null;
+    },
+    [trackLayouts]
+  );
 
   const {
     hoveredPitch,
@@ -481,9 +471,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const overlaps = overlapNoteIds.has(note.id);
         const isHovered = hoveredNote?.trackId === track.id && hoveredNote.noteId === note.id;
         const noteSelected = selectedNoteKeys?.has(getNoteSelectionKey(track.id, note.id)) ?? false;
-        const noteFocused =
-          noteSelected &&
-          selectedContentTabStopFocused;
+        const noteFocused = noteSelected && selectedContentTabStopFocused;
         const noteBeingPlaced = keyboardPlacementNote?.trackId === track.id && keyboardPlacementNote.noteId === note.id;
 
         const baseNoteFill = overlaps
@@ -506,12 +494,16 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const centerLabel = shouldCenterTrackCanvasNoteLabel(visualDurationBeats, gridBeats);
         drawNoteBody(ctx, noteX, noteY, noteW, noteH, noteFill);
 
-        drawTrackCanvasNoteState(ctx, { x: noteX, y: noteY, w: noteW, h: noteH }, {
-          hovered: isHovered,
-          selected: noteSelected,
-          focused: noteFocused,
-          beingPlaced: noteBeingPlaced
-        });
+        drawTrackCanvasNoteState(
+          ctx,
+          { x: noteX, y: noteY, w: noteW, h: noteH },
+          {
+            hovered: isHovered,
+            selected: noteSelected,
+            focused: noteFocused,
+            beingPlaced: noteBeingPlaced
+          }
+        );
 
         if (
           tabSelectionPreviewNote?.trackId === track.id &&
@@ -524,7 +516,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const noteNameFont = "bold 11px ui-monospace, SFMono-Regular, Menlo, monospace";
         const microtoneFont = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
         const octaveFont = "8.5px ui-monospace, SFMono-Regular, Menlo, monospace";
-        const labelLines: Array<{ text: string; font: string; alpha?: number }> = [{ text: pitchLabel.noteName, font: noteNameFont }];
+        const labelLines: Array<{ text: string; font: string; alpha?: number }> = [
+          { text: pitchLabel.noteName, font: noteNameFont }
+        ];
         if (pitchLabel.octaveText) {
           labelLines.push({ text: pitchLabel.octaveText, font: octaveFont });
         }
@@ -542,9 +536,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         const labelHeight = lineHeights.reduce((sum, height) => sum + height, 0) + lineGap * (labelLines.length - 1);
         const labelPaddingX = 3;
         const labelPaddingY = 2;
-        const labelX = centerLabel
-          ? noteX + Math.max(0, (noteW - labelWidth) * 0.5)
-          : noteX + 6;
+        const labelX = centerLabel ? noteX + Math.max(0, (noteW - labelWidth) * 0.5) : noteX + 6;
         const labelY = noteY + Math.max(4, (noteH - labelHeight) * 0.5);
         const labelCenterX = labelX + labelWidth * 0.5;
         const labelFill = resolveTrackCanvasNoteLabelFill(noteFill, TRACK_CANVAS_COLORS.noteLabel);
@@ -658,7 +650,15 @@ export function TrackCanvas(props: TrackCanvasProps) {
         hoveredLoopMarker.kind === marker.kind &&
         hoveredLoopMarker.beat === marker.beat;
       drawLoopMarker(ctx, markerX, height, marker.kind, color, isHovered, marker.repeatCount);
-      loopMarkerRectsRef.current.push({ markerId: marker.markerId, kind: marker.kind, beat: marker.beat, x: markerX - 18, y: 0, w: 30, h: height });
+      loopMarkerRectsRef.current.push({
+        markerId: marker.markerId,
+        kind: marker.kind,
+        beat: marker.beat,
+        x: markerX - 18,
+        y: 0,
+        w: 30,
+        h: height
+      });
     }
     drawGhostPlayhead(ctx, ghostPlayheadBeat, countInLabel, height);
 

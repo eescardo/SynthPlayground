@@ -57,13 +57,13 @@ describe("createInitializedWorkletNode", () => {
     let createdNode: FakeAudioWorkletNode | null = null;
 
     installAudioWorkletNode(() => {
-        createdNode = {
-          port: {
-            onmessage: null,
-            postMessage: vi.fn(() => {
-              createdNode?.port.onmessage?.({ data: { type: "INIT_READY" } } as MessageEvent<WorkletOutboundMessage>);
-            })
-          }
+      createdNode = {
+        port: {
+          onmessage: null,
+          postMessage: vi.fn(() => {
+            createdNode?.port.onmessage?.({ data: { type: "INIT_READY" } } as MessageEvent<WorkletOutboundMessage>);
+          })
+        }
       };
       return createdNode;
     });
@@ -96,15 +96,15 @@ describe("createInitializedWorkletNode", () => {
     const context = createContext();
 
     installAudioWorkletNode(() => ({
-        port: {
-          onmessage: null,
-          postMessage: vi.fn(function (this: FakePort) {
-            this.onmessage?.({
-              data: { type: "INIT_ERROR", error: "boom" }
-            } as MessageEvent<WorkletOutboundMessage>);
-          })
-        }
-      }));
+      port: {
+        onmessage: null,
+        postMessage: vi.fn(function (this: FakePort) {
+          this.onmessage?.({
+            data: { type: "INIT_ERROR", error: "boom" }
+          } as MessageEvent<WorkletOutboundMessage>);
+        })
+      }
+    }));
 
     await expect(
       createInitializedWorkletNode({
@@ -125,11 +125,11 @@ describe("createInitializedWorkletNode", () => {
 
     const context = createContext();
     installAudioWorkletNode(() => ({
-        port: {
-          onmessage: null,
-          postMessage: vi.fn()
-        }
-      }));
+      port: {
+        onmessage: null,
+        postMessage: vi.fn()
+      }
+    }));
 
     const pending = createInitializedWorkletNode({
       context: context as unknown as AudioContext,

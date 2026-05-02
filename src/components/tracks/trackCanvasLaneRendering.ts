@@ -65,7 +65,9 @@ export const resolveLaneRenderSpec = (
   if (!automationLayout.macroId) {
     return null;
   }
-  const macro = trackPatch?.ui.macros.find((entry: Project["patches"][number]["ui"]["macros"][number]) => entry.id === automationLayout.macroId);
+  const macro = trackPatch?.ui.macros.find(
+    (entry: Project["patches"][number]["ui"]["macros"][number]) => entry.id === automationLayout.macroId
+  );
   if (!macro) {
     return null;
   }

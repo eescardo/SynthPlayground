@@ -161,7 +161,13 @@ const createTrack = (patchId: string, trackIndex: number, config: AudioBenchmark
     id: `track_${trackIndex + 1}`,
     name: `Track ${trackIndex + 1}`,
     instrumentPatchId: patchId,
-    notes: createTrackNotes(patchId, trackIndex, config.durationBeats, config.noteSpacingBeats, config.noteDurationBeats),
+    notes: createTrackNotes(
+      patchId,
+      trackIndex,
+      config.durationBeats,
+      config.noteSpacingBeats,
+      config.noteDurationBeats
+    ),
     macroValues,
     macroAutomations,
     macroPanelExpanded: trackIndex < 4,
@@ -172,11 +178,15 @@ const createTrack = (patchId: string, trackIndex: number, config: AudioBenchmark
   };
 };
 
-export const createStressBenchmarkProject = (overrides: Partial<AudioBenchmarkScenarioConfig> = {}): AudioBenchmarkScenario => {
+export const createStressBenchmarkProject = (
+  overrides: Partial<AudioBenchmarkScenarioConfig> = {}
+): AudioBenchmarkScenario => {
   const config = { ...DEFAULT_CONFIG, ...overrides };
   const patches = structuredClone(presetPatches);
   const patchIds = patches.map((patch) => patch.id);
-  const tracks = Array.from({ length: config.trackCount }, (_, trackIndex) => createTrack(patchIds[trackIndex % patchIds.length], trackIndex, config));
+  const tracks = Array.from({ length: config.trackCount }, (_, trackIndex) =>
+    createTrack(patchIds[trackIndex % patchIds.length], trackIndex, config)
+  );
 
   const project: Project = {
     id: `benchmark_${config.id}`,

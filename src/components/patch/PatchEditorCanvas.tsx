@@ -52,10 +52,18 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   useEffect(() => {
     setDraftParamValues({});
   }, [props.patch]);
-  const previewPatch = useMemo(() => applyDraftParamValues(props.patch, draftParamValues), [draftParamValues, props.patch]);
-  const macroVisibleRows = clamp(props.patch.ui.macros.length || 1, PATCH_MACRO_VISIBLE_ROW_MIN, PATCH_MACRO_VISIBLE_ROW_MAX);
+  const previewPatch = useMemo(
+    () => applyDraftParamValues(props.patch, draftParamValues),
+    [draftParamValues, props.patch]
+  );
+  const macroVisibleRows = clamp(
+    props.patch.ui.macros.length || 1,
+    PATCH_MACRO_VISIBLE_ROW_MIN,
+    PATCH_MACRO_VISIBLE_ROW_MAX
+  );
   const macroDockHeightRem =
-    PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT[macroVisibleRows] ?? PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT[PATCH_MACRO_VISIBLE_ROW_MAX];
+    PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT[macroVisibleRows] ??
+    PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT[PATCH_MACRO_VISIBLE_ROW_MAX];
   const selectedMacroNodeIds = useMemo(() => {
     if (!props.selectedMacroId) {
       return new Set<string>();
@@ -73,17 +81,12 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   );
   const selectedNode = props.selectedNodeId ? nodeById.get(props.selectedNodeId) : undefined;
   const selectedSchema = selectedNode ? getModuleSchema(selectedNode.typeId) : undefined;
-  const {
-    attachingProbeId,
-    cancelAttachProbe,
-    canvasProbeState,
-    selectedProbe,
-    toggleAttachProbe
-  } = usePatchProbeEditorState({
-    probes: props.probeState.probes,
-    probeState: props.probeState,
-    probeActions: props.probeActions
-  });
+  const { attachingProbeId, cancelAttachProbe, canvasProbeState, selectedProbe, toggleAttachProbe } =
+    usePatchProbeEditorState({
+      probes: props.probeState.probes,
+      probeState: props.probeState,
+      probeActions: props.probeActions
+    });
 
   return (
     <div

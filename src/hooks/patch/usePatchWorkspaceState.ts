@@ -5,7 +5,10 @@ import { useCallback, useEffect, useMemo } from "react";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { AudioEngine } from "@/audio/engine";
 import { PatchRemovalDialogState } from "@/components/composer/PatchRemovalDialogModal";
-import { resolvePatchWorkspaceMacroValues, usePatchWorkspaceMacroValues } from "@/hooks/patch/usePatchWorkspaceMacroValues";
+import {
+  resolvePatchWorkspaceMacroValues,
+  usePatchWorkspaceMacroValues
+} from "@/hooks/patch/usePatchWorkspaceMacroValues";
 import {
   createNextTabName,
   isAudiblePatchOp,
@@ -60,8 +63,14 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     setRuntimeError,
     setPatchRemovalDialog
   } = options;
-  const patchNameById = useMemo(() => new Map(project.patches.map((patch) => [patch.id, patch.name] as const)), [project.patches]);
-  const patchById = useMemo(() => new Map(project.patches.map((patch) => [patch.id, patch] as const)), [project.patches]);
+  const patchNameById = useMemo(
+    () => new Map(project.patches.map((patch) => [patch.id, patch.name] as const)),
+    [project.patches]
+  );
+  const patchById = useMemo(
+    () => new Map(project.patches.map((patch) => [patch.id, patch] as const)),
+    [project.patches]
+  );
   const {
     tabs,
     activeTabId,
@@ -89,10 +98,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       project.patches[0],
     [activeTab?.patchId, project.patches, selectedTrack?.instrumentPatchId]
   );
-  const {
-    workspaceMacroValues,
-    workspacePatch
-  } = usePatchWorkspaceMacroValues({
+  const { workspaceMacroValues, workspacePatch } = usePatchWorkspaceMacroValues({
     selectedPatch,
     macroValues: activeTab ? tabMacroValuesById[activeTab.id] : undefined
   });
@@ -117,20 +123,16 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     activeTab,
     updateActiveTab
   });
-  const {
-    baselinePatch,
-    patchDiff,
-    setBaselinePatchFromPatchId,
-    clearCurrentPatchBaseline
-  } = usePatchWorkspaceBaseline({
-    activeTab,
-    patches: project.patches,
-    selectedPatch,
-    updateActiveTab
-  });
+  const { baselinePatch, patchDiff, setBaselinePatchFromPatchId, clearCurrentPatchBaseline } =
+    usePatchWorkspaceBaseline({
+      activeTab,
+      patches: project.patches,
+      selectedPatch,
+      updateActiveTab
+    });
 
   const validationIssues = useMemo(
-    () => (selectedPatch ? validationIssuesByPatchId.get(selectedPatch.id) ?? [] : []),
+    () => (selectedPatch ? (validationIssuesByPatchId.get(selectedPatch.id) ?? []) : []),
     [selectedPatch, validationIssuesByPatchId]
   );
   const selectedPatchHasErrors = validationIssues.some((issue) => issue.level === "error");
@@ -183,56 +185,62 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     setPreviewCaptureByProbeId(latestPreviewCaptureByProbeId);
   }, [latestPreviewCaptureByProbeId, setPreviewCaptureByProbeId]);
 
-  const setSkipWorkspaceHistory = useCallback((skipHistory: boolean) => {
-    skipNextWorkspaceHistoryRef.current = skipHistory;
-  }, [skipNextWorkspaceHistoryRef]);
+  const setSkipWorkspaceHistory = useCallback(
+    (skipHistory: boolean) => {
+      skipNextWorkspaceHistoryRef.current = skipHistory;
+    },
+    [skipNextWorkspaceHistoryRef]
+  );
 
-  const {
-    activateWorkspaceTab,
-    handleInstrumentEditorReady,
-    setSkipNextTabPreview
-  } = usePatchWorkspacePreviewController({
-    tabs,
-    activeTab,
-    previewPitch,
-    previewSelectedPatchNow,
-    setActiveTabId,
-    setSkipWorkspaceHistory
-  });
+  const { activateWorkspaceTab, handleInstrumentEditorReady, setSkipNextTabPreview } =
+    usePatchWorkspacePreviewController({
+      tabs,
+      activeTab,
+      previewPitch,
+      previewSelectedPatchNow,
+      setActiveTabId,
+      setSkipWorkspaceHistory
+    });
 
-  const openPatchWorkspace = useCallback((patchId?: string) => {
-    const resolvedPatchId = patchId ?? selectedTrack?.instrumentPatchId ?? project.patches[0]?.id;
-    if (resolvedPatchId) {
-      const existingTab = tabs.find((tab) => tab.patchId === resolvedPatchId);
-      if (existingTab) {
-        activateWorkspaceTab(existingTab.id, { preview: false, skipHistory: true });
-      } else if (tabs.length < MAX_PATCH_WORKSPACE_TABS) {
-        const nextTab = { ...createWorkspaceTab(resolvedPatchId), probes: [] };
-        setSkipNextTabPreview(true);
-        setTabs((currentTabs) => [...currentTabs, nextTab]);
-        setActiveTabId(nextTab.id);
+  const openPatchWorkspace = useCallback(
+    (patchId?: string) => {
+      const resolvedPatchId = patchId ?? selectedTrack?.instrumentPatchId ?? project.patches[0]?.id;
+      if (resolvedPatchId) {
+        const existingTab = tabs.find((tab) => tab.patchId === resolvedPatchId);
+        if (existingTab) {
+          activateWorkspaceTab(existingTab.id, { preview: false, skipHistory: true });
+        } else if (tabs.length < MAX_PATCH_WORKSPACE_TABS) {
+          const nextTab = { ...createWorkspaceTab(resolvedPatchId), probes: [] };
+          setSkipNextTabPreview(true);
+          setTabs((currentTabs) => [...currentTabs, nextTab]);
+          setActiveTabId(nextTab.id);
+        }
       }
-    }
-    router.push("/patch-workspace");
-  }, [
-    activateWorkspaceTab,
-    createWorkspaceTab,
-    project.patches,
-    router,
-    selectedTrack?.instrumentPatchId,
-    setActiveTabId,
-    setSkipNextTabPreview,
-    setTabs,
-    tabs
-  ]);
+      router.push("/patch-workspace");
+    },
+    [
+      activateWorkspaceTab,
+      createWorkspaceTab,
+      project.patches,
+      router,
+      selectedTrack?.instrumentPatchId,
+      setActiveTabId,
+      setSkipNextTabPreview,
+      setTabs,
+      tabs
+    ]
+  );
 
-  const renameWorkspaceTab = useCallback((tabId: string, name: string) => {
-    const nextName = name.trim();
-    if (!nextName) {
-      return;
-    }
-    updateTabs((currentTabs) => currentTabs.map((tab) => (tab.id === tabId ? { ...tab, name: nextName } : tab)));
-  }, [updateTabs]);
+  const renameWorkspaceTab = useCallback(
+    (tabId: string, name: string) => {
+      const nextName = name.trim();
+      if (!nextName) {
+        return;
+      }
+      updateTabs((currentTabs) => currentTabs.map((tab) => (tab.id === tabId ? { ...tab, name: nextName } : tab)));
+    },
+    [updateTabs]
+  );
 
   const createWorkspaceTabFromCurrent = useCallback(() => {
     if (tabs.length >= MAX_PATCH_WORKSPACE_TABS) {
@@ -246,10 +254,13 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     });
     const nextTab = { ...createWorkspaceTab(nextPatchId, nextName), probes: [] };
 
-    commitProjectChange((current) => ({
-      ...current,
-      patches: [...current.patches, nextPatch]
-    }), { actionKey: `patch:new-tab:${nextPatchId}` });
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        patches: [...current.patches, nextPatch]
+      }),
+      { actionKey: `patch:new-tab:${nextPatchId}` }
+    );
     skipNextWorkspaceHistoryRef.current = false;
     setTabs((currentTabs) => [...currentTabs, nextTab]);
     setTabMacroValuesById((current) => ({
@@ -269,26 +280,29 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     tabs
   ]);
 
-  const closeWorkspaceTab = useCallback((tabId: string) => {
-    if (tabs.length <= 1) {
-      return;
-    }
-    const closingIndex = tabs.findIndex((tab) => tab.id === tabId);
-    if (closingIndex < 0) {
-      return;
-    }
-    const fallbackTab = tabs[closingIndex + 1] ?? tabs[closingIndex - 1];
-    skipNextWorkspaceHistoryRef.current = false;
-    setTabs((currentTabs) => currentTabs.filter((tab) => tab.id !== tabId));
-    setTabMacroValuesById((current) => {
-      const next = { ...current };
-      delete next[tabId];
-      return next;
-    });
-    if (activeTabId === tabId) {
-      activateWorkspaceTab(fallbackTab.id, { preview: false, skipHistory: false });
-    }
-  }, [activateWorkspaceTab, activeTabId, setTabMacroValuesById, setTabs, skipNextWorkspaceHistoryRef, tabs]);
+  const closeWorkspaceTab = useCallback(
+    (tabId: string) => {
+      if (tabs.length <= 1) {
+        return;
+      }
+      const closingIndex = tabs.findIndex((tab) => tab.id === tabId);
+      if (closingIndex < 0) {
+        return;
+      }
+      const fallbackTab = tabs[closingIndex + 1] ?? tabs[closingIndex - 1];
+      skipNextWorkspaceHistoryRef.current = false;
+      setTabs((currentTabs) => currentTabs.filter((tab) => tab.id !== tabId));
+      setTabMacroValuesById((current) => {
+        const next = { ...current };
+        delete next[tabId];
+        return next;
+      });
+      if (activeTabId === tabId) {
+        activateWorkspaceTab(fallbackTab.id, { preview: false, skipHistory: false });
+      }
+    },
+    [activateWorkspaceTab, activeTabId, setTabMacroValuesById, setTabs, skipNextWorkspaceHistoryRef, tabs]
+  );
 
   const activePreviewMacroValues = useMemo(
     () =>
@@ -298,64 +312,74 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     [activeTab, selectedPatch, tabMacroValuesById]
   );
 
-  const applyPatchOp = useCallback((op: PatchOp) => {
-    if (!selectedPatch) {
-      return;
-    }
-    if (
-      resolvePatchSource(selectedPatch) === "preset" &&
-      op.type !== "moveNode" &&
-      op.type !== "setNodeLayout" &&
-      op.type !== "setCanvasZoom"
-    ) {
-      return;
-    }
-
-    if (op.type === "connect") {
-      const connectionIssues = validatePatchConnectionCandidate(
-        selectedPatch,
-        op.fromNodeId,
-        op.fromPortId,
-        op.toNodeId,
-        op.toPortId
-      );
-      if (connectionIssues.some((issue) => issue.level === "error")) {
+  const applyPatchOp = useCallback(
+    (op: PatchOp) => {
+      if (!selectedPatch) {
         return;
       }
-    }
-
-    let nextPatch: Patch;
-    try {
-      nextPatch = applyPatchGraphOp(selectedPatch, op);
-    } catch (error) {
-      setRuntimeError((error as Error).message);
-      return;
-    }
-
-    validatePatch(nextPatch);
-
-    commitProjectChange(
-      (current) => ({
-        ...current,
-        patches: current.patches.map((patch) => (patch.id === selectedPatch.id ? nextPatch : patch))
-      }),
-      {
-        actionKey:
-          op.type === "moveNode"
-            ? `patch:${selectedPatch.id}:move-node:${op.nodeId}`
-            : op.type === "setNodeLayout"
-              ? `patch:${selectedPatch.id}:set-node-layout`
-              : op.type === "setCanvasZoom"
-                ? `patch:${selectedPatch.id}:set-canvas-zoom`
-                : `patch:${selectedPatch.id}:${op.type}`,
-        coalesce: op.type === "moveNode" || op.type === "setCanvasZoom"
+      if (
+        resolvePatchSource(selectedPatch) === "preset" &&
+        op.type !== "moveNode" &&
+        op.type !== "setNodeLayout" &&
+        op.type !== "setCanvasZoom"
+      ) {
+        return;
       }
-    );
-    updateActiveTab((tab) => ({ ...tab, migrationNotice: null }));
-    if (isAudiblePatchOp(op)) {
-      schedulePatchPreview(selectedPatch.id, undefined, activePreviewMacroValues);
-    }
-  }, [activePreviewMacroValues, commitProjectChange, schedulePatchPreview, selectedPatch, setRuntimeError, updateActiveTab]);
+
+      if (op.type === "connect") {
+        const connectionIssues = validatePatchConnectionCandidate(
+          selectedPatch,
+          op.fromNodeId,
+          op.fromPortId,
+          op.toNodeId,
+          op.toPortId
+        );
+        if (connectionIssues.some((issue) => issue.level === "error")) {
+          return;
+        }
+      }
+
+      let nextPatch: Patch;
+      try {
+        nextPatch = applyPatchGraphOp(selectedPatch, op);
+      } catch (error) {
+        setRuntimeError((error as Error).message);
+        return;
+      }
+
+      validatePatch(nextPatch);
+
+      commitProjectChange(
+        (current) => ({
+          ...current,
+          patches: current.patches.map((patch) => (patch.id === selectedPatch.id ? nextPatch : patch))
+        }),
+        {
+          actionKey:
+            op.type === "moveNode"
+              ? `patch:${selectedPatch.id}:move-node:${op.nodeId}`
+              : op.type === "setNodeLayout"
+                ? `patch:${selectedPatch.id}:set-node-layout`
+                : op.type === "setCanvasZoom"
+                  ? `patch:${selectedPatch.id}:set-canvas-zoom`
+                  : `patch:${selectedPatch.id}:${op.type}`,
+          coalesce: op.type === "moveNode" || op.type === "setCanvasZoom"
+        }
+      );
+      updateActiveTab((tab) => ({ ...tab, migrationNotice: null }));
+      if (isAudiblePatchOp(op)) {
+        schedulePatchPreview(selectedPatch.id, undefined, activePreviewMacroValues);
+      }
+    },
+    [
+      activePreviewMacroValues,
+      commitProjectChange,
+      schedulePatchPreview,
+      selectedPatch,
+      setRuntimeError,
+      updateActiveTab
+    ]
+  );
 
   const macroActions = usePatchWorkspaceMacroActions({
     activeTab,
@@ -410,9 +434,11 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     previewCaptureByProbeId,
     previewProgress,
     selectedNodeId,
-    setSelectedNodeId: (nodeId?: string) => updateActiveTab((tab) => ({ ...tab, selectedNodeId: nodeId, selectedProbeId: undefined })),
+    setSelectedNodeId: (nodeId?: string) =>
+      updateActiveTab((tab) => ({ ...tab, selectedNodeId: nodeId, selectedProbeId: undefined })),
     selectedMacroId,
-    setSelectedMacroId: (macroId?: string) => updateActiveTab((tab) => ({ ...tab, selectedMacroId: macroId, selectedProbeId: undefined })),
+    setSelectedMacroId: (macroId?: string) =>
+      updateActiveTab((tab) => ({ ...tab, selectedMacroId: macroId, selectedProbeId: undefined })),
     previewPitch,
     setPreviewPitch,
     previewPitchPickerOpen,

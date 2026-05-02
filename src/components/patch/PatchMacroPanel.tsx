@@ -2,10 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
-import {
-  getMacroKeyframePositions,
-  snapNormalizedToMacroKeyframe
-} from "@/lib/patch/macroKeyframes";
+import { getMacroKeyframePositions, snapNormalizedToMacroKeyframe } from "@/lib/patch/macroKeyframes";
 import { resolveDiffHighlightClass } from "@/components/patch/patchDiffPresentation";
 import { PatchDiff } from "@/lib/patch/diff";
 import { Patch, PatchValidationIssue } from "@/types/patch";
@@ -211,7 +208,10 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
                     onChange={(event) => {
                       pendingCommitMacroIdRef.current = macro.id;
                       props.onSelectMacro(macro.id);
-                      props.onChangeMacroValue(macro.id, snapNormalizedToMacroKeyframe(macro.keyframeCount, Number(event.target.value)));
+                      props.onChangeMacroValue(
+                        macro.id,
+                        snapNormalizedToMacroKeyframe(macro.keyframeCount, Number(event.target.value))
+                      );
                     }}
                     onPointerUp={(event) =>
                       commitMacroValueIfPending(
@@ -226,7 +226,18 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
                       )
                     }
                     onKeyUp={(event) => {
-                      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(event.key)) {
+                      if (
+                        [
+                          "ArrowLeft",
+                          "ArrowRight",
+                          "ArrowUp",
+                          "ArrowDown",
+                          "Home",
+                          "End",
+                          "PageUp",
+                          "PageDown"
+                        ].includes(event.key)
+                      ) {
                         commitMacroValueIfPending(
                           macro.id,
                           snapNormalizedToMacroKeyframe(macro.keyframeCount, Number(event.currentTarget.value))
@@ -257,7 +268,11 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
                   </button>
 
                   {keyframeMenuMacroId === macro.id && (
-                    <div className="patch-macro-keyframe-popover" role="menu" aria-label={`Keyframes for ${macro.name}`}>
+                    <div
+                      className="patch-macro-keyframe-popover"
+                      role="menu"
+                      aria-label={`Keyframes for ${macro.name}`}
+                    >
                       {[2, 3].map((count) => (
                         <button
                           key={count}

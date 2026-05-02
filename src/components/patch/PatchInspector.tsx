@@ -1,6 +1,4 @@
-import {
-  resolveMacroKeyframeIndexAtValue
-} from "@/lib/patch/macroKeyframes";
+import { resolveMacroKeyframeIndexAtValue } from "@/lib/patch/macroKeyframes";
 import { PatchDiff } from "@/lib/patch/diff";
 import { PatchModuleParameter, shouldRenderParamInGenericInspector } from "@/components/patch/PatchModuleParameter";
 import { SamplePlayerInspectorSection } from "@/components/patch/SamplePlayerInspectorSection";
@@ -39,7 +37,10 @@ function requiredPortIssueLabel(patch: Patch, issue: PatchValidationIssue, selec
 }
 
 function CompressorDerivedReadouts({ node }: { node: PatchNode }) {
-  const derived = compressorDerivedParamsForSquash(Number(node.params.squash ?? 0.5), Number(node.params.attackMs ?? 20));
+  const derived = compressorDerivedParamsForSquash(
+    Number(node.params.squash ?? 0.5),
+    Number(node.params.attackMs ?? 20)
+  );
   return (
     <div className="param-row compressor-derived-readouts">
       <div className="param-row-header">
@@ -110,13 +111,15 @@ function resolveBrokenMacroBindingIssues(issues: PatchValidationIssue[], macroId
 export function PatchInspector(props: PatchInspectorProps) {
   const selectedNode = props.selectedNode;
   const selectedProbe = props.selectedProbe;
-  const selectedPort = selectedNode && isPatchOutputPortId(props.patch, selectedNode.id) ? (selectedNode as PatchPort) : null;
+  const selectedPort =
+    selectedNode && isPatchOutputPortId(props.patch, selectedNode.id) ? (selectedNode as PatchPort) : null;
   const selectedSubjectKind = selectedPort ? "port" : selectedNode ? "module" : null;
   const selectedMacro = props.selectedMacroId
     ? props.patch.ui.macros.find((macro) => macro.id === props.selectedMacroId)
     : undefined;
-  const selectedMacroValue =
-    selectedMacro ? (props.macroValues[selectedMacro.id] ?? selectedMacro.defaultNormalized ?? 0.5) : undefined;
+  const selectedMacroValue = selectedMacro
+    ? (props.macroValues[selectedMacro.id] ?? selectedMacro.defaultNormalized ?? 0.5)
+    : undefined;
   const selectedMacroKeyframeIndex =
     selectedMacro && typeof selectedMacroValue === "number"
       ? resolveMacroKeyframeIndexAtValue(selectedMacro.keyframeCount, selectedMacroValue)
@@ -130,9 +133,13 @@ export function PatchInspector(props: PatchInspectorProps) {
   const visibleRemovedConnections = props.patchDiff.removedConnections.filter((connection) =>
     selectedNode ? connection.from.nodeId === selectedNode.id || connection.to.nodeId === selectedNode.id : true
   );
-  const visibleValidationIssues = selectedNode ? resolveIssuesForNode(selectedNode.id, props.validationIssues) : props.validationIssues;
+  const visibleValidationIssues = selectedNode
+    ? resolveIssuesForNode(selectedNode.id, props.validationIssues)
+    : props.validationIssues;
   const visibleRequiredPortIssues = resolveRequiredPortIssues(visibleValidationIssues);
-  const visibleGeneralValidationIssues = visibleValidationIssues.filter((issue) => issue.code !== "required-port-unconnected");
+  const visibleGeneralValidationIssues = visibleValidationIssues.filter(
+    (issue) => issue.code !== "required-port-unconnected"
+  );
   const visibleValidationHasErrors = visibleValidationIssues.some((issue) => issue.level === "error");
   const selectedMacroBindingIssues = resolveBrokenMacroBindingIssues(props.validationIssues, selectedMacro?.id);
   return (
@@ -142,7 +149,15 @@ export function PatchInspector(props: PatchInspectorProps) {
 
       {selectedNode && props.selectedSchema && (
         <>
-          <h4>{selectedPort ? formatPatchPortLabel(props.patch, selectedPort) : <>{selectedNode.typeId} <small>{selectedNode.id}</small></>}</h4>
+          <h4>
+            {selectedPort ? (
+              formatPatchPortLabel(props.patch, selectedPort)
+            ) : (
+              <>
+                {selectedNode.typeId} <small>{selectedNode.id}</small>
+              </>
+            )}
+          </h4>
           {props.selectedSchema.params
             .filter((param) => shouldRenderParamInGenericInspector(selectedNode, param))
             .map((param) => (
@@ -218,13 +233,41 @@ export function PatchInspector(props: PatchInspectorProps) {
           ) : (
             <>
               <div className="patch-diff-summary-grid">
-                {props.patchDiff.summary.addedNodeCount > 0 && <span className="patch-diff-summary-pill positive">+{props.patchDiff.summary.addedNodeCount} modules</span>}
-                {props.patchDiff.summary.modifiedNodeCount > 0 && <span className="patch-diff-summary-pill positive">{props.patchDiff.summary.modifiedNodeCount} changed modules</span>}
-                {props.patchDiff.summary.removedNodeCount > 0 && <span className="patch-diff-summary-pill negative">-{props.patchDiff.summary.removedNodeCount} modules</span>}
-                {props.patchDiff.summary.addedMacroCount > 0 && <span className="patch-diff-summary-pill positive">+{props.patchDiff.summary.addedMacroCount} macros</span>}
-                {props.patchDiff.summary.removedMacroCount > 0 && <span className="patch-diff-summary-pill negative">-{props.patchDiff.summary.removedMacroCount} macros</span>}
-                {props.patchDiff.summary.addedConnectionCount > 0 && <span className="patch-diff-summary-pill positive">+{props.patchDiff.summary.addedConnectionCount} wires</span>}
-                {props.patchDiff.summary.removedConnectionCount > 0 && <span className="patch-diff-summary-pill negative">-{props.patchDiff.summary.removedConnectionCount} wires</span>}
+                {props.patchDiff.summary.addedNodeCount > 0 && (
+                  <span className="patch-diff-summary-pill positive">
+                    +{props.patchDiff.summary.addedNodeCount} modules
+                  </span>
+                )}
+                {props.patchDiff.summary.modifiedNodeCount > 0 && (
+                  <span className="patch-diff-summary-pill positive">
+                    {props.patchDiff.summary.modifiedNodeCount} changed modules
+                  </span>
+                )}
+                {props.patchDiff.summary.removedNodeCount > 0 && (
+                  <span className="patch-diff-summary-pill negative">
+                    -{props.patchDiff.summary.removedNodeCount} modules
+                  </span>
+                )}
+                {props.patchDiff.summary.addedMacroCount > 0 && (
+                  <span className="patch-diff-summary-pill positive">
+                    +{props.patchDiff.summary.addedMacroCount} macros
+                  </span>
+                )}
+                {props.patchDiff.summary.removedMacroCount > 0 && (
+                  <span className="patch-diff-summary-pill negative">
+                    -{props.patchDiff.summary.removedMacroCount} macros
+                  </span>
+                )}
+                {props.patchDiff.summary.addedConnectionCount > 0 && (
+                  <span className="patch-diff-summary-pill positive">
+                    +{props.patchDiff.summary.addedConnectionCount} wires
+                  </span>
+                )}
+                {props.patchDiff.summary.removedConnectionCount > 0 && (
+                  <span className="patch-diff-summary-pill negative">
+                    -{props.patchDiff.summary.removedConnectionCount} wires
+                  </span>
+                )}
               </div>
 
               {props.patchDiff.removedNodes.length > 0 && (
@@ -284,7 +327,9 @@ export function PatchInspector(props: PatchInspectorProps) {
         </>
       )}
 
-      <h4>{selectedPort ? "Required Connections" : selectedNode ? "Required Connections" : "Unconnected Required Ports"}</h4>
+      <h4>
+        {selectedPort ? "Required Connections" : selectedNode ? "Required Connections" : "Unconnected Required Ports"}
+      </h4>
       {visibleRequiredPortIssues.length === 0 && (
         <p className="ok">
           {selectedPort
@@ -314,10 +359,15 @@ export function PatchInspector(props: PatchInspectorProps) {
           key={connection.id}
           className={`conn-row${props.patchDiff.currentConnectionStatusById.get(connection.id) === "added" ? " diff-positive" : ""}`}
         >
-          <code>
-            {connectionLabel(props.patch, connection)}
-          </code>
-          <button disabled={props.structureLocked} onClick={() => !props.structureLocked && props.onApplyOp({ type: "disconnect", connectionId: connection.id })}>x</button>
+          <code>{connectionLabel(props.patch, connection)}</code>
+          <button
+            disabled={props.structureLocked}
+            onClick={() =>
+              !props.structureLocked && props.onApplyOp({ type: "disconnect", connectionId: connection.id })
+            }
+          >
+            x
+          </button>
         </div>
       ))}
       {visibleRemovedConnections.map((connection) => (

@@ -117,7 +117,6 @@ It owns:
 - canvas cursor state
 - rendering the probe overlay on top of the canvas
 
-
 ### `PatchProbeOverlay`
 
 Owns probe rendering in both collapsed and expanded in-place treatments:
@@ -127,7 +126,6 @@ Owns probe rendering in both collapsed and expanded in-place treatments:
 - scope rendering
 - spectrum rendering
 - probe card gestures for click-to-expand and drag initiation
-
 
 ### `PatchInspector`
 

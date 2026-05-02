@@ -49,7 +49,10 @@ export function vcfMagnitudeAtFrequency(type: string, cutoff: number, resonance:
   const determinant = subComplex(mulComplex(a11, a22), mulComplex(a12, a21));
   const bp = divComplex(subComplex(mulComplex(fValue, a22), mulComplex(a12, zero)), determinant);
   const lp = divComplex(subComplex(mulComplex(a11, zero), mulComplex(fValue, a21)), determinant);
-  const hp = subComplex(subComplex(one, mulComplex(zInv, lp)), mulComplex({ re: damping, im: 0 }, mulComplex(zInv, bp)));
+  const hp = subComplex(
+    subComplex(one, mulComplex(zInv, lp)),
+    mulComplex({ re: damping, im: 0 }, mulComplex(zInv, bp))
+  );
   const response = type === "highpass" ? hp : type === "bandpass" ? bp : lp;
   return Math.hypot(response.re, response.im);
 }
@@ -98,7 +101,9 @@ export const drawVcfModuleFace: ModuleFaceRenderer = (ctx, patch, node, schema, 
   setFaceLineWidth(ctx, 1);
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
 
-  const cutoffCvConnected = patch.connections.some((connection) => connection.to.nodeId === node.id && connection.to.portId === "cutoffCV");
+  const cutoffCvConnected = patch.connections.some(
+    (connection) => connection.to.nodeId === node.id && connection.to.portId === "cutoffCV"
+  );
   if (cutoffCvConnected && cutoffModAmountOct > 0.001) {
     const modLow = clamp(cutoffClamped * 2 ** -cutoffModAmountOct, min, max);
     const modHigh = clamp(cutoffClamped * 2 ** cutoffModAmountOct, min, max);
@@ -161,7 +166,11 @@ export const drawVcfModuleFace: ModuleFaceRenderer = (ctx, patch, node, schema, 
     ctx.arc(peakPoint.x, peakY, 2.5, 0, Math.PI * 2);
     ctx.stroke();
     ctx.textAlign = peakPoint.x > graph.x + graph.width * 0.76 ? "right" : "left";
-    ctx.fillText("pk", peakPoint.x + (ctx.textAlign === "right" ? -5 : 5), clamp(peakY - 3, graph.y + 7, graph.y + graph.height - 2));
+    ctx.fillText(
+      "pk",
+      peakPoint.x + (ctx.textAlign === "right" ? -5 : 5),
+      clamp(peakY - 3, graph.y + 7, graph.y + graph.height - 2)
+    );
   }
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
   ctx.fillRect(cutoffX - 1, graph.y + 4, 2, graph.height - 8);
@@ -174,7 +183,8 @@ export const drawVcfModuleFace: ModuleFaceRenderer = (ctx, patch, node, schema, 
   ctx.fillText(formatFrequencyFaceLabel(graphMin), graph.x, graph.y + graph.height + 10);
   ctx.textAlign = "right";
   ctx.fillText(formatFrequencyFaceLabel(graphMax), graph.x + graph.width, graph.y + graph.height + 10);
-  ctx.textAlign = cutoffX > graph.x + graph.width * 0.72 ? "right" : cutoffX < graph.x + graph.width * 0.28 ? "left" : "center";
+  ctx.textAlign =
+    cutoffX > graph.x + graph.width * 0.72 ? "right" : cutoffX < graph.x + graph.width * 0.28 ? "left" : "center";
   const cutoffLabel = formatFrequencyFaceLabel(cutoffClamped);
   const cutoffLabelX = clamp(cutoffX, graph.x + 10, graph.x + graph.width - 10);
   ctx.fillText(cutoffLabel, cutoffLabelX, graph.y - 3);

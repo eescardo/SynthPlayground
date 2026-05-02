@@ -17,16 +17,17 @@ export const KEYBOARD_NOTE_PREVIEW_MAX_PITCH = "C7";
 const noteContainsBeat = (note: Note, beat: number) =>
   note.startBeat <= beat + NOTE_AT_BEAT_EPSILON && note.startBeat + note.durationBeats > beat + NOTE_AT_BEAT_EPSILON;
 
-const notesOverlap = (left: Pick<Note, "id" | "startBeat" | "durationBeats">, right: Pick<Note, "id" | "startBeat" | "durationBeats">) => {
+const notesOverlap = (
+  left: Pick<Note, "id" | "startBeat" | "durationBeats">,
+  right: Pick<Note, "id" | "startBeat" | "durationBeats">
+) => {
   const leftEndBeat = left.startBeat + left.durationBeats;
   const rightEndBeat = right.startBeat + right.durationBeats;
   return left.startBeat < rightEndBeat - NOTE_AT_BEAT_EPSILON && leftEndBeat > right.startBeat + NOTE_AT_BEAT_EPSILON;
 };
 
 export const trackHasNoteAtBeat = (track: Track | undefined, beat: number): boolean =>
-  Boolean(
-    track?.notes.some((note) => noteContainsBeat(note, beat))
-  );
+  Boolean(track?.notes.some((note) => noteContainsBeat(note, beat)));
 
 export const findTrackNoteAtBeat = (track: Track | undefined, beat: number): Note | null =>
   track?.notes.find((note) => noteContainsBeat(note, beat)) ?? null;
@@ -45,9 +46,7 @@ export const findTrackBackspaceTargetNote = (track: Track | undefined, beat: num
   return findTrackNoteAtBeat(track, beat);
 };
 
-type SelectionShiftBlock =
-  | { reason: "boundary" }
-  | { reason: "note"; blockingSelectionKey: string };
+type SelectionShiftBlock = { reason: "boundary" } | { reason: "note"; blockingSelectionKey: string };
 
 export type ShiftContentSelectionResult =
   | {
@@ -59,7 +58,10 @@ export type ShiftContentSelectionResult =
       block: SelectionShiftBlock;
     };
 
-const shiftAutomationKeyframe = (keyframe: TrackMacroAutomationKeyframe, deltaBeats: number): TrackMacroAutomationKeyframe => ({
+const shiftAutomationKeyframe = (
+  keyframe: TrackMacroAutomationKeyframe,
+  deltaBeats: number
+): TrackMacroAutomationKeyframe => ({
   ...keyframe,
   beat: keyframe.beat + deltaBeats
 });
@@ -69,10 +71,7 @@ export const shiftContentSelectionByBeats = (
   selection: ContentSelection,
   deltaBeats: number
 ): ShiftContentSelectionResult => {
-  if (
-    deltaBeats === 0 ||
-    (selection.noteKeys.length === 0 && selection.automationKeyframeSelectionKeys.length === 0)
-  ) {
+  if (deltaBeats === 0 || (selection.noteKeys.length === 0 && selection.automationKeyframeSelectionKeys.length === 0)) {
     return {
       status: "moved",
       project
@@ -164,9 +163,7 @@ export const shiftContentSelectionByBeats = (
         const nextNotes = selectedNoteIds
           ? sortNotes(
               track.notes.map((note) =>
-                selectedNoteIds.has(note.id)
-                  ? { ...note, startBeat: note.startBeat + deltaBeats }
-                  : note
+                selectedNoteIds.has(note.id) ? { ...note, startBeat: note.startBeat + deltaBeats } : note
               )
             )
           : track.notes;
@@ -184,9 +181,7 @@ export const shiftContentSelectionByBeats = (
                     ...lane,
                     keyframes: sortAutomationKeyframes(
                       lane.keyframes.map((keyframe) =>
-                        selectedKeyframeIds.has(keyframe.id)
-                          ? shiftAutomationKeyframe(keyframe, deltaBeats)
-                          : keyframe
+                        selectedKeyframeIds.has(keyframe.id) ? shiftAutomationKeyframe(keyframe, deltaBeats) : keyframe
                       )
                     )
                   }
@@ -209,7 +204,10 @@ export const shiftContentSelectionByBeats = (
   };
 };
 
-export const upsertKeyboardPlacedNote = (track: Track, note: Pick<Note, "id" | "pitchStr" | "startBeat" | "durationBeats">): Track => {
+export const upsertKeyboardPlacedNote = (
+  track: Track,
+  note: Pick<Note, "id" | "pitchStr" | "startBeat" | "durationBeats">
+): Track => {
   const overwrittenNotes = eraseNotesInBeatRange(
     track.notes,
     note.startBeat,

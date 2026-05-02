@@ -93,9 +93,7 @@ const createProject = (): Project => ({
       id: "track_2",
       name: "Track 2",
       instrumentPatchId: "patch_1",
-      notes: [
-        { id: "note_c", pitchStr: "G4", startBeat: 2, durationBeats: 2, velocity: 0.9 }
-      ],
+      notes: [{ id: "note_c", pitchStr: "G4", startBeat: 2, durationBeats: 2, velocity: 0.9 }],
       macroValues: { macro_cutoff: 0.4 },
       macroAutomations: {
         macro_cutoff: {
@@ -310,10 +308,12 @@ describe("noteClipboard", () => {
   it("resolves the source track as the first selected track in song order", () => {
     const project = createProject();
 
-    expect(getSelectionSourceTrackId(project, [
-      getNoteSelectionKey("track_3", "note_d"),
-      getNoteSelectionKey("track_2", "note_c")
-    ])).toBe("track_2");
+    expect(
+      getSelectionSourceTrackId(project, [
+        getNoteSelectionKey("track_3", "note_d"),
+        getNoteSelectionKey("track_2", "note_c")
+      ])
+    ).toBe("track_2");
   });
 
   it("cuts the selected span across all tracks and closes the gap", () => {
@@ -356,18 +356,24 @@ describe("noteClipboard", () => {
 
   it("erases automation in-place for selected note tracks without closing the timeline gap", () => {
     const project = createProject();
-    const next = eraseAutomationInRangeForTracks(project, {
-      startBeat: 1,
-      endBeat: 4,
-      beatSpan: 3
-    }, ["track_1"]);
+    const next = eraseAutomationInRangeForTracks(
+      project,
+      {
+        startBeat: 1,
+        endBeat: 4,
+        beatSpan: 3
+      },
+      ["track_1"]
+    );
 
     expect(next.tracks[0]!.macroAutomations.macro_cutoff.keyframes).toEqual([
       expect.objectContaining({ beat: 1, type: "whole", value: 0.35 }),
       expect.objectContaining({ beat: 4, type: "whole", value: 0.7 }),
       expect.objectContaining({ beat: 5, type: "whole", value: 0.8 })
     ]);
-    expect(next.tracks[1]!.macroAutomations.macro_cutoff.keyframes).toEqual(project.tracks[1]!.macroAutomations.macro_cutoff.keyframes);
+    expect(next.tracks[1]!.macroAutomations.macro_cutoff.keyframes).toEqual(
+      project.tracks[1]!.macroAutomations.macro_cutoff.keyframes
+    );
   });
 
   it("inserts clipboard contents by shifting later notes to the right", () => {

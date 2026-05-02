@@ -1,6 +1,11 @@
 import { resolveHostPatchPortLabel } from "@/components/patch/patchCanvasGeometry";
 import { HOST_PORT_IDS } from "@/lib/patch/constants";
-import { getPatchOutputInputPortId, getPatchOutputPort, isHostPatchPortId, isPatchOutputPortId } from "@/lib/patch/ports";
+import {
+  getPatchOutputInputPortId,
+  getPatchOutputPort,
+  isHostPatchPortId,
+  isPatchOutputPortId
+} from "@/lib/patch/ports";
 import { Patch, PatchPort } from "@/types/patch";
 
 export function formatPatchPortLabel(_patch: Patch, port: PatchPort) {

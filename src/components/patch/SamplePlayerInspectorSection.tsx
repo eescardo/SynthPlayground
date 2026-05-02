@@ -34,10 +34,7 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
   const { assets, upsertSamplePlayerAssetData } = usePatchWorkspaceSampleAssets();
   const sampleAssetId = typeof props.node.params.sampleAssetId === "string" ? props.node.params.sampleAssetId : "";
   const rawSampleData = sampleAssetId ? assets.samplePlayerById[sampleAssetId] : undefined;
-  const sampleAsset = useMemo(
-    () => parseSamplePlayerData(rawSampleData),
-    [rawSampleData]
-  );
+  const sampleAsset = useMemo(() => parseSamplePlayerData(rawSampleData), [rawSampleData]);
   const sampleAssetMissing = Boolean(sampleAssetId) && !sampleAsset;
   const [sourceUrl, setSourceUrl] = useState(sampleAsset?.sourceUrl ?? "");
   const [status, setStatus] = useState<SamplePlayerStatus>(null);
@@ -128,7 +125,10 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
 
   const previewSample = async () => {
     if (sampleAssetMissing) {
-      setStatus({ tone: "error", message: `Sample asset not found for id ${sampleAssetId}. Re-import it to restore playback.` });
+      setStatus({
+        tone: "error",
+        message: `Sample asset not found for id ${sampleAssetId}. Re-import it to restore playback.`
+      });
       return;
     }
     if (!sampleAsset || !trim) {
@@ -164,7 +164,7 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
               ? `${sampleAsset.name} · ${formatSampleDuration(sampleAsset.samples.length / sampleAsset.sampleRate)} · ${sampleAsset.sampleRate.toLocaleString()} Hz mono`
               : sampleAssetMissing
                 ? `Missing sample asset: ${sampleAssetId}`
-              : "Load from a URL or import a local file. The decoded sample is stored inside this patch."}
+                : "Load from a URL or import a local file. The decoded sample is stored inside this patch."}
           </div>
         </div>
         <button type="button" disabled={props.structureLocked || loading} onClick={importUrl}>
@@ -174,7 +174,11 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
       <div className="param-row">
         <span>Local File</span>
         <div className="param-control-stack">
-          <button type="button" disabled={props.structureLocked || loading} onClick={() => fileInputRef.current?.click()}>
+          <button
+            type="button"
+            disabled={props.structureLocked || loading}
+            onClick={() => fileInputRef.current?.click()}
+          >
             Import Audio File
           </button>
           <input
@@ -244,9 +248,9 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
                 ? "Detected dominant pitches in the trimmed region. Click one to treat the sample as that root note."
                 : sampleAssetMissing
                   ? "This patch references a missing sample asset. Re-import a file or URL to restore it."
-                : sampleAsset
-                  ? "Pitch detection works best on a monophonic trimmed phrase with audible note gaps."
-                  : "Load a sample to analyze trimmed pitches."}
+                  : sampleAsset
+                    ? "Pitch detection works best on a monophonic trimmed phrase with audible note gaps."
+                    : "Load a sample to analyze trimmed pitches."}
             </div>
             {dominantPitches.length > 0 && (
               <div className="sample-player-pitch-chip-list">
@@ -269,7 +273,9 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
                     >
                       <strong>{pitch.pitchStr}</strong>
                       <span>{pitch.totalDurationSeconds.toFixed(2)}s</span>
-                      <span>{pitch.noteCount} note{pitch.noteCount === 1 ? "" : "s"}</span>
+                      <span>
+                        {pitch.noteCount} note{pitch.noteCount === 1 ? "" : "s"}
+                      </span>
                     </button>
                   );
                 })}
@@ -364,7 +370,11 @@ function SampleTrimControls(props: {
             onPointerUp={(event) => commitStart(Number(event.currentTarget.value))}
             onBlur={(event) => commitStart(Number(event.currentTarget.value))}
             onKeyUp={(event) => {
-              if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(event.key)) {
+              if (
+                ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(
+                  event.key
+                )
+              ) {
                 commitStart(Number(event.currentTarget.value));
               }
             }}
@@ -386,7 +396,11 @@ function SampleTrimControls(props: {
             onPointerUp={(event) => commitEnd(Number(event.currentTarget.value))}
             onBlur={(event) => commitEnd(Number(event.currentTarget.value))}
             onKeyUp={(event) => {
-              if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(event.key)) {
+              if (
+                ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(
+                  event.key
+                )
+              ) {
                 commitEnd(Number(event.currentTarget.value));
               }
             }}

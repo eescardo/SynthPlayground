@@ -10,8 +10,7 @@ export function usePitchPickerHotkeys(enabled: boolean, onSelectPitch: (pitch: s
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const editingText =
-        target &&
-        (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA");
+        target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA");
       if (editingText) {
         return;
       }

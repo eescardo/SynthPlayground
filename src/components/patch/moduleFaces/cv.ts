@@ -81,7 +81,15 @@ export const drawCvTransposeModuleFace: ModuleFaceRenderer = (ctx, _patch, node,
   const semitones = getNumericParam(node, schema, "semitones");
   const cents = getNumericParam(node, schema, "cents");
   const transposeOctaves = octaves + semitones / 12 + cents / 1200;
-  drawCvAxisModuleFace(ctx, transposeOctaves, { min: -4, max: 4 }, `${formatSignedValue(transposeOctaves)} oct`, x, y, accentColor);
+  drawCvAxisModuleFace(
+    ctx,
+    transposeOctaves,
+    { min: -4, max: 4 },
+    `${formatSignedValue(transposeOctaves)} oct`,
+    x,
+    y,
+    accentColor
+  );
 };
 
 export const drawCvScalerModuleFace: ModuleFaceRenderer = (ctx, _patch, node, schema, x, y, accentColor) => {

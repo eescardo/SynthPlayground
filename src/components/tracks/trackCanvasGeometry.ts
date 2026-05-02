@@ -96,7 +96,12 @@ export const getCursorForPosition = ({
     hasPlayheadHit,
     noteRect
   });
-  if (hoverTarget === "mute" || hoverTarget === "pitch" || hoverTarget === "loop-marker" || hoverTarget === "playhead") {
+  if (
+    hoverTarget === "mute" ||
+    hoverTarget === "pitch" ||
+    hoverTarget === "loop-marker" ||
+    hoverTarget === "playhead"
+  ) {
     return "pointer";
   }
   if (hoverTarget !== "note" || !noteRect) {

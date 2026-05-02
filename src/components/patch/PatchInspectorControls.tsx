@@ -93,7 +93,9 @@ export function MacroBindingDetails(props: {
         macro.bindings
           .filter((binding) => binding.nodeId === props.nodeId && binding.paramId === props.paramId)
           .map((binding) => {
-            const bindingDiff = props.currentBindingDiffByKey.get(createPatchMacroBindingKey(props.patch, macro.id, binding));
+            const bindingDiff = props.currentBindingDiffByKey.get(
+              createPatchMacroBindingKey(props.patch, macro.id, binding)
+            );
             const diffHighlightClass = resolveDiffHighlightClass(bindingDiff?.status);
             return (
               <div
@@ -102,7 +104,11 @@ export function MacroBindingDetails(props: {
               >
                 <div className="macro-binding-detail-mode">
                   {formatBindingSummary(binding)}
-                  {bindingDiff && <span className="patch-diff-inline-badge">{bindingDiff.status === "added" ? "New" : "Changed"}</span>}
+                  {bindingDiff && (
+                    <span className="patch-diff-inline-badge">
+                      {bindingDiff.status === "added" ? "New" : "Changed"}
+                    </span>
+                  )}
                 </div>
               </div>
             );
@@ -113,7 +119,9 @@ export function MacroBindingDetails(props: {
           <div className="macro-binding-detail-mode">
             Removed <span className="patch-diff-inline-badge negative">{bindingDiff.macroName}</span>
           </div>
-          {bindingDiff.baselineBinding && <div className="macro-binding-range">{formatBindingSummary(bindingDiff.baselineBinding)}</div>}
+          {bindingDiff.baselineBinding && (
+            <div className="macro-binding-range">{formatBindingSummary(bindingDiff.baselineBinding)}</div>
+          )}
         </div>
       ))}
     </div>
@@ -150,7 +158,8 @@ export function ParamMacroControl(props: {
   });
 
   if (props.bindingMacro) {
-    const canChooseBindingMap = props.bindingMap === "linear" || props.bindingMap === "exp" || props.bindingMap === "piecewise";
+    const canChooseBindingMap =
+      props.bindingMap === "linear" || props.bindingMap === "exp" || props.bindingMap === "piecewise";
     const selectedBindingMap = props.bindingMap === "exp" ? "exp" : "linear";
     return (
       <span className="param-macro-bound-shell" ref={boundPopoverRef}>
@@ -178,7 +187,11 @@ export function ParamMacroControl(props: {
               {selectedBindingMap === "exp" ? "EXP" : "LIN"}
             </button>
             {mapOpen && (
-              <div className="patch-macro-keyframe-popover param-macro-map-popover" role="menu" aria-label="Macro binding interpolation">
+              <div
+                className="patch-macro-keyframe-popover param-macro-map-popover"
+                role="menu"
+                aria-label="Macro binding interpolation"
+              >
                 {(["linear", "exp"] as const).map((map) => (
                   <button
                     key={map}
@@ -198,7 +211,13 @@ export function ParamMacroControl(props: {
             )}
           </span>
         )}
-        <button type="button" className="patch-macro-panel-remove param-macro-unbind-button" disabled={props.disabled} aria-label={`Remove ${props.bindingMacro.name} macro binding`} onClick={props.onUnbind}>
+        <button
+          type="button"
+          className="patch-macro-panel-remove param-macro-unbind-button"
+          disabled={props.disabled}
+          aria-label={`Remove ${props.bindingMacro.name} macro binding`}
+          onClick={props.onUnbind}
+        >
           X
         </button>
       </span>
@@ -207,7 +226,12 @@ export function ParamMacroControl(props: {
 
   return (
     <span className="param-macro-control" ref={unboundPopoverRef}>
-      <button type="button" className="param-macro-button" disabled={props.disabled} onClick={() => setOpen((current) => !current)}>
+      <button
+        type="button"
+        className="param-macro-button"
+        disabled={props.disabled}
+        onClick={() => setOpen((current) => !current)}
+      >
         Macro...
       </button>
       {open && (

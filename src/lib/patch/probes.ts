@@ -58,7 +58,11 @@ export const resolveProbeCaptureWindow = (
   progress: number,
   requestedWindowSize: number
 ) => {
-  const safeCapturedSamples = clamp(capturedSamples || samples.length, 0, Math.min(samples.length, durationSamples || samples.length));
+  const safeCapturedSamples = clamp(
+    capturedSamples || samples.length,
+    0,
+    Math.min(samples.length, durationSamples || samples.length)
+  );
   if (safeCapturedSamples <= 0) {
     return [];
   }
@@ -108,7 +112,7 @@ export const buildSpectrumBins = (
       energy += Math.sqrt(real * real + imag * imag) / frameSize;
       count += 1;
     }
-    magnitudes[bin] = count > 0 ? Math.min(1, energy / count * 8) : 0;
+    magnitudes[bin] = count > 0 ? Math.min(1, (energy / count) * 8) : 0;
   }
   return magnitudes;
 };
@@ -130,10 +134,7 @@ export const buildProbeSpectrogram = (
     return grid;
   }
 
-  const frameSize = Math.max(
-    SPECTROGRAM_MIN_FRAME_SIZE,
-    Math.min(windowSize, safeCapturedSamples, 384)
-  );
+  const frameSize = Math.max(SPECTROGRAM_MIN_FRAME_SIZE, Math.min(windowSize, safeCapturedSamples, 384));
   const nyquistHz = Math.max(1, sampleRate / 2);
   const clampedMaxFrequencyHz = Math.min(clampProbeMaxFrequencyHz(maxFrequencyHz), nyquistHz);
   const maxBin = Math.max(2, Math.floor((clampedMaxFrequencyHz / sampleRate) * frameSize));
@@ -155,7 +156,14 @@ export const buildProbeSpectrogram = (
     const frameStart = clamp(centerSample - Math.floor(frameSize / 2), 0, safeCapturedSamples - frameSize);
     const peak = resolveProbeFramePeak(samples, frameStart, frameSize);
     for (let freqIndex = 0; freqIndex < freqBinCount; freqIndex += 1) {
-      const magnitude = measureGoertzelMagnitude(samples, frameStart, frameSize, bandCenters[freqIndex], peak, hannWindow);
+      const magnitude = measureGoertzelMagnitude(
+        samples,
+        frameStart,
+        frameSize,
+        bandCenters[freqIndex],
+        peak,
+        hannWindow
+      );
       grid[freqIndex][timeIndex] = magnitude;
       peakMagnitude = Math.max(peakMagnitude, magnitude);
     }

@@ -62,7 +62,9 @@ export function ComposerActionsBar({
   return (
     <section className="composer-actions-bar">
       <div className="composer-actions-bar-group">
-        <button disabled={recordingDisabled} onClick={onAddTrack}>Add Track</button>
+        <button disabled={recordingDisabled} onClick={onAddTrack}>
+          Add Track
+        </button>
         <button disabled={recordingDisabled || !canRemoveTrack} onClick={onRemoveTrack}>
           Remove Track
         </button>

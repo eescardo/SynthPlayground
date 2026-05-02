@@ -36,9 +36,7 @@ export interface SplitTrackMacroAutomationKeyframe {
   outgoingValue: number;
 }
 
-export type TrackMacroAutomationKeyframe =
-  | WholeTrackMacroAutomationKeyframe
-  | SplitTrackMacroAutomationKeyframe;
+export type TrackMacroAutomationKeyframe = WholeTrackMacroAutomationKeyframe | SplitTrackMacroAutomationKeyframe;
 
 export interface TrackMacroAutomationLane {
   macroId: string;

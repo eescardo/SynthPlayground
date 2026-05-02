@@ -74,9 +74,7 @@ export function TrackCanvasTabStops({
           onFocus={onSelectedContentFocus}
           onBlur={onSelectedContentBlur}
         >
-          <span className="track-canvas-tabstop-label">
-            {selectedContentRect.ariaLabel}
-          </span>
+          <span className="track-canvas-tabstop-label">{selectedContentRect.ariaLabel}</span>
         </button>
       )}
     </>

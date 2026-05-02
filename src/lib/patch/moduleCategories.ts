@@ -20,7 +20,10 @@ export const PATCH_MODULE_CATEGORY_COLORS: Record<PatchModuleCategory, string> =
   host: "#6f7882"
 };
 
-export const PATCH_MODULE_CATEGORY_MUTED_COLORS: Record<PatchModuleCategory, { fill: string; stroke: string; accent: string }> = {
+export const PATCH_MODULE_CATEGORY_MUTED_COLORS: Record<
+  PatchModuleCategory,
+  { fill: string; stroke: string; accent: string }
+> = {
   source: {
     fill: "#17354a",
     stroke: "#3f7290",
@@ -58,7 +61,9 @@ export const PATCH_MODULE_CATEGORY_MUTED_COLORS: Record<PatchModuleCategory, { f
   }
 };
 
-export const resolvePatchModuleCategory = (categories: PatchModuleCategory[] | undefined): PatchModuleCategory | null => {
+export const resolvePatchModuleCategory = (
+  categories: PatchModuleCategory[] | undefined
+): PatchModuleCategory | null => {
   if (!categories || categories.length === 0) {
     return null;
   }

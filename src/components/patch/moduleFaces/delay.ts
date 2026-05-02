@@ -92,6 +92,10 @@ export const drawDelayModuleFace: ModuleFaceRenderer = (ctx, _patch, node, schem
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
   ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textAlign = "center";
-  ctx.fillText(`${Math.round(timeMs)}ms`, clamp(dryX + echoGap / 2, graph.x + 18, graph.x + graph.width - 18), graph.y - 3);
+  ctx.fillText(
+    `${Math.round(timeMs)}ms`,
+    clamp(dryX + echoGap / 2, graph.x + 18, graph.x + graph.width - 18),
+    graph.y - 3
+  );
   ctx.textAlign = "left";
 };

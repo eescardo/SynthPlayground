@@ -1,18 +1,20 @@
 import { createWasmRenderer } from "./synth-worklet-wasm-renderer.js";
 
-const BaseAudioWorkletProcessor = globalThis.AudioWorkletProcessor || class {
-  constructor() {
-    this.port = {
-      onmessage: null,
-      postMessage() {}
-    };
-  }
-};
+const BaseAudioWorkletProcessor =
+  globalThis.AudioWorkletProcessor ||
+  class {
+    constructor() {
+      this.port = {
+        onmessage: null,
+        postMessage() {}
+      };
+    }
+  };
 
 let rendererFactory = (config = {}) => createWasmRenderer(config);
 
 export const setRendererFactory = (nextFactory) => {
-  rendererFactory = typeof nextFactory === "function" ? nextFactory : ((config = {}) => createWasmRenderer(config));
+  rendererFactory = typeof nextFactory === "function" ? nextFactory : (config = {}) => createWasmRenderer(config);
 };
 
 export const resetRendererFactory = () => {
@@ -21,7 +23,7 @@ export const resetRendererFactory = () => {
 
 export const createRenderer = (config = {}) => rendererFactory(config);
 
-const formatErrorMessage = (error) => error instanceof Error ? error.message : String(error);
+const formatErrorMessage = (error) => (error instanceof Error ? error.message : String(error));
 
 export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
   constructor(options) {
@@ -110,29 +112,33 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
           break;
         }
         this.stopCurrentStream();
-        this.replaceCurrentStream(this.startStreamSafely("start_stream", {
-          project: this.renderer.project,
-          songStartSample: message.songStartSample || 0,
-          events: message.events || [],
-          sessionId: this.transportSessionId,
-          randomSeed: message.randomSeed,
-          mode: "transport"
-        }));
+        this.replaceCurrentStream(
+          this.startStreamSafely("start_stream", {
+            project: this.renderer.project,
+            songStartSample: message.songStartSample || 0,
+            events: message.events || [],
+            sessionId: this.transportSessionId,
+            randomSeed: message.randomSeed,
+            mode: "transport"
+          })
+        );
         break;
       case "PREVIEW":
         this.stopCurrentStream();
-        this.replaceCurrentStream(this.startStreamSafely("start_stream", {
-          project: message.project || this.renderer.project,
-          songStartSample: 0,
-          events: message.events || [],
-          mode: "preview",
-          durationSamples: message.durationSamples || 0,
-          ignoreVolume: message.ignoreVolume,
-          previewId: message.previewId,
-          trackId: message.trackId,
-          captureProbes: message.captureProbes,
-          randomSeed: message.randomSeed
-        }));
+        this.replaceCurrentStream(
+          this.startStreamSafely("start_stream", {
+            project: message.project || this.renderer.project,
+            songStartSample: 0,
+            events: message.events || [],
+            mode: "preview",
+            durationSamples: message.durationSamples || 0,
+            ignoreVolume: message.ignoreVolume,
+            previewId: message.previewId,
+            trackId: message.trackId,
+            captureProbes: message.captureProbes,
+            randomSeed: message.randomSeed
+          })
+        );
         break;
       case "PREVIEW_RELEASE":
         if (this.currentStream?.previewId !== message.previewId) {

@@ -17,11 +17,7 @@ const DEFAULT_HOVER_DELAY_MS = 900;
 const DEFAULT_LEAVE_DELAY_MS = 140;
 
 export function usePatchSummaryPopover(options: UsePatchSummaryPopoverOptions) {
-  const {
-    selectedTrackId,
-    hoverDelayMs = DEFAULT_HOVER_DELAY_MS,
-    leaveDelayMs = DEFAULT_LEAVE_DELAY_MS
-  } = options;
+  const { selectedTrackId, hoverDelayMs = DEFAULT_HOVER_DELAY_MS, leaveDelayMs = DEFAULT_LEAVE_DELAY_MS } = options;
   const [patchSummaryPopover, setPatchSummaryPopover] = useState<PatchSummaryPopoverState>(null);
   const hoverOpenTimerRef = useRef<number | null>(null);
   const hoverCloseTimerRef = useRef<number | null>(null);
@@ -77,68 +73,73 @@ export function usePatchSummaryPopover(options: UsePatchSummaryPopoverOptions) {
     };
   }, [closePatchSummaryPopover, patchSummaryPopover]);
 
-  const openExpandedPatchSummary = useCallback((args: {
-    trackId: string;
-    selected: boolean;
-    macroPanelExpanded: boolean;
-    onSelectTrack: (trackId: string) => void;
-    onToggleTrackMacroPanel: (trackId: string) => void;
-  }) => {
-    clearHoverTimers();
-    if (!args.selected) {
-      args.onSelectTrack(args.trackId);
-    }
-    if (!args.macroPanelExpanded) {
-      args.onToggleTrackMacroPanel(args.trackId);
-    }
-    setPatchSummaryPopover({ trackId: args.trackId, mode: "expanded" });
-  }, [clearHoverTimers]);
+  const openExpandedPatchSummary = useCallback(
+    (args: {
+      trackId: string;
+      selected: boolean;
+      macroPanelExpanded: boolean;
+      onSelectTrack: (trackId: string) => void;
+      onToggleTrackMacroPanel: (trackId: string) => void;
+    }) => {
+      clearHoverTimers();
+      if (!args.selected) {
+        args.onSelectTrack(args.trackId);
+      }
+      if (!args.macroPanelExpanded) {
+        args.onToggleTrackMacroPanel(args.trackId);
+      }
+      setPatchSummaryPopover({ trackId: args.trackId, mode: "expanded" });
+    },
+    [clearHoverTimers]
+  );
 
-  const scheduleTeaserPatchSummary = useCallback((args: {
-    trackId: string;
-    selected: boolean;
-    macroPanelExpanded: boolean;
-  }) => {
-    if (!args.selected || !args.macroPanelExpanded || patchSummaryPopover?.mode === "expanded") {
-      return;
-    }
-    if (hoverCloseTimerRef.current !== null) {
-      window.clearTimeout(hoverCloseTimerRef.current);
-      hoverCloseTimerRef.current = null;
-    }
-    const hasPatchSummaryPopover = patchSummaryPopover?.trackId === args.trackId;
-    if (hasPatchSummaryPopover || hoverOpenTimerRef.current !== null) {
-      return;
-    }
-    hoverOpenTimerRef.current = window.setTimeout(() => {
-      hoverOpenTimerRef.current = null;
-      setPatchSummaryPopover((current) =>
-        current && current.trackId === args.trackId && current.mode === "expanded"
-          ? current
-          : { trackId: args.trackId, mode: "teaser" }
-      );
-    }, hoverDelayMs);
-  }, [hoverDelayMs, patchSummaryPopover]);
+  const scheduleTeaserPatchSummary = useCallback(
+    (args: { trackId: string; selected: boolean; macroPanelExpanded: boolean }) => {
+      if (!args.selected || !args.macroPanelExpanded || patchSummaryPopover?.mode === "expanded") {
+        return;
+      }
+      if (hoverCloseTimerRef.current !== null) {
+        window.clearTimeout(hoverCloseTimerRef.current);
+        hoverCloseTimerRef.current = null;
+      }
+      const hasPatchSummaryPopover = patchSummaryPopover?.trackId === args.trackId;
+      if (hasPatchSummaryPopover || hoverOpenTimerRef.current !== null) {
+        return;
+      }
+      hoverOpenTimerRef.current = window.setTimeout(() => {
+        hoverOpenTimerRef.current = null;
+        setPatchSummaryPopover((current) =>
+          current && current.trackId === args.trackId && current.mode === "expanded"
+            ? current
+            : { trackId: args.trackId, mode: "teaser" }
+        );
+      }, hoverDelayMs);
+    },
+    [hoverDelayMs, patchSummaryPopover]
+  );
 
-  const schedulePatchSummaryDismiss = useCallback((trackId: string) => {
-    if (hoverOpenTimerRef.current !== null) {
-      window.clearTimeout(hoverOpenTimerRef.current);
-      hoverOpenTimerRef.current = null;
-    }
-    const hasPatchSummaryPopover = patchSummaryPopover?.trackId === trackId;
-    if (!hasPatchSummaryPopover || patchSummaryPopover?.mode !== "teaser") {
-      return;
-    }
-    if (hoverCloseTimerRef.current !== null) {
-      window.clearTimeout(hoverCloseTimerRef.current);
-    }
-    hoverCloseTimerRef.current = window.setTimeout(() => {
-      hoverCloseTimerRef.current = null;
-      setPatchSummaryPopover((current) =>
-        current && current.trackId === trackId && current.mode === "teaser" ? null : current
-      );
-    }, leaveDelayMs);
-  }, [leaveDelayMs, patchSummaryPopover]);
+  const schedulePatchSummaryDismiss = useCallback(
+    (trackId: string) => {
+      if (hoverOpenTimerRef.current !== null) {
+        window.clearTimeout(hoverOpenTimerRef.current);
+        hoverOpenTimerRef.current = null;
+      }
+      const hasPatchSummaryPopover = patchSummaryPopover?.trackId === trackId;
+      if (!hasPatchSummaryPopover || patchSummaryPopover?.mode !== "teaser") {
+        return;
+      }
+      if (hoverCloseTimerRef.current !== null) {
+        window.clearTimeout(hoverCloseTimerRef.current);
+      }
+      hoverCloseTimerRef.current = window.setTimeout(() => {
+        hoverCloseTimerRef.current = null;
+        setPatchSummaryPopover((current) =>
+          current && current.trackId === trackId && current.mode === "teaser" ? null : current
+        );
+      }, leaveDelayMs);
+    },
+    [leaveDelayMs, patchSummaryPopover]
+  );
 
   const cancelPatchSummaryDismiss = useCallback(() => {
     if (hoverOpenTimerRef.current !== null) {

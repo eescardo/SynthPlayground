@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { compileAudioProjectToWasmSubset, compileSchedulerEventsToWasmSubset } from "@/audio/renderers/wasm/wasmSubsetCompiler";
+import {
+  compileAudioProjectToWasmSubset,
+  compileSchedulerEventsToWasmSubset
+} from "@/audio/renderers/wasm/wasmSubsetCompiler";
 import { createPatchOutputPort, PATCH_OUTPUT_PORT_ID } from "@/lib/patch/ports";
 import type { AudioProject } from "@/types/audio";
 import type { Patch } from "@/types/patch";
@@ -133,8 +136,16 @@ describe("compileAudioProjectToWasmSubset", () => {
       meta: { source: "custom" },
       nodes: [
         { id: "transpose", typeId: "CVTranspose", params: { octaves: -1, semitones: 0, cents: 0 } },
-        { id: "osc", typeId: "VCO", params: { wave: "sine", pulseWidth: 0.5, baseTuneCents: 0, fineTuneCents: 0, pwmAmount: 0 } },
-        { id: "env", typeId: "ADSR", params: { attack: 0, decay: 100, sustain: 0, release: 100, mode: "retrigger_from_current" } },
+        {
+          id: "osc",
+          typeId: "VCO",
+          params: { wave: "sine", pulseWidth: 0.5, baseTuneCents: 0, fineTuneCents: 0, pwmAmount: 0 }
+        },
+        {
+          id: "env",
+          typeId: "ADSR",
+          params: { attack: 0, decay: 100, sustain: 0, release: 100, mode: "retrigger_from_current" }
+        },
         { id: "amp", typeId: "VCA", params: { gain: 1, bias: 0 } }
       ],
       ports: [createPatchOutputPort({ gainDb: -3, limiter: true })],
@@ -205,9 +216,7 @@ describe("compileAudioProjectToWasmSubset", () => {
       id: "legacy-output-node",
       name: "Legacy Output Node",
       meta: { source: "custom" },
-      nodes: [
-        { id: "output", typeId: "Output", params: { gainDb: -3, limiter: true } }
-      ],
+      nodes: [{ id: "output", typeId: "Output", params: { gainDb: -3, limiter: true } }],
       ports: [],
       connections: [],
       ui: { macros: [] },
@@ -248,6 +257,8 @@ describe("compileAudioProjectToWasmSubset", () => {
       }
     };
 
-    expect(() => compileAudioProjectToWasmSubset(project, { blockSize: 128 })).toThrow("Output must be declared as a patch port");
+    expect(() => compileAudioProjectToWasmSubset(project, { blockSize: 128 })).toThrow(
+      "Output must be declared as a patch port"
+    );
   });
 });

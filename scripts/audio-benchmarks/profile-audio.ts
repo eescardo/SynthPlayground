@@ -24,7 +24,12 @@ const parseNumberFlag = (name: string, fallback: number) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const slugify = (value: string) => value.replace(/[^a-z0-9_-]+/gi, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+const slugify = (value: string) =>
+  value
+    .replace(/[^a-z0-9_-]+/gi, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase();
 
 const scenarioId = readFlag("--scenario-id");
 const outputDir = readFlag("--output-dir", "artifacts/audio-profiles")!;
@@ -79,10 +84,18 @@ const postInspector = <T>(session: inspector.Session, method: string, params?: R
   });
 
 const renderScenario = async (scenario: RenderableScenario) => {
-  const durationSamples = beatToSample(scenario.config.durationBeats, scenario.config.sampleRate, scenario.config.tempo);
+  const durationSamples = beatToSample(
+    scenario.config.durationBeats,
+    scenario.config.sampleRate,
+    scenario.config.tempo
+  );
 
   const scheduleStart = performance.now();
-  const events = collectEventsInWindow(scenario.project, { fromSample: 0, toSample: durationSamples + 1 }, { cueBeat: 0 });
+  const events = collectEventsInWindow(
+    scenario.project,
+    { fromSample: 0, toSample: durationSamples + 1 },
+    { cueBeat: 0 }
+  );
   const scheduleEventsMs = performance.now() - scheduleStart;
 
   const renderStart = performance.now();

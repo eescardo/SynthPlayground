@@ -12,7 +12,11 @@ export {
   overdriveTransfer,
   overdriveWetShape
 } from "@/components/patch/moduleFaces/overdrive";
-export { VCF_FACE_NYQUIST_HZ, VCF_FACE_SAMPLE_RATE_HZ, vcfMagnitudeAtFrequency } from "@/components/patch/moduleFaces/vcf";
+export {
+  VCF_FACE_NYQUIST_HZ,
+  VCF_FACE_SAMPLE_RATE_HZ,
+  vcfMagnitudeAtFrequency
+} from "@/components/patch/moduleFaces/vcf";
 
 export function drawPatchModuleFaceContent(
   ctx: CanvasRenderingContext2D,

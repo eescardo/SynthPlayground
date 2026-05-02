@@ -3,18 +3,15 @@
 import { PatchWorkspaceView } from "@/components/app/PatchWorkspaceView";
 import { ProjectWorkspaceProvider } from "@/components/ProjectWorkspaceContext";
 import { PatchWorkspaceProvider } from "@/components/patch/PatchWorkspaceContext";
-import { usePatchWorkspaceController, UsePatchWorkspaceControllerOptions } from "@/hooks/patch/usePatchWorkspaceController";
+import {
+  usePatchWorkspaceController,
+  UsePatchWorkspaceControllerOptions
+} from "@/hooks/patch/usePatchWorkspaceController";
 
 export type PatchWorkspaceControllerProps = UsePatchWorkspaceControllerOptions;
 
 export function PatchWorkspaceController(props: PatchWorkspaceControllerProps) {
-  const {
-    clipboard,
-    transport,
-    sampleAssets,
-    instrument,
-    viewProps
-  } = usePatchWorkspaceController(props);
+  const { clipboard, transport, sampleAssets, instrument, viewProps } = usePatchWorkspaceController(props);
 
   return (
     <ProjectWorkspaceProvider clipboard={clipboard} transport={transport}>

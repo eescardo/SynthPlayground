@@ -1,7 +1,16 @@
 import type { SynthRenderer, SynthRenderStream, WorkletPortLike } from "@/audio/renderers/shared/synth-renderer";
-import { AudioProject, SchedulerEvent, SynthRendererConfig, SynthStreamStartOptions, TransportSynthStreamStartOptions } from "@/types/audio";
+import {
+  AudioProject,
+  SchedulerEvent,
+  SynthRendererConfig,
+  SynthStreamStartOptions,
+  TransportSynthStreamStartOptions
+} from "@/types/audio";
 import type { Track } from "@/types/music";
-import { compileAudioProjectToWasmSubset, compileSchedulerEventsToWasmSubset } from "@/audio/renderers/wasm/wasmSubsetCompiler";
+import {
+  compileAudioProjectToWasmSubset,
+  compileSchedulerEventsToWasmSubset
+} from "@/audio/renderers/wasm/wasmSubsetCompiler";
 import { loadNodeDspWasmModule } from "@/audio/renderers/wasm/loadNodeDspWasm";
 import type { LoadedDspCoreNodeModule, WasmSubsetEngineInstance } from "@/audio/renderers/wasm/loadNodeDspWasm";
 import {
@@ -47,7 +56,9 @@ export class NodeWasmSynthRenderer extends SharedWasmRenderer implements SynthRe
 
   constructor(
     wasmModule: LoadedDspCoreNodeModule,
-    options?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> } },
+    options?: {
+      processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> };
+    },
     profilingEnabled = false
   ) {
     const implementation: SharedWasmImplementation = {
@@ -84,7 +95,10 @@ export class NodeWasmSynthRenderer extends SharedWasmRenderer implements SynthRe
   }
 }
 
-export const createWasmRenderer = async (config?: { processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> }; profilingEnabled?: boolean }) => {
+export const createWasmRenderer = async (config?: {
+  processorOptions?: Partial<SynthRendererConfig> & { transport?: Partial<TransportSynthStreamStartOptions> };
+  profilingEnabled?: boolean;
+}) => {
   const wasmModule = await loadNodeDspWasmModule();
   return new NodeWasmSynthRenderer(wasmModule, config, config?.profilingEnabled ?? false);
 };

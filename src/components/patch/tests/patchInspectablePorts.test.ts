@@ -9,7 +9,9 @@ describe("patch inspectable port labels", () => {
     const patch = createClearPatch({ id: "patch_labels", name: "Labels" });
 
     expect(formatPatchEndpointLabel(patch, { nodeId: PATCH_OUTPUT_PORT_ID, portId: "in" })).toBe("output.in");
-    expect(formatPatchParamTargetLabel(patch, { nodeId: PATCH_OUTPUT_PORT_ID, paramId: "gainDb" })).toBe("output.gainDb");
+    expect(formatPatchParamTargetLabel(patch, { nodeId: PATCH_OUTPUT_PORT_ID, paramId: "gainDb" })).toBe(
+      "output.gainDb"
+    );
   });
 
   it("formats host source endpoints by visible port name instead of serialized id", () => {

@@ -41,14 +41,9 @@ export const removeRecentProjectSummary = (
   return summaries.filter((entry) => entry.id !== projectId);
 };
 
-export const createAvailableProjectName = (
-  reservedNames: string[],
-  baseName = DEFAULT_NEW_PROJECT_NAME
-): string => {
+export const createAvailableProjectName = (reservedNames: string[], baseName = DEFAULT_NEW_PROJECT_NAME): string => {
   const normalizedReservedNames = new Set(
-    reservedNames
-      .map((name) => name.trim().toLocaleLowerCase())
-      .filter((name) => name.length > 0)
+    reservedNames.map((name) => name.trim().toLocaleLowerCase()).filter((name) => name.length > 0)
   );
 
   if (!normalizedReservedNames.has(baseName.toLocaleLowerCase())) {

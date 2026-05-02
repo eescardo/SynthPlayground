@@ -46,7 +46,12 @@ import { HOST_PORT_IDS, SOURCE_HOST_PORT_IDS, SOURCE_HOST_PORT_TYPE_BY_ID } from
 import { PatchDiff } from "@/lib/patch/diff";
 import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { getPatchOutputInputPortId, getPatchOutputPort, isHostPatchPortId, isPatchOutputPortId } from "@/lib/patch/ports";
+import {
+  getPatchOutputInputPortId,
+  getPatchOutputPort,
+  isHostPatchPortId,
+  isPatchOutputPortId
+} from "@/lib/patch/ports";
 import { Patch, PatchLayoutNode, PatchNode, PatchValidationIssue, PortSchema } from "@/types/patch";
 
 const PATCH_DIFF_PEDESTAL_INSET = 8;
@@ -64,7 +69,14 @@ interface ResolvedPortPosition {
   schema: PortSchema;
 }
 
-function drawRoundedRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+function drawRoundedRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+) {
   const r = Math.min(radius, width / 2, height / 2);
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -132,7 +144,8 @@ export function drawPatchModuleCard(
   ctx.fillStyle = moduleColors.fill;
   ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
   if (options.diffStatus === "added" || options.diffStatus === "modified") {
-    ctx.fillStyle = options.diffStatus === "added" ? PATCH_COLOR_MODULE_DIFF_ADDED_FILL : PATCH_COLOR_MODULE_DIFF_MODIFIED_FILL;
+    ctx.fillStyle =
+      options.diffStatus === "added" ? PATCH_COLOR_MODULE_DIFF_ADDED_FILL : PATCH_COLOR_MODULE_DIFF_MODIFIED_FILL;
     ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
   }
   if (options.macroSelected) {
@@ -154,13 +167,13 @@ export function drawPatchModuleCard(
       : options.diffStatus === "modified"
         ? PATCH_COLOR_MODULE_DIFF_MODIFIED_ACCENT
         : moduleColors.accent;
-  ctx.globalAlpha = baseAlpha * (options.selected ? 0.26 : options.hovered ? 0.2 : options.diffStatus === "unchanged" ? 0.12 : 0.18);
+  ctx.globalAlpha =
+    baseAlpha * (options.selected ? 0.26 : options.hovered ? 0.2 : options.diffStatus === "unchanged" ? 0.12 : 0.18);
   ctx.fillRect(x, y, PATCH_NODE_WIDTH, (PATCH_NODE_BODY_TOP - 8) * expandedHeaderScale);
   ctx.globalAlpha = baseAlpha;
-  ctx.strokeStyle =
-    options.deletePreview
-      ? PATCH_COLOR_MODULE_DELETE_PREVIEW_STROKE
-      : options.diffStatus === "added"
+  ctx.strokeStyle = options.deletePreview
+    ? PATCH_COLOR_MODULE_DELETE_PREVIEW_STROKE
+    : options.diffStatus === "added"
       ? PATCH_COLOR_MODULE_DIFF_ADDED_STROKE
       : options.diffStatus === "modified"
         ? PATCH_COLOR_MODULE_DIFF_MODIFIED_STROKE
@@ -188,7 +201,9 @@ export function drawPatchModuleCard(
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
   const drawPortLabel = (port: PortSchema, index: number, kind: "in" | "out") => {
     const rect = resolvePortLabelRect(port, kind, x, y, index);
-    ctx.fillStyle = invalidPortKeys.has(`${node.id}:${kind}:${port.id}`) ? PATCH_COLOR_PORT_LABEL_INVALID_BG : PATCH_COLOR_PORT_LABEL_BG;
+    ctx.fillStyle = invalidPortKeys.has(`${node.id}:${kind}:${port.id}`)
+      ? PATCH_COLOR_PORT_LABEL_INVALID_BG
+      : PATCH_COLOR_PORT_LABEL_BG;
     ctx.fillRect(rect.x, rect.y - rect.height / 2, rect.width, rect.height);
     ctx.fillStyle = PATCH_COLOR_PORT_LABEL;
     ctx.textAlign = "center";
@@ -253,7 +268,9 @@ function resolvePortPositions(
 
   const outputPatchPort = getPatchOutputPort(patch);
   const outputInputPortId = getPatchOutputInputPortId(patch);
-  const outputPort = outputPatchPort ? getModuleSchema(outputPatchPort.typeId)?.portsIn.find((port) => port.id === outputInputPortId) : undefined;
+  const outputPort = outputPatchPort
+    ? getModuleSchema(outputPatchPort.typeId)?.portsIn.find((port) => port.id === outputInputPortId)
+    : undefined;
   if (outputPatchPort && outputPort) {
     const rect = resolveOutputHostPatchPortRect(outputHostCanvasLeft);
     portPositions.set(`${outputPatchPort.id}:in:${outputPort.id}`, {
@@ -312,7 +329,7 @@ function drawPatchConnections(
               ? connection.from.nodeId
               : connection.to.nodeId
         ).wire
-      : getSignalCapabilityColor(commonCapability) ?? PATCH_COLOR_CONNECTION_FALLBACK;
+      : (getSignalCapabilityColor(commonCapability) ?? PATCH_COLOR_CONNECTION_FALLBACK);
     ctx.lineWidth = 2;
     if (isHostConnection) {
       ctx.globalAlpha = 0.5;
@@ -421,7 +438,9 @@ function drawHoveredAttachTarget(
   ctx.setLineDash([4, 4]);
 
   if (hoveredAttachTarget.kind === "port") {
-    const port = portPositions.get(`${hoveredAttachTarget.nodeId}:${hoveredAttachTarget.portKind}:${hoveredAttachTarget.portId}`);
+    const port = portPositions.get(
+      `${hoveredAttachTarget.nodeId}:${hoveredAttachTarget.portKind}:${hoveredAttachTarget.portId}`
+    );
     if (port) {
       ctx.fillRect(port.x - 4, port.y - port.height / 2 - 4, port.width + 8, port.height + 8);
       ctx.strokeRect(port.x - 4, port.y - port.height / 2 - 4, port.width + 8, port.height + 8);
@@ -524,7 +543,10 @@ export function drawPatchCanvas(args: {
   selectedNodeId?: string;
   deletePreviewNodeId?: string | null;
   clearPreviewActive?: boolean;
-  hoveredAttachTarget?: { kind: "port"; nodeId: string; portId: string; portKind: "in" | "out" } | { kind: "connection"; connectionId: string } | null;
+  hoveredAttachTarget?:
+    | { kind: "port"; nodeId: string; portId: string; portKind: "in" | "out" }
+    | { kind: "connection"; connectionId: string }
+    | null;
 }): HitPort[] {
   const ctx = args.canvas.getContext("2d");
   if (!ctx) return [];

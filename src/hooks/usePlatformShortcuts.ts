@@ -27,7 +27,9 @@ export function usePlatformShortcuts() {
   const [isMacPlatform, setIsMacPlatform] = useState(false);
 
   useEffect(() => {
-    setIsMacPlatform(detectApplePlatform(typeof navigator === "undefined" ? undefined : (navigator as NavigatorWithUserAgentData)));
+    setIsMacPlatform(
+      detectApplePlatform(typeof navigator === "undefined" ? undefined : (navigator as NavigatorWithUserAgentData))
+    );
   }, []);
 
   const primaryModifierLabel = useMemo(() => (isMacPlatform ? "Cmd" : "Ctrl"), [isMacPlatform]);

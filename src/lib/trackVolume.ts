@@ -9,22 +9,19 @@ export const TRACK_VOLUME_MIN_LABEL = `${TRACK_VOLUME_MIN * TRACK_VOLUME_PERCENT
 export const TRACK_VOLUME_DEFAULT_LABEL = `${TRACK_VOLUME_DEFAULT * TRACK_VOLUME_PERCENT_MULTIPLIER}%`;
 export const TRACK_VOLUME_MAX_LABEL = `${TRACK_VOLUME_MAX * TRACK_VOLUME_PERCENT_MULTIPLIER}%`;
 
-export const clampTrackVolume = (volume: number): number =>
-  clamp(volume, TRACK_VOLUME_MIN, TRACK_VOLUME_MAX);
+export const clampTrackVolume = (volume: number): number => clamp(volume, TRACK_VOLUME_MIN, TRACK_VOLUME_MAX);
 
 export const isTrackVolumeMuted = (volume: number): boolean => volume <= TRACK_VOLUME_MIN;
 
 export const trackVolumeToPercent = (volume: number): number =>
-  clampTrackVolume(volume) / TRACK_VOLUME_MAX * TRACK_VOLUME_ARIA_MAX;
+  (clampTrackVolume(volume) / TRACK_VOLUME_MAX) * TRACK_VOLUME_ARIA_MAX;
 
 export const trackVolumeToSliderPercent = (volume: number): number =>
-  clampTrackVolume(volume) / TRACK_VOLUME_MAX * 100;
+  (clampTrackVolume(volume) / TRACK_VOLUME_MAX) * 100;
 
-export const trackVolumeToPercentLabel = (volume: number): string =>
-  `${Math.round(trackVolumeToPercent(volume))}%`;
+export const trackVolumeToPercentLabel = (volume: number): string => `${Math.round(trackVolumeToPercent(volume))}%`;
 
-export const trackVolumePercentToCss = (volume: number): string =>
-  `${trackVolumeToSliderPercent(volume)}%`;
+export const trackVolumePercentToCss = (volume: number): string => `${trackVolumeToSliderPercent(volume)}%`;
 
 export const trackVolumeFromClientY = (clientY: number, element: HTMLElement): number => {
   const rect = element.getBoundingClientRect();

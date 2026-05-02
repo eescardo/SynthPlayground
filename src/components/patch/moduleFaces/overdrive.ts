@@ -36,7 +36,7 @@ export function applyOverdriveTone(input: number, lowpassed: number, tone: numbe
 
 function overdriveToneLowpassMagnitude(tone: number, frequencyHz: number) {
   const alpha = overdriveToneAlpha(tone);
-  const omega = 2 * Math.PI * clamp(frequencyHz, 0, VCF_FACE_NYQUIST_HZ) / VCF_FACE_SAMPLE_RATE_HZ;
+  const omega = (2 * Math.PI * clamp(frequencyHz, 0, VCF_FACE_NYQUIST_HZ)) / VCF_FACE_SAMPLE_RATE_HZ;
   const feedback = 1 - alpha;
   const denominator = Math.sqrt(1 + feedback * feedback - 2 * feedback * Math.cos(omega));
   return denominator > 0 ? alpha / denominator : 1;
@@ -52,7 +52,7 @@ export function overdriveToneResponse(tone: number, driveDb: number, frequencyHz
   const t = clamp01(tone);
   const driveAmount = overdriveDriveAmount(driveDb);
   const wetResponse = t + (1 - t) * overdriveToneLowpassMagnitude(t, frequencyHz) * overdriveToneMakeup(t);
-  return (1 - driveAmount) + driveAmount * wetResponse;
+  return 1 - driveAmount + driveAmount * wetResponse;
 }
 
 export function overdriveWetShape(input: number, driveDb: number, mode: string) {

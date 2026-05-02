@@ -11,7 +11,10 @@ export function PitchButtonLabel({ pitch }: PitchButtonLabelProps) {
     const parsed = parsePitchString(pitch);
     return (
       <span className="pitch-button-label">
-        <span className="pitch-button-label-primary">{parsed.noteName}{parsed.octaveText}</span>
+        <span className="pitch-button-label-primary">
+          {parsed.noteName}
+          {parsed.octaveText}
+        </span>
         {parsed.centsText ? <span className="pitch-button-label-secondary">{parsed.centsText}</span> : null}
       </span>
     );

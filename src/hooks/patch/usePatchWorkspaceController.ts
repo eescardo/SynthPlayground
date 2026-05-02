@@ -53,9 +53,7 @@ export interface UsePatchWorkspaceControllerOptions {
 
 const createAvailablePatchName = (existingNames: string[], baseName: string) => {
   const normalizedReservedNames = new Set(
-    existingNames
-      .map((name) => name.trim().toLocaleLowerCase())
-      .filter((name) => name.length > 0)
+    existingNames.map((name) => name.trim().toLocaleLowerCase()).filter((name) => name.length > 0)
   );
 
   if (!normalizedReservedNames.has(baseName.toLocaleLowerCase())) {
@@ -106,81 +104,96 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
     );
   }, [projectAssets, selectedPatch]);
 
-  const importPatchJson = useCallback(async (file: File) => {
-    try {
-      const importedBundle = importPatchBundleFromJson(await file.text());
-      const merged = mergeImportedPatchAssets(importedBundle.patch, importedBundle.assets, projectAssets);
-      const importedPatch = createImportedWorkspacePatch(merged.patch);
-      const nextPatchId = project.patches.some((patch) => patch.id === importedPatch.id) ? createId("patch") : importedPatch.id;
-      const nextPatchName = createAvailablePatchName(project.patches.map((patch) => patch.name), importedPatch.name);
-      const nextPatch = {
-        ...importedPatch,
-        id: nextPatchId,
-        name: nextPatchName
-      };
+  const importPatchJson = useCallback(
+    async (file: File) => {
+      try {
+        const importedBundle = importPatchBundleFromJson(await file.text());
+        const merged = mergeImportedPatchAssets(importedBundle.patch, importedBundle.assets, projectAssets);
+        const importedPatch = createImportedWorkspacePatch(merged.patch);
+        const nextPatchId = project.patches.some((patch) => patch.id === importedPatch.id)
+          ? createId("patch")
+          : importedPatch.id;
+        const nextPatchName = createAvailablePatchName(
+          project.patches.map((patch) => patch.name),
+          importedPatch.name
+        );
+        const nextPatch = {
+          ...importedPatch,
+          id: nextPatchId,
+          name: nextPatchName
+        };
 
-      setProjectAssets(merged.assets);
-      commitProjectChange((current) => ({
-        ...current,
-        patches: [...current.patches, nextPatch]
-      }), { actionKey: `patch:import:${nextPatch.id}` });
-      patchWorkspace.selectPatchInWorkspace(nextPatch.id);
-      setRuntimeError(null);
-    } catch (error) {
-      setRuntimeError((error as Error).message);
-    }
-  }, [commitProjectChange, patchWorkspace, project.patches, projectAssets, setProjectAssets, setRuntimeError]);
+        setProjectAssets(merged.assets);
+        commitProjectChange(
+          (current) => ({
+            ...current,
+            patches: [...current.patches, nextPatch]
+          }),
+          { actionKey: `patch:import:${nextPatch.id}` }
+        );
+        patchWorkspace.selectPatchInWorkspace(nextPatch.id);
+        setRuntimeError(null);
+      } catch (error) {
+        setRuntimeError((error as Error).message);
+      }
+    },
+    [commitProjectChange, patchWorkspace, project.patches, projectAssets, setProjectAssets, setRuntimeError]
+  );
 
   const canRemovePatch =
     resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset";
 
-  const transport = useMemo<ProjectWorkspaceTransportContextValue>(() => ({
-    tempo: project.global.tempo,
-    meter: project.global.meter,
-    gridBeats: project.global.gridBeats,
-    playheadBeat
-  }), [
-    project.global.gridBeats,
-    playheadBeat,
-    project.global.meter,
-    project.global.tempo
-  ]);
+  const transport = useMemo<ProjectWorkspaceTransportContextValue>(
+    () => ({
+      tempo: project.global.tempo,
+      meter: project.global.meter,
+      gridBeats: project.global.gridBeats,
+      playheadBeat
+    }),
+    [project.global.gridBeats, playheadBeat, project.global.meter, project.global.tempo]
+  );
 
-  const sampleAssets = useMemo<PatchWorkspaceSampleAssetsContextValue>(() => ({
-    assets: projectAssets,
-    upsertSamplePlayerAssetData: onUpsertSamplePlayerAssetData
-  }), [
-    onUpsertSamplePlayerAssetData,
-    projectAssets
-  ]);
+  const sampleAssets = useMemo<PatchWorkspaceSampleAssetsContextValue>(
+    () => ({
+      assets: projectAssets,
+      upsertSamplePlayerAssetData: onUpsertSamplePlayerAssetData
+    }),
+    [onUpsertSamplePlayerAssetData, projectAssets]
+  );
 
-  const importPatchFile = useCallback((file: File) => {
-    void importPatchJson(file);
-  }, [importPatchJson]);
+  const importPatchFile = useCallback(
+    (file: File) => {
+      void importPatchJson(file);
+    },
+    [importPatchJson]
+  );
 
-  const instrument = useMemo<PatchWorkspaceInstrumentContextValue>(() => ({
-    patches: project.patches,
-    canRemovePatch,
-    renamePatch: patchWorkspace.renameSelectedPatch,
-    selectPatch: patchWorkspace.selectPatchInWorkspace,
-    duplicatePatch: patchWorkspace.duplicateSelectedPatchInWorkspace,
-    duplicatePatchToNewTab: patchWorkspace.duplicateSelectedPatchToNewTab,
-    exportPatchJson: exportSelectedPatchJson,
-    importPatchFile,
-    updatePreset: patchWorkspace.updatePresetToLatest,
-    requestRemovePatch: patchWorkspace.requestRemoveSelectedPatch
-  }), [
-    canRemovePatch,
-    exportSelectedPatchJson,
-    importPatchFile,
-    patchWorkspace.duplicateSelectedPatchInWorkspace,
-    patchWorkspace.duplicateSelectedPatchToNewTab,
-    patchWorkspace.renameSelectedPatch,
-    patchWorkspace.requestRemoveSelectedPatch,
-    patchWorkspace.selectPatchInWorkspace,
-    patchWorkspace.updatePresetToLatest,
-    project.patches
-  ]);
+  const instrument = useMemo<PatchWorkspaceInstrumentContextValue>(
+    () => ({
+      patches: project.patches,
+      canRemovePatch,
+      renamePatch: patchWorkspace.renameSelectedPatch,
+      selectPatch: patchWorkspace.selectPatchInWorkspace,
+      duplicatePatch: patchWorkspace.duplicateSelectedPatchInWorkspace,
+      duplicatePatchToNewTab: patchWorkspace.duplicateSelectedPatchToNewTab,
+      exportPatchJson: exportSelectedPatchJson,
+      importPatchFile,
+      updatePreset: patchWorkspace.updatePresetToLatest,
+      requestRemovePatch: patchWorkspace.requestRemoveSelectedPatch
+    }),
+    [
+      canRemovePatch,
+      exportSelectedPatchJson,
+      importPatchFile,
+      patchWorkspace.duplicateSelectedPatchInWorkspace,
+      patchWorkspace.duplicateSelectedPatchToNewTab,
+      patchWorkspace.renameSelectedPatch,
+      patchWorkspace.requestRemoveSelectedPatch,
+      patchWorkspace.selectPatchInWorkspace,
+      patchWorkspace.updatePresetToLatest,
+      project.patches
+    ]
+  );
 
   const viewProps: React.ComponentProps<typeof PatchWorkspaceView> = {
     patch: selectedPatch,
@@ -204,7 +217,10 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
       name: tab.name,
       patchId: tab.patchId,
       hasBaseline: Boolean(tab.baselinePatch),
-      hasPatchDiff: buildPatchDiff(project.patches.find((patch) => patch.id === tab.patchId), tab.baselinePatch).hasChanges
+      hasPatchDiff: buildPatchDiff(
+        project.patches.find((patch) => patch.id === tab.patchId),
+        tab.baselinePatch
+      ).hasChanges
     })),
     activeTabId: patchWorkspace.activeTabId,
     macroValues: patchWorkspace.workspaceMacroValues,

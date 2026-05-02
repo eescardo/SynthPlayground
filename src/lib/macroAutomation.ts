@@ -31,20 +31,18 @@ const sortKeyframes = (keyframes: TrackMacroAutomationKeyframe[]): TrackMacroAut
 
 export const isSplitAutomationKeyframe = (
   keyframe: TrackMacroAutomationKeyframe
-): keyframe is SplitTrackMacroAutomationKeyframe =>
-  keyframe.type === "split";
+): keyframe is SplitTrackMacroAutomationKeyframe => keyframe.type === "split";
 
 export const getAutomationKeyframeIncomingValue = (keyframe: TrackMacroAutomationKeyframe): number =>
-  isSplitAutomationKeyframe(keyframe)
-    ? clampNormalized(keyframe.incomingValue)
-    : clampNormalized(keyframe.value);
+  isSplitAutomationKeyframe(keyframe) ? clampNormalized(keyframe.incomingValue) : clampNormalized(keyframe.value);
 
 export const getAutomationKeyframeOutgoingValue = (keyframe: TrackMacroAutomationKeyframe): number =>
-  isSplitAutomationKeyframe(keyframe)
-    ? clampNormalized(keyframe.outgoingValue)
-    : clampNormalized(keyframe.value);
+  isSplitAutomationKeyframe(keyframe) ? clampNormalized(keyframe.outgoingValue) : clampNormalized(keyframe.value);
 
-export const getAutomationKeyframeSideValue = (keyframe: TrackMacroAutomationKeyframe, side: AutomationKeyframeSide): number =>
+export const getAutomationKeyframeSideValue = (
+  keyframe: TrackMacroAutomationKeyframe,
+  side: AutomationKeyframeSide
+): number =>
   side === "incoming"
     ? getAutomationKeyframeIncomingValue(keyframe)
     : side === "outgoing"
@@ -58,7 +56,12 @@ const makeSingleKeyframe = (id: string, beat: number, value: number): TrackMacro
   value: clampNormalized(value)
 });
 
-const makeSplitKeyframe = (id: string, beat: number, incomingValue: number, outgoingValue: number): TrackMacroAutomationKeyframe => ({
+const makeSplitKeyframe = (
+  id: string,
+  beat: number,
+  incomingValue: number,
+  outgoingValue: number
+): TrackMacroAutomationKeyframe => ({
   id,
   beat,
   type: "split",
@@ -72,7 +75,9 @@ const maybeMergeKeyframe = (keyframe: TrackMacroAutomationKeyframe): TrackMacroA
   if (Math.abs(incoming - outgoing) <= EPSILON) {
     return makeSingleKeyframe(keyframe.id, keyframe.beat, outgoing);
   }
-  return isSplitAutomationKeyframe(keyframe) ? makeSplitKeyframe(keyframe.id, keyframe.beat, incoming, outgoing) : makeSingleKeyframe(keyframe.id, keyframe.beat, outgoing);
+  return isSplitAutomationKeyframe(keyframe)
+    ? makeSplitKeyframe(keyframe.id, keyframe.beat, incoming, outgoing)
+    : makeSingleKeyframe(keyframe.id, keyframe.beat, outgoing);
 };
 
 export const sanitizeMacroAutomationLane = (raw: unknown): TrackMacroAutomationLane | null => {
@@ -116,7 +121,11 @@ export const sanitizeMacroAutomationLane = (raw: unknown): TrackMacroAutomationL
           typeof keyframe.outgoingValue === "number" &&
           Number.isFinite(keyframe.outgoingValue)
         ) {
-          return [maybeMergeKeyframe(makeSplitKeyframe(id, Math.max(0, keyframe.beat), keyframe.incomingValue, keyframe.outgoingValue))];
+          return [
+            maybeMergeKeyframe(
+              makeSplitKeyframe(id, Math.max(0, keyframe.beat), keyframe.incomingValue, keyframe.outgoingValue)
+            )
+          ];
         }
         if (
           (keyframe.type === "whole" || typeof keyframe.type !== "string") &&
@@ -131,7 +140,11 @@ export const sanitizeMacroAutomationLane = (raw: unknown): TrackMacroAutomationL
           typeof keyframe.outgoingValue === "number" &&
           Number.isFinite(keyframe.outgoingValue)
         ) {
-          return [maybeMergeKeyframe(makeSplitKeyframe(id, Math.max(0, keyframe.beat), keyframe.incomingValue, keyframe.outgoingValue))];
+          return [
+            maybeMergeKeyframe(
+              makeSplitKeyframe(id, Math.max(0, keyframe.beat), keyframe.incomingValue, keyframe.outgoingValue)
+            )
+          ];
         }
         return [];
       })
@@ -140,8 +153,12 @@ export const sanitizeMacroAutomationLane = (raw: unknown): TrackMacroAutomationL
   return {
     macroId: lane.macroId,
     expanded: lane.expanded !== false,
-    startValue: clampNormalized(typeof lane.startValue === "number" && Number.isFinite(lane.startValue) ? lane.startValue : 0.5),
-    endValue: clampNormalized(typeof lane.endValue === "number" && Number.isFinite(lane.endValue) ? lane.endValue : 0.5),
+    startValue: clampNormalized(
+      typeof lane.startValue === "number" && Number.isFinite(lane.startValue) ? lane.startValue : 0.5
+    ),
+    endValue: clampNormalized(
+      typeof lane.endValue === "number" && Number.isFinite(lane.endValue) ? lane.endValue : 0.5
+    ),
     keyframes: sortKeyframes(keyframes)
   };
 };
@@ -162,10 +179,13 @@ export const sanitizeMacroAutomationMap = (raw: unknown): Record<string, TrackMa
   return lanes;
 };
 
-export const getTrackMacroLane = (track: Track, macroId: string): TrackMacroAutomationLane | null => track.macroAutomations[macroId] ?? null;
-export const getTrackVolumeLane = (track: Track): TrackMacroAutomationLane | null => track.macroAutomations[TRACK_VOLUME_AUTOMATION_ID] ?? null;
+export const getTrackMacroLane = (track: Track, macroId: string): TrackMacroAutomationLane | null =>
+  track.macroAutomations[macroId] ?? null;
+export const getTrackVolumeLane = (track: Track): TrackMacroAutomationLane | null =>
+  track.macroAutomations[TRACK_VOLUME_AUTOMATION_ID] ?? null;
 
-export const isTrackMacroAutomated = (track: Track, macroId: string): boolean => Boolean(getTrackMacroLane(track, macroId));
+export const isTrackMacroAutomated = (track: Track, macroId: string): boolean =>
+  Boolean(getTrackMacroLane(track, macroId));
 export const isTrackVolumeAutomated = (track: Track): boolean => Boolean(getTrackVolumeLane(track));
 
 export const createTrackMacroAutomationLane = (macroId: string, initialValue: number): TrackMacroAutomationLane => ({
@@ -220,7 +240,9 @@ export const getTrackAutomationPoints = (lane: TrackMacroAutomationLane, endBeat
 
 export const getProjectTimelineEndBeat = (project: ProjectGlobalCarrier & Pick<Project, "tracks">): number => {
   const meterBeats = project.global.meter === "4/4" ? 4 : 3;
-  const maxNoteEnd = project.tracks.flatMap((track) => track.notes).reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);
+  const maxNoteEnd = project.tracks
+    .flatMap((track) => track.notes)
+    .reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);
   return Math.max(16, Math.ceil(maxNoteEnd + meterBeats));
 };
 
@@ -274,26 +296,29 @@ export const getTrackPreviewStateAtBeat = (
 ): TrackPreviewStateAtBeat => {
   const macroValues = Object.fromEntries(
     patch.ui.macros.map((macro) => {
-      const normalized = override?.macroId === macro.id
-        ? clampNormalized(override.normalized)
-        : getTrackMacroValueAtBeat(track, macro.id, macro.defaultNormalized ?? 0.5, beat, timelineEndBeat);
+      const normalized =
+        override?.macroId === macro.id
+          ? clampNormalized(override.normalized)
+          : getTrackMacroValueAtBeat(track, macro.id, macro.defaultNormalized ?? 0.5, beat, timelineEndBeat);
       return [macro.id, normalized];
     })
   );
 
-  const volumeNormalized = override?.macroId === TRACK_VOLUME_AUTOMATION_ID
-    ? clampNormalized(override.normalized)
-    : getTrackMacroValueAtBeat(track, TRACK_VOLUME_AUTOMATION_ID, track.volume / 2, beat, timelineEndBeat);
+  const volumeNormalized =
+    override?.macroId === TRACK_VOLUME_AUTOMATION_ID
+      ? clampNormalized(override.normalized)
+      : getTrackMacroValueAtBeat(track, TRACK_VOLUME_AUTOMATION_ID, track.volume / 2, beat, timelineEndBeat);
 
   return { macroValues, volumeNormalized };
 };
 
-const replaceKeyframe = (lane: TrackMacroAutomationLane, nextKeyframe: TrackMacroAutomationKeyframe): TrackMacroAutomationLane => ({
+const replaceKeyframe = (
+  lane: TrackMacroAutomationLane,
+  nextKeyframe: TrackMacroAutomationKeyframe
+): TrackMacroAutomationLane => ({
   ...lane,
   keyframes: sortKeyframes(
-    lane.keyframes
-      .filter((keyframe) => keyframe.id !== nextKeyframe.id)
-      .concat(maybeMergeKeyframe(nextKeyframe))
+    lane.keyframes.filter((keyframe) => keyframe.id !== nextKeyframe.id).concat(maybeMergeKeyframe(nextKeyframe))
   )
 });
 
@@ -330,7 +355,10 @@ export const upsertAutomationLaneKeyframe = (
   };
 };
 
-export const splitAutomationLaneKeyframe = (lane: TrackMacroAutomationLane, keyframeId: string): TrackMacroAutomationLane => {
+export const splitAutomationLaneKeyframe = (
+  lane: TrackMacroAutomationLane,
+  keyframeId: string
+): TrackMacroAutomationLane => {
   const keyframe = lane.keyframes.find((entry) => entry.id === keyframeId);
   if (!keyframe || isSplitAutomationKeyframe(keyframe)) {
     return lane;
@@ -338,7 +366,12 @@ export const splitAutomationLaneKeyframe = (lane: TrackMacroAutomationLane, keyf
   const value = getAutomationKeyframeOutgoingValue(keyframe);
   return replaceKeyframe(
     lane,
-    makeSplitKeyframe(keyframe.id, keyframe.beat, clampNormalized(value - SPLIT_OFFSET), clampNormalized(value + SPLIT_OFFSET))
+    makeSplitKeyframe(
+      keyframe.id,
+      keyframe.beat,
+      clampNormalized(value - SPLIT_OFFSET),
+      clampNormalized(value + SPLIT_OFFSET)
+    )
   );
 };
 
@@ -376,7 +409,8 @@ export const removeAutomationLaneKeyframeSide = (
       keyframes: lane.keyframes.filter((entry) => entry.id !== keyframeId)
     };
   }
-  const remainingValue = side === "incoming" ? getAutomationKeyframeOutgoingValue(keyframe) : getAutomationKeyframeIncomingValue(keyframe);
+  const remainingValue =
+    side === "incoming" ? getAutomationKeyframeOutgoingValue(keyframe) : getAutomationKeyframeIncomingValue(keyframe);
   return replaceKeyframe(lane, makeSingleKeyframe(keyframe.id, keyframe.beat, remainingValue));
 };
 
@@ -386,5 +420,10 @@ export const cloneAutomationKeyframeAtBeat = (
   id: string
 ): TrackMacroAutomationKeyframe =>
   isSplitAutomationKeyframe(keyframe)
-    ? makeSplitKeyframe(id, beat, getAutomationKeyframeIncomingValue(keyframe), getAutomationKeyframeOutgoingValue(keyframe))
+    ? makeSplitKeyframe(
+        id,
+        beat,
+        getAutomationKeyframeIncomingValue(keyframe),
+        getAutomationKeyframeOutgoingValue(keyframe)
+      )
     : makeSingleKeyframe(id, beat, getAutomationKeyframeOutgoingValue(keyframe));

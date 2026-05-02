@@ -45,7 +45,9 @@ const passStringToWasm0 = (arg, malloc, realloc) => {
   if (realloc === undefined) {
     const buf = cachedTextEncoder ? cachedTextEncoder.encode(arg) : encodeUtf8Fallback(arg);
     const ptr = malloc(buf.length, 1) >>> 0;
-    getUint8ArrayMemory0().subarray(ptr, ptr + buf.length).set(buf);
+    getUint8ArrayMemory0()
+      .subarray(ptr, ptr + buf.length)
+      .set(buf);
     WASM_VECTOR_LEN = buf.length;
     return ptr;
   }

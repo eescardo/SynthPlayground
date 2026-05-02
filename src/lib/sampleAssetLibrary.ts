@@ -16,9 +16,14 @@ export function normalizeProjectAssetLibrary(raw: unknown): ProjectAssetLibrary 
     return createEmptyProjectAssetLibrary();
   }
   const samplePlayerById =
-    "samplePlayerById" in raw && typeof raw.samplePlayerById === "object" && raw.samplePlayerById !== null && !Array.isArray(raw.samplePlayerById)
+    "samplePlayerById" in raw &&
+    typeof raw.samplePlayerById === "object" &&
+    raw.samplePlayerById !== null &&
+    !Array.isArray(raw.samplePlayerById)
       ? Object.fromEntries(
-          Object.entries(raw.samplePlayerById).filter((entry): entry is [string, string] => typeof entry[1] === "string")
+          Object.entries(raw.samplePlayerById).filter(
+            (entry): entry is [string, string] => typeof entry[1] === "string"
+          )
         )
       : {};
 
@@ -67,7 +72,11 @@ export function extractInlineSamplePlayerAssets(
         return node;
       }
       const existingAssetId = typeof node.params.sampleAssetId === "string" ? node.params.sampleAssetId : undefined;
-      const { assetId, assets: updatedAssets } = upsertSamplePlayerAssetData(nextAssets, inlineSampleData, existingAssetId);
+      const { assetId, assets: updatedAssets } = upsertSamplePlayerAssetData(
+        nextAssets,
+        inlineSampleData,
+        existingAssetId
+      );
       nextAssets = updatedAssets;
       patchChanged = true;
       migrated = true;
@@ -152,7 +161,9 @@ export function mergeImportedPatchAssets(
       continue;
     }
 
-    const matchingExistingAssetId = Object.entries(nextAssets.samplePlayerById).find(([, data]) => data === importedData)?.[0];
+    const matchingExistingAssetId = Object.entries(nextAssets.samplePlayerById).find(
+      ([, data]) => data === importedData
+    )?.[0];
     if (matchingExistingAssetId) {
       remappedAssetIds.set(importedAssetId, matchingExistingAssetId);
       continue;

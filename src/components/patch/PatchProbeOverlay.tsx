@@ -8,11 +8,7 @@ import {
   resolvePatchPortAnchorPoint
 } from "@/components/patch/patchCanvasGeometry";
 import { PATCH_CANVAS_GRID } from "@/components/patch/patchCanvasConstants";
-import {
-  buildProbeSpectrogram,
-  EXPANDED_PROBE_SIZE,
-  resolveProbeFrequencyView,
-} from "@/lib/patch/probes";
+import { buildProbeSpectrogram, EXPANDED_PROBE_SIZE, resolveProbeFrequencyView } from "@/lib/patch/probes";
 import { clamp } from "@/lib/numeric";
 import { detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
 import {
@@ -44,7 +40,11 @@ interface PatchProbeOverlayProps {
 const PROBE_SPECTRUM_WINDOWS = [256, 512, 1024, 2048];
 const PROBE_DRAG_THRESHOLD_PX = 6;
 
-function resolveNearestProbeEdgePoint(probe: PatchWorkspaceProbeState, zoom: number, targetPoint: { x: number; y: number }) {
+function resolveNearestProbeEdgePoint(
+  probe: PatchWorkspaceProbeState,
+  zoom: number,
+  targetPoint: { x: number; y: number }
+) {
   const x = probe.x * PATCH_CANVAS_GRID;
   const y = probe.y * PATCH_CANVAS_GRID;
   const width = resolveRenderedProbeWidth(probe, zoom) / zoom;
@@ -67,8 +67,19 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
         };
         const targetPoint =
           probe.target.kind === "connection"
-            ? resolvePatchConnectionAnchorPoint(props.patch, props.layoutByNode, probe.target.connectionId, probeReferencePoint, props.outputHostCanvasLeft) ??
-              resolvePatchConnectionMidpoint(props.patch, props.layoutByNode, probe.target.connectionId, props.outputHostCanvasLeft)
+            ? (resolvePatchConnectionAnchorPoint(
+                props.patch,
+                props.layoutByNode,
+                probe.target.connectionId,
+                probeReferencePoint,
+                props.outputHostCanvasLeft
+              ) ??
+              resolvePatchConnectionMidpoint(
+                props.patch,
+                props.layoutByNode,
+                probe.target.connectionId,
+                props.outputHostCanvasLeft
+              ))
             : resolvePatchPortAnchorPoint(
                 props.patch,
                 props.layoutByNode,
@@ -81,14 +92,16 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
           return [];
         }
         const probeEdgePoint = resolveNearestProbeEdgePoint(probe, props.zoom, targetPoint);
-        return [{
-          id: probe.id,
-          x1: probeEdgePoint.x * props.zoom,
-          y1: probeEdgePoint.y * props.zoom,
-          x2: targetPoint.x * props.zoom,
-          y2: targetPoint.y * props.zoom,
-          targetKind: probe.target.kind
-        }];
+        return [
+          {
+            id: probe.id,
+            x1: probeEdgePoint.x * props.zoom,
+            y1: probeEdgePoint.y * props.zoom,
+            x2: targetPoint.x * props.zoom,
+            y2: targetPoint.y * props.zoom,
+            targetKind: probe.target.kind
+          }
+        ];
       }),
     [props.layoutByNode, props.outputHostCanvasLeft, props.patch, props.probes, props.zoom]
   );
@@ -219,13 +232,7 @@ function ProbeCard(props: {
             resolveProbeFrequencyView(props.probe.frequencyView).maxHz
           )
         : [],
-    [
-      props.capture,
-      props.probe.kind,
-      props.probe.spectrumWindowSize,
-      props.probe.frequencyView,
-      props.probe.expanded
-    ]
+    [props.capture, props.probe.kind, props.probe.spectrumWindowSize, props.probe.frequencyView, props.probe.expanded]
   );
 
   return (
@@ -342,8 +349,22 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: numbe
   return (
     <svg viewBox="0 0 100 60" className="patch-probe-graph">
       <rect x="0" y="0" width="100" height="60" fill="rgba(10, 18, 28, 0.9)" rx="6" />
-      <rect x={props.compact ? 2 : 8} y="6" width={props.compact ? 97 : 90} height="22" fill="rgba(255, 255, 255, 0.015)" rx="4" />
-      <rect x={props.compact ? 2 : 8} y="33" width={props.compact ? 97 : 90} height="21" fill="rgba(255, 255, 255, 0.012)" rx="4" />
+      <rect
+        x={props.compact ? 2 : 8}
+        y="6"
+        width={props.compact ? 97 : 90}
+        height="22"
+        fill="rgba(255, 255, 255, 0.015)"
+        rx="4"
+      />
+      <rect
+        x={props.compact ? 2 : 8}
+        y="33"
+        width={props.compact ? 97 : 90}
+        height="21"
+        fill="rgba(255, 255, 255, 0.012)"
+        rx="4"
+      />
       {timeMarkers.map((marker) => (
         <line
           key={marker.ratio}
@@ -356,17 +377,35 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: numbe
           shapeRendering="crispEdges"
         />
       ))}
-      <line x1={props.compact ? 2 : 8} y1="17" x2="98" y2="17" stroke="rgba(140, 179, 213, 0.22)" strokeWidth="0.45" shapeRendering="crispEdges" />
-      <line x1={props.compact ? 2 : 8} y1="33" x2="98" y2="33" stroke="rgba(140, 179, 213, 0.18)" strokeWidth="0.35" shapeRendering="crispEdges" />
-      <line x1={props.compact ? 2 : 8} y1="54" x2="98" y2="54" stroke="rgba(140, 179, 213, 0.18)" strokeWidth="0.35" shapeRendering="crispEdges" />
+      <line
+        x1={props.compact ? 2 : 8}
+        y1="17"
+        x2="98"
+        y2="17"
+        stroke="rgba(140, 179, 213, 0.22)"
+        strokeWidth="0.45"
+        shapeRendering="crispEdges"
+      />
+      <line
+        x1={props.compact ? 2 : 8}
+        y1="33"
+        x2="98"
+        y2="33"
+        stroke="rgba(140, 179, 213, 0.18)"
+        strokeWidth="0.35"
+        shapeRendering="crispEdges"
+      />
+      <line
+        x1={props.compact ? 2 : 8}
+        y1="54"
+        x2="98"
+        y2="54"
+        stroke="rgba(140, 179, 213, 0.18)"
+        strokeWidth="0.35"
+        shapeRendering="crispEdges"
+      />
       {graphData.capturedRatio < 1 && (
-        <rect
-          x={futureMaskX}
-          y="6"
-          width={futureMaskWidth}
-          height="48"
-          fill="rgba(6, 12, 18, 0.42)"
-        />
+        <rect x={futureMaskX} y="6" width={futureMaskWidth} height="48" fill="rgba(6, 12, 18, 0.42)" />
       )}
       {graphData.waveformSegments.map((segment) => (
         <line
@@ -392,18 +431,42 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: numbe
           vectorEffect="non-scaling-stroke"
         />
       )}
-      <line x1={playheadX} y1="6" x2={playheadX} y2="54" stroke="rgba(200, 255, 57, 0.85)" strokeWidth="0.7" shapeRendering="crispEdges" />
+      <line
+        x1={playheadX}
+        y1="6"
+        x2={playheadX}
+        y2="54"
+        stroke="rgba(200, 255, 57, 0.85)"
+        strokeWidth="0.7"
+        shapeRendering="crispEdges"
+      />
       {!props.compact && graphData.peak > 0 && (
         <>
-          <text x="0.8" y="8.5" className="patch-probe-axis-label">Wave</text>
+          <text x="0.8" y="8.5" className="patch-probe-axis-label">
+            Wave
+          </text>
           <text x="0.8" y="14" className="patch-probe-axis-label">{`+${graphData.peak.toFixed(3)}`}</text>
-          <text x="0.8" y="18.5" className="patch-probe-axis-label">0</text>
+          <text x="0.8" y="18.5" className="patch-probe-axis-label">
+            0
+          </text>
           <text x="0.8" y="24" className="patch-probe-axis-label">{`-${graphData.peak.toFixed(3)}`}</text>
-          <text x="0.8" y="36.5" className="patch-probe-axis-label">Env</text>
-          <text x="0.8" y="40.5" className="patch-probe-axis-label">1.0</text>
-          <text x="0.8" y="54" className="patch-probe-axis-label">0</text>
+          <text x="0.8" y="36.5" className="patch-probe-axis-label">
+            Env
+          </text>
+          <text x="0.8" y="40.5" className="patch-probe-axis-label">
+            1.0
+          </text>
+          <text x="0.8" y="54" className="patch-probe-axis-label">
+            0
+          </text>
           {timeMarkers.map((marker) => (
-            <text key={`time_${marker.ratio}`} x={marker.x} y="59" textAnchor={marker.ratio === 0 ? "start" : marker.ratio === 1 ? "end" : "middle"} className="patch-probe-axis-label">
+            <text
+              key={`time_${marker.ratio}`}
+              x={marker.x}
+              y="59"
+              textAnchor={marker.ratio === 0 ? "start" : marker.ratio === 1 ? "end" : "middle"}
+              className="patch-probe-axis-label"
+            >
               {marker.label}
             </text>
           ))}
@@ -421,10 +484,7 @@ function SpectrumProbeGraph(props: {
   onChangeWindowSize: (windowSize: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const frequencyMarkers = useMemo(
-    () => resolveSpectrumFrequencyMarkers(props.maxFrequencyHz),
-    [props.maxFrequencyHz]
-  );
+  const frequencyMarkers = useMemo(() => resolveSpectrumFrequencyMarkers(props.maxFrequencyHz), [props.maxFrequencyHz]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
