@@ -688,6 +688,12 @@ function overdriveToneLowpassMagnitude(tone: number, frequencyHz: number) {
   return denominator > 0 ? alpha / denominator : 1;
 }
 
+const OVERDRIVE_TONE_RESPONSE_MAX = 1.45;
+
+function overdriveToneResponseToY(graph: { y: number; height: number }, response: number) {
+  return graph.y + graph.height * (1 - clamp(response, 0, OVERDRIVE_TONE_RESPONSE_MAX) / OVERDRIVE_TONE_RESPONSE_MAX);
+}
+
 export function overdriveToneResponse(tone: number, driveDb: number, frequencyHz: number) {
   const t = clamp01(tone);
   const driveAmount = overdriveDriveAmount(driveDb);
@@ -759,8 +765,6 @@ function drawOverdriveModuleFace(
   ctx.lineTo(transferGraph.x + transferGraph.width - 4, transferGraph.y + transferGraph.height - 5);
   ctx.moveTo(transferGraph.x + 5, transferGraph.y + 4);
   ctx.lineTo(transferGraph.x + 5, transferGraph.y + transferGraph.height - 4);
-  ctx.moveTo(toneGraph.x + 4, toneGraph.y + toneGraph.height / 2);
-  ctx.lineTo(toneGraph.x + toneGraph.width - 4, toneGraph.y + toneGraph.height / 2);
   ctx.stroke();
 
   ctx.strokeStyle = "rgba(158, 192, 223, 0.34)";
@@ -768,8 +772,9 @@ function drawOverdriveModuleFace(
   ctx.beginPath();
   ctx.moveTo(transferGraph.x + 5, transferGraph.y + transferGraph.height - 5);
   ctx.lineTo(transferGraph.x + transferGraph.width - 5, transferGraph.y + 5);
-  ctx.moveTo(toneGraph.x + 5, toneGraph.y + toneGraph.height * 0.38);
-  ctx.lineTo(toneGraph.x + toneGraph.width - 5, toneGraph.y + toneGraph.height * 0.38);
+  const toneUnityY = overdriveToneResponseToY(toneGraph, 1);
+  ctx.moveTo(toneGraph.x + 5, toneUnityY);
+  ctx.lineTo(toneGraph.x + toneGraph.width - 5, toneUnityY);
   ctx.stroke();
   ctx.setLineDash([]);
 
@@ -779,9 +784,9 @@ function drawOverdriveModuleFace(
   for (let index = 0; index <= 48; index += 1) {
     const ratio = index / 48;
     const frequency = 60 * (12000 / 60) ** ratio;
-    const response = clamp(overdriveToneResponse(tone, driveDb, frequency), 0, 1.45);
+    const response = overdriveToneResponse(tone, driveDb, frequency);
     const px = toneGraph.x + ratio * toneGraph.width;
-    const py = toneGraph.y + toneGraph.height * (1 - response / 1.45);
+    const py = overdriveToneResponseToY(toneGraph, response);
     if (index === 0) {
       ctx.moveTo(px, py);
     } else {

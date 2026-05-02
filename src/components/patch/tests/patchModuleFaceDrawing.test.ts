@@ -72,4 +72,9 @@ describe("Overdrive module face response math", () => {
     expect(lowFrequency).toBeGreaterThan(1);
     expect(highFrequency).toBeLessThan(lowFrequency);
   });
+
+  it("puts max tone exactly on the unity response line", () => {
+    expect(overdriveToneResponse(1, 50, 120)).toBeCloseTo(1);
+    expect(overdriveToneResponse(1, 50, 8000)).toBeCloseTo(1);
+  });
 });
