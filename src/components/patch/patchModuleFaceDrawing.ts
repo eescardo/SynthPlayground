@@ -10,7 +10,7 @@ import {
   PATCH_NODE_WIDTH
 } from "@/components/patch/patchCanvasConstants";
 import { addComplex, clamp, clamp01, divComplex, mulComplex, subComplex } from "@/lib/numeric";
-import { compressorAutoMakeupDb } from "@/lib/patch/compressor";
+import { compressorAutoMakeupDb, compressorGainReductionDb } from "@/lib/patch/compressor";
 import { Patch, PatchNode, ParamSchema, ParamValue, ModuleTypeSchema } from "@/types/patch";
 
 export const VCF_FACE_SAMPLE_RATE_HZ = 48000;
@@ -1126,7 +1126,7 @@ function drawReverbModuleFace(
 }
 
 export function compressorOutputDb(inputDb: number, thresholdDb: number, ratio: number, makeupDb: number, mix: number) {
-  const wet = inputDb <= thresholdDb ? inputDb : thresholdDb + (inputDb - thresholdDb) / Math.max(ratio, 1);
+  const wet = inputDb - compressorGainReductionDb(inputDb, thresholdDb, ratio);
   return inputDb * (1 - clamp01(mix)) + (wet + makeupDb) * clamp01(mix);
 }
 

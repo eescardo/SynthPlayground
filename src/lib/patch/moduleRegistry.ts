@@ -412,7 +412,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
       floatParam("attackMs", "Attack", 0.1, 200, "ms", "Attack time", { default: 10, map: "exp", smoothingMs: 50 }),
       floatParam("releaseMs", "Release", 10, 2000, "ms", "Release time", { default: 200, map: "exp", smoothingMs: 50 }),
       floatParam("makeupDb", "Makeup", 0, 24, "dB", "Makeup gain", { default: 2, smoothingMs: 50 }),
-      boolParam("autoMakeup", "Auto Makeup", false, "Estimate makeup gain from threshold and ratio"),
+      boolParam("autoMakeup", "Auto Makeup", true, "Estimate makeup gain from threshold and ratio"),
       floatParam("mix", "Mix", 0, 1, "linear", "Dry/wet", { default: 1, smoothingMs: 10 })
     ],
     portsIn: [port("in", "In", ["AUDIO"], "Audio input")],

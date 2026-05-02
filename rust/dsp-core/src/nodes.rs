@@ -68,7 +68,22 @@ fn apply_overdrive_tone(input: f32, lowpassed: f32, tone: f32) -> f32 {
 fn compressor_auto_makeup_db(threshold_db: f32, ratio: f32) -> f32 {
     let safe_ratio = ratio.max(1.0);
     let reduction_at_ceiling = (-threshold_db).max(0.0) * (1.0 - 1.0 / safe_ratio);
-    clamp(reduction_at_ceiling * 0.5, 0.0, 24.0)
+    clamp(reduction_at_ceiling * 0.4, 0.0, 18.0)
+}
+
+#[inline(always)]
+fn compressor_gain_reduction_db(level_db: f32, threshold_db: f32, ratio: f32) -> f32 {
+    let safe_ratio = ratio.max(1.0);
+    let knee_db = 6.0;
+    let over_threshold_db = level_db - threshold_db;
+    let over_db = if over_threshold_db <= -knee_db / 2.0 {
+        0.0
+    } else if over_threshold_db >= knee_db / 2.0 {
+        over_threshold_db
+    } else {
+        (over_threshold_db + knee_db / 2.0).powi(2) / (2.0 * knee_db)
+    };
+    over_db * (1.0 - 1.0 / safe_ratio)
 }
 
 fn input_index(inputs: &HashMap<String, i32>, key: &str) -> i32 {
@@ -572,7 +587,7 @@ impl RuntimeNode {
                 attack_ms: SmoothParam::new(value_to_f32(p.get("attackMs"), 10.0), 50.0, sample_rate),
                 release_ms: SmoothParam::new(value_to_f32(p.get("releaseMs"), 200.0), 50.0, sample_rate),
                 makeup_db: SmoothParam::new(value_to_f32(p.get("makeupDb"), 2.0), 50.0, sample_rate),
-                auto_makeup: value_to_bool(p.get("autoMakeup"), false),
+                auto_makeup: value_to_bool(p.get("autoMakeup"), true),
                 mix: SmoothParam::new(value_to_f32(p.get("mix"), 1.0), 10.0, sample_rate),
                 env: 0.0,
             }),
@@ -1216,8 +1231,7 @@ impl RuntimeNode {
                 let threshold_db = node.threshold_db.next();
                 let ratio = node.ratio.next();
                 let level_db = 20.0 * node.env.max(0.00001).log10();
-                let over = (level_db - threshold_db).max(0.0);
-                let reduced_db = over - over / ratio.max(1.0);
+                let reduced_db = compressor_gain_reduction_db(level_db, threshold_db, ratio);
                 let makeup_db = if node.auto_makeup { compressor_auto_makeup_db(threshold_db, ratio) } else { node.makeup_db.next() };
                 let wet = input * db_to_gain(makeup_db - reduced_db);
                 let mix = clamp(node.mix.next(), 0.0, 1.0);
@@ -1257,7 +1271,7 @@ fn read_input_frame(signal_buffers: &[f32], block_size: usize, frame: usize, ind
 
 #[cfg(test)]
 mod tests {
-    use super::{apply_overdrive_tone, compressor_auto_makeup_db, overdrive_drive_amount, overdrive_tone_alpha, shape_fuzz_sample, shape_overdrive_sample};
+    use super::{apply_overdrive_tone, compressor_auto_makeup_db, compressor_gain_reduction_db, overdrive_drive_amount, overdrive_tone_alpha, shape_fuzz_sample, shape_overdrive_sample};
 
     #[test]
     fn fuzz_shaper_is_harder_and_asymmetric() {
@@ -1289,8 +1303,16 @@ mod tests {
     #[test]
     fn compressor_auto_makeup_tracks_static_gain_reduction_conservatively() {
         assert_eq!(compressor_auto_makeup_db(0.0, 4.0), 0.0);
-        assert!((compressor_auto_makeup_db(-24.0, 4.0) - 9.0).abs() < 0.001);
-        assert_eq!(compressor_auto_makeup_db(-60.0, 20.0), 24.0);
+        assert!((compressor_auto_makeup_db(-24.0, 4.0) - 7.2).abs() < 0.001);
+        assert_eq!(compressor_auto_makeup_db(-60.0, 20.0), 18.0);
+    }
+
+    #[test]
+    fn compressor_gain_reduction_uses_soft_knee_near_threshold() {
+        assert_eq!(compressor_gain_reduction_db(-28.0, -24.0, 4.0), 0.0);
+        assert_eq!(compressor_gain_reduction_db(-12.0, -24.0, 4.0), 9.0);
+        assert!(compressor_gain_reduction_db(-24.0, -24.0, 4.0) > 0.0);
+        assert!(compressor_gain_reduction_db(-24.0, -24.0, 4.0) < 1.0);
     }
 }
 

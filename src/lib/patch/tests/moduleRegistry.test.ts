@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getModuleSchema } from "@/lib/patch/moduleRegistry";
+import { createDefaultParamsForType, getModuleSchema } from "@/lib/patch/moduleRegistry";
 
 describe("module registry", () => {
   it("defines CVTranspose pitch offsets as integer-stepped controls", () => {
@@ -27,5 +27,9 @@ describe("module registry", () => {
       range: { min: -100, max: 100 },
       step: 1
     });
+  });
+
+  it("enables compressor auto makeup by default", () => {
+    expect(createDefaultParamsForType("Compressor").autoMakeup).toBe(true);
   });
 });
