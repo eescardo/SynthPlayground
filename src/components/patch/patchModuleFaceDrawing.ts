@@ -1147,10 +1147,7 @@ function drawCompressorModuleFace(
   };
   const thresholdDb = getNumericParam(node, schema, "thresholdDb");
   const ratio = Math.max(1, getNumericParam(node, schema, "ratio"));
-  const autoMakeup = Boolean(node.params.autoMakeup);
-  const makeupDb = autoMakeup
-    ? compressorAutoMakeupDb(thresholdDb, ratio)
-    : getNumericParam(node, schema, "makeupDb");
+  const makeupDb = compressorAutoMakeupDb(thresholdDb, ratio);
   const mix = clamp01(getNumericParam(node, schema, "mix"));
   const minDb = -60;
   const maxDb = 6;
@@ -1204,7 +1201,7 @@ function drawCompressorModuleFace(
   ctx.textAlign = thresholdLabelRight ? "left" : "right";
   ctx.fillText(`${Math.round(thresholdDb)}dB`, thresholdX + (thresholdLabelRight ? 4 : -4), graph.y + 11);
   ctx.textAlign = "right";
-  ctx.fillText(`${ratio.toFixed(ratio >= 10 ? 0 : 1)}:1 ${autoMakeup ? "auto +" : "+"}${makeupDb.toFixed(0)}`, graph.x + graph.width - 6, graph.y + graph.height - 5);
+  ctx.fillText(`${ratio.toFixed(ratio >= 10 ? 0 : 1)}:1 auto +${makeupDb.toFixed(0)}`, graph.x + graph.width - 6, graph.y + graph.height - 5);
   ctx.textAlign = "left";
 }
 

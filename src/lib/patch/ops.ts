@@ -22,8 +22,8 @@ const buildParamRangeKey = (nodeId: string, paramId: string) => `${nodeId}:${par
 
 const findParameterTarget = (patch: Patch, nodeId: string) => getPatchParameterTargets(patch).find((entry) => entry.id === nodeId);
 
-function isParamBoundToAnyMacro(patch: Patch, nodeId: string, paramId: string) {
-  return patch.ui.macros.some((macro) => macro.bindings.some((binding) => binding.nodeId === nodeId && binding.paramId === paramId));
+function isCompressorInternalGainParam(nodeTypeId: string | undefined, paramId: string) {
+  return nodeTypeId === "Compressor" && (paramId === "makeupDb" || paramId === "autoMakeup");
 }
 
 function clampMacroBindingValues(binding: MacroBinding, min: number, max: number) {
@@ -52,9 +52,6 @@ function applyMacroValueToPatch(patch: Patch, macroId: string, normalized: numbe
       continue;
     }
     node.params[binding.paramId] = resolveMacroBindingValue(binding, norm);
-    if (node.typeId === "Compressor" && binding.paramId === "makeupDb") {
-      node.params.autoMakeup = false;
-    }
   }
 
   return patch;
@@ -144,7 +141,7 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       if (!node) {
         throw new Error(`Unknown node in setParam: ${op.nodeId}`);
       }
-      if (node.typeId === "Compressor" && op.paramId === "autoMakeup" && op.value === true && isParamBoundToAnyMacro(next, op.nodeId, "makeupDb")) {
+      if (isCompressorInternalGainParam(node.typeId, op.paramId)) {
         return next;
       }
       node.params[op.paramId] = op.value;
@@ -196,6 +193,9 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       // This is the multi-param atomic update affordance used when several
       // params form one logical state change and should land together.
       for (const [paramId, value] of Object.entries(op.values)) {
+        if (isCompressorInternalGainParam(node.typeId, paramId)) {
+          continue;
+        }
         node.params[paramId] = value;
       }
       return next;
@@ -236,6 +236,10 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       if (!macro) {
         throw new Error(`Unknown macro: ${op.macroId}`);
       }
+      const node = findParameterTarget(next, op.nodeId);
+      if (isCompressorInternalGainParam(node?.typeId, op.paramId)) {
+        return next;
+      }
       const bindingId = createMacroBindingId(op.macroId, op.nodeId, op.paramId);
       if (macro.bindings.some((binding) => binding.id === bindingId || (binding.nodeId === op.nodeId && binding.paramId === op.paramId))) {
         throw new Error(`Binding already exists: ${bindingId}`);
@@ -249,10 +253,6 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
         max: op.max,
         points: op.points
       });
-      const node = findParameterTarget(next, op.nodeId);
-      if (node?.typeId === "Compressor" && op.paramId === "makeupDb") {
-        node.params.autoMakeup = false;
-      }
       return next;
     }
 

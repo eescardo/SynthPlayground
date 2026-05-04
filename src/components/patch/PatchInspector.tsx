@@ -12,6 +12,7 @@ import {
   isPatchOutputEndpoint
 } from "@/components/patch/patchInspectablePorts";
 import { isPatchOutputPortId } from "@/lib/patch/ports";
+import { compressorAutoMakeupDb } from "@/lib/patch/compressor";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch, PatchNode, PatchPort, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -35,6 +36,21 @@ function requiredPortIssueLabel(patch: Patch, issue: PatchValidationIssue, selec
     subject: issue.context?.typeId ?? "Module",
     target: selectedNode || !nodeId ? `${direction} '${portId}'` : `${nodeId}.${portId}`
   };
+}
+
+function CompressorAutoGainReadout({ node }: { node: PatchNode }) {
+  const autoGainDb = compressorAutoMakeupDb(Number(node.params.thresholdDb ?? -24), Number(node.params.ratio ?? 4));
+  return (
+    <div className="param-row">
+      <div className="param-row-header">
+        <span className="param-name">Auto Gain</span>
+        <span className="param-current-value-shell">
+          <span className="param-current-value-label">{autoGainDb.toFixed(1)}</span>
+          <span className="param-current-value-unit">dB</span>
+        </span>
+      </div>
+    </div>
+  );
 }
 
 interface PatchInspectorProps {
@@ -141,6 +157,7 @@ export function PatchInspector(props: PatchInspectorProps) {
                 onExposeMacro={props.onExposeMacro}
               />
             ))}
+          {selectedNode.typeId === "Compressor" && <CompressorAutoGainReadout node={selectedNode} />}
           {selectedNode.typeId === "SamplePlayer" && (
             <SamplePlayerInspectorSection
               node={selectedNode}

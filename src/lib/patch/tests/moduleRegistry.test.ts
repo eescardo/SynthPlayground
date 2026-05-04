@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createDefaultParamsForType, getModuleSchema } from "@/lib/patch/moduleRegistry";
+import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 
 describe("module registry", () => {
   it("defines CVTranspose pitch offsets as integer-stepped controls", () => {
@@ -29,7 +29,10 @@ describe("module registry", () => {
     });
   });
 
-  it("enables compressor auto makeup by default", () => {
-    expect(createDefaultParamsForType("Compressor").autoMakeup).toBe(true);
+  it("does not expose compressor gain compensation as an editable parameter", () => {
+    const schema = getModuleSchema("Compressor");
+
+    expect(schema?.params.some((param) => param.id === "makeupDb")).toBe(false);
+    expect(schema?.params.some((param) => param.id === "autoMakeup")).toBe(false);
   });
 });

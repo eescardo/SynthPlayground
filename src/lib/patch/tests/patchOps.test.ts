@@ -122,15 +122,12 @@ describe("patch ops", () => {
     expect(binding?.points).toHaveLength(3);
   });
 
-  it("turns off compressor auto makeup when makeup gain is macro-bound", () => {
-    const patch = createClearPatch({ id: "compressor_auto_makeup_bind", name: "Compressor" });
+  it("does not bind compressor internal auto gain to a macro", () => {
+    const patch = createClearPatch({ id: "compressor_auto_gain_bind", name: "Compressor" });
     patch.nodes.push({
       id: "comp1",
       typeId: "Compressor",
-      params: {
-        ...createDefaultParamsForType("Compressor"),
-        autoMakeup: true
-      }
+      params: createDefaultParamsForType("Compressor")
     });
     patch.ui.macros.push({ id: "macro1", name: "Macro", keyframeCount: 2, bindings: [] });
 
@@ -145,56 +142,34 @@ describe("patch ops", () => {
       max: 12
     });
 
-    const node = nextPatch.nodes.find((entry) => entry.id === "comp1");
-    expect(node?.params.autoMakeup).toBe(false);
+    expect(nextPatch.ui.macros[0].bindings).toHaveLength(0);
   });
 
-  it("does not enable compressor auto makeup while makeup gain is macro-bound", () => {
-    const patch = createClearPatch({ id: "compressor_auto_makeup_bound", name: "Compressor" });
+  it("ignores legacy compressor auto gain parameter edits", () => {
+    const patch = createClearPatch({ id: "compressor_auto_gain_legacy", name: "Compressor" });
     patch.nodes.push({
       id: "comp1",
       typeId: "Compressor",
-      params: {
-        ...createDefaultParamsForType("Compressor"),
-        autoMakeup: false
-      }
-    });
-    patch.ui.macros.push({
-      id: "macro1",
-      name: "Macro",
-      keyframeCount: 2,
-      bindings: [
-        {
-          id: "macro1:comp1:makeupDb",
-          nodeId: "comp1",
-          paramId: "makeupDb",
-          map: "linear",
-          min: 0,
-          max: 12
-        }
-      ]
+      params: createDefaultParamsForType("Compressor")
     });
 
     const nextPatch = applyPatchOp(patch, {
       type: "setParam",
       nodeId: "comp1",
-      paramId: "autoMakeup",
-      value: true
+      paramId: "makeupDb",
+      value: 12
     });
 
     const node = nextPatch.nodes.find((entry) => entry.id === "comp1");
-    expect(node?.params.autoMakeup).toBe(false);
+    expect(node?.params.makeupDb).toBeUndefined();
   });
 
-  it("turns off compressor auto makeup when applying a legacy makeup macro binding", () => {
-    const patch = createClearPatch({ id: "compressor_auto_makeup_apply", name: "Compressor" });
+  it("ignores legacy compressor makeup macro bindings", () => {
+    const patch = createClearPatch({ id: "compressor_auto_gain_apply", name: "Compressor" });
     patch.nodes.push({
       id: "comp1",
       typeId: "Compressor",
-      params: {
-        ...createDefaultParamsForType("Compressor"),
-        autoMakeup: true
-      }
+      params: createDefaultParamsForType("Compressor")
     });
     patch.ui.macros.push({
       id: "macro1",
@@ -215,8 +190,7 @@ describe("patch ops", () => {
     const nextPatch = applyMacroValue(patch, "macro1", 0.5);
     const node = nextPatch.nodes.find((entry) => entry.id === "comp1");
 
-    expect(node?.params.autoMakeup).toBe(false);
-    expect(node?.params.makeupDb).toBe(6);
+    expect(node?.params.makeupDb).toBeUndefined();
   });
 
   it("updates the macro binding interpolation map without changing its range", () => {
