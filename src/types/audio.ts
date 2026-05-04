@@ -135,6 +135,12 @@ export interface WorkletInitErrorMessage {
   error: string;
 }
 
+export interface WorkletRuntimeErrorMessage {
+  type: "RUNTIME_ERROR";
+  phase: "message" | "start_stream" | "stop_stream" | "process_block";
+  error: string;
+}
+
 export interface WorkletTransportMessage {
   type: "TRANSPORT";
   isPlaying: boolean;
@@ -158,4 +164,8 @@ export type WorkletInboundMessage =
   | WorkletRecordingMessage
   | WorkletTransportMessage;
 
-export type WorkletOutboundMessage = WorkletPreviewCaptureMessage | WorkletInitReadyMessage | WorkletInitErrorMessage;
+export type WorkletOutboundMessage =
+  | WorkletPreviewCaptureMessage
+  | WorkletInitReadyMessage
+  | WorkletInitErrorMessage
+  | WorkletRuntimeErrorMessage;

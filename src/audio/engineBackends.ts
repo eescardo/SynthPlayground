@@ -135,6 +135,8 @@ class RealAudioEngineBackend implements AudioEngineBackend {
         onMessage: (message: WorkletOutboundMessage) => {
           if (message?.type === "PREVIEW_CAPTURE") {
             this.previewCaptureListener?.(message.previewId, message.captures);
+          } else if (message?.type === "RUNTIME_ERROR") {
+            console.error(`Audio worklet ${message.phase} failed: ${message.error}`);
           }
         }
       });
