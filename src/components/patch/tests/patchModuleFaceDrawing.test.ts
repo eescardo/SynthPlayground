@@ -8,7 +8,7 @@ import {
   overdriveTransfer,
   vcfMagnitudeAtFrequency
 } from "@/components/patch/patchModuleFaceDrawing";
-import { compressorAutoMakeupDb, compressorGainReductionDb } from "@/lib/patch/compressor";
+import { compressorAdaptiveAttackBufferMs, compressorAutoMakeupDb, compressorGainReductionDb } from "@/lib/patch/compressor";
 
 describe("VCF module face response math", () => {
   it("uses the app sample rate and Nyquist ceiling for face calculations", () => {
@@ -57,6 +57,14 @@ describe("Compressor module face response math", () => {
     expect(compressorAutoMakeupDb(0, 4)).toBe(0);
     expect(compressorAutoMakeupDb(-24, 4)).toBeCloseTo(7.2);
     expect(compressorAutoMakeupDb(-60, 20)).toBe(18);
+  });
+
+  it("adds adaptive attack for deep expected gain reduction", () => {
+    expect(compressorAdaptiveAttackBufferMs(-60, 1)).toBe(0);
+    expect(compressorAdaptiveAttackBufferMs(-60, 2)).toBeCloseTo(160);
+    expect(compressorAdaptiveAttackBufferMs(-35, 2)).toBeGreaterThan(40);
+    expect(compressorAdaptiveAttackBufferMs(-35, 2)).toBeLessThan(80);
+    expect(compressorAdaptiveAttackBufferMs(-60, 20)).toBeGreaterThan(300);
   });
 
   it("uses a soft knee around the compression threshold", () => {

@@ -72,6 +72,14 @@ fn compressor_auto_makeup_db(threshold_db: f32, ratio: f32) -> f32 {
 }
 
 #[inline(always)]
+fn compressor_adaptive_attack_buffer_ms(threshold_db: f32, ratio: f32) -> f32 {
+    let safe_ratio = ratio.max(1.0);
+    let reduction_at_ceiling = (-threshold_db).max(0.0) * (1.0 - 1.0 / safe_ratio);
+    let active_reduction = (reduction_at_ceiling - 6.0).max(0.0);
+    clamp((active_reduction / 24.0).powf(1.1) * 160.0, 0.0, 360.0)
+}
+
+#[inline(always)]
 fn compressor_gain_reduction_db(level_db: f32, threshold_db: f32, ratio: f32) -> f32 {
     let safe_ratio = ratio.max(1.0);
     let knee_db = 12.0;
@@ -1228,18 +1236,19 @@ impl RuntimeNode {
             }
             Self::Compressor(node) => {
                 let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
+                let threshold_db = node.threshold_db.next();
+                let ratio = node.ratio.next();
                 let rms_alpha = crate::smoothing_alpha(8.0, sample_rate);
                 node.rms_energy = one_pole_step(node.rms_energy, input * input, rms_alpha);
                 let rms_in = node.rms_energy.max(0.0).sqrt();
-                let att = crate::smoothing_alpha(node.attack_ms.next().max(0.1), sample_rate);
+                let effective_attack_ms = node.attack_ms.next().max(0.1) + compressor_adaptive_attack_buffer_ms(threshold_db, ratio);
+                let att = crate::smoothing_alpha(effective_attack_ms, sample_rate);
                 let rel = crate::smoothing_alpha(node.release_ms.next().max(1.0), sample_rate);
                 node.env = if rms_in > node.env { one_pole_step(node.env, rms_in, att) } else { one_pole_step(node.env, rms_in, rel) };
-                let threshold_db = node.threshold_db.next();
-                let ratio = node.ratio.next();
                 let level_db = 20.0 * node.env.max(0.00001).log10();
                 let target_reduction_db = compressor_gain_reduction_db(level_db, threshold_db, ratio);
                 let gain_alpha = if target_reduction_db > node.gain_reduction_db {
-                    crate::smoothing_alpha(8.0, sample_rate)
+                    crate::smoothing_alpha(effective_attack_ms.max(8.0) * 0.35, sample_rate)
                 } else {
                     crate::smoothing_alpha(35.0, sample_rate)
                 };
@@ -1283,7 +1292,7 @@ fn read_input_frame(signal_buffers: &[f32], block_size: usize, frame: usize, ind
 
 #[cfg(test)]
 mod tests {
-    use super::{apply_overdrive_tone, compressor_auto_makeup_db, compressor_gain_reduction_db, overdrive_drive_amount, overdrive_tone_alpha, shape_fuzz_sample, shape_overdrive_sample};
+    use super::{apply_overdrive_tone, compressor_adaptive_attack_buffer_ms, compressor_auto_makeup_db, compressor_gain_reduction_db, overdrive_drive_amount, overdrive_tone_alpha, shape_fuzz_sample, shape_overdrive_sample};
 
     #[test]
     fn fuzz_shaper_is_harder_and_asymmetric() {
@@ -1317,6 +1326,15 @@ mod tests {
         assert_eq!(compressor_auto_makeup_db(0.0, 4.0), 0.0);
         assert!((compressor_auto_makeup_db(-24.0, 4.0) - 7.2).abs() < 0.001);
         assert_eq!(compressor_auto_makeup_db(-60.0, 20.0), 18.0);
+    }
+
+    #[test]
+    fn compressor_adaptive_attack_grows_with_ratio_and_threshold_depth() {
+        assert_eq!(compressor_adaptive_attack_buffer_ms(-60.0, 1.0), 0.0);
+        assert!((compressor_adaptive_attack_buffer_ms(-60.0, 2.0) - 160.0).abs() < 0.001);
+        assert!(compressor_adaptive_attack_buffer_ms(-35.0, 2.0) > 40.0);
+        assert!(compressor_adaptive_attack_buffer_ms(-35.0, 2.0) < 80.0);
+        assert!(compressor_adaptive_attack_buffer_ms(-60.0, 20.0) > 300.0);
     }
 
     #[test]

@@ -7,7 +7,7 @@ import { EditableNumberLabel, MacroBindingDetails, ParamMacroControl } from "@/c
 import { resolveParamBindingState, resolveParamControlValue } from "@/components/patch/patchModuleParameterState";
 import { createMacroBindingId, createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
 import { clamp, clampRange } from "@/lib/numeric";
-import { compressorAutoMakeupDb } from "@/lib/patch/compressor";
+import { compressorAdaptiveAttackBufferMs, compressorAutoMakeupDb } from "@/lib/patch/compressor";
 import { MacroBinding, Patch, PatchMacro, PatchNode, PatchParamSliderRange, ParamSchema, ParamValue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { samplePlayerPitchSemisToRootPitch } from "@/lib/patch/samplePlayer";
@@ -198,6 +198,21 @@ function isCompressorAutoMakeupBlockedByMacro(node: PatchNode, param: ParamSchem
   );
 }
 
+function resolveCompressorAttackDisplay(node: PatchNode, param: ParamSchema, value: ParamValue) {
+  if (node.typeId !== "Compressor" || param.id !== "attackMs" || param.type !== "float" || typeof value !== "number") {
+    return null;
+  }
+  const bufferMs = compressorAdaptiveAttackBufferMs(Number(node.params.thresholdDb ?? -24), Number(node.params.ratio ?? 4));
+  if (bufferMs < 0.5) {
+    return null;
+  }
+  return {
+    baseMs: value,
+    bufferMs,
+    effectiveMs: value + bufferMs
+  };
+}
+
 export function shouldRenderParamInGenericInspector(node: PatchNode, param: ParamSchema) {
   if (node.typeId === "SamplePlayer" && (param.id === "start" || param.id === "end")) {
     return false;
@@ -311,6 +326,18 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
         ? `Select ${bindingState.activeBindingMacro.name} and stop on a keyframe notch to edit this binding.`
         : null;
   const unitDisplay = resolveCurrentValueUnitDisplay(props.param);
+  const floatParam = props.param.type === "float" ? props.param : null;
+  const compressorAttackDisplay = resolveCompressorAttackDisplay(props.selectedNode, props.param, sliderControlValue);
+  const currentDisplayValue = compressorAttackDisplay?.effectiveMs ?? sliderControlValue;
+  const currentDisplayMin = compressorAttackDisplay ? sliderRange.min + compressorAttackDisplay.bufferMs : sliderRange.min;
+  const currentDisplayMax = compressorAttackDisplay ? sliderRange.max + compressorAttackDisplay.bufferMs : sliderRange.max;
+  const commitDisplayedValue = (nextValue: ParamValue) => {
+    commitValue(
+      compressorAttackDisplay && typeof nextValue === "number"
+        ? clamp(nextValue - compressorAttackDisplay.bufferMs, sliderRange.min, sliderRange.max)
+        : nextValue
+    );
+  };
 
   const bindParamToMacro = (macroId: string) => {
     if (props.structureLocked || autoControlledMakeup || autoMakeupBlockedByMacro) {
@@ -389,21 +416,29 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
             }
           }}
         />
-        {props.param.type === "float" && typeof sliderControlValue === "number" && (
+        {floatParam && typeof sliderControlValue === "number" && (
           <span className="param-current-value-shell">
             <EditableNumberLabel
               id={`${props.selectedNode.id}:${props.param.id}:value`}
-              value={sliderControlValue}
-              min={sliderRange.min}
-              max={sliderRange.max}
+              value={Number(currentDisplayValue)}
+              min={currentDisplayMin}
+              max={currentDisplayMax}
               className="param-current-value-label"
               inputClassName="param-current-value-input"
               displayScale={unitDisplay?.scale}
               disabled={controlDisabled}
-              onCommit={commitValue}
+              onCommit={commitDisplayedValue}
             />
             {unitDisplay && (
-              <span className="param-current-value-unit">{unitDisplay.label}</span>
+              <span className="param-current-value-unit">{compressorAttackDisplay ? `${unitDisplay.label} eff` : unitDisplay.label}</span>
+            )}
+            {compressorAttackDisplay && (
+              <span
+                className="param-current-value-breakdown"
+                title={`${compressorAttackDisplay.effectiveMs.toFixed(1)} ms effective = ${compressorAttackDisplay.baseMs.toFixed(1)} ms attack + ${compressorAttackDisplay.bufferMs.toFixed(1)} ms adaptive buffer`}
+              >
+                ({compressorAttackDisplay.baseMs.toFixed(0)}+{compressorAttackDisplay.bufferMs.toFixed(0)})
+              </span>
             )}
           </span>
         )}
@@ -420,29 +455,32 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
             onChange={commitValue}
             onPreviewChange={(nextValue) => props.onPreviewParamValue?.(props.selectedNode.id, props.param.id, nextValue)}
           />
-          {props.param.type === "float" && shouldRenderCurveScaleLabels(props.selectedNode, props.param) && (
+          {floatParam && shouldRenderCurveScaleLabels(props.selectedNode, props.param) && (
             <div className="param-curve-label-row" aria-hidden="true">
               <span>exp</span>
               <span>linear</span>
               <span>log</span>
             </div>
           )}
-          {props.param.type === "float" && !shouldRenderCurveScaleLabels(props.selectedNode, props.param) && (
+          {floatParam && !shouldRenderCurveScaleLabels(props.selectedNode, props.param) && (
             <div className={`param-range-label-row${hasParamRangeDiff ? " diff-positive" : ""}`}>
               <EditableNumberLabel
                 id={`${props.selectedNode.id}:${props.param.id}:min`}
-                value={sliderRange.min}
-                min={props.param.range.min}
-                max={sliderRange.max}
+                value={compressorAttackDisplay ? sliderRange.min + compressorAttackDisplay.bufferMs : sliderRange.min}
+                min={compressorAttackDisplay ? floatParam.range.min + compressorAttackDisplay.bufferMs : floatParam.range.min}
+                max={compressorAttackDisplay ? sliderRange.max + compressorAttackDisplay.bufferMs : sliderRange.max}
                 className="param-range-label"
                 inputClassName="param-range-label-input"
                 disabled={props.structureLocked}
                 onCommit={(nextValue) => {
+                  const resolvedMin = compressorAttackDisplay
+                    ? clamp(nextValue - compressorAttackDisplay.bufferMs, floatParam.range.min, sliderRange.max)
+                    : nextValue;
                   props.onApplyOp({
                     type: "setParamSliderRange",
                     nodeId: props.selectedNode.id,
                     paramId: props.param.id,
-                    min: nextValue,
+                    min: resolvedMin,
                     max: sliderRange.max
                   });
                 }}
@@ -450,19 +488,22 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
               {hasParamRangeDiff && <span className="param-range-diff-badge">Range changed</span>}
               <EditableNumberLabel
                 id={`${props.selectedNode.id}:${props.param.id}:max`}
-                value={sliderRange.max}
-                min={sliderRange.min}
-                max={props.param.range.max}
+                value={compressorAttackDisplay ? sliderRange.max + compressorAttackDisplay.bufferMs : sliderRange.max}
+                min={compressorAttackDisplay ? sliderRange.min + compressorAttackDisplay.bufferMs : sliderRange.min}
+                max={compressorAttackDisplay ? floatParam.range.max + compressorAttackDisplay.bufferMs : floatParam.range.max}
                 className="param-range-label"
                 inputClassName="param-range-label-input"
                 disabled={props.structureLocked}
                 onCommit={(nextValue) => {
+                  const resolvedMax = compressorAttackDisplay
+                    ? clamp(nextValue - compressorAttackDisplay.bufferMs, sliderRange.min, floatParam.range.max)
+                    : nextValue;
                   props.onApplyOp({
                     type: "setParamSliderRange",
                     nodeId: props.selectedNode.id,
                     paramId: props.param.id,
                     min: sliderRange.min,
-                    max: nextValue
+                    max: resolvedMax
                   });
                 }}
               />

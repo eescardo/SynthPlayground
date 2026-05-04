@@ -395,7 +395,7 @@ export const createPatchModuleFacesCaptureProject = (): Project => {
         id: "patch_tab_module_faces",
         name: patch.name,
         patchId,
-        selectedNodeId: "env_shape",
+        selectedNodeId: "comp_shape",
         probes: []
       }
     ]
@@ -407,9 +407,8 @@ export const setupPatchModuleFacesWorkspace = async (page: Page) => {
   await openSeededPatchWorkspaceApp(page, createPatchModuleFacesCaptureProject());
   await expect(page.getByRole("heading", { name: "Patch Workspace" })).toBeVisible();
   await expect(page.locator(".patch-workspace-tab-name", { hasText: "Module Face Visuals" })).toBeVisible();
-  await expect(page.locator(".param-curve-label-row")).toContainText("exp");
-  await expect(page.locator(".param-curve-label-row")).toContainText("linear");
-  await expect(page.locator(".param-curve-label-row")).toContainText("log");
+  await expect(page.locator(".patch-inspector")).toContainText("Compressor comp_shape");
+  await expect(page.locator(".param-current-value-unit", { hasText: "ms eff" })).toBeVisible();
 };
 
 export const createMicrotonalCaptureProject = (): Project => {

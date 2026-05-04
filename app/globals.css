@@ -2500,6 +2500,15 @@ select {
   line-height: 1;
 }
 
+.param-current-value-breakdown {
+  flex: 0 0 auto;
+  color: rgba(159, 180, 201, 0.58);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.56rem;
+  font-weight: 650;
+  line-height: 1;
+}
+
 .param-current-value-label:not(:disabled).rename-armed {
   color: #d7ebff;
   text-decoration: underline dotted rgba(167, 204, 240, 0.75);
