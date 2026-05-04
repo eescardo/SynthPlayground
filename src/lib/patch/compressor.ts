@@ -5,7 +5,10 @@ export const COMPRESSOR_SOFT_KNEE_DB = 12;
 export function compressorAutoMakeupDb(thresholdDb: number, ratio: number) {
   const safeRatio = Math.max(1, ratio);
   const reductionAtCeiling = Math.max(0, -thresholdDb) * (1 - 1 / safeRatio);
-  return clamp(reductionAtCeiling * 0.4, 0, 18);
+  const adaptiveAttackBufferMs = compressorAdaptiveAttackBufferMs(thresholdDb, safeRatio);
+  const attackCompensation = 1 / (1 + adaptiveAttackBufferMs / 260);
+  const ratioCompensation = 1 / (1 + (safeRatio - 1) * 0.03);
+  return clamp(reductionAtCeiling * 0.33, 0, 18) * attackCompensation * ratioCompensation;
 }
 
 export function compressorAdaptiveAttackBufferMs(thresholdDb: number, ratio: number) {

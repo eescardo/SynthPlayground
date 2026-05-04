@@ -55,8 +55,8 @@ describe("Compressor module face response math", () => {
 
   it("estimates conservative auto makeup from threshold and ratio", () => {
     expect(compressorAutoMakeupDb(0, 4)).toBe(0);
-    expect(compressorAutoMakeupDb(-24, 4)).toBeCloseTo(7.2);
-    expect(compressorAutoMakeupDb(-60, 20)).toBe(18);
+    expect(compressorAutoMakeupDb(-24, 4)).toBeCloseTo(4.2340);
+    expect(compressorAutoMakeupDb(-60, 20)).toBeCloseTo(4.8079);
   });
 
   it("adds adaptive attack for deep expected gain reduction", () => {

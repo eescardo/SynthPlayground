@@ -68,7 +68,10 @@ fn apply_overdrive_tone(input: f32, lowpassed: f32, tone: f32) -> f32 {
 fn compressor_auto_makeup_db(threshold_db: f32, ratio: f32) -> f32 {
     let safe_ratio = ratio.max(1.0);
     let reduction_at_ceiling = (-threshold_db).max(0.0) * (1.0 - 1.0 / safe_ratio);
-    clamp(reduction_at_ceiling * 0.4, 0.0, 18.0)
+    let adaptive_attack_buffer_ms = compressor_adaptive_attack_buffer_ms(threshold_db, safe_ratio);
+    let attack_compensation = 1.0 / (1.0 + adaptive_attack_buffer_ms / 260.0);
+    let ratio_compensation = 1.0 / (1.0 + (safe_ratio - 1.0) * 0.03);
+    clamp(reduction_at_ceiling * 0.33, 0.0, 18.0) * attack_compensation * ratio_compensation
 }
 
 #[inline(always)]
@@ -1324,8 +1327,8 @@ mod tests {
     #[test]
     fn compressor_auto_makeup_tracks_static_gain_reduction_conservatively() {
         assert_eq!(compressor_auto_makeup_db(0.0, 4.0), 0.0);
-        assert!((compressor_auto_makeup_db(-24.0, 4.0) - 7.2).abs() < 0.001);
-        assert_eq!(compressor_auto_makeup_db(-60.0, 20.0), 18.0);
+        assert!((compressor_auto_makeup_db(-24.0, 4.0) - 4.2340).abs() < 0.001);
+        assert!((compressor_auto_makeup_db(-60.0, 20.0) - 4.8079).abs() < 0.001);
     }
 
     #[test]
