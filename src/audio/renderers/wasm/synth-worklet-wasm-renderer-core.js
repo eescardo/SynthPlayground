@@ -75,7 +75,12 @@ export class SharedWasmRenderStream {
     if (!force && capturedSamples - this.previewCaptureState.lastEmittedCapturedSamples < 1024) {
       return;
     }
-    const snapshot = this.implementation.readPreviewCapture?.(this.renderer, this.engine, this.previewCaptureState, force);
+    let snapshot = null;
+    try {
+      snapshot = this.implementation.readPreviewCapture?.(this.renderer, this.engine, this.previewCaptureState, force);
+    } catch {
+      return;
+    }
     if (!snapshot) {
       return;
     }

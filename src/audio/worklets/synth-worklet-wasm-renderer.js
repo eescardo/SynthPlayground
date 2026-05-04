@@ -58,7 +58,16 @@ export class WasmWorkletRenderer extends SharedWasmRenderer {
         };
       },
       readPreviewCapture: (_renderer, engine) => {
-        const snapshot = JSON.parse(engine.preview_capture_state_json());
+        const rawSnapshot = engine.preview_capture_state_json();
+        if (typeof rawSnapshot !== "string" || rawSnapshot.length === 0 || rawSnapshot.charCodeAt(0) === 0) {
+          return null;
+        }
+        let snapshot = null;
+        try {
+          snapshot = JSON.parse(rawSnapshot);
+        } catch {
+          return null;
+        }
         if (!snapshot || !Array.isArray(snapshot.captures)) {
           return null;
         }
