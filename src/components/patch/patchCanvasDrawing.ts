@@ -52,7 +52,7 @@ import { Patch, PatchLayoutNode, PatchNode, PatchValidationIssue, PortSchema } f
 const PATCH_DIFF_PEDESTAL_INSET = 8;
 const PATCH_DIFF_PEDESTAL_RADIUS = 10;
 const PATCH_DIFF_PEDESTAL_STROKE_WIDTH = 8;
-const PATCH_EXPANDED_FACE_TITLE_SCALE = 1.69;
+const PATCH_EXPANDED_FACE_HEADER_SCALE = 1.69;
 
 interface ResolvedPortPosition {
   x: number;
@@ -112,7 +112,7 @@ export function drawPatchModuleCard(
 ) {
   ctx.save();
   const baseAlpha = options.clearPreview ? 0.5 : 1;
-  const expandedUiScale = options.expandedFace ? PATCH_EXPANDED_FACE_TITLE_SCALE / PATCH_FACE_POPOVER_SCALE : 1;
+  const expandedHeaderScale = options.expandedFace ? PATCH_EXPANDED_FACE_HEADER_SCALE / PATCH_FACE_POPOVER_SCALE : 1;
   const expandedStrokeScale = options.expandedFace ? 1 / PATCH_FACE_POPOVER_SCALE : 1;
   ctx.globalAlpha = baseAlpha;
   const moduleColors = resolveMutedPatchModuleColors(schema.categories);
@@ -155,7 +155,7 @@ export function drawPatchModuleCard(
         ? PATCH_COLOR_MODULE_DIFF_MODIFIED_ACCENT
         : moduleColors.accent;
   ctx.globalAlpha = baseAlpha * (options.selected ? 0.26 : options.hovered ? 0.2 : options.diffStatus === "unchanged" ? 0.12 : 0.18);
-  ctx.fillRect(x, y, PATCH_NODE_WIDTH, (PATCH_NODE_BODY_TOP - 8) * expandedUiScale);
+  ctx.fillRect(x, y, PATCH_NODE_WIDTH, (PATCH_NODE_BODY_TOP - 8) * expandedHeaderScale);
   ctx.globalAlpha = baseAlpha;
   ctx.strokeStyle =
     options.deletePreview
@@ -173,12 +173,12 @@ export function drawPatchModuleCard(
   ctx.strokeRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
 
   ctx.fillStyle = PATCH_COLOR_NODE_TITLE;
-  ctx.font = `${13 * expandedUiScale}px 'Trebuchet MS', 'Segoe UI', sans-serif`;
-  const titleY = y + 18 * expandedUiScale;
+  ctx.font = `${13 * expandedHeaderScale}px 'Trebuchet MS', 'Segoe UI', sans-serif`;
+  const titleY = y + 18 * expandedHeaderScale;
   ctx.fillText(node.typeId, x + 10, titleY);
   const titleWidth = ctx.measureText(node.typeId).width;
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
-  ctx.font = `${10 * expandedUiScale}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.font = `${10 * expandedHeaderScale}px ui-monospace, SFMono-Regular, Menlo, monospace`;
   ctx.fillText(node.id, x + 18 + titleWidth, titleY);
 
   drawPatchModuleFaceContent(ctx, patch, node, schema, x, y, moduleColors.accent, {
