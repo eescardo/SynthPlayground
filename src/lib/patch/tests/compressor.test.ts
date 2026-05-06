@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   COMPRESSOR_SOFT_KNEE_DB,
-  compressorAdaptiveAttackBufferMs,
-  compressorAutoMakeupDb,
+  compressorDerivedParamsForSquash,
   compressorGainReductionDb
 } from "@/lib/patch/compressor";
 
@@ -36,6 +35,20 @@ function pluckLikeSample(index: number) {
   return amplitude * (saw * 0.7 + triangle * 0.3) + 0.002 * Math.sin(2 * Math.PI * 37 * time);
 }
 
+function bassLikeSample(index: number) {
+  const time = index / SAMPLE_RATE;
+  const noteTime = time % 2.8;
+  const amplitude =
+    noteTime < 0.015
+      ? 0.45 * (noteTime / 0.015)
+      : noteTime < 0.36
+        ? 0.45
+        : 0.45 * Math.exp(-(noteTime - 0.36) * 1.55);
+  const saw = 2 * ((time * 110) % 1) - 1;
+  const triangle = 2 * Math.abs(2 * ((time * 110.55) % 1) - 1) - 1;
+  return amplitude * (saw * 0.65 + triangle * 0.35);
+}
+
 function analyzeLevel(samples: Float32Array) {
   let squareSum = 0;
   const windowRmsDb: number[] = [];
@@ -61,64 +74,89 @@ function analyzeLevel(samples: Float32Array) {
   };
 }
 
-function simulateCompressor(params: { thresholdDb: number; ratio: number; attackMs: number }) {
+function envelopeShape(samples: Float32Array) {
+  const bodyDb = analyzeWindowRms(samples, 0.08, 0.35);
+  const tailDb = analyzeWindowRms(samples, 1.2, 2.0);
+  return { bodyDb, tailDb, tailRelativeToBodyDb: tailDb - bodyDb };
+}
+
+function analyzeWindowRms(samples: Float32Array, startSeconds: number, endSeconds: number) {
+  const start = Math.floor(startSeconds * SAMPLE_RATE);
+  const end = Math.min(samples.length, Math.floor(endSeconds * SAMPLE_RATE));
+  let squareSum = 0;
+  for (let index = start; index < end; index += 1) {
+    squareSum += samples[index] * samples[index];
+  }
+  return 20 * Math.log10(Math.sqrt(squareSum / Math.max(1, end - start)) + 1e-9);
+}
+
+function simulateCompressor(params: { squash: number; attackMs: number; mix: number; material?: "pluck" | "bass" }) {
   const frameCount = SAMPLE_RATE * DURATION_SECONDS;
   const input = new Float32Array(frameCount);
   const output = new Float32Array(frameCount);
-  const makeupDb = compressorAutoMakeupDb(params.thresholdDb, params.ratio);
-  const effectiveAttackMs = params.attackMs + compressorAdaptiveAttackBufferMs(params.thresholdDb, params.ratio);
+  const derived = compressorDerivedParamsForSquash(params.squash);
   let rmsEnergy = 0;
   let envelope = 0;
   let gainReductionDb = 0;
 
   for (let index = 0; index < frameCount; index += 1) {
-    const sample = pluckLikeSample(index);
+    const sample = params.material === "bass" ? bassLikeSample(index) : pluckLikeSample(index);
     input[index] = sample;
 
     rmsEnergy = onePoleStep(rmsEnergy, sample * sample, smoothingAlpha(8));
     const rmsInput = Math.sqrt(Math.max(0, rmsEnergy));
     envelope =
       rmsInput > envelope
-        ? onePoleStep(envelope, rmsInput, smoothingAlpha(effectiveAttackMs))
-        : onePoleStep(envelope, rmsInput, smoothingAlpha(200));
+        ? onePoleStep(envelope, rmsInput, smoothingAlpha(params.attackMs))
+        : onePoleStep(envelope, rmsInput, smoothingAlpha(derived.releaseMs));
     const levelDb = 20 * Math.log10(Math.max(envelope, 0.00001));
-    const targetReductionDb = compressorGainReductionDb(levelDb, params.thresholdDb, params.ratio, COMPRESSOR_SOFT_KNEE_DB);
+    const targetReductionDb = compressorGainReductionDb(levelDb, derived.thresholdDb, derived.ratio, COMPRESSOR_SOFT_KNEE_DB);
     const gainAlpha =
       targetReductionDb > gainReductionDb
-        ? smoothingAlpha(Math.max(8, effectiveAttackMs) * 0.35)
+        ? smoothingAlpha(Math.max(8, params.attackMs) * 0.35)
         : smoothingAlpha(35);
     gainReductionDb = onePoleStep(gainReductionDb, targetReductionDb, gainAlpha);
-    output[index] = sample * dbToGain(makeupDb - gainReductionDb);
+    const wet = sample * dbToGain(derived.autoGainDb - gainReductionDb);
+    output[index] = sample * (1 - params.mix) + wet * params.mix;
   }
 
   const inputLevel = analyzeLevel(input);
   const outputLevel = analyzeLevel(output);
+  const inputEnvelope = envelopeShape(input);
+  const outputEnvelope = envelopeShape(output);
   return {
     rmsDeltaDb: outputLevel.rmsDb - inputLevel.rmsDb,
-    p90DeltaDb: outputLevel.p90WindowRmsDb - inputLevel.p90WindowRmsDb
+    p90DeltaDb: outputLevel.p90WindowRmsDb - inputLevel.p90WindowRmsDb,
+    sustainLiftDb: outputEnvelope.tailRelativeToBodyDb - inputEnvelope.tailRelativeToBodyDb
   };
 }
 
 describe("compressor defaults", () => {
-  it("does not change level at ratio 1 regardless of threshold", () => {
-    for (const thresholdDb of [-24, -60]) {
-      for (const attackMs of [10, 200]) {
-        const result = simulateCompressor({ thresholdDb, ratio: 1, attackMs });
+  it("does not change level at zero squash", () => {
+    for (const attackMs of [10, 200]) {
+      for (const material of ["pluck", "bass"] as const) {
+        const result = simulateCompressor({ squash: 0, attackMs, mix: 1, material });
         expect(Math.abs(result.rmsDeltaDb)).toBeLessThan(0.05);
         expect(Math.abs(result.p90DeltaDb)).toBeLessThan(0.05);
       }
     }
   });
 
-  it("keeps auto-compensated pluck material from getting louder at compression anchors", () => {
-    for (const thresholdDb of [-24, -45, -60]) {
-      for (const ratio of [2, 20]) {
-        for (const attackMs of [10, 200]) {
-          const result = simulateCompressor({ thresholdDb, ratio, attackMs });
-          expect(result.rmsDeltaDb).toBeLessThan(3.5);
-          expect(result.p90DeltaDb).toBeLessThan(3.5);
-        }
+  it("keeps compressed material from getting much louder at squash anchors", () => {
+    for (const squash of [0.25, 0.5, 1]) {
+      for (const material of ["pluck", "bass"] as const) {
+        const result = simulateCompressor({ squash, attackMs: 35, mix: 0.55, material });
+        expect(result.rmsDeltaDb).toBeLessThan(4.5);
+        expect(result.p90DeltaDb).toBeLessThan(4.5);
       }
     }
+  });
+
+  it("keeps bass tails more sustained at stronger squash", () => {
+    const medium = simulateCompressor({ squash: 0.5, attackMs: 35, mix: 0.55, material: "bass" });
+    const high = simulateCompressor({ squash: 1, attackMs: 35, mix: 0.55, material: "bass" });
+
+    expect(medium.sustainLiftDb).toBeGreaterThan(2);
+    expect(high.sustainLiftDb).toBeGreaterThan(3);
   });
 });

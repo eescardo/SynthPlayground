@@ -407,11 +407,9 @@ export const moduleRegistry: ModuleTypeSchema[] = [
     doc: { summary: "Dynamics compressor." },
     requiredPortIds: { in: ["in"], out: ["out"] },
     params: [
-      floatParam("thresholdDb", "Threshold", -60, 0, "dB", "Threshold", { default: -24, smoothingMs: 50 }),
-      floatParam("ratio", "Ratio", 1, 20, "ratio", "Compression ratio", { default: 4, smoothingMs: 50 }),
-      floatParam("attackMs", "Attack", 0.1, 200, "ms", "Attack time", { default: 10, map: "exp", smoothingMs: 50 }),
-      floatParam("releaseMs", "Release", 10, 2000, "ms", "Release time", { default: 200, map: "exp", smoothingMs: 50 }),
-      floatParam("mix", "Mix", 0, 1, "linear", "Dry/wet", { default: 1, smoothingMs: 10 })
+      floatParam("squash", "Squash", 0, 1, "linear", "Compression amount", { default: 0.5, smoothingMs: 50 }),
+      floatParam("attackMs", "Attack", 1, 400, "ms", "Transient response", { default: 35, map: "exp", smoothingMs: 50 }),
+      floatParam("mix", "Mix", 0, 1, "linear", "Dry/wet", { default: 0.55, smoothingMs: 10 })
     ],
     portsIn: [port("in", "In", ["AUDIO"], "Audio input")],
     portsOut: [port("out", "Out", ["AUDIO"], "Compressed output")]

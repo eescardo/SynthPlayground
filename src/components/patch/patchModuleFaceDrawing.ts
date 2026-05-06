@@ -10,7 +10,7 @@ import {
   PATCH_NODE_WIDTH
 } from "@/components/patch/patchCanvasConstants";
 import { addComplex, clamp, clamp01, divComplex, mulComplex, subComplex } from "@/lib/numeric";
-import { compressorAutoMakeupDb, compressorGainReductionDb } from "@/lib/patch/compressor";
+import { compressorDerivedParamsForSquash, compressorGainReductionDb } from "@/lib/patch/compressor";
 import { Patch, PatchNode, ParamSchema, ParamValue, ModuleTypeSchema } from "@/types/patch";
 
 export const VCF_FACE_SAMPLE_RATE_HZ = 48000;
@@ -1145,9 +1145,10 @@ function drawCompressorModuleFace(
     width: PATCH_NODE_WIDTH - graphLeftInset - PATCH_MODULE_FACE_INSET_X,
     height: PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 10
   };
-  const thresholdDb = getNumericParam(node, schema, "thresholdDb");
-  const ratio = Math.max(1, getNumericParam(node, schema, "ratio"));
-  const makeupDb = compressorAutoMakeupDb(thresholdDb, ratio);
+  const derived = compressorDerivedParamsForSquash(getNumericParam(node, schema, "squash"));
+  const thresholdDb = derived.thresholdDb;
+  const ratio = derived.ratio;
+  const makeupDb = derived.autoGainDb;
   const mix = clamp01(getNumericParam(node, schema, "mix"));
   const minDb = -60;
   const maxDb = 6;

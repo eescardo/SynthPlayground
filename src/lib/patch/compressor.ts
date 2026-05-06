@@ -2,23 +2,21 @@ import { clamp } from "@/lib/numeric";
 
 export const COMPRESSOR_SOFT_KNEE_DB = 12;
 
-export function compressorAutoMakeupDb(thresholdDb: number, ratio: number) {
-  const safeRatio = Math.max(1, ratio);
-  const reductionAtCeiling = Math.max(0, -thresholdDb) * (1 - 1 / safeRatio);
-  const thresholdDepth = clamp(Math.max(0, -thresholdDb) / 60, 0, 1);
-  const maxMakeupDb = 3 + thresholdDepth * 4.2;
-  return maxMakeupDb * (1 - Math.exp(-reductionAtCeiling / 32));
+export interface CompressorDerivedParams {
+  thresholdDb: number;
+  ratio: number;
+  autoGainDb: number;
+  releaseMs: number;
 }
 
-export function compressorAdaptiveAttackBufferMs(thresholdDb: number, ratio: number) {
-  const safeRatio = Math.max(1, ratio);
-  const reductionAtCeiling = Math.max(0, -thresholdDb) * (1 - 1 / safeRatio);
-  const activeReduction = Math.max(0, reductionAtCeiling - 6);
-  return clamp(Math.pow(activeReduction / 24, 1.1) * 160, 0, 360);
-}
-
-export function compressorEffectiveAttackMs(attackMs: number, thresholdDb: number, ratio: number) {
-  return attackMs + compressorAdaptiveAttackBufferMs(thresholdDb, ratio);
+export function compressorDerivedParamsForSquash(squash: number): CompressorDerivedParams {
+  const amount = clamp(squash, 0, 1);
+  return {
+    thresholdDb: -4 - 38 * Math.pow(amount, 1.12),
+    ratio: 1 + 11 * Math.pow(amount, 1.45),
+    autoGainDb: 9.5 * (1 - Math.exp(-2.4 * amount)),
+    releaseMs: 220 - 160 * Math.pow(amount, 0.8)
+  };
 }
 
 export function compressorGainReductionDb(inputDb: number, thresholdDb: number, ratio: number, kneeDb = COMPRESSOR_SOFT_KNEE_DB) {

@@ -332,7 +332,7 @@ export const createPatchModuleFacesCaptureProject = (): Project => {
     {
       id: "comp_shape",
       typeId: "Compressor",
-      params: { ...createDefaultParamsForType("Compressor"), thresholdDb: -30, ratio: 6, attackMs: 12, releaseMs: 260, autoMakeup: true, mix: 0.86 }
+      params: { ...createDefaultParamsForType("Compressor"), squash: 0.72, attackMs: 35, mix: 0.62 }
     },
     {
       id: "vca_shape",
@@ -408,7 +408,8 @@ export const setupPatchModuleFacesWorkspace = async (page: Page) => {
   await expect(page.getByRole("heading", { name: "Patch Workspace" })).toBeVisible();
   await expect(page.locator(".patch-workspace-tab-name", { hasText: "Module Face Visuals" })).toBeVisible();
   await expect(page.locator(".patch-inspector")).toContainText("Compressor comp_shape");
-  await expect(page.locator(".param-current-value-unit", { hasText: "ms eff" })).toBeVisible();
+  await expect(page.locator(".param-current-value-unit", { hasText: "ms" })).toBeVisible();
+  await expect(page.locator(".compressor-derived-readouts")).toContainText("Auto Gain");
 };
 
 export const createMicrotonalCaptureProject = (): Project => {

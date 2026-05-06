@@ -8,7 +8,7 @@ import {
   overdriveTransfer,
   vcfMagnitudeAtFrequency
 } from "@/components/patch/patchModuleFaceDrawing";
-import { compressorAdaptiveAttackBufferMs, compressorAutoMakeupDb, compressorGainReductionDb } from "@/lib/patch/compressor";
+import { compressorDerivedParamsForSquash, compressorGainReductionDb } from "@/lib/patch/compressor";
 
 describe("VCF module face response math", () => {
   it("uses the app sample rate and Nyquist ceiling for face calculations", () => {
@@ -53,27 +53,27 @@ describe("Compressor module face response math", () => {
     expect(compressorOutputDb(-12, -24, 4, 0, 0.5)).toBeCloseTo(-16.5);
   });
 
-  it("estimates conservative auto makeup from threshold and ratio", () => {
-    expect(compressorAutoMakeupDb(0, 4)).toBe(0);
-    expect(compressorAutoMakeupDb(-24, 4)).toBeCloseTo(2.0134);
-    expect(compressorAutoMakeupDb(-60, 20)).toBeCloseTo(5.9873);
+  it("maps squash to derived compressor controls", () => {
+    expect(compressorDerivedParamsForSquash(0)).toMatchObject({
+      thresholdDb: -4,
+      ratio: 1,
+      autoGainDb: 0,
+      releaseMs: 220
+    });
+    const maxSquash = compressorDerivedParamsForSquash(1);
+    expect(maxSquash.thresholdDb).toBeCloseTo(-42);
+    expect(maxSquash.ratio).toBeCloseTo(12);
+    expect(maxSquash.autoGainDb).toBeCloseTo(8.6382);
+    expect(maxSquash.releaseMs).toBeCloseTo(60);
   });
 
-  it("keeps auto makeup monotonic as ratio rises", () => {
-    let previous = compressorAutoMakeupDb(-60, 1);
-    for (let ratio = 1.5; ratio <= 20; ratio += 0.5) {
-      const next = compressorAutoMakeupDb(-60, ratio);
+  it("keeps derived auto gain monotonic as squash rises", () => {
+    let previous = compressorDerivedParamsForSquash(0).autoGainDb;
+    for (let squash = 0.05; squash <= 1; squash += 0.05) {
+      const next = compressorDerivedParamsForSquash(squash).autoGainDb;
       expect(next).toBeGreaterThanOrEqual(previous);
       previous = next;
     }
-  });
-
-  it("adds adaptive attack for deep expected gain reduction", () => {
-    expect(compressorAdaptiveAttackBufferMs(-60, 1)).toBe(0);
-    expect(compressorAdaptiveAttackBufferMs(-60, 2)).toBeCloseTo(160);
-    expect(compressorAdaptiveAttackBufferMs(-35, 2)).toBeGreaterThan(40);
-    expect(compressorAdaptiveAttackBufferMs(-35, 2)).toBeLessThan(80);
-    expect(compressorAdaptiveAttackBufferMs(-60, 20)).toBeGreaterThan(300);
   });
 
   it("uses a soft knee around the compression threshold", () => {

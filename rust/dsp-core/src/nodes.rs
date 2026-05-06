@@ -65,20 +65,27 @@ fn apply_overdrive_tone(input: f32, lowpassed: f32, tone: f32) -> f32 {
 }
 
 #[inline(always)]
-fn compressor_auto_makeup_db(threshold_db: f32, ratio: f32) -> f32 {
-    let safe_ratio = ratio.max(1.0);
-    let reduction_at_ceiling = (-threshold_db).max(0.0) * (1.0 - 1.0 / safe_ratio);
-    let threshold_depth = clamp((-threshold_db).max(0.0) / 60.0, 0.0, 1.0);
-    let max_makeup_db = 3.0 + threshold_depth * 4.2;
-    max_makeup_db * (1.0 - (-reduction_at_ceiling / 32.0).exp())
+fn compressor_threshold_db_for_squash(squash: f32) -> f32 {
+    let amount = clamp(squash, 0.0, 1.0);
+    -4.0 - 38.0 * amount.powf(1.12)
 }
 
 #[inline(always)]
-fn compressor_adaptive_attack_buffer_ms(threshold_db: f32, ratio: f32) -> f32 {
-    let safe_ratio = ratio.max(1.0);
-    let reduction_at_ceiling = (-threshold_db).max(0.0) * (1.0 - 1.0 / safe_ratio);
-    let active_reduction = (reduction_at_ceiling - 6.0).max(0.0);
-    clamp((active_reduction / 24.0).powf(1.1) * 160.0, 0.0, 360.0)
+fn compressor_ratio_for_squash(squash: f32) -> f32 {
+    let amount = clamp(squash, 0.0, 1.0);
+    1.0 + 11.0 * amount.powf(1.45)
+}
+
+#[inline(always)]
+fn compressor_auto_gain_db_for_squash(squash: f32) -> f32 {
+    let amount = clamp(squash, 0.0, 1.0);
+    9.5 * (1.0 - (-2.4 * amount).exp())
+}
+
+#[inline(always)]
+fn compressor_release_ms_for_squash(squash: f32) -> f32 {
+    let amount = clamp(squash, 0.0, 1.0);
+    220.0 - 160.0 * amount.powf(0.8)
 }
 
 #[inline(always)]
@@ -350,10 +357,8 @@ pub(crate) struct OverdriveNode {
 pub(crate) struct CompressorNode {
     out_index: usize,
     input: i32,
-    threshold_db: SmoothParam,
-    ratio: SmoothParam,
+    squash: SmoothParam,
     attack_ms: SmoothParam,
-    release_ms: SmoothParam,
     mix: SmoothParam,
     env: f32,
     rms_energy: f32,
@@ -592,11 +597,9 @@ impl RuntimeNode {
             "Compressor" => Self::Compressor(CompressorNode {
                 out_index: raw.out_index,
                 input: input_index(&raw.inputs, "in"),
-                threshold_db: SmoothParam::new(value_to_f32(p.get("thresholdDb"), -24.0), 50.0, sample_rate),
-                ratio: SmoothParam::new(value_to_f32(p.get("ratio"), 4.0), 50.0, sample_rate),
-                attack_ms: SmoothParam::new(value_to_f32(p.get("attackMs"), 10.0), 50.0, sample_rate),
-                release_ms: SmoothParam::new(value_to_f32(p.get("releaseMs"), 200.0), 50.0, sample_rate),
-                mix: SmoothParam::new(value_to_f32(p.get("mix"), 1.0), 10.0, sample_rate),
+                squash: SmoothParam::new(value_to_f32(p.get("squash"), 0.5), 50.0, sample_rate),
+                attack_ms: SmoothParam::new(value_to_f32(p.get("attackMs"), 35.0), 50.0, sample_rate),
+                mix: SmoothParam::new(value_to_f32(p.get("mix"), 0.55), 10.0, sample_rate),
                 env: 0.0,
                 rms_energy: 0.0,
                 gain_reduction_db: 0.0,
@@ -638,7 +641,7 @@ impl RuntimeNode {
             Self::Reverb(node) => { node.size.reset(); node.decay.reset(); node.damping.reset(); node.mix.reset(); node.c1.fill(0.0); node.c2.fill(0.0); node.i1 = 0; node.i2 = 0; }
             Self::Saturation(node) => { node.drive_db.reset(); node.mix.reset(); }
             Self::Overdrive(node) => { node.drive_db.reset(); node.tone.reset(); node.tone_lp = 0.0; }
-            Self::Compressor(node) => { node.threshold_db.reset(); node.ratio.reset(); node.attack_ms.reset(); node.release_ms.reset(); node.mix.reset(); node.env = 0.0; node.rms_energy = 0.0; node.gain_reduction_db = 0.0; }
+            Self::Compressor(node) => { node.squash.reset(); node.attack_ms.reset(); node.mix.reset(); node.env = 0.0; node.rms_energy = 0.0; node.gain_reduction_db = 0.0; }
             Self::Output(node) => node.gain_db.reset(),
         }
     }
@@ -721,7 +724,7 @@ impl RuntimeNode {
             Self::Reverb(node) => match param_id { "size" => node.size.set_target(value_to_f32(Some(value), node.size.target)), "decay" => node.decay.set_target(value_to_f32(Some(value), node.decay.target)), "damping" => node.damping.set_target(value_to_f32(Some(value), node.damping.target)), "mix" => node.mix.set_target(value_to_f32(Some(value), node.mix.target)), _ => {} },
             Self::Saturation(node) => match param_id { "driveDb" => node.drive_db.set_target(value_to_f32(Some(value), node.drive_db.target)), "mix" => node.mix.set_target(value_to_f32(Some(value), node.mix.target)), "type" => if let Ok(parsed) = serde_json::from_value::<SaturationType>(Value::String(value_to_string(Some(value), "tanh"))) { node.mode = parsed; }, _ => {} },
             Self::Overdrive(node) => match param_id { "driveDb" | "gainDb" => node.drive_db.set_target(value_to_f32(Some(value), node.drive_db.target)), "tone" => node.tone.set_target(value_to_f32(Some(value), node.tone.target)), "mode" => if let Ok(parsed) = serde_json::from_value::<OverdriveMode>(Value::String(value_to_string(Some(value), "overdrive"))) { node.mode = parsed; }, _ => {} },
-            Self::Compressor(node) => match param_id { "thresholdDb" => node.threshold_db.set_target(value_to_f32(Some(value), node.threshold_db.target)), "ratio" => node.ratio.set_target(value_to_f32(Some(value), node.ratio.target)), "attackMs" => node.attack_ms.set_target(value_to_f32(Some(value), node.attack_ms.target)), "releaseMs" => node.release_ms.set_target(value_to_f32(Some(value), node.release_ms.target)), "mix" => node.mix.set_target(value_to_f32(Some(value), node.mix.target)), _ => {} },
+            Self::Compressor(node) => match param_id { "squash" => node.squash.set_target(value_to_f32(Some(value), node.squash.target)), "attackMs" => node.attack_ms.set_target(value_to_f32(Some(value), node.attack_ms.target)), "mix" => node.mix.set_target(value_to_f32(Some(value), node.mix.target)), _ => {} },
             Self::Output(node) => match param_id { "gainDb" => node.gain_db.set_target(value_to_f32(Some(value), node.gain_db.target)), "limiter" => node.limiter = value_to_bool(Some(value), node.limiter), _ => {} },
         }
     }
@@ -1234,14 +1237,15 @@ impl RuntimeNode {
             }
             Self::Compressor(node) => {
                 let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
-                let threshold_db = node.threshold_db.next();
-                let ratio = node.ratio.next();
+                let squash = node.squash.next();
+                let threshold_db = compressor_threshold_db_for_squash(squash);
+                let ratio = compressor_ratio_for_squash(squash);
                 let rms_alpha = crate::smoothing_alpha(8.0, sample_rate);
                 node.rms_energy = one_pole_step(node.rms_energy, input * input, rms_alpha);
                 let rms_in = node.rms_energy.max(0.0).sqrt();
-                let effective_attack_ms = node.attack_ms.next().max(0.1) + compressor_adaptive_attack_buffer_ms(threshold_db, ratio);
+                let effective_attack_ms = node.attack_ms.next().max(1.0);
                 let att = crate::smoothing_alpha(effective_attack_ms, sample_rate);
-                let rel = crate::smoothing_alpha(node.release_ms.next().max(1.0), sample_rate);
+                let rel = crate::smoothing_alpha(compressor_release_ms_for_squash(squash).max(1.0), sample_rate);
                 node.env = if rms_in > node.env { one_pole_step(node.env, rms_in, att) } else { one_pole_step(node.env, rms_in, rel) };
                 let level_db = 20.0 * node.env.max(0.00001).log10();
                 let target_reduction_db = compressor_gain_reduction_db(level_db, threshold_db, ratio);
@@ -1251,7 +1255,7 @@ impl RuntimeNode {
                     crate::smoothing_alpha(35.0, sample_rate)
                 };
                 node.gain_reduction_db = one_pole_step(node.gain_reduction_db, target_reduction_db, gain_alpha);
-                let makeup_db = compressor_auto_makeup_db(threshold_db, ratio);
+                let makeup_db = compressor_auto_gain_db_for_squash(squash);
                 let wet = input * db_to_gain(makeup_db - node.gain_reduction_db);
                 let mix = clamp(node.mix.next(), 0.0, 1.0);
                 let out = frame_signal_offset(node.out_index, block_size, frame);
@@ -1290,7 +1294,7 @@ fn read_input_frame(signal_buffers: &[f32], block_size: usize, frame: usize, ind
 
 #[cfg(test)]
 mod tests {
-    use super::{apply_overdrive_tone, compressor_adaptive_attack_buffer_ms, compressor_auto_makeup_db, compressor_gain_reduction_db, overdrive_drive_amount, overdrive_tone_alpha, shape_fuzz_sample, shape_overdrive_sample};
+    use super::{apply_overdrive_tone, compressor_auto_gain_db_for_squash, compressor_gain_reduction_db, compressor_ratio_for_squash, compressor_release_ms_for_squash, compressor_threshold_db_for_squash, overdrive_drive_amount, overdrive_tone_alpha, shape_fuzz_sample, shape_overdrive_sample};
 
     #[test]
     fn fuzz_shaper_is_harder_and_asymmetric() {
@@ -1320,31 +1324,25 @@ mod tests {
     }
 
     #[test]
-    fn compressor_auto_makeup_tracks_static_gain_reduction_conservatively() {
-        assert_eq!(compressor_auto_makeup_db(0.0, 4.0), 0.0);
-        assert!((compressor_auto_makeup_db(-24.0, 4.0) - 2.0134).abs() < 0.001);
-        assert!((compressor_auto_makeup_db(-60.0, 20.0) - 5.9873).abs() < 0.001);
+    fn compressor_squash_maps_to_pedal_style_controls() {
+        assert!((compressor_threshold_db_for_squash(0.0) + 4.0).abs() < 0.001);
+        assert!((compressor_threshold_db_for_squash(1.0) + 42.0).abs() < 0.001);
+        assert_eq!(compressor_ratio_for_squash(0.0), 1.0);
+        assert!((compressor_ratio_for_squash(1.0) - 12.0).abs() < 0.001);
+        assert_eq!(compressor_auto_gain_db_for_squash(0.0), 0.0);
+        assert!((compressor_release_ms_for_squash(1.0) - 60.0).abs() < 0.001);
     }
 
     #[test]
-    fn compressor_auto_makeup_is_monotonic_by_ratio() {
-        let mut previous = compressor_auto_makeup_db(-60.0, 1.0);
-        let mut ratio = 1.5;
-        while ratio <= 20.0 {
-            let next = compressor_auto_makeup_db(-60.0, ratio);
+    fn compressor_auto_gain_is_monotonic_by_squash() {
+        let mut previous = compressor_auto_gain_db_for_squash(0.0);
+        let mut squash = 0.05;
+        while squash <= 1.0 {
+            let next = compressor_auto_gain_db_for_squash(squash);
             assert!(next >= previous);
             previous = next;
-            ratio += 0.5;
+            squash += 0.05;
         }
-    }
-
-    #[test]
-    fn compressor_adaptive_attack_grows_with_ratio_and_threshold_depth() {
-        assert_eq!(compressor_adaptive_attack_buffer_ms(-60.0, 1.0), 0.0);
-        assert!((compressor_adaptive_attack_buffer_ms(-60.0, 2.0) - 160.0).abs() < 0.001);
-        assert!(compressor_adaptive_attack_buffer_ms(-35.0, 2.0) > 40.0);
-        assert!(compressor_adaptive_attack_buffer_ms(-35.0, 2.0) < 80.0);
-        assert!(compressor_adaptive_attack_buffer_ms(-60.0, 20.0) > 300.0);
     }
 
     #[test]

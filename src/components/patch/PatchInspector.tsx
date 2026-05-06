@@ -12,7 +12,7 @@ import {
   isPatchOutputEndpoint
 } from "@/components/patch/patchInspectablePorts";
 import { isPatchOutputPortId } from "@/lib/patch/ports";
-import { compressorAutoMakeupDb } from "@/lib/patch/compressor";
+import { compressorDerivedParamsForSquash } from "@/lib/patch/compressor";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch, PatchNode, PatchPort, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -38,16 +38,20 @@ function requiredPortIssueLabel(patch: Patch, issue: PatchValidationIssue, selec
   };
 }
 
-function CompressorAutoGainReadout({ node }: { node: PatchNode }) {
-  const autoGainDb = compressorAutoMakeupDb(Number(node.params.thresholdDb ?? -24), Number(node.params.ratio ?? 4));
+function CompressorDerivedReadouts({ node }: { node: PatchNode }) {
+  const derived = compressorDerivedParamsForSquash(Number(node.params.squash ?? 0.5));
   return (
-    <div className="param-row">
+    <div className="param-row compressor-derived-readouts">
       <div className="param-row-header">
-        <span className="param-name">Auto Gain</span>
-        <span className="param-current-value-shell">
-          <span className="param-current-value-label">{autoGainDb.toFixed(1)}</span>
-          <span className="param-current-value-unit">dB</span>
-        </span>
+        <span className="param-name">Derived</span>
+      </div>
+      <div className="param-derived-grid">
+        <span>Threshold</span>
+        <strong>{derived.thresholdDb.toFixed(0)} dB</strong>
+        <span>Ratio</span>
+        <strong>{derived.ratio.toFixed(1)}:1</strong>
+        <span>Auto Gain</span>
+        <strong>{derived.autoGainDb.toFixed(1)} dB</strong>
       </div>
     </div>
   );
@@ -157,7 +161,7 @@ export function PatchInspector(props: PatchInspectorProps) {
                 onExposeMacro={props.onExposeMacro}
               />
             ))}
-          {selectedNode.typeId === "Compressor" && <CompressorAutoGainReadout node={selectedNode} />}
+          {selectedNode.typeId === "Compressor" && <CompressorDerivedReadouts node={selectedNode} />}
           {selectedNode.typeId === "SamplePlayer" && (
             <SamplePlayerInspectorSection
               node={selectedNode}
