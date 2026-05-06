@@ -12,11 +12,34 @@ import {
 } from "../ui-capture/common";
 import { applySelectionReviewFraming, showSelectionActionsPopover } from "../ui-capture/selectionCapture";
 import { SCREENSHOT_SCENARIO, SCREENSHOT_SCENARIOS, ScreenshotScenario } from "./scenarios";
+import { PATCH_CANVAS_GRID, PATCH_NODE_HEIGHT, PATCH_NODE_WIDTH } from "../../src/components/patch/patchCanvasConstants";
 
 export interface ScreenshotScenarioDefinition {
   name: ScreenshotScenario;
   description: string;
   capture: (page: Page, outputPath: string) => Promise<void>;
+}
+
+async function clickPatchCanvasRaw(page: Page, rawX: number, rawY: number) {
+  const canvas = page.locator(".patch-canvas-overlay-shell > canvas");
+  const box = await canvas.boundingBox();
+  const metrics = await canvas.evaluate((element) => {
+    const canvasElement = element as HTMLCanvasElement;
+    const rect = canvasElement.getBoundingClientRect();
+    return {
+      cssWidth: rect.width,
+      cssHeight: rect.height,
+      width: canvasElement.width,
+      height: canvasElement.height
+    };
+  });
+  if (!box || metrics.width <= 0 || metrics.height <= 0) {
+    throw new Error("Could not resolve patch canvas dimensions for raw click.");
+  }
+  await page.mouse.click(
+    box.x + rawX * (metrics.cssWidth / metrics.width),
+    box.y + rawY * (metrics.cssHeight / metrics.height)
+  );
 }
 
 export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, ScreenshotScenarioDefinition> = {
@@ -93,6 +116,15 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
     description: "Patch workspace with ADSR, LFO, string, noise, delay, reverb, overdrive, and compressor module faces visible",
     capture: async (page, outputPath) => {
       await setupPatchModuleFacesWorkspace(page);
+      await savePageScreenshot(page, outputPath, ".patch-workspace-shell");
+    }
+  },
+  [SCREENSHOT_SCENARIO.PATCH_EXPANDED_FACE]: {
+    name: SCREENSHOT_SCENARIO.PATCH_EXPANDED_FACE,
+    description: "Patch workspace with a large expanded module face visible over the canvas",
+    capture: async (page, outputPath) => {
+      await setupPatchModuleFacesWorkspace(page);
+      await clickPatchCanvasRaw(page, 26 * PATCH_CANVAS_GRID + PATCH_NODE_WIDTH / 2, 19 * PATCH_CANVAS_GRID + PATCH_NODE_HEIGHT / 2);
       await savePageScreenshot(page, outputPath, ".patch-workspace-shell");
     }
   },

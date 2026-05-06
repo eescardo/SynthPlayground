@@ -61,4 +61,4 @@ export const PATCH_PORT_LABEL_HEIGHT = 15;
 export const PATCH_PORT_LABEL_MIN_TEXT = "pitch";
 export const PATCH_PORT_LABEL_X_PADDING = 7;
 export const PATCH_PORT_LABEL_OVERHANG_RATIO = 0.7;
-export const PATCH_FACE_POPOVER_SCALE = 2.5;
+export const PATCH_FACE_POPOVER_SCALE = 3.75;
