@@ -1387,6 +1387,11 @@ function drawCompressorExpandedModuleFace(
   const envelopeMaxDb = -5;
   const envelopeToDb = (value: number) => envelopeMinDb + clamp01(value) * (envelopeMaxDb - envelopeMinDb);
   const dbToEnvelope = (db: number) => (clamp(db, envelopeMinDb, envelopeMaxDb) - envelopeMinDb) / (envelopeMaxDb - envelopeMinDb);
+  const onePole = (current: number, target: number, timeMs: number) => current + (target - current) * (1 - Math.exp(-dtMs / Math.max(1, timeMs)));
+  const dbToGain = (db: number) => 10 ** (db / 20);
+  const gainToDb = (gain: number) => 20 * Math.log10(Math.max(0.00001, gain));
+  let gainReductionDb = 0;
+  let makeupGainDb = 0;
   for (let index = 0; index <= steps; index += 1) {
     const input = inputEnvelopeAt(index * dtMs);
     const tauMs = input > detector ? Math.max(1, attackMs) : Math.max(1, derived.releaseMs);
@@ -1394,8 +1399,14 @@ function drawCompressorExpandedModuleFace(
     detector = detector + (input - detector) * (1 - alpha);
     const inputDb = envelopeToDb(input);
     const detectorDb = envelopeToDb(detector);
-    const gainReductionDb = compressorGainReductionDb(detectorDb, thresholdDb, ratio) * mix;
-    const output = dbToEnvelope(inputDb - gainReductionDb);
+    const targetReductionDb = compressorGainReductionDb(detectorDb, thresholdDb, ratio);
+    const reductionTimeMs = targetReductionDb > gainReductionDb ? Math.max(8, attackMs) * 0.35 : 35;
+    gainReductionDb = onePole(gainReductionDb, targetReductionDb, reductionTimeMs);
+    const targetMakeupDb = Math.min(makeupDb, gainReductionDb);
+    makeupGainDb = onePole(makeupGainDb, targetMakeupDb, targetMakeupDb > makeupGainDb ? 90 : 45);
+    const wetDb = inputDb + makeupGainDb - gainReductionDb;
+    const outputDb = gainToDb(dbToGain(inputDb) * (1 - mix) + dbToGain(wetDb) * mix);
+    const output = dbToEnvelope(outputDb);
     const px = envToX(index, steps);
     const py = envToY(output);
     if (index === 0) {
