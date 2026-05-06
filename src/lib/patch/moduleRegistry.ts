@@ -408,7 +408,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
     requiredPortIds: { in: ["in"], out: ["out"] },
     params: [
       floatParam("squash", "Squash", 0, 1, "linear", "Compression amount", { default: 0.5, smoothingMs: 50 }),
-      floatParam("attackMs", "Attack", 1, 400, "ms", "Transient response", { default: 35, map: "exp", smoothingMs: 50 }),
+      floatParam("attackMs", "Attack", 1, 400, "ms", "Transient response", { default: 20, map: "exp", smoothingMs: 50 }),
       floatParam("mix", "Mix", 0, 1, "linear", "Dry/wet", { default: 0.55, smoothingMs: 10 })
     ],
     portsIn: [port("in", "In", ["AUDIO"], "Audio input")],

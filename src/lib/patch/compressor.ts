@@ -12,10 +12,10 @@ export interface CompressorDerivedParams {
 export function compressorDerivedParamsForSquash(squash: number): CompressorDerivedParams {
   const amount = clamp(squash, 0, 1);
   return {
-    thresholdDb: -4 - 38 * Math.pow(amount, 1.12),
-    ratio: 1 + 11 * Math.pow(amount, 1.45),
-    autoGainDb: 9.5 * (1 - Math.exp(-2.4 * amount)),
-    releaseMs: 220 - 160 * Math.pow(amount, 0.8)
+    thresholdDb: -5 - 33 * Math.pow(amount, 1.08),
+    ratio: 1 + 7 * Math.pow(amount, 1.35),
+    autoGainDb: 6 * amount + 8.5 * amount * amount,
+    releaseMs: 260 - 150 * Math.pow(amount, 0.75)
   };
 }
 

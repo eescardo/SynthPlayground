@@ -67,25 +67,25 @@ fn apply_overdrive_tone(input: f32, lowpassed: f32, tone: f32) -> f32 {
 #[inline(always)]
 fn compressor_threshold_db_for_squash(squash: f32) -> f32 {
     let amount = clamp(squash, 0.0, 1.0);
-    -4.0 - 38.0 * amount.powf(1.12)
+    -5.0 - 33.0 * amount.powf(1.08)
 }
 
 #[inline(always)]
 fn compressor_ratio_for_squash(squash: f32) -> f32 {
     let amount = clamp(squash, 0.0, 1.0);
-    1.0 + 11.0 * amount.powf(1.45)
+    1.0 + 7.0 * amount.powf(1.35)
 }
 
 #[inline(always)]
 fn compressor_auto_gain_db_for_squash(squash: f32) -> f32 {
     let amount = clamp(squash, 0.0, 1.0);
-    9.5 * (1.0 - (-2.4 * amount).exp())
+    6.0 * amount + 8.5 * amount * amount
 }
 
 #[inline(always)]
 fn compressor_release_ms_for_squash(squash: f32) -> f32 {
     let amount = clamp(squash, 0.0, 1.0);
-    220.0 - 160.0 * amount.powf(0.8)
+    260.0 - 150.0 * amount.powf(0.75)
 }
 
 #[inline(always)]
@@ -598,7 +598,7 @@ impl RuntimeNode {
                 out_index: raw.out_index,
                 input: input_index(&raw.inputs, "in"),
                 squash: SmoothParam::new(value_to_f32(p.get("squash"), 0.5), 50.0, sample_rate),
-                attack_ms: SmoothParam::new(value_to_f32(p.get("attackMs"), 35.0), 50.0, sample_rate),
+                attack_ms: SmoothParam::new(value_to_f32(p.get("attackMs"), 20.0), 50.0, sample_rate),
                 mix: SmoothParam::new(value_to_f32(p.get("mix"), 0.55), 10.0, sample_rate),
                 env: 0.0,
                 rms_energy: 0.0,
@@ -1325,12 +1325,13 @@ mod tests {
 
     #[test]
     fn compressor_squash_maps_to_pedal_style_controls() {
-        assert!((compressor_threshold_db_for_squash(0.0) + 4.0).abs() < 0.001);
-        assert!((compressor_threshold_db_for_squash(1.0) + 42.0).abs() < 0.001);
+        assert!((compressor_threshold_db_for_squash(0.0) + 5.0).abs() < 0.001);
+        assert!((compressor_threshold_db_for_squash(1.0) + 38.0).abs() < 0.001);
         assert_eq!(compressor_ratio_for_squash(0.0), 1.0);
-        assert!((compressor_ratio_for_squash(1.0) - 12.0).abs() < 0.001);
+        assert!((compressor_ratio_for_squash(1.0) - 8.0).abs() < 0.001);
         assert_eq!(compressor_auto_gain_db_for_squash(0.0), 0.0);
-        assert!((compressor_release_ms_for_squash(1.0) - 60.0).abs() < 0.001);
+        assert!((compressor_auto_gain_db_for_squash(1.0) - 14.5).abs() < 0.001);
+        assert!((compressor_release_ms_for_squash(1.0) - 110.0).abs() < 0.001);
     }
 
     #[test]

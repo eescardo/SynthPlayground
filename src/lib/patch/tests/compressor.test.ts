@@ -127,6 +127,8 @@ function simulateCompressor(params: { squash: number; attackMs: number; mix: num
   return {
     rmsDeltaDb: outputLevel.rmsDb - inputLevel.rmsDb,
     p90DeltaDb: outputLevel.p90WindowRmsDb - inputLevel.p90WindowRmsDb,
+    bodyDeltaDb: outputEnvelope.bodyDb - inputEnvelope.bodyDb,
+    tailDeltaDb: outputEnvelope.tailDb - inputEnvelope.tailDb,
     sustainLiftDb: outputEnvelope.tailRelativeToBodyDb - inputEnvelope.tailRelativeToBodyDb
   };
 }
@@ -145,7 +147,7 @@ describe("compressor defaults", () => {
   it("keeps compressed material from getting much louder at squash anchors", () => {
     for (const squash of [0.25, 0.5, 1]) {
       for (const material of ["pluck", "bass"] as const) {
-        const result = simulateCompressor({ squash, attackMs: 35, mix: 0.55, material });
+        const result = simulateCompressor({ squash, attackMs: 20, mix: 0.55, material });
         expect(result.rmsDeltaDb).toBeLessThan(4.5);
         expect(result.p90DeltaDb).toBeLessThan(4.5);
       }
@@ -153,9 +155,11 @@ describe("compressor defaults", () => {
   });
 
   it("keeps bass tails more sustained at stronger squash", () => {
-    const medium = simulateCompressor({ squash: 0.5, attackMs: 35, mix: 0.55, material: "bass" });
-    const high = simulateCompressor({ squash: 1, attackMs: 35, mix: 0.55, material: "bass" });
+    const medium = simulateCompressor({ squash: 0.5, attackMs: 20, mix: 0.55, material: "bass" });
+    const high = simulateCompressor({ squash: 1, attackMs: 20, mix: 0.55, material: "bass" });
 
+    expect(high.rmsDeltaDb).toBeGreaterThan(-2);
+    expect(high.tailDeltaDb).toBeGreaterThan(4);
     expect(medium.sustainLiftDb).toBeGreaterThan(2);
     expect(high.sustainLiftDb).toBeGreaterThan(3);
   });
