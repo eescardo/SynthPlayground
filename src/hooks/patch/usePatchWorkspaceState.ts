@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { AudioEngine } from "@/audio/engine";
 import { PatchRemovalDialogState } from "@/components/composer/PatchRemovalDialogModal";
-import { usePatchWorkspaceMacroValues } from "@/hooks/patch/usePatchWorkspaceMacroValues";
+import { resolvePatchWorkspaceMacroValues, usePatchWorkspaceMacroValues } from "@/hooks/patch/usePatchWorkspaceMacroValues";
 import {
   createNextTabName,
   isAudiblePatchOp,
@@ -290,6 +290,14 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     }
   }, [activateWorkspaceTab, activeTabId, setTabMacroValuesById, setTabs, skipNextWorkspaceHistoryRef, tabs]);
 
+  const activePreviewMacroValues = useMemo(
+    () =>
+      selectedPatch
+        ? resolvePatchWorkspaceMacroValues(selectedPatch, activeTab ? tabMacroValuesById[activeTab.id] : undefined)
+        : undefined,
+    [activeTab, selectedPatch, tabMacroValuesById]
+  );
+
   const applyPatchOp = useCallback((op: PatchOp) => {
     if (!selectedPatch) {
       return;
@@ -345,9 +353,9 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     );
     updateActiveTab((tab) => ({ ...tab, migrationNotice: null }));
     if (isAudiblePatchOp(op)) {
-      schedulePatchPreview(selectedPatch.id, undefined, activeTab ? tabMacroValuesById[activeTab.id] : undefined);
+      schedulePatchPreview(selectedPatch.id, undefined, activePreviewMacroValues);
     }
-  }, [activeTab, commitProjectChange, schedulePatchPreview, selectedPatch, setRuntimeError, tabMacroValuesById, updateActiveTab]);
+  }, [activePreviewMacroValues, commitProjectChange, schedulePatchPreview, selectedPatch, setRuntimeError, updateActiveTab]);
 
   const macroActions = usePatchWorkspaceMacroActions({
     activeTab,

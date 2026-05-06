@@ -1256,18 +1256,20 @@ function drawCompressorExpandedModuleFace(
   y: number,
   accentColor: string
 ) {
-  const faceX = x + PATCH_MODULE_FACE_INSET_X;
-  const faceW = PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2;
+  const graphMargin = 5;
+  const graphLabelGutter = 23;
+  const graphX = x + graphMargin + graphLabelGutter;
+  const graphW = PATCH_NODE_WIDTH - graphMargin * 2 - graphLabelGutter;
   const transferGraph = {
-    x: faceX + 18,
-    y: y + PATCH_MODULE_FACE_TOP - 7,
-    width: faceW - 18,
+    x: graphX,
+    y: y + PATCH_MODULE_FACE_TOP - 11,
+    width: graphW,
     height: 37
   };
   const attackGraph = {
-    x: faceX + 18,
+    x: graphX,
     y: y + PATCH_MODULE_FACE_TOP + 40,
-    width: faceW - 18,
+    width: graphW,
     height: 32
   };
   const attackMs = getNumericParam(node, schema, "attackMs");
@@ -1340,8 +1342,7 @@ function drawCompressorExpandedModuleFace(
   ctx.textAlign = "right";
   ctx.fillText("0", transferGraph.x - 3, dbToY(0) + 2);
   ctx.fillText("-60", transferGraph.x - 3, transferGraph.y + transferGraph.height);
-  ctx.fillText("transfer", transferGraph.x + transferGraph.width, transferGraph.y - 2);
-  ctx.fillText(`${ratio.toFixed(ratio >= 10 ? 0 : 1)}:1`, transferGraph.x + transferGraph.width, transferGraph.y + transferGraph.height - 4);
+  ctx.fillText(`TRANSFER: ${ratio.toFixed(1)} ratio`, transferGraph.x + transferGraph.width, transferGraph.y - 2);
   const thresholdRatio = (clamp(thresholdDb, minDb, maxDb) - minDb) / (maxDb - minDb);
   const thresholdLabelRight = thresholdRatio <= 0.25;
   ctx.textAlign = thresholdLabelRight ? "left" : "right";
@@ -1440,11 +1441,13 @@ function drawCompressorExpandedModuleFace(
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
   ctx.font = "7px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textAlign = "right";
-  ctx.fillText("attack", attackGraph.x + attackGraph.width, attackGraph.y - 2);
-  ctx.fillText(`${Math.round(attackMs)}ms`, attackGraph.x + attackGraph.width, attackGraph.y + attackGraph.height - 4);
-  ctx.textAlign = "left";
-  ctx.fillText("in", attackGraph.x + 3, attackGraph.y + 8);
-  ctx.fillText("out", attackGraph.x + 3, attackGraph.y + attackGraph.height - 4);
+  ctx.fillText(`ATTACK: ${Math.round(attackMs)}ms`, attackGraph.x + attackGraph.width, attackGraph.y - 2);
+  ctx.fillStyle = "rgba(158, 192, 223, 0.78)";
+  ctx.fillText("in", attackGraph.x - 3, attackGraph.y + 8);
+  ctx.fillStyle = "rgba(255, 214, 145, 0.72)";
+  ctx.fillText("clamp", attackGraph.x - 3, attackGraph.y + attackGraph.height / 2 + 3);
+  ctx.fillStyle = accentColor;
+  ctx.fillText("out", attackGraph.x - 3, attackGraph.y + attackGraph.height - 4);
 }
 
 function drawMixerModuleFace(
