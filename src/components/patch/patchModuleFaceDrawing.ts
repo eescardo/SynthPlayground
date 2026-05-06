@@ -1444,10 +1444,10 @@ function drawCompressorExpandedModuleFace(
   ctx.fillText(`ATTACK: ${Math.round(attackMs)}ms`, attackGraph.x + attackGraph.width, attackGraph.y - 2);
   ctx.fillStyle = "rgba(158, 192, 223, 0.78)";
   ctx.fillText("in", attackGraph.x - 3, attackGraph.y + 8);
-  ctx.fillStyle = "rgba(255, 214, 145, 0.72)";
-  ctx.fillText("clamp", attackGraph.x - 3, attackGraph.y + attackGraph.height / 2 + 3);
   ctx.fillStyle = accentColor;
-  ctx.fillText("out", attackGraph.x - 3, attackGraph.y + attackGraph.height - 4);
+  ctx.fillText("out", attackGraph.x - 3, attackGraph.y + attackGraph.height / 2 + 3);
+  ctx.fillStyle = "rgba(255, 214, 145, 0.72)";
+  ctx.fillText("raw", attackGraph.x - 3, attackGraph.y + attackGraph.height - 4);
 }
 
 function drawMixerModuleFace(
