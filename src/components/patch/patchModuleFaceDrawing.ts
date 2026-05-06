@@ -1383,13 +1383,21 @@ function drawCompressorExpandedModuleFace(
   ctx.strokeStyle = accentColor;
   setFaceLineWidth(ctx, 2);
   ctx.beginPath();
+  const envelopeMinDb = -52;
+  const envelopeMaxDb = -5;
+  const envelopeToDb = (value: number) => envelopeMinDb + clamp01(value) * (envelopeMaxDb - envelopeMinDb);
+  const dbToEnvelope = (db: number) => (clamp(db, envelopeMinDb, envelopeMaxDb) - envelopeMinDb) / (envelopeMaxDb - envelopeMinDb);
   for (let index = 0; index <= steps; index += 1) {
     const input = inputEnvelopeAt(index * dtMs);
     const tauMs = input > detector ? Math.max(1, attackMs) : Math.max(1, derived.releaseMs);
     const alpha = Math.exp(-dtMs / tauMs);
     detector = detector + (input - detector) * (1 - alpha);
+    const inputDb = envelopeToDb(input);
+    const detectorDb = envelopeToDb(detector);
+    const gainReductionDb = compressorGainReductionDb(detectorDb, thresholdDb, ratio) * mix;
+    const output = dbToEnvelope(inputDb - gainReductionDb);
     const px = envToX(index, steps);
-    const py = envToY(detector);
+    const py = envToY(output);
     if (index === 0) {
       ctx.moveTo(px, py);
     } else {
@@ -1405,7 +1413,7 @@ function drawCompressorExpandedModuleFace(
   ctx.fillText(`${Math.round(attackMs)}ms`, attackGraph.x + attackGraph.width, attackGraph.y + attackGraph.height - 4);
   ctx.textAlign = "left";
   ctx.fillText("in", attackGraph.x + 3, attackGraph.y + 8);
-  ctx.fillText("det", attackGraph.x + 3, attackGraph.y + attackGraph.height - 4);
+  ctx.fillText("out", attackGraph.x + 3, attackGraph.y + attackGraph.height - 4);
 }
 
 function drawMixerModuleFace(
