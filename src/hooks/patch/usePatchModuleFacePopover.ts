@@ -46,7 +46,6 @@ export function usePatchModuleFacePopover({ getPopoverRect, nodeExists }: UsePat
       rawY <= rect.y + rect.height;
     const nodeId = popoverNodeId;
     if (insidePopover) {
-      setPopoverNodeId(null);
       return { kind: "inside-popover", nodeId } as const;
     }
     setPopoverNodeId(null);

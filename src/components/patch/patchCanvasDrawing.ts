@@ -106,6 +106,7 @@ export function drawPatchModuleCard(
     selected: boolean;
     deletePreview: boolean;
     clearPreview: boolean;
+    expandedFace?: boolean;
   }
 ) {
   ctx.save();
@@ -176,7 +177,9 @@ export function drawPatchModuleCard(
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.fillText(node.id, x + 18 + titleWidth, y + 18);
 
-  drawPatchModuleFaceContent(ctx, patch, node, schema, x, y, moduleColors.accent);
+  drawPatchModuleFaceContent(ctx, patch, node, schema, x, y, moduleColors.accent, {
+    expanded: options.expandedFace === true
+  });
 
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
   const drawPortLabel = (port: PortSchema, index: number, kind: "in" | "out") => {
@@ -189,8 +192,10 @@ export function drawPatchModuleCard(
     ctx.textAlign = "left";
   };
 
-  schema.portsIn.forEach((port, index) => drawPortLabel(port, index, "in"));
-  schema.portsOut.forEach((port, index) => drawPortLabel(port, index, "out"));
+  if (!options.expandedFace) {
+    schema.portsIn.forEach((port, index) => drawPortLabel(port, index, "in"));
+    schema.portsOut.forEach((port, index) => drawPortLabel(port, index, "out"));
+  }
   ctx.restore();
 }
 
@@ -471,7 +476,8 @@ export function drawPatchFacePopover(
     macroSelected,
     selected: true,
     deletePreview,
-    clearPreview
+    clearPreview,
+    expandedFace: true
   });
   ctx.restore();
 }

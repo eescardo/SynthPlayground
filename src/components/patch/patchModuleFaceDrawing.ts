@@ -1142,8 +1142,14 @@ function drawCompressorModuleFace(
   schema: ParamSchema[],
   x: number,
   y: number,
-  accentColor: string
+  accentColor: string,
+  expanded = false
 ) {
+  if (expanded) {
+    drawCompressorExpandedModuleFace(ctx, node, schema, x, y, accentColor);
+    return;
+  }
+
   const graphLeftInset = PATCH_MODULE_FACE_INSET_X + 18;
   const graph = {
     x: x + graphLeftInset,
@@ -1233,6 +1239,160 @@ function drawCompressorModuleFace(
   ctx.fillText(`${ratio.toFixed(ratio >= 10 ? 0 : 1)}:1 max +${makeupDb.toFixed(0)}`, graph.x + graph.width - 6, graph.y + graph.height - 5);
   ctx.textAlign = "left";
   ctx.fillText("raw", graph.x + 4, graph.y + graph.height - 5);
+}
+
+function drawCompressorExpandedModuleFace(
+  ctx: CanvasRenderingContext2D,
+  node: PatchNode,
+  schema: ParamSchema[],
+  x: number,
+  y: number,
+  accentColor: string
+) {
+  const faceX = x + PATCH_MODULE_FACE_INSET_X;
+  const faceW = PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2;
+  const transferGraph = {
+    x: faceX + 18,
+    y: y + PATCH_MODULE_FACE_TOP + 7,
+    width: faceW - 18,
+    height: 34
+  };
+  const attackGraph = {
+    x: faceX + 18,
+    y: y + PATCH_MODULE_FACE_TOP + 57,
+    width: faceW - 18,
+    height: 29
+  };
+  const attackMs = getNumericParam(node, schema, "attackMs");
+  const derived = compressorDerivedParamsForSquash(getNumericParam(node, schema, "squash"), attackMs);
+  const thresholdDb = derived.thresholdDb;
+  const ratio = derived.ratio;
+  const makeupDb = derived.autoGainDb;
+  const mix = clamp01(getNumericParam(node, schema, "mix"));
+  const minDb = -60;
+  const maxDb = 6;
+  const dbToX = (db: number) => transferGraph.x + ((clamp(db, minDb, maxDb) - minDb) / (maxDb - minDb)) * transferGraph.width;
+  const dbToY = (db: number) => transferGraph.y + transferGraph.height * (1 - (clamp(db, minDb, maxDb) - minDb) / (maxDb - minDb));
+
+  ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(transferGraph.x, transferGraph.y, transferGraph.width, transferGraph.height);
+
+  ctx.strokeStyle = "rgba(158, 192, 223, 0.34)";
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(dbToX(minDb), dbToY(minDb));
+  ctx.lineTo(dbToX(maxDb), dbToY(maxDb));
+  ctx.stroke();
+
+  const thresholdX = dbToX(thresholdDb);
+  ctx.strokeStyle = "rgba(255, 214, 145, 0.58)";
+  ctx.beginPath();
+  ctx.moveTo(thresholdX, transferGraph.y + 3);
+  ctx.lineTo(thresholdX, transferGraph.y + transferGraph.height - 3);
+  ctx.stroke();
+
+  ctx.strokeStyle = accentColor;
+  ctx.globalAlpha = 0.4;
+  ctx.beginPath();
+  for (let index = 0; index <= 90; index += 1) {
+    const t = index / 90;
+    const inputDb = minDb + t * (maxDb - minDb);
+    const outputDb = inputDb * (1 - mix) + compressorCompressedOutputDb(inputDb, thresholdDb, ratio) * mix;
+    const px = dbToX(inputDb);
+    const py = dbToY(outputDb);
+    if (index === 0) {
+      ctx.moveTo(px, py);
+    } else {
+      ctx.lineTo(px, py);
+    }
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let index = 0; index <= 90; index += 1) {
+    const t = index / 90;
+    const inputDb = minDb + t * (maxDb - minDb);
+    const outputDb = compressorOutputDb(inputDb, thresholdDb, ratio, makeupDb, mix);
+    const px = dbToX(inputDb);
+    const py = dbToY(outputDb);
+    if (index === 0) {
+      ctx.moveTo(px, py);
+    } else {
+      ctx.lineTo(px, py);
+    }
+  }
+  ctx.stroke();
+
+  ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
+  ctx.font = "7px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.textAlign = "right";
+  ctx.fillText("transfer", transferGraph.x + transferGraph.width, transferGraph.y - 2);
+  ctx.fillText(`${ratio.toFixed(ratio >= 10 ? 0 : 1)}:1`, transferGraph.x + transferGraph.width, transferGraph.y + transferGraph.height - 4);
+  ctx.textAlign = "left";
+  ctx.fillText(`${Math.round(thresholdDb)}dB`, thresholdX + 3, transferGraph.y + 9);
+
+  ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(attackGraph.x, attackGraph.y, attackGraph.width, attackGraph.height);
+  const envToX = (index: number, count: number) => attackGraph.x + (index / count) * attackGraph.width;
+  const envToY = (value: number) => attackGraph.y + attackGraph.height * (1 - clamp01(value));
+  const totalMs = 700;
+  const steps = 96;
+  const dtMs = totalMs / steps;
+  let detector = 0.28;
+  const inputEnvelopeAt = (timeMs: number) => {
+    if (timeMs < 25) return 0.28 + 0.72 * (timeMs / 25);
+    if (timeMs < 120) return 1 - 0.34 * ((timeMs - 25) / 95);
+    return 0.66;
+  };
+
+  ctx.strokeStyle = "rgba(158, 192, 223, 0.52)";
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  for (let index = 0; index <= steps; index += 1) {
+    const input = inputEnvelopeAt(index * dtMs);
+    const px = envToX(index, steps);
+    const py = envToY(input);
+    if (index === 0) {
+      ctx.moveTo(px, py);
+    } else {
+      ctx.lineTo(px, py);
+    }
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let index = 0; index <= steps; index += 1) {
+    const input = inputEnvelopeAt(index * dtMs);
+    const tauMs = input > detector ? Math.max(1, attackMs) : Math.max(1, derived.releaseMs);
+    const alpha = Math.exp(-dtMs / tauMs);
+    detector = detector + (input - detector) * (1 - alpha);
+    const px = envToX(index, steps);
+    const py = envToY(detector);
+    if (index === 0) {
+      ctx.moveTo(px, py);
+    } else {
+      ctx.lineTo(px, py);
+    }
+  }
+  ctx.stroke();
+
+  ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
+  ctx.font = "7px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.textAlign = "right";
+  ctx.fillText("attack", attackGraph.x + attackGraph.width, attackGraph.y - 2);
+  ctx.fillText(`${Math.round(attackMs)}ms`, attackGraph.x + attackGraph.width, attackGraph.y + attackGraph.height - 4);
+  ctx.textAlign = "left";
+  ctx.fillText("in", attackGraph.x + 3, attackGraph.y + 8);
+  ctx.fillText("det", attackGraph.x + 3, attackGraph.y + attackGraph.height - 4);
 }
 
 function drawMixerModuleFace(
@@ -1409,7 +1569,8 @@ export function drawPatchModuleFaceContent(
   schema: ModuleTypeSchema,
   x: number,
   y: number,
-  accentColor: string
+  accentColor: string,
+  options: { expanded?: boolean } = {}
 ) {
   if (node.typeId === "ADSR") {
     drawAdsrModuleFace(ctx, node, schema.params, x, y, accentColor);
@@ -1434,7 +1595,7 @@ export function drawPatchModuleFaceContent(
   } else if (node.typeId === "Overdrive") {
     drawOverdriveModuleFace(ctx, node, schema.params, x, y, accentColor);
   } else if (node.typeId === "Compressor") {
-    drawCompressorModuleFace(ctx, node, schema.params, x, y, accentColor);
+    drawCompressorModuleFace(ctx, node, schema.params, x, y, accentColor, options.expanded === true);
   } else if (node.typeId === "Mixer4") {
     drawMixerModuleFace(ctx, node, schema.params, x, y, accentColor, 4, resolveConnectedInputPortIds(patch, node.id));
   } else if (node.typeId === "CVMixer2") {

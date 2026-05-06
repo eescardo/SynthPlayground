@@ -233,6 +233,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       onSelectNode(hitNodeId);
       dragNodeIdRef.current = hitNodeId;
       setDragNodeId(hitNodeId);
+      pointerDownNodeIdRef.current = hitNodeId;
       const layout = layoutByNode.get(hitNodeId);
       dragLastLayoutRef.current = layout ? { x: layout.x, y: layout.y } : null;
       dragPointerOffsetRef.current = layout
