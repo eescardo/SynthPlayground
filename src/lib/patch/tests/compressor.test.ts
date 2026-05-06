@@ -94,7 +94,7 @@ function simulateCompressor(params: { squash: number; attackMs: number; mix: num
   const frameCount = SAMPLE_RATE * DURATION_SECONDS;
   const input = new Float32Array(frameCount);
   const output = new Float32Array(frameCount);
-  const derived = compressorDerivedParamsForSquash(params.squash);
+  const derived = compressorDerivedParamsForSquash(params.squash, params.attackMs);
   let rmsEnergy = 0;
   let envelope = 0;
   let gainReductionDb = 0;

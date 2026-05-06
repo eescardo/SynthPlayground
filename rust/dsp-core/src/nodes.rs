@@ -73,13 +73,15 @@ fn compressor_threshold_db_for_squash(squash: f32) -> f32 {
 #[inline(always)]
 fn compressor_ratio_for_squash(squash: f32) -> f32 {
     let amount = clamp(squash, 0.0, 1.0);
-    1.0 + 7.0 * amount.powf(1.35)
+    1.0 + 11.0 * amount.powf(1.45)
 }
 
 #[inline(always)]
-fn compressor_auto_gain_db_for_squash(squash: f32) -> f32 {
+fn compressor_auto_gain_db_for_squash(squash: f32, attack_ms: f32) -> f32 {
     let amount = clamp(squash, 0.0, 1.0);
-    6.0 * amount + 8.5 * amount * amount
+    let attack_ratio = clamp(attack_ms, 1.0, 400.0).ln() / 400.0_f32.ln();
+    let attack_reduction_db = 15.9 * amount * amount * attack_ratio.powf(1.7);
+    (6.0 * amount + 12.9 * amount * amount - attack_reduction_db).max(0.0)
 }
 
 #[inline(always)]
@@ -1255,7 +1257,7 @@ impl RuntimeNode {
                     crate::smoothing_alpha(35.0, sample_rate)
                 };
                 node.gain_reduction_db = one_pole_step(node.gain_reduction_db, target_reduction_db, gain_alpha);
-                let makeup_db = compressor_auto_gain_db_for_squash(squash);
+                let makeup_db = compressor_auto_gain_db_for_squash(squash, effective_attack_ms);
                 let wet = input * db_to_gain(makeup_db - node.gain_reduction_db);
                 let mix = clamp(node.mix.next(), 0.0, 1.0);
                 let out = frame_signal_offset(node.out_index, block_size, frame);
@@ -1328,21 +1330,24 @@ mod tests {
         assert!((compressor_threshold_db_for_squash(0.0) + 5.0).abs() < 0.001);
         assert!((compressor_threshold_db_for_squash(1.0) + 38.0).abs() < 0.001);
         assert_eq!(compressor_ratio_for_squash(0.0), 1.0);
-        assert!((compressor_ratio_for_squash(1.0) - 8.0).abs() < 0.001);
-        assert_eq!(compressor_auto_gain_db_for_squash(0.0), 0.0);
-        assert!((compressor_auto_gain_db_for_squash(1.0) - 14.5).abs() < 0.001);
+        assert!((compressor_ratio_for_squash(1.0) - 12.0).abs() < 0.001);
+        assert_eq!(compressor_auto_gain_db_for_squash(0.0, 20.0), 0.0);
+        assert!((compressor_auto_gain_db_for_squash(1.0, 1.0) - 18.9).abs() < 0.001);
+        assert!((compressor_auto_gain_db_for_squash(1.0, 400.0) - 3.0).abs() < 0.001);
         assert!((compressor_release_ms_for_squash(1.0) - 110.0).abs() < 0.001);
     }
 
     #[test]
     fn compressor_auto_gain_is_monotonic_by_squash() {
-        let mut previous = compressor_auto_gain_db_for_squash(0.0);
-        let mut squash = 0.05;
-        while squash <= 1.0 {
-            let next = compressor_auto_gain_db_for_squash(squash);
-            assert!(next >= previous);
-            previous = next;
-            squash += 0.05;
+        for attack_ms in [1.0, 20.0, 400.0] {
+            let mut previous = compressor_auto_gain_db_for_squash(0.0, attack_ms);
+            let mut squash = 0.05;
+            while squash <= 1.0 {
+                let next = compressor_auto_gain_db_for_squash(squash, attack_ms);
+                assert!(next >= previous);
+                previous = next;
+                squash += 0.05;
+            }
         }
     }
 

@@ -39,7 +39,7 @@ function requiredPortIssueLabel(patch: Patch, issue: PatchValidationIssue, selec
 }
 
 function CompressorDerivedReadouts({ node }: { node: PatchNode }) {
-  const derived = compressorDerivedParamsForSquash(Number(node.params.squash ?? 0.5));
+  const derived = compressorDerivedParamsForSquash(Number(node.params.squash ?? 0.5), Number(node.params.attackMs ?? 20));
   return (
     <div className="param-row compressor-derived-readouts">
       <div className="param-row-header">

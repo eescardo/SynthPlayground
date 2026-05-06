@@ -1145,7 +1145,10 @@ function drawCompressorModuleFace(
     width: PATCH_NODE_WIDTH - graphLeftInset - PATCH_MODULE_FACE_INSET_X,
     height: PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 10
   };
-  const derived = compressorDerivedParamsForSquash(getNumericParam(node, schema, "squash"));
+  const derived = compressorDerivedParamsForSquash(
+    getNumericParam(node, schema, "squash"),
+    getNumericParam(node, schema, "attackMs")
+  );
   const thresholdDb = derived.thresholdDb;
   const ratio = derived.ratio;
   const makeupDb = derived.autoGainDb;

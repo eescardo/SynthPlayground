@@ -62,17 +62,21 @@ describe("Compressor module face response math", () => {
     });
     const maxSquash = compressorDerivedParamsForSquash(1);
     expect(maxSquash.thresholdDb).toBeCloseTo(-38);
-    expect(maxSquash.ratio).toBeCloseTo(8);
-    expect(maxSquash.autoGainDb).toBeCloseTo(14.5);
+    expect(maxSquash.ratio).toBeCloseTo(12);
+    expect(maxSquash.autoGainDb).toBeCloseTo(14.006, 3);
     expect(maxSquash.releaseMs).toBeCloseTo(110);
+    expect(compressorDerivedParamsForSquash(1, 1).autoGainDb).toBeCloseTo(18.9);
+    expect(compressorDerivedParamsForSquash(1, 400).autoGainDb).toBeCloseTo(3);
   });
 
   it("keeps derived auto gain monotonic as squash rises", () => {
-    let previous = compressorDerivedParamsForSquash(0).autoGainDb;
-    for (let squash = 0.05; squash <= 1; squash += 0.05) {
-      const next = compressorDerivedParamsForSquash(squash).autoGainDb;
-      expect(next).toBeGreaterThanOrEqual(previous);
-      previous = next;
+    for (const attackMs of [1, 20, 400]) {
+      let previous = compressorDerivedParamsForSquash(0, attackMs).autoGainDb;
+      for (let squash = 0.05; squash <= 1; squash += 0.05) {
+        const next = compressorDerivedParamsForSquash(squash, attackMs).autoGainDb;
+        expect(next).toBeGreaterThanOrEqual(previous);
+        previous = next;
+      }
     }
   });
 
