@@ -38,6 +38,11 @@ describe("module registry", () => {
       range: { min: 0, max: 1 },
       default: 0.5
     });
+    expect(schema?.params.find((param) => param.id === "attackMs")).toMatchObject({
+      type: "float",
+      range: { min: 10, max: 600 },
+      default: 20
+    });
     expect(schema?.params.find((param) => param.id === "mix")).toMatchObject({
       type: "float",
       default: 0.55

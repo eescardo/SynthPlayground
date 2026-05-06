@@ -1038,13 +1038,19 @@ export function AppRoot({ children }: { children: ReactNode }) {
     clearTransientComposerUi
   });
   const workspaceView = pathname.endsWith("/patch-workspace") ? "patch-workspace" : "composer";
-  const previewDefaultPitchNow = useHardwareNavigationPreview({
+  const {
+    previewDefaultPitchNow,
+    releaseHeldPatchPreview,
+    startHeldDefaultPitchPreview
+  } = useHardwareNavigationPreview({
     view: workspaceView,
     selectedTrack,
     defaultPitch: patchWorkspace.previewPitch,
     isPlaying: playing,
     audioEngineRef,
     previewSelectedPatchNow: patchWorkspace.previewSelectedPatchNow,
+    releaseHeldPatchPreview: patchWorkspace.releaseHeldPatchPreview,
+    startHeldPatchPreview: patchWorkspace.startHeldPatchPreview,
     setRuntimeError
   });
   const hardwareNavigation = useHardwareNavigation({
@@ -1074,6 +1080,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
     commitProjectChange,
     audioEngineRef,
     previewDefaultPitchNow,
+    releaseHeldDefaultPitchPreview: releaseHeldPatchPreview,
+    startHeldDefaultPitchPreview,
     onComposerPlay: playback.startPlayback,
     onComposerStop: playback.stopPlayback,
     setRuntimeError

@@ -79,9 +79,8 @@ fn compressor_ratio_for_squash(squash: f32) -> f32 {
 #[inline(always)]
 fn compressor_auto_gain_db_for_squash(squash: f32, attack_ms: f32) -> f32 {
     let amount = clamp(squash, 0.0, 1.0);
-    let attack_ratio = clamp(attack_ms, 1.0, 400.0).ln() / 400.0_f32.ln();
-    let attack_reduction_db = 15.9 * amount * amount * attack_ratio.powf(1.7);
-    (6.0 * amount + 12.9 * amount * amount - attack_reduction_db).max(0.0)
+    let attack_ratio = (clamp(attack_ms, 10.0, 600.0) / 10.0).ln() / 60.0_f32.ln();
+    amount * (3.0 + 12.5 * (1.0 - attack_ratio.powf(0.8)))
 }
 
 #[inline(always)]
@@ -1332,14 +1331,14 @@ mod tests {
         assert_eq!(compressor_ratio_for_squash(0.0), 1.0);
         assert!((compressor_ratio_for_squash(1.0) - 12.0).abs() < 0.001);
         assert_eq!(compressor_auto_gain_db_for_squash(0.0, 20.0), 0.0);
-        assert!((compressor_auto_gain_db_for_squash(1.0, 1.0) - 18.9).abs() < 0.001);
-        assert!((compressor_auto_gain_db_for_squash(1.0, 400.0) - 3.0).abs() < 0.001);
+        assert!((compressor_auto_gain_db_for_squash(1.0, 10.0) - 15.5).abs() < 0.001);
+        assert!((compressor_auto_gain_db_for_squash(1.0, 600.0) - 3.0).abs() < 0.001);
         assert!((compressor_release_ms_for_squash(1.0) - 110.0).abs() < 0.001);
     }
 
     #[test]
     fn compressor_auto_gain_is_monotonic_by_squash() {
-        for attack_ms in [1.0, 20.0, 400.0] {
+        for attack_ms in [10.0, 20.0, 600.0] {
             let mut previous = compressor_auto_gain_db_for_squash(0.0, attack_ms);
             let mut squash = 0.05;
             while squash <= 1.0 {

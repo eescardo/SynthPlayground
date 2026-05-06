@@ -120,6 +120,12 @@ export interface WorkletPreviewMessage {
   randomSeed?: number;
 }
 
+export interface WorkletPreviewReleaseMessage {
+  type: "PREVIEW_RELEASE";
+  trackId: string;
+  previewId: string;
+}
+
 export interface WorkletPreviewCaptureMessage {
   type: "PREVIEW_CAPTURE";
   previewId?: string;
@@ -161,6 +167,7 @@ export type WorkletInboundMessage =
   | WorkletEventsMessage
   | WorkletMacroMessage
   | WorkletPreviewMessage
+  | WorkletPreviewReleaseMessage
   | WorkletRecordingMessage
   | WorkletTransportMessage;
 

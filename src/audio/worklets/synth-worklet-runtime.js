@@ -134,6 +134,21 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
           randomSeed: message.randomSeed
         }));
         break;
+      case "PREVIEW_RELEASE":
+        if (this.currentStream?.previewId !== message.previewId) {
+          break;
+        }
+        this.currentStream.enqueueEvents?.([
+          {
+            id: `${message.previewId}_off`,
+            type: "NoteOff",
+            source: "preview",
+            sampleTime: Math.max(0, (this.currentStream.songSampleCounter || 0) + 256),
+            trackId: message.trackId,
+            noteId: message.previewId
+          }
+        ]);
+        break;
       case "EVENTS":
         if (Number.isFinite(message.sessionId) && message.sessionId !== this.transportSessionId) {
           break;

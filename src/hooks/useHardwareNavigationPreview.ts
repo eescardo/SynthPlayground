@@ -14,6 +14,8 @@ interface UseHardwareNavigationPreviewArgs {
   isPlaying: boolean;
   audioEngineRef: RefObject<AudioEngine | null>;
   previewSelectedPatchNow: (pitch?: string) => void;
+  releaseHeldPatchPreview: () => void;
+  startHeldPatchPreview: (pitch?: string) => void;
   setRuntimeError: (message: string | null) => void;
 }
 
@@ -24,9 +26,11 @@ export function useHardwareNavigationPreview({
   isPlaying,
   audioEngineRef,
   previewSelectedPatchNow,
+  releaseHeldPatchPreview,
+  startHeldPatchPreview,
   setRuntimeError
 }: UseHardwareNavigationPreviewArgs) {
-  return useCallback((pitch = defaultPitch) => {
+  const previewDefaultPitchNow = useCallback((pitch = defaultPitch) => {
     if (view === "patch-workspace") {
       previewSelectedPatchNow(pitch);
       return;
@@ -46,4 +50,16 @@ export function useHardwareNavigationPreview({
     setRuntimeError,
     view
   ]);
+
+  const startHeldDefaultPitchPreview = useCallback((pitch = defaultPitch) => {
+    if (view === "patch-workspace") {
+      startHeldPatchPreview(pitch);
+    }
+  }, [defaultPitch, startHeldPatchPreview, view]);
+
+  return {
+    previewDefaultPitchNow,
+    releaseHeldPatchPreview,
+    startHeldDefaultPitchPreview
+  };
 }

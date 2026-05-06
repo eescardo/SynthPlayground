@@ -84,9 +84,14 @@ export class AudioEngine {
       projectOverride?: AudioProject;
       captureProbes?: PreviewProbeRequest[];
       previewId?: string;
+      holdUntilReleased?: boolean;
     }
   ): Promise<void> {
     return this.backend.previewNote(trackId, pitchVoct, durationBeats, velocity, options);
+  }
+
+  releasePreviewNote(trackId: string, previewId: string): void {
+    this.backend.releasePreviewNote(trackId, previewId);
   }
 
   setPreviewCaptureListener(listener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null): void {

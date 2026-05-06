@@ -141,10 +141,12 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     previewPatchById,
     previewPitch,
     previewPitchPickerOpen,
+    releaseHeldPatchPreview,
     previewSelectedPatchNow,
     schedulePatchPreview,
     setPreviewPitch,
-    setPreviewPitchPickerOpen
+    setPreviewPitchPickerOpen,
+    startHeldPatchPreview
   } = usePatchWorkspacePreview({
     project,
     projectAssets,
@@ -417,6 +419,9 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     previewPatchById,
     previewSelectedPatchNow: (pitch = previewPitch) =>
       previewSelectedPatchNow(pitch, activeTab ? workspaceMacroValues : undefined),
+    releaseHeldPatchPreview,
+    startHeldPatchPreview: (pitch = previewPitch) =>
+      startHeldPatchPreview(pitch, activeTab ? workspaceMacroValues : undefined),
     handleInstrumentEditorReady,
     renameSelectedPatch: lifecycleActions.renameSelectedPatch,
     duplicateSelectedPatchInWorkspace: lifecycleActions.duplicateSelectedPatchInWorkspace,

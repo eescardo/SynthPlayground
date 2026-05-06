@@ -158,8 +158,8 @@ describe("compressor defaults", () => {
     const medium = simulateCompressor({ squash: 0.5, attackMs: 20, mix: 0.55, material: "bass" });
     const high = simulateCompressor({ squash: 1, attackMs: 20, mix: 0.55, material: "bass" });
 
-    expect(high.rmsDeltaDb).toBeGreaterThan(-2);
-    expect(high.tailDeltaDb).toBeGreaterThan(4);
+    expect(high.rmsDeltaDb).toBeGreaterThan(-3);
+    expect(high.tailDeltaDb).toBeGreaterThan(3.5);
     expect(medium.sustainLiftDb).toBeGreaterThan(2);
     expect(high.sustainLiftDb).toBeGreaterThan(3);
   });
