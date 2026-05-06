@@ -1392,6 +1392,8 @@ function drawCompressorExpandedModuleFace(
   const gainToDb = (gain: number) => 20 * Math.log10(Math.max(0.00001, gain));
   let gainReductionDb = 0;
   let makeupGainDb = 0;
+  const rawOutputPoints: Array<{ x: number; y: number }> = [];
+  const compensatedOutputPoints: Array<{ x: number; y: number }> = [];
   for (let index = 0; index <= steps; index += 1) {
     const input = inputEnvelopeAt(index * dtMs);
     const tauMs = input > detector ? Math.max(1, attackMs) : Math.max(1, derived.releaseMs);
@@ -1406,15 +1408,33 @@ function drawCompressorExpandedModuleFace(
     makeupGainDb = onePole(makeupGainDb, targetMakeupDb, targetMakeupDb > makeupGainDb ? 90 : 45);
     const wetDb = inputDb + makeupGainDb - gainReductionDb;
     const outputDb = gainToDb(dbToGain(inputDb) * (1 - mix) + dbToGain(wetDb) * mix);
-    const output = dbToEnvelope(outputDb);
+    const rawDb = gainToDb(dbToGain(inputDb) * (1 - mix) + dbToGain(inputDb - gainReductionDb) * mix);
     const px = envToX(index, steps);
-    const py = envToY(output);
-    if (index === 0) {
-      ctx.moveTo(px, py);
-    } else {
-      ctx.lineTo(px, py);
-    }
+    rawOutputPoints.push({ x: px, y: envToY(dbToEnvelope(rawDb)) });
+    compensatedOutputPoints.push({ x: px, y: envToY(dbToEnvelope(outputDb)) });
   }
+  ctx.strokeStyle = "rgba(255, 214, 145, 0.42)";
+  setFaceLineWidth(ctx, 1);
+  ctx.beginPath();
+  rawOutputPoints.forEach((point, index) => {
+    if (index === 0) {
+      ctx.moveTo(point.x, point.y);
+    } else {
+      ctx.lineTo(point.x, point.y);
+    }
+  });
+  ctx.stroke();
+
+  ctx.strokeStyle = accentColor;
+  setFaceLineWidth(ctx, 2);
+  ctx.beginPath();
+  compensatedOutputPoints.forEach((point, index) => {
+    if (index === 0) {
+      ctx.moveTo(point.x, point.y);
+    } else {
+      ctx.lineTo(point.x, point.y);
+    }
+  });
   ctx.stroke();
 
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
