@@ -1132,6 +1132,10 @@ export function compressorOutputDb(inputDb: number, thresholdDb: number, ratio: 
   return inputDb * (1 - clamp01(mix)) + wet * clamp01(mix);
 }
 
+export function compressorCompressedOutputDb(inputDb: number, thresholdDb: number, ratio: number) {
+  return inputDb - compressorGainReductionDb(inputDb, thresholdDb, ratio);
+}
+
 function drawCompressorModuleFace(
   ctx: CanvasRenderingContext2D,
   node: PatchNode,
@@ -1182,6 +1186,25 @@ function drawCompressorModuleFace(
 
   ctx.strokeStyle = accentColor;
   ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.36;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  for (let index = 0; index <= 80; index += 1) {
+    const t = index / 80;
+    const inputDb = minDb + t * (maxDb - minDb);
+    const outputDb = inputDb * (1 - mix) + compressorCompressedOutputDb(inputDb, thresholdDb, ratio) * mix;
+    const px = dbToX(inputDb);
+    const py = dbToY(outputDb);
+    if (index === 0) {
+      ctx.moveTo(px, py);
+    } else {
+      ctx.lineTo(px, py);
+    }
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+
   ctx.beginPath();
   for (let index = 0; index <= 80; index += 1) {
     const t = index / 80;
@@ -1209,6 +1232,7 @@ function drawCompressorModuleFace(
   ctx.textAlign = "right";
   ctx.fillText(`${ratio.toFixed(ratio >= 10 ? 0 : 1)}:1 max +${makeupDb.toFixed(0)}`, graph.x + graph.width - 6, graph.y + graph.height - 5);
   ctx.textAlign = "left";
+  ctx.fillText("raw", graph.x + 4, graph.y + graph.height - 5);
 }
 
 function drawMixerModuleFace(

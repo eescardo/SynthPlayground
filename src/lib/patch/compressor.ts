@@ -13,9 +13,9 @@ export function compressorDerivedParamsForSquash(squash: number, attackMs = 20):
   const amount = clamp(squash, 0, 1);
   const attackRatio = Math.log(clamp(attackMs, 10, 600) / 10) / Math.log(60);
   return {
-    thresholdDb: -5 - 33 * Math.pow(amount, 1.08),
-    ratio: 1 + 11 * Math.pow(amount, 1.45),
-    autoGainDb: amount * (18 + 8 * (1 - Math.pow(attackRatio, 0.8))),
+    thresholdDb: -5 - 43 * Math.pow(amount, 1.08),
+    ratio: 1 + 19 * Math.pow(amount, 1.45),
+    autoGainDb: amount * (30 + 8 * (1 - Math.pow(attackRatio, 0.8))),
     releaseMs: 260 - 150 * Math.pow(amount, 0.75)
   };
 }

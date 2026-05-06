@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   VCF_FACE_NYQUIST_HZ,
   VCF_FACE_SAMPLE_RATE_HZ,
+  compressorCompressedOutputDb,
   compressorOutputDb,
   envelopeCurveProgress,
   overdriveToneResponse,
@@ -55,6 +56,11 @@ describe("Compressor module face response math", () => {
     expect(compressorOutputDb(-12, -24, 4, 4, 1)).toBeCloseTo(-17);
   });
 
+  it("can render the raw compression curve before automatic makeup", () => {
+    expect(compressorCompressedOutputDb(-40, -24, 4)).toBeCloseTo(-40);
+    expect(compressorCompressedOutputDb(-12, -24, 4)).toBeCloseTo(-21);
+  });
+
   it("blends dry and wet response with mix", () => {
     expect(compressorOutputDb(-12, -24, 4, 0, 0.5)).toBeCloseTo(-16.5);
   });
@@ -67,12 +73,12 @@ describe("Compressor module face response math", () => {
       releaseMs: 260
     });
     const maxSquash = compressorDerivedParamsForSquash(1);
-    expect(maxSquash.thresholdDb).toBeCloseTo(-38);
-    expect(maxSquash.ratio).toBeCloseTo(12);
-    expect(maxSquash.autoGainDb).toBeCloseTo(24.068);
+    expect(maxSquash.thresholdDb).toBeCloseTo(-48);
+    expect(maxSquash.ratio).toBeCloseTo(20);
+    expect(maxSquash.autoGainDb).toBeCloseTo(36.068);
     expect(maxSquash.releaseMs).toBeCloseTo(110);
-    expect(compressorDerivedParamsForSquash(1, 10).autoGainDb).toBeCloseTo(26);
-    expect(compressorDerivedParamsForSquash(1, 600).autoGainDb).toBeCloseTo(18);
+    expect(compressorDerivedParamsForSquash(1, 10).autoGainDb).toBeCloseTo(38);
+    expect(compressorDerivedParamsForSquash(1, 600).autoGainDb).toBeCloseTo(30);
   });
 
   it("keeps derived auto gain monotonic as squash rises", () => {

@@ -67,20 +67,20 @@ fn apply_overdrive_tone(input: f32, lowpassed: f32, tone: f32) -> f32 {
 #[inline(always)]
 fn compressor_threshold_db_for_squash(squash: f32) -> f32 {
     let amount = clamp(squash, 0.0, 1.0);
-    -5.0 - 33.0 * amount.powf(1.08)
+    -5.0 - 43.0 * amount.powf(1.08)
 }
 
 #[inline(always)]
 fn compressor_ratio_for_squash(squash: f32) -> f32 {
     let amount = clamp(squash, 0.0, 1.0);
-    1.0 + 11.0 * amount.powf(1.45)
+    1.0 + 19.0 * amount.powf(1.45)
 }
 
 #[inline(always)]
 fn compressor_auto_gain_db_for_squash(squash: f32, attack_ms: f32) -> f32 {
     let amount = clamp(squash, 0.0, 1.0);
     let attack_ratio = (clamp(attack_ms, 10.0, 600.0) / 10.0).ln() / 60.0_f32.ln();
-    amount * (18.0 + 8.0 * (1.0 - attack_ratio.powf(0.8)))
+    amount * (30.0 + 8.0 * (1.0 - attack_ratio.powf(0.8)))
 }
 
 #[inline(always)]
@@ -1336,12 +1336,12 @@ mod tests {
     #[test]
     fn compressor_squash_maps_to_pedal_style_controls() {
         assert!((compressor_threshold_db_for_squash(0.0) + 5.0).abs() < 0.001);
-        assert!((compressor_threshold_db_for_squash(1.0) + 38.0).abs() < 0.001);
+        assert!((compressor_threshold_db_for_squash(1.0) + 48.0).abs() < 0.001);
         assert_eq!(compressor_ratio_for_squash(0.0), 1.0);
-        assert!((compressor_ratio_for_squash(1.0) - 12.0).abs() < 0.001);
+        assert!((compressor_ratio_for_squash(1.0) - 20.0).abs() < 0.001);
         assert_eq!(compressor_auto_gain_db_for_squash(0.0, 20.0), 0.0);
-        assert!((compressor_auto_gain_db_for_squash(1.0, 10.0) - 26.0).abs() < 0.001);
-        assert!((compressor_auto_gain_db_for_squash(1.0, 600.0) - 18.0).abs() < 0.001);
+        assert!((compressor_auto_gain_db_for_squash(1.0, 10.0) - 38.0).abs() < 0.001);
+        assert!((compressor_auto_gain_db_for_squash(1.0, 600.0) - 30.0).abs() < 0.001);
         assert!((compressor_release_ms_for_squash(1.0) - 110.0).abs() < 0.001);
     }
 
