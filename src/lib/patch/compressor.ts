@@ -15,7 +15,7 @@ export function compressorDerivedParamsForSquash(squash: number, attackMs = 20):
   return {
     thresholdDb: -5 - 33 * Math.pow(amount, 1.08),
     ratio: 1 + 11 * Math.pow(amount, 1.45),
-    autoGainDb: amount * (3 + 12.5 * (1 - Math.pow(attackRatio, 0.8))),
+    autoGainDb: amount * (18 + 8 * (1 - Math.pow(attackRatio, 0.8))),
     releaseMs: 260 - 150 * Math.pow(amount, 0.75)
   };
 }

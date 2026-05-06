@@ -80,7 +80,7 @@ fn compressor_ratio_for_squash(squash: f32) -> f32 {
 fn compressor_auto_gain_db_for_squash(squash: f32, attack_ms: f32) -> f32 {
     let amount = clamp(squash, 0.0, 1.0);
     let attack_ratio = (clamp(attack_ms, 10.0, 600.0) / 10.0).ln() / 60.0_f32.ln();
-    amount * (3.0 + 12.5 * (1.0 - attack_ratio.powf(0.8)))
+    amount * (18.0 + 8.0 * (1.0 - attack_ratio.powf(0.8)))
 }
 
 #[inline(always)]
@@ -364,6 +364,7 @@ pub(crate) struct CompressorNode {
     env: f32,
     rms_energy: f32,
     gain_reduction_db: f32,
+    makeup_gain_db: f32,
 }
 
 #[derive(Clone)]
@@ -604,6 +605,7 @@ impl RuntimeNode {
                 env: 0.0,
                 rms_energy: 0.0,
                 gain_reduction_db: 0.0,
+                makeup_gain_db: 0.0,
             }),
             "Output" => Self::Output(OutputNode {
                 out_index: raw.out_index,
@@ -642,7 +644,7 @@ impl RuntimeNode {
             Self::Reverb(node) => { node.size.reset(); node.decay.reset(); node.damping.reset(); node.mix.reset(); node.c1.fill(0.0); node.c2.fill(0.0); node.i1 = 0; node.i2 = 0; }
             Self::Saturation(node) => { node.drive_db.reset(); node.mix.reset(); }
             Self::Overdrive(node) => { node.drive_db.reset(); node.tone.reset(); node.tone_lp = 0.0; }
-            Self::Compressor(node) => { node.squash.reset(); node.attack_ms.reset(); node.mix.reset(); node.env = 0.0; node.rms_energy = 0.0; node.gain_reduction_db = 0.0; }
+            Self::Compressor(node) => { node.squash.reset(); node.attack_ms.reset(); node.mix.reset(); node.env = 0.0; node.rms_energy = 0.0; node.gain_reduction_db = 0.0; node.makeup_gain_db = 0.0; }
             Self::Output(node) => node.gain_db.reset(),
         }
     }
@@ -1256,8 +1258,15 @@ impl RuntimeNode {
                     crate::smoothing_alpha(35.0, sample_rate)
                 };
                 node.gain_reduction_db = one_pole_step(node.gain_reduction_db, target_reduction_db, gain_alpha);
-                let makeup_db = compressor_auto_gain_db_for_squash(squash, effective_attack_ms);
-                let wet = input * db_to_gain(makeup_db - node.gain_reduction_db);
+                let makeup_ceiling_db = compressor_auto_gain_db_for_squash(squash, effective_attack_ms);
+                let target_makeup_db = node.gain_reduction_db.min(makeup_ceiling_db);
+                let makeup_alpha = if target_makeup_db > node.makeup_gain_db {
+                    crate::smoothing_alpha(90.0, sample_rate)
+                } else {
+                    crate::smoothing_alpha(45.0, sample_rate)
+                };
+                node.makeup_gain_db = one_pole_step(node.makeup_gain_db, target_makeup_db, makeup_alpha);
+                let wet = input * db_to_gain(node.makeup_gain_db - node.gain_reduction_db);
                 let mix = clamp(node.mix.next(), 0.0, 1.0);
                 let out = frame_signal_offset(node.out_index, block_size, frame);
                 signal_buffers[out] = input * (1.0 - mix) + wet * mix;
@@ -1331,8 +1340,8 @@ mod tests {
         assert_eq!(compressor_ratio_for_squash(0.0), 1.0);
         assert!((compressor_ratio_for_squash(1.0) - 12.0).abs() < 0.001);
         assert_eq!(compressor_auto_gain_db_for_squash(0.0, 20.0), 0.0);
-        assert!((compressor_auto_gain_db_for_squash(1.0, 10.0) - 15.5).abs() < 0.001);
-        assert!((compressor_auto_gain_db_for_squash(1.0, 600.0) - 3.0).abs() < 0.001);
+        assert!((compressor_auto_gain_db_for_squash(1.0, 10.0) - 26.0).abs() < 0.001);
+        assert!((compressor_auto_gain_db_for_squash(1.0, 600.0) - 18.0).abs() < 0.001);
         assert!((compressor_release_ms_for_squash(1.0) - 110.0).abs() < 0.001);
     }
 

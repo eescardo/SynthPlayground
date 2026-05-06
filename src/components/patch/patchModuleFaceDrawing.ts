@@ -1126,8 +1126,10 @@ function drawReverbModuleFace(
 }
 
 export function compressorOutputDb(inputDb: number, thresholdDb: number, ratio: number, makeupDb: number, mix: number) {
-  const wet = inputDb - compressorGainReductionDb(inputDb, thresholdDb, ratio);
-  return inputDb * (1 - clamp01(mix)) + (wet + makeupDb) * clamp01(mix);
+  const reductionDb = compressorGainReductionDb(inputDb, thresholdDb, ratio);
+  const dynamicMakeupDb = Math.min(makeupDb, reductionDb);
+  const wet = inputDb - reductionDb + dynamicMakeupDb;
+  return inputDb * (1 - clamp01(mix)) + wet * clamp01(mix);
 }
 
 function drawCompressorModuleFace(
@@ -1205,7 +1207,7 @@ function drawCompressorModuleFace(
   ctx.textAlign = thresholdLabelRight ? "left" : "right";
   ctx.fillText(`${Math.round(thresholdDb)}dB`, thresholdX + (thresholdLabelRight ? 4 : -4), graph.y + 11);
   ctx.textAlign = "right";
-  ctx.fillText(`${ratio.toFixed(ratio >= 10 ? 0 : 1)}:1 auto +${makeupDb.toFixed(0)}`, graph.x + graph.width - 6, graph.y + graph.height - 5);
+  ctx.fillText(`${ratio.toFixed(ratio >= 10 ? 0 : 1)}:1 max +${makeupDb.toFixed(0)}`, graph.x + graph.width - 6, graph.y + graph.height - 5);
   ctx.textAlign = "left";
 }
 

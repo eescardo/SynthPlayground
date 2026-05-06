@@ -49,6 +49,22 @@ function bassLikeSample(index: number) {
   return amplitude * (saw * 0.65 + triangle * 0.35);
 }
 
+function heldBassLikeSample(index: number) {
+  const time = index / SAMPLE_RATE;
+  const attackSeconds = 0.02;
+  const decaySeconds = 0.32;
+  const sustain = 0.72;
+  const envelope =
+    time < attackSeconds
+      ? time / attackSeconds
+      : time < attackSeconds + decaySeconds
+        ? 1 - (1 - sustain) * ((time - attackSeconds) / decaySeconds)
+        : sustain;
+  const saw = 2 * ((time * 110) % 1) - 1;
+  const triangle = 2 * Math.abs(2 * ((time * 110.55) % 1) - 1) - 1;
+  return 0.45 * envelope * (saw * 0.65 + triangle * 0.35);
+}
+
 function analyzeLevel(samples: Float32Array) {
   let squareSum = 0;
   const windowRmsDb: number[] = [];
@@ -90,7 +106,7 @@ function analyzeWindowRms(samples: Float32Array, startSeconds: number, endSecond
   return 20 * Math.log10(Math.sqrt(squareSum / Math.max(1, end - start)) + 1e-9);
 }
 
-function simulateCompressor(params: { squash: number; attackMs: number; mix: number; material?: "pluck" | "bass" }) {
+function simulateCompressor(params: { squash: number; attackMs: number; mix: number; material?: "pluck" | "bass" | "heldBass" }) {
   const frameCount = SAMPLE_RATE * DURATION_SECONDS;
   const input = new Float32Array(frameCount);
   const output = new Float32Array(frameCount);
@@ -98,9 +114,15 @@ function simulateCompressor(params: { squash: number; attackMs: number; mix: num
   let rmsEnergy = 0;
   let envelope = 0;
   let gainReductionDb = 0;
+  let makeupGainDb = 0;
 
   for (let index = 0; index < frameCount; index += 1) {
-    const sample = params.material === "bass" ? bassLikeSample(index) : pluckLikeSample(index);
+    const sample =
+      params.material === "heldBass"
+        ? heldBassLikeSample(index)
+        : params.material === "bass"
+          ? bassLikeSample(index)
+          : pluckLikeSample(index);
     input[index] = sample;
 
     rmsEnergy = onePoleStep(rmsEnergy, sample * sample, smoothingAlpha(8));
@@ -116,7 +138,10 @@ function simulateCompressor(params: { squash: number; attackMs: number; mix: num
         ? smoothingAlpha(Math.max(8, params.attackMs) * 0.35)
         : smoothingAlpha(35);
     gainReductionDb = onePoleStep(gainReductionDb, targetReductionDb, gainAlpha);
-    const wet = sample * dbToGain(derived.autoGainDb - gainReductionDb);
+    const targetMakeupDb = Math.min(derived.autoGainDb, gainReductionDb);
+    const makeupAlpha = targetMakeupDb > makeupGainDb ? smoothingAlpha(90) : smoothingAlpha(45);
+    makeupGainDb = onePoleStep(makeupGainDb, targetMakeupDb, makeupAlpha);
+    const wet = sample * dbToGain(makeupGainDb - gainReductionDb);
     output[index] = sample * (1 - params.mix) + wet * params.mix;
   }
 
@@ -129,6 +154,7 @@ function simulateCompressor(params: { squash: number; attackMs: number; mix: num
     p90DeltaDb: outputLevel.p90WindowRmsDb - inputLevel.p90WindowRmsDb,
     bodyDeltaDb: outputEnvelope.bodyDb - inputEnvelope.bodyDb,
     tailDeltaDb: outputEnvelope.tailDb - inputEnvelope.tailDb,
+    settledDeltaDb: analyzeWindowRms(output, 8, 11) - analyzeWindowRms(input, 8, 11),
     sustainLiftDb: outputEnvelope.tailRelativeToBodyDb - inputEnvelope.tailRelativeToBodyDb
   };
 }
@@ -159,8 +185,17 @@ describe("compressor defaults", () => {
     const high = simulateCompressor({ squash: 1, attackMs: 20, mix: 0.55, material: "bass" });
 
     expect(high.rmsDeltaDb).toBeGreaterThan(-3);
-    expect(high.tailDeltaDb).toBeGreaterThan(3.5);
-    expect(medium.sustainLiftDb).toBeGreaterThan(2);
-    expect(high.sustainLiftDb).toBeGreaterThan(3);
+    expect(high.tailDeltaDb).toBeGreaterThan(-0.5);
+    expect(medium.sustainLiftDb).toBeGreaterThan(-0.5);
+    expect(high.sustainLiftDb).toBeGreaterThan(-0.5);
+  });
+
+  it("does not collapse held ADSR sustain at maximum squash", () => {
+    for (const attackMs of [20, 600]) {
+      const result = simulateCompressor({ squash: 1, attackMs, mix: 1, material: "heldBass" });
+
+      expect(result.settledDeltaDb).toBeGreaterThan(-1.5);
+      expect(result.settledDeltaDb).toBeLessThan(1.5);
+    }
   });
 });

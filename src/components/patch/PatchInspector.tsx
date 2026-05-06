@@ -50,7 +50,7 @@ function CompressorDerivedReadouts({ node }: { node: PatchNode }) {
         <strong>{derived.thresholdDb.toFixed(0)} dB</strong>
         <span>Ratio</span>
         <strong>{derived.ratio.toFixed(1)}:1</strong>
-        <span>Auto Gain</span>
+        <span>Auto Gain Max</span>
         <strong>{derived.autoGainDb.toFixed(1)} dB</strong>
       </div>
     </div>
