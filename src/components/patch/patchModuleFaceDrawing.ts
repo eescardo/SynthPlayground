@@ -3,6 +3,7 @@ import {
   PATCH_COLOR_ADSR_MACRO_HIGH,
   PATCH_COLOR_MODULE_FACE_ROW_BG,
   PATCH_COLOR_NODE_SUBTITLE,
+  PATCH_FACE_POPOVER_SCALE,
   PATCH_MODULE_FACE_BOTTOM_INSET,
   PATCH_MODULE_FACE_INSET_X,
   PATCH_MODULE_FACE_TOP,
@@ -15,6 +16,12 @@ import { Patch, PatchNode, ParamSchema, ParamValue, ModuleTypeSchema } from "@/t
 
 export const VCF_FACE_SAMPLE_RATE_HZ = 48000;
 export const VCF_FACE_NYQUIST_HZ = VCF_FACE_SAMPLE_RATE_HZ / 2;
+
+let activeFaceStrokeScale = 1;
+
+function setFaceLineWidth(ctx: CanvasRenderingContext2D, width: number) {
+  ctx.lineWidth = width * activeFaceStrokeScale;
+}
 
 function formatParamFaceValue(param: ParamSchema, value: ParamValue | undefined): string {
   const resolved = value ?? param.default;
@@ -141,24 +148,24 @@ function drawAdsrModuleFace(
   const currentValues = getAdsrParamValues(node, schema);
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.strokeRect(graphX, graphY, graphW, graphH);
 
   const sustain = clamp01(currentValues.sustain);
   const sustainY = graph.y + graph.height - 6 - sustain * (graph.height - 12);
   ctx.strokeStyle = "rgba(158, 192, 223, 0.16)";
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.beginPath();
   ctx.moveTo(graph.x + 5, sustainY);
   ctx.lineTo(graph.x + graph.width - 5, sustainY);
   ctx.stroke();
 
   ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 2;
+  setFaceLineWidth(ctx, 2);
   const points = drawAdsrEnvelopePath(ctx, currentValues, graph);
 
   ctx.strokeStyle = "rgba(231, 243, 255, 0.22)";
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.setLineDash([2, 3]);
   const guideBottomY = graph.y + graph.height + 3;
   const guides = [
@@ -248,10 +255,10 @@ function drawVcoModuleFace(
     }
   });
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
   ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 2;
+  setFaceLineWidth(ctx, 2);
   drawWavePath(ctx, points, graph);
 }
 
@@ -296,12 +303,12 @@ function drawLfoModuleFace(
   });
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
 
   const zeroY = bipolar ? graph.y + graph.height / 2 : graph.y + graph.height - 5;
   ctx.strokeStyle = PATCH_COLOR_MODULE_FACE_ROW_BG;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.beginPath();
   ctx.moveTo(graph.x + 5, zeroY);
   ctx.lineTo(graph.x + graph.width - 5, zeroY);
@@ -316,7 +323,7 @@ function drawLfoModuleFace(
   }
 
   ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 1.4;
+  setFaceLineWidth(ctx, 1.4);
   drawWavePath(ctx, points, graph);
 
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
@@ -415,7 +422,7 @@ function drawVcfModuleFace(
   const dbMax = clamp(Math.max(6, Math.ceil(peakDb / 6) * 6), 6, 36);
   const dbToY = (db: number) => graph.y + ((dbMax - clamp(db, dbMin, dbMax)) / (dbMax - dbMin)) * graph.height;
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
 
   const cutoffCvConnected = patch.connections.some((connection) => connection.to.nodeId === node.id && connection.to.portId === "cutoffCV");
@@ -429,7 +436,7 @@ function drawVcfModuleFace(
     ctx.fillStyle = "rgba(112, 211, 150, 0.10)";
     ctx.fillRect(bandX, graph.y + 2, bandWidth, graph.height - 4);
     ctx.strokeStyle = "rgba(112, 211, 150, 0.28)";
-    ctx.lineWidth = 1;
+    setFaceLineWidth(ctx, 1);
     ctx.beginPath();
     ctx.moveTo(modLowX, graph.y + 5);
     ctx.lineTo(modLowX, graph.y + graph.height - 5);
@@ -438,7 +445,7 @@ function drawVcfModuleFace(
     ctx.stroke();
   }
 
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   for (const ratio of [0.25, 0.5, 1, 2, 4]) {
     const guideFrequency = cutoffClamped * ratio;
     if (guideFrequency < graphMin || guideFrequency > graphMax) {
@@ -460,7 +467,7 @@ function drawVcfModuleFace(
   ctx.stroke();
 
   ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 2;
+  setFaceLineWidth(ctx, 2);
   ctx.beginPath();
   responsePoints.forEach((point, index) => {
     const py = dbToY(point.db);
@@ -476,7 +483,7 @@ function drawVcfModuleFace(
     ctx.strokeStyle = PATCH_COLOR_ADSR_MACRO_HIGH;
     ctx.fillStyle = PATCH_COLOR_ADSR_MACRO_HIGH;
     ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
-    ctx.lineWidth = 1.2;
+    setFaceLineWidth(ctx, 1.2);
     ctx.beginPath();
     ctx.arc(peakPoint.x, peakY, 2.5, 0, Math.PI * 2);
     ctx.stroke();
@@ -529,7 +536,7 @@ function drawVcaModuleFace(
   const endX = graph.x + graph.width - 8;
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
 
   ctx.fillStyle = "rgba(158, 192, 223, 0.14)";
@@ -538,14 +545,14 @@ function drawVcaModuleFace(
   ctx.fillRect(graph.x + 1, topY, graph.width - 2, Math.max(0, biasY - topY));
 
   ctx.strokeStyle = PATCH_COLOR_MODULE_FACE_ROW_BG;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.beginPath();
   ctx.moveTo(graph.x + 5, biasY);
   ctx.lineTo(graph.x + graph.width - 5, biasY);
   ctx.stroke();
 
   ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 2;
+  setFaceLineWidth(ctx, 2);
   ctx.beginPath();
   ctx.moveTo(startX, baseY);
   ctx.lineTo(biasX, baseY);
@@ -557,7 +564,7 @@ function drawVcaModuleFace(
 
   if (bias + gain > 1) {
     ctx.strokeStyle = "rgba(255, 214, 145, 0.82)";
-    ctx.lineWidth = 1;
+    setFaceLineWidth(ctx, 1);
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
     ctx.moveTo(graph.x + 4, graph.y);
@@ -615,13 +622,13 @@ function drawSaturationModuleFace(
   };
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
 
   const centerX = graph.x + graph.width / 2;
   const centerY = graph.y + graph.height / 2;
   ctx.strokeStyle = PATCH_COLOR_MODULE_FACE_ROW_BG;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.beginPath();
   ctx.moveTo(centerX, graph.y + 4);
   ctx.lineTo(centerX, graph.y + graph.height - 4);
@@ -638,7 +645,7 @@ function drawSaturationModuleFace(
   ctx.setLineDash([]);
 
   ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 2;
+  setFaceLineWidth(ctx, 2);
   ctx.beginPath();
   for (let index = 0; index <= 48; index += 1) {
     const t = index / 48;
@@ -755,12 +762,12 @@ function drawOverdriveModuleFace(
   const mode = String(node.params.mode ?? "overdrive");
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.strokeRect(transferGraph.x, transferGraph.y, transferGraph.width, transferGraph.height);
   ctx.strokeRect(toneGraph.x, toneGraph.y, toneGraph.width, toneGraph.height);
 
   ctx.strokeStyle = PATCH_COLOR_MODULE_FACE_ROW_BG;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.beginPath();
   ctx.moveTo(transferGraph.x + 4, transferGraph.y + transferGraph.height - 5);
   ctx.lineTo(transferGraph.x + transferGraph.width - 4, transferGraph.y + transferGraph.height - 5);
@@ -780,7 +787,7 @@ function drawOverdriveModuleFace(
   ctx.setLineDash([]);
 
   ctx.strokeStyle = "rgba(255, 214, 145, 0.82)";
-  ctx.lineWidth = 1.5;
+  setFaceLineWidth(ctx, 1.5);
   ctx.beginPath();
   for (let index = 0; index <= 48; index += 1) {
     const ratio = index / 48;
@@ -797,7 +804,7 @@ function drawOverdriveModuleFace(
   ctx.stroke();
 
   ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 2;
+  setFaceLineWidth(ctx, 2);
   ctx.beginPath();
   for (let index = 0; index <= 64; index += 1) {
     const t = index / 64;
@@ -845,11 +852,11 @@ function drawNoiseModuleFace(
   const levelToY = (level: number) => graph.y + graph.height * (1 - clamp01(level));
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
 
   ctx.strokeStyle = "rgba(158, 192, 223, 0.14)";
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.beginPath();
   ctx.moveTo(graph.x + 5, graph.y + graph.height - 5);
   ctx.lineTo(graph.x + graph.width - 5, graph.y + graph.height - 5);
@@ -861,7 +868,7 @@ function drawNoiseModuleFace(
   ctx.fillRect(graph.x + 1, levelToY(gain), graph.width - 2, graph.y + graph.height - levelToY(gain) - 1);
 
   ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 2;
+  setFaceLineWidth(ctx, 2);
   ctx.beginPath();
   for (let index = 0; index <= 80; index += 1) {
     const t = index / 80;
@@ -877,7 +884,7 @@ function drawNoiseModuleFace(
   ctx.stroke();
 
   ctx.strokeStyle = "rgba(231, 243, 255, 0.20)";
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.beginPath();
   for (let index = 0; index < 42; index += 1) {
     const t = index / 41;
@@ -926,21 +933,21 @@ function drawKarplusStrongModuleFace(
   const floorY = graph.y + graph.height - 5;
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
 
   ctx.fillStyle = `rgba(255, 214, 145, ${0.06 + brightness * 0.16})`;
   ctx.fillRect(graph.x + 1, graph.y + 1, graph.width - 2, graph.height - 2);
 
   ctx.strokeStyle = "rgba(158, 192, 223, 0.24)";
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.beginPath();
   ctx.moveTo(graph.x + 5, floorY);
   ctx.lineTo(graph.x + graph.width - 5, floorY);
   ctx.stroke();
 
   ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 2;
+  setFaceLineWidth(ctx, 2);
   ctx.beginPath();
   ctx.moveTo(graph.x + 4, floorY);
   for (let harmonic = 1; harmonic <= 9; harmonic += 1) {
@@ -997,11 +1004,11 @@ function drawDelayModuleFace(
   const visibleEchoThreshold = 0.01;
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
 
   ctx.strokeStyle = "rgba(158, 192, 223, 0.28)";
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.beginPath();
   ctx.moveTo(graph.x + 7, baseY);
   ctx.lineTo(graph.x + graph.width - 7, baseY);
@@ -1011,7 +1018,7 @@ function drawDelayModuleFace(
     const measureY = graph.y + 6;
     const firstEchoX = dryX + echoGap;
     ctx.strokeStyle = "rgba(231, 243, 255, 0.26)";
-    ctx.lineWidth = 1;
+    setFaceLineWidth(ctx, 1);
     ctx.setLineDash([2, 2]);
     ctx.beginPath();
     ctx.moveTo(dryX + barWidth / 2, measureY);
@@ -1078,14 +1085,14 @@ function drawReverbModuleFace(
   const centerY = graph.y + graph.height / 2;
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
 
   ctx.fillStyle = `rgba(158, 192, 223, ${0.06 + size * 0.1})`;
   ctx.fillRect(graph.x + 1, graph.y + 1, graph.width - 2, graph.height - 2);
 
   ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 2;
+  setFaceLineWidth(ctx, 2);
   ctx.beginPath();
   for (let index = 0; index <= 80; index += 1) {
     const t = index / 80;
@@ -1103,7 +1110,7 @@ function drawReverbModuleFace(
   ctx.stroke();
 
   ctx.strokeStyle = "rgba(231, 243, 255, 0.22)";
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   for (let echo = 0; echo < 10; echo += 1) {
     const t = echo / 9;
     const px = graph.x + 8 + t * (graph.width - 16);
@@ -1171,7 +1178,7 @@ function drawCompressorModuleFace(
   const dbToY = (db: number) => graph.y + graph.height * (1 - (clamp(db, minDb, maxDb) - minDb) / (maxDb - minDb));
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
 
   ctx.strokeStyle = "rgba(158, 192, 223, 0.34)";
@@ -1184,14 +1191,14 @@ function drawCompressorModuleFace(
 
   const thresholdX = dbToX(thresholdDb);
   ctx.strokeStyle = "rgba(255, 214, 145, 0.52)";
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.beginPath();
   ctx.moveTo(thresholdX, graph.y + 4);
   ctx.lineTo(thresholdX, graph.y + graph.height - 4);
   ctx.stroke();
 
   ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 2;
+  setFaceLineWidth(ctx, 2);
   ctx.globalAlpha = 0.36;
   ctx.setLineDash([3, 3]);
   ctx.beginPath();
@@ -1253,15 +1260,15 @@ function drawCompressorExpandedModuleFace(
   const faceW = PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2;
   const transferGraph = {
     x: faceX + 18,
-    y: y + PATCH_MODULE_FACE_TOP + 7,
+    y: y + PATCH_MODULE_FACE_TOP - 7,
     width: faceW - 18,
-    height: 34
+    height: 37
   };
   const attackGraph = {
     x: faceX + 18,
-    y: y + PATCH_MODULE_FACE_TOP + 57,
+    y: y + PATCH_MODULE_FACE_TOP + 40,
     width: faceW - 18,
-    height: 29
+    height: 32
   };
   const attackMs = getNumericParam(node, schema, "attackMs");
   const derived = compressorDerivedParamsForSquash(getNumericParam(node, schema, "squash"), attackMs);
@@ -1275,7 +1282,7 @@ function drawCompressorExpandedModuleFace(
   const dbToY = (db: number) => transferGraph.y + transferGraph.height * (1 - (clamp(db, minDb, maxDb) - minDb) / (maxDb - minDb));
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.strokeRect(transferGraph.x, transferGraph.y, transferGraph.width, transferGraph.height);
 
   ctx.strokeStyle = "rgba(158, 192, 223, 0.34)";
@@ -1312,7 +1319,7 @@ function drawCompressorExpandedModuleFace(
   ctx.globalAlpha = 1;
 
   ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 2;
+  setFaceLineWidth(ctx, 2);
   ctx.beginPath();
   for (let index = 0; index <= 90; index += 1) {
     const t = index / 90;
@@ -1331,13 +1338,17 @@ function drawCompressorExpandedModuleFace(
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
   ctx.font = "7px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textAlign = "right";
+  ctx.fillText("0", transferGraph.x - 3, dbToY(0) + 2);
+  ctx.fillText("-60", transferGraph.x - 3, transferGraph.y + transferGraph.height);
   ctx.fillText("transfer", transferGraph.x + transferGraph.width, transferGraph.y - 2);
   ctx.fillText(`${ratio.toFixed(ratio >= 10 ? 0 : 1)}:1`, transferGraph.x + transferGraph.width, transferGraph.y + transferGraph.height - 4);
-  ctx.textAlign = "left";
-  ctx.fillText(`${Math.round(thresholdDb)}dB`, thresholdX + 3, transferGraph.y + 9);
+  const thresholdRatio = (clamp(thresholdDb, minDb, maxDb) - minDb) / (maxDb - minDb);
+  const thresholdLabelRight = thresholdRatio <= 0.25;
+  ctx.textAlign = thresholdLabelRight ? "left" : "right";
+  ctx.fillText(`${Math.round(thresholdDb)}dB`, thresholdX + (thresholdLabelRight ? 3 : -3), transferGraph.y + 9);
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.strokeRect(attackGraph.x, attackGraph.y, attackGraph.width, attackGraph.height);
   const envToX = (index: number, count: number) => attackGraph.x + (index / count) * attackGraph.width;
   const envToY = (value: number) => attackGraph.y + attackGraph.height * (1 - clamp01(value));
@@ -1346,9 +1357,11 @@ function drawCompressorExpandedModuleFace(
   const dtMs = totalMs / steps;
   let detector = 0.28;
   const inputEnvelopeAt = (timeMs: number) => {
-    if (timeMs < 25) return 0.28 + 0.72 * (timeMs / 25);
-    if (timeMs < 120) return 1 - 0.34 * ((timeMs - 25) / 95);
-    return 0.66;
+    const base = timeMs < 25 ? 0.26 + 0.3 * (timeMs / 25) : 0.56;
+    const firstTransient = 0.54 * Math.exp(-0.5 * Math.pow((timeMs - 34) / 7, 2));
+    const secondPeak = 0.29 * Math.exp(-0.5 * Math.pow((timeMs - 190) / 55, 2));
+    const settleLift = 0.05 * (1 - Math.exp(-timeMs / 280));
+    return clamp01(base + firstTransient + secondPeak + settleLift);
   };
 
   ctx.strokeStyle = "rgba(158, 192, 223, 0.52)";
@@ -1368,7 +1381,7 @@ function drawCompressorExpandedModuleFace(
   ctx.setLineDash([]);
 
   ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 2;
+  setFaceLineWidth(ctx, 2);
   ctx.beginPath();
   for (let index = 0; index <= steps; index += 1) {
     const input = inputEnvelopeAt(index * dtMs);
@@ -1415,7 +1428,7 @@ function drawMixerModuleFace(
   const sideInset = 8;
   const barWidth = (graphW - sideInset * 2 - barGap * (inputCount - 1)) / inputCount;
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.strokeRect(graphX, graphY, graphW, graphH);
   ctx.font = "9px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textAlign = "center";
@@ -1432,7 +1445,7 @@ function drawMixerModuleFace(
     ctx.fillRect(barX, graphY + graphH - barBottomInset - barH, barWidth, barH);
     if (!connected) {
       ctx.strokeStyle = "rgba(231, 243, 255, 0.16)";
-      ctx.lineWidth = 1;
+      setFaceLineWidth(ctx, 1);
       ctx.beginPath();
       ctx.moveTo(barX + 2, graphY + graphH - barBottomInset - 2);
       ctx.lineTo(barX + barWidth - 2, graphY + barTopInset + 2);
@@ -1484,7 +1497,7 @@ function drawCvAxisModuleFace(
   const axisX = graph.x + graph.width / 2;
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
-  ctx.lineWidth = 1;
+  setFaceLineWidth(ctx, 1);
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
   ctx.strokeStyle = PATCH_COLOR_MODULE_FACE_ROW_BG;
   ctx.beginPath();
@@ -1495,7 +1508,7 @@ function drawCvAxisModuleFace(
   ctx.stroke();
 
   ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 2;
+  setFaceLineWidth(ctx, 2);
   ctx.beginPath();
   ctx.moveTo(graph.x + 8, markerY);
   ctx.lineTo(graph.x + graph.width - 8, markerY);
@@ -1572,39 +1585,45 @@ export function drawPatchModuleFaceContent(
   accentColor: string,
   options: { expanded?: boolean } = {}
 ) {
-  if (node.typeId === "ADSR") {
-    drawAdsrModuleFace(ctx, node, schema.params, x, y, accentColor);
-  } else if (node.typeId === "VCO") {
-    drawVcoModuleFace(ctx, node, x, y, accentColor);
-  } else if (node.typeId === "LFO") {
-    drawLfoModuleFace(ctx, node, schema.params, x, y, accentColor);
-  } else if (node.typeId === "KarplusStrong") {
-    drawKarplusStrongModuleFace(ctx, node, schema.params, x, y, accentColor);
-  } else if (node.typeId === "VCF") {
-    drawVcfModuleFace(ctx, patch, node, schema.params, x, y, accentColor);
-  } else if (node.typeId === "VCA") {
-    drawVcaModuleFace(ctx, node, schema.params, x, y, accentColor);
-  } else if (node.typeId === "Noise") {
-    drawNoiseModuleFace(ctx, node, schema.params, x, y, accentColor);
-  } else if (node.typeId === "Delay") {
-    drawDelayModuleFace(ctx, node, schema.params, x, y, accentColor);
-  } else if (node.typeId === "Reverb") {
-    drawReverbModuleFace(ctx, node, schema.params, x, y, accentColor);
-  } else if (node.typeId === "Saturation") {
-    drawSaturationModuleFace(ctx, node, schema.params, x, y, accentColor);
-  } else if (node.typeId === "Overdrive") {
-    drawOverdriveModuleFace(ctx, node, schema.params, x, y, accentColor);
-  } else if (node.typeId === "Compressor") {
-    drawCompressorModuleFace(ctx, node, schema.params, x, y, accentColor, options.expanded === true);
-  } else if (node.typeId === "Mixer4") {
-    drawMixerModuleFace(ctx, node, schema.params, x, y, accentColor, 4, resolveConnectedInputPortIds(patch, node.id));
-  } else if (node.typeId === "CVMixer2") {
-    drawMixerModuleFace(ctx, node, schema.params, x, y, accentColor, 2, resolveConnectedInputPortIds(patch, node.id));
-  } else if (node.typeId === "CVTranspose") {
-    drawCvTransposeModuleFace(ctx, node, schema.params, x, y, accentColor);
-  } else if (node.typeId === "CVScaler") {
-    drawCvScalerModuleFace(ctx, node, schema.params, x, y, accentColor);
-  } else {
-    drawGenericModuleFace(ctx, node, schema.params, x, y);
+  const previousStrokeScale = activeFaceStrokeScale;
+  activeFaceStrokeScale = options.expanded === true ? 1 / PATCH_FACE_POPOVER_SCALE : 1;
+  try {
+    if (node.typeId === "ADSR") {
+      drawAdsrModuleFace(ctx, node, schema.params, x, y, accentColor);
+    } else if (node.typeId === "VCO") {
+      drawVcoModuleFace(ctx, node, x, y, accentColor);
+    } else if (node.typeId === "LFO") {
+      drawLfoModuleFace(ctx, node, schema.params, x, y, accentColor);
+    } else if (node.typeId === "KarplusStrong") {
+      drawKarplusStrongModuleFace(ctx, node, schema.params, x, y, accentColor);
+    } else if (node.typeId === "VCF") {
+      drawVcfModuleFace(ctx, patch, node, schema.params, x, y, accentColor);
+    } else if (node.typeId === "VCA") {
+      drawVcaModuleFace(ctx, node, schema.params, x, y, accentColor);
+    } else if (node.typeId === "Noise") {
+      drawNoiseModuleFace(ctx, node, schema.params, x, y, accentColor);
+    } else if (node.typeId === "Delay") {
+      drawDelayModuleFace(ctx, node, schema.params, x, y, accentColor);
+    } else if (node.typeId === "Reverb") {
+      drawReverbModuleFace(ctx, node, schema.params, x, y, accentColor);
+    } else if (node.typeId === "Saturation") {
+      drawSaturationModuleFace(ctx, node, schema.params, x, y, accentColor);
+    } else if (node.typeId === "Overdrive") {
+      drawOverdriveModuleFace(ctx, node, schema.params, x, y, accentColor);
+    } else if (node.typeId === "Compressor") {
+      drawCompressorModuleFace(ctx, node, schema.params, x, y, accentColor, options.expanded === true);
+    } else if (node.typeId === "Mixer4") {
+      drawMixerModuleFace(ctx, node, schema.params, x, y, accentColor, 4, resolveConnectedInputPortIds(patch, node.id));
+    } else if (node.typeId === "CVMixer2") {
+      drawMixerModuleFace(ctx, node, schema.params, x, y, accentColor, 2, resolveConnectedInputPortIds(patch, node.id));
+    } else if (node.typeId === "CVTranspose") {
+      drawCvTransposeModuleFace(ctx, node, schema.params, x, y, accentColor);
+    } else if (node.typeId === "CVScaler") {
+      drawCvScalerModuleFace(ctx, node, schema.params, x, y, accentColor);
+    } else {
+      drawGenericModuleFace(ctx, node, schema.params, x, y);
+    }
+  } finally {
+    activeFaceStrokeScale = previousStrokeScale;
   }
 }
