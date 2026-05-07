@@ -1136,7 +1136,7 @@ function drawReverbModuleFace(
   let firstReflectionT = 0;
   const delaySpread = modeProfile.spacing * (0.58 + decay * 0.42);
   for (let echo = 0; echo < modeProfile.density; echo += 1) {
-    const rawT = echo / Math.max(1, modeProfile.density - 1);
+    const rawT = (echo + 1) / (modeProfile.density + 1);
     const t = Math.min(1, Math.pow(rawT, 1 / delaySpread));
     const tapX = graph.x + 7 + t * (graph.width - 14);
     const tapAmp = mix * Math.exp(-t * tailRate * modeProfile.tailPower) * (0.26 + decay * 0.74);
@@ -1156,16 +1156,16 @@ function drawReverbModuleFace(
   setFaceLineWidth(ctx, 1);
   ctx.globalAlpha = clamp(mix * (0.35 + decay * 0.3), 0.12, 0.55);
   ctx.beginPath();
-  const firstReflectionPoint = mainCurvePoint(firstReflectionT);
   const firstReflectionValue = mainWaveValue(firstReflectionT);
+  const firstReflectionX = graph.x + firstReflectionT * graph.width;
   for (let index = 0; index <= 96; index += 1) {
     const localT = index / 96;
     const reflectedT = firstReflectionT + localT * (1 - firstReflectionT);
-    const px = firstReflectionPoint.x + localT * (graph.x + graph.width - 6 - firstReflectionPoint.x);
+    const px = firstReflectionX + localT * (graph.x + graph.width - 6 - firstReflectionX);
     const reflectionFade = Math.exp(-localT * (1.85 - decay * 0.7)) * (0.44 + decay * 0.32);
     const reflectionPhase = mainWaveValue(reflectedT) - firstReflectionValue;
     const flutter = modeProfile.wiggle * Math.sin(localT * Math.PI * (2.4 + tone * 3.5)) * 0.03;
-    const py = firstReflectionPoint.y - (reflectionPhase + flutter) * reflectionFade * graph.height * 0.5;
+    const py = centerY - (reflectionPhase + flutter) * reflectionFade * graph.height * 0.5;
     if (index === 0) {
       ctx.moveTo(px, py);
     } else {
