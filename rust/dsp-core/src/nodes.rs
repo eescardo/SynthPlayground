@@ -1,7 +1,7 @@
 use crate::{
     clamp, db_to_gain, js_error, one_pole_step, voct_to_hz, waveform_sample, AdsrMode,
     EngineProfileStats, FilterType, HostSignalIndices, NodeSpecRaw, NoiseColor, OverdriveMode,
-    SampleAsset, SamplePlayerMode, SaturationType, SmoothParam, Wave,
+    ReverbMode, SampleAsset, SamplePlayerMode, SaturationType, SmoothParam, Wave,
 };
 use serde_json::Value;
 use std::collections::HashMap;
@@ -62,6 +62,49 @@ fn apply_overdrive_tone(input: f32, lowpassed: f32, tone: f32) -> f32 {
     let makeup = 1.0 + (1.0 - t).powf(1.35) * 2.1;
     let darker = (lowpassed * makeup).tanh();
     input * t + darker * (1.0 - t)
+}
+
+#[inline(always)]
+fn reverb_mode_delay_seconds(mode: ReverbMode, line_index: usize, decay: f32) -> f32 {
+    let d = clamp(decay, 0.0, 1.0);
+    let values = match mode {
+        ReverbMode::Room => [0.014 + d * 0.010, 0.019 + d * 0.013, 0.026 + d * 0.016, 0.035 + d * 0.020],
+        ReverbMode::Hall => [0.037 + d * 0.034, 0.049 + d * 0.047, 0.061 + d * 0.059, 0.079 + d * 0.071],
+        ReverbMode::Plate => [0.011 + d * 0.009, 0.017 + d * 0.011, 0.023 + d * 0.014, 0.031 + d * 0.018],
+        ReverbMode::Spring => [0.019 + d * 0.006, 0.027 + d * 0.008, 0.034 + d * 0.011, 0.046 + d * 0.014],
+    };
+    values[line_index]
+}
+
+#[inline(always)]
+fn reverb_mode_feedback(mode: ReverbMode, decay: f32) -> f32 {
+    let d = clamp(decay, 0.0, 1.0).powf(0.72);
+    match mode {
+        ReverbMode::Room => 0.38 + d * 0.46,
+        ReverbMode::Hall => 0.52 + d * 0.40,
+        ReverbMode::Plate => 0.48 + d * 0.40,
+        ReverbMode::Spring => 0.42 + d * 0.40,
+    }
+}
+
+#[inline(always)]
+fn reverb_mode_input_gain(mode: ReverbMode) -> f32 {
+    match mode {
+        ReverbMode::Room => 0.54,
+        ReverbMode::Hall => 0.46,
+        ReverbMode::Plate => 0.58,
+        ReverbMode::Spring => 0.5,
+    }
+}
+
+#[inline(always)]
+fn reverb_mode_wet_gain(mode: ReverbMode) -> f32 {
+    match mode {
+        ReverbMode::Room => 1.7,
+        ReverbMode::Hall => 1.45,
+        ReverbMode::Plate => 1.65,
+        ReverbMode::Spring => 1.8,
+    }
 }
 
 #[inline(always)]
@@ -325,14 +368,19 @@ pub(crate) struct DelayNode {
 pub(crate) struct ReverbNode {
     out_index: usize,
     input: i32,
-    size: SmoothParam,
+    mode: ReverbMode,
     decay: SmoothParam,
-    damping: SmoothParam,
+    tone: SmoothParam,
     mix: SmoothParam,
     c1: Vec<f32>,
     c2: Vec<f32>,
-    i1: usize,
-    i2: usize,
+    c3: Vec<f32>,
+    c4: Vec<f32>,
+    write: usize,
+    lp1: f32,
+    lp2: f32,
+    lp3: f32,
+    lp4: f32,
 }
 
 #[derive(Clone)]
@@ -570,14 +618,20 @@ impl RuntimeNode {
             "Reverb" => Self::Reverb(ReverbNode {
                 out_index: raw.out_index,
                 input: input_index(&raw.inputs, "in"),
-                size: SmoothParam::new(value_to_f32(p.get("size"), 0.5), 50.0, sample_rate),
-                decay: SmoothParam::new(value_to_f32(p.get("decay"), 1.5), 50.0, sample_rate),
-                damping: SmoothParam::new(value_to_f32(p.get("damping"), 0.4), 50.0, sample_rate),
-                mix: SmoothParam::new(value_to_f32(p.get("mix"), 0.2), 10.0, sample_rate),
-                c1: vec![0.0; (sample_rate * 0.029) as usize],
-                c2: vec![0.0; (sample_rate * 0.041) as usize],
-                i1: 0,
-                i2: 0,
+                mode: serde_json::from_value::<ReverbMode>(Value::String(value_to_string(p.get("mode"), "room")))
+                    .map_err(|e| js_error(format!("Invalid Reverb mode: {e}")))?,
+                decay: SmoothParam::new(value_to_f32(p.get("decay"), 0.45), 50.0, sample_rate),
+                tone: SmoothParam::new(value_to_f32(p.get("tone"), 0.55), 50.0, sample_rate),
+                mix: SmoothParam::new(value_to_f32(p.get("mix"), 0.25), 10.0, sample_rate),
+                c1: vec![0.0; (sample_rate * 0.18) as usize],
+                c2: vec![0.0; (sample_rate * 0.18) as usize],
+                c3: vec![0.0; (sample_rate * 0.18) as usize],
+                c4: vec![0.0; (sample_rate * 0.18) as usize],
+                write: 0,
+                lp1: 0.0,
+                lp2: 0.0,
+                lp3: 0.0,
+                lp4: 0.0,
             }),
             "Saturation" => Self::Saturation(SaturationNode {
                 out_index: raw.out_index,
@@ -641,7 +695,11 @@ impl RuntimeNode {
             Self::Noise(node) => { node.gain.reset(); node.pink = 0.0; node.brown = 0.0; }
             Self::SamplePlayer(node) => { node.gain.reset(); node.pitch_semis.reset(); node.position = 0.0; node.active = false; node.last_gate = 0.0; }
             Self::Delay(node) => { node.time_ms.reset(); node.feedback.reset(); node.mix.reset(); node.buf.fill(0.0); node.write = 0; }
-            Self::Reverb(node) => { node.size.reset(); node.decay.reset(); node.damping.reset(); node.mix.reset(); node.c1.fill(0.0); node.c2.fill(0.0); node.i1 = 0; node.i2 = 0; }
+            Self::Reverb(node) => {
+                node.decay.reset(); node.tone.reset(); node.mix.reset();
+                node.c1.fill(0.0); node.c2.fill(0.0); node.c3.fill(0.0); node.c4.fill(0.0);
+                node.write = 0; node.lp1 = 0.0; node.lp2 = 0.0; node.lp3 = 0.0; node.lp4 = 0.0;
+            }
             Self::Saturation(node) => { node.drive_db.reset(); node.mix.reset(); }
             Self::Overdrive(node) => { node.drive_db.reset(); node.tone.reset(); node.tone_lp = 0.0; }
             Self::Compressor(node) => { node.squash.reset(); node.attack_ms.reset(); node.mix.reset(); node.env = 0.0; node.rms_energy = 0.0; node.gain_reduction_db = 0.0; node.makeup_gain_db = 0.0; }
@@ -724,7 +782,13 @@ impl RuntimeNode {
                 _ => {}
             },
             Self::Delay(node) => match param_id { "timeMs" => node.time_ms.set_target(value_to_f32(Some(value), node.time_ms.target)), "feedback" => node.feedback.set_target(value_to_f32(Some(value), node.feedback.target)), "mix" => node.mix.set_target(value_to_f32(Some(value), node.mix.target)), _ => {} },
-            Self::Reverb(node) => match param_id { "size" => node.size.set_target(value_to_f32(Some(value), node.size.target)), "decay" => node.decay.set_target(value_to_f32(Some(value), node.decay.target)), "damping" => node.damping.set_target(value_to_f32(Some(value), node.damping.target)), "mix" => node.mix.set_target(value_to_f32(Some(value), node.mix.target)), _ => {} },
+            Self::Reverb(node) => match param_id {
+                "mode" => if let Ok(parsed) = serde_json::from_value::<ReverbMode>(Value::String(value_to_string(Some(value), "room"))) { node.mode = parsed; },
+                "decay" => node.decay.set_target(value_to_f32(Some(value), node.decay.target)),
+                "tone" => node.tone.set_target(value_to_f32(Some(value), node.tone.target)),
+                "mix" => node.mix.set_target(value_to_f32(Some(value), node.mix.target)),
+                _ => {}
+            },
             Self::Saturation(node) => match param_id { "driveDb" => node.drive_db.set_target(value_to_f32(Some(value), node.drive_db.target)), "mix" => node.mix.set_target(value_to_f32(Some(value), node.mix.target)), "type" => if let Ok(parsed) = serde_json::from_value::<SaturationType>(Value::String(value_to_string(Some(value), "tanh"))) { node.mode = parsed; }, _ => {} },
             Self::Overdrive(node) => match param_id { "driveDb" | "gainDb" => node.drive_db.set_target(value_to_f32(Some(value), node.drive_db.target)), "tone" => node.tone.set_target(value_to_f32(Some(value), node.tone.target)), "mode" => if let Ok(parsed) = serde_json::from_value::<OverdriveMode>(Value::String(value_to_string(Some(value), "overdrive"))) { node.mode = parsed; }, _ => {} },
             Self::Compressor(node) => match param_id { "squash" => node.squash.set_target(value_to_f32(Some(value), node.squash.target)), "attackMs" => node.attack_ms.set_target(value_to_f32(Some(value), node.attack_ms.target)), "mix" => node.mix.set_target(value_to_f32(Some(value), node.mix.target)), _ => {} },
@@ -1197,19 +1261,49 @@ impl RuntimeNode {
             }
             Self::Reverb(node) => {
                 let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
-                let size = node.size.next();
-                let decay = node.decay.next();
-                let damping = node.damping.next();
+                let decay = clamp(node.decay.next(), 0.0, 1.0);
+                let tone = clamp(node.tone.next(), 0.0, 1.0);
                 let mix = clamp(node.mix.next(), 0.0, 1.0);
-                let fb = clamp(0.2 + size * 0.7, 0.0, 0.95) * clamp(decay / 10.0, 0.0, 1.0);
-                let c1 = node.c1[node.i1];
-                let c2 = node.c2[node.i2];
-                node.c1[node.i1] = input + (c1 * fb - c1 * damping * 0.05);
-                node.c2[node.i2] = input + (c2 * fb - c2 * damping * 0.05);
-                node.i1 = (node.i1 + 1) % node.c1.len();
-                node.i2 = (node.i2 + 1) % node.c2.len();
+                let read_idx1 = (node.write + node.c1.len() - clamp((reverb_mode_delay_seconds(node.mode, 0, decay) * sample_rate).floor(), 1.0, (node.c1.len() - 1) as f32) as usize) % node.c1.len();
+                let read_idx2 = (node.write + node.c2.len() - clamp((reverb_mode_delay_seconds(node.mode, 1, decay) * sample_rate).floor(), 1.0, (node.c2.len() - 1) as f32) as usize) % node.c2.len();
+                let read_idx3 = (node.write + node.c3.len() - clamp((reverb_mode_delay_seconds(node.mode, 2, decay) * sample_rate).floor(), 1.0, (node.c3.len() - 1) as f32) as usize) % node.c3.len();
+                let read_idx4 = (node.write + node.c4.len() - clamp((reverb_mode_delay_seconds(node.mode, 3, decay) * sample_rate).floor(), 1.0, (node.c4.len() - 1) as f32) as usize) % node.c4.len();
+                let c1 = node.c1[read_idx1];
+                let c2 = node.c2[read_idx2];
+                let c3 = node.c3[read_idx3];
+                let c4 = node.c4[read_idx4];
+                let tone_alpha = 0.035 + tone.powf(1.7) * 0.74;
+                node.lp1 += (c1 - node.lp1) * tone_alpha;
+                node.lp2 += (c2 - node.lp2) * tone_alpha;
+                node.lp3 += (c3 - node.lp3) * tone_alpha;
+                node.lp4 += (c4 - node.lp4) * tone_alpha;
+                let fb = reverb_mode_feedback(node.mode, decay);
+                let input_gain = reverb_mode_input_gain(node.mode);
+                let (f1, f2, f3, f4) = match node.mode {
+                    ReverbMode::Spring => (
+                        node.lp1 * 0.68 - node.lp2 * 0.2,
+                        node.lp2 * 0.66 + node.lp3 * 0.2,
+                        node.lp3 * 0.62 - node.lp4 * 0.24,
+                        node.lp4 * 0.64 + node.lp1 * 0.18,
+                    ),
+                    _ => (
+                        node.lp1 * 0.64 + node.lp2 * 0.18,
+                        node.lp2 * 0.62 + node.lp3 * 0.2,
+                        node.lp3 * 0.6 + node.lp4 * 0.2,
+                        node.lp4 * 0.58 + node.lp1 * 0.22,
+                    ),
+                };
+                node.c1[node.write] = clamp(input * input_gain + f1 * fb, -3.0, 3.0);
+                node.c2[node.write] = clamp(input * input_gain + f2 * fb, -3.0, 3.0);
+                node.c3[node.write] = clamp(input * input_gain + f3 * fb, -3.0, 3.0);
+                node.c4[node.write] = clamp(input * input_gain + f4 * fb, -3.0, 3.0);
+                node.write = (node.write + 1) % node.c1.len();
+                let wet = match node.mode {
+                    ReverbMode::Spring => (c1 - c2 + c3 - c4) * 0.26,
+                    _ => (c1 + c2 + c3 + c4) * 0.25,
+                } * reverb_mode_wet_gain(node.mode);
                 let out = frame_signal_offset(node.out_index, block_size, frame);
-                signal_buffers[out] = input * (1.0 - mix) + ((c1 + c2) * 0.5) * mix;
+                signal_buffers[out] = input * (1.0 - mix) + wet.tanh() * mix;
             }
             Self::Saturation(node) => {
                 let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
@@ -1304,7 +1398,8 @@ fn read_input_frame(signal_buffers: &[f32], block_size: usize, frame: usize, ind
 
 #[cfg(test)]
 mod tests {
-    use super::{apply_overdrive_tone, compressor_auto_gain_db_for_squash, compressor_gain_reduction_db, compressor_ratio_for_squash, compressor_release_ms_for_squash, compressor_threshold_db_for_squash, overdrive_drive_amount, overdrive_tone_alpha, shape_fuzz_sample, shape_overdrive_sample};
+    use super::{apply_overdrive_tone, compressor_auto_gain_db_for_squash, compressor_gain_reduction_db, compressor_ratio_for_squash, compressor_release_ms_for_squash, compressor_threshold_db_for_squash, overdrive_drive_amount, overdrive_tone_alpha, reverb_mode_delay_seconds, reverb_mode_feedback, shape_fuzz_sample, shape_overdrive_sample};
+    use crate::ReverbMode;
 
     #[test]
     fn fuzz_shaper_is_harder_and_asymmetric() {
@@ -1366,6 +1461,19 @@ mod tests {
         assert_eq!(compressor_gain_reduction_db(-12.0, -24.0, 4.0), 9.0);
         assert!(compressor_gain_reduction_db(-24.0, -24.0, 4.0) > 0.0);
         assert!(compressor_gain_reduction_db(-24.0, -24.0, 4.0) < 2.0);
+    }
+
+    #[test]
+    fn reverb_decay_extends_primary_mode_timing_and_feedback() {
+        assert!(reverb_mode_delay_seconds(ReverbMode::Room, 3, 1.0) > reverb_mode_delay_seconds(ReverbMode::Room, 3, 0.0));
+        assert!(reverb_mode_feedback(ReverbMode::Room, 1.0) > reverb_mode_feedback(ReverbMode::Room, 0.0));
+    }
+
+    #[test]
+    fn reverb_modes_have_distinct_time_profiles() {
+        assert!(reverb_mode_delay_seconds(ReverbMode::Hall, 3, 1.0) > reverb_mode_delay_seconds(ReverbMode::Room, 3, 1.0));
+        assert!(reverb_mode_delay_seconds(ReverbMode::Plate, 0, 0.5) < reverb_mode_delay_seconds(ReverbMode::Hall, 0, 0.5));
+        assert!(reverb_mode_delay_seconds(ReverbMode::Spring, 1, 0.5) > reverb_mode_delay_seconds(ReverbMode::Plate, 1, 0.5));
     }
 }
 

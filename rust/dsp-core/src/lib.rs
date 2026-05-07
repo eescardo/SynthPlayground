@@ -163,6 +163,15 @@ enum OverdriveMode {
 
 #[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "lowercase")]
+enum ReverbMode {
+    Room,
+    Hall,
+    Plate,
+    Spring,
+}
+
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
 enum SamplePlayerMode {
     Oneshot,
     Loop,

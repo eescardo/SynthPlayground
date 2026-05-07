@@ -53,4 +53,27 @@ describe("module registry", () => {
     expect(schema?.params.some((param) => param.id === "makeupDb")).toBe(false);
     expect(schema?.params.some((param) => param.id === "autoMakeup")).toBe(false);
   });
+
+  it("exposes reverb as mode, decay, tone, and mix controls", () => {
+    const schema = getModuleSchema("Reverb");
+
+    expect(schema?.params.map((param) => param.id)).toEqual(["mode", "decay", "tone", "mix"]);
+    expect(schema?.params.find((param) => param.id === "mode")).toMatchObject({
+      type: "enum",
+      options: ["room", "hall", "plate", "spring"],
+      default: "room"
+    });
+    expect(schema?.params.find((param) => param.id === "decay")).toMatchObject({
+      type: "float",
+      unit: "ratio",
+      range: { min: 0, max: 1 }
+    });
+    expect(schema?.params.find((param) => param.id === "tone")).toMatchObject({
+      type: "float",
+      unit: "ratio",
+      range: { min: 0, max: 1 }
+    });
+    expect(schema?.params.some((param) => param.id === "size")).toBe(false);
+    expect(schema?.params.some((param) => param.id === "damping")).toBe(false);
+  });
 });

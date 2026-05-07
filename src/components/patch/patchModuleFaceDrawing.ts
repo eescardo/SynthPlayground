@@ -42,6 +42,12 @@ function getNumericParam(node: PatchNode, schema: ParamSchema[], paramId: string
   return typeof value === "number" ? value : 0;
 }
 
+function getStringParam(node: PatchNode, schema: ParamSchema[], paramId: string): string {
+  const param = schema.find((entry) => entry.id === paramId);
+  const value = node.params[paramId] ?? param?.default;
+  return typeof value === "string" ? value : String(param?.default ?? "");
+}
+
 function getAdsrParamValues(node: PatchNode, schema: ParamSchema[]) {
   return {
     attack: getNumericParam(node, schema, "attack"),
@@ -1074,31 +1080,51 @@ function drawReverbModuleFace(
 ) {
   const graph = {
     x: x + PATCH_MODULE_FACE_INSET_X,
-    y: y + PATCH_MODULE_FACE_TOP + 4,
+    y: y + PATCH_MODULE_FACE_TOP + 8,
     width: PATCH_NODE_WIDTH - PATCH_MODULE_FACE_INSET_X * 2,
-    height: PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 10
+    height: PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 14
   };
-  const size = clamp01(getNumericParam(node, schema, "size"));
-  const decay = Math.max(0.1, getNumericParam(node, schema, "decay"));
-  const damping = clamp01(getNumericParam(node, schema, "damping"));
+  const mode = getStringParam(node, schema, "mode");
+  const decay = clamp01(getNumericParam(node, schema, "decay"));
+  const tone = clamp01(getNumericParam(node, schema, "tone"));
   const mix = clamp01(getNumericParam(node, schema, "mix"));
-  const centerY = graph.y + graph.height / 2;
+  const centerY = graph.y + graph.height * 0.52;
+  const modeProfile =
+    mode === "hall"
+      ? { density: 18, tailPower: 0.64, spacing: 1.28, tint: "158, 192, 223" }
+      : mode === "plate"
+        ? { density: 22, tailPower: 0.78, spacing: 0.82, tint: "232, 214, 156" }
+        : mode === "spring"
+          ? { density: 13, tailPower: 0.88, spacing: 1.04, tint: "184, 222, 178" }
+          : { density: 12, tailPower: 0.92, spacing: 0.9, tint: "158, 192, 223" };
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
   setFaceLineWidth(ctx, 1);
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
 
-  ctx.fillStyle = `rgba(158, 192, 223, ${0.06 + size * 0.1})`;
+  ctx.fillStyle = `rgba(${modeProfile.tint}, ${0.06 + mix * 0.1})`;
   ctx.fillRect(graph.x + 1, graph.y + 1, graph.width - 2, graph.height - 2);
 
-  ctx.strokeStyle = accentColor;
-  setFaceLineWidth(ctx, 2);
+  ctx.strokeStyle = "rgba(231, 243, 255, 0.28)";
+  setFaceLineWidth(ctx, 1);
+  ctx.setLineDash([3, 4]);
   ctx.beginPath();
-  for (let index = 0; index <= 80; index += 1) {
-    const t = index / 80;
-    const envelope = mix * Math.exp(-t * (2.2 / Math.sqrt(decay)));
-    const highLoss = 1 - damping * t * 0.65;
-    const wave = Math.sin(t * Math.PI * (8 + size * 16)) * envelope * highLoss;
+  ctx.moveTo(graph.x + 7, graph.y + graph.height - 8);
+  ctx.lineTo(graph.x + graph.width - 7, graph.y + graph.height - 8);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  const tailRate = 0.7 + (1 - decay) * 4.6;
+  const toneFlutter = 5 + tone * 15;
+  ctx.strokeStyle = accentColor;
+  setFaceLineWidth(ctx, 1.6);
+  ctx.beginPath();
+  for (let index = 0; index <= 96; index += 1) {
+    const t = index / 96;
+    const envelope = mix * Math.exp(-t * tailRate) * (0.22 + decay * 0.78);
+    const toneLoss = 0.45 + tone * 0.55 - (1 - tone) * t * 0.32;
+    const springBend = mode === "spring" ? Math.sin(t * Math.PI * 5.5) * 0.38 : 0;
+    const wave = Math.sin(t * Math.PI * (toneFlutter + springBend)) * envelope * toneLoss;
     const px = graph.x + t * graph.width;
     const py = centerY - wave * graph.height * 0.42;
     if (index === 0) {
@@ -1109,13 +1135,14 @@ function drawReverbModuleFace(
   }
   ctx.stroke();
 
-  ctx.strokeStyle = "rgba(231, 243, 255, 0.22)";
+  ctx.strokeStyle = "rgba(231, 243, 255, 0.24)";
   setFaceLineWidth(ctx, 1);
-  for (let echo = 0; echo < 10; echo += 1) {
-    const t = echo / 9;
-    const px = graph.x + 8 + t * (graph.width - 16);
-    const amp = mix * Math.exp(-t * (2.4 / Math.sqrt(decay)));
-    ctx.globalAlpha = clamp(amp, 0.08, 0.5);
+  for (let echo = 0; echo < modeProfile.density; echo += 1) {
+    const rawT = echo / Math.max(1, modeProfile.density - 1);
+    const t = Math.min(1, Math.pow(rawT, modeProfile.spacing));
+    const px = graph.x + 7 + t * (graph.width - 14);
+    const amp = mix * Math.exp(-t * tailRate * modeProfile.tailPower) * (0.22 + decay * 0.78);
+    ctx.globalAlpha = clamp(amp * (0.55 + tone * 0.3), 0.06, 0.46);
     ctx.beginPath();
     ctx.moveTo(px, centerY - amp * graph.height * 0.36);
     ctx.lineTo(px, centerY + amp * graph.height * 0.36);
@@ -1126,9 +1153,10 @@ function drawReverbModuleFace(
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
   ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textAlign = "left";
-  ctx.fillText(`size ${size.toFixed(2)}`, graph.x + 6, graph.y + 11);
+  ctx.fillText(mode.toUpperCase(), graph.x, graph.y - 3);
   ctx.textAlign = "right";
-  ctx.fillText(`${decay.toFixed(decay >= 10 ? 0 : 1)}s damp ${damping.toFixed(2)}`, graph.x + graph.width - 6, graph.y + graph.height - 5);
+  ctx.fillText(`${Math.round(decay * 100)}% decay`, graph.x + graph.width, graph.y - 3);
+  ctx.fillText(`${Math.round(tone * 100)}% tone`, graph.x + graph.width, graph.y + graph.height + 10);
   ctx.textAlign = "left";
 }
 

@@ -364,13 +364,16 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   {
     typeId: "Reverb",
     categories: categories("processor"),
-    doc: { summary: "Algorithmic reverb (MVP)." },
+    doc: { summary: "Modeled reverb with pedal-style mode, decay, tone, and mix." },
     requiredPortIds: { in: ["in"], out: ["out"] },
     params: [
-      floatParam("size", "Size", 0, 1, "linear", "Room size", { default: 0.5, smoothingMs: 50 }),
-      floatParam("decay", "Decay", 0.1, 10, "s", "Reverb decay", { default: 1.5, map: "exp", smoothingMs: 50 }),
-      floatParam("damping", "Damping", 0, 1, "linear", "High frequency damping", { default: 0.4, smoothingMs: 50 }),
-      floatParam("mix", "Mix", 0, 1, "linear", "Wet mix", { default: 0.25, smoothingMs: 10 })
+      enumParam("mode", "Mode", ["room", "hall", "plate", "spring"], "room", "Reverb algorithm"),
+      floatParam("decay", "Decay", 0, 1, "ratio", "Reverb tail length and space scale", {
+        default: 0.45,
+        smoothingMs: 50
+      }),
+      floatParam("tone", "Tone", 0, 1, "ratio", "Tail brightness", { default: 0.55, smoothingMs: 50 }),
+      floatParam("mix", "Mix", 0, 1, "ratio", "Dry/wet mix", { default: 0.25, smoothingMs: 10 })
     ],
     portsIn: [port("in", "In", ["AUDIO"], "Audio input")],
     portsOut: [port("out", "Out", ["AUDIO"], "Reverb output")]

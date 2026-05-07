@@ -94,7 +94,7 @@ describe("patch serde", () => {
 
     const imported = importPatchBundleFromJson(exportPatchToJson(legacyPatch));
 
-    expect(imported.patch.schemaVersion).toBe(3);
+    expect(imported.patch.schemaVersion).toBe(4);
     expect(imported.patch.nodes[0]?.params).toEqual({
       attack: 10,
       decay: 200,
@@ -166,7 +166,7 @@ describe("patch serde", () => {
 
     const imported = importPatchBundleFromJson(exportPatchToJson(legacyPatch));
 
-    expect(imported.patch.schemaVersion).toBe(3);
+    expect(imported.patch.schemaVersion).toBe(4);
     expect(imported.patch.nodes[0]?.params).toEqual({
       driveDb: 18,
       tone: 0.7,
