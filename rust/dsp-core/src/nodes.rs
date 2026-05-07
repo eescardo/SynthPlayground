@@ -77,12 +77,19 @@ fn reverb_mode_delay_seconds(mode: ReverbMode, line_index: usize, decay: f32) ->
 }
 
 #[inline(always)]
+fn reverb_room_late_delay_seconds(line_index: usize, decay: f32) -> f32 {
+    let d = clamp(decay, 0.0, 1.0);
+    let values = [0.031 + d * 0.014, 0.043 + d * 0.019, 0.058 + d * 0.025, 0.077 + d * 0.033];
+    values[line_index]
+}
+
+#[inline(always)]
 fn reverb_mode_feedback(mode: ReverbMode, decay: f32) -> f32 {
     let d = clamp(decay, 0.0, 1.0).powf(0.72);
     match mode {
         ReverbMode::Room => 0.46 + d * 0.49,
         ReverbMode::Hall => 0.54 + d * 0.43,
-        ReverbMode::Plate => 0.54 + d * 0.41,
+        ReverbMode::Plate => 0.58 + d * 0.40,
         ReverbMode::Spring => 0.47 + d * 0.43,
     }
 }
@@ -92,7 +99,7 @@ fn reverb_mode_input_gain(mode: ReverbMode) -> f32 {
     match mode {
         ReverbMode::Room => 0.54,
         ReverbMode::Hall => 0.46,
-        ReverbMode::Plate => 0.52,
+        ReverbMode::Plate => 0.48,
         ReverbMode::Spring => 0.48,
     }
 }
@@ -102,7 +109,7 @@ fn reverb_mode_wet_gain(mode: ReverbMode) -> f32 {
     match mode {
         ReverbMode::Room => 2.7,
         ReverbMode::Hall => 1.75,
-        ReverbMode::Plate => 2.65,
+        ReverbMode::Plate => 3.2,
         ReverbMode::Spring => 2.8,
     }
 }
@@ -376,11 +383,19 @@ pub(crate) struct ReverbNode {
     c2: Vec<f32>,
     c3: Vec<f32>,
     c4: Vec<f32>,
+    c5: Vec<f32>,
+    c6: Vec<f32>,
+    c7: Vec<f32>,
+    c8: Vec<f32>,
     write: usize,
     lp1: f32,
     lp2: f32,
     lp3: f32,
     lp4: f32,
+    lp5: f32,
+    lp6: f32,
+    lp7: f32,
+    lp8: f32,
 }
 
 #[derive(Clone)]
@@ -627,11 +642,19 @@ impl RuntimeNode {
                 c2: vec![0.0; (sample_rate * 0.18) as usize],
                 c3: vec![0.0; (sample_rate * 0.18) as usize],
                 c4: vec![0.0; (sample_rate * 0.18) as usize],
+                c5: vec![0.0; (sample_rate * 0.18) as usize],
+                c6: vec![0.0; (sample_rate * 0.18) as usize],
+                c7: vec![0.0; (sample_rate * 0.18) as usize],
+                c8: vec![0.0; (sample_rate * 0.18) as usize],
                 write: 0,
                 lp1: 0.0,
                 lp2: 0.0,
                 lp3: 0.0,
                 lp4: 0.0,
+                lp5: 0.0,
+                lp6: 0.0,
+                lp7: 0.0,
+                lp8: 0.0,
             }),
             "Saturation" => Self::Saturation(SaturationNode {
                 out_index: raw.out_index,
@@ -698,7 +721,9 @@ impl RuntimeNode {
             Self::Reverb(node) => {
                 node.decay.reset(); node.tone.reset(); node.mix.reset();
                 node.c1.fill(0.0); node.c2.fill(0.0); node.c3.fill(0.0); node.c4.fill(0.0);
+                node.c5.fill(0.0); node.c6.fill(0.0); node.c7.fill(0.0); node.c8.fill(0.0);
                 node.write = 0; node.lp1 = 0.0; node.lp2 = 0.0; node.lp3 = 0.0; node.lp4 = 0.0;
+                node.lp5 = 0.0; node.lp6 = 0.0; node.lp7 = 0.0; node.lp8 = 0.0;
             }
             Self::Saturation(node) => { node.drive_db.reset(); node.mix.reset(); }
             Self::Overdrive(node) => { node.drive_db.reset(); node.tone.reset(); node.tone_lp = 0.0; }
@@ -1277,14 +1302,27 @@ impl RuntimeNode {
                 node.lp2 += (c2 - node.lp2) * tone_alpha;
                 node.lp3 += (c3 - node.lp3) * tone_alpha;
                 node.lp4 += (c4 - node.lp4) * tone_alpha;
+                let (c5, c6, c7, c8) = if matches!(node.mode, ReverbMode::Room) {
+                    let read_idx5 = (node.write + node.c5.len() - clamp((reverb_room_late_delay_seconds(0, decay) * sample_rate).floor(), 1.0, (node.c5.len() - 1) as f32) as usize) % node.c5.len();
+                    let read_idx6 = (node.write + node.c6.len() - clamp((reverb_room_late_delay_seconds(1, decay) * sample_rate).floor(), 1.0, (node.c6.len() - 1) as f32) as usize) % node.c6.len();
+                    let read_idx7 = (node.write + node.c7.len() - clamp((reverb_room_late_delay_seconds(2, decay) * sample_rate).floor(), 1.0, (node.c7.len() - 1) as f32) as usize) % node.c7.len();
+                    let read_idx8 = (node.write + node.c8.len() - clamp((reverb_room_late_delay_seconds(3, decay) * sample_rate).floor(), 1.0, (node.c8.len() - 1) as f32) as usize) % node.c8.len();
+                    (node.c5[read_idx5], node.c6[read_idx6], node.c7[read_idx7], node.c8[read_idx8])
+                } else {
+                    (0.0, 0.0, 0.0, 0.0)
+                };
+                node.lp5 += (c5 - node.lp5) * tone_alpha;
+                node.lp6 += (c6 - node.lp6) * tone_alpha;
+                node.lp7 += (c7 - node.lp7) * tone_alpha;
+                node.lp8 += (c8 - node.lp8) * tone_alpha;
                 let fb = reverb_mode_feedback(node.mode, decay);
                 let input_gain = reverb_mode_input_gain(node.mode);
                 let (f1, f2, f3, f4) = match node.mode {
                     ReverbMode::Room => (
-                        node.lp1 * 0.52 + node.lp2 * 0.28 - node.lp4 * 0.08,
-                        node.lp2 * 0.48 + node.lp3 * 0.3 + node.lp1 * 0.08,
-                        node.lp3 * 0.46 + node.lp4 * 0.26 - node.lp2 * 0.1,
-                        node.lp4 * 0.44 + node.lp1 * 0.32 + node.lp3 * 0.08,
+                        node.lp1 * 0.46 + node.lp2 * 0.22 + node.lp5 * 0.2 - node.lp7 * 0.08,
+                        node.lp2 * 0.42 + node.lp3 * 0.22 + node.lp6 * 0.22 + node.lp1 * 0.08,
+                        node.lp3 * 0.4 + node.lp4 * 0.2 + node.lp7 * 0.24 - node.lp2 * 0.1,
+                        node.lp4 * 0.38 + node.lp1 * 0.22 + node.lp8 * 0.24 + node.lp3 * 0.08,
                     ),
                     ReverbMode::Plate => (
                         node.lp1 * 0.52 + node.lp2 * 0.24 + node.lp3 * 0.08,
@@ -1309,10 +1347,18 @@ impl RuntimeNode {
                 node.c2[node.write] = clamp(input * input_gain + f2 * fb, -3.0, 3.0);
                 node.c3[node.write] = clamp(input * input_gain + f3 * fb, -3.0, 3.0);
                 node.c4[node.write] = clamp(input * input_gain + f4 * fb, -3.0, 3.0);
+                if matches!(node.mode, ReverbMode::Room) {
+                    node.c5[node.write] = clamp(input * input_gain * 0.7 + (node.lp5 * 0.38 + node.lp2 * 0.24 + node.lp6 * 0.16 - node.lp1 * 0.08) * fb, -3.0, 3.0);
+                    node.c6[node.write] = clamp(input * input_gain * 0.66 + (node.lp6 * 0.36 + node.lp3 * 0.24 + node.lp7 * 0.18 + node.lp4 * 0.08) * fb, -3.0, 3.0);
+                    node.c7[node.write] = clamp(input * input_gain * 0.62 + (node.lp7 * 0.34 + node.lp4 * 0.24 + node.lp8 * 0.2 - node.lp2 * 0.08) * fb, -3.0, 3.0);
+                    node.c8[node.write] = clamp(input * input_gain * 0.58 + (node.lp8 * 0.32 + node.lp1 * 0.24 + node.lp5 * 0.22 + node.lp3 * 0.08) * fb, -3.0, 3.0);
+                } else {
+                    node.c5[node.write] = 0.0; node.c6[node.write] = 0.0; node.c7[node.write] = 0.0; node.c8[node.write] = 0.0;
+                }
                 node.write = (node.write + 1) % node.c1.len();
                 let wet = match node.mode {
                     ReverbMode::Spring => (c1 - c2 + c3 - c4) * 0.26,
-                    ReverbMode::Room => c1 * 0.34 - c2 * 0.18 + c3 * 0.3 + c4 * 0.16,
+                    ReverbMode::Room => c1 * 0.24 - c2 * 0.12 + c3 * 0.2 + c4 * 0.12 + c5 * 0.12 - c6 * 0.08 + c7 * 0.14 + c8 * 0.1,
                     ReverbMode::Plate => (c1 + c2 + c3 + c4) * 0.28,
                     _ => (c1 + c2 + c3 + c4) * 0.25,
                 } * reverb_mode_wet_gain(node.mode);
