@@ -62,7 +62,7 @@ describe("Compressor module face response math", () => {
   });
 
   it("blends dry and wet response with mix", () => {
-    expect(compressorOutputDb(-12, -24, 4, 0, 0.5)).toBeCloseTo(-16.5);
+    expect(compressorOutputDb(-12, -24, 4, 0, 0.5)).toBeCloseTo(-15.383);
   });
 
   it("maps squash to derived compressor controls", () => {

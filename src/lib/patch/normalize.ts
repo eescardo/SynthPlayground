@@ -132,8 +132,54 @@ type PatchWithLegacyOutput = Patch & {
 };
 
 const ADSR_TIMING_PARAM_IDS = new Set(["attack", "decay", "release"]);
+const LEGACY_COMPRESSOR_DERIVED_PARAM_IDS = new Set(["releaseMs", "makeupDb", "autoMakeup"]);
 
 const secondsToMilliseconds = (value: number): number => value * 1000;
+const legacyCompressorSquashFromThreshold = (thresholdDb: number): number =>
+  clamp(Math.pow(clamp((-5 - thresholdDb) / 43, 0, 1), 1 / 1.08), 0, 1);
+const legacyCompressorSquashFromRatio = (ratio: number): number =>
+  clamp(Math.pow(clamp((ratio - 1) / 19, 0, 1), 1 / 1.45), 0, 1);
+
+function legacyCompressorSquashFromParams(params: PatchNode["params"]): number {
+  const squashCandidates: number[] = [];
+  if (typeof params.squash === "number" && Number.isFinite(params.squash)) {
+    squashCandidates.push(clamp01(params.squash));
+  }
+  if (typeof params.thresholdDb === "number" && Number.isFinite(params.thresholdDb)) {
+    squashCandidates.push(legacyCompressorSquashFromThreshold(params.thresholdDb));
+  }
+  if (typeof params.ratio === "number" && Number.isFinite(params.ratio)) {
+    squashCandidates.push(legacyCompressorSquashFromRatio(params.ratio));
+  }
+  return squashCandidates.length > 0
+    ? squashCandidates.reduce((sum, value) => sum + value, 0) / squashCandidates.length
+    : 0.5;
+}
+
+function migrateLegacyCompressorBindingValue(paramId: string, value: number): number | null {
+  if (paramId === "squash") {
+    return clamp01(value);
+  }
+  if (paramId === "thresholdDb") {
+    return legacyCompressorSquashFromThreshold(value);
+  }
+  if (paramId === "ratio") {
+    return legacyCompressorSquashFromRatio(value);
+  }
+  return null;
+}
+
+function mergeParamRange(
+  ranges: Record<string, PatchParamSliderRange>,
+  key: string,
+  range: PatchParamSliderRange
+) {
+  const normalizedRange = clampRange(range.min, range.max);
+  const existing = ranges[key];
+  ranges[key] = existing
+    ? clampRange(Math.min(existing.min, normalizedRange.min), Math.max(existing.max, normalizedRange.max))
+    : normalizedRange;
+}
 
 function migrateLegacyAdsrTimingUnits(
   schemaVersion: number,
@@ -267,6 +313,106 @@ function migrateLegacyOverdriveParams(
   return { nodes: migratedNodes, macros: migratedMacros, paramRanges: migratedParamRanges };
 }
 
+function migrateLegacyCompressorParams(
+  schemaVersion: number,
+  nodes: PatchNode[],
+  macros: PatchMacro[],
+  paramRanges?: Record<string, PatchParamSliderRange>
+): Pick<Patch, "nodes"> & { macros: PatchMacro[]; paramRanges?: Record<string, PatchParamSliderRange> } {
+  if (schemaVersion >= 4) {
+    return { nodes, macros, paramRanges };
+  }
+
+  const compressorNodeIds = new Set(nodes.filter((node) => node.typeId === "Compressor").map((node) => node.id));
+  if (compressorNodeIds.size === 0) {
+    return { nodes, macros, paramRanges };
+  }
+
+  const migratedNodes = nodes.map((node) => {
+    if (!compressorNodeIds.has(node.id)) {
+      return node;
+    }
+    const params = { ...node.params };
+    params.squash = legacyCompressorSquashFromParams(params);
+    if (typeof params.attackMs === "number" && Number.isFinite(params.attackMs)) {
+      params.attackMs = clamp(params.attackMs, 10, 600);
+    }
+    delete params.thresholdDb;
+    delete params.ratio;
+    delete params.releaseMs;
+    delete params.makeupDb;
+    delete params.autoMakeup;
+    return { ...node, params };
+  });
+
+  const migratedMacros = macros.map((macro) => {
+    const seenBindings = new Set<string>();
+    const bindings: PatchMacro["bindings"] = [];
+    for (const binding of macro.bindings) {
+      if (!compressorNodeIds.has(binding.nodeId)) {
+        bindings.push(binding);
+        continue;
+      }
+      if (LEGACY_COMPRESSOR_DERIVED_PARAM_IDS.has(binding.paramId)) {
+        continue;
+      }
+      const migratedMin = migrateLegacyCompressorBindingValue(binding.paramId, binding.min ?? 0);
+      const migratedMax = migrateLegacyCompressorBindingValue(binding.paramId, binding.max ?? 1);
+      if (migratedMin === null || migratedMax === null) {
+        bindings.push(binding);
+        continue;
+      }
+      const bindingKey = `${binding.nodeId}:squash`;
+      if (seenBindings.has(bindingKey)) {
+        continue;
+      }
+      seenBindings.add(bindingKey);
+      bindings.push({
+        ...binding,
+        paramId: "squash",
+        min: Math.min(migratedMin, migratedMax),
+        max: Math.max(migratedMin, migratedMax),
+        points: binding.points
+          ?.map((point) => {
+            const y = migrateLegacyCompressorBindingValue(binding.paramId, point.y);
+            return y === null ? null : { ...point, y };
+          })
+          .filter((point): point is NonNullable<typeof point> => point !== null)
+      });
+    }
+    return { ...macro, bindings };
+  });
+
+  const migratedParamRanges = paramRanges
+    ? Object.entries(paramRanges).reduce<Record<string, PatchParamSliderRange>>((ranges, [key, range]) => {
+        const separatorIndex = key.indexOf(":");
+        if (separatorIndex < 0) {
+          mergeParamRange(ranges, key, range);
+          return ranges;
+        }
+        const nodeId = key.slice(0, separatorIndex);
+        const paramId = key.slice(separatorIndex + 1);
+        if (!compressorNodeIds.has(nodeId)) {
+          mergeParamRange(ranges, key, range);
+          return ranges;
+        }
+        if (LEGACY_COMPRESSOR_DERIVED_PARAM_IDS.has(paramId)) {
+          return ranges;
+        }
+        const min = migrateLegacyCompressorBindingValue(paramId, range.min);
+        const max = migrateLegacyCompressorBindingValue(paramId, range.max);
+        if (min === null || max === null) {
+          mergeParamRange(ranges, key, range);
+          return ranges;
+        }
+        mergeParamRange(ranges, `${nodeId}:squash`, { min, max });
+        return ranges;
+      }, {})
+    : undefined;
+
+  return { nodes: migratedNodes, macros: migratedMacros, paramRanges: migratedParamRanges };
+}
+
 export function normalizePatchOutputPort<T extends PatchWithLegacyOutput>(patch: T): Omit<T, "io"> {
   // TODO(output-port-legacy): Remove this compatibility adapter once all saved
   // projects/imports are guaranteed to declare the canonical `output` patch port.
@@ -378,7 +524,13 @@ export function normalizePatch(
   const sanitizedMacros = (Array.isArray(ui.macros) ? ui.macros : []).map(sanitizePatchMacro);
   const sanitizedParamRanges = sanitizePatchParamRanges(ui.paramRanges);
   const adsrMigrated = migrateLegacyAdsrTimingUnits(schemaVersion, nodes, sanitizedMacros, sanitizedParamRanges);
-  const migrated = migrateLegacyOverdriveParams(schemaVersion, adsrMigrated.nodes, adsrMigrated.macros, adsrMigrated.paramRanges);
+  const overdriveMigrated = migrateLegacyOverdriveParams(schemaVersion, adsrMigrated.nodes, adsrMigrated.macros, adsrMigrated.paramRanges);
+  const migrated = migrateLegacyCompressorParams(
+    schemaVersion,
+    overdriveMigrated.nodes,
+    overdriveMigrated.macros,
+    overdriveMigrated.paramRanges
+  );
 
   return ensurePatchLayout(normalizeMacroBindingIds(normalizePatchOutputPort({
     schemaVersion: Math.max(schemaVersion, CURRENT_PATCH_SCHEMA_VERSION),

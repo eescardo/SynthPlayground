@@ -184,6 +184,91 @@ describe("patch serde", () => {
     });
   });
 
+  it("migrates legacy Compressor controls to squash and drops derived params", () => {
+    const legacyPatch = createClearPatch({
+      id: "patch_legacy_compressor",
+      name: "Legacy Compressor"
+    });
+    legacyPatch.schemaVersion = 3;
+    legacyPatch.nodes = [
+      {
+        id: "comp1",
+        typeId: "Compressor",
+        params: {
+          thresholdDb: -24,
+          ratio: 4,
+          attackMs: 8,
+          releaseMs: 200,
+          makeupDb: 4,
+          mix: 0.8
+        }
+      }
+    ];
+    legacyPatch.ui.paramRanges = {
+      "comp1:thresholdDb": { min: -48, max: -12 },
+      "comp1:makeupDb": { min: 0, max: 12 }
+    };
+    legacyPatch.ui.macros = [
+      {
+        id: "macro_comp",
+        name: "Comp",
+        keyframeCount: 3,
+        bindings: [
+          {
+            id: "legacy_threshold",
+            nodeId: "comp1",
+            paramId: "thresholdDb",
+            map: "piecewise",
+            min: -12,
+            max: -48,
+            points: [
+              { x: 0, y: -12 },
+              { x: 0.5, y: -24 },
+              { x: 1, y: -48 }
+            ]
+          },
+          {
+            id: "legacy_makeup",
+            nodeId: "comp1",
+            paramId: "makeupDb",
+            map: "linear",
+            min: 0,
+            max: 12
+          }
+        ]
+      }
+    ];
+
+    const imported = importPatchBundleFromJson(exportPatchToJson(legacyPatch));
+    const params = imported.patch.nodes[0]?.params;
+
+    expect(imported.patch.schemaVersion).toBe(4);
+    expect(params?.thresholdDb).toBeUndefined();
+    expect(params?.ratio).toBeUndefined();
+    expect(params?.releaseMs).toBeUndefined();
+    expect(params?.makeupDb).toBeUndefined();
+    expect(params?.squash).toBeCloseTo(0.374706759);
+    expect(params?.attackMs).toBe(10);
+    expect(params?.mix).toBe(0.8);
+    expect(imported.patch.ui.paramRanges?.["comp1:squash"]).toEqual({
+      min: expect.closeTo(0.186220459),
+      max: 1
+    });
+    expect(imported.patch.ui.paramRanges?.["comp1:makeupDb"]).toBeUndefined();
+    expect(imported.patch.ui.macros[0]?.bindings).toHaveLength(1);
+    expect(imported.patch.ui.macros[0]?.bindings[0]).toMatchObject({
+      nodeId: "comp1",
+      paramId: "squash",
+      min: expect.closeTo(0.186220459),
+      max: 1,
+      points: [
+        { x: 0, y: expect.closeTo(0.186220459) },
+        { x: 0.5, y: expect.closeTo(0.469418628) },
+        { x: 1, y: 1 }
+      ]
+    });
+  });
+
   it("migrates legacy output nodes into ports while preserving params", () => {
     const legacyPatch = createClearPatch({
       id: "patch_legacy",

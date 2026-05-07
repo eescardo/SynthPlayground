@@ -1189,11 +1189,18 @@ export function compressorOutputDb(inputDb: number, thresholdDb: number, ratio: 
   const reductionDb = compressorGainReductionDb(inputDb, thresholdDb, ratio);
   const dynamicMakeupDb = Math.min(makeupDb, reductionDb);
   const wet = inputDb - reductionDb + dynamicMakeupDb;
-  return inputDb * (1 - clamp01(mix)) + wet * clamp01(mix);
+  return compressorMixOutputDb(inputDb, wet, mix);
 }
 
 export function compressorCompressedOutputDb(inputDb: number, thresholdDb: number, ratio: number) {
   return inputDb - compressorGainReductionDb(inputDb, thresholdDb, ratio);
+}
+
+function compressorMixOutputDb(inputDb: number, wetDb: number, mix: number) {
+  const wetMix = clamp01(mix);
+  const dryGain = 10 ** (inputDb / 20);
+  const wetGain = 10 ** (wetDb / 20);
+  return 20 * Math.log10(Math.max(0.00001, dryGain * (1 - wetMix) + wetGain * wetMix));
 }
 
 function drawCompressorModuleFace(
@@ -1258,7 +1265,7 @@ function drawCompressorModuleFace(
   for (let index = 0; index <= 80; index += 1) {
     const t = index / 80;
     const inputDb = minDb + t * (maxDb - minDb);
-    const outputDb = inputDb * (1 - mix) + compressorCompressedOutputDb(inputDb, thresholdDb, ratio) * mix;
+    const outputDb = compressorMixOutputDb(inputDb, compressorCompressedOutputDb(inputDb, thresholdDb, ratio), mix);
     const px = dbToX(inputDb);
     const py = dbToY(outputDb);
     if (index === 0) {
@@ -1360,7 +1367,7 @@ function drawCompressorExpandedModuleFace(
   for (let index = 0; index <= 90; index += 1) {
     const t = index / 90;
     const inputDb = minDb + t * (maxDb - minDb);
-    const outputDb = inputDb * (1 - mix) + compressorCompressedOutputDb(inputDb, thresholdDb, ratio) * mix;
+    const outputDb = compressorMixOutputDb(inputDb, compressorCompressedOutputDb(inputDb, thresholdDb, ratio), mix);
     const px = dbToX(inputDb);
     const py = dbToY(outputDb);
     if (index === 0) {
