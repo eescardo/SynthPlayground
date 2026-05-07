@@ -59,7 +59,7 @@ function getReverbFaceDelayTaps(mode: string, decay: number): number[] {
   if (mode === "spring") {
     return [0.019 + d * 0.006, 0.027 + d * 0.008, 0.034 + d * 0.011, 0.046 + d * 0.014];
   }
-  return [0.014 + d * 0.01, 0.019 + d * 0.013, 0.026 + d * 0.016, 0.035 + d * 0.02];
+  return [0.007 + d * 0.006, 0.011 + d * 0.008, 0.016 + d * 0.01, 0.022 + d * 0.012];
 }
 
 function getAdsrParamValues(node: PatchNode, schema: ParamSchema[]) {
@@ -1112,8 +1112,8 @@ function drawReverbModuleFace(
           ? { tailPower: 0.72, tint: "184, 222, 178", wiggle: 0.55 }
           : { tailPower: 0.76, tint: "158, 192, 223", wiggle: 0.12 };
   const taps = getReverbFaceDelayTaps(mode, decay);
-  const maxTap = Math.max(...taps);
-  const tapXs = taps.map((tap) => graph.x + 9 + (tap / maxTap) * (graph.width - 18));
+  const reverbFaceTimelineSeconds = 0.18;
+  const tapXs = taps.map((tap) => graph.x + 9 + clamp01(tap / reverbFaceTimelineSeconds) * (graph.width - 18));
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
   setFaceLineWidth(ctx, 1);
@@ -1157,9 +1157,9 @@ function drawReverbModuleFace(
     ctx.strokeStyle = "rgba(231, 243, 255, 0.58)";
     setFaceLineWidth(ctx, 1);
     ctx.beginPath();
-    const tailLength = graph.width * (0.16 + decay * 0.18) * (1 - tapIndex * 0.08);
-    for (let index = 0; index <= 24; index += 1) {
-      const localT = index / 24;
+    const tailLength = graph.width * (0.22 + decay * 0.24) * (1 - tapIndex * 0.08);
+    for (let index = 0; index <= 64; index += 1) {
+      const localT = index / 64;
       const px = tapX + localT * tailLength;
       if (px > graph.x + graph.width - 4) {
         break;

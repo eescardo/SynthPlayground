@@ -68,7 +68,7 @@ fn apply_overdrive_tone(input: f32, lowpassed: f32, tone: f32) -> f32 {
 fn reverb_mode_delay_seconds(mode: ReverbMode, line_index: usize, decay: f32) -> f32 {
     let d = clamp(decay, 0.0, 1.0);
     let values = match mode {
-        ReverbMode::Room => [0.014 + d * 0.010, 0.019 + d * 0.013, 0.026 + d * 0.016, 0.035 + d * 0.020],
+        ReverbMode::Room => [0.007 + d * 0.006, 0.011 + d * 0.008, 0.016 + d * 0.010, 0.022 + d * 0.012],
         ReverbMode::Hall => [0.037 + d * 0.034, 0.049 + d * 0.047, 0.061 + d * 0.059, 0.079 + d * 0.071],
         ReverbMode::Plate => [0.011 + d * 0.009, 0.017 + d * 0.011, 0.023 + d * 0.014, 0.031 + d * 0.018],
         ReverbMode::Spring => [0.019 + d * 0.006, 0.027 + d * 0.008, 0.034 + d * 0.011, 0.046 + d * 0.014],
@@ -80,7 +80,7 @@ fn reverb_mode_delay_seconds(mode: ReverbMode, line_index: usize, decay: f32) ->
 fn reverb_mode_feedback(mode: ReverbMode, decay: f32) -> f32 {
     let d = clamp(decay, 0.0, 1.0).powf(0.72);
     match mode {
-        ReverbMode::Room => 0.42 + d * 0.50,
+        ReverbMode::Room => 0.46 + d * 0.49,
         ReverbMode::Hall => 0.54 + d * 0.43,
         ReverbMode::Plate => 0.54 + d * 0.41,
         ReverbMode::Spring => 0.47 + d * 0.43,
@@ -100,7 +100,7 @@ fn reverb_mode_input_gain(mode: ReverbMode) -> f32 {
 #[inline(always)]
 fn reverb_mode_wet_gain(mode: ReverbMode) -> f32 {
     match mode {
-        ReverbMode::Room => 2.35,
+        ReverbMode::Room => 2.7,
         ReverbMode::Hall => 1.75,
         ReverbMode::Plate => 2.65,
         ReverbMode::Spring => 2.8,
@@ -1281,10 +1281,10 @@ impl RuntimeNode {
                 let input_gain = reverb_mode_input_gain(node.mode);
                 let (f1, f2, f3, f4) = match node.mode {
                     ReverbMode::Room => (
-                        node.lp1 * 0.72 + node.lp2 * 0.12,
-                        node.lp2 * 0.64 + node.lp3 * 0.12,
-                        node.lp3 * 0.56 + node.lp4 * 0.12,
-                        node.lp4 * 0.5 + node.lp1 * 0.16,
+                        node.lp1 * 0.52 + node.lp2 * 0.28 - node.lp4 * 0.08,
+                        node.lp2 * 0.48 + node.lp3 * 0.3 + node.lp1 * 0.08,
+                        node.lp3 * 0.46 + node.lp4 * 0.26 - node.lp2 * 0.1,
+                        node.lp4 * 0.44 + node.lp1 * 0.32 + node.lp3 * 0.08,
                     ),
                     ReverbMode::Plate => (
                         node.lp1 * 0.52 + node.lp2 * 0.24 + node.lp3 * 0.08,
@@ -1312,7 +1312,7 @@ impl RuntimeNode {
                 node.write = (node.write + 1) % node.c1.len();
                 let wet = match node.mode {
                     ReverbMode::Spring => (c1 - c2 + c3 - c4) * 0.26,
-                    ReverbMode::Room => c1 * 0.38 + c2 * 0.28 + c3 * 0.2 + c4 * 0.14,
+                    ReverbMode::Room => c1 * 0.34 - c2 * 0.18 + c3 * 0.3 + c4 * 0.16,
                     ReverbMode::Plate => (c1 + c2 + c3 + c4) * 0.28,
                     _ => (c1 + c2 + c3 + c4) * 0.25,
                 } * reverb_mode_wet_gain(node.mode);
