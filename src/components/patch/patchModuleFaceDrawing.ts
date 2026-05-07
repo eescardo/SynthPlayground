@@ -48,29 +48,6 @@ function getStringParam(node: PatchNode, schema: ParamSchema[], paramId: string)
   return typeof value === "string" ? value : String(param?.default ?? "");
 }
 
-function getReverbFaceDelayTaps(mode: string, decay: number): number[] {
-  const d = clamp01(decay);
-  if (mode === "hall") {
-    return [0.037 + d * 0.034, 0.049 + d * 0.047, 0.061 + d * 0.059, 0.079 + d * 0.071];
-  }
-  if (mode === "plate") {
-    return [0.011 + d * 0.009, 0.017 + d * 0.011, 0.023 + d * 0.014, 0.031 + d * 0.018];
-  }
-  if (mode === "spring") {
-    return [0.019 + d * 0.006, 0.027 + d * 0.008, 0.034 + d * 0.011, 0.046 + d * 0.014];
-  }
-  return [
-    0.007 + d * 0.006,
-    0.011 + d * 0.008,
-    0.016 + d * 0.01,
-    0.022 + d * 0.012,
-    0.031 + d * 0.014,
-    0.043 + d * 0.019,
-    0.058 + d * 0.025,
-    0.077 + d * 0.033
-  ];
-}
-
 function getAdsrParamValues(node: PatchNode, schema: ParamSchema[]) {
   return {
     attack: getNumericParam(node, schema, "attack"),
@@ -1120,10 +1097,6 @@ function drawReverbModuleFace(
         : mode === "spring"
           ? { density: 13, tailPower: 0.72, spacing: 1.04, tint: "184, 222, 178", wiggle: 0.55 }
           : { density: 18, tailPower: 0.66, spacing: 0.86, tint: "158, 192, 223", wiggle: 0.28 };
-  const taps = getReverbFaceDelayTaps(mode, decay);
-  const reverbFaceTimelineSeconds = 0.18;
-  const firstTapX = graph.x + 9 + clamp01(taps[0] / reverbFaceTimelineSeconds) * (graph.width - 18);
-
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
   setFaceLineWidth(ctx, 1);
   ctx.strokeRect(graph.x, graph.y, graph.width, graph.height);
@@ -1133,17 +1106,25 @@ function drawReverbModuleFace(
 
   const tailRate = 0.7 + (1 - decay) * 4.6;
   const toneFlutter = 5 + tone * 15;
+  const mainWaveValue = (t: number) => {
+    const envelope = mix * Math.exp(-t * tailRate) * (0.22 + decay * 0.78);
+    const toneLoss = 0.45 + tone * 0.55 - (1 - tone) * t * 0.32;
+    const springBend = mode === "spring" ? Math.sin(t * Math.PI * 5.5) * 0.38 : 0;
+    return Math.sin(t * Math.PI * (toneFlutter + springBend)) * envelope * toneLoss;
+  };
+  const mainCurvePoint = (t: number) => {
+    const normalizedT = clamp01(t);
+    return {
+      x: graph.x + normalizedT * graph.width,
+      y: centerY - mainWaveValue(normalizedT) * graph.height * 0.42
+    };
+  };
   ctx.strokeStyle = accentColor;
   setFaceLineWidth(ctx, 1.6);
   ctx.beginPath();
   for (let index = 0; index <= 96; index += 1) {
     const t = index / 96;
-    const envelope = mix * Math.exp(-t * tailRate) * (0.22 + decay * 0.78);
-    const toneLoss = 0.45 + tone * 0.55 - (1 - tone) * t * 0.32;
-    const springBend = mode === "spring" ? Math.sin(t * Math.PI * 5.5) * 0.38 : 0;
-    const wave = Math.sin(t * Math.PI * (toneFlutter + springBend)) * envelope * toneLoss;
-    const px = graph.x + t * graph.width;
-    const py = centerY - wave * graph.height * 0.42;
+    const { x: px, y: py } = mainCurvePoint(t);
     if (index === 0) {
       ctx.moveTo(px, py);
     } else {
@@ -1152,12 +1133,16 @@ function drawReverbModuleFace(
   }
   ctx.stroke();
 
+  let firstReflectionT = 0;
+  const delaySpread = modeProfile.spacing * (0.58 + decay * 0.42);
   for (let echo = 0; echo < modeProfile.density; echo += 1) {
     const rawT = echo / Math.max(1, modeProfile.density - 1);
-    const delaySpread = modeProfile.spacing * (0.58 + decay * 0.42);
     const t = Math.min(1, Math.pow(rawT, 1 / delaySpread));
     const tapX = graph.x + 7 + t * (graph.width - 14);
     const tapAmp = mix * Math.exp(-t * tailRate * modeProfile.tailPower) * (0.26 + decay * 0.74);
+    if (echo === 0) {
+      firstReflectionT = clamp01((tapX - graph.x) / graph.width);
+    }
     ctx.strokeStyle = "rgba(231, 243, 255, 0.42)";
     setFaceLineWidth(ctx, 1.1);
     ctx.globalAlpha = clamp(tapAmp * (0.78 + tone * 0.36), 0.16, 0.66);
@@ -1171,13 +1156,16 @@ function drawReverbModuleFace(
   setFaceLineWidth(ctx, 1);
   ctx.globalAlpha = clamp(mix * (0.35 + decay * 0.3), 0.12, 0.55);
   ctx.beginPath();
+  const firstReflectionPoint = mainCurvePoint(firstReflectionT);
+  const firstReflectionValue = mainWaveValue(firstReflectionT);
   for (let index = 0; index <= 96; index += 1) {
     const localT = index / 96;
-    const px = firstTapX + localT * (graph.x + graph.width - 6 - firstTapX);
-    const ghostAmp = mix * Math.exp(-localT * (1.9 - decay * 0.75)) * (0.18 + decay * 0.58);
-    const wave = Math.sin(localT * Math.PI * (3.2 + tone * 8 + modeProfile.wiggle * 4));
-    const bend = mode === "spring" ? Math.sin(localT * Math.PI * 5.4) * 0.3 : 0;
-    const py = centerY - (wave + bend) * ghostAmp * graph.height * 0.24;
+    const reflectedT = firstReflectionT + localT * (1 - firstReflectionT);
+    const px = firstReflectionPoint.x + localT * (graph.x + graph.width - 6 - firstReflectionPoint.x);
+    const reflectionFade = Math.exp(-localT * (1.85 - decay * 0.7)) * (0.44 + decay * 0.32);
+    const reflectionPhase = mainWaveValue(reflectedT) - firstReflectionValue;
+    const flutter = modeProfile.wiggle * Math.sin(localT * Math.PI * (2.4 + tone * 3.5)) * 0.03;
+    const py = firstReflectionPoint.y - (reflectionPhase + flutter) * reflectionFade * graph.height * 0.5;
     if (index === 0) {
       ctx.moveTo(px, py);
     } else {
