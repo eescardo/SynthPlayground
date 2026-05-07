@@ -1156,16 +1156,16 @@ function drawReverbModuleFace(
   setFaceLineWidth(ctx, 1);
   ctx.globalAlpha = clamp(mix * (0.35 + decay * 0.3), 0.12, 0.55);
   ctx.beginPath();
-  const firstReflectionValue = mainWaveValue(firstReflectionT);
   const firstReflectionX = graph.x + firstReflectionT * graph.width;
+  const ghostCycles = 2.8 + tone * 5.4 + modeProfile.wiggle * 3.2;
+  const ghostPhase = mode === "plate" ? Math.PI * 0.42 : mode === "spring" ? Math.PI * 0.68 : Math.PI * 0.24;
   for (let index = 0; index <= 96; index += 1) {
     const localT = index / 96;
-    const reflectedT = firstReflectionT + localT * (1 - firstReflectionT);
     const px = firstReflectionX + localT * (graph.x + graph.width - 6 - firstReflectionX);
     const reflectionFade = Math.exp(-localT * (1.85 - decay * 0.7)) * (0.44 + decay * 0.32);
-    const reflectionPhase = mainWaveValue(reflectedT) - firstReflectionValue;
-    const flutter = modeProfile.wiggle * Math.sin(localT * Math.PI * (2.4 + tone * 3.5)) * 0.03;
-    const py = centerY - (reflectionPhase + flutter) * reflectionFade * graph.height * 0.5;
+    const reflectionPhase = Math.sin(localT * Math.PI * ghostCycles + ghostPhase);
+    const flutter = modeProfile.wiggle * Math.sin(localT * Math.PI * (2.4 + tone * 3.5) + ghostPhase * 0.5) * 0.16;
+    const py = centerY - (reflectionPhase + flutter) * reflectionFade * graph.height * 0.16;
     if (index === 0) {
       ctx.moveTo(px, py);
     } else {
