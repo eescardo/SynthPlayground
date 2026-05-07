@@ -1091,12 +1091,12 @@ function drawReverbModuleFace(
   const centerY = graph.y + graph.height * 0.52;
   const modeProfile =
     mode === "hall"
-      ? { density: 18, tailPower: 0.64, spacing: 1.28, tint: "158, 192, 223" }
+      ? { density: 18, tailPower: 0.58, spread: 1.28, tint: "158, 192, 223" }
       : mode === "plate"
-        ? { density: 22, tailPower: 0.78, spacing: 0.82, tint: "232, 214, 156" }
+        ? { density: 22, tailPower: 0.62, spread: 0.72, tint: "232, 214, 156" }
         : mode === "spring"
-          ? { density: 13, tailPower: 0.88, spacing: 1.04, tint: "184, 222, 178" }
-          : { density: 12, tailPower: 0.92, spacing: 0.9, tint: "158, 192, 223" };
+          ? { density: 13, tailPower: 0.72, spread: 0.98, tint: "184, 222, 178" }
+          : { density: 12, tailPower: 0.76, spread: 0.88, tint: "158, 192, 223" };
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
   setFaceLineWidth(ctx, 1);
@@ -1104,15 +1104,6 @@ function drawReverbModuleFace(
 
   ctx.fillStyle = `rgba(${modeProfile.tint}, ${0.06 + mix * 0.1})`;
   ctx.fillRect(graph.x + 1, graph.y + 1, graph.width - 2, graph.height - 2);
-
-  ctx.strokeStyle = "rgba(231, 243, 255, 0.28)";
-  setFaceLineWidth(ctx, 1);
-  ctx.setLineDash([3, 4]);
-  ctx.beginPath();
-  ctx.moveTo(graph.x + 7, graph.y + graph.height - 8);
-  ctx.lineTo(graph.x + graph.width - 7, graph.y + graph.height - 8);
-  ctx.stroke();
-  ctx.setLineDash([]);
 
   const tailRate = 0.7 + (1 - decay) * 4.6;
   const toneFlutter = 5 + tone * 15;
@@ -1139,7 +1130,8 @@ function drawReverbModuleFace(
   setFaceLineWidth(ctx, 1);
   for (let echo = 0; echo < modeProfile.density; echo += 1) {
     const rawT = echo / Math.max(1, modeProfile.density - 1);
-    const t = Math.min(1, Math.pow(rawT, modeProfile.spacing));
+    const delaySpread = modeProfile.spread * (0.58 + decay * 0.42);
+    const t = Math.min(1, Math.pow(rawT, 1 / delaySpread));
     const px = graph.x + 7 + t * (graph.width - 14);
     const amp = mix * Math.exp(-t * tailRate * modeProfile.tailPower) * (0.22 + decay * 0.78);
     ctx.globalAlpha = clamp(amp * (0.55 + tone * 0.3), 0.06, 0.46);

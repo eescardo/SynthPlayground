@@ -80,10 +80,10 @@ fn reverb_mode_delay_seconds(mode: ReverbMode, line_index: usize, decay: f32) ->
 fn reverb_mode_feedback(mode: ReverbMode, decay: f32) -> f32 {
     let d = clamp(decay, 0.0, 1.0).powf(0.72);
     match mode {
-        ReverbMode::Room => 0.38 + d * 0.46,
-        ReverbMode::Hall => 0.52 + d * 0.40,
-        ReverbMode::Plate => 0.48 + d * 0.40,
-        ReverbMode::Spring => 0.42 + d * 0.40,
+        ReverbMode::Room => 0.42 + d * 0.50,
+        ReverbMode::Hall => 0.54 + d * 0.43,
+        ReverbMode::Plate => 0.54 + d * 0.41,
+        ReverbMode::Spring => 0.47 + d * 0.43,
     }
 }
 
@@ -100,10 +100,10 @@ fn reverb_mode_input_gain(mode: ReverbMode) -> f32 {
 #[inline(always)]
 fn reverb_mode_wet_gain(mode: ReverbMode) -> f32 {
     match mode {
-        ReverbMode::Room => 1.7,
-        ReverbMode::Hall => 1.45,
-        ReverbMode::Plate => 1.65,
-        ReverbMode::Spring => 1.8,
+        ReverbMode::Room => 2.35,
+        ReverbMode::Hall => 1.75,
+        ReverbMode::Plate => 2.65,
+        ReverbMode::Spring => 2.8,
     }
 }
 
@@ -1467,6 +1467,10 @@ mod tests {
     fn reverb_decay_extends_primary_mode_timing_and_feedback() {
         assert!(reverb_mode_delay_seconds(ReverbMode::Room, 3, 1.0) > reverb_mode_delay_seconds(ReverbMode::Room, 3, 0.0));
         assert!(reverb_mode_feedback(ReverbMode::Room, 1.0) > reverb_mode_feedback(ReverbMode::Room, 0.0));
+        assert!(reverb_mode_feedback(ReverbMode::Room, 1.0) > 0.9);
+        assert!(reverb_mode_feedback(ReverbMode::Hall, 1.0) > 0.95);
+        assert!(reverb_mode_feedback(ReverbMode::Plate, 1.0) > 0.9);
+        assert!(reverb_mode_feedback(ReverbMode::Spring, 1.0) > 0.85);
     }
 
     #[test]
