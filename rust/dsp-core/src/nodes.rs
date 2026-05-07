@@ -115,6 +115,23 @@ fn reverb_mode_wet_gain(mode: ReverbMode) -> f32 {
 }
 
 #[inline(always)]
+fn reverb_mode_line_count(mode: ReverbMode) -> usize {
+    match mode {
+        ReverbMode::Room => 8,
+        _ => 4,
+    }
+}
+
+#[inline(always)]
+fn reverb_line_delay_seconds(mode: ReverbMode, line_index: usize, decay: f32) -> f32 {
+    if line_index < 4 {
+        reverb_mode_delay_seconds(mode, line_index, decay)
+    } else {
+        reverb_room_late_delay_seconds(line_index - 4, decay)
+    }
+}
+
+#[inline(always)]
 fn compressor_threshold_db_for_squash(squash: f32) -> f32 {
     let amount = clamp(squash, 0.0, 1.0);
     -5.0 - 43.0 * amount.powf(1.08)
@@ -372,6 +389,75 @@ pub(crate) struct DelayNode {
 }
 
 #[derive(Clone)]
+struct ReverbDelayLineBank {
+    buffers: Vec<Vec<f32>>,
+    lowpass: Vec<f32>,
+    write: usize,
+}
+
+impl ReverbDelayLineBank {
+    fn new(mode: ReverbMode, sample_rate: f32) -> Self {
+        let mut bank = Self {
+            buffers: Vec::new(),
+            lowpass: Vec::new(),
+            write: 0,
+        };
+        bank.ensure_line_count(mode, sample_rate);
+        bank
+    }
+
+    fn ensure_line_count(&mut self, mode: ReverbMode, sample_rate: f32) {
+        let target_count = reverb_mode_line_count(mode);
+        if self.buffers.len() == target_count {
+            return;
+        }
+        let delay_len = ((sample_rate * 0.18) as usize).max(2);
+        self.buffers.resize_with(target_count, || vec![0.0; delay_len]);
+        self.lowpass.resize(target_count, 0.0);
+        self.write %= delay_len;
+    }
+
+    fn reset(&mut self) {
+        for buffer in &mut self.buffers {
+            buffer.fill(0.0);
+        }
+        self.lowpass.fill(0.0);
+        self.write = 0;
+    }
+
+    fn read(&self, line_index: usize, delay_seconds: f32, sample_rate: f32) -> f32 {
+        let Some(buffer) = self.buffers.get(line_index) else {
+            return 0.0;
+        };
+        let delay_samples = clamp((delay_seconds * sample_rate).floor(), 1.0, (buffer.len() - 1) as f32) as usize;
+        let read_index = (self.write + buffer.len() - delay_samples) % buffer.len();
+        buffer[read_index]
+    }
+
+    fn update_lowpass(&mut self, line_index: usize, target: f32, alpha: f32) {
+        if let Some(lowpass) = self.lowpass.get_mut(line_index) {
+            *lowpass += (target - *lowpass) * alpha;
+        }
+    }
+
+    fn lp(&self, line_index: usize) -> f32 {
+        self.lowpass.get(line_index).copied().unwrap_or(0.0)
+    }
+
+    fn write_line(&mut self, line_index: usize, value: f32) {
+        if let Some(buffer) = self.buffers.get_mut(line_index) {
+            buffer[self.write] = clamp(value, -3.0, 3.0);
+        }
+    }
+
+    fn advance(&mut self) {
+        if let Some(buffer) = self.buffers.first() {
+            self.write = (self.write + 1) % buffer.len();
+        }
+    }
+}
+
+#[derive(Clone)]
 pub(crate) struct ReverbNode {
     out_index: usize,
     input: i32,
@@ -379,23 +465,7 @@ pub(crate) struct ReverbNode {
     decay: SmoothParam,
     tone: SmoothParam,
     mix: SmoothParam,
-    c1: Vec<f32>,
-    c2: Vec<f32>,
-    c3: Vec<f32>,
-    c4: Vec<f32>,
-    c5: Vec<f32>,
-    c6: Vec<f32>,
-    c7: Vec<f32>,
-    c8: Vec<f32>,
-    write: usize,
-    lp1: f32,
-    lp2: f32,
-    lp3: f32,
-    lp4: f32,
-    lp5: f32,
-    lp6: f32,
-    lp7: f32,
-    lp8: f32,
+    bank: ReverbDelayLineBank,
 }
 
 #[derive(Clone)]
@@ -630,32 +700,19 @@ impl RuntimeNode {
                 buf: vec![0.0; (sample_rate as usize) * 2],
                 write: 0,
             }),
-            "Reverb" => Self::Reverb(ReverbNode {
-                out_index: raw.out_index,
-                input: input_index(&raw.inputs, "in"),
-                mode: serde_json::from_value::<ReverbMode>(Value::String(value_to_string(p.get("mode"), "room")))
-                    .map_err(|e| js_error(format!("Invalid Reverb mode: {e}")))?,
-                decay: SmoothParam::new(value_to_f32(p.get("decay"), 0.45), 50.0, sample_rate),
-                tone: SmoothParam::new(value_to_f32(p.get("tone"), 0.55), 50.0, sample_rate),
-                mix: SmoothParam::new(value_to_f32(p.get("mix"), 0.25), 10.0, sample_rate),
-                c1: vec![0.0; (sample_rate * 0.18) as usize],
-                c2: vec![0.0; (sample_rate * 0.18) as usize],
-                c3: vec![0.0; (sample_rate * 0.18) as usize],
-                c4: vec![0.0; (sample_rate * 0.18) as usize],
-                c5: vec![0.0; (sample_rate * 0.18) as usize],
-                c6: vec![0.0; (sample_rate * 0.18) as usize],
-                c7: vec![0.0; (sample_rate * 0.18) as usize],
-                c8: vec![0.0; (sample_rate * 0.18) as usize],
-                write: 0,
-                lp1: 0.0,
-                lp2: 0.0,
-                lp3: 0.0,
-                lp4: 0.0,
-                lp5: 0.0,
-                lp6: 0.0,
-                lp7: 0.0,
-                lp8: 0.0,
-            }),
+            "Reverb" => {
+                let mode = serde_json::from_value::<ReverbMode>(Value::String(value_to_string(p.get("mode"), "room")))
+                    .map_err(|e| js_error(format!("Invalid Reverb mode: {e}")))?;
+                Self::Reverb(ReverbNode {
+                    out_index: raw.out_index,
+                    input: input_index(&raw.inputs, "in"),
+                    mode,
+                    decay: SmoothParam::new(value_to_f32(p.get("decay"), 0.45), 50.0, sample_rate),
+                    tone: SmoothParam::new(value_to_f32(p.get("tone"), 0.55), 50.0, sample_rate),
+                    mix: SmoothParam::new(value_to_f32(p.get("mix"), 0.25), 10.0, sample_rate),
+                    bank: ReverbDelayLineBank::new(mode, sample_rate),
+                })
+            },
             "Saturation" => Self::Saturation(SaturationNode {
                 out_index: raw.out_index,
                 input: input_index(&raw.inputs, "in"),
@@ -720,10 +777,7 @@ impl RuntimeNode {
             Self::Delay(node) => { node.time_ms.reset(); node.feedback.reset(); node.mix.reset(); node.buf.fill(0.0); node.write = 0; }
             Self::Reverb(node) => {
                 node.decay.reset(); node.tone.reset(); node.mix.reset();
-                node.c1.fill(0.0); node.c2.fill(0.0); node.c3.fill(0.0); node.c4.fill(0.0);
-                node.c5.fill(0.0); node.c6.fill(0.0); node.c7.fill(0.0); node.c8.fill(0.0);
-                node.write = 0; node.lp1 = 0.0; node.lp2 = 0.0; node.lp3 = 0.0; node.lp4 = 0.0;
-                node.lp5 = 0.0; node.lp6 = 0.0; node.lp7 = 0.0; node.lp8 = 0.0;
+                node.bank.reset();
             }
             Self::Saturation(node) => { node.drive_db.reset(); node.mix.reset(); }
             Self::Overdrive(node) => { node.drive_db.reset(); node.tone.reset(); node.tone_lp = 0.0; }
@@ -1289,78 +1343,69 @@ impl RuntimeNode {
                 let decay = clamp(node.decay.next(), 0.0, 1.0);
                 let tone = clamp(node.tone.next(), 0.0, 1.0);
                 let mix = clamp(node.mix.next(), 0.0, 1.0);
-                let read_idx1 = (node.write + node.c1.len() - clamp((reverb_mode_delay_seconds(node.mode, 0, decay) * sample_rate).floor(), 1.0, (node.c1.len() - 1) as f32) as usize) % node.c1.len();
-                let read_idx2 = (node.write + node.c2.len() - clamp((reverb_mode_delay_seconds(node.mode, 1, decay) * sample_rate).floor(), 1.0, (node.c2.len() - 1) as f32) as usize) % node.c2.len();
-                let read_idx3 = (node.write + node.c3.len() - clamp((reverb_mode_delay_seconds(node.mode, 2, decay) * sample_rate).floor(), 1.0, (node.c3.len() - 1) as f32) as usize) % node.c3.len();
-                let read_idx4 = (node.write + node.c4.len() - clamp((reverb_mode_delay_seconds(node.mode, 3, decay) * sample_rate).floor(), 1.0, (node.c4.len() - 1) as f32) as usize) % node.c4.len();
-                let c1 = node.c1[read_idx1];
-                let c2 = node.c2[read_idx2];
-                let c3 = node.c3[read_idx3];
-                let c4 = node.c4[read_idx4];
+                node.bank.ensure_line_count(node.mode, sample_rate);
+                let line_count = reverb_mode_line_count(node.mode);
                 let tone_alpha = 0.035 + tone.powf(1.7) * 0.74;
-                node.lp1 += (c1 - node.lp1) * tone_alpha;
-                node.lp2 += (c2 - node.lp2) * tone_alpha;
-                node.lp3 += (c3 - node.lp3) * tone_alpha;
-                node.lp4 += (c4 - node.lp4) * tone_alpha;
-                let (c5, c6, c7, c8) = if matches!(node.mode, ReverbMode::Room) {
-                    let read_idx5 = (node.write + node.c5.len() - clamp((reverb_room_late_delay_seconds(0, decay) * sample_rate).floor(), 1.0, (node.c5.len() - 1) as f32) as usize) % node.c5.len();
-                    let read_idx6 = (node.write + node.c6.len() - clamp((reverb_room_late_delay_seconds(1, decay) * sample_rate).floor(), 1.0, (node.c6.len() - 1) as f32) as usize) % node.c6.len();
-                    let read_idx7 = (node.write + node.c7.len() - clamp((reverb_room_late_delay_seconds(2, decay) * sample_rate).floor(), 1.0, (node.c7.len() - 1) as f32) as usize) % node.c7.len();
-                    let read_idx8 = (node.write + node.c8.len() - clamp((reverb_room_late_delay_seconds(3, decay) * sample_rate).floor(), 1.0, (node.c8.len() - 1) as f32) as usize) % node.c8.len();
-                    (node.c5[read_idx5], node.c6[read_idx6], node.c7[read_idx7], node.c8[read_idx8])
-                } else {
-                    (0.0, 0.0, 0.0, 0.0)
-                };
-                node.lp5 += (c5 - node.lp5) * tone_alpha;
-                node.lp6 += (c6 - node.lp6) * tone_alpha;
-                node.lp7 += (c7 - node.lp7) * tone_alpha;
-                node.lp8 += (c8 - node.lp8) * tone_alpha;
+                let mut delayed = [0.0; 8];
+                for line_index in 0..line_count {
+                    let value = node.bank.read(line_index, reverb_line_delay_seconds(node.mode, line_index, decay), sample_rate);
+                    delayed[line_index] = value;
+                    node.bank.update_lowpass(line_index, value, tone_alpha);
+                }
+                let lp = [
+                    node.bank.lp(0),
+                    node.bank.lp(1),
+                    node.bank.lp(2),
+                    node.bank.lp(3),
+                    node.bank.lp(4),
+                    node.bank.lp(5),
+                    node.bank.lp(6),
+                    node.bank.lp(7),
+                ];
                 let fb = reverb_mode_feedback(node.mode, decay);
                 let input_gain = reverb_mode_input_gain(node.mode);
                 let (f1, f2, f3, f4) = match node.mode {
                     ReverbMode::Room => (
-                        node.lp1 * 0.46 + node.lp2 * 0.22 + node.lp5 * 0.2 - node.lp7 * 0.08,
-                        node.lp2 * 0.42 + node.lp3 * 0.22 + node.lp6 * 0.22 + node.lp1 * 0.08,
-                        node.lp3 * 0.4 + node.lp4 * 0.2 + node.lp7 * 0.24 - node.lp2 * 0.1,
-                        node.lp4 * 0.38 + node.lp1 * 0.22 + node.lp8 * 0.24 + node.lp3 * 0.08,
+                        lp[0] * 0.46 + lp[1] * 0.22 + lp[4] * 0.2 - lp[6] * 0.08,
+                        lp[1] * 0.42 + lp[2] * 0.22 + lp[5] * 0.22 + lp[0] * 0.08,
+                        lp[2] * 0.4 + lp[3] * 0.2 + lp[6] * 0.24 - lp[1] * 0.1,
+                        lp[3] * 0.38 + lp[0] * 0.22 + lp[7] * 0.24 + lp[2] * 0.08,
                     ),
                     ReverbMode::Plate => (
-                        node.lp1 * 0.52 + node.lp2 * 0.24 + node.lp3 * 0.08,
-                        node.lp2 * 0.5 + node.lp3 * 0.24 + node.lp4 * 0.08,
-                        node.lp3 * 0.48 + node.lp4 * 0.24 + node.lp1 * 0.08,
-                        node.lp4 * 0.5 + node.lp1 * 0.24 + node.lp2 * 0.08,
+                        lp[0] * 0.52 + lp[1] * 0.24 + lp[2] * 0.08,
+                        lp[1] * 0.5 + lp[2] * 0.24 + lp[3] * 0.08,
+                        lp[2] * 0.48 + lp[3] * 0.24 + lp[0] * 0.08,
+                        lp[3] * 0.5 + lp[0] * 0.24 + lp[1] * 0.08,
                     ),
                     ReverbMode::Spring => (
-                        node.lp1 * 0.76 - node.lp2 * 0.26,
-                        node.lp2 * 0.52 + node.lp3 * 0.32,
-                        node.lp3 * 0.74 - node.lp4 * 0.34,
-                        node.lp4 * 0.48 + node.lp1 * 0.3,
+                        lp[0] * 0.76 - lp[1] * 0.26,
+                        lp[1] * 0.52 + lp[2] * 0.32,
+                        lp[2] * 0.74 - lp[3] * 0.34,
+                        lp[3] * 0.48 + lp[0] * 0.3,
                     ),
                     ReverbMode::Hall => (
-                        node.lp1 * 0.64 + node.lp2 * 0.18,
-                        node.lp2 * 0.62 + node.lp3 * 0.2,
-                        node.lp3 * 0.6 + node.lp4 * 0.2,
-                        node.lp4 * 0.58 + node.lp1 * 0.22,
+                        lp[0] * 0.64 + lp[1] * 0.18,
+                        lp[1] * 0.62 + lp[2] * 0.2,
+                        lp[2] * 0.6 + lp[3] * 0.2,
+                        lp[3] * 0.58 + lp[0] * 0.22,
                     ),
                 };
-                node.c1[node.write] = clamp(input * input_gain + f1 * fb, -3.0, 3.0);
-                node.c2[node.write] = clamp(input * input_gain + f2 * fb, -3.0, 3.0);
-                node.c3[node.write] = clamp(input * input_gain + f3 * fb, -3.0, 3.0);
-                node.c4[node.write] = clamp(input * input_gain + f4 * fb, -3.0, 3.0);
+                node.bank.write_line(0, input * input_gain + f1 * fb);
+                node.bank.write_line(1, input * input_gain + f2 * fb);
+                node.bank.write_line(2, input * input_gain + f3 * fb);
+                node.bank.write_line(3, input * input_gain + f4 * fb);
                 if matches!(node.mode, ReverbMode::Room) {
-                    node.c5[node.write] = clamp(input * input_gain * 0.7 + (node.lp5 * 0.38 + node.lp2 * 0.24 + node.lp6 * 0.16 - node.lp1 * 0.08) * fb, -3.0, 3.0);
-                    node.c6[node.write] = clamp(input * input_gain * 0.66 + (node.lp6 * 0.36 + node.lp3 * 0.24 + node.lp7 * 0.18 + node.lp4 * 0.08) * fb, -3.0, 3.0);
-                    node.c7[node.write] = clamp(input * input_gain * 0.62 + (node.lp7 * 0.34 + node.lp4 * 0.24 + node.lp8 * 0.2 - node.lp2 * 0.08) * fb, -3.0, 3.0);
-                    node.c8[node.write] = clamp(input * input_gain * 0.58 + (node.lp8 * 0.32 + node.lp1 * 0.24 + node.lp5 * 0.22 + node.lp3 * 0.08) * fb, -3.0, 3.0);
-                } else {
-                    node.c5[node.write] = 0.0; node.c6[node.write] = 0.0; node.c7[node.write] = 0.0; node.c8[node.write] = 0.0;
+                    node.bank.write_line(4, input * input_gain * 0.7 + (lp[4] * 0.38 + lp[1] * 0.24 + lp[5] * 0.16 - lp[0] * 0.08) * fb);
+                    node.bank.write_line(5, input * input_gain * 0.66 + (lp[5] * 0.36 + lp[2] * 0.24 + lp[6] * 0.18 + lp[3] * 0.08) * fb);
+                    node.bank.write_line(6, input * input_gain * 0.62 + (lp[6] * 0.34 + lp[3] * 0.24 + lp[7] * 0.2 - lp[1] * 0.08) * fb);
+                    node.bank.write_line(7, input * input_gain * 0.58 + (lp[7] * 0.32 + lp[0] * 0.24 + lp[4] * 0.22 + lp[2] * 0.08) * fb);
                 }
-                node.write = (node.write + 1) % node.c1.len();
+                node.bank.advance();
                 let wet = match node.mode {
-                    ReverbMode::Spring => (c1 - c2 + c3 - c4) * 0.26,
-                    ReverbMode::Room => c1 * 0.24 - c2 * 0.12 + c3 * 0.2 + c4 * 0.12 + c5 * 0.12 - c6 * 0.08 + c7 * 0.14 + c8 * 0.1,
-                    ReverbMode::Plate => (c1 + c2 + c3 + c4) * 0.28,
-                    _ => (c1 + c2 + c3 + c4) * 0.25,
+                    ReverbMode::Spring => (delayed[0] - delayed[1] + delayed[2] - delayed[3]) * 0.26,
+                    ReverbMode::Room => delayed[0] * 0.24 - delayed[1] * 0.12 + delayed[2] * 0.2 + delayed[3] * 0.12 + delayed[4] * 0.12 - delayed[5] * 0.08 + delayed[6] * 0.14 + delayed[7] * 0.1,
+                    ReverbMode::Plate => (delayed[0] + delayed[1] + delayed[2] + delayed[3]) * 0.28,
+                    _ => (delayed[0] + delayed[1] + delayed[2] + delayed[3]) * 0.25,
                 } * reverb_mode_wet_gain(node.mode);
                 let out = frame_signal_offset(node.out_index, block_size, frame);
                 signal_buffers[out] = input * (1.0 - mix) + wet.tanh() * mix;
@@ -1458,8 +1503,98 @@ fn read_input_frame(signal_buffers: &[f32], block_size: usize, frame: usize, ind
 
 #[cfg(test)]
 mod tests {
-    use super::{apply_overdrive_tone, compressor_auto_gain_db_for_squash, compressor_gain_reduction_db, compressor_ratio_for_squash, compressor_release_ms_for_squash, compressor_threshold_db_for_squash, overdrive_drive_amount, overdrive_tone_alpha, reverb_mode_delay_seconds, reverb_mode_feedback, shape_fuzz_sample, shape_overdrive_sample};
+    use super::{apply_overdrive_tone, compressor_auto_gain_db_for_squash, compressor_gain_reduction_db, compressor_ratio_for_squash, compressor_release_ms_for_squash, compressor_threshold_db_for_squash, envelope_curve_progress, overdrive_drive_amount, overdrive_tone_alpha, reverb_mode_delay_seconds, reverb_mode_feedback, reverb_mode_line_count, shape_fuzz_sample, shape_overdrive_sample, ReverbDelayLineBank};
     use crate::ReverbMode;
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    struct DspFormulaFixtures {
+        #[serde(rename = "compressorDerived")]
+        compressor_derived: Vec<CompressorDerivedFixture>,
+        #[serde(rename = "compressorGainReduction")]
+        compressor_gain_reduction: Vec<CompressorGainReductionFixture>,
+        #[serde(rename = "adsrCurve")]
+        adsr_curve: Vec<AdsrCurveFixture>,
+        #[serde(rename = "overdriveShape")]
+        overdrive_shape: Vec<OverdriveShapeFixture>,
+        #[serde(rename = "overdriveTone")]
+        overdrive_tone: Vec<OverdriveToneFixture>,
+        #[serde(rename = "overdriveDrive")]
+        overdrive_drive: Vec<OverdriveDriveFixture>,
+    }
+
+    #[derive(Deserialize)]
+    struct CompressorDerivedFixture {
+        squash: f32,
+        #[serde(rename = "attackMs")]
+        attack_ms: f32,
+        expected: CompressorDerivedExpected,
+    }
+
+    #[derive(Deserialize)]
+    struct CompressorDerivedExpected {
+        #[serde(rename = "thresholdDb")]
+        threshold_db: f32,
+        ratio: f32,
+        #[serde(rename = "autoGainDb")]
+        auto_gain_db: f32,
+        #[serde(rename = "releaseMs")]
+        release_ms: f32,
+    }
+
+    #[derive(Deserialize)]
+    struct CompressorGainReductionFixture {
+        #[serde(rename = "inputDb")]
+        input_db: f32,
+        #[serde(rename = "thresholdDb")]
+        threshold_db: f32,
+        ratio: f32,
+        #[serde(rename = "expectedDb")]
+        expected_db: f32,
+    }
+
+    #[derive(Deserialize)]
+    struct AdsrCurveFixture {
+        t: f32,
+        curve: f32,
+        expected: f32,
+    }
+
+    #[derive(Deserialize)]
+    struct OverdriveShapeFixture {
+        input: f32,
+        mode: String,
+        expected: f32,
+    }
+
+    #[derive(Deserialize)]
+    struct OverdriveToneFixture {
+        input: Option<f32>,
+        lowpassed: Option<f32>,
+        tone: f32,
+        expected: Option<f32>,
+        #[serde(rename = "expectedAlpha")]
+        expected_alpha: Option<f32>,
+    }
+
+    #[derive(Deserialize)]
+    struct OverdriveDriveFixture {
+        #[serde(rename = "driveDb")]
+        drive_db: f32,
+        expected: f32,
+    }
+
+    fn dsp_formula_fixtures() -> DspFormulaFixtures {
+        serde_json::from_str(include_str!("../../../src/lib/patch/dspFormulaFixtures.json"))
+            .expect("shared DSP formula fixtures should parse")
+    }
+
+    fn assert_close(actual: f32, expected: f32) {
+        assert!(
+            (actual - expected).abs() < 0.0001,
+            "expected {actual} to be close to {expected}"
+        );
+    }
 
     #[test]
     fn fuzz_shaper_is_harder_and_asymmetric() {
@@ -1538,6 +1673,75 @@ mod tests {
         assert!(reverb_mode_delay_seconds(ReverbMode::Hall, 3, 1.0) > reverb_mode_delay_seconds(ReverbMode::Room, 3, 1.0));
         assert!(reverb_mode_delay_seconds(ReverbMode::Plate, 0, 0.5) < reverb_mode_delay_seconds(ReverbMode::Hall, 0, 0.5));
         assert!(reverb_mode_delay_seconds(ReverbMode::Spring, 1, 0.5) > reverb_mode_delay_seconds(ReverbMode::Plate, 1, 0.5));
+    }
+
+    #[test]
+    fn reverb_delay_bank_allocates_by_mode() {
+        let mut bank = ReverbDelayLineBank::new(ReverbMode::Plate, 48_000.0);
+        assert_eq!(bank.buffers.len(), reverb_mode_line_count(ReverbMode::Plate));
+        assert_eq!(bank.lowpass.len(), 4);
+
+        bank.ensure_line_count(ReverbMode::Room, 48_000.0);
+        assert_eq!(bank.buffers.len(), reverb_mode_line_count(ReverbMode::Room));
+        assert_eq!(bank.lowpass.len(), 8);
+
+        bank.ensure_line_count(ReverbMode::Hall, 48_000.0);
+        assert_eq!(bank.buffers.len(), reverb_mode_line_count(ReverbMode::Hall));
+        assert_eq!(bank.lowpass.len(), 4);
+    }
+
+    #[test]
+    fn shared_compressor_formula_fixtures_match_runtime_math() {
+        let fixtures = dsp_formula_fixtures();
+        for fixture in fixtures.compressor_derived {
+            assert_close(compressor_threshold_db_for_squash(fixture.squash), fixture.expected.threshold_db);
+            assert_close(compressor_ratio_for_squash(fixture.squash), fixture.expected.ratio);
+            assert_close(compressor_auto_gain_db_for_squash(fixture.squash, fixture.attack_ms), fixture.expected.auto_gain_db);
+            assert_close(compressor_release_ms_for_squash(fixture.squash), fixture.expected.release_ms);
+        }
+        for fixture in fixtures.compressor_gain_reduction {
+            assert_close(
+                compressor_gain_reduction_db(fixture.input_db, fixture.threshold_db, fixture.ratio),
+                fixture.expected_db,
+            );
+        }
+    }
+
+    #[test]
+    fn shared_adsr_curve_fixtures_match_runtime_math() {
+        for fixture in dsp_formula_fixtures().adsr_curve {
+            assert_close(envelope_curve_progress(fixture.t, fixture.curve), fixture.expected);
+        }
+    }
+
+    #[test]
+    fn shared_overdrive_formula_fixtures_match_runtime_math() {
+        let fixtures = dsp_formula_fixtures();
+        for fixture in fixtures.overdrive_shape {
+            let actual = if fixture.mode == "fuzz" {
+                shape_fuzz_sample(fixture.input)
+            } else {
+                shape_overdrive_sample(fixture.input)
+            };
+            assert_close(actual, fixture.expected);
+        }
+        for fixture in fixtures.overdrive_drive {
+            assert_close(overdrive_drive_amount(fixture.drive_db), fixture.expected);
+        }
+        for fixture in fixtures.overdrive_tone {
+            if let Some(expected_alpha) = fixture.expected_alpha {
+                assert_close(overdrive_tone_alpha(fixture.tone), expected_alpha);
+            } else {
+                assert_close(
+                    apply_overdrive_tone(
+                        fixture.input.expect("tone fixture input"),
+                        fixture.lowpassed.expect("tone fixture lowpassed value"),
+                        fixture.tone,
+                    ),
+                    fixture.expected.expect("tone fixture expected value"),
+                );
+            }
+        }
     }
 }
 

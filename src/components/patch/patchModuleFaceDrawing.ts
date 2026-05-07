@@ -681,17 +681,23 @@ function drawSaturationModuleFace(
   ctx.textAlign = "left";
 }
 
-function overdriveDriveAmount(driveDb: number) {
+export function overdriveDriveAmount(driveDb: number) {
   return clamp(driveDb / 50, 0, 1);
 }
 
-function overdriveToneAlpha(tone: number) {
+export function overdriveToneAlpha(tone: number) {
   const t = clamp01(tone);
   return clamp(0.012 + t * t * 0.9, 0.012, 0.92);
 }
 
 function overdriveToneMakeup(tone: number) {
   return 1 + (1 - clamp01(tone)) ** 1.35 * 2.1;
+}
+
+export function applyOverdriveTone(input: number, lowpassed: number, tone: number) {
+  const t = clamp01(tone);
+  const darker = Math.tanh(lowpassed * overdriveToneMakeup(t));
+  return input * t + darker * (1 - t);
 }
 
 function overdriveToneLowpassMagnitude(tone: number, frequencyHz: number) {
@@ -715,7 +721,7 @@ export function overdriveToneResponse(tone: number, driveDb: number, frequencyHz
   return (1 - driveAmount) + driveAmount * wetResponse;
 }
 
-function overdriveWetShape(input: number, driveDb: number, mode: string) {
+export function overdriveWetShape(input: number, driveDb: number, mode: string) {
   const gain = 10 ** (driveDb / 20);
   const driven = input * gain;
   if (mode !== "fuzz") {
@@ -731,9 +737,7 @@ function overdriveWetShape(input: number, driveDb: number, mode: string) {
 export function overdriveTransfer(input: number, driveDb: number, tone: number, mode: string) {
   const driveAmount = overdriveDriveAmount(driveDb);
   const wet = overdriveWetShape(input, driveDb, mode);
-  const t = clamp01(tone);
-  const steadyTone = Math.tanh(wet * overdriveToneMakeup(t));
-  const toned = wet * t + steadyTone * (1 - t);
+  const toned = applyOverdriveTone(wet, wet, tone);
   return clamp(input * (1 - driveAmount) + toned * driveAmount, -1, 1);
 }
 

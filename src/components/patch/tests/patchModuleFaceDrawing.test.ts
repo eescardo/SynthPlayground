@@ -2,14 +2,19 @@ import { describe, expect, it } from "vitest";
 import {
   VCF_FACE_NYQUIST_HZ,
   VCF_FACE_SAMPLE_RATE_HZ,
+  applyOverdriveTone,
   compressorCompressedOutputDb,
   compressorOutputDb,
   envelopeCurveProgress,
+  overdriveDriveAmount,
   overdriveToneResponse,
+  overdriveToneAlpha,
   overdriveTransfer,
+  overdriveWetShape,
   vcfMagnitudeAtFrequency
 } from "@/components/patch/patchModuleFaceDrawing";
 import { compressorDerivedParamsForSquash, compressorGainReductionDb } from "@/lib/patch/compressor";
+import dspFormulaFixtures from "@/lib/patch/dspFormulaFixtures.json";
 
 describe("VCF module face response math", () => {
   it("uses the app sample rate and Nyquist ceiling for face calculations", () => {
@@ -41,6 +46,12 @@ describe("ADSR module face curve math", () => {
     expect(envelopeCurveProgress(midpoint, -1)).toBeGreaterThan(envelopeCurveProgress(midpoint, 0));
     expect(envelopeCurveProgress(midpoint, 0)).toBeCloseTo(midpoint, 6);
     expect(envelopeCurveProgress(midpoint, 1)).toBeLessThan(envelopeCurveProgress(midpoint, 0));
+  });
+
+  it("matches shared DSP formula fixtures", () => {
+    for (const fixture of dspFormulaFixtures.adsrCurve) {
+      expect(envelopeCurveProgress(fixture.t, fixture.curve)).toBeCloseTo(fixture.expected, 6);
+    }
   });
 });
 
@@ -99,6 +110,19 @@ describe("Compressor module face response math", () => {
     expect(compressorGainReductionDb(-24, -24, 4)).toBeGreaterThan(0);
     expect(compressorGainReductionDb(-24, -24, 4)).toBeLessThan(2);
   });
+
+  it("matches shared DSP formula fixtures", () => {
+    for (const fixture of dspFormulaFixtures.compressorDerived) {
+      const derived = compressorDerivedParamsForSquash(fixture.squash, fixture.attackMs);
+      expect(derived.thresholdDb).toBeCloseTo(fixture.expected.thresholdDb, 6);
+      expect(derived.ratio).toBeCloseTo(fixture.expected.ratio, 6);
+      expect(derived.autoGainDb).toBeCloseTo(fixture.expected.autoGainDb, 6);
+      expect(derived.releaseMs).toBeCloseTo(fixture.expected.releaseMs, 6);
+    }
+    for (const fixture of dspFormulaFixtures.compressorGainReduction) {
+      expect(compressorGainReductionDb(fixture.inputDb, fixture.thresholdDb, fixture.ratio)).toBeCloseTo(fixture.expectedDb, 6);
+    }
+  });
 });
 
 describe("Overdrive module face response math", () => {
@@ -124,5 +148,29 @@ describe("Overdrive module face response math", () => {
   it("puts max tone exactly on the unity response line", () => {
     expect(overdriveToneResponse(1, 50, 120)).toBeCloseTo(1);
     expect(overdriveToneResponse(1, 50, 8000)).toBeCloseTo(1);
+  });
+
+  it("matches shared DSP formula fixtures", () => {
+    for (const fixture of dspFormulaFixtures.overdriveShape) {
+      expect(overdriveWetShape(fixture.input, 0, fixture.mode)).toBeCloseTo(fixture.expected, 6);
+    }
+    for (const fixture of dspFormulaFixtures.overdriveDrive) {
+      expect(overdriveDriveAmount(fixture.driveDb)).toBeCloseTo(fixture.expected, 6);
+    }
+    for (const fixture of dspFormulaFixtures.overdriveTone) {
+      if ("expectedAlpha" in fixture) {
+        const { expectedAlpha } = fixture;
+
+        expect(expectedAlpha).toBeDefined();
+        expect(overdriveToneAlpha(fixture.tone)).toBeCloseTo(expectedAlpha ?? 0, 6);
+      } else {
+        const { input, lowpassed, expected } = fixture;
+
+        expect(input).toBeDefined();
+        expect(lowpassed).toBeDefined();
+        expect(expected).toBeDefined();
+        expect(applyOverdriveTone(input ?? 0, lowpassed ?? 0, fixture.tone)).toBeCloseTo(expected ?? 0, 6);
+      }
+    }
   });
 });
