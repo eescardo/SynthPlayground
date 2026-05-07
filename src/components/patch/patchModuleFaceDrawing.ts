@@ -1154,7 +1154,8 @@ function drawReverbModuleFace(
 
   for (let echo = 0; echo < modeProfile.density; echo += 1) {
     const rawT = echo / Math.max(1, modeProfile.density - 1);
-    const t = Math.min(1, Math.pow(rawT, modeProfile.spacing));
+    const delaySpread = modeProfile.spacing * (0.58 + decay * 0.42);
+    const t = Math.min(1, Math.pow(rawT, 1 / delaySpread));
     const tapX = graph.x + 7 + t * (graph.width - 14);
     const tapAmp = mix * Math.exp(-t * tailRate * modeProfile.tailPower) * (0.26 + decay * 0.74);
     ctx.strokeStyle = "rgba(231, 243, 255, 0.42)";
