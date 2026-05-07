@@ -48,6 +48,20 @@ function getStringParam(node: PatchNode, schema: ParamSchema[], paramId: string)
   return typeof value === "string" ? value : String(param?.default ?? "");
 }
 
+function getReverbFaceDelayTaps(mode: string, decay: number): number[] {
+  const d = clamp01(decay);
+  if (mode === "hall") {
+    return [0.037 + d * 0.034, 0.049 + d * 0.047, 0.061 + d * 0.059, 0.079 + d * 0.071];
+  }
+  if (mode === "plate") {
+    return [0.011 + d * 0.009, 0.017 + d * 0.011, 0.023 + d * 0.014, 0.031 + d * 0.018];
+  }
+  if (mode === "spring") {
+    return [0.019 + d * 0.006, 0.027 + d * 0.008, 0.034 + d * 0.011, 0.046 + d * 0.014];
+  }
+  return [0.014 + d * 0.01, 0.019 + d * 0.013, 0.026 + d * 0.016, 0.035 + d * 0.02];
+}
+
 function getAdsrParamValues(node: PatchNode, schema: ParamSchema[]) {
   return {
     attack: getNumericParam(node, schema, "attack"),
@@ -1091,12 +1105,15 @@ function drawReverbModuleFace(
   const centerY = graph.y + graph.height * 0.52;
   const modeProfile =
     mode === "hall"
-      ? { density: 18, tailPower: 0.58, spread: 1.28, tint: "158, 192, 223" }
+      ? { tailPower: 0.58, tint: "158, 192, 223", wiggle: 0.2 }
       : mode === "plate"
-        ? { density: 22, tailPower: 0.62, spread: 0.72, tint: "232, 214, 156" }
+        ? { tailPower: 0.62, tint: "232, 214, 156", wiggle: 0.08 }
         : mode === "spring"
-          ? { density: 13, tailPower: 0.72, spread: 0.98, tint: "184, 222, 178" }
-          : { density: 12, tailPower: 0.76, spread: 0.88, tint: "158, 192, 223" };
+          ? { tailPower: 0.72, tint: "184, 222, 178", wiggle: 0.55 }
+          : { tailPower: 0.76, tint: "158, 192, 223", wiggle: 0.12 };
+  const taps = getReverbFaceDelayTaps(mode, decay);
+  const maxTap = Math.max(...taps);
+  const tapXs = taps.map((tap) => graph.x + 9 + (tap / maxTap) * (graph.width - 18));
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
   setFaceLineWidth(ctx, 1);
@@ -1126,20 +1143,39 @@ function drawReverbModuleFace(
   }
   ctx.stroke();
 
-  ctx.strokeStyle = "rgba(231, 243, 255, 0.24)";
-  setFaceLineWidth(ctx, 1);
-  for (let echo = 0; echo < modeProfile.density; echo += 1) {
-    const rawT = echo / Math.max(1, modeProfile.density - 1);
-    const delaySpread = modeProfile.spread * (0.58 + decay * 0.42);
-    const t = Math.min(1, Math.pow(rawT, 1 / delaySpread));
-    const px = graph.x + 7 + t * (graph.width - 14);
-    const amp = mix * Math.exp(-t * tailRate * modeProfile.tailPower) * (0.22 + decay * 0.78);
-    ctx.globalAlpha = clamp(amp * (0.55 + tone * 0.3), 0.06, 0.46);
+  tapXs.forEach((tapX, tapIndex) => {
+    const tapT = (tapX - graph.x) / graph.width;
+    const tapAmp = mix * Math.exp(-tapT * tailRate * modeProfile.tailPower) * (0.28 + decay * 0.72);
+    ctx.strokeStyle = "rgba(231, 243, 255, 0.42)";
+    setFaceLineWidth(ctx, 1.1);
+    ctx.globalAlpha = clamp(tapAmp * (0.78 + tone * 0.36), 0.16, 0.66);
     ctx.beginPath();
-    ctx.moveTo(px, centerY - amp * graph.height * 0.36);
-    ctx.lineTo(px, centerY + amp * graph.height * 0.36);
+    ctx.moveTo(tapX, centerY - tapAmp * graph.height * 0.38);
+    ctx.lineTo(tapX, centerY + tapAmp * graph.height * 0.38);
     ctx.stroke();
-  }
+
+    ctx.strokeStyle = "rgba(231, 243, 255, 0.58)";
+    setFaceLineWidth(ctx, 1);
+    ctx.beginPath();
+    const tailLength = graph.width * (0.16 + decay * 0.18) * (1 - tapIndex * 0.08);
+    for (let index = 0; index <= 24; index += 1) {
+      const localT = index / 24;
+      const px = tapX + localT * tailLength;
+      if (px > graph.x + graph.width - 4) {
+        break;
+      }
+      const ghostAmp = tapAmp * Math.exp(-localT * (2.1 - decay * 0.7)) * (1 - tapIndex * 0.1);
+      const wave = Math.sin(localT * Math.PI * (2.4 + tone * 6 + tapIndex * 0.8 + modeProfile.wiggle * 3));
+      const bend = mode === "spring" ? Math.sin(localT * Math.PI * 5 + tapIndex) * 0.32 : 0;
+      const py = centerY - (wave + bend) * ghostAmp * graph.height * 0.28;
+      if (index === 0) {
+        ctx.moveTo(px, py);
+      } else {
+        ctx.lineTo(px, py);
+      }
+    }
+    ctx.stroke();
+  });
   ctx.globalAlpha = 1;
 
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
