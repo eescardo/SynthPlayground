@@ -132,6 +132,8 @@ pub(crate) struct AdsrNode {
     stage_start_level: f32,
     level: f32,
     last_gate: f32,
+    cached_curve: f32,
+    cached_curve_exponent: f32,
 }
 
 #[derive(Clone)]

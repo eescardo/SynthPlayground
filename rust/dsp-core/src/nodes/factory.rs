@@ -133,6 +133,8 @@ impl RuntimeNode {
                 stage_start_level: 0.0,
                 level: 0.0,
                 last_gate: 0.0,
+                cached_curve: f32::NAN,
+                cached_curve_exponent: 1.0,
             }),
             "VCA" => Self::VCA(VcaNode {
                 out_index: raw.out_index,

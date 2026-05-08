@@ -7,6 +7,15 @@ fn advance_adsr_stage_pos(node: &mut AdsrNode, duration_seconds: f32, sample_rat
 }
 
 #[inline(always)]
+fn adsr_curve_progress(node: &mut AdsrNode, t: f32, curve: f32) -> f32 {
+    if curve != node.cached_curve {
+        node.cached_curve = curve;
+        node.cached_curve_exponent = envelope_curve_exponent(curve);
+    }
+    envelope_curve_progress_with_exponent(t, node.cached_curve_exponent)
+}
+
+#[inline(always)]
 fn signal_start(signal_index: usize, block_size: usize) -> usize {
     signal_index * block_size
 }
@@ -115,10 +124,8 @@ impl RuntimeNode {
                     }
                     match node.stage {
                         EnvelopeStage::Attack => {
-                            let progress = envelope_curve_progress(
-                                advance_adsr_stage_pos(node, attack, sample_rate),
-                                curve,
-                            );
+                            let stage_pos = advance_adsr_stage_pos(node, attack, sample_rate);
+                            let progress = adsr_curve_progress(node, stage_pos, curve);
                             node.level =
                                 node.stage_start_level + (1.0 - node.stage_start_level) * progress;
                             if node.stage_pos >= 1.0 {
@@ -129,10 +136,8 @@ impl RuntimeNode {
                             }
                         }
                         EnvelopeStage::Decay => {
-                            let progress = envelope_curve_progress(
-                                advance_adsr_stage_pos(node, decay, sample_rate),
-                                curve,
-                            );
+                            let stage_pos = advance_adsr_stage_pos(node, decay, sample_rate);
+                            let progress = adsr_curve_progress(node, stage_pos, curve);
                             node.level = 1.0 - (1.0 - sustain) * progress;
                             if node.stage_pos >= 1.0 {
                                 node.level = sustain;
@@ -141,10 +146,8 @@ impl RuntimeNode {
                         }
                         EnvelopeStage::Sustain => node.level = sustain,
                         EnvelopeStage::Release => {
-                            let progress = envelope_curve_progress(
-                                advance_adsr_stage_pos(node, release, sample_rate),
-                                curve,
-                            );
+                            let stage_pos = advance_adsr_stage_pos(node, release, sample_rate);
+                            let progress = adsr_curve_progress(node, stage_pos, curve);
                             node.level = node.stage_start_level * (1.0 - progress);
                             if node.stage_pos >= 1.0 || node.level <= 0.0001 {
                                 node.level = 0.0;
@@ -462,10 +465,8 @@ impl RuntimeNode {
                 }
                 match node.stage {
                     EnvelopeStage::Attack => {
-                        let progress = envelope_curve_progress(
-                            advance_adsr_stage_pos(node, attack, sample_rate),
-                            curve,
-                        );
+                        let stage_pos = advance_adsr_stage_pos(node, attack, sample_rate);
+                        let progress = adsr_curve_progress(node, stage_pos, curve);
                         node.level =
                             node.stage_start_level + (1.0 - node.stage_start_level) * progress;
                         if node.stage_pos >= 1.0 {
@@ -476,10 +477,8 @@ impl RuntimeNode {
                         }
                     }
                     EnvelopeStage::Decay => {
-                        let progress = envelope_curve_progress(
-                            advance_adsr_stage_pos(node, decay, sample_rate),
-                            curve,
-                        );
+                        let stage_pos = advance_adsr_stage_pos(node, decay, sample_rate);
+                        let progress = adsr_curve_progress(node, stage_pos, curve);
                         node.level = 1.0 - (1.0 - sustain) * progress;
                         if node.stage_pos >= 1.0 {
                             node.level = sustain;
@@ -488,10 +487,8 @@ impl RuntimeNode {
                     }
                     EnvelopeStage::Sustain => node.level = sustain,
                     EnvelopeStage::Release => {
-                        let progress = envelope_curve_progress(
-                            advance_adsr_stage_pos(node, release, sample_rate),
-                            curve,
-                        );
+                        let stage_pos = advance_adsr_stage_pos(node, release, sample_rate);
+                        let progress = adsr_curve_progress(node, stage_pos, curve);
                         node.level = node.stage_start_level * (1.0 - progress);
                         if node.stage_pos >= 1.0 || node.level <= 0.0001 {
                             node.level = 0.0;
