@@ -5,6 +5,7 @@ import {
 import { PatchDiff } from "@/lib/patch/diff";
 import { EditableNumberLabel, MacroBindingDetails, ParamMacroControl } from "@/components/patch/PatchInspectorControls";
 import { resolveParamBindingState, resolveParamControlValue } from "@/components/patch/patchModuleParameterState";
+import { snapAdsrCurveValueToLinearCenter } from "@/components/patch/patchModuleParameterControls";
 import { createMacroBindingId, createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
 import { clamp, clampRange } from "@/lib/numeric";
 import { MacroBinding, Patch, PatchMacro, PatchNode, PatchParamSliderRange, ParamSchema, ParamValue } from "@/types/patch";
@@ -82,6 +83,7 @@ function ParamValueControl(props: {
   min?: number;
   max?: number;
   disabled?: boolean;
+  snapToLinearCenter?: boolean;
   onChange: (value: ParamValue) => void;
   onPreviewChange?: (value: ParamValue) => void;
 }) {
@@ -95,6 +97,7 @@ function ParamValueControl(props: {
         min={props.min}
         max={props.max}
         disabled={disabled}
+        snapToLinearCenter={props.snapToLinearCenter}
         onChange={onChange}
         onPreviewChange={props.onPreviewChange}
       />
@@ -122,6 +125,7 @@ function FloatParamValueControl(props: {
   min?: number;
   max?: number;
   disabled?: boolean;
+  snapToLinearCenter?: boolean;
   onChange: (value: number) => void;
   onPreviewChange?: (value: number) => void;
 }) {
@@ -154,7 +158,8 @@ function FloatParamValueControl(props: {
       disabled={props.disabled}
       style={{ "--param-slider-percent": `${sliderPercent}%` } as CSSProperties}
       onChange={(event) => {
-        const nextValue = Number(event.target.value);
+        const rawValue = Number(event.target.value);
+        const nextValue = props.snapToLinearCenter ? snapAdsrCurveValueToLinearCenter(rawValue) : rawValue;
         pendingCommitRef.current = true;
         setDraftValue(nextValue);
         props.onPreviewChange?.(nextValue);
@@ -398,6 +403,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
             min={props.param.type === "float" ? sliderRange.min : undefined}
             max={props.param.type === "float" ? sliderRange.max : undefined}
             disabled={controlDisabled}
+            snapToLinearCenter={shouldRenderCurveScaleLabels(props.selectedNode, props.param)}
             onChange={commitValue}
             onPreviewChange={(nextValue) => props.onPreviewParamValue?.(props.selectedNode.id, props.param.id, nextValue)}
           />

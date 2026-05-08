@@ -3,6 +3,7 @@ import {
   resolveParamBindingState,
   resolveParamControlValue
 } from "@/components/patch/patchModuleParameterState";
+import { snapAdsrCurveValueToLinearCenter } from "@/components/patch/patchModuleParameterControls";
 import { createDefaultParamsForType, getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch } from "@/types/patch";
 
@@ -15,6 +16,13 @@ const karplusSchema = () => {
 };
 
 describe("PatchModuleParameter macro-bound controls", () => {
+  it("snaps ADSR curve values near the linear center", () => {
+    expect(snapAdsrCurveValueToLinearCenter(0.034)).toBe(0);
+    expect(snapAdsrCurveValueToLinearCenter(-0.034)).toBe(0);
+    expect(snapAdsrCurveValueToLinearCenter(0.04)).toBe(0.04);
+    expect(snapAdsrCurveValueToLinearCenter(-0.04)).toBe(-0.04);
+  });
+
   it("only previews the selected macro on parameters bound to that macro", () => {
     const node = {
       id: "karplus1",
