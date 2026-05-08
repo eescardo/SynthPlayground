@@ -100,4 +100,112 @@ describe("normalizePatch", () => {
     expect(tooLarge.ui.canvasZoom).toBe(PATCH_CANVAS_MAX_ZOOM);
     expect(tooSmall.ui.canvasZoom).toBe(PATCH_CANVAS_MIN_ZOOM);
   });
+
+  it("fills missing current params and drops stale persisted params", () => {
+    const patch = normalizePatch(
+      {
+        id: "patch_schema_drift",
+        name: "Schema Drift",
+        schemaVersion: 4,
+        nodes: [
+          {
+            id: "env1",
+            typeId: "ADSR",
+            params: {
+              attack: 10,
+              decay: 200,
+              sustain: 0.7,
+              release: 250
+            }
+          },
+          {
+            id: "verb1",
+            typeId: "Reverb",
+            params: {
+              size: 0.8,
+              decay: 1.5,
+              damping: 0.4,
+              mix: 0.5
+            }
+          }
+        ],
+        connections: [],
+        ui: {},
+        layout: { nodes: [] },
+        io: {}
+      },
+      { fallbackId: "fallback", fallbackName: "Fallback" }
+    );
+
+    expect(patch.nodes.find((node) => node.id === "env1")?.params).toMatchObject({
+      attack: 10,
+      decay: 200,
+      sustain: 0.7,
+      release: 250,
+      curve: 0,
+      mode: "retrigger_from_current"
+    });
+    expect(patch.nodes.find((node) => node.id === "verb1")?.params).toEqual({
+      mode: "room",
+      decay: 1,
+      tone: 0.55,
+      mix: 0.5
+    });
+  });
+
+  it("removes stale ranges and bindings when normalizing current schema params", () => {
+    const patch = normalizePatch(
+      {
+        id: "patch_schema_drift_bindings",
+        name: "Schema Drift Bindings",
+        schemaVersion: 4,
+        nodes: [
+          {
+            id: "verb1",
+            typeId: "Reverb",
+            params: {
+              size: 0.8,
+              decay: 1.5,
+              damping: 0.4,
+              mix: 0.5
+            }
+          }
+        ],
+        connections: [],
+        ui: {
+          paramRanges: {
+            "verb1:size": { min: 0, max: 1 },
+            "verb1:decay": { min: 0.2, max: 5 }
+          },
+          macros: [
+            {
+              id: "macro_verb",
+              name: "Verb",
+              keyframeCount: 2,
+              bindings: [
+                { id: "legacy_size", nodeId: "verb1", paramId: "size", map: "linear", min: 0, max: 1 },
+                { id: "legacy_decay", nodeId: "verb1", paramId: "decay", map: "linear", min: 1, max: 5 }
+              ]
+            }
+          ]
+        },
+        layout: { nodes: [] },
+        io: {}
+      },
+      { fallbackId: "fallback", fallbackName: "Fallback" }
+    );
+
+    expect(patch.ui.paramRanges).toEqual({
+      "verb1:decay": { min: 0.2, max: 1 }
+    });
+    expect(patch.ui.macros[0].bindings).toEqual([
+      expect.objectContaining({
+        id: "macro_verb:verb1:decay",
+        nodeId: "verb1",
+        paramId: "decay",
+        min: 1,
+        max: 1
+      })
+    ]);
+  });
 });

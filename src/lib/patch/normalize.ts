@@ -3,6 +3,7 @@ import { clamp, clamp01, clampRange } from "@/lib/numeric";
 import { ensurePatchLayout } from "@/lib/patch/autoLayout";
 import { createMacroBindingId, normalizeMacroBindingIds } from "@/lib/patch/macroBindings";
 import { normalizeMacroKeyframeCount } from "@/lib/patch/macroKeyframes";
+import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { AUDIO_OUTPUT_PORT_TYPE_ID, createPatchOutputPort, getPatchPorts, PATCH_OUTPUT_PORT_ID } from "@/lib/patch/ports";
 import { CURRENT_PATCH_SCHEMA_VERSION } from "@/lib/patch/schemaVersion";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
@@ -39,6 +40,106 @@ const sanitizePatchNode = (raw: unknown, fallbackId: string): PatchNode => {
     typeId: asString(node.typeId, ""),
     params: sanitizeParamMap(node.params)
   };
+};
+
+const normalizePatchNodeParamsToCurrentSchema = <T extends PatchNode>(node: T): T => {
+  const schema = getModuleSchema(node.typeId);
+  if (!schema) {
+    return node;
+  }
+  const params: PatchNode["params"] = { ...node.params };
+  if (node.typeId === "Reverb") {
+    for (const paramId of Object.keys(params)) {
+      if (!schema.params.some((param) => param.id === paramId)) {
+        delete params[paramId];
+      }
+    }
+  }
+  for (const param of schema.params) {
+    const value = node.params[param.id];
+    if (param.type === "float") {
+      params[param.id] =
+        typeof value === "number" && Number.isFinite(value)
+          ? node.typeId === "Reverb"
+            ? clamp(value, param.range.min, param.range.max)
+            : value
+          : param.default;
+    } else if (param.type === "enum") {
+      params[param.id] = typeof value === "string" && param.options.includes(value) ? value : param.default;
+    } else {
+      params[param.id] = typeof value === "boolean" ? value : param.default;
+    }
+  }
+  return { ...node, params };
+};
+
+const normalizePatchParamRangesToCurrentSchema = (
+  nodes: PatchNode[],
+  paramRanges?: Record<string, PatchParamSliderRange>
+): Record<string, PatchParamSliderRange> | undefined => {
+  if (!paramRanges) {
+    return undefined;
+  }
+  const nodeById = new Map(nodes.map((node) => [node.id, node] as const));
+  const ranges: Record<string, PatchParamSliderRange> = {};
+  for (const [key, range] of Object.entries(paramRanges)) {
+    const separatorIndex = key.indexOf(":");
+    if (separatorIndex < 0) {
+      continue;
+    }
+    const nodeId = key.slice(0, separatorIndex);
+    const paramId = key.slice(separatorIndex + 1);
+    const node = nodeById.get(nodeId);
+    const paramSchema = node ? getModuleSchema(node.typeId)?.params.find((param) => param.id === paramId) : undefined;
+    if (!node) {
+      ranges[key] = range;
+      continue;
+    }
+    if (!paramSchema || paramSchema.type !== "float") {
+      if (node.typeId !== "Reverb") {
+        ranges[key] = range;
+      }
+      continue;
+    }
+    if (node.typeId === "Reverb") {
+      ranges[key] = clampRange(
+        clamp(range.min, paramSchema.range.min, paramSchema.range.max),
+        clamp(range.max, paramSchema.range.min, paramSchema.range.max)
+      );
+    } else {
+      ranges[key] = range;
+    }
+  }
+  return Object.keys(ranges).length > 0 ? ranges : undefined;
+};
+
+const normalizeMacrosToCurrentSchema = (nodes: PatchNode[], macros: PatchMacro[]): PatchMacro[] => {
+  const nodeById = new Map(nodes.map((node) => [node.id, node] as const));
+  return macros.map((macro) => ({
+    ...macro,
+    bindings: macro.bindings.flatMap((binding) => {
+      const node = nodeById.get(binding.nodeId);
+      const paramSchema = node ? getModuleSchema(node.typeId)?.params.find((param) => param.id === binding.paramId) : undefined;
+      if (!node) {
+        return [binding];
+      }
+      if (!paramSchema || paramSchema.type !== "float") {
+        return node.typeId === "Reverb" ? [] : [binding];
+      }
+      if (node.typeId !== "Reverb") {
+        return [binding];
+      }
+      return [{
+        ...binding,
+        min: binding.min === undefined ? undefined : clamp(binding.min, paramSchema.range.min, paramSchema.range.max),
+        max: binding.max === undefined ? undefined : clamp(binding.max, paramSchema.range.min, paramSchema.range.max),
+        points: binding.points?.map((point) => ({
+          ...point,
+          y: clamp(point.y, paramSchema.range.min, paramSchema.range.max)
+        }))
+      }];
+    })
+  }));
 };
 
 const sanitizePatchPort = (raw: unknown, fallbackId: string): PatchPort => {
@@ -541,20 +642,24 @@ export function normalizePatch(
     overdriveMigrated.macros,
     overdriveMigrated.paramRanges
   );
+  const currentNodes = migrated.nodes.map(normalizePatchNodeParamsToCurrentSchema);
+  const currentPorts = portsRaw.map(normalizePatchNodeParamsToCurrentSchema);
+  const currentMacros = normalizeMacrosToCurrentSchema([...currentNodes, ...currentPorts], migrated.macros);
+  const currentParamRanges = normalizePatchParamRangesToCurrentSchema([...currentNodes, ...currentPorts], migrated.paramRanges);
 
   return ensurePatchLayout(normalizeMacroBindingIds(normalizePatchOutputPort({
     schemaVersion: Math.max(schemaVersion, CURRENT_PATCH_SCHEMA_VERSION),
     id: patchId,
     name: asString(patch.name, options.fallbackName),
     meta,
-    nodes: migrated.nodes,
-    ports: portsRaw,
+    nodes: currentNodes,
+    ports: currentPorts,
     connections: (Array.isArray(patch.connections) ? patch.connections : []).map((connection, index) =>
       sanitizePatchConnection(connection, `conn_${index}`)
     ),
     ui: {
-      macros: migrated.macros,
-      paramRanges: migrated.paramRanges,
+      macros: currentMacros,
+      paramRanges: currentParamRanges,
       canvasZoom:
         asOptionalFiniteNumber(ui.canvasZoom) === undefined
           ? undefined

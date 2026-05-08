@@ -19,6 +19,15 @@ const pushError = (
   issues.push({ level: "error", message, context, code });
 };
 
+const pushWarning = (
+  issues: PatchValidationIssue[],
+  message: string,
+  context?: Record<string, string>,
+  code?: string
+): void => {
+  issues.push({ level: "warning", message, context, code });
+};
+
 export const patchHasNode = (patch: Patch, nodeId: string): boolean => patch.nodes.some((node) => node.id === nodeId);
 const patchHasEndpointNode = (patch: Patch, nodeId: string): boolean =>
   patch.nodes.some((node) => node.id === nodeId) || getPatchBoundaryPorts(patch).some((port) => port.id === nodeId);
@@ -222,9 +231,9 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
 
     for (const param of schema.params) {
       if (!(param.id in node.params)) {
-        pushError(
+        pushWarning(
           issues,
-          `Module ${node.id} is missing current parameter ${param.id}`,
+          `Module ${node.id} is missing parameter ${param.id}; the current default will be used until the patch is normalized`,
           { nodeId: node.id, typeId: node.typeId, paramId: param.id },
           "node-param-missing"
         );
@@ -234,9 +243,9 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
     for (const [paramId, value] of Object.entries(node.params)) {
       const paramSchema = paramsById.get(paramId);
       if (!paramSchema) {
-        pushError(
+        pushWarning(
           issues,
-          `Module ${node.id} has stale or unknown parameter ${paramId}`,
+          `Module ${node.id} has stale parameter ${paramId}; it is ignored by the current ${node.typeId} module`,
           { nodeId: node.id, typeId: node.typeId, paramId },
           "node-param-unknown"
         );
@@ -252,9 +261,9 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
             "node-param-type-mismatch"
           );
         } else if (node.typeId === "Reverb" && !isFloatParamValueInRange(value, paramSchema.range)) {
-          pushError(
+          pushWarning(
             issues,
-            `Module ${node.id} parameter ${paramId} is outside ${paramSchema.range.min}..${paramSchema.range.max}`,
+            `Module ${node.id} parameter ${paramId} is outside ${paramSchema.range.min}..${paramSchema.range.max}; it will be clamped when the patch is normalized`,
             { nodeId: node.id, typeId: node.typeId, paramId, value: String(value) },
             "node-param-out-of-range"
           );

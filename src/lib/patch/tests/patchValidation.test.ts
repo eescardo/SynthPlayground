@@ -163,7 +163,7 @@ describe("patch validation", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("rejects legacy reverb params, ranges, and bindings instead of silently using defaults", () => {
+  it("warns on legacy reverb node params while still rejecting stale ranges and bindings", () => {
     const patch = createClearPatch({ id: "legacy_reverb", name: "Legacy Reverb" });
     patch.nodes.push(
       { id: "noise1", typeId: "Noise", params: { color: "white", gain: 0.3 } },
@@ -206,9 +206,9 @@ describe("patch validation", () => {
     expect(result.ok).toBe(false);
     expect(result.issues).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: "node-param-unknown", context: expect.objectContaining({ nodeId: "verb1", paramId: "size" }) }),
-        expect.objectContaining({ code: "node-param-unknown", context: expect.objectContaining({ nodeId: "verb1", paramId: "damping" }) }),
-        expect.objectContaining({ code: "node-param-out-of-range", context: expect.objectContaining({ nodeId: "verb1", paramId: "decay" }) }),
+        expect.objectContaining({ level: "warning", code: "node-param-unknown", context: expect.objectContaining({ nodeId: "verb1", paramId: "size" }) }),
+        expect.objectContaining({ level: "warning", code: "node-param-unknown", context: expect.objectContaining({ nodeId: "verb1", paramId: "damping" }) }),
+        expect.objectContaining({ level: "warning", code: "node-param-out-of-range", context: expect.objectContaining({ nodeId: "verb1", paramId: "decay" }) }),
         expect.objectContaining({ code: "param-range-invalid-param", context: expect.objectContaining({ nodeId: "verb1", paramId: "size" }) }),
         expect.objectContaining({ code: "param-range-out-of-range", context: expect.objectContaining({ nodeId: "verb1", paramId: "decay" }) }),
         expect.objectContaining({ code: "macro-binding-invalid-param", context: expect.objectContaining({ nodeId: "verb1", paramId: "size" }) }),
@@ -217,7 +217,7 @@ describe("patch validation", () => {
     );
   });
 
-  it("rejects modules missing current schema params instead of silently filling defaults", () => {
+  it("warns when modules are missing current schema params", () => {
     const patch = createClearPatch({ id: "missing_reverb_params", name: "Missing Reverb Params" });
     patch.nodes.push(
       { id: "noise1", typeId: "Noise", params: { color: "white", gain: 0.3 } },
@@ -230,11 +230,11 @@ describe("patch validation", () => {
 
     const result = validatePatch(patch);
 
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
     expect(result.issues).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: "node-param-missing", context: expect.objectContaining({ nodeId: "verb1", paramId: "mode" }) }),
-        expect.objectContaining({ code: "node-param-missing", context: expect.objectContaining({ nodeId: "verb1", paramId: "tone" }) })
+        expect.objectContaining({ level: "warning", code: "node-param-missing", context: expect.objectContaining({ nodeId: "verb1", paramId: "mode" }) }),
+        expect.objectContaining({ level: "warning", code: "node-param-missing", context: expect.objectContaining({ nodeId: "verb1", paramId: "tone" }) })
       ])
     );
   });
