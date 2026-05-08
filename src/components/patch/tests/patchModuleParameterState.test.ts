@@ -22,12 +22,12 @@ describe("PatchModuleParameter macro-bound controls", () => {
     if (!curveParam) {
       throw new Error("Expected ADSR curve param.");
     }
-    const magnet = curveParam.type === "float" ? curveParam.sliderMagnet : undefined;
-    expect(magnet).toEqual({ point: 0, radius: 0.035 });
-    expect(applyMagneticSliderSnap(0.034, magnet)).toBe(0);
-    expect(applyMagneticSliderSnap(-0.034, magnet)).toBe(0);
-    expect(applyMagneticSliderSnap(0.04, magnet)).toBe(0.04);
-    expect(applyMagneticSliderSnap(-0.04, magnet)).toBe(-0.04);
+    const magnetPoints = curveParam.type === "float" ? curveParam.magnetPoints : undefined;
+    expect(magnetPoints).toEqual([{ point: 0, radius: 0.035 }]);
+    expect(applyMagneticSliderSnap(0.034, magnetPoints)).toBe(0);
+    expect(applyMagneticSliderSnap(-0.034, magnetPoints)).toBe(0);
+    expect(applyMagneticSliderSnap(0.04, magnetPoints)).toBe(0.04);
+    expect(applyMagneticSliderSnap(-0.04, magnetPoints)).toBe(-0.04);
   });
 
   it("only previews the selected macro on parameters bound to that macro", () => {

@@ -1,11 +1,12 @@
-export interface MagneticSliderSnap {
+export interface MagneticSliderPoint {
   point: number;
   radius: number;
 }
 
-export function applyMagneticSliderSnap(value: number, snap?: MagneticSliderSnap) {
-  if (!snap) {
+export function applyMagneticSliderSnap(value: number, magnetPoints?: MagneticSliderPoint[]) {
+  if (!magnetPoints?.length) {
     return value;
   }
-  return Math.abs(value - snap.point) <= snap.radius ? snap.point : value;
+  const snapped = magnetPoints.find(({ point, radius }) => Math.abs(value - point) <= radius);
+  return snapped ? snapped.point : value;
 }

@@ -23,7 +23,7 @@ export interface FloatParamSchema extends ParamSchemaBase {
   default: number;
   range: { min: number; max: number };
   step?: number;
-  sliderMagnet?: { point: number; radius: number };
+  magnetPoints?: Array<{ point: number; radius: number }>;
   unit: Unit;
   map?: "linear" | "exp";
 }

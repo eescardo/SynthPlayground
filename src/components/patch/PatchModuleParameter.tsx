@@ -5,7 +5,7 @@ import {
 import { PatchDiff } from "@/lib/patch/diff";
 import { EditableNumberLabel, MacroBindingDetails, ParamMacroControl } from "@/components/patch/PatchInspectorControls";
 import { resolveParamBindingState, resolveParamControlValue } from "@/components/patch/patchModuleParameterState";
-import { applyMagneticSliderSnap, MagneticSliderSnap } from "@/components/patch/patchModuleParameterControls";
+import { applyMagneticSliderSnap, MagneticSliderPoint } from "@/components/patch/patchModuleParameterControls";
 import { createMacroBindingId, createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
 import { clamp, clampRange } from "@/lib/numeric";
 import { MacroBinding, Patch, PatchMacro, PatchNode, PatchParamSliderRange, ParamSchema, ParamValue } from "@/types/patch";
@@ -83,7 +83,7 @@ function ParamValueControl(props: {
   min?: number;
   max?: number;
   disabled?: boolean;
-  magneticSnap?: MagneticSliderSnap;
+  magnetPoints?: MagneticSliderPoint[];
   onChange: (value: ParamValue) => void;
   onPreviewChange?: (value: ParamValue) => void;
 }) {
@@ -97,7 +97,7 @@ function ParamValueControl(props: {
         min={props.min}
         max={props.max}
         disabled={disabled}
-        magneticSnap={props.magneticSnap}
+        magnetPoints={props.magnetPoints}
         onChange={onChange}
         onPreviewChange={props.onPreviewChange}
       />
@@ -125,7 +125,7 @@ function FloatParamValueControl(props: {
   min?: number;
   max?: number;
   disabled?: boolean;
-  magneticSnap?: MagneticSliderSnap;
+  magnetPoints?: MagneticSliderPoint[];
   onChange: (value: number) => void;
   onPreviewChange?: (value: number) => void;
 }) {
@@ -159,7 +159,7 @@ function FloatParamValueControl(props: {
       style={{ "--param-slider-percent": `${sliderPercent}%` } as CSSProperties}
       onChange={(event) => {
         const rawValue = Number(event.target.value);
-        const nextValue = applyMagneticSliderSnap(rawValue, props.magneticSnap);
+        const nextValue = applyMagneticSliderSnap(rawValue, props.magnetPoints);
         pendingCommitRef.current = true;
         setDraftValue(nextValue);
         props.onPreviewChange?.(nextValue);
@@ -299,7 +299,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
   const currentDisplayValue = sliderControlValue;
   const currentDisplayMin = sliderRange.min;
   const currentDisplayMax = sliderRange.max;
-  const magneticSnap = props.param.type === "float" ? props.param.sliderMagnet : undefined;
+  const magnetPoints = props.param.type === "float" ? props.param.magnetPoints : undefined;
 
   const bindParamToMacro = (macroId: string) => {
     if (props.structureLocked) {
@@ -404,7 +404,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
             min={props.param.type === "float" ? sliderRange.min : undefined}
             max={props.param.type === "float" ? sliderRange.max : undefined}
             disabled={controlDisabled}
-            magneticSnap={magneticSnap}
+            magnetPoints={magnetPoints}
             onChange={commitValue}
             onPreviewChange={(nextValue) => props.onPreviewParamValue?.(props.selectedNode.id, props.param.id, nextValue)}
           />

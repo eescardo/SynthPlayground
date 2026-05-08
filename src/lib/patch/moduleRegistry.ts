@@ -12,7 +12,7 @@ const floatParam = (
     map?: "linear" | "exp";
     smoothingMs?: number;
     step?: number;
-    sliderMagnet?: { point: number; radius: number };
+    magnetPoints?: Array<{ point: number; radius: number }>;
   }
 ): ParamSchema => ({
   id,
@@ -21,7 +21,7 @@ const floatParam = (
   default: options?.default ?? min,
   range: { min, max },
   step: options?.step,
-  sliderMagnet: options?.sliderMagnet,
+  magnetPoints: options?.magnetPoints,
   unit,
   map: options?.map ?? "linear",
   smoothing: options?.smoothingMs ? { kind: "one_pole", timeMs: options.smoothingMs } : null,
@@ -255,7 +255,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
         default: 0,
         smoothingMs: 10,
         step: 0.01,
-        sliderMagnet: { point: 0, radius: 0.035 }
+        magnetPoints: [{ point: 0, radius: 0.035 }]
       }),
       enumParam(
         "mode",
