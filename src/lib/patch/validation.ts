@@ -209,6 +209,10 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
   const allNodeTypes = resolveAllNodeTypes(patch);
   const graphNodes = [...patch.nodes, ...getPatchBoundaryPorts(patch)];
 
+  // validatePatch operates on normalized patches. normalizePatch applies known
+  // migrations first, then stamps the current schema version; this block catches
+  // schema-shape drift that has no migration instead of letting compile fall back
+  // to defaults.
   for (const node of graphNodes) {
     const schema = getModuleSchema(node.typeId);
     if (!schema) {

@@ -1,7 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { exportPatchToJson, importPatchBundleFromJson, PATCH_BUNDLE_KIND, PATCH_BUNDLE_VERSION } from "@/lib/patch/serde";
 import { createClearPatch } from "@/lib/patch/presets";
+import { validatePatch } from "@/lib/patch/validation";
 import { Patch } from "@/types/patch";
+
+const schemaShapeIssueCodes = new Set([
+  "node-param-missing",
+  "node-param-unknown",
+  "node-param-type-mismatch",
+  "node-param-invalid-option",
+  "macro-binding-invalid-param",
+  "param-range-invalid-param"
+]);
+
+function expectNoSchemaShapeIssues(patch: Patch) {
+  expect(validatePatch(patch).issues.filter((issue) => schemaShapeIssueCodes.has(issue.code ?? ""))).toEqual([]);
+}
 
 describe("patch serde", () => {
   it("exports a versioned patch bundle with referenced sample assets only", () => {
@@ -99,8 +113,11 @@ describe("patch serde", () => {
       attack: 10,
       decay: 200,
       sustain: 0.7,
-      release: 250
+      release: 250,
+      curve: 0,
+      mode: "retrigger_from_current"
     });
+    expectNoSchemaShapeIssues(imported.patch);
     expect(imported.patch.ui.paramRanges).toEqual({
       "env1:attack": { min: 0, max: 1000 },
       "env1:decay": { min: 0, max: 10000 }
@@ -182,6 +199,7 @@ describe("patch serde", () => {
       min: 3,
       max: 24
     });
+    expectNoSchemaShapeIssues(imported.patch);
   });
 
   it("migrates legacy Compressor controls to squash and drops derived params", () => {
@@ -267,6 +285,7 @@ describe("patch serde", () => {
         { x: 1, y: 1 }
       ]
     });
+    expectNoSchemaShapeIssues(imported.patch);
   });
 
   it("migrates legacy output nodes into ports while preserving params", () => {

@@ -187,7 +187,9 @@ function migrateLegacyAdsrTimingUnits(
   macros: PatchMacro[],
   paramRanges?: Record<string, PatchParamSliderRange>
 ): Pick<Patch, "nodes"> & { macros: PatchMacro[]; paramRanges?: Record<string, PatchParamSliderRange> } {
-  if (schemaVersion >= 2) {
+  const shouldMigrateTimingUnits = schemaVersion < 2;
+  const shouldDefaultCurve = schemaVersion < CURRENT_PATCH_SCHEMA_VERSION;
+  if (!shouldMigrateTimingUnits && !shouldDefaultCurve) {
     return { nodes, macros, paramRanges };
   }
 
@@ -201,11 +203,19 @@ function migrateLegacyAdsrTimingUnits(
       return node;
     }
     const params = { ...node.params };
-    for (const paramId of ADSR_TIMING_PARAM_IDS) {
-      const value = params[paramId];
-      if (typeof value === "number" && Number.isFinite(value)) {
-        params[paramId] = secondsToMilliseconds(value);
+    if (shouldMigrateTimingUnits) {
+      for (const paramId of ADSR_TIMING_PARAM_IDS) {
+        const value = params[paramId];
+        if (typeof value === "number" && Number.isFinite(value)) {
+          params[paramId] = secondsToMilliseconds(value);
+        }
       }
+    }
+    if (shouldDefaultCurve && typeof params.curve !== "number") {
+      params.curve = 0;
+    }
+    if (shouldDefaultCurve && typeof params.mode !== "string") {
+      params.mode = "retrigger_from_current";
     }
     return { ...node, params };
   });
