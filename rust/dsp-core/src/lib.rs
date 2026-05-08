@@ -98,6 +98,9 @@ impl SmoothParam {
 
     #[inline(always)]
     fn next(&mut self) -> f32 {
+        if self.current == self.target {
+            return self.current;
+        }
         if self.alpha <= 0.0 {
             self.current = self.target;
         } else {
