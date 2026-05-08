@@ -39,11 +39,7 @@ function bassLikeSample(index: number) {
   const time = index / SAMPLE_RATE;
   const noteTime = time % 2.8;
   const amplitude =
-    noteTime < 0.015
-      ? 0.45 * (noteTime / 0.015)
-      : noteTime < 0.36
-        ? 0.45
-        : 0.45 * Math.exp(-(noteTime - 0.36) * 1.55);
+    noteTime < 0.015 ? 0.45 * (noteTime / 0.015) : noteTime < 0.36 ? 0.45 : 0.45 * Math.exp(-(noteTime - 0.36) * 1.55);
   const saw = 2 * ((time * 110) % 1) - 1;
   const triangle = 2 * Math.abs(2 * ((time * 110.55) % 1) - 1) - 1;
   return amplitude * (saw * 0.65 + triangle * 0.35);
@@ -106,7 +102,12 @@ function analyzeWindowRms(samples: Float32Array, startSeconds: number, endSecond
   return 20 * Math.log10(Math.sqrt(squareSum / Math.max(1, end - start)) + 1e-9);
 }
 
-function simulateCompressor(params: { squash: number; attackMs: number; mix: number; material?: "pluck" | "bass" | "heldBass" }) {
+function simulateCompressor(params: {
+  squash: number;
+  attackMs: number;
+  mix: number;
+  material?: "pluck" | "bass" | "heldBass";
+}) {
   const frameCount = SAMPLE_RATE * DURATION_SECONDS;
   const input = new Float32Array(frameCount);
   const output = new Float32Array(frameCount);
@@ -132,11 +133,14 @@ function simulateCompressor(params: { squash: number; attackMs: number; mix: num
         ? onePoleStep(envelope, rmsInput, smoothingAlpha(params.attackMs))
         : onePoleStep(envelope, rmsInput, smoothingAlpha(derived.releaseMs));
     const levelDb = 20 * Math.log10(Math.max(envelope, 0.00001));
-    const targetReductionDb = compressorGainReductionDb(levelDb, derived.thresholdDb, derived.ratio, COMPRESSOR_SOFT_KNEE_DB);
+    const targetReductionDb = compressorGainReductionDb(
+      levelDb,
+      derived.thresholdDb,
+      derived.ratio,
+      COMPRESSOR_SOFT_KNEE_DB
+    );
     const gainAlpha =
-      targetReductionDb > gainReductionDb
-        ? smoothingAlpha(Math.max(8, params.attackMs) * 0.35)
-        : smoothingAlpha(35);
+      targetReductionDb > gainReductionDb ? smoothingAlpha(Math.max(8, params.attackMs) * 0.35) : smoothingAlpha(35);
     gainReductionDb = onePoleStep(gainReductionDb, targetReductionDb, gainAlpha);
     const targetMakeupDb = Math.min(derived.autoGainDb, gainReductionDb);
     const makeupAlpha = targetMakeupDb > makeupGainDb ? smoothingAlpha(90) : smoothingAlpha(45);

@@ -12,12 +12,7 @@ interface UseTrackCanvasWheelPitchEditingOptions {
   pitchRectsRef: RefObject<PitchRect[]>;
   tracks: Track[];
   getCanvasPoint: (clientX: number, clientY: number) => { x: number; y: number };
-  onUpdateNote: (
-    trackId: string,
-    noteId: string,
-    patch: { pitchStr: string },
-    options: { actionKey: string }
-  ) => void;
+  onUpdateNote: (trackId: string, noteId: string, patch: { pitchStr: string }, options: { actionKey: string }) => void;
 }
 
 export function useTrackCanvasWheelPitchEditing({
@@ -87,9 +82,14 @@ export function useTrackCanvasWheelPitchEditing({
 
       const semitone = event.deltaY < 0 ? 1 : -1;
       const nextPitch = midiToPitch(clamp(midi + semitone, 21, 108));
-      onUpdateNote(hitPitch.trackId, hitPitch.noteId, { pitchStr: nextPitch }, {
-        actionKey: `track:${hitPitch.trackId}:pitch:${hitPitch.noteId}`
-      });
+      onUpdateNote(
+        hitPitch.trackId,
+        hitPitch.noteId,
+        { pitchStr: nextPitch },
+        {
+          actionKey: `track:${hitPitch.trackId}:pitch:${hitPitch.noteId}`
+        }
+      );
     };
 
     const onScrollNative = () => {

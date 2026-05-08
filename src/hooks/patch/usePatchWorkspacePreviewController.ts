@@ -13,33 +13,32 @@ interface UsePatchWorkspacePreviewControllerOptions {
 }
 
 export function usePatchWorkspacePreviewController(options: UsePatchWorkspacePreviewControllerOptions) {
-  const {
-    activeTab,
-    previewPitch,
-    previewSelectedPatchNow,
-    setActiveTabId,
-    setSkipWorkspaceHistory,
-    tabs
-  } = options;
+  const { activeTab, previewPitch, previewSelectedPatchNow, setActiveTabId, setSkipWorkspaceHistory, tabs } = options;
   const skipNextTabPreviewRef = useRef(true);
   const previousActiveTabIdRef = useRef<string | undefined>(undefined);
   const pendingAutoPreviewTabIdRef = useRef<string | null>(null);
 
-  const activateWorkspaceTab = useCallback((tabId: string, activateOptions?: { preview?: boolean; skipHistory?: boolean }) => {
-    skipNextTabPreviewRef.current = activateOptions?.preview === false;
-    setSkipWorkspaceHistory(activateOptions?.skipHistory ?? true);
-    pendingAutoPreviewTabIdRef.current = activateOptions?.preview === false ? null : tabId;
-    setActiveTabId(tabId);
-  }, [setActiveTabId, setSkipWorkspaceHistory]);
+  const activateWorkspaceTab = useCallback(
+    (tabId: string, activateOptions?: { preview?: boolean; skipHistory?: boolean }) => {
+      skipNextTabPreviewRef.current = activateOptions?.preview === false;
+      setSkipWorkspaceHistory(activateOptions?.skipHistory ?? true);
+      pendingAutoPreviewTabIdRef.current = activateOptions?.preview === false ? null : tabId;
+      setActiveTabId(tabId);
+    },
+    [setActiveTabId, setSkipWorkspaceHistory]
+  );
 
-  const cycleWorkspaceTabs = useCallback((direction: 1 | -1) => {
-    if (tabs.length < 2 || !activeTab) {
-      return;
-    }
-    const currentIndex = tabs.findIndex((tab) => tab.id === activeTab.id);
-    const nextIndex = (currentIndex + direction + tabs.length) % tabs.length;
-    activateWorkspaceTab(tabs[nextIndex].id);
-  }, [activateWorkspaceTab, activeTab, tabs]);
+  const cycleWorkspaceTabs = useCallback(
+    (direction: 1 | -1) => {
+      if (tabs.length < 2 || !activeTab) {
+        return;
+      }
+      const currentIndex = tabs.findIndex((tab) => tab.id === activeTab.id);
+      const nextIndex = (currentIndex + direction + tabs.length) % tabs.length;
+      activateWorkspaceTab(tabs[nextIndex].id);
+    },
+    [activateWorkspaceTab, activeTab, tabs]
+  );
 
   useEffect(() => {
     if (!activeTab || previousActiveTabIdRef.current === activeTab.id) {
@@ -53,13 +52,16 @@ export function usePatchWorkspacePreviewController(options: UsePatchWorkspacePre
     }
   }, [activeTab]);
 
-  const handleInstrumentEditorReady = useCallback((renderedMacroValues: Record<string, number>) => {
-    if (!activeTab || pendingAutoPreviewTabIdRef.current !== activeTab.id) {
-      return;
-    }
-    pendingAutoPreviewTabIdRef.current = null;
-    previewSelectedPatchNow(previewPitch, renderedMacroValues);
-  }, [activeTab, previewPitch, previewSelectedPatchNow]);
+  const handleInstrumentEditorReady = useCallback(
+    (renderedMacroValues: Record<string, number>) => {
+      if (!activeTab || pendingAutoPreviewTabIdRef.current !== activeTab.id) {
+        return;
+      }
+      pendingAutoPreviewTabIdRef.current = null;
+      previewSelectedPatchNow(previewPitch, renderedMacroValues);
+    },
+    [activeTab, previewPitch, previewSelectedPatchNow]
+  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

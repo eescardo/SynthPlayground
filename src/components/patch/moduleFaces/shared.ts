@@ -97,7 +97,9 @@ export function drawWavePath(ctx: CanvasRenderingContext2D, points: number[], gr
 }
 
 export function resolveConnectedInputPortIds(patch: Patch, nodeId: string) {
-  return new Set(patch.connections.filter((connection) => connection.to.nodeId === nodeId).map((connection) => connection.to.portId));
+  return new Set(
+    patch.connections.filter((connection) => connection.to.nodeId === nodeId).map((connection) => connection.to.portId)
+  );
 }
 
 export function formatSignedValue(value: number, digits = 2) {

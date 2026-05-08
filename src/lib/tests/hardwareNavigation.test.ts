@@ -105,9 +105,7 @@ describe("hardware navigation note placement", () => {
           expanded: true,
           startValue: 0.2,
           endValue: 0.7,
-          keyframes: [
-            { id: "kf_a", beat: 0.5, type: "whole", value: 0.5 }
-          ]
+          keyframes: [{ id: "kf_a", beat: 0.5, type: "whole", value: 0.5 }]
         }
       }
     } satisfies Track;
@@ -150,10 +148,7 @@ describe("hardware navigation note placement", () => {
     const result = shiftContentSelectionByBeats(
       project,
       {
-        noteKeys: [
-          getNoteSelectionKey(trackA.id, "note_a"),
-          getNoteSelectionKey(trackB.id, "note_b")
-        ],
+        noteKeys: [getNoteSelectionKey(trackA.id, "note_a"), getNoteSelectionKey(trackB.id, "note_b")],
         automationKeyframeSelectionKeys: []
       },
       0.5

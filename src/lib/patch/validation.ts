@@ -8,7 +8,16 @@ import {
   RESERVED_PATCH_MODULE_IDS
 } from "@/lib/patch/ports";
 import { normalizePatchOutputPort } from "@/lib/patch/normalize";
-import { CompiledNode, CompiledOp, CompiledPlan, Patch, PatchValidationIssue, PatchValidationResult, ParamValue, PatchNode } from "@/types/patch";
+import {
+  CompiledNode,
+  CompiledOp,
+  CompiledPlan,
+  Patch,
+  PatchValidationIssue,
+  PatchValidationResult,
+  ParamValue,
+  PatchNode
+} from "@/types/patch";
 
 const pushError = (
   issues: PatchValidationIssue[],
@@ -66,11 +75,21 @@ const resolveConnectionValidation = (
   const toType = allNodeTypes.get(toNodeId);
 
   if (!fromType) {
-    pushError(issues, `Connection source node does not exist`, { ...context, nodeId: fromNodeId }, "connection-missing-source");
+    pushError(
+      issues,
+      `Connection source node does not exist`,
+      { ...context, nodeId: fromNodeId },
+      "connection-missing-source"
+    );
     return null;
   }
   if (!toType) {
-    pushError(issues, `Connection destination node does not exist`, { ...context, nodeId: toNodeId }, "connection-missing-destination");
+    pushError(
+      issues,
+      `Connection destination node does not exist`,
+      { ...context, nodeId: toNodeId },
+      "connection-missing-destination"
+    );
     return null;
   }
 
@@ -84,11 +103,21 @@ const resolveConnectionValidation = (
   const fromPort = fromSchema.portsOut.find((port) => port.id === fromPortId);
   const toPort = toSchema.portsIn.find((port) => port.id === toPortId);
   if (!fromPort) {
-    pushError(issues, `Invalid source port`, { ...context, nodeId: fromNodeId, portId: fromPortId }, "connection-invalid-source-port");
+    pushError(
+      issues,
+      `Invalid source port`,
+      { ...context, nodeId: fromNodeId, portId: fromPortId },
+      "connection-invalid-source-port"
+    );
     return null;
   }
   if (!toPort) {
-    pushError(issues, `Invalid destination port`, { ...context, nodeId: toNodeId, portId: toPortId }, "connection-invalid-destination-port");
+    pushError(
+      issues,
+      `Invalid destination port`,
+      { ...context, nodeId: toNodeId, portId: toPortId },
+      "connection-invalid-destination-port"
+    );
     return null;
   }
   if (fromPort.kind !== toPort.kind) {
@@ -169,7 +198,10 @@ export const validatePatchConnectionCandidate = (
   if (!resolved) {
     return issues;
   }
-  if (!resolved.toPort.multiIn && patch.connections.some((connection) => connection.to.nodeId === toNodeId && connection.to.portId === toPortId)) {
+  if (
+    !resolved.toPort.multiIn &&
+    patch.connections.some((connection) => connection.to.nodeId === toNodeId && connection.to.portId === toPortId)
+  ) {
     pushError(
       issues,
       `Multiple inputs connected to single-input port`,
@@ -207,7 +239,12 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
     }
     uniqueNodeIds.add(node.id);
     if (RESERVED_PATCH_MODULE_IDS.has(node.id)) {
-      pushError(issues, `Node id is reserved for a patch boundary port: ${node.id}`, { nodeId: node.id }, "reserved-node-id");
+      pushError(
+        issues,
+        `Node id is reserved for a patch boundary port: ${node.id}`,
+        { nodeId: node.id },
+        "reserved-node-id"
+      );
     }
 
     if (!moduleRegistryById.has(node.typeId)) {
@@ -322,7 +359,10 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
       );
       continue;
     }
-    if (!isFloatParamValueInRange(range.min, paramSchema.range) || !isFloatParamValueInRange(range.max, paramSchema.range)) {
+    if (
+      !isFloatParamValueInRange(range.min, paramSchema.range) ||
+      !isFloatParamValueInRange(range.max, paramSchema.range)
+    ) {
       pushError(
         issues,
         `Slider range for ${formatParamTarget(nodeId, paramId)} is outside ${paramSchema.range.min}..${paramSchema.range.max}`,
@@ -458,10 +498,9 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
           "macro-binding-range-out-of-range"
         );
       }
-      const outOfRangePoint =
-        shouldValidateBindingRange
-          ? binding.points?.find((point) => !isFloatParamValueInRange(point.y, paramSchema.range))
-          : undefined;
+      const outOfRangePoint = shouldValidateBindingRange
+        ? binding.points?.find((point) => !isFloatParamValueInRange(point.y, paramSchema.range))
+        : undefined;
       if (outOfRangePoint) {
         pushError(
           issues,
@@ -615,7 +654,12 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
 
   const outputPorts = getPatchPorts(patch).filter((port) => port.typeId === "Output");
   if (outputPorts.length !== 1) {
-    pushError(issues, `Patch must include exactly one Output port`, { outputCount: String(outputPorts.length) }, "output-port-count");
+    pushError(
+      issues,
+      `Patch must include exactly one Output port`,
+      { outputCount: String(outputPorts.length) },
+      "output-port-count"
+    );
   }
 
   return {

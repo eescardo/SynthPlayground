@@ -3,11 +3,7 @@ import process from "node:process";
 import fs from "node:fs";
 import { chromium } from "@playwright/test";
 import { startDevServer, waitForServer } from "../ui-capture/common";
-import {
-  SCREENSHOT_SCENARIOS,
-  ScreenshotScenario,
-  resolveSpecificScreenshotScenarios
-} from "./scenarios";
+import { SCREENSHOT_SCENARIOS, ScreenshotScenario, resolveSpecificScreenshotScenarios } from "./scenarios";
 import { assertScenarioRegistryAligned, getScenarioDefinition } from "./registry";
 
 const screenshotLabel = process.env.SCREENSHOT_LABEL ?? "local";
@@ -32,7 +28,9 @@ const run = async () => {
   assertScenarioRegistryAligned();
   const requestedScenarios = parseRequestedScenarios();
   const originalFileContents = new Map(
-    trackedFilesToRestore.map((filePath) => [filePath, fs.readFileSync(path.join(process.cwd(), filePath), "utf8")] as const)
+    trackedFilesToRestore.map(
+      (filePath) => [filePath, fs.readFileSync(path.join(process.cwd(), filePath), "utf8")] as const
+    )
   );
   const devServer = startDevServer(port);
 

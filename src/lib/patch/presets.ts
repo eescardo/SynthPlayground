@@ -1069,7 +1069,13 @@ export const drumPatch = (): Patch => {
       {
         id: noiseFilter,
         typeId: "VCF",
-        params: { ...createDefaultParamsForType("VCF"), type: "bandpass", cutoffHz: 4200, resonance: 0.38, cutoffModAmountOct: 0.25 }
+        params: {
+          ...createDefaultParamsForType("VCF"),
+          type: "bandpass",
+          cutoffHz: 4200,
+          resonance: 0.38,
+          cutoffModAmountOct: 0.25
+        }
       },
       { id: bodyVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.34, bias: 0 } },
       { id: noiseVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.82, bias: 0 } },
@@ -1201,12 +1207,26 @@ export const bassDrumPatch = (): Patch => {
       {
         id: clickFilter,
         typeId: "VCF",
-        params: { ...createDefaultParamsForType("VCF"), type: "bandpass", cutoffHz: 3200, resonance: 0.66, cutoffModAmountOct: 0.12 }
+        params: {
+          ...createDefaultParamsForType("VCF"),
+          type: "bandpass",
+          cutoffHz: 3200,
+          resonance: 0.66,
+          cutoffModAmountOct: 0.12
+        }
       },
-      { id: bodyMix, typeId: "Mixer4", params: { ...createDefaultParamsForType("Mixer4"), gain1: 1, gain2: 1, gain3: 0 } },
+      {
+        id: bodyMix,
+        typeId: "Mixer4",
+        params: { ...createDefaultParamsForType("Mixer4"), gain1: 1, gain2: 1, gain3: 0 }
+      },
       { id: bodyVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 1, bias: 0 } },
       { id: clickVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.34, bias: 0 } },
-      { id: mix, typeId: "Mixer4", params: { ...createDefaultParamsForType("Mixer4"), gain1: 1, gain2: 0.34, gain3: 0 } },
+      {
+        id: mix,
+        typeId: "Mixer4",
+        params: { ...createDefaultParamsForType("Mixer4"), gain1: 1, gain2: 0.34, gain3: 0 }
+      },
       { id: drive, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), driveDb: 20 } }
     ],
     ports: [createPatchOutputPort({ gainDb: 6 })],
@@ -1259,9 +1279,7 @@ export const bassDrumPatch = (): Patch => {
           name: "Drive",
           keyframeCount: 2,
           defaultNormalized: 0.42,
-          bindings: [
-            { id: "b7", nodeId: drive, paramId: "driveDb", map: "linear", min: 12, max: 28 }
-          ]
+          bindings: [{ id: "b7", nodeId: drive, paramId: "driveDb", map: "linear", min: 12, max: 28 }]
         }
       ]
     },

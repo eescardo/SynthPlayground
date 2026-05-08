@@ -9,11 +9,7 @@ import {
   hydrateProjectSnapshot,
   prepareImportedProject
 } from "@/lib/projectLifecycle";
-import {
-  RecentProjectSnapshot,
-  removeRecentProjectSnapshot,
-  saveRecentProjectSnapshot
-} from "@/lib/persistence";
+import { RecentProjectSnapshot, removeRecentProjectSnapshot, saveRecentProjectSnapshot } from "@/lib/persistence";
 import { importProjectBundleFromJson } from "@/lib/projectSerde";
 import { createEmptyProjectAssetLibrary } from "@/lib/sampleAssetLibrary";
 import { ProjectAssetLibrary } from "@/types/assets";
@@ -53,31 +49,40 @@ export const useProjectLifecycleActions = ({
   setRuntimeError,
   clearTransientComposerUi
 }: UseProjectLifecycleActionsArgs) => {
-  const activateProjectSnapshot = useCallback((nextProject: Project, nextAssets: ProjectAssetLibrary = createEmptyProjectAssetLibrary()) => {
-    clearTransientComposerUi();
-    resetProjectState(nextProject, nextAssets);
-    setSelectedTrackId(nextProject.tracks[0]?.id);
-    audioEngineRef.current?.setProject(toAudioProject(nextProject, nextAssets));
-  }, [audioEngineRef, clearTransientComposerUi, resetProjectState, setSelectedTrackId]);
+  const activateProjectSnapshot = useCallback(
+    (nextProject: Project, nextAssets: ProjectAssetLibrary = createEmptyProjectAssetLibrary()) => {
+      clearTransientComposerUi();
+      resetProjectState(nextProject, nextAssets);
+      setSelectedTrackId(nextProject.tracks[0]?.id);
+      audioEngineRef.current?.setProject(toAudioProject(nextProject, nextAssets));
+    },
+    [audioEngineRef, clearTransientComposerUi, resetProjectState, setSelectedTrackId]
+  );
 
-  const switchToProject = useCallback(async (
-    nextProject: Project,
-    nextAssets: ProjectAssetLibrary = createEmptyProjectAssetLibrary(),
-    options?: { rememberCurrent?: boolean; removeRecentProjectId?: string }
-  ) => {
-    playback.stopPlayback();
-    if (options?.rememberCurrent) {
-      await saveRecentProjectSnapshot(createProjectSnapshot(project), projectAssets);
-    }
-    if (options?.removeRecentProjectId) {
-      await removeRecentProjectSnapshot(options.removeRecentProjectId);
-    }
-    activateProjectSnapshot(nextProject, nextAssets);
-    await refreshRecentProjects(nextProject.id);
-  }, [activateProjectSnapshot, playback, project, projectAssets, refreshRecentProjects]);
+  const switchToProject = useCallback(
+    async (
+      nextProject: Project,
+      nextAssets: ProjectAssetLibrary = createEmptyProjectAssetLibrary(),
+      options?: { rememberCurrent?: boolean; removeRecentProjectId?: string }
+    ) => {
+      playback.stopPlayback();
+      if (options?.rememberCurrent) {
+        await saveRecentProjectSnapshot(createProjectSnapshot(project), projectAssets);
+      }
+      if (options?.removeRecentProjectId) {
+        await removeRecentProjectSnapshot(options.removeRecentProjectId);
+      }
+      activateProjectSnapshot(nextProject, nextAssets);
+      await refreshRecentProjects(nextProject.id);
+    },
+    [activateProjectSnapshot, playback, project, projectAssets, refreshRecentProjects]
+  );
 
   const createNewProject = useCallback(async () => {
-    const nextProject = createNamedEmptyProject([project.name, ...recentProjects.map(({ project: recentProject }) => recentProject.name)]);
+    const nextProject = createNamedEmptyProject([
+      project.name,
+      ...recentProjects.map(({ project: recentProject }) => recentProject.name)
+    ]);
 
     await switchToProject(nextProject, createEmptyProjectAssetLibrary(), { rememberCurrent: true });
   }, [project.name, recentProjects, switchToProject]);
@@ -92,39 +97,47 @@ export const useProjectLifecycleActions = ({
   }, [clearTransientComposerUi, commitProjectChange, playback, project, setSelectedTrackId]);
 
   const createDefaultTemplateProject = useCallback(async () => {
-    await switchToProject(createProjectFromDefaultTemplate(), createEmptyProjectAssetLibrary(), { rememberCurrent: true });
+    await switchToProject(createProjectFromDefaultTemplate(), createEmptyProjectAssetLibrary(), {
+      rememberCurrent: true
+    });
   }, [switchToProject]);
 
-  const openRecentProject = useCallback(async (projectId: string) => {
-    const recentProject = recentProjects.find(({ project: candidate }) => candidate.id === projectId);
-    if (!recentProject) {
-      return;
-    }
+  const openRecentProject = useCallback(
+    async (projectId: string) => {
+      const recentProject = recentProjects.find(({ project: candidate }) => candidate.id === projectId);
+      if (!recentProject) {
+        return;
+      }
 
-    try {
-      const migratedState = hydrateProjectSnapshot(recentProject.project, recentProject.assets);
+      try {
+        const migratedState = hydrateProjectSnapshot(recentProject.project, recentProject.assets);
 
-      await switchToProject(migratedState.project, migratedState.assets, {
-        rememberCurrent: true,
-        removeRecentProjectId: projectId
-      });
-    } catch (error) {
-      setRuntimeError(`Failed to open recent project. ${(error as Error).message}`);
-    }
-  }, [recentProjects, setRuntimeError, switchToProject]);
+        await switchToProject(migratedState.project, migratedState.assets, {
+          rememberCurrent: true,
+          removeRecentProjectId: projectId
+        });
+      } catch (error) {
+        setRuntimeError(`Failed to open recent project. ${(error as Error).message}`);
+      }
+    },
+    [recentProjects, setRuntimeError, switchToProject]
+  );
 
-  const importJson = useCallback(async (file: File) => {
-    const text = await file.text();
-    try {
-      const importedBundle = importProjectBundleFromJson(text);
-      const migratedState = hydrateProjectSnapshot(importedBundle.project, importedBundle.assets);
-      const importedProject = prepareImportedProject(migratedState.project);
+  const importJson = useCallback(
+    async (file: File) => {
+      const text = await file.text();
+      try {
+        const importedBundle = importProjectBundleFromJson(text);
+        const migratedState = hydrateProjectSnapshot(importedBundle.project, importedBundle.assets);
+        const importedProject = prepareImportedProject(migratedState.project);
 
-      await switchToProject(importedProject, migratedState.assets, { rememberCurrent: true });
-    } catch (error) {
-      setRuntimeError((error as Error).message);
-    }
-  }, [setRuntimeError, switchToProject]);
+        await switchToProject(importedProject, migratedState.assets, { rememberCurrent: true });
+      } catch (error) {
+        setRuntimeError((error as Error).message);
+      }
+    },
+    [setRuntimeError, switchToProject]
+  );
 
   return {
     clearCurrentProject,

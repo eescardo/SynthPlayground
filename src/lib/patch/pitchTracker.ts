@@ -207,12 +207,7 @@ function detectEnvelopeSegments(
   return segments;
 }
 
-function analyzePitchWindows(
-  samples: Float32Array,
-  sampleRate: number,
-  startSample: number,
-  endSample: number
-) {
+function analyzePitchWindows(samples: Float32Array, sampleRate: number, startSample: number, endSample: number) {
   const windowSize = clamp(endSample - startSample, 512, 2048);
   const hopSize = Math.max(128, Math.floor(windowSize / 4));
   const windows: Array<{ midi: number; startSample: number; endSample: number; confidence: number }> = [];

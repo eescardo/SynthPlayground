@@ -66,7 +66,8 @@ export const midiToPitch = (midi: number): string => {
   const semitone = Math.floor(microtonalSteps / MICROTONAL_STEPS_PER_SEMITONE);
   const noteIndex = ((semitone % 12) + 12) % 12;
   const octave = Math.floor(semitone / 12) - 1;
-  const cents = ((microtonalSteps % MICROTONAL_STEPS_PER_SEMITONE) + MICROTONAL_STEPS_PER_SEMITONE) % MICROTONAL_STEPS_PER_SEMITONE;
+  const cents =
+    ((microtonalSteps % MICROTONAL_STEPS_PER_SEMITONE) + MICROTONAL_STEPS_PER_SEMITONE) % MICROTONAL_STEPS_PER_SEMITONE;
   const centsSuffix = cents === 0 ? "" : `+${cents * MICROTONAL_STEP_CENTS}`;
   return `${CHROMATIC_NOTE_NAMES[noteIndex]}${octave}${centsSuffix}`;
 };
@@ -135,19 +136,19 @@ const SHIFTED_KEY_ALIASES: Record<string, string> = {
   "!": "1",
   "@": "2",
   "#": "3",
-  "$": "4",
+  $: "4",
   "%": "5",
   "^": "6",
   "&": "7",
   "*": "8",
   "(": "9",
   ")": "0",
-  "_": "-",
+  _: "-",
   "+": "=",
   "{": "[",
   "}": "]",
   ":": ";",
-  "\"": "'",
+  '"': "'",
   "<": ",",
   ">": ".",
   "?": "/"
@@ -169,7 +170,11 @@ export const keyToPitch = (key: string): string | undefined => {
   return normalized ? QWERTY_PITCH_MAP[normalized] : undefined;
 };
 
-export const transposePitch = (pitchStr: string, semitoneDelta: number, options?: { minPitch?: string; maxPitch?: string }): string => {
+export const transposePitch = (
+  pitchStr: string,
+  semitoneDelta: number,
+  options?: { minPitch?: string; maxPitch?: string }
+): string => {
   const minMidi = pitchToMidi(options?.minPitch ?? "C1");
   const maxMidi = pitchToMidi(options?.maxPitch ?? "C7");
   const nextMidi = clamp(pitchToMidi(pitchStr) + semitoneDelta, minMidi, maxMidi);

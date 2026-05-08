@@ -59,7 +59,8 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
       {props.migrationNotice && <p className="warn">{props.migrationNotice}</p>}
       {props.invalid && (
         <p className="error">
-          This instrument patch is invalid. Track playback may fail until you update the preset or fix the conflicting bindings.
+          This instrument patch is invalid. Track playback may fail until you update the preset or fix the conflicting
+          bindings.
         </p>
       )}
 

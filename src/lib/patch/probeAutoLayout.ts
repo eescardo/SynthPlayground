@@ -11,11 +11,12 @@ interface ProbeRect {
 }
 
 function overlaps(candidate: ProbeRect, occupied: ProbeRect[]) {
-  return occupied.some((entry) =>
-    candidate.x < entry.x + entry.width + 1 &&
-    entry.x < candidate.x + candidate.width + 1 &&
-    candidate.y < entry.y + entry.height + 1 &&
-    entry.y < candidate.y + candidate.height + 1
+  return occupied.some(
+    (entry) =>
+      candidate.x < entry.x + entry.width + 1 &&
+      entry.x < candidate.x + candidate.width + 1 &&
+      candidate.y < entry.y + entry.height + 1 &&
+      entry.y < candidate.y + candidate.height + 1
   );
 }
 
@@ -37,10 +38,18 @@ export function resolveAutoLayoutProbePositions(
       probe.target?.kind === "connection"
         ? resolvePatchConnectionMidpoint(patch, layoutByNode, probe.target.connectionId)
         : probe.target
-          ? resolvePatchPortAnchorPoint(patch, layoutByNode, probe.target.nodeId, probe.target.portId, probe.target.portKind)
+          ? resolvePatchPortAnchorPoint(
+              patch,
+              layoutByNode,
+              probe.target.nodeId,
+              probe.target.portId,
+              probe.target.portKind
+            )
           : null;
     const preferredX = preferredPoint ? Math.max(0, Math.round(preferredPoint.x / PATCH_CANVAS_GRID) + 2) : 3;
-    const preferredY = preferredPoint ? Math.max(0, Math.round(preferredPoint.y / PATCH_CANVAS_GRID) - Math.floor(probe.height / 2)) : 3;
+    const preferredY = preferredPoint
+      ? Math.max(0, Math.round(preferredPoint.y / PATCH_CANVAS_GRID) - Math.floor(probe.height / 2))
+      : 3;
     let placed = { ...probe, x: preferredX, y: preferredY };
     if (overlaps({ x: placed.x, y: placed.y, width: probe.width, height: probe.height }, [...occupied, ...resolved])) {
       let found = false;
@@ -52,7 +61,12 @@ export function resolveAutoLayoutProbePositions(
               x: Math.max(0, preferredX + dx),
               y: Math.max(0, preferredY + dy)
             };
-            if (!overlaps({ x: candidate.x, y: candidate.y, width: probe.width, height: probe.height }, [...occupied, ...resolved])) {
+            if (
+              !overlaps({ x: candidate.x, y: candidate.y, width: probe.width, height: probe.height }, [
+                ...occupied,
+                ...resolved
+              ])
+            ) {
               placed = candidate;
               found = true;
             }

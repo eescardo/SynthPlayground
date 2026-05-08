@@ -127,7 +127,11 @@ function drawCompressorCompactModuleFace(
   ctx.textAlign = thresholdLabelRight ? "left" : "right";
   ctx.fillText(`${Math.round(thresholdDb)}dB`, thresholdX + (thresholdLabelRight ? 4 : -4), graph.y + 11);
   ctx.textAlign = "right";
-  ctx.fillText(`${ratio.toFixed(ratio >= 10 ? 0 : 1)}:1 max +${makeupDb.toFixed(0)}`, graph.x + graph.width - 6, graph.y + graph.height - 5);
+  ctx.fillText(
+    `${ratio.toFixed(ratio >= 10 ? 0 : 1)}:1 max +${makeupDb.toFixed(0)}`,
+    graph.x + graph.width - 6,
+    graph.y + graph.height - 5
+  );
   ctx.textAlign = "left";
   ctx.fillText("raw", graph.x + 4, graph.y + graph.height - 5);
 }
@@ -164,8 +168,10 @@ function drawCompressorExpandedModuleFace(
   const mix = clamp01(getNumericParam(node, schema, "mix"));
   const minDb = -60;
   const maxDb = 6;
-  const dbToX = (db: number) => transferGraph.x + ((clamp(db, minDb, maxDb) - minDb) / (maxDb - minDb)) * transferGraph.width;
-  const dbToY = (db: number) => transferGraph.y + transferGraph.height * (1 - (clamp(db, minDb, maxDb) - minDb) / (maxDb - minDb));
+  const dbToX = (db: number) =>
+    transferGraph.x + ((clamp(db, minDb, maxDb) - minDb) / (maxDb - minDb)) * transferGraph.width;
+  const dbToY = (db: number) =>
+    transferGraph.y + transferGraph.height * (1 - (clamp(db, minDb, maxDb) - minDb) / (maxDb - minDb));
 
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
   setFaceLineWidth(ctx, 1);
@@ -271,8 +277,10 @@ function drawCompressorExpandedModuleFace(
   const envelopeMinDb = -52;
   const envelopeMaxDb = -5;
   const envelopeToDb = (value: number) => envelopeMinDb + clamp01(value) * (envelopeMaxDb - envelopeMinDb);
-  const dbToEnvelope = (db: number) => (clamp(db, envelopeMinDb, envelopeMaxDb) - envelopeMinDb) / (envelopeMaxDb - envelopeMinDb);
-  const onePole = (current: number, target: number, timeMs: number) => current + (target - current) * (1 - Math.exp(-dtMs / Math.max(1, timeMs)));
+  const dbToEnvelope = (db: number) =>
+    (clamp(db, envelopeMinDb, envelopeMaxDb) - envelopeMinDb) / (envelopeMaxDb - envelopeMinDb);
+  const onePole = (current: number, target: number, timeMs: number) =>
+    current + (target - current) * (1 - Math.exp(-dtMs / Math.max(1, timeMs)));
   const dbToGain = (db: number) => 10 ** (db / 20);
   const gainToDb = (gain: number) => 20 * Math.log10(Math.max(0.00001, gain));
   let gainReductionDb = 0;

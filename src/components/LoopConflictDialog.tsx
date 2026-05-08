@@ -21,8 +21,9 @@ export function LoopConflictDialog(props: LoopConflictDialogProps) {
         <div className="loop-conflict-list">
           {props.conflicts.slice(0, 8).map((conflict) => (
             <p key={`${conflict.trackId}:${conflict.noteId}:${conflict.boundary}`}>
-              <strong>{props.trackNameById.get(conflict.trackId) ?? conflict.trackId}</strong> · {conflict.pitchStr} from beat {conflict.startBeat + 1} to{" "}
-              {conflict.endBeat + 1} crosses the loop {conflict.boundary} at beat {conflict.boundaryBeat + 1}.
+              <strong>{props.trackNameById.get(conflict.trackId) ?? conflict.trackId}</strong> · {conflict.pitchStr}{" "}
+              from beat {conflict.startBeat + 1} to {conflict.endBeat + 1} crosses the loop {conflict.boundary} at beat{" "}
+              {conflict.boundaryBeat + 1}.
             </p>
           ))}
           {props.conflicts.length > 8 && <p>And {props.conflicts.length - 8} more notes.</p>}

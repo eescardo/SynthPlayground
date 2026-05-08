@@ -1,10 +1,5 @@
 import type { Track } from "@/types/music";
-import type {
-  AudioProject,
-  SchedulerEvent,
-  SynthRendererConfig,
-  SynthStreamStartOptions
-} from "@/types/audio";
+import type { AudioProject, SchedulerEvent, SynthRendererConfig, SynthStreamStartOptions } from "@/types/audio";
 import type { PreviewProbeCapture, PreviewProbeRequest } from "@/types/probes";
 import type { WasmEvent, WasmProjectSpec } from "@/audio/renderers/wasm/wasmSubsetCompiler";
 import type { WorkletPortLike } from "@/audio/renderers/shared/synth-renderer";
@@ -110,7 +105,11 @@ export interface SharedWasmImplementation {
 }
 
 export class SharedWasmRenderStream {
-  constructor(renderer: SharedWasmRendererLike, options: SynthStreamStartOptions, implementation: SharedWasmImplementation);
+  constructor(
+    renderer: SharedWasmRendererLike,
+    options: SynthStreamStartOptions,
+    implementation: SharedWasmImplementation
+  );
   port: WorkletPortLike;
   renderer: SharedWasmRendererLike;
   project: AudioProject;
@@ -159,10 +158,7 @@ export class SharedWasmRenderer {
   readonly project: AudioProject | null;
 }
 
-export const defaultCompileProject: (
-  project: AudioProject,
-  options: { blockSize: number }
-) => WasmProjectSpec;
+export const defaultCompileProject: (project: AudioProject, options: { blockSize: number }) => WasmProjectSpec;
 
 export const defaultCompileEvents: (
   project: AudioProject,

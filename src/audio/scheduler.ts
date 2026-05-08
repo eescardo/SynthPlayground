@@ -78,7 +78,9 @@ const noteEventCacheFor = (trackId: string, noteId: string): NoteEventCache => {
 
 const getLoopedEventSampleTimes = (songBeat: number, cueBeat: number, project: AudioProject): number[] => {
   const playbackBeatTimes = getLoopedPlaybackBeatsForSongBeat(songBeat, cueBeat, project.global.loop);
-  return playbackBeatTimes.map((beatOffset) => beatRangeToSampleRange(beatOffset, 0, project.global.sampleRate, project.global.tempo).startSample);
+  return playbackBeatTimes.map(
+    (beatOffset) => beatRangeToSampleRange(beatOffset, 0, project.global.sampleRate, project.global.tempo).startSample
+  );
 };
 
 const getUnloopedSongBeatWindow = (project: AudioProject, window: SchedulerWindow, cueBeat: number) => {
@@ -112,7 +114,11 @@ const getAutomationStepWindow = (
   };
 };
 
-export const collectEventsInWindow = (project: AudioProject, window: SchedulerWindow, options?: CollectEventsOptions): SchedulerEvent[] => {
+export const collectEventsInWindow = (
+  project: AudioProject,
+  window: SchedulerWindow,
+  options?: CollectEventsOptions
+): SchedulerEvent[] => {
   pruneStaleNoteEventIds(project);
   const events: SchedulerEvent[] = [];
   const cueBeat = Math.max(0, options?.cueBeat ?? 0);
@@ -138,7 +144,13 @@ export const collectEventsInWindow = (project: AudioProject, window: SchedulerWi
             continue;
           }
           const sampleTimes = getLoopedEventSampleTimes(beat, cueBeat, project);
-          const normalized = getTrackMacroValueAtBeat(track, macro.id, macro.defaultNormalized ?? 0.5, beat, timelineEndBeat);
+          const normalized = getTrackMacroValueAtBeat(
+            track,
+            macro.id,
+            macro.defaultNormalized ?? 0.5,
+            beat,
+            timelineEndBeat
+          );
           sampleTimes.forEach((sampleTime, index) => {
             if (sampleTime < window.fromSample || sampleTime >= window.toSample) {
               return;
@@ -191,15 +203,13 @@ export const collectEventsInWindow = (project: AudioProject, window: SchedulerWi
     for (const note of track.notes) {
       const noteEndBeat = note.startBeat + note.durationBeats;
       const shouldCollectNoteOn =
-        hasLoops || (
-          note.startBeat >= (unloopedBeatWindow?.fromBeat ?? 0) - EPSILON &&
-          note.startBeat < (unloopedBeatWindow?.toBeat ?? 0) + EPSILON
-        );
+        hasLoops ||
+        (note.startBeat >= (unloopedBeatWindow?.fromBeat ?? 0) - EPSILON &&
+          note.startBeat < (unloopedBeatWindow?.toBeat ?? 0) + EPSILON);
       const shouldCollectNoteOff =
-        hasLoops || (
-          noteEndBeat >= (unloopedBeatWindow?.fromBeat ?? 0) - EPSILON &&
-          noteEndBeat < (unloopedBeatWindow?.toBeat ?? 0) + EPSILON
-        );
+        hasLoops ||
+        (noteEndBeat >= (unloopedBeatWindow?.fromBeat ?? 0) - EPSILON &&
+          noteEndBeat < (unloopedBeatWindow?.toBeat ?? 0) + EPSILON);
       if (!shouldCollectNoteOn && !shouldCollectNoteOff) {
         continue;
       }

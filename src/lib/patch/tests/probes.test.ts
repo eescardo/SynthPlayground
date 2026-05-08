@@ -1,23 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { buildProbeSpectrogram, buildSpectrumBins, normalizeProbeSamples } from "@/lib/patch/probes";
-import { buildScopeRenderData, resolveScopeTimeMarkers, resolveSpectrumFrequencyMarkers } from "@/lib/patch/probeViewMath";
+import {
+  buildScopeRenderData,
+  resolveScopeTimeMarkers,
+  resolveSpectrumFrequencyMarkers
+} from "@/lib/patch/probeViewMath";
 
 describe("probe helpers", () => {
   it("normalizes quiet sample streams so they remain visible", () => {
-    expect(normalizeProbeSamples([0, 0.002, -0.001, 0.0015])).toEqual([
-      0,
-      1,
-      -0.5,
-      0.75
-    ]);
+    expect(normalizeProbeSamples([0, 0.002, -0.001, 0.0015])).toEqual([0, 1, -0.5, 0.75]);
   });
 
   it("builds spectrum bins from the current preview window instead of only the note tail", () => {
-    const samples = new Array(2048).fill(0).map((_, index) =>
-      index < 1024
-        ? Math.sin((2 * Math.PI * index) / 32) * 0.005
-        : Math.sin((2 * Math.PI * index) / 8) * 0.25
-    );
+    const samples = new Array(2048)
+      .fill(0)
+      .map((_, index) =>
+        index < 1024 ? Math.sin((2 * Math.PI * index) / 32) * 0.005 : Math.sin((2 * Math.PI * index) / 8) * 0.25
+      );
 
     const earlyBins = buildSpectrumBins(samples, 256, 24, 0.2, samples.length, samples.length);
     const lateBins = buildSpectrumBins(samples, 256, 24, 0.9, samples.length, samples.length);
@@ -28,11 +27,11 @@ describe("probe helpers", () => {
   });
 
   it("builds a spectrogram grid whose columns represent successive time slices", () => {
-    const samples = new Array(1536).fill(0).map((_, index) =>
-      index < 768
-        ? Math.sin((2 * Math.PI * index) / 32) * 0.2
-        : Math.sin((2 * Math.PI * index) / 8) * 0.2
-    );
+    const samples = new Array(1536)
+      .fill(0)
+      .map((_, index) =>
+        index < 768 ? Math.sin((2 * Math.PI * index) / 32) * 0.2 : Math.sin((2 * Math.PI * index) / 8) * 0.2
+      );
 
     const grid = buildProbeSpectrogram(samples, 256, 12, 10, samples.length, samples.length);
 
@@ -46,9 +45,7 @@ describe("probe helpers", () => {
   });
 
   it("reallocates spectrum detail when max frequency is narrowed", () => {
-    const samples = new Array(2048).fill(0).map((_, index) =>
-      Math.sin((2 * Math.PI * index) / 12) * 0.2
-    );
+    const samples = new Array(2048).fill(0).map((_, index) => Math.sin((2 * Math.PI * index) / 12) * 0.2);
 
     const fullRange = buildProbeSpectrogram(samples, 256, 12, 10, samples.length, samples.length, 48000, 24000);
     const narrowedRange = buildProbeSpectrogram(samples, 256, 12, 10, samples.length, samples.length, 48000, 4000);
@@ -68,19 +65,20 @@ describe("probe helpers", () => {
   });
 
   it("builds separate scope waveform and envelope render data", () => {
-    const samples = new Array(256).fill(0).map((_, index) =>
-      Math.sin((2 * Math.PI * index) / 16) * 0.15
-    );
+    const samples = new Array(256).fill(0).map((_, index) => Math.sin((2 * Math.PI * index) / 16) * 0.15);
 
-    const renderData = buildScopeRenderData({
-      probeId: "probe_scope",
-      kind: "scope",
-      target: { kind: "connection", connectionId: "conn_1" },
-      sampleRate: 48000,
-      durationSamples: samples.length,
-      capturedSamples: samples.length,
-      samples
-    }, false);
+    const renderData = buildScopeRenderData(
+      {
+        probeId: "probe_scope",
+        kind: "scope",
+        target: { kind: "connection", connectionId: "conn_1" },
+        sampleRate: 48000,
+        durationSamples: samples.length,
+        capturedSamples: samples.length,
+        samples
+      },
+      false
+    );
 
     expect(renderData.waveformSegments.length).toBeGreaterThan(0);
     expect(renderData.envelopeLine.length).toBeGreaterThan(0);

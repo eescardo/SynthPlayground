@@ -18,10 +18,7 @@ export const isTextEditingTarget = (target: EventTarget | null) => {
       : false;
   return Boolean(
     element &&
-      (isTextInput ||
-        element.tagName === "SELECT" ||
-        element.tagName === "TEXTAREA" ||
-        element.isContentEditable)
+    (isTextInput || element.tagName === "SELECT" || element.tagName === "TEXTAREA" || element.isContentEditable)
   );
 };
 
@@ -29,10 +26,10 @@ export const isShortcutBlockedTarget = (target: EventTarget | null) => {
   const element = target as HTMLElement | null;
   return Boolean(
     element &&
-      (isTextEditingTarget(element) ||
-        element.tagName === "BUTTON" ||
-        element.tagName === "A" ||
-        element.closest("[role='dialog']"))
+    (isTextEditingTarget(element) ||
+      element.tagName === "BUTTON" ||
+      element.tagName === "A" ||
+      element.closest("[role='dialog']"))
   );
 };
 
@@ -113,17 +110,14 @@ export const pruneTabMacroValues = (
   validTabIds: Iterable<string>
 ) => {
   const validIdSet = new Set(validTabIds);
-  return Object.fromEntries(
-    Object.entries(tabMacroValuesById).filter(([tabId]) => validIdSet.has(tabId))
-  );
+  return Object.fromEntries(Object.entries(tabMacroValuesById).filter(([tabId]) => validIdSet.has(tabId)));
 };
 
 export const retargetRemovedPatchTabs = (
   tabs: LocalPatchWorkspaceTab[],
   removedPatchId: string,
   replacementPatchId: string
-) =>
-  tabs.map((tab) => (tab.patchId === removedPatchId ? resetWorkspaceTabForPatch(tab, replacementPatchId) : tab));
+) => tabs.map((tab) => (tab.patchId === removedPatchId ? resetWorkspaceTabForPatch(tab, replacementPatchId) : tab));
 
 export const resetWorkspaceTabForPatch = (tab: LocalPatchWorkspaceTab, patchId: string): LocalPatchWorkspaceTab => ({
   ...tab,
@@ -185,8 +179,13 @@ export const sanitizeWorkspaceTabs = (
         name: tab.name || patchNameById.get(tab.patchId) || "Instrument",
         probes,
         selectedMacroId:
-          tab.selectedMacroId && patch?.ui.macros.some((macro) => macro.id === tab.selectedMacroId) ? tab.selectedMacroId : undefined,
-        selectedProbeId: tab.selectedProbeId && probes.some((probe) => probe.id === tab.selectedProbeId) ? tab.selectedProbeId : undefined
+          tab.selectedMacroId && patch?.ui.macros.some((macro) => macro.id === tab.selectedMacroId)
+            ? tab.selectedMacroId
+            : undefined,
+        selectedProbeId:
+          tab.selectedProbeId && probes.some((probe) => probe.id === tab.selectedProbeId)
+            ? tab.selectedProbeId
+            : undefined
       };
     });
   return nextTabs.length > 0 ? nextTabs : [{ ...createWorkspaceTab(fallbackPatchId), probes: [] }];

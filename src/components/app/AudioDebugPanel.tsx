@@ -80,5 +80,7 @@ export function AudioDebugPanelView({ rendererLabel, open, onToggle }: AudioDebu
 export function AudioDebugPanel({ rendererLabel, defaultOpen = false }: AudioDebugPanelProps) {
   const [open, setOpen] = useState(defaultOpen);
 
-  return <AudioDebugPanelView rendererLabel={rendererLabel} open={open} onToggle={() => setOpen((current) => !current)} />;
+  return (
+    <AudioDebugPanelView rendererLabel={rendererLabel} open={open} onToggle={() => setOpen((current) => !current)} />
+  );
 }

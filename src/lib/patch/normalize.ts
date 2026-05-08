@@ -4,10 +4,23 @@ import { ensurePatchLayout } from "@/lib/patch/autoLayout";
 import { createMacroBindingId, normalizeMacroBindingIds } from "@/lib/patch/macroBindings";
 import { normalizeMacroKeyframeCount } from "@/lib/patch/macroKeyframes";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { AUDIO_OUTPUT_PORT_TYPE_ID, createPatchOutputPort, getPatchPorts, PATCH_OUTPUT_PORT_ID } from "@/lib/patch/ports";
+import {
+  AUDIO_OUTPUT_PORT_TYPE_ID,
+  createPatchOutputPort,
+  getPatchPorts,
+  PATCH_OUTPUT_PORT_ID
+} from "@/lib/patch/ports";
 import { CURRENT_PATCH_SCHEMA_VERSION } from "@/lib/patch/schemaVersion";
 import { getBundledPresetLineage, resolvePatchSource } from "@/lib/patch/source";
-import { Patch, PatchConnection, PatchMacro, PatchMeta, PatchNode, PatchParamSliderRange, PatchPort } from "@/types/patch";
+import {
+  Patch,
+  PatchConnection,
+  PatchMacro,
+  PatchMeta,
+  PatchNode,
+  PatchParamSliderRange,
+  PatchPort
+} from "@/types/patch";
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -119,7 +132,9 @@ const normalizeMacrosToCurrentSchema = (nodes: PatchNode[], macros: PatchMacro[]
     ...macro,
     bindings: macro.bindings.flatMap((binding) => {
       const node = nodeById.get(binding.nodeId);
-      const paramSchema = node ? getModuleSchema(node.typeId)?.params.find((param) => param.id === binding.paramId) : undefined;
+      const paramSchema = node
+        ? getModuleSchema(node.typeId)?.params.find((param) => param.id === binding.paramId)
+        : undefined;
       if (!node) {
         return [binding];
       }
@@ -129,15 +144,17 @@ const normalizeMacrosToCurrentSchema = (nodes: PatchNode[], macros: PatchMacro[]
       if (node.typeId !== "Reverb") {
         return [binding];
       }
-      return [{
-        ...binding,
-        min: binding.min === undefined ? undefined : clamp(binding.min, paramSchema.range.min, paramSchema.range.max),
-        max: binding.max === undefined ? undefined : clamp(binding.max, paramSchema.range.min, paramSchema.range.max),
-        points: binding.points?.map((point) => ({
-          ...point,
-          y: clamp(point.y, paramSchema.range.min, paramSchema.range.max)
-        }))
-      }];
+      return [
+        {
+          ...binding,
+          min: binding.min === undefined ? undefined : clamp(binding.min, paramSchema.range.min, paramSchema.range.max),
+          max: binding.max === undefined ? undefined : clamp(binding.max, paramSchema.range.min, paramSchema.range.max),
+          points: binding.points?.map((point) => ({
+            ...point,
+            y: clamp(point.y, paramSchema.range.min, paramSchema.range.max)
+          }))
+        }
+      ];
     })
   }));
 };
@@ -270,11 +287,7 @@ function migrateLegacyCompressorBindingValue(paramId: string, value: number): nu
   return null;
 }
 
-function mergeParamRange(
-  ranges: Record<string, PatchParamSliderRange>,
-  key: string,
-  range: PatchParamSliderRange
-) {
+function mergeParamRange(ranges: Record<string, PatchParamSliderRange>, key: string, range: PatchParamSliderRange) {
   const normalizedRange = clampRange(range.min, range.max);
   const existing = ranges[key];
   ranges[key] = existing
@@ -595,10 +608,7 @@ export function normalizePatchOutputPort<T extends PatchWithLegacyOutput>(patch:
   };
 }
 
-export function normalizePatch(
-  raw: unknown,
-  options: { fallbackId: string; fallbackName: string }
-): Patch {
+export function normalizePatch(raw: unknown, options: { fallbackId: string; fallbackName: string }): Patch {
   const patch = isObject(raw) ? raw : {};
   const ui = isObject(patch.ui) ? patch.ui : {};
   const layout = isObject(patch.layout) ? patch.layout : {};
@@ -617,11 +627,17 @@ export function normalizePatch(
     source === "preset"
       ? {
           source: "preset",
-          presetId: asString(isObject(patch.meta) ? patch.meta.presetId : undefined, bundledLineage?.presetId ?? patchId),
+          presetId: asString(
+            isObject(patch.meta) ? patch.meta.presetId : undefined,
+            bundledLineage?.presetId ?? patchId
+          ),
           presetVersion: Math.max(
             1,
             Math.floor(
-              asFiniteNumber(isObject(patch.meta) ? patch.meta.presetVersion : undefined, bundledLineage?.presetVersion ?? 1)
+              asFiniteNumber(
+                isObject(patch.meta) ? patch.meta.presetVersion : undefined,
+                bundledLineage?.presetVersion ?? 1
+              )
             )
           )
         }
@@ -629,13 +645,22 @@ export function normalizePatch(
           source: "custom"
         };
 
-  const nodes = (Array.isArray(patch.nodes) ? patch.nodes : []).map((node, index) => sanitizePatchNode(node, `node_${index}`));
-  const portsRaw = (Array.isArray(patch.ports) ? patch.ports : []).map((port, index) => sanitizePatchPort(port, `port_${index}`));
+  const nodes = (Array.isArray(patch.nodes) ? patch.nodes : []).map((node, index) =>
+    sanitizePatchNode(node, `node_${index}`)
+  );
+  const portsRaw = (Array.isArray(patch.ports) ? patch.ports : []).map((port, index) =>
+    sanitizePatchPort(port, `port_${index}`)
+  );
   const schemaVersion = Math.max(1, Math.floor(asFiniteNumber(patch.schemaVersion, 1)));
   const sanitizedMacros = (Array.isArray(ui.macros) ? ui.macros : []).map(sanitizePatchMacro);
   const sanitizedParamRanges = sanitizePatchParamRanges(ui.paramRanges);
   const adsrMigrated = migrateLegacyAdsrTimingUnits(schemaVersion, nodes, sanitizedMacros, sanitizedParamRanges);
-  const overdriveMigrated = migrateLegacyOverdriveParams(schemaVersion, adsrMigrated.nodes, adsrMigrated.macros, adsrMigrated.paramRanges);
+  const overdriveMigrated = migrateLegacyOverdriveParams(
+    schemaVersion,
+    adsrMigrated.nodes,
+    adsrMigrated.macros,
+    adsrMigrated.paramRanges
+  );
   const migrated = migrateLegacyCompressorParams(
     schemaVersion,
     overdriveMigrated.nodes,
@@ -645,38 +670,45 @@ export function normalizePatch(
   const currentNodes = migrated.nodes.map(normalizePatchNodeParamsToCurrentSchema);
   const currentPorts = portsRaw.map(normalizePatchNodeParamsToCurrentSchema);
   const currentMacros = normalizeMacrosToCurrentSchema([...currentNodes, ...currentPorts], migrated.macros);
-  const currentParamRanges = normalizePatchParamRangesToCurrentSchema([...currentNodes, ...currentPorts], migrated.paramRanges);
+  const currentParamRanges = normalizePatchParamRangesToCurrentSchema(
+    [...currentNodes, ...currentPorts],
+    migrated.paramRanges
+  );
 
-  return ensurePatchLayout(normalizeMacroBindingIds(normalizePatchOutputPort({
-    schemaVersion: Math.max(schemaVersion, CURRENT_PATCH_SCHEMA_VERSION),
-    id: patchId,
-    name: asString(patch.name, options.fallbackName),
-    meta,
-    nodes: currentNodes,
-    ports: currentPorts,
-    connections: (Array.isArray(patch.connections) ? patch.connections : []).map((connection, index) =>
-      sanitizePatchConnection(connection, `conn_${index}`)
-    ),
-    ui: {
-      macros: currentMacros,
-      paramRanges: currentParamRanges,
-      canvasZoom:
-        asOptionalFiniteNumber(ui.canvasZoom) === undefined
-          ? undefined
-          : clamp(asFiniteNumber(ui.canvasZoom, 1), PATCH_CANVAS_MIN_ZOOM, PATCH_CANVAS_MAX_ZOOM)
-    },
-    layout: {
-      nodes: (Array.isArray(layout.nodes) ? layout.nodes : []).map((entry) => {
-        const node = isObject(entry) ? entry : {};
-        return {
-          nodeId: asString(node.nodeId, ""),
-          x: Math.max(0, Math.floor(asFiniteNumber(node.x, 0))),
-          y: Math.max(0, Math.floor(asFiniteNumber(node.y, 0)))
-        };
+  return ensurePatchLayout(
+    normalizeMacroBindingIds(
+      normalizePatchOutputPort({
+        schemaVersion: Math.max(schemaVersion, CURRENT_PATCH_SCHEMA_VERSION),
+        id: patchId,
+        name: asString(patch.name, options.fallbackName),
+        meta,
+        nodes: currentNodes,
+        ports: currentPorts,
+        connections: (Array.isArray(patch.connections) ? patch.connections : []).map((connection, index) =>
+          sanitizePatchConnection(connection, `conn_${index}`)
+        ),
+        ui: {
+          macros: currentMacros,
+          paramRanges: currentParamRanges,
+          canvasZoom:
+            asOptionalFiniteNumber(ui.canvasZoom) === undefined
+              ? undefined
+              : clamp(asFiniteNumber(ui.canvasZoom, 1), PATCH_CANVAS_MIN_ZOOM, PATCH_CANVAS_MAX_ZOOM)
+        },
+        layout: {
+          nodes: (Array.isArray(layout.nodes) ? layout.nodes : []).map((entry) => {
+            const node = isObject(entry) ? entry : {};
+            return {
+              nodeId: asString(node.nodeId, ""),
+              x: Math.max(0, Math.floor(asFiniteNumber(node.x, 0))),
+              y: Math.max(0, Math.floor(asFiniteNumber(node.y, 0)))
+            };
+          })
+        },
+        io: {
+          audioOutNodeId: asString(io.audioOutNodeId, "")
+        }
       })
-    },
-    io: {
-      audioOutNodeId: asString(io.audioOutNodeId, "")
-    }
-  })));
+    )
+  );
 }

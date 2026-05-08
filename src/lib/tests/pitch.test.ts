@@ -10,7 +10,7 @@ describe("pitch keyboard mapping", () => {
   });
 
   it("excludes reserved navigation keys from the piano map", () => {
-    for (const key of ["-", "_", "=", "+", "[", "{", "]", "}", ";", ":", "'", "\"", ",", "<", ".", ">", "/", "?"]) {
+    for (const key of ["-", "_", "=", "+", "[", "{", "]", "}", ";", ":", "'", '"', ",", "<", ".", ">", "/", "?"]) {
       expect(keyToPitch(key)).toBeUndefined();
     }
   });

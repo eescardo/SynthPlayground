@@ -1,9 +1,5 @@
 import { TRACK_CANVAS_COLORS } from "@/components/tracks/trackCanvasConstants";
-import {
-  fillRoundedRect,
-  NOTE_CORNER_RADIUS,
-  strokeRoundedRect
-} from "@/components/tracks/trackCanvasNoteGeometry";
+import { fillRoundedRect, NOTE_CORNER_RADIUS, strokeRoundedRect } from "@/components/tracks/trackCanvasNoteGeometry";
 
 interface NoteRenderRect {
   x: number;
@@ -41,15 +37,7 @@ export function drawTrackCanvasNoteState(
 
   if (state.selected) {
     if (state.focused) {
-      fillRoundedRect(
-        ctx,
-        x,
-        y,
-        w,
-        h,
-        NOTE_CORNER_RADIUS,
-        TRACK_CANVAS_COLORS.noteSelectedFocusOverlay
-      );
+      fillRoundedRect(ctx, x, y, w, h, NOTE_CORNER_RADIUS, TRACK_CANVAS_COLORS.noteSelectedFocusOverlay);
       ctx.setLineDash([5, 3]);
     }
     strokeRoundedRect(
@@ -59,9 +47,7 @@ export function drawTrackCanvasNoteState(
       Math.max(0, w - 2),
       Math.max(0, h - 2),
       Math.max(0, NOTE_CORNER_RADIUS - 1),
-      state.focused
-        ? TRACK_CANVAS_COLORS.noteSelectedFocusBorder
-        : TRACK_CANVAS_COLORS.noteSelectedBorder,
+      state.focused ? TRACK_CANVAS_COLORS.noteSelectedFocusBorder : TRACK_CANVAS_COLORS.noteSelectedBorder,
       2
     );
     if (state.focused) {
@@ -70,15 +56,7 @@ export function drawTrackCanvasNoteState(
   }
 
   if (state.beingPlaced) {
-    fillRoundedRect(
-      ctx,
-      x,
-      y,
-      w,
-      h,
-      NOTE_CORNER_RADIUS,
-      TRACK_CANVAS_COLORS.notePlacementOverlay
-    );
+    fillRoundedRect(ctx, x, y, w, h, NOTE_CORNER_RADIUS, TRACK_CANVAS_COLORS.notePlacementOverlay);
     strokeRoundedRect(
       ctx,
       x + 1,

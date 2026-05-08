@@ -1,9 +1,4 @@
-import {
-  BEAT_WIDTH,
-  HEADER_WIDTH,
-  TRACK_CANVAS_COLORS,
-  TRACK_HEIGHT
-} from "@/components/tracks/trackCanvasConstants";
+import { BEAT_WIDTH, HEADER_WIDTH, TRACK_CANVAS_COLORS, TRACK_HEIGHT } from "@/components/tracks/trackCanvasConstants";
 import {
   drawNoteBody,
   fillRoundedRect,
@@ -76,10 +71,7 @@ export function drawGhostPreviewNote(
   ctx.restore();
 }
 
-export function drawTabSelectionPreview(
-  ctx: CanvasRenderingContext2D,
-  noteRect: TrackCanvasPreviewNoteRect
-) {
+export function drawTabSelectionPreview(ctx: CanvasRenderingContext2D, noteRect: TrackCanvasPreviewNoteRect) {
   strokeRoundedRect(
     ctx,
     noteRect.x + 1,

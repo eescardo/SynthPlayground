@@ -1,0 +1,16 @@
+node_modules
+.next
+.next-ui-capture-*
+out
+build
+artifacts
+coverage
+
+rust/dsp-core/target
+public/wasm/pkg
+src/lib/patch/presets.manifest.json
+
+*.tsbuildinfo
+
+public/worklets/synth-worklet-*.js
+public/worklets/synth-worklet-*.d.ts

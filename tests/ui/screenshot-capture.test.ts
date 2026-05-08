@@ -16,25 +16,29 @@ afterEach(() => {
 });
 
 describe.sequential("ui screenshot capture", () => {
-  test.each([...SCREENSHOT_SCENARIOS])("captures %s without errors", (scenario) => {
-    const label = `vitest-${scenario}`;
-    cleanupLabels.add(label);
+  test.each([...SCREENSHOT_SCENARIOS])(
+    "captures %s without errors",
+    (scenario) => {
+      const label = `vitest-${scenario}`;
+      cleanupLabels.add(label);
 
-    execFileSync("node", ["--import", "tsx", "scripts/ui-screenshots/capture.ts", scenario], {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        SCREENSHOT_LABEL: label,
-        PLAYWRIGHT_PORT: portForScenario(scenario)
-      },
-      maxBuffer: 16 * 1024 * 1024,
-      stdio: "pipe"
-    });
+      execFileSync("node", ["--import", "tsx", "scripts/ui-screenshots/capture.ts", scenario], {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          SCREENSHOT_LABEL: label,
+          PLAYWRIGHT_PORT: portForScenario(scenario)
+        },
+        maxBuffer: 16 * 1024 * 1024,
+        stdio: "pipe"
+      });
 
-    const outputPath = path.join(repoRoot, "artifacts", "screenshots", label, `${scenario}.png`);
-    expect(fs.existsSync(outputPath)).toBe(true);
-    expect(fs.statSync(outputPath).size).toBeGreaterThan(0);
-  }, 120_000);
+      const outputPath = path.join(repoRoot, "artifacts", "screenshots", label, `${scenario}.png`);
+      expect(fs.existsSync(outputPath)).toBe(true);
+      expect(fs.statSync(outputPath).size).toBeGreaterThan(0);
+    },
+    120_000
+  );
 });
 
 function portForScenario(scenario: ScreenshotScenario): string {

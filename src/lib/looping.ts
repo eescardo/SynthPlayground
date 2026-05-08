@@ -99,9 +99,7 @@ const sanitizeMarker = (marker: LoopMarkerInput, index: number): SanitizedLoopMa
   };
 };
 
-export const sanitizeLoopSettings = (
-  loop: ProjectGlobalSettings["loop"]
-): ProjectGlobalSettings["loop"] => {
+export const sanitizeLoopSettings = (loop: ProjectGlobalSettings["loop"]): ProjectGlobalSettings["loop"] => {
   const markers = sortMarkers(
     loop
       .map((marker, index) => sanitizeMarker(marker, index))
@@ -116,9 +114,8 @@ export const sanitizeLoopSettings = (
   }));
 };
 
-export const getSanitizedLoopMarkers = (
-  loop: ProjectGlobalSettings["loop"]
-): SanitizedLoopMarker[] => sanitizeLoopSettings(loop);
+export const getSanitizedLoopMarkers = (loop: ProjectGlobalSettings["loop"]): SanitizedLoopMarker[] =>
+  sanitizeLoopSettings(loop);
 
 const buildLoopPairs = (loop: ProjectGlobalSettings["loop"]) => {
   const markers = getSanitizedLoopMarkers(loop);
@@ -172,9 +169,8 @@ const buildLoopPairs = (loop: ProjectGlobalSettings["loop"]) => {
   };
 };
 
-export const getLoopMarkerStates = (
-  loop: ProjectGlobalSettings["loop"]
-): LoopMarkerState[] => buildLoopPairs(loop).markerStates;
+export const getLoopMarkerStates = (loop: ProjectGlobalSettings["loop"]): LoopMarkerState[] =>
+  buildLoopPairs(loop).markerStates;
 
 const toMatchedLoopRegion = (pair: LoopPair): MatchedLoopRegion => ({
   startMarkerId: pair.startMarkerId,
@@ -187,10 +183,7 @@ const toMatchedLoopRegion = (pair: LoopPair): MatchedLoopRegion => ({
 const flattenLoopPairs = (pairs: LoopPair[]): LoopPair[] =>
   pairs.flatMap((pair) => [pair, ...flattenLoopPairs(pair.children)]);
 
-export const getMatchedLoopRegionsAtBeat = (
-  loop: ProjectGlobalSettings["loop"],
-  beat: number
-): MatchedLoopRegion[] =>
+export const getMatchedLoopRegionsAtBeat = (loop: ProjectGlobalSettings["loop"], beat: number): MatchedLoopRegion[] =>
   flattenLoopPairs(buildLoopPairs(loop).pairs)
     .filter((pair) => Math.abs(pair.startBeat - beat) < EPSILON || Math.abs(pair.endBeat - beat) < EPSILON)
     .map(toMatchedLoopRegion);
@@ -208,10 +201,7 @@ const getLoopPassLengths = (pair: LoopPair, currentPassStartBeat: number): LoopP
   repeatedPassLength: getSequencePlaybackLength(pair.startBeat, pair.endBeat, pair.children)
 });
 
-const collectRepeatedPassOffsets = (
-  songBeat: number,
-  pair: LoopPair
-): number[] => {
+const collectRepeatedPassOffsets = (songBeat: number, pair: LoopPair): number[] => {
   const offsets: number[] = [];
   collectPlaybackBeatsInSequence(songBeat, pair.startBeat, pair.endBeat, pair.children, 0, offsets);
   return offsets;
@@ -287,7 +277,13 @@ const collectPlaybackBeatsInSequence = (
       if (songBeat >= child.startBeat - EPSILON && songBeat <= child.endBeat + EPSILON && child.repeatCount > 0) {
         const { currentPassLength, repeatedPassLength } = getLoopPassLengths(child, childStartBeat);
         const repeatedPassOffsets = collectRepeatedPassOffsets(songBeat, child);
-        pushRepeatedPassResults(results, repeatedPassOffsets, cursorPlayback + currentPassLength, repeatedPassLength, child.repeatCount);
+        pushRepeatedPassResults(
+          results,
+          repeatedPassOffsets,
+          cursorPlayback + currentPassLength,
+          repeatedPassLength,
+          child.repeatCount
+        );
       }
       return;
     }
@@ -310,7 +306,13 @@ const collectPlaybackBeatsInSequence = (
 
       if (child.repeatCount > 0) {
         const repeatedPassOffsets = collectRepeatedPassOffsets(songBeat, child);
-        pushRepeatedPassResults(results, repeatedPassOffsets, cursorPlayback + currentPassLength, repeatedPassLength, child.repeatCount);
+        pushRepeatedPassResults(
+          results,
+          repeatedPassOffsets,
+          cursorPlayback + currentPassLength,
+          repeatedPassLength,
+          child.repeatCount
+        );
       }
       return;
     }
@@ -394,9 +396,20 @@ export const getSongBeatForPlaybackBeat = (
   return mapPlaybackBeatInSequence(playbackBeat, cueBeat, Number.POSITIVE_INFINITY, pairs);
 };
 
-export const getLoopPlaybackEndBeat = (project: ProjectGlobalCarrier, cueBeat: number, fallbackEndBeat: number): number => {
+export const getLoopPlaybackEndBeat = (
+  project: ProjectGlobalCarrier,
+  cueBeat: number,
+  fallbackEndBeat: number
+): number => {
   const { pairs } = buildLoopPairs(project.global.loop);
-  return cueBeat + getSequencePlaybackLength(cueBeat, fallbackEndBeat, pairs.filter((pair) => pair.startBeat < fallbackEndBeat - EPSILON));
+  return (
+    cueBeat +
+    getSequencePlaybackLength(
+      cueBeat,
+      fallbackEndBeat,
+      pairs.filter((pair) => pair.startBeat < fallbackEndBeat - EPSILON)
+    )
+  );
 };
 
 const noteCrossesBoundary = (note: Note, boundaryBeat: number): boolean => {
@@ -472,8 +485,20 @@ const expandTrackAutomationInLoopRegion = (
   const nextAutomations: Track["macroAutomations"] = {};
 
   for (const [macroId, lane] of Object.entries(track.macroAutomations)) {
-    const restartIncomingValue = getTrackMacroValueAtBeat(track, macroId, lane.startValue, targetPair.endBeat, timelineEndBeat);
-    const restartOutgoingValue = getTrackMacroValueAtBeat(track, macroId, lane.startValue, targetPair.startBeat, timelineEndBeat);
+    const restartIncomingValue = getTrackMacroValueAtBeat(
+      track,
+      macroId,
+      lane.startValue,
+      targetPair.endBeat,
+      timelineEndBeat
+    );
+    const restartOutgoingValue = getTrackMacroValueAtBeat(
+      track,
+      macroId,
+      lane.startValue,
+      targetPair.startBeat,
+      timelineEndBeat
+    );
     const hasRestartJump = Math.abs(restartIncomingValue - restartOutgoingValue) > EPSILON;
     const beforeLoop = lane.keyframes.filter((keyframe) => keyframe.beat < targetPair.startBeat - EPSILON);
     const insideLoop = lane.keyframes.filter(
@@ -494,9 +519,7 @@ const expandTrackAutomationInLoopRegion = (
       );
       return offsets.flatMap((offset, offsetIndex) => {
         const isRepeatedLoopStart =
-          hasRestartJump &&
-          Math.abs(keyframe.beat - targetPair.startBeat) <= EPSILON &&
-          offset > EPSILON;
+          hasRestartJump && Math.abs(keyframe.beat - targetPair.startBeat) <= EPSILON && offset > EPSILON;
         if (isRepeatedLoopStart) {
           return [];
         }
@@ -526,17 +549,16 @@ const expandTrackAutomationInLoopRegion = (
 
     nextAutomations[macroId] = {
       ...lane,
-      keyframes: [...beforeLoop, ...expandedLoopKeyframes, ...restartSplitKeyframes, ...afterLoop].sort((a, b) => a.beat - b.beat)
+      keyframes: [...beforeLoop, ...expandedLoopKeyframes, ...restartSplitKeyframes, ...afterLoop].sort(
+        (a, b) => a.beat - b.beat
+      )
     };
   }
 
   return nextAutomations;
 };
 
-export const splitProjectNotesAtLoopBoundaries = (
-  project: Project,
-  loop: ProjectGlobalSettings["loop"]
-): Project => {
+export const splitProjectNotesAtLoopBoundaries = (project: Project, loop: ProjectGlobalSettings["loop"]): Project => {
   const boundaryBeats = getSanitizedLoopMarkers(loop)
     .map((marker) => marker.beat)
     .sort((a, b) => a - b);
@@ -556,13 +578,10 @@ export const getExpandedPlaybackEndSample = (
   cueBeat: number,
   fallbackEndBeat: number,
   sampleRate: number
-): number => beatToSample(getLoopPlaybackEndBeat(project, cueBeat, fallbackEndBeat) - cueBeat, sampleRate, project.global.tempo);
+): number =>
+  beatToSample(getLoopPlaybackEndBeat(project, cueBeat, fallbackEndBeat) - cueBeat, sampleRate, project.global.tempo);
 
-export const getSongBeatFromPlaybackSample = (
-  playbackSample: number,
-  project: Project,
-  cueBeat: number
-): number => {
+export const getSongBeatFromPlaybackSample = (playbackSample: number, project: Project, cueBeat: number): number => {
   const playbackBeat = playbackSample / samplesPerBeat(project.global.sampleRate, project.global.tempo);
   return getSongBeatForPlaybackBeat(playbackBeat, cueBeat, project.global.loop);
 };
@@ -590,17 +609,18 @@ const collectLoopPairMarkerIds = (pair: LoopPair): Set<string> => {
   return markerIds;
 };
 
-const filterPlaybackBeatsInRange = (beats: number[], totalExpandedLength: number, includeEndBoundary: boolean): number[] =>
+const filterPlaybackBeatsInRange = (
+  beats: number[],
+  totalExpandedLength: number,
+  includeEndBoundary: boolean
+): number[] =>
   beats.filter((beat) =>
     includeEndBoundary
       ? beat >= -EPSILON && beat <= totalExpandedLength + EPSILON
       : beat >= -EPSILON && beat < totalExpandedLength - EPSILON
   );
 
-export const expandLoopRegionToNotes = (
-  project: Project,
-  region: MatchedLoopRegion
-): Project => {
+export const expandLoopRegionToNotes = (project: Project, region: MatchedLoopRegion): Project => {
   const { pairs } = buildLoopPairs(project.global.loop);
   const targetPair = findLoopPairByMarkerId(pairs, region.startMarkerId);
   if (
@@ -612,7 +632,11 @@ export const expandLoopRegionToNotes = (
     return project;
   }
 
-  const loopBodyPlaybackLength = getSequencePlaybackLength(targetPair.startBeat, targetPair.endBeat, targetPair.children);
+  const loopBodyPlaybackLength = getSequencePlaybackLength(
+    targetPair.startBeat,
+    targetPair.endBeat,
+    targetPair.children
+  );
   const totalExpandedLength = loopBodyPlaybackLength * (targetPair.repeatCount + 1);
   const rawLoopLength = targetPair.endBeat - targetPair.startBeat;
   const shiftAmount = totalExpandedLength - rawLoopLength;
@@ -643,9 +667,7 @@ export const expandLoopRegionToNotes = (
         return marker.beat <= targetPair.startBeat + EPSILON || marker.beat >= targetPair.endBeat - EPSILON;
       })
       .map((marker) =>
-        marker.beat >= targetPair.endBeat - EPSILON
-          ? { ...marker, beat: marker.beat + shiftAmount }
-          : marker
+        marker.beat >= targetPair.endBeat - EPSILON ? { ...marker, beat: marker.beat + shiftAmount } : marker
       )
   );
 
@@ -673,23 +695,29 @@ export const expandLoopRegionToNotes = (
           false
         );
         const endOffsets = filterPlaybackBeatsInRange(
-          getLoopedPlaybackBeatsForSongBeat(note.startBeat + note.durationBeats, targetPair.startBeat, project.global.loop),
+          getLoopedPlaybackBeatsForSongBeat(
+            note.startBeat + note.durationBeats,
+            targetPair.startBeat,
+            project.global.loop
+          ),
           totalExpandedLength,
           true
         );
 
-        return startOffsets.map((startOffset, index) => {
-          const endOffset = endOffsets[index];
-          if (typeof endOffset !== "number" || endOffset <= startOffset + EPSILON) {
-            return null;
-          }
-          return {
-            ...note,
-            id: index === 0 ? note.id : createId("note"),
-            startBeat: targetPair.startBeat + startOffset,
-            durationBeats: endOffset - startOffset
-          };
-        }).filter((note): note is Note => Boolean(note));
+        return startOffsets
+          .map((startOffset, index) => {
+            const endOffset = endOffsets[index];
+            if (typeof endOffset !== "number" || endOffset <= startOffset + EPSILON) {
+              return null;
+            }
+            return {
+              ...note,
+              id: index === 0 ? note.id : createId("note"),
+              startBeat: targetPair.startBeat + startOffset,
+              durationBeats: endOffset - startOffset
+            };
+          })
+          .filter((note): note is Note => Boolean(note));
       });
 
       return {

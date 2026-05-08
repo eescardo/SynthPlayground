@@ -29,7 +29,9 @@ const run = async () => {
   assertVideoRegistryAligned();
   const requestedScenarios = parseRequestedScenarios();
   const originalFileContents = new Map(
-    trackedFilesToRestore.map((filePath) => [filePath, fs.readFileSync(path.join(process.cwd(), filePath), "utf8")] as const)
+    trackedFilesToRestore.map(
+      (filePath) => [filePath, fs.readFileSync(path.join(process.cwd(), filePath), "utf8")] as const
+    )
   );
   const devServer = startDevServer(port, {
     NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO: "1"

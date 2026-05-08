@@ -1,13 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  KEYBOARD_NOTE_PREVIEW_MAX_PITCH,
-  KEYBOARD_NOTE_PREVIEW_MIN_PITCH
-} from "@/lib/hardwareNavigation";
+import { KEYBOARD_NOTE_PREVIEW_MAX_PITCH, KEYBOARD_NOTE_PREVIEW_MIN_PITCH } from "@/lib/hardwareNavigation";
 import { parseNoteSelectionKey } from "@/lib/clipboard";
 import { transposePitch } from "@/lib/pitch";
-import { focusLastTrackChromeTabStop, isModifierChord, isPlayheadTabStopFocused, isTextEditingTarget } from "@/hooks/hardwareNavigationUtils";
+import {
+  focusLastTrackChromeTabStop,
+  isModifierChord,
+  isPlayheadTabStopFocused,
+  isTextEditingTarget
+} from "@/hooks/hardwareNavigationUtils";
 import { UseHardwareNavigationArgs } from "@/hooks/useHardwareNavigationTypes";
 
 interface UseBaseHardwareNavigationArgs extends UseHardwareNavigationArgs {
@@ -46,17 +48,23 @@ export function useBaseHardwareNavigation({
     setSelectedContentTabStopFocusToken((current) => current + 1);
   }, []);
 
-  const setSingleNoteSelection = useCallback((selectionKey: string, options?: { keepCollapsed?: boolean }) => {
-    const parsed = parseNoteSelectionKey(selectionKey);
-    if (!parsed) {
-      return;
-    }
-    setSelectedTrackId(parsed.trackId);
-    setContentSelection({
-      noteKeys: [selectionKey],
-      automationKeyframeSelectionKeys: []
-    }, options);
-  }, [setContentSelection, setSelectedTrackId]);
+  const setSingleNoteSelection = useCallback(
+    (selectionKey: string, options?: { keepCollapsed?: boolean }) => {
+      const parsed = parseNoteSelectionKey(selectionKey);
+      if (!parsed) {
+        return;
+      }
+      setSelectedTrackId(parsed.trackId);
+      setContentSelection(
+        {
+          noteKeys: [selectionKey],
+          automationKeyframeSelectionKeys: []
+        },
+        options
+      );
+    },
+    [setContentSelection, setSelectedTrackId]
+  );
 
   useEffect(() => {
     if (selectionKind === "none") {

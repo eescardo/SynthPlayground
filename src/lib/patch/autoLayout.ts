@@ -8,7 +8,15 @@ const AUTO_LAYOUT_NODE_WIDTH_GRID = 9;
 const AUTO_LAYOUT_NODE_HEIGHT_GRID = 6;
 const AUTO_LAYOUT_MARGIN_GRID = 1;
 const CROSSING_REDUCTION_PASSES = 4;
-const AUTO_LAYOUT_CATEGORY_SEED_ORDER: PatchModuleCategory[] = ["source", "mix", "processor", "cv", "envelope", "probe", "host"];
+const AUTO_LAYOUT_CATEGORY_SEED_ORDER: PatchModuleCategory[] = [
+  "source",
+  "mix",
+  "processor",
+  "cv",
+  "envelope",
+  "probe",
+  "host"
+];
 
 const getAutoLayoutSeedPriority = (node: PatchNode): number => {
   // Used only as a deterministic fallback before barycenter crossing reduction has
@@ -18,12 +26,22 @@ const getAutoLayoutSeedPriority = (node: PatchNode): number => {
   return categoryIndex === -1 ? AUTO_LAYOUT_CATEGORY_SEED_ORDER.length + 1 : categoryIndex;
 };
 
-const getConnectionCapability = (patch: Pick<Patch, "nodes">, connection: Patch["connections"][number]): SignalCapability | undefined => {
+const getConnectionCapability = (
+  patch: Pick<Patch, "nodes">,
+  connection: Patch["connections"][number]
+): SignalCapability | undefined => {
   const sourceType = patch.nodes.find((node) => node.id === connection.from.nodeId)?.typeId;
   const destType = patch.nodes.find((node) => node.id === connection.to.nodeId)?.typeId;
-  const sourcePort = sourceType ? getModuleSchema(sourceType)?.portsOut.find((port) => port.id === connection.from.portId) : undefined;
-  const destPort = destType ? getModuleSchema(destType)?.portsIn.find((port) => port.id === connection.to.portId) : undefined;
-  return sourcePort?.capabilities.find((capability) => destPort?.capabilities.includes(capability)) ?? sourcePort?.capabilities[0];
+  const sourcePort = sourceType
+    ? getModuleSchema(sourceType)?.portsOut.find((port) => port.id === connection.from.portId)
+    : undefined;
+  const destPort = destType
+    ? getModuleSchema(destType)?.portsIn.find((port) => port.id === connection.to.portId)
+    : undefined;
+  return (
+    sourcePort?.capabilities.find((capability) => destPort?.capabilities.includes(capability)) ??
+    sourcePort?.capabilities[0]
+  );
 };
 
 export function resolveAutoLayoutNodes(patch: Pick<Patch, "nodes" | "connections">): PatchLayoutNode[] {
@@ -137,7 +155,8 @@ function resolveOutputBackedRanks(patch: Pick<Patch, "nodes" | "connections">): 
   }
 
   const sinks = patch.nodes.filter((node) => node.typeId === "Output");
-  const outputNodes = sinks.length > 0 ? sinks : patch.nodes.filter((node) => (outgoingCountByNodeId.get(node.id) ?? 0) === 0);
+  const outputNodes =
+    sinks.length > 0 ? sinks : patch.nodes.filter((node) => (outgoingCountByNodeId.get(node.id) ?? 0) === 0);
   const distanceToSinkByNodeId = new Map<string, number>();
   const queue = outputNodes.map((node) => {
     distanceToSinkByNodeId.set(node.id, 0);
@@ -171,10 +190,16 @@ function reduceColumnCrossings(
 ): Array<[number, PatchNode[]]> {
   const columns = [...nodesByRank.entries()]
     .sort(([left], [right]) => left - right)
-    .map(([rank, nodes]) => [
-      rank,
-      [...nodes].sort((left, right) => getAutoLayoutSeedPriority(left) - getAutoLayoutSeedPriority(right) || left.id.localeCompare(right.id))
-    ] as [number, PatchNode[]]);
+    .map(
+      ([rank, nodes]) =>
+        [
+          rank,
+          [...nodes].sort(
+            (left, right) =>
+              getAutoLayoutSeedPriority(left) - getAutoLayoutSeedPriority(right) || left.id.localeCompare(right.id)
+          )
+        ] as [number, PatchNode[]]
+    );
 
   for (let pass = 0; pass < CROSSING_REDUCTION_PASSES; pass += 1) {
     for (let columnIndex = 1; columnIndex < columns.length; columnIndex += 1) {
@@ -262,12 +287,7 @@ function getNeighborPortOffset(
   return 0;
 }
 
-function getPortOrderOffset(
-  patch: Pick<Patch, "nodes">,
-  nodeId: string,
-  kind: "in" | "out",
-  portId: string
-): number {
+function getPortOrderOffset(patch: Pick<Patch, "nodes">, nodeId: string, kind: "in" | "out", portId: string): number {
   const typeId = patch.nodes.find((node) => node.id === nodeId)?.typeId;
   const schema = typeId ? getModuleSchema(typeId) : undefined;
   const ports = kind === "in" ? schema?.portsIn : schema?.portsOut;
@@ -312,7 +332,9 @@ export function ensurePatchLayout(patch: Patch): Patch {
   return {
     ...patch,
     layout: {
-      nodes: patch.nodes.map((node) => savedLayoutByNodeId.get(node.id) ?? autoLayoutByNodeId.get(node.id) ?? { nodeId: node.id, x: 0, y: 0 })
+      nodes: patch.nodes.map(
+        (node) => savedLayoutByNodeId.get(node.id) ?? autoLayoutByNodeId.get(node.id) ?? { nodeId: node.id, x: 0, y: 0 }
+      )
     }
   };
 }

@@ -16,16 +16,22 @@ import { PatchHistoryState, PatchOp } from "@/types/ops";
 
 const clonePatch = (patch: Patch): Patch => structuredClone(patch);
 
-const findLayoutNode = (patch: Patch, nodeId: string): number => patch.layout.nodes.findIndex((node) => node.nodeId === nodeId);
+const findLayoutNode = (patch: Patch, nodeId: string): number =>
+  patch.layout.nodes.findIndex((node) => node.nodeId === nodeId);
 
 const buildParamRangeKey = (nodeId: string, paramId: string) => `${nodeId}:${paramId}`;
 
-const findParameterTarget = (patch: Patch, nodeId: string) => getPatchParameterTargets(patch).find((entry) => entry.id === nodeId);
+const findParameterTarget = (patch: Patch, nodeId: string) =>
+  getPatchParameterTargets(patch).find((entry) => entry.id === nodeId);
 
 function isCompressorDerivedLegacyParam(nodeTypeId: string | undefined, paramId: string) {
   return (
     nodeTypeId === "Compressor" &&
-    (paramId === "thresholdDb" || paramId === "ratio" || paramId === "releaseMs" || paramId === "makeupDb" || paramId === "autoMakeup")
+    (paramId === "thresholdDb" ||
+      paramId === "ratio" ||
+      paramId === "releaseMs" ||
+      paramId === "makeupDb" ||
+      paramId === "autoMakeup")
   );
 }
 
@@ -225,7 +231,12 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       if (next.ui.macros.some((macro) => macro.id === op.macroId)) {
         throw new Error(`Macro already exists: ${op.macroId}`);
       }
-      next.ui.macros.push({ id: op.macroId, name: op.name, keyframeCount: Math.max(2, op.keyframeCount), bindings: [] });
+      next.ui.macros.push({
+        id: op.macroId,
+        name: op.name,
+        keyframeCount: Math.max(2, op.keyframeCount),
+        bindings: []
+      });
       return next;
     }
 
@@ -244,7 +255,11 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
         return next;
       }
       const bindingId = createMacroBindingId(op.macroId, op.nodeId, op.paramId);
-      if (macro.bindings.some((binding) => binding.id === bindingId || (binding.nodeId === op.nodeId && binding.paramId === op.paramId))) {
+      if (
+        macro.bindings.some(
+          (binding) => binding.id === bindingId || (binding.nodeId === op.nodeId && binding.paramId === op.paramId)
+        )
+      ) {
         throw new Error(`Binding already exists: ${bindingId}`);
       }
       macro.bindings.push({
@@ -396,12 +411,7 @@ export const applyMacroValue = (patch: Patch, macroId: string, normalized: numbe
   return applyMacroValueToPatch(next, macroId, normalized);
 };
 
-export const makeConnectOp = (
-  fromNodeId: string,
-  fromPortId: string,
-  toNodeId: string,
-  toPortId: string
-): PatchOp => ({
+export const makeConnectOp = (fromNodeId: string, fromPortId: string, toNodeId: string, toPortId: string): PatchOp => ({
   type: "connect",
   connectionId: createId("conn"),
   fromNodeId,

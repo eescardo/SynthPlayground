@@ -120,7 +120,10 @@ describe("Compressor module face response math", () => {
       expect(derived.releaseMs).toBeCloseTo(fixture.expected.releaseMs, 6);
     }
     for (const fixture of dspFormulaFixtures.compressorGainReduction) {
-      expect(compressorGainReductionDb(fixture.inputDb, fixture.thresholdDb, fixture.ratio)).toBeCloseTo(fixture.expectedDb, 6);
+      expect(compressorGainReductionDb(fixture.inputDb, fixture.thresholdDb, fixture.ratio)).toBeCloseTo(
+        fixture.expectedDb,
+        6
+      );
     }
   });
 });

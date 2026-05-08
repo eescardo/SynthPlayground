@@ -25,13 +25,16 @@ interface TrackVolumeSliderProps {
 export function TrackVolumeSlider(props: TrackVolumeSliderProps) {
   const dragRef = useRef<HTMLDivElement | null>(null);
 
-  const beginDrag = useCallback((clientY: number, element: HTMLDivElement) => {
-    dragRef.current = element;
-    if (props.disabled) {
-      return;
-    }
-    props.onVolumeChange(trackVolumeFromClientY(clientY, element), { commit: false });
-  }, [props]);
+  const beginDrag = useCallback(
+    (clientY: number, element: HTMLDivElement) => {
+      dragRef.current = element;
+      if (props.disabled) {
+        return;
+      }
+      props.onVolumeChange(trackVolumeFromClientY(clientY, element), { commit: false });
+    },
+    [props]
+  );
 
   useEffect(() => {
     const onPointerMove = (event: PointerEvent) => {
@@ -110,7 +113,10 @@ export function TrackVolumeSlider(props: TrackVolumeSliderProps) {
         }}
       >
         <div className="track-volume-slider-rail" />
-        <div className="track-volume-slider-active-fill" style={{ height: trackVolumePercentToCss(props.effectiveVolume) }} />
+        <div
+          className="track-volume-slider-active-fill"
+          style={{ height: trackVolumePercentToCss(props.effectiveVolume) }}
+        />
         <div className="track-volume-slider-thumb" style={{ bottom: trackVolumePercentToCss(props.effectiveVolume) }} />
       </div>
     </div>

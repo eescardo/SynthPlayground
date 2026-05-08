@@ -14,13 +14,16 @@ const hasOverlapWithOthers = (candidate: Note, notes: Note[]): boolean =>
   notes.some((other) => other.id !== candidate.id && notesOverlap(candidate, other));
 
 interface UseNoteEditorArgs {
-  commitProjectChange: (updater: (current: Project) => Project, options?: { actionKey?: string; coalesce?: boolean }) => void;
+  commitProjectChange: (
+    updater: (current: Project) => Project,
+    options?: { actionKey?: string; coalesce?: boolean }
+  ) => void;
 }
 
 export function useNoteEditor({ commitProjectChange }: UseNoteEditorArgs) {
-  const upsertNote = useCallback((trackId: string, note: Note, options?: { actionKey?: string; coalesce?: boolean }) => {
-    commitProjectChange(
-      (current) => {
+  const upsertNote = useCallback(
+    (trackId: string, note: Note, options?: { actionKey?: string; coalesce?: boolean }) => {
+      commitProjectChange((current) => {
         let changed = false;
         const tracks = current.tracks.map((track) => {
           if (track.id !== trackId) {
@@ -46,14 +49,14 @@ export function useNoteEditor({ commitProjectChange }: UseNoteEditorArgs) {
           return { ...track, notes: nextNotes };
         });
         return changed ? { ...current, tracks } : current;
-      },
-      options
-    );
-  }, [commitProjectChange]);
+      }, options);
+    },
+    [commitProjectChange]
+  );
 
-  const updateNote = useCallback((trackId: string, noteId: string, patch: Partial<Note>, options?: { actionKey?: string; coalesce?: boolean }) => {
-    commitProjectChange(
-      (current) => {
+  const updateNote = useCallback(
+    (trackId: string, noteId: string, patch: Partial<Note>, options?: { actionKey?: string; coalesce?: boolean }) => {
+      commitProjectChange((current) => {
         let changed = false;
         const tracks = current.tracks.map((track) => {
           if (track.id !== trackId) {
@@ -81,28 +84,34 @@ export function useNoteEditor({ commitProjectChange }: UseNoteEditorArgs) {
           return changed ? { ...track, notes: nextNotes } : track;
         });
         return changed ? { ...current, tracks } : current;
-      },
-      options
-    );
-  }, [commitProjectChange]);
+      }, options);
+    },
+    [commitProjectChange]
+  );
 
-  const deleteNote = useCallback((trackId: string, noteId: string) => {
-    commitProjectChange((current) => {
-      let changed = false;
-      const tracks = current.tracks.map((track) => {
-        if (track.id !== trackId) {
-          return track;
-        }
-        const nextNotes = track.notes.filter((note) => note.id !== noteId);
-        if (nextNotes.length === track.notes.length) {
-          return track;
-        }
-        changed = true;
-        return { ...track, notes: nextNotes };
-      });
-      return changed ? { ...current, tracks } : current;
-    }, { actionKey: `track:${trackId}:delete-note:${noteId}` });
-  }, [commitProjectChange]);
+  const deleteNote = useCallback(
+    (trackId: string, noteId: string) => {
+      commitProjectChange(
+        (current) => {
+          let changed = false;
+          const tracks = current.tracks.map((track) => {
+            if (track.id !== trackId) {
+              return track;
+            }
+            const nextNotes = track.notes.filter((note) => note.id !== noteId);
+            if (nextNotes.length === track.notes.length) {
+              return track;
+            }
+            changed = true;
+            return { ...track, notes: nextNotes };
+          });
+          return changed ? { ...current, tracks } : current;
+        },
+        { actionKey: `track:${trackId}:delete-note:${noteId}` }
+      );
+    },
+    [commitProjectChange]
+  );
 
   return { upsertNote, updateNote, deleteNote };
 }

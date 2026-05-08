@@ -52,11 +52,11 @@ describe("audioProject", () => {
 
     const audioProject = toAudioProject(project, {
       samplePlayerById: {
-        asset_1: "{\"version\":1,\"name\":\"kick.wav\",\"sampleRate\":48000,\"samples\":[0,0.5,-0.5]}"
+        asset_1: '{"version":1,"name":"kick.wav","sampleRate":48000,"samples":[0,0.5,-0.5]}'
       }
     });
 
-    expect(audioProject.patches[0].nodes[0].params.sampleData).toContain("\"kick.wav\"");
+    expect(audioProject.patches[0].nodes[0].params.sampleData).toContain('"kick.wav"');
     expect(audioProject.patches[0].nodes[0].params.sampleAssetId).toBe("asset_1");
   });
 });

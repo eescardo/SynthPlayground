@@ -49,12 +49,7 @@ export const automationValueFromY = (y: number, laneY: number, laneHeight: numbe
 export const automationYFromValue = (value: number, laneY: number, laneHeight: number): number =>
   laneY + 6 + (1 - value) * Math.max(1, laneHeight - 12);
 
-function drawAutomationTriangle(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  side: "incoming" | "outgoing"
-) {
+function drawAutomationTriangle(ctx: CanvasRenderingContext2D, x: number, y: number, side: "incoming" | "outgoing") {
   ctx.beginPath();
   if (side === "incoming") {
     ctx.moveTo(x - AUTOMATION_SPLIT_HALF_WIDTH, y);
@@ -70,7 +65,11 @@ function drawAutomationTriangle(
   ctx.stroke();
 }
 
-export const findAutomationKeyframeRect = (rects: AutomationKeyframeRect[], x: number, y: number): AutomationKeyframeRect | null => {
+export const findAutomationKeyframeRect = (
+  rects: AutomationKeyframeRect[],
+  x: number,
+  y: number
+): AutomationKeyframeRect | null => {
   for (const rect of rects) {
     if (x >= rect.hitLeft && x <= rect.hitRight && y >= rect.hitTop && y <= rect.hitBottom) {
       return rect;
@@ -216,8 +215,8 @@ export function renderAutomationLane({
         hoveredAutomationKeyframe.side === "incoming"
           ? colors.noteHoverBorder
           : automationKeyframeSelectionKeys?.has(`${trackId}:${macroId}:${point.id}`)
-          ? colors.noteHoverBorder
-          : colors.automationHandle;
+            ? colors.noteHoverBorder
+            : colors.automationHandle;
       drawAutomationTriangle(ctx, incomingX, incomingY, "incoming");
       ctx.fillStyle =
         hoveredAutomationKeyframe?.trackId === trackId &&
@@ -226,8 +225,8 @@ export function renderAutomationLane({
         hoveredAutomationKeyframe.side === "outgoing"
           ? colors.noteHoverBorder
           : automationKeyframeSelectionKeys?.has(`${trackId}:${macroId}:${point.id}`)
-          ? colors.noteHoverBorder
-          : colors.automationHandle;
+            ? colors.noteHoverBorder
+            : colors.automationHandle;
       drawAutomationTriangle(ctx, outgoingX, outgoingY, "outgoing");
       if (registerHitTargets) {
         automationKeyframeRects.push({
@@ -270,8 +269,8 @@ export function renderAutomationLane({
         hoveredAutomationKeyframe.keyframeId === point.id
           ? colors.noteHoverBorder
           : automationKeyframeSelectionKeys?.has(`${trackId}:${macroId}:${point.id}`)
-          ? colors.noteHoverBorder
-          : colors.automationHandle;
+            ? colors.noteHoverBorder
+            : colors.automationHandle;
       ctx.beginPath();
       ctx.arc(pointX, outgoingY, AUTOMATION_SINGLE_RADIUS, 0, Math.PI * 2);
       ctx.fill();

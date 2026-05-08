@@ -50,7 +50,10 @@ export interface UseHardwareNavigationArgs {
   expandSelectionActionPopover: () => void;
   toggleTrackMacroPanel: (trackId: string, expanded: boolean) => void;
   deleteNote: (trackId: string, noteId: string) => void;
-  commitProjectChange: (updater: (current: Project) => Project, options?: { actionKey?: string; coalesce?: boolean }) => void;
+  commitProjectChange: (
+    updater: (current: Project) => Project,
+    options?: { actionKey?: string; coalesce?: boolean }
+  ) => void;
   audioEngineRef: RefObject<AudioEngine | null>;
   previewDefaultPitchNow: (pitch?: string) => void;
   releaseHeldDefaultPitchPreview: () => void;

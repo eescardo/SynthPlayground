@@ -12,7 +12,11 @@ export function usePatchWorkspaceHardwareNavigation({
   startHeldDefaultPitchPreview
 }: Pick<
   UseHardwareNavigationArgs,
-  "view" | "pitchPickerOpen" | "previewPitchPickerOpen" | "releaseHeldDefaultPitchPreview" | "startHeldDefaultPitchPreview"
+  | "view"
+  | "pitchPickerOpen"
+  | "previewPitchPickerOpen"
+  | "releaseHeldDefaultPitchPreview"
+  | "startHeldDefaultPitchPreview"
 >) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -55,11 +59,5 @@ export function usePatchWorkspaceHardwareNavigation({
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [
-    pitchPickerOpen,
-    previewPitchPickerOpen,
-    releaseHeldDefaultPitchPreview,
-    startHeldDefaultPitchPreview,
-    view
-  ]);
+  }, [pitchPickerOpen, previewPitchPickerOpen, releaseHeldDefaultPitchPreview, startHeldDefaultPitchPreview, view]);
 }

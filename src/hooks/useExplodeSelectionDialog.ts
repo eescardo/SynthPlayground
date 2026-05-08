@@ -22,7 +22,9 @@ export function useExplodeSelectionDialog({
   selectionKind,
   onCollapseSelectionActionPopover
 }: UseExplodeSelectionDialogParams) {
-  const [explodeSelectionDialogState, setExplodeSelectionDialogState] = useState<ExplodeSelectionDialogState | null>(null);
+  const [explodeSelectionDialogState, setExplodeSelectionDialogState] = useState<ExplodeSelectionDialogState | null>(
+    null
+  );
 
   const closeExplodeSelectionDialog = useCallback(() => {
     setExplodeSelectionDialogState(null);

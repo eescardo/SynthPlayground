@@ -16,34 +16,38 @@ afterEach(() => {
 });
 
 describe.sequential("ui video capture", () => {
-  test.each([...VIDEO_SCENARIOS])("captures %s without errors", (scenario) => {
-    const label = `vitest-${scenario}`;
-    cleanupLabels.add(label);
+  test.each([...VIDEO_SCENARIOS])(
+    "captures %s without errors",
+    (scenario) => {
+      const label = `vitest-${scenario}`;
+      cleanupLabels.add(label);
 
-    execFileSync("node", ["--import", "tsx", "scripts/ui-videos/capture.ts", scenario], {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        VIDEO_LABEL: label,
-        PLAYWRIGHT_PORT: portForScenario(scenario),
-        VIDEO_PLAYBACK_DURATION_MS: "800",
-        VIDEO_RECORD_COUNT_IN_MS: "400",
-        VIDEO_RECORD_HOLD_MS: "150",
-        VIDEO_RECORD_GAP_MS: "150",
-        VIDEO_RECORD_CYCLES: "2",
-        VIDEO_POST_ACTION_SETTLE_MS: "100"
-      },
-      maxBuffer: 16 * 1024 * 1024,
-      stdio: "pipe"
-    });
+      execFileSync("node", ["--import", "tsx", "scripts/ui-videos/capture.ts", scenario], {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          VIDEO_LABEL: label,
+          PLAYWRIGHT_PORT: portForScenario(scenario),
+          VIDEO_PLAYBACK_DURATION_MS: "800",
+          VIDEO_RECORD_COUNT_IN_MS: "400",
+          VIDEO_RECORD_HOLD_MS: "150",
+          VIDEO_RECORD_GAP_MS: "150",
+          VIDEO_RECORD_CYCLES: "2",
+          VIDEO_POST_ACTION_SETTLE_MS: "100"
+        },
+        maxBuffer: 16 * 1024 * 1024,
+        stdio: "pipe"
+      });
 
-    const videoOutputPath = path.join(repoRoot, "artifacts", "videos", label, `${scenario}.webm`);
-    const posterOutputPath = path.join(repoRoot, "artifacts", "videos", label, `${scenario}.png`);
-    expect(fs.existsSync(videoOutputPath)).toBe(true);
-    expect(fs.statSync(videoOutputPath).size).toBeGreaterThan(0);
-    expect(fs.existsSync(posterOutputPath)).toBe(true);
-    expect(fs.statSync(posterOutputPath).size).toBeGreaterThan(0);
-  }, 120_000);
+      const videoOutputPath = path.join(repoRoot, "artifacts", "videos", label, `${scenario}.webm`);
+      const posterOutputPath = path.join(repoRoot, "artifacts", "videos", label, `${scenario}.png`);
+      expect(fs.existsSync(videoOutputPath)).toBe(true);
+      expect(fs.statSync(videoOutputPath).size).toBeGreaterThan(0);
+      expect(fs.existsSync(posterOutputPath)).toBe(true);
+      expect(fs.statSync(posterOutputPath).size).toBeGreaterThan(0);
+    },
+    120_000
+  );
 });
 
 function portForScenario(scenario: VideoScenario): string {

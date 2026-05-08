@@ -1,5 +1,10 @@
 import type { SynthRenderer, SynthRenderStream } from "@/audio/renderers/shared/synth-renderer";
-import type { AudioProject, SynthRendererConfig, SynthStreamStartOptions, TransportSynthStreamStartOptions } from "@/types/audio";
+import type {
+  AudioProject,
+  SynthRendererConfig,
+  SynthStreamStartOptions,
+  TransportSynthStreamStartOptions
+} from "@/types/audio";
 
 export class WasmWorkletRenderer implements SynthRenderer {
   port: SynthRenderer["port"];

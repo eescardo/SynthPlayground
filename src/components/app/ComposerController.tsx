@@ -10,11 +10,7 @@ export interface ComposerControllerProps {
 }
 
 export function ComposerController(props: ComposerControllerProps) {
-  const {
-    clipboard,
-    transport,
-    viewProps
-  } = useComposerWorkspaceController(props);
+  const { clipboard, transport, viewProps } = useComposerWorkspaceController(props);
 
   return (
     <ProjectWorkspaceProvider clipboard={clipboard} transport={transport}>

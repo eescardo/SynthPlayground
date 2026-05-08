@@ -13,10 +13,7 @@ function getVolumePopoverPosition(anchor: HTMLElement) {
   const maxLeft = Math.max(VIEWPORT_MARGIN, window.innerWidth - VOLUME_POPOVER_WIDTH - VIEWPORT_MARGIN);
   const preferredLeft = rect.right + POPOVER_GAP;
   const fallbackLeft = rect.left - VOLUME_POPOVER_WIDTH - POPOVER_GAP;
-  const left =
-    preferredLeft <= maxLeft
-      ? preferredLeft
-      : clamp(fallbackLeft, VIEWPORT_MARGIN, maxLeft);
+  const left = preferredLeft <= maxLeft ? preferredLeft : clamp(fallbackLeft, VIEWPORT_MARGIN, maxLeft);
 
   const preferredTop = rect.top - 3;
   const maxTop = Math.max(VIEWPORT_MARGIN, window.innerHeight - VOLUME_POPOVER_HEIGHT - VIEWPORT_MARGIN);
@@ -56,25 +53,31 @@ export function useVolumePopover() {
     cancelVolumePopoverTimers();
   }, [cancelVolumePopoverTimers]);
 
-  const openVolumePopover = useCallback((trackId: string, anchor?: HTMLElement | null) => {
-    clearOpenTimer();
-    clearDismissTimer();
-    setVolumePopoverTrackId(trackId);
-    if (anchor) {
-      setVolumePopoverPosition(getVolumePopoverPosition(anchor));
-    }
-  }, [clearDismissTimer, clearOpenTimer]);
-
-  const scheduleVolumePopoverOpen = useCallback((trackId: string, anchor?: HTMLElement | null) => {
-    clearOpenTimer();
-    volumeOpenTimerRef.current = window.setTimeout(() => {
+  const openVolumePopover = useCallback(
+    (trackId: string, anchor?: HTMLElement | null) => {
+      clearOpenTimer();
+      clearDismissTimer();
       setVolumePopoverTrackId(trackId);
       if (anchor) {
         setVolumePopoverPosition(getVolumePopoverPosition(anchor));
       }
-      volumeOpenTimerRef.current = null;
-    }, 1000);
-  }, [clearOpenTimer]);
+    },
+    [clearDismissTimer, clearOpenTimer]
+  );
+
+  const scheduleVolumePopoverOpen = useCallback(
+    (trackId: string, anchor?: HTMLElement | null) => {
+      clearOpenTimer();
+      volumeOpenTimerRef.current = window.setTimeout(() => {
+        setVolumePopoverTrackId(trackId);
+        if (anchor) {
+          setVolumePopoverPosition(getVolumePopoverPosition(anchor));
+        }
+        volumeOpenTimerRef.current = null;
+      }, 1000);
+    },
+    [clearOpenTimer]
+  );
 
   const scheduleVolumePopoverDismiss = useCallback(() => {
     clearDismissTimer();

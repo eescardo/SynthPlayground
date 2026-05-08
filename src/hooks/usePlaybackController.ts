@@ -44,18 +44,21 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
   stopRecordingSessionRef.current = onStopRecordingSession;
   handleRecordingBeatRef.current = onHandleRecordingBeat;
 
-  const stopPlayback = useCallback((resetToCue = false) => {
-    stopRecordingSessionRef.current();
-    audioEngineRef.current?.stop();
-    setPlaying(false);
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    if (resetToCue) {
-      setPlayheadBeat(userCueBeat);
-    }
-  }, [audioEngineRef, setPlaying, setPlayheadBeat, userCueBeat]);
+  const stopPlayback = useCallback(
+    (resetToCue = false) => {
+      stopRecordingSessionRef.current();
+      audioEngineRef.current?.stop();
+      setPlaying(false);
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      if (resetToCue) {
+        setPlayheadBeat(userCueBeat);
+      }
+    },
+    [audioEngineRef, setPlaying, setPlayheadBeat, userCueBeat]
+  );
 
   const tickPlayhead = useCallback(() => {
     if (!audioEngineRef.current) return;
@@ -72,17 +75,20 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
     rafRef.current = window.requestAnimationFrame(tickPlayhead);
   }, [audioEngineRef, playbackEndBeat, project, setPlayheadBeat, stopPlayback, userCueBeat]);
 
-  const beginPlaybackAtBeat = useCallback(async (cueBeat: number) => {
-    if (!audioEngineRef.current) {
-      audioEngineRef.current = new AudioEngine();
-    }
-    audioEngineRef.current.setProject(audioProject, { syncToWorklet: true });
-    await audioEngineRef.current.play(cueBeat);
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-    }
-    rafRef.current = requestAnimationFrame(tickPlayhead);
-  }, [audioEngineRef, audioProject, tickPlayhead]);
+  const beginPlaybackAtBeat = useCallback(
+    async (cueBeat: number) => {
+      if (!audioEngineRef.current) {
+        audioEngineRef.current = new AudioEngine();
+      }
+      audioEngineRef.current.setProject(audioProject, { syncToWorklet: true });
+      await audioEngineRef.current.play(cueBeat);
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+      }
+      rafRef.current = requestAnimationFrame(tickPlayhead);
+    },
+    [audioEngineRef, audioProject, tickPlayhead]
+  );
 
   const startPlayback = useCallback(async () => {
     if (!wasmReady) {

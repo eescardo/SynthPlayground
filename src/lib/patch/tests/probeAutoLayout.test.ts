@@ -9,18 +9,12 @@ const patch: Patch = {
   id: "probe_layout_patch",
   name: "Probe Layout Patch",
   meta: { source: "custom" },
-  nodes: [
-    { id: "vco1", typeId: "VCO", params: {} }
-  ],
+  nodes: [{ id: "vco1", typeId: "VCO", params: {} }],
   ports: [createPatchOutputPort()],
-  connections: [
-    { id: "c1", from: { nodeId: "vco1", portId: "out" }, to: { nodeId: "output", portId: "in" } }
-  ],
+  connections: [{ id: "c1", from: { nodeId: "vco1", portId: "out" }, to: { nodeId: "output", portId: "in" } }],
   ui: { macros: [] },
   layout: {
-    nodes: [
-      { nodeId: "vco1", x: 8, y: 6 }
-    ]
+    nodes: [{ nodeId: "vco1", x: 8, y: 6 }]
   }
 };
 

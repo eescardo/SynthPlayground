@@ -52,9 +52,7 @@ export function eraseNotesInBeatRange(
     }
   }
 
-  return nextNotes
-    .filter((note) => note.durationBeats > 0)
-    .sort((a, b) => a.startBeat - b.startBeat);
+  return nextNotes.filter((note) => note.durationBeats > 0).sort((a, b) => a.startBeat - b.startBeat);
 }
 
 // Return the portion of each note that lies inside the requested beat range.

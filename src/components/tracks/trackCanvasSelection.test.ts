@@ -11,7 +11,16 @@ describe("trackCanvasSelection", () => {
       y: 28,
       height: 120,
       automationLanes: [
-        { laneId: "macro_cutoff", laneType: "macro", macroId: "macro_cutoff", name: "Cutoff", y: 88, height: 30, expanded: true, automated: true }
+        {
+          laneId: "macro_cutoff",
+          laneType: "macro",
+          macroId: "macro_cutoff",
+          name: "Cutoff",
+          y: 88,
+          height: 30,
+          expanded: true,
+          automated: true
+        }
       ]
     },
     {
@@ -20,7 +29,16 @@ describe("trackCanvasSelection", () => {
       y: 148,
       height: 120,
       automationLanes: [
-        { laneId: "macro_cutoff", laneType: "macro", macroId: "macro_cutoff", name: "Cutoff", y: 208, height: 30, expanded: true, automated: true }
+        {
+          laneId: "macro_cutoff",
+          laneType: "macro",
+          macroId: "macro_cutoff",
+          name: "Cutoff",
+          y: 208,
+          height: 30,
+          expanded: true,
+          automated: true
+        }
       ]
     }
   ];
@@ -28,9 +46,7 @@ describe("trackCanvasSelection", () => {
   it("selects only automation keyframes when the marquee stays inside one track's automation lanes", () => {
     const resolved = resolveTrackCanvasSelectionFromRect(
       { startX: 120, startY: 90, endX: 220, endY: 116 },
-      [
-        { trackId: "track_1", noteId: "note_a", x: 130, y: 40, w: 40, h: 20 }
-      ],
+      [{ trackId: "track_1", noteId: "note_a", x: 130, y: 40, w: 40, h: 20 }],
       [
         {
           trackId: "track_1",

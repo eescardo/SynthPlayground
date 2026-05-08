@@ -47,7 +47,8 @@ export const seedProject = async (page: Page, project: Project) => {
     window.sessionStorage.clear();
     await new Promise<void>((resolve, reject) => {
       const deleteRequest = window.indexedDB.deleteDatabase("synth-playground");
-      deleteRequest.onerror = () => reject(deleteRequest.error ?? new Error("Failed to clear synth-playground database."));
+      deleteRequest.onerror = () =>
+        reject(deleteRequest.error ?? new Error("Failed to clear synth-playground database."));
       deleteRequest.onblocked = () => resolve();
       deleteRequest.onsuccess = () => resolve();
     });
@@ -243,9 +244,7 @@ export const createSamplePlayerCaptureProject = (): Project => {
     ],
     ui: { macros: [] },
     layout: {
-      nodes: [
-        { nodeId: sampleNodeId, x: 8, y: 6 }
-      ]
+      nodes: [{ nodeId: sampleNodeId, x: 8, y: 6 }]
     }
   };
 
@@ -297,7 +296,14 @@ export const createPatchModuleFacesCaptureProject = (): Project => {
     {
       id: "env_shape",
       typeId: "ADSR",
-      params: { ...createDefaultParamsForType("ADSR"), attack: 60, decay: 320, sustain: 0.46, release: 620, curve: -0.65 }
+      params: {
+        ...createDefaultParamsForType("ADSR"),
+        attack: 60,
+        decay: 320,
+        sustain: 0.46,
+        release: 620,
+        curve: -0.65
+      }
     },
     {
       id: "lfo_shape",
@@ -307,7 +313,13 @@ export const createPatchModuleFacesCaptureProject = (): Project => {
     {
       id: "string_shape",
       typeId: "KarplusStrong",
-      params: { ...createDefaultParamsForType("KarplusStrong"), decay: 0.97, damping: 0.38, brightness: 0.86, excitation: "noise" }
+      params: {
+        ...createDefaultParamsForType("KarplusStrong"),
+        decay: 0.97,
+        damping: 0.38,
+        brightness: 0.86,
+        excitation: "noise"
+      }
     },
     {
       id: "noise_shape",
@@ -353,17 +365,45 @@ export const createPatchModuleFacesCaptureProject = (): Project => {
     nodes,
     ports: [createPatchOutputPort({ gainDb: -8, limiter: true })],
     connections: [
-      { id: "host_gate_env", from: { nodeId: HOST_PORT_IDS.gate, portId: "out" }, to: { nodeId: "env_shape", portId: "gate" } },
-      { id: "host_gate_string", from: { nodeId: HOST_PORT_IDS.gate, portId: "out" }, to: { nodeId: "string_shape", portId: "gate" } },
-      { id: "lfo_to_string_pitch", from: { nodeId: "lfo_shape", portId: "out" }, to: { nodeId: "string_shape", portId: "pitch" } },
+      {
+        id: "host_gate_env",
+        from: { nodeId: HOST_PORT_IDS.gate, portId: "out" },
+        to: { nodeId: "env_shape", portId: "gate" }
+      },
+      {
+        id: "host_gate_string",
+        from: { nodeId: HOST_PORT_IDS.gate, portId: "out" },
+        to: { nodeId: "string_shape", portId: "gate" }
+      },
+      {
+        id: "lfo_to_string_pitch",
+        from: { nodeId: "lfo_shape", portId: "out" },
+        to: { nodeId: "string_shape", portId: "pitch" }
+      },
       { id: "noise_to_vca", from: { nodeId: "noise_shape", portId: "out" }, to: { nodeId: "vca_shape", portId: "in" } },
       { id: "env_to_vca", from: { nodeId: "env_shape", portId: "out" }, to: { nodeId: "vca_shape", portId: "gainCV" } },
       { id: "vca_to_delay", from: { nodeId: "vca_shape", portId: "out" }, to: { nodeId: "delay_shape", portId: "in" } },
-      { id: "delay_to_reverb", from: { nodeId: "delay_shape", portId: "out" }, to: { nodeId: "reverb_shape", portId: "in" } },
-      { id: "reverb_to_drive", from: { nodeId: "reverb_shape", portId: "out" }, to: { nodeId: "drive_shape", portId: "in" } },
-      { id: "drive_to_comp", from: { nodeId: "drive_shape", portId: "out" }, to: { nodeId: "comp_shape", portId: "in" } },
+      {
+        id: "delay_to_reverb",
+        from: { nodeId: "delay_shape", portId: "out" },
+        to: { nodeId: "reverb_shape", portId: "in" }
+      },
+      {
+        id: "reverb_to_drive",
+        from: { nodeId: "reverb_shape", portId: "out" },
+        to: { nodeId: "drive_shape", portId: "in" }
+      },
+      {
+        id: "drive_to_comp",
+        from: { nodeId: "drive_shape", portId: "out" },
+        to: { nodeId: "comp_shape", portId: "in" }
+      },
       { id: "comp_to_mix", from: { nodeId: "comp_shape", portId: "out" }, to: { nodeId: "mix_shape", portId: "in1" } },
-      { id: "string_to_mix", from: { nodeId: "string_shape", portId: "out" }, to: { nodeId: "mix_shape", portId: "in2" } },
+      {
+        id: "string_to_mix",
+        from: { nodeId: "string_shape", portId: "out" },
+        to: { nodeId: "mix_shape", portId: "in2" }
+      },
       { id: "mix_to_output", from: { nodeId: "mix_shape", portId: "out" }, to: { nodeId: "output", portId: "in" } }
     ],
     ui: { macros: [] },
@@ -532,7 +572,9 @@ export const createBaselineDiffCaptureProject = (): Project => {
   diffPatch.id = diffPatchId;
   diffPatch.name = "Baseline Lead Copy";
   diffPatch.nodes = diffPatch.nodes.filter((node) => node.id !== "env1");
-  diffPatch.connections = diffPatch.connections.filter((connection) => !["gate_to_env", "env_to_vca", "vca_to_out"].includes(connection.id));
+  diffPatch.connections = diffPatch.connections.filter(
+    (connection) => !["gate_to_env", "env_to_vca", "vca_to_out"].includes(connection.id)
+  );
   diffPatch.ui.macros = [
     {
       id: "macro_shape",
@@ -613,7 +655,8 @@ export const createBaselineDiffCaptureProject = (): Project => {
   };
   // Keep this assignment dynamic so the capture helper still compiles against the base revision
   // when the PR screenshot workflow overlays the latest tooling onto the PR base checkout.
-  ((project.ui.patchWorkspace.tabs[1] as unknown) as Record<string, unknown>).baselinePatch = structuredClone(baselinePatch);
+  (project.ui.patchWorkspace.tabs[1] as unknown as Record<string, unknown>).baselinePatch =
+    structuredClone(baselinePatch);
   return project;
 };
 
@@ -679,16 +722,15 @@ export const waitForServer = async (url: string, timeoutMs: number) => {
   throw new Error(`Timed out waiting for dev server at ${url}`);
 };
 
-export const startDevServer = (port: number, envOverrides?: Record<string, string>): ChildProcess =>
-  {
-    const distDir = `.next-ui-capture-${port}`;
-    fs.rmSync(path.join(process.cwd(), distDir), { recursive: true, force: true });
-    return spawn("pnpm", ["exec", "next", "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
-      cwd: process.cwd(),
-      stdio: "inherit",
-      env: { ...process.env, NEXT_UI_CAPTURE: "1", NEXT_DIST_DIR: distDir, ...envOverrides }
-    });
-  };
+export const startDevServer = (port: number, envOverrides?: Record<string, string>): ChildProcess => {
+  const distDir = `.next-ui-capture-${port}`;
+  fs.rmSync(path.join(process.cwd(), distDir), { recursive: true, force: true });
+  return spawn("pnpm", ["exec", "next", "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
+    cwd: process.cwd(),
+    stdio: "inherit",
+    env: { ...process.env, NEXT_UI_CAPTURE: "1", NEXT_DIST_DIR: distDir, ...envOverrides }
+  });
+};
 
 export const savePageScreenshot = async (page: Page, outputPath: string, locator?: string) => {
   ensureArtifactDir(outputPath);

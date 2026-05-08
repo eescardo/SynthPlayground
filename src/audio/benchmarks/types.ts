@@ -102,10 +102,13 @@ export interface AudioBenchmarkScenarioComparison {
   scenarioId: string;
   base: AudioBenchmarkScenarioResult | null;
   head: AudioBenchmarkScenarioResult;
-  deltas: Record<keyof AudioBenchmarkMetricSummaries, {
-    absolute: number | null;
-    percent: number | null;
-  }>;
+  deltas: Record<
+    keyof AudioBenchmarkMetricSummaries,
+    {
+      absolute: number | null;
+      percent: number | null;
+    }
+  >;
 }
 
 export interface AudioBenchmarkComparisonBundle {

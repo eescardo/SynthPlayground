@@ -99,7 +99,8 @@ export function resolveScopeTimeMarkers(durationSeconds: number, compact = false
 
 export function resolveSpectrumFrequencyMarkers(maxFrequencyHz: number): SpectrumFrequencyMarker[] {
   const limitedCandidates = SPECTRUM_REFERENCE_FREQUENCIES.filter((frequency) => frequency < maxFrequencyHz * 0.98);
-  const candidates = limitedCandidates.length > 0 ? limitedCandidates : [Math.max(100, Math.round(maxFrequencyHz * 0.5))];
+  const candidates =
+    limitedCandidates.length > 0 ? limitedCandidates : [Math.max(100, Math.round(maxFrequencyHz * 0.5))];
   const targets = [0.18, 0.45, 0.8];
   const selected = new Set<number>();
 

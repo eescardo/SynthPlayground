@@ -27,7 +27,11 @@ export function PatchToolbarPicker(props: PatchToolbarPickerProps) {
         {props.buttonLabel}
       </button>
       {open && (
-        <div className={`patch-toolbar-picker-popover ${props.popoverClassName ?? ""}`.trim()} role="dialog" aria-label={props.popoverAriaLabel}>
+        <div
+          className={`patch-toolbar-picker-popover ${props.popoverClassName ?? ""}`.trim()}
+          role="dialog"
+          aria-label={props.popoverAriaLabel}
+        >
           {typeof props.children === "function" ? props.children({ close: () => setOpen(false) }) : props.children}
         </div>
       )}

@@ -47,7 +47,8 @@ type RawTemplateProject = {
 const templateProject = defaultProjectTemplateData as RawTemplateProject;
 
 const asString = (value: unknown, fallback: string): string => (typeof value === "string" ? value : fallback);
-const asFiniteNumber = (value: unknown, fallback: number): number => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
+const asFiniteNumber = (value: unknown, fallback: number): number =>
+  typeof value === "number" && Number.isFinite(value) ? value : fallback;
 
 const sanitizeTemplateTrack = (track: RawTemplateTrack, index: number): Track => {
   const fx = typeof track.fx === "object" && track.fx !== null ? track.fx : {};
@@ -132,7 +133,15 @@ const buildTemplateLayoutByPatchId = (): Map<string, Map<string, { x: number; y:
               if (!nodeId) {
                 return [];
               }
-              return [[nodeId, { x: Math.max(0, Math.floor(asFiniteNumber(entry.x, 0))), y: Math.max(0, Math.floor(asFiniteNumber(entry.y, 0))) }]];
+              return [
+                [
+                  nodeId,
+                  {
+                    x: Math.max(0, Math.floor(asFiniteNumber(entry.x, 0))),
+                    y: Math.max(0, Math.floor(asFiniteNumber(entry.y, 0)))
+                  }
+                ]
+              ];
             })
           )
         ] as const
@@ -141,7 +150,10 @@ const buildTemplateLayoutByPatchId = (): Map<string, Map<string, { x: number; y:
   );
 };
 
-const mergePresetLayout = (patch: Patch, templateLayoutByPatchId: Map<string, Map<string, { x: number; y: number }>>): Patch => {
+const mergePresetLayout = (
+  patch: Patch,
+  templateLayoutByPatchId: Map<string, Map<string, { x: number; y: number }>>
+): Patch => {
   const templateLayout = templateLayoutByPatchId.get(patch.id);
   if (!templateLayout) {
     return structuredClone(patch);
@@ -161,8 +173,10 @@ const mergePresetLayout = (patch: Patch, templateLayoutByPatchId: Map<string, Ma
 
 export const createDefaultProjectFromTemplate = (bundledPresetPatches: Patch[]): Project => {
   const now = Date.now();
-  const global = typeof templateProject.global === "object" && templateProject.global !== null ? templateProject.global : {};
-  const masterFx = typeof templateProject.masterFx === "object" && templateProject.masterFx !== null ? templateProject.masterFx : {};
+  const global =
+    typeof templateProject.global === "object" && templateProject.global !== null ? templateProject.global : {};
+  const masterFx =
+    typeof templateProject.masterFx === "object" && templateProject.masterFx !== null ? templateProject.masterFx : {};
   const tracksRaw = Array.isArray(templateProject.tracks) ? templateProject.tracks : [];
   const templateLayoutByPatchId = buildTemplateLayoutByPatchId();
 
@@ -171,7 +185,7 @@ export const createDefaultProjectFromTemplate = (bundledPresetPatches: Patch[]):
       patchWorkspace: createInitialPatchWorkspaceState(
         tracksRaw[0]?.instrumentPatchId && typeof tracksRaw[0].instrumentPatchId === "string"
           ? tracksRaw[0].instrumentPatchId
-          : bundledPresetPatches[0]?.id ?? "preset_bass",
+          : (bundledPresetPatches[0]?.id ?? "preset_bass"),
         bundledPresetPatches
       )
     },
@@ -197,7 +211,10 @@ export const createDefaultProjectFromTemplate = (bundledPresetPatches: Patch[]):
               kind === "end"
                 ? Math.max(
                     DEFAULT_LOOP_REPEAT_COUNT,
-                    Math.min(MAX_LOOP_REPEAT_COUNT, Math.round(asFiniteNumber(marker.repeatCount, DEFAULT_LOOP_REPEAT_COUNT)))
+                    Math.min(
+                      MAX_LOOP_REPEAT_COUNT,
+                      Math.round(asFiniteNumber(marker.repeatCount, DEFAULT_LOOP_REPEAT_COUNT))
+                    )
                   )
                 : undefined
           }

@@ -100,7 +100,8 @@ const compareScenario = (
     const headMean = head.summaries[key].mean;
     deltas[key] = {
       absolute: typeof baseMean === "number" ? headMean - baseMean : null,
-      percent: typeof baseMean === "number" && Math.abs(baseMean) > 1e-9 ? ((headMean - baseMean) / baseMean) * 100 : null
+      percent:
+        typeof baseMean === "number" && Math.abs(baseMean) > 1e-9 ? ((headMean - baseMean) / baseMean) * 100 : null
     };
   });
   return {
@@ -143,12 +144,14 @@ const renderScenarioMarkdown = (
     "macroEventCount"
   ];
 
-  const rows = keys.map((key) => {
-    const baseSummary = base?.summaries[key];
-    const headSummary = head.summaries[key];
-    const delta = deltas[key];
-    return `| ${metricLabel[key]} | ${formatOptional(baseSummary?.mean, key)} | ${formatOptional(headSummary.mean, key)} | ${formatOptional(delta.absolute, key)} | ${formatPercent(delta.percent)} | ${deltaDirection(key, delta.absolute)} |`;
-  }).join("\n");
+  const rows = keys
+    .map((key) => {
+      const baseSummary = base?.summaries[key];
+      const headSummary = head.summaries[key];
+      const delta = deltas[key];
+      return `| ${metricLabel[key]} | ${formatOptional(baseSummary?.mean, key)} | ${formatOptional(headSummary.mean, key)} | ${formatOptional(delta.absolute, key)} | ${formatPercent(delta.percent)} | ${deltaDirection(key, delta.absolute)} |`;
+    })
+    .join("\n");
 
   return [
     `### ${head.scenario.name}`,

@@ -33,25 +33,31 @@ export function useProjectAudioActions(options: UseProjectAudioActionsOptions) {
   const { audioEngineRef, commitProjectChange, project, projectAssets, setRuntimeError } = options;
   const [exportingAudio, setExportingAudio] = useState(false);
 
-  const setTrackVolume = useCallback((trackId: string, volume: number, actionOptions?: { commit?: boolean }) => {
-    const clampedVolume = clampTrackVolume(volume);
-    audioEngineRef.current?.setMacroValue(trackId, TRACK_VOLUME_AUTOMATION_ID, clampedVolume / 2);
-    commitProjectChange((current) => ({
-      ...current,
-      tracks: current.tracks.map((track) =>
-        track.id === trackId
-          ? {
-              ...track,
-              volume: clampedVolume,
-              mute: isTrackVolumeMuted(volume) ? true : false
-            }
-          : track
-      )
-    }), {
-      actionKey: `track:${trackId}:volume`,
-      coalesce: actionOptions?.commit === false
-    });
-  }, [audioEngineRef, commitProjectChange]);
+  const setTrackVolume = useCallback(
+    (trackId: string, volume: number, actionOptions?: { commit?: boolean }) => {
+      const clampedVolume = clampTrackVolume(volume);
+      audioEngineRef.current?.setMacroValue(trackId, TRACK_VOLUME_AUTOMATION_ID, clampedVolume / 2);
+      commitProjectChange(
+        (current) => ({
+          ...current,
+          tracks: current.tracks.map((track) =>
+            track.id === trackId
+              ? {
+                  ...track,
+                  volume: clampedVolume,
+                  mute: isTrackVolumeMuted(volume) ? true : false
+                }
+              : track
+          )
+        }),
+        {
+          actionKey: `track:${trackId}:volume`,
+          coalesce: actionOptions?.commit === false
+        }
+      );
+    },
+    [audioEngineRef, commitProjectChange]
+  );
 
   const exportAudio = useCallback(async () => {
     if (!audioEngineRef.current || exportingAudio) {

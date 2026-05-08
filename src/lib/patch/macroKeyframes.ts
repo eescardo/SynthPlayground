@@ -26,7 +26,11 @@ export function findNearestMacroKeyframeIndex(keyframeCount: number, normalized:
   return bestIndex;
 }
 
-export function snapNormalizedToMacroKeyframe(keyframeCount: number, normalized: number, threshold = MACRO_KEYFRAME_SNAP_THRESHOLD) {
+export function snapNormalizedToMacroKeyframe(
+  keyframeCount: number,
+  normalized: number,
+  threshold = MACRO_KEYFRAME_SNAP_THRESHOLD
+) {
   const positions = getMacroKeyframePositions(keyframeCount);
   const clamped = clampNormalizedMacroValue(normalized);
   const nearestIndex = findNearestMacroKeyframeIndex(keyframeCount, clamped);
@@ -132,7 +136,9 @@ export function setMacroBindingValueAtKeyframe(
 
   if (normalizedKeyframeCount <= 2) {
     if (binding.points && binding.points.length >= 2) {
-      const nextPoints = binding.points.map((point, index) => (index === keyframeIndex ? { ...point, y: nextValue } : point));
+      const nextPoints = binding.points.map((point, index) =>
+        index === keyframeIndex ? { ...point, y: nextValue } : point
+      );
       return { ...binding, points: nextPoints };
     }
 
@@ -143,7 +149,9 @@ export function setMacroBindingValueAtKeyframe(
   }
 
   const keyframedBinding = convertBindingToKeyframeCount(binding, normalizedKeyframeCount);
-  const nextPoints = (keyframedBinding.points ?? []).map((point, index) => (index === keyframeIndex ? { ...point, y: nextValue } : point));
+  const nextPoints = (keyframedBinding.points ?? []).map((point, index) =>
+    index === keyframeIndex ? { ...point, y: nextValue } : point
+  );
   return {
     ...keyframedBinding,
     points: nextPoints

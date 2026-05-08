@@ -205,12 +205,15 @@ export async function previewSampleAsset(
   source.connect(context.destination);
   source.start(0, trim.startSample / asset.sampleRate, trim.durationSamples / asset.sampleRate);
   if (source.loop) {
-    window.setTimeout(() => {
-      try {
-        source.stop();
-      } catch {
-        // Ignore if already stopped.
-      }
-    }, Math.min(4000, Math.round((trim.durationSamples / asset.sampleRate) * 2000)));
+    window.setTimeout(
+      () => {
+        try {
+          source.stop();
+        } catch {
+          // Ignore if already stopped.
+        }
+      },
+      Math.min(4000, Math.round((trim.durationSamples / asset.sampleRate) * 2000))
+    );
   }
 }

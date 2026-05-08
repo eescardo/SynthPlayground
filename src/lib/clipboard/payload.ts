@@ -5,7 +5,11 @@ import {
   getSelectedNoteIdsByTrackId,
   getSelectionBeatRange
 } from "@/lib/clipboard/selection";
-import { clipAutomationLaneToBeatRange, ClipboardAutomationKeyframeData, ClipboardAutomationLaneData } from "@/lib/automationTimelineEditing";
+import {
+  clipAutomationLaneToBeatRange,
+  ClipboardAutomationKeyframeData,
+  ClipboardAutomationLaneData
+} from "@/lib/automationTimelineEditing";
 import { Project, Track } from "@/types/music";
 
 const NOTE_CLIPBOARD_TYPE = "synth-playground/note-selection";
@@ -159,7 +163,9 @@ const isNoteClipboardPayload = (value: unknown): value is NoteClipboardPayload =
 
 const getProjectTimelineEndBeat = (project: Project, fallbackEndBeat = 0) =>
   Math.max(
-    project.tracks.flatMap((track) => track.notes).reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0),
+    project.tracks
+      .flatMap((track) => track.notes)
+      .reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0),
     fallbackEndBeat
   );
 
@@ -310,7 +316,10 @@ export function buildAllTracksClipboardPayload(project: Project, range: BeatRang
   };
 }
 
-export function explodeNoteClipboardPayload(payload: NoteClipboardPayload, iterations: number): NoteClipboardPayload | null {
+export function explodeNoteClipboardPayload(
+  payload: NoteClipboardPayload,
+  iterations: number
+): NoteClipboardPayload | null {
   if (!Number.isInteger(iterations) || iterations <= 0) {
     return null;
   }
@@ -366,7 +375,10 @@ const extractEncodedPayload = (html: string | null | undefined, plainText: strin
   return trimmedText ? trimmedText : null;
 };
 
-export function parseNoteClipboardPayload(html: string | null | undefined, plainText: string | null | undefined): NoteClipboardPayload | null {
+export function parseNoteClipboardPayload(
+  html: string | null | undefined,
+  plainText: string | null | undefined
+): NoteClipboardPayload | null {
   const encoded = extractEncodedPayload(html, plainText);
   if (!encoded) {
     return null;

@@ -125,10 +125,7 @@ function normalizeBindingNodeIdForDiff(patch: Patch, nodeId: string) {
   return isPatchOutputPortId(patch, nodeId) ? PATCH_OUTPUT_PORT_ID : nodeId;
 }
 
-function normalizeConnectionEndpointForDiff(
-  patch: Patch,
-  endpoint: PatchConnection["from"] | PatchConnection["to"]
-) {
+function normalizeConnectionEndpointForDiff(patch: Patch, endpoint: PatchConnection["from"] | PatchConnection["to"]) {
   return {
     nodeId: normalizeBindingNodeIdForDiff(patch, endpoint.nodeId),
     portId: endpoint.portId
@@ -245,7 +242,11 @@ function buildParamRangeIdsByNodeId(patch: Patch): Map<string, Set<string>> {
   return paramIdsByNodeId;
 }
 
-function resolveParam(currentNode: PatchNode, baselineNode: PatchNode, paramId: string): {
+function resolveParam(
+  currentNode: PatchNode,
+  baselineNode: PatchNode,
+  paramId: string
+): {
   currentSchema?: ParamSchema;
   baselineSchema?: ParamSchema;
 } {
@@ -254,10 +255,7 @@ function resolveParam(currentNode: PatchNode, baselineNode: PatchNode, paramId: 
   return { currentSchema, baselineSchema };
 }
 
-function addRemovedBindingDiff(
-  map: Map<string, PatchBindingDiff[]>,
-  diff: PatchBindingDiff
-) {
+function addRemovedBindingDiff(map: Map<string, PatchBindingDiff[]>, diff: PatchBindingDiff) {
   const nodeParamKey = buildNodeParamKey(diff.nodeId, diff.paramId);
   const current = map.get(nodeParamKey) ?? [];
   current.push(diff);
@@ -280,7 +278,9 @@ function hasUnchangedMacroBindingForParam(
     if (!currentEntry || !baselineEntry) {
       continue;
     }
-    if (serializeBinding(currentPatch, currentEntry.binding) === serializeBinding(baselinePatch, baselineEntry.binding)) {
+    if (
+      serializeBinding(currentPatch, currentEntry.binding) === serializeBinding(baselinePatch, baselineEntry.binding)
+    ) {
       return true;
     }
   }
@@ -311,8 +311,16 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
   const baselineBindingIndexes = buildBindingIndexes(baselinePatch);
   const currentBindingsByKey = currentBindingIndexes.byKey;
   const baselineBindingsByKey = baselineBindingIndexes.byKey;
-  const currentConnectionsByKey = new Map(currentPatch.connections.map((connection) => [createConnectionDiffKey(currentPatch, connection), connection] as const));
-  const baselineConnectionsByKey = new Map(baselinePatch.connections.map((connection) => [createConnectionDiffKey(baselinePatch, connection), connection] as const));
+  const currentConnectionsByKey = new Map(
+    currentPatch.connections.map(
+      (connection) => [createConnectionDiffKey(currentPatch, connection), connection] as const
+    )
+  );
+  const baselineConnectionsByKey = new Map(
+    baselinePatch.connections.map(
+      (connection) => [createConnectionDiffKey(baselinePatch, connection), connection] as const
+    )
+  );
   const currentConnectionKeysByNodeId = buildConnectionKeysByNodeId(currentPatch);
   const baselineConnectionKeysByNodeId = buildConnectionKeysByNodeId(baselinePatch);
   const currentParamRangeIdsByNodeId = buildParamRangeIdsByNodeId(currentPatch);
@@ -343,7 +351,9 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
     baselineParamRangeIdsByNodeId.get(node.id)?.forEach((paramId) => paramIds.add(paramId));
     paramIds.forEach((paramId) => {
       const paramRangeKey = buildNodeParamKey(node.id, paramId);
-      if (!isSameParamRange(currentPatch.ui.paramRanges?.[paramRangeKey], baselinePatch.ui.paramRanges?.[paramRangeKey])) {
+      if (
+        !isSameParamRange(currentPatch.ui.paramRanges?.[paramRangeKey], baselinePatch.ui.paramRanges?.[paramRangeKey])
+      ) {
         changedParamIds.add(paramId);
         changedParamRangeIds.add(paramId);
         return;
@@ -357,10 +367,26 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
       if (!isSameParamValue(getParamValue(node, currentSchema), getParamValue(baselineNode, baselineSchema))) {
         const currentBindingKeys = currentBindingIndexes.keysByNodeParamKey.get(paramRangeKey);
         const baselineBindingKeys = baselineBindingIndexes.keysByNodeParamKey.get(paramRangeKey);
-        if (hasUnchangedMacroBindingForParam(currentBindingKeys, currentPatch, baselinePatch, currentBindingsByKey, baselineBindingsByKey)) {
+        if (
+          hasUnchangedMacroBindingForParam(
+            currentBindingKeys,
+            currentPatch,
+            baselinePatch,
+            currentBindingsByKey,
+            baselineBindingsByKey
+          )
+        ) {
           return;
         }
-        if (hasUnchangedMacroBindingForParam(baselineBindingKeys, currentPatch, baselinePatch, currentBindingsByKey, baselineBindingsByKey)) {
+        if (
+          hasUnchangedMacroBindingForParam(
+            baselineBindingKeys,
+            currentPatch,
+            baselinePatch,
+            currentBindingsByKey,
+            baselineBindingsByKey
+          )
+        ) {
           return;
         }
         changedParamIds.add(paramId);
@@ -468,7 +494,12 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
 
     const nameChanged = macro.name !== baselineMacro.name;
     const keyframeCountChanged = macro.keyframeCount !== baselineMacro.keyframeCount;
-    const modified = nameChanged || keyframeCountChanged || addedBindingKeys.size > 0 || changedBindingKeys.size > 0 || removedBindingKeys.size > 0;
+    const modified =
+      nameChanged ||
+      keyframeCountChanged ||
+      addedBindingKeys.size > 0 ||
+      changedBindingKeys.size > 0 ||
+      removedBindingKeys.size > 0;
 
     if (modified) {
       summary.modifiedMacroCount += 1;
@@ -554,13 +585,18 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
     currentConnectionStatusById.set(connection.id, "added");
   });
 
-  const addedConnections = currentPatch.connections.filter((connection) => currentConnectionStatusById.get(connection.id) === "added");
-  const currentConnectionKeys = new Set(currentPatch.connections.map((connection) => createConnectionDiffKey(currentPatch, connection)));
-  const removedConnections = baselinePatch.connections.filter((connection) => !currentConnectionKeys.has(createConnectionDiffKey(baselinePatch, connection)));
+  const addedConnections = currentPatch.connections.filter(
+    (connection) => currentConnectionStatusById.get(connection.id) === "added"
+  );
+  const currentConnectionKeys = new Set(
+    currentPatch.connections.map((connection) => createConnectionDiffKey(currentPatch, connection))
+  );
+  const removedConnections = baselinePatch.connections.filter(
+    (connection) => !currentConnectionKeys.has(createConnectionDiffKey(baselinePatch, connection))
+  );
   summary.removedConnectionCount = removedConnections.length;
 
-  const hasChanges =
-    Object.values(summary).some((count) => count > 0);
+  const hasChanges = Object.values(summary).some((count) => count > 0);
 
   return {
     hasBaseline: true,

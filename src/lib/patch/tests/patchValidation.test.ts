@@ -34,7 +34,9 @@ describe("patch validation", () => {
     const result = validatePatch(patch);
 
     expect(result.ok).toBe(false);
-    expect(result.issues.some((issue) => issue.message.includes("Conflicting macro bindings target the same parameter"))).toBe(true);
+    expect(
+      result.issues.some((issue) => issue.message.includes("Conflicting macro bindings target the same parameter"))
+    ).toBe(true);
   });
 
   it("rejects duplicate bindings to the same parameter within one macro", () => {
@@ -51,7 +53,9 @@ describe("patch validation", () => {
     const result = validatePatch(patch);
 
     expect(result.ok).toBe(false);
-    expect(result.issues.some((issue) => issue.message.includes("Macro binds the same parameter more than once"))).toBe(true);
+    expect(result.issues.some((issue) => issue.message.includes("Macro binds the same parameter more than once"))).toBe(
+      true
+    );
   });
 
   it("reports stale macro bindings with the macro and target names", () => {
@@ -206,13 +210,37 @@ describe("patch validation", () => {
     expect(result.ok).toBe(false);
     expect(result.issues).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ level: "warning", code: "node-param-unknown", context: expect.objectContaining({ nodeId: "verb1", paramId: "size" }) }),
-        expect.objectContaining({ level: "warning", code: "node-param-unknown", context: expect.objectContaining({ nodeId: "verb1", paramId: "damping" }) }),
-        expect.objectContaining({ level: "warning", code: "node-param-out-of-range", context: expect.objectContaining({ nodeId: "verb1", paramId: "decay" }) }),
-        expect.objectContaining({ code: "param-range-invalid-param", context: expect.objectContaining({ nodeId: "verb1", paramId: "size" }) }),
-        expect.objectContaining({ code: "param-range-out-of-range", context: expect.objectContaining({ nodeId: "verb1", paramId: "decay" }) }),
-        expect.objectContaining({ code: "macro-binding-invalid-param", context: expect.objectContaining({ nodeId: "verb1", paramId: "size" }) }),
-        expect.objectContaining({ code: "macro-binding-range-out-of-range", context: expect.objectContaining({ nodeId: "verb1", paramId: "decay" }) })
+        expect.objectContaining({
+          level: "warning",
+          code: "node-param-unknown",
+          context: expect.objectContaining({ nodeId: "verb1", paramId: "size" })
+        }),
+        expect.objectContaining({
+          level: "warning",
+          code: "node-param-unknown",
+          context: expect.objectContaining({ nodeId: "verb1", paramId: "damping" })
+        }),
+        expect.objectContaining({
+          level: "warning",
+          code: "node-param-out-of-range",
+          context: expect.objectContaining({ nodeId: "verb1", paramId: "decay" })
+        }),
+        expect.objectContaining({
+          code: "param-range-invalid-param",
+          context: expect.objectContaining({ nodeId: "verb1", paramId: "size" })
+        }),
+        expect.objectContaining({
+          code: "param-range-out-of-range",
+          context: expect.objectContaining({ nodeId: "verb1", paramId: "decay" })
+        }),
+        expect.objectContaining({
+          code: "macro-binding-invalid-param",
+          context: expect.objectContaining({ nodeId: "verb1", paramId: "size" })
+        }),
+        expect.objectContaining({
+          code: "macro-binding-range-out-of-range",
+          context: expect.objectContaining({ nodeId: "verb1", paramId: "decay" })
+        })
       ])
     );
   });
@@ -233,8 +261,16 @@ describe("patch validation", () => {
     expect(result.ok).toBe(true);
     expect(result.issues).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ level: "warning", code: "node-param-missing", context: expect.objectContaining({ nodeId: "verb1", paramId: "mode" }) }),
-        expect.objectContaining({ level: "warning", code: "node-param-missing", context: expect.objectContaining({ nodeId: "verb1", paramId: "tone" }) })
+        expect.objectContaining({
+          level: "warning",
+          code: "node-param-missing",
+          context: expect.objectContaining({ nodeId: "verb1", paramId: "mode" })
+        }),
+        expect.objectContaining({
+          level: "warning",
+          code: "node-param-missing",
+          context: expect.objectContaining({ nodeId: "verb1", paramId: "tone" })
+        })
       ])
     );
   });
@@ -277,7 +313,11 @@ describe("patch validation", () => {
       const result = validatePatch(patch);
 
       expect(result.ok).toBe(false);
-      expect(result.issues.some((issue) => issue.code === "required-port-schema-mismatch" && issue.context?.nodeId === "vco1")).toBe(true);
+      expect(
+        result.issues.some(
+          (issue) => issue.code === "required-port-schema-mismatch" && issue.context?.nodeId === "vco1"
+        )
+      ).toBe(true);
     } finally {
       if (schema) {
         schema.requiredPortIds = previousRequiredPortIds;

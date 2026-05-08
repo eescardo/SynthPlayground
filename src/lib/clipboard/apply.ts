@@ -7,11 +7,7 @@ import {
 import { createId } from "@/lib/ids";
 import { sanitizeLoopSettings } from "@/lib/looping";
 import { eraseNotesInBeatRange, insertBeatGap, removeBeatRangeAndCloseGap, sortNotes } from "@/lib/noteEditing";
-import {
-  BeatRange,
-  getNoteSelectionKey,
-  getSelectedAutomationIdsByTrackId
-} from "@/lib/clipboard/selection";
+import { BeatRange, getNoteSelectionKey, getSelectedAutomationIdsByTrackId } from "@/lib/clipboard/selection";
 import { NoteClipboardPayload } from "@/lib/clipboard/payload";
 import { Note, Project, Track } from "@/types/music";
 
@@ -23,7 +19,11 @@ export interface AppliedNoteClipboardPaste {
   };
 }
 
-const buildInsertedNotes = (track: Track, playheadBeat: number, copiedTrack: NoteClipboardPayload["tracks"][number]) => {
+const buildInsertedNotes = (
+  track: Track,
+  playheadBeat: number,
+  copiedTrack: NoteClipboardPayload["tracks"][number]
+) => {
   const insertedNotes: Note[] = copiedTrack.notes.map((note) => ({
     id: createId("note"),
     pitchStr: note.pitchStr,
@@ -85,7 +85,9 @@ const shiftBeatBoundSongStructureForRemovedRange = (project: Project, startBeat:
 
 const getProjectTimelineEndBeat = (project: Project, fallbackEndBeat = 0) =>
   Math.max(
-    project.tracks.flatMap((track) => track.notes).reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0),
+    project.tracks
+      .flatMap((track) => track.notes)
+      .reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0),
     fallbackEndBeat
   );
 
@@ -110,9 +112,13 @@ export function applyNoteClipboardPaste(
   }
 
   const insertedByTrackId = new Map(
-    destinationTracks.map((track, index) => [track.id, buildInsertedNotes(track, playheadBeat, payload.tracks[index]!)] as const)
+    destinationTracks.map(
+      (track, index) => [track.id, buildInsertedNotes(track, playheadBeat, payload.tracks[index]!)] as const
+    )
   );
-  const pastedTrackDataByTrackId = new Map(destinationTracks.map((track, index) => [track.id, payload.tracks[index]!] as const));
+  const pastedTrackDataByTrackId = new Map(
+    destinationTracks.map((track, index) => [track.id, payload.tracks[index]!] as const)
+  );
   const pasteEndBeat = playheadBeat + payload.beatSpan;
   const selection = {
     noteKeys: [] as string[],
@@ -187,7 +193,9 @@ export function applyNoteClipboardInsert(
   playheadBeat: number
 ): AppliedNoteClipboardPaste {
   const timelineEndBeat = getProjectTimelineEndBeat(project);
-  const destinationTrackIds = new Set(getDestinationTracks(project, selectedTrackId, payload.tracks.length).map((track) => track.id));
+  const destinationTrackIds = new Set(
+    getDestinationTracks(project, selectedTrackId, payload.tracks.length).map((track) => track.id)
+  );
   if (destinationTrackIds.size === 0) {
     return { project, selection: { noteKeys: [], automationKeyframeSelectionKeys: [] } };
   }

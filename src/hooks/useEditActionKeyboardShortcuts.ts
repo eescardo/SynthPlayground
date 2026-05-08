@@ -5,7 +5,9 @@ import { NoteClipboardPasteAction } from "@/hooks/useSelectionClipboardActions";
 
 const isTextEditingTarget = (target: EventTarget | null) => {
   const element = target as HTMLElement | null;
-  return Boolean(element && (element.tagName === "INPUT" || element.tagName === "SELECT" || element.tagName === "TEXTAREA"));
+  return Boolean(
+    element && (element.tagName === "INPUT" || element.tagName === "SELECT" || element.tagName === "TEXTAREA")
+  );
 };
 
 interface UseEditActionKeyboardShortcutsParams {
@@ -47,7 +49,9 @@ export function useEditActionKeyboardShortcuts({
       }
 
       const isUndo = primaryModifier && !event.altKey && lowerKey === "z";
-      const isRedo = (primaryModifier && event.shiftKey && lowerKey === "z") || (primaryModifier && !event.shiftKey && lowerKey === "y");
+      const isRedo =
+        (primaryModifier && event.shiftKey && lowerKey === "z") ||
+        (primaryModifier && !event.shiftKey && lowerKey === "y");
 
       if (!editingText && isRedo) {
         event.preventDefault();

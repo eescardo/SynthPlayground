@@ -16,7 +16,10 @@ interface LoopConflictDialogState {
 
 interface UseLoopSettingsOptions {
   project: Project;
-  commitProjectChange: (updater: (current: Project) => Project, options?: { actionKey?: string; coalesce?: boolean }) => void;
+  commitProjectChange: (
+    updater: (current: Project) => Project,
+    options?: { actionKey?: string; coalesce?: boolean }
+  ) => void;
   onCloseLoopPopover: () => void;
 }
 
@@ -41,7 +44,8 @@ export function useLoopSettings(options: UseLoopSettingsOptions) {
         return;
       }
 
-      const nextProject = conflicts.length > 0 ? splitProjectNotesAtLoopBoundaries(candidateProject, sanitizedLoop) : candidateProject;
+      const nextProject =
+        conflicts.length > 0 ? splitProjectNotesAtLoopBoundaries(candidateProject, sanitizedLoop) : candidateProject;
       commitProjectChange(() => nextProject, { actionKey: "global:loop" });
       setLoopConflictDialog(null);
       onCloseLoopPopover();

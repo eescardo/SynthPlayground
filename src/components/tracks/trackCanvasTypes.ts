@@ -90,7 +90,12 @@ export interface TrackCanvasNoteActions {
   onOpenPitchPicker: (trackId: string, noteId: string) => void;
   onPreviewPlacedNote: (trackId: string, note: Note) => void;
   onUpsertNote: (trackId: string, note: Note, options?: { actionKey?: string; coalesce?: boolean }) => void;
-  onUpdateNote: (trackId: string, noteId: string, patch: Partial<Note>, options?: { actionKey?: string; coalesce?: boolean }) => void;
+  onUpdateNote: (
+    trackId: string,
+    noteId: string,
+    patch: Partial<Note>,
+    options?: { actionKey?: string; coalesce?: boolean }
+  ) => void;
   onDeleteNote: (trackId: string, noteId: string) => void;
 }
 

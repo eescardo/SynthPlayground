@@ -23,7 +23,14 @@ interface MacroPanelProps {
   onDoubleClick?: () => void;
 }
 
-export function MacroPanel({ panelTop, panelHeight, rows, onMouseEnter, onMouseLeave, onDoubleClick }: MacroPanelProps) {
+export function MacroPanel({
+  panelTop,
+  panelHeight,
+  rows,
+  onMouseEnter,
+  onMouseLeave,
+  onDoubleClick
+}: MacroPanelProps) {
   if (panelTop === null) {
     return null;
   }

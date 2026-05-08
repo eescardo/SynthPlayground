@@ -1,7 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, Locator, Page, Video } from "@playwright/test";
-import { holdLocatorFor, openApp, setupMacroAutomationLane, setupPatchWorkspaceProbes, setupSamplePlayerWorkspace } from "../ui-capture/common";
+import {
+  holdLocatorFor,
+  openApp,
+  setupMacroAutomationLane,
+  setupPatchWorkspaceProbes,
+  setupSamplePlayerWorkspace
+} from "../ui-capture/common";
 import { applySelectionReviewFraming, showSelectionActionsPopover } from "../ui-capture/selectionCapture";
 import { VIDEO_SCENARIO, VIDEO_SCENARIOS, VideoScenario } from "./scenarios";
 
@@ -22,7 +28,10 @@ const getTransportButton = (page: Page, name: "Play" | "Stop" | "Record") =>
   page.locator(".composer-actions-bar, .transport").getByRole("button", { name, exact: true });
 
 const getRecordingKey = (page: Page, pitch = "C4"): Locator =>
-  page.locator(".recording-dock").getByRole("button", { name: new RegExp(`\\b${pitch}\\b`, "i") }).first();
+  page
+    .locator(".recording-dock")
+    .getByRole("button", { name: new RegExp(`\\b${pitch}\\b`, "i") })
+    .first();
 
 const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canvas");
 const getPlayhead = (page: Page) => page.locator(".playhead");
@@ -33,31 +42,32 @@ const parsePlayheadBeat = (value: string | null): number => {
 };
 
 const collectPlaybackDiagnostics = async (page: Page) => {
-  const [playheadLabel, runtimeErrors, playDisabled, stopDisabled, nextIssueCount, nextToastText, pageState] = await Promise.all([
-    getPlayhead(page).textContent(),
-    page.locator(".error").allTextContents(),
-    getTransportButton(page, "Play").isDisabled(),
-    getTransportButton(page, "Stop").isDisabled(),
-    page
-      .evaluate(() => {
-        const root = document.querySelector("nextjs-portal")?.shadowRoot;
-        const issues = root?.querySelector("[data-issues-open]");
-        return issues?.textContent?.trim() ?? null;
-      })
-      .catch(() => null),
-    page
-      .evaluate(() => {
-        const root = document.querySelector("nextjs-portal")?.shadowRoot;
-        const toast = root?.querySelector("[data-nextjs-toast]");
-        return toast?.textContent?.trim() ?? null;
-      })
-      .catch(() => null),
-    page.evaluate(() => ({
-      visibilityState: document.visibilityState,
-      hasFocus: document.hasFocus(),
-      userAgent: navigator.userAgent
-    }))
-  ]);
+  const [playheadLabel, runtimeErrors, playDisabled, stopDisabled, nextIssueCount, nextToastText, pageState] =
+    await Promise.all([
+      getPlayhead(page).textContent(),
+      page.locator(".error").allTextContents(),
+      getTransportButton(page, "Play").isDisabled(),
+      getTransportButton(page, "Stop").isDisabled(),
+      page
+        .evaluate(() => {
+          const root = document.querySelector("nextjs-portal")?.shadowRoot;
+          const issues = root?.querySelector("[data-issues-open]");
+          return issues?.textContent?.trim() ?? null;
+        })
+        .catch(() => null),
+      page
+        .evaluate(() => {
+          const root = document.querySelector("nextjs-portal")?.shadowRoot;
+          const toast = root?.querySelector("[data-nextjs-toast]");
+          return toast?.textContent?.trim() ?? null;
+        })
+        .catch(() => null),
+      page.evaluate(() => ({
+        visibilityState: document.visibilityState,
+        hasFocus: document.hasFocus(),
+        userAgent: navigator.userAgent
+      }))
+    ]);
 
   return {
     playheadLabel,
@@ -169,7 +179,10 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await canvas.click({ position: { x: 760, y: 12 } });
       await page.waitForTimeout(postActionSettleMs);
 
-      await page.locator(".timeline-actions-popover").getByRole("button", { name: "Paste Selected Track(s)", exact: true }).click();
+      await page
+        .locator(".timeline-actions-popover")
+        .getByRole("button", { name: "Paste Selected Track(s)", exact: true })
+        .click();
       await page.waitForTimeout(postActionSettleMs * 4);
     }
   },
@@ -187,7 +200,8 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
   },
   [VIDEO_SCENARIO.PATCH_PROBE_PREVIEW]: {
     name: VIDEO_SCENARIO.PATCH_PROBE_PREVIEW,
-    description: "Patch workspace SamplePlayer preview with an attached pitch tracker updating from the captured signal.",
+    description:
+      "Patch workspace SamplePlayer preview with an attached pitch tracker updating from the captured signal.",
     capture: async (page) => {
       await setupSamplePlayerWorkspace(page);
       await page.getByRole("button", { name: "Play" }).last().click();
@@ -200,7 +214,9 @@ export const assertVideoRegistryAligned = () => {
   const definitionNames = Object.keys(VIDEO_SCENARIO_DEFINITIONS).sort();
   const expectedNames = [...VIDEO_SCENARIOS].sort();
   if (JSON.stringify(definitionNames) !== JSON.stringify(expectedNames)) {
-    throw new Error(`Video registry mismatch. Expected ${expectedNames.join(", ")} but found ${definitionNames.join(", ")}`);
+    throw new Error(
+      `Video registry mismatch. Expected ${expectedNames.join(", ")} but found ${definitionNames.join(", ")}`
+    );
   }
 };
 

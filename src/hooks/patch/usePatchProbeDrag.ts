@@ -40,23 +40,26 @@ export function usePatchProbeDrag(args: {
     };
   }, [args.canvasRef, args.probeActions, dragProbe]);
 
-  const beginProbeDrag = useCallback((probeId: string, clientX: number, clientY: number) => {
-    const canvas = args.canvasRef.current;
-    const probe = args.probes.find((entry) => entry.id === probeId);
-    if (!canvas || !probe) {
-      return;
-    }
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
-    const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
-    const rawX = (clientX - rect.left) * scaleX;
-    const rawY = (clientY - rect.top) * scaleY;
-    setDragProbe({
-      probeId,
-      offsetX: rawX - probe.x * PATCH_CANVAS_GRID,
-      offsetY: rawY - probe.y * PATCH_CANVAS_GRID
-    });
-  }, [args.canvasRef, args.probes]);
+  const beginProbeDrag = useCallback(
+    (probeId: string, clientX: number, clientY: number) => {
+      const canvas = args.canvasRef.current;
+      const probe = args.probes.find((entry) => entry.id === probeId);
+      if (!canvas || !probe) {
+        return;
+      }
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+      const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
+      const rawX = (clientX - rect.left) * scaleX;
+      const rawY = (clientY - rect.top) * scaleY;
+      setDragProbe({
+        probeId,
+        offsetX: rawX - probe.x * PATCH_CANVAS_GRID,
+        offsetY: rawY - probe.y * PATCH_CANVAS_GRID
+      });
+    },
+    [args.canvasRef, args.probes]
+  );
 
   return { beginProbeDrag };
 }

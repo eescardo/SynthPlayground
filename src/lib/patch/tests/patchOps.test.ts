@@ -195,7 +195,8 @@ describe("patch ops", () => {
 
   it("updates the macro binding interpolation map without changing its range", () => {
     const patch = pluckPatch();
-    const macro = patch.ui.macros.find((entry) => entry.bindings.some((binding) => binding.map === "linear")) ?? patch.ui.macros[0];
+    const macro =
+      patch.ui.macros.find((entry) => entry.bindings.some((binding) => binding.map === "linear")) ?? patch.ui.macros[0];
     const binding = macro.bindings.find((entry) => entry.map === "linear") ?? macro.bindings[0];
 
     const nextPatch = applyPatchOp(patch, {
@@ -205,7 +206,9 @@ describe("patch ops", () => {
       map: "exp"
     });
 
-    const nextBinding = nextPatch.ui.macros.find((entry) => entry.id === macro.id)?.bindings.find((entry) => entry.id === binding.id);
+    const nextBinding = nextPatch.ui.macros
+      .find((entry) => entry.id === macro.id)
+      ?.bindings.find((entry) => entry.id === binding.id);
     expect(nextBinding?.map).toBe("exp");
     expect(nextBinding?.min).toBe(binding.min);
     expect(nextBinding?.max).toBe(binding.max);
@@ -223,7 +226,9 @@ describe("patch ops", () => {
       map: "exp"
     });
 
-    const nextBinding = nextPatch.ui.macros.find((entry) => entry.id === macro.id)?.bindings.find((entry) => entry.id === binding.id);
+    const nextBinding = nextPatch.ui.macros
+      .find((entry) => entry.id === macro.id)
+      ?.bindings.find((entry) => entry.id === binding.id);
     expect(nextBinding?.map).toBe("exp");
     expect(nextBinding?.points).toEqual(binding.points);
     expect(getMacroBindingKeyframeCount(nextBinding!)).toBe(3);

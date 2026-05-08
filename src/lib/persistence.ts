@@ -1,9 +1,5 @@
 import { openDB } from "idb";
-import {
-  RecentProjectSummary,
-  removeRecentProjectSummary,
-  upsertRecentProjectSummary
-} from "@/lib/projectManagement";
+import { RecentProjectSummary, removeRecentProjectSummary, upsertRecentProjectSummary } from "@/lib/projectManagement";
 import { Project } from "@/types/music";
 import { ProjectAssetLibrary } from "@/types/assets";
 import { createEmptyProjectAssetLibrary } from "@/lib/sampleAssetLibrary";

@@ -36,7 +36,9 @@ describe("audio scheduler macro automation", () => {
       toSample: Number.MAX_SAFE_INTEGER
     });
 
-    const noteOnIndex = events.findIndex((event) => event.type === "NoteOn" && event.trackId === track.id && event.noteId === "note_1");
+    const noteOnIndex = events.findIndex(
+      (event) => event.type === "NoteOn" && event.trackId === track.id && event.noteId === "note_1"
+    );
     const macroEventIndex = events.findIndex(
       (event) =>
         event.type === "MacroChange" &&

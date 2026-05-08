@@ -19,7 +19,9 @@ type CommitProjectChange = (
 
 const isTextEditingTarget = (target: EventTarget | null) => {
   const element = target as HTMLElement | null;
-  return Boolean(element && (element.tagName === "INPUT" || element.tagName === "SELECT" || element.tagName === "TEXTAREA"));
+  return Boolean(
+    element && (element.tagName === "INPUT" || element.tagName === "SELECT" || element.tagName === "TEXTAREA")
+  );
 };
 
 interface UseEditorClipboardEventsParams {
@@ -55,9 +57,14 @@ export function useEditorClipboardEvents({
         return;
       }
 
-      const payload = hasTimelineRangeSelection && selectionBeatRange
-        ? buildAllTracksClipboardPayload(project, selectionBeatRange)
-        : buildNoteClipboardPayload(project, contentSelection.noteKeys, contentSelection.automationKeyframeSelectionKeys);
+      const payload =
+        hasTimelineRangeSelection && selectionBeatRange
+          ? buildAllTracksClipboardPayload(project, selectionBeatRange)
+          : buildNoteClipboardPayload(
+              project,
+              contentSelection.noteKeys,
+              contentSelection.automationKeyframeSelectionKeys
+            );
       if (!payload) {
         return;
       }
@@ -74,9 +81,14 @@ export function useEditorClipboardEvents({
         return;
       }
 
-      const payload = hasTimelineRangeSelection && selectionBeatRange
-        ? buildAllTracksClipboardPayload(project, selectionBeatRange)
-        : buildNoteClipboardPayload(project, contentSelection.noteKeys, contentSelection.automationKeyframeSelectionKeys);
+      const payload =
+        hasTimelineRangeSelection && selectionBeatRange
+          ? buildAllTracksClipboardPayload(project, selectionBeatRange)
+          : buildNoteClipboardPayload(
+              project,
+              contentSelection.noteKeys,
+              contentSelection.automationKeyframeSelectionKeys
+            );
       if (!payload) {
         return;
       }
@@ -109,11 +121,14 @@ export function useEditorClipboardEvents({
       let nextSelection = EMPTY_CONTENT_SELECTION;
       setNoteClipboardPayload(payload);
       event.preventDefault();
-      commitProjectChange((current) => {
-        const applied = applyNoteClipboardPaste(current, payload, selectedTrackId, playheadBeat);
-        nextSelection = applied.selection;
-        return applied.project;
-      }, { actionKey: `track:${selectedTrackId}:paste-notes` });
+      commitProjectChange(
+        (current) => {
+          const applied = applyNoteClipboardPaste(current, payload, selectedTrackId, playheadBeat);
+          nextSelection = applied.selection;
+          return applied.project;
+        },
+        { actionKey: `track:${selectedTrackId}:paste-notes` }
+      );
       setContentSelection(nextSelection);
     };
 

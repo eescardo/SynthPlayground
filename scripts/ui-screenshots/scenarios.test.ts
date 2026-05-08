@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  resolveScreenshotScenariosFromLabels,
-  resolveScreenshotScenariosFromLabelsJson
-} from "./scenarios";
+import { resolveScreenshotScenariosFromLabels, resolveScreenshotScenariosFromLabelsJson } from "./scenarios";
 
 describe("resolveScreenshotScenariosFromLabels", () => {
   it("enables a specific screenshot scenario label", () => {

@@ -192,8 +192,26 @@ describe("patchWorkspaceStateUtils", () => {
           selectedMacroId: "missing_macro",
           selectedProbeId: "probe_keep",
           probes: [
-            { id: "probe_keep", kind: "scope", name: "Scope Probe", x: 0, y: 0, width: 10, height: 8, target: { kind: "port", nodeId: "sample1", portId: "out", portKind: "out" } },
-            { id: "probe_drop", kind: "scope", name: "Scope Probe", x: 0, y: 0, width: 10, height: 8, target: { kind: "port", nodeId: "missing", portId: "out", portKind: "out" } }
+            {
+              id: "probe_keep",
+              kind: "scope",
+              name: "Scope Probe",
+              x: 0,
+              y: 0,
+              width: 10,
+              height: 8,
+              target: { kind: "port", nodeId: "sample1", portId: "out", portKind: "out" }
+            },
+            {
+              id: "probe_drop",
+              kind: "scope",
+              name: "Scope Probe",
+              x: 0,
+              y: 0,
+              width: 10,
+              height: 8,
+              target: { kind: "port", nodeId: "missing", portId: "out", portKind: "out" }
+            }
           ],
           migrationNotice: null
         },
@@ -225,7 +243,16 @@ describe("patchWorkspaceStateUtils", () => {
         selectedMacroId: undefined,
         selectedProbeId: "probe_keep",
         probes: [
-          { id: "probe_keep", kind: "scope", name: "Scope Probe", x: 0, y: 0, width: 10, height: 8, target: { kind: "port", nodeId: "sample1", portId: "out", portKind: "out" } }
+          {
+            id: "probe_keep",
+            kind: "scope",
+            name: "Scope Probe",
+            x: 0,
+            y: 0,
+            width: 10,
+            height: 8,
+            target: { kind: "port", nodeId: "sample1", portId: "out", portKind: "out" }
+          }
         ],
         migrationNotice: null
       }

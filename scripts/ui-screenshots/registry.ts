@@ -12,7 +12,11 @@ import {
 } from "../ui-capture/common";
 import { applySelectionReviewFraming, showSelectionActionsPopover } from "../ui-capture/selectionCapture";
 import { SCREENSHOT_SCENARIO, SCREENSHOT_SCENARIOS, ScreenshotScenario } from "./scenarios";
-import { PATCH_CANVAS_GRID, PATCH_NODE_HEIGHT, PATCH_NODE_WIDTH } from "../../src/components/patch/patchCanvasConstants";
+import {
+  PATCH_CANVAS_GRID,
+  PATCH_NODE_HEIGHT,
+  PATCH_NODE_WIDTH
+} from "../../src/components/patch/patchCanvasConstants";
 
 export interface ScreenshotScenarioDefinition {
   name: ScreenshotScenario;
@@ -113,7 +117,8 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
   },
   [SCREENSHOT_SCENARIO.PATCH_MODULE_FACES]: {
     name: SCREENSHOT_SCENARIO.PATCH_MODULE_FACES,
-    description: "Patch workspace with ADSR, LFO, string, noise, delay, reverb, overdrive, and compressor module faces visible",
+    description:
+      "Patch workspace with ADSR, LFO, string, noise, delay, reverb, overdrive, and compressor module faces visible",
     capture: async (page, outputPath) => {
       await setupPatchModuleFacesWorkspace(page);
       await savePageScreenshot(page, outputPath, ".patch-workspace-shell");
@@ -124,13 +129,18 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
     description: "Patch workspace with a large expanded module face visible over the canvas",
     capture: async (page, outputPath) => {
       await setupPatchModuleFacesWorkspace(page);
-      await clickPatchCanvasRaw(page, 26 * PATCH_CANVAS_GRID + PATCH_NODE_WIDTH / 2, 19 * PATCH_CANVAS_GRID + PATCH_NODE_HEIGHT / 2);
+      await clickPatchCanvasRaw(
+        page,
+        26 * PATCH_CANVAS_GRID + PATCH_NODE_WIDTH / 2,
+        19 * PATCH_CANVAS_GRID + PATCH_NODE_HEIGHT / 2
+      );
       await savePageScreenshot(page, outputPath, ".patch-workspace-shell");
     }
   },
   [SCREENSHOT_SCENARIO.PATCH_BASELINE_DIFF]: {
     name: SCREENSHOT_SCENARIO.PATCH_BASELINE_DIFF,
-    description: "Patch workspace with a duplicated tab showing baseline diff cues in the tab strip, canvas, inspector, and macro panel",
+    description:
+      "Patch workspace with a duplicated tab showing baseline diff cues in the tab strip, canvas, inspector, and macro panel",
     capture: async (page, outputPath) => {
       await setupBaselineDiffWorkspace(page);
       await savePageScreenshot(page, outputPath, ".patch-workspace-shell");
@@ -150,7 +160,9 @@ export const assertScenarioRegistryAligned = () => {
   const definitionNames = Object.keys(SCREENSHOT_SCENARIO_DEFINITIONS).sort();
   const expectedNames = [...SCREENSHOT_SCENARIOS].sort();
   if (JSON.stringify(definitionNames) !== JSON.stringify(expectedNames)) {
-    throw new Error(`Screenshot registry mismatch. Expected ${expectedNames.join(", ")} but found ${definitionNames.join(", ")}`);
+    throw new Error(
+      `Screenshot registry mismatch. Expected ${expectedNames.join(", ")} but found ${definitionNames.join(", ")}`
+    );
   }
 };
 

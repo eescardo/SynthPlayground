@@ -17,40 +17,46 @@ interface RenameTriggerOptions<T> {
 export function useRenameActivation<T>() {
   const hoverArm = useHoverArm<T>();
 
-  const activateRename = useCallback((id: T, event: RenameTriggerMouseEvent | RenameTriggerKeyboardEvent, onStartRename: () => void) => {
-    event.preventDefault();
-    event.stopPropagation();
-    hoverArm.disarm(id);
-    onStartRename();
-  }, [hoverArm]);
-
-  const getRenameTriggerProps = useCallback(({ id, enabled = true, onPlainClick, onStartRename }: RenameTriggerOptions<T>) => ({
-    onMouseEnter: () => {
-      if (enabled) {
-        hoverArm.arm(id);
-      }
-    },
-    onMouseLeave: () => {
+  const activateRename = useCallback(
+    (id: T, event: RenameTriggerMouseEvent | RenameTriggerKeyboardEvent, onStartRename: () => void) => {
+      event.preventDefault();
+      event.stopPropagation();
       hoverArm.disarm(id);
+      onStartRename();
     },
-    onClick: (event: RenameTriggerMouseEvent) => {
-      if (enabled && hoverArm.isArmed(id)) {
-        activateRename(id, event, onStartRename);
-        return;
+    [hoverArm]
+  );
+
+  const getRenameTriggerProps = useCallback(
+    ({ id, enabled = true, onPlainClick, onStartRename }: RenameTriggerOptions<T>) => ({
+      onMouseEnter: () => {
+        if (enabled) {
+          hoverArm.arm(id);
+        }
+      },
+      onMouseLeave: () => {
+        hoverArm.disarm(id);
+      },
+      onClick: (event: RenameTriggerMouseEvent) => {
+        if (enabled && hoverArm.isArmed(id)) {
+          activateRename(id, event, onStartRename);
+          return;
+        }
+        onPlainClick?.(event);
+      },
+      onDoubleClick: (event: RenameTriggerMouseEvent) => {
+        if (enabled) {
+          activateRename(id, event, onStartRename);
+        }
+      },
+      onKeyDown: (event: RenameTriggerKeyboardEvent) => {
+        if (enabled && (event.key === "Enter" || event.key === " ")) {
+          activateRename(id, event, onStartRename);
+        }
       }
-      onPlainClick?.(event);
-    },
-    onDoubleClick: (event: RenameTriggerMouseEvent) => {
-      if (enabled) {
-        activateRename(id, event, onStartRename);
-      }
-    },
-    onKeyDown: (event: RenameTriggerKeyboardEvent) => {
-      if (enabled && (event.key === "Enter" || event.key === " ")) {
-        activateRename(id, event, onStartRename);
-      }
-    }
-  }), [activateRename, hoverArm]);
+    }),
+    [activateRename, hoverArm]
+  );
 
   return {
     getRenameTriggerProps,

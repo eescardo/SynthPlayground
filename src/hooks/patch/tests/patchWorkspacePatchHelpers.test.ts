@@ -67,5 +67,4 @@ describe("patchWorkspacePatchHelpers", () => {
     expect(cleared.layout.nodes).toEqual([]);
     expect(cleared.ui.canvasZoom).toBe(1.4);
   });
-
 });

@@ -74,7 +74,11 @@ export function ProbeInspectorSection(props: ProbeInspectorSectionProps) {
                 ))}
               </select>
             </div>
-            <button type="button" disabled={!selectedProbe.target} onClick={() => props.onClearProbeTarget(selectedProbe.id)}>
+            <button
+              type="button"
+              disabled={!selectedProbe.target}
+              onClick={() => props.onClearProbeTarget(selectedProbe.id)}
+            >
               Clear Target
             </button>
           </div>
@@ -87,18 +91,28 @@ export function ProbeInspectorSection(props: ProbeInspectorSectionProps) {
                 max={PROBE_MAX_MAX_FREQUENCY_HZ}
                 step={100}
                 value={selectedProbe.frequencyView?.maxHz ?? DEFAULT_PROBE_MAX_FREQUENCY_HZ}
-                onChange={(event) => props.onUpdateProbeFrequencyView(selectedProbe.id, clampProbeMaxFrequencyHz(Number(event.target.value)))}
+                onChange={(event) =>
+                  props.onUpdateProbeFrequencyView(
+                    selectedProbe.id,
+                    clampProbeMaxFrequencyHz(Number(event.target.value))
+                  )
+                }
               />
               <div className="macro-binding-edit-summary">
                 {`${clampProbeMaxFrequencyHz(selectedProbe.frequencyView?.maxHz ?? DEFAULT_PROBE_MAX_FREQUENCY_HZ).toLocaleString()} Hz top of view. Lower values zoom in on VCF detail.`}
               </div>
             </div>
-            <button type="button" disabled={!selectedProbe.target} onClick={() => props.onClearProbeTarget(selectedProbe.id)}>
+            <button
+              type="button"
+              disabled={!selectedProbe.target}
+              onClick={() => props.onClearProbeTarget(selectedProbe.id)}
+            >
               Clear Target
             </button>
           </div>
           <p className="muted">
-            Spectrum follows the current preview playhead and analyzes the active signal window over time. Narrowing max frequency reallocates the same bins into a tighter band.
+            Spectrum follows the current preview playhead and analyzes the active signal window over time. Narrowing max
+            frequency reallocates the same bins into a tighter band.
           </p>
         </>
       )}
@@ -113,13 +127,15 @@ export function ProbeInspectorSection(props: ProbeInspectorSectionProps) {
                   : "Preview the patch to populate scope data."}
               </div>
             </div>
-            <button type="button" disabled={!selectedProbe.target} onClick={() => props.onClearProbeTarget(selectedProbe.id)}>
+            <button
+              type="button"
+              disabled={!selectedProbe.target}
+              onClick={() => props.onClearProbeTarget(selectedProbe.id)}
+            >
               Clear Target
             </button>
           </div>
-          <p className="muted">
-            Scope view normalizes the captured signal so quiet patches still render visibly.
-          </p>
+          <p className="muted">Scope view normalizes the captured signal so quiet patches still render visibly.</p>
         </>
       )}
       {selectedProbe.kind === "pitch_tracker" && (
@@ -157,7 +173,8 @@ export function ProbeInspectorSection(props: ProbeInspectorSectionProps) {
             <span>Clipboard</span>
             <div className="param-control-stack">
               <div className="macro-binding-edit-summary">
-                Copy writes the detected notes using the app’s note clipboard format so they can be pasted into the composer.
+                Copy writes the detected notes using the app’s note clipboard format so they can be pasted into the
+                composer.
               </div>
             </div>
             <button
@@ -169,7 +186,8 @@ export function ProbeInspectorSection(props: ProbeInspectorSectionProps) {
             </button>
           </div>
           <p className="muted">
-            Pitch tracker is intentionally simple and monophonic-only. It works best on a clean lead, bass, or trimmed sample line with obvious gaps between notes.
+            Pitch tracker is intentionally simple and monophonic-only. It works best on a clean lead, bass, or trimmed
+            sample line with obvious gaps between notes.
           </p>
         </>
       )}

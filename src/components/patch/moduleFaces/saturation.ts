@@ -86,6 +86,10 @@ export const drawSaturationModuleFace: ModuleFaceRenderer = (ctx, _patch, node, 
   ctx.textAlign = "left";
   ctx.fillText(`${type}`, graph.x + 6, graph.y + 11);
   ctx.textAlign = "right";
-  ctx.fillText(`${driveDb.toFixed(0)}dB ${Math.round(mix * 100)}%`, graph.x + graph.width - 6, graph.y + graph.height - 5);
+  ctx.fillText(
+    `${driveDb.toFixed(0)}dB ${Math.round(mix * 100)}%`,
+    graph.x + graph.width - 6,
+    graph.y + graph.height - 5
+  );
   ctx.textAlign = "left";
 };

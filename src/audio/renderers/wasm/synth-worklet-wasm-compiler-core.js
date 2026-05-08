@@ -366,11 +366,10 @@ const macroBindingEventsForBindings = (bindings, trackIndex, sampleTime, normali
   }));
 
 export const compileSchedulerEventsToWasmSubsetCore = (project, projectSpec, events) => {
-  const {
-    trackById,
-    trackIndicesByPatchId,
-    macroBindingsByTrackAndMacro
-  } = getEventCompilerContext(project, projectSpec);
+  const { trackById, trackIndicesByPatchId, macroBindingsByTrackAndMacro } = getEventCompilerContext(
+    project,
+    projectSpec
+  );
 
   const compiled = [];
   for (const event of events || []) {
@@ -431,12 +430,14 @@ export const compileSchedulerEventsToWasmSubsetCore = (project, projectSpec, eve
     if (!macroBindings) {
       continue;
     }
-    compiled.push(...macroBindingEventsForBindings(
-      macroBindings.bindings,
-      macroBindings.trackIndex,
-      event.sampleTime,
-      event.normalized
-    ));
+    compiled.push(
+      ...macroBindingEventsForBindings(
+        macroBindings.bindings,
+        macroBindings.trackIndex,
+        event.sampleTime,
+        event.normalized
+      )
+    );
   }
 
   if (!areCompiledEventsSorted(compiled)) {
@@ -446,7 +447,13 @@ export const compileSchedulerEventsToWasmSubsetCore = (project, projectSpec, eve
   return compiled;
 };
 
-export const compilePreviewProbeCaptureRequestsCore = (project, projectSpec, trackId, captureProbes, durationSamples) => {
+export const compilePreviewProbeCaptureRequestsCore = (
+  project,
+  projectSpec,
+  trackId,
+  captureProbes,
+  durationSamples
+) => {
   if (!Array.isArray(captureProbes) || captureProbes.length === 0) {
     return [];
   }

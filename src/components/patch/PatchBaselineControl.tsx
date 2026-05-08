@@ -17,7 +17,10 @@ export function PatchBaselineControl(props: PatchBaselineControlState) {
   return (
     <div className={`${wrapperClassName}${props.patchDiff.hasChanges ? " changed" : ""}`}>
       <span className="patch-baseline-label">Baseline</span>
-      <span className="patch-baseline-name" title={props.baselinePatch ? `Baseline patch: ${props.baselinePatch.name}` : "No baseline patch"}>
+      <span
+        className="patch-baseline-name"
+        title={props.baselinePatch ? `Baseline patch: ${props.baselinePatch.name}` : "No baseline patch"}
+      >
         {props.baselinePatch?.name ?? "None"}
       </span>
       <button type="button" className="patch-baseline-action" onClick={() => setOpen((current) => !current)}>

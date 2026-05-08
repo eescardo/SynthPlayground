@@ -26,7 +26,9 @@ interface PatchEditorToolbarProps {
 }
 
 export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
-  const canDeleteNode = Boolean(props.selectedNodeId && props.selectedNodeId !== props.protectedNodeId && !props.structureLocked);
+  const canDeleteNode = Boolean(
+    props.selectedNodeId && props.selectedNodeId !== props.protectedNodeId && !props.structureLocked
+  );
   const canDeleteSelection = Boolean(props.selectedProbeId || canDeleteNode);
 
   return (
@@ -63,22 +65,31 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
       >
         {({ close }) => (
           <>
-            <button type="button" onClick={() => {
-              props.onAddProbe("scope");
-              close();
-            }}>
+            <button
+              type="button"
+              onClick={() => {
+                props.onAddProbe("scope");
+                close();
+              }}
+            >
               Scope Probe
             </button>
-            <button type="button" onClick={() => {
-              props.onAddProbe("spectrum");
-              close();
-            }}>
+            <button
+              type="button"
+              onClick={() => {
+                props.onAddProbe("spectrum");
+                close();
+              }}
+            >
               Spectrum Probe
             </button>
-            <button type="button" onClick={() => {
-              props.onAddProbe("pitch_tracker");
-              close();
-            }}>
+            <button
+              type="button"
+              onClick={() => {
+                props.onAddProbe("pitch_tracker");
+                close();
+              }}
+            >
               Pitch Tracker
             </button>
           </>
@@ -113,7 +124,9 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
       <button disabled={props.patchNodeCount === 0} onClick={props.onAutoLayout}>
         Auto-layout
       </button>
-      {props.structureLocked && <span className="muted">Preset structure is locked. Move nodes for clarity or edit macros.</span>}
+      {props.structureLocked && (
+        <span className="muted">Preset structure is locked. Move nodes for clarity or edit macros.</span>
+      )}
       {props.pendingFromPort && <span className="muted">Select a compatible port to complete connection.</span>}
       <PatchBaselineControl {...props.baselineControl} />
       <span className="patch-zoom-readout">Zoom {Math.round(props.zoom * 100)}%</span>

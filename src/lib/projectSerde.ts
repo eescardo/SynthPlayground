@@ -9,7 +9,11 @@ import { TRACK_VOLUME_DEFAULT, TRACK_VOLUME_MAX, TRACK_VOLUME_MIN } from "@/lib/
 import { Project, TrackFxSettings, PatchWorkspaceTabState } from "@/types/music";
 import { PatchProbeTarget, PatchWorkspaceProbeState } from "@/types/probes";
 import { ProjectAssetLibrary } from "@/types/assets";
-import { createEmptyProjectAssetLibrary, normalizeProjectAssetLibrary, pickReferencedProjectAssets } from "@/lib/sampleAssetLibrary";
+import {
+  createEmptyProjectAssetLibrary,
+  normalizeProjectAssetLibrary,
+  pickReferencedProjectAssets
+} from "@/lib/sampleAssetLibrary";
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -75,17 +79,21 @@ const sanitizePatchWorkspaceProbes = (raw: unknown): PatchWorkspaceProbeState[] 
     const spectrumWindowSize = asFiniteNumber(entry.spectrumWindowSize, 0);
     const rawFrequencyView = isObject(entry.frequencyView) ? entry.frequencyView : {};
     const legacySpectrumMaxFrequencyHz = asOptionalFiniteNumber(entry.spectrumMaxFrequencyHz);
-    const frequencyView = kind === "spectrum"
-      ? {
-          maxHz: clampProbeMaxFrequencyHz(
-            asFiniteNumber(rawFrequencyView.maxHz, legacySpectrumMaxFrequencyHz ?? DEFAULT_PROBE_MAX_FREQUENCY_HZ)
-          )
-        }
-      : undefined;
+    const frequencyView =
+      kind === "spectrum"
+        ? {
+            maxHz: clampProbeMaxFrequencyHz(
+              asFiniteNumber(rawFrequencyView.maxHz, legacySpectrumMaxFrequencyHz ?? DEFAULT_PROBE_MAX_FREQUENCY_HZ)
+            )
+          }
+        : undefined;
     return {
       id: asString(entry.id, createId(`probe_${index}`)),
       kind,
-      name: asString(entry.name, kind === "spectrum" ? "Spectrum Probe" : kind === "pitch_tracker" ? "Pitch Tracker" : "Scope Probe"),
+      name: asString(
+        entry.name,
+        kind === "spectrum" ? "Spectrum Probe" : kind === "pitch_tracker" ? "Pitch Tracker" : "Scope Probe"
+      ),
       x: Math.max(0, Math.floor(asFiniteNumber(entry.x, 4))),
       y: Math.max(0, Math.floor(asFiniteNumber(entry.y, 4))),
       width: Math.max(6, Math.floor(asFiniteNumber(entry.width, 10))),
@@ -134,7 +142,10 @@ interface SerializedProjectBundleV2 {
 const isSerializedProjectBundleV2 = (value: unknown): value is SerializedProjectBundleV2 =>
   isObject(value) && value.version === 2 && isObject(value.project) && isObject(value.assets);
 
-export const exportProjectToJson = (project: Project, assets: ProjectAssetLibrary = createEmptyProjectAssetLibrary()): string =>
+export const exportProjectToJson = (
+  project: Project,
+  assets: ProjectAssetLibrary = createEmptyProjectAssetLibrary()
+): string =>
   JSON.stringify(
     {
       version: 2,
@@ -157,9 +168,7 @@ export const normalizeProject = (raw: unknown): Project => {
   const existingPatchIds = new Set(normalizedPatches.map((patch) => patch.id));
   const patches = [
     ...normalizedPatches,
-    ...presetPatches
-      .filter((patch) => !existingPatchIds.has(patch.id))
-      .map((patch) => structuredClone(patch))
+    ...presetPatches.filter((patch) => !existingPatchIds.has(patch.id)).map((patch) => structuredClone(patch))
   ];
   if (patches.length === 0) {
     throw new Error("Project must include at least one patch");
@@ -259,18 +268,23 @@ export const normalizeProject = (raw: unknown): Project => {
         const kind = marker.kind === "start" || marker.kind === "end" ? marker.kind : null;
         const beatRaw = asOptionalFiniteNumber(marker.beat);
         if (kind && beatRaw !== undefined) {
-          return [{
-            id: asString(marker.id, createId(`loop_marker_${index}`)),
-            kind,
-            beat: Math.max(0, beatRaw),
-            repeatCount:
-              kind === "end"
-                ? Math.max(
-                    DEFAULT_LOOP_REPEAT_COUNT,
-                    Math.min(MAX_LOOP_REPEAT_COUNT, Math.round(asFiniteNumber(marker.repeatCount, DEFAULT_LOOP_REPEAT_COUNT)))
-                  )
-                : undefined
-          }];
+          return [
+            {
+              id: asString(marker.id, createId(`loop_marker_${index}`)),
+              kind,
+              beat: Math.max(0, beatRaw),
+              repeatCount:
+                kind === "end"
+                  ? Math.max(
+                      DEFAULT_LOOP_REPEAT_COUNT,
+                      Math.min(
+                        MAX_LOOP_REPEAT_COUNT,
+                        Math.round(asFiniteNumber(marker.repeatCount, DEFAULT_LOOP_REPEAT_COUNT))
+                      )
+                    )
+                  : undefined
+            }
+          ];
         }
 
         const startBeatRaw = asOptionalFiniteNumber(marker.startBeat);
@@ -292,12 +306,14 @@ export const normalizeProject = (raw: unknown): Project => {
           },
           ...(endBeatRaw === undefined
             ? []
-            : [{
-                id: `${markerIdBase}_end`,
-                kind: "end" as const,
-                beat: Math.max(0, endBeatRaw),
-                repeatCount
-              }])
+            : [
+                {
+                  id: `${markerIdBase}_end`,
+                  kind: "end" as const,
+                  beat: Math.max(0, endBeatRaw),
+                  repeatCount
+                }
+              ])
         ];
       })
     },

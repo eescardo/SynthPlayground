@@ -17,7 +17,9 @@ export interface ProjectWorkspaceProviderProps {
   children: React.ReactNode;
 }
 
-const ProjectWorkspaceClipboardContext = createContext<((payload: NoteClipboardPayload) => Promise<void>) | undefined>(undefined);
+const ProjectWorkspaceClipboardContext = createContext<((payload: NoteClipboardPayload) => Promise<void>) | undefined>(
+  undefined
+);
 const ProjectWorkspaceTransportContext = createContext<ProjectWorkspaceTransportContextValue>({
   tempo: 120,
   meter: "4/4",

@@ -26,12 +26,7 @@ export function PitchPickerModal({
       <div className="help-modal pitch-picker-modal" onClick={(event) => event.stopPropagation()}>
         <h3>{title}</h3>
         <p className="muted">{description}</p>
-        <PianoKeyboard
-          minPitch="C1"
-          maxPitch="C7"
-          selectedPitch={selectedPitch}
-          onSelectPitch={onSelectPitch}
-        />
+        <PianoKeyboard minPitch="C1" maxPitch="C7" selectedPitch={selectedPitch} onSelectPitch={onSelectPitch} />
         <div className="pitch-picker-actions">
           <button type="button" onClick={onClose}>
             Cancel

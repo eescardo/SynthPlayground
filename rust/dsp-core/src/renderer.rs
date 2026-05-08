@@ -1,8 +1,8 @@
-use crate::{
-    clamp, db_to_gain, js_error, now_ms, sort_events, EngineProfileStats, EventSpec,
-    MasterFxSpec, PreviewProbeCaptureSpec, PreviewProbeCaptureStateSnapshot, ProjectSpec,
-};
 use crate::stream::TrackRuntime;
+use crate::{
+    clamp, db_to_gain, js_error, now_ms, sort_events, EngineProfileStats, EventSpec, MasterFxSpec,
+    PreviewProbeCaptureSpec, PreviewProbeCaptureStateSnapshot, ProjectSpec,
+};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -35,7 +35,11 @@ impl WasmSubsetEngine {
             sample_rate: sample_rate as f32,
             block_size,
             tracks: Vec::new(),
-            master_fx: MasterFxSpec { compressor_enabled: false, limiter_enabled: true, makeup_gain: 0.0 },
+            master_fx: MasterFxSpec {
+                compressor_enabled: false,
+                limiter_enabled: true,
+                makeup_gain: 0.0,
+            },
             master_compressor_env: 0.0,
             event_queue: Vec::new(),
             event_cursor: 0,
@@ -56,7 +60,14 @@ impl WasmSubsetEngine {
     /// - `events_json`: serialized event queue already compiled for the WASM runtime.
     /// - `_session_id`: reserved transport session identifier kept for JS/WASM API parity.
     /// - `random_seed`: base seed used to derive deterministic track and voice RNG state.
-    pub fn start_stream(&mut self, project_json: &str, song_start_sample: u32, events_json: &str, _session_id: u32, random_seed: u32) -> Result<(), JsValue> {
+    pub fn start_stream(
+        &mut self,
+        project_json: &str,
+        song_start_sample: u32,
+        events_json: &str,
+        _session_id: u32,
+        random_seed: u32,
+    ) -> Result<(), JsValue> {
         let project: ProjectSpec = serde_json::from_str(project_json)
             .map_err(|error| js_error(format!("Failed to parse WASM project: {error}")))?;
         let mut events: Vec<EventSpec> = serde_json::from_str(events_json)
@@ -72,7 +83,9 @@ impl WasmSubsetEngine {
         self.tracks = project
             .tracks
             .into_iter()
-            .map(|track| TrackRuntime::from_spec(track, self.sample_rate, self.block_size, random_seed))
+            .map(|track| {
+                TrackRuntime::from_spec(track, self.sample_rate, self.block_size, random_seed)
+            })
             .collect::<Result<Vec<_>, _>>()?;
         self.master_fx = project.master_fx;
         self.master_compressor_env = 0.0;
@@ -100,12 +113,17 @@ impl WasmSubsetEngine {
     /// Params:
     /// - `capture_json`: serialized probe specs with resolved track indices and signal indices.
     pub fn configure_preview_probe_capture(&mut self, capture_json: &str) -> Result<(), JsValue> {
-        let captures: Vec<PreviewProbeCaptureSpec> = serde_json::from_str(capture_json)
-            .map_err(|error| js_error(format!("Failed to parse preview probe capture specs: {error}")))?;
+        let captures: Vec<PreviewProbeCaptureSpec> =
+            serde_json::from_str(capture_json).map_err(|error| {
+                js_error(format!(
+                    "Failed to parse preview probe capture specs: {error}"
+                ))
+            })?;
         for track in self.tracks.iter_mut() {
             track.clear_probe_captures();
         }
-        let mut captures_by_track: Vec<Vec<PreviewProbeCaptureSpec>> = vec![Vec::new(); self.tracks.len()];
+        let mut captures_by_track: Vec<Vec<PreviewProbeCaptureSpec>> =
+            vec![Vec::new(); self.tracks.len()];
         for capture in captures.into_iter() {
             if let Some(track_captures) = captures_by_track.get_mut(capture.track_index) {
                 track_captures.push(capture);
@@ -129,13 +147,19 @@ impl WasmSubsetEngine {
         let captures = self
             .tracks
             .iter()
-            .flat_map(|track| track.preview_capture_state_snapshot(self.preview_capture_sample_count))
+            .flat_map(|track| {
+                track.preview_capture_state_snapshot(self.preview_capture_sample_count)
+            })
             .collect();
         serde_json::to_string(&PreviewProbeCaptureStateSnapshot {
             captured_samples: self.preview_capture_sample_count,
             captures,
         })
-        .map_err(|error| js_error(format!("Failed to serialize preview capture state: {error}")))
+        .map_err(|error| {
+            js_error(format!(
+                "Failed to serialize preview capture state: {error}"
+            ))
+        })
     }
 
     pub fn preview_capture_sample_count(&self) -> usize {
@@ -166,7 +190,11 @@ impl WasmSubsetEngine {
     /// Params:
     /// - `self`: engine containing the live stream state, output buffers, and optional profiling counters.
     pub fn process_block(&mut self) -> bool {
-        let block_started = if self.profiling_enabled { Some(now_ms()) } else { None };
+        let block_started = if self.profiling_enabled {
+            Some(now_ms())
+        } else {
+            None
+        };
         self.left.fill(0.0);
         self.right.fill(0.0);
         if self.stopped {
@@ -186,7 +214,8 @@ impl WasmSubsetEngine {
             let mut segment_end = self.block_size;
             if let Some(next_event_sample) = self.next_pending_event_sample() {
                 if next_event_sample > self.song_sample_counter {
-                    let frames_until_event = (next_event_sample - self.song_sample_counter).max(1) as usize;
+                    let frames_until_event =
+                        (next_event_sample - self.song_sample_counter).max(1) as usize;
                     segment_end = segment_end.min(frame + frames_until_event);
                 }
             }
@@ -201,7 +230,15 @@ impl WasmSubsetEngine {
                 let capture_offset = self.preview_capture_sample_count;
                 for track in self.tracks.iter_mut() {
                     let track_started = now_ms();
-                    track.process_track_frames(&mut self.left, frame, segment_end, sample_rate, profile, true, capture_offset);
+                    track.process_track_frames(
+                        &mut self.left,
+                        frame,
+                        segment_end,
+                        sample_rate,
+                        profile,
+                        true,
+                        capture_offset,
+                    );
                     profile.render_track_sample_ms += now_ms() - track_started;
                 }
                 self.profile_stats.render_tracks_ms += now_ms() - started;
@@ -215,7 +252,7 @@ impl WasmSubsetEngine {
                         self.sample_rate,
                         &mut self.profile_stats,
                         false,
-                        capture_offset
+                        capture_offset,
                     );
                 }
             }
@@ -232,12 +269,15 @@ impl WasmSubsetEngine {
             }
             let rendered_frames = segment_end.saturating_sub(frame) as u32;
             self.song_sample_counter = self.song_sample_counter.saturating_add(rendered_frames);
-            self.preview_capture_sample_count = self.preview_capture_sample_count.saturating_add(rendered_frames as usize);
+            self.preview_capture_sample_count = self
+                .preview_capture_sample_count
+                .saturating_add(rendered_frames as usize);
             frame = segment_end;
         }
 
         if let Some(started) = block_started {
-            self.profile_stats.blocks_processed = self.profile_stats.blocks_processed.saturating_add(1);
+            self.profile_stats.blocks_processed =
+                self.profile_stats.blocks_processed.saturating_add(1);
             self.profile_stats.process_block_ms += now_ms() - started;
         }
 
@@ -300,7 +340,11 @@ impl WasmSubsetEngine {
     /// Params:
     /// - `event`: precompiled event whose target track, note, or parameter should be updated immediately.
     fn apply_event(&mut self, event: EventSpec) {
-        let started = if self.profiling_enabled { Some(now_ms()) } else { None };
+        let started = if self.profiling_enabled {
+            Some(now_ms())
+        } else {
+            None
+        };
         match event {
             EventSpec::NoteOn {
                 track_index,
@@ -313,17 +357,29 @@ impl WasmSubsetEngine {
                     track.note_on(note_id, pitch_voct, velocity, sample_time);
                 }
             }
-            EventSpec::NoteOff { track_index, note_id, .. } => {
+            EventSpec::NoteOff {
+                track_index,
+                note_id,
+                ..
+            } => {
                 if let Some(track) = self.tracks.get_mut(track_index) {
                     track.note_off(&note_id);
                 }
             }
-            EventSpec::ParamChange { track_index, node_id, param_id, value, .. } => {
+            EventSpec::ParamChange {
+                track_index,
+                node_id,
+                param_id,
+                value,
+                ..
+            } => {
                 if let Some(track) = self.tracks.get_mut(track_index) {
                     track.apply_param_change(&node_id, &param_id, &value);
                 }
             }
-            EventSpec::TrackVolumeChange { track_index, value, .. } => {
+            EventSpec::TrackVolumeChange {
+                track_index, value, ..
+            } => {
                 if let Some(track) = self.tracks.get_mut(track_index) {
                     track.set_volume(value);
                 }
@@ -351,6 +407,10 @@ impl WasmSubsetEngine {
         if self.master_fx.limiter_enabled {
             out = clamp(out, -0.98, 0.98);
         }
-        if out.is_finite() { out } else { 0.0 }
+        if out.is_finite() {
+            out
+        } else {
+            0.0
+        }
     }
 }

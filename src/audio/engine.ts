@@ -94,7 +94,9 @@ export class AudioEngine {
     this.backend.releasePreviewNote(trackId, previewId);
   }
 
-  setPreviewCaptureListener(listener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null): void {
+  setPreviewCaptureListener(
+    listener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null
+  ): void {
     this.backend.setPreviewCaptureListener(listener);
   }
 
@@ -104,7 +106,10 @@ export class AudioEngine {
       .reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);
     const renderEndBeat = Math.max(EXPORT_TAIL_BEATS, maxNoteEndBeat + EXPORT_TAIL_BEATS);
     const playbackEndBeat = getLoopPlaybackEndBeat(project, 0, renderEndBeat);
-    const totalSamples = Math.max(BLOCK_SIZE, beatToSample(playbackEndBeat, FIXED_SAMPLE_RATE, project.global.tempo) + BLOCK_SIZE);
+    const totalSamples = Math.max(
+      BLOCK_SIZE,
+      beatToSample(playbackEndBeat, FIXED_SAMPLE_RATE, project.global.tempo) + BLOCK_SIZE
+    );
     const initialEvents = collectEventsInWindow(project, { fromSample: 0, toSample: totalSamples }, { cueBeat: 0 });
     const rendered = await renderProjectOfflineBrowserWasm(project, {
       sampleRate: FIXED_SAMPLE_RATE,

@@ -62,13 +62,15 @@ describe("patch auto layout", () => {
   });
 
   it("replaces complete saved layouts when module boxes overlap", () => {
-    const patch = ensurePatchLayout(makePatch({
-      nodes: [
-        { nodeId: "pitch", x: 2, y: 2 },
-        { nodeId: "vco", x: 4, y: 2 },
-        { nodeId: "output", x: 6, y: 2 }
-      ]
-    }));
+    const patch = ensurePatchLayout(
+      makePatch({
+        nodes: [
+          { nodeId: "pitch", x: 2, y: 2 },
+          { nodeId: "vco", x: 4, y: 2 },
+          { nodeId: "output", x: 6, y: 2 }
+        ]
+      })
+    );
 
     const xByNode = new Map(patch.layout.nodes.map((node) => [node.nodeId, node.x]));
     expect(xByNode.get("pitch")).toBeLessThan(xByNode.get("vco") ?? 0);

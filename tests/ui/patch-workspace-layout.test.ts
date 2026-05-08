@@ -113,7 +113,10 @@ describe.sequential("patch workspace layout regression", () => {
           await expect(page.locator(".instrument-patch-picker-name")).toHaveText(alternatePatchName);
 
           await page.locator(".instrument-patch-picker-caret").click();
-          await page.getByRole("dialog", { name: "Select instrument" }).getByRole("button", { name: "Bass", exact: true }).click();
+          await page
+            .getByRole("dialog", { name: "Select instrument" })
+            .getByRole("button", { name: "Bass", exact: true })
+            .click();
           await expect(activeTabLabel(page)).toHaveText("Tab 1");
           await expect(page.locator(".instrument-patch-picker-name")).toHaveText("Bass");
 
