@@ -237,6 +237,8 @@ pub(crate) struct ReverbNode {
     tone: SmoothParam,
     mix: SmoothParam,
     bank: ReverbDelayLineBank,
+    cached_wet_gain_decay: f32,
+    cached_wet_gain: f32,
 }
 
 #[derive(Clone)]

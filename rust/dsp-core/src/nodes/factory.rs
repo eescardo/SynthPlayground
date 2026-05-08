@@ -1,5 +1,6 @@
 use super::sample_asset::parse_sample_asset;
 use super::*;
+use crate::nodes::reverb::reverb_mode_wet_gain;
 use crate::{js_error, NodeSpecRaw};
 use serde_json::Value;
 use wasm_bindgen::JsValue;
@@ -237,6 +238,8 @@ impl RuntimeNode {
                     tone: SmoothParam::new(value_to_f32(p.get("tone"), 0.55), 50.0, sample_rate),
                     mix: SmoothParam::new(value_to_f32(p.get("mix"), 0.25), 10.0, sample_rate),
                     bank: ReverbDelayLineBank::new(mode, sample_rate),
+                    cached_wet_gain_decay: f32::NAN,
+                    cached_wet_gain: reverb_mode_wet_gain(mode, value_to_f32(p.get("decay"), 0.45)),
                 })
             }
             "Saturation" => Self::Saturation(SaturationNode {

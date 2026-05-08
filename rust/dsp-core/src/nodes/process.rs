@@ -16,6 +16,15 @@ fn adsr_curve_progress(node: &mut AdsrNode, t: f32, curve: f32) -> f32 {
 }
 
 #[inline(always)]
+fn reverb_wet_gain(node: &mut ReverbNode, decay: f32) -> f32 {
+    if (decay - node.cached_wet_gain_decay).abs() > 0.0005 {
+        node.cached_wet_gain_decay = decay;
+        node.cached_wet_gain = reverb_mode_wet_gain(node.mode, decay);
+    }
+    node.cached_wet_gain
+}
+
+#[inline(always)]
 fn signal_start(signal_index: usize, block_size: usize) -> usize {
     signal_index * block_size
 }
@@ -733,7 +742,7 @@ impl RuntimeNode {
                     }
                     ReverbMode::Plate => (delayed[0] + delayed[1] + delayed[2] + delayed[3]) * 0.28,
                     _ => (delayed[0] + delayed[1] + delayed[2] + delayed[3]) * 0.25,
-                } * reverb_mode_wet_gain(node.mode, decay);
+                } * reverb_wet_gain(node, decay);
                 let out = frame_signal_offset(node.out_index, block_size, frame);
                 signal_buffers[out] = input * (1.0 - mix) + wet.tanh() * mix;
             }
