@@ -147,6 +147,76 @@ describe("patch validation", () => {
     }
   });
 
+  it("accepts current reverb params", () => {
+    const patch = createClearPatch({ id: "current_reverb", name: "Current Reverb" });
+    patch.nodes.push(
+      { id: "noise1", typeId: "Noise", params: { color: "white", gain: 0.3 } },
+      { id: "verb1", typeId: "Reverb", params: { mode: "room", decay: 0.5, tone: 0.6, mix: 0.25 } }
+    );
+    patch.connections = [
+      { id: "c1", from: { nodeId: "noise1", portId: "out" }, to: { nodeId: "verb1", portId: "in" } },
+      { id: "c2", from: { nodeId: "verb1", portId: "out" }, to: { nodeId: "output", portId: "in" } }
+    ];
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects legacy reverb params, ranges, and bindings instead of silently using defaults", () => {
+    const patch = createClearPatch({ id: "legacy_reverb", name: "Legacy Reverb" });
+    patch.nodes.push(
+      { id: "noise1", typeId: "Noise", params: { color: "white", gain: 0.3 } },
+      { id: "verb1", typeId: "Reverb", params: { size: 0.8, decay: 1.5, damping: 0.4, mix: 0.5 } }
+    );
+    patch.connections = [
+      { id: "c1", from: { nodeId: "noise1", portId: "out" }, to: { nodeId: "verb1", portId: "in" } },
+      { id: "c2", from: { nodeId: "verb1", portId: "out" }, to: { nodeId: "output", portId: "in" } }
+    ];
+    patch.ui.paramRanges = {
+      "verb1:size": { min: 0, max: 1 },
+      "verb1:decay": { min: 0.2, max: 5 }
+    };
+    patch.ui.macros.push({
+      id: "macro_verb",
+      name: "Verb",
+      keyframeCount: 2,
+      bindings: [
+        {
+          id: "legacy_size",
+          nodeId: "verb1",
+          paramId: "size",
+          map: "linear",
+          min: 0,
+          max: 1
+        },
+        {
+          id: "legacy_decay",
+          nodeId: "verb1",
+          paramId: "decay",
+          map: "linear",
+          min: 1,
+          max: 5
+        }
+      ]
+    });
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "node-param-unknown", context: expect.objectContaining({ nodeId: "verb1", paramId: "size" }) }),
+        expect.objectContaining({ code: "node-param-unknown", context: expect.objectContaining({ nodeId: "verb1", paramId: "damping" }) }),
+        expect.objectContaining({ code: "node-param-out-of-range", context: expect.objectContaining({ nodeId: "verb1", paramId: "decay" }) }),
+        expect.objectContaining({ code: "param-range-invalid-param", context: expect.objectContaining({ nodeId: "verb1", paramId: "size" }) }),
+        expect.objectContaining({ code: "param-range-out-of-range", context: expect.objectContaining({ nodeId: "verb1", paramId: "decay" }) }),
+        expect.objectContaining({ code: "macro-binding-invalid-param", context: expect.objectContaining({ nodeId: "verb1", paramId: "size" }) }),
+        expect.objectContaining({ code: "macro-binding-range-out-of-range", context: expect.objectContaining({ nodeId: "verb1", paramId: "decay" }) })
+      ])
+    );
+  });
+
   it("rejects modules with unconnected required input ports", () => {
     const patch = bassPatch();
     patch.connections = patch.connections.filter(

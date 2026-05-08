@@ -23,6 +23,11 @@ export const patchHasNode = (patch: Patch, nodeId: string): boolean => patch.nod
 const patchHasEndpointNode = (patch: Patch, nodeId: string): boolean =>
   patch.nodes.some((node) => node.id === nodeId) || getPatchBoundaryPorts(patch).some((port) => port.id === nodeId);
 
+const formatParamTarget = (nodeId: string, paramId: string): string => `${nodeId}.${paramId}`;
+
+const isFloatParamValueInRange = (value: number, range: { min: number; max: number }): boolean =>
+  Number.isFinite(value) && value >= range.min && value <= range.max;
+
 const resolveAllNodeTypes = (patch: Patch): Map<string, string> => {
   const allNodeTypes = new Map<string, string>();
   for (const node of patch.nodes) {
@@ -202,6 +207,106 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
   }
 
   const allNodeTypes = resolveAllNodeTypes(patch);
+  const graphNodes = [...patch.nodes, ...getPatchBoundaryPorts(patch)];
+
+  for (const node of graphNodes) {
+    const schema = getModuleSchema(node.typeId);
+    if (!schema) {
+      continue;
+    }
+    const paramsById = new Map(schema.params.map((param) => [param.id, param] as const));
+
+    for (const [paramId, value] of Object.entries(node.params)) {
+      const paramSchema = paramsById.get(paramId);
+      if (!paramSchema) {
+        pushError(
+          issues,
+          `Module ${node.id} has stale or unknown parameter ${paramId}`,
+          { nodeId: node.id, typeId: node.typeId, paramId },
+          "node-param-unknown"
+        );
+        continue;
+      }
+
+      if (paramSchema.type === "float") {
+        if (typeof value !== "number" || !Number.isFinite(value)) {
+          pushError(
+            issues,
+            `Module ${node.id} parameter ${paramId} must be a number`,
+            { nodeId: node.id, typeId: node.typeId, paramId },
+            "node-param-type-mismatch"
+          );
+        } else if (node.typeId === "Reverb" && !isFloatParamValueInRange(value, paramSchema.range)) {
+          pushError(
+            issues,
+            `Module ${node.id} parameter ${paramId} is outside ${paramSchema.range.min}..${paramSchema.range.max}`,
+            { nodeId: node.id, typeId: node.typeId, paramId, value: String(value) },
+            "node-param-out-of-range"
+          );
+        }
+      } else if (paramSchema.type === "enum") {
+        if (typeof value !== "string" || !paramSchema.options.includes(value)) {
+          pushError(
+            issues,
+            `Module ${node.id} parameter ${paramId} must be one of ${paramSchema.options.join(", ")}`,
+            { nodeId: node.id, typeId: node.typeId, paramId, value: String(value) },
+            "node-param-invalid-option"
+          );
+        }
+      } else if (typeof value !== "boolean") {
+        pushError(
+          issues,
+          `Module ${node.id} parameter ${paramId} must be boolean`,
+          { nodeId: node.id, typeId: node.typeId, paramId },
+          "node-param-type-mismatch"
+        );
+      }
+    }
+  }
+
+  for (const [rangeKey, range] of Object.entries(patch.ui.paramRanges ?? {})) {
+    const separatorIndex = rangeKey.indexOf(":");
+    const nodeId = separatorIndex >= 0 ? rangeKey.slice(0, separatorIndex) : "";
+    const paramId = separatorIndex >= 0 ? rangeKey.slice(separatorIndex + 1) : rangeKey;
+    const node = graphNodes.find((entry) => entry.id === nodeId);
+    if (!node) {
+      pushError(
+        issues,
+        `Slider range targets missing node ${formatParamTarget(nodeId, paramId)}`,
+        { nodeId, paramId, rangeKey },
+        "param-range-missing-node"
+      );
+      continue;
+    }
+    const schema = getModuleSchema(node.typeId);
+    const paramSchema = schema?.params.find((param) => param.id === paramId);
+    if (!schema || !paramSchema) {
+      pushError(
+        issues,
+        `Slider range targets missing parameter ${formatParamTarget(nodeId, paramId)}`,
+        { nodeId, typeId: node.typeId, paramId, rangeKey },
+        "param-range-invalid-param"
+      );
+      continue;
+    }
+    if (paramSchema.type !== "float") {
+      pushError(
+        issues,
+        `Slider range targets non-numeric parameter ${formatParamTarget(nodeId, paramId)}`,
+        { nodeId, typeId: node.typeId, paramId, rangeKey },
+        "param-range-non-float-param"
+      );
+      continue;
+    }
+    if (!isFloatParamValueInRange(range.min, paramSchema.range) || !isFloatParamValueInRange(range.max, paramSchema.range)) {
+      pushError(
+        issues,
+        `Slider range for ${formatParamTarget(nodeId, paramId)} is outside ${paramSchema.range.min}..${paramSchema.range.max}`,
+        { nodeId, typeId: node.typeId, paramId, rangeKey, min: String(range.min), max: String(range.max) },
+        "param-range-out-of-range"
+      );
+    }
+  }
 
   for (const macro of patch.ui.macros) {
     if (macroIds.has(macro.id)) {
@@ -264,6 +369,21 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
         );
         continue;
       }
+      if (paramSchema.type !== "float") {
+        pushError(
+          issues,
+          `Macro "${macro.name}" binding targets non-numeric parameter ${binding.nodeId}.${binding.paramId}`,
+          {
+            macroId: macro.id,
+            bindingId: binding.id,
+            nodeId: binding.nodeId,
+            paramId: binding.paramId,
+            typeId: node.typeId
+          },
+          "macro-binding-non-float-param"
+        );
+        continue;
+      }
 
       if (getMacroBindingKeyframeCount(binding) !== macro.keyframeCount) {
         pushError(issues, `Macro binding keyframe count does not match macro`, {
@@ -291,6 +411,47 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
         });
       } else {
         macroTargetToMacroId.set(targetKey, macro.id);
+      }
+
+      const bindingMin = binding.min;
+      const bindingMax = binding.max;
+      const shouldValidateBindingRange = node.typeId === "Reverb";
+      if (
+        shouldValidateBindingRange &&
+        ((bindingMin !== undefined && !isFloatParamValueInRange(bindingMin, paramSchema.range)) ||
+          (bindingMax !== undefined && !isFloatParamValueInRange(bindingMax, paramSchema.range)))
+      ) {
+        pushError(
+          issues,
+          `Macro "${macro.name}" binding range for ${binding.nodeId}.${binding.paramId} is outside ${paramSchema.range.min}..${paramSchema.range.max}`,
+          {
+            macroId: macro.id,
+            bindingId: binding.id,
+            nodeId: binding.nodeId,
+            paramId: binding.paramId,
+            typeId: node.typeId
+          },
+          "macro-binding-range-out-of-range"
+        );
+      }
+      const outOfRangePoint =
+        shouldValidateBindingRange
+          ? binding.points?.find((point) => !isFloatParamValueInRange(point.y, paramSchema.range))
+          : undefined;
+      if (outOfRangePoint) {
+        pushError(
+          issues,
+          `Macro "${macro.name}" binding point for ${binding.nodeId}.${binding.paramId} is outside ${paramSchema.range.min}..${paramSchema.range.max}`,
+          {
+            macroId: macro.id,
+            bindingId: binding.id,
+            nodeId: binding.nodeId,
+            paramId: binding.paramId,
+            typeId: node.typeId,
+            value: String(outOfRangePoint.y)
+          },
+          "macro-binding-point-out-of-range"
+        );
       }
     }
   }
@@ -387,7 +548,6 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
     }
   }
 
-  const graphNodes = [...patch.nodes, ...getPatchBoundaryPorts(patch)];
   const nodeById = new Set(graphNodes.map((node) => node.id));
   const adjacency = new Map<string, string[]>();
   for (const node of graphNodes) {
