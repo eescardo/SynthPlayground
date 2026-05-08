@@ -1,5 +1,11 @@
-const ADSR_LINEAR_CURVE_SNAP_RADIUS = 0.035;
+export interface MagneticSliderSnap {
+  point: number;
+  radius: number;
+}
 
-export function snapAdsrCurveValueToLinearCenter(value: number) {
-  return Math.abs(value) <= ADSR_LINEAR_CURVE_SNAP_RADIUS ? 0 : value;
+export function applyMagneticSliderSnap(value: number, snap?: MagneticSliderSnap) {
+  if (!snap) {
+    return value;
+  }
+  return Math.abs(value - snap.point) <= snap.radius ? snap.point : value;
 }

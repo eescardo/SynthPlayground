@@ -5,7 +5,8 @@ import {
 import { PatchDiff } from "@/lib/patch/diff";
 import { EditableNumberLabel, MacroBindingDetails, ParamMacroControl } from "@/components/patch/PatchInspectorControls";
 import { resolveParamBindingState, resolveParamControlValue } from "@/components/patch/patchModuleParameterState";
-import { snapAdsrCurveValueToLinearCenter } from "@/components/patch/patchModuleParameterControls";
+import { applyMagneticSliderSnap, MagneticSliderSnap } from "@/components/patch/patchModuleParameterControls";
+import { resolveParamSliderMagnet } from "@/components/patch/patchModuleParameterInspector";
 import { createMacroBindingId, createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
 import { clamp, clampRange } from "@/lib/numeric";
 import { MacroBinding, Patch, PatchMacro, PatchNode, PatchParamSliderRange, ParamSchema, ParamValue } from "@/types/patch";
@@ -83,7 +84,7 @@ function ParamValueControl(props: {
   min?: number;
   max?: number;
   disabled?: boolean;
-  snapToLinearCenter?: boolean;
+  magneticSnap?: MagneticSliderSnap;
   onChange: (value: ParamValue) => void;
   onPreviewChange?: (value: ParamValue) => void;
 }) {
@@ -97,7 +98,7 @@ function ParamValueControl(props: {
         min={props.min}
         max={props.max}
         disabled={disabled}
-        snapToLinearCenter={props.snapToLinearCenter}
+        magneticSnap={props.magneticSnap}
         onChange={onChange}
         onPreviewChange={props.onPreviewChange}
       />
@@ -125,7 +126,7 @@ function FloatParamValueControl(props: {
   min?: number;
   max?: number;
   disabled?: boolean;
-  snapToLinearCenter?: boolean;
+  magneticSnap?: MagneticSliderSnap;
   onChange: (value: number) => void;
   onPreviewChange?: (value: number) => void;
 }) {
@@ -159,7 +160,7 @@ function FloatParamValueControl(props: {
       style={{ "--param-slider-percent": `${sliderPercent}%` } as CSSProperties}
       onChange={(event) => {
         const rawValue = Number(event.target.value);
-        const nextValue = props.snapToLinearCenter ? snapAdsrCurveValueToLinearCenter(rawValue) : rawValue;
+        const nextValue = applyMagneticSliderSnap(rawValue, props.magneticSnap);
         pendingCommitRef.current = true;
         setDraftValue(nextValue);
         props.onPreviewChange?.(nextValue);
@@ -299,6 +300,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
   const currentDisplayValue = sliderControlValue;
   const currentDisplayMin = sliderRange.min;
   const currentDisplayMax = sliderRange.max;
+  const magneticSnap = resolveParamSliderMagnet(props.selectedNode, props.param);
 
   const bindParamToMacro = (macroId: string) => {
     if (props.structureLocked) {
@@ -403,7 +405,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
             min={props.param.type === "float" ? sliderRange.min : undefined}
             max={props.param.type === "float" ? sliderRange.max : undefined}
             disabled={controlDisabled}
-            snapToLinearCenter={shouldRenderCurveScaleLabels(props.selectedNode, props.param)}
+            magneticSnap={magneticSnap}
             onChange={commitValue}
             onPreviewChange={(nextValue) => props.onPreviewParamValue?.(props.selectedNode.id, props.param.id, nextValue)}
           />

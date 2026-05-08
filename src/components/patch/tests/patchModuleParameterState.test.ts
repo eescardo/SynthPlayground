@@ -3,7 +3,8 @@ import {
   resolveParamBindingState,
   resolveParamControlValue
 } from "@/components/patch/patchModuleParameterState";
-import { snapAdsrCurveValueToLinearCenter } from "@/components/patch/patchModuleParameterControls";
+import { applyMagneticSliderSnap } from "@/components/patch/patchModuleParameterControls";
+import { resolveParamSliderMagnet } from "@/components/patch/patchModuleParameterInspector";
 import { createDefaultParamsForType, getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch } from "@/types/patch";
 
@@ -16,11 +17,21 @@ const karplusSchema = () => {
 };
 
 describe("PatchModuleParameter macro-bound controls", () => {
-  it("snaps ADSR curve values near the linear center", () => {
-    expect(snapAdsrCurveValueToLinearCenter(0.034)).toBe(0);
-    expect(snapAdsrCurveValueToLinearCenter(-0.034)).toBe(0);
-    expect(snapAdsrCurveValueToLinearCenter(0.04)).toBe(0.04);
-    expect(snapAdsrCurveValueToLinearCenter(-0.04)).toBe(-0.04);
+  it("uses a magnetic slider center for the ADSR curve parameter", () => {
+    const schema = getModuleSchema("ADSR");
+    const curveParam = schema?.params.find((entry) => entry.id === "curve");
+    if (!curveParam) {
+      throw new Error("Expected ADSR curve param.");
+    }
+    const magnet = resolveParamSliderMagnet(
+      { id: "env1", typeId: "ADSR", params: createDefaultParamsForType("ADSR") },
+      curveParam
+    );
+    expect(magnet).toEqual({ point: 0, radius: 0.035 });
+    expect(applyMagneticSliderSnap(0.034, magnet)).toBe(0);
+    expect(applyMagneticSliderSnap(-0.034, magnet)).toBe(0);
+    expect(applyMagneticSliderSnap(0.04, magnet)).toBe(0.04);
+    expect(applyMagneticSliderSnap(-0.04, magnet)).toBe(-0.04);
   });
 
   it("only previews the selected macro on parameters bound to that macro", () => {
