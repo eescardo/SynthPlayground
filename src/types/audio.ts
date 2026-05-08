@@ -120,6 +120,12 @@ export interface WorkletPreviewMessage {
   randomSeed?: number;
 }
 
+export interface WorkletPreviewReleaseMessage {
+  type: "PREVIEW_RELEASE";
+  trackId: string;
+  previewId: string;
+}
+
 export interface WorkletPreviewCaptureMessage {
   type: "PREVIEW_CAPTURE";
   previewId?: string;
@@ -132,6 +138,12 @@ export interface WorkletInitReadyMessage {
 
 export interface WorkletInitErrorMessage {
   type: "INIT_ERROR";
+  error: string;
+}
+
+export interface WorkletRuntimeErrorMessage {
+  type: "RUNTIME_ERROR";
+  phase: "message" | "start_stream" | "stop_stream" | "process_block";
   error: string;
 }
 
@@ -155,7 +167,12 @@ export type WorkletInboundMessage =
   | WorkletEventsMessage
   | WorkletMacroMessage
   | WorkletPreviewMessage
+  | WorkletPreviewReleaseMessage
   | WorkletRecordingMessage
   | WorkletTransportMessage;
 
-export type WorkletOutboundMessage = WorkletPreviewCaptureMessage | WorkletInitReadyMessage | WorkletInitErrorMessage;
+export type WorkletOutboundMessage =
+  | WorkletPreviewCaptureMessage
+  | WorkletInitReadyMessage
+  | WorkletInitErrorMessage
+  | WorkletRuntimeErrorMessage;

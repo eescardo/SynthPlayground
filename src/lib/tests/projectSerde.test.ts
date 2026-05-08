@@ -89,9 +89,9 @@ describe("projectSerde", () => {
     const attackBinding = popSlapMacro?.bindings.find((binding) => binding.paramId === "attack");
     expect(attackBinding?.map).toBe("linear");
     expect(attackBinding?.points).toEqual([
-      { x: 0, y: 0.0032 },
-      { x: 0.5, y: 0.0075 },
-      { x: 1, y: 0.0035 }
+      { x: 0, y: 3.2 },
+      { x: 0.5, y: 7.5 },
+      { x: 1, y: 3.5 }
     ]);
   });
 

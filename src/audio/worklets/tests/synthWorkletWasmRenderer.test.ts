@@ -9,6 +9,7 @@ const leftView = new Float32Array(sharedMemory.buffer, 0, blockSize);
 const rightView = new Float32Array(sharedMemory.buffer, blockSize * Float32Array.BYTES_PER_ELEMENT, blockSize);
 let previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
 let previewCaptureSampleCount = 0;
+let writeInvalidPreviewCaptureJson = false;
 let hasActiveVoices = false;
 const engineStop = vi.fn();
 
@@ -23,16 +24,18 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
     enqueue_events() {}
     configure_preview_probe_capture() {}
     process_block() {
-      previewCaptureSampleCount = blockSize;
-      previewCaptureStateJson = JSON.stringify({
-        capturedSamples: blockSize,
-        captures: [
-          {
-            probeId: "probe_1",
-            samples: Array.from({ length: blockSize }, () => 0.5)
-          }
-        ]
-      });
+      previewCaptureSampleCount = writeInvalidPreviewCaptureJson ? 1024 : blockSize;
+      previewCaptureStateJson = writeInvalidPreviewCaptureJson
+        ? "\0".repeat(16)
+        : JSON.stringify({
+            capturedSamples: blockSize,
+            captures: [
+              {
+                probeId: "probe_1",
+                samples: Array.from({ length: blockSize }, () => 0.5)
+              }
+            ]
+          });
       return true;
     }
     has_active_voices() {
@@ -156,6 +159,7 @@ beforeEach(() => {
   leftView.fill(0);
   rightView.fill(0);
   previewCaptureSampleCount = 0;
+  writeInvalidPreviewCaptureJson = false;
   hasActiveVoices = false;
   previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
 });
@@ -270,6 +274,58 @@ describe("WASM worklet renderer", () => {
     stream!.stop();
 
     expect(engineStop).toHaveBeenCalledTimes(1);
+    expect(postMessage).not.toHaveBeenCalled();
+  });
+
+  it("ignores invalid preview capture JSON without stopping audio processing", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+    const postMessage = vi.fn();
+    renderer.port.postMessage = postMessage;
+    writeInvalidPreviewCaptureJson = true;
+    hasActiveVoices = true;
+
+    const stream = renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize * 16,
+      trackId: "track_1",
+      previewId: "preview_bad_capture",
+      events: [
+        {
+          id: "note_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
+      captureProbes: [
+        {
+          probeId: "probe_1",
+          kind: "scope",
+          target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
+        }
+      ],
+      randomSeed: 123
+    });
+
+    previewCaptureStateJson = "\0".repeat(16);
+    expect(() => stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)])).not.toThrow();
+    expect(stream!.stopped).toBe(false);
     expect(postMessage).not.toHaveBeenCalled();
   });
 

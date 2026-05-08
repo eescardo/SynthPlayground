@@ -4,6 +4,7 @@ import { createDefaultProjectFromTemplate, createEmptyProjectFromPresets } from 
 import { createId } from "@/lib/ids";
 import { normalizeMacroBindingIds } from "@/lib/patch/macroBindings";
 import { createPatchOutputPort } from "@/lib/patch/ports";
+import { CURRENT_PATCH_SCHEMA_VERSION } from "@/lib/patch/schemaVersion";
 import { Project } from "@/types/music";
 import { Patch, PatchMeta } from "@/types/patch";
 
@@ -25,7 +26,7 @@ export const createClearPatch = ({
   meta?: PatchMeta;
   canvasZoom?: number;
 }): Patch => ({
-  schemaVersion: 1,
+  schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
   id,
   name,
   meta,
@@ -53,14 +54,14 @@ export const bassPatch = (): Patch => {
   const mixId = "mix1";
   const vcaId = "vca1";
   const vcfId = "vcf1";
-  const satId = "sat1";
+  const satId = "sat";
   const outId = "output";
 
   return {
-    schemaVersion: 1,
+    schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: patchId,
     name: "Bass",
-    meta: { source: "preset", presetId: "preset_bass", presetVersion: 14 },
+    meta: { source: "preset", presetId: "preset_bass", presetVersion: 15 },
     nodes: [
       {
         id: pitchTrackId,
@@ -111,10 +112,10 @@ export const bassPatch = (): Patch => {
         typeId: "ADSR",
         params: {
           ...createDefaultParamsForType("ADSR"),
-          attack: 0.01,
-          decay: 0.22,
+          attack: 10,
+          decay: 220,
           sustain: 0.52,
-          release: 0.26
+          release: 260
         }
       },
       {
@@ -122,10 +123,10 @@ export const bassPatch = (): Patch => {
         typeId: "ADSR",
         params: {
           ...createDefaultParamsForType("ADSR"),
-          attack: 0.004,
-          decay: 0.08,
+          attack: 4,
+          decay: 80,
           sustain: 0,
-          release: 0.02
+          release: 20
         }
       },
       {
@@ -281,9 +282,9 @@ export const bassPatch = (): Patch => {
               paramId: "attack",
               map: "linear",
               points: [
-                { x: 0, y: 0.0032 },
-                { x: 0.5, y: 0.0075 },
-                { x: 1, y: 0.0035 }
+                { x: 0, y: 3.2 },
+                { x: 0.5, y: 7.5 },
+                { x: 1, y: 3.5 }
               ]
             },
             {
@@ -292,9 +293,9 @@ export const bassPatch = (): Patch => {
               paramId: "decay",
               map: "linear",
               points: [
-                { x: 0, y: 0.0035 },
-                { x: 0.5, y: 0.14 },
-                { x: 1, y: 0.032 }
+                { x: 0, y: 3.5 },
+                { x: 0.5, y: 140 },
+                { x: 1, y: 32 }
               ]
             },
             {
@@ -314,9 +315,9 @@ export const bassPatch = (): Patch => {
               paramId: "release",
               map: "linear",
               points: [
-                { x: 0, y: 0.003 },
-                { x: 0.5, y: 0.028 },
-                { x: 1, y: 0.012 }
+                { x: 0, y: 3 },
+                { x: 0.5, y: 28 },
+                { x: 1, y: 12 }
               ]
             },
             {
@@ -347,9 +348,9 @@ export const bassPatch = (): Patch => {
               paramId: "attack",
               map: "linear",
               points: [
-                { x: 0, y: 0.002 },
-                { x: 0.5, y: 0.004 },
-                { x: 1, y: 0.0025 }
+                { x: 0, y: 2 },
+                { x: 0.5, y: 4 },
+                { x: 1, y: 2.5 }
               ]
             },
             {
@@ -358,9 +359,9 @@ export const bassPatch = (): Patch => {
               paramId: "decay",
               map: "linear",
               points: [
-                { x: 0, y: 0.02 },
-                { x: 0.5, y: 0.11 },
-                { x: 1, y: 0.24 }
+                { x: 0, y: 20 },
+                { x: 0.5, y: 110 },
+                { x: 1, y: 240 }
               ]
             },
             {
@@ -451,7 +452,7 @@ export const padPatch = (): Patch => {
   const out = "output";
 
   return {
-    schemaVersion: 1,
+    schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: "preset_pad",
     name: "Pad",
     meta: { source: "preset", presetId: "preset_pad", presetVersion: 7 },
@@ -479,10 +480,10 @@ export const padPatch = (): Patch => {
         typeId: "ADSR",
         params: {
           ...createDefaultParamsForType("ADSR"),
-          attack: 1.1,
-          decay: 0.9,
+          attack: 1100,
+          decay: 900,
           sustain: 0.78,
-          release: 1.2
+          release: 1200
         }
       },
       {
@@ -513,14 +514,14 @@ export const padPatch = (): Patch => {
           name: "Attack",
           keyframeCount: 2,
           defaultNormalized: 0.34,
-          bindings: [{ id: "b1", nodeId: env, paramId: "attack", map: "linear", min: 0.05, max: 3.2 }]
+          bindings: [{ id: "b1", nodeId: env, paramId: "attack", map: "linear", min: 50, max: 3200 }]
         },
         {
           id: "macro_release",
           name: "Release",
           keyframeCount: 2,
           defaultNormalized: 0.32,
-          bindings: [{ id: "b6", nodeId: env, paramId: "release", map: "linear", min: 0.15, max: 2.4 }]
+          bindings: [{ id: "b6", nodeId: env, paramId: "release", map: "linear", min: 150, max: 2400 }]
         },
         {
           id: "macro_motion",
@@ -563,7 +564,7 @@ export const pluckPatch = (): Patch => {
   const out = "output";
 
   return {
-    schemaVersion: 1,
+    schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: "preset_pluck",
     name: "Pluck",
     meta: { source: "preset", presetId: "preset_pluck", presetVersion: 29 },
@@ -628,9 +629,9 @@ export const pluckPatch = (): Patch => {
         params: {
           ...createDefaultParamsForType("ADSR"),
           attack: 0,
-          decay: 0.04,
+          decay: 40,
           sustain: 1,
-          release: 0.32
+          release: 320
         }
       },
       {
@@ -770,7 +771,7 @@ export const pluckPatch = (): Patch => {
             { id: "b2b", nodeId: bodyString, paramId: "decay", map: "linear", min: 0.982, max: 0.9992 },
             { id: "b2c", nodeId: warmthString, paramId: "decay", map: "linear", min: 0.992, max: 0.9996 },
             { id: "b2d", nodeId: shimmerString, paramId: "decay", map: "linear", min: 0.988, max: 0.9993 },
-            { id: "b3", nodeId: ampEnv, paramId: "release", map: "linear", min: 0.18, max: 0.72 }
+            { id: "b3", nodeId: ampEnv, paramId: "release", map: "linear", min: 180, max: 720 }
           ]
         },
         {
@@ -884,9 +885,9 @@ export const pluckPatch = (): Patch => {
               paramId: "decay",
               map: "linear",
               points: [
-                { x: 0, y: 0.0025 },
-                { x: 0.5, y: 0.04 },
-                { x: 1, y: 0.106 }
+                { x: 0, y: 2.5 },
+                { x: 0.5, y: 40 },
+                { x: 1, y: 106 }
               ]
             },
             {
@@ -924,20 +925,20 @@ export const keysPatch = (): Patch => {
   const vco = "vco1";
   const env = "env1";
   const vca = "vca1";
-  const sat = "sat1";
+  const sat = "sat";
   const out = "output";
 
   return {
-    schemaVersion: 1,
+    schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: "preset_keys",
     name: "Simple Piano-ish",
-    meta: { source: "preset", presetId: "preset_keys", presetVersion: 3 },
+    meta: { source: "preset", presetId: "preset_keys", presetVersion: 4 },
     nodes: [
       { id: vco, typeId: "VCO", params: { ...createDefaultParamsForType("VCO"), wave: "triangle" } },
       {
         id: env,
         typeId: "ADSR",
-        params: { ...createDefaultParamsForType("ADSR"), attack: 0.001, decay: 0.25, sustain: 0.1, release: 0.3 }
+        params: { ...createDefaultParamsForType("ADSR"), attack: 1, decay: 250, sustain: 0.1, release: 300 }
       },
       { id: vca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 1, bias: 0 } },
       { id: sat, typeId: "Saturation", params: { ...createDefaultParamsForType("Saturation"), driveDb: 6, mix: 0.25 } }
@@ -982,7 +983,7 @@ export const brassPatch = (): Patch => {
   const out = "output";
 
   return {
-    schemaVersion: 1,
+    schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: "preset_brass",
     name: "Brass-ish",
     meta: { source: "preset", presetId: "preset_brass", presetVersion: 4 },
@@ -992,7 +993,7 @@ export const brassPatch = (): Patch => {
       {
         id: env,
         typeId: "ADSR",
-        params: { ...createDefaultParamsForType("ADSR"), attack: 0.06, decay: 0.2, sustain: 0.7, release: 0.4 }
+        params: { ...createDefaultParamsForType("ADSR"), attack: 60, decay: 200, sustain: 0.7, release: 400 }
       },
       { id: vcf, typeId: "VCF", params: { ...createDefaultParamsForType("VCF"), cutoffHz: 900, resonance: 0.8 } },
       { id: vca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 1, bias: 0 } }
@@ -1040,14 +1041,14 @@ export const drumPatch = (): Patch => {
   const bodyVca = "vca1";
   const noiseVca = "vca2";
   const mix = "mix1";
-  const sat = "sat1";
+  const drive = "drive";
   const out = "output";
 
   return {
-    schemaVersion: 1,
+    schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: "preset_drumish",
     name: "Drum-ish",
-    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 11 },
+    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 13 },
     nodes: [
       {
         id: vco,
@@ -1058,12 +1059,12 @@ export const drumPatch = (): Patch => {
       {
         id: bodyEnv,
         typeId: "ADSR",
-        params: { ...createDefaultParamsForType("ADSR"), attack: 0, decay: 0.06, sustain: 0, release: 0.04 }
+        params: { ...createDefaultParamsForType("ADSR"), attack: 0, decay: 60, sustain: 0, release: 40 }
       },
       {
         id: noiseEnv,
         typeId: "ADSR",
-        params: { ...createDefaultParamsForType("ADSR"), attack: 0, decay: 0.06, sustain: 0, release: 0.04 }
+        params: { ...createDefaultParamsForType("ADSR"), attack: 0, decay: 60, sustain: 0, release: 40 }
       },
       {
         id: noiseFilter,
@@ -1073,7 +1074,7 @@ export const drumPatch = (): Patch => {
       { id: bodyVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.34, bias: 0 } },
       { id: noiseVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.82, bias: 0 } },
       { id: mix, typeId: "Mixer4", params: { ...createDefaultParamsForType("Mixer4"), gain1: 0.62, gain2: 0.92 } },
-      { id: sat, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), gainDb: 6, mix: 0.14 } }
+      { id: drive, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), driveDb: 6 } }
     ],
     ports: [createPatchOutputPort()],
     connections: [
@@ -1088,8 +1089,8 @@ export const drumPatch = (): Patch => {
       { id: "c9", from: { nodeId: noiseEnv, portId: "out" }, to: { nodeId: noiseVca, portId: "gainCV" } },
       { id: "c10", from: { nodeId: bodyVca, portId: "out" }, to: { nodeId: mix, portId: "in1" } },
       { id: "c11", from: { nodeId: noiseVca, portId: "out" }, to: { nodeId: mix, portId: "in2" } },
-      { id: "c12", from: { nodeId: mix, portId: "out" }, to: { nodeId: sat, portId: "in" } },
-      { id: "c13", from: { nodeId: sat, portId: "out" }, to: { nodeId: out, portId: "in" } }
+      { id: "c12", from: { nodeId: mix, portId: "out" }, to: { nodeId: drive, portId: "in" } },
+      { id: "c13", from: { nodeId: drive, portId: "out" }, to: { nodeId: out, portId: "in" } }
     ],
     ui: {
       macros: [
@@ -1099,8 +1100,8 @@ export const drumPatch = (): Patch => {
           keyframeCount: 2,
           defaultNormalized: 0.34,
           bindings: [
-            { id: "b1", nodeId: bodyEnv, paramId: "decay", map: "linear", min: 0.03, max: 0.24 },
-            { id: "b2", nodeId: bodyEnv, paramId: "release", map: "linear", min: 0.015, max: 0.16 },
+            { id: "b1", nodeId: bodyEnv, paramId: "decay", map: "linear", min: 30, max: 240 },
+            { id: "b2", nodeId: bodyEnv, paramId: "release", map: "linear", min: 15, max: 160 },
             { id: "b3", nodeId: bodyVca, paramId: "gain", map: "linear", min: 0.38, max: 0.82 }
           ]
         },
@@ -1118,11 +1119,11 @@ export const drumPatch = (): Patch => {
           defaultNormalized: 0.46,
           bindings: [
             { id: "b4", nodeId: noiseVca, paramId: "gain", map: "linear", min: 0.08, max: 0.95 },
-            { id: "b5", nodeId: noiseEnv, paramId: "decay", map: "linear", min: 0.03, max: 0.22 },
-            { id: "b6", nodeId: noiseEnv, paramId: "release", map: "linear", min: 0.01, max: 0.18 },
+            { id: "b5", nodeId: noiseEnv, paramId: "decay", map: "linear", min: 30, max: 220 },
+            { id: "b6", nodeId: noiseEnv, paramId: "release", map: "linear", min: 10, max: 180 },
             { id: "b7", nodeId: noiseFilter, paramId: "cutoffHz", map: "exp", min: 2400, max: 4800 },
             { id: "b8", nodeId: noiseFilter, paramId: "resonance", map: "linear", min: 0.72, max: 0.42 },
-            { id: "b9", nodeId: sat, paramId: "mix", map: "linear", min: 0.04, max: 0.18 }
+            { id: "b9", nodeId: drive, paramId: "driveDb", map: "linear", min: 2, max: 9 }
           ]
         },
         {
@@ -1144,7 +1145,7 @@ export const drumPatch = (): Patch => {
         { nodeId: bodyVca, x: 12, y: 2 },
         { nodeId: noiseVca, x: 17, y: 8 },
         { nodeId: mix, x: 17, y: 4 },
-        { nodeId: sat, x: 21, y: 4 }
+        { nodeId: drive, x: 21, y: 4 }
       ]
     }
   };
@@ -1162,14 +1163,14 @@ export const bassDrumPatch = (): Patch => {
   const bodyVca = "vca1";
   const clickVca = "vca2";
   const mix = "mix1";
-  const sat = "sat1";
+  const drive = "drive";
   const out = "output";
 
   return {
-    schemaVersion: 1,
+    schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: "preset_bassdrum",
     name: "Bass Drum",
-    meta: { source: "preset", presetId: "preset_bassdrum", presetVersion: 12 },
+    meta: { source: "preset", presetId: "preset_bassdrum", presetVersion: 14 },
     nodes: [
       {
         id: vco,
@@ -1190,12 +1191,12 @@ export const bassDrumPatch = (): Patch => {
       {
         id: bodyEnv,
         typeId: "ADSR",
-        params: { ...createDefaultParamsForType("ADSR"), attack: 0, decay: 0.12, sustain: 0, release: 0.045 }
+        params: { ...createDefaultParamsForType("ADSR"), attack: 0, decay: 120, sustain: 0, release: 45 }
       },
       {
         id: clickEnv,
         typeId: "ADSR",
-        params: { ...createDefaultParamsForType("ADSR"), attack: 0, decay: 0.015, sustain: 0, release: 0.012 }
+        params: { ...createDefaultParamsForType("ADSR"), attack: 0, decay: 15, sustain: 0, release: 12 }
       },
       {
         id: clickFilter,
@@ -1206,7 +1207,7 @@ export const bassDrumPatch = (): Patch => {
       { id: bodyVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 1, bias: 0 } },
       { id: clickVca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 0.34, bias: 0 } },
       { id: mix, typeId: "Mixer4", params: { ...createDefaultParamsForType("Mixer4"), gain1: 1, gain2: 0.34, gain3: 0 } },
-      { id: sat, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), gainDb: 20, mix: 0.34 } }
+      { id: drive, typeId: "Overdrive", params: { ...createDefaultParamsForType("Overdrive"), driveDb: 20 } }
     ],
     ports: [createPatchOutputPort({ gainDb: 6 })],
     connections: [
@@ -1225,8 +1226,8 @@ export const bassDrumPatch = (): Patch => {
       { id: "c9", from: { nodeId: clickEnv, portId: "out" }, to: { nodeId: clickVca, portId: "gainCV" } },
       { id: "c10", from: { nodeId: bodyVca, portId: "out" }, to: { nodeId: mix, portId: "in1" } },
       { id: "c11", from: { nodeId: clickVca, portId: "out" }, to: { nodeId: mix, portId: "in2" } },
-      { id: "c12", from: { nodeId: mix, portId: "out" }, to: { nodeId: sat, portId: "in" } },
-      { id: "c13", from: { nodeId: sat, portId: "out" }, to: { nodeId: out, portId: "in" } }
+      { id: "c12", from: { nodeId: mix, portId: "out" }, to: { nodeId: drive, portId: "in" } },
+      { id: "c13", from: { nodeId: drive, portId: "out" }, to: { nodeId: out, portId: "in" } }
     ],
     ui: {
       macros: [
@@ -1236,8 +1237,8 @@ export const bassDrumPatch = (): Patch => {
           keyframeCount: 2,
           defaultNormalized: 0.76,
           bindings: [
-            { id: "b1", nodeId: bodyEnv, paramId: "decay", map: "linear", min: 0.045, max: 0.18 },
-            { id: "b2", nodeId: bodyEnv, paramId: "release", map: "linear", min: 0.015, max: 0.075 },
+            { id: "b1", nodeId: bodyEnv, paramId: "decay", map: "linear", min: 45, max: 180 },
+            { id: "b2", nodeId: bodyEnv, paramId: "release", map: "linear", min: 15, max: 75 },
             { id: "b3", nodeId: bodyVca, paramId: "gain", map: "linear", min: 0.9, max: 1 },
             { id: "b3b", nodeId: bodyMix, paramId: "gain2", map: "linear", min: 0.82, max: 1 }
           ]
@@ -1249,7 +1250,7 @@ export const bassDrumPatch = (): Patch => {
           defaultNormalized: 0.2,
           bindings: [
             { id: "b4", nodeId: clickVca, paramId: "gain", map: "linear", min: 0.08, max: 0.58 },
-            { id: "b5", nodeId: clickEnv, paramId: "decay", map: "linear", min: 0.005, max: 0.05 },
+            { id: "b5", nodeId: clickEnv, paramId: "decay", map: "linear", min: 5, max: 50 },
             { id: "b6", nodeId: clickFilter, paramId: "cutoffHz", map: "exp", min: 1800, max: 5200 }
           ]
         },
@@ -1259,8 +1260,7 @@ export const bassDrumPatch = (): Patch => {
           keyframeCount: 2,
           defaultNormalized: 0.42,
           bindings: [
-            { id: "b7", nodeId: sat, paramId: "gainDb", map: "linear", min: 12, max: 24 },
-            { id: "b8", nodeId: sat, paramId: "mix", map: "linear", min: 0.18, max: 0.5 }
+            { id: "b7", nodeId: drive, paramId: "driveDb", map: "linear", min: 12, max: 28 }
           ]
         }
       ]
@@ -1278,7 +1278,7 @@ export const bassDrumPatch = (): Patch => {
         { nodeId: bodyVca, x: 15, y: 2 },
         { nodeId: clickVca, x: 17, y: 8 },
         { nodeId: mix, x: 19, y: 4 },
-        { nodeId: sat, x: 21, y: 4 }
+        { nodeId: drive, x: 21, y: 4 }
       ]
     }
   };

@@ -54,6 +54,37 @@ describe("patch validation", () => {
     expect(result.issues.some((issue) => issue.message.includes("Macro binds the same parameter more than once"))).toBe(true);
   });
 
+  it("reports stale macro bindings with the macro and target names", () => {
+    const patch = pluckPatch();
+    patch.ui.macros[0] = {
+      ...patch.ui.macros[0],
+      name: "Drive",
+      bindings: [
+        {
+          id: "stale_binding",
+          nodeId: "karplus1",
+          paramId: "mix",
+          map: "linear",
+          min: 0,
+          max: 1
+        }
+      ]
+    };
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "macro-binding-invalid-param",
+          message: 'Macro "Drive" binding targets missing parameter karplus1.mix',
+          context: expect.objectContaining({ macroId: patch.ui.macros[0].id, bindingId: "stale_binding" })
+        })
+      ])
+    );
+  });
+
   it("rejects module ids reserved for patch boundary ports", () => {
     const patch = createClearPatch({ id: "reserved_ids", name: "Reserved IDs" });
     patch.nodes.push(
@@ -116,6 +147,98 @@ describe("patch validation", () => {
     }
   });
 
+  it("accepts current reverb params", () => {
+    const patch = createClearPatch({ id: "current_reverb", name: "Current Reverb" });
+    patch.nodes.push(
+      { id: "noise1", typeId: "Noise", params: { color: "white", gain: 0.3 } },
+      { id: "verb1", typeId: "Reverb", params: { mode: "room", decay: 0.5, tone: 0.6, mix: 0.25 } }
+    );
+    patch.connections = [
+      { id: "c1", from: { nodeId: "noise1", portId: "out" }, to: { nodeId: "verb1", portId: "in" } },
+      { id: "c2", from: { nodeId: "verb1", portId: "out" }, to: { nodeId: "output", portId: "in" } }
+    ];
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("warns on legacy reverb node params while still rejecting stale ranges and bindings", () => {
+    const patch = createClearPatch({ id: "legacy_reverb", name: "Legacy Reverb" });
+    patch.nodes.push(
+      { id: "noise1", typeId: "Noise", params: { color: "white", gain: 0.3 } },
+      { id: "verb1", typeId: "Reverb", params: { size: 0.8, decay: 1.5, damping: 0.4, mix: 0.5 } }
+    );
+    patch.connections = [
+      { id: "c1", from: { nodeId: "noise1", portId: "out" }, to: { nodeId: "verb1", portId: "in" } },
+      { id: "c2", from: { nodeId: "verb1", portId: "out" }, to: { nodeId: "output", portId: "in" } }
+    ];
+    patch.ui.paramRanges = {
+      "verb1:size": { min: 0, max: 1 },
+      "verb1:decay": { min: 0.2, max: 5 }
+    };
+    patch.ui.macros.push({
+      id: "macro_verb",
+      name: "Verb",
+      keyframeCount: 2,
+      bindings: [
+        {
+          id: "legacy_size",
+          nodeId: "verb1",
+          paramId: "size",
+          map: "linear",
+          min: 0,
+          max: 1
+        },
+        {
+          id: "legacy_decay",
+          nodeId: "verb1",
+          paramId: "decay",
+          map: "linear",
+          min: 1,
+          max: 5
+        }
+      ]
+    });
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ level: "warning", code: "node-param-unknown", context: expect.objectContaining({ nodeId: "verb1", paramId: "size" }) }),
+        expect.objectContaining({ level: "warning", code: "node-param-unknown", context: expect.objectContaining({ nodeId: "verb1", paramId: "damping" }) }),
+        expect.objectContaining({ level: "warning", code: "node-param-out-of-range", context: expect.objectContaining({ nodeId: "verb1", paramId: "decay" }) }),
+        expect.objectContaining({ code: "param-range-invalid-param", context: expect.objectContaining({ nodeId: "verb1", paramId: "size" }) }),
+        expect.objectContaining({ code: "param-range-out-of-range", context: expect.objectContaining({ nodeId: "verb1", paramId: "decay" }) }),
+        expect.objectContaining({ code: "macro-binding-invalid-param", context: expect.objectContaining({ nodeId: "verb1", paramId: "size" }) }),
+        expect.objectContaining({ code: "macro-binding-range-out-of-range", context: expect.objectContaining({ nodeId: "verb1", paramId: "decay" }) })
+      ])
+    );
+  });
+
+  it("warns when modules are missing current schema params", () => {
+    const patch = createClearPatch({ id: "missing_reverb_params", name: "Missing Reverb Params" });
+    patch.nodes.push(
+      { id: "noise1", typeId: "Noise", params: { color: "white", gain: 0.3 } },
+      { id: "verb1", typeId: "Reverb", params: { decay: 0.5, mix: 0.25 } }
+    );
+    patch.connections = [
+      { id: "c1", from: { nodeId: "noise1", portId: "out" }, to: { nodeId: "verb1", portId: "in" } },
+      { id: "c2", from: { nodeId: "verb1", portId: "out" }, to: { nodeId: "output", portId: "in" } }
+    ];
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(true);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ level: "warning", code: "node-param-missing", context: expect.objectContaining({ nodeId: "verb1", paramId: "mode" }) }),
+        expect.objectContaining({ level: "warning", code: "node-param-missing", context: expect.objectContaining({ nodeId: "verb1", paramId: "tone" }) })
+      ])
+    );
+  });
+
   it("rejects modules with unconnected required input ports", () => {
     const patch = bassPatch();
     patch.connections = patch.connections.filter(
@@ -131,13 +254,13 @@ describe("patch validation", () => {
   it("rejects modules with unconnected required output ports", () => {
     const patch = bassPatch();
     patch.connections = patch.connections.filter(
-      (connection) => !(connection.from.nodeId === "sat1" && connection.from.portId === "out")
+      (connection) => !(connection.from.nodeId === "sat" && connection.from.portId === "out")
     );
 
     const result = validatePatch(patch);
 
     expect(result.ok).toBe(false);
-    expect(findIssue(patch, "required-port-unconnected", "sat1", "out")).toBeTruthy();
+    expect(findIssue(patch, "required-port-unconnected", "sat", "out")).toBeTruthy();
   });
 
   it("rejects module schemas that declare missing required ports", () => {

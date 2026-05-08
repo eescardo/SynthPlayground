@@ -61,6 +61,15 @@ describe("resolveScreenshotScenariosFromLabelsJson", () => {
     });
   });
 
+  it("parses the patch expanded face label", () => {
+    expect(resolveScreenshotScenariosFromLabels(["screenshots:patch-expanded-face"])).toMatchObject({
+      enabled: true,
+      value: "patch-expanded-face",
+      grep: "@patch-expanded-face",
+      error: ""
+    });
+  });
+
   it("returns a validation error for malformed JSON", () => {
     expect(resolveScreenshotScenariosFromLabelsJson("not-json")).toMatchObject({
       enabled: false,

@@ -53,6 +53,8 @@ export interface UseHardwareNavigationArgs {
   commitProjectChange: (updater: (current: Project) => Project, options?: { actionKey?: string; coalesce?: boolean }) => void;
   audioEngineRef: RefObject<AudioEngine | null>;
   previewDefaultPitchNow: (pitch?: string) => void;
+  releaseHeldDefaultPitchPreview: () => void;
+  startHeldDefaultPitchPreview: (pitch?: string) => void;
   onComposerPlay: () => void;
   onComposerStop: () => void;
   setRuntimeError: (message: string | null) => void;

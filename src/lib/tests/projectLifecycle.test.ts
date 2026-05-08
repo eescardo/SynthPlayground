@@ -4,8 +4,10 @@ import {
   createNamedEmptyProject,
   createProjectFromDefaultTemplate,
   createProjectSnapshot,
+  hydrateProjectSnapshot,
   prepareImportedProject
 } from "@/lib/projectLifecycle";
+import { createDefaultProject } from "@/lib/patch/presets";
 import { Project } from "@/types/music";
 
 const createProject = (overrides: Partial<Project> = {}): Project => ({
@@ -135,5 +137,60 @@ describe("projectLifecycle", () => {
     expect(imported.id).not.toBe("imported_project");
     expect(imported.updatedAt).toBe(1234);
     expect(imported.name).toBe("Project One");
+  });
+
+  it("hydrates persisted project snapshots through patch and asset normalization", () => {
+    const project = createDefaultProject();
+    project.patches = [
+      {
+        ...project.patches[0],
+        nodes: [
+          {
+            id: "rev1",
+            typeId: "Reverb",
+            params: {
+              size: 1,
+              decay: 1.5,
+              damping: 0.2,
+              mix: 0.5
+            }
+          },
+          {
+            id: "sample1",
+            typeId: "SamplePlayer",
+            params: {
+              mode: "oneshot",
+              start: 0,
+              end: 1,
+              gain: 1,
+              pitchSemis: 0,
+              sampleData: "{\"version\":1,\"name\":\"tone.wav\",\"sampleRate\":48000,\"samples\":[0,0.1,-0.1]}"
+            }
+          }
+        ]
+      }
+    ];
+
+    const hydrated = hydrateProjectSnapshot(project, {
+      samplePlayerById: {
+        valid_asset: "{\"version\":1,\"name\":\"kept.wav\",\"sampleRate\":48000,\"samples\":[0]}",
+        invalid_asset: 123
+      }
+    });
+
+    const reverbParams = hydrated.project.patches[0].nodes[0].params;
+    expect(reverbParams).toEqual({
+      mode: "room",
+      decay: 1,
+      tone: 0.55,
+      mix: 0.5
+    });
+
+    const sampleParams = hydrated.project.patches[0].nodes[1].params;
+    const migratedAssetId = String(sampleParams.sampleAssetId);
+    expect(sampleParams.sampleData).toBeUndefined();
+    expect(hydrated.assets.samplePlayerById[migratedAssetId]).toContain("\"tone.wav\"");
+    expect(hydrated.assets.samplePlayerById.valid_asset).toContain("\"kept.wav\"");
+    expect(hydrated.assets.samplePlayerById.invalid_asset).toBeUndefined();
   });
 });

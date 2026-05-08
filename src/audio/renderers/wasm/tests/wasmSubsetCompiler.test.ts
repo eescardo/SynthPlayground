@@ -134,7 +134,7 @@ describe("compileAudioProjectToWasmSubset", () => {
       nodes: [
         { id: "transpose", typeId: "CVTranspose", params: { octaves: -1, semitones: 0, cents: 0 } },
         { id: "osc", typeId: "VCO", params: { wave: "sine", pulseWidth: 0.5, baseTuneCents: 0, fineTuneCents: 0, pwmAmount: 0 } },
-        { id: "env", typeId: "ADSR", params: { attack: 0, decay: 0.1, sustain: 0, release: 0.1, mode: "retrigger_from_current" } },
+        { id: "env", typeId: "ADSR", params: { attack: 0, decay: 100, sustain: 0, release: 100, mode: "retrigger_from_current" } },
         { id: "amp", typeId: "VCA", params: { gain: 1, bias: 0 } }
       ],
       ports: [createPatchOutputPort({ gainDb: -3, limiter: true })],

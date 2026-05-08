@@ -42,8 +42,10 @@ export interface AudioEngineBackend {
       projectOverride?: AudioProject;
       captureProbes?: PreviewProbeRequest[];
       previewId?: string;
+      holdUntilReleased?: boolean;
     }
   ): Promise<void>;
+  releasePreviewNote(trackId: string, previewId: string): void;
   setPreviewCaptureListener(listener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null): void;
 }
 
@@ -135,6 +137,8 @@ class RealAudioEngineBackend implements AudioEngineBackend {
         onMessage: (message: WorkletOutboundMessage) => {
           if (message?.type === "PREVIEW_CAPTURE") {
             this.previewCaptureListener?.(message.previewId, message.captures);
+          } else if (message?.type === "RUNTIME_ERROR") {
+            console.error(`Audio worklet ${message.phase} failed: ${message.error}`);
           }
         }
       });
@@ -349,6 +353,7 @@ class RealAudioEngineBackend implements AudioEngineBackend {
       projectOverride?: AudioProject;
       captureProbes?: PreviewProbeRequest[];
       previewId?: string;
+      holdUntilReleased?: boolean;
     }
   ): Promise<void> {
     if (this.isPlaying || !this.project) {
@@ -372,16 +377,18 @@ class RealAudioEngineBackend implements AudioEngineBackend {
         pitchVoct,
         velocity,
         noteId: previewId
-      },
-      {
+      }
+    ];
+    if (!options?.holdUntilReleased) {
+      events.push({
         id: `${previewId}_off`,
         type: "NoteOff",
         source: "preview",
         sampleTime: durationSamples,
         trackId,
         noteId: previewId
-      }
-    ];
+      });
+    }
 
     this.worklet.port.postMessage({
       type: "PREVIEW",
@@ -392,6 +399,14 @@ class RealAudioEngineBackend implements AudioEngineBackend {
       ignoreVolume: options?.ignoreVolume !== false,
       project: options?.projectOverride,
       captureProbes: options?.captureProbes
+    });
+  }
+
+  releasePreviewNote(trackId: string, previewId: string): void {
+    this.worklet?.port.postMessage({
+      type: "PREVIEW_RELEASE",
+      trackId,
+      previewId
     });
   }
 }
@@ -497,6 +512,7 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
       projectOverride?: AudioProject;
       captureProbes?: PreviewProbeRequest[];
       previewId?: string;
+      holdUntilReleased?: boolean;
     }
   ): Promise<void> {
     void trackId;
@@ -504,6 +520,11 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
     void durationBeats;
     void velocity;
     void options;
+  }
+
+  releasePreviewNote(trackId: string, previewId: string): void {
+    void trackId;
+    void previewId;
   }
 }
 

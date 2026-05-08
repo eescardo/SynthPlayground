@@ -8,6 +8,11 @@ interface UsePatchModuleFacePopoverParams {
   nodeExists: (nodeId: string) => boolean;
 }
 
+export type PatchModuleFacePopoverPointerResult =
+  | { kind: "none" }
+  | { kind: "dismissed" }
+  | { kind: "inside-popover"; nodeId: string };
+
 export function usePatchModuleFacePopover({ getPopoverRect, nodeExists }: UsePatchModuleFacePopoverParams) {
   const [popoverNodeId, setPopoverNodeId] = useState<string | null>(null);
 
@@ -30,7 +35,7 @@ export function usePatchModuleFacePopover({ getPopoverRect, nodeExists }: UsePat
 
   const handleCanvasPointerDown = useCallback((rawX: number, rawY: number) => {
     if (!popoverNodeId) {
-      return "none" as const;
+      return { kind: "none" } as const;
     }
     const rect = getPopoverRect(popoverNodeId);
     const insidePopover =
@@ -39,12 +44,12 @@ export function usePatchModuleFacePopover({ getPopoverRect, nodeExists }: UsePat
       rawX <= rect.x + rect.width &&
       rawY >= rect.y &&
       rawY <= rect.y + rect.height;
+    const nodeId = popoverNodeId;
     if (insidePopover) {
-      setPopoverNodeId(null);
-      return "dismissed" as const;
+      return { kind: "inside-popover", nodeId } as const;
     }
     setPopoverNodeId(null);
-    return "dismissed" as const;
+    return { kind: "dismissed" } as const;
   }, [getPopoverRect, popoverNodeId]);
 
   return {

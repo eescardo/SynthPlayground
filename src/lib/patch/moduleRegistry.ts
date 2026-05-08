@@ -7,7 +7,13 @@ const floatParam = (
   max: number,
   unit: Unit,
   doc: string,
-  options?: { default?: number; map?: "linear" | "exp"; smoothingMs?: number; step?: number }
+  options?: {
+    default?: number;
+    map?: "linear" | "exp";
+    smoothingMs?: number;
+    step?: number;
+    magnetPoints?: Array<{ point: number; radius: number }>;
+  }
 ): ParamSchema => ({
   id,
   label,
@@ -15,6 +21,7 @@ const floatParam = (
   default: options?.default ?? min,
   range: { min, max },
   step: options?.step,
+  magnetPoints: options?.magnetPoints,
   unit,
   map: options?.map ?? "linear",
   smoothing: options?.smoothingMs ? { kind: "one_pole", timeMs: options.smoothingMs } : null,
@@ -240,10 +247,16 @@ export const moduleRegistry: ModuleTypeSchema[] = [
     doc: { summary: "Envelope generator triggered by gate." },
     requiredPortIds: { in: ["gate"], out: ["out"] },
     params: [
-      floatParam("attack", "Attack", 0, 10, "s", "Attack time", { default: 0.01, smoothingMs: 10 }),
-      floatParam("decay", "Decay", 0, 10, "s", "Decay time", { default: 0.2, smoothingMs: 10 }),
+      floatParam("attack", "Attack", 0, 10000, "ms", "Attack time", { default: 10, smoothingMs: 10 }),
+      floatParam("decay", "Decay", 0, 10000, "ms", "Decay time", { default: 200, smoothingMs: 10 }),
       floatParam("sustain", "Sustain", 0, 1, "linear", "Sustain level", { default: 0.7, smoothingMs: 10 }),
-      floatParam("release", "Release", 0, 10, "s", "Release time", { default: 0.25, smoothingMs: 10 }),
+      floatParam("release", "Release", 0, 10000, "ms", "Release time", { default: 250, smoothingMs: 10 }),
+      floatParam("curve", "Curve", -1, 1, "linear", "Envelope curve: exponential through linear to logarithmic", {
+        default: 0,
+        smoothingMs: 10,
+        step: 0.01,
+        magnetPoints: [{ point: 0, radius: 0.035 }]
+      }),
       enumParam(
         "mode",
         "Retrigger Mode",
@@ -359,13 +372,16 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   {
     typeId: "Reverb",
     categories: categories("processor"),
-    doc: { summary: "Algorithmic reverb (MVP)." },
+    doc: { summary: "Modeled reverb with pedal-style mode, decay, tone, and mix." },
     requiredPortIds: { in: ["in"], out: ["out"] },
     params: [
-      floatParam("size", "Size", 0, 1, "linear", "Room size", { default: 0.5, smoothingMs: 50 }),
-      floatParam("decay", "Decay", 0.1, 10, "s", "Reverb decay", { default: 1.5, map: "exp", smoothingMs: 50 }),
-      floatParam("damping", "Damping", 0, 1, "linear", "High frequency damping", { default: 0.4, smoothingMs: 50 }),
-      floatParam("mix", "Mix", 0, 1, "linear", "Wet mix", { default: 0.25, smoothingMs: 10 })
+      enumParam("mode", "Mode", ["room", "hall", "plate", "spring"], "room", "Reverb algorithm"),
+      floatParam("decay", "Decay", 0, 1, "ratio", "Reverb tail length and space scale", {
+        default: 0.45,
+        smoothingMs: 50
+      }),
+      floatParam("tone", "Tone", 0, 1, "ratio", "Tail brightness", { default: 0.55, smoothingMs: 50 }),
+      floatParam("mix", "Mix", 0, 1, "ratio", "Dry/wet mix", { default: 0.25, smoothingMs: 10 })
     ],
     portsIn: [port("in", "In", ["AUDIO"], "Audio input")],
     portsOut: [port("out", "Out", ["AUDIO"], "Reverb output")]
@@ -389,9 +405,8 @@ export const moduleRegistry: ModuleTypeSchema[] = [
     doc: { summary: "Heavier distortion/fuzz-style overdrive." },
     requiredPortIds: { in: ["in"], out: ["out"] },
     params: [
-      floatParam("gainDb", "Gain", 0, 36, "dB", "Drive gain", { default: 12, smoothingMs: 20 }),
+      floatParam("driveDb", "Drive", 0, 50, "dB", "Drive amount", { default: 12, smoothingMs: 20 }),
       floatParam("tone", "Tone", 0, 1, "linear", "Tone tilt", { default: 0.5, smoothingMs: 20 }),
-      floatParam("mix", "Mix", 0, 1, "linear", "Wet mix", { default: 0.6, smoothingMs: 10 }),
       enumParam("mode", "Mode", ["overdrive", "fuzz"], "overdrive", "Drive mode")
     ],
     portsIn: [port("in", "In", ["AUDIO"], "Audio input")],
@@ -403,12 +418,9 @@ export const moduleRegistry: ModuleTypeSchema[] = [
     doc: { summary: "Dynamics compressor." },
     requiredPortIds: { in: ["in"], out: ["out"] },
     params: [
-      floatParam("thresholdDb", "Threshold", -60, 0, "dB", "Threshold", { default: -24, smoothingMs: 50 }),
-      floatParam("ratio", "Ratio", 1, 20, "ratio", "Compression ratio", { default: 4, smoothingMs: 50 }),
-      floatParam("attackMs", "Attack", 0.1, 200, "ms", "Attack time", { default: 10, map: "exp", smoothingMs: 50 }),
-      floatParam("releaseMs", "Release", 10, 2000, "ms", "Release time", { default: 200, map: "exp", smoothingMs: 50 }),
-      floatParam("makeupDb", "Makeup", 0, 24, "dB", "Makeup gain", { default: 2, smoothingMs: 50 }),
-      floatParam("mix", "Mix", 0, 1, "linear", "Dry/wet", { default: 1, smoothingMs: 10 })
+      floatParam("squash", "Squash", 0, 1, "linear", "Compression amount", { default: 0.5, smoothingMs: 50 }),
+      floatParam("attackMs", "Attack", 10, 600, "ms", "Transient response", { default: 20, map: "exp", smoothingMs: 50 }),
+      floatParam("mix", "Mix", 0, 1, "linear", "Dry/wet", { default: 0.55, smoothingMs: 10 })
     ],
     portsIn: [port("in", "In", ["AUDIO"], "Audio input")],
     portsOut: [port("out", "Out", ["AUDIO"], "Compressed output")]

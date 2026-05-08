@@ -188,6 +188,171 @@ describe("synth worklet runtime", () => {
     runtime.resetRendererFactory();
   });
 
+  it("releases a held preview on keyup without replacing the stream", async () => {
+    const runtime = await loadRuntimeModule();
+    const enqueueEvents = vi.fn();
+    const startStream = vi.fn(() => ({
+      port: { onmessage: null, postMessage() {} },
+      project: createProject(),
+      trackRuntimes: [],
+      eventQueue: [],
+      stopped: false,
+      previewId: "preview_held",
+      songSampleCounter: 512,
+      processBlock() {
+        return true;
+      },
+      enqueueEvents,
+      stop() {},
+      setMacroValue() {},
+      setRecordingTrack() {}
+    }));
+
+    runtime.setRendererFactory(() => ({
+      port: { onmessage: null, postMessage() {} },
+      sampleRateInternal: 48000,
+      blockSize: 128,
+      project: createProject(),
+      configure() {},
+      setDefaultProject() {},
+      startStream
+    }));
+
+    const processor = new runtime.SynthWorkletProcessor({
+      processorOptions: { sampleRate: 48000, blockSize: 128 }
+    });
+
+    processor.onMessage({
+      type: "PREVIEW",
+      trackId: "track_1",
+      previewId: "preview_held",
+      events: [{ id: "preview_held_on", type: "NoteOn", sampleTime: 0, source: "preview", trackId: "track_1", noteId: "preview_held", pitchVoct: 0, velocity: 1 }],
+      durationSamples: 48000
+    });
+    processor.onMessage({ type: "PREVIEW_RELEASE", trackId: "track_1", previewId: "preview_held" });
+
+    expect(startStream).toHaveBeenCalledTimes(1);
+    expect(enqueueEvents).toHaveBeenCalledWith([
+      expect.objectContaining({
+        type: "NoteOff",
+        sampleTime: 768,
+        trackId: "track_1",
+        noteId: "preview_held"
+      })
+    ]);
+    runtime.resetRendererFactory();
+  });
+
+  it("stops the current stream before reporting a failed stream restart", async () => {
+    const runtime = await loadRuntimeModule();
+    const portMessages: unknown[] = [];
+    const stop = vi.fn();
+    const startStream = vi.fn(() => {
+      throw new Error("start exploded");
+    });
+
+    runtime.setRendererFactory(() => ({
+      port: { onmessage: null, postMessage() {} },
+      sampleRateInternal: 48000,
+      blockSize: 128,
+      project: createProject(),
+      configure() {},
+      setDefaultProject() {},
+      startStream
+    }));
+
+    const processor = new runtime.SynthWorkletProcessor({
+      processorOptions: { sampleRate: 48000, blockSize: 128 }
+    });
+    processor.port.postMessage = (message: unknown) => {
+      portMessages.push(message);
+    };
+    processor.currentStream = {
+      port: { onmessage: null, postMessage() {} },
+      project: createProject(),
+      trackRuntimes: [],
+      eventQueue: [],
+      stopped: false,
+      processBlock() {
+        return true;
+      },
+      enqueueEvents() {},
+      stop,
+      setMacroValue() {},
+      setRecordingTrack() {}
+    };
+
+    expect(() => processor.onMessage({
+      type: "TRANSPORT",
+      isPlaying: true,
+      songStartSample: 0,
+      events: [],
+      sessionId: 8
+    })).not.toThrow();
+
+    expect(stop).toHaveBeenCalledTimes(1);
+    expect(startStream).toHaveBeenCalledTimes(1);
+    expect(processor.currentStream).toBeNull();
+    expect(portMessages).toContainEqual({
+      type: "RUNTIME_ERROR",
+      phase: "start_stream",
+      error: "start exploded"
+    });
+    runtime.resetRendererFactory();
+  });
+
+  it("silences output and clears the stream when processing throws", async () => {
+    const runtime = await loadRuntimeModule();
+    const portMessages: unknown[] = [];
+
+    runtime.setRendererFactory(() => ({
+      port: { onmessage: null, postMessage() {} },
+      sampleRateInternal: 48000,
+      blockSize: 128,
+      project: createProject(),
+      configure() {},
+      setDefaultProject() {},
+      startStream() {
+        return null;
+      }
+    }));
+
+    const processor = new runtime.SynthWorkletProcessor({
+      processorOptions: { sampleRate: 48000, blockSize: 128 }
+    });
+    processor.port.postMessage = (message: unknown) => {
+      portMessages.push(message);
+    };
+    processor.currentStream = {
+      port: { onmessage: null, postMessage() {} },
+      project: createProject(),
+      trackRuntimes: [],
+      eventQueue: [],
+      stopped: false,
+      processBlock() {
+        throw new Error("process exploded");
+      },
+      enqueueEvents() {},
+      stop() {},
+      setMacroValue() {},
+      setRecordingTrack() {}
+    };
+    const left = new Float32Array(128).fill(1);
+    const right = new Float32Array(128).fill(1);
+
+    expect(processor.process([], [[left, right]], {})).toBe(true);
+
+    expect(Array.from(left)).toEqual(new Array(128).fill(0));
+    expect(Array.from(right)).toEqual(new Array(128).fill(0));
+    expect(processor.currentStream).toBeNull();
+    expect(portMessages).toContainEqual({
+      type: "RUNTIME_ERROR",
+      phase: "process_block",
+      error: "process exploded"
+    });
+    runtime.resetRendererFactory();
+  });
+
   it("outputs silence when no stream is active", async () => {
     const runtime = await loadRuntimeModule();
     runtime.setRendererFactory(() => ({

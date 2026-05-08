@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
-  getMacroKeyframePositions,
-  resolveMacroBindingValue
+  getMacroKeyframePositions
 } from "@/lib/patch/macroKeyframes";
 import { PatchDiff } from "@/lib/patch/diff";
 import { EditableNumberLabel, MacroBindingDetails, ParamMacroControl } from "@/components/patch/PatchInspectorControls";
+import { resolveParamBindingState, resolveParamControlValue } from "@/components/patch/patchModuleParameterState";
+import { applyMagneticSliderSnap, MagneticSliderPoint } from "@/components/patch/patchModuleParameterControls";
 import { createMacroBindingId, createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
 import { clamp, clampRange } from "@/lib/numeric";
 import { MacroBinding, Patch, PatchMacro, PatchNode, PatchParamSliderRange, ParamSchema, ParamValue } from "@/types/patch";
@@ -23,11 +24,36 @@ function resolveParamSliderRange(patch: Patch, nodeId: string, param: ParamSchem
   const schemaRange = getParamNumericRange(param);
   const storedRange = patch.ui.paramRanges?.[buildParamRangeKey(nodeId, param.id)];
   if (!storedRange || param.type !== "float") {
+    if (param.id === "attack" || param.id === "decay" || param.id === "release") {
+      return { min: schemaRange.min, max: Math.min(schemaRange.max, 1000) };
+    }
     return schemaRange;
   }
   const min = clamp(storedRange.min, param.range.min, param.range.max);
   const max = clamp(storedRange.max, param.range.min, param.range.max);
   return clampRange(min, max);
+}
+
+function resolveCurrentValueUnitDisplay(param: ParamSchema) {
+  if (param.type !== "float") {
+    return null;
+  }
+  const isNormalizedPercent = param.range.min === 0 && param.range.max === 1 && (param.unit === "linear" || param.unit === "ratio");
+  if (isNormalizedPercent && param.id !== "curve") {
+    return { label: "%", scale: 100 };
+  }
+  switch (param.unit) {
+    case "Hz":
+    case "ms":
+    case "s":
+    case "dB":
+    case "oct":
+    case "semitones":
+    case "cents":
+      return { label: param.unit, scale: 1 };
+    default:
+      return null;
+  }
 }
 
 function createDefaultBindingForParam(
@@ -57,6 +83,7 @@ function ParamValueControl(props: {
   min?: number;
   max?: number;
   disabled?: boolean;
+  magnetPoints: MagneticSliderPoint[];
   onChange: (value: ParamValue) => void;
   onPreviewChange?: (value: ParamValue) => void;
 }) {
@@ -70,6 +97,7 @@ function ParamValueControl(props: {
         min={props.min}
         max={props.max}
         disabled={disabled}
+        magnetPoints={props.magnetPoints}
         onChange={onChange}
         onPreviewChange={props.onPreviewChange}
       />
@@ -97,6 +125,7 @@ function FloatParamValueControl(props: {
   min?: number;
   max?: number;
   disabled?: boolean;
+  magnetPoints: MagneticSliderPoint[];
   onChange: (value: number) => void;
   onPreviewChange?: (value: number) => void;
 }) {
@@ -129,7 +158,8 @@ function FloatParamValueControl(props: {
       disabled={props.disabled}
       style={{ "--param-slider-percent": `${sliderPercent}%` } as CSSProperties}
       onChange={(event) => {
-        const nextValue = Number(event.target.value);
+        const rawValue = Number(event.target.value);
+        const nextValue = applyMagneticSliderSnap(rawValue, props.magnetPoints);
         pendingCommitRef.current = true;
         setDraftValue(nextValue);
         props.onPreviewChange?.(nextValue);
@@ -152,48 +182,15 @@ function renderParamInlineSummary(node: PatchNode, param: ParamSchema, value: Pa
   return null;
 }
 
+function shouldRenderCurveScaleLabels(node: PatchNode, param: ParamSchema) {
+  return node.typeId === "ADSR" && param.id === "curve" && param.type === "float";
+}
+
 export function shouldRenderParamInGenericInspector(node: PatchNode, param: ParamSchema) {
   if (node.typeId === "SamplePlayer" && (param.id === "start" || param.id === "end")) {
     return false;
   }
   return true;
-}
-
-function resolveParamBindingState(
-  patch: Patch,
-  selectedNode: PatchNode,
-  param: ParamSchema,
-  selectedMacroId: string | undefined,
-  selectedMacroKeyframeIndex: number | null,
-  structureLocked: boolean | undefined
-) {
-  const boundMacros = patch.ui.macros.filter((macro) =>
-    macro.bindings.some((binding) => binding.nodeId === selectedNode.id && binding.paramId === param.id)
-  );
-  const activeBindingMacro = boundMacros[0];
-  const isExposed = boundMacros.length > 0;
-  const isEditableSelectedMacroBinding =
-    Boolean(activeBindingMacro) &&
-    !structureLocked &&
-    selectedMacroId === activeBindingMacro?.id &&
-    selectedMacroKeyframeIndex !== null &&
-    param.type === "float";
-  const editableSummary =
-    activeBindingMacro && selectedMacroId === activeBindingMacro.id
-      ? selectedMacroKeyframeIndex !== null
-        ? `Editing ${activeBindingMacro.name} at keyframe ${selectedMacroKeyframeIndex + 1}/${activeBindingMacro.keyframeCount}`
-        : "Bound values unlock when the selected macro is parked on a keyframe notch."
-      : activeBindingMacro
-        ? `Select ${activeBindingMacro.name} and stop on a keyframe notch to edit this binding.`
-        : null;
-
-  return {
-    activeBindingMacro,
-    boundMacros,
-    editableSummary,
-    isEditableSelectedMacroBinding,
-    isExposed
-  };
 }
 
 function commitParamValueChange(props: {
@@ -245,7 +242,8 @@ interface PatchModuleParameterProps {
 }
 
 export function PatchModuleParameter(props: PatchModuleParameterProps) {
-  const value = props.selectedNode.params[props.param.id] ?? props.param.default;
+  const rawValue = props.selectedNode.params[props.param.id] ?? props.param.default;
+  const value = rawValue;
   const nodeDiff = props.patchDiff.nodeDiffById.get(props.selectedNode.id);
   const bindingState = resolveParamBindingState(
     props.patch,
@@ -275,10 +273,13 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
     (binding) => binding.nodeId === props.selectedNode.id && binding.paramId === props.param.id
   );
   const sliderRange = resolveParamSliderRange(props.patch, props.selectedNode.id, props.param);
-  const controlValue =
-    activeBinding && typeof props.selectedMacroValue === "number"
-      ? resolveMacroBindingValue(activeBinding, props.selectedMacroValue)
-      : value;
+  const controlValue = resolveParamControlValue({
+    activeBinding,
+    activeBindingMacroId: bindingState.activeBindingMacro?.id,
+    selectedMacroId: props.selectedMacroId,
+    selectedMacroValue: props.selectedMacroValue,
+    value
+  });
   const sliderControlValue =
     props.param.type === "float" && typeof controlValue === "number"
       ? clamp(controlValue, sliderRange.min, sliderRange.max)
@@ -293,6 +294,12 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
       : bindingState.activeBindingMacro
         ? `Select ${bindingState.activeBindingMacro.name} and stop on a keyframe notch to edit this binding.`
         : null;
+  const unitDisplay = resolveCurrentValueUnitDisplay(props.param);
+  const floatParam = props.param.type === "float" ? props.param : null;
+  const currentDisplayValue = sliderControlValue;
+  const currentDisplayMin = sliderRange.min;
+  const currentDisplayMax = sliderRange.max;
+  const magnetPoints = props.param.type === "float" ? props.param.magnetPoints ?? [] : [];
 
   const bindParamToMacro = (macroId: string) => {
     if (props.structureLocked) {
@@ -328,6 +335,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
       onApplyOp: props.onApplyOp
     });
   };
+  const commitDisplayedValue = commitValue;
 
   return (
     <div
@@ -368,17 +376,23 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
             }
           }}
         />
-        {props.param.type === "float" && typeof sliderControlValue === "number" && (
-          <EditableNumberLabel
-            id={`${props.selectedNode.id}:${props.param.id}:value`}
-            value={sliderControlValue}
-            min={sliderRange.min}
-            max={sliderRange.max}
-            className="param-current-value-label"
-            inputClassName="param-current-value-input"
-            disabled={controlDisabled}
-            onCommit={commitValue}
-          />
+        {floatParam && typeof sliderControlValue === "number" && (
+          <span className="param-current-value-shell">
+            <EditableNumberLabel
+              id={`${props.selectedNode.id}:${props.param.id}:value`}
+              value={Number(currentDisplayValue)}
+              min={currentDisplayMin}
+              max={currentDisplayMax}
+              className="param-current-value-label"
+              inputClassName="param-current-value-input"
+              displayScale={unitDisplay?.scale}
+              disabled={controlDisabled}
+              onCommit={commitDisplayedValue}
+            />
+            {unitDisplay && (
+              <span className="param-current-value-unit">{unitDisplay.label}</span>
+            )}
+          </span>
         )}
       </div>
       <div className="param-control-stack">
@@ -390,15 +404,23 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
             min={props.param.type === "float" ? sliderRange.min : undefined}
             max={props.param.type === "float" ? sliderRange.max : undefined}
             disabled={controlDisabled}
+            magnetPoints={magnetPoints}
             onChange={commitValue}
             onPreviewChange={(nextValue) => props.onPreviewParamValue?.(props.selectedNode.id, props.param.id, nextValue)}
           />
-          {props.param.type === "float" && (
+          {floatParam && shouldRenderCurveScaleLabels(props.selectedNode, props.param) && (
+            <div className="param-curve-label-row" aria-hidden="true">
+              <span>exp</span>
+              <span>linear</span>
+              <span>log</span>
+            </div>
+          )}
+          {floatParam && !shouldRenderCurveScaleLabels(props.selectedNode, props.param) && (
             <div className={`param-range-label-row${hasParamRangeDiff ? " diff-positive" : ""}`}>
               <EditableNumberLabel
                 id={`${props.selectedNode.id}:${props.param.id}:min`}
                 value={sliderRange.min}
-                min={props.param.range.min}
+                min={floatParam.range.min}
                 max={sliderRange.max}
                 className="param-range-label"
                 inputClassName="param-range-label-input"
@@ -418,7 +440,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
                 id={`${props.selectedNode.id}:${props.param.id}:max`}
                 value={sliderRange.max}
                 min={sliderRange.min}
-                max={props.param.range.max}
+                max={floatParam.range.max}
                 className="param-range-label"
                 inputClassName="param-range-label-input"
                 disabled={props.structureLocked}

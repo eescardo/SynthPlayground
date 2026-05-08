@@ -1,0 +1,145 @@
+{
+  "compressorDerived": [
+    {
+      "squash": 0,
+      "attackMs": 20,
+      "expected": {
+        "thresholdDb": -5,
+        "ratio": 1,
+        "autoGainDb": 0,
+        "releaseMs": 260
+      }
+    },
+    {
+      "squash": 0.5,
+      "attackMs": 20,
+      "expected": {
+        "thresholdDb": -25.34023940460031,
+        "ratio": 7.95440705574172,
+        "autoGainDb": 18.0340095128497,
+        "releaseMs": 170.80946637479593
+      }
+    },
+    {
+      "squash": 1,
+      "attackMs": 10,
+      "expected": {
+        "thresholdDb": -48,
+        "ratio": 20,
+        "autoGainDb": 38,
+        "releaseMs": 110
+      }
+    },
+    {
+      "squash": 1,
+      "attackMs": 600,
+      "expected": {
+        "thresholdDb": -48,
+        "ratio": 20,
+        "autoGainDb": 30,
+        "releaseMs": 110
+      }
+    }
+  ],
+  "compressorGainReduction": [
+    {
+      "inputDb": -40,
+      "thresholdDb": -24,
+      "ratio": 4,
+      "expectedDb": 0
+    },
+    {
+      "inputDb": -28,
+      "thresholdDb": -24,
+      "ratio": 4,
+      "expectedDb": 0.125
+    },
+    {
+      "inputDb": -12,
+      "thresholdDb": -24,
+      "ratio": 4,
+      "expectedDb": 9
+    },
+    {
+      "inputDb": -24,
+      "thresholdDb": -24,
+      "ratio": 20,
+      "expectedDb": 1.4249999999999998
+    }
+  ],
+  "adsrCurve": [
+    {
+      "t": 0.25,
+      "curve": -1,
+      "expected": 0.6155722066724582
+    },
+    {
+      "t": 0.5,
+      "curve": 0,
+      "expected": 0.5
+    },
+    {
+      "t": 0.75,
+      "curve": 1,
+      "expected": 0.4468600579424677
+    }
+  ],
+  "overdriveShape": [
+    {
+      "input": 0,
+      "mode": "overdrive",
+      "expected": 0
+    },
+    {
+      "input": 0.5,
+      "mode": "overdrive",
+      "expected": 0.46211715726000974
+    },
+    {
+      "input": 0.5,
+      "mode": "fuzz",
+      "expected": 0.96177664
+    },
+    {
+      "input": -0.5,
+      "mode": "fuzz",
+      "expected": -1
+    }
+  ],
+  "overdriveTone": [
+    {
+      "input": 0.5,
+      "lowpassed": 0.1,
+      "tone": 0,
+      "expected": 0.30043709714765415
+    },
+    {
+      "input": 0.5,
+      "lowpassed": 0.1,
+      "tone": 1,
+      "expected": 0.5
+    },
+    {
+      "tone": 0,
+      "expectedAlpha": 0.012
+    },
+    {
+      "tone": 1,
+      "expectedAlpha": 0.912
+    }
+  ],
+  "overdriveDrive": [
+    {
+      "driveDb": 0,
+      "expected": 0
+    },
+    {
+      "driveDb": 25,
+      "expected": 0.5
+    },
+    {
+      "driveDb": 50,
+      "expected": 1
+    }
+  ]
+}

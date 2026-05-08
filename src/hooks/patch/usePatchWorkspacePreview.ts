@@ -1,7 +1,7 @@
 "use client";
 
 import type { Dispatch, RefObject, SetStateAction } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toAudioProject } from "@/audio/audioProject";
 import { AudioEngine } from "@/audio/engine";
 import { resolvePatchWorkspaceMacroValues } from "@/hooks/patch/usePatchWorkspaceMacroValues";
@@ -15,6 +15,7 @@ import { PatchWorkspaceProbeState, PreviewProbeCapture, PreviewProbeRequest } fr
 import { ProjectAssetLibrary } from "@/types/assets";
 
 const PREVIEW_DURATION_BEATS = 1;
+const HELD_PREVIEW_DURATION_BEATS = 120;
 const PREVIEW_PROGRESS_TICK_MS = 33;
 
 export const buildPatchedPreviewProject = (
@@ -83,6 +84,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
   const [previewProgress, setPreviewProgress] = useState(0);
   const [previewCaptureByProbeId, setPreviewCaptureByProbeId] = useState<Record<string, PreviewProbeCapture>>({});
   const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
+  const heldPreviewRef = useRef<{ trackId: string; previewId: string } | null>(null);
   const captureRequests = useMemo<PreviewProbeRequest[]>(
     () =>
       probes.flatMap((probe) =>
@@ -135,22 +137,28 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
     return () => window.clearInterval(timer);
   }, [activePreviewId, project.global.tempo]);
 
-  const previewPatchById = useCallback((patchId: string, pitch = previewPitch, macroValues?: Record<string, number>, patchOverride?: Patch) => {
+  const previewPatchById = useCallback((
+    patchId: string,
+    pitch = previewPitch,
+    macroValues?: Record<string, number>,
+    patchOverride?: Patch,
+    options?: { holdUntilReleased?: boolean }
+  ) => {
     if (playing) {
-      return;
+      return null;
     }
     const engine = audioEngineRef.current;
     const patch = patchOverride
       ? hydratePatchSamplePlayerAssetsForRuntime(patchOverride, projectAssets)
       : audioProject.patches.find((entry) => entry.id === patchId);
     if (!engine || !patch) {
-      return;
+      return null;
     }
 
     const assignedTrack = audioProject.tracks.find((track) => track.instrumentPatchId === patchId);
     const previewTrack = assignedTrack ?? selectedTrack ?? audioProject.tracks[0];
     if (!previewTrack) {
-      return;
+      return null;
     }
 
     const resolvedMacroValues = macroValues;
@@ -164,12 +172,14 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
     setPreviewProgress(0);
 
     engine
-      .previewNote(previewTrack.id, pitchToVoct(pitch), PREVIEW_DURATION_BEATS, 0.9, {
+      .previewNote(previewTrack.id, pitchToVoct(pitch), options?.holdUntilReleased ? HELD_PREVIEW_DURATION_BEATS : PREVIEW_DURATION_BEATS, 0.9, {
         projectOverride: previewProject,
         captureProbes: captureRequests,
-        previewId
+        previewId,
+        holdUntilReleased: options?.holdUntilReleased
       })
       .catch((error) => setRuntimeError((error as Error).message));
+    return { previewId, trackId: previewTrack.id };
   }, [audioEngineRef, audioProject, captureRequests, playing, previewPitch, projectAssets, selectedTrack, setRuntimeError]);
 
   useEffect(() => {
@@ -187,15 +197,37 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
     previewPatchById(selectedPatch.id, pitch, macroValues, selectedPatch);
   }, [previewPatchById, previewPitch, selectedPatch]);
 
+  const releaseHeldPatchPreview = useCallback(() => {
+    const heldPreview = heldPreviewRef.current;
+    if (!heldPreview) {
+      return;
+    }
+    heldPreviewRef.current = null;
+    audioEngineRef.current?.releasePreviewNote(heldPreview.trackId, heldPreview.previewId);
+  }, [audioEngineRef]);
+
+  const startHeldPatchPreview = useCallback((pitch = previewPitch, macroValues?: Record<string, number>) => {
+    if (!selectedPatch) {
+      return;
+    }
+    releaseHeldPatchPreview();
+    heldPreviewRef.current =
+      previewPatchById(selectedPatch.id, pitch, macroValues, selectedPatch, { holdUntilReleased: true }) ?? null;
+  }, [previewPatchById, previewPitch, releaseHeldPatchPreview, selectedPatch]);
+
+  useEffect(() => releaseHeldPatchPreview, [releaseHeldPatchPreview]);
+
   return {
     previewCaptureByProbeId,
     previewProgress,
     previewPatchById,
     previewPitch,
     previewPitchPickerOpen,
+    releaseHeldPatchPreview,
     previewSelectedPatchNow,
     schedulePatchPreview,
     setPreviewPitch,
-    setPreviewPitchPickerOpen
+    setPreviewPitchPickerOpen,
+    startHeldPatchPreview
   };
 }

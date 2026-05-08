@@ -12,6 +12,7 @@ import {
   isPatchOutputEndpoint
 } from "@/components/patch/patchInspectablePorts";
 import { isPatchOutputPortId } from "@/lib/patch/ports";
+import { compressorDerivedParamsForSquash } from "@/lib/patch/compressor";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch, PatchNode, PatchPort, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
@@ -35,6 +36,25 @@ function requiredPortIssueLabel(patch: Patch, issue: PatchValidationIssue, selec
     subject: issue.context?.typeId ?? "Module",
     target: selectedNode || !nodeId ? `${direction} '${portId}'` : `${nodeId}.${portId}`
   };
+}
+
+function CompressorDerivedReadouts({ node }: { node: PatchNode }) {
+  const derived = compressorDerivedParamsForSquash(Number(node.params.squash ?? 0.5), Number(node.params.attackMs ?? 20));
+  return (
+    <div className="param-row compressor-derived-readouts">
+      <div className="param-row-header">
+        <span className="param-name">Derived</span>
+      </div>
+      <div className="param-derived-grid">
+        <span>Threshold</span>
+        <strong>{derived.thresholdDb.toFixed(0)} dB</strong>
+        <span>Ratio</span>
+        <strong>{derived.ratio.toFixed(1)}:1</strong>
+        <span>Auto Gain Max</span>
+        <strong>{derived.autoGainDb.toFixed(1)} dB</strong>
+      </div>
+    </div>
+  );
 }
 
 interface PatchInspectorProps {
@@ -79,6 +99,14 @@ function resolveRequiredPortIssues(issues: PatchValidationIssue[]) {
   return issues.filter((issue) => issue.code === "required-port-unconnected");
 }
 
+function resolveBrokenMacroBindingIssues(issues: PatchValidationIssue[], macroId?: string) {
+  return issues.filter(
+    (issue) =>
+      (issue.code === "macro-binding-missing-node" || issue.code === "macro-binding-invalid-param") &&
+      (!macroId || issue.context?.macroId === macroId)
+  );
+}
+
 export function PatchInspector(props: PatchInspectorProps) {
   const selectedNode = props.selectedNode;
   const selectedProbe = props.selectedProbe;
@@ -106,6 +134,7 @@ export function PatchInspector(props: PatchInspectorProps) {
   const visibleRequiredPortIssues = resolveRequiredPortIssues(visibleValidationIssues);
   const visibleGeneralValidationIssues = visibleValidationIssues.filter((issue) => issue.code !== "required-port-unconnected");
   const visibleValidationHasErrors = visibleValidationIssues.some((issue) => issue.level === "error");
+  const selectedMacroBindingIssues = resolveBrokenMacroBindingIssues(props.validationIssues, selectedMacro?.id);
   return (
     <aside className="patch-inspector">
       <h3>Inspector</h3>
@@ -132,6 +161,7 @@ export function PatchInspector(props: PatchInspectorProps) {
                 onExposeMacro={props.onExposeMacro}
               />
             ))}
+          {selectedNode.typeId === "Compressor" && <CompressorDerivedReadouts node={selectedNode} />}
           {selectedNode.typeId === "SamplePlayer" && (
             <SamplePlayerInspectorSection
               node={selectedNode}
@@ -154,6 +184,30 @@ export function PatchInspector(props: PatchInspectorProps) {
           onToggleAttachProbe={props.onToggleAttachProbe}
           onClearProbeTarget={props.onClearProbeTarget}
         />
+      )}
+
+      {selectedMacro && selectedMacroBindingIssues.length > 0 && (
+        <>
+          <h4>Broken Macro Bindings</h4>
+          {selectedMacroBindingIssues.map((issue) => {
+            const bindingId = issue.context?.bindingId;
+            const targetLabel = `${issue.context?.nodeId ?? "missing"}.${issue.context?.paramId ?? "param"}`;
+            return (
+              <div key={`${selectedMacro.id}_${bindingId ?? targetLabel}`} className="patch-macro-binding-issue">
+                <p className="error">{issue.message}</p>
+                {bindingId && (
+                  <button
+                    type="button"
+                    disabled={props.structureLocked}
+                    onClick={() => props.onApplyOp({ type: "unbindMacro", macroId: selectedMacro.id, bindingId })}
+                  >
+                    Remove {targetLabel}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </>
       )}
 
       {props.patchDiff.hasBaseline && !selectedNode && !selectedProbe && (

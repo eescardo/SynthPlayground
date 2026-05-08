@@ -16,6 +16,7 @@ import { isPatchOutputPortId } from "@/lib/patch/ports";
 import { PatchLayoutNode, PatchNode, Patch, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { validatePatchConnectionCandidate } from "@/lib/patch/validation";
+import type { PatchModuleFacePopoverPointerResult } from "@/hooks/patch/usePatchModuleFacePopover";
 
 interface UsePatchCanvasInteractionsArgs {
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -40,7 +41,7 @@ interface UsePatchCanvasInteractionsArgs {
   onAttachProbeTarget?: (target: { kind: "port"; nodeId: string; portId: string; portKind: "in" | "out" } | { kind: "connection"; connectionId: string }) => void;
   onCancelProbeAttach?: () => void;
   makeConnectOp: (fromNodeId: string, fromPortId: string, toNodeId: string, toPortId: string) => PatchOp;
-  handleFacePopoverPointerDown: (rawX: number, rawY: number) => "none" | "dismissed" | "inside-popover";
+  handleFacePopoverPointerDown: (rawX: number, rawY: number) => PatchModuleFacePopoverPointerResult;
   togglePopoverForNode: (nodeId: string) => void;
 }
 
@@ -77,6 +78,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     togglePopoverForNode
   } = args;
   const hitPortsRef = useRef<HitPort[]>([]);
+  const dragNodeIdRef = useRef<string | null>(null);
   const dragLastLayoutRef = useRef<{ x: number; y: number } | null>(null);
   const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
   const pointerDownNodeIdRef = useRef<string | null>(null);
@@ -222,7 +224,25 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     const pos = pointerEventToPatchCanvasPoint(canvasRef.current, event);
     pointerDownNodeIdRef.current = null;
     pointerMovedRef.current = false;
-    if (handleFacePopoverPointerDown(pos.rawX, pos.rawY) !== "none") {
+    const popoverHit = handleFacePopoverPointerDown(pos.rawX, pos.rawY);
+    if (popoverHit.kind === "dismissed") {
+      return;
+    }
+    if (popoverHit.kind === "inside-popover") {
+      const hitNodeId = popoverHit.nodeId;
+      onSelectNode(hitNodeId);
+      dragNodeIdRef.current = hitNodeId;
+      setDragNodeId(hitNodeId);
+      pointerDownNodeIdRef.current = hitNodeId;
+      const layout = layoutByNode.get(hitNodeId);
+      dragLastLayoutRef.current = layout ? { x: layout.x, y: layout.y } : null;
+      dragPointerOffsetRef.current = layout
+        ? {
+            x: pos.rawX - layout.x * PATCH_CANVAS_GRID,
+            y: pos.rawY - layout.y * PATCH_CANVAS_GRID
+          }
+        : null;
+      event.currentTarget.setPointerCapture(event.pointerId);
       return;
     }
 
@@ -249,6 +269,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     const hitNodeId = getNodeAtPointer(pos.rawX, pos.rawY);
     if (hitNodeId) {
       onSelectNode(hitNodeId);
+      dragNodeIdRef.current = hitNodeId;
       setDragNodeId(hitNodeId);
       pointerDownNodeIdRef.current = hitNodeId;
       pointerMovedRef.current = false;
@@ -304,7 +325,8 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     const hoverNodeId = hoverPort ? null : getNodeAtPointer(pos.rawX, pos.rawY);
     setHoveredNodeId((prev) => (prev === hoverNodeId ? prev : hoverNodeId));
 
-    if (!dragNodeId) {
+    const activeDragNodeId = dragNodeIdRef.current ?? dragNodeId;
+    if (!activeDragNodeId) {
       return;
     }
     const pointerOffset = dragPointerOffsetRef.current;
@@ -322,7 +344,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     pointerMovedRef.current = true;
     onApplyOp({
       type: "moveNode",
-      nodeId: dragNodeId,
+      nodeId: activeDragNodeId,
       newLayoutPos: nextLayout
     });
   }, [canvasRef, dragNodeId, getNodeAtPointer, handlePortHover, layoutByNode, onApplyOp, outputHostCanvasLeft, patch, pendingProbeId, zoom]);
@@ -339,6 +361,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     }
     dragLastLayoutRef.current = null;
     dragPointerOffsetRef.current = null;
+    dragNodeIdRef.current = null;
     pointerDownNodeIdRef.current = null;
     pointerMovedRef.current = false;
     setDragNodeId(null);

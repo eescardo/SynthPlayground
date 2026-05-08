@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { applyMacroValue, applyPatchOp } from "@/lib/patch/ops";
+import { createDefaultParamsForType } from "@/lib/patch/moduleRegistry";
 import { getMacroBindingKeyframeCount, resolveMacroBindingValue } from "@/lib/patch/macroKeyframes";
 import { createClearPatch, pluckPatch } from "@/lib/patch/presets";
 
@@ -31,6 +32,33 @@ describe("patch ops", () => {
     const boundNode = nextPatch.nodes.find((node) => node.id === binding.nodeId);
     expect(nextMacro?.defaultNormalized).toBeCloseTo(macro.defaultNormalized ?? 0.5);
     expect(boundNode?.params[binding.paramId]).toBeCloseTo(resolveMacroBindingValue(binding, 0.75));
+  });
+
+  it("skips stale macro bindings without writing removed params back onto modules", () => {
+    const patch = pluckPatch();
+    const macro = patch.ui.macros[0];
+    const node = patch.nodes.find((entry) => entry.id === "karplus1");
+    expect(node).toBeDefined();
+    patch.ui.macros = [
+      {
+        ...macro,
+        bindings: [
+          {
+            id: "binding_removed_param",
+            nodeId: "karplus1",
+            paramId: "oldParam",
+            map: "linear",
+            min: 0,
+            max: 1
+          }
+        ]
+      }
+    ];
+
+    const nextPatch = applyMacroValue(patch, macro.id, 1);
+    const nextNode = nextPatch.nodes.find((entry) => entry.id === "karplus1");
+
+    expect(nextNode?.params.oldParam).toBeUndefined();
   });
 
   it("updates all macro bindings when the macro keyframe count changes", () => {
@@ -92,6 +120,77 @@ describe("patch ops", () => {
       .find((entry) => entry.id === macro.id)
       ?.bindings.find((entry) => entry.id === `${macro.id}:output:gainDb`);
     expect(binding?.points).toHaveLength(3);
+  });
+
+  it("does not bind compressor internal auto gain to a macro", () => {
+    const patch = createClearPatch({ id: "compressor_auto_gain_bind", name: "Compressor" });
+    patch.nodes.push({
+      id: "comp1",
+      typeId: "Compressor",
+      params: createDefaultParamsForType("Compressor")
+    });
+    patch.ui.macros.push({ id: "macro1", name: "Macro", keyframeCount: 2, bindings: [] });
+
+    const nextPatch = applyPatchOp(patch, {
+      type: "bindMacro",
+      macroId: "macro1",
+      bindingId: "macro1:comp1:makeupDb",
+      nodeId: "comp1",
+      paramId: "makeupDb",
+      map: "linear",
+      min: 0,
+      max: 12
+    });
+
+    expect(nextPatch.ui.macros[0].bindings).toHaveLength(0);
+  });
+
+  it("ignores legacy compressor auto gain parameter edits", () => {
+    const patch = createClearPatch({ id: "compressor_auto_gain_legacy", name: "Compressor" });
+    patch.nodes.push({
+      id: "comp1",
+      typeId: "Compressor",
+      params: createDefaultParamsForType("Compressor")
+    });
+
+    const nextPatch = applyPatchOp(patch, {
+      type: "setParam",
+      nodeId: "comp1",
+      paramId: "makeupDb",
+      value: 12
+    });
+
+    const node = nextPatch.nodes.find((entry) => entry.id === "comp1");
+    expect(node?.params.makeupDb).toBeUndefined();
+  });
+
+  it("ignores legacy compressor makeup macro bindings", () => {
+    const patch = createClearPatch({ id: "compressor_auto_gain_apply", name: "Compressor" });
+    patch.nodes.push({
+      id: "comp1",
+      typeId: "Compressor",
+      params: createDefaultParamsForType("Compressor")
+    });
+    patch.ui.macros.push({
+      id: "macro1",
+      name: "Macro",
+      keyframeCount: 2,
+      bindings: [
+        {
+          id: "macro1:comp1:makeupDb",
+          nodeId: "comp1",
+          paramId: "makeupDb",
+          map: "linear",
+          min: 0,
+          max: 12
+        }
+      ]
+    });
+
+    const nextPatch = applyMacroValue(patch, "macro1", 0.5);
+    const node = nextPatch.nodes.find((entry) => entry.id === "comp1");
+
+    expect(node?.params.makeupDb).toBeUndefined();
   });
 
   it("updates the macro binding interpolation map without changing its range", () => {

@@ -21,6 +21,8 @@ export const resetRendererFactory = () => {
 
 export const createRenderer = (config = {}) => rendererFactory(config);
 
+const formatErrorMessage = (error) => error instanceof Error ? error.message : String(error);
+
 export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
   constructor(options) {
     super();
@@ -32,7 +34,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
 
     const processorOptions = options && options.processorOptions ? options.processorOptions : null;
     if (processorOptions?.transport?.isPlaying && this.renderer.project) {
-      this.currentStream = this.renderer.startStream({
+      this.currentStream = this.startStreamSafely("start_stream", {
         project: this.renderer.project,
         songStartSample: processorOptions.transport.songStartSample,
         events: processorOptions.transport.events || [],
@@ -44,14 +46,48 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     }
   }
 
-  replaceCurrentStream(nextStream) {
-    if (this.currentStream && this.currentStream !== nextStream) {
-      this.currentStream.stop();
+  reportRuntimeError(phase, error) {
+    this.port.postMessage({
+      type: "RUNTIME_ERROR",
+      phase,
+      error: formatErrorMessage(error)
+    });
+  }
+
+  stopCurrentStream(phase = "stop_stream") {
+    if (this.currentStream) {
+      const currentStream = this.currentStream;
+      this.currentStream = null;
+      try {
+        currentStream.stop();
+      } catch (error) {
+        this.reportRuntimeError(phase, error);
+      }
     }
+  }
+
+  startStreamSafely(phase, options) {
+    try {
+      return this.renderer.startStream(options);
+    } catch (error) {
+      this.reportRuntimeError(phase, error);
+      return null;
+    }
+  }
+
+  replaceCurrentStream(nextStream) {
     this.currentStream = nextStream;
   }
 
   onMessage(message) {
+    try {
+      this.handleMessage(message);
+    } catch (error) {
+      this.reportRuntimeError("message", error);
+    }
+  }
+
+  handleMessage(message) {
     switch (message.type) {
       case "INIT":
         try {
@@ -70,10 +106,11 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
       case "TRANSPORT":
         this.transportSessionId = Number.isFinite(message.sessionId) ? message.sessionId : this.transportSessionId + 1;
         if (!message.isPlaying) {
-          this.replaceCurrentStream(null);
+          this.stopCurrentStream();
           break;
         }
-        this.replaceCurrentStream(this.renderer.startStream({
+        this.stopCurrentStream();
+        this.replaceCurrentStream(this.startStreamSafely("start_stream", {
           project: this.renderer.project,
           songStartSample: message.songStartSample || 0,
           events: message.events || [],
@@ -83,7 +120,8 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         }));
         break;
       case "PREVIEW":
-        this.replaceCurrentStream(this.renderer.startStream({
+        this.stopCurrentStream();
+        this.replaceCurrentStream(this.startStreamSafely("start_stream", {
           project: message.project || this.renderer.project,
           songStartSample: 0,
           events: message.events || [],
@@ -95,6 +133,21 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
           captureProbes: message.captureProbes,
           randomSeed: message.randomSeed
         }));
+        break;
+      case "PREVIEW_RELEASE":
+        if (this.currentStream?.previewId !== message.previewId) {
+          break;
+        }
+        this.currentStream.enqueueEvents?.([
+          {
+            id: `${message.previewId}_off`,
+            type: "NoteOff",
+            source: "preview",
+            sampleTime: Math.max(0, (this.currentStream.songSampleCounter || 0) + 256),
+            trackId: message.trackId,
+            noteId: message.previewId
+          }
+        ]);
         break;
       case "EVENTS":
         if (Number.isFinite(message.sessionId) && message.sessionId !== this.transportSessionId) {
@@ -139,7 +192,20 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
       }
       return true;
     }
-    const keepAlive = this.currentStream.processBlock(outputs[0]);
+    let keepAlive = true;
+    try {
+      keepAlive = this.currentStream.processBlock(outputs[0]);
+    } catch (error) {
+      this.reportRuntimeError("process_block", error);
+      this.currentStream = null;
+      const left = outputs[0][0];
+      const right = outputs[0][1] || outputs[0][0];
+      left.fill(0);
+      if (right !== left) {
+        right.fill(0);
+      }
+      return true;
+    }
     if (this.currentStream.stopped) {
       this.currentStream = null;
     }
