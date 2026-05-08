@@ -733,7 +733,7 @@ impl RuntimeNode {
                     }
                     ReverbMode::Plate => (delayed[0] + delayed[1] + delayed[2] + delayed[3]) * 0.28,
                     _ => (delayed[0] + delayed[1] + delayed[2] + delayed[3]) * 0.25,
-                } * reverb_mode_wet_gain(node.mode);
+                } * reverb_mode_wet_gain(node.mode, decay);
                 let out = frame_signal_offset(node.out_index, block_size, frame);
                 signal_buffers[out] = input * (1.0 - mix) + wet.tanh() * mix;
             }

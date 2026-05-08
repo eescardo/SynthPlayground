@@ -66,12 +66,13 @@ pub(super) fn reverb_mode_input_gain(mode: ReverbMode) -> f32 {
 }
 
 #[inline(always)]
-pub(super) fn reverb_mode_wet_gain(mode: ReverbMode) -> f32 {
+pub(super) fn reverb_mode_wet_gain(mode: ReverbMode, decay: f32) -> f32 {
+    let d = clamp(decay, 0.0, 1.0);
     match mode {
-        ReverbMode::Room => 2.7,
-        ReverbMode::Hall => 1.75,
+        ReverbMode::Room => 4.6,
+        ReverbMode::Hall => 1.75 * (1.0 + 0.75 * d.powf(1.6)),
         ReverbMode::Plate => 3.2,
-        ReverbMode::Spring => 2.8,
+        ReverbMode::Spring => 2.8 * (1.0 + 0.75 * d.powf(2.3)),
     }
 }
 
@@ -218,5 +219,22 @@ mod tests {
         bank.ensure_line_count(ReverbMode::Hall, 48_000.0);
         assert_eq!(bank.buffers.len(), reverb_mode_line_count(ReverbMode::Hall));
         assert_eq!(bank.lowpass.len(), 4);
+    }
+
+    #[test]
+    fn reverb_wet_gain_compensates_long_decay_modes() {
+        assert!(reverb_mode_wet_gain(ReverbMode::Room, 0.5) > 4.0);
+        assert!(
+            reverb_mode_wet_gain(ReverbMode::Hall, 1.0)
+                > reverb_mode_wet_gain(ReverbMode::Hall, 0.0)
+        );
+        assert!(
+            reverb_mode_wet_gain(ReverbMode::Spring, 1.0)
+                > reverb_mode_wet_gain(ReverbMode::Spring, 0.0)
+        );
+        assert_eq!(
+            reverb_mode_wet_gain(ReverbMode::Plate, 0.0),
+            reverb_mode_wet_gain(ReverbMode::Plate, 1.0)
+        );
     }
 }
