@@ -101,6 +101,9 @@ function drawAdsrEnvelopePath(
 export function envelopeCurveProgress(t: number, curve: number) {
   const clampedT = clamp01(t);
   const clampedCurve = clamp(curve, -1, 1);
+  if (Math.abs(clampedCurve) < 0.0001) {
+    return clampedT;
+  }
   const exponent = clampedCurve < 0 ? 1 + clampedCurve * 0.65 : 1 + clampedCurve * 1.8;
   return clampedT ** Math.max(0.35, exponent);
 }

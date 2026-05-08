@@ -86,6 +86,9 @@ pub(super) fn compressor_gain_reduction_db(level_db: f32, threshold_db: f32, rat
 pub(super) fn envelope_curve_progress(t: f32, curve: f32) -> f32 {
     let clamped_t = clamp(t, 0.0, 1.0);
     let clamped_curve = clamp(curve, -1.0, 1.0);
+    if clamped_curve.abs() < 0.0001 {
+        return clamped_t;
+    }
     let exponent = if clamped_curve < 0.0 {
         1.0 + clamped_curve * 0.65
     } else {
