@@ -1,6 +1,13 @@
 import { createId } from "@/lib/ids";
 import { createDefaultProject, createEmptyProject } from "@/lib/patch/presets";
 import { createAvailableProjectName } from "@/lib/projectManagement";
+import { normalizeProject } from "@/lib/projectSerde";
+import {
+  createEmptyProjectAssetLibrary,
+  extractInlineSamplePlayerAssets,
+  normalizeProjectAssetLibrary
+} from "@/lib/sampleAssetLibrary";
+import { ProjectAssetLibrary } from "@/types/assets";
 import { Project } from "@/types/music";
 
 const withUpdatedTimestamp = (project: Project): Project => ({
@@ -39,3 +46,12 @@ export const prepareImportedProject = (project: Project): Project => ({
   id: createId("project"),
   updatedAt: Date.now()
 });
+
+export const hydrateProjectSnapshot = (
+  project: unknown,
+  assets: unknown = createEmptyProjectAssetLibrary()
+): { project: Project; assets: ProjectAssetLibrary } => {
+  const normalizedProject = normalizeProject(project);
+  const normalizedAssets = normalizeProjectAssetLibrary(assets);
+  return extractInlineSamplePlayerAssets(normalizedProject, normalizedAssets);
+};

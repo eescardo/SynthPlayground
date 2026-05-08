@@ -18,7 +18,7 @@ import { downloadJsonFile } from "@/lib/browserDownloads";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import { TimelineActionsPopoverRequest, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { createId } from "@/lib/ids";
-import { createProjectSnapshot } from "@/lib/projectLifecycle";
+import { createProjectSnapshot, hydrateProjectSnapshot } from "@/lib/projectLifecycle";
 import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
 import { getProjectTimelineEndBeat, getTrackPreviewStateAtBeat } from "@/lib/macroAutomation";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
@@ -48,12 +48,11 @@ import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { createDefaultProject, createEmptyProject } from "@/lib/patch/presets";
 import { renameProjectInProject } from "@/lib/projectManagement";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
-import { exportProjectToJson, normalizeProject } from "@/lib/projectSerde";
+import { exportProjectToJson } from "@/lib/projectSerde";
 import { pitchToVoct } from "@/lib/pitch";
 import {
   buildMissingSampleAssetIssues,
   createEmptyProjectAssetLibrary,
-  extractInlineSamplePlayerAssets,
   upsertSamplePlayerAssetData
 } from "@/lib/sampleAssetLibrary";
 import { removeTrackFromProject, renameTrackInProject, switchTrackPatchInProject } from "@/lib/trackEdits";
@@ -167,9 +166,9 @@ export function AppRoot({ children }: { children: ReactNode }) {
           loadProjectState(),
           loadRecentProjectSnapshots()
         ]);
-        const loadedProject = savedState ? normalizeProject(savedState.project) : createDefaultProject();
-        const loadedAssets = savedState?.assets ?? createEmptyProjectAssetLibrary();
-        const migratedState = extractInlineSamplePlayerAssets(loadedProject, loadedAssets);
+        const migratedState = savedState
+          ? hydrateProjectSnapshot(savedState.project, savedState.assets)
+          : { project: createDefaultProject(), assets: createEmptyProjectAssetLibrary() };
         if (cancelled) {
           return;
         }

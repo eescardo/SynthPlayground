@@ -6,6 +6,7 @@ import {
   createNamedEmptyProject,
   createProjectFromDefaultTemplate,
   createProjectSnapshot,
+  hydrateProjectSnapshot,
   prepareImportedProject
 } from "@/lib/projectLifecycle";
 import {
@@ -14,7 +15,7 @@ import {
   saveRecentProjectSnapshot
 } from "@/lib/persistence";
 import { importProjectBundleFromJson } from "@/lib/projectSerde";
-import { createEmptyProjectAssetLibrary, extractInlineSamplePlayerAssets } from "@/lib/sampleAssetLibrary";
+import { createEmptyProjectAssetLibrary } from "@/lib/sampleAssetLibrary";
 import { ProjectAssetLibrary } from "@/types/assets";
 import { Project } from "@/types/music";
 
@@ -100,17 +101,23 @@ export const useProjectLifecycleActions = ({
       return;
     }
 
-    await switchToProject(recentProject.project, recentProject.assets, {
-      rememberCurrent: true,
-      removeRecentProjectId: projectId
-    });
-  }, [recentProjects, switchToProject]);
+    try {
+      const migratedState = hydrateProjectSnapshot(recentProject.project, recentProject.assets);
+
+      await switchToProject(migratedState.project, migratedState.assets, {
+        rememberCurrent: true,
+        removeRecentProjectId: projectId
+      });
+    } catch (error) {
+      setRuntimeError(`Failed to open recent project. ${(error as Error).message}`);
+    }
+  }, [recentProjects, setRuntimeError, switchToProject]);
 
   const importJson = useCallback(async (file: File) => {
     const text = await file.text();
     try {
       const importedBundle = importProjectBundleFromJson(text);
-      const migratedState = extractInlineSamplePlayerAssets(importedBundle.project, importedBundle.assets);
+      const migratedState = hydrateProjectSnapshot(importedBundle.project, importedBundle.assets);
       const importedProject = prepareImportedProject(migratedState.project);
 
       await switchToProject(importedProject, migratedState.assets, { rememberCurrent: true });
