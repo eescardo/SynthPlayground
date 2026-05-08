@@ -217,6 +217,28 @@ describe("patch validation", () => {
     );
   });
 
+  it("rejects modules missing current schema params instead of silently filling defaults", () => {
+    const patch = createClearPatch({ id: "missing_reverb_params", name: "Missing Reverb Params" });
+    patch.nodes.push(
+      { id: "noise1", typeId: "Noise", params: { color: "white", gain: 0.3 } },
+      { id: "verb1", typeId: "Reverb", params: { decay: 0.5, mix: 0.25 } }
+    );
+    patch.connections = [
+      { id: "c1", from: { nodeId: "noise1", portId: "out" }, to: { nodeId: "verb1", portId: "in" } },
+      { id: "c2", from: { nodeId: "verb1", portId: "out" }, to: { nodeId: "output", portId: "in" } }
+    ];
+
+    const result = validatePatch(patch);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "node-param-missing", context: expect.objectContaining({ nodeId: "verb1", paramId: "mode" }) }),
+        expect.objectContaining({ code: "node-param-missing", context: expect.objectContaining({ nodeId: "verb1", paramId: "tone" }) })
+      ])
+    );
+  });
+
   it("rejects modules with unconnected required input ports", () => {
     const patch = bassPatch();
     patch.connections = patch.connections.filter(

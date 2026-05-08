@@ -216,6 +216,17 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
     }
     const paramsById = new Map(schema.params.map((param) => [param.id, param] as const));
 
+    for (const param of schema.params) {
+      if (!(param.id in node.params)) {
+        pushError(
+          issues,
+          `Module ${node.id} is missing current parameter ${param.id}`,
+          { nodeId: node.id, typeId: node.typeId, paramId: param.id },
+          "node-param-missing"
+        );
+      }
+    }
+
     for (const [paramId, value] of Object.entries(node.params)) {
       const paramSchema = paramsById.get(paramId);
       if (!paramSchema) {
