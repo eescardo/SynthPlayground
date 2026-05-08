@@ -4,7 +4,6 @@ import {
   resolveParamControlValue
 } from "@/components/patch/patchModuleParameterState";
 import { applyMagneticSliderSnap } from "@/components/patch/patchModuleParameterControls";
-import { resolveParamSliderMagnet } from "@/components/patch/patchModuleParameterInspector";
 import { createDefaultParamsForType, getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch } from "@/types/patch";
 
@@ -23,10 +22,7 @@ describe("PatchModuleParameter macro-bound controls", () => {
     if (!curveParam) {
       throw new Error("Expected ADSR curve param.");
     }
-    const magnet = resolveParamSliderMagnet(
-      { id: "env1", typeId: "ADSR", params: createDefaultParamsForType("ADSR") },
-      curveParam
-    );
+    const magnet = curveParam.type === "float" ? curveParam.sliderMagnet : undefined;
     expect(magnet).toEqual({ point: 0, radius: 0.035 });
     expect(applyMagneticSliderSnap(0.034, magnet)).toBe(0);
     expect(applyMagneticSliderSnap(-0.034, magnet)).toBe(0);

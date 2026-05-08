@@ -7,7 +7,13 @@ const floatParam = (
   max: number,
   unit: Unit,
   doc: string,
-  options?: { default?: number; map?: "linear" | "exp"; smoothingMs?: number; step?: number }
+  options?: {
+    default?: number;
+    map?: "linear" | "exp";
+    smoothingMs?: number;
+    step?: number;
+    sliderMagnet?: { point: number; radius: number };
+  }
 ): ParamSchema => ({
   id,
   label,
@@ -15,6 +21,7 @@ const floatParam = (
   default: options?.default ?? min,
   range: { min, max },
   step: options?.step,
+  sliderMagnet: options?.sliderMagnet,
   unit,
   map: options?.map ?? "linear",
   smoothing: options?.smoothingMs ? { kind: "one_pole", timeMs: options.smoothingMs } : null,
@@ -247,7 +254,8 @@ export const moduleRegistry: ModuleTypeSchema[] = [
       floatParam("curve", "Curve", -1, 1, "linear", "Envelope curve: exponential through linear to logarithmic", {
         default: 0,
         smoothingMs: 10,
-        step: 0.01
+        step: 0.01,
+        sliderMagnet: { point: 0, radius: 0.035 }
       }),
       enumParam(
         "mode",

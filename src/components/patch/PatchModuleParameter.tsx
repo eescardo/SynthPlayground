@@ -6,7 +6,6 @@ import { PatchDiff } from "@/lib/patch/diff";
 import { EditableNumberLabel, MacroBindingDetails, ParamMacroControl } from "@/components/patch/PatchInspectorControls";
 import { resolveParamBindingState, resolveParamControlValue } from "@/components/patch/patchModuleParameterState";
 import { applyMagneticSliderSnap, MagneticSliderSnap } from "@/components/patch/patchModuleParameterControls";
-import { resolveParamSliderMagnet } from "@/components/patch/patchModuleParameterInspector";
 import { createMacroBindingId, createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
 import { clamp, clampRange } from "@/lib/numeric";
 import { MacroBinding, Patch, PatchMacro, PatchNode, PatchParamSliderRange, ParamSchema, ParamValue } from "@/types/patch";
@@ -300,7 +299,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
   const currentDisplayValue = sliderControlValue;
   const currentDisplayMin = sliderRange.min;
   const currentDisplayMax = sliderRange.max;
-  const magneticSnap = resolveParamSliderMagnet(props.selectedNode, props.param);
+  const magneticSnap = props.param.type === "float" ? props.param.sliderMagnet : undefined;
 
   const bindParamToMacro = (macroId: string) => {
     if (props.structureLocked) {
