@@ -83,7 +83,7 @@ function ParamValueControl(props: {
   min?: number;
   max?: number;
   disabled?: boolean;
-  magnetPoints?: MagneticSliderPoint[];
+  magnetPoints: MagneticSliderPoint[];
   onChange: (value: ParamValue) => void;
   onPreviewChange?: (value: ParamValue) => void;
 }) {
@@ -125,7 +125,7 @@ function FloatParamValueControl(props: {
   min?: number;
   max?: number;
   disabled?: boolean;
-  magnetPoints?: MagneticSliderPoint[];
+  magnetPoints: MagneticSliderPoint[];
   onChange: (value: number) => void;
   onPreviewChange?: (value: number) => void;
 }) {
@@ -299,7 +299,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
   const currentDisplayValue = sliderControlValue;
   const currentDisplayMin = sliderRange.min;
   const currentDisplayMax = sliderRange.max;
-  const magnetPoints = props.param.type === "float" ? props.param.magnetPoints : undefined;
+  const magnetPoints = props.param.type === "float" ? props.param.magnetPoints ?? [] : [];
 
   const bindParamToMacro = (macroId: string) => {
     if (props.structureLocked) {
