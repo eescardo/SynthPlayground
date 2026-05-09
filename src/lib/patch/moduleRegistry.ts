@@ -145,9 +145,9 @@ export const moduleRegistry: ModuleTypeSchema[] = [
     portsOut: [port("out", "Out", ["CV"], "Scaled CV")]
   },
   {
-    typeId: "CVMixer2",
+    typeId: "CVMixer4",
     categories: categories("mix", "cv"),
-    doc: { summary: "Sums two CV sources with independent gains." },
+    doc: { summary: "Sums up to 4 CV sources with independent bipolar gains." },
     requiredPortIds: { out: ["out"] },
     params: [
       floatParam("gain1", "Gain 1", -2, 2, "linear", "Gain for input 1", {
@@ -157,9 +157,22 @@ export const moduleRegistry: ModuleTypeSchema[] = [
       floatParam("gain2", "Gain 2", -2, 2, "linear", "Gain for input 2", {
         default: 1,
         smoothingMs: 10
+      }),
+      floatParam("gain3", "Gain 3", -2, 2, "linear", "Gain for input 3", {
+        default: 1,
+        smoothingMs: 10
+      }),
+      floatParam("gain4", "Gain 4", -2, 2, "linear", "Gain for input 4", {
+        default: 1,
+        smoothingMs: 10
       })
     ],
-    portsIn: [port("in1", "In 1", ["CV"], "First CV input"), port("in2", "In 2", ["CV"], "Second CV input")],
+    portsIn: [
+      port("in1", "In 1", ["CV"], "First CV input"),
+      port("in2", "In 2", ["CV"], "Second CV input"),
+      port("in3", "In 3", ["CV"], "Third CV input"),
+      port("in4", "In 4", ["CV"], "Fourth CV input")
+    ],
     portsOut: [port("out", "Out", ["CV"], "Mixed CV output")]
   },
   {

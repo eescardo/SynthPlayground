@@ -3,6 +3,19 @@ import { describe, expect, it } from "vitest";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 
 describe("module registry", () => {
+  it("defines CVMixer4 as a four-input CV-only mixer", () => {
+    const schema = getModuleSchema("CVMixer4");
+
+    expect(schema?.portsIn.map((port) => [port.id, port.capabilities])).toEqual([
+      ["in1", ["CV"]],
+      ["in2", ["CV"]],
+      ["in3", ["CV"]],
+      ["in4", ["CV"]]
+    ]);
+    expect(schema?.portsOut.map((port) => [port.id, port.capabilities])).toEqual([["out", ["CV"]]]);
+    expect(schema?.params.map((param) => param.id)).toEqual(["gain1", "gain2", "gain3", "gain4"]);
+  });
+
   it("defines CVTranspose pitch offsets as integer-stepped controls", () => {
     const schema = getModuleSchema("CVTranspose");
 

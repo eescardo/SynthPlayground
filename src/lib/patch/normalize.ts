@@ -48,9 +48,10 @@ const sanitizeParamMap = (raw: unknown): Record<string, number | string | boolea
 
 const sanitizePatchNode = (raw: unknown, fallbackId: string): PatchNode => {
   const node = isObject(raw) ? raw : {};
+  const typeId = asString(node.typeId, "");
   return {
     id: asString(node.id, fallbackId),
-    typeId: asString(node.typeId, ""),
+    typeId: typeId === "CVMixer2" ? "CVMixer4" : typeId,
     params: sanitizeParamMap(node.params)
   };
 };

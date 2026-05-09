@@ -31,8 +31,8 @@ export const moduleFaceRenderers: Record<string, ModuleFaceRenderer> = {
   CVScaler: drawCvScalerModuleFace,
   Mixer4: (ctx, patch, node, schema, x, y, accentColor) =>
     drawMixerModuleFace(ctx, node, schema, x, y, accentColor, 4, resolveConnectedInputPortIds(patch, node.id)),
-  CVMixer2: (ctx, patch, node, schema, x, y, accentColor) =>
-    drawMixerModuleFace(ctx, node, schema, x, y, accentColor, 2, resolveConnectedInputPortIds(patch, node.id))
+  CVMixer4: (ctx, patch, node, schema, x, y, accentColor) =>
+    drawMixerModuleFace(ctx, node, schema, x, y, accentColor, 4, resolveConnectedInputPortIds(patch, node.id))
 };
 
 export const fallbackModuleFaceRenderer = drawGenericModuleFace;

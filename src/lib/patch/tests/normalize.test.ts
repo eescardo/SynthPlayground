@@ -4,6 +4,32 @@ import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch
 import { normalizePatch } from "@/lib/patch/normalize";
 
 describe("normalizePatch", () => {
+  it("migrates legacy CVMixer2 nodes to CVMixer4", () => {
+    const patch = normalizePatch(
+      {
+        id: "patch_raw",
+        name: "Raw",
+        nodes: [
+          {
+            id: "cvmix1",
+            typeId: "CVMixer2",
+            params: { gain1: 0.5, gain2: -0.25 }
+          }
+        ],
+        connections: [],
+        layout: { nodes: [] },
+        ui: {},
+        io: {}
+      },
+      { fallbackId: "fallback", fallbackName: "Fallback" }
+    );
+
+    expect(patch.nodes.find((node) => node.id === "cvmix1")).toMatchObject({
+      typeId: "CVMixer4",
+      params: { gain1: 0.5, gain2: -0.25, gain3: 1, gain4: 1 }
+    });
+  });
+
   it("normalizes persisted parameter slider ranges", () => {
     const patch = normalizePatch(
       {

@@ -227,7 +227,7 @@ struct MasterFxSpec {
 struct NodeProfileStats {
     cv_transpose_ms: f64,
     cv_scaler_ms: f64,
-    cv_mixer2_ms: f64,
+    cv_mixer4_ms: f64,
     vco_ms: f64,
     karplus_strong_ms: f64,
     lfo_ms: f64,

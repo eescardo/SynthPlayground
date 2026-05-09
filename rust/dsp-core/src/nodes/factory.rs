@@ -29,12 +29,16 @@ impl RuntimeNode {
                 input: input_index(&raw.inputs, "in"),
                 scale: SmoothParam::new(value_to_f32(p.get("scale"), 1.0), 10.0, sample_rate),
             }),
-            "CVMixer2" => Self::CVMixer2(CVMixer2Node {
+            "CVMixer2" | "CVMixer4" => Self::CVMixer4(CVMixer4Node {
                 out_index: raw.out_index,
                 in1: input_index(&raw.inputs, "in1"),
                 in2: input_index(&raw.inputs, "in2"),
+                in3: input_index(&raw.inputs, "in3"),
+                in4: input_index(&raw.inputs, "in4"),
                 gain1: SmoothParam::new(value_to_f32(p.get("gain1"), 1.0), 10.0, sample_rate),
                 gain2: SmoothParam::new(value_to_f32(p.get("gain2"), 1.0), 10.0, sample_rate),
+                gain3: SmoothParam::new(value_to_f32(p.get("gain3"), 1.0), 10.0, sample_rate),
+                gain4: SmoothParam::new(value_to_f32(p.get("gain4"), 1.0), 10.0, sample_rate),
             }),
             "VCO" => Self::VCO(VcoNode {
                 out_index: raw.out_index,

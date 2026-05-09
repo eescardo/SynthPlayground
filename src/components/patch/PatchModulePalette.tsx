@@ -96,22 +96,13 @@ function renderModulePaletteGlyph(typeId: string): ReactNode {
         </>
       );
     case "Mixer4":
-    case "CVMixer2":
+    case "CVMixer4":
       return (
         <>
-          {typeId === "Mixer4" ? (
-            <>
-              <rect x="8" y="10" width="4" height="8" />
-              <rect x="15" y="8" width="4" height="10" />
-              <rect x="22" y="12" width="4" height="6" />
-              <rect x="29" y="9" width="3" height="9" />
-            </>
-          ) : (
-            <>
-              <rect x="12" y="10" width="5" height="8" />
-              <rect x="22" y="8" width="5" height="10" />
-            </>
-          )}
+          <rect x="8" y="10" width="4" height="8" />
+          <rect x="15" y="8" width="4" height="10" />
+          <rect x="22" y="12" width="4" height="6" />
+          <rect x="29" y="9" width="3" height="9" />
         </>
       );
     case "CVTranspose":

@@ -11,7 +11,7 @@ impl RuntimeNode {
         match self {
             Self::CVTranspose(_) => profile.nodes.cv_transpose_ms += elapsed_ms,
             Self::CVScaler(_) => profile.nodes.cv_scaler_ms += elapsed_ms,
-            Self::CVMixer2(_) => profile.nodes.cv_mixer2_ms += elapsed_ms,
+            Self::CVMixer4(_) => profile.nodes.cv_mixer4_ms += elapsed_ms,
             Self::VCO(_) => profile.nodes.vco_ms += elapsed_ms,
             Self::KarplusStrong(_) => profile.nodes.karplus_strong_ms += elapsed_ms,
             Self::LFO(_) => profile.nodes.lfo_ms += elapsed_ms,
@@ -41,9 +41,11 @@ impl RuntimeNode {
                 node.cents.reset();
             }
             Self::CVScaler(node) => node.scale.reset(),
-            Self::CVMixer2(node) => {
+            Self::CVMixer4(node) => {
                 node.gain1.reset();
                 node.gain2.reset();
+                node.gain3.reset();
+                node.gain4.reset();
             }
             Self::VCO(node) => {
                 node.phase = 0.0;
@@ -167,13 +169,19 @@ impl RuntimeNode {
                         .set_target(value_to_f32(Some(value), node.scale.target));
                 }
             }
-            Self::CVMixer2(node) => match param_id {
+            Self::CVMixer4(node) => match param_id {
                 "gain1" => node
                     .gain1
                     .set_target(value_to_f32(Some(value), node.gain1.target)),
                 "gain2" => node
                     .gain2
                     .set_target(value_to_f32(Some(value), node.gain2.target)),
+                "gain3" => node
+                    .gain3
+                    .set_target(value_to_f32(Some(value), node.gain3.target)),
+                "gain4" => node
+                    .gain4
+                    .set_target(value_to_f32(Some(value), node.gain4.target)),
                 _ => {}
             },
             Self::VCO(node) => match param_id {

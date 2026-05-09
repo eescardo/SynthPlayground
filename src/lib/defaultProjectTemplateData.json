@@ -606,7 +606,7 @@
         },
         {
           "id": "cvmix1",
-          "typeId": "CVMixer2",
+          "typeId": "CVMixer4",
           "params": {
             "gain1": 1,
             "gain2": 1
