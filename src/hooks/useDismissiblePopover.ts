@@ -44,11 +44,11 @@ export function useDismissiblePopover(options: UseDismissiblePopoverOptions) {
     };
 
     window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointerdown", onPointerDown, { capture: true });
     return () => {
       window.clearTimeout(activateTimer);
       window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointerdown", onPointerDown, { capture: true });
     };
   }, [active, onDismiss, popoverRef, popoverSelector]);
 }
