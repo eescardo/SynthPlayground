@@ -15,7 +15,6 @@ const HOST_SOURCE_PORT_ID_SET = new Set(Object.values(HOST_SOURCE_PORT_IDS));
 const SUPPORTED_NODE_TYPES = new Set([
   "CVTranspose",
   "CVScaler",
-  "CVMixer2",
   "CVMixer4",
   "VCO",
   "KarplusStrong",
@@ -37,7 +36,6 @@ const SUPPORTED_NODE_TYPES = new Set([
 const PORTS_IN_BY_TYPE = {
   CVTranspose: ["in"],
   CVScaler: ["in"],
-  CVMixer2: ["in1", "in2"],
   CVMixer4: ["in1", "in2", "in3", "in4"],
   VCO: ["pitch", "fm", "pwm"],
   KarplusStrong: ["pitch", "gate", "excite"],

@@ -29,7 +29,7 @@ impl RuntimeNode {
                 input: input_index(&raw.inputs, "in"),
                 scale: SmoothParam::new(value_to_f32(p.get("scale"), 1.0), 10.0, sample_rate),
             }),
-            "CVMixer2" | "CVMixer4" => Self::CVMixer4(CVMixer4Node {
+            "CVMixer4" => Self::CVMixer4(CVMixer4Node {
                 out_index: raw.out_index,
                 in1: input_index(&raw.inputs, "in1"),
                 in2: input_index(&raw.inputs, "in2"),
