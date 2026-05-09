@@ -476,6 +476,7 @@ export function useTrackCanvasPointerInteractions({
 
       if (hasActiveSelection) {
         selectionActions.onSetContentSelection(EMPTY_CONTENT_SELECTION);
+        selectionActions.onSetTimelineSelectionBeatRange(null);
         selectionActions.onPreviewSelectionActionScopeChange("source");
         setSelectionRect(null);
         selectionActions.onSetSelectionMarqueeActive(false);
