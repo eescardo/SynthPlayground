@@ -1,11 +1,9 @@
 "use client";
 
-import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
-import { drawPatchModuleFaceContent } from "@/components/patch/patchModuleFaceDrawing";
+import { CSSProperties, ReactNode, useMemo, useState } from "react";
 import { buildModulePaletteGroups } from "@/components/patch/patchModulePaletteGroups";
 import { resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
-import { createDefaultParamsForType } from "@/lib/patch/moduleRegistry";
-import { ModuleTypeSchema, Patch, PatchModuleCategory, PatchNode } from "@/types/patch";
+import { ModuleTypeSchema, PatchModuleCategory } from "@/types/patch";
 
 interface PatchModulePaletteProps {
   onSelectModule: (typeId: string) => void;
@@ -21,43 +19,132 @@ const CATEGORY_LABELS: Record<PatchModuleCategory, string> = {
   host: "Host"
 };
 
-const EMPTY_PATCH_FOR_ICON: Patch = {
-  schemaVersion: 1,
-  id: "module-palette-icon-patch",
-  name: "Module Palette Icon Patch",
-  nodes: [],
-  connections: [],
-  layout: { nodes: [] },
-  ui: { macros: [] },
-  meta: { source: "custom" }
-};
-
 function PatchModulePaletteIcon({ module }: { module: ModuleTypeSchema }) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  return (
+    <svg className="patch-module-palette-icon" viewBox="0 0 38 24" aria-hidden="true" focusable="false">
+      <rect className="patch-module-palette-icon-face" x="1" y="1" width="36" height="22" rx="2" />
+      <rect className="patch-module-palette-icon-header" x="1" y="1" width="36" height="5" rx="2" />
+      <path className="patch-module-palette-icon-header-mask" d="M1 4h36v4H1z" />
+      <circle className="patch-module-palette-icon-port" cx="1" cy="12" r="1.2" />
+      <circle className="patch-module-palette-icon-port" cx="37" cy="12" r="1.2" />
+      <g className="patch-module-palette-icon-glyph">{renderModulePaletteGlyph(module.typeId)}</g>
+    </svg>
+  );
+}
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      return;
-    }
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      return;
-    }
-    const colors = resolveMutedPatchModuleColors(module.categories);
-    const node: PatchNode = {
-      id: "icon",
-      typeId: module.typeId,
-      params: createDefaultParamsForType(module.typeId)
-    };
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
-    ctx.scale(0.24, 0.24);
-    drawPatchModuleFaceContent(ctx, EMPTY_PATCH_FOR_ICON, node, module, 0, 0, colors.accent);
-    ctx.restore();
-  }, [module]);
-
-  return <canvas ref={canvasRef} width={38} height={24} aria-hidden="true" className="patch-module-palette-icon" />;
+function renderModulePaletteGlyph(typeId: string): ReactNode {
+  switch (typeId) {
+    case "VCO":
+      return <path d="M8 15c3.5-7 7 7 10 0s7-7 12 0" />;
+    case "LFO":
+      return (
+        <>
+          <path d="M8 15c2.5-5 5 5 7 0s5-5 7 0 5 5 8 0" />
+          <path className="patch-module-palette-icon-subtle" d="M8 18h22" />
+        </>
+      );
+    case "KarplusStrong":
+      return (
+        <>
+          <path d="M8 16c5-8 13-8 22 0" />
+          <path className="patch-module-palette-icon-subtle" d="M10 15v-5m5 3v-5m5 4v-5m5 6V9" />
+        </>
+      );
+    case "SamplePlayer":
+      return (
+        <>
+          <rect x="8" y="10" width="22" height="8" rx="1" />
+          <path className="patch-module-palette-icon-cutout" d="M11 16h3v-4h4v4h3v-3h5v3" />
+        </>
+      );
+    case "Noise":
+      return (
+        <>
+          <path d="M8 16l2-5 3 4 2-7 3 8 3-5 2 4 3-6 4 7" />
+          <circle cx="11" cy="10" r="0.8" />
+          <circle cx="24" cy="17" r="0.8" />
+        </>
+      );
+    case "ADSR":
+      return <path d="M8 17l5-9 5 4 5 1 7 4" />;
+    case "VCA":
+      return (
+        <>
+          <path d="M9 17h7l8-8h5" />
+          <path className="patch-module-palette-icon-subtle" d="M18 9v8" />
+        </>
+      );
+    case "VCF":
+      return (
+        <>
+          <path d="M8 17h8c4 0 3-8 7-8s3 8 7 8" />
+          <path className="patch-module-palette-icon-subtle" d="M23 8v10" />
+        </>
+      );
+    case "Mixer4":
+    case "CVMixer2":
+      return (
+        <>
+          <rect x="8" y="10" width="4" height="8" />
+          <rect x="15" y="8" width="4" height="10" />
+          <rect x="22" y="12" width="4" height="6" />
+          {typeId === "Mixer4" && <rect x="29" y="9" width="3" height="9" />}
+        </>
+      );
+    case "CVTranspose":
+      return (
+        <>
+          <path d="M10 16h18" />
+          <path d="M19 9v9" />
+          <path d="M15 12l4-4 4 4" />
+        </>
+      );
+    case "CVScaler":
+      return (
+        <>
+          <path d="M9 17l20-8" />
+          <path className="patch-module-palette-icon-subtle" d="M12 9l14 8" />
+        </>
+      );
+    case "Delay":
+      return (
+        <>
+          <circle cx="10" cy="14" r="2" />
+          <circle cx="19" cy="14" r="1.6" />
+          <circle cx="27" cy="14" r="1.2" />
+        </>
+      );
+    case "Reverb":
+      return (
+        <>
+          <path d="M9 16c5-8 11-8 20 0" />
+          <path className="patch-module-palette-icon-subtle" d="M12 17c4-5 9-5 14 0" />
+        </>
+      );
+    case "Saturation":
+      return <path d="M8 17c5 0 4-7 9-7h4c5 0 4 7 9 7" />;
+    case "Overdrive":
+      return (
+        <>
+          <path d="M8 17c5 0 4-8 9-8h5c4 0 3 8 8 8" />
+          <path className="patch-module-palette-icon-subtle" d="M11 9l4 8m8-8l4 8" />
+        </>
+      );
+    case "Compressor":
+      return (
+        <>
+          <path d="M8 17h8l5-7h9" />
+          <path className="patch-module-palette-icon-subtle" d="M10 10h20" />
+        </>
+      );
+    default:
+      return (
+        <>
+          <rect x="9" y="10" width="20" height="8" rx="1" />
+          <path className="patch-module-palette-icon-cutout" d="M13 14h12" />
+        </>
+      );
+  }
 }
 
 export function PatchModulePalette(props: PatchModulePaletteProps) {

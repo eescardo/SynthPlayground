@@ -1574,12 +1574,53 @@ select {
 
 .patch-module-palette-icon {
   display: block;
-  width: 38px !important;
+  width: 38px;
   min-width: 38px;
-  height: 24px !important;
+  height: 24px;
   max-width: 38px;
-  border: 1px solid color-mix(in srgb, var(--module-category-accent) 48%, transparent);
-  background: rgba(4, 10, 16, 0.7);
+  overflow: visible;
+}
+
+.patch-module-palette-icon-face {
+  fill: rgba(4, 10, 16, 0.66);
+  stroke: color-mix(in srgb, var(--module-category-accent) 56%, transparent);
+  stroke-width: 1.1;
+}
+
+.patch-module-palette-icon-header {
+  fill: color-mix(in srgb, var(--module-category-accent) 28%, transparent);
+}
+
+.patch-module-palette-icon-header-mask {
+  fill: rgba(4, 10, 16, 0.66);
+}
+
+.patch-module-palette-icon-port {
+  fill: var(--module-category-accent);
+}
+
+.patch-module-palette-icon-glyph {
+  fill: none;
+  stroke: var(--module-category-accent);
+  stroke-width: 1.45;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.patch-module-palette-icon-glyph rect,
+.patch-module-palette-icon-glyph circle {
+  fill: color-mix(in srgb, var(--module-category-accent) 54%, transparent);
+  stroke: none;
+}
+
+.patch-module-palette-icon-glyph .patch-module-palette-icon-subtle {
+  opacity: 0.46;
+}
+
+.patch-module-palette-icon-glyph .patch-module-palette-icon-cutout {
+  fill: none;
+  stroke: rgba(4, 10, 16, 0.92);
+  stroke-width: 1.2;
 }
 
 .patch-module-palette-name {
