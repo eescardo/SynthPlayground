@@ -196,6 +196,7 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
   );
 
   const viewProps: React.ComponentProps<typeof PatchWorkspaceView> = {
+    projectId: project.id,
     patch: selectedPatch,
     baselineDiff: {
       baselinePatch: patchWorkspace.baselinePatch,

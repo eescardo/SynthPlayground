@@ -19,6 +19,7 @@ import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 
 interface PatchWorkspaceViewProps {
+  projectId: string;
   patch: Patch;
   baselineDiff: PatchBaselineDiffState;
   importInputRef: RefObject<HTMLInputElement | null>;
@@ -147,6 +148,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
 
         <InstrumentEditor
           editorSessionKey={props.activeTabId}
+          projectId={props.projectId}
           patch={props.patch}
           baselineDiff={props.baselineDiff}
           probeState={props.probeState}

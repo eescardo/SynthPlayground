@@ -13,6 +13,7 @@ import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 
 interface InstrumentEditorProps {
   editorSessionKey?: string;
+  projectId: string;
   patch: Patch;
   baselineDiff: PatchBaselineDiffState;
   probeState: PatchProbeEditorState;
@@ -65,6 +66,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
       )}
 
       <PatchEditorCanvas
+        projectId={props.projectId}
         patch={props.patch}
         baselineDiff={props.baselineDiff}
         probeState={props.probeState}

@@ -1951,6 +1951,8 @@ select {
 }
 
 .patch-inspector {
+  display: flex;
+  flex-direction: column;
   background: #0d1721;
   border: 1px solid #274156;
   border-radius: 8px;
@@ -1958,6 +1960,167 @@ select {
   height: 100%;
   max-height: 640px;
   overflow: auto;
+}
+
+.patch-panel-titlebar {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 1.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.patch-panel-titlebar h3 {
+  min-width: 0;
+  margin: 0;
+}
+
+.patch-panel-title-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.patch-panel-mode-icon,
+.patch-panel-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  padding: 0;
+  border-radius: 0.38rem;
+}
+
+.patch-panel-mode-icon {
+  border: 1px solid rgba(136, 191, 230, 0.18);
+  background: rgba(9, 18, 27, 0.64);
+  color: rgba(221, 238, 255, 0.82);
+  pointer-events: none;
+}
+
+.patch-panel-icon-button {
+  border: 1px solid rgba(136, 191, 230, 0.24);
+  background: rgba(17, 34, 50, 0.86);
+  color: #e7f3ff;
+}
+
+.patch-panel-icon-button:hover {
+  border-color: rgba(255, 198, 94, 0.46);
+  background: rgba(45, 57, 60, 0.94);
+}
+
+.patch-panel-mode-icon svg,
+.patch-panel-icon-button svg {
+  width: 0.92rem;
+  height: 0.92rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.patch-agent-chat {
+  gap: 0.58rem;
+  overflow: hidden;
+}
+
+.patch-agent-auth-card {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.58rem;
+  border: 1px solid rgba(255, 198, 94, 0.2);
+  border-radius: 0.5rem;
+  background: rgba(31, 32, 23, 0.58);
+}
+
+.patch-agent-auth-card p {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.patch-agent-auth-card button {
+  justify-self: start;
+  padding: 0.34rem 0.58rem;
+  font-size: 0.78rem;
+}
+
+.patch-agent-message-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.15rem 0.1rem 0.25rem;
+}
+
+.patch-agent-message-row {
+  display: flex;
+}
+
+.patch-agent-message-row.user {
+  justify-content: flex-end;
+}
+
+.patch-agent-message-row.assistant {
+  justify-content: flex-start;
+}
+
+.patch-agent-message-bubble {
+  max-width: 84%;
+  padding: 0.48rem 0.58rem;
+  border-radius: 0.56rem;
+  font-size: 0.82rem;
+  line-height: 1.36;
+}
+
+.patch-agent-message-row.user .patch-agent-message-bubble {
+  background: rgba(255, 198, 94, 0.18);
+  color: #fff0cf;
+}
+
+.patch-agent-message-row.assistant .patch-agent-message-bubble {
+  background: rgba(31, 53, 72, 0.82);
+  color: #e7f3ff;
+}
+
+.patch-agent-message-bubble p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.patch-agent-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.45rem;
+  align-items: end;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(131, 173, 216, 0.12);
+}
+
+.patch-agent-composer textarea {
+  min-height: 4.6rem;
+  resize: vertical;
+}
+
+.patch-agent-composer textarea:disabled {
+  border-color: rgba(131, 173, 216, 0.18);
+  background: rgba(8, 17, 27, 0.62);
+  color: rgba(231, 243, 255, 0.66);
+  opacity: 1;
+}
+
+.patch-agent-composer textarea:disabled::placeholder {
+  color: rgba(231, 243, 255, 0.5);
+}
+
+.patch-agent-composer button {
+  min-height: 2.1rem;
+  padding-inline: 0.62rem;
 }
 
 .patch-workspace-shell .instrument-editor {
@@ -2346,7 +2509,7 @@ select {
   font-size: 0.72rem;
 }
 
-.patch-inspector h3,
+.patch-inspector > h3,
 .patch-inspector h4 {
   margin: 0.45rem 0;
 }

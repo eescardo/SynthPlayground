@@ -3,6 +3,7 @@ import { PatchDiff } from "@/lib/patch/diff";
 import { PatchModuleParameter, shouldRenderParamInGenericInspector } from "@/components/patch/PatchModuleParameter";
 import { SamplePlayerInspectorSection } from "@/components/patch/SamplePlayerInspectorSection";
 import { ProbeInspectorSection } from "@/components/patch/ProbeInspectorSection";
+import { ChatIcon, SearchIcon } from "@/components/patch/PatchPanelIcons";
 import {
   formatPatchEndpointLabel,
   formatPatchPortLabel,
@@ -71,6 +72,7 @@ interface PatchInspectorProps {
   attachingProbeId?: string | null;
   structureLocked?: boolean;
   validationIssues: PatchValidationIssue[];
+  onShowAgentChat: () => void;
   onApplyOp: (op: PatchOp) => void;
   onPreviewParamValue?: (nodeId: string, paramId: string, value: PatchNode["params"][string]) => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
@@ -146,7 +148,23 @@ export function PatchInspector(props: PatchInspectorProps) {
   const selectedMacroBindingIssues = resolveBrokenMacroBindingIssues(props.validationIssues, selectedMacro?.id);
   return (
     <aside className="patch-inspector">
-      <h3>Inspector</h3>
+      <div className="patch-panel-titlebar">
+        <span className="patch-panel-mode-icon active" title="Inspector" aria-label="Inspector active">
+          <SearchIcon />
+        </span>
+        <h3>Inspector</h3>
+        <div className="patch-panel-title-actions">
+          <button
+            type="button"
+            className="patch-panel-icon-button"
+            title="Show Sprout"
+            aria-label="Show Sprout chat"
+            onClick={props.onShowAgentChat}
+          >
+            <ChatIcon />
+          </button>
+        </div>
+      </div>
       {!selectedNode && !selectedProbe && <p className="muted">Select a module, port, or probe to edit parameters.</p>}
 
       {selectedNode && props.selectedSchema && (

@@ -67,6 +67,15 @@ describe("resolveScreenshotScenariosFromLabelsJson", () => {
     });
   });
 
+  it("parses the patch Sprout chat label", () => {
+    expect(resolveScreenshotScenariosFromLabels(["screenshots:patch-sprout-chat"])).toMatchObject({
+      enabled: true,
+      value: "patch-sprout-chat",
+      grep: "@patch-sprout-chat",
+      error: ""
+    });
+  });
+
   it("returns a validation error for malformed JSON", () => {
     expect(resolveScreenshotScenariosFromLabelsJson("not-json")).toMatchObject({
       enabled: false,

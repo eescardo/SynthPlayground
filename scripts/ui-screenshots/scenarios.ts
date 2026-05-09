@@ -6,6 +6,7 @@ export const SCREENSHOT_SCENARIO = {
   HELP_MODAL: "help-modal",
   RECORD_MODE: "record-mode",
   PATCH_EDITOR: "patch-editor",
+  PATCH_SPROUT_CHAT: "patch-sprout-chat",
   PATCH_MODULE_FACES: "patch-module-faces",
   PATCH_EXPANDED_FACE: "patch-expanded-face",
   PATCH_BASELINE_DIFF: "patch-baseline-diff",

@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { PatchAgentChat } from "@/components/patch/PatchAgentChat";
 import { PatchEditorStage } from "@/components/patch/PatchEditorStage";
 import { PatchInspector } from "@/components/patch/PatchInspector";
 import { PatchMacroPanel } from "@/components/patch/PatchMacroPanel";
@@ -25,6 +26,7 @@ const PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT: Record<number, number> = {
 };
 
 interface PatchEditorCanvasProps {
+  projectId: string;
   patch: Patch;
   baselineDiff: PatchBaselineDiffState;
   probeState: PatchProbeEditorState;
@@ -49,6 +51,7 @@ interface PatchEditorCanvasProps {
 
 export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const [draftParamValues, setDraftParamValues] = useState<Record<string, ParamValue>>({});
+  const [sidePanelMode, setSidePanelMode] = useState<"inspector" | "chat">("inspector");
   useEffect(() => {
     setDraftParamValues({});
   }, [props.patch]);
@@ -133,34 +136,39 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           />
         </div>
 
-        <PatchInspector
-          patch={previewPatch}
-          patchDiff={props.baselineDiff.patchDiff}
-          macroValues={props.macroValues}
-          selectedNode={selectedNode}
-          selectedProbe={selectedProbe}
-          selectedMacroId={props.selectedMacroId}
-          selectedSchema={selectedSchema}
-          previewCapture={selectedProbe ? props.probeState.previewCaptureByProbeId[selectedProbe.id] : undefined}
-          previewProgress={props.probeState.previewProgress}
-          attachingProbeId={attachingProbeId}
-          structureLocked={props.structureLocked}
-          validationIssues={props.validationIssues}
-          onApplyOp={props.onApplyOp}
-          onSelectMacro={props.onSelectMacro}
-          onChangeMacroValue={props.onChangeMacroValue}
-          onPreviewParamValue={(nodeId, paramId, value) => {
-            setDraftParamValues((current) => ({
-              ...current,
-              [buildParamDraftKey(nodeId, paramId)]: value
-            }));
-          }}
-          onExposeMacro={props.onExposeMacro}
-          onUpdateProbeSpectrumWindow={props.probeActions.updateSpectrumWindow}
-          onUpdateProbeFrequencyView={props.probeActions.updateFrequencyView}
-          onToggleAttachProbe={toggleAttachProbe}
-          onClearProbeTarget={(probeId) => props.probeActions.updateTarget(probeId, undefined)}
-        />
+        {sidePanelMode === "chat" ? (
+          <PatchAgentChat projectId={props.projectId} onShowInspector={() => setSidePanelMode("inspector")} />
+        ) : (
+          <PatchInspector
+            patch={previewPatch}
+            patchDiff={props.baselineDiff.patchDiff}
+            macroValues={props.macroValues}
+            selectedNode={selectedNode}
+            selectedProbe={selectedProbe}
+            selectedMacroId={props.selectedMacroId}
+            selectedSchema={selectedSchema}
+            previewCapture={selectedProbe ? props.probeState.previewCaptureByProbeId[selectedProbe.id] : undefined}
+            previewProgress={props.probeState.previewProgress}
+            attachingProbeId={attachingProbeId}
+            structureLocked={props.structureLocked}
+            validationIssues={props.validationIssues}
+            onShowAgentChat={() => setSidePanelMode("chat")}
+            onApplyOp={props.onApplyOp}
+            onSelectMacro={props.onSelectMacro}
+            onChangeMacroValue={props.onChangeMacroValue}
+            onPreviewParamValue={(nodeId, paramId, value) => {
+              setDraftParamValues((current) => ({
+                ...current,
+                [buildParamDraftKey(nodeId, paramId)]: value
+              }));
+            }}
+            onExposeMacro={props.onExposeMacro}
+            onUpdateProbeSpectrumWindow={props.probeActions.updateSpectrumWindow}
+            onUpdateProbeFrequencyView={props.probeActions.updateFrequencyView}
+            onToggleAttachProbe={toggleAttachProbe}
+            onClearProbeTarget={(probeId) => props.probeActions.updateTarget(probeId, undefined)}
+          />
+        )}
       </div>
     </div>
   );

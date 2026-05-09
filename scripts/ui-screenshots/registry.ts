@@ -115,6 +115,16 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
       await savePageScreenshot(page, outputPath, ".patch-workspace-shell");
     }
   },
+  [SCREENSHOT_SCENARIO.PATCH_SPROUT_CHAT]: {
+    name: SCREENSHOT_SCENARIO.PATCH_SPROUT_CHAT,
+    description: "Patch workspace with the Sprout chat panel open in place of the inspector",
+    capture: async (page, outputPath) => {
+      await setupSamplePlayerWorkspace(page);
+      await page.getByRole("button", { name: "Show Sprout chat" }).click();
+      await expect(page.getByRole("heading", { name: "Sprout" })).toBeVisible();
+      await savePageScreenshot(page, outputPath, ".patch-workspace-shell");
+    }
+  },
   [SCREENSHOT_SCENARIO.PATCH_MODULE_FACES]: {
     name: SCREENSHOT_SCENARIO.PATCH_MODULE_FACES,
     description:
