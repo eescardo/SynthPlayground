@@ -118,6 +118,7 @@ function ParamValueControl(props: {
   min?: number;
   max?: number;
   disabled?: boolean;
+  title?: string;
   magnetPoints: MagneticSliderPoint[];
   onChange: (value: ParamValue) => void;
   onPreviewChange?: (value: ParamValue) => void;
@@ -132,6 +133,7 @@ function ParamValueControl(props: {
         min={props.min}
         max={props.max}
         disabled={disabled}
+        title={props.title}
         magnetPoints={props.magnetPoints}
         onChange={onChange}
         onPreviewChange={props.onPreviewChange}
@@ -156,6 +158,7 @@ function ParamValueControl(props: {
       type="checkbox"
       checked={Boolean(value)}
       disabled={disabled}
+      title={props.title}
       onChange={(event) => onChange(event.target.checked)}
     />
   );
@@ -167,6 +170,7 @@ function FloatParamValueControl(props: {
   min?: number;
   max?: number;
   disabled?: boolean;
+  title?: string;
   magnetPoints: MagneticSliderPoint[];
   onChange: (value: number) => void;
   onPreviewChange?: (value: number) => void;
@@ -198,6 +202,7 @@ function FloatParamValueControl(props: {
       step={props.param.step ?? Math.max((max - min) / 500, 0.000001)}
       value={draftValue}
       disabled={props.disabled}
+      title={props.title}
       style={{ "--param-slider-percent": `${sliderPercent}%` } as CSSProperties}
       onChange={(event) => {
         const rawValue = Number(event.target.value);
@@ -344,6 +349,12 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
   const controlDisabled = Boolean(
     props.structureLocked || (bindingState.isExposed && !bindingState.isEditableSelectedMacroBinding)
   );
+  const controlDisabledReason =
+    bindingState.isExposed && !bindingState.isEditableSelectedMacroBinding
+      ? bindingState.activeBindingMacro
+        ? `Select ${bindingState.activeBindingMacro.name} and move to a keyframe to edit this bound value.`
+        : "Select the bound macro and move to a keyframe to edit this value."
+      : undefined;
   const unitDisplay = resolveCurrentValueUnitDisplay(props.param);
   const floatParam = props.param.type === "float" ? props.param : null;
   const currentDisplayValue = sliderControlValue;
@@ -521,13 +532,14 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
       </div>
       <div className="param-control-stack">
         {renderParamInlineSummary(props.selectedNode, props.param, value)}
-        <div className="param-value-editor">
+        <div className="param-value-editor" title={controlDisabledReason}>
           <ParamValueControl
             param={props.param}
             value={sliderControlValue}
             min={props.param.type === "float" ? sliderRange.min : undefined}
             max={props.param.type === "float" ? sliderRange.max : undefined}
             disabled={controlDisabled}
+            title={controlDisabledReason}
             magnetPoints={magnetPoints}
             onChange={commitValue}
             onPreviewChange={(nextValue) => {
