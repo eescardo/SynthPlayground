@@ -1,9 +1,9 @@
 "use client";
 
 import { PatchBaselineControl } from "@/components/patch/PatchBaselineControl";
+import { PatchModulePalette } from "@/components/patch/PatchModulePalette";
 import { PatchToolbarPicker } from "@/components/patch/PatchToolbarPicker";
 import { PatchBaselineControlState } from "@/components/patch/patchBaselineDiffState";
-import { modulePalette } from "@/lib/patch/moduleRegistry";
 import { PatchWorkspaceProbeState } from "@/types/probes";
 
 interface PatchEditorToolbarProps {
@@ -41,20 +41,12 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
         disabled={props.structureLocked}
       >
         {({ close }) => (
-          <>
-            {modulePalette.map((module) => (
-              <button
-                key={module.typeId}
-                type="button"
-                onClick={() => {
-                  props.onAddNode(module.typeId);
-                  close();
-                }}
-              >
-                {module.typeId}
-              </button>
-            ))}
-          </>
+          <PatchModulePalette
+            onSelectModule={(typeId) => {
+              props.onAddNode(typeId);
+              close();
+            }}
+          />
         )}
       </PatchToolbarPicker>
       <PatchToolbarPicker

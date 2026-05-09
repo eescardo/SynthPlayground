@@ -27,6 +27,7 @@ import { usePatchCanvasInteractions } from "@/hooks/patch/usePatchCanvasInteract
 import { usePatchProbeDrag } from "@/hooks/patch/usePatchProbeDrag";
 import { usePatchCanvasZoom } from "@/hooks/patch/usePatchCanvasZoom";
 import { usePatchModuleFacePopover } from "@/hooks/patch/usePatchModuleFacePopover";
+import { resolveVisibleAddModulePosition } from "@/components/patch/patchVisiblePlacement";
 import { Patch, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
@@ -64,7 +65,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [scrollViewport, setScrollViewport] = useState({ left: 0, top: 0, width: 0 });
+  const [scrollViewport, setScrollViewport] = useState({ left: 0, top: 0, width: 0, height: 0 });
   const [deletePreviewNodeId, setDeletePreviewNodeId] = useState<string | null>(null);
   const [clearPreviewActive, setClearPreviewActive] = useState(false);
   const layoutByNode = useMemo(() => {
@@ -89,7 +90,8 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     setScrollViewport({
       left: element.scrollLeft,
       top: element.scrollTop,
-      width: element.clientWidth
+      width: element.clientWidth,
+      height: element.clientHeight
     });
   }, []);
 
@@ -221,7 +223,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
             type: "addNode",
             typeId,
             nodeId,
-            layoutPos: { x: 3, y: 3 }
+            layoutPos: resolveVisibleAddModulePosition(visibleLayoutNodes, scrollViewport, zoom)
           });
           onSelectNode(nodeId);
         }}
