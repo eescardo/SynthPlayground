@@ -326,7 +326,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   {
     typeId: "SamplePlayer",
     categories: categories("source"),
-    doc: { summary: "Plays a loaded sample. Pitch shifts by resampling (MVP)." },
+    doc: { summary: "Plays a loaded sample. Pitch shifts by resampling." },
     requiredPortIds: { in: ["gate"], out: ["out"] },
     params: [
       enumParam("mode", "Mode", ["oneshot", "loop"], "oneshot", "Playback mode"),
