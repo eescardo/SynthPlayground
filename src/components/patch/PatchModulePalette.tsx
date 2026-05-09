@@ -39,7 +39,7 @@ function renderModulePaletteGlyph(typeId: string): ReactNode {
     case "LFO":
       return (
         <>
-          <path d="M8 15c2.5-5 5 5 7 0s5-5 7 0 5 5 8 0" />
+          <path d="M8 15c5.5-5 10.5-5 16 0 2 1.8 4 2.6 6 2" />
           <path className="patch-module-palette-icon-subtle" d="M8 18h22" />
         </>
       );
