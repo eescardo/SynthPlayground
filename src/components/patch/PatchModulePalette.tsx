@@ -35,7 +35,7 @@ function PatchModulePaletteIcon({ module }: { module: ModuleTypeSchema }) {
 function renderModulePaletteGlyph(typeId: string): ReactNode {
   switch (typeId) {
     case "VCO":
-      return <path d="M8 15c3.5-7 7 7 10 0s7-7 12 0" />;
+      return <path d="M8 15c2.4-6 4.8 6 7.2 0s4.8-6 7.2 0 4.8 6 7.6 0" />;
     case "LFO":
       return (
         <>
@@ -53,16 +53,26 @@ function renderModulePaletteGlyph(typeId: string): ReactNode {
     case "SamplePlayer":
       return (
         <>
-          <rect x="8" y="10" width="22" height="8" rx="1" />
-          <path className="patch-module-palette-icon-cutout" d="M11 16h3v-4h4v4h3v-3h5v3" />
+          <path
+            className="patch-module-palette-icon-blob"
+            d="M8 14c2.2-4.8 4.7 4.2 6.9-1.1 2.1-5.1 4.8 6.9 7.2 1.2 2.3-5.5 5.2 3.5 7.9-.6v5H8z"
+          />
+          <path
+            className="patch-module-palette-icon-cutout"
+            d="M8 14c2.2-4.8 4.7 4.2 6.9-1.1 2.1-5.1 4.8 6.9 7.2 1.2 2.3-5.5 5.2 3.5 7.9-.6"
+          />
         </>
       );
     case "Noise":
       return (
         <>
-          <path d="M8 16l2-5 3 4 2-7 3 8 3-5 2 4 3-6 4 7" />
-          <circle cx="11" cy="10" r="0.8" />
-          <circle cx="24" cy="17" r="0.8" />
+          <circle cx="9.5" cy="10" r="0.75" />
+          <circle cx="13" cy="15.8" r="0.9" />
+          <circle cx="16.3" cy="11.8" r="0.65" />
+          <circle cx="19.6" cy="17.2" r="0.8" />
+          <circle cx="22.8" cy="9.7" r="0.75" />
+          <circle cx="26.2" cy="14.4" r="0.95" />
+          <circle cx="30" cy="11.8" r="0.65" />
         </>
       );
     case "ADSR":
@@ -119,6 +129,7 @@ function renderModulePaletteGlyph(typeId: string): ReactNode {
         <>
           <path d="M9 16c5-8 11-8 20 0" />
           <path className="patch-module-palette-icon-subtle" d="M12 17c4-5 9-5 14 0" />
+          <path className="patch-module-palette-icon-whisper" d="M15 18c3-2.6 6-2.6 8 0" />
         </>
       );
     case "Saturation":
@@ -126,15 +137,17 @@ function renderModulePaletteGlyph(typeId: string): ReactNode {
     case "Overdrive":
       return (
         <>
-          <path d="M8 17c5 0 4-8 9-8h5c4 0 3 8 8 8" />
-          <path className="patch-module-palette-icon-subtle" d="M11 9l4 8m8-8l4 8" />
+          <path d="M8 17h9.8l1-8H30" />
+          <path className="patch-module-palette-icon-subtle" d="M18.8 9v8" />
+          <path className="patch-module-palette-icon-whisper" d="M13 11l3 6m8-8l3 6" />
         </>
       );
     case "Compressor":
       return (
         <>
-          <path d="M8 17h8l5-7h9" />
-          <path className="patch-module-palette-icon-subtle" d="M10 10h20" />
+          <path d="M8 9l13 5-13 5" />
+          <path d="M21 14h9" />
+          <path className="patch-module-palette-icon-subtle" d="M10 11.6l9 2.4-9 2.4" />
         </>
       );
     default:

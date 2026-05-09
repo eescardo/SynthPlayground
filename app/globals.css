@@ -1617,6 +1617,15 @@ select {
   opacity: 0.46;
 }
 
+.patch-module-palette-icon-glyph .patch-module-palette-icon-whisper {
+  opacity: 0.26;
+}
+
+.patch-module-palette-icon-glyph .patch-module-palette-icon-blob {
+  fill: color-mix(in srgb, var(--module-category-accent) 38%, transparent);
+  stroke: none;
+}
+
 .patch-module-palette-icon-glyph .patch-module-palette-icon-cutout {
   fill: none;
   stroke: rgba(4, 10, 16, 0.92);
