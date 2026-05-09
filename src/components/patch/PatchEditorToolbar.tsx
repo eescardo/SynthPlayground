@@ -38,6 +38,7 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
         popoverAriaLabel="Add module"
         wrapperClassName="patch-toolbar-module-picker"
         popoverClassName="patch-toolbar-module-popover"
+        captureDismissPointerDown
         disabled={props.structureLocked}
       >
         {({ close }) => (

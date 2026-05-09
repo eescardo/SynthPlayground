@@ -8,6 +8,7 @@ interface PatchToolbarPickerProps {
   popoverAriaLabel: string;
   wrapperClassName: string;
   popoverClassName?: string;
+  captureDismissPointerDown?: boolean;
   disabled?: boolean;
   children: ReactNode | ((controls: { close: () => void }) => ReactNode);
 }
@@ -17,6 +18,7 @@ export function PatchToolbarPicker(props: PatchToolbarPickerProps) {
 
   useDismissiblePopover({
     active: open,
+    capturePointerDown: props.captureDismissPointerDown,
     popoverSelector: `.${props.wrapperClassName.split(" ").join(".")}`,
     onDismiss: () => setOpen(false)
   });

@@ -5,13 +5,14 @@ import type { RefObject } from "react";
 
 interface UseDismissiblePopoverOptions {
   active: boolean;
+  capturePointerDown?: boolean;
   popoverSelector?: string;
   popoverRef?: RefObject<HTMLElement | null>;
   onDismiss: () => void;
 }
 
 export function useDismissiblePopover(options: UseDismissiblePopoverOptions) {
-  const { active, popoverSelector, popoverRef, onDismiss } = options;
+  const { active, capturePointerDown = false, popoverSelector, popoverRef, onDismiss } = options;
 
   useEffect(() => {
     if (!active) {
@@ -44,11 +45,11 @@ export function useDismissiblePopover(options: UseDismissiblePopoverOptions) {
     };
 
     window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("pointerdown", onPointerDown, { capture: true });
+    window.addEventListener("pointerdown", onPointerDown, { capture: capturePointerDown });
     return () => {
       window.clearTimeout(activateTimer);
       window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("pointerdown", onPointerDown, { capture: true });
+      window.removeEventListener("pointerdown", onPointerDown, { capture: capturePointerDown });
     };
-  }, [active, onDismiss, popoverRef, popoverSelector]);
+  }, [active, capturePointerDown, onDismiss, popoverRef, popoverSelector]);
 }
