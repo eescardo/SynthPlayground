@@ -8,6 +8,7 @@ import { resolvePatchWorkspaceMacroValues } from "@/hooks/patch/usePatchWorkspac
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import { pitchToVoct } from "@/lib/pitch";
 import { hydratePatchSamplePlayerAssetsForRuntime } from "@/lib/sampleAssetLibrary";
+import { HOST_PORT_IDS } from "@/lib/patch/constants";
 import { Patch } from "@/types/patch";
 import { Project, Track } from "@/types/music";
 import { AudioProject } from "@/types/audio";
@@ -17,6 +18,9 @@ import { ProjectAssetLibrary } from "@/types/assets";
 const PREVIEW_DURATION_BEATS = 1;
 const HELD_PREVIEW_DURATION_BEATS = 120;
 const PREVIEW_PROGRESS_TICK_MS = 33;
+
+export const hasHostGateConnection = (patch: Patch): boolean =>
+  patch.connections.some((connection) => connection.from.nodeId === HOST_PORT_IDS.gate);
 
 export const buildPatchedPreviewProject = (
   project: AudioProject,
@@ -84,7 +88,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
   const [previewProgress, setPreviewProgress] = useState(0);
   const [previewCaptureByProbeId, setPreviewCaptureByProbeId] = useState<Record<string, PreviewProbeCapture>>({});
   const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
-  const heldPreviewRef = useRef<{ trackId: string; previewId: string } | null>(null);
+  const heldPreviewRef = useRef<{ trackId: string; previewId: string; forceStopOnRelease: boolean } | null>(null);
   const captureRequests = useMemo<PreviewProbeRequest[]>(
     () =>
       probes.flatMap((probe) =>
@@ -192,7 +196,11 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
           }
         )
         .catch((error) => setRuntimeError((error as Error).message));
-      return { previewId, trackId: previewTrack.id };
+      return {
+        previewId,
+        trackId: previewTrack.id,
+        forceStopOnRelease: Boolean(options?.holdUntilReleased && !hasHostGateConnection(patch))
+      };
     },
     [
       audioEngineRef,
@@ -230,7 +238,9 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
       return;
     }
     heldPreviewRef.current = null;
-    audioEngineRef.current?.releasePreviewNote(heldPreview.trackId, heldPreview.previewId);
+    audioEngineRef.current?.releasePreviewNote(heldPreview.trackId, heldPreview.previewId, {
+      forceStop: heldPreview.forceStopOnRelease
+    });
   }, [audioEngineRef]);
 
   const startHeldPatchPreview = useCallback(

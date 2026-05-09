@@ -292,6 +292,72 @@ describe("synth worklet runtime", () => {
     runtime.resetRendererFactory();
   });
 
+  it("force-stops a held preview release for ungated patches", async () => {
+    const runtime = await loadRuntimeModule();
+    const enqueueEvents = vi.fn();
+    const stop = vi.fn();
+    const startStream = vi.fn(() => ({
+      port: { onmessage: null, postMessage() {} },
+      project: createProject(),
+      trackRuntimes: [],
+      eventQueue: [],
+      stopped: false,
+      previewId: "preview_ungated",
+      songSampleCounter: 512,
+      processBlock() {
+        return true;
+      },
+      enqueueEvents,
+      stop,
+      setMacroValue() {},
+      setRecordingTrack() {}
+    }));
+
+    runtime.setRendererFactory(() => ({
+      port: { onmessage: null, postMessage() {} },
+      sampleRateInternal: 48000,
+      blockSize: 128,
+      project: createProject(),
+      configure() {},
+      setDefaultProject() {},
+      startStream
+    }));
+
+    const processor = new runtime.SynthWorkletProcessor({
+      processorOptions: { sampleRate: 48000, blockSize: 128 }
+    });
+
+    processor.onMessage({
+      type: "PREVIEW",
+      trackId: "track_1",
+      previewId: "preview_ungated",
+      events: [
+        {
+          id: "preview_ungated_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "preview_ungated",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
+      durationSamples: 48000
+    });
+    processor.onMessage({
+      type: "PREVIEW_RELEASE",
+      trackId: "track_1",
+      previewId: "preview_ungated",
+      forceStop: true
+    });
+
+    expect(startStream).toHaveBeenCalledTimes(1);
+    expect(enqueueEvents).not.toHaveBeenCalled();
+    expect(stop).toHaveBeenCalledTimes(1);
+    runtime.resetRendererFactory();
+  });
+
   it("stops the current stream before reporting a failed stream restart", async () => {
     const runtime = await loadRuntimeModule();
     const portMessages: unknown[] = [];

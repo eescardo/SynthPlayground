@@ -1,12 +1,26 @@
 import { describe, expect, it } from "vitest";
 
-import { buildPatchedPreviewProject } from "@/hooks/patch/usePatchWorkspacePreview";
+import { buildPatchedPreviewProject, hasHostGateConnection } from "@/hooks/patch/usePatchWorkspacePreview";
+import { HOST_PORT_IDS } from "@/lib/patch/constants";
 import { resolvePatchWorkspaceMacroValues } from "@/hooks/patch/usePatchWorkspaceMacroValues";
 import { createClearPatch } from "@/lib/patch/presets";
 import type { AudioProject } from "@/types/audio";
 import type { Track } from "@/types/music";
 
 describe("patch workspace preview", () => {
+  it("detects whether a patch uses the host gate for held preview release", () => {
+    const patch = createClearPatch({ id: "patch_a", name: "Lead" });
+    expect(hasHostGateConnection(patch)).toBe(false);
+
+    patch.connections.push({
+      id: "gate_to_env",
+      from: { nodeId: HOST_PORT_IDS.gate, portId: "out" },
+      to: { nodeId: "env1", portId: "gate" }
+    });
+
+    expect(hasHostGateConnection(patch)).toBe(true);
+  });
+
   it("replaces patch macro values with a complete workspace macro set", () => {
     const patch = createClearPatch({ id: "patch_a", name: "Lead" });
     patch.ui.macros = [

@@ -45,7 +45,7 @@ export interface AudioEngineBackend {
       holdUntilReleased?: boolean;
     }
   ): Promise<void>;
-  releasePreviewNote(trackId: string, previewId: string): void;
+  releasePreviewNote(trackId: string, previewId: string, options?: { forceStop?: boolean }): void;
   setPreviewCaptureListener(
     listener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null
   ): void;
@@ -416,11 +416,12 @@ class RealAudioEngineBackend implements AudioEngineBackend {
     });
   }
 
-  releasePreviewNote(trackId: string, previewId: string): void {
+  releasePreviewNote(trackId: string, previewId: string, options?: { forceStop?: boolean }): void {
     this.worklet?.port.postMessage({
       type: "PREVIEW_RELEASE",
       trackId,
-      previewId
+      previewId,
+      forceStop: options?.forceStop
     });
   }
 }
@@ -536,9 +537,10 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
     void options;
   }
 
-  releasePreviewNote(trackId: string, previewId: string): void {
+  releasePreviewNote(trackId: string, previewId: string, options?: { forceStop?: boolean }): void {
     void trackId;
     void previewId;
+    void options;
   }
 }
 

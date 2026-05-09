@@ -144,6 +144,10 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         if (this.currentStream?.previewId !== message.previewId) {
           break;
         }
+        if (message.forceStop) {
+          this.stopCurrentStream("preview_release_force_stop");
+          break;
+        }
         this.currentStream.enqueueEvents?.([
           {
             id: `${message.previewId}_off`,
