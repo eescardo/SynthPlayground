@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { getMacroKeyframePositions, setMacroBindingValueAtKeyframe } from "@/lib/patch/macroKeyframes";
 import { PatchDiff } from "@/lib/patch/diff";
-import { EditableNumberLabel, MacroBindingDetails, ParamMacroControl } from "@/components/patch/PatchInspectorControls";
+import { EditableNumberLabel, MacroBindingDetails } from "@/components/patch/PatchInspectorControls";
+import { PatchParameterAuthoringStrip } from "@/components/patch/PatchParameterAuthoringStrip";
 import { resolveParamBindingState, resolveParamControlValue } from "@/components/patch/patchModuleParameterState";
 import { applyMagneticSliderSnap, MagneticSliderPoint } from "@/components/patch/patchModuleParameterControls";
 import { createMacroBindingId, createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
@@ -471,65 +472,43 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
           </span>
         )}
       </div>
-      <div className="param-authoring-strip">
-        <span className="param-authoring-copy">{authoringCopy}</span>
-        <span className="param-authoring-actions">
-          {bindingState.isExposed && canBindToMacro && (
-            <>
-              <button
-                type="button"
-                className="param-keyframe-nav-button"
-                disabled={previousIndex === null || props.structureLocked}
-                onClick={() => navigateToKeyframe(previousIndex)}
-              >
-                Prev
-              </button>
-              <button
-                type="button"
-                className="param-keyframe-nav-button"
-                disabled={nextIndex === null || props.structureLocked}
-                onClick={() => navigateToKeyframe(nextIndex)}
-              >
-                Next
-              </button>
-            </>
-          )}
-          {shouldRenderMacroControl && (
-            <ParamMacroControl
-              disabled={props.structureLocked || (!canBindToMacro && !bindingState.isExposed)}
-              bindingMacro={bindingState.activeBindingMacro}
-              bindingMap={activeBinding?.map}
-              showBindingMap={canBindToMacro}
-              macros={props.patch.ui.macros}
-              onBindNew={() => {
-                if (!props.structureLocked && canBindToMacro) {
-                  props.onExposeMacro(props.selectedNode.id, props.param.id, props.param.label);
-                }
-              }}
-              onBindExisting={bindParamToMacro}
-              onSetBindingMap={(map) => {
-                if (bindingState.activeBindingMacro && activeBinding && canBindToMacro) {
-                  props.onApplyOp({
-                    type: "setMacroBindingMap",
-                    macroId: bindingState.activeBindingMacro.id,
-                    bindingId: activeBinding.id,
-                    map
-                  });
-                }
-              }}
-              onUnbind={() => {
-                if (bindingState.activeBindingMacro && activeBinding && !props.structureLocked) {
-                  props.onApplyOp({
-                    type: "unbindMacro",
-                    macroId: bindingState.activeBindingMacro.id,
-                    bindingId: activeBinding.id
-                  });
-                }
-              }}
-            />
-          )}
-        </span>
-      </div>
+      <PatchParameterAuthoringStrip
+        activeBinding={activeBinding}
+        activeBindingMacro={bindingState.activeBindingMacro}
+        authoringCopy={authoringCopy}
+        canBindToMacro={canBindToMacro}
+        disabled={props.structureLocked}
+        macros={props.patch.ui.macros}
+        nextIndex={nextIndex}
+        previousIndex={previousIndex}
+        shouldRenderMacroControl={shouldRenderMacroControl}
+        onBindNew={() => {
+          if (!props.structureLocked && canBindToMacro) {
+            props.onExposeMacro(props.selectedNode.id, props.param.id, props.param.label);
+          }
+        }}
+        onBindExisting={bindParamToMacro}
+        onNavigateToKeyframe={navigateToKeyframe}
+        onSetBindingMap={(map) => {
+          if (bindingState.activeBindingMacro && activeBinding && canBindToMacro) {
+            props.onApplyOp({
+              type: "setMacroBindingMap",
+              macroId: bindingState.activeBindingMacro.id,
+              bindingId: activeBinding.id,
+              map
+            });
+          }
+        }}
+        onUnbind={() => {
+          if (bindingState.activeBindingMacro && activeBinding && !props.structureLocked) {
+            props.onApplyOp({
+              type: "unbindMacro",
+              macroId: bindingState.activeBindingMacro.id,
+              bindingId: activeBinding.id
+            });
+          }
+        }}
+      />
       <div className="param-control-stack">
         {renderParamInlineSummary(props.selectedNode, props.param, value)}
         <div className="param-value-editor" title={controlDisabledReason}>
