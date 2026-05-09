@@ -1551,9 +1551,7 @@ select {
   box-shadow: 0 18px 34px rgba(0, 0, 0, 0.38);
 }
 
-.patch-module-category-item.active > .patch-module-subpopover,
-.patch-module-category-item:hover > .patch-module-subpopover,
-.patch-module-category-item:focus-within > .patch-module-subpopover {
+.patch-module-category-item.active > .patch-module-subpopover {
   display: grid;
   gap: 0.28rem;
 }

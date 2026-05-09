@@ -2,12 +2,9 @@
 
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { drawPatchModuleFaceContent } from "@/components/patch/patchModuleFaceDrawing";
-import {
-  PATCH_MODULE_CATEGORY_PRIORITY,
-  resolveMutedPatchModuleColors,
-  resolvePatchModuleCategory
-} from "@/lib/patch/moduleCategories";
-import { createDefaultParamsForType, modulePalette } from "@/lib/patch/moduleRegistry";
+import { buildModulePaletteGroups } from "@/components/patch/patchModulePaletteGroups";
+import { resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
+import { createDefaultParamsForType } from "@/lib/patch/moduleRegistry";
 import { ModuleTypeSchema, Patch, PatchModuleCategory, PatchNode } from "@/types/patch";
 
 interface PatchModulePaletteProps {
@@ -34,25 +31,6 @@ const EMPTY_PATCH_FOR_ICON: Patch = {
   ui: { macros: [] },
   meta: { source: "custom" }
 };
-
-function buildModulePaletteGroups() {
-  const groups = new Map<PatchModuleCategory, ModuleTypeSchema[]>();
-  modulePalette.forEach((module) => {
-    const category = resolvePatchModuleCategory(module.categories.filter((entry) => entry !== "host"));
-    if (!category) {
-      return;
-    }
-    const existing = groups.get(category) ?? [];
-    existing.push(module);
-    groups.set(category, existing);
-  });
-  return PATCH_MODULE_CATEGORY_PRIORITY.filter((category) => category !== "host")
-    .map((category) => ({
-      category,
-      modules: groups.get(category) ?? []
-    }))
-    .filter((group) => group.modules.length > 0);
-}
 
 function PatchModulePaletteIcon({ module }: { module: ModuleTypeSchema }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -103,7 +81,7 @@ export function PatchModulePalette(props: PatchModulePaletteProps) {
               key={group.category}
               className={`patch-module-category-item${open ? " active" : ""}`}
               style={style}
-              onMouseEnter={() => setActiveCategory(group.category)}
+              onPointerEnter={() => setActiveCategory(group.category)}
               onFocus={() => setActiveCategory(group.category)}
             >
               <button type="button" className="patch-module-category-button" aria-expanded={open}>
@@ -118,6 +96,7 @@ export function PatchModulePalette(props: PatchModulePaletteProps) {
               >
                 {group.modules.map((module) => {
                   const moduleColors = resolveMutedPatchModuleColors(module.categories);
+                  const tooltipId = `patch-module-tooltip-${group.category}-${module.typeId}`;
                   const moduleStyle = {
                     "--module-category-fill": moduleColors.fill,
                     "--module-category-stroke": moduleColors.stroke,
@@ -130,16 +109,12 @@ export function PatchModulePalette(props: PatchModulePaletteProps) {
                       className="patch-module-palette-option"
                       style={moduleStyle}
                       role="menuitem"
-                      aria-describedby={`patch-module-tooltip-${module.typeId}`}
+                      aria-describedby={tooltipId}
                       onClick={() => props.onSelectModule(module.typeId)}
                     >
                       <PatchModulePaletteIcon module={module} />
                       <span className="patch-module-palette-name">{module.typeId}</span>
-                      <span
-                        id={`patch-module-tooltip-${module.typeId}`}
-                        className="patch-module-palette-tooltip"
-                        role="tooltip"
-                      >
+                      <span id={tooltipId} className="patch-module-palette-tooltip" role="tooltip">
                         {module.doc.summary}
                       </span>
                     </button>
