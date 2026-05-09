@@ -147,6 +147,8 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           structureLocked={props.structureLocked}
           validationIssues={props.validationIssues}
           onApplyOp={props.onApplyOp}
+          onSelectMacro={props.onSelectMacro}
+          onChangeMacroValue={props.onChangeMacroValue}
           onPreviewParamValue={(nodeId, paramId, value) => {
             setDraftParamValues((current) => ({
               ...current,

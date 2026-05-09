@@ -11,6 +11,10 @@ import { useRenameActivation } from "@/hooks/useRenameActivation";
 import { clamp } from "@/lib/numeric";
 import { MacroBinding, Patch, PatchMacro } from "@/types/patch";
 
+function formatInlineBindingValues(binding: MacroBinding) {
+  return formatBindingSummary(binding).replace(/^Macro /, "");
+}
+
 export function EditableNumberLabel(props: {
   id: string;
   value: number;
@@ -82,6 +86,7 @@ export function MacroBindingDetails(props: {
   nodeId: string;
   paramId: string;
   boundMacroIds: string[];
+  previewBindingById?: Map<string, MacroBinding>;
   currentBindingDiffByKey: Map<string, PatchBindingDiff>;
   removedBindingDiffs: PatchBindingDiff[];
 }) {
@@ -93,6 +98,7 @@ export function MacroBindingDetails(props: {
         macro.bindings
           .filter((binding) => binding.nodeId === props.nodeId && binding.paramId === props.paramId)
           .map((binding) => {
+            const renderedBinding = props.previewBindingById?.get(binding.id) ?? binding;
             const bindingDiff = props.currentBindingDiffByKey.get(
               createPatchMacroBindingKey(props.patch, macro.id, binding)
             );
@@ -103,7 +109,7 @@ export function MacroBindingDetails(props: {
                 className={`macro-binding-detail-card${diffHighlightClass ? ` diff-${diffHighlightClass}` : ""}`}
               >
                 <div className="macro-binding-detail-mode">
-                  {formatBindingSummary(binding)}
+                  {formatInlineBindingValues(renderedBinding)}
                   {bindingDiff && (
                     <span className="patch-diff-inline-badge">
                       {bindingDiff.status === "added" ? "New" : "Changed"}
@@ -120,7 +126,7 @@ export function MacroBindingDetails(props: {
             Removed <span className="patch-diff-inline-badge negative">{bindingDiff.macroName}</span>
           </div>
           {bindingDiff.baselineBinding && (
-            <div className="macro-binding-range">{formatBindingSummary(bindingDiff.baselineBinding)}</div>
+            <div className="macro-binding-range">{formatInlineBindingValues(bindingDiff.baselineBinding)}</div>
           )}
         </div>
       ))}
@@ -130,10 +136,9 @@ export function MacroBindingDetails(props: {
 
 export function ParamMacroControl(props: {
   disabled?: boolean;
-  editableSummary?: string | null;
   bindingMacro?: PatchMacro;
   bindingMap?: MacroBinding["map"];
-  isEditing: boolean;
+  showBindingMap?: boolean;
   macros: PatchMacro[];
   onBindNew: () => void;
   onBindExisting: (macroId: string) => void;
@@ -158,7 +163,8 @@ export function ParamMacroControl(props: {
 
   if (props.bindingMacro) {
     const canChooseBindingMap =
-      props.bindingMap === "linear" || props.bindingMap === "exp" || props.bindingMap === "piecewise";
+      props.showBindingMap !== false &&
+      (props.bindingMap === "linear" || props.bindingMap === "exp" || props.bindingMap === "piecewise");
     const selectedBindingMap = props.bindingMap === "exp" ? "exp" : "linear";
     return (
       <span className="param-macro-bound-shell" ref={boundPopoverRef}>

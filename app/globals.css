@@ -2436,7 +2436,7 @@ select {
   gap: 0.28rem;
 }
 
-.param-binding-details-toggle {
+.param-keyframe-nav-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2453,10 +2453,15 @@ select {
   text-transform: uppercase;
 }
 
-.param-binding-details-toggle.active {
+.param-keyframe-nav-button:not(:disabled) {
   border-color: rgba(167, 204, 240, 0.34);
   background: rgba(143, 196, 245, 0.14);
   color: #e7f3ff;
+}
+
+.param-keyframe-nav-button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
 }
 
 .param-row.diff-positive {

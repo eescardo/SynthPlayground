@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { getMacroKeyframePositions } from "@/lib/patch/macroKeyframes";
+import { getMacroKeyframePositions, setMacroBindingValueAtKeyframe } from "@/lib/patch/macroKeyframes";
 import { PatchDiff } from "@/lib/patch/diff";
 import { EditableNumberLabel, MacroBindingDetails, ParamMacroControl } from "@/components/patch/PatchInspectorControls";
-import { formatBindingSummary } from "@/components/patch/patchDiffPresentation";
 import { resolveParamBindingState, resolveParamControlValue } from "@/components/patch/patchModuleParameterState";
 import { applyMagneticSliderSnap, MagneticSliderPoint } from "@/components/patch/patchModuleParameterControls";
 import { createMacroBindingId, createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
@@ -83,6 +82,34 @@ function createDefaultBindingForParam(
     min: range.min,
     max: range.max
   };
+}
+
+function resolveAdjacentKeyframeIndices(
+  keyframePositions: number[],
+  currentValue: number | undefined,
+  currentKeyframeIndex: number | null
+) {
+  if (keyframePositions.length === 0) {
+    return { previousIndex: null, nextIndex: null };
+  }
+  if (currentKeyframeIndex !== null) {
+    return {
+      previousIndex: currentKeyframeIndex > 0 ? currentKeyframeIndex - 1 : null,
+      nextIndex: currentKeyframeIndex < keyframePositions.length - 1 ? currentKeyframeIndex + 1 : null
+    };
+  }
+
+  const normalized = currentValue ?? 0;
+  let previousIndex: number | null = null;
+  let nextIndex: number | null = null;
+  keyframePositions.forEach((position, index) => {
+    if (position < normalized) {
+      previousIndex = index;
+    } else if (nextIndex === null && position > normalized) {
+      nextIndex = index;
+    }
+  });
+  return { previousIndex, nextIndex };
 }
 
 function ParamValueControl(props: {
@@ -260,10 +287,12 @@ interface PatchModuleParameterProps {
   onApplyOp: (op: PatchOp) => void;
   onPreviewParamValue?: (nodeId: string, paramId: string, value: ParamValue) => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
+  onSelectMacro: (macroId?: string) => void;
+  onChangeMacroValue: (macroId: string, normalized: number, options?: { commit?: boolean }) => void;
 }
 
 export function PatchModuleParameter(props: PatchModuleParameterProps) {
-  const [bindingDetailsOpen, setBindingDetailsOpen] = useState(false);
+  const [draftKeyframeValue, setDraftKeyframeValue] = useState<number | null>(null);
   const rawValue = props.selectedNode.params[props.param.id] ?? props.param.default;
   const value = rawValue;
   const nodeDiff = props.patchDiff.nodeDiffById.get(props.selectedNode.id);
@@ -298,10 +327,8 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
     (binding) => binding.nodeId === props.selectedNode.id && binding.paramId === props.param.id
   );
   useEffect(() => {
-    if (!bindingState.isExposed) {
-      setBindingDetailsOpen(false);
-    }
-  }, [bindingState.isExposed]);
+    setDraftKeyframeValue(null);
+  }, [activeBinding?.id, props.param.id, props.selectedMacroValue, props.selectedNode.id]);
   const sliderRange = resolveParamSliderRange(props.patch, props.selectedNode.id, props.param);
   const controlValue = resolveParamControlValue({
     activeBinding,
@@ -317,12 +344,6 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
   const controlDisabled = Boolean(
     props.structureLocked || (bindingState.isExposed && !bindingState.isEditableSelectedMacroBinding)
   );
-  const macroSummary =
-    bindingState.activeBindingMacro && bindingState.editableSummary
-      ? bindingState.editableSummary
-      : bindingState.activeBindingMacro
-        ? `Select ${bindingState.activeBindingMacro.name} and stop on a keyframe notch to edit this binding.`
-        : null;
   const unitDisplay = resolveCurrentValueUnitDisplay(props.param);
   const floatParam = props.param.type === "float" ? props.param : null;
   const currentDisplayValue = sliderControlValue;
@@ -334,19 +355,36 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
     : bindingState.isExposed
       ? "macro"
       : "direct";
-  const bindingSummary = activeBinding ? formatBindingSummary(activeBinding).replace(/^Macro /, "") : null;
-  const authoringCopy =
-    authoringMode === "editing" && bindingState.activeBindingMacro
-      ? `Editing ${bindingState.activeBindingMacro.name}${bindingSummary ? `: ${bindingSummary}` : ""}`
-      : bindingState.activeBindingMacro
-        ? `${bindingState.activeBindingMacro.name}${bindingSummary ? `: ${bindingSummary}` : ""}`
-        : "Direct value";
-  const showBindingDetails =
-    removedBindingDiffs.length > 0 ||
-    (bindingState.isExposed && (bindingDetailsOpen || bindingState.isEditableSelectedMacroBinding));
+  const authoringCopy = bindingState.activeBindingMacro
+    ? `${bindingState.activeBindingMacro.name} Keyframes`
+    : "Direct value";
+  const showBindingDetails = removedBindingDiffs.length > 0 || bindingState.isEditableSelectedMacroBinding;
+  const keyframePositions = bindingState.activeBindingMacro
+    ? getMacroKeyframePositions(bindingState.activeBindingMacro.keyframeCount)
+    : [];
+  const { previousIndex, nextIndex } = resolveAdjacentKeyframeIndices(
+    keyframePositions,
+    props.selectedMacroValue,
+    props.selectedMacroKeyframeIndex
+  );
+  const previewBinding =
+    activeBinding &&
+    bindingState.activeBindingMacro &&
+    bindingState.isEditableSelectedMacroBinding &&
+    draftKeyframeValue !== null
+      ? setMacroBindingValueAtKeyframe(
+          activeBinding,
+          bindingState.activeBindingMacro.keyframeCount,
+          props.selectedMacroValue ?? 0,
+          draftKeyframeValue
+        )
+      : undefined;
+  const previewBindingById = previewBinding ? new Map([[previewBinding.id, previewBinding]]) : undefined;
+  const canBindToMacro = props.param.type === "float";
+  const shouldRenderMacroControl = canBindToMacro || bindingState.isExposed;
 
   const bindParamToMacro = (macroId: string) => {
-    if (props.structureLocked) {
+    if (props.structureLocked || !canBindToMacro) {
       return;
     }
     const macro = props.patch.ui.macros.find((entry) => entry.id === macroId);
@@ -367,7 +405,21 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
     });
   };
 
+  const navigateToKeyframe = (keyframeIndex: number | null) => {
+    if (keyframeIndex === null || !bindingState.activeBindingMacro) {
+      return;
+    }
+    const normalized = keyframePositions[keyframeIndex];
+    if (typeof normalized !== "number") {
+      return;
+    }
+    setDraftKeyframeValue(null);
+    props.onSelectMacro(bindingState.activeBindingMacro.id);
+    props.onChangeMacroValue(bindingState.activeBindingMacro.id, normalized, { commit: true });
+  };
+
   const commitValue = (nextValue: ParamValue) => {
+    setDraftKeyframeValue(null);
     commitParamValueChange({
       patch: props.patch,
       selectedNode: props.selectedNode,
@@ -410,48 +462,60 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
       <div className="param-authoring-strip">
         <span className="param-authoring-copy">{authoringCopy}</span>
         <span className="param-authoring-actions">
-          {bindingState.isExposed && (
-            <button
-              type="button"
-              className={`param-binding-details-toggle${showBindingDetails ? " active" : ""}`}
-              onClick={() => setBindingDetailsOpen((current) => !current)}
-            >
-              {showBindingDetails ? "Hide" : "Edit"}
-            </button>
+          {bindingState.isExposed && canBindToMacro && (
+            <>
+              <button
+                type="button"
+                className="param-keyframe-nav-button"
+                disabled={previousIndex === null || props.structureLocked}
+                onClick={() => navigateToKeyframe(previousIndex)}
+              >
+                Prev
+              </button>
+              <button
+                type="button"
+                className="param-keyframe-nav-button"
+                disabled={nextIndex === null || props.structureLocked}
+                onClick={() => navigateToKeyframe(nextIndex)}
+              >
+                Next
+              </button>
+            </>
           )}
-          <ParamMacroControl
-            disabled={props.structureLocked}
-            bindingMacro={bindingState.activeBindingMacro}
-            bindingMap={activeBinding?.map}
-            isEditing={bindingState.isEditableSelectedMacroBinding}
-            editableSummary={macroSummary}
-            macros={props.patch.ui.macros}
-            onBindNew={() => {
-              if (!props.structureLocked) {
-                props.onExposeMacro(props.selectedNode.id, props.param.id, props.param.label);
-              }
-            }}
-            onBindExisting={bindParamToMacro}
-            onSetBindingMap={(map) => {
-              if (bindingState.activeBindingMacro && activeBinding) {
-                props.onApplyOp({
-                  type: "setMacroBindingMap",
-                  macroId: bindingState.activeBindingMacro.id,
-                  bindingId: activeBinding.id,
-                  map
-                });
-              }
-            }}
-            onUnbind={() => {
-              if (bindingState.activeBindingMacro && activeBinding && !props.structureLocked) {
-                props.onApplyOp({
-                  type: "unbindMacro",
-                  macroId: bindingState.activeBindingMacro.id,
-                  bindingId: activeBinding.id
-                });
-              }
-            }}
-          />
+          {shouldRenderMacroControl && (
+            <ParamMacroControl
+              disabled={props.structureLocked || (!canBindToMacro && !bindingState.isExposed)}
+              bindingMacro={bindingState.activeBindingMacro}
+              bindingMap={activeBinding?.map}
+              showBindingMap={canBindToMacro}
+              macros={props.patch.ui.macros}
+              onBindNew={() => {
+                if (!props.structureLocked && canBindToMacro) {
+                  props.onExposeMacro(props.selectedNode.id, props.param.id, props.param.label);
+                }
+              }}
+              onBindExisting={bindParamToMacro}
+              onSetBindingMap={(map) => {
+                if (bindingState.activeBindingMacro && activeBinding && canBindToMacro) {
+                  props.onApplyOp({
+                    type: "setMacroBindingMap",
+                    macroId: bindingState.activeBindingMacro.id,
+                    bindingId: activeBinding.id,
+                    map
+                  });
+                }
+              }}
+              onUnbind={() => {
+                if (bindingState.activeBindingMacro && activeBinding && !props.structureLocked) {
+                  props.onApplyOp({
+                    type: "unbindMacro",
+                    macroId: bindingState.activeBindingMacro.id,
+                    bindingId: activeBinding.id
+                  });
+                }
+              }}
+            />
+          )}
         </span>
       </div>
       <div className="param-control-stack">
@@ -465,9 +529,12 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
             disabled={controlDisabled}
             magnetPoints={magnetPoints}
             onChange={commitValue}
-            onPreviewChange={(nextValue) =>
-              props.onPreviewParamValue?.(props.selectedNode.id, props.param.id, nextValue)
-            }
+            onPreviewChange={(nextValue) => {
+              if (bindingState.isEditableSelectedMacroBinding && typeof nextValue === "number") {
+                setDraftKeyframeValue(nextValue);
+              }
+              props.onPreviewParamValue?.(props.selectedNode.id, props.param.id, nextValue);
+            }}
           />
           {floatParam && shouldRenderCurveScaleLabels(props.selectedNode, props.param) && (
             <div className="param-curve-label-row" aria-hidden="true">
@@ -524,6 +591,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
             nodeId={props.selectedNode.id}
             paramId={props.param.id}
             boundMacroIds={bindingState.boundMacros.map((macro) => macro.id)}
+            previewBindingById={previewBindingById}
             currentBindingDiffByKey={props.patchDiff.currentBindingDiffByKey}
             removedBindingDiffs={removedBindingDiffs}
           />
