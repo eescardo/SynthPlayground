@@ -2824,7 +2824,7 @@ select {
 .param-macro-popover {
   position: absolute;
   top: calc(100% + 0.32rem);
-  left: 0;
+  right: 0;
   z-index: 18;
   display: grid;
   gap: 0.24rem;
