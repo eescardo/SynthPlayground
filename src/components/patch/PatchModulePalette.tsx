@@ -104,16 +104,26 @@ function renderModulePaletteGlyph(typeId: string): ReactNode {
     case "CVTranspose":
       return (
         <>
-          <path d="M10 16h18" />
-          <path d="M19 9v9" />
-          <path d="M15 12l4-4 4 4" />
+          <path d="M10 11h18" />
+          <path d="M19 8v9" />
+          <path d="M15 14l4 4 4-4" />
         </>
       );
     case "CVScaler":
       return (
         <>
-          <path d="M9 17l20-8" />
-          <path className="patch-module-palette-icon-subtle" d="M12 9l14 8" />
+          <path d="M19 14L9 9" />
+          <path d="M19 14l10-5" />
+          <path d="M19 14L9 19" />
+          <path d="M19 14l10 5" />
+          <path d="M9 9h4" />
+          <path d="M9 9l2.2 3.2" />
+          <path d="M29 9h-4" />
+          <path d="M29 9l-2.2 3.2" />
+          <path d="M9 19h4" />
+          <path d="M9 19l2.2-3.2" />
+          <path d="M29 19h-4" />
+          <path d="M29 19l-2.2-3.2" />
         </>
       );
     case "Delay":
