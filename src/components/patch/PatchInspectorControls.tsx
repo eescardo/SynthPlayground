@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useEffect, useRef, useState } from "react";
 import {
   formatBindingSummary,
   formatBindingValue,
@@ -147,7 +147,9 @@ export function ParamMacroControl(props: {
 }) {
   const [open, setOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
+  const [bindPopoverPlacement, setBindPopoverPlacement] = useState<"below" | "above">("below");
   const unboundPopoverRef = useRef<HTMLSpanElement | null>(null);
+  const bindPopoverRef = useRef<HTMLDivElement | null>(null);
   const boundPopoverRef = useRef<HTMLSpanElement | null>(null);
 
   useDismissiblePopover({
@@ -160,6 +162,19 @@ export function ParamMacroControl(props: {
     popoverRef: boundPopoverRef,
     onDismiss: () => setMapOpen(false)
   });
+
+  useLayoutEffect(() => {
+    if (!open || !unboundPopoverRef.current || !bindPopoverRef.current) {
+      return;
+    }
+    const triggerRect = unboundPopoverRef.current.getBoundingClientRect();
+    const popoverRect = bindPopoverRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const margin = 12;
+    const roomBelow = viewportHeight - triggerRect.bottom - margin;
+    const roomAbove = triggerRect.top - margin;
+    setBindPopoverPlacement(popoverRect.height > roomBelow && roomAbove > roomBelow ? "above" : "below");
+  }, [open, props.macros.length]);
 
   if (props.bindingMacro) {
     const canChooseBindingMap =
@@ -230,7 +245,12 @@ export function ParamMacroControl(props: {
         Bind
       </button>
       {open && (
-        <div className="param-macro-popover" role="dialog" aria-label="Bind parameter to macro">
+        <div
+          ref={bindPopoverRef}
+          className={`param-macro-popover ${bindPopoverPlacement}`}
+          role="dialog"
+          aria-label="Bind parameter to macro"
+        >
           <button
             type="button"
             className="param-macro-popover-option new"

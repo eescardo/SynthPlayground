@@ -2823,7 +2823,6 @@ select {
 
 .param-macro-popover {
   position: absolute;
-  top: calc(100% + 0.32rem);
   right: 0;
   z-index: 18;
   display: grid;
@@ -2835,6 +2834,14 @@ select {
   border-radius: 0.65rem;
   background: rgba(9, 17, 26, 0.98);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.32);
+}
+
+.param-macro-popover.below {
+  top: calc(100% + 0.32rem);
+}
+
+.param-macro-popover.above {
+  bottom: calc(100% + 0.32rem);
 }
 
 .param-macro-popover-option {
