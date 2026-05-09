@@ -659,16 +659,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
     onCollapseSelectionActionPopover: () => setSelectionActionPopoverMode("collapsed")
   });
 
-  const clearCanvasSelection = useCallback(() => {
-    setEditorSelection(clearEditorSelection());
-    setSelectionActionPopoverMode("expanded");
-    closeExplodeSelectionDialog();
-  }, [closeExplodeSelectionDialog, setSelectionActionPopoverMode]);
-
   useDismissiblePopover({
-    active: selectionActionPopoverAvailable,
+    active: selectionActionPopoverAvailable && !selectionActionPopoverCollapsed,
     popoverSelector: ".selection-actions-popover",
-    onDismiss: clearCanvasSelection
+    onDismiss: collapseSelectionActionPopover
   });
 
   const timelineMarkersAtBeat = useMemo(
@@ -733,6 +727,12 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const closePitchPicker = useCallback(() => {
     setPitchPicker(null);
   }, [setPitchPicker]);
+
+  const clearCanvasSelection = useCallback(() => {
+    setEditorSelection(clearEditorSelection());
+    setSelectionActionPopoverMode("expanded");
+    closeExplodeSelectionDialog();
+  }, [closeExplodeSelectionDialog, setSelectionActionPopoverMode]);
 
   const confirmExplodeSelection = useCallback(() => {
     if (!explodeSelectionDialogState) {
