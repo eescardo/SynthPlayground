@@ -46,8 +46,13 @@ function renderModulePaletteGlyph(typeId: string): ReactNode {
     case "KarplusStrong":
       return (
         <>
-          <path d="M8 16c5-8 13-8 22 0" />
-          <path className="patch-module-palette-icon-subtle" d="M10 15v-5m5 3v-5m5 4v-5m5 6V9" />
+          <path d="M8 12h8" />
+          <path d="M13 10l3 2-3 2" />
+          <rect x="16" y="8" width="7" height="7" rx="1" />
+          <path d="M23 12h7" />
+          <path d="M27 10l3 2-3 2" />
+          <path className="patch-module-palette-icon-subtle" d="M25 12c0 5-12 5-12 1" />
+          <path className="patch-module-palette-icon-subtle" d="M15 15l-2-2-1.5 2.5" />
         </>
       );
     case "SamplePlayer":
@@ -76,7 +81,7 @@ function renderModulePaletteGlyph(typeId: string): ReactNode {
         </>
       );
     case "ADSR":
-      return <path d="M8 17l5-9 5 4 5 1 7 4" />;
+      return <path d="M8 17C10.5 10.5 11.5 8 13 8c2.6 0 3.1 3.3 5 4 1.6 0.6 3.1 1 5 1 2.5 0 4.8 1.8 7 4" />;
     case "VCA":
       return (
         <>
@@ -95,10 +100,19 @@ function renderModulePaletteGlyph(typeId: string): ReactNode {
     case "CVMixer2":
       return (
         <>
-          <rect x="8" y="10" width="4" height="8" />
-          <rect x="15" y="8" width="4" height="10" />
-          <rect x="22" y="12" width="4" height="6" />
-          {typeId === "Mixer4" && <rect x="29" y="9" width="3" height="9" />}
+          {typeId === "Mixer4" ? (
+            <>
+              <rect x="8" y="10" width="4" height="8" />
+              <rect x="15" y="8" width="4" height="10" />
+              <rect x="22" y="12" width="4" height="6" />
+              <rect x="29" y="9" width="3" height="9" />
+            </>
+          ) : (
+            <>
+              <rect x="12" y="10" width="5" height="8" />
+              <rect x="22" y="8" width="5" height="10" />
+            </>
+          )}
         </>
       );
     case "CVTranspose":
@@ -143,7 +157,7 @@ function renderModulePaletteGlyph(typeId: string): ReactNode {
         </>
       );
     case "Saturation":
-      return <path d="M8 17c5 0 4-7 9-7h4c5 0 4 7 9 7" />;
+      return <path d="M8 17c5.2 0 5.8-2.7 8.7-4.1 2.6-1.3 2.4-2.9 5.1-3.5 2.5-0.5 3.7-0.4 8.2-0.4" />;
     case "Overdrive":
       return (
         <>
@@ -155,9 +169,11 @@ function renderModulePaletteGlyph(typeId: string): ReactNode {
     case "Compressor":
       return (
         <>
-          <path d="M8 9l13 5-13 5" />
-          <path d="M21 14h9" />
-          <path className="patch-module-palette-icon-subtle" d="M10 11.6l9 2.4-9 2.4" />
+          <path d="M8 9l12 3" />
+          <path d="M8 19l12-3" />
+          <path d="M20 12h10" />
+          <path d="M20 16h10" />
+          <path className="patch-module-palette-icon-subtle" d="M10 12l8 2-8 2" />
         </>
       );
     default:
