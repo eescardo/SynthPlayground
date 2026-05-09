@@ -360,13 +360,17 @@ impl RuntimeNode {
                     read_input_frame(signal_buffers, block_size, frame, node.input, 0.0)
                         * node.scale.next();
             }
-            Self::CVMixer2(node) => {
+            Self::CVMixer4(node) => {
                 let out = frame_signal_offset(node.out_index, block_size, frame);
                 signal_buffers[out] =
                     read_input_frame(signal_buffers, block_size, frame, node.in1, 0.0)
                         * node.gain1.next()
                         + read_input_frame(signal_buffers, block_size, frame, node.in2, 0.0)
-                            * node.gain2.next();
+                            * node.gain2.next()
+                        + read_input_frame(signal_buffers, block_size, frame, node.in3, 0.0)
+                            * node.gain3.next()
+                        + read_input_frame(signal_buffers, block_size, frame, node.in4, 0.0)
+                            * node.gain4.next();
             }
             Self::VCO(node) => {
                 let pitch = if node.pitch >= 0 {

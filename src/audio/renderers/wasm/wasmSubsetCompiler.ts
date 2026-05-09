@@ -41,7 +41,7 @@ export interface WasmNodeSpec {
   typeId:
     | "CVTranspose"
     | "CVScaler"
-    | "CVMixer2"
+    | "CVMixer4"
     | "VCO"
     | "KarplusStrong"
     | "LFO"

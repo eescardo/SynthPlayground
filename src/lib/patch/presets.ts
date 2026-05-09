@@ -81,9 +81,9 @@ export const bassPatch = (): Patch => {
       },
       {
         id: cutoffMixId,
-        typeId: "CVMixer2",
+        typeId: "CVMixer4",
         params: {
-          ...createDefaultParamsForType("CVMixer2"),
+          ...createDefaultParamsForType("CVMixer4"),
           gain1: 1,
           gain2: 1
         }

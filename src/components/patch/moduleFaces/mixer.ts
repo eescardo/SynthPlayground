@@ -35,19 +35,36 @@ export function drawMixerModuleFace(
   ctx.strokeStyle = PATCH_COLOR_ADSR_GRAPH_BORDER;
   setFaceLineWidth(ctx, 1);
   ctx.strokeRect(graphX, graphY, graphW, graphH);
+  const isBipolar = schema.some((param) => param.type === "float" && param.range.min < 0);
+  if (isBipolar) {
+    ctx.strokeStyle = "rgba(231, 243, 255, 0.16)";
+    setFaceLineWidth(ctx, 1);
+    ctx.beginPath();
+    ctx.moveTo(graphX + 2, graphY + graphH / 2);
+    ctx.lineTo(graphX + graphW - 2, graphY + graphH / 2);
+    ctx.stroke();
+  }
   ctx.font = "9px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textAlign = "center";
   for (let index = 0; index < inputCount; index += 1) {
     const inputPortId = `in${index + 1}`;
     const connected = connectedInputPortIds.has(inputPortId);
-    const value = clamp01(getNumericParam(node, schema, `gain${index + 1}`));
+    const value = getNumericParam(node, schema, `gain${index + 1}`);
     const barX = graphX + sideInset + index * (barWidth + barGap);
     const barAvailableH = graphH - barTopInset - barBottomInset;
-    const barH = Math.max(4, value * barAvailableH);
     ctx.fillStyle = connected ? PATCH_COLOR_MODULE_FACE_ROW_BG : "rgba(158, 192, 223, 0.12)";
     ctx.fillRect(barX, graphY + barTopInset, barWidth, barAvailableH);
     ctx.fillStyle = connected ? accentColor : "rgba(158, 192, 223, 0.22)";
-    ctx.fillRect(barX, graphY + graphH - barBottomInset - barH, barWidth, barH);
+    if (isBipolar) {
+      const halfBarH = barAvailableH / 2;
+      const barH = Math.max(3, clamp01(Math.abs(value) / 2) * halfBarH);
+      const centerY = graphY + barTopInset + halfBarH;
+      const barY = value >= 0 ? centerY - barH : centerY;
+      ctx.fillRect(barX, barY, barWidth, barH);
+    } else {
+      const barH = Math.max(4, clamp01(value) * barAvailableH);
+      ctx.fillRect(barX, graphY + graphH - barBottomInset - barH, barWidth, barH);
+    }
     if (!connected) {
       ctx.strokeStyle = "rgba(231, 243, 255, 0.16)";
       setFaceLineWidth(ctx, 1);

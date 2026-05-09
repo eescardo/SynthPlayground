@@ -58,12 +58,16 @@ pub(crate) struct CVScalerNode {
 }
 
 #[derive(Clone)]
-pub(crate) struct CVMixer2Node {
+pub(crate) struct CVMixer4Node {
     out_index: usize,
     in1: i32,
     in2: i32,
+    in3: i32,
+    in4: i32,
     gain1: SmoothParam,
     gain2: SmoothParam,
+    gain3: SmoothParam,
+    gain4: SmoothParam,
 }
 
 #[derive(Clone)]
@@ -285,7 +289,7 @@ pub(crate) struct OutputNode {
 pub(crate) enum RuntimeNode {
     CVTranspose(CVTransposeNode),
     CVScaler(CVScalerNode),
-    CVMixer2(CVMixer2Node),
+    CVMixer4(CVMixer4Node),
     VCO(VcoNode),
     KarplusStrong(KarplusStrongNode),
     LFO(LfoNode),
