@@ -25,6 +25,7 @@ interface PatchHostPortOverlayProps {
   outputHostScreenLeft: number;
   patch: Patch;
   pendingFromPort: HitPort | null;
+  pendingProbeId?: string | null;
   scrollTop: number;
   zoom: number;
   onPortSelection: (hitPort: HitPort, pointer: { x: number; y: number }) => void;
@@ -133,7 +134,7 @@ export function PatchHostPortOverlay(props: PatchHostPortOverlayProps) {
           onPointerDown={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            if (port.hitPort.kind === "in" && !props.pendingFromPort) {
+            if (port.hitPort.kind === "in" && !props.pendingFromPort && !props.pendingProbeId) {
               props.onSelectOutput();
               return;
             }

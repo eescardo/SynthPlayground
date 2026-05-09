@@ -89,6 +89,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
   const pointerMovedRef = useRef(false);
   const [pendingFromPort, setPendingFromPort] = useState<HitPort | null>(null);
   const [pendingWirePointer, setPendingWirePointer] = useState<{ x: number; y: number } | null>(null);
+  const [pendingProbePointer, setPendingProbePointer] = useState<{ x: number; y: number } | null>(null);
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [hoveredAttachTarget, setHoveredAttachTarget] = useState<HoveredAttachTarget>(null);
@@ -164,6 +165,32 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     pendingWirePointer
   ]);
 
+  useEffect(() => {
+    if (!pendingFromPort) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      setPendingFromPort(null);
+      setPendingWirePointer(null);
+      setHoveredAttachTarget(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [pendingFromPort]);
+
+  useEffect(() => {
+    if (pendingProbeId) {
+      return;
+    }
+    setPendingProbePointer(null);
+    if (!pendingFromPort) {
+      setHoveredAttachTarget(null);
+    }
+  }, [pendingFromPort, pendingProbeId]);
+
   const getNodeAtPointer = useCallback(
     (rawX: number, rawY: number) => {
       return findPatchNodeAtPoint(
@@ -185,6 +212,8 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
           portId: hitPort.portId,
           portKind: hitPort.kind
         });
+        setPendingProbePointer(null);
+        setHoveredAttachTarget(null);
         return;
       }
       if (structureLocked) {
@@ -213,6 +242,22 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
 
   const handlePortHover = useCallback(
     (hoverPort: HitPort | null, pointer: { x: number; y: number } | null) => {
+      if (pendingProbeId) {
+        if (pointer) {
+          setPendingProbePointer(pointer);
+        }
+        setHoveredAttachTarget(
+          hoverPort
+            ? {
+                kind: "port",
+                nodeId: hoverPort.nodeId,
+                portId: hoverPort.portId,
+                portKind: hoverPort.kind
+              }
+            : null
+        );
+        return;
+      }
       if (pendingFromPort && pointer) {
         setPendingWirePointer(pointer);
       }
@@ -233,7 +278,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
           : null
       );
     },
-    [pendingFromPort, resolveConnectionOp]
+    [pendingFromPort, pendingProbeId, resolveConnectionOp]
   );
 
   const onPointerDown = useCallback(
@@ -283,9 +328,12 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
             kind: "connection",
             connectionId: hitConnectionId
           });
+          setPendingProbePointer(null);
+          setHoveredAttachTarget(null);
           return;
         }
         onCancelProbeAttach?.();
+        setPendingProbePointer(null);
         setHoveredAttachTarget(null);
         return;
       }
@@ -335,6 +383,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       const pos = pointerEventToPatchCanvasPoint(canvasRef.current, event);
       const hoverPort = findPatchPortAtPointWithPadding(hitPortsRef.current, pos.rawX, pos.rawY, Math.max(3, 6 / zoom));
       if (pendingProbeId) {
+        setPendingProbePointer({ x: pos.rawX, y: pos.rawY });
         if (hoverPort) {
           setHoveredAttachTarget({
             kind: "port",
@@ -425,6 +474,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     hoveredNodeId,
     pendingFromPort,
     pendingWirePointer,
+    pendingProbePointer,
     hoveredAttachTarget,
     handlePortSelection,
     handlePortHover,

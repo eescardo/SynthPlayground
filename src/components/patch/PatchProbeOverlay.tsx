@@ -30,6 +30,7 @@ interface PatchProbeOverlayProps {
   previewProgress: number;
   zoom: number;
   attachingProbeId?: string | null;
+  pendingProbePointer?: { x: number; y: number } | null;
   onSelectProbe: (probeId?: string) => void;
   onBeginProbeDrag: (probeId: string, clientX: number, clientY: number) => void;
   onStartAttachProbe: (probeId: string) => void;
@@ -105,6 +106,22 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
       }),
     [props.layoutByNode, props.outputHostCanvasLeft, props.patch, props.probes, props.zoom]
   );
+  const pendingProbeLine = useMemo(() => {
+    if (!props.attachingProbeId || !props.pendingProbePointer) {
+      return null;
+    }
+    const probe = props.probes.find((entry) => entry.id === props.attachingProbeId);
+    if (!probe) {
+      return null;
+    }
+    const probeEdgePoint = resolveNearestProbeEdgePoint(probe, props.zoom, props.pendingProbePointer);
+    return {
+      x1: probeEdgePoint.x * props.zoom,
+      y1: probeEdgePoint.y * props.zoom,
+      x2: props.pendingProbePointer.x * props.zoom,
+      y2: props.pendingProbePointer.y * props.zoom
+    };
+  }, [props.attachingProbeId, props.pendingProbePointer, props.probes, props.zoom]);
 
   return (
     <div className="patch-probe-overlay" style={{ width: "100%", height: "100%" }}>
@@ -130,6 +147,27 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
             />
           </g>
         ))}
+        {pendingProbeLine && (
+          <g>
+            <line
+              x1={pendingProbeLine.x1}
+              y1={pendingProbeLine.y1}
+              x2={pendingProbeLine.x2}
+              y2={pendingProbeLine.y2}
+              stroke="rgba(200, 255, 57, 0.92)"
+              strokeWidth={2}
+              strokeDasharray="7 5"
+            />
+            <circle
+              cx={pendingProbeLine.x2}
+              cy={pendingProbeLine.y2}
+              r={5}
+              fill="rgba(200, 255, 57, 0.18)"
+              stroke="rgba(200, 255, 57, 0.9)"
+              strokeWidth={1.5}
+            />
+          </g>
+        )}
       </svg>
 
       {props.probes.map((probe) => {

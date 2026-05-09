@@ -157,6 +157,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     dragNodeId,
     hoveredNodeId,
     pendingFromPort,
+    pendingProbePointer,
     hoveredAttachTarget,
     handlePortHover,
     handlePortSelection,
@@ -301,6 +302,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
               previewProgress={probeState.previewProgress}
               zoom={zoom}
               attachingProbeId={probeState.attachingProbeId}
+              pendingProbePointer={pendingProbePointer}
               onSelectProbe={probeActions.selectProbe}
               onBeginProbeDrag={beginProbeDrag}
               onStartAttachProbe={onToggleAttachProbe}
@@ -314,6 +316,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           outputHostScreenLeft={outputHostScreenLeft}
           patch={patch}
           pendingFromPort={pendingFromPort}
+          pendingProbeId={probeState.attachingProbeId}
           scrollTop={scrollViewport.top}
           zoom={zoom}
           onPortSelection={handlePortSelection}
