@@ -27,7 +27,10 @@ import { usePatchCanvasInteractions } from "@/hooks/patch/usePatchCanvasInteract
 import { usePatchProbeDrag } from "@/hooks/patch/usePatchProbeDrag";
 import { usePatchCanvasZoom } from "@/hooks/patch/usePatchCanvasZoom";
 import { usePatchModuleFacePopover } from "@/hooks/patch/usePatchModuleFacePopover";
-import { resolveVisibleAddModulePosition } from "@/components/patch/patchVisiblePlacement";
+import {
+  resolveVisibleAddModulePosition,
+  resolveVisibleAddProbePosition
+} from "@/components/patch/patchVisiblePlacement";
 import { Patch, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
@@ -228,7 +231,12 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           });
           onSelectNode(nodeId);
         }}
-        onAddProbe={probeActions.addProbe}
+        onAddProbe={(kind) => {
+          probeActions.addProbe(
+            kind,
+            resolveVisibleAddProbePosition(probeState.probes, visibleLayoutNodes, kind, scrollViewport, zoom)
+          );
+        }}
         onDeleteSelected={() =>
           probeState.selectedProbeId
             ? (onCancelAttachProbe(), probeActions.deleteSelected())

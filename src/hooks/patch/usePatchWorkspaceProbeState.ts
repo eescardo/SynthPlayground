@@ -25,11 +25,15 @@ export function usePatchWorkspaceProbeState({ activeTab, updateActiveTab }: UseP
   }, []);
 
   const addProbeToWorkspace = useCallback(
-    (kind: PatchWorkspaceProbeState["kind"]) => {
+    (kind: PatchWorkspaceProbeState["kind"], position?: { x: number; y: number }) => {
       if (!activeTab) {
         return;
       }
-      const nextProbe = createPatchWorkspaceProbe(kind, 4, 4 + activeTab.probes.length * 7);
+      const nextProbe = createPatchWorkspaceProbe(
+        kind,
+        position?.x ?? 4,
+        position?.y ?? 4 + activeTab.probes.length * 7
+      );
       updateActiveTab((tab) => ({
         ...tab,
         selectedNodeId: undefined,
