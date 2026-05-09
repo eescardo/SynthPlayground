@@ -51,7 +51,7 @@ function renderModulePaletteGlyph(typeId: string): ReactNode {
           <rect x="16" y="8" width="7" height="7" rx="1" />
           <path d="M23 12h7" />
           <path d="M27 10l3 2-3 2" />
-          <path className="patch-module-palette-icon-subtle" d="M25 12c0 7-15 7-15 0" />
+          <path className="patch-module-palette-icon-subtle" d="M25 12v3.2c0 5.4-14 5.4-14 2.1l2.5-4.6" />
         </>
       );
     case "SamplePlayer":
