@@ -74,6 +74,8 @@ interface PatchInspectorProps {
   onApplyOp: (op: PatchOp) => void;
   onPreviewParamValue?: (nodeId: string, paramId: string, value: PatchNode["params"][string]) => void;
   onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
+  onSelectMacro: (macroId?: string) => void;
+  onChangeMacroValue: (macroId: string, normalized: number, options?: { commit?: boolean }) => void;
   onUpdateProbeSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
   onUpdateProbeFrequencyView: (probeId: string, maxHz: number) => void;
   onToggleAttachProbe: (probeId: string) => void;
@@ -174,6 +176,8 @@ export function PatchInspector(props: PatchInspectorProps) {
                 onApplyOp={props.onApplyOp}
                 onPreviewParamValue={props.onPreviewParamValue}
                 onExposeMacro={props.onExposeMacro}
+                onSelectMacro={props.onSelectMacro}
+                onChangeMacroValue={props.onChangeMacroValue}
               />
             ))}
           {selectedNode.typeId === "Compressor" && <CompressorDerivedReadouts node={selectedNode} />}

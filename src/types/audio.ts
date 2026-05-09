@@ -124,6 +124,7 @@ export interface WorkletPreviewReleaseMessage {
   type: "PREVIEW_RELEASE";
   trackId: string;
   previewId: string;
+  forceStop?: boolean;
 }
 
 export interface WorkletPreviewCaptureMessage {

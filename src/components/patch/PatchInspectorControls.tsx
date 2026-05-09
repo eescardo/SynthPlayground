@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useEffect, useRef, useState } from "react";
 import {
   formatBindingSummary,
   formatBindingValue,
@@ -10,6 +10,10 @@ import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { useRenameActivation } from "@/hooks/useRenameActivation";
 import { clamp } from "@/lib/numeric";
 import { MacroBinding, Patch, PatchMacro } from "@/types/patch";
+
+function formatInlineBindingValues(binding: MacroBinding) {
+  return formatBindingSummary(binding).replace(/^Macro /, "");
+}
 
 export function EditableNumberLabel(props: {
   id: string;
@@ -82,6 +86,7 @@ export function MacroBindingDetails(props: {
   nodeId: string;
   paramId: string;
   boundMacroIds: string[];
+  previewBindingById?: Map<string, MacroBinding>;
   currentBindingDiffByKey: Map<string, PatchBindingDiff>;
   removedBindingDiffs: PatchBindingDiff[];
 }) {
@@ -93,6 +98,7 @@ export function MacroBindingDetails(props: {
         macro.bindings
           .filter((binding) => binding.nodeId === props.nodeId && binding.paramId === props.paramId)
           .map((binding) => {
+            const renderedBinding = props.previewBindingById?.get(binding.id) ?? binding;
             const bindingDiff = props.currentBindingDiffByKey.get(
               createPatchMacroBindingKey(props.patch, macro.id, binding)
             );
@@ -103,7 +109,7 @@ export function MacroBindingDetails(props: {
                 className={`macro-binding-detail-card${diffHighlightClass ? ` diff-${diffHighlightClass}` : ""}`}
               >
                 <div className="macro-binding-detail-mode">
-                  {formatBindingSummary(binding)}
+                  {formatInlineBindingValues(renderedBinding)}
                   {bindingDiff && (
                     <span className="patch-diff-inline-badge">
                       {bindingDiff.status === "added" ? "New" : "Changed"}
@@ -120,7 +126,7 @@ export function MacroBindingDetails(props: {
             Removed <span className="patch-diff-inline-badge negative">{bindingDiff.macroName}</span>
           </div>
           {bindingDiff.baselineBinding && (
-            <div className="macro-binding-range">{formatBindingSummary(bindingDiff.baselineBinding)}</div>
+            <div className="macro-binding-range">{formatInlineBindingValues(bindingDiff.baselineBinding)}</div>
           )}
         </div>
       ))}
@@ -130,10 +136,9 @@ export function MacroBindingDetails(props: {
 
 export function ParamMacroControl(props: {
   disabled?: boolean;
-  editableSummary?: string | null;
   bindingMacro?: PatchMacro;
   bindingMap?: MacroBinding["map"];
-  isEditing: boolean;
+  showBindingMap?: boolean;
   macros: PatchMacro[];
   onBindNew: () => void;
   onBindExisting: (macroId: string) => void;
@@ -142,8 +147,9 @@ export function ParamMacroControl(props: {
 }) {
   const [open, setOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
-  const [tooltipPinned, setTooltipPinned] = useState(false);
+  const [bindPopoverPlacement, setBindPopoverPlacement] = useState<"below" | "above">("below");
   const unboundPopoverRef = useRef<HTMLSpanElement | null>(null);
+  const bindPopoverRef = useRef<HTMLDivElement | null>(null);
   const boundPopoverRef = useRef<HTMLSpanElement | null>(null);
 
   useDismissiblePopover({
@@ -157,22 +163,26 @@ export function ParamMacroControl(props: {
     onDismiss: () => setMapOpen(false)
   });
 
+  useLayoutEffect(() => {
+    if (!open || !unboundPopoverRef.current || !bindPopoverRef.current) {
+      return;
+    }
+    const triggerRect = unboundPopoverRef.current.getBoundingClientRect();
+    const popoverRect = bindPopoverRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const margin = 12;
+    const roomBelow = viewportHeight - triggerRect.bottom - margin;
+    const roomAbove = triggerRect.top - margin;
+    setBindPopoverPlacement(popoverRect.height > roomBelow && roomAbove > roomBelow ? "above" : "below");
+  }, [open, props.macros.length]);
+
   if (props.bindingMacro) {
     const canChooseBindingMap =
-      props.bindingMap === "linear" || props.bindingMap === "exp" || props.bindingMap === "piecewise";
+      props.showBindingMap !== false &&
+      (props.bindingMap === "linear" || props.bindingMap === "exp" || props.bindingMap === "piecewise");
     const selectedBindingMap = props.bindingMap === "exp" ? "exp" : "linear";
     return (
       <span className="param-macro-bound-shell" ref={boundPopoverRef}>
-        <button
-          type="button"
-          className={`param-macro-status${tooltipPinned ? " tooltip-pinned" : ""}`}
-          onClick={() => setTooltipPinned((current) => !current)}
-          onBlur={() => setTooltipPinned(false)}
-          aria-expanded={tooltipPinned}
-        >
-          {props.bindingMacro.name}: {props.isEditing ? "editing" : "locked"}
-          {props.editableSummary && <span className="param-macro-tooltip">{props.editableSummary}</span>}
-        </button>
         {canChooseBindingMap && (
           <span className="patch-macro-keyframe-shell param-macro-map-shell">
             <button
@@ -213,12 +223,12 @@ export function ParamMacroControl(props: {
         )}
         <button
           type="button"
-          className="patch-macro-panel-remove param-macro-unbind-button"
+          className="param-macro-unbind-button"
           disabled={props.disabled}
-          aria-label={`Remove ${props.bindingMacro.name} macro binding`}
+          aria-label={`Use direct value instead of ${props.bindingMacro.name} macro binding`}
           onClick={props.onUnbind}
         >
-          X
+          Direct
         </button>
       </span>
     );
@@ -232,10 +242,15 @@ export function ParamMacroControl(props: {
         disabled={props.disabled}
         onClick={() => setOpen((current) => !current)}
       >
-        Macro...
+        Bind
       </button>
       {open && (
-        <div className="param-macro-popover" role="dialog" aria-label="Bind parameter to macro">
+        <div
+          ref={bindPopoverRef}
+          className={`param-macro-popover ${bindPopoverPlacement}`}
+          role="dialog"
+          aria-label="Bind parameter to macro"
+        >
           <button
             type="button"
             className="param-macro-popover-option new"

@@ -90,8 +90,8 @@ export class AudioEngine {
     return this.backend.previewNote(trackId, pitchVoct, durationBeats, velocity, options);
   }
 
-  releasePreviewNote(trackId: string, previewId: string): void {
-    this.backend.releasePreviewNote(trackId, previewId);
+  releasePreviewNote(trackId: string, previewId: string, options?: { forceStop?: boolean }): void {
+    this.backend.releasePreviewNote(trackId, previewId, options);
   }
 
   setPreviewCaptureListener(

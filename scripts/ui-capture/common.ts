@@ -242,7 +242,26 @@ export const createSamplePlayerCaptureProject = (): Project => {
         to: { nodeId: "output", portId: "in" }
       }
     ],
-    ui: { macros: [] },
+    ui: {
+      macros: [
+        {
+          id: "macro_level",
+          name: "Level",
+          keyframeCount: 2,
+          defaultNormalized: 0,
+          bindings: [
+            {
+              id: "binding_level_gain",
+              nodeId: sampleNodeId,
+              paramId: "gain",
+              map: "linear",
+              min: 0.2,
+              max: 1
+            }
+          ]
+        }
+      ]
+    },
     layout: {
       nodes: [{ nodeId: sampleNodeId, x: 8, y: 6 }]
     }
@@ -262,6 +281,7 @@ export const createSamplePlayerCaptureProject = (): Project => {
         name: patch.name,
         patchId,
         selectedNodeId: sampleNodeId,
+        selectedMacroId: "macro_level",
         selectedProbeId: "pitch_probe",
         probes: [
           {

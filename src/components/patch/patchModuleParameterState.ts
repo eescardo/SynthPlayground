@@ -20,19 +20,9 @@ export function resolveParamBindingState(
     selectedMacroId === activeBindingMacro?.id &&
     selectedMacroKeyframeIndex !== null &&
     param.type === "float";
-  const editableSummary =
-    activeBindingMacro && selectedMacroId === activeBindingMacro.id
-      ? selectedMacroKeyframeIndex !== null
-        ? `Editing ${activeBindingMacro.name} at keyframe ${selectedMacroKeyframeIndex + 1}/${activeBindingMacro.keyframeCount}`
-        : "Bound values unlock when the selected macro is parked on a keyframe notch."
-      : activeBindingMacro
-        ? `Select ${activeBindingMacro.name} and stop on a keyframe notch to edit this binding.`
-        : null;
-
   return {
     activeBindingMacro,
     boundMacros,
-    editableSummary,
     isEditableSelectedMacroBinding,
     isExposed
   };

@@ -116,11 +116,11 @@ export function useTrackMacroAutomationActions({
       }
 
       window.setTimeout(() => {
-        applyPreviewState(trackId, macroId, normalized, options?.beat);
         audioEngineRef.current
           ?.previewNote(trackId, pitchToVoct(previewPitch), 1, 0.9, {
             ignoreVolume: macroId !== TRACK_VOLUME_AUTOMATION_ID
           })
+          .then(() => applyPreviewState(trackId, macroId, normalized, options?.beat))
           .catch((error) => setRuntimeError((error as Error).message));
       }, 0);
     },
