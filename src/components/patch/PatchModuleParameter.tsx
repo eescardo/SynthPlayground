@@ -358,7 +358,8 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
   const authoringCopy = bindingState.activeBindingMacro
     ? `${bindingState.activeBindingMacro.name} Keyframes`
     : "Direct value";
-  const showBindingDetails = removedBindingDiffs.length > 0 || bindingState.isEditableSelectedMacroBinding;
+  const showBindingDetails =
+    removedBindingDiffs.length > 0 || currentBindingDiffs.length > 0 || bindingState.isEditableSelectedMacroBinding;
   const keyframePositions = bindingState.activeBindingMacro
     ? getMacroKeyframePositions(bindingState.activeBindingMacro.keyframeCount)
     : [];
