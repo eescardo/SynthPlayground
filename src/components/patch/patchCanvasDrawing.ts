@@ -103,6 +103,7 @@ export interface PatchWireCandidatePulse {
 
 export interface PatchLockedPortTooltip {
   pointer: { x: number; y: number };
+  target: { nodeId: string; portId: string; portKind: "in" | "out" };
   tooltipBounds?: PatchWireTooltipBounds;
 }
 
@@ -772,7 +773,27 @@ function drawPill(
   ctx.textAlign = "left";
 }
 
-function drawWireCandidateTooltip(ctx: CanvasRenderingContext2D, candidate: PatchWireCandidateDisplay) {
+function resolveTooltipAbovePortOrigin(
+  port: ResolvedPortPosition,
+  tooltipSize: { width: number; height: number },
+  bounds?: PatchWireTooltipBounds
+) {
+  return clampTooltipRect(
+    {
+      x: port.x + port.width / 2 - tooltipSize.width / 2,
+      y: port.y - port.height / 2 - tooltipSize.height - 10,
+      width: tooltipSize.width,
+      height: tooltipSize.height
+    },
+    bounds
+  );
+}
+
+function drawWireCandidateTooltip(
+  ctx: CanvasRenderingContext2D,
+  candidate: PatchWireCandidateDisplay,
+  targetPort: ResolvedPortPosition
+) {
   if (!candidate.pointer || candidate.status === "valid") {
     return;
   }
@@ -786,7 +807,9 @@ function drawWireCandidateTooltip(ctx: CanvasRenderingContext2D, candidate: Patc
         width: Math.ceil(ctx.measureText(label).width) + 18,
         height: 26
       };
-  const origin = resolveWireTooltipOrigin(candidate.pointer, candidate.tooltipBounds ?? ctx.canvas, tooltipSize);
+  const origin = isReplace
+    ? resolveWireTooltipOrigin(candidate.pointer, candidate.tooltipBounds ?? ctx.canvas, tooltipSize)
+    : resolveTooltipAbovePortOrigin(targetPort, tooltipSize, candidate.tooltipBounds ?? ctx.canvas);
   if (!origin) {
     ctx.restore();
     return;
@@ -823,7 +846,11 @@ function drawWireCandidateTooltip(ctx: CanvasRenderingContext2D, candidate: Patc
   ctx.restore();
 }
 
-function drawLockedPortTooltip(ctx: CanvasRenderingContext2D, tooltip: PatchLockedPortTooltip | null | undefined) {
+function drawLockedPortTooltip(
+  ctx: CanvasRenderingContext2D,
+  tooltip: PatchLockedPortTooltip | null | undefined,
+  portPositions: Map<string, ResolvedPortPosition>
+) {
   if (!tooltip) {
     return;
   }
@@ -834,7 +861,10 @@ function drawLockedPortTooltip(ctx: CanvasRenderingContext2D, tooltip: PatchLock
     width: Math.ceil(ctx.measureText(label).width) + 18,
     height: 26
   };
-  const origin = resolveWireTooltipOrigin(tooltip.pointer, tooltip.tooltipBounds ?? ctx.canvas, tooltipSize);
+  const targetPort = portPositions.get(`${tooltip.target.nodeId}:${tooltip.target.portKind}:${tooltip.target.portId}`);
+  const origin = targetPort
+    ? resolveTooltipAbovePortOrigin(targetPort, tooltipSize, tooltip.tooltipBounds ?? ctx.canvas)
+    : resolveWireTooltipOrigin(tooltip.pointer, tooltip.tooltipBounds ?? ctx.canvas, tooltipSize);
   if (!origin) {
     ctx.restore();
     return;
@@ -885,7 +915,7 @@ function drawWireCandidate(
   ctx.fillRect(port.x - 4, port.y - port.height / 2 - 4, port.width + 8, port.height + 8);
   ctx.strokeRect(port.x - 4, port.y - port.height / 2 - 4, port.width + 8, port.height + 8);
   ctx.restore();
-  drawWireCandidateTooltip(ctx, candidate);
+  drawWireCandidateTooltip(ctx, candidate, port);
 }
 
 function drawHoveredAttachTarget(
@@ -1097,7 +1127,7 @@ export function drawPatchCanvas(args: {
   drawArmedWireModuleHover(ctx, args.layoutByNode, portPositions, args.armedWireModuleHover);
   drawWireCandidate(ctx, portPositions, args.wireCandidate ?? null);
   drawWireCandidatePulse(ctx, portPositions, args.wireCandidatePulse ?? null, feedbackNow);
-  drawLockedPortTooltip(ctx, args.lockedPortTooltip ?? null);
+  drawLockedPortTooltip(ctx, args.lockedPortTooltip ?? null, portPositions);
   drawHoveredAttachTarget(ctx, args.patch, portPositions, args.hoveredAttachTarget ?? null);
 
   if (args.facePopoverNodeId) {

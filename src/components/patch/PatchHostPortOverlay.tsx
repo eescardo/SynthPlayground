@@ -134,7 +134,6 @@ export function PatchHostPortOverlay(props: PatchHostPortOverlayProps) {
             props.structureLocked ? " locked" : ""
           }`}
           style={port.style}
-          title={props.structureLocked ? "Preset structure is locked" : undefined}
           onPointerDown={(event) => {
             event.preventDefault();
             event.stopPropagation();

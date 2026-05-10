@@ -548,7 +548,11 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         return;
       }
       if (structureLocked) {
-        setLockedPortTooltip({ pointer, tooltipBounds: visibleCanvasBounds });
+        setLockedPortTooltip({
+          pointer,
+          target: { nodeId: hitPort.nodeId, portId: hitPort.portId, portKind: hitPort.kind },
+          tooltipBounds: visibleCanvasBounds
+        });
         return;
       }
       if (!pendingConnection) {
@@ -611,7 +615,15 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         return;
       }
       if (structureLocked) {
-        setLockedPortTooltip(hoverPort && pointer ? { pointer, tooltipBounds: visibleCanvasBounds } : null);
+        setLockedPortTooltip(
+          hoverPort && pointer
+            ? {
+                pointer,
+                target: { nodeId: hoverPort.nodeId, portId: hoverPort.portId, portKind: hoverPort.kind },
+                tooltipBounds: visibleCanvasBounds
+              }
+            : null
+        );
         setHoveredAttachTarget(null);
         return;
       }
