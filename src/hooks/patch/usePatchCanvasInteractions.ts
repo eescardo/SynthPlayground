@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import {
   drawPatchCanvas,
@@ -61,6 +61,22 @@ type HoveredAttachTarget =
   | { kind: "connection"; connectionId: string }
   | null;
 
+interface PendingConnection {
+  fromPort: HitPort;
+  pointer: { x: number; y: number };
+  candidate: {
+    result: PatchWireCandidate;
+    targetPort: HitPort | null;
+    anchorPointer: { x: number; y: number } | null;
+  };
+}
+
+const EMPTY_CONNECTION_CANDIDATE: PendingConnection["candidate"] = {
+  result: { status: "none" },
+  targetPort: null,
+  anchorPointer: null
+};
+
 export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs) {
   const {
     canvasRef,
@@ -95,20 +111,39 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
   const pointerDownNodeIdRef = useRef<string | null>(null);
   const pointerMovedRef = useRef(false);
   const wireCandidateAnchorRef = useRef<{ key: string; pointer: { x: number; y: number } | null } | null>(null);
-  const wireActionCandidateRef = useRef<PatchWireCandidate | null>(null);
-  const [pendingFromPort, setPendingFromPort] = useState<HitPort | null>(null);
-  const [pendingWirePointer, setPendingWirePointer] = useState<{ x: number; y: number } | null>(null);
+  const [pendingConnection, setPendingConnection] = useState<PendingConnection | null>(null);
   const [pendingProbePointer, setPendingProbePointer] = useState<{ x: number; y: number } | null>(null);
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [hoveredAttachTarget, setHoveredAttachTarget] = useState<HoveredAttachTarget>(null);
-  const [wireCandidate, setWireCandidate] = useState<PatchWireCandidateDisplay | null>(null);
   const [armedWireModuleHover, setArmedWireModuleHover] = useState<PatchArmedWireModuleHover | null>(null);
+  const pendingFromPort = pendingConnection?.fromPort ?? null;
+  const pendingWirePointer = pendingConnection?.pointer ?? null;
+  const wireCandidate = useMemo<PatchWireCandidateDisplay | null>(() => {
+    if (!pendingConnection?.candidate.targetPort) {
+      return null;
+    }
+    const { result, targetPort, anchorPointer } = pendingConnection.candidate;
+    if (result.status !== "valid" && result.status !== "replace" && result.status !== "invalid") {
+      return null;
+    }
+    return {
+      status: result.status,
+      target: {
+        nodeId: targetPort.nodeId,
+        portId: targetPort.portId,
+        portKind: targetPort.kind
+      },
+      reason: result.status === "invalid" ? result.reason : undefined,
+      pointer: anchorPointer
+    };
+  }, [pendingConnection]);
 
-  const clearWireCandidate = useCallback(() => {
+  const clearPendingConnection = useCallback(() => {
     wireCandidateAnchorRef.current = null;
-    wireActionCandidateRef.current = null;
-    setWireCandidate(null);
+    setPendingConnection(null);
+    setHoveredAttachTarget(null);
+    setArmedWireModuleHover(null);
   }, []);
 
   const resolveConnectionCandidate = useCallback(
@@ -193,15 +228,11 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       if (event.key !== "Escape") {
         return;
       }
-      setPendingFromPort(null);
-      setPendingWirePointer(null);
-      setHoveredAttachTarget(null);
-      clearWireCandidate();
-      setArmedWireModuleHover(null);
+      clearPendingConnection();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [clearWireCandidate, pendingFromPort]);
+  }, [clearPendingConnection, pendingFromPort]);
 
   useEffect(() => {
     if (pendingProbeId) {
@@ -210,10 +241,10 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     setPendingProbePointer(null);
     if (!pendingFromPort) {
       setHoveredAttachTarget(null);
-      clearWireCandidate();
+      wireCandidateAnchorRef.current = null;
       setArmedWireModuleHover(null);
     }
-  }, [clearWireCandidate, pendingFromPort, pendingProbeId]);
+  }, [pendingFromPort, pendingProbeId]);
 
   const getNodeAtPointer = useCallback(
     (rawX: number, rawY: number) => {
@@ -239,37 +270,42 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     });
   }, []);
 
-  const updateWireCandidateState = useCallback(
-    (targetPort: HitPort | null, pointer: { x: number; y: number } | null) => {
-      if (!pendingFromPort || !targetPort) {
-        clearWireCandidate();
-        return resolvePatchWireCandidate(patch, pendingFromPort, targetPort, { structureLocked });
+  const resolvePendingConnectionCandidate = useCallback(
+    (
+      fromPort: HitPort,
+      targetPort: HitPort | null,
+      pointer: { x: number; y: number } | null
+    ): PendingConnection["candidate"] => {
+      const result = resolveConnectionCandidate(fromPort, targetPort);
+      if (!targetPort || (result.status !== "valid" && result.status !== "replace" && result.status !== "invalid")) {
+        wireCandidateAnchorRef.current = null;
+        return { result, targetPort, anchorPointer: null };
       }
-      const candidate = resolveConnectionCandidate(pendingFromPort, targetPort);
-      if (candidate.status === "valid" || candidate.status === "replace" || candidate.status === "invalid") {
-        wireActionCandidateRef.current = candidate;
-        const key = `${candidate.status}:${targetPort.nodeId}:${targetPort.kind}:${targetPort.portId}:${
-          candidate.status === "invalid" ? candidate.reason : ""
-        }`;
-        const anchoredPointer =
-          wireCandidateAnchorRef.current?.key === key ? wireCandidateAnchorRef.current.pointer : pointer;
-        wireCandidateAnchorRef.current = { key, pointer: anchoredPointer };
-        setWireCandidate({
-          status: candidate.status,
-          target: {
-            nodeId: targetPort.nodeId,
-            portId: targetPort.portId,
-            portKind: targetPort.kind
-          },
-          reason: candidate.status === "invalid" ? candidate.reason : undefined,
-          pointer: anchoredPointer
-        });
-      } else {
-        clearWireCandidate();
-      }
-      return candidate;
+      const key = `${result.status}:${targetPort.nodeId}:${targetPort.kind}:${targetPort.portId}:${
+        result.status === "invalid" ? result.reason : ""
+      }`;
+      const anchorPointer =
+        wireCandidateAnchorRef.current?.key === key ? wireCandidateAnchorRef.current.pointer : pointer;
+      wireCandidateAnchorRef.current = { key, pointer: anchorPointer };
+      return { result, targetPort, anchorPointer };
     },
-    [clearWireCandidate, patch, pendingFromPort, resolveConnectionCandidate, structureLocked]
+    [resolveConnectionCandidate]
+  );
+
+  const updatePendingConnectionCandidate = useCallback(
+    (targetPort: HitPort | null, pointer: { x: number; y: number } | null) => {
+      if (!pendingConnection) {
+        return resolvePatchWireCandidate(patch, null, targetPort, { structureLocked });
+      }
+      const candidate = resolvePendingConnectionCandidate(pendingConnection.fromPort, targetPort, pointer);
+      setPendingConnection({
+        ...pendingConnection,
+        pointer: pointer ?? pendingConnection.pointer,
+        candidate
+      });
+      return candidate.result;
+    },
+    [patch, pendingConnection, resolvePendingConnectionCandidate, structureLocked]
   );
 
   const isPointInRect = useCallback(
@@ -289,6 +325,27 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     [layoutByNode]
   );
 
+  const armConnectionFromPort = useCallback((fromPort: HitPort, pointer: { x: number; y: number }) => {
+    wireCandidateAnchorRef.current = null;
+    setPendingConnection({
+      fromPort,
+      pointer,
+      candidate: EMPTY_CONNECTION_CANDIDATE
+    });
+  }, []);
+
+  const commitConnectionCandidate = useCallback(
+    (candidate: Extract<PatchWireCandidate, { status: "valid" | "replace" }>) => {
+      const op = buildConnectionOp(candidate);
+      if (!op) {
+        return;
+      }
+      onApplyOp(op);
+      clearPendingConnection();
+    },
+    [buildConnectionOp, clearPendingConnection, onApplyOp]
+  );
+
   const handlePortSelection = useCallback(
     (hitPort: HitPort, pointer: { x: number; y: number }) => {
       if (pendingProbeId && onAttachProbeTarget) {
@@ -305,64 +362,42 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       if (structureLocked) {
         return;
       }
-      if (!pendingFromPort) {
-        setPendingFromPort(hitPort);
-        setPendingWirePointer(pointer);
+      if (!pendingConnection) {
+        armConnectionFromPort(hitPort, pointer);
         return;
       }
 
-      const candidate = resolveConnectionCandidate(pendingFromPort, hitPort);
+      const candidate = resolveConnectionCandidate(pendingConnection.fromPort, hitPort);
       if (candidate.status === "new-source") {
-        setPendingFromPort(hitPort);
-        setPendingWirePointer(pointer);
-        clearWireCandidate();
+        armConnectionFromPort(hitPort, pointer);
         return;
       }
       if (candidate.status === "valid") {
-        const op = buildConnectionOp(candidate);
-        if (!op) {
-          return;
-        }
-        onApplyOp(op);
-        setPendingFromPort(null);
-        setPendingWirePointer(null);
-        setHoveredAttachTarget(null);
-        clearWireCandidate();
-        setArmedWireModuleHover(null);
+        commitConnectionCandidate(candidate);
         return;
       }
       if (candidate.status === "replace") {
         const promptRects = resolveWireReplacePromptRects(pointer);
         if (promptRects && isPointInRect(pointer, promptRects.yes)) {
-          const op = buildConnectionOp(candidate);
-          if (!op) {
-            return;
-          }
-          onApplyOp(op);
-          setPendingFromPort(null);
-          setPendingWirePointer(null);
-          setHoveredAttachTarget(null);
-          clearWireCandidate();
-          setArmedWireModuleHover(null);
+          commitConnectionCandidate(candidate);
         } else {
-          updateWireCandidateState(hitPort, pointer);
+          updatePendingConnectionCandidate(hitPort, pointer);
         }
         return;
       }
 
-      updateWireCandidateState(hitPort, pointer);
+      updatePendingConnectionCandidate(hitPort, pointer);
     },
     [
-      buildConnectionOp,
-      clearWireCandidate,
+      armConnectionFromPort,
+      commitConnectionCandidate,
       isPointInRect,
-      onApplyOp,
       onAttachProbeTarget,
       pendingProbeId,
-      pendingFromPort,
+      pendingConnection,
       resolveConnectionCandidate,
       structureLocked,
-      updateWireCandidateState
+      updatePendingConnectionCandidate
     ]
   );
 
@@ -385,15 +420,14 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         return;
       }
       if (pendingFromPort && pointer) {
-        setPendingWirePointer(pointer);
+        setPendingConnection((current) => (current ? { ...current, pointer } : current));
       }
       if (!pendingFromPort) {
         setHoveredAttachTarget(null);
-        clearWireCandidate();
         return;
       }
 
-      const candidate = updateWireCandidateState(hoverPort, pointer);
+      const candidate = updatePendingConnectionCandidate(hoverPort, pointer);
       setHoveredAttachTarget(
         candidate.status === "valid"
           ? {
@@ -405,7 +439,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
           : null
       );
     },
-    [clearWireCandidate, pendingFromPort, pendingProbeId, updateWireCandidateState]
+    [pendingFromPort, pendingProbeId, updatePendingConnectionCandidate]
   );
 
   const onPointerDown = useCallback(
@@ -440,17 +474,9 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       if (pendingFromPort && wireCandidate?.status === "replace") {
         const promptRects = resolveWireReplacePromptRects(wireCandidate.pointer);
         if (promptRects && isPointInRect({ x: pos.rawX, y: pos.rawY }, promptRects.yes)) {
-          const candidate = wireActionCandidateRef.current;
+          const candidate = pendingConnection?.candidate.result;
           if (candidate?.status === "replace") {
-            const op = buildConnectionOp(candidate);
-            if (op) {
-              onApplyOp(op);
-              setPendingFromPort(null);
-              setPendingWirePointer(null);
-              setHoveredAttachTarget(null);
-              clearWireCandidate();
-              setArmedWireModuleHover(null);
-            }
+            commitConnectionCandidate(candidate);
           }
           return;
         }
@@ -494,11 +520,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         if (hitNodeId) {
           const cancelRect = resolveArmedWireCancelRectForNode(hitNodeId);
           if (cancelRect && isPointInRect({ x: pos.rawX, y: pos.rawY }, cancelRect)) {
-            setPendingFromPort(null);
-            setPendingWirePointer(null);
-            clearWireCandidate();
-            setArmedWireModuleHover(null);
-            setHoveredAttachTarget(null);
+            clearPendingConnection();
             return;
           }
           const nearestPort = getNearestNodePortAtPointer(hitNodeId, pos.rawX, pos.rawY);
@@ -507,11 +529,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
             return;
           }
         }
-        setPendingFromPort(null);
-        setPendingWirePointer(null);
-        clearWireCandidate();
-        setArmedWireModuleHover(null);
-        setHoveredAttachTarget(null);
+        clearPendingConnection();
         return;
       }
 
@@ -533,27 +551,26 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         event.currentTarget.setPointerCapture(event.pointerId);
       } else {
         onSelectNode(undefined);
-        setPendingFromPort(null);
-        setPendingWirePointer(null);
+        clearPendingConnection();
         pointerDownNodeIdRef.current = null;
         pointerMovedRef.current = false;
       }
     },
     [
       canvasRef,
-      buildConnectionOp,
-      clearWireCandidate,
+      clearPendingConnection,
+      commitConnectionCandidate,
       getNearestNodePortAtPointer,
       handleFacePopoverPointerDown,
       layoutByNode,
       isPointInRect,
       onAttachProbeTarget,
       onCancelProbeAttach,
-      onApplyOp,
       onSelectNode,
       outputHostCanvasLeft,
       patch,
       pendingFromPort,
+      pendingConnection,
       pendingProbeId,
       resolveArmedWireCancelRectForNode,
       wireCandidate?.pointer,
@@ -570,7 +587,9 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       if (pendingFromPort && wireCandidate?.status === "replace") {
         const promptBounds = resolveWireReplacePromptBounds(wireCandidate.pointer);
         if (promptBounds && isPointInRect({ x: pos.rawX, y: pos.rawY }, promptBounds)) {
-          setPendingWirePointer({ x: pos.rawX, y: pos.rawY });
+          setPendingConnection((current) =>
+            current ? { ...current, pointer: { x: pos.rawX, y: pos.rawY } } : current
+          );
           return;
         }
       }
@@ -605,7 +624,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
           nodeId: hoverNodeId,
           nearestPort
         });
-        updateWireCandidateState(nearestPort, { x: pos.rawX, y: pos.rawY });
+        updatePendingConnectionCandidate(nearestPort, { x: pos.rawX, y: pos.rawY });
       } else {
         setArmedWireModuleHover(null);
       }
@@ -646,7 +665,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       patch,
       pendingFromPort,
       pendingProbeId,
-      updateWireCandidateState,
+      updatePendingConnectionCandidate,
       wireCandidate,
       isPointInRect,
       zoom
