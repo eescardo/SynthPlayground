@@ -356,7 +356,9 @@ function resolvePortPositions(
 function drawPatchConnections(
   ctx: CanvasRenderingContext2D,
   patch: Patch,
-  portPositions: Map<string, ResolvedPortPosition>
+  portPositions: Map<string, ResolvedPortPosition>,
+  selectedConnectionId?: string | null,
+  deletePreviewConnectionId?: string | null
 ) {
   for (const connection of patch.connections) {
     const from = portPositions.get(`${connection.from.nodeId}:out:${connection.from.portId}`);
@@ -388,6 +390,19 @@ function drawPatchConnections(
     ctx.lineTo(to.anchorX, to.anchorY);
     ctx.stroke();
     ctx.restore();
+
+    if (connection.id === selectedConnectionId || connection.id === deletePreviewConnectionId) {
+      ctx.save();
+      ctx.strokeStyle = connection.id === deletePreviewConnectionId ? "#f97373" : "#f6d365";
+      ctx.lineWidth = connection.id === deletePreviewConnectionId ? 5 : 4;
+      ctx.globalAlpha = connection.id === deletePreviewConnectionId ? 0.95 : 0.9;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(from.anchorX, from.anchorY);
+      ctx.lineTo(to.anchorX, to.anchorY);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 }
 
@@ -712,16 +727,19 @@ export function resolveWireReplacePromptRects(
   if (!origin) {
     return null;
   }
-  const { x, y } = origin;
+  const gap = 8;
+  const buttonGroupWidth = PATCH_WIRE_REPLACE_BUTTON_WIDTH * 2 + gap;
+  const x = origin.x + (PATCH_WIRE_TOOLTIP_WIDTH - buttonGroupWidth) / 2;
+  const y = origin.y;
   return {
     no: {
-      x: x + 8,
+      x,
       y: y + 28,
       width: PATCH_WIRE_REPLACE_BUTTON_WIDTH,
       height: PATCH_WIRE_REPLACE_BUTTON_HEIGHT
     },
     yes: {
-      x: x + 62,
+      x: x + PATCH_WIRE_REPLACE_BUTTON_WIDTH + gap,
       y: y + 28,
       width: PATCH_WIRE_REPLACE_BUTTON_WIDTH,
       height: PATCH_WIRE_REPLACE_BUTTON_HEIGHT
@@ -1077,7 +1095,9 @@ export function drawPatchCanvas(args: {
   pendingWirePointer?: { x: number; y: number } | null;
   selectedMacroNodeIds: Set<string>;
   selectedNodeId?: string;
+  selectedConnectionId?: string | null;
   deletePreviewNodeId?: string | null;
+  deletePreviewConnectionId?: string | null;
   clearPreviewActive?: boolean;
   hoveredAttachTarget?:
     | { kind: "port"; nodeId: string; portId: string; portKind: "in" | "out" }
@@ -1101,7 +1121,7 @@ export function drawPatchCanvas(args: {
   const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode, args.outputHostCanvasLeft);
   const feedbackNow = args.wireFeedbackNow ?? performance.now();
   const invalidPortKeys = resolveInvalidPortKeys(args.validationIssues);
-  drawPatchConnections(ctx, args.patch, portPositions);
+  drawPatchConnections(ctx, args.patch, portPositions, args.selectedConnectionId, args.deletePreviewConnectionId);
   drawPatchModules(
     ctx,
     args.patch,

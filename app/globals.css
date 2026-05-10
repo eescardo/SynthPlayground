@@ -3261,6 +3261,11 @@ select {
   box-shadow: inset 0 0 0 1px rgba(103, 224, 153, 0.16);
 }
 
+.conn-row.selected {
+  background: rgba(246, 211, 101, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(246, 211, 101, 0.28);
+}
+
 .conn-row.wire-commit-highlight {
   animation: patch-wire-commit-row 0.9s ease-out;
 }

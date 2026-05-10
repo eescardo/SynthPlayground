@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PatchEditorStage } from "@/components/patch/PatchEditorStage";
 import { PatchInspector } from "@/components/patch/PatchInspector";
 import { PatchMacroPanel } from "@/components/patch/PatchMacroPanel";
@@ -49,8 +49,10 @@ interface PatchEditorCanvasProps {
 }
 
 export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
+  const { onSelectNode, probeActions: sourceProbeActions } = props;
   const [draftParamValues, setDraftParamValues] = useState<Record<string, ParamValue>>({});
   const [lastWireCommitFeedback, setLastWireCommitFeedback] = useState<PatchWireCommitFeedback | null>(null);
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | undefined>();
   useEffect(() => {
     setDraftParamValues({});
   }, [props.patch]);
@@ -81,13 +83,52 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     () => new Map([...previewPatch.nodes, ...(previewPatch.ports ?? [])].map((node) => [node.id, node] as const)),
     [previewPatch.nodes, previewPatch.ports]
   );
+  useEffect(() => {
+    if (
+      selectedConnectionId &&
+      !previewPatch.connections.some((connection) => connection.id === selectedConnectionId)
+    ) {
+      setSelectedConnectionId(undefined);
+    }
+  }, [previewPatch.connections, selectedConnectionId]);
   const selectedNode = props.selectedNodeId ? nodeById.get(props.selectedNodeId) : undefined;
   const selectedSchema = selectedNode ? getModuleSchema(selectedNode.typeId) : undefined;
+  const handleSelectNode = useCallback(
+    (nodeId?: string) => {
+      setSelectedConnectionId(undefined);
+      onSelectNode(nodeId);
+    },
+    [onSelectNode]
+  );
+  const probeActions = useMemo<PatchProbeEditorActions>(
+    () => ({
+      ...sourceProbeActions,
+      addProbe: (kind, position) => {
+        setSelectedConnectionId(undefined);
+        sourceProbeActions.addProbe(kind, position);
+      },
+      selectProbe: (probeId) => {
+        setSelectedConnectionId(undefined);
+        sourceProbeActions.selectProbe(probeId);
+      }
+    }),
+    [sourceProbeActions]
+  );
+  const handleSelectConnection = useCallback(
+    (connectionId?: string) => {
+      setSelectedConnectionId(connectionId);
+      if (connectionId) {
+        onSelectNode(undefined);
+        sourceProbeActions.selectProbe(undefined);
+      }
+    },
+    [onSelectNode, sourceProbeActions]
+  );
   const { attachingProbeId, cancelAttachProbe, canvasProbeState, selectedProbe, toggleAttachProbe } =
     usePatchProbeEditorState({
       probes: props.probeState.probes,
       probeState: props.probeState,
-      probeActions: props.probeActions
+      probeActions
     });
 
   return (
@@ -108,12 +149,14 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
             validationIssues={props.validationIssues}
             probeState={canvasProbeState}
             selectedNodeId={props.selectedNodeId}
+            selectedConnectionId={selectedConnectionId}
             selectedMacroNodeIds={selectedMacroNodeIds}
             structureLocked={props.structureLocked}
             onClearPatch={props.onClearPatch}
             onApplyOp={props.onApplyOp}
-            probeActions={props.probeActions}
-            onSelectNode={props.onSelectNode}
+            probeActions={probeActions}
+            onSelectNode={handleSelectNode}
+            onSelectConnection={handleSelectConnection}
             onToggleAttachProbe={toggleAttachProbe}
             onCancelAttachProbe={cancelAttachProbe}
             onWireCommitFeedback={setLastWireCommitFeedback}
@@ -148,6 +191,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           previewProgress={props.probeState.previewProgress}
           attachingProbeId={attachingProbeId}
           wireCommitFeedback={lastWireCommitFeedback}
+          selectedConnectionId={selectedConnectionId}
           structureLocked={props.structureLocked}
           validationIssues={props.validationIssues}
           onApplyOp={props.onApplyOp}
@@ -160,10 +204,10 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
             }));
           }}
           onExposeMacro={props.onExposeMacro}
-          onUpdateProbeSpectrumWindow={props.probeActions.updateSpectrumWindow}
-          onUpdateProbeFrequencyView={props.probeActions.updateFrequencyView}
+          onUpdateProbeSpectrumWindow={probeActions.updateSpectrumWindow}
+          onUpdateProbeFrequencyView={probeActions.updateFrequencyView}
           onToggleAttachProbe={toggleAttachProbe}
-          onClearProbeTarget={(probeId) => props.probeActions.updateTarget(probeId, undefined)}
+          onClearProbeTarget={(probeId) => probeActions.updateTarget(probeId, undefined)}
         />
       </div>
     </div>

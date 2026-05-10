@@ -44,12 +44,15 @@ interface UsePatchCanvasInteractionsArgs {
   validationIssues: PatchValidationIssue[];
   selectedMacroNodeIds: Set<string>;
   selectedNodeId?: string;
+  selectedConnectionId?: string | null;
   deletePreviewNodeId?: string | null;
+  deletePreviewConnectionId?: string | null;
   clearPreviewActive?: boolean;
   pendingProbeId?: string | null;
   structureLocked?: boolean;
   onApplyOp: (op: PatchOp) => void;
   onSelectNode: (nodeId?: string) => void;
+  onSelectConnection?: (connectionId?: string) => void;
   onAttachProbeTarget?: (
     target:
       | { kind: "port"; nodeId: string; portId: string; portKind: "in" | "out" }
@@ -106,12 +109,15 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     validationIssues,
     selectedMacroNodeIds,
     selectedNodeId,
+    selectedConnectionId,
     deletePreviewNodeId,
+    deletePreviewConnectionId,
     clearPreviewActive,
     pendingProbeId,
     structureLocked,
     onApplyOp,
     onSelectNode,
+    onSelectConnection,
     onAttachProbeTarget,
     onCancelProbeAttach,
     makeConnectOp,
@@ -215,7 +221,9 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       pendingWirePointer,
       selectedMacroNodeIds,
       selectedNodeId,
+      selectedConnectionId,
       deletePreviewNodeId,
+      deletePreviewConnectionId,
       clearPreviewActive,
       hoveredAttachTarget,
       wireCandidate,
@@ -238,7 +246,9 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     validationIssues,
     selectedMacroNodeIds,
     selectedNodeId,
+    selectedConnectionId,
     deletePreviewNodeId,
+    deletePreviewConnectionId,
     clearPreviewActive,
     hoveredAttachTarget,
     wireCandidate,
@@ -547,6 +557,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         setHoveredAttachTarget(null);
         return;
       }
+      onSelectConnection?.(undefined);
       if (structureLocked) {
         setLockedPortTooltip({
           pointer,
@@ -586,6 +597,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       commitConnectionCandidate,
       isPointInRect,
       onAttachProbeTarget,
+      onSelectConnection,
       pendingProbeId,
       pendingConnection,
       resolveConnectionCandidate,
@@ -724,6 +736,24 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         return;
       }
 
+      const hitConnectionId = !pendingFromPort
+        ? findPatchConnectionAtPoint(
+            patch,
+            layoutByNode,
+            pos.rawX,
+            pos.rawY,
+            outputHostCanvasLeft,
+            Math.max(8, 10 / zoom)
+          )
+        : null;
+      if (hitConnectionId) {
+        onSelectConnection?.(hitConnectionId);
+        clearPendingConnection();
+        pointerDownNodeIdRef.current = null;
+        pointerMovedRef.current = false;
+        return;
+      }
+
       if (pendingFromPort) {
         const hitNodeId = getNodeAtPointer(pos.rawX, pos.rawY);
         if (hitNodeId) {
@@ -760,6 +790,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         event.currentTarget.setPointerCapture(event.pointerId);
       } else {
         onSelectNode(undefined);
+        onSelectConnection?.(undefined);
         clearPendingConnection();
         pointerDownNodeIdRef.current = null;
         pointerMovedRef.current = false;
@@ -776,6 +807,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       isPointInRect,
       onAttachProbeTarget,
       onCancelProbeAttach,
+      onSelectConnection,
       onSelectNode,
       outputHostCanvasLeft,
       patch,
@@ -845,6 +877,19 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         handlePortHover(hoverPort, { x: pos.rawX, y: pos.rawY });
       }
       const hoverNodeId = hoverPort ? null : getNodeAtPointer(pos.rawX, pos.rawY);
+      if (!pendingFromPort && !pendingProbeId && !hoverPort && !hoverNodeId) {
+        const hoverConnectionId = findPatchConnectionAtPoint(
+          patch,
+          layoutByNode,
+          pos.rawX,
+          pos.rawY,
+          outputHostCanvasLeft,
+          Math.max(8, 10 / zoom)
+        );
+        setHoveredAttachTarget(hoverConnectionId ? { kind: "connection", connectionId: hoverConnectionId } : null);
+      } else if (!pendingProbeId && !pendingFromPort) {
+        setHoveredAttachTarget(null);
+      }
       if (pendingFromPort && !pendingProbeId && hoverNodeId) {
         const nearestPort = getNearestNodePortAtPointer(hoverNodeId, pos.rawX, pos.rawY);
         setArmedWireModuleHover({

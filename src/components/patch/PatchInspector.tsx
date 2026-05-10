@@ -72,6 +72,7 @@ interface PatchInspectorProps {
   previewProgress: number;
   attachingProbeId?: string | null;
   wireCommitFeedback?: PatchWireCommitFeedback | null;
+  selectedConnectionId?: string;
   structureLocked?: boolean;
   validationIssues: PatchValidationIssue[];
   onApplyOp: (op: PatchOp) => void;
@@ -374,7 +375,7 @@ export function PatchInspector(props: PatchInspectorProps) {
           ref={props.wireCommitFeedback?.connectionId === connection.id ? highlightedConnectionRef : undefined}
           className={`conn-row${props.patchDiff.currentConnectionStatusById.get(connection.id) === "added" ? " diff-positive" : ""}${
             props.wireCommitFeedback?.connectionId === connection.id ? " wire-commit-highlight" : ""
-          }`}
+          }${props.selectedConnectionId === connection.id ? " selected" : ""}`}
         >
           <code>
             <span
