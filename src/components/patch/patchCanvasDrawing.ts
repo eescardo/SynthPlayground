@@ -53,6 +53,7 @@ import {
   isPatchOutputPortId
 } from "@/lib/patch/ports";
 import { Patch, PatchLayoutNode, PatchNode, PatchValidationIssue, PortSchema } from "@/types/patch";
+import { PatchWireCommitFeedback } from "@/components/patch/patchWireFeedback";
 
 const PATCH_DIFF_PEDESTAL_INSET = 8;
 const PATCH_DIFF_PEDESTAL_RADIUS = 10;
@@ -66,6 +67,8 @@ const PATCH_WIRE_REPLACE_BUTTON_HEIGHT = 20;
 const PATCH_WIRE_CANCEL_BUTTON_WIDTH = 96;
 const PATCH_WIRE_CANCEL_BUTTON_HEIGHT = 24;
 const PATCH_WIRE_TOOLTIP_CANVAS_MARGIN = 6;
+const PATCH_WIRE_CANDIDATE_PULSE_MS = 380;
+const PATCH_WIRE_COMMIT_FLASH_MS = 880;
 
 export interface PatchWireCandidateDisplay {
   status: "valid" | "invalid" | "replace";
@@ -86,6 +89,12 @@ export interface PatchWireTooltipBounds {
   y?: number;
   width: number;
   height: number;
+}
+
+export interface PatchWireCandidatePulse {
+  status: "valid" | "invalid" | "replace";
+  target: { nodeId: string; portId: string; portKind: "in" | "out" };
+  startedAt: number;
 }
 
 interface ResolvedPortPosition {
@@ -370,6 +379,93 @@ function drawPatchConnections(
     ctx.stroke();
     ctx.restore();
   }
+}
+
+function resolveFeedbackProgress(startedAt: number, now: number, durationMs: number) {
+  return Math.min(1, Math.max(0, (now - startedAt) / durationMs));
+}
+
+function drawPortFeedbackRing(
+  ctx: CanvasRenderingContext2D,
+  port: ResolvedPortPosition,
+  color: string,
+  progress: number,
+  maxRadius = 8
+) {
+  const alpha = Math.max(0, 1 - progress);
+  if (alpha <= 0) {
+    return;
+  }
+  const cx = port.anchorX;
+  const cy = port.anchorY;
+  const radius = 4 + maxRadius * progress;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawWireCandidatePulse(
+  ctx: CanvasRenderingContext2D,
+  portPositions: Map<string, ResolvedPortPosition>,
+  pulse: PatchWireCandidatePulse | null | undefined,
+  now: number
+) {
+  if (!pulse) {
+    return;
+  }
+  const progress = resolveFeedbackProgress(pulse.startedAt, now, PATCH_WIRE_CANDIDATE_PULSE_MS);
+  if (progress >= 1) {
+    return;
+  }
+  const port = portPositions.get(`${pulse.target.nodeId}:${pulse.target.portKind}:${pulse.target.portId}`);
+  if (!port) {
+    return;
+  }
+  const color =
+    pulse.status === "invalid"
+      ? "rgba(255, 92, 112, 0.95)"
+      : pulse.status === "replace"
+        ? "rgba(255, 203, 87, 0.95)"
+        : "rgba(103, 224, 153, 0.95)";
+  drawPortFeedbackRing(ctx, port, color, progress, 7);
+}
+
+function drawWireCommitFeedback(
+  ctx: CanvasRenderingContext2D,
+  portPositions: Map<string, ResolvedPortPosition>,
+  feedback: PatchWireCommitFeedback | null | undefined,
+  now: number
+) {
+  if (!feedback) {
+    return;
+  }
+  const progress = resolveFeedbackProgress(feedback.startedAt, now, PATCH_WIRE_COMMIT_FLASH_MS);
+  if (progress >= 1) {
+    return;
+  }
+  const from = portPositions.get(`${feedback.from.nodeId}:out:${feedback.from.portId}`);
+  const to = portPositions.get(`${feedback.to.nodeId}:in:${feedback.to.portId}`);
+  if (!from || !to) {
+    return;
+  }
+  const alpha = Math.max(0, 1 - progress);
+  ctx.save();
+  ctx.globalAlpha = 0.88 * alpha;
+  ctx.strokeStyle = "rgba(255, 235, 156, 0.98)";
+  ctx.lineWidth = 2.8;
+  ctx.setLineDash([7, 5]);
+  ctx.beginPath();
+  ctx.moveTo(from.anchorX, from.anchorY);
+  ctx.lineTo(to.anchorX, to.anchorY);
+  ctx.stroke();
+  ctx.restore();
+  drawPortFeedbackRing(ctx, from, "rgba(255, 235, 156, 0.95)", progress, 9);
+  drawPortFeedbackRing(ctx, to, "rgba(255, 235, 156, 0.95)", progress, 9);
 }
 
 function drawPatchModules(
@@ -790,6 +886,9 @@ export function drawPatchCanvas(args: {
     | { kind: "connection"; connectionId: string }
     | null;
   wireCandidate?: PatchWireCandidateDisplay | null;
+  wireCandidatePulse?: PatchWireCandidatePulse | null;
+  wireCommitFeedback?: PatchWireCommitFeedback | null;
+  wireFeedbackNow?: number;
   armedWireModuleHover?: PatchArmedWireModuleHover | null;
 }): HitPort[] {
   const ctx = args.canvas.getContext("2d");
@@ -801,6 +900,7 @@ export function drawPatchCanvas(args: {
 
   drawPatchGrid(ctx, width, height);
   const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode, args.outputHostCanvasLeft);
+  const feedbackNow = args.wireFeedbackNow ?? performance.now();
   const invalidPortKeys = resolveInvalidPortKeys(args.validationIssues);
   drawPatchConnections(ctx, args.patch, portPositions);
   drawPatchModules(
@@ -815,10 +915,12 @@ export function drawPatchCanvas(args: {
     args.deletePreviewNodeId,
     args.clearPreviewActive
   );
+  drawWireCommitFeedback(ctx, portPositions, args.wireCommitFeedback ?? null, feedbackNow);
   drawPendingPatchPort(ctx, args.pendingFromPort, portPositions);
   drawPendingPatchWire(ctx, args.pendingFromPort, args.pendingWirePointer ?? null, portPositions);
   drawArmedWireModuleHover(ctx, args.layoutByNode, portPositions, args.armedWireModuleHover);
   drawWireCandidate(ctx, portPositions, args.wireCandidate ?? null);
+  drawWireCandidatePulse(ctx, portPositions, args.wireCandidatePulse ?? null, feedbackNow);
   drawHoveredAttachTarget(ctx, args.patch, portPositions, args.hoveredAttachTarget ?? null);
 
   if (args.facePopoverNodeId) {

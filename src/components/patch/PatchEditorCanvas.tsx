@@ -13,6 +13,7 @@ import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { PatchValidationIssue, Patch, ParamValue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
+import { PatchWireCommitFeedback } from "@/components/patch/patchWireFeedback";
 
 const PATCH_MACRO_VISIBLE_ROW_MIN = 1;
 const PATCH_MACRO_VISIBLE_ROW_MAX = 5;
@@ -49,6 +50,7 @@ interface PatchEditorCanvasProps {
 
 export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const [draftParamValues, setDraftParamValues] = useState<Record<string, ParamValue>>({});
+  const [lastWireCommitFeedback, setLastWireCommitFeedback] = useState<PatchWireCommitFeedback | null>(null);
   useEffect(() => {
     setDraftParamValues({});
   }, [props.patch]);
@@ -114,6 +116,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
             onSelectNode={props.onSelectNode}
             onToggleAttachProbe={toggleAttachProbe}
             onCancelAttachProbe={cancelAttachProbe}
+            onWireCommitFeedback={setLastWireCommitFeedback}
           />
 
           <PatchMacroPanel
@@ -144,6 +147,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           previewCapture={selectedProbe ? props.probeState.previewCaptureByProbeId[selectedProbe.id] : undefined}
           previewProgress={props.probeState.previewProgress}
           attachingProbeId={attachingProbeId}
+          wireCommitFeedback={lastWireCommitFeedback}
           structureLocked={props.structureLocked}
           validationIssues={props.validationIssues}
           onApplyOp={props.onApplyOp}

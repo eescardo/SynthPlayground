@@ -34,6 +34,7 @@ import {
 import { Patch, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
+import { PatchWireCommitFeedback } from "@/components/patch/patchWireFeedback";
 
 interface PatchEditorStageProps {
   patch: Patch;
@@ -49,6 +50,7 @@ interface PatchEditorStageProps {
   onSelectNode: (nodeId?: string) => void;
   onToggleAttachProbe: (probeId: string) => void;
   onCancelAttachProbe: () => void;
+  onWireCommitFeedback?: (feedback: PatchWireCommitFeedback) => void;
 }
 
 export function PatchEditorStage(props: PatchEditorStageProps) {
@@ -57,6 +59,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     onSelectNode,
     onToggleAttachProbe,
     onCancelAttachProbe,
+    onWireCommitFeedback,
     patch,
     baselineDiff,
     probeActions,
@@ -225,7 +228,8 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     onCancelProbeAttach: onCancelAttachProbe,
     makeConnectOp,
     handleFacePopoverPointerDown: handleCanvasPointerDown,
-    togglePopoverForNode
+    togglePopoverForNode,
+    onWireCommitFeedback
   });
 
   const { beginProbeDrag } = usePatchProbeDrag({

@@ -5,6 +5,7 @@ import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import {
   drawPatchCanvas,
   PatchArmedWireModuleHover,
+  PatchWireCandidatePulse,
   PatchWireCandidateDisplay,
   PatchWireTooltipBounds,
   resolveArmedWireCancelButtonRect,
@@ -25,6 +26,7 @@ import { PatchLayoutNode, PatchNode, Patch, PatchValidationIssue } from "@/types
 import { PatchOp } from "@/types/ops";
 import { PatchWireCandidate, resolvePatchWireCandidate } from "@/lib/patch/wireCandidate";
 import type { PatchModuleFacePopoverPointerResult } from "@/hooks/patch/usePatchModuleFacePopover";
+import { PatchWireCommitFeedback } from "@/components/patch/patchWireFeedback";
 
 interface UsePatchCanvasInteractionsArgs {
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -56,6 +58,7 @@ interface UsePatchCanvasInteractionsArgs {
   makeConnectOp: (fromNodeId: string, fromPortId: string, toNodeId: string, toPortId: string) => PatchOp;
   handleFacePopoverPointerDown: (rawX: number, rawY: number) => PatchModuleFacePopoverPointerResult;
   togglePopoverForNode: (nodeId: string) => void;
+  onWireCommitFeedback?: (feedback: PatchWireCommitFeedback) => void;
 }
 
 type HoveredAttachTarget =
@@ -83,6 +86,8 @@ const EMPTY_CONNECTION_CANDIDATE: PendingConnection["candidate"] = {
 };
 
 const WIRE_REPLACE_PROMPT_MAGNET_PADDING = 18;
+const WIRE_CANDIDATE_PULSE_MS = 380;
+const WIRE_COMMIT_FEEDBACK_MS = 880;
 
 export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs) {
   const {
@@ -110,7 +115,8 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     onCancelProbeAttach,
     makeConnectOp,
     handleFacePopoverPointerDown,
-    togglePopoverForNode
+    togglePopoverForNode,
+    onWireCommitFeedback
   } = args;
   const hitPortsRef = useRef<HitPort[]>([]);
   const dragNodeIdRef = useRef<string | null>(null);
@@ -119,8 +125,12 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
   const pointerDownNodeIdRef = useRef<string | null>(null);
   const pointerMovedRef = useRef(false);
   const wireCandidateAnchorRef = useRef<{ key: string; pointer: { x: number; y: number } | null } | null>(null);
+  const lastCandidatePulseKeyRef = useRef<string | null>(null);
   const [pendingConnection, setPendingConnection] = useState<PendingConnection | null>(null);
   const [pendingProbePointer, setPendingProbePointer] = useState<{ x: number; y: number } | null>(null);
+  const [wireCandidatePulse, setWireCandidatePulse] = useState<PatchWireCandidatePulse | null>(null);
+  const [wireCommitFeedback, setWireCommitFeedback] = useState<PatchWireCommitFeedback | null>(null);
+  const [wireFeedbackNow, setWireFeedbackNow] = useState(() => performance.now());
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [hoveredAttachTarget, setHoveredAttachTarget] = useState<HoveredAttachTarget>(null);
@@ -152,6 +162,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
 
   const clearPendingConnection = useCallback(() => {
     wireCandidateAnchorRef.current = null;
+    lastCandidatePulseKeyRef.current = null;
     setPendingConnection(null);
     setHoveredAttachTarget(null);
     setArmedWireModuleHover(null);
@@ -206,6 +217,9 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       clearPreviewActive,
       hoveredAttachTarget,
       wireCandidate,
+      wireCandidatePulse,
+      wireCommitFeedback,
+      wireFeedbackNow,
       armedWireModuleHover
     });
   }, [
@@ -225,6 +239,9 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     clearPreviewActive,
     hoveredAttachTarget,
     wireCandidate,
+    wireCandidatePulse,
+    wireCommitFeedback,
+    wireFeedbackNow,
     armedWireModuleHover,
     hoveredNodeId,
     pendingFromPort,
@@ -244,6 +261,26 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [clearPendingConnection, pendingFromPort]);
+
+  useEffect(() => {
+    if (!wireCandidatePulse && !wireCommitFeedback) {
+      return;
+    }
+    let frameId = 0;
+    const tick = () => {
+      const now = performance.now();
+      setWireFeedbackNow(now);
+      setWireCandidatePulse((current) =>
+        current && now - current.startedAt < WIRE_CANDIDATE_PULSE_MS ? current : null
+      );
+      setWireCommitFeedback((current) =>
+        current && now - current.startedAt < WIRE_COMMIT_FEEDBACK_MS ? current : null
+      );
+      frameId = window.requestAnimationFrame(tick);
+    };
+    frameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [wireCandidatePulse, wireCommitFeedback]);
 
   useEffect(() => {
     if (pendingProbeId) {
@@ -308,12 +345,35 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     [resolveConnectionCandidate]
   );
 
+  const pulseConnectionCandidate = useCallback((candidate: PendingConnection["candidate"]) => {
+    const { result, targetPort } = candidate;
+    if (!targetPort || (result.status !== "valid" && result.status !== "replace" && result.status !== "invalid")) {
+      lastCandidatePulseKeyRef.current = null;
+      return;
+    }
+    const key = `${result.status}:${targetPort.nodeId}:${targetPort.kind}:${targetPort.portId}`;
+    if (lastCandidatePulseKeyRef.current === key) {
+      return;
+    }
+    lastCandidatePulseKeyRef.current = key;
+    setWireCandidatePulse({
+      status: result.status,
+      target: {
+        nodeId: targetPort.nodeId,
+        portId: targetPort.portId,
+        portKind: targetPort.kind
+      },
+      startedAt: performance.now()
+    });
+  }, []);
+
   const updatePendingConnectionCandidate = useCallback(
     (targetPort: HitPort | null, pointer: { x: number; y: number } | null) => {
       if (!pendingConnection) {
         return resolvePatchWireCandidate(patch, null, targetPort, { structureLocked });
       }
       const candidate = resolvePendingConnectionCandidate(pendingConnection.fromPort, targetPort, pointer);
+      pulseConnectionCandidate(candidate);
       setPendingConnection({
         ...pendingConnection,
         pointer: pointer ?? pendingConnection.pointer,
@@ -321,7 +381,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       });
       return candidate.result;
     },
-    [patch, pendingConnection, resolvePendingConnectionCandidate, structureLocked]
+    [patch, pendingConnection, pulseConnectionCandidate, resolvePendingConnectionCandidate, structureLocked]
   );
 
   const isPointInRect = useCallback(
@@ -422,9 +482,20 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         return;
       }
       onApplyOp(op);
+      if (op.type === "connect" || op.type === "replaceConnection") {
+        const feedback = {
+          connectionId: op.connectionId,
+          from: { nodeId: op.fromNodeId, portId: op.fromPortId },
+          to: { nodeId: op.toNodeId, portId: op.toPortId },
+          startedAt: performance.now()
+        };
+        setWireCommitFeedback(feedback);
+        onWireCommitFeedback?.(feedback);
+        onSelectNode(op.toNodeId);
+      }
       clearPendingConnection();
     },
-    [buildConnectionOp, clearPendingConnection, onApplyOp]
+    [buildConnectionOp, clearPendingConnection, onApplyOp, onSelectNode, onWireCommitFeedback]
   );
 
   useEffect(() => {
