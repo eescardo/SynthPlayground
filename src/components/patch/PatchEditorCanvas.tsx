@@ -1,12 +1,13 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PatchEditorStage } from "@/components/patch/PatchEditorStage";
 import { PatchInspector } from "@/components/patch/PatchInspector";
 import { PatchMacroPanel } from "@/components/patch/PatchMacroPanel";
 import { PatchBaselineDiffState } from "@/components/patch/patchBaselineDiffState";
 import { applyDraftParamValues, buildParamDraftKey } from "@/components/patch/patchEditorCanvasDrafts";
+import { usePatchCanvasSelection } from "@/hooks/patch/usePatchCanvasSelection";
 import { usePatchProbeEditorState } from "@/hooks/patch/usePatchProbeEditorState";
 import { clamp } from "@/lib/numeric";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
@@ -49,10 +50,8 @@ interface PatchEditorCanvasProps {
 }
 
 export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
-  const { onSelectNode, probeActions: sourceProbeActions } = props;
   const [draftParamValues, setDraftParamValues] = useState<Record<string, ParamValue>>({});
   const [lastWireCommitFeedback, setLastWireCommitFeedback] = useState<PatchWireCommitFeedback | null>(null);
-  const [selectedConnectionId, setSelectedConnectionId] = useState<string | undefined>();
   useEffect(() => {
     setDraftParamValues({});
   }, [props.patch]);
@@ -83,47 +82,20 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     () => new Map([...previewPatch.nodes, ...(previewPatch.ports ?? [])].map((node) => [node.id, node] as const)),
     [previewPatch.nodes, previewPatch.ports]
   );
-  useEffect(() => {
-    if (
-      selectedConnectionId &&
-      !previewPatch.connections.some((connection) => connection.id === selectedConnectionId)
-    ) {
-      setSelectedConnectionId(undefined);
-    }
-  }, [previewPatch.connections, selectedConnectionId]);
   const selectedNode = props.selectedNodeId ? nodeById.get(props.selectedNodeId) : undefined;
   const selectedSchema = selectedNode ? getModuleSchema(selectedNode.typeId) : undefined;
-  const handleSelectNode = useCallback(
-    (nodeId?: string) => {
-      setSelectedConnectionId(undefined);
-      onSelectNode(nodeId);
-    },
-    [onSelectNode]
-  );
-  const probeActions = useMemo<PatchProbeEditorActions>(
-    () => ({
-      ...sourceProbeActions,
-      addProbe: (kind, position) => {
-        setSelectedConnectionId(undefined);
-        sourceProbeActions.addProbe(kind, position);
-      },
-      selectProbe: (probeId) => {
-        setSelectedConnectionId(undefined);
-        sourceProbeActions.selectProbe(probeId);
-      }
-    }),
-    [sourceProbeActions]
-  );
-  const handleSelectConnection = useCallback(
-    (connectionId?: string) => {
-      setSelectedConnectionId(connectionId);
-      if (connectionId) {
-        onSelectNode(undefined);
-        sourceProbeActions.selectProbe(undefined);
-      }
-    },
-    [onSelectNode, sourceProbeActions]
-  );
+  const {
+    selectedConnectionId,
+    probeActions,
+    selectNode: handleSelectNode,
+    selectConnection: handleSelectConnection
+  } = usePatchCanvasSelection({
+    patch: previewPatch,
+    selectedNodeId: props.selectedNodeId,
+    probeState: props.probeState,
+    probeActions: props.probeActions,
+    onSelectNode: props.onSelectNode
+  });
   const { attachingProbeId, cancelAttachProbe, canvasProbeState, selectedProbe, toggleAttachProbe } =
     usePatchProbeEditorState({
       probes: props.probeState.probes,

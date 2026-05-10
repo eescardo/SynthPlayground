@@ -1,4 +1,4 @@
-import { validatePatchConnectionCandidate } from "@/lib/patch/validation";
+import { validatePatchConnectionTarget } from "@/lib/patch/connectionValidation";
 import { Patch, PatchValidationIssue } from "@/types/patch";
 
 export interface PatchWirePortRef {
@@ -57,7 +57,12 @@ export function resolvePatchWireCandidate(
 
   const from = startPort.kind === "out" ? startPort : targetPort;
   const to = startPort.kind === "in" ? startPort : targetPort;
-  const issues = validatePatchConnectionCandidate(patch, from.nodeId, from.portId, to.nodeId, to.portId);
+  const issues = validatePatchConnectionTarget(patch, {
+    fromNodeId: from.nodeId,
+    fromPortId: from.portId,
+    toNodeId: to.nodeId,
+    toPortId: to.portId
+  });
   const error = issues.find((issue) => issue.level === "error");
   if (!error) {
     return { status: "valid", from, to };
@@ -82,17 +87,13 @@ export function resolvePatchWireCandidate(
     return { status: "invalid", reason: "already connected", target: targetPort };
   }
 
-  const replacementPatch = {
-    ...patch,
-    connections: patch.connections.filter((connection) => connection.id !== occupiedConnection.id)
-  };
-  const replacementIssues = validatePatchConnectionCandidate(
-    replacementPatch,
-    from.nodeId,
-    from.portId,
-    to.nodeId,
-    to.portId
-  );
+  const replacementIssues = validatePatchConnectionTarget(patch, {
+    fromNodeId: from.nodeId,
+    fromPortId: from.portId,
+    toNodeId: to.nodeId,
+    toPortId: to.portId,
+    replaceConnectionId: occupiedConnection.id
+  });
   const replacementError = replacementIssues.find((issue) => issue.level === "error");
   if (replacementError) {
     return { status: "invalid", reason: reasonForIssue(replacementError), target: targetPort };

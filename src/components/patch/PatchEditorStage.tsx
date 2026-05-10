@@ -257,25 +257,31 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     setHoveredNodeId
   } = usePatchCanvasInteractions({
     canvasRef,
-    canvasSize,
-    visibleCanvasBounds,
+    viewport: {
+      canvasSize,
+      visibleCanvasBounds,
+      outputHostCanvasLeft,
+      zoom
+    },
     facePopoverNodeId: popoverNodeId,
     getFacePopoverRect,
     layoutByNode,
     nodeById,
     patch,
-    outputHostCanvasLeft,
-    zoom,
     patchDiff: baselineDiff.patchDiff,
     validationIssues: props.validationIssues,
-    selectedMacroNodeIds,
-    selectedNodeId,
-    selectedConnectionId,
-    deletePreviewNodeId,
-    deletePreviewConnectionId,
-    clearPreviewActive,
-    pendingProbeId: probeState.attachingProbeId,
-    structureLocked,
+    selection: {
+      selectedMacroNodeIds,
+      selectedNodeId,
+      selectedConnectionId,
+      deletePreviewNodeId,
+      deletePreviewConnectionId,
+      clearPreviewActive
+    },
+    mode: {
+      pendingProbeId: probeState.attachingProbeId,
+      structureLocked
+    },
     onApplyOp,
     onSelectNode,
     onSelectConnection,

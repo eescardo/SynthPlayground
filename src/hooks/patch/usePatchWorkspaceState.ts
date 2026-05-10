@@ -27,8 +27,9 @@ import { usePatchWorkspaceTabState } from "@/hooks/patch/usePatchWorkspaceTabSta
 import { createId } from "@/lib/ids";
 import { createClearPatch } from "@/lib/patch/presets";
 import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
+import { validatePatchConnectionOp } from "@/lib/patch/connectionValidation";
 import { resolvePatchSource } from "@/lib/patch/source";
-import { validatePatch, validatePatchConnectionCandidate } from "@/lib/patch/validation";
+import { validatePatch } from "@/lib/patch/validation";
 import { Project, Track } from "@/types/music";
 import { PatchOp } from "@/types/ops";
 import { PatchValidationIssue, Patch } from "@/types/patch";
@@ -327,22 +328,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       }
 
       if (op.type === "connect" || op.type === "replaceConnection") {
-        const validationPatch =
-          op.type === "replaceConnection"
-            ? {
-                ...selectedPatch,
-                connections: selectedPatch.connections.filter(
-                  (connection) => connection.id !== op.disconnectConnectionId
-                )
-              }
-            : selectedPatch;
-        const connectionIssues = validatePatchConnectionCandidate(
-          validationPatch,
-          op.fromNodeId,
-          op.fromPortId,
-          op.toNodeId,
-          op.toPortId
-        );
+        const connectionIssues = validatePatchConnectionOp(selectedPatch, op);
         if (connectionIssues.some((issue) => issue.level === "error")) {
           return;
         }
