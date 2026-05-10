@@ -432,7 +432,14 @@ function drawWireCandidatePulse(
       : pulse.status === "replace"
         ? "rgba(255, 203, 87, 0.95)"
         : "rgba(103, 224, 153, 0.95)";
-  drawPortFeedbackRing(ctx, port, color, progress, 7);
+  const pulseStrength = Math.sin(progress * Math.PI);
+  const inset = 1 + pulseStrength * 2;
+  ctx.save();
+  ctx.globalAlpha = 0.28 + pulseStrength * 0.58;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.4 + pulseStrength * 1.1;
+  ctx.strokeRect(port.x - inset, port.y - port.height / 2 - inset, port.width + inset * 2, port.height + inset * 2);
+  ctx.restore();
 }
 
 function drawWireCommitFeedback(
