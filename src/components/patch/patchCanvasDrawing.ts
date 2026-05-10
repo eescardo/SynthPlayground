@@ -71,6 +71,7 @@ export interface PatchWireCandidateDisplay {
   target: { nodeId: string; portId: string; portKind: "in" | "out" };
   reason?: string;
   pointer?: { x: number; y: number } | null;
+  replaceSelection?: "no" | "yes";
 }
 
 export interface PatchArmedWireModuleHover {
@@ -519,15 +520,16 @@ function drawWireCandidateTooltip(ctx: CanvasRenderingContext2D, candidate: Patc
   if (isReplace) {
     const rects = resolveWireReplacePromptRects(candidate.pointer);
     if (rects) {
+      const selected = candidate.replaceSelection ?? "no";
       drawPill(ctx, rects.no, "NO", {
-        fill: "rgba(69, 53, 18, 0.98)",
-        stroke: "rgba(255, 203, 87, 0.9)",
-        text: "#ffe3a1"
+        fill: selected === "no" ? "rgba(255, 203, 87, 0.34)" : "rgba(69, 53, 18, 0.98)",
+        stroke: selected === "no" ? "rgba(255, 235, 156, 1)" : "rgba(255, 203, 87, 0.9)",
+        text: selected === "no" ? "#fff7d8" : "#ffe3a1"
       });
       drawPill(ctx, rects.yes, "YES", {
-        fill: "rgba(255, 203, 87, 0.24)",
-        stroke: "rgba(255, 218, 122, 0.98)",
-        text: "#fff1c7"
+        fill: selected === "yes" ? "rgba(255, 203, 87, 0.38)" : "rgba(69, 53, 18, 0.98)",
+        stroke: selected === "yes" ? "rgba(255, 235, 156, 1)" : "rgba(255, 203, 87, 0.9)",
+        text: selected === "yes" ? "#fff7d8" : "#ffe3a1"
       });
     }
   }

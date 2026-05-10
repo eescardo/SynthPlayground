@@ -61,6 +61,8 @@ type HoveredAttachTarget =
   | { kind: "connection"; connectionId: string }
   | null;
 
+type ReplaceWireSelection = "no" | "yes";
+
 interface PendingConnection {
   fromPort: HitPort;
   pointer: { x: number; y: number };
@@ -68,6 +70,7 @@ interface PendingConnection {
     result: PatchWireCandidate;
     targetPort: HitPort | null;
     anchorPointer: { x: number; y: number } | null;
+    replaceSelection?: ReplaceWireSelection;
   };
 }
 
@@ -76,6 +79,8 @@ const EMPTY_CONNECTION_CANDIDATE: PendingConnection["candidate"] = {
   targetPort: null,
   anchorPointer: null
 };
+
+const WIRE_REPLACE_PROMPT_MAGNET_PADDING = 18;
 
 export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs) {
   const {
@@ -135,7 +140,8 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         portKind: targetPort.kind
       },
       reason: result.status === "invalid" ? result.reason : undefined,
-      pointer: anchorPointer
+      pointer: anchorPointer,
+      replaceSelection: result.status === "replace" ? (pendingConnection.candidate.replaceSelection ?? "no") : undefined
     };
   }, [pendingConnection]);
 
@@ -287,7 +293,12 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       const anchorPointer =
         wireCandidateAnchorRef.current?.key === key ? wireCandidateAnchorRef.current.pointer : pointer;
       wireCandidateAnchorRef.current = { key, pointer: anchorPointer };
-      return { result, targetPort, anchorPointer };
+      return {
+        result,
+        targetPort,
+        anchorPointer,
+        replaceSelection: result.status === "replace" ? "no" : undefined
+      };
     },
     [resolveConnectionCandidate]
   );
@@ -313,6 +324,68 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height,
     []
   );
+
+  const resolveReplacePromptMagnetBounds = useCallback((pointer: { x: number; y: number } | null | undefined) => {
+    const bounds = resolveWireReplacePromptBounds(pointer);
+    if (!bounds) {
+      return null;
+    }
+    return {
+      x: bounds.x - WIRE_REPLACE_PROMPT_MAGNET_PADDING,
+      y: bounds.y - WIRE_REPLACE_PROMPT_MAGNET_PADDING,
+      width: bounds.width + WIRE_REPLACE_PROMPT_MAGNET_PADDING * 2,
+      height: bounds.height + WIRE_REPLACE_PROMPT_MAGNET_PADDING * 2
+    };
+  }, []);
+
+  const getReplaceSelectionAtPoint = useCallback(
+    (
+      point: { x: number; y: number },
+      pointer: { x: number; y: number } | null | undefined
+    ): ReplaceWireSelection | null => {
+      const promptRects = resolveWireReplacePromptRects(pointer);
+      if (!promptRects) {
+        return null;
+      }
+      if (isPointInRect(point, promptRects.yes)) {
+        return "yes";
+      }
+      if (isPointInRect(point, promptRects.no)) {
+        return "no";
+      }
+      return null;
+    },
+    [isPointInRect]
+  );
+
+  const setReplaceCandidateSelection = useCallback((replaceSelection: ReplaceWireSelection) => {
+    setPendingConnection((current) => {
+      if (!current || current.candidate.result.status !== "replace") {
+        return current;
+      }
+      return {
+        ...current,
+        candidate: {
+          ...current.candidate,
+          replaceSelection
+        }
+      };
+    });
+  }, []);
+
+  const dismissReplaceCandidate = useCallback(() => {
+    wireCandidateAnchorRef.current = null;
+    setPendingConnection((current) => {
+      if (!current || current.candidate.result.status !== "replace") {
+        return current;
+      }
+      return {
+        ...current,
+        candidate: EMPTY_CONNECTION_CANDIDATE
+      };
+    });
+    setHoveredAttachTarget(null);
+  }, []);
 
   const resolveArmedWireCancelRectForNode = useCallback(
     (nodeId: string) => {
@@ -345,6 +418,37 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     },
     [buildConnectionOp, clearPendingConnection, onApplyOp]
   );
+
+  useEffect(() => {
+    const candidate = pendingConnection?.candidate.result;
+    if (candidate?.status !== "replace") {
+      return;
+    }
+    const replaceSelection = pendingConnection?.candidate.replaceSelection ?? "no";
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        setReplaceCandidateSelection("no");
+        return;
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        setReplaceCandidateSelection("yes");
+        return;
+      }
+      if (event.key !== "Enter") {
+        return;
+      }
+      event.preventDefault();
+      if (replaceSelection === "yes") {
+        commitConnectionCandidate(candidate);
+      } else {
+        dismissReplaceCandidate();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [commitConnectionCandidate, dismissReplaceCandidate, pendingConnection, setReplaceCandidateSelection]);
 
   const handlePortSelection = useCallback(
     (hitPort: HitPort, pointer: { x: number; y: number }) => {
@@ -481,6 +585,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
           return;
         }
         if (promptRects && isPointInRect({ x: pos.rawX, y: pos.rawY }, promptRects.no)) {
+          dismissReplaceCandidate();
           return;
         }
       }
@@ -560,6 +665,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       canvasRef,
       clearPendingConnection,
       commitConnectionCandidate,
+      dismissReplaceCandidate,
       getNearestNodePortAtPointer,
       handleFacePopoverPointerDown,
       layoutByNode,
@@ -584,16 +690,32 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
   const onPointerMove = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
       const pos = pointerEventToPatchCanvasPoint(canvasRef.current, event);
+      const hoverPort = findPatchPortAtPointWithPadding(hitPortsRef.current, pos.rawX, pos.rawY, Math.max(3, 6 / zoom));
       if (pendingFromPort && wireCandidate?.status === "replace") {
+        const point = { x: pos.rawX, y: pos.rawY };
         const promptBounds = resolveWireReplacePromptBounds(wireCandidate.pointer);
-        if (promptBounds && isPointInRect({ x: pos.rawX, y: pos.rawY }, promptBounds)) {
+        const magnetBounds = resolveReplacePromptMagnetBounds(wireCandidate.pointer);
+        const currentTarget = pendingConnection?.candidate.targetPort;
+        const isDifferentHoverPort =
+          hoverPort &&
+          currentTarget &&
+          (hoverPort.nodeId !== currentTarget.nodeId ||
+            hoverPort.kind !== currentTarget.kind ||
+            hoverPort.portId !== currentTarget.portId);
+        if (
+          (promptBounds && isPointInRect(point, promptBounds)) ||
+          (magnetBounds && isPointInRect(point, magnetBounds) && !isDifferentHoverPort)
+        ) {
+          const replaceSelection = getReplaceSelectionAtPoint(point, wireCandidate.pointer);
           setPendingConnection((current) =>
             current ? { ...current, pointer: { x: pos.rawX, y: pos.rawY } } : current
           );
+          if (replaceSelection) {
+            setReplaceCandidateSelection(replaceSelection);
+          }
           return;
         }
       }
-      const hoverPort = findPatchPortAtPointWithPadding(hitPortsRef.current, pos.rawX, pos.rawY, Math.max(3, 6 / zoom));
       if (pendingProbeId) {
         setPendingProbePointer({ x: pos.rawX, y: pos.rawY });
         if (hoverPort) {
@@ -663,8 +785,12 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       onApplyOp,
       outputHostCanvasLeft,
       patch,
+      pendingConnection,
       pendingFromPort,
       pendingProbeId,
+      resolveReplacePromptMagnetBounds,
+      getReplaceSelectionAtPoint,
+      setReplaceCandidateSelection,
       updatePendingConnectionCandidate,
       wireCandidate,
       isPointInRect,
