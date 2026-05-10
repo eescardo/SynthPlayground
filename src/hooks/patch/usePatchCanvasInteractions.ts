@@ -6,6 +6,7 @@ import {
   drawPatchCanvas,
   PatchArmedWireModuleHover,
   PatchWireCandidateDisplay,
+  PatchWireTooltipBounds,
   resolveArmedWireCancelButtonRect,
   resolveWireReplacePromptBounds,
   resolveWireReplacePromptRects
@@ -28,6 +29,7 @@ import type { PatchModuleFacePopoverPointerResult } from "@/hooks/patch/usePatch
 interface UsePatchCanvasInteractionsArgs {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   canvasSize: { width: number; height: number };
+  visibleCanvasBounds: PatchWireTooltipBounds;
   facePopoverNodeId: string | null;
   getFacePopoverRect: (nodeId: string) => { x: number; y: number; width: number; height: number } | null;
   layoutByNode: Map<string, PatchLayoutNode>;
@@ -86,6 +88,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
   const {
     canvasRef,
     canvasSize,
+    visibleCanvasBounds,
     facePopoverNodeId,
     getFacePopoverRect,
     layoutByNode,
@@ -141,9 +144,11 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       },
       reason: result.status === "invalid" ? result.reason : undefined,
       pointer: anchorPointer,
-      replaceSelection: result.status === "replace" ? (pendingConnection.candidate.replaceSelection ?? "no") : undefined
+      replaceSelection:
+        result.status === "replace" ? (pendingConnection.candidate.replaceSelection ?? "no") : undefined,
+      tooltipBounds: visibleCanvasBounds
     };
-  }, [pendingConnection]);
+  }, [pendingConnection, visibleCanvasBounds]);
 
   const clearPendingConnection = useCallback(() => {
     wireCandidateAnchorRef.current = null;
@@ -327,7 +332,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
 
   const resolveReplacePromptMagnetBounds = useCallback(
     (pointer: { x: number; y: number } | null | undefined) => {
-      const bounds = resolveWireReplacePromptBounds(pointer, canvasSize);
+      const bounds = resolveWireReplacePromptBounds(pointer, visibleCanvasBounds);
       if (!bounds) {
         return null;
       }
@@ -338,7 +343,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         height: bounds.height + WIRE_REPLACE_PROMPT_MAGNET_PADDING * 2
       };
     },
-    [canvasSize]
+    [visibleCanvasBounds]
   );
 
   const getReplaceSelectionAtPoint = useCallback(
@@ -346,7 +351,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       point: { x: number; y: number },
       pointer: { x: number; y: number } | null | undefined
     ): ReplaceWireSelection | null => {
-      const promptRects = resolveWireReplacePromptRects(pointer, canvasSize);
+      const promptRects = resolveWireReplacePromptRects(pointer, visibleCanvasBounds);
       if (!promptRects) {
         return null;
       }
@@ -358,7 +363,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       }
       return null;
     },
-    [canvasSize, isPointInRect]
+    [isPointInRect, visibleCanvasBounds]
   );
 
   const setReplaceCandidateSelection = useCallback((replaceSelection: ReplaceWireSelection) => {
@@ -484,7 +489,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         return;
       }
       if (candidate.status === "replace") {
-        const promptRects = resolveWireReplacePromptRects(pointer, canvasSize);
+        const promptRects = resolveWireReplacePromptRects(pointer, visibleCanvasBounds);
         if (promptRects && isPointInRect(pointer, promptRects.yes)) {
           commitConnectionCandidate(candidate);
         } else {
@@ -497,7 +502,6 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     },
     [
       armConnectionFromPort,
-      canvasSize,
       commitConnectionCandidate,
       isPointInRect,
       onAttachProbeTarget,
@@ -505,7 +509,8 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       pendingConnection,
       resolveConnectionCandidate,
       structureLocked,
-      updatePendingConnectionCandidate
+      updatePendingConnectionCandidate,
+      visibleCanvasBounds
     ]
   );
 
@@ -580,7 +585,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       }
 
       if (pendingFromPort && wireCandidate?.status === "replace") {
-        const promptRects = resolveWireReplacePromptRects(wireCandidate.pointer, canvasSize);
+        const promptRects = resolveWireReplacePromptRects(wireCandidate.pointer, visibleCanvasBounds);
         if (promptRects && isPointInRect({ x: pos.rawX, y: pos.rawY }, promptRects.yes)) {
           const candidate = pendingConnection?.candidate.result;
           if (candidate?.status === "replace") {
@@ -667,7 +672,6 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     },
     [
       canvasRef,
-      canvasSize,
       clearPendingConnection,
       commitConnectionCandidate,
       dismissReplaceCandidate,
@@ -684,6 +688,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       pendingConnection,
       pendingProbeId,
       resolveArmedWireCancelRectForNode,
+      visibleCanvasBounds,
       wireCandidate?.pointer,
       wireCandidate?.status,
       zoom,
@@ -698,7 +703,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       const hoverPort = findPatchPortAtPointWithPadding(hitPortsRef.current, pos.rawX, pos.rawY, Math.max(3, 6 / zoom));
       if (pendingFromPort && wireCandidate?.status === "replace") {
         const point = { x: pos.rawX, y: pos.rawY };
-        const promptBounds = resolveWireReplacePromptBounds(wireCandidate.pointer, canvasSize);
+        const promptBounds = resolveWireReplacePromptBounds(wireCandidate.pointer, visibleCanvasBounds);
         const magnetBounds = resolveReplacePromptMagnetBounds(wireCandidate.pointer);
         const currentTarget = pendingConnection?.candidate.targetPort;
         const isDifferentHoverPort =
@@ -782,7 +787,6 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     },
     [
       canvasRef,
-      canvasSize,
       dragNodeId,
       getNodeAtPointer,
       getNearestNodePortAtPointer,
@@ -798,6 +802,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       getReplaceSelectionAtPoint,
       setReplaceCandidateSelection,
       updatePendingConnectionCandidate,
+      visibleCanvasBounds,
       wireCandidate,
       isPointInRect,
       zoom

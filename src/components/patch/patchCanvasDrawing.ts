@@ -73,6 +73,7 @@ export interface PatchWireCandidateDisplay {
   reason?: string;
   pointer?: { x: number; y: number } | null;
   replaceSelection?: "no" | "yes";
+  tooltipBounds?: PatchWireTooltipBounds;
 }
 
 export interface PatchArmedWireModuleHover {
@@ -80,7 +81,9 @@ export interface PatchArmedWireModuleHover {
   nearestPort?: { nodeId: string; portId: string; kind: "in" | "out" } | null;
 }
 
-interface PatchWireTooltipBounds {
+export interface PatchWireTooltipBounds {
+  x?: number;
+  y?: number;
   width: number;
   height: number;
 }
@@ -454,16 +457,18 @@ function resolveWireTooltipOrigin(
   let x = pointer.x + PATCH_WIRE_TOOLTIP_OFFSET;
   let y = pointer.y + PATCH_WIRE_TOOLTIP_OFFSET;
   if (bounds) {
-    const maxX = bounds.width - PATCH_WIRE_TOOLTIP_WIDTH - PATCH_WIRE_TOOLTIP_CANVAS_MARGIN;
-    const maxY = bounds.height - PATCH_WIRE_TOOLTIP_HEIGHT - PATCH_WIRE_TOOLTIP_CANVAS_MARGIN;
+    const minX = (bounds.x ?? 0) + PATCH_WIRE_TOOLTIP_CANVAS_MARGIN;
+    const minY = (bounds.y ?? 0) + PATCH_WIRE_TOOLTIP_CANVAS_MARGIN;
+    const maxX = (bounds.x ?? 0) + bounds.width - PATCH_WIRE_TOOLTIP_WIDTH - PATCH_WIRE_TOOLTIP_CANVAS_MARGIN;
+    const maxY = (bounds.y ?? 0) + bounds.height - PATCH_WIRE_TOOLTIP_HEIGHT - PATCH_WIRE_TOOLTIP_CANVAS_MARGIN;
     if (x > maxX) {
       x = pointer.x - PATCH_WIRE_TOOLTIP_OFFSET - PATCH_WIRE_TOOLTIP_WIDTH;
     }
     if (y > maxY) {
       y = pointer.y - PATCH_WIRE_TOOLTIP_OFFSET - PATCH_WIRE_TOOLTIP_HEIGHT;
     }
-    x = Math.max(PATCH_WIRE_TOOLTIP_CANVAS_MARGIN, Math.min(x, Math.max(PATCH_WIRE_TOOLTIP_CANVAS_MARGIN, maxX)));
-    y = Math.max(PATCH_WIRE_TOOLTIP_CANVAS_MARGIN, Math.min(y, Math.max(PATCH_WIRE_TOOLTIP_CANVAS_MARGIN, maxY)));
+    x = Math.max(minX, Math.min(x, Math.max(minX, maxX)));
+    y = Math.max(minY, Math.min(y, Math.max(minY, maxY)));
   }
   return { x, y };
 }
@@ -542,7 +547,7 @@ function drawWireCandidateTooltip(ctx: CanvasRenderingContext2D, candidate: Patc
     return;
   }
   const isReplace = candidate.status === "replace";
-  const origin = resolveWireTooltipOrigin(candidate.pointer, ctx.canvas);
+  const origin = resolveWireTooltipOrigin(candidate.pointer, candidate.tooltipBounds ?? ctx.canvas);
   if (!origin) {
     return;
   }
@@ -558,7 +563,7 @@ function drawWireCandidateTooltip(ctx: CanvasRenderingContext2D, candidate: Patc
   ctx.font = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
   ctx.fillText(isReplace ? "Replace existing wire?" : (candidate.reason ?? "invalid target"), x + 9, y + 17);
   if (isReplace) {
-    const rects = resolveWireReplacePromptRects(candidate.pointer, ctx.canvas);
+    const rects = resolveWireReplacePromptRects(candidate.pointer, candidate.tooltipBounds ?? ctx.canvas);
     if (rects) {
       const selected = candidate.replaceSelection ?? "no";
       drawPill(ctx, rects.no, "NO", {

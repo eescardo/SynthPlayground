@@ -139,6 +139,32 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   );
   const outputHostCanvasLeft = outputHostPlacement.canvasLeft;
   const outputHostScreenLeft = outputHostPlacement.screenLeft;
+  const visibleCanvasBounds = useMemo(() => {
+    if (scrollViewport.width <= 0 || scrollViewport.height <= 0) {
+      return {
+        x: 0,
+        y: 0,
+        width: canvasSize.width,
+        height: canvasSize.height
+      };
+    }
+    const x = scrollViewport.left / zoom;
+    const y = scrollViewport.top / zoom;
+    return {
+      x,
+      y,
+      width: Math.min(canvasSize.width - x, scrollViewport.width / zoom),
+      height: Math.min(canvasSize.height - y, scrollViewport.height / zoom)
+    };
+  }, [
+    canvasSize.height,
+    canvasSize.width,
+    scrollViewport.height,
+    scrollViewport.left,
+    scrollViewport.top,
+    scrollViewport.width,
+    zoom
+  ]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -172,6 +198,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   } = usePatchCanvasInteractions({
     canvasRef,
     canvasSize,
+    visibleCanvasBounds,
     facePopoverNodeId: popoverNodeId,
     getFacePopoverRect,
     layoutByNode,
