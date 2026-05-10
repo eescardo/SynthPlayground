@@ -14,7 +14,6 @@ interface PatchEditorToolbarProps {
   selectedNodeId?: string;
   protectedNodeId?: string;
   selectedProbeId?: string;
-  pendingFromPort: boolean;
   zoom: number;
   onAddNode: (typeId: string) => void;
   onAddProbe: (kind: PatchWorkspaceProbeState["kind"]) => void;
@@ -120,7 +119,6 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
       {props.structureLocked && (
         <span className="muted">Preset structure is locked. Move nodes for clarity or edit macros.</span>
       )}
-      {props.pendingFromPort && <span className="muted">Select a compatible port to complete connection.</span>}
       <PatchBaselineControl {...props.baselineControl} />
       <span className="patch-zoom-readout">Zoom {Math.round(props.zoom * 100)}%</span>
     </div>

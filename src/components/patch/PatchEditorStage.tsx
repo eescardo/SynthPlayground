@@ -248,7 +248,6 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
         selectedNodeId={selectedNodeId}
         protectedNodeId={outputNodeId}
         selectedProbeId={probeState.selectedProbeId}
-        pendingFromPort={Boolean(pendingFromPort)}
         zoom={zoom}
         onAddNode={(typeId) => {
           if (structureLocked) {

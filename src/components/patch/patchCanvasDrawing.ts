@@ -69,6 +69,10 @@ const PATCH_WIRE_CANCEL_BUTTON_HEIGHT = 24;
 const PATCH_WIRE_TOOLTIP_CANVAS_MARGIN = 6;
 const PATCH_WIRE_CANDIDATE_PULSE_MS = 380;
 const PATCH_WIRE_COMMIT_FLASH_MS = 880;
+const PATCH_WIRE_START_TOOLTIP_WIDTH = 236;
+const PATCH_WIRE_START_TOOLTIP_PADDING_X = 10;
+const PATCH_WIRE_START_TOOLTIP_PADDING_Y = 8;
+const PATCH_WIRE_START_TOOLTIP_LINE_HEIGHT = 13;
 
 export interface PatchWireCandidateDisplay {
   status: "valid" | "invalid" | "replace";
@@ -550,6 +554,123 @@ function drawPendingPatchWire(
   ctx.restore();
 }
 
+function formatSignalCapabilityLabel(port: ResolvedPortPosition) {
+  const capability = port.schema.capabilities[0] ?? "AUDIO";
+  return capability === "AUDIO" ? "audio" : capability;
+}
+
+function formatArticle(label: string) {
+  return /^[aeiou]/i.test(label) ? "an" : "a";
+}
+
+function resolveWireStartTooltipLines(pendingPort: HitPort, source: ResolvedPortPosition) {
+  const targetKind = pendingPort.kind === "out" ? "input" : "output";
+  const signalLabel = formatSignalCapabilityLabel(source);
+  return [
+    `Wiring from ${pendingPort.nodeId}.${pendingPort.portId}.`,
+    `Select ${formatArticle(signalLabel)} ${signalLabel} ${targetKind}, or press Esc to cancel.`
+  ];
+}
+
+function distanceToSegment(
+  point: { x: number; y: number },
+  start: { x: number; y: number },
+  end: { x: number; y: number }
+) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  if (dx === 0 && dy === 0) {
+    return Math.hypot(point.x - start.x, point.y - start.y);
+  }
+  const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / (dx * dx + dy * dy)));
+  return Math.hypot(point.x - (start.x + t * dx), point.y - (start.y + t * dy));
+}
+
+function clampTooltipRect(
+  rect: { x: number; y: number; width: number; height: number },
+  bounds?: PatchWireTooltipBounds
+) {
+  if (!bounds) {
+    return rect;
+  }
+  const minX = (bounds.x ?? 0) + PATCH_WIRE_TOOLTIP_CANVAS_MARGIN;
+  const minY = (bounds.y ?? 0) + PATCH_WIRE_TOOLTIP_CANVAS_MARGIN;
+  const maxX = (bounds.x ?? 0) + bounds.width - rect.width - PATCH_WIRE_TOOLTIP_CANVAS_MARGIN;
+  const maxY = (bounds.y ?? 0) + bounds.height - rect.height - PATCH_WIRE_TOOLTIP_CANVAS_MARGIN;
+  return {
+    ...rect,
+    x: Math.max(minX, Math.min(rect.x, Math.max(minX, maxX))),
+    y: Math.max(minY, Math.min(rect.y, Math.max(minY, maxY)))
+  };
+}
+
+function resolveWireStartTooltipRect(
+  source: ResolvedPortPosition,
+  pointer: { x: number; y: number } | null | undefined,
+  lines: string[],
+  bounds?: PatchWireTooltipBounds
+) {
+  const width = PATCH_WIRE_START_TOOLTIP_WIDTH;
+  const height = lines.length * PATCH_WIRE_START_TOOLTIP_LINE_HEIGHT + PATCH_WIRE_START_TOOLTIP_PADDING_Y * 2;
+  const anchor = { x: source.anchorX, y: source.anchorY };
+  const candidates = [
+    { x: source.x + source.width + 12, y: source.y - height / 2 },
+    { x: source.x - width - 12, y: source.y - height / 2 },
+    { x: source.x + source.width / 2 - width / 2, y: source.y - source.height / 2 - height - 12 },
+    { x: source.x + source.width / 2 - width / 2, y: source.y + source.height / 2 + 12 }
+  ];
+  const safePointer = pointer ?? anchor;
+  return candidates
+    .map((candidate) => clampTooltipRect({ ...candidate, width, height }, bounds))
+    .map((candidate) => {
+      const center = { x: candidate.x + width / 2, y: candidate.y + height / 2 };
+      return {
+        rect: candidate,
+        score:
+          distanceToSegment(center, anchor, safePointer) * 1.25 +
+          Math.hypot(center.x - safePointer.x, center.y - safePointer.y)
+      };
+    })
+    .sort((a, b) => b.score - a.score)[0].rect;
+}
+
+function drawWireStartTooltip(
+  ctx: CanvasRenderingContext2D,
+  pendingPort: HitPort | null,
+  pointer: { x: number; y: number } | null | undefined,
+  portPositions: Map<string, ResolvedPortPosition>,
+  bounds?: PatchWireTooltipBounds
+) {
+  if (!pendingPort || !pointer) {
+    return;
+  }
+  const source = portPositions.get(`${pendingPort.nodeId}:${pendingPort.kind}:${pendingPort.portId}`);
+  if (!source) {
+    return;
+  }
+  const lines = resolveWireStartTooltipLines(pendingPort, source);
+  const rect = resolveWireStartTooltipRect(source, pointer, lines, bounds);
+  ctx.save();
+  drawRoundedRectPath(ctx, rect.x, rect.y, rect.width, rect.height, 7);
+  ctx.fillStyle = "rgba(7, 13, 19, 0.94)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(200, 255, 57, 0.38)";
+  ctx.lineWidth = 1.25;
+  ctx.stroke();
+  ctx.fillStyle = "#e7f3ff";
+  ctx.font = "10px 'Trebuchet MS', 'Segoe UI', sans-serif";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  lines.forEach((line, index) => {
+    ctx.fillText(
+      line,
+      rect.x + PATCH_WIRE_START_TOOLTIP_PADDING_X,
+      rect.y + PATCH_WIRE_START_TOOLTIP_PADDING_Y + PATCH_WIRE_START_TOOLTIP_LINE_HEIGHT * (index + 0.5)
+    );
+  });
+  ctx.restore();
+}
+
 function resolveWireTooltipOrigin(
   pointer: { x: number; y: number } | null | undefined,
   bounds?: PatchWireTooltipBounds,
@@ -931,6 +1052,13 @@ export function drawPatchCanvas(args: {
   drawWireCommitFeedback(ctx, portPositions, args.wireCommitFeedback ?? null, feedbackNow);
   drawPendingPatchPort(ctx, args.pendingFromPort, portPositions);
   drawPendingPatchWire(ctx, args.pendingFromPort, args.pendingWirePointer ?? null, portPositions);
+  drawWireStartTooltip(
+    ctx,
+    args.pendingFromPort,
+    args.pendingWirePointer ?? null,
+    portPositions,
+    args.wireCandidate?.tooltipBounds
+  );
   drawArmedWireModuleHover(ctx, args.layoutByNode, portPositions, args.armedWireModuleHover);
   drawWireCandidate(ctx, portPositions, args.wireCandidate ?? null);
   drawWireCandidatePulse(ctx, portPositions, args.wireCandidatePulse ?? null, feedbackNow);
