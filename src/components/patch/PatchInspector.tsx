@@ -406,7 +406,7 @@ export function PatchInspector(props: PatchInspectorProps) {
       {visibleRemovedConnections.map((connection) => (
         <div key={connection.id} className="conn-row diff-negative removed-diff-artifact">
           <code>{connectionLabel(props.patch, connection)}</code>
-          <button type="button" disabled>
+          <button type="button" className="conn-row-status" disabled>
             removed
           </button>
         </div>

@@ -192,6 +192,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     pendingProbePointer,
     wireCandidate,
     hoveredAttachTarget,
+    lockedPortHovered,
     handlePortHover,
     handlePortSelection,
     onPointerDown,
@@ -319,6 +320,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
                   attachingProbeId: probeState.attachingProbeId,
                   pendingFromPort: Boolean(pendingFromPort),
                   wireCandidateStatus: wireCandidate?.status,
+                  lockedPortHovered,
                   hoveredAttachTarget: Boolean(hoveredAttachTarget),
                   dragNodeId: Boolean(dragNodeId),
                   hoveredNodeId: Boolean(hoveredNodeId)
@@ -358,6 +360,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           pendingFromPort={pendingFromPort}
           pendingProbeId={probeState.attachingProbeId}
           scrollTop={scrollViewport.top}
+          structureLocked={structureLocked}
           zoom={zoom}
           onPortSelection={handlePortSelection}
           onPortHover={handlePortHover}
@@ -372,11 +375,12 @@ function resolveCanvasCursor(args: {
   attachingProbeId: string | null | undefined;
   pendingFromPort: boolean;
   wireCandidateStatus?: string;
+  lockedPortHovered: boolean;
   hoveredAttachTarget: boolean;
   dragNodeId: boolean;
   hoveredNodeId: boolean;
 }) {
-  if (args.wireCandidateStatus === "invalid") {
+  if (args.wireCandidateStatus === "invalid" || args.lockedPortHovered) {
     return "not-allowed";
   }
   if (args.attachingProbeId || args.pendingFromPort) {

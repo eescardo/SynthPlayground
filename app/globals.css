@@ -1876,6 +1876,11 @@ select {
     0 6px 12px rgba(0, 0, 0, 0.18);
 }
 
+.patch-host-port.locked {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
 .patch-probe-overlay {
   position: absolute;
   inset: 0;
@@ -3239,7 +3244,7 @@ select {
   line-height: 1.15;
 }
 
-.conn-row button:not(:disabled) {
+.conn-row button:not(.conn-row-status) {
   width: 1.05rem;
   min-width: 1.05rem;
   height: 1.05rem;

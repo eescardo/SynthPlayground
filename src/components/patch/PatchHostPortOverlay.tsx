@@ -27,6 +27,7 @@ interface PatchHostPortOverlayProps {
   pendingFromPort: HitPort | null;
   pendingProbeId?: string | null;
   scrollTop: number;
+  structureLocked?: boolean;
   zoom: number;
   onPortSelection: (hitPort: HitPort, pointer: { x: number; y: number }) => void;
   onPortHover: (hitPort: HitPort | null, pointer: { x: number; y: number } | null) => void;
@@ -129,11 +130,17 @@ export function PatchHostPortOverlay(props: PatchHostPortOverlayProps) {
         <button
           key={port.nodeId}
           type="button"
-          className={`patch-host-port${props.pendingFromPort?.nodeId === port.nodeId ? " pending" : ""}`}
+          className={`patch-host-port${props.pendingFromPort?.nodeId === port.nodeId ? " pending" : ""}${
+            props.structureLocked ? " locked" : ""
+          }`}
           style={port.style}
+          title={props.structureLocked ? "Preset structure is locked" : undefined}
           onPointerDown={(event) => {
             event.preventDefault();
             event.stopPropagation();
+            if (props.structureLocked) {
+              return;
+            }
             if (port.hitPort.kind === "in" && !props.pendingFromPort && !props.pendingProbeId) {
               props.onSelectOutput();
               return;

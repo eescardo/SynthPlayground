@@ -5,6 +5,7 @@ import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import {
   drawPatchCanvas,
   PatchArmedWireModuleHover,
+  PatchLockedPortTooltip,
   PatchWireCandidatePulse,
   PatchWireCandidateDisplay,
   PatchWireTooltipBounds,
@@ -128,6 +129,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
   const lastCandidatePulseKeyRef = useRef<string | null>(null);
   const [pendingConnection, setPendingConnection] = useState<PendingConnection | null>(null);
   const [pendingProbePointer, setPendingProbePointer] = useState<{ x: number; y: number } | null>(null);
+  const [lockedPortTooltip, setLockedPortTooltip] = useState<PatchLockedPortTooltip | null>(null);
   const [wireCandidatePulse, setWireCandidatePulse] = useState<PatchWireCandidatePulse | null>(null);
   const [wireCommitFeedback, setWireCommitFeedback] = useState<PatchWireCommitFeedback | null>(null);
   const [wireFeedbackNow, setWireFeedbackNow] = useState(() => performance.now());
@@ -220,6 +222,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       wireCandidatePulse,
       wireCommitFeedback,
       wireFeedbackNow,
+      lockedPortTooltip,
       armedWireModuleHover
     });
   }, [
@@ -242,6 +245,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     wireCandidatePulse,
     wireCommitFeedback,
     wireFeedbackNow,
+    lockedPortTooltip,
     armedWireModuleHover,
     hoveredNodeId,
     pendingFromPort,
@@ -291,6 +295,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       setHoveredAttachTarget(null);
       wireCandidateAnchorRef.current = null;
       setArmedWireModuleHover(null);
+      setLockedPortTooltip(null);
     }
   }, [pendingFromPort, pendingProbeId]);
 
@@ -543,6 +548,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         return;
       }
       if (structureLocked) {
+        setLockedPortTooltip({ pointer, tooltipBounds: visibleCanvasBounds });
         return;
       }
       if (!pendingConnection) {
@@ -591,6 +597,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         if (pointer) {
           setPendingProbePointer(pointer);
         }
+        setLockedPortTooltip(null);
         setHoveredAttachTarget(
           hoverPort
             ? {
@@ -601,6 +608,11 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
               }
             : null
         );
+        return;
+      }
+      if (structureLocked) {
+        setLockedPortTooltip(hoverPort && pointer ? { pointer, tooltipBounds: visibleCanvasBounds } : null);
+        setHoveredAttachTarget(null);
         return;
       }
       if (pendingFromPort && pointer) {
@@ -623,7 +635,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
           : null
       );
     },
-    [pendingFromPort, pendingProbeId, updatePendingConnectionCandidate]
+    [pendingFromPort, pendingProbeId, structureLocked, updatePendingConnectionCandidate, visibleCanvasBounds]
   );
 
   const onPointerDown = useCallback(
@@ -912,6 +924,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     pendingProbePointer,
     wireCandidate,
     hoveredAttachTarget,
+    lockedPortHovered: Boolean(lockedPortTooltip),
     handlePortSelection,
     handlePortHover,
     onPointerDown,

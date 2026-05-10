@@ -1,5 +1,5 @@
 import { validatePatchConnectionCandidate } from "@/lib/patch/validation";
-import { Patch } from "@/types/patch";
+import { Patch, PatchValidationIssue } from "@/types/patch";
 
 export interface PatchWirePortRef {
   nodeId: string;
@@ -14,13 +14,24 @@ export type PatchWireCandidate =
   | { status: "replace"; from: PatchWirePortRef; to: PatchWirePortRef; disconnectConnectionId: string }
   | { status: "invalid"; reason: string; target?: PatchWirePortRef };
 
-const reasonForIssueCode = (code?: string) => {
-  switch (code) {
+const formatExpectedCapabilities = (capabilities?: string) => {
+  if (!capabilities) {
+    return "compatible signal";
+  }
+  return capabilities
+    .split(",")
+    .map((capability) => capability.trim())
+    .filter(Boolean)
+    .join("/");
+};
+
+const reasonForIssue = (issue?: PatchValidationIssue) => {
+  switch (issue?.code) {
     case "connection-capability-mismatch":
     case "connection-kind-mismatch":
-      return "type mismatch";
+      return `Type mismatch: ${formatExpectedCapabilities(issue.context?.to)} expected`;
     case "connection-cycle":
-      return "would create cycle";
+      return "Would create cycle";
     case "connection-target-occupied":
       return "target occupied";
     default:
@@ -38,7 +49,7 @@ export function resolvePatchWireCandidate(
     return { status: "none" };
   }
   if (options.structureLocked) {
-    return { status: "invalid", reason: "preset locked", target: targetPort };
+    return { status: "invalid", reason: "Preset structure is locked", target: targetPort };
   }
   if (startPort.kind === targetPort.kind) {
     return { status: "new-source", port: targetPort };
@@ -53,7 +64,7 @@ export function resolvePatchWireCandidate(
   }
 
   if (error.code !== "connection-target-occupied") {
-    return { status: "invalid", reason: reasonForIssueCode(error.code), target: targetPort };
+    return { status: "invalid", reason: reasonForIssue(error), target: targetPort };
   }
 
   const occupiedConnection = patch.connections.find(
@@ -76,7 +87,7 @@ export function resolvePatchWireCandidate(
   );
   const replacementError = replacementIssues.find((issue) => issue.level === "error");
   if (replacementError) {
-    return { status: "invalid", reason: reasonForIssueCode(replacementError.code), target: targetPort };
+    return { status: "invalid", reason: reasonForIssue(replacementError), target: targetPort };
   }
 
   return { status: "replace", from, to, disconnectConnectionId: occupiedConnection.id };

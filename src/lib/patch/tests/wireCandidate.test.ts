@@ -27,7 +27,7 @@ describe("resolvePatchWireCandidate", () => {
         { nodeId: "vco1", portId: "out", kind: "out" },
         { nodeId: "vca1", portId: "gainCV", kind: "in" }
       )
-    ).toMatchObject({ status: "invalid", reason: "type mismatch" });
+    ).toMatchObject({ status: "invalid", reason: "Type mismatch: CV expected" });
   });
 
   it("classifies occupied single-input ports as replace candidates when the new source is compatible", () => {
@@ -49,6 +49,6 @@ describe("resolvePatchWireCandidate", () => {
         { nodeId: "vca1", portId: "out", kind: "out" },
         { nodeId: "vca1", portId: "in", kind: "in" }
       )
-    ).toMatchObject({ status: "invalid", reason: "would create cycle" });
+    ).toMatchObject({ status: "invalid", reason: "Would create cycle" });
   });
 });

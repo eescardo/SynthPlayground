@@ -101,6 +101,11 @@ export interface PatchWireCandidatePulse {
   startedAt: number;
 }
 
+export interface PatchLockedPortTooltip {
+  pointer: { x: number; y: number };
+  tooltipBounds?: PatchWireTooltipBounds;
+}
+
 interface ResolvedPortPosition {
   x: number;
   y: number;
@@ -818,6 +823,35 @@ function drawWireCandidateTooltip(ctx: CanvasRenderingContext2D, candidate: Patc
   ctx.restore();
 }
 
+function drawLockedPortTooltip(ctx: CanvasRenderingContext2D, tooltip: PatchLockedPortTooltip | null | undefined) {
+  if (!tooltip) {
+    return;
+  }
+  const label = "Preset structure is locked";
+  ctx.save();
+  ctx.font = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
+  const tooltipSize = {
+    width: Math.ceil(ctx.measureText(label).width) + 18,
+    height: 26
+  };
+  const origin = resolveWireTooltipOrigin(tooltip.pointer, tooltip.tooltipBounds ?? ctx.canvas, tooltipSize);
+  if (!origin) {
+    ctx.restore();
+    return;
+  }
+  drawRoundedRectPath(ctx, origin.x, origin.y, tooltipSize.width, tooltipSize.height, 8);
+  ctx.fillStyle = "rgba(56, 18, 25, 0.96)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255, 92, 112, 0.85)";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.fillStyle = "#ffd2d8";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label, origin.x + tooltipSize.width / 2, origin.y + tooltipSize.height / 2);
+  ctx.restore();
+}
+
 function drawWireCandidate(
   ctx: CanvasRenderingContext2D,
   portPositions: Map<string, ResolvedPortPosition>,
@@ -1023,6 +1057,7 @@ export function drawPatchCanvas(args: {
   wireCandidatePulse?: PatchWireCandidatePulse | null;
   wireCommitFeedback?: PatchWireCommitFeedback | null;
   wireFeedbackNow?: number;
+  lockedPortTooltip?: PatchLockedPortTooltip | null;
   armedWireModuleHover?: PatchArmedWireModuleHover | null;
 }): HitPort[] {
   const ctx = args.canvas.getContext("2d");
@@ -1062,6 +1097,7 @@ export function drawPatchCanvas(args: {
   drawArmedWireModuleHover(ctx, args.layoutByNode, portPositions, args.armedWireModuleHover);
   drawWireCandidate(ctx, portPositions, args.wireCandidate ?? null);
   drawWireCandidatePulse(ctx, portPositions, args.wireCandidatePulse ?? null, feedbackNow);
+  drawLockedPortTooltip(ctx, args.lockedPortTooltip ?? null);
   drawHoveredAttachTarget(ctx, args.patch, portPositions, args.hoveredAttachTarget ?? null);
 
   if (args.facePopoverNodeId) {
