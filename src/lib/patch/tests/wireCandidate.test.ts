@@ -42,6 +42,18 @@ describe("resolvePatchWireCandidate", () => {
     ).toMatchObject({ status: "replace", disconnectConnectionId: "existing" });
   });
 
+  it("does not offer replacement when the occupied target already has the same connection", () => {
+    expect(
+      resolvePatchWireCandidate(
+        makePatch([
+          { id: "existing", from: { nodeId: "env1", portId: "out" }, to: { nodeId: "vca1", portId: "gainCV" } }
+        ]),
+        { nodeId: "env1", portId: "out", kind: "out" },
+        { nodeId: "vca1", portId: "gainCV", kind: "in" }
+      )
+    ).toMatchObject({ status: "invalid", reason: "already connected" });
+  });
+
   it("reports cycles as invalid candidates", () => {
     expect(
       resolvePatchWireCandidate(

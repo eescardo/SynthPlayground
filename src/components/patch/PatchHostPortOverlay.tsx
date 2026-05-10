@@ -137,6 +137,10 @@ export function PatchHostPortOverlay(props: PatchHostPortOverlayProps) {
           onPointerDown={(event) => {
             event.preventDefault();
             event.stopPropagation();
+            if (props.pendingProbeId) {
+              props.onPortSelection(port.hitPort, resolveHostPortPointer(port.hitPort));
+              return;
+            }
             if (props.structureLocked) {
               return;
             }

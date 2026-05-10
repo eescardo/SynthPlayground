@@ -73,6 +73,14 @@ export function resolvePatchWireCandidate(
   if (!occupiedConnection) {
     return { status: "invalid", reason: "target occupied", target: targetPort };
   }
+  if (
+    occupiedConnection.from.nodeId === from.nodeId &&
+    occupiedConnection.from.portId === from.portId &&
+    occupiedConnection.to.nodeId === to.nodeId &&
+    occupiedConnection.to.portId === to.portId
+  ) {
+    return { status: "invalid", reason: "already connected", target: targetPort };
+  }
 
   const replacementPatch = {
     ...patch,
