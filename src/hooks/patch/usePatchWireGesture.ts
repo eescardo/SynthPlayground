@@ -446,9 +446,10 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
       return;
     }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") {
+      if (event.key !== "Escape" && event.key !== "Delete" && event.key !== "Backspace") {
         return;
       }
+      event.preventDefault();
       clearPendingConnection();
     };
     window.addEventListener("keydown", onKeyDown);

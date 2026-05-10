@@ -222,25 +222,6 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     structureLocked
   ]);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (
-        event.defaultPrevented ||
-        isShortcutBlockedTarget(event.target) ||
-        (event.key !== "Delete" && event.key !== "Backspace")
-      ) {
-        return;
-      }
-      if (!canDeleteProbe && !canDeleteConnection && !canDeleteNode) {
-        return;
-      }
-      event.preventDefault();
-      deleteSelectedCanvasObject();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [canDeleteConnection, canDeleteNode, canDeleteProbe, deleteSelectedCanvasObject]);
-
   const {
     dragNodeId,
     hoveredNodeId,
@@ -297,6 +278,29 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     togglePopoverForNode,
     onWireCommitFeedback
   });
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        isShortcutBlockedTarget(event.target) ||
+        (event.key !== "Delete" && event.key !== "Backspace")
+      ) {
+        return;
+      }
+      if (pendingFromPort) {
+        event.preventDefault();
+        return;
+      }
+      if (!canDeleteProbe && !canDeleteConnection && !canDeleteNode) {
+        return;
+      }
+      event.preventDefault();
+      deleteSelectedCanvasObject();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [canDeleteConnection, canDeleteNode, canDeleteProbe, deleteSelectedCanvasObject, pendingFromPort]);
 
   const { beginProbeDrag } = usePatchProbeDrag({
     canvasRef,
