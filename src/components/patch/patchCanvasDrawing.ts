@@ -65,6 +65,7 @@ const PATCH_WIRE_REPLACE_BUTTON_WIDTH = 46;
 const PATCH_WIRE_REPLACE_BUTTON_HEIGHT = 20;
 const PATCH_WIRE_CANCEL_BUTTON_WIDTH = 96;
 const PATCH_WIRE_CANCEL_BUTTON_HEIGHT = 24;
+const PATCH_WIRE_TOOLTIP_CANVAS_MARGIN = 6;
 
 export interface PatchWireCandidateDisplay {
   status: "valid" | "invalid" | "replace";
@@ -77,6 +78,11 @@ export interface PatchWireCandidateDisplay {
 export interface PatchArmedWireModuleHover {
   nodeId: string;
   nearestPort?: { nodeId: string; portId: string; kind: "in" | "out" } | null;
+}
+
+interface PatchWireTooltipBounds {
+  width: number;
+  height: number;
 }
 
 interface ResolvedPortPosition {
@@ -438,12 +444,39 @@ function drawPendingPatchWire(
   ctx.restore();
 }
 
-export function resolveWireReplacePromptRects(pointer: { x: number; y: number } | null | undefined) {
+function resolveWireTooltipOrigin(
+  pointer: { x: number; y: number } | null | undefined,
+  bounds?: PatchWireTooltipBounds
+) {
   if (!pointer) {
     return null;
   }
-  const x = pointer.x + PATCH_WIRE_TOOLTIP_OFFSET;
-  const y = pointer.y + PATCH_WIRE_TOOLTIP_OFFSET;
+  let x = pointer.x + PATCH_WIRE_TOOLTIP_OFFSET;
+  let y = pointer.y + PATCH_WIRE_TOOLTIP_OFFSET;
+  if (bounds) {
+    const maxX = bounds.width - PATCH_WIRE_TOOLTIP_WIDTH - PATCH_WIRE_TOOLTIP_CANVAS_MARGIN;
+    const maxY = bounds.height - PATCH_WIRE_TOOLTIP_HEIGHT - PATCH_WIRE_TOOLTIP_CANVAS_MARGIN;
+    if (x > maxX) {
+      x = pointer.x - PATCH_WIRE_TOOLTIP_OFFSET - PATCH_WIRE_TOOLTIP_WIDTH;
+    }
+    if (y > maxY) {
+      y = pointer.y - PATCH_WIRE_TOOLTIP_OFFSET - PATCH_WIRE_TOOLTIP_HEIGHT;
+    }
+    x = Math.max(PATCH_WIRE_TOOLTIP_CANVAS_MARGIN, Math.min(x, Math.max(PATCH_WIRE_TOOLTIP_CANVAS_MARGIN, maxX)));
+    y = Math.max(PATCH_WIRE_TOOLTIP_CANVAS_MARGIN, Math.min(y, Math.max(PATCH_WIRE_TOOLTIP_CANVAS_MARGIN, maxY)));
+  }
+  return { x, y };
+}
+
+export function resolveWireReplacePromptRects(
+  pointer: { x: number; y: number } | null | undefined,
+  bounds?: PatchWireTooltipBounds
+) {
+  const origin = resolveWireTooltipOrigin(pointer, bounds);
+  if (!origin) {
+    return null;
+  }
+  const { x, y } = origin;
   return {
     no: {
       x: x + 8,
@@ -460,13 +493,17 @@ export function resolveWireReplacePromptRects(pointer: { x: number; y: number } 
   };
 }
 
-export function resolveWireReplacePromptBounds(pointer: { x: number; y: number } | null | undefined) {
-  if (!pointer) {
+export function resolveWireReplacePromptBounds(
+  pointer: { x: number; y: number } | null | undefined,
+  bounds?: PatchWireTooltipBounds
+) {
+  const origin = resolveWireTooltipOrigin(pointer, bounds);
+  if (!origin) {
     return null;
   }
   return {
-    x: pointer.x + PATCH_WIRE_TOOLTIP_OFFSET,
-    y: pointer.y + PATCH_WIRE_TOOLTIP_OFFSET,
+    x: origin.x,
+    y: origin.y,
     width: PATCH_WIRE_TOOLTIP_WIDTH,
     height: PATCH_WIRE_TOOLTIP_HEIGHT
   };
@@ -505,8 +542,11 @@ function drawWireCandidateTooltip(ctx: CanvasRenderingContext2D, candidate: Patc
     return;
   }
   const isReplace = candidate.status === "replace";
-  const x = candidate.pointer.x + PATCH_WIRE_TOOLTIP_OFFSET;
-  const y = candidate.pointer.y + PATCH_WIRE_TOOLTIP_OFFSET;
+  const origin = resolveWireTooltipOrigin(candidate.pointer, ctx.canvas);
+  if (!origin) {
+    return;
+  }
+  const { x, y } = origin;
   ctx.save();
   drawRoundedRectPath(ctx, x, y, PATCH_WIRE_TOOLTIP_WIDTH, PATCH_WIRE_TOOLTIP_HEIGHT, 8);
   ctx.fillStyle = isReplace ? "rgba(56, 42, 13, 0.96)" : "rgba(56, 18, 25, 0.96)";
@@ -518,7 +558,7 @@ function drawWireCandidateTooltip(ctx: CanvasRenderingContext2D, candidate: Patc
   ctx.font = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
   ctx.fillText(isReplace ? "Replace existing wire?" : (candidate.reason ?? "invalid target"), x + 9, y + 17);
   if (isReplace) {
-    const rects = resolveWireReplacePromptRects(candidate.pointer);
+    const rects = resolveWireReplacePromptRects(candidate.pointer, ctx.canvas);
     if (rects) {
       const selected = candidate.replaceSelection ?? "no";
       drawPill(ctx, rects.no, "NO", {
