@@ -552,7 +552,8 @@ function drawPendingPatchWire(
 
 function resolveWireTooltipOrigin(
   pointer: { x: number; y: number } | null | undefined,
-  bounds?: PatchWireTooltipBounds
+  bounds?: PatchWireTooltipBounds,
+  tooltipSize = { width: PATCH_WIRE_TOOLTIP_WIDTH, height: PATCH_WIRE_TOOLTIP_HEIGHT }
 ) {
   if (!pointer) {
     return null;
@@ -562,13 +563,13 @@ function resolveWireTooltipOrigin(
   if (bounds) {
     const minX = (bounds.x ?? 0) + PATCH_WIRE_TOOLTIP_CANVAS_MARGIN;
     const minY = (bounds.y ?? 0) + PATCH_WIRE_TOOLTIP_CANVAS_MARGIN;
-    const maxX = (bounds.x ?? 0) + bounds.width - PATCH_WIRE_TOOLTIP_WIDTH - PATCH_WIRE_TOOLTIP_CANVAS_MARGIN;
-    const maxY = (bounds.y ?? 0) + bounds.height - PATCH_WIRE_TOOLTIP_HEIGHT - PATCH_WIRE_TOOLTIP_CANVAS_MARGIN;
+    const maxX = (bounds.x ?? 0) + bounds.width - tooltipSize.width - PATCH_WIRE_TOOLTIP_CANVAS_MARGIN;
+    const maxY = (bounds.y ?? 0) + bounds.height - tooltipSize.height - PATCH_WIRE_TOOLTIP_CANVAS_MARGIN;
     if (x > maxX) {
-      x = pointer.x - PATCH_WIRE_TOOLTIP_OFFSET - PATCH_WIRE_TOOLTIP_WIDTH;
+      x = pointer.x - PATCH_WIRE_TOOLTIP_OFFSET - tooltipSize.width;
     }
     if (y > maxY) {
-      y = pointer.y - PATCH_WIRE_TOOLTIP_OFFSET - PATCH_WIRE_TOOLTIP_HEIGHT;
+      y = pointer.y - PATCH_WIRE_TOOLTIP_OFFSET - tooltipSize.height;
     }
     x = Math.max(minX, Math.min(x, Math.max(minX, maxX)));
     y = Math.max(minY, Math.min(y, Math.max(minY, maxY)));
@@ -650,21 +651,31 @@ function drawWireCandidateTooltip(ctx: CanvasRenderingContext2D, candidate: Patc
     return;
   }
   const isReplace = candidate.status === "replace";
-  const origin = resolveWireTooltipOrigin(candidate.pointer, candidate.tooltipBounds ?? ctx.canvas);
+  const label = isReplace ? "Replace existing wire?" : (candidate.reason ?? "invalid target");
+  ctx.save();
+  ctx.font = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
+  const tooltipSize = isReplace
+    ? { width: PATCH_WIRE_TOOLTIP_WIDTH, height: PATCH_WIRE_TOOLTIP_HEIGHT }
+    : {
+        width: Math.ceil(ctx.measureText(label).width) + 18,
+        height: 26
+      };
+  const origin = resolveWireTooltipOrigin(candidate.pointer, candidate.tooltipBounds ?? ctx.canvas, tooltipSize);
   if (!origin) {
+    ctx.restore();
     return;
   }
   const { x, y } = origin;
-  ctx.save();
-  drawRoundedRectPath(ctx, x, y, PATCH_WIRE_TOOLTIP_WIDTH, PATCH_WIRE_TOOLTIP_HEIGHT, 8);
+  drawRoundedRectPath(ctx, x, y, tooltipSize.width, tooltipSize.height, 8);
   ctx.fillStyle = isReplace ? "rgba(56, 42, 13, 0.96)" : "rgba(56, 18, 25, 0.96)";
   ctx.fill();
   ctx.strokeStyle = isReplace ? "rgba(255, 203, 87, 0.95)" : "rgba(255, 92, 112, 0.95)";
   ctx.lineWidth = 1.5;
   ctx.stroke();
   ctx.fillStyle = isReplace ? "#ffe3a1" : "#ffd2d8";
-  ctx.font = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
-  ctx.fillText(isReplace ? "Replace existing wire?" : (candidate.reason ?? "invalid target"), x + 9, y + 17);
+  ctx.textAlign = isReplace ? "left" : "center";
+  ctx.textBaseline = isReplace ? "alphabetic" : "middle";
+  ctx.fillText(label, isReplace ? x + 9 : x + tooltipSize.width / 2, isReplace ? y + 17 : y + tooltipSize.height / 2);
   if (isReplace) {
     const rects = resolveWireReplacePromptRects(candidate.pointer, candidate.tooltipBounds ?? ctx.canvas);
     if (rects) {
@@ -681,6 +692,8 @@ function drawWireCandidateTooltip(ctx: CanvasRenderingContext2D, candidate: Patc
       });
     }
   }
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
   ctx.restore();
 }
 
@@ -716,13 +729,6 @@ function drawWireCandidate(
   ctx.setLineDash([4, 4]);
   ctx.fillRect(port.x - 4, port.y - port.height / 2 - 4, port.width + 8, port.height + 8);
   ctx.strokeRect(port.x - 4, port.y - port.height / 2 - 4, port.width + 8, port.height + 8);
-  if (candidate.pointer && candidate.status !== "valid") {
-    ctx.setLineDash([]);
-    ctx.beginPath();
-    ctx.arc(candidate.pointer.x, candidate.pointer.y, 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-  }
   ctx.restore();
   drawWireCandidateTooltip(ctx, candidate);
 }
