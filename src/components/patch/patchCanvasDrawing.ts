@@ -673,9 +673,9 @@ function drawWireCandidateTooltip(ctx: CanvasRenderingContext2D, candidate: Patc
   ctx.lineWidth = 1.5;
   ctx.stroke();
   ctx.fillStyle = isReplace ? "#ffe3a1" : "#ffd2d8";
-  ctx.textAlign = isReplace ? "left" : "center";
+  ctx.textAlign = "center";
   ctx.textBaseline = isReplace ? "alphabetic" : "middle";
-  ctx.fillText(label, isReplace ? x + 9 : x + tooltipSize.width / 2, isReplace ? y + 17 : y + tooltipSize.height / 2);
+  ctx.fillText(label, x + tooltipSize.width / 2, isReplace ? y + 17 : y + tooltipSize.height / 2);
   if (isReplace) {
     const rects = resolveWireReplacePromptRects(candidate.pointer, candidate.tooltipBounds ?? ctx.canvas);
     if (rects) {

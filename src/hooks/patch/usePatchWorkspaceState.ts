@@ -152,7 +152,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   } = usePatchWorkspacePreview({
     project,
     projectAssets,
-    selectedPatch,
+    selectedPatch: workspacePatch ?? selectedPatch,
     selectedTrack,
     probes,
     audioEngineRef,
