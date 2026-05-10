@@ -27,7 +27,7 @@ import { usePatchCanvasInteractions } from "@/hooks/patch/usePatchCanvasInteract
 import { usePatchProbeDrag } from "@/hooks/patch/usePatchProbeDrag";
 import { usePatchCanvasZoom } from "@/hooks/patch/usePatchCanvasZoom";
 import { usePatchModuleFacePopover } from "@/hooks/patch/usePatchModuleFacePopover";
-import { isTextEditingTarget } from "@/hooks/patch/patchWorkspaceStateUtils";
+import { isShortcutBlockedTarget } from "@/hooks/patch/patchWorkspaceStateUtils";
 import {
   resolveVisibleAddModulePosition,
   resolveVisibleAddProbePosition
@@ -226,7 +226,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     const onKeyDown = (event: KeyboardEvent) => {
       if (
         event.defaultPrevented ||
-        isTextEditingTarget(event.target) ||
+        isShortcutBlockedTarget(event.target) ||
         (event.key !== "Delete" && event.key !== "Backspace")
       ) {
         return;
