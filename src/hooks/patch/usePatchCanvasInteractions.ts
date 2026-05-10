@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
-import { drawPatchCanvas } from "@/components/patch/patchCanvasDrawing";
+import {
+  drawPatchCanvas,
+  PatchArmedWireModuleHover,
+  PatchWireCandidateDisplay,
+  resolveArmedWireCancelButtonRect,
+  resolveWireReplacePromptBounds,
+  resolveWireReplacePromptRects
+} from "@/components/patch/patchCanvasDrawing";
 import {
   findPatchConnectionAtPoint,
   findPatchNodeAtPoint,
@@ -15,7 +22,7 @@ import { PatchDiff } from "@/lib/patch/diff";
 import { isPatchOutputPortId } from "@/lib/patch/ports";
 import { PatchLayoutNode, PatchNode, Patch, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
-import { validatePatchConnectionCandidate } from "@/lib/patch/validation";
+import { PatchWireCandidate, resolvePatchWireCandidate } from "@/lib/patch/wireCandidate";
 import type { PatchModuleFacePopoverPointerResult } from "@/hooks/patch/usePatchModuleFacePopover";
 
 interface UsePatchCanvasInteractionsArgs {
@@ -87,36 +94,45 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
   const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
   const pointerDownNodeIdRef = useRef<string | null>(null);
   const pointerMovedRef = useRef(false);
+  const wireCandidateAnchorRef = useRef<{ key: string; pointer: { x: number; y: number } | null } | null>(null);
+  const wireActionCandidateRef = useRef<PatchWireCandidate | null>(null);
   const [pendingFromPort, setPendingFromPort] = useState<HitPort | null>(null);
   const [pendingWirePointer, setPendingWirePointer] = useState<{ x: number; y: number } | null>(null);
   const [pendingProbePointer, setPendingProbePointer] = useState<{ x: number; y: number } | null>(null);
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [hoveredAttachTarget, setHoveredAttachTarget] = useState<HoveredAttachTarget>(null);
+  const [wireCandidate, setWireCandidate] = useState<PatchWireCandidateDisplay | null>(null);
+  const [armedWireModuleHover, setArmedWireModuleHover] = useState<PatchArmedWireModuleHover | null>(null);
 
-  const resolveConnectionOp = useCallback(
-    (startPort: HitPort | null, endPort: HitPort | null) => {
-      if (!startPort || !endPort || startPort.kind === endPort.kind) {
-        return null;
+  const clearWireCandidate = useCallback(() => {
+    wireCandidateAnchorRef.current = null;
+    wireActionCandidateRef.current = null;
+    setWireCandidate(null);
+  }, []);
+
+  const resolveConnectionCandidate = useCallback(
+    (startPort: HitPort | null, endPort: HitPort | null) =>
+      resolvePatchWireCandidate(patch, startPort, endPort, { structureLocked }),
+    [patch, structureLocked]
+  );
+
+  const buildConnectionOp = useCallback(
+    (candidate: Extract<PatchWireCandidate, { status: "valid" | "replace" }>): PatchOp | null => {
+      const op = makeConnectOp(candidate.from.nodeId, candidate.from.portId, candidate.to.nodeId, candidate.to.portId);
+      if (op.type !== "connect") {
+        return op;
       }
-      const fromPort = startPort.kind === "out" ? startPort : endPort;
-      const toPort = startPort.kind === "in" ? startPort : endPort;
-      const issues = validatePatchConnectionCandidate(
-        patch,
-        fromPort.nodeId,
-        fromPort.portId,
-        toPort.nodeId,
-        toPort.portId
-      );
-      if (issues.some((issue) => issue.level === "error")) {
-        return null;
+      if (candidate.status === "replace") {
+        return {
+          ...op,
+          type: "replaceConnection",
+          disconnectConnectionId: candidate.disconnectConnectionId
+        };
       }
-      return {
-        op: makeConnectOp(fromPort.nodeId, fromPort.portId, toPort.nodeId, toPort.portId),
-        target: toPort
-      };
+      return op;
     },
-    [makeConnectOp, patch]
+    [makeConnectOp]
   );
 
   useEffect(() => {
@@ -142,7 +158,9 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       selectedNodeId,
       deletePreviewNodeId,
       clearPreviewActive,
-      hoveredAttachTarget
+      hoveredAttachTarget,
+      wireCandidate,
+      armedWireModuleHover
     });
   }, [
     canvasRef,
@@ -160,6 +178,8 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     deletePreviewNodeId,
     clearPreviewActive,
     hoveredAttachTarget,
+    wireCandidate,
+    armedWireModuleHover,
     hoveredNodeId,
     pendingFromPort,
     pendingWirePointer
@@ -176,10 +196,12 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       setPendingFromPort(null);
       setPendingWirePointer(null);
       setHoveredAttachTarget(null);
+      clearWireCandidate();
+      setArmedWireModuleHover(null);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [pendingFromPort]);
+  }, [clearWireCandidate, pendingFromPort]);
 
   useEffect(() => {
     if (pendingProbeId) {
@@ -188,8 +210,10 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     setPendingProbePointer(null);
     if (!pendingFromPort) {
       setHoveredAttachTarget(null);
+      clearWireCandidate();
+      setArmedWireModuleHover(null);
     }
-  }, [pendingFromPort, pendingProbeId]);
+  }, [clearWireCandidate, pendingFromPort, pendingProbeId]);
 
   const getNodeAtPointer = useCallback(
     (rawX: number, rawY: number) => {
@@ -201,6 +225,68 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       );
     },
     [layoutByNode, patch]
+  );
+
+  const getNearestNodePortAtPointer = useCallback((nodeId: string, rawX: number, rawY: number): HitPort | null => {
+    const ports = hitPortsRef.current.filter((port) => port.nodeId === nodeId);
+    if (ports.length === 0) {
+      return null;
+    }
+    return ports.reduce((best, port) => {
+      const portDistance = Math.hypot(rawX - (port.x + port.width / 2), rawY - port.y);
+      const bestDistance = Math.hypot(rawX - (best.x + best.width / 2), rawY - best.y);
+      return portDistance < bestDistance ? port : best;
+    });
+  }, []);
+
+  const updateWireCandidateState = useCallback(
+    (targetPort: HitPort | null, pointer: { x: number; y: number } | null) => {
+      if (!pendingFromPort || !targetPort) {
+        clearWireCandidate();
+        return resolvePatchWireCandidate(patch, pendingFromPort, targetPort, { structureLocked });
+      }
+      const candidate = resolveConnectionCandidate(pendingFromPort, targetPort);
+      if (candidate.status === "valid" || candidate.status === "replace" || candidate.status === "invalid") {
+        wireActionCandidateRef.current = candidate;
+        const key = `${candidate.status}:${targetPort.nodeId}:${targetPort.kind}:${targetPort.portId}:${
+          candidate.status === "invalid" ? candidate.reason : ""
+        }`;
+        const anchoredPointer =
+          wireCandidateAnchorRef.current?.key === key ? wireCandidateAnchorRef.current.pointer : pointer;
+        wireCandidateAnchorRef.current = { key, pointer: anchoredPointer };
+        setWireCandidate({
+          status: candidate.status,
+          target: {
+            nodeId: targetPort.nodeId,
+            portId: targetPort.portId,
+            portKind: targetPort.kind
+          },
+          reason: candidate.status === "invalid" ? candidate.reason : undefined,
+          pointer: anchoredPointer
+        });
+      } else {
+        clearWireCandidate();
+      }
+      return candidate;
+    },
+    [clearWireCandidate, patch, pendingFromPort, resolveConnectionCandidate, structureLocked]
+  );
+
+  const isPointInRect = useCallback(
+    (point: { x: number; y: number }, rect: { x: number; y: number; width: number; height: number }) =>
+      point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height,
+    []
+  );
+
+  const resolveArmedWireCancelRectForNode = useCallback(
+    (nodeId: string) => {
+      const layout = layoutByNode.get(nodeId);
+      if (!layout) {
+        return null;
+      }
+      return resolveArmedWireCancelButtonRect(layout.x * PATCH_CANVAS_GRID, layout.y * PATCH_CANVAS_GRID);
+    },
+    [layoutByNode]
   );
 
   const handlePortSelection = useCallback(
@@ -225,19 +311,59 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         return;
       }
 
-      const resolved = resolveConnectionOp(pendingFromPort, hitPort);
-      if (resolved) {
-        onApplyOp(resolved.op);
+      const candidate = resolveConnectionCandidate(pendingFromPort, hitPort);
+      if (candidate.status === "new-source") {
+        setPendingFromPort(hitPort);
+        setPendingWirePointer(pointer);
+        clearWireCandidate();
+        return;
+      }
+      if (candidate.status === "valid") {
+        const op = buildConnectionOp(candidate);
+        if (!op) {
+          return;
+        }
+        onApplyOp(op);
         setPendingFromPort(null);
         setPendingWirePointer(null);
         setHoveredAttachTarget(null);
+        clearWireCandidate();
+        setArmedWireModuleHover(null);
+        return;
+      }
+      if (candidate.status === "replace") {
+        const promptRects = resolveWireReplacePromptRects(pointer);
+        if (promptRects && isPointInRect(pointer, promptRects.yes)) {
+          const op = buildConnectionOp(candidate);
+          if (!op) {
+            return;
+          }
+          onApplyOp(op);
+          setPendingFromPort(null);
+          setPendingWirePointer(null);
+          setHoveredAttachTarget(null);
+          clearWireCandidate();
+          setArmedWireModuleHover(null);
+        } else {
+          updateWireCandidateState(hitPort, pointer);
+        }
         return;
       }
 
-      setPendingFromPort(hitPort);
-      setPendingWirePointer(pointer);
+      updateWireCandidateState(hitPort, pointer);
     },
-    [onApplyOp, onAttachProbeTarget, pendingProbeId, pendingFromPort, resolveConnectionOp, structureLocked]
+    [
+      buildConnectionOp,
+      clearWireCandidate,
+      isPointInRect,
+      onApplyOp,
+      onAttachProbeTarget,
+      pendingProbeId,
+      pendingFromPort,
+      resolveConnectionCandidate,
+      structureLocked,
+      updateWireCandidateState
+    ]
   );
 
   const handlePortHover = useCallback(
@@ -263,22 +389,23 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       }
       if (!pendingFromPort) {
         setHoveredAttachTarget(null);
+        clearWireCandidate();
         return;
       }
 
-      const resolved = resolveConnectionOp(pendingFromPort, hoverPort);
+      const candidate = updateWireCandidateState(hoverPort, pointer);
       setHoveredAttachTarget(
-        resolved
+        candidate.status === "valid"
           ? {
               kind: "port",
-              nodeId: resolved.target.nodeId,
-              portId: resolved.target.portId,
-              portKind: resolved.target.kind
+              nodeId: candidate.to.nodeId,
+              portId: candidate.to.portId,
+              portKind: candidate.to.kind
             }
           : null
       );
     },
-    [pendingFromPort, pendingProbeId, resolveConnectionOp]
+    [clearWireCandidate, pendingFromPort, pendingProbeId, updateWireCandidateState]
   );
 
   const onPointerDown = useCallback(
@@ -286,26 +413,50 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       const pos = pointerEventToPatchCanvasPoint(canvasRef.current, event);
       pointerDownNodeIdRef.current = null;
       pointerMovedRef.current = false;
-      const popoverHit = handleFacePopoverPointerDown(pos.rawX, pos.rawY);
-      if (popoverHit.kind === "dismissed") {
-        return;
+      if (!pendingFromPort) {
+        const popoverHit = handleFacePopoverPointerDown(pos.rawX, pos.rawY);
+        if (popoverHit.kind === "dismissed") {
+          return;
+        }
+        if (popoverHit.kind === "inside-popover") {
+          const hitNodeId = popoverHit.nodeId;
+          onSelectNode(hitNodeId);
+          dragNodeIdRef.current = hitNodeId;
+          setDragNodeId(hitNodeId);
+          pointerDownNodeIdRef.current = hitNodeId;
+          const layout = layoutByNode.get(hitNodeId);
+          dragLastLayoutRef.current = layout ? { x: layout.x, y: layout.y } : null;
+          dragPointerOffsetRef.current = layout
+            ? {
+                x: pos.rawX - layout.x * PATCH_CANVAS_GRID,
+                y: pos.rawY - layout.y * PATCH_CANVAS_GRID
+              }
+            : null;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          return;
+        }
       }
-      if (popoverHit.kind === "inside-popover") {
-        const hitNodeId = popoverHit.nodeId;
-        onSelectNode(hitNodeId);
-        dragNodeIdRef.current = hitNodeId;
-        setDragNodeId(hitNodeId);
-        pointerDownNodeIdRef.current = hitNodeId;
-        const layout = layoutByNode.get(hitNodeId);
-        dragLastLayoutRef.current = layout ? { x: layout.x, y: layout.y } : null;
-        dragPointerOffsetRef.current = layout
-          ? {
-              x: pos.rawX - layout.x * PATCH_CANVAS_GRID,
-              y: pos.rawY - layout.y * PATCH_CANVAS_GRID
+
+      if (pendingFromPort && wireCandidate?.status === "replace") {
+        const promptRects = resolveWireReplacePromptRects(wireCandidate.pointer);
+        if (promptRects && isPointInRect({ x: pos.rawX, y: pos.rawY }, promptRects.yes)) {
+          const candidate = wireActionCandidateRef.current;
+          if (candidate?.status === "replace") {
+            const op = buildConnectionOp(candidate);
+            if (op) {
+              onApplyOp(op);
+              setPendingFromPort(null);
+              setPendingWirePointer(null);
+              setHoveredAttachTarget(null);
+              clearWireCandidate();
+              setArmedWireModuleHover(null);
             }
-          : null;
-        event.currentTarget.setPointerCapture(event.pointerId);
-        return;
+          }
+          return;
+        }
+        if (promptRects && isPointInRect({ x: pos.rawX, y: pos.rawY }, promptRects.no)) {
+          return;
+        }
       }
 
       const hitPort = findPatchPortAtPointWithPadding(hitPortsRef.current, pos.rawX, pos.rawY, Math.max(3, 6 / zoom));
@@ -338,6 +489,32 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         return;
       }
 
+      if (pendingFromPort) {
+        const hitNodeId = getNodeAtPointer(pos.rawX, pos.rawY);
+        if (hitNodeId) {
+          const cancelRect = resolveArmedWireCancelRectForNode(hitNodeId);
+          if (cancelRect && isPointInRect({ x: pos.rawX, y: pos.rawY }, cancelRect)) {
+            setPendingFromPort(null);
+            setPendingWirePointer(null);
+            clearWireCandidate();
+            setArmedWireModuleHover(null);
+            setHoveredAttachTarget(null);
+            return;
+          }
+          const nearestPort = getNearestNodePortAtPointer(hitNodeId, pos.rawX, pos.rawY);
+          if (nearestPort) {
+            handlePortSelection(nearestPort, { x: pos.rawX, y: pos.rawY });
+            return;
+          }
+        }
+        setPendingFromPort(null);
+        setPendingWirePointer(null);
+        clearWireCandidate();
+        setArmedWireModuleHover(null);
+        setHoveredAttachTarget(null);
+        return;
+      }
+
       const hitNodeId = getNodeAtPointer(pos.rawX, pos.rawY);
       if (hitNodeId) {
         onSelectNode(hitNodeId);
@@ -364,14 +541,23 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     },
     [
       canvasRef,
+      buildConnectionOp,
+      clearWireCandidate,
+      getNearestNodePortAtPointer,
       handleFacePopoverPointerDown,
       layoutByNode,
+      isPointInRect,
       onAttachProbeTarget,
       onCancelProbeAttach,
+      onApplyOp,
       onSelectNode,
       outputHostCanvasLeft,
       patch,
+      pendingFromPort,
       pendingProbeId,
+      resolveArmedWireCancelRectForNode,
+      wireCandidate?.pointer,
+      wireCandidate?.status,
       zoom,
       getNodeAtPointer,
       handlePortSelection
@@ -381,6 +567,13 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
   const onPointerMove = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
       const pos = pointerEventToPatchCanvasPoint(canvasRef.current, event);
+      if (pendingFromPort && wireCandidate?.status === "replace") {
+        const promptBounds = resolveWireReplacePromptBounds(wireCandidate.pointer);
+        if (promptBounds && isPointInRect({ x: pos.rawX, y: pos.rawY }, promptBounds)) {
+          setPendingWirePointer({ x: pos.rawX, y: pos.rawY });
+          return;
+        }
+      }
       const hoverPort = findPatchPortAtPointWithPadding(hitPortsRef.current, pos.rawX, pos.rawY, Math.max(3, 6 / zoom));
       if (pendingProbeId) {
         setPendingProbePointer({ x: pos.rawX, y: pos.rawY });
@@ -406,10 +599,20 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         handlePortHover(hoverPort, { x: pos.rawX, y: pos.rawY });
       }
       const hoverNodeId = hoverPort ? null : getNodeAtPointer(pos.rawX, pos.rawY);
+      if (pendingFromPort && !pendingProbeId && hoverNodeId) {
+        const nearestPort = getNearestNodePortAtPointer(hoverNodeId, pos.rawX, pos.rawY);
+        setArmedWireModuleHover({
+          nodeId: hoverNodeId,
+          nearestPort
+        });
+        updateWireCandidateState(nearestPort, { x: pos.rawX, y: pos.rawY });
+      } else {
+        setArmedWireModuleHover(null);
+      }
       setHoveredNodeId((prev) => (prev === hoverNodeId ? prev : hoverNodeId));
 
       const activeDragNodeId = dragNodeIdRef.current ?? dragNodeId;
-      if (!activeDragNodeId) {
+      if (!activeDragNodeId || pendingFromPort) {
         return;
       }
       const pointerOffset = dragPointerOffsetRef.current;
@@ -435,12 +638,17 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       canvasRef,
       dragNodeId,
       getNodeAtPointer,
+      getNearestNodePortAtPointer,
       handlePortHover,
       layoutByNode,
       onApplyOp,
       outputHostCanvasLeft,
       patch,
+      pendingFromPort,
       pendingProbeId,
+      updateWireCandidateState,
+      wireCandidate,
+      isPointInRect,
       zoom
     ]
   );
@@ -475,6 +683,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     pendingFromPort,
     pendingWirePointer,
     pendingProbePointer,
+    wireCandidate,
     hoveredAttachTarget,
     handlePortSelection,
     handlePortHover,

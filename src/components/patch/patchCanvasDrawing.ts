@@ -58,6 +58,25 @@ const PATCH_DIFF_PEDESTAL_INSET = 8;
 const PATCH_DIFF_PEDESTAL_RADIUS = 10;
 const PATCH_DIFF_PEDESTAL_STROKE_WIDTH = 8;
 const PATCH_EXPANDED_FACE_HEADER_SCALE = 1.69;
+const PATCH_WIRE_TOOLTIP_WIDTH = 154;
+const PATCH_WIRE_TOOLTIP_HEIGHT = 56;
+const PATCH_WIRE_TOOLTIP_OFFSET = 14;
+const PATCH_WIRE_REPLACE_BUTTON_WIDTH = 46;
+const PATCH_WIRE_REPLACE_BUTTON_HEIGHT = 20;
+const PATCH_WIRE_CANCEL_BUTTON_WIDTH = 96;
+const PATCH_WIRE_CANCEL_BUTTON_HEIGHT = 24;
+
+export interface PatchWireCandidateDisplay {
+  status: "valid" | "invalid" | "replace";
+  target: { nodeId: string; portId: string; portKind: "in" | "out" };
+  reason?: string;
+  pointer?: { x: number; y: number } | null;
+}
+
+export interface PatchArmedWireModuleHover {
+  nodeId: string;
+  nearestPort?: { nodeId: string; portId: string; kind: "in" | "out" } | null;
+}
 
 interface ResolvedPortPosition {
   x: number;
@@ -418,6 +437,146 @@ function drawPendingPatchWire(
   ctx.restore();
 }
 
+export function resolveWireReplacePromptRects(pointer: { x: number; y: number } | null | undefined) {
+  if (!pointer) {
+    return null;
+  }
+  const x = pointer.x + PATCH_WIRE_TOOLTIP_OFFSET;
+  const y = pointer.y + PATCH_WIRE_TOOLTIP_OFFSET;
+  return {
+    no: {
+      x: x + 8,
+      y: y + 28,
+      width: PATCH_WIRE_REPLACE_BUTTON_WIDTH,
+      height: PATCH_WIRE_REPLACE_BUTTON_HEIGHT
+    },
+    yes: {
+      x: x + 62,
+      y: y + 28,
+      width: PATCH_WIRE_REPLACE_BUTTON_WIDTH,
+      height: PATCH_WIRE_REPLACE_BUTTON_HEIGHT
+    }
+  };
+}
+
+export function resolveWireReplacePromptBounds(pointer: { x: number; y: number } | null | undefined) {
+  if (!pointer) {
+    return null;
+  }
+  return {
+    x: pointer.x + PATCH_WIRE_TOOLTIP_OFFSET,
+    y: pointer.y + PATCH_WIRE_TOOLTIP_OFFSET,
+    width: PATCH_WIRE_TOOLTIP_WIDTH,
+    height: PATCH_WIRE_TOOLTIP_HEIGHT
+  };
+}
+
+export function resolveArmedWireCancelButtonRect(nodeX: number, nodeY: number) {
+  return {
+    x: nodeX + PATCH_NODE_WIDTH / 2 - PATCH_WIRE_CANCEL_BUTTON_WIDTH / 2,
+    y: nodeY + PATCH_NODE_HEIGHT / 2 - PATCH_WIRE_CANCEL_BUTTON_HEIGHT / 2,
+    width: PATCH_WIRE_CANCEL_BUTTON_WIDTH,
+    height: PATCH_WIRE_CANCEL_BUTTON_HEIGHT
+  };
+}
+
+function drawPill(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+  label: string,
+  options: { fill: string; stroke: string; text: string }
+) {
+  drawRoundedRectPath(ctx, rect.x, rect.y, rect.width, rect.height, 8);
+  ctx.fillStyle = options.fill;
+  ctx.fill();
+  ctx.strokeStyle = options.stroke;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.fillStyle = options.text;
+  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.textAlign = "center";
+  ctx.fillText(label, rect.x + rect.width / 2, rect.y + 13);
+  ctx.textAlign = "left";
+}
+
+function drawWireCandidateTooltip(ctx: CanvasRenderingContext2D, candidate: PatchWireCandidateDisplay) {
+  if (!candidate.pointer || candidate.status === "valid") {
+    return;
+  }
+  const isReplace = candidate.status === "replace";
+  const x = candidate.pointer.x + PATCH_WIRE_TOOLTIP_OFFSET;
+  const y = candidate.pointer.y + PATCH_WIRE_TOOLTIP_OFFSET;
+  ctx.save();
+  drawRoundedRectPath(ctx, x, y, PATCH_WIRE_TOOLTIP_WIDTH, PATCH_WIRE_TOOLTIP_HEIGHT, 8);
+  ctx.fillStyle = isReplace ? "rgba(56, 42, 13, 0.96)" : "rgba(56, 18, 25, 0.96)";
+  ctx.fill();
+  ctx.strokeStyle = isReplace ? "rgba(255, 203, 87, 0.95)" : "rgba(255, 92, 112, 0.95)";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.fillStyle = isReplace ? "#ffe3a1" : "#ffd2d8";
+  ctx.font = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
+  ctx.fillText(isReplace ? "Replace existing wire?" : (candidate.reason ?? "invalid target"), x + 9, y + 17);
+  if (isReplace) {
+    const rects = resolveWireReplacePromptRects(candidate.pointer);
+    if (rects) {
+      drawPill(ctx, rects.no, "NO", {
+        fill: "rgba(69, 53, 18, 0.98)",
+        stroke: "rgba(255, 203, 87, 0.9)",
+        text: "#ffe3a1"
+      });
+      drawPill(ctx, rects.yes, "YES", {
+        fill: "rgba(255, 203, 87, 0.24)",
+        stroke: "rgba(255, 218, 122, 0.98)",
+        text: "#fff1c7"
+      });
+    }
+  }
+  ctx.restore();
+}
+
+function drawWireCandidate(
+  ctx: CanvasRenderingContext2D,
+  portPositions: Map<string, ResolvedPortPosition>,
+  candidate: PatchWireCandidateDisplay | null
+) {
+  if (!candidate) {
+    return;
+  }
+  const port = portPositions.get(`${candidate.target.nodeId}:${candidate.target.portKind}:${candidate.target.portId}`);
+  if (!port) {
+    return;
+  }
+  const isInvalid = candidate.status === "invalid";
+  const isReplace = candidate.status === "replace";
+  const stroke = isInvalid
+    ? "rgba(255, 92, 112, 0.98)"
+    : isReplace
+      ? "rgba(255, 203, 87, 0.98)"
+      : PATCH_COLOR_VALID_TARGET;
+  const fill = isInvalid
+    ? "rgba(255, 92, 112, 0.18)"
+    : isReplace
+      ? "rgba(255, 203, 87, 0.18)"
+      : PATCH_COLOR_VALID_TARGET_FILL;
+
+  ctx.save();
+  ctx.strokeStyle = stroke;
+  ctx.fillStyle = fill;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 4]);
+  ctx.fillRect(port.x - 4, port.y - port.height / 2 - 4, port.width + 8, port.height + 8);
+  ctx.strokeRect(port.x - 4, port.y - port.height / 2 - 4, port.width + 8, port.height + 8);
+  if (candidate.pointer && candidate.status !== "valid") {
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(candidate.pointer.x, candidate.pointer.y, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+  drawWireCandidateTooltip(ctx, candidate);
+}
+
 function drawHoveredAttachTarget(
   ctx: CanvasRenderingContext2D,
   patch: Patch,
@@ -468,6 +627,42 @@ function drawHoveredAttachTarget(
   ctx.arc((from.anchorX + to.anchorX) / 2, (from.anchorY + to.anchorY) / 2, 7, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
+  ctx.restore();
+}
+
+function drawArmedWireModuleHover(
+  ctx: CanvasRenderingContext2D,
+  layoutByNode: Map<string, PatchLayoutNode>,
+  portPositions: Map<string, ResolvedPortPosition>,
+  hover: PatchArmedWireModuleHover | null | undefined
+) {
+  if (!hover) {
+    return;
+  }
+  const layout = layoutByNode.get(hover.nodeId);
+  if (!layout) {
+    return;
+  }
+  const x = layout.x * PATCH_CANVAS_GRID;
+  const y = layout.y * PATCH_CANVAS_GRID;
+  ctx.save();
+  ctx.fillStyle = "rgba(4, 10, 17, 0.7)";
+  ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
+  const buttonRect = resolveArmedWireCancelButtonRect(x, y);
+  drawPill(ctx, buttonRect, "cancel wiring", {
+    fill: "rgba(14, 25, 36, 0.98)",
+    stroke: "rgba(158, 192, 223, 0.82)",
+    text: "#e7f3ff"
+  });
+  if (hover.nearestPort) {
+    const port = portPositions.get(`${hover.nearestPort.nodeId}:${hover.nearestPort.kind}:${hover.nearestPort.portId}`);
+    if (port) {
+      ctx.strokeStyle = PATCH_COLOR_PENDING_PORT;
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([3, 3]);
+      ctx.strokeRect(port.x - 4, port.y - port.height / 2 - 4, port.width + 8, port.height + 8);
+    }
+  }
   ctx.restore();
 }
 
@@ -547,6 +742,8 @@ export function drawPatchCanvas(args: {
     | { kind: "port"; nodeId: string; portId: string; portKind: "in" | "out" }
     | { kind: "connection"; connectionId: string }
     | null;
+  wireCandidate?: PatchWireCandidateDisplay | null;
+  armedWireModuleHover?: PatchArmedWireModuleHover | null;
 }): HitPort[] {
   const ctx = args.canvas.getContext("2d");
   if (!ctx) return [];
@@ -573,6 +770,8 @@ export function drawPatchCanvas(args: {
   );
   drawPendingPatchPort(ctx, args.pendingFromPort, portPositions);
   drawPendingPatchWire(ctx, args.pendingFromPort, args.pendingWirePointer ?? null, portPositions);
+  drawArmedWireModuleHover(ctx, args.layoutByNode, portPositions, args.armedWireModuleHover);
+  drawWireCandidate(ctx, portPositions, args.wireCandidate ?? null);
   drawHoveredAttachTarget(ctx, args.patch, portPositions, args.hoveredAttachTarget ?? null);
 
   if (args.facePopoverNodeId) {

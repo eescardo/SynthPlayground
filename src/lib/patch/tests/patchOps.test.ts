@@ -19,6 +19,30 @@ describe("patch ops", () => {
     ).toThrow("Node id is reserved for a patch boundary port: pitch");
   });
 
+  it("replaces a connection atomically", () => {
+    const patch = createClearPatch({ id: "replace_connection", name: "Replace Connection" });
+    patch.connections = [
+      { id: "old", from: { nodeId: "env1", portId: "out" }, to: { nodeId: "vca1", portId: "gainCV" } }
+    ];
+
+    const nextPatch = applyPatchOp(patch, {
+      type: "replaceConnection",
+      disconnectConnectionId: "old",
+      connectionId: "new",
+      fromNodeId: "env2",
+      fromPortId: "out",
+      toNodeId: "vca1",
+      toPortId: "gainCV"
+    });
+
+    expect(nextPatch.connections).toEqual([
+      { id: "new", from: { nodeId: "env2", portId: "out" }, to: { nodeId: "vca1", portId: "gainCV" } }
+    ]);
+    expect(patch.connections).toEqual([
+      { id: "old", from: { nodeId: "env1", portId: "out" }, to: { nodeId: "vca1", portId: "gainCV" } }
+    ]);
+  });
+
   it("applies macro slider moves to bound params without mutating defaults", () => {
     const patch = pluckPatch();
     const macro = patch.ui.macros[0];

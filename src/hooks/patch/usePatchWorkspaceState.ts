@@ -326,9 +326,18 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
         return;
       }
 
-      if (op.type === "connect") {
+      if (op.type === "connect" || op.type === "replaceConnection") {
+        const validationPatch =
+          op.type === "replaceConnection"
+            ? {
+                ...selectedPatch,
+                connections: selectedPatch.connections.filter(
+                  (connection) => connection.id !== op.disconnectConnectionId
+                )
+              }
+            : selectedPatch;
         const connectionIssues = validatePatchConnectionCandidate(
-          selectedPatch,
+          validationPatch,
           op.fromNodeId,
           op.fromPortId,
           op.toNodeId,
