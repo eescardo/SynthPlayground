@@ -14,7 +14,7 @@ interface PatchEditorToolbarProps {
   selectedNodeId?: string;
   protectedNodeId?: string;
   selectedProbeId?: string;
-  pendingFromPort: boolean;
+  selectedConnectionId?: string;
   zoom: number;
   onAddNode: (typeId: string) => void;
   onAddProbe: (kind: PatchWorkspaceProbeState["kind"]) => void;
@@ -29,7 +29,9 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
   const canDeleteNode = Boolean(
     props.selectedNodeId && props.selectedNodeId !== props.protectedNodeId && !props.structureLocked
   );
-  const canDeleteSelection = Boolean(props.selectedProbeId || canDeleteNode);
+  const canDeleteConnection = Boolean(props.selectedConnectionId && !props.structureLocked);
+  const canDeleteSelection = Boolean(props.selectedProbeId || canDeleteConnection || canDeleteNode);
+  const canPreviewDeleteSelection = canDeleteConnection || canDeleteNode;
 
   return (
     <div className="patch-toolbar">
@@ -94,9 +96,9 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
           props.onDeletePreviewChange(false);
           props.onDeleteSelected();
         }}
-        onMouseEnter={() => props.onDeletePreviewChange(canDeleteNode)}
+        onMouseEnter={() => props.onDeletePreviewChange(canPreviewDeleteSelection)}
         onMouseLeave={() => props.onDeletePreviewChange(false)}
-        onFocus={() => props.onDeletePreviewChange(canDeleteNode)}
+        onFocus={() => props.onDeletePreviewChange(canPreviewDeleteSelection)}
         onBlur={() => props.onDeletePreviewChange(false)}
       >
         Delete
@@ -120,7 +122,6 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
       {props.structureLocked && (
         <span className="muted">Preset structure is locked. Move nodes for clarity or edit macros.</span>
       )}
-      {props.pendingFromPort && <span className="muted">Select a compatible port to complete connection.</span>}
       <PatchBaselineControl {...props.baselineControl} />
       <span className="patch-zoom-readout">Zoom {Math.round(props.zoom * 100)}%</span>
     </div>

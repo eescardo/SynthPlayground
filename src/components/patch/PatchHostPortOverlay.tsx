@@ -17,6 +17,7 @@ interface HostOverlayPort {
   nodeId: HostPatchPortId;
   label: string;
   hitPort: HitPort;
+  pointer: { x: number; y: number };
   style: CSSProperties;
 }
 
@@ -25,7 +26,10 @@ interface PatchHostPortOverlayProps {
   outputHostScreenLeft: number;
   patch: Patch;
   pendingFromPort: HitPort | null;
+  pendingProbeId?: string | null;
+  scrollLeft: number;
   scrollTop: number;
+  structureLocked?: boolean;
   zoom: number;
   onPortSelection: (hitPort: HitPort, pointer: { x: number; y: number }) => void;
   onPortHover: (hitPort: HitPort | null, pointer: { x: number; y: number } | null) => void;
@@ -36,6 +40,7 @@ function resolveOverlayPorts(
   patch: Patch,
   outputHostCanvasLeft: number,
   outputHostScreenLeft: number,
+  scrollLeft: number,
   scrollTop: number,
   zoom: number
 ): HostOverlayPort[] {
@@ -58,6 +63,10 @@ function resolveOverlayPorts(
       nodeId,
       label: resolveHostPatchPortLabel(nodeId),
       hitPort,
+      pointer: {
+        x: (scrollLeft + PATCH_HOST_STRIP_X) / zoom,
+        y: rect.y
+      },
       style: {
         "--patch-host-port-bg": tint.fill,
         "--patch-host-port-border": tint.stroke,
@@ -89,6 +98,10 @@ function resolveOverlayPorts(
         width: outputRect.width,
         height: outputRect.height
       },
+      pointer: {
+        x: (scrollLeft + outputHostScreenLeft) / zoom,
+        y: outputRect.y
+      },
       style: {
         "--patch-host-port-bg": outputTint.fill,
         "--patch-host-port-border": outputTint.stroke,
@@ -102,13 +115,6 @@ function resolveOverlayPorts(
   ];
 }
 
-function resolveHostPortPointer(hitPort: HitPort) {
-  return {
-    x: hitPort.kind === "in" ? hitPort.x : hitPort.x + hitPort.width,
-    y: hitPort.y
-  };
-}
-
 export function PatchHostPortOverlay(props: PatchHostPortOverlayProps) {
   const ports = useMemo(
     () =>
@@ -116,10 +122,11 @@ export function PatchHostPortOverlay(props: PatchHostPortOverlayProps) {
         props.patch,
         props.outputHostCanvasLeft,
         props.outputHostScreenLeft,
+        props.scrollLeft,
         props.scrollTop,
         props.zoom
       ),
-    [props.outputHostCanvasLeft, props.outputHostScreenLeft, props.patch, props.scrollTop, props.zoom]
+    [props.outputHostCanvasLeft, props.outputHostScreenLeft, props.patch, props.scrollLeft, props.scrollTop, props.zoom]
   );
 
   return (
@@ -128,19 +135,28 @@ export function PatchHostPortOverlay(props: PatchHostPortOverlayProps) {
         <button
           key={port.nodeId}
           type="button"
-          className={`patch-host-port${props.pendingFromPort?.nodeId === port.nodeId ? " pending" : ""}`}
+          className={`patch-host-port${props.pendingFromPort?.nodeId === port.nodeId ? " pending" : ""}${
+            props.structureLocked ? " locked" : ""
+          }`}
           style={port.style}
           onPointerDown={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            if (port.hitPort.kind === "in" && !props.pendingFromPort) {
+            if (props.pendingProbeId) {
+              props.onPortSelection(port.hitPort, port.pointer);
+              return;
+            }
+            if (props.structureLocked) {
+              return;
+            }
+            if (port.hitPort.kind === "in" && !props.pendingFromPort && !props.pendingProbeId) {
               props.onSelectOutput();
               return;
             }
-            props.onPortSelection(port.hitPort, resolveHostPortPointer(port.hitPort));
+            props.onPortSelection(port.hitPort, port.pointer);
           }}
-          onPointerEnter={() => props.onPortHover(port.hitPort, resolveHostPortPointer(port.hitPort))}
-          onPointerMove={() => props.onPortHover(port.hitPort, resolveHostPortPointer(port.hitPort))}
+          onPointerEnter={() => props.onPortHover(port.hitPort, port.pointer)}
+          onPointerMove={() => props.onPortHover(port.hitPort, port.pointer)}
           onPointerLeave={() => props.onPortHover(null, null)}
         >
           {port.label}

@@ -222,6 +222,19 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       return next;
     }
 
+    case "replaceConnection": {
+      if (next.connections.some((connection) => connection.id === op.connectionId)) {
+        throw new Error(`Connection already exists: ${op.connectionId}`);
+      }
+      next.connections = next.connections.filter((connection) => connection.id !== op.disconnectConnectionId);
+      next.connections.push({
+        id: op.connectionId,
+        from: { nodeId: op.fromNodeId, portId: op.fromPortId },
+        to: { nodeId: op.toNodeId, portId: op.toPortId }
+      });
+      return next;
+    }
+
     case "disconnect": {
       next.connections = next.connections.filter((connection) => connection.id !== op.connectionId);
       return next;

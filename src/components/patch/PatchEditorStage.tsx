@@ -27,10 +27,15 @@ import { usePatchCanvasInteractions } from "@/hooks/patch/usePatchCanvasInteract
 import { usePatchProbeDrag } from "@/hooks/patch/usePatchProbeDrag";
 import { usePatchCanvasZoom } from "@/hooks/patch/usePatchCanvasZoom";
 import { usePatchModuleFacePopover } from "@/hooks/patch/usePatchModuleFacePopover";
-import { resolveVisibleAddModulePosition } from "@/components/patch/patchVisiblePlacement";
+import { isShortcutBlockedTarget } from "@/hooks/patch/patchWorkspaceStateUtils";
+import {
+  resolveVisibleAddModulePosition,
+  resolveVisibleAddProbePosition
+} from "@/components/patch/patchVisiblePlacement";
 import { Patch, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
+import { PatchWireCommitFeedback } from "@/components/patch/patchWireFeedback";
 
 interface PatchEditorStageProps {
   patch: Patch;
@@ -38,27 +43,33 @@ interface PatchEditorStageProps {
   validationIssues: PatchValidationIssue[];
   probeState: PatchProbeEditorState;
   selectedNodeId?: string;
+  selectedConnectionId?: string;
   selectedMacroNodeIds: Set<string>;
   structureLocked?: boolean;
   onClearPatch: () => void;
   onApplyOp: (op: PatchOp) => void;
   probeActions: PatchProbeEditorActions;
   onSelectNode: (nodeId?: string) => void;
+  onSelectConnection: (connectionId?: string) => void;
   onToggleAttachProbe: (probeId: string) => void;
   onCancelAttachProbe: () => void;
+  onWireCommitFeedback?: (feedback: PatchWireCommitFeedback) => void;
 }
 
 export function PatchEditorStage(props: PatchEditorStageProps) {
   const {
     onApplyOp,
     onSelectNode,
+    onSelectConnection,
     onToggleAttachProbe,
     onCancelAttachProbe,
+    onWireCommitFeedback,
     patch,
     baselineDiff,
     probeActions,
     probeState,
     selectedMacroNodeIds,
+    selectedConnectionId,
     selectedNodeId,
     structureLocked
   } = props;
@@ -67,6 +78,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [scrollViewport, setScrollViewport] = useState({ left: 0, top: 0, width: 0, height: 0 });
   const [deletePreviewNodeId, setDeletePreviewNodeId] = useState<string | null>(null);
+  const [deletePreviewConnectionId, setDeletePreviewConnectionId] = useState<string | null>(null);
   const [clearPreviewActive, setClearPreviewActive] = useState(false);
   const layoutByNode = useMemo(() => {
     return new Map(patch.layout.nodes.map((node) => [node.nodeId, node] as const));
@@ -136,6 +148,35 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   );
   const outputHostCanvasLeft = outputHostPlacement.canvasLeft;
   const outputHostScreenLeft = outputHostPlacement.screenLeft;
+  const canDeleteNode = Boolean(selectedNodeId && selectedNodeId !== outputNodeId && !structureLocked);
+  const canDeleteConnection = Boolean(selectedConnectionId && !structureLocked);
+  const canDeleteProbe = Boolean(probeState.selectedProbeId);
+  const visibleCanvasBounds = useMemo(() => {
+    if (scrollViewport.width <= 0 || scrollViewport.height <= 0) {
+      return {
+        x: 0,
+        y: 0,
+        width: canvasSize.width,
+        height: canvasSize.height
+      };
+    }
+    const x = scrollViewport.left / zoom;
+    const y = scrollViewport.top / zoom;
+    return {
+      x,
+      y,
+      width: Math.min(canvasSize.width - x, scrollViewport.width / zoom),
+      height: Math.min(canvasSize.height - y, scrollViewport.height / zoom)
+    };
+  }, [
+    canvasSize.height,
+    canvasSize.width,
+    scrollViewport.height,
+    scrollViewport.left,
+    scrollViewport.top,
+    scrollViewport.width,
+    zoom
+  ]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -153,11 +194,42 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     nodeExists
   });
 
+  const deleteSelectedCanvasObject = useCallback(() => {
+    if (probeState.selectedProbeId) {
+      onCancelAttachProbe();
+      probeActions.deleteSelected();
+      return;
+    }
+    if (selectedConnectionId && !structureLocked) {
+      onApplyOp({ type: "disconnect", connectionId: selectedConnectionId });
+      onSelectConnection(undefined);
+      setDeletePreviewConnectionId(null);
+      return;
+    }
+    if (selectedNodeId && selectedNodeId !== outputNodeId && !structureLocked) {
+      onApplyOp({ type: "removeNode", nodeId: selectedNodeId });
+      setDeletePreviewNodeId(null);
+    }
+  }, [
+    onApplyOp,
+    onCancelAttachProbe,
+    onSelectConnection,
+    outputNodeId,
+    probeActions,
+    probeState.selectedProbeId,
+    selectedConnectionId,
+    selectedNodeId,
+    structureLocked
+  ]);
+
   const {
     dragNodeId,
     hoveredNodeId,
     pendingFromPort,
+    pendingProbePointer,
+    wireCandidate,
     hoveredAttachTarget,
+    lockedPortHovered,
     handlePortHover,
     handlePortSelection,
     onPointerDown,
@@ -166,24 +238,34 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     setHoveredNodeId
   } = usePatchCanvasInteractions({
     canvasRef,
-    canvasSize,
+    viewport: {
+      canvasSize,
+      visibleCanvasBounds,
+      outputHostCanvasLeft,
+      zoom
+    },
     facePopoverNodeId: popoverNodeId,
     getFacePopoverRect,
     layoutByNode,
     nodeById,
     patch,
-    outputHostCanvasLeft,
-    zoom,
     patchDiff: baselineDiff.patchDiff,
     validationIssues: props.validationIssues,
-    selectedMacroNodeIds,
-    selectedNodeId,
-    deletePreviewNodeId,
-    clearPreviewActive,
-    pendingProbeId: probeState.attachingProbeId,
-    structureLocked,
+    selection: {
+      selectedMacroNodeIds,
+      selectedNodeId,
+      selectedConnectionId,
+      deletePreviewNodeId,
+      deletePreviewConnectionId,
+      clearPreviewActive
+    },
+    mode: {
+      pendingProbeId: probeState.attachingProbeId,
+      structureLocked
+    },
     onApplyOp,
     onSelectNode,
+    onSelectConnection,
     onAttachProbeTarget: (target) => {
       if (probeState.attachingProbeId) {
         probeActions.updateTarget(probeState.attachingProbeId, target);
@@ -193,8 +275,32 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     onCancelProbeAttach: onCancelAttachProbe,
     makeConnectOp,
     handleFacePopoverPointerDown: handleCanvasPointerDown,
-    togglePopoverForNode
+    togglePopoverForNode,
+    onWireCommitFeedback
   });
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        isShortcutBlockedTarget(event.target) ||
+        (event.key !== "Delete" && event.key !== "Backspace")
+      ) {
+        return;
+      }
+      if (pendingFromPort) {
+        event.preventDefault();
+        return;
+      }
+      if (!canDeleteProbe && !canDeleteConnection && !canDeleteNode) {
+        return;
+      }
+      event.preventDefault();
+      deleteSelectedCanvasObject();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [canDeleteConnection, canDeleteNode, canDeleteProbe, deleteSelectedCanvasObject, pendingFromPort]);
 
   const { beginProbeDrag } = usePatchProbeDrag({
     canvasRef,
@@ -212,7 +318,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
         selectedNodeId={selectedNodeId}
         protectedNodeId={outputNodeId}
         selectedProbeId={probeState.selectedProbeId}
-        pendingFromPort={Boolean(pendingFromPort)}
+        selectedConnectionId={selectedConnectionId}
         zoom={zoom}
         onAddNode={(typeId) => {
           if (structureLocked) {
@@ -227,19 +333,16 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           });
           onSelectNode(nodeId);
         }}
-        onAddProbe={probeActions.addProbe}
-        onDeleteSelected={() =>
-          probeState.selectedProbeId
-            ? (onCancelAttachProbe(), probeActions.deleteSelected())
-            : selectedNodeId &&
-              selectedNodeId !== outputNodeId &&
-              !structureLocked &&
-              onApplyOp({ type: "removeNode", nodeId: selectedNodeId })
-        }
-        onDeletePreviewChange={(previewing) => {
-          setDeletePreviewNodeId(
-            previewing && selectedNodeId && selectedNodeId !== outputNodeId && !structureLocked ? selectedNodeId : null
+        onAddProbe={(kind) => {
+          probeActions.addProbe(
+            kind,
+            resolveVisibleAddProbePosition(probeState.probes, visibleLayoutNodes, kind, scrollViewport, zoom)
           );
+        }}
+        onDeleteSelected={deleteSelectedCanvasObject}
+        onDeletePreviewChange={(previewing) => {
+          setDeletePreviewConnectionId(previewing && canDeleteConnection ? (selectedConnectionId ?? null) : null);
+          setDeletePreviewNodeId(previewing && canDeleteNode ? (selectedNodeId ?? null) : null);
         }}
         onClearPatch={props.onClearPatch}
         onClearPreviewChange={setClearPreviewActive}
@@ -278,7 +381,10 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
                 cursor: resolveCanvasCursor({
                   attachingProbeId: probeState.attachingProbeId,
                   pendingFromPort: Boolean(pendingFromPort),
+                  wireCandidateStatus: wireCandidate?.status,
+                  lockedPortHovered,
                   hoveredAttachTarget: Boolean(hoveredAttachTarget),
+                  hoveredConnection: hoveredAttachTarget?.kind === "connection",
                   dragNodeId: Boolean(dragNodeId),
                   hoveredNodeId: Boolean(hoveredNodeId)
                 })
@@ -301,6 +407,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
               previewProgress={probeState.previewProgress}
               zoom={zoom}
               attachingProbeId={probeState.attachingProbeId}
+              pendingProbePointer={pendingProbePointer}
               onSelectProbe={probeActions.selectProbe}
               onBeginProbeDrag={beginProbeDrag}
               onStartAttachProbe={onToggleAttachProbe}
@@ -314,7 +421,10 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           outputHostScreenLeft={outputHostScreenLeft}
           patch={patch}
           pendingFromPort={pendingFromPort}
+          pendingProbeId={probeState.attachingProbeId}
+          scrollLeft={scrollViewport.left}
           scrollTop={scrollViewport.top}
+          structureLocked={structureLocked}
           zoom={zoom}
           onPortSelection={handlePortSelection}
           onPortHover={handlePortHover}
@@ -328,15 +438,24 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
 function resolveCanvasCursor(args: {
   attachingProbeId: string | null | undefined;
   pendingFromPort: boolean;
+  wireCandidateStatus?: string;
+  lockedPortHovered: boolean;
   hoveredAttachTarget: boolean;
+  hoveredConnection: boolean;
   dragNodeId: boolean;
   hoveredNodeId: boolean;
 }) {
+  if (args.wireCandidateStatus === "invalid" || args.lockedPortHovered) {
+    return "not-allowed";
+  }
   if (args.attachingProbeId || args.pendingFromPort) {
     return args.hoveredAttachTarget ? PATCH_ATTACH_CURSOR_CLOSED : PATCH_ATTACH_CURSOR_OPEN;
   }
   if (args.dragNodeId) {
     return PATCH_MOVE_CURSOR_ACTIVE;
+  }
+  if (args.hoveredConnection) {
+    return "pointer";
   }
   if (args.hoveredNodeId) {
     return PATCH_MOVE_CURSOR;

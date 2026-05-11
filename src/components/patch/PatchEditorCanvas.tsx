@@ -7,12 +7,14 @@ import { PatchInspector } from "@/components/patch/PatchInspector";
 import { PatchMacroPanel } from "@/components/patch/PatchMacroPanel";
 import { PatchBaselineDiffState } from "@/components/patch/patchBaselineDiffState";
 import { applyDraftParamValues, buildParamDraftKey } from "@/components/patch/patchEditorCanvasDrafts";
+import { usePatchCanvasSelection } from "@/hooks/patch/usePatchCanvasSelection";
 import { usePatchProbeEditorState } from "@/hooks/patch/usePatchProbeEditorState";
 import { clamp } from "@/lib/numeric";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { PatchValidationIssue, Patch, ParamValue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
+import { PatchWireCommitFeedback } from "@/components/patch/patchWireFeedback";
 
 const PATCH_MACRO_VISIBLE_ROW_MIN = 1;
 const PATCH_MACRO_VISIBLE_ROW_MAX = 5;
@@ -49,6 +51,7 @@ interface PatchEditorCanvasProps {
 
 export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   const [draftParamValues, setDraftParamValues] = useState<Record<string, ParamValue>>({});
+  const [lastWireCommitFeedback, setLastWireCommitFeedback] = useState<PatchWireCommitFeedback | null>(null);
   useEffect(() => {
     setDraftParamValues({});
   }, [props.patch]);
@@ -81,11 +84,23 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   );
   const selectedNode = props.selectedNodeId ? nodeById.get(props.selectedNodeId) : undefined;
   const selectedSchema = selectedNode ? getModuleSchema(selectedNode.typeId) : undefined;
+  const {
+    selectedConnectionId,
+    probeActions,
+    selectNode: handleSelectNode,
+    selectConnection: handleSelectConnection
+  } = usePatchCanvasSelection({
+    patch: previewPatch,
+    selectedNodeId: props.selectedNodeId,
+    probeState: props.probeState,
+    probeActions: props.probeActions,
+    onSelectNode: props.onSelectNode
+  });
   const { attachingProbeId, cancelAttachProbe, canvasProbeState, selectedProbe, toggleAttachProbe } =
     usePatchProbeEditorState({
       probes: props.probeState.probes,
       probeState: props.probeState,
-      probeActions: props.probeActions
+      probeActions
     });
 
   return (
@@ -106,14 +121,17 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
             validationIssues={props.validationIssues}
             probeState={canvasProbeState}
             selectedNodeId={props.selectedNodeId}
+            selectedConnectionId={selectedConnectionId}
             selectedMacroNodeIds={selectedMacroNodeIds}
             structureLocked={props.structureLocked}
             onClearPatch={props.onClearPatch}
             onApplyOp={props.onApplyOp}
-            probeActions={props.probeActions}
-            onSelectNode={props.onSelectNode}
+            probeActions={probeActions}
+            onSelectNode={handleSelectNode}
+            onSelectConnection={handleSelectConnection}
             onToggleAttachProbe={toggleAttachProbe}
             onCancelAttachProbe={cancelAttachProbe}
+            onWireCommitFeedback={setLastWireCommitFeedback}
           />
 
           <PatchMacroPanel
@@ -144,6 +162,8 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
           previewCapture={selectedProbe ? props.probeState.previewCaptureByProbeId[selectedProbe.id] : undefined}
           previewProgress={props.probeState.previewProgress}
           attachingProbeId={attachingProbeId}
+          wireCommitFeedback={lastWireCommitFeedback}
+          selectedConnectionId={selectedConnectionId}
           structureLocked={props.structureLocked}
           validationIssues={props.validationIssues}
           onApplyOp={props.onApplyOp}
@@ -156,10 +176,10 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
             }));
           }}
           onExposeMacro={props.onExposeMacro}
-          onUpdateProbeSpectrumWindow={props.probeActions.updateSpectrumWindow}
-          onUpdateProbeFrequencyView={props.probeActions.updateFrequencyView}
+          onUpdateProbeSpectrumWindow={probeActions.updateSpectrumWindow}
+          onUpdateProbeFrequencyView={probeActions.updateFrequencyView}
           onToggleAttachProbe={toggleAttachProbe}
-          onClearProbeTarget={(probeId) => props.probeActions.updateTarget(probeId, undefined)}
+          onClearProbeTarget={(probeId) => probeActions.updateTarget(probeId, undefined)}
         />
       </div>
     </div>

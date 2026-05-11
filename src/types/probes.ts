@@ -60,7 +60,7 @@ export interface PatchProbeEditorState {
 }
 
 export interface PatchProbeEditorActions {
-  addProbe: (kind: PatchWorkspaceProbeState["kind"]) => void;
+  addProbe: (kind: PatchWorkspaceProbeState["kind"], position?: { x: number; y: number }) => void;
   moveProbe: (probeId: string, x: number, y: number) => void;
   selectProbe: (probeId?: string) => void;
   updateTarget: (probeId: string, target?: PatchProbeTarget) => void;

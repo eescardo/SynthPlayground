@@ -13,6 +13,7 @@ import {
   CompiledOp,
   CompiledPlan,
   Patch,
+  PatchValidationIssueCode,
   PatchValidationIssue,
   PatchValidationResult,
   ParamValue,
@@ -22,8 +23,8 @@ import {
 const pushError = (
   issues: PatchValidationIssue[],
   message: string,
-  context?: Record<string, string>,
-  code?: string
+  context: Record<string, string> | undefined,
+  code: PatchValidationIssueCode
 ): void => {
   issues.push({ level: "error", message, context, code });
 };
@@ -31,8 +32,8 @@ const pushError = (
 const pushWarning = (
   issues: PatchValidationIssue[],
   message: string,
-  context?: Record<string, string>,
-  code?: string
+  context: Record<string, string> | undefined,
+  code: PatchValidationIssueCode
 ): void => {
   issues.push({ level: "warning", message, context, code });
 };
@@ -235,7 +236,7 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
   const uniqueNodeIds = new Set<string>();
   for (const node of patch.nodes) {
     if (uniqueNodeIds.has(node.id)) {
-      pushError(issues, `Duplicate node id: ${node.id}`, { nodeId: node.id });
+      pushError(issues, `Duplicate node id: ${node.id}`, { nodeId: node.id }, "duplicate-node-id");
     }
     uniqueNodeIds.add(node.id);
     if (RESERVED_PATCH_MODULE_IDS.has(node.id)) {
@@ -248,7 +249,12 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
     }
 
     if (!moduleRegistryById.has(node.typeId)) {
-      pushError(issues, `Unknown node type: ${node.typeId}`, { nodeId: node.id, typeId: node.typeId });
+      pushError(
+        issues,
+        `Unknown node type: ${node.typeId}`,
+        { nodeId: node.id, typeId: node.typeId },
+        "unknown-node-type"
+      );
     }
   }
 
@@ -374,29 +380,44 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
 
   for (const macro of patch.ui.macros) {
     if (macroIds.has(macro.id)) {
-      pushError(issues, `Duplicate macro id: ${macro.id}`, { macroId: macro.id });
+      pushError(issues, `Duplicate macro id: ${macro.id}`, { macroId: macro.id }, "duplicate-macro-id");
     }
     macroIds.add(macro.id);
 
     if (!Number.isInteger(macro.keyframeCount) || macro.keyframeCount < 2) {
-      pushError(issues, `Macro keyframe count must be an integer >= 2`, {
-        macroId: macro.id,
-        keyframeCount: String(macro.keyframeCount)
-      });
+      pushError(
+        issues,
+        `Macro keyframe count must be an integer >= 2`,
+        {
+          macroId: macro.id,
+          keyframeCount: String(macro.keyframeCount)
+        },
+        "macro-keyframe-count-invalid"
+      );
     }
 
     for (const binding of macro.bindings) {
       if (macroBindingIds.has(binding.id)) {
-        pushError(issues, `Duplicate macro binding id: ${binding.id}`, { bindingId: binding.id, macroId: macro.id });
+        pushError(
+          issues,
+          `Duplicate macro binding id: ${binding.id}`,
+          { bindingId: binding.id, macroId: macro.id },
+          "duplicate-macro-binding-id"
+        );
       }
       macroBindingIds.add(binding.id);
       const bindingIdentityKey = createPatchMacroBindingKey(patch, macro.id, binding);
       if (macroBindingTargetKeys.has(bindingIdentityKey)) {
-        pushError(issues, `Duplicate macro binding target`, {
-          macroId: macro.id,
-          nodeId: binding.nodeId,
-          paramId: binding.paramId
-        });
+        pushError(
+          issues,
+          `Duplicate macro binding target`,
+          {
+            macroId: macro.id,
+            nodeId: binding.nodeId,
+            paramId: binding.paramId
+          },
+          "duplicate-macro-binding-target"
+        );
       }
       macroBindingTargetKeys.add(bindingIdentityKey);
 
@@ -450,29 +471,44 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
       }
 
       if (getMacroBindingKeyframeCount(binding) !== macro.keyframeCount) {
-        pushError(issues, `Macro binding keyframe count does not match macro`, {
-          macroId: macro.id,
-          bindingId: binding.id,
-          keyframeCount: String(macro.keyframeCount),
-          bindingKeyframeCount: String(getMacroBindingKeyframeCount(binding))
-        });
+        pushError(
+          issues,
+          `Macro binding keyframe count does not match macro`,
+          {
+            macroId: macro.id,
+            bindingId: binding.id,
+            keyframeCount: String(macro.keyframeCount),
+            bindingKeyframeCount: String(getMacroBindingKeyframeCount(binding))
+          },
+          "macro-binding-keyframe-count-mismatch"
+        );
       }
 
       const targetKey = createPatchMacroBindingKey(patch, "", binding);
       const existingMacroId = macroTargetToMacroId.get(targetKey);
       if (existingMacroId && existingMacroId !== macro.id) {
-        pushError(issues, `Conflicting macro bindings target the same parameter`, {
-          nodeId: binding.nodeId,
-          paramId: binding.paramId,
-          macroId: macro.id,
-          conflictingMacroId: existingMacroId
-        });
+        pushError(
+          issues,
+          `Conflicting macro bindings target the same parameter`,
+          {
+            nodeId: binding.nodeId,
+            paramId: binding.paramId,
+            macroId: macro.id,
+            conflictingMacroId: existingMacroId
+          },
+          "macro-binding-conflict"
+        );
       } else if (existingMacroId === macro.id) {
-        pushError(issues, `Macro binds the same parameter more than once`, {
-          nodeId: binding.nodeId,
-          paramId: binding.paramId,
-          macroId: macro.id
-        });
+        pushError(
+          issues,
+          `Macro binds the same parameter more than once`,
+          {
+            nodeId: binding.nodeId,
+            paramId: binding.paramId,
+            macroId: macro.id
+          },
+          "macro-binding-duplicate-param"
+        );
       } else {
         macroTargetToMacroId.set(targetKey, macro.id);
       }
@@ -526,7 +562,12 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
 
   for (const connection of patch.connections) {
     if (uniqueConnectionIds.has(connection.id)) {
-      pushError(issues, `Duplicate connection id: ${connection.id}`, { connectionId: connection.id });
+      pushError(
+        issues,
+        `Duplicate connection id: ${connection.id}`,
+        { connectionId: connection.id },
+        "duplicate-connection-id"
+      );
     }
     uniqueConnectionIds.add(connection.id);
 
@@ -551,10 +592,15 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
     }
 
     if ((incomingByPort.get(incomingKey) ?? 0) > 1 && !resolved.toPort.multiIn) {
-      pushError(issues, `Multiple inputs connected to single-input port`, {
-        connectionId: connection.id,
-        targetPort: incomingKey
-      });
+      pushError(
+        issues,
+        `Multiple inputs connected to single-input port`,
+        {
+          connectionId: connection.id,
+          targetPort: incomingKey
+        },
+        "single-input-port-multiple-connections"
+      );
     }
   }
 
@@ -633,7 +679,12 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
     for (const nextId of adjacency.get(nodeId) ?? []) {
       const state = visitState.get(nextId) ?? 0;
       if (state === 1) {
-        pushError(issues, `Cycle detected in patch graph`, { atNode: nextId, path: [...stack, nextId].join(" -> ") });
+        pushError(
+          issues,
+          `Cycle detected in patch graph`,
+          { atNode: nextId, path: [...stack, nextId].join(" -> ") },
+          "connection-cycle"
+        );
         return true;
       }
       if (state === 0 && detectCycle(nextId)) {

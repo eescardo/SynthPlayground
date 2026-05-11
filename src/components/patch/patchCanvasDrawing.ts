@@ -1,7 +1,6 @@
 import {
   PATCH_CANVAS_GRID,
   PATCH_COLOR_CANVAS_BG,
-  PATCH_COLOR_CONNECTION_FALLBACK,
   PATCH_COLOR_FACE_POPOVER_BACKDROP,
   PATCH_COLOR_FACE_POPOVER_SHADOW,
   PATCH_COLOR_GRID_MAJOR,
@@ -20,13 +19,9 @@ import {
   PATCH_COLOR_NODE_HOVER_OVERLAY,
   PATCH_COLOR_NODE_SUBTITLE,
   PATCH_COLOR_NODE_TITLE,
-  PATCH_COLOR_PENDING_PORT,
-  PATCH_COLOR_PENDING_WIRE,
   PATCH_COLOR_PORT_LABEL_BG,
   PATCH_COLOR_PORT_LABEL_INVALID_BG,
   PATCH_COLOR_PORT_LABEL,
-  PATCH_COLOR_VALID_TARGET,
-  PATCH_COLOR_VALID_TARGET_FILL,
   PATCH_FACE_POPOVER_SCALE,
   PATCH_NODE_BODY_TOP,
   PATCH_NODE_HEIGHT,
@@ -38,13 +33,26 @@ import {
   CanvasRect,
   HitPort,
   resolveHostPatchPortRect,
-  resolveHostPatchPortTint,
   resolvePatchNodePortLabelRect,
   resolveOutputHostPatchPortRect
 } from "@/components/patch/patchCanvasGeometry";
-import { HOST_PORT_IDS, SOURCE_HOST_PORT_IDS, SOURCE_HOST_PORT_TYPE_BY_ID } from "@/lib/patch/constants";
+import {
+  ResolvedPortPosition,
+  drawArmedWireModuleHover,
+  drawHoveredAttachTarget,
+  drawLockedPortTooltip,
+  drawPatchConnections,
+  drawPendingPatchPort,
+  drawPendingPatchWire,
+  drawWireCandidate,
+  drawWireCandidatePulse,
+  drawWireCommitFeedback,
+  drawWireStartTooltip
+} from "@/components/patch/patchWireDrawing";
+import { PatchCanvasRenderState } from "@/components/patch/patchCanvasRenderState";
+import { SOURCE_HOST_PORT_IDS, SOURCE_HOST_PORT_TYPE_BY_ID } from "@/lib/patch/constants";
 import { PatchDiff } from "@/lib/patch/diff";
-import { getSignalCapabilityColor, resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
+import { resolveMutedPatchModuleColors } from "@/lib/patch/moduleCategories";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import {
   getPatchOutputInputPortId,
@@ -52,22 +60,12 @@ import {
   isHostPatchPortId,
   isPatchOutputPortId
 } from "@/lib/patch/ports";
-import { Patch, PatchLayoutNode, PatchNode, PatchValidationIssue, PortSchema } from "@/types/patch";
+import { Patch, PatchLayoutNode, PatchNode, PortSchema } from "@/types/patch";
 
 const PATCH_DIFF_PEDESTAL_INSET = 8;
 const PATCH_DIFF_PEDESTAL_RADIUS = 10;
 const PATCH_DIFF_PEDESTAL_STROKE_WIDTH = 8;
 const PATCH_EXPANDED_FACE_HEADER_SCALE = 1.69;
-
-interface ResolvedPortPosition {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  anchorX: number;
-  anchorY: number;
-  schema: PortSchema;
-}
 
 function drawRoundedRectPath(
   ctx: CanvasRenderingContext2D,
@@ -305,44 +303,6 @@ function resolvePortPositions(
   return portPositions;
 }
 
-function drawPatchConnections(
-  ctx: CanvasRenderingContext2D,
-  patch: Patch,
-  portPositions: Map<string, ResolvedPortPosition>
-) {
-  for (const connection of patch.connections) {
-    const from = portPositions.get(`${connection.from.nodeId}:out:${connection.from.portId}`);
-    const to = portPositions.get(`${connection.to.nodeId}:in:${connection.to.portId}`);
-    if (!from || !to) continue;
-
-    const commonCapability = from.schema.capabilities.find((cap) => to.schema.capabilities.includes(cap)) ?? "AUDIO";
-    const isHostConnection =
-      isHostPatchPortId(connection.from.nodeId) ||
-      isHostPatchPortId(connection.to.nodeId) ||
-      isPatchOutputPortId(patch, connection.to.nodeId);
-    ctx.save();
-    ctx.strokeStyle = isHostConnection
-      ? resolveHostPatchPortTint(
-          isPatchOutputPortId(patch, connection.to.nodeId)
-            ? HOST_PORT_IDS.output
-            : isHostPatchPortId(connection.from.nodeId)
-              ? connection.from.nodeId
-              : connection.to.nodeId
-        ).wire
-      : (getSignalCapabilityColor(commonCapability) ?? PATCH_COLOR_CONNECTION_FALLBACK);
-    ctx.lineWidth = 2;
-    if (isHostConnection) {
-      ctx.globalAlpha = 0.5;
-      ctx.setLineDash([2, 6]);
-    }
-    ctx.beginPath();
-    ctx.moveTo(from.anchorX, from.anchorY);
-    ctx.lineTo(to.anchorX, to.anchorY);
-    ctx.stroke();
-    ctx.restore();
-  }
-}
-
 function drawPatchModules(
   ctx: CanvasRenderingContext2D,
   patch: Patch,
@@ -374,101 +334,6 @@ function drawPatchModules(
       clearPreview: Boolean(clearPreviewActive)
     });
   });
-}
-
-function drawPendingPatchPort(
-  ctx: CanvasRenderingContext2D,
-  pendingPort: HitPort | null,
-  portPositions: Map<string, ResolvedPortPosition>
-) {
-  if (!pendingPort) {
-    return;
-  }
-  const portKey = `${pendingPort.nodeId}:${pendingPort.kind}:${pendingPort.portId}`;
-  const p = portPositions.get(portKey);
-  if (p) {
-    ctx.strokeStyle = PATCH_COLOR_PENDING_PORT;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(p.x - 2, p.y - p.height / 2 - 2, p.width + 4, p.height + 4);
-  }
-}
-
-function drawPendingPatchWire(
-  ctx: CanvasRenderingContext2D,
-  pendingPort: HitPort | null,
-  pointer: { x: number; y: number } | null,
-  portPositions: Map<string, ResolvedPortPosition>
-) {
-  if (!pendingPort || !pointer) {
-    return;
-  }
-  const portKey = `${pendingPort.nodeId}:${pendingPort.kind}:${pendingPort.portId}`;
-  const anchor = portPositions.get(portKey);
-  if (!anchor) {
-    return;
-  }
-  ctx.save();
-  ctx.strokeStyle = getSignalCapabilityColor(anchor.schema.capabilities[0]) ?? PATCH_COLOR_PENDING_WIRE;
-  ctx.lineWidth = 2;
-  ctx.setLineDash([8, 6]);
-  ctx.beginPath();
-  ctx.moveTo(anchor.anchorX, anchor.anchorY);
-  ctx.lineTo(pointer.x, pointer.y);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawHoveredAttachTarget(
-  ctx: CanvasRenderingContext2D,
-  patch: Patch,
-  portPositions: Map<string, ResolvedPortPosition>,
-  hoveredAttachTarget:
-    | { kind: "port"; nodeId: string; portId: string; portKind: "in" | "out" }
-    | { kind: "connection"; connectionId: string }
-    | null
-) {
-  if (!hoveredAttachTarget) {
-    return;
-  }
-
-  ctx.save();
-  ctx.strokeStyle = PATCH_COLOR_VALID_TARGET;
-  ctx.fillStyle = PATCH_COLOR_VALID_TARGET_FILL;
-  ctx.lineWidth = 2;
-  ctx.setLineDash([4, 4]);
-
-  if (hoveredAttachTarget.kind === "port") {
-    const port = portPositions.get(
-      `${hoveredAttachTarget.nodeId}:${hoveredAttachTarget.portKind}:${hoveredAttachTarget.portId}`
-    );
-    if (port) {
-      ctx.fillRect(port.x - 4, port.y - port.height / 2 - 4, port.width + 8, port.height + 8);
-      ctx.strokeRect(port.x - 4, port.y - port.height / 2 - 4, port.width + 8, port.height + 8);
-    }
-    ctx.restore();
-    return;
-  }
-
-  const connection = patch.connections.find((entry) => entry.id === hoveredAttachTarget.connectionId);
-  if (!connection) {
-    ctx.restore();
-    return;
-  }
-  const from = portPositions.get(`${connection.from.nodeId}:out:${connection.from.portId}`);
-  const to = portPositions.get(`${connection.to.nodeId}:in:${connection.to.portId}`);
-  if (!from || !to) {
-    ctx.restore();
-    return;
-  }
-  ctx.beginPath();
-  ctx.moveTo(from.anchorX, from.anchorY);
-  ctx.lineTo(to.anchorX, to.anchorY);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc((from.anchorX + to.anchorX) / 2, (from.anchorY + to.anchorY) / 2, 7, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
 }
 
 export function drawPatchFacePopover(
@@ -527,53 +392,59 @@ function buildHitPorts(portPositions: Map<string, ResolvedPortPosition>) {
 
 export function drawPatchCanvas(args: {
   canvas: HTMLCanvasElement;
-  canvasSize: { width: number; height: number };
   facePopoverNodeId: string | null;
   getFacePopoverRect: (nodeId: string) => CanvasRect | null;
-  hoveredNodeId: string | null;
   layoutByNode: Map<string, PatchLayoutNode>;
   nodeById: Map<string, PatchNode>;
   patch: Patch;
-  outputHostCanvasLeft: number;
-  patchDiff: PatchDiff;
-  validationIssues: PatchValidationIssue[];
-  pendingFromPort: HitPort | null;
-  pendingWirePointer?: { x: number; y: number } | null;
-  selectedMacroNodeIds: Set<string>;
-  selectedNodeId?: string;
-  deletePreviewNodeId?: string | null;
-  clearPreviewActive?: boolean;
-  hoveredAttachTarget?:
-    | { kind: "port"; nodeId: string; portId: string; portKind: "in" | "out" }
-    | { kind: "connection"; connectionId: string }
-    | null;
+  renderState: PatchCanvasRenderState;
 }): HitPort[] {
   const ctx = args.canvas.getContext("2d");
   if (!ctx) return [];
 
-  const { width, height } = args.canvasSize;
+  const { viewport, selection, wire, diff, hover } = args.renderState;
+  const { width, height } = viewport.canvasSize;
   args.canvas.width = width;
   args.canvas.height = height;
 
   drawPatchGrid(ctx, width, height);
-  const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode, args.outputHostCanvasLeft);
-  const invalidPortKeys = resolveInvalidPortKeys(args.validationIssues);
-  drawPatchConnections(ctx, args.patch, portPositions);
+  const portPositions = resolvePortPositions(ctx, args.patch, args.layoutByNode, viewport.outputHostCanvasLeft);
+  const feedbackNow = wire.feedbackNow ?? performance.now();
+  const invalidPortKeys = resolveInvalidPortKeys(diff.validationIssues);
+  drawPatchConnections(
+    ctx,
+    args.patch,
+    portPositions,
+    selection.selectedConnectionId,
+    selection.deletePreviewConnectionId
+  );
   drawPatchModules(
     ctx,
     args.patch,
-    args.patchDiff,
+    diff.patchDiff,
     args.layoutByNode,
     invalidPortKeys,
-    args.hoveredNodeId,
-    args.selectedMacroNodeIds,
-    args.selectedNodeId,
-    args.deletePreviewNodeId,
-    args.clearPreviewActive
+    hover.nodeId,
+    selection.selectedMacroNodeIds,
+    selection.selectedNodeId,
+    selection.deletePreviewNodeId,
+    selection.clearPreviewActive
   );
-  drawPendingPatchPort(ctx, args.pendingFromPort, portPositions);
-  drawPendingPatchWire(ctx, args.pendingFromPort, args.pendingWirePointer ?? null, portPositions);
-  drawHoveredAttachTarget(ctx, args.patch, portPositions, args.hoveredAttachTarget ?? null);
+  drawWireCommitFeedback(ctx, portPositions, wire.commitFeedback ?? null, feedbackNow);
+  drawPendingPatchPort(ctx, wire.pendingFromPort, portPositions);
+  drawPendingPatchWire(ctx, wire.pendingFromPort, wire.pendingWirePointer ?? null, portPositions);
+  drawWireStartTooltip(
+    ctx,
+    wire.pendingFromPort,
+    wire.pendingWirePointer ?? null,
+    portPositions,
+    wire.candidate?.tooltipBounds
+  );
+  drawArmedWireModuleHover(ctx, args.layoutByNode, portPositions, wire.armedModuleHover);
+  drawWireCandidate(ctx, portPositions, wire.candidate ?? null);
+  drawWireCandidatePulse(ctx, portPositions, wire.candidatePulse ?? null, feedbackNow);
+  drawLockedPortTooltip(ctx, wire.lockedPortTooltip ?? null, portPositions);
+  drawHoveredAttachTarget(ctx, args.patch, portPositions, hover.attachTarget ?? null);
 
   if (args.facePopoverNodeId) {
     const node = args.nodeById.get(args.facePopoverNodeId);
@@ -583,13 +454,13 @@ export function drawPatchCanvas(args: {
       drawPatchFacePopover(
         ctx,
         args.patch,
-        args.patchDiff,
+        diff.patchDiff,
         node,
         schema,
         rect,
-        args.selectedMacroNodeIds.has(node.id),
-        args.deletePreviewNodeId === node.id,
-        Boolean(args.clearPreviewActive)
+        selection.selectedMacroNodeIds.has(node.id),
+        selection.deletePreviewNodeId === node.id,
+        Boolean(selection.clearPreviewActive)
       );
     }
   }

@@ -53,6 +53,15 @@ export type PatchOp =
       toPortId: string;
     }
   | {
+      type: "replaceConnection";
+      disconnectConnectionId: string;
+      connectionId: string;
+      fromNodeId: string;
+      fromPortId: string;
+      toNodeId: string;
+      toPortId: string;
+    }
+  | {
       type: "disconnect";
       connectionId: string;
     }

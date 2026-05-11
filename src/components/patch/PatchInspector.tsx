@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { resolveMacroKeyframeIndexAtValue } from "@/lib/patch/macroKeyframes";
 import { PatchDiff } from "@/lib/patch/diff";
 import { PatchModuleParameter, shouldRenderParamInGenericInspector } from "@/components/patch/PatchModuleParameter";
@@ -15,6 +16,7 @@ import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch, PatchNode, PatchPort, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
+import { PatchWireCommitFeedback } from "@/components/patch/patchWireFeedback";
 
 function connectionLabel(patch: Patch, connection: Pick<Patch["connections"][number], "from" | "to">) {
   return `${formatPatchEndpointLabel(patch, connection.from)} -> ${formatPatchEndpointLabel(patch, connection.to)}`;
@@ -69,6 +71,8 @@ interface PatchInspectorProps {
   previewCapture?: PreviewProbeCapture;
   previewProgress: number;
   attachingProbeId?: string | null;
+  wireCommitFeedback?: PatchWireCommitFeedback | null;
+  selectedConnectionId?: string;
   structureLocked?: boolean;
   validationIssues: PatchValidationIssue[];
   onApplyOp: (op: PatchOp) => void;
@@ -111,6 +115,7 @@ function resolveBrokenMacroBindingIssues(issues: PatchValidationIssue[], macroId
 }
 
 export function PatchInspector(props: PatchInspectorProps) {
+  const highlightedConnectionRef = useRef<HTMLDivElement | null>(null);
   const selectedNode = props.selectedNode;
   const selectedProbe = props.selectedProbe;
   const selectedPort =
@@ -144,6 +149,12 @@ export function PatchInspector(props: PatchInspectorProps) {
   );
   const visibleValidationHasErrors = visibleValidationIssues.some((issue) => issue.level === "error");
   const selectedMacroBindingIssues = resolveBrokenMacroBindingIssues(props.validationIssues, selectedMacro?.id);
+  useEffect(() => {
+    if (!props.wireCommitFeedback || !highlightedConnectionRef.current) {
+      return;
+    }
+    highlightedConnectionRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [props.wireCommitFeedback]);
   return (
     <aside className="patch-inspector">
       <h3>Inspector</h3>
@@ -361,9 +372,28 @@ export function PatchInspector(props: PatchInspectorProps) {
       {visibleConnections.map((connection) => (
         <div
           key={connection.id}
-          className={`conn-row${props.patchDiff.currentConnectionStatusById.get(connection.id) === "added" ? " diff-positive" : ""}`}
+          ref={props.wireCommitFeedback?.connectionId === connection.id ? highlightedConnectionRef : undefined}
+          className={`conn-row${props.patchDiff.currentConnectionStatusById.get(connection.id) === "added" ? " diff-positive" : ""}${
+            props.wireCommitFeedback?.connectionId === connection.id ? " wire-commit-highlight" : ""
+          }${props.selectedConnectionId === connection.id ? " selected" : ""}`}
         >
-          <code>{connectionLabel(props.patch, connection)}</code>
+          <code>
+            <span
+              className={
+                props.wireCommitFeedback?.connectionId === connection.id ? "conn-endpoint-highlight" : undefined
+              }
+            >
+              {formatPatchEndpointLabel(props.patch, connection.from)}
+            </span>{" "}
+            -&gt;{" "}
+            <span
+              className={
+                props.wireCommitFeedback?.connectionId === connection.id ? "conn-endpoint-highlight" : undefined
+              }
+            >
+              {formatPatchEndpointLabel(props.patch, connection.to)}
+            </span>
+          </code>
           <button
             disabled={props.structureLocked}
             onClick={() =>
@@ -377,7 +407,7 @@ export function PatchInspector(props: PatchInspectorProps) {
       {visibleRemovedConnections.map((connection) => (
         <div key={connection.id} className="conn-row diff-negative removed-diff-artifact">
           <code>{connectionLabel(props.patch, connection)}</code>
-          <button type="button" disabled>
+          <button type="button" className="conn-row-status" disabled>
             removed
           </button>
         </div>

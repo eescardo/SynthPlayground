@@ -56,12 +56,12 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     });
   }
 
-  stopCurrentStream(phase = "stop_stream") {
+  stopCurrentStream(phase = "stop_stream", options = {}) {
     if (this.currentStream) {
       const currentStream = this.currentStream;
       this.currentStream = null;
       try {
-        currentStream.stop();
+        currentStream.stop(options);
       } catch (error) {
         this.reportRuntimeError(phase, error);
       }
@@ -145,7 +145,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
           break;
         }
         if (message.forceStop) {
-          this.stopCurrentStream("preview_release_force_stop");
+          this.stopCurrentStream("preview_release_force_stop", { emitPreviewCapture: true });
           break;
         }
         this.currentStream.enqueueEvents?.([

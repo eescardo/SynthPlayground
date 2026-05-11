@@ -354,7 +354,7 @@ describe("synth worklet runtime", () => {
 
     expect(startStream).toHaveBeenCalledTimes(1);
     expect(enqueueEvents).not.toHaveBeenCalled();
-    expect(stop).toHaveBeenCalledTimes(1);
+    expect(stop).toHaveBeenCalledWith({ emitPreviewCapture: true });
     runtime.resetRendererFactory();
   });
 
