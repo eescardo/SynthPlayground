@@ -4,10 +4,15 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, 
 import { usePathname, useRouter } from "next/navigation";
 import { toAudioProject } from "@/audio/audioProject";
 import { AudioEngine } from "@/audio/engine";
-import { ComposerView } from "@/components/app/ComposerView";
 import { ComposerControllerProps } from "@/components/app/ComposerController";
 import { AudioDebugPanel } from "@/components/app/AudioDebugPanel";
 import { BrowserCompatibilityDialog } from "@/components/app/BrowserCompatibilityDialog";
+import {
+  createComposerControllerProps,
+  createPatchWorkspaceControllerProps,
+  createProjectGlobalCommitActions,
+  createProjectMenuProps
+} from "@/components/app/appRootViewModels";
 import { PatchRemovalDialogModal } from "@/components/composer/PatchRemovalDialogModal";
 import { PitchPickerModal } from "@/components/composer/PitchPickerModal";
 import { RecordingDock } from "@/components/composer/RecordingDock";
@@ -1180,204 +1185,114 @@ export function AppRoot({ children }: { children: ReactNode }) {
     return <main className="loading">Loading...</main>;
   }
 
-  const trackCanvasTrackActions = {
-    onSelectTrack: setSelectedTrackId,
-    onRenameTrack: renameTrack,
-    onToggleTrackMute: toggleTrackMute,
-    onSetTrackVolume: setTrackVolume,
-    onPreviewTrackVolume: previewTrackVolume,
-    onBindTrackVolumeToAutomation: bindTrackVolumeToAutomation,
-    onUnbindTrackVolumeFromAutomation: unbindTrackVolumeFromAutomation,
-    onToggleTrackVolumeAutomationLane: toggleTrackVolumeAutomationLane,
-    onUpdateTrackPatch: updateTrackPatch,
-    onToggleTrackMacroPanel: toggleTrackMacroPanel
-  };
-  const trackCanvasPatchActions = {
-    canRemoveSelectedPatch:
-      resolvePatchSource(selectedTrackPatch) === "custom" ||
-      resolvePatchPresetStatus(selectedTrackPatch) === "legacy_preset",
-    onDuplicateSelectedPatch: duplicatePatchForSelectedTrack,
-    onRequestRemoveSelectedPatch: requestRemoveSelectedTrackPatch,
-    onOpenSelectedPatchWorkspace: () => patchWorkspace.openPatchWorkspace(selectedTrack.instrumentPatchId)
-  };
-  const trackCanvasAutomationActions = {
-    onChangeTrackMacro: changeTrackMacro,
-    onBindTrackMacroToAutomation: bindTrackMacroToAutomation,
-    onUnbindTrackMacroFromAutomation: unbindTrackMacroFromAutomation,
-    onToggleTrackMacroAutomationLane: toggleTrackMacroAutomationLane,
-    onUpsertTrackMacroAutomationKeyframe: upsertTrackMacroAutomationKeyframe,
-    onSplitTrackMacroAutomationKeyframe: splitTrackMacroAutomationKeyframe,
-    onUpdateTrackMacroAutomationKeyframeSide: updateTrackMacroAutomationKeyframeSide,
-    onDeleteTrackMacroAutomationKeyframeSide: deleteTrackMacroAutomationKeyframeSide,
-    onPreviewTrackMacroAutomation: previewTrackMacroAutomation
-  };
-  const trackCanvasNoteActions = {
-    onOpenPitchPicker: openPitchPicker,
-    onPreviewPlacedNote: previewPlacedNote,
-    onUpsertNote: upsertNote,
-    onUpdateNote: updateNote,
-    onDeleteNote: deleteNote
-  };
-  const trackCanvasSelectionActions = {
-    onSetContentSelection: setContentSelectionFromCanvas,
-    onSetTimelineSelectionBeatRange: setTimelineSelectionFromCanvas,
-    onSetSelectionMarqueeActive: (active: boolean) => {
-      setEditorSelection((current) => setEditorSelectionMarqueeActive(current, active));
-    },
-    onPreviewSelectionActionScopeChange: (scope: "source" | "all-tracks") => {
-      setEditorSelection((current) => setEditorSelectionActionScopePreview(current, scope));
-    },
-    selectionActionPopoverCollapsed,
-    onExpandSelectionActionPopover: () => setSelectionActionPopoverMode("expanded"),
-    onDismissSelectionActionPopover: clearCanvasSelection,
-    onCopySelection: () => {
-      void (hasTimelineRangeSelection ? copyAllTracksInSelection() : copySelectedNotes());
-    },
-    onCutSelection: () => {
-      void (hasTimelineRangeSelection ? cutAllTracksInSelection() : cutSelectedNotes());
-    },
-    onDeleteSelection: () => {
-      if (hasTimelineRangeSelection) {
-        deleteAllTracksInSelection();
-        return;
-      }
-      deleteSelectedNoteSelection();
-    },
-    onOpenExplodeSelectionDialog: openExplodeSelectionDialog,
-    onCopyAllTracksInSelection: () => {
-      void copyAllTracksInSelection();
-    },
-    onCutAllTracksInSelection: () => {
-      void cutAllTracksInSelection();
-    },
-    onDeleteAllTracksInSelection: deleteAllTracksInSelection
-  };
-
-  const projectMenuProps = {
+  const projectMenuProps = createProjectMenuProps({
     importInputRef,
     recentProjects,
-    onNewProject: () => {
-      void createNewProject();
-    },
-    onExportJson: exportJson,
-    onImportJson: () => importInputRef.current?.click(),
-    onOpenRecentProject: (projectId: string) => {
-      void openRecentProject(projectId);
-    },
-    onResetToDefaultProject: () => {
-      void resetToDefaultProject();
-    },
-    onImportFile: (file: File) => {
-      void importJson(file);
-    }
-  };
+    createNewProject,
+    exportJson,
+    openRecentProject,
+    resetToDefaultProject,
+    importJson
+  });
+  const { commitGlobalGrid, commitGlobalMeter, commitGlobalTempo } = createProjectGlobalCommitActions({
+    commitProjectChange
+  });
 
-  const composerViewProps: React.ComponentProps<typeof ComposerView> = {
+  const composerControllerProps: ComposerControllerProps = createComposerControllerProps({
+    clipboard: writeClipboardPayload,
     project,
-    ...projectMenuProps,
     selectedTrackId: selectedTrack.id,
-    defaultPitch: patchWorkspace.previewPitch,
+    selectedTrackPatch,
+    selectedTrackInstrumentPatchId: selectedTrack.instrumentPatchId,
     invalidPatchIds,
     canvasSelection,
     playheadBeat,
-    activeRecordedNotes: recording.activeRecordedNotes,
-    keyboardPlacementNote: hardwareNavigation.activePlacement
-      ? {
-          trackId: hardwareNavigation.activePlacement.trackId,
-          noteId: hardwareNavigation.activePlacement.noteId
-        }
-      : null,
-    ghostPreviewNote: hardwareNavigation.ghostPreviewNote,
-    tabSelectionPreviewNote: hardwareNavigation.tabSelectionPreviewNote,
-    ghostPlayheadBeat: recording.ghostPlayheadBeat ?? undefined,
-    countInLabel: recording.countInLabel ?? undefined,
+    playing,
+    recording,
+    playback,
+    hardwareNavigation,
+    patchWorkspace,
+    projectMenuProps,
     timelineActionsPopover,
     selectionActionPopoverVisible,
     noteClipboardPayload,
-    playheadFocused: hardwareNavigation.playheadNavigationFocused,
-    selectedContentTabStopFocusToken: hardwareNavigation.selectedContentTabStopFocusToken,
     startMarkerAtTimelineBeat,
     endMarkerAtTimelineBeat,
     expandableLoopRegion: Boolean(expandableLoopRegion),
-    recordingDisabled: recording.recordEnabled,
-    isPlaying: playing || recording.recordPhase === "count_in",
-    recordEnabled: recording.recordEnabled,
-    recordPhase: recording.recordPhase,
     exportingAudio,
-    onOpenDefaultPitchPicker: () => patchWorkspace.setPreviewPitchPickerOpen(true),
-    onPlay: playback.startPlayback,
-    onStop: playback.stopPlayback,
-    onToggleRecord: () => {
-      if (recording.recordEnabled || recording.recordPhase !== "idle") {
-        playback.stopPlayback(true);
-        return;
-      }
-      playback.stopPlayback(true);
-      void recording.startRecordMode();
+    selectionActionPopoverCollapsed,
+    hasTimelineRangeSelection,
+    setSelectedTrackId,
+    renameTrack,
+    toggleTrackMute,
+    setTrackVolume,
+    previewTrackVolume,
+    bindTrackVolumeToAutomation,
+    unbindTrackVolumeFromAutomation,
+    toggleTrackVolumeAutomationLane,
+    updateTrackPatch,
+    toggleTrackMacroPanel,
+    duplicatePatchForSelectedTrack,
+    requestRemoveSelectedTrackPatch,
+    changeTrackMacro,
+    bindTrackMacroToAutomation,
+    unbindTrackMacroFromAutomation,
+    toggleTrackMacroAutomationLane,
+    upsertTrackMacroAutomationKeyframe,
+    splitTrackMacroAutomationKeyframe,
+    updateTrackMacroAutomationKeyframeSide,
+    deleteTrackMacroAutomationKeyframeSide,
+    previewTrackMacroAutomation,
+    openPitchPicker,
+    previewPlacedNote,
+    upsertNote,
+    updateNote,
+    deleteNote,
+    setContentSelectionFromCanvas,
+    setTimelineSelectionFromCanvas,
+    setSelectionMarqueeActive: (active: boolean) => {
+      setEditorSelection((current) => setEditorSelectionMarqueeActive(current, active));
     },
-    onClearCurrentProject: clearCurrentProject,
-    onRenameProject: renameProject,
-    onNewProject: () => {
-      void createNewProject();
+    previewSelectionActionScopeChange: (scope: "source" | "all-tracks") => {
+      setEditorSelection((current) => setEditorSelectionActionScopePreview(current, scope));
     },
-    onOpenPatchWorkspace: () => patchWorkspace.openPatchWorkspace(),
-    onExportAudio: () => {
-      void exportAudio();
-    },
-    onTempoChange: (tempo) =>
-      commitProjectChange((current) => ({ ...current, global: { ...current.global, tempo } }), {
-        actionKey: "global:tempo"
-      }),
-    onMeterChange: (meter) =>
-      commitProjectChange((current) => ({ ...current, global: { ...current.global, meter } }), {
-        actionKey: "global:meter"
-      }),
-    onGridChange: (gridBeats) =>
-      commitProjectChange((current) => ({ ...current, global: { ...current.global, gridBeats } }), {
-        actionKey: "global:grid"
-      }),
-    onAddTrack: addTrack,
-    onRemoveTrack: removeSelectedTrack,
-    onSetPlayheadBeat: setPlayheadFromUser,
-    onReturnSelectedNoteFocusToPlayhead: hardwareNavigation.returnSelectionFocusToPlayhead,
-    onRequestTimelineActionsPopover: requestTimelineActionsPopover,
-    onCloseTimelineActionsPopover: () => setTimelineActionsPopover(null),
-    onPasteAtTimeline: (mode, beat) => applyNoteClipboardPaste(mode, beat),
-    onAddLoopBoundary: addLoopBoundary,
-    onExpandLoopToNotes: expandSelectedLoopToNotes,
-    onUpdateLoopRepeatCount: (repeatCount) => {
+    expandSelectionActionPopover: () => setSelectionActionPopoverMode("expanded"),
+    clearCanvasSelection,
+    copyAllTracksInSelection,
+    copySelectedNotes,
+    cutAllTracksInSelection,
+    cutSelectedNotes,
+    deleteAllTracksInSelection,
+    deleteSelectedNoteSelection,
+    openExplodeSelectionDialog,
+    clearCurrentProject,
+    renameProject,
+    exportAudio,
+    commitGlobalTempo,
+    commitGlobalMeter,
+    commitGlobalGrid,
+    addTrack,
+    removeSelectedTrack,
+    setPlayheadFromUser,
+    requestTimelineActionsPopover,
+    closeTimelineActionsPopover: () => setTimelineActionsPopover(null),
+    applyNoteClipboardPaste,
+    addLoopBoundary,
+    expandSelectedLoopToNotes,
+    updateLoopRepeatCount: (repeatCount) => {
       if (endMarkerAtTimelineBeat) {
         updateLoopRepeatCount(endMarkerAtTimelineBeat.id, repeatCount);
       }
     },
-    onRemoveStartLoopBoundary: () => {
-      if (startMarkerAtTimelineBeat) {
-        removeLoopBoundary(startMarkerAtTimelineBeat.id);
-      }
-    },
-    onRemoveEndLoopBoundary: () => {
-      if (endMarkerAtTimelineBeat) {
-        removeLoopBoundary(endMarkerAtTimelineBeat.id);
-      }
-    },
-    trackActions: trackCanvasTrackActions,
-    patchActions: trackCanvasPatchActions,
-    automationActions: trackCanvasAutomationActions,
-    noteActions: trackCanvasNoteActions,
-    selectionActions: trackCanvasSelectionActions
-  };
+    removeLoopBoundary
+  });
 
-  const composerControllerProps: ComposerControllerProps = {
-    clipboard: writeClipboardPayload,
-    viewProps: composerViewProps
-  };
-
-  const patchWorkspaceControllerProps: UsePatchWorkspaceControllerOptions = {
+  const patchWorkspaceControllerProps: UsePatchWorkspaceControllerOptions = createPatchWorkspaceControllerProps({
     project,
     projectAssets,
     playheadBeat,
     selectedPatch,
-    ...projectMenuProps,
+    projectMenuProps,
     validationIssues,
     selectedPatchHasErrors,
     patchWorkspace,
@@ -1386,7 +1301,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     commitProjectChange,
     setProjectAssets,
     setRuntimeError
-  };
+  });
 
   const contextValue: AppRootContextValue = {
     composerControllerProps,

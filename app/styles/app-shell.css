@@ -1,0 +1,10 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  padding: 0.8rem;
+}
+
+.loading {
+  padding: 2rem;
+}

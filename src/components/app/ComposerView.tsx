@@ -12,7 +12,7 @@ import { useComposerQuickHelpDialog } from "@/hooks/useComposerQuickHelpDialog";
 import { usePlatformShortcuts } from "@/hooks/usePlatformShortcuts";
 import { Project } from "@/types/music";
 
-interface ComposerViewProps {
+export interface ComposerViewProps {
   project: Project;
   recentProjects: RecentProjectSnapshot[];
   selectedTrackId: string;

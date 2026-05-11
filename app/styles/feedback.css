@@ -1,0 +1,19 @@
+.muted {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.error {
+  color: #ff9aa8;
+  font-size: 0.82rem;
+}
+
+.warn {
+  color: #ffd597;
+  font-size: 0.82rem;
+}
+
+.ok {
+  color: var(--ok);
+  font-size: 0.82rem;
+}
