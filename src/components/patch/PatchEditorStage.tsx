@@ -422,6 +422,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           patch={patch}
           pendingFromPort={pendingFromPort}
           pendingProbeId={probeState.attachingProbeId}
+          scrollLeft={scrollViewport.left}
           scrollTop={scrollViewport.top}
           structureLocked={structureLocked}
           zoom={zoom}
