@@ -48,17 +48,6 @@ export function resolvePatchCanvasHitTarget(args: ResolvePatchCanvasHitTargetArg
     return { kind: "port", port };
   }
 
-  const nodeId = args.getNodeAtPoint(point.x, point.y);
-  if (nodeId) {
-    if (args.pendingFromPort) {
-      const cancelRect = args.getArmedWireCancelRect(nodeId);
-      if (cancelRect && isPointInCanvasRect(point, cancelRect)) {
-        return { kind: "armedWireCancel", nodeId };
-      }
-    }
-    return { kind: "node", nodeId };
-  }
-
   if (args.pendingProbeId) {
     const connectionId = findPatchConnectionAtPoint(
       args.patch,
@@ -69,6 +58,17 @@ export function resolvePatchCanvasHitTarget(args: ResolvePatchCanvasHitTargetArg
       Math.max(8, 10 / zoom)
     );
     return connectionId ? { kind: "connection", connectionId } : { kind: "empty" };
+  }
+
+  const nodeId = args.getNodeAtPoint(point.x, point.y);
+  if (nodeId) {
+    if (args.pendingFromPort) {
+      const cancelRect = args.getArmedWireCancelRect(nodeId);
+      if (cancelRect && isPointInCanvasRect(point, cancelRect)) {
+        return { kind: "armedWireCancel", nodeId };
+      }
+    }
+    return { kind: "node", nodeId };
   }
 
   if (!args.pendingFromPort) {

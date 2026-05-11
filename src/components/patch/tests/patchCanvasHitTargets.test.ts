@@ -43,4 +43,38 @@ describe("patch canvas hit targets", () => {
       connectionId: "conn1"
     });
   });
+
+  it("keeps module bodies ahead of wires while creating a wire", () => {
+    expect(
+      resolveBaseTarget({
+        pendingFromPort: { nodeId: "source", portId: "out", kind: "out", x: 0, y: 0, width: 16, height: 12 },
+        getNodeAtPoint: () => "coveringNode"
+      })
+    ).toEqual({
+      kind: "node",
+      nodeId: "coveringNode"
+    });
+  });
+
+  it("keeps direct port hits ahead of modules and wires", () => {
+    const port = { nodeId: "vco1", portId: "pitch", kind: "in" as const, x: 40, y: 40, width: 32, height: 14 };
+
+    expect(
+      resolveBaseTarget({
+        point: { x: 44, y: 40 },
+        hitPorts: [port],
+        getNodeAtPoint: () => "coveringNode"
+      })
+    ).toEqual({
+      kind: "port",
+      port
+    });
+  });
+
+  it("keeps wires attachable over module bodies while attaching a probe", () => {
+    expect(resolveBaseTarget({ pendingProbeId: "probe1", getNodeAtPoint: () => "coveringNode" })).toEqual({
+      kind: "connection",
+      connectionId: "conn1"
+    });
+  });
 });
