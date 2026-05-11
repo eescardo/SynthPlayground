@@ -849,7 +849,7 @@ export function useTrackCanvasPointerInteractions({
 
       if (pendingAction?.kind === "ruler") {
         const beat = Math.max(0, snapToGrid(beatFromX(x), gridBeats));
-        if (selection.kind === "none") {
+        if (!hadSelectionRect) {
           onSetPlayheadBeat(beat);
         } else {
           selectionActions.onPreviewSelectionActionScopeChange("all-tracks");
@@ -895,7 +895,6 @@ export function useTrackCanvasPointerInteractions({
       noteResizeHandleWidth,
       onSetPlayheadBeat,
       resolvePointerTargets,
-      selection,
       selectionActions,
       selectionRect,
       trackLayouts

@@ -226,6 +226,78 @@ describe("synth worklet runtime", () => {
     runtime.resetRendererFactory();
   });
 
+  it("stops the active transport stream before starting a new transport session", async () => {
+    const runtime = await loadRuntimeModule();
+    const firstStop = vi.fn();
+    const secondStop = vi.fn();
+    const startStream = vi
+      .fn()
+      .mockReturnValueOnce({
+        port: { onmessage: null, postMessage() {} },
+        project: createProject(),
+        trackRuntimes: [],
+        eventQueue: [{ id: "pending_note_on" }],
+        stopped: false,
+        transportSessionId: 10,
+        processBlock() {
+          return true;
+        },
+        enqueueEvents() {},
+        stop: firstStop,
+        setMacroValue() {},
+        setRecordingTrack() {}
+      })
+      .mockReturnValueOnce({
+        port: { onmessage: null, postMessage() {} },
+        project: createProject(),
+        trackRuntimes: [],
+        eventQueue: [],
+        stopped: false,
+        transportSessionId: 11,
+        processBlock() {
+          return true;
+        },
+        enqueueEvents() {},
+        stop: secondStop,
+        setMacroValue() {},
+        setRecordingTrack() {}
+      });
+
+    runtime.setRendererFactory(() => ({
+      port: { onmessage: null, postMessage() {} },
+      sampleRateInternal: 48000,
+      blockSize: 128,
+      project: createProject(),
+      configure() {},
+      setDefaultProject() {},
+      startStream
+    }));
+
+    const processor = new runtime.SynthWorkletProcessor({
+      processorOptions: { sampleRate: 48000, blockSize: 128 }
+    });
+
+    processor.onMessage({
+      type: "TRANSPORT",
+      isPlaying: true,
+      songStartSample: 0,
+      events: [],
+      sessionId: 10
+    });
+    processor.onMessage({
+      type: "TRANSPORT",
+      isPlaying: true,
+      songStartSample: 0,
+      events: [],
+      sessionId: 11
+    });
+
+    expect(startStream).toHaveBeenCalledTimes(2);
+    expect(firstStop).toHaveBeenCalledTimes(1);
+    expect(secondStop).not.toHaveBeenCalled();
+    runtime.resetRendererFactory();
+  });
+
   it("releases a held preview on keyup without replacing the stream", async () => {
     const runtime = await loadRuntimeModule();
     const enqueueEvents = vi.fn();
