@@ -3,7 +3,7 @@
 import type { RefObject } from "react";
 import type { AudioEngine } from "@/audio/engine";
 import type { ComposerControllerProps } from "@/components/app/ComposerController";
-import type { ComposerViewProps } from "@/components/app/ComposerView";
+import type { ComposerProjectMenuProps, ComposerViewProps } from "@/components/app/ComposerView";
 import type { UsePatchWorkspaceControllerOptions } from "@/hooks/patch/usePatchWorkspaceController";
 import type { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
 import type { useHardwareNavigation } from "@/hooks/useHardwareNavigation";
@@ -15,17 +15,7 @@ import type { ProjectAssetLibrary } from "@/types/assets";
 import type { Project } from "@/types/music";
 import type { Patch } from "@/types/patch";
 
-type ProjectMenuProps = Pick<
-  ComposerViewProps,
-  | "importInputRef"
-  | "recentProjects"
-  | "onNewProject"
-  | "onExportJson"
-  | "onImportJson"
-  | "onOpenRecentProject"
-  | "onResetToDefaultProject"
-  | "onImportFile"
->;
+type ProjectMenuProps = ComposerProjectMenuProps;
 
 type PatchWorkspaceState = ReturnType<typeof usePatchWorkspaceState>;
 type RecordingState = ReturnType<typeof useRecordingController>;
@@ -106,11 +96,11 @@ interface ComposerRuntimeState {
 }
 
 interface ComposerTimelineState {
-  timelineActionsPopover: ComposerViewProps["timelineActionsPopover"];
+  timelineActionsPopover: ComposerViewProps["timeline"]["timelineActionsPopover"];
   selectionActionPopoverVisible: boolean;
   noteClipboardPayload: unknown;
-  startMarkerAtTimelineBeat: ComposerViewProps["startMarkerAtTimelineBeat"];
-  endMarkerAtTimelineBeat: ComposerViewProps["endMarkerAtTimelineBeat"];
+  startMarkerAtTimelineBeat: ComposerViewProps["timeline"]["startMarkerAtTimelineBeat"];
+  endMarkerAtTimelineBeat: ComposerViewProps["timeline"]["endMarkerAtTimelineBeat"];
   expandableLoopRegion: boolean;
   selectionActionPopoverCollapsed: boolean;
 }
@@ -124,16 +114,16 @@ interface ComposerPrimaryActions {
   commitGlobalGrid: (gridBeats: Project["global"]["gridBeats"]) => void;
   addTrack: () => void;
   removeSelectedTrack: () => void;
-  setPlayheadFromUser: ComposerViewProps["onSetPlayheadBeat"];
+  setPlayheadFromUser: ComposerViewProps["projectActions"]["onSetPlayheadBeat"];
 }
 
 interface ComposerTimelineActions {
-  requestTimelineActionsPopover: ComposerViewProps["onRequestTimelineActionsPopover"];
+  requestTimelineActionsPopover: ComposerViewProps["timelineActions"]["onRequestTimelineActionsPopover"];
   closeTimelineActionsPopover: () => void;
-  applyNoteClipboardPaste: ComposerViewProps["onPasteAtTimeline"];
-  addLoopBoundary: ComposerViewProps["onAddLoopBoundary"];
+  applyNoteClipboardPaste: ComposerViewProps["timelineActions"]["onPasteAtTimeline"];
+  addLoopBoundary: ComposerViewProps["timelineActions"]["onAddLoopBoundary"];
   expandSelectedLoopToNotes: () => void;
-  updateLoopRepeatCount: ComposerViewProps["onUpdateLoopRepeatCount"];
+  updateLoopRepeatCount: ComposerViewProps["timelineActions"]["onUpdateLoopRepeatCount"];
   removeLoopBoundary: (markerId: string) => void;
 }
 
@@ -311,78 +301,92 @@ export function createComposerControllerProps(options: UseComposerControllerProp
 
   const viewProps: ComposerViewProps = {
     project,
-    ...projectMenuProps,
     selectedTrackId,
     defaultPitch: patchWorkspace.previewPitch,
     invalidPatchIds,
     canvasSelection,
-    playheadBeat,
-    activeRecordedNotes: recording.activeRecordedNotes,
-    keyboardPlacementNote: hardwareNavigation.activePlacement
-      ? {
-          trackId: hardwareNavigation.activePlacement.trackId,
-          noteId: hardwareNavigation.activePlacement.noteId
+    projectMenu: projectMenuProps,
+    transport: {
+      playheadBeat,
+      exportingAudio
+    },
+    recording: {
+      activeRecordedNotes: recording.activeRecordedNotes,
+      ghostPlayheadBeat: recording.ghostPlayheadBeat ?? undefined,
+      countInLabel: recording.countInLabel ?? undefined,
+      recordingDisabled: recording.recordEnabled,
+      isPlaying: playing || recording.recordPhase === "count_in",
+      recordEnabled: recording.recordEnabled,
+      recordPhase: recording.recordPhase
+    },
+    canvasPreview: {
+      keyboardPlacementNote: hardwareNavigation.activePlacement
+        ? {
+            trackId: hardwareNavigation.activePlacement.trackId,
+            noteId: hardwareNavigation.activePlacement.noteId
+          }
+        : null,
+      ghostPreviewNote: hardwareNavigation.ghostPreviewNote,
+      tabSelectionPreviewNote: hardwareNavigation.tabSelectionPreviewNote,
+      playheadFocused: hardwareNavigation.playheadNavigationFocused,
+      selectedContentTabStopFocusToken: hardwareNavigation.selectedContentTabStopFocusToken,
+      selectionActionPopoverVisible
+    },
+    timeline: {
+      timelineActionsPopover,
+      noteClipboardPayload,
+      startMarkerAtTimelineBeat,
+      endMarkerAtTimelineBeat,
+      expandableLoopRegion
+    },
+    projectActions: {
+      onOpenDefaultPitchPicker: () => patchWorkspace.setPreviewPitchPickerOpen(true),
+      onClearCurrentProject: primaryActions.clearCurrentProject,
+      onRenameProject: primaryActions.renameProject,
+      onOpenPatchWorkspace: () => patchWorkspace.openPatchWorkspace(),
+      onExportAudio: () => {
+        void primaryActions.exportAudio();
+      },
+      onTempoChange: primaryActions.commitGlobalTempo,
+      onMeterChange: primaryActions.commitGlobalMeter,
+      onGridChange: primaryActions.commitGlobalGrid,
+      onAddTrack: primaryActions.addTrack,
+      onRemoveTrack: primaryActions.removeSelectedTrack,
+      onSetPlayheadBeat: primaryActions.setPlayheadFromUser,
+      onReturnSelectedNoteFocusToPlayhead: hardwareNavigation.returnSelectionFocusToPlayhead
+    },
+    transportActions: {
+      onPlay: playback.startPlayback,
+      onStop: playback.stopPlayback,
+      onToggleRecord: () => {
+        if (recording.recordEnabled || recording.recordPhase !== "idle") {
+          playback.stopPlayback(true);
+          return;
         }
-      : null,
-    ghostPreviewNote: hardwareNavigation.ghostPreviewNote,
-    tabSelectionPreviewNote: hardwareNavigation.tabSelectionPreviewNote,
-    ghostPlayheadBeat: recording.ghostPlayheadBeat ?? undefined,
-    countInLabel: recording.countInLabel ?? undefined,
-    timelineActionsPopover,
-    selectionActionPopoverVisible,
-    noteClipboardPayload,
-    playheadFocused: hardwareNavigation.playheadNavigationFocused,
-    selectedContentTabStopFocusToken: hardwareNavigation.selectedContentTabStopFocusToken,
-    startMarkerAtTimelineBeat,
-    endMarkerAtTimelineBeat,
-    expandableLoopRegion,
-    recordingDisabled: recording.recordEnabled,
-    isPlaying: playing || recording.recordPhase === "count_in",
-    recordEnabled: recording.recordEnabled,
-    recordPhase: recording.recordPhase,
-    exportingAudio,
-    onOpenDefaultPitchPicker: () => patchWorkspace.setPreviewPitchPickerOpen(true),
-    onPlay: playback.startPlayback,
-    onStop: playback.stopPlayback,
-    onToggleRecord: () => {
-      if (recording.recordEnabled || recording.recordPhase !== "idle") {
         playback.stopPlayback(true);
-        return;
-      }
-      playback.stopPlayback(true);
-      void recording.startRecordMode();
-    },
-    onClearCurrentProject: primaryActions.clearCurrentProject,
-    onRenameProject: primaryActions.renameProject,
-    onOpenPatchWorkspace: () => patchWorkspace.openPatchWorkspace(),
-    onExportAudio: () => {
-      void primaryActions.exportAudio();
-    },
-    onTempoChange: primaryActions.commitGlobalTempo,
-    onMeterChange: primaryActions.commitGlobalMeter,
-    onGridChange: primaryActions.commitGlobalGrid,
-    onAddTrack: primaryActions.addTrack,
-    onRemoveTrack: primaryActions.removeSelectedTrack,
-    onSetPlayheadBeat: primaryActions.setPlayheadFromUser,
-    onReturnSelectedNoteFocusToPlayhead: hardwareNavigation.returnSelectionFocusToPlayhead,
-    onRequestTimelineActionsPopover: timelineActions.requestTimelineActionsPopover,
-    onCloseTimelineActionsPopover: timelineActions.closeTimelineActionsPopover,
-    onPasteAtTimeline: timelineActions.applyNoteClipboardPaste,
-    onAddLoopBoundary: timelineActions.addLoopBoundary,
-    onExpandLoopToNotes: timelineActions.expandSelectedLoopToNotes,
-    onUpdateLoopRepeatCount: (repeatCount) => {
-      if (endMarkerAtTimelineBeat) {
-        timelineActions.updateLoopRepeatCount(repeatCount);
+        void recording.startRecordMode();
       }
     },
-    onRemoveStartLoopBoundary: () => {
-      if (startMarkerAtTimelineBeat) {
-        timelineActions.removeLoopBoundary(startMarkerAtTimelineBeat.id);
-      }
-    },
-    onRemoveEndLoopBoundary: () => {
-      if (endMarkerAtTimelineBeat) {
-        timelineActions.removeLoopBoundary(endMarkerAtTimelineBeat.id);
+    timelineActions: {
+      onRequestTimelineActionsPopover: timelineActions.requestTimelineActionsPopover,
+      onCloseTimelineActionsPopover: timelineActions.closeTimelineActionsPopover,
+      onPasteAtTimeline: timelineActions.applyNoteClipboardPaste,
+      onAddLoopBoundary: timelineActions.addLoopBoundary,
+      onExpandLoopToNotes: timelineActions.expandSelectedLoopToNotes,
+      onUpdateLoopRepeatCount: (repeatCount) => {
+        if (endMarkerAtTimelineBeat) {
+          timelineActions.updateLoopRepeatCount(repeatCount);
+        }
+      },
+      onRemoveStartLoopBoundary: () => {
+        if (startMarkerAtTimelineBeat) {
+          timelineActions.removeLoopBoundary(startMarkerAtTimelineBeat.id);
+        }
+      },
+      onRemoveEndLoopBoundary: () => {
+        if (endMarkerAtTimelineBeat) {
+          timelineActions.removeLoopBoundary(endMarkerAtTimelineBeat.id);
+        }
       }
     },
     trackActions,
@@ -461,7 +465,7 @@ interface CreateComposerPrimaryActionsOptions extends ProjectCommitActionsOption
   exportAudio: () => Promise<void>;
   addTrack: () => void;
   removeSelectedTrack: () => void;
-  setPlayheadFromUser: ComposerViewProps["onSetPlayheadBeat"];
+  setPlayheadFromUser: ComposerViewProps["projectActions"]["onSetPlayheadBeat"];
 }
 
 export function createComposerPrimaryActions({
@@ -485,12 +489,12 @@ export function createComposerPrimaryActions({
 }
 
 interface CreateComposerTimelineActionsOptions {
-  requestTimelineActionsPopover: ComposerViewProps["onRequestTimelineActionsPopover"];
-  setTimelineActionsPopover: (request: ComposerViewProps["timelineActionsPopover"]) => void;
-  applyNoteClipboardPaste: ComposerViewProps["onPasteAtTimeline"];
-  addLoopBoundary: ComposerViewProps["onAddLoopBoundary"];
+  requestTimelineActionsPopover: ComposerViewProps["timelineActions"]["onRequestTimelineActionsPopover"];
+  setTimelineActionsPopover: (request: ComposerViewProps["timeline"]["timelineActionsPopover"]) => void;
+  applyNoteClipboardPaste: ComposerViewProps["timelineActions"]["onPasteAtTimeline"];
+  addLoopBoundary: ComposerViewProps["timelineActions"]["onAddLoopBoundary"];
   expandSelectedLoopToNotes: () => void;
-  endMarkerAtTimelineBeat: ComposerViewProps["endMarkerAtTimelineBeat"];
+  endMarkerAtTimelineBeat: ComposerViewProps["timeline"]["endMarkerAtTimelineBeat"];
   updateLoopRepeatCount: (markerId: string, repeatCount: number) => void;
   removeLoopBoundary: (markerId: string) => void;
 }

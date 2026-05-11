@@ -22,13 +22,13 @@ export function useComposerWorkspaceController(options: UseComposerWorkspaceCont
       tempo: options.viewProps.project.global.tempo,
       meter: options.viewProps.project.global.meter,
       gridBeats: options.viewProps.project.global.gridBeats,
-      playheadBeat: options.viewProps.playheadBeat
+      playheadBeat: options.viewProps.transport.playheadBeat
     }),
     [
-      options.viewProps.playheadBeat,
       options.viewProps.project.global.gridBeats,
       options.viewProps.project.global.meter,
-      options.viewProps.project.global.tempo
+      options.viewProps.project.global.tempo,
+      options.viewProps.transport.playheadBeat
     ]
   );
 

@@ -110,65 +110,65 @@ export interface HoveredLoopMarker {
 }
 
 interface UseTrackCanvasPointerInteractionsParams {
-  canvasRef: RefObject<HTMLCanvasElement | null>;
-  project: Project;
-  trackLayouts: TrackLayout[];
-  playheadBeat: number;
-  gridBeats: number;
-  defaultPitch: string;
-  selection: TrackCanvasSelection;
-  contentSelection:
-    | {
-        noteKeys: ReadonlySet<string>;
-        automationKeyframeSelectionKeys: ReadonlySet<string>;
-      }
-    | undefined;
-  noteActions: TrackCanvasNoteActions;
-  automationActions: TrackCanvasAutomationActions;
-  selectionActions: TrackCanvasSelectionActions;
-  trackActions: TrackCanvasTrackActions;
-  noteRectsRef: RefObject<NoteRect[]>;
-  automationKeyframeRectsRef: RefObject<AutomationKeyframeRect[]>;
-  muteRectsRef: RefObject<MuteRect[]>;
-  pitchRectsRef: RefObject<PitchRect[]>;
-  loopMarkerRectsRef: RefObject<LoopMarkerRect[]>;
-  getCanvasPoint: (clientX: number, clientY: number) => { x: number; y: number };
-  getTrackLayoutAtY: (y: number) => TrackLayout | null;
-  beatFromX: (x: number) => number;
-  fixedLaneValueFromX: (x: number) => number;
-  headerWidth: number;
-  noteResizeHandleWidth: number;
-  onSetPlayheadBeat: (beat: number) => void;
-  onRequestTimelineActionsPopover: (request: TimelineActionsPopoverRequest) => void;
+  canvas: {
+    canvasRef: RefObject<HTMLCanvasElement | null>;
+    noteRectsRef: RefObject<NoteRect[]>;
+    automationKeyframeRectsRef: RefObject<AutomationKeyframeRect[]>;
+    muteRectsRef: RefObject<MuteRect[]>;
+    pitchRectsRef: RefObject<PitchRect[]>;
+    loopMarkerRectsRef: RefObject<LoopMarkerRect[]>;
+  };
+  model: {
+    project: Project;
+    trackLayouts: TrackLayout[];
+    playheadBeat: number;
+    gridBeats: number;
+    defaultPitch: string;
+    selection: TrackCanvasSelection;
+    contentSelection:
+      | {
+          noteKeys: ReadonlySet<string>;
+          automationKeyframeSelectionKeys: ReadonlySet<string>;
+        }
+      | undefined;
+  };
+  actions: {
+    noteActions: TrackCanvasNoteActions;
+    automationActions: TrackCanvasAutomationActions;
+    selectionActions: TrackCanvasSelectionActions;
+    trackActions: TrackCanvasTrackActions;
+    onSetPlayheadBeat: (beat: number) => void;
+    onRequestTimelineActionsPopover: (request: TimelineActionsPopoverRequest) => void;
+  };
+  geometry: {
+    getCanvasPoint: (clientX: number, clientY: number) => { x: number; y: number };
+    getTrackLayoutAtY: (y: number) => TrackLayout | null;
+    beatFromX: (x: number) => number;
+    fixedLaneValueFromX: (x: number) => number;
+    headerWidth: number;
+    noteResizeHandleWidth: number;
+  };
 }
 
 export function useTrackCanvasPointerInteractions({
-  canvasRef,
-  project,
-  trackLayouts,
-  playheadBeat,
-  gridBeats,
-  defaultPitch,
-  selection,
-  contentSelection,
-  noteActions,
-  automationActions,
-  selectionActions,
-  trackActions,
-  noteRectsRef,
-  automationKeyframeRectsRef,
-  muteRectsRef,
-  pitchRectsRef,
-  loopMarkerRectsRef,
-  getCanvasPoint,
-  getTrackLayoutAtY,
-  beatFromX,
-  fixedLaneValueFromX,
-  headerWidth,
-  noteResizeHandleWidth,
-  onSetPlayheadBeat,
-  onRequestTimelineActionsPopover
+  actions,
+  canvas,
+  geometry,
+  model
 }: UseTrackCanvasPointerInteractionsParams) {
+  const {
+    automationActions,
+    noteActions,
+    onRequestTimelineActionsPopover,
+    onSetPlayheadBeat,
+    selectionActions,
+    trackActions
+  } = actions;
+  const { automationKeyframeRectsRef, canvasRef, loopMarkerRectsRef, muteRectsRef, noteRectsRef, pitchRectsRef } =
+    canvas;
+  const { beatFromX, fixedLaneValueFromX, getCanvasPoint, getTrackLayoutAtY, headerWidth, noteResizeHandleWidth } =
+    geometry;
+  const { contentSelection, defaultPitch, gridBeats, playheadBeat, project, selection, trackLayouts } = model;
   const dragRef = useRef<DragState | null>(null);
   const pendingCanvasActionRef = useRef<PendingCanvasAction | null>(null);
   const automationDragRef = useRef<AutomationDragState | null>(null);

@@ -14,39 +14,72 @@ import { Project } from "@/types/music";
 
 export interface ComposerViewProps {
   project: Project;
-  recentProjects: RecentProjectSnapshot[];
   selectedTrackId: string;
   defaultPitch: string;
   invalidPatchIds: Set<string>;
   canvasSelection: TrackCanvasSelection;
+  projectMenu: ComposerProjectMenuProps;
+  transport: ComposerTransportProps;
+  recording: ComposerRecordingProps;
+  canvasPreview: ComposerCanvasPreviewProps;
+  timeline: ComposerTimelineProps;
+  projectActions: ComposerProjectActions;
+  transportActions: ComposerTransportActions;
+  timelineActions: ComposerTimelineActions;
+  trackActions: ComponentProps<typeof TrackCanvas>["trackActions"];
+  patchActions: ComponentProps<typeof TrackCanvas>["patchActions"];
+  automationActions: ComponentProps<typeof TrackCanvas>["automationActions"];
+  noteActions: ComponentProps<typeof TrackCanvas>["noteActions"];
+  selectionActions: ComponentProps<typeof TrackCanvas>["selectionActions"];
+}
+
+export interface ComposerProjectMenuProps {
+  importInputRef: RefObject<HTMLInputElement | null>;
+  recentProjects: RecentProjectSnapshot[];
+  onNewProject: () => void;
+  onExportJson: () => void;
+  onImportJson: () => void;
+  onOpenRecentProject: (projectId: string) => void;
+  onResetToDefaultProject: () => void;
+  onImportFile: (file: File) => void;
+}
+
+export interface ComposerTransportProps {
   playheadBeat: number;
+  exportingAudio: boolean;
+}
+
+export interface ComposerRecordingProps {
   activeRecordedNotes: Array<{ trackId: string; noteId: string; startBeat: number }>;
+  recordingDisabled: boolean;
+  isPlaying: boolean;
+  recordEnabled: boolean;
+  recordPhase?: ComposerRecordPhase;
+  ghostPlayheadBeat?: number;
+  countInLabel?: string;
+}
+
+export interface ComposerCanvasPreviewProps {
   keyboardPlacementNote?: { trackId: string; noteId: string } | null;
   ghostPreviewNote?: { trackId: string; startBeat: number; durationBeats: number; pitchStr: string } | null;
   tabSelectionPreviewNote?: { trackId: string; noteId: string } | null;
   playheadFocused?: boolean;
   selectedContentTabStopFocusToken?: number;
-  ghostPlayheadBeat?: number;
-  countInLabel?: string;
-  timelineActionsPopover: TimelineActionsPopoverRequest | null;
   selectionActionPopoverVisible: boolean;
+}
+
+export interface ComposerTimelineProps {
+  timelineActionsPopover: TimelineActionsPopoverRequest | null;
   noteClipboardPayload: unknown;
   startMarkerAtTimelineBeat?: { id: string } | null;
   endMarkerAtTimelineBeat?: { id: string; repeatCount?: number } | null;
   expandableLoopRegion: boolean;
-  importInputRef: RefObject<HTMLInputElement | null>;
-  recordingDisabled: boolean;
-  isPlaying: boolean;
-  recordEnabled: boolean;
-  recordPhase?: ComposerRecordPhase;
-  exportingAudio: boolean;
-  onOpenDefaultPitchPicker: () => void;
-  onPlay: () => void;
-  onStop: () => void;
-  onToggleRecord: () => void;
+}
+
+export interface ComposerProjectActions {
   onClearCurrentProject: () => void;
   onRenameProject: (name: string) => void;
-  onNewProject: () => void;
+  onOpenDefaultPitchPicker: () => void;
   onOpenPatchWorkspace: () => void;
   onExportAudio: () => void;
   onTempoChange: (tempo: number) => void;
@@ -54,13 +87,17 @@ export interface ComposerViewProps {
   onGridChange: (gridBeats: number) => void;
   onAddTrack: () => void;
   onRemoveTrack: () => void;
-  onExportJson: () => void;
-  onImportJson: () => void;
-  onOpenRecentProject: (projectId: string) => void;
-  onResetToDefaultProject: () => void;
-  onImportFile: (file: File) => void;
   onSetPlayheadBeat: (beat: number) => void;
   onReturnSelectedNoteFocusToPlayhead: () => void;
+}
+
+export interface ComposerTransportActions {
+  onPlay: () => void;
+  onStop: () => void;
+  onToggleRecord: () => void;
+}
+
+export interface ComposerTimelineActions {
   onRequestTimelineActionsPopover: (request: TimelineActionsPopoverRequest) => void;
   onCloseTimelineActionsPopover: () => void;
   onPasteAtTimeline: (mode: "paste" | "paste-all-tracks" | "insert" | "insert-all-tracks", beat: number) => void;
@@ -69,11 +106,6 @@ export interface ComposerViewProps {
   onUpdateLoopRepeatCount: (repeatCount: number) => void;
   onRemoveStartLoopBoundary: () => void;
   onRemoveEndLoopBoundary: () => void;
-  trackActions: ComponentProps<typeof TrackCanvas>["trackActions"];
-  patchActions: ComponentProps<typeof TrackCanvas>["patchActions"];
-  automationActions: ComponentProps<typeof TrackCanvas>["automationActions"];
-  noteActions: ComponentProps<typeof TrackCanvas>["noteActions"];
-  selectionActions: ComponentProps<typeof TrackCanvas>["selectionActions"];
 }
 
 export function ComposerView(props: ComposerViewProps) {
@@ -91,40 +123,40 @@ export function ComposerView(props: ComposerViewProps) {
         tempo={props.project.global.tempo}
         meter={props.project.global.meter}
         gridBeats={props.project.global.gridBeats}
-        playheadBeat={props.playheadBeat}
-        importInputRef={props.importInputRef}
-        recentProjects={props.recentProjects}
-        onRenameProject={props.onRenameProject}
-        onNewProject={props.onNewProject}
-        onOpenPatchWorkspace={props.onOpenPatchWorkspace}
-        onExportAudio={props.onExportAudio}
-        exportAudioDisabled={props.exportingAudio}
-        onTempoChange={props.onTempoChange}
-        onMeterChange={props.onMeterChange}
-        onGridChange={props.onGridChange}
-        onExportJson={props.onExportJson}
-        onImportJson={props.onImportJson}
-        onOpenRecentProject={props.onOpenRecentProject}
-        onResetToDefaultProject={props.onResetToDefaultProject}
-        onImportFile={props.onImportFile}
+        playheadBeat={props.transport.playheadBeat}
+        importInputRef={props.projectMenu.importInputRef}
+        recentProjects={props.projectMenu.recentProjects}
+        onRenameProject={props.projectActions.onRenameProject}
+        onNewProject={props.projectMenu.onNewProject}
+        onOpenPatchWorkspace={props.projectActions.onOpenPatchWorkspace}
+        onExportAudio={props.projectActions.onExportAudio}
+        exportAudioDisabled={props.transport.exportingAudio}
+        onTempoChange={props.projectActions.onTempoChange}
+        onMeterChange={props.projectActions.onMeterChange}
+        onGridChange={props.projectActions.onGridChange}
+        onExportJson={props.projectMenu.onExportJson}
+        onImportJson={props.projectMenu.onImportJson}
+        onOpenRecentProject={props.projectMenu.onOpenRecentProject}
+        onResetToDefaultProject={props.projectMenu.onResetToDefaultProject}
+        onImportFile={props.projectMenu.onImportFile}
         onOpenHelp={openHelp}
       />
 
       <ComposerActionsBar
-        recordingDisabled={props.recordingDisabled}
-        isPlaying={props.isPlaying}
-        recordEnabled={props.recordEnabled}
-        recordPhase={props.recordPhase}
-        countInLabel={props.countInLabel}
+        recordingDisabled={props.recording.recordingDisabled}
+        isPlaying={props.recording.isPlaying}
+        recordEnabled={props.recording.recordEnabled}
+        recordPhase={props.recording.recordPhase}
+        countInLabel={props.recording.countInLabel}
         defaultPitch={props.defaultPitch}
         canRemoveTrack={props.project.tracks.length > 1}
-        onOpenDefaultPitchPicker={props.onOpenDefaultPitchPicker}
-        onPlay={props.onPlay}
-        onStop={props.onStop}
-        onToggleRecord={props.onToggleRecord}
-        onClearProject={props.onClearCurrentProject}
-        onAddTrack={props.onAddTrack}
-        onRemoveTrack={props.onRemoveTrack}
+        onOpenDefaultPitchPicker={props.projectActions.onOpenDefaultPitchPicker}
+        onPlay={props.transportActions.onPlay}
+        onStop={props.transportActions.onStop}
+        onToggleRecord={props.transportActions.onToggleRecord}
+        onClearProject={props.projectActions.onClearCurrentProject}
+        onAddTrack={props.projectActions.onAddTrack}
+        onRemoveTrack={props.projectActions.onRemoveTrack}
       />
 
       <TrackCanvas
@@ -133,20 +165,20 @@ export function ComposerView(props: ComposerViewProps) {
         selectedTrackId={props.selectedTrackId}
         defaultPitch={props.defaultPitch}
         selection={props.canvasSelection}
-        playheadBeat={props.playheadBeat}
-        activeRecordedNotes={props.activeRecordedNotes}
-        keyboardPlacementNote={props.keyboardPlacementNote}
-        ghostPreviewNote={props.ghostPreviewNote}
-        tabSelectionPreviewNote={props.tabSelectionPreviewNote}
-        playheadFocused={props.playheadFocused}
-        selectedContentTabStopFocusToken={props.selectedContentTabStopFocusToken}
-        ghostPlayheadBeat={props.ghostPlayheadBeat}
-        countInLabel={props.countInLabel}
-        timelineActionsPopoverOpen={Boolean(props.timelineActionsPopover)}
-        hideSelectionActionPopover={!props.selectionActionPopoverVisible}
-        onSetPlayheadBeat={props.onSetPlayheadBeat}
-        onReturnSelectedNoteFocusToPlayhead={props.onReturnSelectedNoteFocusToPlayhead}
-        onRequestTimelineActionsPopover={props.onRequestTimelineActionsPopover}
+        playheadBeat={props.transport.playheadBeat}
+        activeRecordedNotes={props.recording.activeRecordedNotes}
+        keyboardPlacementNote={props.canvasPreview.keyboardPlacementNote}
+        ghostPreviewNote={props.canvasPreview.ghostPreviewNote}
+        tabSelectionPreviewNote={props.canvasPreview.tabSelectionPreviewNote}
+        playheadFocused={props.canvasPreview.playheadFocused}
+        selectedContentTabStopFocusToken={props.canvasPreview.selectedContentTabStopFocusToken}
+        ghostPlayheadBeat={props.recording.ghostPlayheadBeat}
+        countInLabel={props.recording.countInLabel}
+        timelineActionsPopoverOpen={Boolean(props.timeline.timelineActionsPopover)}
+        hideSelectionActionPopover={!props.canvasPreview.selectionActionPopoverVisible}
+        onSetPlayheadBeat={props.projectActions.onSetPlayheadBeat}
+        onReturnSelectedNoteFocusToPlayhead={props.projectActions.onReturnSelectedNoteFocusToPlayhead}
+        onRequestTimelineActionsPopover={props.timelineActions.onRequestTimelineActionsPopover}
         trackActions={props.trackActions}
         patchActions={props.patchActions}
         automationActions={props.automationActions}
@@ -154,28 +186,36 @@ export function ComposerView(props: ComposerViewProps) {
         selectionActions={props.selectionActions}
       />
 
-      {props.timelineActionsPopover && (
+      {props.timeline.timelineActionsPopover && (
         <TimelineActionsPopover
-          left={props.timelineActionsPopover.clientX}
-          top={props.timelineActionsPopover.clientY + 12}
-          showPasteActions={Boolean(props.noteClipboardPayload)}
-          showAddStart={!props.startMarkerAtTimelineBeat}
-          showAddEnd={props.timelineActionsPopover.beat > 0 && !props.endMarkerAtTimelineBeat}
-          showExpandLoopToNotes={props.expandableLoopRegion}
-          startMarkerId={props.startMarkerAtTimelineBeat?.id}
-          endMarkerId={props.endMarkerAtTimelineBeat?.id}
-          endRepeatCount={props.endMarkerAtTimelineBeat?.repeatCount}
-          onPaste={() => props.onPasteAtTimeline("paste", props.timelineActionsPopover!.beat)}
-          onPasteAllTracks={() => props.onPasteAtTimeline("paste-all-tracks", props.timelineActionsPopover!.beat)}
-          onInsert={() => props.onPasteAtTimeline("insert", props.timelineActionsPopover!.beat)}
-          onInsertAllTracks={() => props.onPasteAtTimeline("insert-all-tracks", props.timelineActionsPopover!.beat)}
-          onAddStart={() => props.onAddLoopBoundary(props.timelineActionsPopover!.beat, "start")}
-          onAddEnd={() => props.onAddLoopBoundary(props.timelineActionsPopover!.beat, "end")}
-          onExpandLoopToNotes={props.onExpandLoopToNotes}
-          onUpdateRepeatCount={props.onUpdateLoopRepeatCount}
-          onRemoveStart={props.onRemoveStartLoopBoundary}
-          onRemoveEnd={props.onRemoveEndLoopBoundary}
-          onClose={props.onCloseTimelineActionsPopover}
+          left={props.timeline.timelineActionsPopover.clientX}
+          top={props.timeline.timelineActionsPopover.clientY + 12}
+          showPasteActions={Boolean(props.timeline.noteClipboardPayload)}
+          showAddStart={!props.timeline.startMarkerAtTimelineBeat}
+          showAddEnd={props.timeline.timelineActionsPopover.beat > 0 && !props.timeline.endMarkerAtTimelineBeat}
+          showExpandLoopToNotes={props.timeline.expandableLoopRegion}
+          startMarkerId={props.timeline.startMarkerAtTimelineBeat?.id}
+          endMarkerId={props.timeline.endMarkerAtTimelineBeat?.id}
+          endRepeatCount={props.timeline.endMarkerAtTimelineBeat?.repeatCount}
+          onPaste={() => props.timelineActions.onPasteAtTimeline("paste", props.timeline.timelineActionsPopover!.beat)}
+          onPasteAllTracks={() =>
+            props.timelineActions.onPasteAtTimeline("paste-all-tracks", props.timeline.timelineActionsPopover!.beat)
+          }
+          onInsert={() =>
+            props.timelineActions.onPasteAtTimeline("insert", props.timeline.timelineActionsPopover!.beat)
+          }
+          onInsertAllTracks={() =>
+            props.timelineActions.onPasteAtTimeline("insert-all-tracks", props.timeline.timelineActionsPopover!.beat)
+          }
+          onAddStart={() =>
+            props.timelineActions.onAddLoopBoundary(props.timeline.timelineActionsPopover!.beat, "start")
+          }
+          onAddEnd={() => props.timelineActions.onAddLoopBoundary(props.timeline.timelineActionsPopover!.beat, "end")}
+          onExpandLoopToNotes={props.timelineActions.onExpandLoopToNotes}
+          onUpdateRepeatCount={props.timelineActions.onUpdateLoopRepeatCount}
+          onRemoveStart={props.timelineActions.onRemoveStartLoopBoundary}
+          onRemoveEnd={props.timelineActions.onRemoveEndLoopBoundary}
+          onClose={props.timelineActions.onCloseTimelineActionsPopover}
         />
       )}
 

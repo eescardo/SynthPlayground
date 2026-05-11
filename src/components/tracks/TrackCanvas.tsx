@@ -1,9 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { SelectionActionPopover } from "@/components/SelectionActionPopover";
-import { TrackCanvasTabStops } from "@/components/tracks/TrackCanvasTabStops";
-import { TrackHeaderChrome } from "@/components/tracks/TrackCanvasChrome";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { TrackCanvasOverlays } from "@/components/tracks/TrackCanvasOverlays";
 import { AutomationKeyframeRect } from "@/components/tracks/trackCanvasAutomationLane";
 import { renderLaneSpec, resolveLaneRenderSpec } from "@/components/tracks/trackCanvasLaneRendering";
 import {
@@ -11,7 +9,6 @@ import {
   HEADER_WIDTH,
   MUTE_ICON_SIZE,
   NOTE_RESIZE_HANDLE_WIDTH,
-  resolveTrackCanvasCursor,
   RULER_HEIGHT,
   SPEAKER_ICON_SRC,
   SPEAKER_MUTED_ICON_SRC,
@@ -39,19 +36,16 @@ import {
 } from "@/components/tracks/trackCanvasNoteRendering";
 import { drawTrackCanvasNoteState } from "@/components/tracks/trackCanvasNoteStateRendering";
 import { drawGhostPreviewNote, drawTabSelectionPreview } from "@/components/tracks/trackCanvasPreviewGeometry";
-import { resolveSelectedContentTabStopRect } from "@/components/tracks/trackCanvasSelection";
 import { TrackCanvasProps, TrackLayout } from "@/components/tracks/trackCanvasTypes";
-import { useTrackCanvasLayout } from "@/hooks/tracks/useTrackCanvasLayout";
+import { findTrackOverlaps, useTrackCanvasRenderModel } from "@/components/tracks/trackCanvasRenderModel";
 import { useTrackCanvasWheelPitchEditing } from "@/hooks/tracks/useTrackCanvasWheelPitchEditing";
 import { useVolumePopover } from "@/hooks/useVolumePopover";
 import { clamp01 } from "@/lib/numeric";
 import { getLoopMarkerStates } from "@/lib/looping";
-import { getProjectTimelineEndBeat } from "@/lib/macroAutomation";
 import { getNoteSelectionKey } from "@/lib/clipboard";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
 import { formatBeatName } from "@/lib/musicTiming";
-import { Note, Track } from "@/types/music";
-import styles from "./TrackCanvas.module.css";
+import { Track } from "@/types/music";
 export type {
   TimelineActionsPopoverRequest,
   TrackCanvasProps,
@@ -149,55 +143,6 @@ function drawLoopMarker(
   ctx.restore();
 }
 
-const findTrackOverlaps = (
-  notes: Note[]
-): {
-  overlapNoteIds: Set<string>;
-  overlapRanges: Array<{ startBeat: number; endBeat: number }>;
-} => {
-  const overlapNoteIds = new Set<string>();
-  const ranges: Array<{ startBeat: number; endBeat: number }> = [];
-  const sorted = [...notes].sort((a, b) => a.startBeat - b.startBeat);
-  const epsilon = 1e-9;
-
-  for (let i = 0; i < sorted.length; i += 1) {
-    const a = sorted[i];
-    const aEnd = a.startBeat + a.durationBeats;
-    for (let j = i + 1; j < sorted.length; j += 1) {
-      const b = sorted[j];
-      if (b.startBeat >= aEnd - epsilon) {
-        break;
-      }
-      const bEnd = b.startBeat + b.durationBeats;
-      const overlapStart = Math.max(a.startBeat, b.startBeat);
-      const overlapEnd = Math.min(aEnd, bEnd);
-      if (overlapEnd > overlapStart + epsilon) {
-        overlapNoteIds.add(a.id);
-        overlapNoteIds.add(b.id);
-        ranges.push({ startBeat: overlapStart, endBeat: overlapEnd });
-      }
-    }
-  }
-
-  if (ranges.length === 0) {
-    return { overlapNoteIds, overlapRanges: [] };
-  }
-
-  ranges.sort((a, b) => a.startBeat - b.startBeat);
-  const merged: Array<{ startBeat: number; endBeat: number }> = [ranges[0]];
-  for (let i = 1; i < ranges.length; i += 1) {
-    const current = ranges[i];
-    const last = merged[merged.length - 1];
-    if (current.startBeat <= last.endBeat + epsilon) {
-      last.endBeat = Math.max(last.endBeat, current.endBeat);
-    } else {
-      merged.push({ ...current });
-    }
-  }
-
-  return { overlapNoteIds, overlapRanges: merged };
-};
-
 export function TrackCanvas(props: TrackCanvasProps) {
   const { automationActions, noteActions, patchActions, project, selection, selectionActions, trackActions } = props;
   const { onUpdateNote } = noteActions;
@@ -246,26 +191,25 @@ export function TrackCanvas(props: TrackCanvasProps) {
     timelineActionsPopoverOpen
   } = props;
   const { onRequestTimelineActionsPopover, onReturnSelectedNoteFocusToPlayhead, onSetPlayheadBeat } = props;
-  const gridBeats = project.global.gridBeats;
-  const meterBeats = project.global.meter === "4/4" ? 4 : 3;
-  const selectionBeatRange = selection.kind === "none" ? null : selection.beatRange;
-  const selectionLabel = selection.kind === "none" ? null : selection.label;
-  const selectionMarkerTrackId = selection.kind === "none" ? null : selection.markerTrackId;
-  const selectedNoteKeys = selection.kind === "note" ? selection.content.noteKeys : undefined;
-  const automationKeyframeSelectionKeys =
-    selection.kind === "note" ? selection.content.automationKeyframeSelectionKeys : undefined;
-
-  const totalBeats = useMemo(() => {
-    return getProjectTimelineEndBeat(project);
-  }, [project]);
-
-  const width = HEADER_WIDTH + totalBeats * BEAT_WIDTH;
-  const { trackLayouts, height } = useTrackCanvasLayout(project);
-  const playheadTabStopLeft = HEADER_WIDTH + playheadBeat * BEAT_WIDTH - 1;
-  const selectedContentTabStopRect = useMemo(
-    () => resolveSelectedContentTabStopRect(project.tracks, selection, trackLayouts),
-    [project.tracks, selection, trackLayouts]
-  );
+  const {
+    automationKeyframeSelectionKeys,
+    gridBeats,
+    height,
+    meterBeats,
+    playheadTabStopLeft,
+    selectedContentTabStopRect,
+    selectedNoteKeys,
+    selectionBeatRange,
+    selectionLabel,
+    selectionMarkerTrackId,
+    totalBeats,
+    trackLayouts,
+    width
+  } = useTrackCanvasRenderModel({
+    playheadBeat,
+    project,
+    selection
+  });
 
   const beatFromX = (x: number) => (x - HEADER_WIDTH) / BEAT_WIDTH;
   const fixedLaneSliderStartX = HEADER_WIDTH + Math.min(BEAT_WIDTH * 0.25, 18);
@@ -331,37 +275,45 @@ export function TrackCanvas(props: TrackCanvasProps) {
     onPointerLeave,
     onDoubleClick
   } = useTrackCanvasPointerInteractions({
-    canvasRef,
-    project,
-    trackLayouts,
-    playheadBeat,
-    gridBeats,
-    defaultPitch,
-    selection,
-    contentSelection:
-      selection.kind === "note"
-        ? {
-            noteKeys: selection.content.noteKeys,
-            automationKeyframeSelectionKeys: selection.content.automationKeyframeSelectionKeys
-          }
-        : undefined,
-    noteActions,
-    automationActions,
-    selectionActions,
-    trackActions,
-    noteRectsRef,
-    automationKeyframeRectsRef,
-    muteRectsRef,
-    pitchRectsRef,
-    loopMarkerRectsRef,
-    getCanvasPoint,
-    getTrackLayoutAtY,
-    beatFromX,
-    fixedLaneValueFromX,
-    headerWidth: HEADER_WIDTH,
-    noteResizeHandleWidth: NOTE_RESIZE_HANDLE_WIDTH,
-    onSetPlayheadBeat,
-    onRequestTimelineActionsPopover
+    canvas: {
+      canvasRef,
+      noteRectsRef,
+      automationKeyframeRectsRef,
+      muteRectsRef,
+      pitchRectsRef,
+      loopMarkerRectsRef
+    },
+    model: {
+      project,
+      trackLayouts,
+      playheadBeat,
+      gridBeats,
+      defaultPitch,
+      selection,
+      contentSelection:
+        selection.kind === "note"
+          ? {
+              noteKeys: selection.content.noteKeys,
+              automationKeyframeSelectionKeys: selection.content.automationKeyframeSelectionKeys
+            }
+          : undefined
+    },
+    actions: {
+      noteActions,
+      automationActions,
+      selectionActions,
+      trackActions,
+      onSetPlayheadBeat,
+      onRequestTimelineActionsPopover
+    },
+    geometry: {
+      getCanvasPoint,
+      getTrackLayoutAtY,
+      beatFromX,
+      fixedLaneValueFromX,
+      headerWidth: HEADER_WIDTH,
+      noteResizeHandleWidth: NOTE_RESIZE_HANDLE_WIDTH
+    }
   });
 
   const draw = useCallback(() => {
@@ -860,72 +812,52 @@ export function TrackCanvas(props: TrackCanvasProps) {
   }, [selectedContentTabStopRect]);
 
   return (
-    <div className={styles.shell} ref={wrapperRef}>
-      <TrackHeaderChrome
-        project={project}
-        canvasShellRef={wrapperRef}
-        trackLayouts={trackLayouts}
-        selectedTrackId={selectedTrackId}
-        invalidPatchIds={invalidPatchIds}
-        editingTrackId={editingTrackId}
-        editingTrackName={editingTrackName}
-        setEditingTrackId={setEditingTrackId}
-        setEditingTrackName={setEditingTrackName}
-        volumePopoverTrackId={volumePopoverTrackId}
-        volumePopoverPosition={volumePopoverPosition}
-        openVolumePopover={openVolumePopover}
-        scheduleVolumePopoverOpen={scheduleVolumePopoverOpen}
-        scheduleVolumePopoverDismiss={scheduleVolumePopoverDismiss}
-        cancelScheduledVolumePopoverDismiss={cancelScheduledVolumePopoverDismiss}
-        trackActions={trackActions}
-        patchActions={patchActions}
-        automationActions={automationActions}
-      />
-      <canvas
-        className={styles.canvas}
-        ref={canvasRef}
-        width={width}
-        height={height}
-        style={{
-          cursor: resolveTrackCanvasCursor(canvasCursor)
-        }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerLeave={onPointerLeave}
-        onDoubleClick={onDoubleClick}
-        onContextMenu={(event) => event.preventDefault()}
-      />
-      <TrackCanvasTabStops
-        playheadLabel={`Playhead at beat ${formatBeatName(playheadBeat, meterBeats)}`}
-        playheadLeft={playheadTabStopLeft}
-        height={height}
-        playheadTabStopRef={playheadTabStopRef}
-        selectedContentTabStopRef={selectedContentTabStopRef}
-        selectedContentRect={selectedContentTabStopRect}
-        onPlayheadFocus={() => setPlayheadTabStopFocused(true)}
-        onPlayheadBlur={() => setPlayheadTabStopFocused(false)}
-        onSelectedContentFocus={() => setSelectedContentTabStopFocused(true)}
-        onSelectedContentBlur={() => setSelectedContentTabStopFocused(false)}
-        onReturnSelectedContentFocusToPlayhead={onReturnSelectedNoteFocusToPlayhead}
-      />
-      {selectionBeatRange && !selectionRect && !hideSelectionActionPopover && (
-        <SelectionActionPopover
-          selectionLabel={selectionLabel ?? (selection.kind === "timeline" ? "All Tracks" : "Track 1")}
-          getAnchorPosition={getSelectionPopoverAnchorPosition}
-          collapsed={selectionActions.selectionActionPopoverCollapsed}
-          onPreviewScopeChange={selectionActions.onPreviewSelectionActionScopeChange}
-          onExpand={selectionActions.onExpandSelectionActionPopover}
-          onDismiss={selectionActions.onDismissSelectionActionPopover}
-          onCut={selectionActions.onCutSelection}
-          onCopy={selectionActions.onCopySelection}
-          onDelete={selectionActions.onDeleteSelection}
-          onExplode={selectionActions.onOpenExplodeSelectionDialog}
-          onCutAllTracks={selectionActions.onCutAllTracksInSelection}
-          onCopyAllTracks={selectionActions.onCopyAllTracksInSelection}
-          onDeleteAllTracks={selectionActions.onDeleteAllTracksInSelection}
-        />
-      )}
-    </div>
+    <TrackCanvasOverlays
+      project={project}
+      canvasRef={canvasRef}
+      wrapperRef={wrapperRef}
+      playheadTabStopRef={playheadTabStopRef}
+      selectedContentTabStopRef={selectedContentTabStopRef}
+      trackLayouts={trackLayouts}
+      width={width}
+      height={height}
+      canvasCursor={canvasCursor}
+      selectedTrackId={selectedTrackId}
+      invalidPatchIds={invalidPatchIds}
+      editingTrackId={editingTrackId}
+      editingTrackName={editingTrackName}
+      setEditingTrackId={setEditingTrackId}
+      setEditingTrackName={setEditingTrackName}
+      volumePopoverTrackId={volumePopoverTrackId}
+      volumePopoverPosition={volumePopoverPosition}
+      openVolumePopover={openVolumePopover}
+      scheduleVolumePopoverOpen={scheduleVolumePopoverOpen}
+      scheduleVolumePopoverDismiss={scheduleVolumePopoverDismiss}
+      cancelScheduledVolumePopoverDismiss={cancelScheduledVolumePopoverDismiss}
+      trackActions={trackActions}
+      patchActions={patchActions}
+      automationActions={automationActions}
+      playheadBeat={playheadBeat}
+      meterBeats={meterBeats}
+      playheadTabStopLeft={playheadTabStopLeft}
+      selectedContentTabStopRect={selectedContentTabStopRect}
+      onPlayheadFocus={() => setPlayheadTabStopFocused(true)}
+      onPlayheadBlur={() => setPlayheadTabStopFocused(false)}
+      onSelectedContentFocus={() => setSelectedContentTabStopFocused(true)}
+      onSelectedContentBlur={() => setSelectedContentTabStopFocused(false)}
+      onReturnSelectedNoteFocusToPlayhead={onReturnSelectedNoteFocusToPlayhead}
+      selection={selection}
+      selectionBeatRange={selectionBeatRange}
+      selectionLabel={selectionLabel}
+      selectionRect={selectionRect}
+      hideSelectionActionPopover={hideSelectionActionPopover}
+      selectionActions={selectionActions}
+      getSelectionPopoverAnchorPosition={getSelectionPopoverAnchorPosition}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerLeave={onPointerLeave}
+      onDoubleClick={onDoubleClick}
+    />
   );
 }
