@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PatchHostPortOverlay } from "@/components/patch/PatchHostPortOverlay";
 import { PatchEditorToolbar } from "@/components/patch/PatchEditorToolbar";
 import { PatchProbeOverlay } from "@/components/patch/PatchProbeOverlay";
-import { PatchBaselineDiffState } from "@/components/patch/patchBaselineDiffState";
+import { PatchEditorStageActions, PatchEditorStageModel } from "@/components/patch/patchEditorSession";
 import {
   PATCH_OUTPUT_HOST_PORT_OVERHANG,
   PATCH_ATTACH_CURSOR_CLOSED,
@@ -32,29 +32,11 @@ import {
   resolveVisibleAddModulePosition,
   resolveVisibleAddProbePosition
 } from "@/components/patch/patchVisiblePlacement";
-import { Patch, PatchValidationIssue } from "@/types/patch";
-import { PatchOp } from "@/types/ops";
-import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
-import { PatchWireCommitFeedback } from "@/components/patch/patchWireFeedback";
 import styles from "./PatchEditorStage.module.css";
 
 interface PatchEditorStageProps {
-  patch: Patch;
-  baselineDiff: PatchBaselineDiffState;
-  validationIssues: PatchValidationIssue[];
-  probeState: PatchProbeEditorState;
-  selectedNodeId?: string;
-  selectedConnectionId?: string;
-  selectedMacroNodeIds: Set<string>;
-  structureLocked?: boolean;
-  onClearPatch: () => void;
-  onApplyOp: (op: PatchOp) => void;
-  probeActions: PatchProbeEditorActions;
-  onSelectNode: (nodeId?: string) => void;
-  onSelectConnection: (connectionId?: string) => void;
-  onToggleAttachProbe: (probeId: string) => void;
-  onCancelAttachProbe: () => void;
-  onWireCommitFeedback?: (feedback: PatchWireCommitFeedback) => void;
+  model: PatchEditorStageModel;
+  actions: PatchEditorStageActions;
 }
 
 export function PatchEditorStage(props: PatchEditorStageProps) {
@@ -64,16 +46,19 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     onSelectConnection,
     onToggleAttachProbe,
     onCancelAttachProbe,
-    onWireCommitFeedback,
-    patch,
+    onWireCommitFeedback
+  } = props.actions;
+  const {
     baselineDiff,
-    probeActions,
+    patch,
     probeState,
     selectedMacroNodeIds,
     selectedConnectionId,
     selectedNodeId,
-    structureLocked
-  } = props;
+    structureLocked,
+    validationIssues
+  } = props.model;
+  const { probeActions } = props.actions;
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -251,7 +236,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     nodeById,
     patch,
     patchDiff: baselineDiff.patchDiff,
-    validationIssues: props.validationIssues,
+    validationIssues,
     selection: {
       selectedMacroNodeIds,
       selectedNodeId,
@@ -345,7 +330,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           setDeletePreviewConnectionId(previewing && canDeleteConnection ? (selectedConnectionId ?? null) : null);
           setDeletePreviewNodeId(previewing && canDeleteNode ? (selectedNodeId ?? null) : null);
         }}
-        onClearPatch={props.onClearPatch}
+        onClearPatch={props.actions.onClearPatch}
         onClearPreviewChange={setClearPreviewActive}
         onAutoLayout={() => {
           const nextNodeLayout = resolveAutoLayoutNodes(patch);

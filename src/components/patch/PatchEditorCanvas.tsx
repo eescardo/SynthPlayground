@@ -97,70 +97,82 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       <div className="patch-layout">
         <div className="patch-editor-main-column">
           <PatchEditorStage
-            patch={previewPatch}
-            baselineDiff={model.baselineDiff}
-            validationIssues={model.validationIssues}
-            probeState={canvasProbeState}
-            selectedNodeId={model.selectedNodeId}
-            selectedConnectionId={selectedConnectionId}
-            selectedMacroNodeIds={selectedMacroNodeIds}
-            structureLocked={model.structureLocked}
-            onClearPatch={actions.onClearPatch}
-            onApplyOp={actions.onApplyOp}
-            probeActions={probeActions}
-            onSelectNode={handleSelectNode}
-            onSelectConnection={handleSelectConnection}
-            onToggleAttachProbe={toggleAttachProbe}
-            onCancelAttachProbe={cancelAttachProbe}
-            onWireCommitFeedback={setLastWireCommitFeedback}
+            model={{
+              patch: previewPatch,
+              baselineDiff: model.baselineDiff,
+              validationIssues: model.validationIssues,
+              probeState: canvasProbeState,
+              selectedNodeId: model.selectedNodeId,
+              selectedConnectionId,
+              selectedMacroNodeIds,
+              structureLocked: model.structureLocked
+            }}
+            actions={{
+              onClearPatch: actions.onClearPatch,
+              onApplyOp: actions.onApplyOp,
+              probeActions,
+              onSelectNode: handleSelectNode,
+              onSelectConnection: handleSelectConnection,
+              onToggleAttachProbe: toggleAttachProbe,
+              onCancelAttachProbe: cancelAttachProbe,
+              onWireCommitFeedback: setLastWireCommitFeedback
+            }}
           />
 
           <PatchMacroPanel
-            patch={model.patch}
-            patchDiff={model.baselineDiff.patchDiff}
-            macroValues={model.macroValues}
-            validationIssues={model.validationIssues}
-            selectedMacroId={model.selectedMacroId}
-            structureLocked={model.structureLocked}
-            onAddMacro={actions.onAddMacro}
-            onSelectMacro={actions.onSelectMacro}
-            onClearSelection={actions.onClearSelectedMacro}
-            onRemoveMacro={actions.onRemoveMacro}
-            onRenameMacro={actions.onRenameMacro}
-            onSetMacroKeyframeCount={actions.onSetMacroKeyframeCount}
-            onChangeMacroValue={actions.onChangeMacroValue}
+            model={{
+              patch: model.patch,
+              patchDiff: model.baselineDiff.patchDiff,
+              macroValues: model.macroValues,
+              validationIssues: model.validationIssues,
+              selectedMacroId: model.selectedMacroId,
+              structureLocked: model.structureLocked
+            }}
+            actions={{
+              onAddMacro: actions.onAddMacro,
+              onSelectMacro: actions.onSelectMacro,
+              onClearSelection: actions.onClearSelectedMacro,
+              onRemoveMacro: actions.onRemoveMacro,
+              onRenameMacro: actions.onRenameMacro,
+              onSetMacroKeyframeCount: actions.onSetMacroKeyframeCount,
+              onChangeMacroValue: actions.onChangeMacroValue
+            }}
           />
         </div>
 
         <PatchInspector
-          patch={previewPatch}
-          patchDiff={model.baselineDiff.patchDiff}
-          macroValues={model.macroValues}
-          selectedNode={selectedNode}
-          selectedProbe={selectedProbe}
-          selectedMacroId={model.selectedMacroId}
-          selectedSchema={selectedSchema}
-          previewCapture={selectedProbe ? model.probeState.previewCaptureByProbeId[selectedProbe.id] : undefined}
-          previewProgress={model.probeState.previewProgress}
-          attachingProbeId={attachingProbeId}
-          wireCommitFeedback={lastWireCommitFeedback}
-          selectedConnectionId={selectedConnectionId}
-          structureLocked={model.structureLocked}
-          validationIssues={model.validationIssues}
-          onApplyOp={actions.onApplyOp}
-          onSelectMacro={actions.onSelectMacro}
-          onChangeMacroValue={actions.onChangeMacroValue}
-          onPreviewParamValue={(nodeId, paramId, value) => {
-            setDraftParamValues((current) => ({
-              ...current,
-              [buildParamDraftKey(nodeId, paramId)]: value
-            }));
+          model={{
+            patch: previewPatch,
+            patchDiff: model.baselineDiff.patchDiff,
+            macroValues: model.macroValues,
+            selectedNode,
+            selectedProbe,
+            selectedMacroId: model.selectedMacroId,
+            selectedSchema,
+            previewCapture: selectedProbe ? model.probeState.previewCaptureByProbeId[selectedProbe.id] : undefined,
+            previewProgress: model.probeState.previewProgress,
+            attachingProbeId,
+            wireCommitFeedback: lastWireCommitFeedback,
+            selectedConnectionId,
+            structureLocked: model.structureLocked,
+            validationIssues: model.validationIssues
           }}
-          onExposeMacro={actions.onExposeMacro}
-          onUpdateProbeSpectrumWindow={probeActions.updateSpectrumWindow}
-          onUpdateProbeFrequencyView={probeActions.updateFrequencyView}
-          onToggleAttachProbe={toggleAttachProbe}
-          onClearProbeTarget={(probeId) => probeActions.updateTarget(probeId, undefined)}
+          actions={{
+            onApplyOp: actions.onApplyOp,
+            onSelectMacro: actions.onSelectMacro,
+            onChangeMacroValue: actions.onChangeMacroValue,
+            onPreviewParamValue: (nodeId, paramId, value) => {
+              setDraftParamValues((current) => ({
+                ...current,
+                [buildParamDraftKey(nodeId, paramId)]: value
+              }));
+            },
+            onExposeMacro: actions.onExposeMacro,
+            onUpdateProbeSpectrumWindow: probeActions.updateSpectrumWindow,
+            onUpdateProbeFrequencyView: probeActions.updateFrequencyView,
+            onToggleAttachProbe: toggleAttachProbe,
+            onClearProbeTarget: (probeId) => probeActions.updateTarget(probeId, undefined)
+          }}
         />
       </div>
     </div>
