@@ -6,6 +6,7 @@ import { clamp } from "@/lib/numeric";
 
 const ZOOM_WHEEL_SENSITIVITY = 0.0012;
 const MOUSE_WHEEL_ZOOM_DELTA_THRESHOLD = 48;
+const ZOOM_PERSIST_DEBOUNCE_MS = 120;
 
 function shouldZoomFromWheel(event: WheelEvent, isOverCanvasScroll: boolean) {
   if (event.ctrlKey) {
@@ -47,6 +48,9 @@ export function usePatchCanvasZoom({
 }: UsePatchCanvasZoomParams) {
   const [zoom, setZoom] = useState(savedZoom ?? 1);
   const zoomRef = useRef(zoom);
+  const onZoomChangeRef = useRef(onZoomChange);
+  const persistZoomTimerRef = useRef<number | null>(null);
+  const pendingPersistZoomRef = useRef<number | null>(null);
   const hasUserZoomedRef = useRef(savedZoom !== undefined);
   const fitSizeRef = useRef(fitSize);
 
@@ -55,8 +59,40 @@ export function usePatchCanvasZoom({
   }, [fitSize]);
 
   useEffect(() => {
+    onZoomChangeRef.current = onZoomChange;
+  }, [onZoomChange]);
+
+  useEffect(() => {
     zoomRef.current = zoom;
   }, [zoom]);
+
+  useEffect(() => {
+    return () => {
+      if (persistZoomTimerRef.current !== null) {
+        window.clearTimeout(persistZoomTimerRef.current);
+        persistZoomTimerRef.current = null;
+      }
+      if (pendingPersistZoomRef.current !== null) {
+        onZoomChangeRef.current(pendingPersistZoomRef.current);
+        pendingPersistZoomRef.current = null;
+      }
+    };
+  }, []);
+
+  const schedulePersistZoom = useCallback((nextZoom: number) => {
+    pendingPersistZoomRef.current = nextZoom;
+    if (persistZoomTimerRef.current !== null) {
+      window.clearTimeout(persistZoomTimerRef.current);
+    }
+    persistZoomTimerRef.current = window.setTimeout(() => {
+      persistZoomTimerRef.current = null;
+      const pendingZoom = pendingPersistZoomRef.current;
+      pendingPersistZoomRef.current = null;
+      if (pendingZoom !== null) {
+        onZoomChangeRef.current(pendingZoom);
+      }
+    }, ZOOM_PERSIST_DEBOUNCE_MS);
+  }, []);
 
   useEffect(() => {
     hasUserZoomedRef.current = savedZoom !== undefined;
@@ -108,13 +144,13 @@ export function usePatchCanvasZoom({
       hasUserZoomedRef.current = true;
       zoomRef.current = nextZoom;
       setZoom(nextZoom);
-      onZoomChange(nextZoom);
+      schedulePersistZoom(nextZoom);
       window.requestAnimationFrame(() => {
         scrollEl.scrollLeft = canvasX * nextZoom - anchor.x;
         scrollEl.scrollTop = canvasY * nextZoom - anchor.y;
       });
     },
-    [onZoomChange, scrollRef]
+    [schedulePersistZoom, scrollRef]
   );
 
   useEffect(() => {

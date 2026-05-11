@@ -36,6 +36,7 @@ import { Patch, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 import { PatchWireCommitFeedback } from "@/components/patch/patchWireFeedback";
+import styles from "./PatchEditorStage.module.css";
 
 interface PatchEditorStageProps {
   patch: Patch;
@@ -309,7 +310,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   });
 
   return (
-    <div className="patch-canvas-stage" ref={rootRef}>
+    <div className={styles.stage} ref={rootRef}>
       <PatchEditorToolbar
         structureLocked={structureLocked}
         canClearPatch={visibleNodeCount > 0 || patch.connections.length > 0 || patch.ui.macros.length > 0}
@@ -359,19 +360,20 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
         }}
       />
 
-      <div className="patch-canvas-shell">
+      <div className={styles.shell}>
         <div
-          className="patch-canvas-scroll"
+          className={styles.scroll}
           ref={scrollRef}
           onScroll={(event) => {
             updateScrollViewport(event.currentTarget);
           }}
         >
           <div
-            className="patch-canvas-overlay-shell"
+            className={styles.overlayShell}
             style={{ width: `${canvasSize.width * zoom}px`, height: `${canvasSize.height * zoom}px` }}
           >
             <canvas
+              className={styles.canvas}
               ref={canvasRef}
               width={canvasSize.width}
               height={canvasSize.height}

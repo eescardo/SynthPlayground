@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import { drawPatchCanvas } from "@/components/patch/patchCanvasDrawing";
 import {
@@ -195,7 +195,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     return true;
   }, [canvasRef, clearActiveNodeDrag, dragNodeId, onApplyOp]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) {
       return;
