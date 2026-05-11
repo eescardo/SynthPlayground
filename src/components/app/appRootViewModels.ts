@@ -10,6 +10,7 @@ import type { useHardwareNavigation } from "@/hooks/useHardwareNavigation";
 import type { usePlaybackController } from "@/hooks/usePlaybackController";
 import type { useRecordingController } from "@/hooks/useRecordingController";
 import type { RecentProjectSnapshot } from "@/lib/persistence";
+import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import type { ProjectAssetLibrary } from "@/types/assets";
 import type { Project } from "@/types/music";
 import type { Patch } from "@/types/patch";
@@ -134,6 +135,135 @@ interface ComposerTimelineActions {
   expandSelectedLoopToNotes: () => void;
   updateLoopRepeatCount: ComposerViewProps["onUpdateLoopRepeatCount"];
   removeLoopBoundary: (markerId: string) => void;
+}
+
+interface CreateTrackCanvasActionGroupsOptions {
+  selectedTrackInstrumentPatchId: string;
+  selectedTrackPatch?: Patch;
+  patchWorkspace: Pick<PatchWorkspaceState, "openPatchWorkspace">;
+  hasTimelineRangeSelection: boolean;
+  selectionActionPopoverCollapsed: boolean;
+  setSelectedTrackId: (trackId: string | undefined) => void;
+  renameTrack: ComposerViewProps["trackActions"]["onRenameTrack"];
+  toggleTrackMute: ComposerViewProps["trackActions"]["onToggleTrackMute"];
+  setTrackVolume: ComposerViewProps["trackActions"]["onSetTrackVolume"];
+  previewTrackVolume: ComposerViewProps["trackActions"]["onPreviewTrackVolume"];
+  bindTrackVolumeToAutomation: ComposerViewProps["trackActions"]["onBindTrackVolumeToAutomation"];
+  unbindTrackVolumeFromAutomation: ComposerViewProps["trackActions"]["onUnbindTrackVolumeFromAutomation"];
+  toggleTrackVolumeAutomationLane: ComposerViewProps["trackActions"]["onToggleTrackVolumeAutomationLane"];
+  updateTrackPatch: ComposerViewProps["trackActions"]["onUpdateTrackPatch"];
+  toggleTrackMacroPanel: ComposerViewProps["trackActions"]["onToggleTrackMacroPanel"];
+  duplicatePatchForSelectedTrack: ComposerViewProps["patchActions"]["onDuplicateSelectedPatch"];
+  requestRemoveSelectedTrackPatch: ComposerViewProps["patchActions"]["onRequestRemoveSelectedPatch"];
+  changeTrackMacro: ComposerViewProps["automationActions"]["onChangeTrackMacro"];
+  bindTrackMacroToAutomation: ComposerViewProps["automationActions"]["onBindTrackMacroToAutomation"];
+  unbindTrackMacroFromAutomation: ComposerViewProps["automationActions"]["onUnbindTrackMacroFromAutomation"];
+  toggleTrackMacroAutomationLane: ComposerViewProps["automationActions"]["onToggleTrackMacroAutomationLane"];
+  upsertTrackMacroAutomationKeyframe: ComposerViewProps["automationActions"]["onUpsertTrackMacroAutomationKeyframe"];
+  splitTrackMacroAutomationKeyframe: ComposerViewProps["automationActions"]["onSplitTrackMacroAutomationKeyframe"];
+  updateTrackMacroAutomationKeyframeSide: ComposerViewProps["automationActions"]["onUpdateTrackMacroAutomationKeyframeSide"];
+  deleteTrackMacroAutomationKeyframeSide: ComposerViewProps["automationActions"]["onDeleteTrackMacroAutomationKeyframeSide"];
+  previewTrackMacroAutomation: ComposerViewProps["automationActions"]["onPreviewTrackMacroAutomation"];
+  openPitchPicker: ComposerViewProps["noteActions"]["onOpenPitchPicker"];
+  previewPlacedNote: ComposerViewProps["noteActions"]["onPreviewPlacedNote"];
+  upsertNote: ComposerViewProps["noteActions"]["onUpsertNote"];
+  updateNote: ComposerViewProps["noteActions"]["onUpdateNote"];
+  deleteNote: ComposerViewProps["noteActions"]["onDeleteNote"];
+  setContentSelectionFromCanvas: ComposerViewProps["selectionActions"]["onSetContentSelection"];
+  setTimelineSelectionFromCanvas: ComposerViewProps["selectionActions"]["onSetTimelineSelectionBeatRange"];
+  setSelectionMarqueeActive: ComposerViewProps["selectionActions"]["onSetSelectionMarqueeActive"];
+  previewSelectionActionScopeChange: ComposerViewProps["selectionActions"]["onPreviewSelectionActionScopeChange"];
+  expandSelectionActionPopover: NonNullable<ComposerViewProps["selectionActions"]["onExpandSelectionActionPopover"]>;
+  clearCanvasSelection: NonNullable<ComposerViewProps["selectionActions"]["onDismissSelectionActionPopover"]>;
+  copyAllTracksInSelection: () => Promise<void>;
+  copySelectedNotes: () => Promise<void>;
+  cutAllTracksInSelection: () => Promise<void>;
+  cutSelectedNotes: () => Promise<void>;
+  deleteAllTracksInSelection: ComposerViewProps["selectionActions"]["onDeleteAllTracksInSelection"];
+  deleteSelectedNoteSelection: () => void;
+  openExplodeSelectionDialog: NonNullable<ComposerViewProps["selectionActions"]["onOpenExplodeSelectionDialog"]>;
+}
+
+export function createTrackCanvasActionGroups(options: CreateTrackCanvasActionGroupsOptions) {
+  const trackActions: ComposerViewProps["trackActions"] = {
+    onSelectTrack: options.setSelectedTrackId,
+    onRenameTrack: options.renameTrack,
+    onToggleTrackMute: options.toggleTrackMute,
+    onSetTrackVolume: options.setTrackVolume,
+    onPreviewTrackVolume: options.previewTrackVolume,
+    onBindTrackVolumeToAutomation: options.bindTrackVolumeToAutomation,
+    onUnbindTrackVolumeFromAutomation: options.unbindTrackVolumeFromAutomation,
+    onToggleTrackVolumeAutomationLane: options.toggleTrackVolumeAutomationLane,
+    onUpdateTrackPatch: options.updateTrackPatch,
+    onToggleTrackMacroPanel: options.toggleTrackMacroPanel
+  };
+  const patchActions: ComposerViewProps["patchActions"] = {
+    canRemoveSelectedPatch: Boolean(
+      options.selectedTrackPatch &&
+      (resolvePatchSource(options.selectedTrackPatch) === "custom" ||
+        resolvePatchPresetStatus(options.selectedTrackPatch) === "legacy_preset")
+    ),
+    onDuplicateSelectedPatch: options.duplicatePatchForSelectedTrack,
+    onRequestRemoveSelectedPatch: options.requestRemoveSelectedTrackPatch,
+    onOpenSelectedPatchWorkspace: () =>
+      options.patchWorkspace.openPatchWorkspace(options.selectedTrackInstrumentPatchId)
+  };
+  const automationActions: ComposerViewProps["automationActions"] = {
+    onChangeTrackMacro: options.changeTrackMacro,
+    onBindTrackMacroToAutomation: options.bindTrackMacroToAutomation,
+    onUnbindTrackMacroFromAutomation: options.unbindTrackMacroFromAutomation,
+    onToggleTrackMacroAutomationLane: options.toggleTrackMacroAutomationLane,
+    onUpsertTrackMacroAutomationKeyframe: options.upsertTrackMacroAutomationKeyframe,
+    onSplitTrackMacroAutomationKeyframe: options.splitTrackMacroAutomationKeyframe,
+    onUpdateTrackMacroAutomationKeyframeSide: options.updateTrackMacroAutomationKeyframeSide,
+    onDeleteTrackMacroAutomationKeyframeSide: options.deleteTrackMacroAutomationKeyframeSide,
+    onPreviewTrackMacroAutomation: options.previewTrackMacroAutomation
+  };
+  const noteActions: ComposerViewProps["noteActions"] = {
+    onOpenPitchPicker: options.openPitchPicker,
+    onPreviewPlacedNote: options.previewPlacedNote,
+    onUpsertNote: options.upsertNote,
+    onUpdateNote: options.updateNote,
+    onDeleteNote: options.deleteNote
+  };
+  const selectionActions: ComposerViewProps["selectionActions"] = {
+    onSetContentSelection: options.setContentSelectionFromCanvas,
+    onSetTimelineSelectionBeatRange: options.setTimelineSelectionFromCanvas,
+    onSetSelectionMarqueeActive: options.setSelectionMarqueeActive,
+    onPreviewSelectionActionScopeChange: options.previewSelectionActionScopeChange,
+    selectionActionPopoverCollapsed: options.selectionActionPopoverCollapsed,
+    onExpandSelectionActionPopover: options.expandSelectionActionPopover,
+    onDismissSelectionActionPopover: options.clearCanvasSelection,
+    onCopySelection: () => {
+      void (options.hasTimelineRangeSelection ? options.copyAllTracksInSelection() : options.copySelectedNotes());
+    },
+    onCutSelection: () => {
+      void (options.hasTimelineRangeSelection ? options.cutAllTracksInSelection() : options.cutSelectedNotes());
+    },
+    onDeleteSelection: () => {
+      if (options.hasTimelineRangeSelection) {
+        options.deleteAllTracksInSelection();
+        return;
+      }
+      options.deleteSelectedNoteSelection();
+    },
+    onOpenExplodeSelectionDialog: options.openExplodeSelectionDialog,
+    onCopyAllTracksInSelection: () => {
+      void options.copyAllTracksInSelection();
+    },
+    onCutAllTracksInSelection: () => {
+      void options.cutAllTracksInSelection();
+    },
+    onDeleteAllTracksInSelection: options.deleteAllTracksInSelection
+  };
+
+  return {
+    trackActions,
+    patchActions,
+    automationActions,
+    noteActions,
+    selectionActions
+  };
 }
 
 interface UseComposerControllerPropsOptions {
@@ -322,6 +452,71 @@ export function createProjectGlobalCommitActions({ commitProjectChange }: Projec
       commitProjectChange((current) => ({ ...current, global: { ...current.global, gridBeats } }), {
         actionKey: "global:grid"
       })
+  };
+}
+
+interface CreateComposerPrimaryActionsOptions extends ProjectCommitActionsOptions {
+  clearCurrentProject: () => void;
+  renameProject: (name: string) => void;
+  exportAudio: () => Promise<void>;
+  addTrack: () => void;
+  removeSelectedTrack: () => void;
+  setPlayheadFromUser: ComposerViewProps["onSetPlayheadBeat"];
+}
+
+export function createComposerPrimaryActions({
+  addTrack,
+  clearCurrentProject,
+  commitProjectChange,
+  exportAudio,
+  removeSelectedTrack,
+  renameProject,
+  setPlayheadFromUser
+}: CreateComposerPrimaryActionsOptions): ComposerPrimaryActions {
+  return {
+    clearCurrentProject,
+    renameProject,
+    exportAudio,
+    ...createProjectGlobalCommitActions({ commitProjectChange }),
+    addTrack,
+    removeSelectedTrack,
+    setPlayheadFromUser
+  };
+}
+
+interface CreateComposerTimelineActionsOptions {
+  requestTimelineActionsPopover: ComposerViewProps["onRequestTimelineActionsPopover"];
+  setTimelineActionsPopover: (request: ComposerViewProps["timelineActionsPopover"]) => void;
+  applyNoteClipboardPaste: ComposerViewProps["onPasteAtTimeline"];
+  addLoopBoundary: ComposerViewProps["onAddLoopBoundary"];
+  expandSelectedLoopToNotes: () => void;
+  endMarkerAtTimelineBeat: ComposerViewProps["endMarkerAtTimelineBeat"];
+  updateLoopRepeatCount: (markerId: string, repeatCount: number) => void;
+  removeLoopBoundary: (markerId: string) => void;
+}
+
+export function createComposerTimelineActions({
+  addLoopBoundary,
+  applyNoteClipboardPaste,
+  endMarkerAtTimelineBeat,
+  expandSelectedLoopToNotes,
+  removeLoopBoundary,
+  requestTimelineActionsPopover,
+  setTimelineActionsPopover,
+  updateLoopRepeatCount
+}: CreateComposerTimelineActionsOptions): ComposerTimelineActions {
+  return {
+    requestTimelineActionsPopover,
+    closeTimelineActionsPopover: () => setTimelineActionsPopover(null),
+    applyNoteClipboardPaste,
+    addLoopBoundary,
+    expandSelectedLoopToNotes,
+    updateLoopRepeatCount: (repeatCount) => {
+      if (endMarkerAtTimelineBeat) {
+        updateLoopRepeatCount(endMarkerAtTimelineBeat.id, repeatCount);
+      }
+    },
+    removeLoopBoundary
   };
 }
 

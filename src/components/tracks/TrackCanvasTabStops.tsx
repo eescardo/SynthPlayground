@@ -2,6 +2,7 @@
 
 import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
 import { TrackCanvasSelectedContentTabStopRect } from "@/components/tracks/trackCanvasSelection";
+import styles from "./TrackCanvas.module.css";
 
 interface TrackCanvasTabStopsProps {
   playheadLabel: string;
@@ -46,7 +47,7 @@ export function TrackCanvasTabStops({
         ref={playheadTabStopRef}
         type="button"
         tabIndex={0}
-        className="track-canvas-playhead-tabstop"
+        className={styles.playheadTabstop}
         aria-label={playheadLabel}
         style={{
           left: playheadLeft,
@@ -55,14 +56,14 @@ export function TrackCanvasTabStops({
         onFocus={onPlayheadFocus}
         onBlur={onPlayheadBlur}
       >
-        <span className="track-canvas-tabstop-label">{playheadLabel}</span>
+        <span className={styles.tabstopLabel}>{playheadLabel}</span>
       </button>
       {selectedContentRect && (
         <button
           ref={selectedContentTabStopRef}
           type="button"
           tabIndex={0}
-          className="track-canvas-note-tabstop"
+          className={styles.noteTabstop}
           aria-label={selectedContentRect.ariaLabel}
           style={{
             left: selectedContentRect.x,
@@ -74,7 +75,7 @@ export function TrackCanvasTabStops({
           onFocus={onSelectedContentFocus}
           onBlur={onSelectedContentBlur}
         >
-          <span className="track-canvas-tabstop-label">{selectedContentRect.ariaLabel}</span>
+          <span className={styles.tabstopLabel}>{selectedContentRect.ariaLabel}</span>
         </button>
       )}
     </>

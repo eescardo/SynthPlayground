@@ -214,55 +214,6 @@
   color: var(--muted);
 }
 
-.track-canvas-shell {
-  position: relative;
-  background: rgba(9, 17, 26, 0.8);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow-x: auto;
-  overflow-y: visible;
-  overscroll-behavior-x: contain;
-  overscroll-behavior-y: auto;
-  max-width: 100%;
-}
-
-.track-canvas-shell canvas {
-  display: block;
-}
-
-.track-canvas-tabstop-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.track-canvas-playhead-tabstop,
-.track-canvas-note-tabstop {
-  position: absolute;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  pointer-events: none;
-  outline: none;
-}
-
-.track-canvas-playhead-tabstop {
-  top: 0;
-  width: 2px;
-}
-
-.track-canvas-playhead-tabstop:focus-visible,
-.track-canvas-note-tabstop:focus-visible {
-  outline: none;
-}
-
 .track-header-overlays {
   position: absolute;
   inset: 0 auto 0 0;

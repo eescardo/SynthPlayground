@@ -51,6 +51,7 @@ import { getNoteSelectionKey } from "@/lib/clipboard";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
 import { formatBeatName } from "@/lib/musicTiming";
 import { Note, Track } from "@/types/music";
+import styles from "./TrackCanvas.module.css";
 export type {
   TimelineActionsPopoverRequest,
   TrackCanvasProps,
@@ -859,7 +860,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   }, [selectedContentTabStopRect]);
 
   return (
-    <div className="track-canvas-shell" ref={wrapperRef}>
+    <div className={styles.shell} ref={wrapperRef}>
       <TrackHeaderChrome
         project={project}
         canvasShellRef={wrapperRef}
@@ -881,6 +882,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         automationActions={automationActions}
       />
       <canvas
+        className={styles.canvas}
         ref={canvasRef}
         width={width}
         height={height}
