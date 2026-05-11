@@ -146,11 +146,59 @@ export interface Patch {
 }
 
 export type PatchValidationIssueLevel = "error" | "warning";
+export type PatchValidationIssueCode =
+  | "connection-capability-mismatch"
+  | "connection-cycle"
+  | "connection-invalid-destination-port"
+  | "connection-invalid-source-port"
+  | "connection-kind-mismatch"
+  | "connection-missing-destination"
+  | "connection-missing-source"
+  | "connection-target-occupied"
+  | "connection-unknown-schema"
+  | "duplicate-connection-id"
+  | "duplicate-macro-binding-id"
+  | "duplicate-macro-binding-target"
+  | "duplicate-macro-id"
+  | "duplicate-node-id"
+  | "macro-binding-conflict"
+  | "macro-binding-duplicate-param"
+  | "macro-binding-invalid-param"
+  | "macro-binding-keyframe-count-mismatch"
+  | "macro-binding-missing-node"
+  | "macro-binding-non-float-param"
+  | "macro-binding-point-out-of-range"
+  | "macro-binding-range-out-of-range"
+  | "macro-keyframe-count-invalid"
+  | "node-param-invalid-option"
+  | "node-param-missing"
+  | "node-param-out-of-range"
+  | "node-param-type-mismatch"
+  | "node-param-unknown"
+  | "output-port-count"
+  | "param-range-invalid-param"
+  | "param-range-missing-node"
+  | "param-range-non-float-param"
+  | "param-range-out-of-range"
+  | "required-port-schema-mismatch"
+  | "required-port-unconnected"
+  | "reserved-node-id"
+  | "sample-asset-missing"
+  | "single-input-port-multiple-connections"
+  | "unknown-node-type";
+
+export type PatchWireInvalidReasonCode =
+  | "already-connected"
+  | "invalid-target"
+  | "preset-structure-locked"
+  | "target-occupied"
+  | "type-mismatch"
+  | "would-create-cycle";
 
 export interface PatchValidationIssue {
   level: PatchValidationIssueLevel;
   message: string;
-  code?: string;
+  code: PatchValidationIssueCode;
   context?: Record<string, string>;
 }
 
