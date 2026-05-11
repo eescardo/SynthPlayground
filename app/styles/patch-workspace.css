@@ -787,6 +787,24 @@
   opacity: 0.72;
 }
 
+.patch-keyboard-focus-ring {
+  position: absolute;
+  z-index: 6;
+  pointer-events: none;
+  border: 2px dotted rgba(151, 214, 255, 0.95);
+  border-radius: 0.45rem;
+  box-shadow:
+    0 0 0 2px rgba(7, 13, 19, 0.72),
+    0 0 18px rgba(151, 214, 255, 0.28);
+}
+
+.patch-keyboard-focus-ring.selected {
+  border-color: rgba(255, 235, 156, 0.98);
+  box-shadow:
+    0 0 0 2px rgba(7, 13, 19, 0.72),
+    0 0 20px rgba(255, 235, 156, 0.32);
+}
+
 .patch-probe-overlay {
   position: absolute;
   inset: 0;

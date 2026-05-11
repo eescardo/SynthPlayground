@@ -1,6 +1,7 @@
 "use client";
 
 import { CSSProperties, useMemo } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { PATCH_HOST_STRIP_X } from "@/components/patch/patchCanvasConstants";
 import {
   HitPort,
@@ -11,6 +12,7 @@ import {
 } from "@/components/patch/patchCanvasGeometry";
 import { HOST_PORT_IDS, HostPatchPortId, SOURCE_HOST_PORT_IDS } from "@/lib/patch/constants";
 import { getPatchOutputInputPortId, getPatchOutputPort } from "@/lib/patch/ports";
+import { PatchCanvasFocusable } from "@/lib/patch/hardwareNavigation";
 import { Patch } from "@/types/patch";
 
 interface HostOverlayPort {
@@ -34,6 +36,8 @@ interface PatchHostPortOverlayProps {
   onPortSelection: (hitPort: HitPort, pointer: { x: number; y: number }) => void;
   onPortHover: (hitPort: HitPort | null, pointer: { x: number; y: number } | null) => void;
   onSelectOutput: () => void;
+  onKeyboardFocus?: (focus: PatchCanvasFocusable) => void;
+  onKeyboardKeyDown?: (event: ReactKeyboardEvent<HTMLElement>) => void;
 }
 
 function resolveOverlayPorts(
@@ -158,6 +162,30 @@ export function PatchHostPortOverlay(props: PatchHostPortOverlayProps) {
           onPointerEnter={() => props.onPortHover(port.hitPort, port.pointer)}
           onPointerMove={() => props.onPortHover(port.hitPort, port.pointer)}
           onPointerLeave={() => props.onPortHover(null, null)}
+          onFocus={() =>
+            props.onKeyboardFocus?.({
+              kind: "port",
+              nodeId: port.hitPort.nodeId,
+              portId: port.hitPort.portId,
+              portKind: port.hitPort.kind
+            })
+          }
+          onKeyDown={props.onKeyboardKeyDown}
+          onClick={(event) => {
+            event.preventDefault();
+            if (props.pendingProbeId) {
+              props.onPortSelection(port.hitPort, port.pointer);
+              return;
+            }
+            if (props.structureLocked) {
+              return;
+            }
+            if (port.hitPort.kind === "in" && !props.pendingFromPort && !props.pendingProbeId) {
+              props.onSelectOutput();
+              return;
+            }
+            props.onPortSelection(port.hitPort, port.pointer);
+          }}
         >
           {port.label}
         </button>
