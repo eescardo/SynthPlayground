@@ -7,7 +7,26 @@ import {
   resolvePatchConnectionMidpoint,
   resolvePatchPortAnchorPoint
 } from "@/components/patch/patchCanvasGeometry";
-import { PATCH_CANVAS_GRID } from "@/components/patch/patchCanvasConstants";
+import {
+  PATCH_CANVAS_GRID,
+  PATCH_COLOR_PROBE_CONNECTION,
+  PATCH_COLOR_PROBE_CONNECTION_TARGET_FILL,
+  PATCH_COLOR_PROBE_CONNECTION_TARGET_STROKE,
+  PATCH_COLOR_PROBE_ENVELOPE_TRACE,
+  PATCH_COLOR_PROBE_GRAPH_AXIS,
+  PATCH_COLOR_PROBE_GRAPH_AXIS_STRONG,
+  PATCH_COLOR_PROBE_GRAPH_BG,
+  PATCH_COLOR_PROBE_GRAPH_FUTURE_MASK,
+  PATCH_COLOR_PROBE_GRAPH_GRID,
+  PATCH_COLOR_PROBE_GRAPH_REGION_A,
+  PATCH_COLOR_PROBE_GRAPH_REGION_B,
+  PATCH_COLOR_PROBE_PENDING_CONNECTION,
+  PATCH_COLOR_PROBE_PENDING_TARGET_FILL,
+  PATCH_COLOR_PROBE_PENDING_TARGET_STROKE,
+  PATCH_COLOR_PROBE_PLAYHEAD,
+  PATCH_COLOR_PROBE_SCOPE_TRACE,
+  PATCH_COLOR_PROBE_SPECTROGRAM_BIN_RGB
+} from "@/components/patch/patchCanvasConstants";
 import { buildProbeSpectrogram, EXPANDED_PROBE_SIZE, resolveProbeFrequencyView } from "@/lib/patch/probes";
 import { clamp } from "@/lib/numeric";
 import { detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
@@ -133,7 +152,7 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
               y1={line.y1}
               x2={line.x2}
               y2={line.y2}
-              stroke="rgba(200, 255, 57, 0.85)"
+              stroke={PATCH_COLOR_PROBE_CONNECTION}
               strokeWidth={2}
               strokeDasharray="5 4"
             />
@@ -141,8 +160,8 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
               cx={line.x2}
               cy={line.y2}
               r={line.targetKind === "connection" ? 7 : 5}
-              fill="rgba(200, 255, 57, 0.22)"
-              stroke="rgba(200, 255, 57, 0.95)"
+              fill={PATCH_COLOR_PROBE_CONNECTION_TARGET_FILL}
+              stroke={PATCH_COLOR_PROBE_CONNECTION_TARGET_STROKE}
               strokeWidth={2}
             />
           </g>
@@ -154,7 +173,7 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
               y1={pendingProbeLine.y1}
               x2={pendingProbeLine.x2}
               y2={pendingProbeLine.y2}
-              stroke="rgba(200, 255, 57, 0.92)"
+              stroke={PATCH_COLOR_PROBE_PENDING_CONNECTION}
               strokeWidth={2}
               strokeDasharray="7 5"
             />
@@ -162,8 +181,8 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
               cx={pendingProbeLine.x2}
               cy={pendingProbeLine.y2}
               r={5}
-              fill="rgba(200, 255, 57, 0.18)"
-              stroke="rgba(200, 255, 57, 0.9)"
+              fill={PATCH_COLOR_PROBE_PENDING_TARGET_FILL}
+              stroke={PATCH_COLOR_PROBE_PENDING_TARGET_STROKE}
               strokeWidth={1.5}
             />
           </g>
@@ -386,13 +405,13 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: numbe
 
   return (
     <svg viewBox="0 0 100 60" className="patch-probe-graph">
-      <rect x="0" y="0" width="100" height="60" fill="rgba(10, 18, 28, 0.9)" rx="6" />
+      <rect x="0" y="0" width="100" height="60" fill={PATCH_COLOR_PROBE_GRAPH_BG} rx="6" />
       <rect
         x={props.compact ? 2 : 8}
         y="6"
         width={props.compact ? 97 : 90}
         height="22"
-        fill="rgba(255, 255, 255, 0.015)"
+        fill={PATCH_COLOR_PROBE_GRAPH_REGION_A}
         rx="4"
       />
       <rect
@@ -400,7 +419,7 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: numbe
         y="33"
         width={props.compact ? 97 : 90}
         height="21"
-        fill="rgba(255, 255, 255, 0.012)"
+        fill={PATCH_COLOR_PROBE_GRAPH_REGION_B}
         rx="4"
       />
       {timeMarkers.map((marker) => (
@@ -410,7 +429,7 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: numbe
           y1="6"
           x2={marker.x}
           y2="54"
-          stroke="rgba(140, 179, 213, 0.1)"
+          stroke={PATCH_COLOR_PROBE_GRAPH_GRID}
           strokeWidth="0.35"
           shapeRendering="crispEdges"
         />
@@ -420,7 +439,7 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: numbe
         y1="17"
         x2="98"
         y2="17"
-        stroke="rgba(140, 179, 213, 0.22)"
+        stroke={PATCH_COLOR_PROBE_GRAPH_AXIS_STRONG}
         strokeWidth="0.45"
         shapeRendering="crispEdges"
       />
@@ -429,7 +448,7 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: numbe
         y1="33"
         x2="98"
         y2="33"
-        stroke="rgba(140, 179, 213, 0.18)"
+        stroke={PATCH_COLOR_PROBE_GRAPH_AXIS}
         strokeWidth="0.35"
         shapeRendering="crispEdges"
       />
@@ -438,12 +457,12 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: numbe
         y1="54"
         x2="98"
         y2="54"
-        stroke="rgba(140, 179, 213, 0.18)"
+        stroke={PATCH_COLOR_PROBE_GRAPH_AXIS}
         strokeWidth="0.35"
         shapeRendering="crispEdges"
       />
       {graphData.capturedRatio < 1 && (
-        <rect x={futureMaskX} y="6" width={futureMaskWidth} height="48" fill="rgba(6, 12, 18, 0.42)" />
+        <rect x={futureMaskX} y="6" width={futureMaskWidth} height="48" fill={PATCH_COLOR_PROBE_GRAPH_FUTURE_MASK} />
       )}
       {graphData.waveformSegments.map((segment) => (
         <line
@@ -452,7 +471,7 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: numbe
           y1={segment.y1}
           x2={segment.x}
           y2={segment.y2}
-          stroke="rgba(163, 219, 255, 0.95)"
+          stroke={PATCH_COLOR_PROBE_SCOPE_TRACE}
           strokeWidth="0.42"
           shapeRendering="crispEdges"
           vectorEffect="non-scaling-stroke"
@@ -462,7 +481,7 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: numbe
         <polyline
           points={graphData.envelopeLine}
           fill="none"
-          stroke="rgba(200, 255, 57, 0.96)"
+          stroke={PATCH_COLOR_PROBE_ENVELOPE_TRACE}
           strokeWidth="0.58"
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -474,7 +493,7 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: numbe
         y1="6"
         x2={playheadX}
         y2="54"
-        stroke="rgba(200, 255, 57, 0.85)"
+        stroke={PATCH_COLOR_PROBE_PLAYHEAD}
         strokeWidth="0.7"
         shapeRendering="crispEdges"
       />
@@ -542,7 +561,7 @@ function SpectrumProbeGraph(props: {
     canvas.style.height = `${height}px`;
     context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     context.clearRect(0, 0, width, height);
-    context.fillStyle = "rgba(10, 18, 28, 0.9)";
+    context.fillStyle = PATCH_COLOR_PROBE_GRAPH_BG;
     context.fillRect(0, 0, width, height);
 
     const rows = props.spectrogram.length;
@@ -558,7 +577,7 @@ function SpectrumProbeGraph(props: {
       for (let columnIndex = 0; columnIndex < columns; columnIndex += 1) {
         const value = row[columnIndex] ?? 0;
         const alpha = clamp(value * 0.95, 0.03, 0.96);
-        context.fillStyle = `rgba(255, 214, 145, ${alpha})`;
+        context.fillStyle = `rgba(${PATCH_COLOR_PROBE_SPECTROGRAM_BIN_RGB}, ${alpha})`;
         context.fillRect(
           columnIndex * cellWidth,
           height - (rowIndex + 1) * cellHeight,

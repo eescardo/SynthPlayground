@@ -27,13 +27,95 @@ export const PATCH_COLOR_PORT_LABEL = "#9ec0df";
 export const PATCH_COLOR_PORT_LABEL_BG = "rgba(7, 14, 21, 0.94)";
 export const PATCH_COLOR_PORT_LABEL_INVALID_BG = "rgba(153, 28, 28, 0.94)";
 export const PATCH_COLOR_CONNECTION_FALLBACK = "#c7d8e8";
+export const PATCH_COLOR_CONNECTION_SELECTED = "#f6d365";
+export const PATCH_COLOR_CONNECTION_DELETE_PREVIEW = "#f97373";
 export const PATCH_COLOR_PENDING_PORT = "#ff5d8f";
 export const PATCH_COLOR_PENDING_WIRE = "rgba(255, 142, 177, 0.92)";
 export const PATCH_COLOR_VALID_TARGET = "rgba(200, 255, 57, 0.98)";
 export const PATCH_COLOR_VALID_TARGET_FILL = "rgba(200, 255, 57, 0.16)";
+export const PATCH_COLOR_WIRE_TOOLTIP_BG = "rgba(7, 13, 19, 0.94)";
+export const PATCH_COLOR_WIRE_TOOLTIP_STROKE = "rgba(200, 255, 57, 0.38)";
+export const PATCH_COLOR_WIRE_TOOLTIP_TEXT = "#e7f3ff";
+export const PATCH_COLOR_WIRE_INVALID = "rgba(255, 92, 112, 0.98)";
+export const PATCH_COLOR_WIRE_INVALID_SOFT = "rgba(255, 92, 112, 0.95)";
+export const PATCH_COLOR_WIRE_INVALID_FILL = "rgba(255, 92, 112, 0.18)";
+export const PATCH_COLOR_WIRE_INVALID_TOOLTIP_BG = "rgba(56, 18, 25, 0.96)";
+export const PATCH_COLOR_WIRE_INVALID_TOOLTIP_STROKE = "rgba(255, 92, 112, 0.85)";
+export const PATCH_COLOR_WIRE_INVALID_TOOLTIP_TEXT = "#ffd2d8";
+export const PATCH_COLOR_WIRE_REPLACE = "rgba(255, 203, 87, 0.98)";
+export const PATCH_COLOR_WIRE_REPLACE_SOFT = "rgba(255, 203, 87, 0.95)";
+export const PATCH_COLOR_WIRE_REPLACE_FILL = "rgba(255, 203, 87, 0.18)";
+export const PATCH_COLOR_WIRE_REPLACE_TOOLTIP_BG = "rgba(56, 42, 13, 0.96)";
+export const PATCH_COLOR_WIRE_REPLACE_TOOLTIP_TEXT = "#ffe3a1";
+export const PATCH_COLOR_WIRE_REPLACE_PILL_BG = "rgba(69, 53, 18, 0.98)";
+export const PATCH_COLOR_WIRE_REPLACE_PILL_NO_SELECTED = "rgba(255, 203, 87, 0.34)";
+export const PATCH_COLOR_WIRE_REPLACE_PILL_YES_SELECTED = "rgba(255, 203, 87, 0.38)";
+export const PATCH_COLOR_WIRE_REPLACE_PILL_SELECTED_STROKE = "rgba(255, 235, 156, 1)";
+export const PATCH_COLOR_WIRE_REPLACE_PILL_SELECTED_TEXT = "#fff7d8";
+export const PATCH_COLOR_WIRE_CANDIDATE_VALID_PULSE = "rgba(103, 224, 153, 0.95)";
+export const PATCH_COLOR_WIRE_COMMIT = "rgba(255, 235, 156, 0.98)";
+export const PATCH_COLOR_WIRE_COMMIT_RING = "rgba(255, 235, 156, 0.95)";
+export const PATCH_COLOR_WIRE_MODULE_HOVER_OVERLAY = "rgba(4, 10, 17, 0.7)";
+export const PATCH_COLOR_WIRE_CANCEL_BUTTON_BG = "rgba(14, 25, 36, 0.98)";
+export const PATCH_COLOR_WIRE_CANCEL_BUTTON_STROKE = "rgba(158, 192, 223, 0.82)";
+export const PATCH_COLOR_PROBE_CONNECTION = "rgba(200, 255, 57, 0.85)";
+export const PATCH_COLOR_PROBE_CONNECTION_TARGET_FILL = "rgba(200, 255, 57, 0.22)";
+export const PATCH_COLOR_PROBE_CONNECTION_TARGET_STROKE = "rgba(200, 255, 57, 0.95)";
+export const PATCH_COLOR_PROBE_PENDING_CONNECTION = "rgba(200, 255, 57, 0.92)";
+export const PATCH_COLOR_PROBE_PENDING_TARGET_FILL = "rgba(200, 255, 57, 0.18)";
+export const PATCH_COLOR_PROBE_PENDING_TARGET_STROKE = "rgba(200, 255, 57, 0.9)";
+export const PATCH_COLOR_PROBE_GRAPH_BG = "rgba(10, 18, 28, 0.9)";
+export const PATCH_COLOR_PROBE_GRAPH_REGION_A = "rgba(255, 255, 255, 0.015)";
+export const PATCH_COLOR_PROBE_GRAPH_REGION_B = "rgba(255, 255, 255, 0.012)";
+export const PATCH_COLOR_PROBE_GRAPH_GRID = "rgba(140, 179, 213, 0.1)";
+export const PATCH_COLOR_PROBE_GRAPH_AXIS_STRONG = "rgba(140, 179, 213, 0.22)";
+export const PATCH_COLOR_PROBE_GRAPH_AXIS = "rgba(140, 179, 213, 0.18)";
+export const PATCH_COLOR_PROBE_GRAPH_FUTURE_MASK = "rgba(6, 12, 18, 0.42)";
+export const PATCH_COLOR_PROBE_SCOPE_TRACE = "rgba(163, 219, 255, 0.95)";
+export const PATCH_COLOR_PROBE_ENVELOPE_TRACE = "rgba(200, 255, 57, 0.96)";
+export const PATCH_COLOR_PROBE_PLAYHEAD = "rgba(200, 255, 57, 0.85)";
+export const PATCH_COLOR_PROBE_SPECTROGRAM_BIN_RGB = "255, 214, 145";
 export const PATCH_COLOR_HOST_STRIP_FILL = "#c9d6de";
 export const PATCH_COLOR_HOST_STRIP_STROKE = "#93a8b6";
 export const PATCH_COLOR_HOST_PORT_TEXT = "#10202c";
+export const PATCH_HOST_PORT_TINTS: Record<string, { fill: string; stroke: string; text: string; wire: string }> = {
+  "$host.pitch": {
+    fill: "#cfe5f7",
+    stroke: "#8fb3d1",
+    text: "#163248",
+    wire: "#8fc1eb"
+  },
+  "$host.gate": {
+    fill: "#f1d2ba",
+    stroke: "#c89266",
+    text: "#4b2a16",
+    wire: "#e2a16c"
+  },
+  "$host.velocity": {
+    fill: "#cfe6c6",
+    stroke: "#8eb17c",
+    text: "#173321",
+    wire: "#8dc97d"
+  },
+  "$host.modwheel": {
+    fill: "#dfd2aa",
+    stroke: "#b69b58",
+    text: "#443514",
+    wire: "#d2ac4f"
+  },
+  output: {
+    fill: "#f0d4df",
+    stroke: "#c27d98",
+    text: "#441d2f",
+    wire: "#e393b2"
+  }
+};
+export const PATCH_HOST_PORT_FALLBACK_TINT = {
+  fill: PATCH_COLOR_HOST_STRIP_FILL,
+  stroke: PATCH_COLOR_HOST_STRIP_STROKE,
+  text: PATCH_COLOR_HOST_PORT_TEXT,
+  wire: PATCH_COLOR_CONNECTION_FALLBACK
+};
 export const PATCH_COLOR_ADSR_GRAPH_BORDER = "rgba(231, 243, 255, 0.12)";
 export const PATCH_COLOR_ADSR_MACRO_LOW = "rgba(151, 214, 255, 0.84)";
 export const PATCH_COLOR_ADSR_MACRO_HIGH = "rgba(255, 214, 145, 0.88)";

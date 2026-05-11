@@ -1,10 +1,37 @@
 import {
   PATCH_CANVAS_GRID,
+  PATCH_COLOR_CONNECTION_DELETE_PREVIEW,
   PATCH_COLOR_CONNECTION_FALLBACK,
+  PATCH_COLOR_CONNECTION_SELECTED,
   PATCH_COLOR_PENDING_PORT,
   PATCH_COLOR_PENDING_WIRE,
   PATCH_COLOR_VALID_TARGET,
   PATCH_COLOR_VALID_TARGET_FILL,
+  PATCH_COLOR_WIRE_CANCEL_BUTTON_BG,
+  PATCH_COLOR_WIRE_CANCEL_BUTTON_STROKE,
+  PATCH_COLOR_WIRE_CANDIDATE_VALID_PULSE,
+  PATCH_COLOR_WIRE_COMMIT,
+  PATCH_COLOR_WIRE_COMMIT_RING,
+  PATCH_COLOR_WIRE_INVALID,
+  PATCH_COLOR_WIRE_INVALID_FILL,
+  PATCH_COLOR_WIRE_INVALID_SOFT,
+  PATCH_COLOR_WIRE_INVALID_TOOLTIP_BG,
+  PATCH_COLOR_WIRE_INVALID_TOOLTIP_STROKE,
+  PATCH_COLOR_WIRE_INVALID_TOOLTIP_TEXT,
+  PATCH_COLOR_WIRE_MODULE_HOVER_OVERLAY,
+  PATCH_COLOR_WIRE_REPLACE,
+  PATCH_COLOR_WIRE_REPLACE_FILL,
+  PATCH_COLOR_WIRE_REPLACE_PILL_BG,
+  PATCH_COLOR_WIRE_REPLACE_PILL_NO_SELECTED,
+  PATCH_COLOR_WIRE_REPLACE_PILL_SELECTED_STROKE,
+  PATCH_COLOR_WIRE_REPLACE_PILL_SELECTED_TEXT,
+  PATCH_COLOR_WIRE_REPLACE_PILL_YES_SELECTED,
+  PATCH_COLOR_WIRE_REPLACE_SOFT,
+  PATCH_COLOR_WIRE_REPLACE_TOOLTIP_BG,
+  PATCH_COLOR_WIRE_REPLACE_TOOLTIP_TEXT,
+  PATCH_COLOR_WIRE_TOOLTIP_BG,
+  PATCH_COLOR_WIRE_TOOLTIP_STROKE,
+  PATCH_COLOR_WIRE_TOOLTIP_TEXT,
   PATCH_NODE_HEIGHT,
   PATCH_NODE_WIDTH
 } from "@/components/patch/patchCanvasConstants";
@@ -111,7 +138,10 @@ export function drawPatchConnections(
 
     if (connection.id === selectedConnectionId || connection.id === deletePreviewConnectionId) {
       ctx.save();
-      ctx.strokeStyle = connection.id === deletePreviewConnectionId ? "#f97373" : "#f6d365";
+      ctx.strokeStyle =
+        connection.id === deletePreviewConnectionId
+          ? PATCH_COLOR_CONNECTION_DELETE_PREVIEW
+          : PATCH_COLOR_CONNECTION_SELECTED;
       ctx.lineWidth = connection.id === deletePreviewConnectionId ? 5 : 4;
       ctx.globalAlpha = connection.id === deletePreviewConnectionId ? 0.95 : 0.9;
       ctx.lineCap = "round";
@@ -171,10 +201,10 @@ export function drawWireCandidatePulse(
   }
   const color =
     pulse.status === "invalid"
-      ? "rgba(255, 92, 112, 0.95)"
+      ? PATCH_COLOR_WIRE_INVALID_SOFT
       : pulse.status === "replace"
-        ? "rgba(255, 203, 87, 0.95)"
-        : "rgba(103, 224, 153, 0.95)";
+        ? PATCH_COLOR_WIRE_REPLACE_SOFT
+        : PATCH_COLOR_WIRE_CANDIDATE_VALID_PULSE;
   const pulseStrength = Math.sin(progress * Math.PI);
   const inset = 1 + pulseStrength * 2;
   ctx.save();
@@ -206,7 +236,7 @@ export function drawWireCommitFeedback(
   const alpha = Math.max(0, 1 - progress);
   ctx.save();
   ctx.globalAlpha = 0.88 * alpha;
-  ctx.strokeStyle = "rgba(255, 235, 156, 0.98)";
+  ctx.strokeStyle = PATCH_COLOR_WIRE_COMMIT;
   ctx.lineWidth = 2.8;
   ctx.setLineDash([7, 5]);
   ctx.beginPath();
@@ -214,8 +244,8 @@ export function drawWireCommitFeedback(
   ctx.lineTo(to.anchorX, to.anchorY);
   ctx.stroke();
   ctx.restore();
-  drawPortFeedbackRing(ctx, from, "rgba(255, 235, 156, 0.95)", progress, 9);
-  drawPortFeedbackRing(ctx, to, "rgba(255, 235, 156, 0.95)", progress, 9);
+  drawPortFeedbackRing(ctx, from, PATCH_COLOR_WIRE_COMMIT_RING, progress, 9);
+  drawPortFeedbackRing(ctx, to, PATCH_COLOR_WIRE_COMMIT_RING, progress, 9);
 }
 
 export function drawPendingPatchPort(
@@ -340,12 +370,12 @@ export function drawWireStartTooltip(
   const rect = resolveWireStartTooltipRect(source, pointer, lines, bounds);
   ctx.save();
   drawRoundedRectPath(ctx, rect.x, rect.y, rect.width, rect.height, 7);
-  ctx.fillStyle = "rgba(7, 13, 19, 0.94)";
+  ctx.fillStyle = PATCH_COLOR_WIRE_TOOLTIP_BG;
   ctx.fill();
-  ctx.strokeStyle = "rgba(200, 255, 57, 0.38)";
+  ctx.strokeStyle = PATCH_COLOR_WIRE_TOOLTIP_STROKE;
   ctx.lineWidth = 1.25;
   ctx.stroke();
-  ctx.fillStyle = "#e7f3ff";
+  ctx.fillStyle = PATCH_COLOR_WIRE_TOOLTIP_TEXT;
   ctx.font = "10px 'Trebuchet MS', 'Segoe UI', sans-serif";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
@@ -421,12 +451,12 @@ function drawWireCandidateTooltip(
   }
   const { x, y } = origin;
   drawRoundedRectPath(ctx, x, y, tooltipSize.width, tooltipSize.height, 8);
-  ctx.fillStyle = isReplace ? "rgba(56, 42, 13, 0.96)" : "rgba(56, 18, 25, 0.96)";
+  ctx.fillStyle = isReplace ? PATCH_COLOR_WIRE_REPLACE_TOOLTIP_BG : PATCH_COLOR_WIRE_INVALID_TOOLTIP_BG;
   ctx.fill();
-  ctx.strokeStyle = isReplace ? "rgba(255, 203, 87, 0.95)" : "rgba(255, 92, 112, 0.95)";
+  ctx.strokeStyle = isReplace ? PATCH_COLOR_WIRE_REPLACE_SOFT : PATCH_COLOR_WIRE_INVALID_SOFT;
   ctx.lineWidth = 1.5;
   ctx.stroke();
-  ctx.fillStyle = isReplace ? "#ffe3a1" : "#ffd2d8";
+  ctx.fillStyle = isReplace ? PATCH_COLOR_WIRE_REPLACE_TOOLTIP_TEXT : PATCH_COLOR_WIRE_INVALID_TOOLTIP_TEXT;
   ctx.textAlign = "center";
   ctx.textBaseline = isReplace ? "alphabetic" : "middle";
   ctx.fillText(label, x + tooltipSize.width / 2, isReplace ? y + 17 : y + tooltipSize.height / 2);
@@ -435,14 +465,14 @@ function drawWireCandidateTooltip(
     if (rects) {
       const selected = candidate.replaceSelection ?? "no";
       drawPill(ctx, rects.no, "NO", {
-        fill: selected === "no" ? "rgba(255, 203, 87, 0.34)" : "rgba(69, 53, 18, 0.98)",
-        stroke: selected === "no" ? "rgba(255, 235, 156, 1)" : "rgba(255, 203, 87, 0.9)",
-        text: selected === "no" ? "#fff7d8" : "#ffe3a1"
+        fill: selected === "no" ? PATCH_COLOR_WIRE_REPLACE_PILL_NO_SELECTED : PATCH_COLOR_WIRE_REPLACE_PILL_BG,
+        stroke: selected === "no" ? PATCH_COLOR_WIRE_REPLACE_PILL_SELECTED_STROKE : PATCH_COLOR_WIRE_REPLACE_SOFT,
+        text: selected === "no" ? PATCH_COLOR_WIRE_REPLACE_PILL_SELECTED_TEXT : PATCH_COLOR_WIRE_REPLACE_TOOLTIP_TEXT
       });
       drawPill(ctx, rects.yes, "YES", {
-        fill: selected === "yes" ? "rgba(255, 203, 87, 0.38)" : "rgba(69, 53, 18, 0.98)",
-        stroke: selected === "yes" ? "rgba(255, 235, 156, 1)" : "rgba(255, 203, 87, 0.9)",
-        text: selected === "yes" ? "#fff7d8" : "#ffe3a1"
+        fill: selected === "yes" ? PATCH_COLOR_WIRE_REPLACE_PILL_YES_SELECTED : PATCH_COLOR_WIRE_REPLACE_PILL_BG,
+        stroke: selected === "yes" ? PATCH_COLOR_WIRE_REPLACE_PILL_SELECTED_STROKE : PATCH_COLOR_WIRE_REPLACE_SOFT,
+        text: selected === "yes" ? PATCH_COLOR_WIRE_REPLACE_PILL_SELECTED_TEXT : PATCH_COLOR_WIRE_REPLACE_TOOLTIP_TEXT
       });
     }
   }
@@ -475,12 +505,12 @@ export function drawLockedPortTooltip(
     return;
   }
   drawRoundedRectPath(ctx, origin.x, origin.y, tooltipSize.width, tooltipSize.height, 8);
-  ctx.fillStyle = "rgba(56, 18, 25, 0.96)";
+  ctx.fillStyle = PATCH_COLOR_WIRE_INVALID_TOOLTIP_BG;
   ctx.fill();
-  ctx.strokeStyle = "rgba(255, 92, 112, 0.85)";
+  ctx.strokeStyle = PATCH_COLOR_WIRE_INVALID_TOOLTIP_STROKE;
   ctx.lineWidth = 1.5;
   ctx.stroke();
-  ctx.fillStyle = "#ffd2d8";
+  ctx.fillStyle = PATCH_COLOR_WIRE_INVALID_TOOLTIP_TEXT;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(label, origin.x + tooltipSize.width / 2, origin.y + tooltipSize.height / 2);
@@ -501,15 +531,11 @@ export function drawWireCandidate(
   }
   const isInvalid = candidate.status === "invalid";
   const isReplace = candidate.status === "replace";
-  const stroke = isInvalid
-    ? "rgba(255, 92, 112, 0.98)"
-    : isReplace
-      ? "rgba(255, 203, 87, 0.98)"
-      : PATCH_COLOR_VALID_TARGET;
+  const stroke = isInvalid ? PATCH_COLOR_WIRE_INVALID : isReplace ? PATCH_COLOR_WIRE_REPLACE : PATCH_COLOR_VALID_TARGET;
   const fill = isInvalid
-    ? "rgba(255, 92, 112, 0.18)"
+    ? PATCH_COLOR_WIRE_INVALID_FILL
     : isReplace
-      ? "rgba(255, 203, 87, 0.18)"
+      ? PATCH_COLOR_WIRE_REPLACE_FILL
       : PATCH_COLOR_VALID_TARGET_FILL;
 
   ctx.save();
@@ -589,13 +615,13 @@ export function drawArmedWireModuleHover(
   const x = layout.x * PATCH_CANVAS_GRID;
   const y = layout.y * PATCH_CANVAS_GRID;
   ctx.save();
-  ctx.fillStyle = "rgba(4, 10, 17, 0.7)";
+  ctx.fillStyle = PATCH_COLOR_WIRE_MODULE_HOVER_OVERLAY;
   ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
   const buttonRect = resolveArmedWireCancelButtonRect(x, y);
   drawPill(ctx, buttonRect, "cancel wiring", {
-    fill: "rgba(14, 25, 36, 0.98)",
-    stroke: "rgba(158, 192, 223, 0.82)",
-    text: "#e7f3ff"
+    fill: PATCH_COLOR_WIRE_CANCEL_BUTTON_BG,
+    stroke: PATCH_COLOR_WIRE_CANCEL_BUTTON_STROKE,
+    text: PATCH_COLOR_WIRE_TOOLTIP_TEXT
   });
   if (hover.nearestPort) {
     const port = portPositions.get(`${hover.nearestPort.nodeId}:${hover.nearestPort.kind}:${hover.nearestPort.portId}`);
