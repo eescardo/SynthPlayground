@@ -5,15 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 import { PatchEditorStage } from "@/components/patch/PatchEditorStage";
 import { PatchInspector } from "@/components/patch/PatchInspector";
 import { PatchMacroPanel } from "@/components/patch/PatchMacroPanel";
-import { PatchBaselineDiffState } from "@/components/patch/patchBaselineDiffState";
 import { applyDraftParamValues, buildParamDraftKey } from "@/components/patch/patchEditorCanvasDrafts";
+import { PatchEditorSessionActions, PatchEditorSessionModel } from "@/components/patch/patchEditorSession";
 import { usePatchCanvasSelection } from "@/hooks/patch/usePatchCanvasSelection";
 import { usePatchProbeEditorState } from "@/hooks/patch/usePatchProbeEditorState";
 import { clamp } from "@/lib/numeric";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { PatchValidationIssue, Patch, ParamValue } from "@/types/patch";
-import { PatchOp } from "@/types/ops";
-import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
+import { ParamValue } from "@/types/patch";
 import { PatchWireCommitFeedback } from "@/components/patch/patchWireFeedback";
 
 const PATCH_MACRO_VISIBLE_ROW_MIN = 1;
@@ -27,40 +25,23 @@ const PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT: Record<number, number> = {
 };
 
 interface PatchEditorCanvasProps {
-  patch: Patch;
-  baselineDiff: PatchBaselineDiffState;
-  probeState: PatchProbeEditorState;
-  macroValues: Record<string, number>;
-  selectedNodeId?: string;
-  selectedMacroId?: string;
-  validationIssues: PatchValidationIssue[];
-  structureLocked?: boolean;
-  onSelectNode: (nodeId?: string) => void;
-  onSelectMacro: (macroId?: string) => void;
-  onClearSelectedMacro: () => void;
-  onClearPatch: () => void;
-  onApplyOp: (op: PatchOp) => void;
-  probeActions: PatchProbeEditorActions;
-  onExposeMacro: (nodeId: string, paramId: string, suggestedName: string) => void;
-  onAddMacro: () => void;
-  onRemoveMacro: (macroId: string) => void;
-  onRenameMacro: (macroId: string, name: string) => void;
-  onSetMacroKeyframeCount: (macroId: string, keyframeCount: number) => void;
-  onChangeMacroValue: (macroId: string, normalized: number, options?: { commit?: boolean }) => void;
+  model: PatchEditorSessionModel;
+  actions: PatchEditorSessionActions;
 }
 
 export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
+  const { actions, model } = props;
   const [draftParamValues, setDraftParamValues] = useState<Record<string, ParamValue>>({});
   const [lastWireCommitFeedback, setLastWireCommitFeedback] = useState<PatchWireCommitFeedback | null>(null);
   useEffect(() => {
     setDraftParamValues({});
-  }, [props.patch]);
+  }, [model.patch]);
   const previewPatch = useMemo(
-    () => applyDraftParamValues(props.patch, draftParamValues),
-    [draftParamValues, props.patch]
+    () => applyDraftParamValues(model.patch, draftParamValues),
+    [draftParamValues, model.patch]
   );
   const macroVisibleRows = clamp(
-    props.patch.ui.macros.length || 1,
+    model.patch.ui.macros.length || 1,
     PATCH_MACRO_VISIBLE_ROW_MIN,
     PATCH_MACRO_VISIBLE_ROW_MAX
   );
@@ -68,21 +49,21 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT[macroVisibleRows] ??
     PATCH_MACRO_DOCK_HEIGHT_REM_BY_ROW_COUNT[PATCH_MACRO_VISIBLE_ROW_MAX];
   const selectedMacroNodeIds = useMemo(() => {
-    if (!props.selectedMacroId) {
+    if (!model.selectedMacroId) {
       return new Set<string>();
     }
     return new Set(
       previewPatch.ui.macros
-        .find((macro) => macro.id === props.selectedMacroId)
+        .find((macro) => macro.id === model.selectedMacroId)
         ?.bindings.map((binding) => binding.nodeId) ?? []
     );
-  }, [previewPatch.ui.macros, props.selectedMacroId]);
+  }, [previewPatch.ui.macros, model.selectedMacroId]);
 
   const nodeById = useMemo(
     () => new Map([...previewPatch.nodes, ...(previewPatch.ports ?? [])].map((node) => [node.id, node] as const)),
     [previewPatch.nodes, previewPatch.ports]
   );
-  const selectedNode = props.selectedNodeId ? nodeById.get(props.selectedNodeId) : undefined;
+  const selectedNode = model.selectedNodeId ? nodeById.get(model.selectedNodeId) : undefined;
   const selectedSchema = selectedNode ? getModuleSchema(selectedNode.typeId) : undefined;
   const {
     selectedConnectionId,
@@ -91,15 +72,15 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
     selectConnection: handleSelectConnection
   } = usePatchCanvasSelection({
     patch: previewPatch,
-    selectedNodeId: props.selectedNodeId,
-    probeState: props.probeState,
-    probeActions: props.probeActions,
-    onSelectNode: props.onSelectNode
+    selectedNodeId: model.selectedNodeId,
+    probeState: model.probeState,
+    probeActions: actions.probeActions,
+    onSelectNode: actions.onSelectNode
   });
   const { attachingProbeId, cancelAttachProbe, canvasProbeState, selectedProbe, toggleAttachProbe } =
     usePatchProbeEditorState({
-      probes: props.probeState.probes,
-      probeState: props.probeState,
+      probes: model.probeState.probes,
+      probeState: model.probeState,
       probeActions
     });
 
@@ -116,70 +97,82 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
       <div className="patch-layout">
         <div className="patch-editor-main-column">
           <PatchEditorStage
-            patch={previewPatch}
-            baselineDiff={props.baselineDiff}
-            validationIssues={props.validationIssues}
-            probeState={canvasProbeState}
-            selectedNodeId={props.selectedNodeId}
-            selectedConnectionId={selectedConnectionId}
-            selectedMacroNodeIds={selectedMacroNodeIds}
-            structureLocked={props.structureLocked}
-            onClearPatch={props.onClearPatch}
-            onApplyOp={props.onApplyOp}
-            probeActions={probeActions}
-            onSelectNode={handleSelectNode}
-            onSelectConnection={handleSelectConnection}
-            onToggleAttachProbe={toggleAttachProbe}
-            onCancelAttachProbe={cancelAttachProbe}
-            onWireCommitFeedback={setLastWireCommitFeedback}
+            model={{
+              patch: previewPatch,
+              baselineDiff: model.baselineDiff,
+              validationIssues: model.validationIssues,
+              probeState: canvasProbeState,
+              selectedNodeId: model.selectedNodeId,
+              selectedConnectionId,
+              selectedMacroNodeIds,
+              structureLocked: model.structureLocked
+            }}
+            actions={{
+              onClearPatch: actions.onClearPatch,
+              onApplyOp: actions.onApplyOp,
+              probeActions,
+              onSelectNode: handleSelectNode,
+              onSelectConnection: handleSelectConnection,
+              onToggleAttachProbe: toggleAttachProbe,
+              onCancelAttachProbe: cancelAttachProbe,
+              onWireCommitFeedback: setLastWireCommitFeedback
+            }}
           />
 
           <PatchMacroPanel
-            patch={props.patch}
-            patchDiff={props.baselineDiff.patchDiff}
-            macroValues={props.macroValues}
-            validationIssues={props.validationIssues}
-            selectedMacroId={props.selectedMacroId}
-            structureLocked={props.structureLocked}
-            onAddMacro={props.onAddMacro}
-            onSelectMacro={props.onSelectMacro}
-            onClearSelection={props.onClearSelectedMacro}
-            onRemoveMacro={props.onRemoveMacro}
-            onRenameMacro={props.onRenameMacro}
-            onSetMacroKeyframeCount={props.onSetMacroKeyframeCount}
-            onChangeMacroValue={props.onChangeMacroValue}
+            model={{
+              patch: model.patch,
+              patchDiff: model.baselineDiff.patchDiff,
+              macroValues: model.macroValues,
+              validationIssues: model.validationIssues,
+              selectedMacroId: model.selectedMacroId,
+              structureLocked: model.structureLocked
+            }}
+            actions={{
+              onAddMacro: actions.onAddMacro,
+              onSelectMacro: actions.onSelectMacro,
+              onClearSelection: actions.onClearSelectedMacro,
+              onRemoveMacro: actions.onRemoveMacro,
+              onRenameMacro: actions.onRenameMacro,
+              onSetMacroKeyframeCount: actions.onSetMacroKeyframeCount,
+              onChangeMacroValue: actions.onChangeMacroValue
+            }}
           />
         </div>
 
         <PatchInspector
-          patch={previewPatch}
-          patchDiff={props.baselineDiff.patchDiff}
-          macroValues={props.macroValues}
-          selectedNode={selectedNode}
-          selectedProbe={selectedProbe}
-          selectedMacroId={props.selectedMacroId}
-          selectedSchema={selectedSchema}
-          previewCapture={selectedProbe ? props.probeState.previewCaptureByProbeId[selectedProbe.id] : undefined}
-          previewProgress={props.probeState.previewProgress}
-          attachingProbeId={attachingProbeId}
-          wireCommitFeedback={lastWireCommitFeedback}
-          selectedConnectionId={selectedConnectionId}
-          structureLocked={props.structureLocked}
-          validationIssues={props.validationIssues}
-          onApplyOp={props.onApplyOp}
-          onSelectMacro={props.onSelectMacro}
-          onChangeMacroValue={props.onChangeMacroValue}
-          onPreviewParamValue={(nodeId, paramId, value) => {
-            setDraftParamValues((current) => ({
-              ...current,
-              [buildParamDraftKey(nodeId, paramId)]: value
-            }));
+          model={{
+            patch: previewPatch,
+            patchDiff: model.baselineDiff.patchDiff,
+            macroValues: model.macroValues,
+            selectedNode,
+            selectedProbe,
+            selectedMacroId: model.selectedMacroId,
+            selectedSchema,
+            previewCapture: selectedProbe ? model.probeState.previewCaptureByProbeId[selectedProbe.id] : undefined,
+            previewProgress: model.probeState.previewProgress,
+            attachingProbeId,
+            wireCommitFeedback: lastWireCommitFeedback,
+            selectedConnectionId,
+            structureLocked: model.structureLocked,
+            validationIssues: model.validationIssues
           }}
-          onExposeMacro={props.onExposeMacro}
-          onUpdateProbeSpectrumWindow={probeActions.updateSpectrumWindow}
-          onUpdateProbeFrequencyView={probeActions.updateFrequencyView}
-          onToggleAttachProbe={toggleAttachProbe}
-          onClearProbeTarget={(probeId) => probeActions.updateTarget(probeId, undefined)}
+          actions={{
+            onApplyOp: actions.onApplyOp,
+            onSelectMacro: actions.onSelectMacro,
+            onChangeMacroValue: actions.onChangeMacroValue,
+            onPreviewParamValue: (nodeId, paramId, value) => {
+              setDraftParamValues((current) => ({
+                ...current,
+                [buildParamDraftKey(nodeId, paramId)]: value
+              }));
+            },
+            onExposeMacro: actions.onExposeMacro,
+            onUpdateProbeSpectrumWindow: probeActions.updateSpectrumWindow,
+            onUpdateProbeFrequencyView: probeActions.updateFrequencyView,
+            onToggleAttachProbe: toggleAttachProbe,
+            onClearProbeTarget: (probeId) => probeActions.updateTarget(probeId, undefined)
+          }}
         />
       </div>
     </div>

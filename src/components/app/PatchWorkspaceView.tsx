@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import type { ComponentProps, RefObject } from "react";
+import type { RefObject } from "react";
 import { InstrumentEditor } from "@/components/InstrumentEditor";
 import { PitchButtonLabel } from "@/components/PitchButtonLabel";
 import { ProjectsMenu } from "@/components/composer/ProjectsMenu";
@@ -10,11 +10,12 @@ import {
   PatchWorkspaceTabViewModel
 } from "@/components/patch-workspace/PatchWorkspaceTabStrip";
 import { PatchBaselineDiffState } from "@/components/patch/patchBaselineDiffState";
+import { PatchEditorSession } from "@/components/patch/patchEditorSession";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { usePatchWorkspaceQuickHelpDialog } from "@/hooks/patch/usePatchWorkspaceQuickHelpDialog";
 import { RecentProjectSnapshot } from "@/lib/persistence";
 import { backArrowIconSrc } from "@/resources/images";
-import { Patch } from "@/types/patch";
+import { Patch, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
 
@@ -31,7 +32,7 @@ interface PatchWorkspaceViewProps {
   migrationNotice?: string | null;
   selectedNodeId?: string;
   selectedMacroId?: string;
-  validationIssues: ComponentProps<typeof InstrumentEditor>["validationIssues"];
+  validationIssues: PatchValidationIssue[];
   invalid?: boolean;
   onBackToComposer: () => void;
   onActivateTab: (tabId: string) => void;
@@ -60,6 +61,38 @@ interface PatchWorkspaceViewProps {
   onRenameMacro: (macroId: string, name: string) => void;
   onSetMacroKeyframeCount: (macroId: string, keyframeCount: number) => void;
   onChangeMacroValue: (macroId: string, normalized: number, options?: { commit?: boolean }) => void;
+}
+
+function createPatchEditorSession(props: PatchWorkspaceViewProps): PatchEditorSession {
+  return {
+    editorSessionKey: props.activeTabId,
+    model: {
+      patch: props.patch,
+      baselineDiff: props.baselineDiff,
+      probeState: props.probeState,
+      macroValues: props.macroValues,
+      migrationNotice: props.migrationNotice,
+      selectedNodeId: props.selectedNodeId,
+      selectedMacroId: props.selectedMacroId,
+      validationIssues: props.validationIssues,
+      invalid: props.invalid
+    },
+    actions: {
+      onReady: props.onInstrumentEditorReady,
+      onSelectNode: props.onSelectNode,
+      onSelectMacro: props.onSelectMacro,
+      onClearSelectedMacro: props.onClearSelectedMacro,
+      onClearPatch: props.onClearPatch,
+      onApplyOp: props.onApplyOp,
+      probeActions: props.probeActions,
+      onExposeMacro: props.onExposeMacro,
+      onAddMacro: props.onAddMacro,
+      onRemoveMacro: props.onRemoveMacro,
+      onRenameMacro: props.onRenameMacro,
+      onSetMacroKeyframeCount: props.onSetMacroKeyframeCount,
+      onChangeMacroValue: props.onChangeMacroValue
+    }
+  };
 }
 
 export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
@@ -145,31 +178,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           onRenameTab={props.onRenameTab}
         />
 
-        <InstrumentEditor
-          editorSessionKey={props.activeTabId}
-          patch={props.patch}
-          baselineDiff={props.baselineDiff}
-          probeState={props.probeState}
-          macroValues={props.macroValues}
-          migrationNotice={props.migrationNotice}
-          onReady={props.onInstrumentEditorReady}
-          selectedNodeId={props.selectedNodeId}
-          selectedMacroId={props.selectedMacroId}
-          validationIssues={props.validationIssues}
-          invalid={props.invalid}
-          onSelectNode={props.onSelectNode}
-          onSelectMacro={props.onSelectMacro}
-          onClearSelectedMacro={props.onClearSelectedMacro}
-          onClearPatch={props.onClearPatch}
-          onApplyOp={props.onApplyOp}
-          probeActions={props.probeActions}
-          onExposeMacro={props.onExposeMacro}
-          onAddMacro={props.onAddMacro}
-          onRemoveMacro={props.onRemoveMacro}
-          onRenameMacro={props.onRenameMacro}
-          onSetMacroKeyframeCount={props.onSetMacroKeyframeCount}
-          onChangeMacroValue={props.onChangeMacroValue}
-        />
+        <InstrumentEditor session={createPatchEditorSession(props)} />
       </div>
 
       <QuickHelpDialog
