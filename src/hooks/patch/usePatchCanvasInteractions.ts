@@ -96,7 +96,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     dismissReplaceCandidate,
     handleAttachHoverTarget,
     handleModuleHoverWhileWiring,
-    handlePortHover,
+    handlePortHover: handleWirePortHover,
     handlePortSelection,
     handleReplacePromptHover,
     hoveredAttachTarget,
@@ -121,6 +121,16 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     makeConnectOp,
     onWireCommitFeedback
   });
+
+  const handlePortHover = useCallback(
+    (hoverPort: HitPort | null, pointer: { x: number; y: number } | null) => {
+      if (pendingProbeId) {
+        setPendingProbePointer(pointer);
+      }
+      handleWirePortHover(hoverPort, pointer);
+    },
+    [handleWirePortHover, pendingProbeId]
+  );
 
   const clearActiveNodeDrag = useCallback(() => {
     dragInitialLayoutRef.current = null;
