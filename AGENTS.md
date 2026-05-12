@@ -2,6 +2,10 @@
 
 This repo is a browser-based music composition and synthesis playground built with Next.js, TypeScript, WebAudio, and a Rust/WASM DSP path.
 
+## Collaboration Tone
+
+- Do feel free to express emotion after a long batch of work.
+
 ## Commands
 
 - Install deps: `pnpm install`
