@@ -427,6 +427,7 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
       nearestPort: HitPort | null;
       pointer: { x: number; y: number };
       enabled: boolean;
+      cancelActionActive?: boolean;
     }) => {
       if (!args.enabled || !pendingFromPort || pendingProbeId || !args.nodeId) {
         setArmedWireModuleHover(null);
@@ -434,7 +435,8 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
       }
       setArmedWireModuleHover({
         nodeId: args.nodeId,
-        nearestPort: args.nearestPort
+        nearestPort: args.nearestPort,
+        cancelActionActive: args.cancelActionActive
       });
       updatePendingConnectionCandidate(args.nearestPort, args.pointer);
     },

@@ -241,6 +241,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     handlePortHover,
     handlePortSelection,
     handleReplaceCandidateKeyDown,
+    clearPendingConnection,
     hitPorts,
     onPointerDown,
     onPointerMove,
@@ -436,6 +437,10 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
       if (event.key === "Enter") {
         if (currentFocus.kind === "module") {
           event.preventDefault();
+          if (pendingFromPort) {
+            clearPendingConnection();
+            return;
+          }
           if (popoverNodeId === currentFocus.nodeId) {
             closePopover();
             return;
@@ -550,6 +555,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     },
     [
       closePopover,
+      clearPendingConnection,
       ensureKeyboardFocus,
       handlePortSelection,
       handleReplaceCandidateKeyDown,
@@ -608,6 +614,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
         enabled: true,
         nodeId: keyboardFocus.nodeId,
         nearestPort: hitPort,
+        cancelActionActive: true,
         pointer: hitPort
           ? resolvePortFocusPointer(hitPort)
           : resolveModuleFocusPointer(keyboardNavigationModel, keyboardFocus.nodeId)
@@ -619,6 +626,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
       enabled: false,
       nodeId: null,
       nearestPort: null,
+      cancelActionActive: false,
       pointer: { x: 0, y: 0 }
     });
   }, [

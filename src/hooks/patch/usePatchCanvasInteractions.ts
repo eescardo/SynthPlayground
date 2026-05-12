@@ -591,6 +591,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     pendingWirePointer,
     pendingProbePointer,
     wireCandidate,
+    clearPendingConnection,
     hoveredAttachTarget,
     hitPorts,
     lockedPortHovered,
