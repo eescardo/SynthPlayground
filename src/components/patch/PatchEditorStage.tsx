@@ -427,7 +427,11 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
 
   const handlePatchCanvasKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLElement>) => {
-      if (isShortcutBlockedTarget(event.target) && event.currentTarget === event.target) {
+      if (
+        isShortcutBlockedTarget(event.target) &&
+        event.currentTarget === event.target &&
+        !isPatchCanvasKeyboardDelegateTarget(event.currentTarget)
+      ) {
         return;
       }
       const key = event.key as PatchHardwareArrowKey;
@@ -1079,6 +1083,10 @@ function isPatchCanvasArrowEntryBlockedTarget(target: HTMLElement) {
     return true;
   }
   return target.getAttribute("role") === "slider" || Boolean(target.closest("[role='slider']"));
+}
+
+function isPatchCanvasKeyboardDelegateTarget(target: HTMLElement) {
+  return target.dataset.patchCanvasKeyNav === "true";
 }
 
 function scrollCanvasFocusIntoView(

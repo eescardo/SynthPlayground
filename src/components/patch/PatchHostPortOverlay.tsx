@@ -142,6 +142,7 @@ export function PatchHostPortOverlay(props: PatchHostPortOverlayProps) {
           className={`patch-host-port${props.pendingFromPort?.nodeId === port.nodeId ? " pending" : ""}${
             props.structureLocked ? " locked" : ""
           }`}
+          data-patch-canvas-key-nav="true"
           style={port.style}
           onPointerDown={(event) => {
             event.preventDefault();
