@@ -23,6 +23,7 @@ import { Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 
 type ReplaceWireSelection = "no" | "yes";
+type ReplaceWireKeyboardAction = "selectNo" | "selectYes" | "confirm";
 
 interface PendingConnection {
   fromPort: HitPort;
@@ -450,16 +451,17 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
         return false;
       }
       const replaceSelection = pendingConnection?.candidate.replaceSelection ?? "no";
-      if (key === "ArrowLeft") {
+      const action = resolveReplaceWireKeyboardAction(replaceSelection, key);
+      if (!action) {
+        return false;
+      }
+      if (action === "selectNo") {
         setReplaceCandidateSelection("no");
         return true;
       }
-      if (key === "ArrowRight") {
+      if (action === "selectYes") {
         setReplaceCandidateSelection("yes");
         return true;
-      }
-      if (key !== "Enter") {
-        return false;
       }
       if (replaceSelection === "yes") {
         commitConnectionCandidate(candidate);
@@ -557,4 +559,17 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
     wireCommitFeedback,
     wireFeedbackNow
   };
+}
+
+export function resolveReplaceWireKeyboardAction(
+  replaceSelection: ReplaceWireSelection,
+  key: string
+): ReplaceWireKeyboardAction | null {
+  if (key === "ArrowLeft") {
+    return replaceSelection === "yes" ? "selectNo" : null;
+  }
+  if (key === "ArrowRight") {
+    return replaceSelection === "no" ? "selectYes" : null;
+  }
+  return key === "Enter" ? "confirm" : null;
 }

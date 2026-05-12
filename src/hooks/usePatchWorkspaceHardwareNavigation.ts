@@ -29,9 +29,11 @@ export function usePatchWorkspaceHardwareNavigation({
       if (isModifierChord(event) || view !== "patch-workspace") {
         return;
       }
-      if ((event.key === " " || event.code === "Space") && !event.repeat) {
+      if (event.key === " " || event.code === "Space") {
         event.preventDefault();
-        startHeldDefaultPitchPreview();
+        if (!event.repeat) {
+          startHeldDefaultPitchPreview();
+        }
       }
     };
 
