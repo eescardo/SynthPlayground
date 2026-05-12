@@ -593,6 +593,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     hoveredAttachTarget,
     hitPorts,
     lockedPortHovered,
+    handleModuleHoverWhileWiring,
     handlePortSelection,
     handlePortHover,
     onPointerDown,
