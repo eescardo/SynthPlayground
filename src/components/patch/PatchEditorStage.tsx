@@ -269,6 +269,8 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     onSelectConnection,
     onSelectNode,
     onSelectProbe: probeActions.selectProbe,
+    onToggleAttachProbe,
+    onToggleProbeExpanded: probeActions.toggleExpanded,
     outputHostCanvasLeft,
     outputNodeId,
     patch,
@@ -513,6 +515,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
               previewProgress={probeState.previewProgress}
               zoom={zoom}
               attachingProbeId={probeState.attachingProbeId}
+              keyboardFocus={keyboardFocus}
               pendingProbePointer={pendingProbePointer}
               onSelectProbe={probeActions.selectProbe}
               onBeginProbeDrag={beginProbeDrag}
@@ -525,6 +528,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
                 focus={keyboardFocus}
                 model={keyboardNavigationModel}
                 ports={keyboardPorts}
+                probes={probeState.probes}
                 selectedNodeId={selectedNodeId}
                 selectedProbeId={probeState.selectedProbeId}
                 zoom={zoom}

@@ -24,6 +24,7 @@ export type PatchHardwareArrowKey = "ArrowUp" | "ArrowRight" | "ArrowDown" | "Ar
 export type PatchCanvasFocusable =
   | { kind: "module"; nodeId: string }
   | { kind: "probe"; probeId: string }
+  | { kind: "probe-action"; probeId: string; actionId: "attach" }
   | { kind: "port"; nodeId: string; portId: string; portKind: "in" | "out" };
 
 export type PatchCanvasFocusableThingKind = PatchCanvasFocusable["kind"];
@@ -229,6 +230,8 @@ export function buildPatchFocusableId(focus: PatchCanvasFocusable) {
       return `module:${focus.nodeId}`;
     case "probe":
       return `probe:${focus.probeId}`;
+    case "probe-action":
+      return `probe:${focus.probeId}:action:${focus.actionId}`;
     case "port":
       return `port:${focus.nodeId}:${focus.portKind}:${focus.portId}`;
   }

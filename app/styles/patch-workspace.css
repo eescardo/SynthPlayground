@@ -905,6 +905,13 @@
   font-size: 0.68rem;
 }
 
+.patch-probe-attach-button.keyboard-focused {
+  border-color: rgba(151, 214, 255, 0.95);
+  outline: 2px dotted rgba(151, 214, 255, 0.95);
+  outline-offset: 2px;
+  box-shadow: 0 0 14px rgba(151, 214, 255, 0.26);
+}
+
 .patch-probe-card-body {
   flex: 1;
   min-height: 0;

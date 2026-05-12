@@ -40,6 +40,8 @@ export function usePatchCanvasKeyboardNavigation(args: {
   onSelectConnection: (connectionId?: string) => void;
   onSelectNode: (nodeId?: string) => void;
   onSelectProbe: (probeId: string) => void;
+  onToggleAttachProbe: (probeId: string) => void;
+  onToggleProbeExpanded: (probeId: string) => void;
   outputHostCanvasLeft: number;
   outputNodeId?: string;
   patch: Patch;
@@ -63,9 +65,12 @@ export function usePatchCanvasKeyboardNavigation(args: {
     onSelectConnection,
     onSelectNode,
     onSelectProbe,
+    onToggleAttachProbe,
+    onToggleProbeExpanded,
     outputNodeId,
     pendingFromPort,
     popoverNodeId,
+    selectedProbeId,
     selectedNodeId,
     togglePopoverForNode
   } = args;
@@ -148,7 +153,20 @@ export function usePatchCanvasKeyboardNavigation(args: {
             hostPorts: keyboardHostPorts,
             model: keyboardNavigationModel,
             selectedNodeId: selectedNodeId,
-            selectedProbeId: args.selectedProbeId
+            selectedProbeId
+          })
+        );
+      }
+      return;
+    }
+    if (keyboardFocus.kind === "probe-action") {
+      const probeExists = args.probes.some((probe) => probe.id === keyboardFocus.probeId);
+      if (!probeExists || selectedProbeId !== keyboardFocus.probeId) {
+        setKeyboardFocus(
+          resolveDefaultPatchCanvasFocus({
+            model: keyboardNavigationModel,
+            selectedNodeId: selectedNodeId,
+            selectedProbeId
           })
         );
       }
@@ -159,11 +177,19 @@ export function usePatchCanvasKeyboardNavigation(args: {
         resolveDefaultPatchCanvasFocus({
           model: keyboardNavigationModel,
           selectedNodeId: selectedNodeId,
-          selectedProbeId: args.selectedProbeId
+          selectedProbeId
         })
       );
     }
-  }, [selectedNodeId, args.selectedProbeId, keyboardFocus, keyboardHostPorts, keyboardNavigationModel, keyboardPorts]);
+  }, [
+    args.probes,
+    selectedNodeId,
+    selectedProbeId,
+    keyboardFocus,
+    keyboardHostPorts,
+    keyboardNavigationModel,
+    keyboardPorts
+  ]);
 
   useEffect(() => {
     if (!popoverNodeId) {
@@ -187,11 +213,11 @@ export function usePatchCanvasKeyboardNavigation(args: {
       resolveDefaultPatchCanvasFocus({
         model: keyboardNavigationModel,
         selectedNodeId: selectedNodeId,
-        selectedProbeId: args.selectedProbeId
+        selectedProbeId
       });
     setKeyboardFocus(nextFocus);
     return nextFocus;
-  }, [popoverNodeId, selectedNodeId, args.selectedProbeId, keyboardFocus, keyboardNavigationModel]);
+  }, [popoverNodeId, selectedNodeId, selectedProbeId, keyboardFocus, keyboardNavigationModel]);
 
   const scrollKeyboardFocusIntoView = useCallback(
     (focus: PatchCanvasFocusable | null) => {
@@ -212,13 +238,13 @@ export function usePatchCanvasKeyboardNavigation(args: {
     const nextFocus = resolveDefaultPatchCanvasFocus({
       model: keyboardNavigationModel,
       selectedNodeId: selectedNodeId,
-      selectedProbeId: args.selectedProbeId
+      selectedProbeId
     });
     setKeyboardFocus(nextFocus);
     scrollKeyboardFocusIntoView(nextFocus);
     args.scrollRef.current?.focus();
     return Boolean(nextFocus);
-  }, [args.scrollRef, selectedNodeId, args.selectedProbeId, keyboardNavigationModel, scrollKeyboardFocusIntoView]);
+  }, [args.scrollRef, selectedNodeId, selectedProbeId, keyboardNavigationModel, scrollKeyboardFocusIntoView]);
 
   const markExplicitCanvasScrollIntent = useCallback(() => {
     explicitScrollIntentRef.current = true;
@@ -278,6 +304,10 @@ export function usePatchCanvasKeyboardNavigation(args: {
           event.preventDefault();
           setKeyboardFocus({ kind: "module", nodeId: currentFocus.nodeId });
         }
+        if (currentFocus.kind === "probe-action") {
+          event.preventDefault();
+          setKeyboardFocus({ kind: "probe", probeId: currentFocus.probeId });
+        }
         return;
       }
       if (event.key === "Enter") {
@@ -303,7 +333,19 @@ export function usePatchCanvasKeyboardNavigation(args: {
           event.preventDefault();
           onSelectNode(undefined);
           onSelectConnection(undefined);
+          if (selectedProbeId === currentFocus.probeId) {
+            onToggleProbeExpanded(currentFocus.probeId);
+          } else {
+            onSelectProbe(currentFocus.probeId);
+          }
+          return;
+        }
+        if (currentFocus.kind === "probe-action") {
+          event.preventDefault();
+          onSelectNode(undefined);
+          onSelectConnection(undefined);
           onSelectProbe(currentFocus.probeId);
+          onToggleAttachProbe(currentFocus.probeId);
           return;
         }
         const port = keyboardPorts.find(
@@ -329,6 +371,26 @@ export function usePatchCanvasKeyboardNavigation(args: {
       if (popoverNodeId) {
         event.preventDefault();
         setKeyboardFocus({ kind: "module", nodeId: popoverNodeId });
+        return;
+      }
+      if (currentFocus.kind === "probe-action") {
+        event.preventDefault();
+        if (key === "ArrowLeft") {
+          setKeyboardFocus({ kind: "probe", probeId: currentFocus.probeId });
+          return;
+        }
+        const nextFocus = resolveNextPatchCanvasFocus(
+          keyboardNavigationModel,
+          { kind: "probe", probeId: currentFocus.probeId },
+          key
+        );
+        setKeyboardFocus(nextFocus);
+        scrollKeyboardFocusIntoView(nextFocus);
+        return;
+      }
+      if (currentFocus.kind === "probe" && selectedProbeId === currentFocus.probeId && key === "ArrowRight") {
+        event.preventDefault();
+        setKeyboardFocus({ kind: "probe-action", probeId: currentFocus.probeId, actionId: "attach" });
         return;
       }
       if (currentFocus.kind === "port") {
@@ -396,10 +458,13 @@ export function usePatchCanvasKeyboardNavigation(args: {
       onSelectConnection,
       onSelectNode,
       onSelectProbe,
+      onToggleAttachProbe,
+      onToggleProbeExpanded,
       outputNodeId,
       pendingFromPort,
       popoverNodeId,
       selectedNodeId,
+      selectedProbeId,
       togglePopoverForNode,
       ensureKeyboardFocus,
       keyboardNavigationModel,

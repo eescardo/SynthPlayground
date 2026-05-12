@@ -38,6 +38,7 @@ import {
 } from "@/lib/patch/probeViewMath";
 import { Patch, PatchLayoutNode } from "@/types/patch";
 import { PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
+import { PatchCanvasFocusable } from "@/lib/patch/hardwareNavigation";
 
 interface PatchProbeOverlayProps {
   patch: Patch;
@@ -49,6 +50,7 @@ interface PatchProbeOverlayProps {
   previewProgress: number;
   zoom: number;
   attachingProbeId?: string | null;
+  keyboardFocus?: PatchCanvasFocusable | null;
   pendingProbePointer?: { x: number; y: number } | null;
   onSelectProbe: (probeId?: string) => void;
   onBeginProbeDrag: (probeId: string, clientX: number, clientY: number) => void;
@@ -200,6 +202,11 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
             zoom={props.zoom}
             selected={props.selectedProbeId === probe.id}
             attaching={props.attachingProbeId === probe.id}
+            attachKeyboardFocused={
+              props.keyboardFocus?.kind === "probe-action" &&
+              props.keyboardFocus.probeId === probe.id &&
+              props.keyboardFocus.actionId === "attach"
+            }
             onSelectProbe={props.onSelectProbe}
             onBeginProbeDrag={props.onBeginProbeDrag}
             onStartAttachProbe={props.onStartAttachProbe}
@@ -219,6 +226,7 @@ function ProbeCard(props: {
   zoom: number;
   selected: boolean;
   attaching: boolean;
+  attachKeyboardFocused: boolean;
   onSelectProbe: (probeId?: string) => void;
   onBeginProbeDrag: (probeId: string, clientX: number, clientY: number) => void;
   onStartAttachProbe: (probeId: string) => void;
@@ -317,7 +325,7 @@ function ProbeCard(props: {
         <strong>{props.probe.name}</strong>
         <button
           type="button"
-          className="patch-probe-attach-button"
+          className={`patch-probe-attach-button${props.attachKeyboardFocused ? " keyboard-focused" : ""}`}
           onClick={(event) => {
             event.stopPropagation();
             props.onStartAttachProbe(props.probe.id);
