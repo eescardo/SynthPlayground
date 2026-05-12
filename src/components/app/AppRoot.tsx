@@ -579,8 +579,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
       setPlayheadBeat(beat);
       setEditorSelection(clearEditorSelection());
       setPitchPicker(null);
+      if (playing) {
+        void playback.seekPlaybackToBeat(beat).catch((error) => setRuntimeError((error as Error).message));
+      }
     },
-    [setPitchPicker]
+    [playback, playing, setPitchPicker, setRuntimeError]
   );
   const setPlayheadPreservingSelection = useCallback(
     (beat: number) => {

@@ -38,9 +38,15 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
   } = args;
 
   const rafRef = useRef<number | null>(null);
+  const playbackEndBeatRef = useRef(playbackEndBeat);
+  const projectRef = useRef(project);
+  const userCueBeatRef = useRef(userCueBeat);
   const stopRecordingSessionRef = useRef(onStopRecordingSession);
   const handleRecordingBeatRef = useRef(onHandleRecordingBeat);
 
+  playbackEndBeatRef.current = playbackEndBeat;
+  projectRef.current = project;
+  userCueBeatRef.current = userCueBeat;
   stopRecordingSessionRef.current = onStopRecordingSession;
   handleRecordingBeatRef.current = onHandleRecordingBeat;
 
@@ -54,10 +60,10 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
         rafRef.current = null;
       }
       if (resetToCue) {
-        setPlayheadBeat(userCueBeat);
+        setPlayheadBeat(userCueBeatRef.current);
       }
     },
-    [audioEngineRef, setPlaying, setPlayheadBeat, userCueBeat]
+    [audioEngineRef, setPlaying, setPlayheadBeat]
   );
 
   const tickPlayhead = useCallback(() => {
@@ -66,14 +72,15 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
     setPlayheadBeat(beat);
     handleRecordingBeatRef.current(beat);
 
-    const playbackStopBeat = getLoopPlaybackEndBeat(project, userCueBeat, playbackEndBeat) - userCueBeat;
+    const cueBeat = userCueBeatRef.current;
+    const playbackStopBeat = getLoopPlaybackEndBeat(projectRef.current, cueBeat, playbackEndBeatRef.current) - cueBeat;
     if (playbackStopBeat > 0 && audioEngineRef.current.getElapsedPlaybackBeat() >= playbackStopBeat - 0.0001) {
       stopPlayback(true);
       return;
     }
 
     rafRef.current = window.requestAnimationFrame(tickPlayhead);
-  }, [audioEngineRef, playbackEndBeat, project, setPlayheadBeat, stopPlayback, userCueBeat]);
+  }, [audioEngineRef, setPlayheadBeat, stopPlayback]);
 
   const beginPlaybackAtBeat = useCallback(
     async (cueBeat: number) => {
@@ -88,6 +95,14 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
       rafRef.current = requestAnimationFrame(tickPlayhead);
     },
     [audioEngineRef, audioProject, tickPlayhead]
+  );
+
+  const seekPlaybackToBeat = useCallback(
+    async (cueBeat: number) => {
+      userCueBeatRef.current = cueBeat;
+      await beginPlaybackAtBeat(cueBeat);
+    },
+    [beginPlaybackAtBeat]
   );
 
   const startPlayback = useCallback(async () => {
@@ -108,5 +123,5 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
     };
   }, [audioEngineRef]);
 
-  return { stopPlayback, beginPlaybackAtBeat, startPlayback };
+  return { stopPlayback, beginPlaybackAtBeat, seekPlaybackToBeat, startPlayback };
 }
