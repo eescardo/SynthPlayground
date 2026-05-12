@@ -370,7 +370,15 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           port.portKind === keyboardFocus.portKind
       );
       if (!portExists) {
-        setKeyboardFocus({ kind: "module", nodeId: keyboardFocus.nodeId });
+        setKeyboardFocus(
+          resolveFilteredPortReplacementFocus({
+            focus: keyboardFocus,
+            hostPorts: keyboardHostPorts,
+            model: keyboardNavigationModel,
+            selectedNodeId,
+            selectedProbeId: probeState.selectedProbeId
+          })
+        );
       }
       return;
     }
@@ -383,7 +391,14 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
         })
       );
     }
-  }, [keyboardFocus, keyboardNavigationModel, keyboardPorts, probeState.selectedProbeId, selectedNodeId]);
+  }, [
+    keyboardFocus,
+    keyboardHostPorts,
+    keyboardNavigationModel,
+    keyboardPorts,
+    probeState.selectedProbeId,
+    selectedNodeId
+  ]);
 
   useLayoutEffect(() => {
     scrollCanvasFocusIntoView(keyboardFocus, keyboardNavigationModel, scrollRef.current, zoom);
@@ -428,6 +443,13 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     scrollRef.current?.focus();
     return Boolean(nextFocus);
   }, [keyboardNavigationModel, probeState.selectedProbeId, selectedNodeId, zoom]);
+
+  const handleExplicitCanvasScrollInput = useCallback(() => {
+    setKeyboardFocus(null);
+    if (pendingFromPort) {
+      setWirePreviewOwner("mouse");
+    }
+  }, [pendingFromPort]);
 
   const handlePatchCanvasKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLElement>) => {
@@ -807,9 +829,15 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
             }
           }}
           onKeyDown={handlePatchCanvasKeyDown}
+          onPointerDownCapture={(event) => {
+            if (event.currentTarget === event.target) {
+              handleExplicitCanvasScrollInput();
+            }
+          }}
           onScroll={(event) => {
             updateScrollViewport(event.currentTarget);
           }}
+          onWheelCapture={handleExplicitCanvasScrollInput}
         >
           <div
             className={styles.overlayShell}
@@ -1029,6 +1057,27 @@ function containsFocusablePort(
   return ports.some(
     (port) => port.nodeId === focus.nodeId && port.portId === focus.portId && port.portKind === focus.portKind
   );
+}
+
+function resolveFilteredPortReplacementFocus(args: {
+  focus: Extract<PatchCanvasFocusable, { kind: "port" }>;
+  hostPorts: ReturnType<typeof resolvePatchFocusablePorts>;
+  model: ReturnType<typeof buildPatchCanvasNavigationModel>;
+  selectedNodeId?: string;
+  selectedProbeId?: string;
+}): PatchCanvasFocusable | null {
+  const moduleFocus: PatchCanvasFocusable = { kind: "module", nodeId: args.focus.nodeId };
+  if (args.model.itemById.has(buildPatchFocusableId(moduleFocus))) {
+    return moduleFocus;
+  }
+  if (containsFocusablePort(args.hostPorts, args.focus)) {
+    return args.model.items[0]?.focus ?? null;
+  }
+  return resolveDefaultPatchCanvasFocus({
+    model: args.model,
+    selectedNodeId: args.selectedNodeId,
+    selectedProbeId: args.selectedProbeId
+  });
 }
 
 function resolveKeyboardWirePreviewKey(args: {
