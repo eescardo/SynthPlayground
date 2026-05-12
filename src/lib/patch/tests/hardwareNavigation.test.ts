@@ -180,10 +180,14 @@ describe("patch hardware navigation", () => {
         ports,
         key: "ArrowDown"
       })
-    ).toEqual({
-      kind: "port",
-      focus: { kind: "port", nodeId: "vca", portId: "gainCV", portKind: "in" }
-    });
+    ).toEqual({ kind: "exit" });
+    expect(
+      resolveNextPatchPortFocus({
+        current: { kind: "port", nodeId: "vca", portId: "in", portKind: "in" },
+        ports,
+        key: "ArrowUp"
+      })
+    ).toEqual({ kind: "exit" });
     expect(
       resolveNextPatchPortFocus({
         current: { kind: "port", nodeId: "vca", portId: "in", portKind: "in" },

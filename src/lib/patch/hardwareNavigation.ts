@@ -318,7 +318,7 @@ export function resolveNextPatchPortFocus(args: {
     (port) => port.nodeId === currentPort.nodeId && port.portId === currentPort.portId
   );
   const delta = args.key === "ArrowUp" ? -1 : 1;
-  const nextPort = sameSidePorts[sameSideIndex + delta] ?? currentPort;
+  const nextPort = sameSidePorts[sameSideIndex + delta];
   return nextPort
     ? {
         kind: "port" as const,
