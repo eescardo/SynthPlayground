@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import { PatchHostPortOverlay } from "@/components/patch/PatchHostPortOverlay";
 import { PatchEditorToolbar } from "@/components/patch/PatchEditorToolbar";
@@ -385,7 +385,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     }
   }, [keyboardFocus, keyboardNavigationModel, keyboardPorts, probeState.selectedProbeId, selectedNodeId]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     scrollCanvasFocusIntoView(keyboardFocus, keyboardNavigationModel, scrollRef.current, zoom);
   }, [keyboardFocus, keyboardNavigationModel, zoom]);
 
@@ -1099,7 +1099,7 @@ function scrollCanvasFocusIntoView(
   scroll: HTMLDivElement | null,
   zoom: number
 ) {
-  if (!focus || focus.kind === "port" || !scroll) {
+  if (!focus || !scroll) {
     return;
   }
   const rect = model.itemById.get(buildPatchFocusableId(focus))?.rect;
