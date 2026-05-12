@@ -386,6 +386,10 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   }, [keyboardFocus, keyboardNavigationModel, keyboardPorts, probeState.selectedProbeId, selectedNodeId]);
 
   useEffect(() => {
+    scrollCanvasFocusIntoView(keyboardFocus, keyboardNavigationModel, scrollRef.current, zoom);
+  }, [keyboardFocus, keyboardNavigationModel, zoom]);
+
+  useEffect(() => {
     if (!popoverNodeId) {
       return;
     }
