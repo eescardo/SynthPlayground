@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   buildPatchCanvasNavigationModel,
   buildPatchFocusableId,
-  getPatchFocusableThingKinds,
   resolveNextPatchCanvasFocus,
   resolveNextPatchPortFocus,
   resolvePatchHostFocusablePorts,
@@ -29,20 +28,6 @@ function createNavigationPatch(): Patch {
 }
 
 describe("patch hardware navigation", () => {
-  it("names the workspace focusable thing types up front", () => {
-    expect(getPatchFocusableThingKinds()).toEqual([
-      "module",
-      "probe",
-      "port",
-      "wire",
-      "macro-row",
-      "inspector-param",
-      "chat-inspector-toggle",
-      "toolbar-action",
-      "tab"
-    ]);
-  });
-
   it("builds predictable arrow edges for canvas modules and probes", () => {
     const patch = createNavigationPatch();
     const layoutByNode = new Map(patch.layout.nodes.map((node) => [node.nodeId, node] as const));

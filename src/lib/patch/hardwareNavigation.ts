@@ -28,15 +28,6 @@ export type PatchCanvasFocusable =
 
 export type PatchCanvasFocusableThingKind = PatchCanvasFocusable["kind"];
 
-export type PatchWorkspaceFocusableThing =
-  | PatchCanvasFocusable
-  | { kind: "wire"; connectionId: string }
-  | { kind: "macro-row"; macroId: string }
-  | { kind: "inspector-param"; nodeId: string; paramId: string }
-  | { kind: "chat-inspector-toggle"; panel: "chat" | "inspector" }
-  | { kind: "toolbar-action"; actionId: string }
-  | { kind: "tab"; tabId: string };
-
 export interface PatchNavigationItem {
   id: string;
   focus: PatchCanvasFocusable;
@@ -57,20 +48,6 @@ export interface PatchNavigationModel {
   items: PatchNavigationItem[];
   itemById: Map<string, PatchNavigationItem>;
   edgesByItemId: Map<string, Partial<Record<PatchHardwareArrowKey, string>>>;
-}
-
-export function getPatchFocusableThingKinds(): Array<PatchWorkspaceFocusableThing["kind"]> {
-  return [
-    "module",
-    "probe",
-    "port",
-    "wire",
-    "macro-row",
-    "inspector-param",
-    "chat-inspector-toggle",
-    "toolbar-action",
-    "tab"
-  ];
 }
 
 export function buildPatchCanvasNavigationModel(args: {

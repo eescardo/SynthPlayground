@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { PatchHostPortOverlay } from "@/components/patch/PatchHostPortOverlay";
 import { PatchEditorToolbar } from "@/components/patch/PatchEditorToolbar";
 import { PatchProbeOverlay } from "@/components/patch/PatchProbeOverlay";
@@ -17,8 +17,7 @@ import {
   resolvePatchCanvasSize,
   resolvePatchDiagramSize,
   resolvePatchFacePopoverRect,
-  resolveOutputHostPlacement,
-  HitPort
+  resolveOutputHostPlacement
 } from "@/components/patch/patchCanvasGeometry";
 import { createId } from "@/lib/ids";
 import { resolveAutoLayoutNodes } from "@/lib/patch/autoLayout";
@@ -29,6 +28,7 @@ import { resolveAutoLayoutProbePositions } from "@/lib/patch/probeAutoLayout";
 import { usePatchCanvasInteractions } from "@/hooks/patch/usePatchCanvasInteractions";
 import { usePatchProbeDrag } from "@/hooks/patch/usePatchProbeDrag";
 import { usePatchCanvasZoom } from "@/hooks/patch/usePatchCanvasZoom";
+import { usePatchCanvasKeyboardNavigation } from "@/hooks/patch/usePatchCanvasKeyboardNavigation";
 import { usePatchModuleFacePopover } from "@/hooks/patch/usePatchModuleFacePopover";
 import { isShortcutBlockedTarget, isTextEditingTarget } from "@/hooks/patch/patchWorkspaceStateUtils";
 import { isModifierChord } from "@/hooks/hardwareNavigationUtils";
@@ -41,13 +41,8 @@ import {
   buildPatchFocusableId,
   PatchCanvasFocusable,
   PatchHardwareArrowKey,
-  resolveDefaultPatchCanvasFocus,
-  resolveNextPatchCanvasFocus,
-  resolveNextPatchPortFocus,
-  resolvePatchHostFocusablePorts,
   resolvePatchFocusablePorts
 } from "@/lib/patch/hardwareNavigation";
-import { resolvePatchWireCandidate } from "@/lib/patch/wireCandidate";
 import styles from "./PatchEditorStage.module.css";
 
 const PATCH_PORT_FOCUS_PAD_X = 2;
@@ -81,15 +76,10 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const explicitScrollIntentRef = useRef(false);
-  const keyboardScrollIntoViewRef = useRef(false);
   const [scrollViewport, setScrollViewport] = useState({ left: 0, top: 0, width: 0, height: 0 });
   const [deletePreviewNodeId, setDeletePreviewNodeId] = useState<string | null>(null);
   const [deletePreviewConnectionId, setDeletePreviewConnectionId] = useState<string | null>(null);
   const [clearPreviewActive, setClearPreviewActive] = useState(false);
-  const [keyboardFocus, setKeyboardFocus] = useState<PatchCanvasFocusable | null>(null);
-  const [wirePreviewOwner, setWirePreviewOwner] = useState<"keyboard" | "mouse" | null>(null);
-  const keyboardWirePreviewKeyRef = useRef("");
   const layoutByNode = useMemo(() => {
     return new Map(patch.layout.nodes.map((node) => [node.nodeId, node] as const));
   }, [patch.layout.nodes]);
@@ -204,54 +194,6 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     nodeExists
   });
 
-  const deleteSelectedCanvasObject = useCallback(() => {
-    if (
-      keyboardFocus?.kind === "port" &&
-      selectedNodeId === keyboardFocus.nodeId &&
-      selectedNodeId !== outputNodeId &&
-      !structureLocked
-    ) {
-      const connectionIds = resolveConnectionIdsForPatchPort(patch, {
-        nodeId: keyboardFocus.nodeId,
-        portId: keyboardFocus.portId,
-        portKind: keyboardFocus.portKind
-      });
-      if (connectionIds.length > 0) {
-        connectionIds.forEach((connectionId) => onApplyOp({ type: "disconnect", connectionId }));
-        onSelectConnection(undefined);
-        setDeletePreviewConnectionId(null);
-        return;
-      }
-    }
-    if (probeState.selectedProbeId) {
-      onCancelAttachProbe();
-      probeActions.deleteSelected();
-      return;
-    }
-    if (selectedConnectionId && !structureLocked) {
-      onApplyOp({ type: "disconnect", connectionId: selectedConnectionId });
-      onSelectConnection(undefined);
-      setDeletePreviewConnectionId(null);
-      return;
-    }
-    if (selectedNodeId && selectedNodeId !== outputNodeId && !structureLocked) {
-      onApplyOp({ type: "removeNode", nodeId: selectedNodeId });
-      setDeletePreviewNodeId(null);
-    }
-  }, [
-    onApplyOp,
-    onCancelAttachProbe,
-    onSelectConnection,
-    outputNodeId,
-    patch,
-    probeActions,
-    probeState.selectedProbeId,
-    keyboardFocus,
-    selectedConnectionId,
-    selectedNodeId,
-    structureLocked
-  ]);
-
   const {
     dragNodeId,
     hoveredNodeId,
@@ -312,417 +254,99 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     togglePopoverForNode,
     onWireCommitFeedback
   });
-  const keyboardHostPorts = useMemo(
-    () => resolvePatchHostFocusablePorts({ patch, outputHostCanvasLeft }),
-    [outputHostCanvasLeft, patch]
-  );
-  const keyboardNavigationPorts = useMemo(
-    () => filterWireDestinationPorts(keyboardHostPorts, pendingFromPort),
-    [keyboardHostPorts, pendingFromPort]
-  );
-  const keyboardNavigationModel = useMemo(
-    () =>
-      buildPatchCanvasNavigationModel({
-        patch,
-        layoutByNode,
-        probes: probeState.probes,
-        ports: keyboardNavigationPorts
-      }),
-    [keyboardNavigationPorts, layoutByNode, patch, probeState.probes]
-  );
-  const keyboardPorts = useMemo(() => {
-    if (keyboardFocus?.kind !== "module" && keyboardFocus?.kind !== "port") {
-      return [];
-    }
-    if (keyboardFocus.kind === "port" && containsFocusablePort(keyboardHostPorts, keyboardFocus)) {
-      return filterWireDestinationPorts(keyboardHostPorts, pendingFromPort);
-    }
-    const nodeId = keyboardFocus.kind === "module" ? keyboardFocus.nodeId : keyboardFocus.nodeId;
-    const ports = resolvePatchFocusablePorts({
-      patch,
-      layoutByNode,
-      nodeId,
-      outputHostCanvasLeft,
-      hitPorts
-    });
-    return filterWireDestinationPorts(ports, pendingFromPort);
-  }, [hitPorts, keyboardFocus, keyboardHostPorts, layoutByNode, outputHostCanvasLeft, patch, pendingFromPort]);
-  const keyboardWireTargetPort = useMemo(() => {
-    if (!pendingFromPort || keyboardFocus?.kind !== "module") {
-      return null;
-    }
-    return resolveKeyboardWireTargetPort({
-      patch,
-      pendingFromPort,
-      ports: keyboardPorts,
-      structureLocked
-    });
-  }, [keyboardFocus, keyboardPorts, patch, pendingFromPort, structureLocked]);
-
-  useEffect(() => {
-    if (!keyboardFocus) {
-      return;
-    }
-    const focusId = buildPatchFocusableId(keyboardFocus);
-    if (keyboardFocus.kind === "port") {
-      const portExists = keyboardPorts.some(
-        (port) =>
-          port.nodeId === keyboardFocus.nodeId &&
-          port.portId === keyboardFocus.portId &&
-          port.portKind === keyboardFocus.portKind
-      );
-      if (!portExists) {
-        setKeyboardFocus(
-          resolveFilteredPortReplacementFocus({
-            focus: keyboardFocus,
-            hostPorts: keyboardHostPorts,
-            model: keyboardNavigationModel,
-            selectedNodeId,
-            selectedProbeId: probeState.selectedProbeId
-          })
-        );
-      }
-      return;
-    }
-    if (!keyboardNavigationModel.itemById.has(focusId)) {
-      setKeyboardFocus(
-        resolveDefaultPatchCanvasFocus({
-          model: keyboardNavigationModel,
-          selectedNodeId,
-          selectedProbeId: probeState.selectedProbeId
-        })
-      );
-    }
-  }, [
+  const {
+    enterCanvasKeyboardFocus,
+    ensureKeyboardFocus,
+    handleCanvasScroll,
+    handlePatchCanvasKeyDown,
     keyboardFocus,
-    keyboardHostPorts,
     keyboardNavigationModel,
     keyboardPorts,
-    probeState.selectedProbeId,
-    selectedNodeId
-  ]);
-
-  useEffect(() => {
-    if (!popoverNodeId) {
-      return;
-    }
-    setKeyboardFocus({ kind: "module", nodeId: popoverNodeId });
-    if (selectedNodeId !== popoverNodeId) {
-      onSelectNode(popoverNodeId);
-      onSelectConnection(undefined);
-    }
-  }, [onSelectConnection, onSelectNode, popoverNodeId, selectedNodeId]);
-
-  const ensureKeyboardFocus = useCallback(() => {
-    if (popoverNodeId) {
-      const expandedFocus: PatchCanvasFocusable = { kind: "module", nodeId: popoverNodeId };
-      setKeyboardFocus(expandedFocus);
-      return expandedFocus;
-    }
-    const nextFocus =
-      keyboardFocus ??
-      resolveDefaultPatchCanvasFocus({
-        model: keyboardNavigationModel,
-        selectedNodeId,
-        selectedProbeId: probeState.selectedProbeId
-      });
-    setKeyboardFocus(nextFocus);
-    return nextFocus;
-  }, [keyboardFocus, keyboardNavigationModel, popoverNodeId, probeState.selectedProbeId, selectedNodeId]);
-
-  const scrollKeyboardFocusIntoView = useCallback(
-    (focus: PatchCanvasFocusable | null) => {
-      const didScroll = scrollCanvasFocusIntoView(focus, keyboardNavigationModel, scrollRef.current, zoom);
-      if (didScroll) {
-        explicitScrollIntentRef.current = false;
-        keyboardScrollIntoViewRef.current = true;
-      }
-    },
-    [keyboardNavigationModel, zoom]
-  );
-
-  useLayoutEffect(() => {
-    scrollKeyboardFocusIntoView(keyboardFocus);
-  }, [keyboardFocus, scrollKeyboardFocusIntoView]);
-
-  const enterCanvasKeyboardFocus = useCallback(() => {
-    const nextFocus = resolveDefaultPatchCanvasFocus({
-      model: keyboardNavigationModel,
-      selectedNodeId,
-      selectedProbeId: probeState.selectedProbeId
-    });
-    setKeyboardFocus(nextFocus);
-    scrollKeyboardFocusIntoView(nextFocus);
-    scrollRef.current?.focus();
-    return Boolean(nextFocus);
-  }, [keyboardNavigationModel, probeState.selectedProbeId, scrollKeyboardFocusIntoView, selectedNodeId]);
-
-  const markExplicitCanvasScrollIntent = useCallback(() => {
-    explicitScrollIntentRef.current = true;
-  }, []);
-
-  const clearKeyboardFocusForExplicitScroll = useCallback(() => {
-    setKeyboardFocus(null);
-    if (pendingFromPort) {
-      setWirePreviewOwner("mouse");
-    }
-  }, [pendingFromPort]);
-
-  const handlePatchCanvasKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLElement>) => {
-      if (
-        isShortcutBlockedTarget(event.target) &&
-        event.currentTarget === event.target &&
-        !isPatchCanvasKeyboardDelegateTarget(event.currentTarget)
-      ) {
-        return;
-      }
-      const key = event.key as PatchHardwareArrowKey;
-      const isArrow = key === "ArrowUp" || key === "ArrowRight" || key === "ArrowDown" || key === "ArrowLeft";
-      if (!isArrow && event.key !== "Enter" && event.key !== "Escape") {
-        return;
-      }
-      const currentFocus = ensureKeyboardFocus();
-      if (!currentFocus) {
-        return;
-      }
-      if (handleReplaceCandidateKeyDown(event.key)) {
-        event.preventDefault();
-        return;
-      }
-      if (event.key === "Escape") {
-        if (popoverNodeId) {
-          event.preventDefault();
-          closePopover();
-          return;
-        }
-        if (currentFocus.kind === "port") {
-          event.preventDefault();
-          setKeyboardFocus({ kind: "module", nodeId: currentFocus.nodeId });
-        }
-        return;
-      }
-      if (event.key === "Enter") {
-        if (currentFocus.kind === "module") {
-          event.preventDefault();
-          if (pendingFromPort) {
-            clearPendingConnection();
-            return;
-          }
-          if (popoverNodeId === currentFocus.nodeId) {
-            closePopover();
-            return;
-          }
-          if (selectedNodeId === currentFocus.nodeId) {
-            togglePopoverForNode(currentFocus.nodeId);
-            return;
-          }
-          onSelectNode(currentFocus.nodeId);
-          onSelectConnection(undefined);
-          return;
-        }
-        if (currentFocus.kind === "probe") {
-          event.preventDefault();
-          onSelectNode(undefined);
-          onSelectConnection(undefined);
-          probeActions.selectProbe(currentFocus.probeId);
-          return;
-        }
-        const port = keyboardPorts.find(
-          (entry) =>
-            entry.nodeId === currentFocus.nodeId &&
-            entry.portId === currentFocus.portId &&
-            entry.portKind === currentFocus.portKind
-        );
-        if (port) {
-          event.preventDefault();
-          if (port.nodeId === outputNodeId && port.portKind === "in" && !pendingFromPort) {
-            onSelectNode(outputNodeId);
-            onSelectConnection(undefined);
-            return;
-          }
-          if (pendingFromPort) {
-            setWirePreviewOwner("keyboard");
-          }
-          handlePortSelection(
-            {
-              nodeId: port.nodeId,
-              portId: port.portId,
-              kind: port.portKind,
-              x: port.x,
-              y: port.y,
-              width: port.width,
-              height: port.height
-            },
-            { x: port.x + port.width / 2, y: port.y + port.height / 2 }
-          );
-        }
-        return;
-      }
-      if (popoverNodeId) {
-        event.preventDefault();
-        setKeyboardFocus({ kind: "module", nodeId: popoverNodeId });
-        return;
-      }
-      if (currentFocus.kind === "port") {
-        event.preventDefault();
-        if (pendingFromPort) {
-          setWirePreviewOwner("keyboard");
-        }
-        const nextPortFocus = resolveNextPatchPortFocus({
-          current: currentFocus,
-          ports: keyboardPorts,
-          key
-        });
-        if (nextPortFocus.kind === "port") {
-          setKeyboardFocus(nextPortFocus.focus);
-          return;
-        }
-        if (nextPortFocus.kind === "exitToModule") {
-          setKeyboardFocus({ kind: "module", nodeId: currentFocus.nodeId });
-          return;
-        }
-        const graphFocus = keyboardNavigationModel.itemById.has(buildPatchFocusableId(currentFocus))
-          ? currentFocus
-          : { kind: "module" as const, nodeId: currentFocus.nodeId };
-        const nextFocus = resolveNextPatchCanvasFocus(keyboardNavigationModel, graphFocus, key);
-        setKeyboardFocus(nextFocus);
-        scrollKeyboardFocusIntoView(nextFocus);
-        return;
-      }
-      if (
-        currentFocus.kind === "module" &&
-        keyboardPorts.length > 0 &&
-        (selectedNodeId === currentFocus.nodeId || pendingFromPort)
-      ) {
-        const entryPortKind = resolveKeyboardModulePortEntryKind({ key, pendingFromPort });
-        if (entryPortKind) {
-          event.preventDefault();
-          if (pendingFromPort) {
-            setWirePreviewOwner("keyboard");
-          }
-          const nextPort = resolveEntryPort(keyboardPorts, entryPortKind, key);
-          if (nextPort) {
-            setKeyboardFocus({
-              kind: "port",
-              nodeId: nextPort.nodeId,
-              portId: nextPort.portId,
-              portKind: nextPort.portKind
-            });
-            return;
-          }
-        }
-      }
-      event.preventDefault();
-      if (pendingFromPort) {
-        setWirePreviewOwner("keyboard");
-      }
-      const nextFocus = resolveNextPatchCanvasFocus(keyboardNavigationModel, currentFocus, key);
-      setKeyboardFocus(nextFocus);
-      scrollKeyboardFocusIntoView(nextFocus);
-    },
-    [
-      closePopover,
-      clearPendingConnection,
-      ensureKeyboardFocus,
-      handlePortSelection,
-      handleReplaceCandidateKeyDown,
-      keyboardNavigationModel,
-      keyboardPorts,
-      onSelectConnection,
-      onSelectNode,
-      outputNodeId,
-      popoverNodeId,
-      probeActions,
-      pendingFromPort,
-      scrollKeyboardFocusIntoView,
-      selectedNodeId,
-      togglePopoverForNode
-    ]
-  );
-
-  useEffect(() => {
-    if (!pendingFromPort) {
-      setWirePreviewOwner(null);
-    }
-  }, [pendingFromPort]);
-
-  useEffect(() => {
-    if (!pendingFromPort || wirePreviewOwner !== "keyboard") {
-      keyboardWirePreviewKeyRef.current = "";
-      return;
-    }
-    const previewKey = resolveKeyboardWirePreviewKey({
-      focus: keyboardFocus,
-      pendingFromPort,
-      targetPort: keyboardWireTargetPort
-    });
-    if (keyboardWirePreviewKeyRef.current === previewKey) {
-      return;
-    }
-    keyboardWirePreviewKeyRef.current = previewKey;
-
-    if (keyboardFocus?.kind === "port") {
-      const port = keyboardPorts.find(
-        (entry) =>
-          entry.nodeId === keyboardFocus.nodeId &&
-          entry.portId === keyboardFocus.portId &&
-          entry.portKind === keyboardFocus.portKind
-      );
-      if (!port) {
-        return;
-      }
-      const hitPort = toHitPort(port);
-      handleModuleHoverWhileWiring({
-        enabled: false,
-        nodeId: null,
-        nearestPort: null,
-        cancelActionActive: false,
-        pointer: resolvePortFocusPointer(hitPort)
-      });
-      handlePortHover(hitPort, resolvePortFocusPointer(hitPort));
-      return;
-    }
-    if (keyboardFocus?.kind === "module") {
-      const hitPort = keyboardWireTargetPort ? toHitPort(keyboardWireTargetPort) : null;
-      handleModuleHoverWhileWiring({
-        enabled: true,
-        nodeId: keyboardFocus.nodeId,
-        nearestPort: hitPort,
-        cancelActionActive: true,
-        pointer: hitPort
-          ? resolvePortFocusPointer(hitPort)
-          : resolveModuleFocusPointer(keyboardNavigationModel, keyboardFocus.nodeId)
-      });
-      return;
-    }
-    handlePortHover(null, null);
-    handleModuleHoverWhileWiring({
-      enabled: false,
-      nodeId: null,
-      nearestPort: null,
-      cancelActionActive: false,
-      pointer: { x: 0, y: 0 }
-    });
-  }, [
+    markExplicitCanvasScrollIntent,
+    setKeyboardFocus,
+    setWirePreviewOwnerFromMouse
+  } = usePatchCanvasKeyboardNavigation({
+    closePopover,
+    clearPendingConnection,
     handleModuleHoverWhileWiring,
     handlePortHover,
-    keyboardFocus,
-    keyboardNavigationModel,
-    keyboardPorts,
-    keyboardWireTargetPort,
+    handlePortSelection,
+    handleReplaceCandidateKeyDown,
+    hitPorts,
+    layoutByNode,
+    onSelectConnection,
+    onSelectNode,
+    onSelectProbe: probeActions.selectProbe,
+    outputHostCanvasLeft,
+    outputNodeId,
+    patch,
     pendingFromPort,
-    wirePreviewOwner
+    popoverNodeId,
+    probes: probeState.probes,
+    scrollRef,
+    selectedNodeId,
+    selectedProbeId: probeState.selectedProbeId,
+    structureLocked,
+    togglePopoverForNode,
+    zoom
+  });
+
+  const deleteSelectedCanvasObject = useCallback(() => {
+    if (
+      keyboardFocus?.kind === "port" &&
+      selectedNodeId === keyboardFocus.nodeId &&
+      selectedNodeId !== outputNodeId &&
+      !structureLocked
+    ) {
+      const connectionIds = resolveConnectionIdsForPatchPort(patch, {
+        nodeId: keyboardFocus.nodeId,
+        portId: keyboardFocus.portId,
+        portKind: keyboardFocus.portKind
+      });
+      if (connectionIds.length > 0) {
+        connectionIds.forEach((connectionId) => onApplyOp({ type: "disconnect", connectionId }));
+        onSelectConnection(undefined);
+        setDeletePreviewConnectionId(null);
+        return;
+      }
+    }
+    if (probeState.selectedProbeId) {
+      onCancelAttachProbe();
+      probeActions.deleteSelected();
+      return;
+    }
+    if (selectedConnectionId && !structureLocked) {
+      onApplyOp({ type: "disconnect", connectionId: selectedConnectionId });
+      onSelectConnection(undefined);
+      setDeletePreviewConnectionId(null);
+      return;
+    }
+    if (selectedNodeId && selectedNodeId !== outputNodeId && !structureLocked) {
+      onApplyOp({ type: "removeNode", nodeId: selectedNodeId });
+      setDeletePreviewNodeId(null);
+    }
+  }, [
+    keyboardFocus,
+    onApplyOp,
+    onCancelAttachProbe,
+    onSelectConnection,
+    outputNodeId,
+    patch,
+    probeActions,
+    probeState.selectedProbeId,
+    selectedConnectionId,
+    selectedNodeId,
+    structureLocked
   ]);
 
   const handleCanvasPointerMove = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
       if (pendingFromPort) {
-        setWirePreviewOwner("mouse");
+        setWirePreviewOwnerFromMouse();
       }
       onPointerMove(event);
     },
-    [onPointerMove, pendingFromPort]
+    [onPointerMove, pendingFromPort, setWirePreviewOwnerFromMouse]
   );
 
   useEffect(() => {
@@ -852,15 +476,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
             }
           }}
           onScroll={(event) => {
-            updateScrollViewport(event.currentTarget);
-            if (keyboardScrollIntoViewRef.current) {
-              keyboardScrollIntoViewRef.current = false;
-              return;
-            }
-            if (explicitScrollIntentRef.current) {
-              explicitScrollIntentRef.current = false;
-              clearKeyboardFocusForExplicitScroll();
-            }
+            handleCanvasScroll(event.currentTarget, updateScrollViewport);
           }}
           onWheelCapture={markExplicitCanvasScrollIntent}
         >
@@ -997,162 +613,6 @@ function resolveKeyboardFocusRect(
   return model.itemById.get(buildPatchFocusableId(focus))?.rect ?? null;
 }
 
-function resolveKeyboardWireTargetPort(args: {
-  patch: PatchEditorStageModel["patch"];
-  pendingFromPort: HitPort;
-  ports: ReturnType<typeof resolvePatchFocusablePorts>;
-  structureLocked?: boolean;
-}) {
-  const candidates = args.ports
-    .filter(
-      (port) =>
-        !(
-          port.nodeId === args.pendingFromPort.nodeId &&
-          port.portId === args.pendingFromPort.portId &&
-          port.portKind === args.pendingFromPort.kind
-        )
-    )
-    .map((port) => {
-      const hitPort = toHitPort(port);
-      return {
-        port,
-        result: resolvePatchWireCandidate(args.patch, args.pendingFromPort, hitPort, {
-          structureLocked: args.structureLocked
-        })
-      };
-    });
-  return (
-    candidates.find((candidate) => candidate.result.status === "valid")?.port ??
-    candidates.find((candidate) => candidate.result.status === "replace")?.port ??
-    candidates.find((candidate) => candidate.result.status === "invalid")?.port ??
-    candidates.find((candidate) => candidate.result.status !== "new-source")?.port ??
-    candidates[0]?.port ??
-    null
-  );
-}
-
-function resolveEntryPort(
-  ports: ReturnType<typeof resolvePatchFocusablePorts>,
-  portKind: "in" | "out",
-  key: PatchHardwareArrowKey
-) {
-  const sortedPorts = ports
-    .filter((port) => port.portKind === portKind)
-    .sort((a, b) => a.y - b.y || a.portId.localeCompare(b.portId));
-  return key === "ArrowDown" ? sortedPorts[0] : sortedPorts.at(-1);
-}
-
-function resolveKeyboardModulePortEntryKind(args: {
-  key: PatchHardwareArrowKey;
-  pendingFromPort: HitPort | null;
-}): "in" | "out" | null {
-  if (args.pendingFromPort) {
-    if (args.pendingFromPort.kind === "out") {
-      return args.key === "ArrowLeft" || args.key === "ArrowUp" || args.key === "ArrowDown" ? "in" : null;
-    }
-    return args.key === "ArrowRight" || args.key === "ArrowUp" || args.key === "ArrowDown" ? "out" : null;
-  }
-  if (args.key === "ArrowLeft") {
-    return "in";
-  }
-  if (args.key === "ArrowRight") {
-    return "out";
-  }
-  return null;
-}
-
-function filterWireDestinationPorts(
-  ports: ReturnType<typeof resolvePatchFocusablePorts>,
-  pendingFromPort: HitPort | null
-) {
-  if (!pendingFromPort) {
-    return ports;
-  }
-  return ports.filter(
-    (port) =>
-      port.portKind !== pendingFromPort.kind &&
-      !(port.nodeId === pendingFromPort.nodeId && port.portId === pendingFromPort.portId)
-  );
-}
-
-function containsFocusablePort(
-  ports: ReturnType<typeof resolvePatchFocusablePorts>,
-  focus: Extract<PatchCanvasFocusable, { kind: "port" }>
-) {
-  return ports.some(
-    (port) => port.nodeId === focus.nodeId && port.portId === focus.portId && port.portKind === focus.portKind
-  );
-}
-
-function resolveFilteredPortReplacementFocus(args: {
-  focus: Extract<PatchCanvasFocusable, { kind: "port" }>;
-  hostPorts: ReturnType<typeof resolvePatchFocusablePorts>;
-  model: ReturnType<typeof buildPatchCanvasNavigationModel>;
-  selectedNodeId?: string;
-  selectedProbeId?: string;
-}): PatchCanvasFocusable | null {
-  const moduleFocus: PatchCanvasFocusable = { kind: "module", nodeId: args.focus.nodeId };
-  if (args.model.itemById.has(buildPatchFocusableId(moduleFocus))) {
-    return moduleFocus;
-  }
-  if (containsFocusablePort(args.hostPorts, args.focus)) {
-    return args.model.items[0]?.focus ?? null;
-  }
-  return resolveDefaultPatchCanvasFocus({
-    model: args.model,
-    selectedNodeId: args.selectedNodeId,
-    selectedProbeId: args.selectedProbeId
-  });
-}
-
-function resolveKeyboardWirePreviewKey(args: {
-  focus: PatchCanvasFocusable | null;
-  pendingFromPort: HitPort;
-  targetPort: ReturnType<typeof resolvePatchFocusablePorts>[number] | null;
-}) {
-  const sourceKey = `${args.pendingFromPort.nodeId}:${args.pendingFromPort.portId}:${args.pendingFromPort.kind}`;
-  if (args.focus?.kind === "port") {
-    return `${sourceKey}->port:${args.focus.nodeId}:${args.focus.portId}:${args.focus.portKind}`;
-  }
-  if (args.focus?.kind === "module") {
-    const targetKey = args.targetPort
-      ? `${args.targetPort.nodeId}:${args.targetPort.portId}:${args.targetPort.portKind}`
-      : "none";
-    return `${sourceKey}->module:${args.focus.nodeId}:${targetKey}`;
-  }
-  return `${sourceKey}->none`;
-}
-
-function toHitPort(port: ReturnType<typeof resolvePatchFocusablePorts>[number]): HitPort {
-  return {
-    nodeId: port.nodeId,
-    portId: port.portId,
-    kind: port.portKind,
-    x: port.x,
-    y: port.y,
-    width: port.width,
-    height: port.height
-  };
-}
-
-function resolvePortFocusPointer(port: HitPort) {
-  return {
-    x: port.x + port.width / 2,
-    y: port.y
-  };
-}
-
-function resolveModuleFocusPointer(model: ReturnType<typeof buildPatchCanvasNavigationModel>, nodeId: string) {
-  const rect = model.itemById.get(buildPatchFocusableId({ kind: "module", nodeId }))?.rect;
-  if (!rect) {
-    return { x: 0, y: 0 };
-  }
-  return {
-    x: rect.x + rect.width / 2,
-    y: rect.y + rect.height / 2
-  };
-}
-
 function isPatchCanvasArrowEntryBlockedTarget(target: HTMLElement) {
   if (isTextEditingTarget(target) || target.closest("[role='dialog']")) {
     return true;
@@ -1161,55 +621,6 @@ function isPatchCanvasArrowEntryBlockedTarget(target: HTMLElement) {
     return true;
   }
   return target.getAttribute("role") === "slider" || Boolean(target.closest("[role='slider']"));
-}
-
-function isPatchCanvasKeyboardDelegateTarget(target: HTMLElement) {
-  return target.dataset.patchCanvasKeyNav === "true";
-}
-
-function scrollCanvasFocusIntoView(
-  focus: PatchCanvasFocusable | null,
-  model: ReturnType<typeof buildPatchCanvasNavigationModel>,
-  scroll: HTMLDivElement | null,
-  zoom: number
-) {
-  if (!focus || !scroll) {
-    return false;
-  }
-  const rect = model.itemById.get(buildPatchFocusableId(focus))?.rect;
-  if (!rect) {
-    return false;
-  }
-  const left = rect.x * zoom;
-  const top = rect.y * zoom;
-  return scrollRectIntoView(scroll, {
-    left,
-    top,
-    right: left + rect.width * zoom,
-    bottom: top + rect.height * zoom
-  });
-}
-
-function scrollRectIntoView(
-  scroll: HTMLDivElement,
-  rect: { left: number; top: number; right: number; bottom: number }
-) {
-  let didScroll = false;
-  if (rect.left < scroll.scrollLeft) {
-    scroll.scrollLeft = rect.left;
-    didScroll = true;
-  } else if (rect.right > scroll.scrollLeft + scroll.clientWidth) {
-    scroll.scrollLeft = rect.right - scroll.clientWidth;
-    didScroll = true;
-  }
-  if (rect.top < scroll.scrollTop) {
-    scroll.scrollTop = rect.top;
-    didScroll = true;
-  } else if (rect.bottom > scroll.scrollTop + scroll.clientHeight) {
-    scroll.scrollTop = rect.bottom - scroll.clientHeight;
-    didScroll = true;
-  }
-  return didScroll;
 }
 
 function resolveCanvasCursor(args: {
