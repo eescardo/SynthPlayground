@@ -24,7 +24,8 @@ export function usePatchWorkspaceQuickHelpDialog() {
           { action: "Default pitch (eighth-tone)", shortcut: "_ / +" },
           { action: "Next tab", shortcut: "Ctrl+`" },
           { action: "Previous tab", shortcut: "Ctrl+Shift+`" },
-          { action: "Help", shortcut: "?" }
+          { action: "Enter/leave patch canvas focus", shortcut: "Tab" },
+          { action: "Navigate focused modules, probes, ports, and compatible wiring targets", shortcut: "Arrow keys" }
         ]
       }
     ],
