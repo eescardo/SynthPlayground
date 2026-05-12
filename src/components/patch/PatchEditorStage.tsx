@@ -626,6 +626,13 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
         return;
       }
       const hitPort = toHitPort(port);
+      handleModuleHoverWhileWiring({
+        enabled: false,
+        nodeId: null,
+        nearestPort: null,
+        cancelActionActive: false,
+        pointer: resolvePortFocusPointer(hitPort)
+      });
       handlePortHover(hitPort, resolvePortFocusPointer(hitPort));
       return;
     }
