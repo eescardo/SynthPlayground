@@ -204,7 +204,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     [canvasSize, layoutByNode]
   );
   const nodeExists = useCallback((nodeId: string) => nodeById.has(nodeId), [nodeById]);
-  const { handleCanvasPointerDown, popoverNodeId, togglePopoverForNode } = usePatchModuleFacePopover({
+  const { closePopover, handleCanvasPointerDown, popoverNodeId, togglePopoverForNode } = usePatchModuleFacePopover({
     getPopoverRect: getFacePopoverRect,
     nodeExists
   });
@@ -348,7 +348,23 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     }
   }, [keyboardFocus, keyboardNavigationModel, keyboardPorts, probeState.selectedProbeId, selectedNodeId]);
 
+  useEffect(() => {
+    if (!popoverNodeId) {
+      return;
+    }
+    setKeyboardFocus({ kind: "module", nodeId: popoverNodeId });
+    if (selectedNodeId !== popoverNodeId) {
+      onSelectNode(popoverNodeId);
+      onSelectConnection(undefined);
+    }
+  }, [onSelectConnection, onSelectNode, popoverNodeId, selectedNodeId]);
+
   const ensureKeyboardFocus = useCallback(() => {
+    if (popoverNodeId) {
+      const expandedFocus: PatchCanvasFocusable = { kind: "module", nodeId: popoverNodeId };
+      setKeyboardFocus(expandedFocus);
+      return expandedFocus;
+    }
     const nextFocus =
       keyboardFocus ??
       resolveDefaultPatchCanvasFocus({
@@ -358,7 +374,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
       });
     setKeyboardFocus(nextFocus);
     return nextFocus;
-  }, [keyboardFocus, keyboardNavigationModel, probeState.selectedProbeId, selectedNodeId]);
+  }, [keyboardFocus, keyboardNavigationModel, popoverNodeId, probeState.selectedProbeId, selectedNodeId]);
 
   const enterCanvasKeyboardFocus = useCallback(() => {
     const nextFocus = resolveDefaultPatchCanvasFocus({
@@ -387,6 +403,11 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
         return;
       }
       if (event.key === "Escape") {
+        if (popoverNodeId) {
+          event.preventDefault();
+          closePopover();
+          return;
+        }
         if (currentFocus.kind === "port") {
           event.preventDefault();
           setKeyboardFocus({ kind: "module", nodeId: currentFocus.nodeId });
@@ -396,6 +417,14 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
       if (event.key === "Enter") {
         if (currentFocus.kind === "module") {
           event.preventDefault();
+          if (popoverNodeId === currentFocus.nodeId) {
+            closePopover();
+            return;
+          }
+          if (selectedNodeId === currentFocus.nodeId) {
+            togglePopoverForNode(currentFocus.nodeId);
+            return;
+          }
           onSelectNode(currentFocus.nodeId);
           onSelectConnection(undefined);
           return;
@@ -436,6 +465,11 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
             { x: port.x + port.width / 2, y: port.y + port.height / 2 }
           );
         }
+        return;
+      }
+      if (popoverNodeId) {
+        event.preventDefault();
+        setKeyboardFocus({ kind: "module", nodeId: popoverNodeId });
         return;
       }
       if (currentFocus.kind === "port") {
@@ -486,6 +520,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
       scrollCanvasFocusIntoView(nextFocus, keyboardNavigationModel, scrollRef.current, zoom);
     },
     [
+      closePopover,
       ensureKeyboardFocus,
       handlePortSelection,
       keyboardNavigationModel,
@@ -493,9 +528,11 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
       onSelectConnection,
       onSelectNode,
       outputNodeId,
+      popoverNodeId,
       probeActions,
       pendingFromPort,
       selectedNodeId,
+      togglePopoverForNode,
       zoom
     ]
   );
@@ -748,14 +785,16 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
               onUpdateSpectrumWindow={probeActions.updateSpectrumWindow}
               onToggleExpanded={probeActions.toggleExpanded}
             />
-            <PatchKeyboardFocusOverlay
-              focus={keyboardFocus}
-              model={keyboardNavigationModel}
-              ports={keyboardPorts}
-              selectedNodeId={selectedNodeId}
-              selectedProbeId={probeState.selectedProbeId}
-              zoom={zoom}
-            />
+            {!popoverNodeId && (
+              <PatchKeyboardFocusOverlay
+                focus={keyboardFocus}
+                model={keyboardNavigationModel}
+                ports={keyboardPorts}
+                selectedNodeId={selectedNodeId}
+                selectedProbeId={probeState.selectedProbeId}
+                zoom={zoom}
+              />
+            )}
           </div>
         </div>
         <PatchHostPortOverlay

@@ -792,7 +792,7 @@
   z-index: 6;
   pointer-events: none;
   border: 2px dotted rgba(151, 214, 255, 0.95);
-  border-radius: 0.45rem;
+  border-radius: 0;
   box-shadow:
     0 0 0 2px rgba(7, 13, 19, 0.72),
     0 0 18px rgba(151, 214, 255, 0.28);
