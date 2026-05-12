@@ -219,19 +219,22 @@ export function resolveNextPatchPortFocus(args: {
       port.portKind === args.current.portKind
   );
   if (currentIndex < 0 || args.ports.length === 0) {
-    return { kind: "exit" as const };
+    return { kind: "exitToModule" as const };
   }
   const currentPort = args.ports[currentIndex];
-  const shouldExit =
-    (args.key === "ArrowLeft" && currentPort.portKind === "in") ||
-    (args.key === "ArrowRight" && currentPort.portKind === "out") ||
-    (args.key === "ArrowUp" && currentIndex === 0) ||
-    (args.key === "ArrowDown" && currentIndex === args.ports.length - 1);
-  if (shouldExit) {
-    return { kind: "exit" as const };
+  if (args.key === "ArrowLeft") {
+    return currentPort.portKind === "in" ? { kind: "exitToGraph" as const } : { kind: "exitToModule" as const };
   }
-  const delta = args.key === "ArrowUp" || args.key === "ArrowLeft" ? -1 : 1;
-  const nextPort = args.ports[currentIndex + delta];
+  if (args.key === "ArrowRight") {
+    return currentPort.portKind === "out" ? { kind: "exitToGraph" as const } : { kind: "exitToModule" as const };
+  }
+
+  const sameSidePorts = args.ports.filter((port) => port.portKind === currentPort.portKind);
+  const sameSideIndex = sameSidePorts.findIndex(
+    (port) => port.nodeId === currentPort.nodeId && port.portId === currentPort.portId
+  );
+  const delta = args.key === "ArrowUp" ? -1 : 1;
+  const nextPort = sameSidePorts[sameSideIndex + delta] ?? currentPort;
   return nextPort
     ? {
         kind: "port" as const,

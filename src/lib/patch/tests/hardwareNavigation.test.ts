@@ -121,7 +121,7 @@ describe("patch hardware navigation", () => {
     ).toEqual([{ nodeId: "vca", portId: "out", portKind: "out", x: 111, y: 222, width: 33, height: 12 }]);
   });
 
-  it("exits module port navigation at directional edges", () => {
+  it("navigates module ports by side and exits horizontally", () => {
     const ports = [
       { nodeId: "vca", portId: "in", portKind: "in" as const, x: 0, y: 0, width: 10, height: 10 },
       { nodeId: "vca", portId: "gainCV", portKind: "in" as const, x: 0, y: 20, width: 10, height: 10 },
@@ -134,14 +134,28 @@ describe("patch hardware navigation", () => {
         ports,
         key: "ArrowLeft"
       })
-    ).toEqual({ kind: "exit" });
+    ).toEqual({ kind: "exitToGraph" });
+    expect(
+      resolveNextPatchPortFocus({
+        current: { kind: "port", nodeId: "vca", portId: "in", portKind: "in" },
+        ports,
+        key: "ArrowRight"
+      })
+    ).toEqual({ kind: "exitToModule" });
     expect(
       resolveNextPatchPortFocus({
         current: { kind: "port", nodeId: "vca", portId: "out", portKind: "out" },
         ports,
         key: "ArrowRight"
       })
-    ).toEqual({ kind: "exit" });
+    ).toEqual({ kind: "exitToGraph" });
+    expect(
+      resolveNextPatchPortFocus({
+        current: { kind: "port", nodeId: "vca", portId: "out", portKind: "out" },
+        ports,
+        key: "ArrowLeft"
+      })
+    ).toEqual({ kind: "exitToModule" });
     expect(
       resolveNextPatchPortFocus({
         current: { kind: "port", nodeId: "vca", portId: "gainCV", portKind: "in" },
@@ -150,7 +164,17 @@ describe("patch hardware navigation", () => {
       })
     ).toEqual({
       kind: "port",
-      focus: { kind: "port", nodeId: "vca", portId: "out", portKind: "out" }
+      focus: { kind: "port", nodeId: "vca", portId: "gainCV", portKind: "in" }
+    });
+    expect(
+      resolveNextPatchPortFocus({
+        current: { kind: "port", nodeId: "vca", portId: "in", portKind: "in" },
+        ports,
+        key: "ArrowDown"
+      })
+    ).toEqual({
+      kind: "port",
+      focus: { kind: "port", nodeId: "vca", portId: "gainCV", portKind: "in" }
     });
   });
 });

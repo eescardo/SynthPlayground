@@ -486,6 +486,10 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           setKeyboardFocus(nextPortFocus.focus);
           return;
         }
+        if (nextPortFocus.kind === "exitToModule") {
+          setKeyboardFocus({ kind: "module", nodeId: currentFocus.nodeId });
+          return;
+        }
         const nextFocus = resolveNextPatchCanvasFocus(
           keyboardNavigationModel,
           { kind: "module", nodeId: currentFocus.nodeId },
@@ -496,20 +500,22 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
         return;
       }
       if (currentFocus.kind === "module" && selectedNodeId === currentFocus.nodeId && keyboardPorts.length > 0) {
-        event.preventDefault();
-        if (pendingFromPort) {
-          setWirePreviewOwner("keyboard");
+        if (key === "ArrowLeft" || key === "ArrowRight") {
+          event.preventDefault();
+          if (pendingFromPort) {
+            setWirePreviewOwner("keyboard");
+          }
+          const nextPort = resolveBottomMostPort(keyboardPorts, key === "ArrowLeft" ? "in" : "out");
+          if (nextPort) {
+            setKeyboardFocus({
+              kind: "port",
+              nodeId: nextPort.nodeId,
+              portId: nextPort.portId,
+              portKind: nextPort.portKind
+            });
+            return;
+          }
         }
-        const nextPort = key === "ArrowUp" || key === "ArrowLeft" ? keyboardPorts.at(-1) : keyboardPorts[0];
-        if (nextPort) {
-          setKeyboardFocus({
-            kind: "port",
-            nodeId: nextPort.nodeId,
-            portId: nextPort.portId,
-            portKind: nextPort.portKind
-          });
-        }
-        return;
       }
       event.preventDefault();
       if (pendingFromPort) {
@@ -902,6 +908,12 @@ function resolveKeyboardWireTargetPort(args: {
     candidates[0]?.port ??
     null
   );
+}
+
+function resolveBottomMostPort(ports: ReturnType<typeof resolvePatchFocusablePorts>, portKind: "in" | "out") {
+  return ports
+    .filter((port) => port.portKind === portKind)
+    .sort((a, b) => b.y - a.y || b.portId.localeCompare(a.portId))[0];
 }
 
 function resolveKeyboardWirePreviewKey(args: {
