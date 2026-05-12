@@ -333,10 +333,9 @@ export function usePatchCanvasKeyboardNavigation(args: {
           event.preventDefault();
           onSelectNode(undefined);
           onSelectConnection(undefined);
+          onSelectProbe(currentFocus.probeId);
           if (selectedProbeId === currentFocus.probeId) {
             onToggleProbeExpanded(currentFocus.probeId);
-          } else {
-            onSelectProbe(currentFocus.probeId);
           }
           return;
         }
@@ -388,8 +387,11 @@ export function usePatchCanvasKeyboardNavigation(args: {
         scrollKeyboardFocusIntoView(nextFocus);
         return;
       }
-      if (currentFocus.kind === "probe" && selectedProbeId === currentFocus.probeId && key === "ArrowRight") {
+      if (currentFocus.kind === "probe" && key === "ArrowRight") {
         event.preventDefault();
+        onSelectNode(undefined);
+        onSelectConnection(undefined);
+        onSelectProbe(currentFocus.probeId);
         setKeyboardFocus({ kind: "probe-action", probeId: currentFocus.probeId, actionId: "attach" });
         return;
       }
