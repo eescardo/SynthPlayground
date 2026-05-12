@@ -81,6 +81,8 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const explicitScrollIntentRef = useRef(false);
+  const keyboardScrollIntoViewRef = useRef(false);
   const [scrollViewport, setScrollViewport] = useState({ left: 0, top: 0, width: 0, height: 0 });
   const [deletePreviewNodeId, setDeletePreviewNodeId] = useState<string | null>(null);
   const [deletePreviewConnectionId, setDeletePreviewConnectionId] = useState<string | null>(null);
@@ -400,10 +402,6 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     selectedNodeId
   ]);
 
-  useLayoutEffect(() => {
-    scrollCanvasFocusIntoView(keyboardFocus, keyboardNavigationModel, scrollRef.current, zoom);
-  }, [keyboardFocus, keyboardNavigationModel, zoom]);
-
   useEffect(() => {
     if (!popoverNodeId) {
       return;
@@ -432,6 +430,21 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     return nextFocus;
   }, [keyboardFocus, keyboardNavigationModel, popoverNodeId, probeState.selectedProbeId, selectedNodeId]);
 
+  const scrollKeyboardFocusIntoView = useCallback(
+    (focus: PatchCanvasFocusable | null) => {
+      const didScroll = scrollCanvasFocusIntoView(focus, keyboardNavigationModel, scrollRef.current, zoom);
+      if (didScroll) {
+        explicitScrollIntentRef.current = false;
+        keyboardScrollIntoViewRef.current = true;
+      }
+    },
+    [keyboardNavigationModel, zoom]
+  );
+
+  useLayoutEffect(() => {
+    scrollKeyboardFocusIntoView(keyboardFocus);
+  }, [keyboardFocus, scrollKeyboardFocusIntoView]);
+
   const enterCanvasKeyboardFocus = useCallback(() => {
     const nextFocus = resolveDefaultPatchCanvasFocus({
       model: keyboardNavigationModel,
@@ -439,12 +452,16 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
       selectedProbeId: probeState.selectedProbeId
     });
     setKeyboardFocus(nextFocus);
-    scrollCanvasFocusIntoView(nextFocus, keyboardNavigationModel, scrollRef.current, zoom);
+    scrollKeyboardFocusIntoView(nextFocus);
     scrollRef.current?.focus();
     return Boolean(nextFocus);
-  }, [keyboardNavigationModel, probeState.selectedProbeId, selectedNodeId, zoom]);
+  }, [keyboardNavigationModel, probeState.selectedProbeId, scrollKeyboardFocusIntoView, selectedNodeId]);
 
-  const handleExplicitCanvasScrollInput = useCallback(() => {
+  const markExplicitCanvasScrollIntent = useCallback(() => {
+    explicitScrollIntentRef.current = true;
+  }, []);
+
+  const clearKeyboardFocusForExplicitScroll = useCallback(() => {
     setKeyboardFocus(null);
     if (pendingFromPort) {
       setWirePreviewOwner("mouse");
@@ -570,7 +587,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           : { kind: "module" as const, nodeId: currentFocus.nodeId };
         const nextFocus = resolveNextPatchCanvasFocus(keyboardNavigationModel, graphFocus, key);
         setKeyboardFocus(nextFocus);
-        scrollCanvasFocusIntoView(nextFocus, keyboardNavigationModel, scrollRef.current, zoom);
+        scrollKeyboardFocusIntoView(nextFocus);
         return;
       }
       if (
@@ -602,7 +619,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
       }
       const nextFocus = resolveNextPatchCanvasFocus(keyboardNavigationModel, currentFocus, key);
       setKeyboardFocus(nextFocus);
-      scrollCanvasFocusIntoView(nextFocus, keyboardNavigationModel, scrollRef.current, zoom);
+      scrollKeyboardFocusIntoView(nextFocus);
     },
     [
       closePopover,
@@ -618,9 +635,9 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
       popoverNodeId,
       probeActions,
       pendingFromPort,
+      scrollKeyboardFocusIntoView,
       selectedNodeId,
-      togglePopoverForNode,
-      zoom
+      togglePopoverForNode
     ]
   );
 
@@ -831,13 +848,21 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           onKeyDown={handlePatchCanvasKeyDown}
           onPointerDownCapture={(event) => {
             if (event.currentTarget === event.target) {
-              handleExplicitCanvasScrollInput();
+              markExplicitCanvasScrollIntent();
             }
           }}
           onScroll={(event) => {
             updateScrollViewport(event.currentTarget);
+            if (keyboardScrollIntoViewRef.current) {
+              keyboardScrollIntoViewRef.current = false;
+              return;
+            }
+            if (explicitScrollIntentRef.current) {
+              explicitScrollIntentRef.current = false;
+              clearKeyboardFocusForExplicitScroll();
+            }
           }}
-          onWheelCapture={handleExplicitCanvasScrollInput}
+          onWheelCapture={markExplicitCanvasScrollIntent}
         >
           <div
             className={styles.overlayShell}
@@ -1149,15 +1174,15 @@ function scrollCanvasFocusIntoView(
   zoom: number
 ) {
   if (!focus || !scroll) {
-    return;
+    return false;
   }
   const rect = model.itemById.get(buildPatchFocusableId(focus))?.rect;
   if (!rect) {
-    return;
+    return false;
   }
   const left = rect.x * zoom;
   const top = rect.y * zoom;
-  scrollRectIntoView(scroll, {
+  return scrollRectIntoView(scroll, {
     left,
     top,
     right: left + rect.width * zoom,
@@ -1169,16 +1194,22 @@ function scrollRectIntoView(
   scroll: HTMLDivElement,
   rect: { left: number; top: number; right: number; bottom: number }
 ) {
+  let didScroll = false;
   if (rect.left < scroll.scrollLeft) {
     scroll.scrollLeft = rect.left;
+    didScroll = true;
   } else if (rect.right > scroll.scrollLeft + scroll.clientWidth) {
     scroll.scrollLeft = rect.right - scroll.clientWidth;
+    didScroll = true;
   }
   if (rect.top < scroll.scrollTop) {
     scroll.scrollTop = rect.top;
+    didScroll = true;
   } else if (rect.bottom > scroll.scrollTop + scroll.clientHeight) {
     scroll.scrollTop = rect.bottom - scroll.clientHeight;
+    didScroll = true;
   }
+  return didScroll;
 }
 
 function resolveCanvasCursor(args: {
