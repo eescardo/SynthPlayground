@@ -7,9 +7,15 @@ import {
   PATCH_PORT_ROW_GAP,
   PATCH_PORT_START_Y
 } from "@/components/patch/patchCanvasConstants";
-import { CanvasRect, HitPort } from "@/components/patch/patchCanvasGeometry";
+import {
+  CanvasRect,
+  HitPort,
+  resolveHostPatchPortRect,
+  resolveOutputHostPatchPortRect
+} from "@/components/patch/patchCanvasGeometry";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { getPatchOutputInputPortId, getPatchOutputPort, isPatchOutputPortId } from "@/lib/patch/ports";
+import { SOURCE_HOST_PORT_IDS } from "@/lib/patch/constants";
 import { Patch, PatchLayoutNode } from "@/types/patch";
 import { PatchWorkspaceProbeState } from "@/types/probes";
 
@@ -37,6 +43,16 @@ export interface PatchNavigationItem {
   rect: CanvasRect;
 }
 
+export interface PatchFocusablePort {
+  nodeId: string;
+  portId: string;
+  portKind: "in" | "out";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface PatchNavigationModel {
   items: PatchNavigationItem[];
   itemById: Map<string, PatchNavigationItem>;
@@ -61,6 +77,7 @@ export function buildPatchCanvasNavigationModel(args: {
   patch: Patch;
   layoutByNode: Map<string, PatchLayoutNode>;
   probes: PatchWorkspaceProbeState[];
+  ports?: PatchFocusablePort[];
 }): PatchNavigationModel {
   const moduleItems = args.patch.nodes
     .filter((node) => !isPatchOutputPortId(args.patch, node.id))
@@ -94,7 +111,19 @@ export function buildPatchCanvasNavigationModel(args: {
       }
     })
   );
-  const items = [...moduleItems, ...probeItems];
+  const portItems = (args.ports ?? []).map(
+    (port): PatchNavigationItem => ({
+      id: buildPatchFocusableId({ kind: "port", nodeId: port.nodeId, portId: port.portId, portKind: port.portKind }),
+      focus: { kind: "port", nodeId: port.nodeId, portId: port.portId, portKind: port.portKind },
+      rect: {
+        x: port.x,
+        y: port.y - port.height / 2,
+        width: port.width,
+        height: port.height
+      }
+    })
+  );
+  const items = [...moduleItems, ...probeItems, ...portItems];
   return buildNavigationGraph(items);
 }
 
@@ -104,7 +133,23 @@ export function resolvePatchFocusablePorts(args: {
   nodeId: string;
   outputHostCanvasLeft: number;
   hitPorts: HitPort[];
-}) {
+}): PatchFocusablePort[] {
+  if (SOURCE_HOST_PORT_IDS.includes(args.nodeId as (typeof SOURCE_HOST_PORT_IDS)[number])) {
+    const rect = resolveHostPatchPortRect(args.nodeId);
+    return rect
+      ? [
+          {
+            nodeId: args.nodeId,
+            portId: "out",
+            portKind: "out",
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height
+          }
+        ]
+      : [];
+  }
   const outputPort = getPatchOutputPort(args.patch);
   if (outputPort?.id === args.nodeId) {
     return [
@@ -159,6 +204,45 @@ export function resolvePatchFocusablePorts(args: {
       width: 44,
       height: PATCH_PORT_LABEL_HEIGHT
     }))
+  ].sort(comparePortsForKeyboard);
+}
+
+export function resolvePatchHostFocusablePorts(args: {
+  patch: Patch;
+  outputHostCanvasLeft: number;
+}): PatchFocusablePort[] {
+  const sourcePorts = SOURCE_HOST_PORT_IDS.flatMap((nodeId): PatchFocusablePort[] => {
+    const rect = resolveHostPatchPortRect(nodeId);
+    return rect
+      ? [
+          {
+            nodeId,
+            portId: "out",
+            portKind: "out",
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height
+          }
+        ]
+      : [];
+  });
+  const outputPort = getPatchOutputPort(args.patch);
+  if (!outputPort) {
+    return sourcePorts.sort(comparePortsForKeyboard);
+  }
+  const outputRect = resolveOutputHostPatchPortRect(args.outputHostCanvasLeft);
+  return [
+    ...sourcePorts,
+    {
+      nodeId: outputPort.id,
+      portId: getPatchOutputInputPortId(args.patch),
+      portKind: "in" as const,
+      x: outputRect.x,
+      y: outputRect.y,
+      width: outputRect.width,
+      height: outputRect.height
+    }
   ].sort(comparePortsForKeyboard);
 }
 

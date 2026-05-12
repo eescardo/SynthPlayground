@@ -5,6 +5,7 @@ import {
   getPatchFocusableThingKinds,
   resolveNextPatchCanvasFocus,
   resolveNextPatchPortFocus,
+  resolvePatchHostFocusablePorts,
   resolvePatchFocusablePorts
 } from "@/lib/patch/hardwareNavigation";
 import { createClearPatch } from "@/lib/patch/presets";
@@ -119,6 +120,23 @@ describe("patch hardware navigation", () => {
         hitPorts: [{ nodeId: "vca", portId: "out", kind: "out", x: 111, y: 222, width: 33, height: 12 }]
       })
     ).toEqual([{ nodeId: "vca", portId: "out", portKind: "out", x: 111, y: 222, width: 33, height: 12 }]);
+  });
+
+  it("exposes host ports as keyboard-focusable wire destinations", () => {
+    const patch = createNavigationPatch();
+
+    expect(
+      resolvePatchHostFocusablePorts({
+        patch,
+        outputHostCanvasLeft: 1200
+      }).map((port) => buildPatchFocusableId({ kind: "port", ...port }))
+    ).toEqual([
+      "port:output:in:in",
+      "port:$host.pitch:out:out",
+      "port:$host.gate:out:out",
+      "port:$host.velocity:out:out",
+      "port:$host.modwheel:out:out"
+    ]);
   });
 
   it("navigates module ports by side and exits horizontally", () => {
