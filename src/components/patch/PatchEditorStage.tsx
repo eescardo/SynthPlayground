@@ -528,7 +528,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           if (pendingFromPort) {
             setWirePreviewOwner("keyboard");
           }
-          const nextPort = resolveBottomMostPort(keyboardPorts, entryPortKind);
+          const nextPort = resolveEntryPort(keyboardPorts, entryPortKind, key);
           if (nextPort) {
             setKeyboardFocus({
               kind: "port",
@@ -934,10 +934,15 @@ function resolveKeyboardWireTargetPort(args: {
   );
 }
 
-function resolveBottomMostPort(ports: ReturnType<typeof resolvePatchFocusablePorts>, portKind: "in" | "out") {
-  return ports
+function resolveEntryPort(
+  ports: ReturnType<typeof resolvePatchFocusablePorts>,
+  portKind: "in" | "out",
+  key: PatchHardwareArrowKey
+) {
+  const sortedPorts = ports
     .filter((port) => port.portKind === portKind)
-    .sort((a, b) => b.y - a.y || b.portId.localeCompare(a.portId))[0];
+    .sort((a, b) => a.y - b.y || a.portId.localeCompare(b.portId));
+  return key === "ArrowDown" ? sortedPorts[0] : sortedPorts.at(-1);
 }
 
 function resolveKeyboardModulePortEntryKind(args: {
@@ -946,9 +951,9 @@ function resolveKeyboardModulePortEntryKind(args: {
 }): "in" | "out" | null {
   if (args.pendingFromPort) {
     if (args.pendingFromPort.kind === "out") {
-      return args.key === "ArrowLeft" ? "in" : null;
+      return args.key === "ArrowLeft" || args.key === "ArrowUp" || args.key === "ArrowDown" ? "in" : null;
     }
-    return args.key === "ArrowRight" ? "out" : null;
+    return args.key === "ArrowRight" || args.key === "ArrowUp" || args.key === "ArrowDown" ? "out" : null;
   }
   if (args.key === "ArrowLeft") {
     return "in";
