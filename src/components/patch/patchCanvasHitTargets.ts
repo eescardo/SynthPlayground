@@ -3,7 +3,11 @@ import {
   findPatchPortAtPointWithPadding,
   HitPort
 } from "@/components/patch/patchCanvasGeometry";
-import { isPointInCanvasRect, resolveWireReplacePromptRects } from "@/components/patch/patchWireGeometry";
+import {
+  isPointInCanvasRect,
+  PatchWireReplacePromptAnchor,
+  resolveWireReplacePromptRects
+} from "@/components/patch/patchWireGeometry";
 import { Patch } from "@/types/patch";
 
 export type PatchCanvasHitTarget =
@@ -26,6 +30,7 @@ interface ResolvePatchCanvasHitTargetArgs {
   replacePrompt?: {
     pointer?: { x: number; y: number } | null;
     bounds?: { x?: number; y?: number; width: number; height: number };
+    anchor?: PatchWireReplacePromptAnchor | null;
   } | null;
   getNodeAtPoint: (rawX: number, rawY: number) => string | null;
   getArmedWireCancelRect: (nodeId: string) => { x: number; y: number; width: number; height: number } | null;
@@ -34,7 +39,11 @@ interface ResolvePatchCanvasHitTargetArgs {
 export function resolvePatchCanvasHitTarget(args: ResolvePatchCanvasHitTargetArgs): PatchCanvasHitTarget {
   const { point, zoom } = args;
   if (args.pendingFromPort && args.replacePrompt) {
-    const promptRects = resolveWireReplacePromptRects(args.replacePrompt.pointer, args.replacePrompt.bounds);
+    const promptRects = resolveWireReplacePromptRects(
+      args.replacePrompt.pointer,
+      args.replacePrompt.bounds,
+      args.replacePrompt.anchor
+    );
     if (promptRects && isPointInCanvasRect(point, promptRects.yes)) {
       return { kind: "wireReplaceButton", value: "yes" };
     }

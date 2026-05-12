@@ -42,6 +42,7 @@ import {
   PATCH_WIRE_TOOLTIP_WIDTH,
   PatchWireTooltipBounds,
   resolveArmedWireCancelButtonRect,
+  resolveWireReplacePromptOrigin,
   resolveWireReplacePromptRects,
   resolveWireTooltipOrigin
 } from "@/components/patch/patchWireGeometry";
@@ -443,7 +444,7 @@ function drawWireCandidateTooltip(
         height: 26
       };
   const origin = isReplace
-    ? resolveWireTooltipOrigin(candidate.pointer, candidate.tooltipBounds ?? ctx.canvas, tooltipSize)
+    ? resolveWireReplacePromptOrigin(candidate.pointer, candidate.tooltipBounds ?? ctx.canvas, candidate.promptAnchor)
     : resolveTooltipAbovePortOrigin(targetPort, tooltipSize, candidate.tooltipBounds ?? ctx.canvas);
   if (!origin) {
     ctx.restore();
@@ -461,7 +462,11 @@ function drawWireCandidateTooltip(
   ctx.textBaseline = isReplace ? "alphabetic" : "middle";
   ctx.fillText(label, x + tooltipSize.width / 2, isReplace ? y + 17 : y + tooltipSize.height / 2);
   if (isReplace) {
-    const rects = resolveWireReplacePromptRects(candidate.pointer, candidate.tooltipBounds ?? ctx.canvas);
+    const rects = resolveWireReplacePromptRects(
+      candidate.pointer,
+      candidate.tooltipBounds ?? ctx.canvas,
+      candidate.promptAnchor
+    );
     if (rects) {
       const selected = candidate.replaceSelection ?? "no";
       drawPill(ctx, rects.no, "NO", {

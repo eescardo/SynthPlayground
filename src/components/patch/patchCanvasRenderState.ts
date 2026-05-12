@@ -1,7 +1,7 @@
 import { PatchDiff } from "@/lib/patch/diff";
 import { PatchValidationIssue } from "@/types/patch";
 import { PatchWireCommitFeedback } from "@/components/patch/patchWireFeedback";
-import { PatchWireTooltipBounds } from "@/components/patch/patchWireGeometry";
+import { PatchWireReplacePromptAnchor, PatchWireTooltipBounds } from "@/components/patch/patchWireGeometry";
 import { HitPort } from "@/components/patch/patchCanvasGeometry";
 
 export interface PatchCanvasSelectionState {
@@ -35,6 +35,7 @@ export interface PatchWireCandidateDisplay {
   target: { nodeId: string; portId: string; portKind: "in" | "out" };
   reason?: string;
   pointer?: { x: number; y: number } | null;
+  promptAnchor?: PatchWireReplacePromptAnchor | null;
   replaceSelection?: "no" | "yes";
   tooltipBounds?: PatchWireTooltipBounds;
 }
