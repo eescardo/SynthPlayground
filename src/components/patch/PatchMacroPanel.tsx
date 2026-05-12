@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import { getMacroKeyframePositions, snapNormalizedToMacroKeyframe } from "@/lib/patch/macroKeyframes";
+import { resolveMacroSliderKeyboardValue } from "@/lib/patch/macroSliderKeyboard";
 import { resolveDiffHighlightClass } from "@/components/patch/patchDiffPresentation";
 import { PatchMacroPanelActions, PatchMacroPanelModel } from "@/components/patch/patchEditorSession";
 import { PatchValidationIssue } from "@/types/patch";
@@ -195,6 +196,16 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
                         "--macro-slider-percent": `${Math.round(value * 100)}%`
                       } as CSSProperties
                     }
+                    onKeyDown={(event) => {
+                      const nextValue = resolveMacroSliderKeyboardValue(value, event.key);
+                      if (nextValue === null) {
+                        return;
+                      }
+                      event.preventDefault();
+                      pendingCommitMacroIdRef.current = macro.id;
+                      actions.onSelectMacro(macro.id);
+                      actions.onChangeMacroValue(macro.id, nextValue);
+                    }}
                     onChange={(event) => {
                       pendingCommitMacroIdRef.current = macro.id;
                       actions.onSelectMacro(macro.id);
@@ -209,12 +220,7 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
                         snapNormalizedToMacroKeyframe(macro.keyframeCount, Number(event.currentTarget.value))
                       )
                     }
-                    onBlur={(event) =>
-                      commitMacroValueIfPending(
-                        macro.id,
-                        snapNormalizedToMacroKeyframe(macro.keyframeCount, Number(event.currentTarget.value))
-                      )
-                    }
+                    onBlur={(event) => commitMacroValueIfPending(macro.id, Number(event.currentTarget.value))}
                     onKeyUp={(event) => {
                       if (
                         [
@@ -228,10 +234,7 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
                           "PageDown"
                         ].includes(event.key)
                       ) {
-                        commitMacroValueIfPending(
-                          macro.id,
-                          snapNormalizedToMacroKeyframe(macro.keyframeCount, Number(event.currentTarget.value))
-                        );
+                        commitMacroValueIfPending(macro.id, Number(event.currentTarget.value));
                       }
                     }}
                   />

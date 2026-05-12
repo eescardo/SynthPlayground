@@ -23,6 +23,7 @@ import { Patch } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 
 type ReplaceWireSelection = "no" | "yes";
+type ReplaceWireKeyboardAction = "selectNo" | "selectYes" | "confirm";
 
 interface PendingConnection {
   fromPort: HitPort;
@@ -427,6 +428,7 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
       nearestPort: HitPort | null;
       pointer: { x: number; y: number };
       enabled: boolean;
+      cancelActionActive?: boolean;
     }) => {
       if (!args.enabled || !pendingFromPort || pendingProbeId || !args.nodeId) {
         setArmedWireModuleHover(null);
@@ -434,11 +436,41 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
       }
       setArmedWireModuleHover({
         nodeId: args.nodeId,
-        nearestPort: args.nearestPort
+        nearestPort: args.nearestPort,
+        cancelActionActive: args.cancelActionActive
       });
       updatePendingConnectionCandidate(args.nearestPort, args.pointer);
     },
     [pendingFromPort, pendingProbeId, updatePendingConnectionCandidate]
+  );
+
+  const handleReplaceCandidateKeyDown = useCallback(
+    (key: string) => {
+      const candidate = pendingConnection?.candidate.result;
+      if (candidate?.status !== "replace") {
+        return false;
+      }
+      const replaceSelection = pendingConnection?.candidate.replaceSelection ?? "no";
+      const action = resolveReplaceWireKeyboardAction(replaceSelection, key);
+      if (!action) {
+        return false;
+      }
+      if (action === "selectNo") {
+        setReplaceCandidateSelection("no");
+        return true;
+      }
+      if (action === "selectYes") {
+        setReplaceCandidateSelection("yes");
+        return true;
+      }
+      if (replaceSelection === "yes") {
+        commitConnectionCandidate(candidate);
+      } else {
+        dismissReplaceCandidate();
+      }
+      return true;
+    },
+    [commitConnectionCandidate, dismissReplaceCandidate, pendingConnection, setReplaceCandidateSelection]
   );
 
   useEffect(() => {
@@ -493,31 +525,17 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
     if (candidate?.status !== "replace") {
       return;
     }
-    const replaceSelection = pendingConnection?.candidate.replaceSelection ?? "no";
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "ArrowLeft") {
+      if (event.defaultPrevented) {
+        return;
+      }
+      if (handleReplaceCandidateKeyDown(event.key)) {
         event.preventDefault();
-        setReplaceCandidateSelection("no");
-        return;
-      }
-      if (event.key === "ArrowRight") {
-        event.preventDefault();
-        setReplaceCandidateSelection("yes");
-        return;
-      }
-      if (event.key !== "Enter") {
-        return;
-      }
-      event.preventDefault();
-      if (replaceSelection === "yes") {
-        commitConnectionCandidate(candidate);
-      } else {
-        dismissReplaceCandidate();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [commitConnectionCandidate, dismissReplaceCandidate, pendingConnection, setReplaceCandidateSelection]);
+  }, [handleReplaceCandidateKeyDown, pendingConnection]);
 
   return {
     armedWireModuleHover,
@@ -528,6 +546,7 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
     handlePortSelection,
     handleModuleHoverWhileWiring,
     handleReplacePromptHover,
+    handleReplaceCandidateKeyDown,
     handleAttachHoverTarget,
     hoveredAttachTarget,
     lockedPortHovered: Boolean(lockedPortTooltip),
@@ -540,4 +559,17 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
     wireCommitFeedback,
     wireFeedbackNow
   };
+}
+
+export function resolveReplaceWireKeyboardAction(
+  replaceSelection: ReplaceWireSelection,
+  key: string
+): ReplaceWireKeyboardAction | null {
+  if (key === "ArrowLeft") {
+    return replaceSelection === "yes" ? "selectNo" : null;
+  }
+  if (key === "ArrowRight") {
+    return replaceSelection === "no" ? "selectYes" : null;
+  }
+  return key === "Enter" ? "confirm" : null;
 }

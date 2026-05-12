@@ -23,20 +23,22 @@ export function usePatchWorkspaceHardwareNavigation({
       if (event.defaultPrevented) {
         return;
       }
-      if (isTextEditingTarget(event.target) || pitchPickerOpen || previewPitchPickerOpen) {
+      if (isPatchWorkspacePreviewBlockedTarget(event.target) || pitchPickerOpen || previewPitchPickerOpen) {
         return;
       }
       if (isModifierChord(event) || view !== "patch-workspace") {
         return;
       }
-      if ((event.key === " " || event.code === "Space") && !event.repeat) {
+      if (event.key === " " || event.code === "Space") {
         event.preventDefault();
-        startHeldDefaultPitchPreview();
+        if (!event.repeat) {
+          startHeldDefaultPitchPreview();
+        }
       }
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
-      if (isTextEditingTarget(event.target) || pitchPickerOpen || previewPitchPickerOpen) {
+      if (isPatchWorkspacePreviewBlockedTarget(event.target) || pitchPickerOpen || previewPitchPickerOpen) {
         return;
       }
       if ((event.key === " " || event.code === "Space") && view === "patch-workspace") {
@@ -60,4 +62,12 @@ export function usePatchWorkspaceHardwareNavigation({
       window.removeEventListener("blur", onBlur);
     };
   }, [pitchPickerOpen, previewPitchPickerOpen, releaseHeldDefaultPitchPreview, startHeldDefaultPitchPreview, view]);
+}
+
+function isPatchWorkspacePreviewBlockedTarget(target: EventTarget | null) {
+  const element = target as HTMLElement | null;
+  if (element?.closest(".patch-macro-panel input[type='range']")) {
+    return false;
+  }
+  return isTextEditingTarget(target);
 }

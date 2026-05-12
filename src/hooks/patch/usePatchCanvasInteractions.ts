@@ -84,11 +84,13 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
   const dragLastLayoutRef = useRef<{ x: number; y: number } | null>(null);
   const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
   const dragPointerIdRef = useRef<number | null>(null);
+  const hitPortsKeyRef = useRef("");
   const pointerDownNodeIdRef = useRef<string | null>(null);
   const pointerMovedRef = useRef(false);
   const [pendingProbePointer, setPendingProbePointer] = useState<{ x: number; y: number } | null>(null);
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [hitPorts, setHitPorts] = useState<HitPort[]>([]);
   const {
     armedWireModuleHover,
     clearPendingConnection,
@@ -98,6 +100,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     handleModuleHoverWhileWiring,
     handlePortHover: handleWirePortHover,
     handlePortSelection,
+    handleReplaceCandidateKeyDown,
     handleReplacePromptHover,
     hoveredAttachTarget,
     lockedPortHovered,
@@ -200,7 +203,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     if (!canvas) {
       return;
     }
-    hitPortsRef.current = drawPatchCanvas({
+    const nextHitPorts = drawPatchCanvas({
       canvas,
       facePopoverNodeId,
       getFacePopoverRect,
@@ -233,6 +236,14 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         }
       }
     });
+    hitPortsRef.current = nextHitPorts;
+    const nextHitPortsKey = nextHitPorts
+      .map((port) => `${port.nodeId}:${port.kind}:${port.portId}:${port.x}:${port.y}:${port.width}:${port.height}`)
+      .join("|");
+    if (hitPortsKeyRef.current !== nextHitPortsKey) {
+      hitPortsKeyRef.current = nextHitPortsKey;
+      setHitPorts(nextHitPorts);
+    }
   }, [
     canvasRef,
     facePopoverNodeId,
@@ -580,8 +591,12 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     pendingWirePointer,
     pendingProbePointer,
     wireCandidate,
+    clearPendingConnection,
     hoveredAttachTarget,
+    hitPorts,
     lockedPortHovered,
+    handleModuleHoverWhileWiring,
+    handleReplaceCandidateKeyDown,
     handlePortSelection,
     handlePortHover,
     onPointerDown,

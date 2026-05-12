@@ -42,6 +42,7 @@ export interface PatchWireCandidateDisplay {
 export interface PatchArmedWireModuleHover {
   nodeId: string;
   nearestPort?: { nodeId: string; portId: string; kind: "in" | "out" } | null;
+  cancelActionActive?: boolean;
 }
 
 export interface PatchWireCandidatePulse {

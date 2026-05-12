@@ -33,6 +33,10 @@
   background: #0b1118;
 }
 
+.scroll:focus {
+  outline: none;
+}
+
 .overlayShell {
   position: relative;
 }

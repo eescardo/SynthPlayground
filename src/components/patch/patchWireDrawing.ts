@@ -393,13 +393,13 @@ function drawPill(
   ctx: CanvasRenderingContext2D,
   rect: { x: number; y: number; width: number; height: number },
   label: string,
-  options: { fill: string; stroke: string; text: string }
+  options: { fill: string; stroke: string; text: string; lineWidth?: number }
 ) {
   drawRoundedRectPath(ctx, rect.x, rect.y, rect.width, rect.height, 8);
   ctx.fillStyle = options.fill;
   ctx.fill();
   ctx.strokeStyle = options.stroke;
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = options.lineWidth ?? 1.5;
   ctx.stroke();
   ctx.fillStyle = options.text;
   ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
@@ -619,9 +619,10 @@ export function drawArmedWireModuleHover(
   ctx.fillRect(x, y, PATCH_NODE_WIDTH, PATCH_NODE_HEIGHT);
   const buttonRect = resolveArmedWireCancelButtonRect(x, y);
   drawPill(ctx, buttonRect, "cancel wiring", {
-    fill: PATCH_COLOR_WIRE_CANCEL_BUTTON_BG,
-    stroke: PATCH_COLOR_WIRE_CANCEL_BUTTON_STROKE,
-    text: PATCH_COLOR_WIRE_TOOLTIP_TEXT
+    fill: hover.cancelActionActive ? "rgba(255, 93, 143, 0.22)" : PATCH_COLOR_WIRE_CANCEL_BUTTON_BG,
+    stroke: hover.cancelActionActive ? PATCH_COLOR_PENDING_PORT : PATCH_COLOR_WIRE_CANCEL_BUTTON_STROKE,
+    text: PATCH_COLOR_WIRE_TOOLTIP_TEXT,
+    lineWidth: hover.cancelActionActive ? 2.5 : undefined
   });
   if (hover.nearestPort) {
     const port = portPositions.get(`${hover.nearestPort.nodeId}:${hover.nearestPort.kind}:${hover.nearestPort.portId}`);
