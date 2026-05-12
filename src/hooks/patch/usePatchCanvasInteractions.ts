@@ -354,7 +354,9 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         pendingFromPort,
         pendingProbeId,
         replacePrompt:
-          wireCandidate?.status === "replace" ? { pointer: wireCandidate.pointer, bounds: visibleCanvasBounds } : null,
+          wireCandidate?.status === "replace"
+            ? { pointer: wireCandidate.pointer, bounds: visibleCanvasBounds, anchor: wireCandidate.promptAnchor }
+            : null,
         getNodeAtPoint: getNodeAtPointer,
         getArmedWireCancelRect: resolveArmedWireCancelRectForNode
       });
@@ -445,6 +447,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       handleAttachHoverTarget,
       visibleCanvasBounds,
       wireCandidate?.pointer,
+      wireCandidate?.promptAnchor,
       wireCandidate?.status,
       zoom
     ]

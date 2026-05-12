@@ -29,6 +29,14 @@ export interface CanvasRect {
   height: number;
 }
 
+export interface PatchWireReplacePromptAnchor {
+  kind: "in" | "out";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export function isPointInCanvasRect(point: CanvasPoint, rect: CanvasRect) {
   return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height;
 }
@@ -75,11 +83,34 @@ export function resolveWireTooltipOrigin(
   return { x, y };
 }
 
+export function resolveWireReplacePromptOrigin(
+  pointer: CanvasPoint | null | undefined,
+  bounds?: PatchWireTooltipBounds,
+  anchor?: PatchWireReplacePromptAnchor | null
+) {
+  if (!anchor) {
+    return resolveWireTooltipOrigin(pointer, bounds);
+  }
+  return clampTooltipRect(
+    {
+      x:
+        anchor.kind === "in"
+          ? anchor.x + anchor.width + PATCH_WIRE_TOOLTIP_OFFSET
+          : anchor.x - PATCH_WIRE_TOOLTIP_WIDTH - PATCH_WIRE_TOOLTIP_OFFSET,
+      y: anchor.y - PATCH_WIRE_TOOLTIP_HEIGHT / 2,
+      width: PATCH_WIRE_TOOLTIP_WIDTH,
+      height: PATCH_WIRE_TOOLTIP_HEIGHT
+    },
+    bounds
+  );
+}
+
 export function resolveWireReplacePromptRects(
   pointer: CanvasPoint | null | undefined,
-  bounds?: PatchWireTooltipBounds
+  bounds?: PatchWireTooltipBounds,
+  anchor?: PatchWireReplacePromptAnchor | null
 ) {
-  const origin = resolveWireTooltipOrigin(pointer, bounds);
+  const origin = resolveWireReplacePromptOrigin(pointer, bounds, anchor);
   if (!origin) {
     return null;
   }
@@ -105,9 +136,10 @@ export function resolveWireReplacePromptRects(
 
 export function resolveWireReplacePromptBounds(
   pointer: CanvasPoint | null | undefined,
-  bounds?: PatchWireTooltipBounds
+  bounds?: PatchWireTooltipBounds,
+  anchor?: PatchWireReplacePromptAnchor | null
 ) {
-  const origin = resolveWireTooltipOrigin(pointer, bounds);
+  const origin = resolveWireReplacePromptOrigin(pointer, bounds, anchor);
   if (!origin) {
     return null;
   }
@@ -121,9 +153,10 @@ export function resolveWireReplacePromptBounds(
 
 export function resolveWireReplacePromptMagnetBounds(
   pointer: CanvasPoint | null | undefined,
-  bounds?: PatchWireTooltipBounds
+  bounds?: PatchWireTooltipBounds,
+  anchor?: PatchWireReplacePromptAnchor | null
 ) {
-  const promptBounds = resolveWireReplacePromptBounds(pointer, bounds);
+  const promptBounds = resolveWireReplacePromptBounds(pointer, bounds, anchor);
   if (!promptBounds) {
     return null;
   }
@@ -138,9 +171,10 @@ export function resolveWireReplacePromptMagnetBounds(
 export function resolveWireReplaceSelectionAtPoint(
   point: CanvasPoint,
   pointer: CanvasPoint | null | undefined,
-  bounds?: PatchWireTooltipBounds
+  bounds?: PatchWireTooltipBounds,
+  anchor?: PatchWireReplacePromptAnchor | null
 ): "no" | "yes" | null {
-  const promptRects = resolveWireReplacePromptRects(pointer, bounds);
+  const promptRects = resolveWireReplacePromptRects(pointer, bounds, anchor);
   if (!promptRects) {
     return null;
   }

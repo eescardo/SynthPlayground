@@ -25,6 +25,26 @@ describe("patchWireGeometry", () => {
     expect(leftInset).toBeCloseTo(rightInset);
   });
 
+  it("places replace prompts to the right of input ports", () => {
+    const anchor = { kind: "in" as const, x: 80, y: 100, width: 30, height: 14 };
+    const bounds = resolveWireReplacePromptBounds({ x: 10, y: 10 }, undefined, anchor);
+
+    expect(bounds).toMatchObject({
+      x: 124,
+      y: 72
+    });
+  });
+
+  it("places replace prompts to the left of output ports", () => {
+    const anchor = { kind: "out" as const, x: 300, y: 100, width: 30, height: 14 };
+    const bounds = resolveWireReplacePromptBounds({ x: 10, y: 10 }, undefined, anchor);
+
+    expect(bounds).toMatchObject({
+      x: 132,
+      y: 72
+    });
+  });
+
   it("resolves replace prompt hit selection from button rects", () => {
     const pointer = { x: 100, y: 100 };
     const rects = resolveWireReplacePromptRects(pointer);

@@ -104,6 +104,16 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
       },
       reason: result.status === "invalid" ? result.reason : undefined,
       pointer: anchorPointer,
+      promptAnchor:
+        result.status === "replace"
+          ? {
+              kind: targetPort.kind,
+              x: targetPort.x,
+              y: targetPort.y,
+              width: targetPort.width,
+              height: targetPort.height
+            }
+          : undefined,
       replaceSelection:
         result.status === "replace" ? (pendingConnection.candidate.replaceSelection ?? "no") : undefined,
       tooltipBounds: visibleCanvasBounds
@@ -305,7 +315,7 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
         return;
       }
       if (candidate.status === "replace") {
-        const promptRects = resolveWireReplacePromptRects(pointer, visibleCanvasBounds);
+        const promptRects = resolveWireReplacePromptRects(pointer, visibleCanvasBounds, hitPort);
         if (promptRects && isPointInCanvasRect(pointer, promptRects.yes)) {
           commitConnectionCandidate(candidate);
         } else {
@@ -387,9 +397,13 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
       if (!pendingFromPort || wireCandidate?.status !== "replace") {
         return false;
       }
-      const promptBounds = resolveWireReplacePromptBounds(wireCandidate.pointer, visibleCanvasBounds);
-      const magnetBounds = resolveWireReplacePromptMagnetBounds(wireCandidate.pointer, visibleCanvasBounds);
       const currentTarget = pendingConnection?.candidate.targetPort;
+      const promptBounds = resolveWireReplacePromptBounds(wireCandidate.pointer, visibleCanvasBounds, currentTarget);
+      const magnetBounds = resolveWireReplacePromptMagnetBounds(
+        wireCandidate.pointer,
+        visibleCanvasBounds,
+        currentTarget
+      );
       const isDifferentHoverPort =
         args.hoverPort &&
         currentTarget &&
@@ -407,7 +421,8 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
       const replaceSelection = resolveWireReplaceSelectionAtPoint(
         args.point,
         wireCandidate.pointer,
-        visibleCanvasBounds
+        visibleCanvasBounds,
+        currentTarget
       );
       setPendingConnection((current) => (current ? { ...current, pointer: args.point } : current));
       if (replaceSelection) {
