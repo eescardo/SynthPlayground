@@ -240,6 +240,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     handleModuleHoverWhileWiring,
     handlePortHover,
     handlePortSelection,
+    handleReplaceCandidateKeyDown,
     hitPorts,
     onPointerDown,
     onPointerMove,
@@ -416,6 +417,10 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
       if (!currentFocus) {
         return;
       }
+      if (handleReplaceCandidateKeyDown(event.key)) {
+        event.preventDefault();
+        return;
+      }
       if (event.key === "Escape") {
         if (popoverNodeId) {
           event.preventDefault();
@@ -547,6 +552,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
       closePopover,
       ensureKeyboardFocus,
       handlePortSelection,
+      handleReplaceCandidateKeyDown,
       keyboardNavigationModel,
       keyboardPorts,
       onSelectConnection,

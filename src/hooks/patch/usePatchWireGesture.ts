@@ -441,6 +441,34 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
     [pendingFromPort, pendingProbeId, updatePendingConnectionCandidate]
   );
 
+  const handleReplaceCandidateKeyDown = useCallback(
+    (key: string) => {
+      const candidate = pendingConnection?.candidate.result;
+      if (candidate?.status !== "replace") {
+        return false;
+      }
+      const replaceSelection = pendingConnection?.candidate.replaceSelection ?? "no";
+      if (key === "ArrowLeft") {
+        setReplaceCandidateSelection("no");
+        return true;
+      }
+      if (key === "ArrowRight") {
+        setReplaceCandidateSelection("yes");
+        return true;
+      }
+      if (key !== "Enter") {
+        return false;
+      }
+      if (replaceSelection === "yes") {
+        commitConnectionCandidate(candidate);
+      } else {
+        dismissReplaceCandidate();
+      }
+      return true;
+    },
+    [commitConnectionCandidate, dismissReplaceCandidate, pendingConnection, setReplaceCandidateSelection]
+  );
+
   useEffect(() => {
     if (!pendingFromPort) {
       return;
@@ -493,31 +521,17 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
     if (candidate?.status !== "replace") {
       return;
     }
-    const replaceSelection = pendingConnection?.candidate.replaceSelection ?? "no";
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "ArrowLeft") {
+      if (event.defaultPrevented) {
+        return;
+      }
+      if (handleReplaceCandidateKeyDown(event.key)) {
         event.preventDefault();
-        setReplaceCandidateSelection("no");
-        return;
-      }
-      if (event.key === "ArrowRight") {
-        event.preventDefault();
-        setReplaceCandidateSelection("yes");
-        return;
-      }
-      if (event.key !== "Enter") {
-        return;
-      }
-      event.preventDefault();
-      if (replaceSelection === "yes") {
-        commitConnectionCandidate(candidate);
-      } else {
-        dismissReplaceCandidate();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [commitConnectionCandidate, dismissReplaceCandidate, pendingConnection, setReplaceCandidateSelection]);
+  }, [handleReplaceCandidateKeyDown, pendingConnection]);
 
   return {
     armedWireModuleHover,
@@ -528,6 +542,7 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
     handlePortSelection,
     handleModuleHoverWhileWiring,
     handleReplacePromptHover,
+    handleReplaceCandidateKeyDown,
     handleAttachHoverTarget,
     hoveredAttachTarget,
     lockedPortHovered: Boolean(lockedPortTooltip),
