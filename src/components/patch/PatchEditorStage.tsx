@@ -23,6 +23,7 @@ import {
 import { createId } from "@/lib/ids";
 import { resolveAutoLayoutNodes } from "@/lib/patch/autoLayout";
 import { makeConnectOp } from "@/lib/patch/ops";
+import { resolveConnectionIdsForPatchPort } from "@/lib/patch/portConnections";
 import { getPatchOutputPort } from "@/lib/patch/ports";
 import { resolveAutoLayoutProbePositions } from "@/lib/patch/probeAutoLayout";
 import { usePatchCanvasInteractions } from "@/hooks/patch/usePatchCanvasInteractions";
@@ -202,6 +203,24 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   });
 
   const deleteSelectedCanvasObject = useCallback(() => {
+    if (
+      keyboardFocus?.kind === "port" &&
+      selectedNodeId === keyboardFocus.nodeId &&
+      selectedNodeId !== outputNodeId &&
+      !structureLocked
+    ) {
+      const connectionIds = resolveConnectionIdsForPatchPort(patch, {
+        nodeId: keyboardFocus.nodeId,
+        portId: keyboardFocus.portId,
+        portKind: keyboardFocus.portKind
+      });
+      if (connectionIds.length > 0) {
+        connectionIds.forEach((connectionId) => onApplyOp({ type: "disconnect", connectionId }));
+        onSelectConnection(undefined);
+        setDeletePreviewConnectionId(null);
+        return;
+      }
+    }
     if (probeState.selectedProbeId) {
       onCancelAttachProbe();
       probeActions.deleteSelected();
@@ -222,8 +241,10 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     onCancelAttachProbe,
     onSelectConnection,
     outputNodeId,
+    patch,
     probeActions,
     probeState.selectedProbeId,
+    keyboardFocus,
     selectedConnectionId,
     selectedNodeId,
     structureLocked
