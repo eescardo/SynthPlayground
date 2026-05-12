@@ -274,6 +274,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     outputHostCanvasLeft,
     outputNodeId,
     patch,
+    attachingProbeId: probeState.attachingProbeId,
     pendingFromPort,
     popoverNodeId,
     probes: probeState.probes,

@@ -45,6 +45,7 @@ export function usePatchCanvasKeyboardNavigation(args: {
   outputHostCanvasLeft: number;
   outputNodeId?: string;
   patch: Patch;
+  attachingProbeId?: string | null;
   pendingFromPort: HitPort | null;
   popoverNodeId: string | null;
   probes: PatchWorkspaceProbeState[];
@@ -68,6 +69,7 @@ export function usePatchCanvasKeyboardNavigation(args: {
     onToggleAttachProbe,
     onToggleProbeExpanded,
     outputNodeId,
+    attachingProbeId,
     pendingFromPort,
     popoverNodeId,
     selectedProbeId,
@@ -355,7 +357,7 @@ export function usePatchCanvasKeyboardNavigation(args: {
         );
         if (port) {
           event.preventDefault();
-          if (port.nodeId === outputNodeId && port.portKind === "in" && !pendingFromPort) {
+          if (port.nodeId === outputNodeId && port.portKind === "in" && !pendingFromPort && !attachingProbeId) {
             onSelectNode(outputNodeId);
             onSelectConnection(undefined);
             return;
@@ -424,7 +426,7 @@ export function usePatchCanvasKeyboardNavigation(args: {
       if (
         currentFocus.kind === "module" &&
         keyboardPorts.length > 0 &&
-        (selectedNodeId === currentFocus.nodeId || pendingFromPort)
+        (selectedNodeId === currentFocus.nodeId || pendingFromPort || attachingProbeId)
       ) {
         const entryPortKind = resolveKeyboardModulePortEntryKind({ key, pendingFromPort: pendingFromPort });
         if (entryPortKind) {
@@ -463,6 +465,7 @@ export function usePatchCanvasKeyboardNavigation(args: {
       onToggleAttachProbe,
       onToggleProbeExpanded,
       outputNodeId,
+      attachingProbeId,
       pendingFromPort,
       popoverNodeId,
       selectedNodeId,
@@ -548,6 +551,27 @@ export function usePatchCanvasKeyboardNavigation(args: {
     keyboardWireTargetPort,
     wirePreviewOwner
   ]);
+
+  useEffect(() => {
+    if (!attachingProbeId || pendingFromPort) {
+      return;
+    }
+    if (keyboardFocus?.kind !== "port") {
+      handlePortHover(null, null);
+      return;
+    }
+    const port = keyboardPorts.find(
+      (entry) =>
+        entry.nodeId === keyboardFocus.nodeId &&
+        entry.portId === keyboardFocus.portId &&
+        entry.portKind === keyboardFocus.portKind
+    );
+    if (!port) {
+      return;
+    }
+    const hitPort = toHitPort(port);
+    handlePortHover(hitPort, resolvePortFocusPointer(hitPort));
+  }, [attachingProbeId, handlePortHover, keyboardFocus, keyboardPorts, pendingFromPort]);
 
   return {
     enterCanvasKeyboardFocus,
