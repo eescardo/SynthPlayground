@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { applyMacroValue, applyPatchOp } from "@/lib/patch/ops";
 import { createDefaultParamsForType } from "@/lib/patch/moduleRegistry";
 import { getMacroBindingKeyframeCount, resolveMacroBindingValue } from "@/lib/patch/macroKeyframes";
-import { createClearPatch, pluckPatch } from "@/lib/patch/presets";
+import { createClearPatch, guitarStringPatch } from "@/lib/patch/presets";
+import { ensurePatchLayout } from "@/lib/patch/autoLayout";
 
 describe("patch ops", () => {
   it("rejects adding nodes with ids reserved for patch boundary ports", () => {
@@ -44,7 +45,7 @@ describe("patch ops", () => {
   });
 
   it("renames a node across graph references and UI bindings", () => {
-    const patch = pluckPatch();
+    const patch = ensurePatchLayout(guitarStringPatch());
     patch.ui.paramRanges = {
       "vcf1:cutoffHz": { min: 100, max: 5000 }
     };
@@ -76,7 +77,7 @@ describe("patch ops", () => {
   });
 
   it("applies macro slider moves to bound params without mutating defaults", () => {
-    const patch = pluckPatch();
+    const patch = guitarStringPatch();
     const macro = patch.ui.macros[0];
     const binding = macro.bindings[0];
     expect(macro).toBeDefined();
@@ -86,12 +87,12 @@ describe("patch ops", () => {
 
     const nextMacro = nextPatch.ui.macros.find((entry) => entry.id === macro.id);
     const boundNode = nextPatch.nodes.find((node) => node.id === binding.nodeId);
-    expect(nextMacro?.defaultNormalized).toBeCloseTo(macro.defaultNormalized ?? 0.5);
+    expect(nextMacro?.defaultNormalized).toBe(macro.defaultNormalized);
     expect(boundNode?.params[binding.paramId]).toBeCloseTo(resolveMacroBindingValue(binding, 0.75));
   });
 
   it("skips stale macro bindings without writing removed params back onto modules", () => {
-    const patch = pluckPatch();
+    const patch = guitarStringPatch();
     const macro = patch.ui.macros[0];
     const node = patch.nodes.find((entry) => entry.id === "karplus1");
     expect(node).toBeDefined();
@@ -118,7 +119,7 @@ describe("patch ops", () => {
   });
 
   it("updates all macro bindings when the macro keyframe count changes", () => {
-    const patch = pluckPatch();
+    const patch = guitarStringPatch();
     const macro = patch.ui.macros.find((entry) => entry.keyframeCount === 3) ?? patch.ui.macros[0];
     expect(macro).toBeDefined();
 
@@ -134,7 +135,7 @@ describe("patch ops", () => {
   });
 
   it("updates the active macro binding keyframe value", () => {
-    const patch = pluckPatch();
+    const patch = guitarStringPatch();
     const macro = patch.ui.macros.find((entry) => entry.keyframeCount === 3) ?? patch.ui.macros[0];
     const binding = macro.bindings[0];
     expect(binding).toBeDefined();
@@ -155,7 +156,7 @@ describe("patch ops", () => {
   });
 
   it("preserves keyframed points when binding a macro", () => {
-    const patch = pluckPatch();
+    const patch = guitarStringPatch();
     const macro = patch.ui.macros.find((entry) => entry.keyframeCount === 3) ?? patch.ui.macros[0];
 
     const nextPatch = applyPatchOp(patch, {
@@ -250,10 +251,26 @@ describe("patch ops", () => {
   });
 
   it("updates the macro binding interpolation map without changing its range", () => {
-    const patch = pluckPatch();
-    const macro =
-      patch.ui.macros.find((entry) => entry.bindings.some((binding) => binding.map === "linear")) ?? patch.ui.macros[0];
-    const binding = macro.bindings.find((entry) => entry.map === "linear") ?? macro.bindings[0];
+    const patch = guitarStringPatch();
+    patch.ui.macros = [
+      {
+        id: "macro_filter",
+        name: "Filter",
+        keyframeCount: 2,
+        bindings: [
+          {
+            id: "macro_filter:vcf1:cutoffHz",
+            nodeId: "vcf1",
+            paramId: "cutoffHz",
+            map: "linear",
+            min: 120,
+            max: 5000
+          }
+        ]
+      }
+    ];
+    const macro = patch.ui.macros[0];
+    const binding = macro.bindings[0];
 
     const nextPatch = applyPatchOp(patch, {
       type: "setMacroBindingMap",
@@ -271,7 +288,7 @@ describe("patch ops", () => {
   });
 
   it("updates keyframed macro binding interpolation without removing keyframe points", () => {
-    const patch = pluckPatch();
+    const patch = guitarStringPatch();
     const macro = patch.ui.macros.find((entry) => entry.keyframeCount === 3) ?? patch.ui.macros[0];
     const binding = macro.bindings.find((entry) => entry.points && entry.points.length === 3) ?? macro.bindings[0];
 
@@ -368,7 +385,7 @@ describe("patch ops", () => {
   });
 
   it("updates two-point linear keyframed bindings by editing their points", () => {
-    const patch = pluckPatch();
+    const patch = guitarStringPatch();
     const macro = patch.ui.macros[0];
     patch.ui.macros = [
       {
@@ -407,7 +424,7 @@ describe("patch ops", () => {
   });
 
   it("sets a parameter slider range without changing in-range macro binding values", () => {
-    const patch = pluckPatch();
+    const patch = guitarStringPatch();
     const macro = patch.ui.macros.find((entry) => entry.keyframeCount === 3) ?? patch.ui.macros[0];
     patch.ui.macros = [
       {
@@ -442,7 +459,7 @@ describe("patch ops", () => {
   });
 
   it("clamps parameter and macro binding values when tightening a slider range", () => {
-    const patch = pluckPatch();
+    const patch = guitarStringPatch();
     const macro = patch.ui.macros.find((entry) => entry.keyframeCount === 3) ?? patch.ui.macros[0];
     const node = patch.nodes.find((entry) => entry.id === "vcf1");
     if (node) {

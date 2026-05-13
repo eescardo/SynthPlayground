@@ -59,12 +59,12 @@ export const DEFAULT_BENCHMARK_SCENARIO_IDS = Object.keys(SCENARIO_OVERRIDES);
 
 const PITCH_SETS_BY_PATCH_ID: Record<string, string[]> = {
   preset_bass: ["C2", "G2", "A#1", "F2"],
-  preset_bassdrum: ["C1", "C1", "C1", "C1"],
+  preset_bass_drum: ["C1", "C1", "C1", "C1"],
   preset_brass: ["C4", "E4", "G4", "A#4"],
   preset_drumish: ["C2", "D2", "F#2", "A2"],
   preset_keys: ["C4", "E4", "G4", "B4"],
   preset_pad: ["C4", "G4", "A4", "D5"],
-  preset_pluck: ["C5", "E5", "G5", "B5"]
+  preset_guitar_string: ["C5", "E5", "G5", "B5"]
 };
 
 const createAutomationLane = (macroId: string, trackIndex: number, laneIndex: number, durationBeats: number) => {

@@ -14,6 +14,7 @@ import {
   normalizeProjectAssetLibrary,
   pickReferencedProjectAssets
 } from "@/lib/sampleAssetLibrary";
+import type { Patch } from "@/types/patch";
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -36,6 +37,19 @@ const defaultTrackFx = (): TrackFxSettings => ({
   drive: 0.2,
   compression: 0.4
 });
+
+const bundledPresetNameById = new Map(
+  presetPatches.flatMap((patch) => (patch.meta.source === "preset" ? [[patch.meta.presetId, patch.name] as const] : []))
+);
+
+const alignPresetDisplayName = (patch: Patch): Patch => {
+  if (patch.meta.source !== "preset") {
+    return patch;
+  }
+
+  const bundledName = bundledPresetNameById.get(patch.meta.presetId);
+  return bundledName && patch.name !== bundledName ? { ...patch, name: bundledName } : patch;
+};
 
 const sanitizeMacroValueMap = (raw: unknown): Record<string, number> => {
   if (!isObject(raw)) {
@@ -162,9 +176,9 @@ export const normalizeProject = (raw: unknown): Project => {
   }
 
   const patchesRaw = Array.isArray(raw.patches) ? raw.patches : [];
-  const normalizedPatches = patchesRaw.map((patch, index) =>
-    normalizePatch(patch, { fallbackId: `patch_${index}`, fallbackName: `Patch ${index + 1}` })
-  );
+  const normalizedPatches = patchesRaw
+    .map((patch, index) => normalizePatch(patch, { fallbackId: `patch_${index}`, fallbackName: `Patch ${index + 1}` }))
+    .map(alignPresetDisplayName);
   const existingPatchIds = new Set(normalizedPatches.map((patch) => patch.id));
   const patches = [
     ...normalizedPatches,

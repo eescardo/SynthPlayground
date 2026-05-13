@@ -52,6 +52,24 @@ describe("projectSerde", () => {
     }
   });
 
+  it("normalizeProject refreshes bundled preset display names on saved snapshots", () => {
+    const project = createDefaultProject();
+    const keys = project.patches.find((patch) => patch.id === "preset_keys");
+    if (!keys || keys.meta.source !== "preset") {
+      throw new Error("Expected preset_keys patch");
+    }
+    keys.name = "Simple Piano-ish";
+    keys.meta.presetVersion = 4;
+
+    const normalized = normalizeProject(project);
+    const normalizedKeys = normalized.patches.find((patch) => patch.id === "preset_keys");
+
+    expect(normalizedKeys?.name).toBe("Piano-ish");
+    if (normalizedKeys?.meta.source === "preset") {
+      expect(normalizedKeys.meta.presetVersion).toBe(4);
+    }
+  });
+
   it("normalizeProject clamps persisted track macro values into 0..1", () => {
     const project = createDefaultProject();
     const mutated = structuredClone(project);
@@ -87,10 +105,12 @@ describe("projectSerde", () => {
       expect(presetPatch.meta.presetId).toBe("preset_bass");
       expect(presetPatch.meta.presetVersion).toBe(getBundledPresetLineage("preset_bass")?.presetVersion ?? 1);
     }
-    const pluckPatch = roundTrip.patches.find((patch) => patch.id === "preset_pluck");
-    expect(pluckPatch).toBeDefined();
-    if (pluckPatch?.meta.source === "preset") {
-      expect(pluckPatch.meta.presetVersion).toBe(getBundledPresetLineage("preset_pluck")?.presetVersion ?? 1);
+    const guitarStringPatch = roundTrip.patches.find((patch) => patch.id === "preset_guitar_string");
+    expect(guitarStringPatch).toBeDefined();
+    if (guitarStringPatch?.meta.source === "preset") {
+      expect(guitarStringPatch.meta.presetVersion).toBe(
+        getBundledPresetLineage("preset_guitar_string")?.presetVersion ?? 1
+      );
     }
     const popSlapMacro = presetPatch.ui.macros.find((macro) => macro.id === "macro_decay");
     expect(popSlapMacro?.name).toBe("Pop/Slap");
@@ -98,8 +118,8 @@ describe("projectSerde", () => {
     const attackBinding = popSlapMacro?.bindings.find((binding) => binding.paramId === "attack");
     expect(attackBinding?.map).toBe("linear");
     expect(attackBinding?.points).toEqual([
-      { x: 0, y: 3.2 },
-      { x: 0.5, y: 7.5 },
+      { x: 0, y: 0.6 },
+      { x: 0.5, y: 5.5 },
       { x: 1, y: 3.5 }
     ]);
   });
@@ -249,27 +269,28 @@ describe("projectSerde", () => {
 
   it("preserves invalid preset snapshots so UI can surface validation failures", () => {
     const project = createDefaultProject();
-    const pluck = project.patches.find((patch) => patch.id === "preset_pluck");
-    if (!pluck || pluck.meta.source !== "preset") {
-      throw new Error("Expected preset_pluck preset patch");
+    const guitarString = project.patches.find((patch) => patch.id === "preset_guitar_string");
+    if (!guitarString || guitarString.meta.source !== "preset") {
+      throw new Error("Expected preset_guitar_string preset patch");
     }
 
-    pluck.ui.macros[0].bindings.push({
+    const duplicateTarget = guitarString.ui.macros[0].bindings[0];
+    guitarString.ui.macros[0].bindings.push({
       id: "invalid_conflict_binding",
-      nodeId: "vcf1",
-      paramId: "cutoffHz",
+      nodeId: duplicateTarget.nodeId,
+      paramId: duplicateTarget.paramId,
       map: "linear",
       min: 100,
       max: 200
     });
 
     const normalized = normalizeProject(project);
-    const repairedPluck = normalized.patches.find((patch) => patch.id === "preset_pluck");
-    expect(repairedPluck).toBeDefined();
-    if (!repairedPluck || repairedPluck.meta.source !== "preset") {
-      throw new Error("Expected invalid preset_pluck patch to remain present");
+    const repairedGuitarString = normalized.patches.find((patch) => patch.id === "preset_guitar_string");
+    expect(repairedGuitarString).toBeDefined();
+    if (!repairedGuitarString || repairedGuitarString.meta.source !== "preset") {
+      throw new Error("Expected invalid preset_guitar_string patch to remain present");
     }
-    const validation = validatePatch(repairedPluck);
+    const validation = validatePatch(repairedGuitarString);
     expect(validation.ok).toBe(false);
     expect(
       validation.issues.some((issue) => issue.message.includes("Macro binds the same parameter more than once"))
