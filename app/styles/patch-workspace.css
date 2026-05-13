@@ -1284,7 +1284,7 @@
   min-width: 0;
 }
 
-.patch-macro-slider-shell:focus-within::after {
+.patch-macro-slider-shell:not(.pointer-focused):has(.patch-macro-slider:focus-visible)::after {
   content: "";
   position: absolute;
   inset: -0.42rem -0.18rem;
@@ -1347,6 +1347,13 @@
     0 1px 3px rgba(20, 10, 4, 0.35);
 }
 
+.patch-macro-slider-shell.pointer-focused .patch-macro-slider:focus-visible::-webkit-slider-thumb {
+  border-color: rgba(77, 38, 6, 0.82);
+  box-shadow:
+    0 0 0 1px rgba(255, 216, 132, 0.28),
+    0 1px 3px rgba(20, 10, 4, 0.35);
+}
+
 .patch-macro-slider::-moz-range-track {
   height: 0.16rem;
   border-radius: 999px;
@@ -1379,6 +1386,13 @@
   box-shadow:
     0 0 0 2px rgba(61, 180, 255, 0.42),
     0 0 12px rgba(61, 180, 255, 0.54),
+    0 1px 3px rgba(20, 10, 4, 0.35);
+}
+
+.patch-macro-slider-shell.pointer-focused .patch-macro-slider:focus-visible::-moz-range-thumb {
+  border-color: rgba(77, 38, 6, 0.82);
+  box-shadow:
+    0 0 0 1px rgba(255, 216, 132, 0.28),
     0 1px 3px rgba(20, 10, 4, 0.35);
 }
 

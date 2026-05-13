@@ -18,6 +18,7 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
   const [editingMacroId, setEditingMacroId] = useState<string | null>(null);
   const [editingMacroName, setEditingMacroName] = useState("");
   const [keyframeMenuMacroId, setKeyframeMenuMacroId] = useState<string | null>(null);
+  const [pointerFocusedMacroId, setPointerFocusedMacroId] = useState<string | null>(null);
   const pendingCommitMacroIdRef = useRef<string | null>(null);
   const keyframeMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -169,7 +170,9 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
                   </button>
                 )}
 
-                <div className="patch-macro-slider-shell">
+                <div
+                  className={`patch-macro-slider-shell${pointerFocusedMacroId === macro.id ? " pointer-focused" : ""}`}
+                >
                   <div className="patch-macro-slider-keyframes" aria-hidden="true">
                     {keyframePositions.map((position, index) => (
                       <span
@@ -196,7 +199,9 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
                         "--macro-slider-percent": `${Math.round(value * 100)}%`
                       } as CSSProperties
                     }
+                    onPointerDown={() => setPointerFocusedMacroId(macro.id)}
                     onKeyDown={(event) => {
+                      setPointerFocusedMacroId(null);
                       const nextValue = resolveMacroSliderKeyboardValue(value, event.key);
                       if (nextValue === null) {
                         return;
@@ -220,7 +225,10 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
                         snapNormalizedToMacroKeyframe(macro.keyframeCount, Number(event.currentTarget.value))
                       )
                     }
-                    onBlur={(event) => commitMacroValueIfPending(macro.id, Number(event.currentTarget.value))}
+                    onBlur={(event) => {
+                      setPointerFocusedMacroId((current) => (current === macro.id ? null : current));
+                      commitMacroValueIfPending(macro.id, Number(event.currentTarget.value));
+                    }}
                     onKeyUp={(event) => {
                       if (
                         [

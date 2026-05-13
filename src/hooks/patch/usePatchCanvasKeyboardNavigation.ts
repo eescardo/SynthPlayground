@@ -48,6 +48,7 @@ export function usePatchCanvasKeyboardNavigation(args: {
   attachingProbeId?: string | null;
   pendingFromPort: HitPort | null;
   popoverNodeId: string | null;
+  popoverOpenedByPointer: boolean;
   probes: PatchWorkspaceProbeState[];
   scrollRef: RefObject<HTMLDivElement | null>;
   selectedNodeId?: string;
@@ -72,6 +73,7 @@ export function usePatchCanvasKeyboardNavigation(args: {
     attachingProbeId,
     pendingFromPort,
     popoverNodeId,
+    popoverOpenedByPointer,
     selectedProbeId,
     selectedNodeId,
     togglePopoverForNode
@@ -197,12 +199,16 @@ export function usePatchCanvasKeyboardNavigation(args: {
     if (!popoverNodeId) {
       return;
     }
+    if (popoverOpenedByPointer) {
+      setKeyboardFocus(null);
+      return;
+    }
     setKeyboardFocus({ kind: "module", nodeId: popoverNodeId });
     if (selectedNodeId !== popoverNodeId) {
       onSelectNode(popoverNodeId);
       onSelectConnection(undefined);
     }
-  }, [onSelectConnection, onSelectNode, popoverNodeId, selectedNodeId]);
+  }, [onSelectConnection, onSelectNode, popoverNodeId, popoverOpenedByPointer, selectedNodeId]);
 
   const ensureKeyboardFocus = useCallback(() => {
     if (popoverNodeId) {
