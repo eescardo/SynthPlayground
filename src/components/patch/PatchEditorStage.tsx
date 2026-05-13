@@ -68,6 +68,9 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const pointerCanvasFocusRef = useRef(false);
+  const popoverOpenedByPointerRef = useRef(false);
+  const clearKeyboardFocusAfterPointerPopoverToggleRef = useRef(false);
   const [scrollViewport, setScrollViewport] = useState({ left: 0, top: 0, width: 0, height: 0 });
   const [deletePreviewNodeId, setDeletePreviewNodeId] = useState<string | null>(null);
   const [deletePreviewConnectionId, setDeletePreviewConnectionId] = useState<string | null>(null);
@@ -185,6 +188,21 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     getPopoverRect: getFacePopoverRect,
     nodeExists
   });
+  const togglePopoverForNodeFromPointer = useCallback(
+    (nodeId: string) => {
+      popoverOpenedByPointerRef.current = true;
+      clearKeyboardFocusAfterPointerPopoverToggleRef.current = true;
+      togglePopoverForNode(nodeId);
+    },
+    [togglePopoverForNode]
+  );
+  const togglePopoverForNodeFromKeyboard = useCallback(
+    (nodeId: string) => {
+      popoverOpenedByPointerRef.current = false;
+      togglePopoverForNode(nodeId);
+    },
+    [togglePopoverForNode]
+  );
 
   const {
     dragNodeId,
@@ -243,7 +261,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     onCancelProbeAttach: onCancelAttachProbe,
     makeConnectOp,
     handleFacePopoverPointerDown: handleCanvasPointerDown,
-    togglePopoverForNode,
+    togglePopoverForNode: togglePopoverForNodeFromPointer,
     onWireCommitFeedback
   });
   const {
@@ -277,14 +295,23 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     attachingProbeId: probeState.attachingProbeId,
     pendingFromPort,
     popoverNodeId,
+    popoverOpenedByPointer: popoverOpenedByPointerRef.current,
     probes: probeState.probes,
     scrollRef,
     selectedNodeId,
     selectedProbeId: probeState.selectedProbeId,
     structureLocked,
-    togglePopoverForNode,
+    togglePopoverForNode: togglePopoverForNodeFromKeyboard,
     zoom
   });
+
+  useEffect(() => {
+    if (!clearKeyboardFocusAfterPointerPopoverToggleRef.current) {
+      return;
+    }
+    clearKeyboardFocusAfterPointerPopoverToggleRef.current = false;
+    setKeyboardFocus(null);
+  }, [popoverNodeId, setKeyboardFocus]);
 
   const deleteSelectedCanvasObject = useCallback(() => {
     if (
@@ -461,14 +488,26 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           aria-label="Patch canvas"
           onFocus={(event) => {
             if (event.currentTarget === event.target) {
+              if (pointerCanvasFocusRef.current) {
+                pointerCanvasFocusRef.current = false;
+                setKeyboardFocus(null);
+                return;
+              }
               ensureKeyboardFocus();
             }
           }}
           onKeyDown={handlePatchCanvasKeyDown}
           onPointerDownCapture={(event) => {
+            pointerCanvasFocusRef.current = true;
             if (event.currentTarget === event.target) {
               markExplicitCanvasScrollIntent();
             }
+          }}
+          onPointerUpCapture={() => {
+            pointerCanvasFocusRef.current = false;
+          }}
+          onPointerCancelCapture={() => {
+            pointerCanvasFocusRef.current = false;
           }}
           onScroll={(event) => {
             handleCanvasScroll(event.currentTarget, updateScrollViewport);
