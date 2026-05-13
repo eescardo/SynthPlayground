@@ -975,58 +975,842 @@ export const keysPatch = (): Patch => {
 };
 
 export const brassPatch = (): Patch => {
-  const vco = "vco1";
-  const lfo = "lfo1";
-  const env = "env1";
-  const vcf = "vcf1";
-  const vca = "vca1";
-  const out = "output";
-
   return {
     schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: "preset_brass",
     name: "Brass-ish",
-    meta: { source: "preset", presetId: "preset_brass", presetVersion: 4 },
+    meta: { source: "preset", presetId: "preset_brass", presetVersion: 5 },
     nodes: [
-      { id: vco, typeId: "VCO", params: { ...createDefaultParamsForType("VCO"), wave: "square", pulseWidth: 0.35 } },
-      { id: lfo, typeId: "LFO", params: { ...createDefaultParamsForType("LFO"), freqHz: 5, bipolar: true } },
       {
-        id: env,
-        typeId: "ADSR",
-        params: { ...createDefaultParamsForType("ADSR"), attack: 60, decay: 200, sustain: 0.7, release: 400 }
+        id: "vco1",
+        typeId: "VCO",
+        params: {
+          ...createDefaultParamsForType("VCO"),
+          wave: "saw",
+          pulseWidth: 0.4928,
+          baseTuneCents: 0,
+          fineTuneCents: -3,
+          pwmAmount: 0
+        }
       },
-      { id: vcf, typeId: "VCF", params: { ...createDefaultParamsForType("VCF"), cutoffHz: 900, resonance: 0.8 } },
-      { id: vca, typeId: "VCA", params: { ...createDefaultParamsForType("VCA"), gain: 1, bias: 0 } }
+      {
+        id: "lfo1",
+        typeId: "LFO",
+        params: {
+          ...createDefaultParamsForType("LFO"),
+          wave: "sine",
+          freqHz: 5.84854,
+          pulseWidth: 0.4424,
+          bipolar: true
+        }
+      },
+      {
+        id: "env1",
+        typeId: "ADSR",
+        params: {
+          ...createDefaultParamsForType("ADSR"),
+          attack: 10.5,
+          decay: 930,
+          sustain: 0.5,
+          release: 180,
+          curve: -0.72,
+          mode: "retrigger_from_current"
+        }
+      },
+      {
+        id: "vcf1",
+        typeId: "VCF",
+        params: {
+          ...createDefaultParamsForType("VCF"),
+          type: "lowpass",
+          cutoffHz: 360,
+          resonance: 0.45,
+          cutoffModAmountOct: 3.5
+        }
+      },
+      {
+        id: "vca1",
+        typeId: "VCA",
+        params: {
+          ...createDefaultParamsForType("VCA"),
+          bias: 0,
+          gain: 1
+        }
+      },
+      {
+        id: "transpose_down",
+        typeId: "CVTranspose",
+        params: {
+          ...createDefaultParamsForType("CVTranspose"),
+          octaves: -1,
+          semitones: 0,
+          cents: 0
+        }
+      },
+      {
+        id: "vco2",
+        typeId: "VCO",
+        params: {
+          ...createDefaultParamsForType("VCO"),
+          wave: "square",
+          pulseWidth: 0.3408,
+          baseTuneCents: 0,
+          fineTuneCents: 8.52,
+          pwmAmount: 0.39599999999999996
+        }
+      },
+      {
+        id: "mix1",
+        typeId: "Mixer4",
+        params: {
+          ...createDefaultParamsForType("Mixer4"),
+          gain1: 0.472,
+          gain2: 0.4044,
+          gain3: 0.42,
+          gain4: 1
+        }
+      },
+      {
+        id: "env_filter",
+        typeId: "ADSR",
+        params: {
+          ...createDefaultParamsForType("ADSR"),
+          attack: 35,
+          decay: 280,
+          sustain: 0.6032,
+          release: 325.6,
+          curve: -0.83,
+          mode: "retrigger_from_current"
+        }
+      },
+      {
+        id: "sat1",
+        typeId: "Saturation",
+        params: {
+          ...createDefaultParamsForType("Saturation"),
+          driveDb: 4.5,
+          mix: 0.18,
+          type: "tanh"
+        }
+      },
+      {
+        id: "node_mp2tokon_qd6rm6",
+        typeId: "CVScaler",
+        params: {
+          ...createDefaultParamsForType("CVScaler"),
+          scale: 0.013600000000000001
+        }
+      },
+      {
+        id: "lfo_pwm",
+        typeId: "LFO",
+        params: {
+          ...createDefaultParamsForType("LFO"),
+          wave: "triangle",
+          freqHz: 5.84854,
+          pulseWidth: 0.4424,
+          bipolar: true
+        }
+      },
+      {
+        id: "node_mp31mwi7_wzy0gy",
+        typeId: "CVScaler",
+        params: {
+          ...createDefaultParamsForType("CVScaler"),
+          scale: 0.3984
+        }
+      },
+      {
+        id: "node_mp3hnqig_8x3z7h",
+        typeId: "Noise",
+        params: {
+          ...createDefaultParamsForType("Noise"),
+          color: "pink",
+          gain: 0.9736
+        }
+      }
     ],
-    ports: [createPatchOutputPort()],
+    ports: [createPatchOutputPort({ gainDb: -6, limiter: true })],
     connections: [
-      { id: "c1", from: { nodeId: noteCore.pitch, portId: "out" }, to: { nodeId: vco, portId: "pitch" } },
-      { id: "c2", from: { nodeId: noteCore.gate, portId: "out" }, to: { nodeId: env, portId: "gate" } },
-      { id: "c3", from: { nodeId: lfo, portId: "out" }, to: { nodeId: vco, portId: "fm" } },
-      { id: "c4", from: { nodeId: vco, portId: "out" }, to: { nodeId: vcf, portId: "in" } },
-      { id: "c5", from: { nodeId: env, portId: "out" }, to: { nodeId: vcf, portId: "cutoffCV" } },
-      { id: "c6", from: { nodeId: vcf, portId: "out" }, to: { nodeId: vca, portId: "in" } },
-      { id: "c7", from: { nodeId: env, portId: "out" }, to: { nodeId: vca, portId: "gainCV" } },
-      { id: "c8", from: { nodeId: vca, portId: "out" }, to: { nodeId: out, portId: "in" } }
+      {
+        id: "c1",
+        from: {
+          nodeId: "$host.pitch",
+          portId: "out"
+        },
+        to: {
+          nodeId: "vco1",
+          portId: "pitch"
+        }
+      },
+      {
+        id: "c2",
+        from: {
+          nodeId: "$host.gate",
+          portId: "out"
+        },
+        to: {
+          nodeId: "env1",
+          portId: "gate"
+        }
+      },
+      {
+        id: "c7",
+        from: {
+          nodeId: "env1",
+          portId: "out"
+        },
+        to: {
+          nodeId: "vca1",
+          portId: "gainCV"
+        }
+      },
+      {
+        id: "c_pitch_down",
+        from: {
+          nodeId: "$host.pitch",
+          portId: "out"
+        },
+        to: {
+          nodeId: "transpose_down",
+          portId: "in"
+        }
+      },
+      {
+        id: "c_down_to_vco2",
+        from: {
+          nodeId: "transpose_down",
+          portId: "out"
+        },
+        to: {
+          nodeId: "vco2",
+          portId: "pitch"
+        }
+      },
+      {
+        id: "c_vco1_mix",
+        from: {
+          nodeId: "vco1",
+          portId: "out"
+        },
+        to: {
+          nodeId: "mix1",
+          portId: "in1"
+        }
+      },
+      {
+        id: "c_vco2_mix",
+        from: {
+          nodeId: "vco2",
+          portId: "out"
+        },
+        to: {
+          nodeId: "mix1",
+          portId: "in2"
+        }
+      },
+      {
+        id: "c_gate_filter_env",
+        from: {
+          nodeId: "$host.gate",
+          portId: "out"
+        },
+        to: {
+          nodeId: "env_filter",
+          portId: "gate"
+        }
+      },
+      {
+        id: "c_filter_env_cutoff",
+        from: {
+          nodeId: "env_filter",
+          portId: "out"
+        },
+        to: {
+          nodeId: "vcf1",
+          portId: "cutoffCV"
+        }
+      },
+      {
+        id: "c_sat_output",
+        from: {
+          nodeId: "sat1",
+          portId: "out"
+        },
+        to: {
+          nodeId: "output",
+          portId: "in"
+        }
+      },
+      {
+        id: "conn_mp2too3l_j8qopa",
+        from: {
+          nodeId: "lfo1",
+          portId: "out"
+        },
+        to: {
+          nodeId: "node_mp2tokon_qd6rm6",
+          portId: "in"
+        }
+      },
+      {
+        id: "conn_mp2topbf_0ng7f5",
+        from: {
+          nodeId: "node_mp2tokon_qd6rm6",
+          portId: "out"
+        },
+        to: {
+          nodeId: "vco1",
+          portId: "fm"
+        }
+      },
+      {
+        id: "conn_mp31nb61_sjl8st",
+        from: {
+          nodeId: "lfo_pwm",
+          portId: "out"
+        },
+        to: {
+          nodeId: "node_mp31mwi7_wzy0gy",
+          portId: "in"
+        }
+      },
+      {
+        id: "conn_mp31p5u2_1qhs5a",
+        from: {
+          nodeId: "node_mp31mwi7_wzy0gy",
+          portId: "out"
+        },
+        to: {
+          nodeId: "vco2",
+          portId: "pwm"
+        }
+      },
+      {
+        id: "conn_mp31pa3c_3vd0p0",
+        from: {
+          nodeId: "node_mp2tokon_qd6rm6",
+          portId: "out"
+        },
+        to: {
+          nodeId: "vco2",
+          portId: "fm"
+        }
+      },
+      {
+        id: "conn_mp3gubbw_auyuqj",
+        from: {
+          nodeId: "mix1",
+          portId: "out"
+        },
+        to: {
+          nodeId: "vca1",
+          portId: "in"
+        }
+      },
+      {
+        id: "conn_mp3gug8z_5ap551",
+        from: {
+          nodeId: "vca1",
+          portId: "out"
+        },
+        to: {
+          nodeId: "vcf1",
+          portId: "in"
+        }
+      },
+      {
+        id: "conn_mp3guhvj_hj0xte",
+        from: {
+          nodeId: "vcf1",
+          portId: "out"
+        },
+        to: {
+          nodeId: "sat1",
+          portId: "in"
+        }
+      },
+      {
+        id: "conn_mp3hntcz_oomj8s",
+        from: {
+          nodeId: "node_mp3hnqig_8x3z7h",
+          portId: "out"
+        },
+        to: {
+          nodeId: "mix1",
+          portId: "in3"
+        }
+      }
     ],
     ui: {
       macros: [
         {
+          id: "macro_vibrato_depth",
+          name: "Vibrato",
+          keyframeCount: 2,
+          defaultNormalized: 0.5,
+          bindings: [
+            {
+              id: "macro_vibrato_depth:node_mp2tokon_qd6rm6:scale",
+              nodeId: "node_mp2tokon_qd6rm6",
+              paramId: "scale",
+              map: "linear",
+              min: 0,
+              max: 0.05
+            }
+          ]
+        },
+        {
           id: "macro_bite",
           name: "Bite",
-          keyframeCount: 2,
-          defaultNormalized: 0.18,
-          bindings: [{ id: "b1", nodeId: vcf, paramId: "resonance", map: "linear", min: 0.95, max: 0.1 }]
+          keyframeCount: 3,
+          bindings: [
+            {
+              id: "macro_bite:vcf1:cutoffHz",
+              nodeId: "vcf1",
+              paramId: "cutoffHz",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 180
+                },
+                {
+                  x: 0.5,
+                  y: 360
+                },
+                {
+                  x: 1,
+                  y: 1350
+                }
+              ]
+            },
+            {
+              id: "macro_bite:vcf1:cutoffModAmountOct",
+              nodeId: "vcf1",
+              paramId: "cutoffModAmountOct",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 2.4
+                },
+                {
+                  x: 0.5,
+                  y: 3.5
+                },
+                {
+                  x: 1,
+                  y: 4.8
+                }
+              ]
+            },
+            {
+              id: "macro_bite:vcf1:resonance",
+              nodeId: "vcf1",
+              paramId: "resonance",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 0.32
+                },
+                {
+                  x: 0.5,
+                  y: 0.45
+                },
+                {
+                  x: 1,
+                  y: 0.64
+                }
+              ]
+            },
+            {
+              id: "macro_bite:sat1:driveDb",
+              nodeId: "sat1",
+              paramId: "driveDb",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 1.5
+                },
+                {
+                  x: 0.5,
+                  y: 4.5
+                },
+                {
+                  x: 1,
+                  y: 20.976
+                }
+              ]
+            },
+            {
+              id: "macro_bite:sat1:mix",
+              nodeId: "sat1",
+              paramId: "mix",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 0.08
+                },
+                {
+                  x: 0.5,
+                  y: 0.18
+                },
+                {
+                  x: 1,
+                  y: 0.682
+                }
+              ]
+            },
+            {
+              id: "macro_bite:mix1:gain3",
+              nodeId: "mix1",
+              paramId: "gain3",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 0.18
+                },
+                {
+                  x: 0.5,
+                  y: 0.42
+                },
+                {
+                  x: 1,
+                  y: 0.614
+                }
+              ]
+            },
+            {
+              id: "macro_bite:env_filter:attack",
+              nodeId: "env_filter",
+              paramId: "attack",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 55
+                },
+                {
+                  x: 0.5,
+                  y: 35
+                },
+                {
+                  x: 1,
+                  y: 18
+                }
+              ]
+            },
+            {
+              id: "macro_bite:env_filter:decay",
+              nodeId: "env_filter",
+              paramId: "decay",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 360
+                },
+                {
+                  x: 0.5,
+                  y: 280
+                },
+                {
+                  x: 1,
+                  y: 190
+                }
+              ]
+            }
+          ]
+        },
+        {
+          id: "macro_square_pwm",
+          name: "Flare-out",
+          keyframeCount: 3,
+          bindings: [
+            {
+              id: "macro_square_pwm:vco2:pwmAmount",
+              nodeId: "vco2",
+              paramId: "pwmAmount",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 0.04
+                },
+                {
+                  x: 0.5,
+                  y: 0.22
+                },
+                {
+                  x: 1,
+                  y: 0.42
+                }
+              ]
+            },
+            {
+              id: "macro_square_pwm:node_mp31mwi7_wzy0gy:scale",
+              nodeId: "node_mp31mwi7_wzy0gy",
+              paramId: "scale",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 0.08
+                },
+                {
+                  x: 0.5,
+                  y: 0.24
+                },
+                {
+                  x: 1,
+                  y: 0.42
+                }
+              ]
+            },
+            {
+              id: "macro_square_pwm:mix1:gain2",
+              nodeId: "mix1",
+              paramId: "gain2",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 0.18
+                },
+                {
+                  x: 0.5,
+                  y: 0.29
+                },
+                {
+                  x: 1,
+                  y: 0.42
+                }
+              ]
+            },
+            {
+              id: "macro_square_pwm:vco2:pulseWidth",
+              nodeId: "vco2",
+              paramId: "pulseWidth",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 0.5
+                },
+                {
+                  x: 0.5,
+                  y: 0.42
+                },
+                {
+                  x: 1,
+                  y: 0.33
+                }
+              ]
+            },
+            {
+              id: "macro_square_pwm:vco2:fineTuneCents",
+              nodeId: "vco2",
+              paramId: "fineTuneCents",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 1
+                },
+                {
+                  x: 0.5,
+                  y: 5
+                },
+                {
+                  x: 1,
+                  y: 9
+                }
+              ]
+            },
+            {
+              id: "macro_square_pwm:node_mp3hnqig_8x3z7h:gain",
+              nodeId: "node_mp3hnqig_8x3z7h",
+              paramId: "gain",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 0.45
+                },
+                {
+                  x: 0.5,
+                  y: 0.78
+                },
+                {
+                  x: 1,
+                  y: 1
+                }
+              ]
+            },
+            {
+              id: "macro_square_pwm:env_filter:sustain",
+              nodeId: "env_filter",
+              paramId: "sustain",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 0.38
+                },
+                {
+                  x: 0.5,
+                  y: 0.48
+                },
+                {
+                  x: 1,
+                  y: 0.62
+                }
+              ]
+            },
+            {
+              id: "macro_square_pwm:env_filter:release",
+              nodeId: "env_filter",
+              paramId: "release",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 150
+                },
+                {
+                  x: 0.5,
+                  y: 220
+                },
+                {
+                  x: 1,
+                  y: 340
+                }
+              ]
+            }
+          ]
         }
-      ]
+      ],
+      paramRanges: {
+        "node_mp2tokon_qd6rm6:scale": {
+          min: 0,
+          max: 0.05
+        },
+        "node_mp31mwi7_wzy0gy:scale": {
+          min: 0,
+          max: 0.5
+        }
+      },
+      canvasZoom: 0.5929675958934063
     },
     layout: {
       nodes: [
-        { nodeId: vco, x: 2, y: 4 },
-        { nodeId: lfo, x: 2, y: 9 },
-        { nodeId: env, x: 7, y: 9 },
-        { nodeId: vcf, x: 7, y: 4 },
-        { nodeId: vca, x: 12, y: 4 }
+        {
+          nodeId: "vco1",
+          x: 28,
+          y: 2
+        },
+        {
+          nodeId: "lfo1",
+          x: 4,
+          y: 2
+        },
+        {
+          nodeId: "env1",
+          x: 40,
+          y: 16
+        },
+        {
+          nodeId: "vcf1",
+          x: 64,
+          y: 9
+        },
+        {
+          nodeId: "vca1",
+          x: 52,
+          y: 9
+        },
+        {
+          nodeId: "transpose_down",
+          x: 16,
+          y: 9
+        },
+        {
+          nodeId: "vco2",
+          x: 28,
+          y: 9
+        },
+        {
+          nodeId: "mix1",
+          x: 40,
+          y: 9
+        },
+        {
+          nodeId: "env_filter",
+          x: 52,
+          y: 16
+        },
+        {
+          nodeId: "sat1",
+          x: 76,
+          y: 9
+        },
+        {
+          nodeId: "node_mp2tokon_qd6rm6",
+          x: 16,
+          y: 2
+        },
+        {
+          nodeId: "lfo_pwm",
+          x: 4,
+          y: 16
+        },
+        {
+          nodeId: "node_mp31mwi7_wzy0gy",
+          x: 16,
+          y: 16
+        },
+        {
+          nodeId: "node_mp3hnqig_8x3z7h",
+          x: 28,
+          y: 17
+        }
       ]
     }
   };

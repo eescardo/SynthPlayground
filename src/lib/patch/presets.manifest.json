@@ -20,10 +20,12 @@
   },
   {
     "presetId": "preset_brass",
-    "presetVersion": 4,
+    "presetVersion": 5,
     "name": "Brass-ish",
     "macroIds": [
-      "macro_bite"
+      "macro_vibrato_depth",
+      "macro_bite",
+      "macro_square_pwm"
     ]
   },
   {
