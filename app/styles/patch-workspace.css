@@ -323,6 +323,7 @@
 .patch-workspace-tab.active {
   color: var(--text);
   border-color: rgba(131, 173, 216, 0.28);
+  border-bottom-color: rgba(18, 30, 44, 0.96);
   background: rgba(18, 30, 44, 0.96);
 }
 
