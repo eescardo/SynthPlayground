@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
-  background: rgba(9, 17, 26, 0.92);
+  background: var(--patch-editor-surface, rgba(9, 17, 26, 0.92));
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 0.8rem;
@@ -203,6 +203,9 @@
 }
 
 .patch-workspace-shell {
+  --patch-editor-surface: rgba(9, 17, 26, 0.92);
+  --patch-tab-inactive-surface: rgba(8, 14, 22, 0.72);
+
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
@@ -298,10 +301,10 @@
   min-width: 0;
   max-width: 14rem;
   padding: 0.35rem 1.15rem 0.4rem 0.65rem;
-  border: 1px solid rgba(131, 173, 216, 0.14);
+  border: 1px solid rgba(131, 173, 216, 0.1);
   border-radius: 10px 10px 0 0;
-  background: rgba(12, 20, 30, 0.82);
-  color: var(--muted);
+  background: var(--patch-tab-inactive-surface);
+  color: rgba(188, 204, 220, 0.72);
   cursor: pointer;
 }
 
@@ -323,8 +326,8 @@
 .patch-workspace-tab.active {
   color: var(--text);
   border-color: rgba(131, 173, 216, 0.28);
-  border-bottom-color: rgba(18, 30, 44, 0.96);
-  background: rgba(18, 30, 44, 0.96);
+  border-bottom-color: var(--patch-editor-surface);
+  background: var(--patch-editor-surface);
 }
 
 .patch-workspace-tab-name {
