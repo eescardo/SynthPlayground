@@ -361,7 +361,12 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
           coalesce: op.type === "moveNode" || op.type === "setCanvasZoom"
         }
       );
-      updateActiveTab((tab) => ({ ...tab, migrationNotice: null }));
+      updateActiveTab((tab) => ({
+        ...tab,
+        selectedNodeId:
+          op.type === "renameNode" && tab.selectedNodeId === op.nodeId ? op.newNodeId : tab.selectedNodeId,
+        migrationNotice: null
+      }));
       if (isAudiblePatchOp(op)) {
         schedulePatchPreview(selectedPatch.id, undefined, activePreviewMacroValues);
       }

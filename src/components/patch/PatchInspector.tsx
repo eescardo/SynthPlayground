@@ -1,4 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { useInlineRename } from "@/hooks/useInlineRename";
+import { useRenameActivation } from "@/hooks/useRenameActivation";
 import { resolveMacroKeyframeIndexAtValue } from "@/lib/patch/macroKeyframes";
 import { PatchModuleParameter, shouldRenderParamInGenericInspector } from "@/components/patch/PatchModuleParameter";
 import { SamplePlayerInspectorSection } from "@/components/patch/SamplePlayerInspectorSection";
@@ -59,6 +61,66 @@ function CompressorDerivedReadouts({ node }: { node: PatchNode }) {
 interface PatchInspectorProps {
   model: PatchInspectorModel;
   actions: PatchInspectorActions;
+}
+
+interface ModuleHeadingProps {
+  node: PatchNode;
+  structureLocked?: boolean;
+  onRenameNode: (nodeId: string, newNodeId: string) => void;
+}
+
+function ModuleHeading(props: ModuleHeadingProps) {
+  const rename = useInlineRename({
+    value: props.node.id,
+    onCommit: (newNodeId) => props.onRenameNode(props.node.id, newNodeId)
+  });
+  const renameActivation = useRenameActivation<string>();
+  const startRename = useCallback(() => {
+    rename.setEditing(true);
+  }, [rename]);
+
+  return (
+    <h4 className="patch-inspector-module-heading">
+      <span>{props.node.typeId}</span>
+      {rename.editing ? (
+        <input
+          className="patch-inspector-module-name-input"
+          aria-label="Module id"
+          autoFocus
+          size={Math.max(1, rename.draft.length)}
+          value={rename.draft}
+          onBlur={rename.commit}
+          onChange={(event) => rename.setDraft(event.target.value)}
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              rename.commit();
+            } else if (event.key === "Escape") {
+              event.preventDefault();
+              rename.cancel();
+            }
+            event.stopPropagation();
+          }}
+        />
+      ) : (
+        <small
+          className={`patch-inspector-module-name${renameActivation.isArmed(props.node.id) ? " rename-armed" : ""}`}
+          role="button"
+          tabIndex={props.structureLocked ? -1 : 0}
+          aria-label={`Rename module ${props.node.id}`}
+          aria-disabled={props.structureLocked ? true : undefined}
+          {...renameActivation.getRenameTriggerProps({
+            id: props.node.id,
+            enabled: !props.structureLocked,
+            onStartRename: startRename
+          })}
+        >
+          {props.node.id}
+        </small>
+      )}
+    </h4>
+  );
 }
 
 function resolveIssuesForNode(nodeId: string, issues: PatchValidationIssue[]) {
@@ -138,15 +200,15 @@ export function PatchInspector(props: PatchInspectorProps) {
 
       {selectedNode && model.selectedSchema && (
         <>
-          <h4>
-            {selectedPort ? (
-              formatPatchPortLabel(model.patch, selectedPort)
-            ) : (
-              <>
-                {selectedNode.typeId} <small>{selectedNode.id}</small>
-              </>
-            )}
-          </h4>
+          {selectedPort ? (
+            <h4>{formatPatchPortLabel(model.patch, selectedPort)}</h4>
+          ) : (
+            <ModuleHeading
+              node={selectedNode}
+              structureLocked={model.structureLocked}
+              onRenameNode={(nodeId, newNodeId) => actions.onApplyOp({ type: "renameNode", nodeId, newNodeId })}
+            />
+          )}
           {model.selectedSchema.params
             .filter((param) => shouldRenderParamInGenericInspector(selectedNode, param))
             .map((param) => (
