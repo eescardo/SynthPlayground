@@ -1,7 +1,7 @@
 "use client";
 
 import type { Dispatch, RefObject, SetStateAction } from "react";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { AudioEngine } from "@/audio/engine";
 import { PatchRemovalDialogState } from "@/components/composer/PatchRemovalDialogModal";
@@ -91,6 +91,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     commitProjectChange
   });
   const { tabMacroValuesById, setTabMacroValuesById } = usePatchWorkspaceTabMacroSession(tabs.map((tab) => tab.id));
+  const [patchEditError, setPatchEditError] = useState<string | null>(null);
 
   const selectedPatch = useMemo(
     () =>
@@ -185,6 +186,10 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   useEffect(() => {
     setPreviewCaptureByProbeId(latestPreviewCaptureByProbeId);
   }, [latestPreviewCaptureByProbeId, setPreviewCaptureByProbeId]);
+
+  useEffect(() => {
+    setPatchEditError(null);
+  }, [selectedPatch?.id]);
 
   const setSkipWorkspaceHistory = useCallback(
     (skipHistory: boolean) => {
@@ -338,11 +343,12 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
       try {
         nextPatch = applyPatchGraphOp(selectedPatch, op);
       } catch (error) {
-        setRuntimeError((error as Error).message);
+        setPatchEditError((error as Error).message);
         return;
       }
 
       validatePatch(nextPatch);
+      setPatchEditError(null);
 
       commitProjectChange(
         (current) => ({
@@ -361,19 +367,17 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
           coalesce: op.type === "moveNode" || op.type === "setCanvasZoom"
         }
       );
-      updateActiveTab((tab) => ({ ...tab, migrationNotice: null }));
+      updateActiveTab((tab) => ({
+        ...tab,
+        selectedNodeId:
+          op.type === "renameNode" && tab.selectedNodeId === op.nodeId ? op.newNodeId : tab.selectedNodeId,
+        migrationNotice: null
+      }));
       if (isAudiblePatchOp(op)) {
         schedulePatchPreview(selectedPatch.id, undefined, activePreviewMacroValues);
       }
     },
-    [
-      activePreviewMacroValues,
-      commitProjectChange,
-      schedulePatchPreview,
-      selectedPatch,
-      setRuntimeError,
-      updateActiveTab
-    ]
+    [activePreviewMacroValues, commitProjectChange, schedulePatchPreview, selectedPatch, updateActiveTab]
   );
 
   const macroActions = usePatchWorkspaceMacroActions({
@@ -439,6 +443,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     previewPitchPickerOpen,
     setPreviewPitchPickerOpen,
     migrationNotice,
+    patchEditError,
     patchDiff,
     validationIssues,
     selectedPatchHasErrors,

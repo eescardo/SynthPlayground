@@ -43,6 +43,38 @@ describe("patch ops", () => {
     ]);
   });
 
+  it("renames a node across graph references and UI bindings", () => {
+    const patch = pluckPatch();
+    patch.ui.paramRanges = {
+      "vcf1:cutoffHz": { min: 100, max: 5000 }
+    };
+
+    const nextPatch = applyPatchOp(patch, {
+      type: "renameNode",
+      nodeId: "vcf1",
+      newNodeId: "soft_beater_halo"
+    });
+
+    expect(nextPatch.nodes.some((node) => node.id === "vcf1")).toBe(false);
+    expect(nextPatch.nodes.some((node) => node.id === "soft_beater_halo")).toBe(true);
+    expect(
+      nextPatch.connections.some(
+        (connection) => connection.from.nodeId === "soft_beater_halo" || connection.to.nodeId === "soft_beater_halo"
+      )
+    ).toBe(true);
+    expect(nextPatch.layout.nodes.some((node) => node.nodeId === "soft_beater_halo")).toBe(true);
+    expect(nextPatch.ui.paramRanges?.["soft_beater_halo:cutoffHz"]).toEqual({ min: 100, max: 5000 });
+    expect(nextPatch.ui.paramRanges?.["vcf1:cutoffHz"]).toBeUndefined();
+    expect(
+      nextPatch.ui.macros.some((macro) =>
+        macro.bindings.some(
+          (binding) =>
+            binding.nodeId === "soft_beater_halo" && binding.id === `${macro.id}:soft_beater_halo:${binding.paramId}`
+        )
+      )
+    ).toBe(true);
+  });
+
   it("applies macro slider moves to bound params without mutating defaults", () => {
     const patch = pluckPatch();
     const macro = patch.ui.macros[0];

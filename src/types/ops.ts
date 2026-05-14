@@ -12,6 +12,11 @@ export type PatchOp =
       nodeId: string;
     }
   | {
+      type: "renameNode";
+      nodeId: string;
+      newNodeId: string;
+    }
+  | {
       type: "moveNode";
       nodeId: string;
       newLayoutPos: { x: number; y: number };

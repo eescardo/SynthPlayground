@@ -1506,6 +1506,45 @@
   margin: 0.36rem 0 0.28rem;
 }
 
+.patch-inspector-module-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 0.38rem;
+  min-width: 0;
+}
+
+.patch-inspector-module-name,
+.patch-inspector-module-name-input {
+  min-width: 3.4rem;
+  max-width: 9rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(215, 235, 255, 0.7);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.1;
+}
+
+.patch-inspector-module-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patch-inspector-module-name.rename-armed {
+  color: #d7ebff;
+  text-decoration: underline dotted rgba(167, 204, 240, 0.75);
+  cursor: text;
+}
+
+.patch-inspector-module-name-input {
+  padding: 0.04rem 0.12rem;
+  border-color: rgba(167, 204, 240, 0.36);
+  border-radius: 0.3rem;
+  background: rgba(16, 24, 32, 0.94);
+}
+
 .param-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

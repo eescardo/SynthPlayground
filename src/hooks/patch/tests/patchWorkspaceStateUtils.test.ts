@@ -65,6 +65,7 @@ describe("patchWorkspaceStateUtils", () => {
 
   it("treats structural and graph changes as audible but ignores layout-only operations", () => {
     expect(isAudiblePatchOp({ type: "moveNode", nodeId: "node_1", newLayoutPos: { x: 10, y: 20 } })).toBe(false);
+    expect(isAudiblePatchOp({ type: "renameNode", nodeId: "node_1", newNodeId: "node_renamed" })).toBe(false);
     expect(isAudiblePatchOp({ type: "setCanvasZoom", zoom: 1.1 })).toBe(false);
     expect(isAudiblePatchOp({ type: "renameMacro", macroId: "macro_1", name: "Shape" })).toBe(false);
     expect(

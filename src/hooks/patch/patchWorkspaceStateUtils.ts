@@ -35,6 +35,7 @@ export const isShortcutBlockedTarget = (target: EventTarget | null) => {
 
 export const isAudiblePatchOp = (op: PatchOp): boolean =>
   op.type !== "moveNode" &&
+  op.type !== "renameNode" &&
   op.type !== "setNodeLayout" &&
   op.type !== "setCanvasZoom" &&
   op.type !== "setParams" &&

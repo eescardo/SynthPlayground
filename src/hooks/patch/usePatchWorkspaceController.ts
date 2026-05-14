@@ -226,6 +226,7 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
     macroValues: patchWorkspace.workspaceMacroValues,
     previewPitch: patchWorkspace.previewPitch,
     migrationNotice: patchWorkspace.migrationNotice,
+    patchEditError: patchWorkspace.patchEditError,
     selectedNodeId: patchWorkspace.selectedNodeId,
     selectedMacroId: patchWorkspace.selectedMacroId,
     validationIssues,
