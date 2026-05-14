@@ -1,6 +1,7 @@
 import { expect, Page } from "@playwright/test";
 import {
   createMicrotonalCaptureProject,
+  createPresetUpdateCaptureProject,
   openApp,
   openSeededApp,
   savePageScreenshot,
@@ -94,6 +95,15 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
       await openApp(page);
       await page.getByRole("button", { name: /Help/ }).click();
       await expect(page.getByRole("heading", { name: "Quick Help" })).toBeVisible();
+      await savePageScreenshot(page, outputPath);
+    }
+  },
+  [SCREENSHOT_SCENARIO.PRESET_UPDATE_MODAL]: {
+    name: SCREENSHOT_SCENARIO.PRESET_UPDATE_MODAL,
+    description: "Preset update modal open over the main view",
+    capture: async (page, outputPath) => {
+      await openSeededApp(page, createPresetUpdateCaptureProject());
+      await expect(page.getByRole("heading", { name: "Update Presets?" })).toBeVisible();
       await savePageScreenshot(page, outputPath);
     }
   },

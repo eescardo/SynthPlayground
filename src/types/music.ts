@@ -97,6 +97,7 @@ export interface PatchWorkspaceUiState {
 
 export interface ProjectUiState {
   patchWorkspace: PatchWorkspaceUiState;
+  dismissedPresetUpdateKey?: string;
 }
 
 export interface ProjectGlobalCarrier {

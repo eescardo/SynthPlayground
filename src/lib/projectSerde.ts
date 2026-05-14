@@ -344,7 +344,9 @@ export const normalizeProject = (raw: unknown): Project => {
           ? activeTabId
           : normalizedPatchWorkspaceTabs[0].id,
         tabs: normalizedPatchWorkspaceTabs
-      }
+      },
+      dismissedPresetUpdateKey:
+        typeof uiRaw.dismissedPresetUpdateKey === "string" ? uiRaw.dismissedPresetUpdateKey : undefined
     },
     createdAt: asFiniteNumber(raw.createdAt, now),
     updatedAt: asFiniteNumber(raw.updatedAt, now)

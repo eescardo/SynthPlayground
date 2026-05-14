@@ -91,10 +91,12 @@ describe("projectSerde", () => {
       macro_cutoff: 0.23,
       macro_decay: 0.41
     };
+    project.ui.dismissedPresetUpdateKey = "preset_bass@15";
 
     const roundTrip = importProjectFromJson(exportProjectToJson(project));
 
     expect(roundTrip.tracks[0].macroValues).toEqual(project.tracks[0].macroValues);
+    expect(roundTrip.ui.dismissedPresetUpdateKey).toBe("preset_bass@15");
     const presetPatch = roundTrip.patches.find((patch) => patch.id === "preset_bass");
     expect(presetPatch).toBeDefined();
     if (!presetPatch) {

@@ -152,6 +152,10 @@ kbd {
   width: min(440px, 100%);
 }
 
+.preset-update-modal {
+  width: min(420px, 100%);
+}
+
 .explode-selection-form {
   display: grid;
   gap: 0.9rem;
