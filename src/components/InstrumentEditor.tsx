@@ -33,6 +33,7 @@ export function InstrumentEditor(props: InstrumentEditorProps) {
       <InstrumentToolbar patch={patch} invalid={invalid} />
 
       {model.migrationNotice && <p className="warn">{model.migrationNotice}</p>}
+      {model.patchEditError && <p className="error">{model.patchEditError}</p>}
       {invalid && (
         <p className="error">
           This instrument patch is invalid. Track playback may fail until you update the preset or fix the conflicting

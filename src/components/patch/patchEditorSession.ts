@@ -21,6 +21,7 @@ export interface PatchEditorSessionModel {
   validationIssues: PatchValidationIssue[];
   invalid?: boolean;
   migrationNotice?: string | null;
+  patchEditError?: string | null;
   structureLocked?: boolean;
 }
 
