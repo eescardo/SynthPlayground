@@ -48,10 +48,10 @@ export function usePatchWorkspaceQuickHelpDialog() {
   );
   const generalGuidanceItems = useMemo(
     () => [
-      "Macro selections are sticky. Click a macro to keep it selected, press Esc or use Clear to drop it.",
+      "Macro selections are sticky. Click a macro to keep it selected, press Esc or use the Macro panel's Clear button to drop it.",
       "In custom patches, macro-bound parameters unlock only when the selected macro slider is parked on a keyframe notch.",
       "Selecting a macro outlines every participating module in amber so you can see its footprint across the patch.",
-      "Click either an input or output port to start wiring.",
+      "Select either an input or output port to start wiring.",
       "Red ports are required connections that are still missing."
     ],
     []

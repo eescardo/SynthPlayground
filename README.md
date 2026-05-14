@@ -11,7 +11,7 @@ Browser-based music synthesis + composition MVP built with Next.js, TypeScript, 
 - Patch param inspector + macro exposure/binding
 - Patch validation (typed ports, single-input checks, cycle checks, output checks)
 - Patch transform ops with undo/redo history
-- Preset instrument patches (Bass, Brass-ish, Simple Piano-ish, Pad, Pluck, Drum-ish)
+- Preset instrument patches (Bass, Brass-ish, Piano-ish, Pad, Guitar String, Drum, Bass Drum)
 - Lookahead scheduler feeding AudioWorklet events
 - AudioWorklet synth runtime with per-track polyphony/voice stealing and track/master FX
 - IndexedDB persistence (`idb`) + Export/Import project JSON

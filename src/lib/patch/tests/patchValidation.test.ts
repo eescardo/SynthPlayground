@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { bassPatch, createClearPatch, drumPatch, pluckPatch, presetPatches } from "@/lib/patch/presets";
+import { bassPatch, createClearPatch, drumPatch, guitarStringPatch, presetPatches } from "@/lib/patch/presets";
 import { moduleRegistryById } from "@/lib/patch/moduleRegistry";
 import { getPatchBoundaryPorts } from "@/lib/patch/ports";
 import { validatePatch, validatePatchConnectionCandidate } from "@/lib/patch/validation";
@@ -14,7 +14,7 @@ function findIssue(patch: Patch, code: string, nodeId: string, portId: string) {
 
 describe("patch validation", () => {
   it("rejects conflicting macro bindings across different macros", () => {
-    const patch = pluckPatch();
+    const patch = guitarStringPatch();
     patch.ui.macros.push({
       id: "macro_conflict",
       name: "Conflict",
@@ -40,11 +40,12 @@ describe("patch validation", () => {
   });
 
   it("rejects duplicate bindings to the same parameter within one macro", () => {
-    const patch = pluckPatch();
+    const patch = guitarStringPatch();
+    const duplicateTarget = patch.ui.macros[0].bindings[0];
     patch.ui.macros[0].bindings.push({
       id: "dup_binding",
-      nodeId: "vcf1",
-      paramId: "cutoffHz",
+      nodeId: duplicateTarget.nodeId,
+      paramId: duplicateTarget.paramId,
       map: "linear",
       min: 100,
       max: 500
@@ -59,7 +60,7 @@ describe("patch validation", () => {
   });
 
   it("reports stale macro bindings with the macro and target names", () => {
-    const patch = pluckPatch();
+    const patch = guitarStringPatch();
     patch.ui.macros[0] = {
       ...patch.ui.macros[0],
       name: "Drive",
@@ -110,7 +111,7 @@ describe("patch validation", () => {
   });
 
   it("rejects bindings whose keyframe count differs from the macro", () => {
-    const patch = pluckPatch();
+    const patch = guitarStringPatch();
     patch.ui.macros[0].keyframeCount = 2;
     patch.ui.macros[0].bindings[0] = {
       ...patch.ui.macros[0].bindings[0],
@@ -128,8 +129,8 @@ describe("patch validation", () => {
     expect(result.issues.some((issue) => issue.message.includes("keyframe count"))).toBe(true);
   });
 
-  it("accepts bundled pluck preset with non-overlapping macro targets", () => {
-    const patch: Patch = pluckPatch();
+  it("accepts bundled guitar string preset with non-overlapping macro targets", () => {
+    const patch: Patch = guitarStringPatch();
 
     const result = validatePatch(patch);
 

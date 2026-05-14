@@ -5,6 +5,16 @@ import { validatePatch } from "@/lib/patch/validation";
 const errors: string[] = [];
 
 for (const patch of presetPatches) {
+  if (patch.layout.nodes.length > 0) {
+    errors.push(`Preset ${patch.id} should not include saved layout nodes; bundled presets are auto-laid out.`);
+  }
+  if (patch.ui.canvasZoom !== undefined) {
+    errors.push(`Preset ${patch.id} should not include saved canvas zoom; bundled presets use editor defaults.`);
+  }
+  if (patch.ui.paramRanges !== undefined) {
+    errors.push(`Preset ${patch.id} should not include saved parameter slider ranges; use module schema ranges.`);
+  }
+
   for (const macro of patch.ui.macros) {
     const bindingCounts = macro.bindings.map(getMacroBindingKeyframeCount);
     const maxBindingCount = Math.max(2, ...bindingCounts);
