@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import { drawPatchCanvas } from "@/components/patch/patchCanvasDrawing";
 import {
@@ -15,7 +15,8 @@ import {
   findPatchNodeAtPoint,
   findPatchPortAtPointWithPadding,
   HitPort,
-  pointerEventToPatchCanvasPoint
+  pointerEventToPatchCanvasPoint,
+  resolvePatchCanvasHitPorts
 } from "@/components/patch/patchCanvasGeometry";
 import { PATCH_CANVAS_GRID } from "@/components/patch/patchCanvasConstants";
 import { PatchDiff } from "@/lib/patch/diff";
@@ -84,13 +85,12 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
   const dragLastLayoutRef = useRef<{ x: number; y: number } | null>(null);
   const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
   const dragPointerIdRef = useRef<number | null>(null);
-  const hitPortsKeyRef = useRef("");
   const pointerDownNodeIdRef = useRef<string | null>(null);
   const pointerMovedRef = useRef(false);
   const [pendingProbePointer, setPendingProbePointer] = useState<{ x: number; y: number } | null>(null);
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [hitPorts, setHitPorts] = useState<HitPort[]>([]);
+  const hitPorts = useMemo(() => resolvePatchCanvasHitPorts(patch, layoutByNode), [layoutByNode, patch]);
   const {
     armedWireModuleHover,
     clearPendingConnection,
@@ -124,6 +124,10 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     makeConnectOp,
     onWireCommitFeedback
   });
+
+  useLayoutEffect(() => {
+    hitPortsRef.current = hitPorts;
+  }, [hitPorts]);
 
   const handlePortHover = useCallback(
     (hoverPort: HitPort | null, pointer: { x: number; y: number } | null) => {
@@ -203,7 +207,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     if (!canvas) {
       return;
     }
-    const nextHitPorts = drawPatchCanvas({
+    drawPatchCanvas({
       canvas,
       facePopoverNodeId,
       getFacePopoverRect,
@@ -236,14 +240,6 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
         }
       }
     });
-    hitPortsRef.current = nextHitPorts;
-    const nextHitPortsKey = nextHitPorts
-      .map((port) => `${port.nodeId}:${port.kind}:${port.portId}:${port.x}:${port.y}:${port.width}:${port.height}`)
-      .join("|");
-    if (hitPortsKeyRef.current !== nextHitPortsKey) {
-      hitPortsKeyRef.current = nextHitPortsKey;
-      setHitPorts(nextHitPorts);
-    }
   }, [
     canvasRef,
     facePopoverNodeId,

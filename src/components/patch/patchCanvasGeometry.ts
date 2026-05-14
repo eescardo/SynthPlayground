@@ -24,7 +24,7 @@ import {
 import { PointerEvent as ReactPointerEvent } from "react";
 import { clamp, clamp01 } from "@/lib/numeric";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { getPatchOutputPort } from "@/lib/patch/ports";
+import { getPatchOutputPort, isPatchOutputPortId } from "@/lib/patch/ports";
 import { HOST_PORT_IDS, SOURCE_HOST_PORT_IDS, SOURCE_HOST_PORT_TYPE_BY_ID } from "@/lib/patch/constants";
 import { Patch, PatchLayoutNode } from "@/types/patch";
 
@@ -133,6 +133,55 @@ export function resolvePatchNodePortLabelRect(
     anchorX: kind === "in" ? labelX : labelX + width,
     anchorY: y
   };
+}
+
+export function resolvePatchCanvasHitPorts(
+  patch: Pick<Patch, "nodes" | "ports">,
+  layoutByNode: Map<string, PatchLayoutNode>
+): HitPort[] {
+  const hitPorts: HitPort[] = [];
+
+  patch.nodes.forEach((node) => {
+    const schema = getModuleSchema(node.typeId);
+    if (!schema || isPatchOutputPortId(patch, node.id)) {
+      return;
+    }
+    const layout = layoutByNode.get(node.id);
+    if (!layout) {
+      return;
+    }
+
+    const x = layout.x * PATCH_CANVAS_GRID;
+    const y = layout.y * PATCH_CANVAS_GRID;
+
+    schema.portsIn.forEach((port, index) => {
+      const rect = resolvePatchNodePortLabelRect(port.id, "in", x, y, index);
+      hitPorts.push({
+        nodeId: node.id,
+        kind: "in",
+        portId: port.id,
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height
+      });
+    });
+
+    schema.portsOut.forEach((port, index) => {
+      const rect = resolvePatchNodePortLabelRect(port.id, "out", x, y, index);
+      hitPorts.push({
+        nodeId: node.id,
+        kind: "out",
+        portId: port.id,
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height
+      });
+    });
+  });
+
+  return hitPorts;
 }
 
 export function isHostSourcePatchPortId(nodeId: string) {
