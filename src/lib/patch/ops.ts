@@ -110,6 +110,58 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       return next;
     }
 
+    case "renameNode": {
+      if (op.nodeId === op.newNodeId) {
+        return next;
+      }
+      const node = next.nodes.find((entry) => entry.id === op.nodeId);
+      if (!node) {
+        throw new Error(`Unknown node in renameNode: ${op.nodeId}`);
+      }
+      if (next.nodes.some((entry) => entry.id === op.newNodeId)) {
+        throw new Error(`Node already exists: ${op.newNodeId}`);
+      }
+      if (RESERVED_PATCH_MODULE_IDS.has(op.newNodeId)) {
+        throw new Error(`Node id is reserved for a patch boundary port: ${op.newNodeId}`);
+      }
+
+      node.id = op.newNodeId;
+      for (const connection of next.connections) {
+        if (connection.from.nodeId === op.nodeId) {
+          connection.from.nodeId = op.newNodeId;
+        }
+        if (connection.to.nodeId === op.nodeId) {
+          connection.to.nodeId = op.newNodeId;
+        }
+      }
+      for (const layoutNode of next.layout.nodes) {
+        if (layoutNode.nodeId === op.nodeId) {
+          layoutNode.nodeId = op.newNodeId;
+        }
+      }
+      if (next.ui.paramRanges) {
+        next.ui.paramRanges = Object.fromEntries(
+          Object.entries(next.ui.paramRanges).map(([key, range]) => {
+            const [nodeId, paramId] = key.split(":");
+            return [nodeId === op.nodeId ? buildParamRangeKey(op.newNodeId, paramId) : key, range];
+          })
+        );
+      }
+      for (const macro of next.ui.macros) {
+        macro.bindings = macro.bindings.map((binding) => {
+          if (binding.nodeId !== op.nodeId) {
+            return binding;
+          }
+          return {
+            ...binding,
+            id: createMacroBindingId(macro.id, op.newNodeId, binding.paramId),
+            nodeId: op.newNodeId
+          };
+        });
+      }
+      return next;
+    }
+
     case "moveNode": {
       const idx = findLayoutNode(next, op.nodeId);
       if (idx === -1) {
