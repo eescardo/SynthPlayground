@@ -128,10 +128,6 @@ export const collectEventsInWindow = (
   const automationStepWindow = getAutomationStepWindow(project, window, cueBeat, timelineEndBeat);
 
   for (const track of project.tracks) {
-    if (track.mute) {
-      continue;
-    }
-
     const patch = project.patches.find((entry) => entry.id === track.instrumentPatchId);
     if (patch) {
       for (const macro of patch.ui.macros) {

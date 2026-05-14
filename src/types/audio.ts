@@ -43,6 +43,18 @@ export interface PreviewSynthStreamStartOptions extends BaseSynthStreamStartOpti
 
 export type SynthStreamStartOptions = TransportSynthStreamStartOptions | PreviewSynthStreamStartOptions;
 
+export type TransportCommand =
+  | {
+      type: "SetTrackMute";
+      trackId: string;
+      muted: boolean;
+    }
+  | {
+      type: "SetTrackVolume";
+      trackId: string;
+      normalized: number;
+    };
+
 // Scheduler/worklet message contracts and event payload types for audio transport.
 export type SchedulerEventType = "NoteOn" | "NoteOff" | "ParamChange" | "MacroChange";
 export type SchedulerEventSource = "timeline" | "live_input" | "preview" | "automation";
@@ -100,6 +112,12 @@ export interface WorkletSetProjectMessage {
 export interface WorkletEventsMessage {
   type: "EVENTS";
   events: SchedulerEvent[];
+  sessionId?: number;
+}
+
+export interface WorkletTransportCommandMessage {
+  type: "TRANSPORT_COMMAND";
+  command: TransportCommand;
   sessionId?: number;
 }
 
@@ -170,6 +188,7 @@ export type WorkletInboundMessage =
   | WorkletInitMessage
   | WorkletSetProjectMessage
   | WorkletEventsMessage
+  | WorkletTransportCommandMessage
   | WorkletMacroMessage
   | WorkletPreviewMessage
   | WorkletPreviewReleaseMessage

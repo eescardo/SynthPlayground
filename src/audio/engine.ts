@@ -30,6 +30,10 @@ export class AudioEngine {
     this.backend.setProject(project, options);
   }
 
+  setTrackMuted(trackId: string, muted: boolean, options?: { restoreVolume?: boolean }): void {
+    this.backend.setTrackMuted(trackId, muted, options);
+  }
+
   play(startBeat = 0): Promise<void> {
     return this.backend.play(startBeat);
   }

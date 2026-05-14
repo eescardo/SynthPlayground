@@ -482,6 +482,15 @@ impl EventSpec {
         }
     }
 
+    pub(crate) fn track_index(&self) -> usize {
+        match self {
+            EventSpec::NoteOn { track_index, .. }
+            | EventSpec::NoteOff { track_index, .. }
+            | EventSpec::ParamChange { track_index, .. }
+            | EventSpec::TrackVolumeChange { track_index, .. } => *track_index,
+        }
+    }
+
     /// Builds a stable secondary sort key for events that share time and priority.
     /// Params:
     /// - `self`: event whose identifying fields are folded into the fallback sort key.

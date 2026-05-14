@@ -728,4 +728,8 @@ impl TrackRuntime {
     pub(crate) fn set_volume(&mut self, value: f32) {
         self.volume = clamp(value, 0.0, 2.0);
     }
+
+    pub(crate) fn set_mute(&mut self, muted: bool) {
+        self.mute = muted;
+    }
 }

@@ -1,4 +1,5 @@
 import { compareScheduledEvents } from "../shared/synth-renderer-events.js";
+import { TRACK_VOLUME_AUTOMATION_ID } from "../shared/synth-renderer-constants.js";
 import {
   compileAudioProjectToWasmSubsetCore,
   compileSchedulerEventsToWasmSubsetCore
@@ -140,6 +141,7 @@ export class SharedWasmRenderStream {
     this.stopped = false;
     this.finalizingPreviewCapture = false;
     this.finalPreviewCaptureReadFailures = 0;
+    this.mutedTrackIds = new Set();
     this.implementation = implementation;
     this.previewCaptureState = null;
     this.engine = implementation.createEngine(renderer, this.project, this.projectSpec, options);
@@ -343,11 +345,64 @@ export class SharedWasmRenderStream {
     if (!events || events.length === 0 || !this.project) {
       return;
     }
-    this.eventQueue.push(...events);
+    const activeEvents = this.filterMutedTrackEvents(events);
+    if (activeEvents.length === 0) {
+      return;
+    }
+    this.eventQueue.push(...activeEvents);
     this.eventQueue.sort(compareScheduledEvents);
     this.engine.enqueue_events(
-      JSON.stringify(this.implementation.compileEvents(this.project, this.projectSpec, events))
+      JSON.stringify(this.implementation.compileEvents(this.project, this.projectSpec, activeEvents))
     );
+  }
+
+  filterMutedTrackEvents(events) {
+    if (this.mutedTrackIds.size === 0) {
+      return events;
+    }
+    return events.filter((event) => !("trackId" in event) || !this.mutedTrackIds.has(event.trackId));
+  }
+
+  dispatchTransportCommand(command) {
+    if (!command) {
+      return;
+    }
+    if (command.type === "SetTrackMute") {
+      if (command.muted) {
+        this.mutedTrackIds.add(command.trackId);
+        this.setTrackMute(command.trackId, true);
+        this.stopTrack(command.trackId);
+      } else {
+        this.mutedTrackIds.delete(command.trackId);
+        this.setTrackMute(command.trackId, false);
+      }
+      return;
+    }
+    if (command.type === "SetTrackVolume" && !this.mutedTrackIds.has(command.trackId)) {
+      this.setMacroValue(command.trackId, TRACK_VOLUME_AUTOMATION_ID, command.normalized);
+    }
+  }
+
+  stopTrack(trackId) {
+    const trackIndex = this.project.tracks.findIndex((track) => track.id === trackId);
+    if (trackIndex < 0) {
+      return;
+    }
+    this.eventQueue = this.eventQueue.filter((event) => {
+      if ("trackId" in event) {
+        return event.trackId !== trackId;
+      }
+      return true;
+    });
+    this.engine.stop_track?.(trackIndex);
+  }
+
+  setTrackMute(trackId, muted) {
+    const trackIndex = this.project.tracks.findIndex((track) => track.id === trackId);
+    if (trackIndex < 0) {
+      return;
+    }
+    this.engine.set_track_mute?.(trackIndex, muted);
   }
 
   setMacroValue(trackId, macroId, normalized) {

@@ -491,6 +491,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const toggleTrackMute = useCallback(
     (trackId: string) => {
+      const currentTrack = project.tracks.find((track) => track.id === trackId);
+      if (currentTrack) {
+        audioEngineRef.current?.setTrackMuted(trackId, !currentTrack.mute);
+      }
       commitProjectChange(
         (current) => ({
           ...current,
@@ -499,7 +503,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         { actionKey: `track:${trackId}:mute` }
       );
     },
-    [commitProjectChange]
+    [audioEngineRef, commitProjectChange, project.tracks]
   );
   const { exportingAudio, exportAudio, setTrackVolume } = useProjectAudioActions({
     project,

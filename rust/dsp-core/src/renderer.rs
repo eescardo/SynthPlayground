@@ -329,6 +329,33 @@ impl WasmSubsetEngine {
         }
     }
 
+    pub fn stop_track(&mut self, track_index: usize) {
+        if let Some(track) = self.tracks.get_mut(track_index) {
+            track.set_mute(true);
+            track.stop_all_voices();
+            track.set_volume(0.0);
+        }
+
+        let previous_cursor = self.event_cursor;
+        let mut next_cursor = 0;
+        let mut event_index = 0;
+        self.event_queue.retain(|event| {
+            let keep = event.track_index() != track_index;
+            if keep && event_index < previous_cursor {
+                next_cursor += 1;
+            }
+            event_index += 1;
+            keep
+        });
+        self.event_cursor = next_cursor.min(self.event_queue.len());
+    }
+
+    pub fn set_track_mute(&mut self, track_index: usize, muted: bool) {
+        if let Some(track) = self.tracks.get_mut(track_index) {
+            track.set_mute(muted);
+        }
+    }
+
     pub fn left_ptr(&self) -> *const f32 {
         self.left.as_ptr()
     }

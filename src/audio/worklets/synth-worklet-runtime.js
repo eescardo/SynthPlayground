@@ -167,6 +167,15 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         }
         this.currentStream?.enqueueEvents(message.events || []);
         break;
+      case "TRANSPORT_COMMAND":
+        if (Number.isFinite(message.sessionId) && message.sessionId !== this.transportSessionId) {
+          break;
+        }
+        if (this.currentStream?.previewing) {
+          break;
+        }
+        this.currentStream?.dispatchTransportCommand?.(message.command);
+        break;
       case "MACRO":
         this.currentStream?.setMacroValue?.(message.trackId, message.macroId, message.normalized);
         break;

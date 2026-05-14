@@ -9,9 +9,12 @@ import {
   transportMsToSamples
 } from "@/audio/transportScheduling";
 import { getSongBeatForPlaybackBeat } from "@/lib/looping";
+import { getProjectTimelineEndBeat, getTrackMacroValueAtBeat, TRACK_VOLUME_AUTOMATION_ID } from "@/lib/macroAutomation";
 import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
+import { pitchToVoct } from "@/lib/pitch";
 import { createId } from "@/lib/ids";
-import { AudioProject, SchedulerEvent, WorkletOutboundMessage } from "@/types/audio";
+import { AudioProject, SchedulerEvent, TransportCommand, WorkletOutboundMessage } from "@/types/audio";
+import type { Track } from "@/types/music";
 import { PreviewProbeCapture, PreviewProbeRequest, PreviewProbeSharedBuffer } from "@/types/probes";
 
 export const BLOCK_SIZE = 128;
@@ -60,6 +63,7 @@ export interface AudioEngineBackend {
   init(): Promise<void>;
   ensureRunning(): Promise<void>;
   setProject(project: AudioProject, options?: { syncToWorklet?: boolean }): void;
+  setTrackMuted(trackId: string, muted: boolean, options?: { restoreVolume?: boolean }): void;
   play(startBeat?: number): Promise<void>;
   stop(): void;
   getPlayheadBeat(): number;
@@ -104,6 +108,70 @@ const loadWorkletWasmBytes = async () => {
     throw new Error(`Failed to load worklet WASM binary: ${response.status} ${response.statusText}`);
   }
   return await response.arrayBuffer();
+};
+
+export const createTrackVolumeRestoreCommand = (
+  project: AudioProject,
+  track: Track,
+  songBeat: number
+): TransportCommand => ({
+  type: "SetTrackVolume",
+  trackId: track.id,
+  normalized: getTrackMacroValueAtBeat(
+    track,
+    TRACK_VOLUME_AUTOMATION_ID,
+    track.volume / 2,
+    songBeat,
+    getProjectTimelineEndBeat(project)
+  )
+});
+
+export const filterEventsForTrack = (events: SchedulerEvent[], trackId: string): SchedulerEvent[] =>
+  events.filter((event) => "trackId" in event && event.trackId === trackId);
+
+export const createActiveTrackNoteEvents = (
+  project: AudioProject,
+  trackId: string,
+  songBeat: number,
+  noteOnSample: number
+): SchedulerEvent[] => {
+  const track = project.tracks.find((entry) => entry.id === trackId);
+  if (!track) {
+    return [];
+  }
+
+  const spb = samplesPerBeat(project.global.sampleRate, project.global.tempo);
+  return track.notes.flatMap((note): SchedulerEvent[] => {
+    const noteEndBeat = note.startBeat + note.durationBeats;
+    if (note.startBeat > songBeat || noteEndBeat <= songBeat) {
+      return [];
+    }
+
+    const noteOffSample = Math.max(
+      noteOnSample + BLOCK_SIZE,
+      noteOnSample + Math.round((noteEndBeat - songBeat) * spb)
+    );
+    return [
+      {
+        id: `${trackId}:${note.id}:live-unmute-on:${noteOnSample}`,
+        type: "NoteOn",
+        source: "live_input",
+        sampleTime: noteOnSample,
+        trackId,
+        noteId: note.id,
+        pitchVoct: pitchToVoct(note.pitchStr),
+        velocity: note.velocity
+      },
+      {
+        id: `${trackId}:${note.id}:live-unmute-off:${noteOffSample}`,
+        type: "NoteOff",
+        source: "live_input",
+        sampleTime: noteOffSample,
+        trackId,
+        noteId: note.id
+      }
+    ];
+  });
 };
 
 class RealAudioEngineBackend implements AudioEngineBackend {
@@ -161,6 +229,62 @@ class RealAudioEngineBackend implements AudioEngineBackend {
   private getSafeLiveSampleTime(leadSamples = BLOCK_SIZE * 2): number {
     const currentSample = this.getCurrentSongSample();
     return currentSample + leadSamples;
+  }
+
+  private dispatchTransportCommand(command: TransportCommand): void {
+    if (!this.worklet || !this.isPlaying) {
+      return;
+    }
+    this.worklet.port.postMessage({ type: "TRANSPORT_COMMAND", command, sessionId: this.playSessionId });
+  }
+
+  private rescheduleTrackFromCurrentSample(trackId: string): void {
+    if (!this.project || !this.worklet || !this.isPlaying) {
+      return;
+    }
+
+    const currentSongSample = this.getCurrentSongSample();
+    const lookaheadSamples = transportMsToSamples(TRANSPORT_LOOKAHEAD_MS, FIXED_SAMPLE_RATE);
+    const toSample = Math.max(this.scheduledUntilSample, currentSongSample + lookaheadSamples);
+    if (toSample <= currentSongSample) {
+      return;
+    }
+
+    const noteOnSample = this.getSafeLiveSampleTime();
+    const activeNoteEvents = createActiveTrackNoteEvents(this.project, trackId, this.getPlayheadBeat(), noteOnSample);
+    const events = activeNoteEvents.concat(
+      filterEventsForTrack(
+        collectEventsInWindow(this.project, { fromSample: currentSongSample, toSample }, { cueBeat: this.cueBeat }),
+        trackId
+      )
+    );
+    if (events.length > 0) {
+      this.worklet.port.postMessage({ type: "EVENTS", events, sessionId: this.playSessionId });
+    }
+  }
+
+  private getTrackVolumeRestoreCommand(trackId: string): TransportCommand | null {
+    if (!this.project) {
+      return null;
+    }
+    const track = this.project.tracks.find((entry) => entry.id === trackId);
+    if (!track) {
+      return null;
+    }
+    return createTrackVolumeRestoreCommand(this.project, track, this.getPlayheadBeat());
+  }
+
+  setTrackMuted(trackId: string, muted: boolean, options?: { restoreVolume?: boolean }): void {
+    this.dispatchTransportCommand({ type: "SetTrackMute", trackId, muted });
+    if (!muted && options?.restoreVolume !== false) {
+      const restoreCommand = this.getTrackVolumeRestoreCommand(trackId);
+      if (restoreCommand) {
+        this.dispatchTransportCommand(restoreCommand);
+      }
+    }
+    if (!muted) {
+      this.rescheduleTrackFromCurrentSample(trackId);
+    }
   }
 
   async init(): Promise<void> {
@@ -221,7 +345,18 @@ class RealAudioEngineBackend implements AudioEngineBackend {
   }
 
   setProject(project: AudioProject, options?: { syncToWorklet?: boolean }): void {
+    const previousProject = this.project;
     this.project = project;
+    if (this.isPlaying && this.worklet) {
+      const previousTracksById = new Map(previousProject?.tracks.map((track) => [track.id, track]));
+      for (const nextTrack of project.tracks) {
+        const previousTrack = previousTracksById.get(nextTrack.id);
+        if (!previousTrack || previousTrack.mute === nextTrack.mute) {
+          continue;
+        }
+        this.setTrackMuted(nextTrack.id, Boolean(nextTrack.mute));
+      }
+    }
     if (options?.syncToWorklet === false) {
       return;
     }
@@ -493,6 +628,11 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
 
   setProject(project: AudioProject): void {
     this.project = project;
+  }
+
+  setTrackMuted(trackId: string, muted: boolean): void {
+    void trackId;
+    void muted;
   }
 
   setPreviewCaptureListener(): void {}
