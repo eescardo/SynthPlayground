@@ -27,6 +27,7 @@ import {
   PitchRect
 } from "@/components/tracks/trackCanvasGeometry";
 import { NoteRect, useTrackCanvasPointerInteractions } from "@/hooks/tracks/useTrackCanvasPointerInteractions";
+import { getPlayheadScrollLeft } from "@/components/tracks/trackCanvasAutoScroll";
 import { drawNoteBody, fillRoundedRect } from "@/components/tracks/trackCanvasNoteGeometry";
 import {
   resolveTrackCanvasNoteFill,
@@ -150,6 +151,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const playheadTabStopRef = useRef<HTMLButtonElement | null>(null);
   const selectedContentTabStopRef = useRef<HTMLButtonElement | null>(null);
+  const previousPlayheadBeatRef = useRef(props.playheadBeat);
   const noteRectsRef = useRef<NoteRect[]>([]);
   const automationKeyframeRectsRef = useRef<AutomationKeyframeRect[]>([]);
   const muteRectsRef = useRef<MuteRect[]>([]);
@@ -753,6 +755,40 @@ export function TrackCanvas(props: TrackCanvasProps) {
   useEffect(() => {
     draw();
   }, [draw]);
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) {
+      return;
+    }
+    const playheadChanged = previousPlayheadBeatRef.current !== playheadBeat;
+    previousPlayheadBeatRef.current = playheadBeat;
+    if (!playheadChanged) {
+      return;
+    }
+
+    const nextScrollLeft = props.isPlaying
+      ? getPlayheadScrollLeft({
+          playheadBeat,
+          scrollLeft: wrapper.scrollLeft,
+          clientWidth: wrapper.clientWidth,
+          scrollWidth: wrapper.scrollWidth,
+          strategy: "follow"
+        })
+      : playheadFocused
+        ? getPlayheadScrollLeft({
+            playheadBeat,
+            scrollLeft: wrapper.scrollLeft,
+            clientWidth: wrapper.clientWidth,
+            scrollWidth: wrapper.scrollWidth,
+            strategy: "reveal"
+          })
+        : wrapper.scrollLeft;
+    if (Math.abs(nextScrollLeft - wrapper.scrollLeft) > 0.5) {
+      wrapper.scrollLeft = nextScrollLeft;
+    }
+  }, [playheadBeat, playheadFocused, props.isPlaying]);
+
   useEffect(() => {
     if (!editingTrackId) {
       return;

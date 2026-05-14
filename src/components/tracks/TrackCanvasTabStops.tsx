@@ -32,7 +32,12 @@ export function TrackCanvasTabStops({
   onReturnSelectedContentFocusToPlayhead
 }: TrackCanvasTabStopsProps) {
   const handleSelectedContentKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
-    if ((event.key === "Tab" && event.shiftKey) || event.key === "Escape") {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      return;
+    }
+
+    if (event.key === "Tab" && event.shiftKey) {
       event.preventDefault();
       onReturnSelectedContentFocusToPlayhead?.();
       requestAnimationFrame(() => {

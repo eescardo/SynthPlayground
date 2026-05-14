@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { loadDspWasm } from "@/audio/renderers/wasm/wasmBridge";
 import { BrowserCompatibilityIssue, getBrowserCompatibilityIssue } from "@/lib/browserCompatibility";
-
-const USE_UI_CAPTURE_FAKE_AUDIO = process.env.NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO === "1";
+import { isUiCaptureFakeAudioEnabled } from "@/lib/uiCaptureMode";
 
 export function useWasmReadiness({
   ready,
@@ -18,7 +17,7 @@ export function useWasmReadiness({
 
   useEffect(() => {
     if (!ready) return;
-    if (USE_UI_CAPTURE_FAKE_AUDIO) {
+    if (isUiCaptureFakeAudioEnabled()) {
       setBrowserCompatibilityIssue(null);
       setRuntimeError(null);
       setWasmReady(true);

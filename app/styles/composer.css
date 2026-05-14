@@ -919,9 +919,20 @@
 }
 
 .recording-dock-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.18rem;
   color: #ffd8b2;
   font-size: 0.84rem;
   text-align: right;
+}
+
+.recording-dock-hint {
+  max-width: min(420px, 70vw);
+  color: #f0b7c3;
+  font-size: 0.78rem;
+  line-height: 1.25;
 }
 
 @media (max-width: 760px) {
@@ -941,6 +952,7 @@
   }
 
   .recording-dock-status {
+    align-items: flex-start;
     text-align: left;
   }
 }

@@ -13,6 +13,7 @@ import { getProjectTimelineEndBeat, getTrackMacroValueAtBeat, TRACK_VOLUME_AUTOM
 import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
 import { pitchToVoct } from "@/lib/pitch";
 import { createId } from "@/lib/ids";
+import { isUiCaptureFakeAudioEnabled } from "@/lib/uiCaptureMode";
 import { AudioProject, SchedulerEvent, TransportCommand, WorkletOutboundMessage } from "@/types/audio";
 import type { Track } from "@/types/music";
 import { PreviewProbeCapture, PreviewProbeRequest, PreviewProbeSharedBuffer } from "@/types/probes";
@@ -65,7 +66,7 @@ export interface AudioEngineBackend {
   replaceProject(project: AudioProject): void;
   syncProjectSnapshot(project: AudioProject, options?: { syncToWorklet?: boolean }): void;
   setTrackMuted(trackId: string, muted: boolean, options?: { restoreVolume?: boolean }): void;
-  play(startBeat?: number): Promise<void>;
+  play(startBeat?: number, options?: AudioEnginePlayOptions): Promise<void>;
   stop(): void;
   getPlayheadBeat(): number;
   getSampleRate(): number;
@@ -94,6 +95,10 @@ export interface AudioEngineBackend {
   setPreviewCaptureListener(
     listener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null
   ): void;
+}
+
+export interface AudioEnginePlayOptions {
+  recordingTrackId?: string | null;
 }
 
 const getWorkletUrl = () => {
@@ -229,7 +234,14 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
       return;
     }
 
-    const events = collectEventsInWindow(this.project, { fromSample, toSample }, { cueBeat: this.cueBeat });
+    const events = collectEventsInWindow(
+      this.project,
+      { fromSample, toSample },
+      {
+        cueBeat: this.cueBeat,
+        skipTrackIds: this.getScheduledNoteSkipTrackIds()
+      }
+    );
     if (events.length > 0) {
       this.worklet.port.postMessage({ type: "EVENTS", events, sessionId: this.playSessionId });
     }
@@ -266,7 +278,7 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
       collectEventsInWindow(
         this.project,
         { fromSample: currentSongSample, toSample },
-        { cueBeat: this.cueBeat }
+        { cueBeat: this.cueBeat, skipTrackIds: this.getScheduledNoteSkipTrackIds() }
       ).filter((event) => "trackId" in event && event.trackId === trackId)
     );
     if (events.length > 0) {
@@ -395,7 +407,10 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
     this.previewCaptureListener = listener;
   }
 
-  async play(startBeat = 0): Promise<void> {
+  async play(startBeat = 0, options?: AudioEnginePlayOptions): Promise<void> {
+    if (options?.recordingTrackId !== undefined) {
+      this.recordingTrackId = options.recordingTrackId;
+    }
     await this.ensureRunning();
     if (!this.context || !this.worklet || !this.project) {
       return;
@@ -410,7 +425,7 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
     const primedEvents = collectEventsInWindow(
       this.project,
       { fromSample: 0, toSample: primedToSample },
-      { cueBeat: startBeat }
+      { cueBeat: startBeat, skipTrackIds: this.getScheduledNoteSkipTrackIds() }
     );
 
     this.scheduledUntilSample = primedToSample;
@@ -428,6 +443,7 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
       events: primedEvents,
       sessionId
     });
+    this.postRecordingTrack();
 
     this.tickSchedule();
     if (this.scheduler !== null) {
@@ -500,10 +516,18 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
 
   setRecordingTrack(trackId: string | null): void {
     this.recordingTrackId = trackId;
+    this.postRecordingTrack();
+  }
+
+  private postRecordingTrack(): void {
     this.worklet?.port.postMessage({
       type: "RECORDING",
-      trackId
+      trackId: this.recordingTrackId
     });
+  }
+
+  private getScheduledNoteSkipTrackIds(): ReadonlySet<string> | undefined {
+    return this.recordingTrackId ? new Set([this.recordingTrackId]) : undefined;
   }
 
   async recordNoteOn(trackId: string, noteId: string, pitchVoct: number, velocity = 0.9): Promise<number> {
@@ -665,7 +689,10 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
 
   setPreviewCaptureListener(): void {}
 
-  async play(startBeat = 0): Promise<void> {
+  async play(startBeat = 0, options?: AudioEnginePlayOptions): Promise<void> {
+    if (options?.recordingTrackId !== undefined) {
+      this.recordingTrackId = options.recordingTrackId;
+    }
     if (!this.project) {
       return;
     }
@@ -762,4 +789,4 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
 }
 
 export const createAudioEngineBackend = (): AudioEngineBackend =>
-  process.env.NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO === "1" ? new FakeAudioEngineBackend() : new RealAudioEngineBackend();
+  isUiCaptureFakeAudioEnabled() ? new FakeAudioEngineBackend() : new RealAudioEngineBackend();

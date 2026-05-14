@@ -348,8 +348,6 @@ export function useTrackCanvasPointerInteractions({
       const track = getTrackAtY(y);
       if (!track) return;
 
-      trackActions.onSelectTrack(track.id);
-
       if (targets.hoverTarget === "mute" && targets.muteRect) {
         trackActions.onToggleTrackMute(targets.muteRect.trackId);
         setCanvasCursor("pointer");
@@ -784,6 +782,7 @@ export function useTrackCanvasPointerInteractions({
 
       const hadSelectionRect = Boolean(selectionRect);
       if (pendingAction?.kind === "track" && !hadSelectionRect) {
+        trackActions.onSelectTrack(pendingAction.trackId);
         const newNote = createDefaultPlacedNote(pendingAction.beat, gridBeats, defaultPitch);
         noteActions.onUpsertNote(pendingAction.trackId, newNote, {
           actionKey: `track:${pendingAction.trackId}:note:${newNote.id}:create`
@@ -897,6 +896,7 @@ export function useTrackCanvasPointerInteractions({
       resolvePointerTargets,
       selectionActions,
       selectionRect,
+      trackActions,
       trackLayouts
     ]
   );

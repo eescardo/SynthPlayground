@@ -21,6 +21,10 @@ interface UsePlaybackControllerArgs {
   onHandleRecordingBeat: (beat: number) => void;
 }
 
+interface BeginPlaybackOptions {
+  recordingTrackId?: string | null;
+}
+
 export function usePlaybackController(args: UsePlaybackControllerArgs) {
   const {
     project,
@@ -83,12 +87,12 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
   }, [audioEngineRef, setPlayheadBeat, stopPlayback]);
 
   const beginPlaybackAtBeat = useCallback(
-    async (cueBeat: number) => {
+    async (cueBeat: number, options?: BeginPlaybackOptions) => {
       if (!audioEngineRef.current) {
         audioEngineRef.current = new AudioEngine();
       }
       audioEngineRef.current.syncProjectSnapshot(audioProject, { syncToWorklet: true });
-      await audioEngineRef.current.play(cueBeat);
+      await audioEngineRef.current.play(cueBeat, { recordingTrackId: options?.recordingTrackId ?? null });
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
       }

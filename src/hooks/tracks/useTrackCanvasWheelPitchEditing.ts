@@ -52,9 +52,17 @@ export function useTrackCanvasWheelPitchEditing({
 
     const onWheelNative = (event: WheelEvent) => {
       const now = performance.now();
+      const isMostlyHorizontalScroll = Math.abs(event.deltaX) > Math.abs(event.deltaY);
       const { x, y } = getCanvasPoint(event.clientX, event.clientY);
       const hitPitch = findPitchRect(pitchRectsRef.current, x, y);
       const shouldLockScroll = now < wheelPitchLockUntilRef.current;
+      const isPitchEditGesture = event.altKey;
+      if (isMostlyHorizontalScroll && !shouldLockScroll) {
+        return;
+      }
+      if (!isPitchEditGesture && !shouldLockScroll) {
+        return;
+      }
       if (!hitPitch && !shouldLockScroll) {
         return;
       }

@@ -106,6 +106,55 @@ describe("audio engine live mute transitions", () => {
     });
   });
 
+  it("applies recording track context during playback startup after transport stream creation", async () => {
+    const project = createDefaultProject();
+    const track = project.tracks[0];
+    track.notes = [
+      {
+        id: "recorded_over_note",
+        pitchStr: "C3",
+        startBeat: 0,
+        durationBeats: 1,
+        velocity: 0.8
+      }
+    ];
+
+    const backend = new RealAudioEngineBackend();
+    const postMessage = vi.fn();
+    backend.syncProjectSnapshot(project, { syncToWorklet: false });
+    const testBackend = backend as unknown as {
+      context: { currentTime: number; state: string; resume: () => Promise<void> };
+      worklet: { port: { postMessage: typeof postMessage } };
+      songStartContextTime: number;
+      scheduler: number | null;
+    };
+    testBackend.context = { currentTime: 0, state: "running", resume: vi.fn() };
+    testBackend.worklet = { port: { postMessage } };
+    testBackend.scheduler = null;
+
+    vi.stubGlobal("window", { setInterval: vi.fn(() => 1), clearInterval: vi.fn() });
+    try {
+      await backend.play(0, { recordingTrackId: track.id });
+
+      const messageTypes = postMessage.mock.calls.map(([message]) => message.type);
+      expect(messageTypes).toEqual(["SET_PROJECT", "TRANSPORT", "RECORDING"]);
+      const transportMessage = postMessage.mock.calls[1]?.[0];
+      expect(transportMessage).toEqual(expect.objectContaining({ type: "TRANSPORT" }));
+      expect(
+        transportMessage.events.some(
+          (event: { type: string; trackId?: string }) =>
+            (event.type === "NoteOn" || event.type === "NoteOff") && event.trackId === track.id
+        )
+      ).toBe(false);
+      expect(postMessage.mock.calls[2]?.[0]).toEqual({
+        type: "RECORDING",
+        trackId: track.id
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("builds a live volume restore command for unmuting during playback", () => {
     const project = createDefaultProject();
     const track = project.tracks[0];

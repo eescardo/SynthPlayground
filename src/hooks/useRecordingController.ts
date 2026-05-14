@@ -5,7 +5,16 @@ import { AudioEngine } from "@/audio/engine";
 import { createId } from "@/lib/ids";
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
 import { eraseNotesInBeatRange } from "@/lib/noteEditing";
-import { formatBeatName, snapToGrid } from "@/lib/musicTiming";
+import { formatBeatName, snapDownToGrid, snapToGrid } from "@/lib/musicTiming";
+import {
+  advanceRecordPassEraseBeat,
+  createRecordPassOverwrite,
+  getRecordPassProtectedNoteIds,
+  markRecordPassGridCellErased,
+  RecordPassOverwrite,
+  registerRecordPassCreatedNote
+} from "@/lib/recordPassOverwrite";
+import { snapRecordedNoteStartBeat } from "@/lib/recordingTiming";
 import { Note, Project, Track } from "@/types/music";
 
 export type RecordPhase = "idle" | "count_in" | "recording";
@@ -25,6 +34,7 @@ interface ActiveRecordNote {
 }
 
 const COUNT_IN_BEATS = 3;
+const RECORD_DENSE_INPUT_HINT_MS = 2_400;
 
 interface UseRecordingControllerArgs {
   project: Project;
@@ -76,20 +86,26 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
   const [recordCountIn, setRecordCountIn] = useState<RecordCountInState | null>(null);
   const [countInNowMs, setCountInNowMs] = useState(0);
   const [recordingTrackId, setRecordingTrackId] = useState<string | null>(null);
+  const [recordingHintText, setRecordingHintText] = useState<string | null>(null);
 
   const activeRecordKeys = useRef<Map<string, ActiveRecordNote>>(new Map());
-  const recordPassRef = useRef<{ trackId: string; lastErasedBeat: number } | null>(null);
+  const recordPassRef = useRef<RecordPassOverwrite | null>(null);
   const countInRafRef = useRef<number | null>(null);
+  const hintTimerRef = useRef<number | null>(null);
 
   const eraseRecordedWindow = useCallback(
     (trackId: string, fromBeat: number, toBeat: number) => {
-      const eraseStartBeat = snapToGrid(fromBeat, project.global.gridBeats);
-      const eraseEndBeat = snapToGrid(toBeat, project.global.gridBeats);
+      const eraseStartBeat = snapDownToGrid(fromBeat, project.global.gridBeats);
+      const eraseEndBeat = snapDownToGrid(toBeat, project.global.gridBeats);
       if (eraseEndBeat <= eraseStartBeat) {
         return;
       }
 
-      const protectedNoteIds = new Set(Array.from(activeRecordKeys.current.values()).map((entry) => entry.noteId));
+      const protectedNoteIds = getRecordPassProtectedNoteIds(
+        recordPassRef.current,
+        trackId,
+        Array.from(activeRecordKeys.current.values()).map((entry) => entry.noteId)
+      );
       commitProjectChange(
         (current) => {
           let changed = false;
@@ -121,6 +137,28 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
       );
     },
     [commitProjectChange, project.global.gridBeats]
+  );
+
+  const showRecordingHint = useCallback((message: string) => {
+    setRecordingHintText(message);
+    if (hintTimerRef.current !== null) {
+      window.clearTimeout(hintTimerRef.current);
+    }
+    hintTimerRef.current = window.setTimeout(() => {
+      setRecordingHintText(null);
+      hintTimerRef.current = null;
+    }, RECORD_DENSE_INPUT_HINT_MS);
+  }, []);
+
+  const eraseRecordedGridCellOnce = useCallback(
+    (trackId: string, startBeat: number) => {
+      if (!markRecordPassGridCellErased(recordPassRef.current, trackId, startBeat)) {
+        showRecordingHint("One note already landed in this grid step; keeping the existing note.");
+        return;
+      }
+      eraseRecordedWindow(trackId, startBeat, startBeat + project.global.gridBeats);
+    },
+    [eraseRecordedWindow, project.global.gridBeats, showRecordingHint]
   );
 
   const extendActiveRecordedNotes = useCallback(
@@ -206,6 +244,11 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
       setRecordEnabled(false);
       setRecordPhase("idle");
       setRecordCountIn(null);
+      setRecordingHintText(null);
+      if (hintTimerRef.current !== null) {
+        window.clearTimeout(hintTimerRef.current);
+        hintTimerRef.current = null;
+      }
     },
     [audioEngineRef, finishActiveRecordedNotes, playheadBeat, recordPhase]
   );
@@ -217,10 +260,9 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
       }
 
       if (recordPassRef.current) {
-        const nextErasedBeat = snapToGrid(beat, project.global.gridBeats);
-        if (nextErasedBeat > recordPassRef.current.lastErasedBeat) {
-          eraseRecordedWindow(recordPassRef.current.trackId, recordPassRef.current.lastErasedBeat, nextErasedBeat);
-          recordPassRef.current.lastErasedBeat = nextErasedBeat;
+        const eraseRange = advanceRecordPassEraseBeat(recordPassRef.current, beat, project.global.gridBeats);
+        if (eraseRange) {
+          eraseRecordedWindow(recordPassRef.current.trackId, eraseRange.fromBeat, eraseRange.toBeat);
         }
       }
     },
@@ -230,14 +272,13 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
   const beginRecordingPlayback = useCallback(
     async (trackId: string, cueBeat: number) => {
       await onBeginRecordingPlayback(trackId, cueBeat);
-      audioEngineRef.current?.setRecordingTrack(trackId);
-      recordPassRef.current = { trackId, lastErasedBeat: cueBeat };
+      recordPassRef.current = createRecordPassOverwrite(trackId, cueBeat);
       setRecordingTrackId(trackId);
       setRecordPhase("recording");
       setRecordCountIn(null);
       setPlaying(true);
     },
-    [audioEngineRef, onBeginRecordingPlayback, setPlaying]
+    [onBeginRecordingPlayback, setPlaying]
   );
 
   const startRecordMode = useCallback(async () => {
@@ -313,14 +354,15 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
         return;
       }
 
-      const currentBeat = snapToGrid(
+      const currentBeat = snapRecordedNoteStartBeat(
         audioEngineRef.current?.getPlayheadBeat() ?? playheadBeat,
-        project.global.gridBeats
+        project.global.gridBeats,
+        project.global.tempo
       );
       if (activeRecordKeys.current.size > 0) {
         finishActiveRecordedNotes(currentBeat);
       }
-      eraseRecordedWindow(recordingTrackId, currentBeat, currentBeat + project.global.gridBeats);
+      eraseRecordedGridCellOnce(recordingTrackId, currentBeat);
 
       const noteId = createId("note");
       const pitchVoct = pitchToVoct(pitch);
@@ -331,6 +373,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
         pitchStr: pitch
       };
       activeRecordKeys.current.set(inputId, noteEntry);
+      registerRecordPassCreatedNote(recordPassRef.current, recordingTrackId, noteId);
 
       upsertNote(
         recordingTrackId,
@@ -349,10 +392,11 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
     },
     [
       audioEngineRef,
-      eraseRecordedWindow,
+      eraseRecordedGridCellOnce,
       finishActiveRecordedNotes,
       playheadBeat,
       project.global.gridBeats,
+      project.global.tempo,
       project.tracks,
       recordPhase,
       recordingTrackId,
@@ -426,6 +470,14 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
     stopRecordedInput
   ]);
 
+  useEffect(() => {
+    return () => {
+      if (hintTimerRef.current !== null) {
+        window.clearTimeout(hintTimerRef.current);
+      }
+    };
+  }, []);
+
   const activeRecordingTrackId =
     recordingTrackId ?? recordCountIn?.trackId ?? (recordEnabled ? (selectedTrack?.id ?? null) : null);
   const pressedRecordingPitches = Array.from(activeRecordKeys.current.values()).map((entry) => entry.pitchStr);
@@ -455,6 +507,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
     recordingTrackId,
     activeRecordingTrackId,
     pressedRecordingPitches,
+    recordingHintText,
     activeRecordedNotes,
     ghostPlayheadBeat,
     countInLabel,

@@ -85,4 +85,6 @@ Current implementation detail:
 
 Videos are intended for motion and interaction review. If the change is primarily about audio quality or synthesis behavior, pair the capture with manual listening notes in the PR.
 
+Video capture may use the fake audio backend so headless browser runs do not depend on real WebAudio/WASM readiness. Keep that mode controlled by explicit capture/test environment such as `NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO=1`.
+
 These artifacts are for review and debugging, not source control history. The directories are ignored by git except for this README.

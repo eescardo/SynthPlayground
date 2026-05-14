@@ -92,6 +92,7 @@ For visual or interaction changes, automated validation is necessary but not suf
   - add one or more `videos:<scenario>` labels such as `videos:play-from-start-5s` or `videos:record-from-start-8s`
 - Those labels trigger the workflow to capture PR-head videos from the task branch only, upload the artifact bundle, and post or update a sticky PR comment with hosted preview links and downloads.
 - Video captures are useful for motion and flow review, but they are not a substitute for manual audio listening when the change is primarily about sound.
+- Capture-only fake audio must be controlled by explicit capture/test environment, such as `NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO=1`. No need to leverage persisted browser state for this.
 - If capture tooling is not available yet, include a short manual verification checklist in the handoff.
 - PR descriptions for UI changes should say what changed visually and what to inspect.
 
