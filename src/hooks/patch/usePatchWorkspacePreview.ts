@@ -22,6 +22,9 @@ const PREVIEW_PROGRESS_TICK_MS = 33;
 export const hasHostGateConnection = (patch: Patch): boolean =>
   patch.connections.some((connection) => connection.from.nodeId === HOST_PORT_IDS.gate);
 
+export const resolvePatchPreviewCaptureDurationBeats = (holdUntilReleased?: boolean) =>
+  holdUntilReleased ? HELD_PREVIEW_DURATION_BEATS : PREVIEW_DURATION_BEATS;
+
 export const buildPatchedPreviewProject = (
   project: AudioProject,
   sourceTrack: Track,
@@ -191,7 +194,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
           {
             projectOverride: previewProject,
             captureProbes: captureRequests,
-            captureDurationBeats: PREVIEW_DURATION_BEATS,
+            captureDurationBeats: resolvePatchPreviewCaptureDurationBeats(options?.holdUntilReleased),
             previewId,
             holdUntilReleased: options?.holdUntilReleased
           }
