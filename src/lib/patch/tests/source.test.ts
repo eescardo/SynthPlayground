@@ -9,6 +9,23 @@ import {
 } from "@/lib/patch/source";
 
 describe("patch source helpers", () => {
+  it("creates the default song with the latest bundled bass preset", () => {
+    const project = createDefaultProject();
+    const bass = project.patches.find((patch) => patch.id === "preset_bass");
+    const latestBass = getBundledPresetPatch("preset_bass");
+    if (!bass || bass.meta.source !== "preset" || !latestBass || latestBass.meta.source !== "preset") {
+      throw new Error("Expected preset_bass to be available");
+    }
+
+    expect(getProjectPresetUpdateSummary(project)).toBeNull();
+    expect(bass.meta.presetVersion).toBe(latestBass.meta.presetVersion);
+    expect(bass.nodes.map((node) => node.id)).toEqual(latestBass.nodes.map((node) => node.id));
+    expect(bass.connections.map((connection) => connection.id)).toEqual(
+      latestBass.connections.map((connection) => connection.id)
+    );
+    expect(bass.ui.macros.map((macro) => macro.id)).toEqual(latestBass.ui.macros.map((macro) => macro.id));
+  });
+
   it("summarizes preset updates with a stable key for the latest bundled versions", () => {
     const project = createDefaultProject();
     const bass = project.patches.find((patch) => patch.id === "preset_bass");
