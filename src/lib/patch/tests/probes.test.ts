@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildProbeSpectrogram, buildSpectrumBins, normalizeProbeSamples } from "@/lib/patch/probes";
+import {
+  buildProbeSpectrogram,
+  buildSpectrumBins,
+  normalizeProbeSamples,
+  resolveProbeSpectrogramTimeline
+} from "@/lib/patch/probes";
 import {
   buildScopeRenderData,
   resolveScopeTimeMarkers,
@@ -84,6 +89,18 @@ describe("probe helpers", () => {
     expect(firstColumnEnergy).toBeGreaterThan(0.01);
     expect(lastColumnEnergy).toBeGreaterThan(0.01);
     expect(grid.map((row) => row[1])).not.toEqual(grid.map((row) => row[10]));
+  });
+
+  it("reports spectrogram timeline fill before and after the first second", () => {
+    const partialSamples = new Array(256).fill(0);
+    const fullSamples = new Array(1024).fill(0);
+
+    expect(resolveProbeSpectrogramTimeline(partialSamples, 1024, partialSamples.length, 512).capturedRatio).toBeCloseTo(
+      0.5
+    );
+    expect(
+      resolveProbeSpectrogramTimeline(fullSamples, fullSamples.length, fullSamples.length, 512).capturedRatio
+    ).toBe(1);
   });
 
   it("reallocates spectrum detail when max frequency is narrowed", () => {

@@ -15,6 +15,12 @@ const MIN_PROBE_NORMALIZATION_PEAK = 0.0001;
 const SPECTROGRAM_MIN_FRAME_SIZE = 96;
 const SPECTROGRAM_MIN_TIMELINE_SECONDS = 1;
 
+export interface ProbeSpectrogramTimeline {
+  durationSamples: number;
+  capturedSamples: number;
+  capturedRatio: number;
+}
+
 export const createPatchWorkspaceProbe = (
   kind: PatchWorkspaceProbeState["kind"],
   x: number,
@@ -128,11 +134,9 @@ export const buildProbeSpectrogram = (
   sampleRate = 48000,
   maxFrequencyHz = DEFAULT_PROBE_MAX_FREQUENCY_HZ
 ) => {
-  const minimumTimelineSamples = Math.max(1, Math.round(sampleRate * SPECTROGRAM_MIN_TIMELINE_SECONDS));
-  const requestedDurationSamples = Math.max(durationSamples, 1);
-  const boundedCapturedSamples = clamp(capturedSamples, 0, Math.min(samples.length, requestedDurationSamples));
-  const safeDurationSamples = Math.max(boundedCapturedSamples, minimumTimelineSamples, 1);
-  const safeCapturedSamples = boundedCapturedSamples;
+  const timeline = resolveProbeSpectrogramTimeline(samples, durationSamples, capturedSamples, sampleRate);
+  const safeDurationSamples = timeline.durationSamples;
+  const safeCapturedSamples = timeline.capturedSamples;
   const grid = Array.from({ length: freqBinCount }, () => new Array(timeBinCount).fill(0));
   if (safeCapturedSamples < SPECTROGRAM_MIN_FRAME_SIZE) {
     return grid;
@@ -185,6 +189,23 @@ export const buildProbeSpectrogram = (
   }
 
   return grid;
+};
+
+export const resolveProbeSpectrogramTimeline = (
+  samples: ArrayLike<number>,
+  durationSamples = samples.length,
+  capturedSamples = samples.length,
+  sampleRate = 48000
+): ProbeSpectrogramTimeline => {
+  const minimumTimelineSamples = Math.max(1, Math.round(sampleRate * SPECTROGRAM_MIN_TIMELINE_SECONDS));
+  const requestedDurationSamples = Math.max(durationSamples, 1);
+  const boundedCapturedSamples = clamp(capturedSamples, 0, Math.min(samples.length, requestedDurationSamples));
+  const safeDurationSamples = Math.max(boundedCapturedSamples, minimumTimelineSamples, 1);
+  return {
+    durationSamples: safeDurationSamples,
+    capturedSamples: boundedCapturedSamples,
+    capturedRatio: boundedCapturedSamples / safeDurationSamples
+  };
 };
 
 function resolveProbeFramePeak(samples: ArrayLike<number>, frameStart: number, frameSize: number) {

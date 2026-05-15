@@ -27,7 +27,12 @@ import {
   PATCH_COLOR_PROBE_SCOPE_TRACE,
   PATCH_COLOR_PROBE_SPECTROGRAM_BIN_RGB
 } from "@/components/patch/patchCanvasConstants";
-import { buildProbeSpectrogram, EXPANDED_PROBE_SIZE, resolveProbeFrequencyView } from "@/lib/patch/probes";
+import {
+  buildProbeSpectrogram,
+  EXPANDED_PROBE_SIZE,
+  resolveProbeFrequencyView,
+  resolveProbeSpectrogramTimeline
+} from "@/lib/patch/probes";
 import { clamp } from "@/lib/numeric";
 import { detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
 import {
@@ -47,7 +52,6 @@ interface PatchProbeOverlayProps {
   probes: PatchWorkspaceProbeState[];
   selectedProbeId?: string;
   previewCaptureByProbeId: Record<string, PreviewProbeCapture>;
-  previewProgress: number;
   zoom: number;
   attachingProbeId?: string | null;
   keyboardFocus?: PatchCanvasFocusable | null;
@@ -198,7 +202,6 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
             key={probe.id}
             probe={probe}
             capture={capture}
-            previewProgress={props.previewProgress}
             zoom={props.zoom}
             selected={props.selectedProbeId === probe.id}
             attaching={props.attachingProbeId === probe.id}
@@ -222,7 +225,6 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
 function ProbeCard(props: {
   probe: PatchWorkspaceProbeState;
   capture?: PreviewProbeCapture;
-  previewProgress: number;
   zoom: number;
   selected: boolean;
   attaching: boolean;
@@ -299,6 +301,28 @@ function ProbeCard(props: {
         : [],
     [props.capture, props.probe.kind, props.probe.spectrumWindowSize, props.probe.frequencyView, props.probe.expanded]
   );
+  const spectrogramTimeline = useMemo(
+    () =>
+      props.capture && props.probe.kind === "spectrum"
+        ? resolveProbeSpectrogramTimeline(
+            props.capture.samples,
+            props.capture.durationSamples,
+            props.capture.capturedSamples,
+            props.capture.sampleRate
+          )
+        : undefined,
+    [props.capture, props.probe.kind]
+  );
+  const spectrogramResetKey =
+    props.capture && props.probe.kind === "spectrum"
+      ? [
+          props.capture.probeId,
+          props.capture.sampleRate,
+          props.probe.spectrumWindowSize ?? 1024,
+          resolveProbeFrequencyView(props.probe.frequencyView).maxHz,
+          props.probe.expanded ? "expanded" : "compact"
+        ].join(":")
+      : props.probe.id;
 
   return (
     <div
@@ -343,8 +367,9 @@ function ProbeCard(props: {
         <ProbeGraphBody
           probe={props.probe}
           capture={props.capture}
-          previewProgress={props.previewProgress}
           spectrogram={spectrogram}
+          spectrogramCapturedRatio={spectrogramTimeline?.capturedRatio ?? 0}
+          spectrogramResetKey={spectrogramResetKey}
           compact={!props.probe.expanded}
           onUpdateSpectrumWindow={props.onUpdateSpectrumWindow}
         />
@@ -356,13 +381,14 @@ function ProbeCard(props: {
 function ProbeGraphBody(props: {
   probe: PatchWorkspaceProbeState;
   capture?: PreviewProbeCapture;
-  previewProgress: number;
   spectrogram: number[][];
+  spectrogramCapturedRatio: number;
+  spectrogramResetKey: string;
   compact?: boolean;
   onUpdateSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
 }) {
   if (props.probe.kind === "scope") {
-    return <ScopeProbeGraph capture={props.capture} progress={props.previewProgress} compact={props.compact} />;
+    return <ScopeProbeGraph capture={props.capture} compact={props.compact} />;
   }
   if (props.probe.kind === "pitch_tracker") {
     return <PitchTrackerProbeGraph capture={props.capture} compact={props.compact} />;
@@ -370,6 +396,8 @@ function ProbeGraphBody(props: {
   return (
     <SpectrumProbeGraph
       spectrogram={props.spectrogram}
+      capturedRatio={props.spectrogramCapturedRatio}
+      resetKey={props.spectrogramResetKey}
       selectedWindowSize={props.probe.spectrumWindowSize ?? 1024}
       maxFrequencyHz={resolveProbeFrequencyView(props.probe.frequencyView).maxHz}
       compact={props.compact}
@@ -399,7 +427,7 @@ function PitchTrackerProbeGraph(props: { capture?: PreviewProbeCapture; compact?
   );
 }
 
-function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: number; compact?: boolean }) {
+function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; compact?: boolean }) {
   const graphData = useMemo(() => buildScopeRenderData(props.capture, props.compact), [props.capture, props.compact]);
 
   const timeMarkers = useMemo(
@@ -409,7 +437,7 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: numbe
 
   const futureMaskX = (props.compact ? 2 : 8) + graphData.capturedRatio * (props.compact ? 97 : 90);
   const futureMaskWidth = Math.max(0, (props.compact ? 99 : 98) - futureMaskX);
-  const playheadX = (props.compact ? 2 : 8) + props.progress * (props.compact ? 97 : 90);
+  const playheadX = (props.compact ? 2 : 8) + graphData.capturedRatio * (props.compact ? 97 : 90);
 
   return (
     <svg viewBox="0 0 100 60" className="patch-probe-graph">
@@ -543,13 +571,73 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; progress: numbe
 
 function SpectrumProbeGraph(props: {
   spectrogram: number[][];
+  capturedRatio: number;
+  resetKey: string;
   selectedWindowSize: number;
   maxFrequencyHz: number;
   compact?: boolean;
   onChangeWindowSize: (windowSize: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const accumulatedSpectrogramRef = useRef<{
+    columns: number;
+    grid: number[][];
+    key: string;
+    ratio: number;
+    rows: number;
+  } | null>(null);
   const frequencyMarkers = useMemo(() => resolveSpectrumFrequencyMarkers(props.maxFrequencyHz), [props.maxFrequencyHz]);
+  const displaySpectrogram = useMemo(() => {
+    const rows = props.spectrogram.length;
+    const columns = props.spectrogram[0]?.length ?? 0;
+    if (!rows || !columns) {
+      accumulatedSpectrogramRef.current = null;
+      return props.spectrogram;
+    }
+
+    const clonedGrid = () => props.spectrogram.map((row) => [...row]);
+    const existing = accumulatedSpectrogramRef.current;
+    const capturedRatio = clamp(props.capturedRatio, 0, 1);
+    const shouldReset =
+      !existing ||
+      existing.key !== props.resetKey ||
+      existing.rows !== rows ||
+      existing.columns !== columns ||
+      capturedRatio <= existing.ratio ||
+      capturedRatio >= 1;
+
+    if (shouldReset) {
+      const grid = clonedGrid();
+      accumulatedSpectrogramRef.current = {
+        key: props.resetKey,
+        ratio: capturedRatio,
+        rows,
+        columns,
+        grid
+      };
+      return grid;
+    }
+
+    const previousColumnCount = clamp(Math.floor(existing.ratio * columns), 0, columns);
+    const nextColumnCount = clamp(Math.ceil(capturedRatio * columns), previousColumnCount, columns);
+    const grid = existing.grid.map((row, rowIndex) => {
+      const nextRow = [...row];
+      const sourceRow = props.spectrogram[rowIndex] ?? [];
+      for (let columnIndex = previousColumnCount; columnIndex < nextColumnCount; columnIndex += 1) {
+        nextRow[columnIndex] = sourceRow[columnIndex] ?? 0;
+      }
+      return nextRow;
+    });
+
+    accumulatedSpectrogramRef.current = {
+      key: props.resetKey,
+      ratio: capturedRatio,
+      rows,
+      columns,
+      grid
+    };
+    return grid;
+  }, [props.capturedRatio, props.resetKey, props.spectrogram]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -572,8 +660,8 @@ function SpectrumProbeGraph(props: {
     context.fillStyle = PATCH_COLOR_PROBE_GRAPH_BG;
     context.fillRect(0, 0, width, height);
 
-    const rows = props.spectrogram.length;
-    const columns = props.spectrogram[0]?.length ?? 0;
+    const rows = displaySpectrogram.length;
+    const columns = displaySpectrogram[0]?.length ?? 0;
     if (!rows || !columns) {
       return;
     }
@@ -581,7 +669,7 @@ function SpectrumProbeGraph(props: {
     const cellWidth = width / columns;
     const cellHeight = height / rows;
     for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
-      const row = props.spectrogram[rowIndex] ?? [];
+      const row = displaySpectrogram[rowIndex] ?? [];
       for (let columnIndex = 0; columnIndex < columns; columnIndex += 1) {
         const value = row[columnIndex] ?? 0;
         const alpha = clamp(value * 0.95, 0.03, 0.96);
@@ -594,7 +682,7 @@ function SpectrumProbeGraph(props: {
         );
       }
     }
-  }, [props.compact, props.spectrogram]);
+  }, [displaySpectrogram, props.compact]);
 
   return (
     <div className="patch-probe-spectrum-shell">
