@@ -127,7 +127,7 @@ describe("probe helpers", () => {
     expect(renderData.peak).toBeGreaterThan(0);
   });
 
-  it("fits partial scope captures across the probe face", () => {
+  it("fills the first second of a partial scope capture left to right", () => {
     const capturedSamples = new Array(256).fill(0).map((_, index) => Math.sin((2 * Math.PI * index) / 16) * 0.15);
     const backingSamples = [...capturedSamples, ...new Array(768).fill(0)];
 
@@ -136,7 +136,7 @@ describe("probe helpers", () => {
         probeId: "probe_scope",
         kind: "scope",
         target: { kind: "connection", connectionId: "conn_1" },
-        sampleRate: 48000,
+        sampleRate: 512,
         durationSamples: backingSamples.length,
         capturedSamples: capturedSamples.length,
         samples: backingSamples
@@ -144,9 +144,31 @@ describe("probe helpers", () => {
       false
     );
 
+    expect(renderData.waveformSegments.at(-1)?.x).toBeGreaterThan(52);
+    expect(renderData.waveformSegments.at(-1)?.x).toBeLessThan(54);
+    expect(renderData.capturedRatio).toBeCloseTo(0.5);
+    expect(renderData.durationSeconds).toBe(1);
+  });
+
+  it("compresses scope captures after the first second is populated", () => {
+    const samples = new Array(1024).fill(0).map((_, index) => Math.sin((2 * Math.PI * index) / 16) * 0.15);
+
+    const renderData = buildScopeRenderData(
+      {
+        probeId: "probe_scope",
+        kind: "scope",
+        target: { kind: "connection", connectionId: "conn_1" },
+        sampleRate: 512,
+        durationSamples: samples.length,
+        capturedSamples: samples.length,
+        samples
+      },
+      false
+    );
+
     expect(renderData.waveformSegments.at(-1)?.x).toBeCloseTo(98);
     expect(renderData.capturedRatio).toBe(1);
-    expect(renderData.durationSeconds).toBeCloseTo(capturedSamples.length / 48000);
+    expect(renderData.durationSeconds).toBe(2);
   });
 
   it("builds fixed scope time markers for full-duration rendering", () => {

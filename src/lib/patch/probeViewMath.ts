@@ -3,6 +3,7 @@ import { normalizeProbeSamples, PROBE_MAX_MAX_FREQUENCY_HZ, resolveProbePeakAmpl
 import { PreviewProbeCapture } from "@/types/probes";
 
 const SPECTRUM_REFERENCE_FREQUENCIES = [100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+const SCOPE_MIN_TIMELINE_SECONDS = 1;
 
 export interface ScopeWaveformSegment {
   x: number;
@@ -55,6 +56,7 @@ export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, c
 
   const normalized = normalizeProbeSamples(visibleSamples);
   const renderSampleCount = Math.max(1, visibleSamples.length);
+  const displaySampleCount = Math.max(renderSampleCount, Math.round(sampleRate * SCOPE_MIN_TIMELINE_SECONDS), 1);
   const bucketCount = compact ? 72 : 120;
   const waveformSegments: ScopeWaveformSegment[] = [];
   const envelopePoints: string[] = [];
@@ -66,8 +68,8 @@ export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, c
   const plotWidth = compact ? 97 : 90;
 
   for (let bucket = 0; bucket < bucketCount; bucket += 1) {
-    const bucketStart = Math.floor((bucket / bucketCount) * renderSampleCount);
-    const bucketEnd = Math.max(bucketStart + 1, Math.floor(((bucket + 1) / bucketCount) * renderSampleCount));
+    const bucketStart = Math.floor((bucket / bucketCount) * displaySampleCount);
+    const bucketEnd = Math.max(bucketStart + 1, Math.floor(((bucket + 1) / bucketCount) * displaySampleCount));
     const x = plotStartX + (bucket / Math.max(1, bucketCount - 1)) * plotWidth;
     if (bucketStart >= renderSampleCount) {
       continue;
@@ -98,8 +100,8 @@ export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, c
     waveformSegments,
     envelopeLine: envelopePoints.join(" "),
     peak: resolveProbePeakAmplitude(visibleSamples),
-    capturedRatio: 1,
-    durationSeconds: renderSampleCount / Math.max(1, sampleRate)
+    capturedRatio: renderSampleCount / displaySampleCount,
+    durationSeconds: displaySampleCount / Math.max(1, sampleRate)
   };
 }
 

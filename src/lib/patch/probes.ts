@@ -129,8 +129,10 @@ export const buildProbeSpectrogram = (
   maxFrequencyHz = DEFAULT_PROBE_MAX_FREQUENCY_HZ
 ) => {
   const minimumTimelineSamples = Math.max(1, Math.round(sampleRate * SPECTROGRAM_MIN_TIMELINE_SECONDS));
-  const safeDurationSamples = Math.max(durationSamples, minimumTimelineSamples, 1);
-  const safeCapturedSamples = clamp(capturedSamples, 0, Math.min(samples.length, safeDurationSamples));
+  const requestedDurationSamples = Math.max(durationSamples, 1);
+  const boundedCapturedSamples = clamp(capturedSamples, 0, Math.min(samples.length, requestedDurationSamples));
+  const safeDurationSamples = Math.max(boundedCapturedSamples, minimumTimelineSamples, 1);
+  const safeCapturedSamples = boundedCapturedSamples;
   const grid = Array.from({ length: freqBinCount }, () => new Array(timeBinCount).fill(0));
   if (safeCapturedSamples < SPECTROGRAM_MIN_FRAME_SIZE) {
     return grid;
