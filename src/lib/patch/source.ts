@@ -109,6 +109,7 @@ export const updatePresetPatchToLatest = (patch: Patch): Patch => {
   }
 
   const savedLayoutByNodeId = new Map(patch.layout.nodes.map((entry) => [entry.nodeId, entry] as const));
+  const latestLayoutByNodeId = new Map(latestPreset.layout.nodes.map((entry) => [entry.nodeId, entry] as const));
   return {
     ...structuredClone(latestPreset),
     id: patch.id,
@@ -119,7 +120,15 @@ export const updatePresetPatchToLatest = (patch: Patch): Patch => {
       presetVersion: latestPreset.meta.presetVersion
     },
     layout: {
-      nodes: latestPreset.layout.nodes.map((entry) => savedLayoutByNodeId.get(entry.nodeId) ?? entry)
+      nodes: latestPreset.nodes.map(
+        (node) =>
+          savedLayoutByNodeId.get(node.id) ??
+          latestLayoutByNodeId.get(node.id) ?? {
+            nodeId: node.id,
+            x: 0,
+            y: 0
+          }
+      )
     }
   };
 };

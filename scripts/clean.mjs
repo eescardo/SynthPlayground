@@ -24,6 +24,7 @@ const pathsToRemove = [
   "out",
   "build",
   "artifacts/screenshots",
+  "artifacts/test-projects",
   "artifacts/traces",
   "artifacts/videos",
   "artifacts/audio-benchmarks",

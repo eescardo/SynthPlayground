@@ -6,7 +6,7 @@ export interface RecentProjectSummary {
   updatedAt: number;
 }
 
-export const RECENT_PROJECT_LIMIT = 4;
+export const RECENT_PROJECT_LIMIT = 8;
 export const DEFAULT_NEW_PROJECT_NAME = "New Project";
 
 export const renameProjectInProject = (project: Project, name: string): Project => {

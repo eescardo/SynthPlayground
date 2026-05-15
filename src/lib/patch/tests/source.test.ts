@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createDefaultProject } from "@/lib/patch/presets";
 import {
+  getBundledPresetPatch,
   getProjectPresetUpdateSummary,
   updatePresetPatchToLatest,
   updateProjectPresetsToLatest
@@ -30,16 +31,19 @@ describe("patch source helpers", () => {
   });
 
   it("updates stale preset patches while preserving the patch identity and saved layout", () => {
-    const project = createDefaultProject();
-    const bass = project.patches.find((patch) => patch.id === "preset_bass");
-    if (!bass || bass.meta.source !== "preset") {
+    const latestBass = getBundledPresetPatch("preset_bass");
+    if (!latestBass || latestBass.meta.source !== "preset") {
       throw new Error("Expected preset_bass to be available");
+    }
+    const bass = structuredClone(latestBass);
+    if (bass.meta.source !== "preset") {
+      throw new Error("Expected cloned preset_bass to keep preset metadata");
     }
     const latestVersion = bass.meta.presetVersion;
     bass.meta.presetVersion = latestVersion - 1;
     bass.name = "My Bass";
-    const savedLayoutNode = { ...bass.layout.nodes[0], x: 88, y: 13 };
-    bass.layout.nodes[0] = savedLayoutNode;
+    const savedLayoutNode = { nodeId: bass.nodes[0].id, x: 88, y: 13 };
+    bass.layout.nodes = [savedLayoutNode];
 
     const updated = updatePresetPatchToLatest(bass);
 
