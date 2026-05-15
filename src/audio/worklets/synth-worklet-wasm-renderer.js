@@ -45,6 +45,7 @@ export class WasmWorkletRenderer extends SharedWasmRenderer {
         engine.configure_preview_probe_capture(JSON.stringify(compiled));
         return {
           lastEmittedCapturedSamples: 0,
+          sharedBufferByProbeId: renderer.resolveSharedCaptureBufferMap?.(options.captureSharedBuffers),
           metaByProbeId: new Map(
             options.captureProbes.map((probe) => [
               probe.probeId,

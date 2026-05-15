@@ -137,6 +137,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
             previewId: message.previewId,
             trackId: message.trackId,
             captureProbes: message.captureProbes,
+            captureSharedBuffers: message.captureSharedBuffers,
             randomSeed: message.randomSeed
           })
         );

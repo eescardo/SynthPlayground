@@ -27,6 +27,49 @@ const areEventsSorted = (events) => {
   return true;
 };
 
+const resolveSharedCaptureBufferMap = (captureSharedBuffers) => {
+  if (!Array.isArray(captureSharedBuffers) || captureSharedBuffers.length === 0) {
+    return new Map();
+  }
+  const SharedArrayBufferCtor = globalThis.SharedArrayBuffer;
+  if (typeof SharedArrayBufferCtor !== "function") {
+    return new Map();
+  }
+  return new Map(
+    captureSharedBuffers
+      .filter((entry) => entry?.probeId && entry.sampleBuffer instanceof SharedArrayBufferCtor)
+      .map((entry) => [
+        entry.probeId,
+        {
+          sampleBuffer: entry.sampleBuffer,
+          capacitySamples: Math.max(0, Math.floor(entry.capacitySamples || 0))
+        }
+      ])
+  );
+};
+
+const writeCaptureSamplesToSharedBuffer = (capture, sharedBuffer) => {
+  if (!sharedBuffer?.sampleBuffer) {
+    return null;
+  }
+  const capacitySamples = Math.min(
+    sharedBuffer.capacitySamples,
+    sharedBuffer.sampleBuffer.byteLength / Float32Array.BYTES_PER_ELEMENT
+  );
+  if (capacitySamples <= 0) {
+    return null;
+  }
+  const sampleLength = Math.min(capacitySamples, capture.samples?.length || 0);
+  const view = new Float32Array(sharedBuffer.sampleBuffer, 0, sampleLength);
+  for (let index = 0; index < sampleLength; index += 1) {
+    view[index] = Number(capture.samples[index] || 0);
+  }
+  return {
+    sampleBuffer: sharedBuffer.sampleBuffer,
+    sampleLength
+  };
+};
+
 export class SharedWasmRenderStream {
   constructor(renderer, options, implementation) {
     this.port = renderer.port;
@@ -96,6 +139,10 @@ export class SharedWasmRenderStream {
         .map((capture) => {
           const meta = this.previewCaptureState.metaByProbeId.get(capture.probeId);
           const sampleStride = Math.max(1, capture.sampleStride || 1);
+          const sharedSamples = writeCaptureSamplesToSharedBuffer(
+            capture,
+            this.previewCaptureState.sharedBufferByProbeId?.get(capture.probeId)
+          );
           return meta
             ? {
                 probeId: capture.probeId,
@@ -105,7 +152,9 @@ export class SharedWasmRenderStream {
                 durationSamples: Math.ceil(meta.durationSamples / sampleStride),
                 capturedSamples: Math.ceil(Math.min(capturedSamples, meta.durationSamples) / sampleStride),
                 sampleStride,
-                samples: capture.samples
+                samples: sharedSamples ? [] : capture.samples,
+                sampleBuffer: sharedSamples?.sampleBuffer,
+                sampleLength: sharedSamples?.sampleLength
               }
             : null;
         })
@@ -277,6 +326,10 @@ export class SharedWasmRenderer {
     }
     this.implementation.prepare?.(this, options);
     return new SharedWasmRenderStream(this, { ...options, project }, this.implementation);
+  }
+
+  resolveSharedCaptureBufferMap(captureSharedBuffers) {
+    return resolveSharedCaptureBufferMap(captureSharedBuffers);
   }
 
   get project() {

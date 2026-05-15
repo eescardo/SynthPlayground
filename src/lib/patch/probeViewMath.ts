@@ -43,7 +43,7 @@ export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, c
     0,
     Math.min(capture.samples.length, durationSamples || capture.samples.length)
   );
-  const visibleSamples = capture.samples.slice(0, safeCapturedSamples);
+  const visibleSamples = Array.from({ length: safeCapturedSamples }, (_, index) => Number(capture.samples[index] ?? 0));
   if (visibleSamples.length <= 0) {
     return {
       waveformSegments: [],

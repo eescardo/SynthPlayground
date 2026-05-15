@@ -1,6 +1,6 @@
 import type { Track } from "@/types/music";
 import type { AudioProject, SchedulerEvent, SynthRendererConfig, SynthStreamStartOptions } from "@/types/audio";
-import type { PreviewProbeCapture, PreviewProbeRequest } from "@/types/probes";
+import type { PreviewProbeCapture, PreviewProbeRequest, PreviewProbeSharedBuffer } from "@/types/probes";
 import type { WasmEvent, WasmProjectSpec } from "@/audio/renderers/wasm/wasmSubsetCompiler";
 import type { WorkletPortLike } from "@/audio/renderers/shared/synth-renderer";
 import type { WasmPreviewProbeCaptureRequest } from "@/audio/renderers/wasm/synth-worklet-wasm-compiler-core.js";
@@ -36,8 +36,14 @@ export interface SharedWasmEngine {
   preview_capture_sample_count?(): number;
 }
 
+export interface SharedWasmPreviewCaptureBuffer {
+  sampleBuffer: SharedArrayBuffer;
+  capacitySamples: number;
+}
+
 export interface SharedWasmPreviewCaptureState {
   lastEmittedCapturedSamples: number;
+  sharedBufferByProbeId?: Map<string, SharedWasmPreviewCaptureBuffer>;
   metaByProbeId: Map<
     string,
     {
@@ -54,6 +60,8 @@ export interface SharedWasmPreviewCaptureSnapshot {
     probeId: string;
     sampleStride?: number;
     samples: number[];
+    sampleBuffer?: SharedArrayBuffer;
+    sampleLength?: number;
   }>;
 }
 
@@ -69,6 +77,9 @@ export interface SharedWasmRendererLike {
     projectSpec: WasmProjectSpec;
     projectSpecJson: string;
   };
+  resolveSharedCaptureBufferMap?(
+    captureSharedBuffers?: PreviewProbeSharedBuffer[]
+  ): Map<string, SharedWasmPreviewCaptureBuffer>;
 }
 
 export interface SharedWasmImplementation {

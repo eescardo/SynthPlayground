@@ -12,10 +12,45 @@ import { getSongBeatForPlaybackBeat } from "@/lib/looping";
 import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
 import { createId } from "@/lib/ids";
 import { AudioProject, SchedulerEvent, WorkletOutboundMessage } from "@/types/audio";
-import { PreviewProbeCapture, PreviewProbeRequest } from "@/types/probes";
+import { PreviewProbeCapture, PreviewProbeRequest, PreviewProbeSharedBuffer } from "@/types/probes";
 
 export const BLOCK_SIZE = 128;
 export const FIXED_SAMPLE_RATE = 48000;
+
+const canUseSharedProbeBuffers = () =>
+  typeof SharedArrayBuffer !== "undefined" && globalThis.crossOriginIsolated === true;
+
+const createPreviewProbeSharedBuffers = (
+  captureProbes: PreviewProbeRequest[] | undefined,
+  capacitySamples: number
+): PreviewProbeSharedBuffer[] | undefined => {
+  if (!captureProbes?.length || !canUseSharedProbeBuffers()) {
+    return undefined;
+  }
+  const safeCapacitySamples = Math.max(1, Math.floor(capacitySamples));
+  return captureProbes.map((probe) => ({
+    probeId: probe.probeId,
+    capacitySamples: safeCapacitySamples,
+    sampleBuffer: new SharedArrayBuffer(safeCapacitySamples * Float32Array.BYTES_PER_ELEMENT)
+  }));
+};
+
+const hydrateSharedPreviewCaptureSamples = (capture: PreviewProbeCapture): PreviewProbeCapture => {
+  if (!capture.sampleBuffer) {
+    return capture;
+  }
+  const sampleLength = Math.max(
+    0,
+    Math.min(
+      capture.sampleLength ?? capture.capturedSamples,
+      capture.sampleBuffer.byteLength / Float32Array.BYTES_PER_ELEMENT
+    )
+  );
+  return {
+    ...capture,
+    samples: new Float32Array(capture.sampleBuffer, 0, sampleLength)
+  };
+};
 
 export interface AudioEngineBackend {
   init(): Promise<void>;
@@ -143,7 +178,7 @@ class RealAudioEngineBackend implements AudioEngineBackend {
         wasmBytes,
         onMessage: (message: WorkletOutboundMessage) => {
           if (message?.type === "PREVIEW_CAPTURE") {
-            this.previewCaptureListener?.(message.previewId, message.captures);
+            this.previewCaptureListener?.(message.previewId, message.captures.map(hydrateSharedPreviewCaptureSamples));
           } else if (message?.type === "RUNTIME_ERROR") {
             console.error(`Audio worklet ${message.phase} failed: ${message.error}`);
           }
@@ -387,6 +422,7 @@ class RealAudioEngineBackend implements AudioEngineBackend {
     const captureDurationSamples =
       Math.max(1, beatToSample(captureDurationBeats, FIXED_SAMPLE_RATE, previewProject.global.tempo)) + BLOCK_SIZE;
     const previewId = options?.previewId ?? createId("preview");
+    const captureSharedBuffers = createPreviewProbeSharedBuffers(options?.captureProbes, captureDurationSamples);
     const events: SchedulerEvent[] = [
       {
         id: `${previewId}_on`,
@@ -419,7 +455,8 @@ class RealAudioEngineBackend implements AudioEngineBackend {
       captureDurationSamples,
       ignoreVolume: options?.ignoreVolume !== false,
       project: options?.projectOverride,
-      captureProbes: options?.captureProbes
+      captureProbes: options?.captureProbes,
+      captureSharedBuffers
     });
   }
 

@@ -49,7 +49,15 @@ export interface PreviewProbeCapture {
   durationSamples: number;
   capturedSamples: number;
   sampleStride?: number;
-  samples: number[];
+  samples: ArrayLike<number>;
+  sampleBuffer?: SharedArrayBuffer;
+  sampleLength?: number;
+}
+
+export interface PreviewProbeSharedBuffer {
+  probeId: string;
+  sampleBuffer: SharedArrayBuffer;
+  capacitySamples: number;
 }
 
 export interface PatchProbeEditorState {
