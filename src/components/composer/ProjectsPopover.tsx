@@ -49,7 +49,7 @@ export function ProjectsPopover({
       <button type="button" onClick={() => runAction(onExportJson)}>
         Export Project
       </button>
-      <button type="button" onClick={() => runAction(onImportJson)}>
+      <button type="button" onClick={onImportJson}>
         Import Project
       </button>
       {recentProjects.length > 0 && (

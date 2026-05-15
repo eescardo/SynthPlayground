@@ -132,8 +132,10 @@ export const useProjectLifecycleActions = ({
         const importedProject = prepareImportedProject(migratedState.project);
 
         await switchToProject(importedProject, migratedState.assets, { rememberCurrent: true });
+        setRuntimeError(null);
       } catch (error) {
-        setRuntimeError((error as Error).message);
+        const message = error instanceof Error ? error.message : String(error);
+        setRuntimeError(`Failed to import project "${file.name}". ${message || "Unknown error."}`);
       }
     },
     [setRuntimeError, switchToProject]
