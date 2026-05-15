@@ -55,7 +55,6 @@ export const resolvePatchPresetStatus = (patch: Pick<Patch, "id"> & { meta?: Pat
 };
 
 export interface ProjectPresetUpdateSummary {
-  updateKey: string;
   updates: Array<{
     patchId: string;
     presetId: string;
@@ -64,13 +63,20 @@ export interface ProjectPresetUpdateSummary {
   }>;
 }
 
-export const getProjectPresetUpdateSummary = (project: Pick<Project, "patches">): ProjectPresetUpdateSummary | null => {
+export const getProjectPresetUpdateSummary = (
+  project: Pick<Project, "patches"> & { ui?: Pick<Project["ui"], "dismissedPresetUpdateVersions"> },
+  options: { includeDismissed?: boolean } = {}
+): ProjectPresetUpdateSummary | null => {
+  const dismissedVersions = project.ui?.dismissedPresetUpdateVersions ?? {};
   const updates = project.patches.flatMap((patch) => {
     if (resolvePatchPresetStatus(patch) !== "preset_update_available" || patch.meta?.source !== "preset") {
       return [];
     }
     const bundled = getBundledPresetLineage(patch.meta.presetId);
     if (!bundled) {
+      return [];
+    }
+    if (!options.includeDismissed && (dismissedVersions[patch.meta.presetId] ?? 0) >= bundled.presetVersion) {
       return [];
     }
     return [
@@ -88,10 +94,7 @@ export const getProjectPresetUpdateSummary = (project: Pick<Project, "patches">)
   }
 
   updates.sort((a, b) => a.presetId.localeCompare(b.presetId) || a.patchId.localeCompare(b.patchId));
-  return {
-    updates,
-    updateKey: `preset-updates:${updates.map((update) => `${update.presetId}@${update.nextVersion}`).join("|")}`
-  };
+  return { updates };
 };
 
 export const updatePresetPatchToLatest = (patch: Patch): Patch => {
@@ -134,7 +137,7 @@ export const updatePresetPatchToLatest = (patch: Patch): Patch => {
 };
 
 export const updateProjectPresetsToLatest = (project: Project): Project => {
-  const summary = getProjectPresetUpdateSummary(project);
+  const summary = getProjectPresetUpdateSummary(project, { includeDismissed: true });
   if (!summary) {
     return project;
   }
@@ -144,7 +147,7 @@ export const updateProjectPresetsToLatest = (project: Project): Project => {
     patches: project.patches.map(updatePresetPatchToLatest),
     ui: {
       ...project.ui,
-      dismissedPresetUpdateKey: undefined
+      dismissedPresetUpdateVersions: undefined
     }
   };
 };

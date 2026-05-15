@@ -64,6 +64,37 @@ const sanitizeMacroValueMap = (raw: unknown): Record<string, number> => {
   return values;
 };
 
+const sanitizePresetUpdateVersionMap = (raw: unknown): Record<string, number> | undefined => {
+  if (!isObject(raw)) {
+    return undefined;
+  }
+
+  const versions: Record<string, number> = {};
+  for (const [presetId, version] of Object.entries(raw)) {
+    if (typeof version === "number" && Number.isInteger(version) && version > 0) {
+      versions[presetId] = version;
+    }
+  }
+  return Object.keys(versions).length > 0 ? versions : undefined;
+};
+
+const parseLegacyPresetUpdateKey = (raw: unknown): Record<string, number> | undefined => {
+  if (typeof raw !== "string") {
+    return undefined;
+  }
+
+  const key = raw.startsWith("preset-updates:") ? raw.slice("preset-updates:".length) : raw;
+  const versions: Record<string, number> = {};
+  for (const entry of key.split("|")) {
+    const [presetId, versionText] = entry.split("@");
+    const version = Number(versionText);
+    if (presetId && Number.isInteger(version) && version > 0) {
+      versions[presetId] = version;
+    }
+  }
+  return Object.keys(versions).length > 0 ? versions : undefined;
+};
+
 const sanitizeProbeTarget = (raw: unknown): PatchProbeTarget | undefined => {
   const target = isObject(raw) ? raw : {};
   if (target.kind === "connection" && typeof target.connectionId === "string") {
@@ -255,6 +286,9 @@ export const normalizeProject = (raw: unknown): Project => {
   const masterFxRaw = isObject(raw.masterFx) ? raw.masterFx : {};
   const uiRaw = isObject(raw.ui) ? raw.ui : {};
   const patchWorkspaceRaw = isObject(uiRaw.patchWorkspace) ? uiRaw.patchWorkspace : {};
+  const dismissedPresetUpdateVersions =
+    sanitizePresetUpdateVersionMap(uiRaw.dismissedPresetUpdateVersions) ??
+    parseLegacyPresetUpdateKey(uiRaw.dismissedPresetUpdateKey);
   const patchWorkspaceTabsRaw = Array.isArray(patchWorkspaceRaw.tabs) ? patchWorkspaceRaw.tabs : [];
   const patchWorkspaceTabs = patchWorkspaceTabsRaw.map((tab, index) =>
     sanitizePatchWorkspaceTab(tab, index, patchIds, fallbackPatchId, patchNameById)
@@ -345,8 +379,7 @@ export const normalizeProject = (raw: unknown): Project => {
           : normalizedPatchWorkspaceTabs[0].id,
         tabs: normalizedPatchWorkspaceTabs
       },
-      dismissedPresetUpdateKey:
-        typeof uiRaw.dismissedPresetUpdateKey === "string" ? uiRaw.dismissedPresetUpdateKey : undefined
+      dismissedPresetUpdateVersions
     },
     createdAt: asFiniteNumber(raw.createdAt, now),
     updatedAt: asFiniteNumber(raw.updatedAt, now)

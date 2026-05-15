@@ -26,13 +26,17 @@ describe("patch source helpers", () => {
     expect(bass.ui.macros.map((macro) => macro.id)).toEqual(latestBass.ui.macros.map((macro) => macro.id));
   });
 
-  it("summarizes preset updates with a stable key for the latest bundled versions", () => {
+  it("summarizes preset updates that exceed the per-project dismissed versions", () => {
     const project = createDefaultProject();
     const bass = project.patches.find((patch) => patch.id === "preset_bass");
     if (!bass || bass.meta.source !== "preset") {
       throw new Error("Expected preset_bass to be available");
     }
-    bass.meta.presetVersion -= 1;
+    const latestVersion = bass.meta.presetVersion;
+    bass.meta.presetVersion = latestVersion - 2;
+    project.ui.dismissedPresetUpdateVersions = {
+      preset_bass: latestVersion - 1
+    };
 
     const summary = getProjectPresetUpdateSummary(project);
 
@@ -41,10 +45,24 @@ describe("patch source helpers", () => {
         patchId: "preset_bass",
         presetId: "preset_bass",
         currentVersion: bass.meta.presetVersion,
-        nextVersion: bass.meta.presetVersion + 1
+        nextVersion: latestVersion
       }
     ]);
-    expect(summary?.updateKey).toBe(`preset-updates:preset_bass@${bass.meta.presetVersion + 1}`);
+  });
+
+  it("does not summarize preset updates that the project already dismissed at that version", () => {
+    const project = createDefaultProject();
+    const bass = project.patches.find((patch) => patch.id === "preset_bass");
+    if (!bass || bass.meta.source !== "preset") {
+      throw new Error("Expected preset_bass to be available");
+    }
+    const latestVersion = bass.meta.presetVersion;
+    bass.meta.presetVersion = latestVersion - 1;
+    project.ui.dismissedPresetUpdateVersions = {
+      preset_bass: latestVersion
+    };
+
+    expect(getProjectPresetUpdateSummary(project)).toBeNull();
   });
 
   it("updates stale preset patches while preserving the patch identity and saved layout", () => {
@@ -70,9 +88,9 @@ describe("patch source helpers", () => {
     expect(updated.layout.nodes.find((entry) => entry.nodeId === savedLayoutNode.nodeId)).toEqual(savedLayoutNode);
   });
 
-  it("updates all stale project presets and clears the dismissed update key", () => {
+  it("updates all stale project presets and clears dismissed update versions", () => {
     const project = createDefaultProject();
-    project.ui.dismissedPresetUpdateKey = "preset_bass@old";
+    project.ui.dismissedPresetUpdateVersions = { preset_bass: 1 };
     for (const patchId of ["preset_bass", "preset_pluck"]) {
       const patch = project.patches.find((entry) => entry.id === patchId);
       if (patch?.meta.source === "preset") {
@@ -83,6 +101,6 @@ describe("patch source helpers", () => {
     const updatedProject = updateProjectPresetsToLatest(project);
 
     expect(getProjectPresetUpdateSummary(updatedProject)).toBeNull();
-    expect(updatedProject.ui.dismissedPresetUpdateKey).toBeUndefined();
+    expect(updatedProject.ui.dismissedPresetUpdateVersions).toBeUndefined();
   });
 });

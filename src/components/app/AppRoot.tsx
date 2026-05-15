@@ -232,9 +232,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     [project.patches, selectedTrack?.instrumentPatchId]
   );
   const presetUpdateSummary = useMemo(() => getProjectPresetUpdateSummary(project), [project]);
-  const showPresetUpdatePrompt = Boolean(
-    ready && presetUpdateSummary && project.ui.dismissedPresetUpdateKey !== presetUpdateSummary.updateKey
-  );
+  const showPresetUpdatePrompt = Boolean(ready && presetUpdateSummary);
   const selectedContent = editorSelection.content;
   const selectedNoteKeySet = useMemo(() => new Set(selectedContent.noteKeys), [selectedContent.noteKeys]);
   const selectedAutomationKeyframeSet = useMemo(
@@ -346,12 +344,18 @@ export function AppRoot({ children }: { children: ReactNode }) {
     if (!presetUpdateSummary) {
       return;
     }
+    const dismissedPresetUpdateVersions = Object.fromEntries(
+      presetUpdateSummary.updates.map((update) => [update.presetId, update.nextVersion])
+    );
     commitProjectChange(
       (current) => ({
         ...current,
         ui: {
           ...current.ui,
-          dismissedPresetUpdateKey: presetUpdateSummary.updateKey
+          dismissedPresetUpdateVersions: {
+            ...(current.ui.dismissedPresetUpdateVersions ?? {}),
+            ...dismissedPresetUpdateVersions
+          }
         }
       }),
       { actionKey: "project:dismiss-preset-updates", skipHistory: true }

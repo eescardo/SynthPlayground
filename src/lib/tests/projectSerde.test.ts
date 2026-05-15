@@ -91,12 +91,18 @@ describe("projectSerde", () => {
       macro_cutoff: 0.23,
       macro_decay: 0.41
     };
-    project.ui.dismissedPresetUpdateKey = "preset-updates:preset_bass@15";
+    project.ui.dismissedPresetUpdateVersions = {
+      preset_bass: 15,
+      preset_pluck: 29
+    };
 
     const roundTrip = importProjectFromJson(exportProjectToJson(project));
 
     expect(roundTrip.tracks[0].macroValues).toEqual(project.tracks[0].macroValues);
-    expect(roundTrip.ui.dismissedPresetUpdateKey).toBe("preset-updates:preset_bass@15");
+    expect(roundTrip.ui.dismissedPresetUpdateVersions).toEqual({
+      preset_bass: 15,
+      preset_pluck: 29
+    });
     const presetPatch = roundTrip.patches.find((patch) => patch.id === "preset_bass");
     expect(presetPatch).toBeDefined();
     if (!presetPatch) {
