@@ -1,7 +1,6 @@
 import { expect, Page } from "@playwright/test";
 import {
   createMicrotonalCaptureProject,
-  createPresetUpdateCaptureProject,
   openApp,
   openSeededApp,
   savePageScreenshot,
@@ -18,6 +17,7 @@ import {
   PATCH_NODE_HEIGHT,
   PATCH_NODE_WIDTH
 } from "../../src/components/patch/patchCanvasConstants";
+import { createDefaultProject } from "../../src/lib/patch/presets";
 
 export interface ScreenshotScenarioDefinition {
   name: ScreenshotScenario;
@@ -45,6 +45,16 @@ async function clickPatchCanvasRaw(page: Page, rawX: number, rawY: number) {
     box.x + rawX * (metrics.cssWidth / metrics.width),
     box.y + rawY * (metrics.cssHeight / metrics.height)
   );
+}
+
+function createPresetUpdateScreenshotProject() {
+  const project = createDefaultProject();
+  const stalePreset = project.patches.find((patch) => patch.id === "preset_bass");
+  if (stalePreset?.meta.source !== "preset") {
+    throw new Error("Could not resolve preset_bass for preset update screenshot.");
+  }
+  stalePreset.meta.presetVersion -= 1;
+  return project;
 }
 
 export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, ScreenshotScenarioDefinition> = {
@@ -102,7 +112,7 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
     name: SCREENSHOT_SCENARIO.PRESET_UPDATE_MODAL,
     description: "Preset update modal open over the main view",
     capture: async (page, outputPath) => {
-      await openSeededApp(page, createPresetUpdateCaptureProject());
+      await openSeededApp(page, createPresetUpdateScreenshotProject());
       await expect(page.getByRole("heading", { name: "Update Presets?" })).toBeVisible();
       await savePageScreenshot(page, outputPath);
     }

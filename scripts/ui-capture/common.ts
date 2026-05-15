@@ -89,16 +89,6 @@ export const openSeededApp = async (page: Page, project: Project) => {
   await expect(page.locator(".track-name-button").first()).toBeVisible();
 };
 
-export const createPresetUpdateCaptureProject = (): Project => {
-  const project = createDefaultProject();
-  const stalePreset = project.patches.find((patch) => patch.id === "preset_bass");
-  if (stalePreset?.meta.source !== "preset") {
-    throw new Error("Could not resolve preset_bass for preset update capture.");
-  }
-  stalePreset.meta.presetVersion -= 1;
-  return project;
-};
-
 const getDefaultPatchWorkspacePatch = (): Patch => {
   const project = createDefaultProject();
   const initialPatchId = project.ui.patchWorkspace.tabs[0]?.patchId ?? project.tracks[0]?.instrumentPatchId;
