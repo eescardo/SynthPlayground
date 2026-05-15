@@ -149,7 +149,10 @@ export const buildProbeSpectrogram = (
 
   for (let timeIndex = 0; timeIndex < timeBinCount; timeIndex += 1) {
     const normalizedTime = timeBinCount <= 1 ? 0 : timeIndex / (timeBinCount - 1);
-    const centerSample = Math.floor(normalizedTime * Math.max(0, safeCapturedSamples - 1));
+    const centerSample = Math.floor(normalizedTime * Math.max(0, safeDurationSamples - 1));
+    if (centerSample >= safeCapturedSamples) {
+      continue;
+    }
     const frameStart = clamp(centerSample - Math.floor(frameSize / 2), 0, safeCapturedSamples - frameSize);
     const peak = resolveProbeFramePeak(samples, frameStart, frameSize);
     for (let freqIndex = 0; freqIndex < freqBinCount; freqIndex += 1) {

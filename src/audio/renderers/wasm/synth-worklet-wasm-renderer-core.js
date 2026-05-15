@@ -95,15 +95,16 @@ export class SharedWasmRenderStream {
       captures: captures
         .map((capture) => {
           const meta = this.previewCaptureState.metaByProbeId.get(capture.probeId);
+          const sampleStride = Math.max(1, capture.sampleStride || 1);
           return meta
             ? {
                 probeId: capture.probeId,
                 kind: meta.kind,
                 target: meta.target,
-                sampleRate: this.renderer.sampleRateInternal / Math.max(1, capture.sampleStride || 1),
-                durationSamples: meta.durationSamples,
-                capturedSamples,
-                sampleStride: capture.sampleStride,
+                sampleRate: this.renderer.sampleRateInternal / sampleStride,
+                durationSamples: Math.ceil(meta.durationSamples / sampleStride),
+                capturedSamples: Math.ceil(Math.min(capturedSamples, meta.durationSamples) / sampleStride),
+                sampleStride,
                 samples: capture.samples
               }
             : null;

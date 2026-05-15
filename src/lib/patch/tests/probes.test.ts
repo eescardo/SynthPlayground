@@ -44,7 +44,7 @@ describe("probe helpers", () => {
     expect(grid.map((row) => row[1])).not.toEqual(grid.map((row) => row[10]));
   });
 
-  it("fits partial spectrogram captures across the probe face", () => {
+  it("accumulates partial spectrogram captures without reflowing future columns", () => {
     const capturedSamples = new Array(1536)
       .fill(0)
       .map((_, index) =>
@@ -55,10 +55,11 @@ describe("probe helpers", () => {
     const grid = buildProbeSpectrogram(backingSamples, 256, 12, 10, backingSamples.length, capturedSamples.length);
 
     const firstColumnEnergy = grid.reduce((sum, row) => sum + row[1], 0);
-    const lastColumnEnergy = grid.reduce((sum, row) => sum + row[10], 0);
+    const midpointEnergy = grid.reduce((sum, row) => sum + row[3], 0);
+    const futureColumnEnergy = grid.reduce((sum, row) => sum + row[10], 0);
     expect(firstColumnEnergy).toBeGreaterThan(0.01);
-    expect(lastColumnEnergy).toBeGreaterThan(0.01);
-    expect(grid.map((row) => row[1])).not.toEqual(grid.map((row) => row[10]));
+    expect(midpointEnergy).toBeGreaterThan(0.01);
+    expect(futureColumnEnergy).toBeCloseTo(10 * 0.02);
   });
 
   it("reallocates spectrum detail when max frequency is narrowed", () => {

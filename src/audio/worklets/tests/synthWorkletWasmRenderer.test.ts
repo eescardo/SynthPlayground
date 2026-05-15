@@ -222,7 +222,7 @@ describe("WASM worklet renderer", () => {
         captures: [
           expect.objectContaining({
             probeId: "probe_1",
-            capturedSamples: blockSize,
+            capturedSamples: blockSize / 4,
             sampleRate: 12000,
             sampleStride: 4,
             samples: expect.arrayContaining([0.5])
@@ -288,7 +288,7 @@ describe("WASM worklet renderer", () => {
     expect(postMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         type: "PREVIEW_CAPTURE",
-        captures: [expect.objectContaining({ capturedSamples: blockSize * 64 })]
+        captures: [expect.objectContaining({ capturedSamples: blockSize * 16 })]
       })
     );
   });
