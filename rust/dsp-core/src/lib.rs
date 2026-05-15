@@ -320,6 +320,8 @@ struct PreviewProbeCaptureSpec {
 struct PreviewProbeCaptureSnapshot {
     #[serde(rename = "probeId")]
     probe_id: String,
+    #[serde(rename = "sampleStride")]
+    sample_stride: f32,
     samples: Vec<f32>,
 }
 

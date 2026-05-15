@@ -7,7 +7,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use wasm_bindgen::JsValue;
 
-const PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES: usize = 16_384;
+const PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES: usize = 4_096;
 
 #[derive(Clone)]
 struct TrackFxState {
@@ -222,6 +222,7 @@ impl TrackRuntime {
             .iter()
             .map(|capture| PreviewProbeCaptureSnapshot {
                 probe_id: capture.probe_id.clone(),
+                sample_stride: resolve_preview_capture_snapshot_stride(capture, captured_samples),
                 samples: build_preview_capture_snapshot_samples(capture, captured_samples),
             })
             .collect()
@@ -641,14 +642,30 @@ fn build_preview_capture_snapshot_samples(
     captured_samples: usize,
 ) -> Vec<f32> {
     let captured_end = captured_samples.min(capture.duration_samples);
-    let snapshot_start = captured_end.saturating_sub(PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES);
-    capture
-        .samples
-        .iter()
-        .skip(snapshot_start)
-        .take(captured_end - snapshot_start)
-        .copied()
+    if captured_end <= PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES {
+        return capture.samples.iter().take(captured_end).copied().collect();
+    }
+
+    let output_len = PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES;
+    let denominator = (output_len - 1) as f64;
+    let source_max = (captured_end - 1) as f64;
+    (0..output_len)
+        .map(|index| {
+            let source_index = ((index as f64 / denominator) * source_max).round() as usize;
+            capture.samples[source_index]
+        })
         .collect()
+}
+
+fn resolve_preview_capture_snapshot_stride(
+    capture: &TrackProbeCaptureState,
+    captured_samples: usize,
+) -> f32 {
+    let captured_end = captured_samples.min(capture.duration_samples);
+    if captured_end <= PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES {
+        return 1.0;
+    }
+    captured_end as f32 / PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES as f32
 }
 
 #[cfg(test)]
@@ -656,7 +673,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn preview_capture_snapshots_use_a_bounded_recent_window() {
+    fn preview_capture_snapshots_use_a_bounded_whole_capture_summary() {
         let capture = TrackProbeCaptureState {
             probe_id: "probe_1".to_string(),
             signal_start: 0,
@@ -672,10 +689,16 @@ mod tests {
         );
 
         assert_eq!(samples.len(), PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES);
-        assert_eq!(samples.first().copied(), Some(32.0));
+        assert_eq!(samples.first().copied(), Some(0.0));
         assert_eq!(
             samples.last().copied(),
             Some((PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES + 31) as f32)
+        );
+        assert!(
+            resolve_preview_capture_snapshot_stride(
+                &capture,
+                PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES + 32
+            ) > 1.0
         );
     }
 }

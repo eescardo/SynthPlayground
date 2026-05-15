@@ -100,9 +100,10 @@ export class SharedWasmRenderStream {
                 probeId: capture.probeId,
                 kind: meta.kind,
                 target: meta.target,
-                sampleRate: this.renderer.sampleRateInternal,
+                sampleRate: this.renderer.sampleRateInternal / Math.max(1, capture.sampleStride || 1),
                 durationSamples: meta.durationSamples,
                 capturedSamples,
+                sampleStride: capture.sampleStride,
                 samples: capture.samples
               }
             : null;

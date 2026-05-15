@@ -35,6 +35,7 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
             captures: [
               {
                 probeId: "probe_1",
+                sampleStride: 4,
                 samples: Array.from({ length: blockSize }, () => 0.5)
               }
             ]
@@ -222,6 +223,8 @@ describe("WASM worklet renderer", () => {
           expect.objectContaining({
             probeId: "probe_1",
             capturedSamples: blockSize,
+            sampleRate: 12000,
+            sampleStride: 4,
             samples: expect.arrayContaining([0.5])
           })
         ]

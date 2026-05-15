@@ -48,6 +48,7 @@ export interface PreviewProbeCapture {
   sampleRate: number;
   durationSamples: number;
   capturedSamples: number;
+  sampleStride?: number;
   samples: number[];
 }
 
