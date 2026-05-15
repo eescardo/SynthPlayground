@@ -49,9 +49,9 @@ async function clickPatchCanvasRaw(page: Page, rawX: number, rawY: number) {
 
 function createPresetUpdateScreenshotProject() {
   const project = createDefaultProject();
-  const stalePreset = project.patches.find((patch) => patch.id === "preset_bass");
+  const stalePreset = project.patches.find((patch) => patch.meta.source === "preset");
   if (stalePreset?.meta.source !== "preset") {
-    throw new Error("Could not resolve preset_bass for preset update screenshot.");
+    throw new Error("Could not resolve a bundled preset for preset update screenshot.");
   }
   stalePreset.meta.presetVersion -= 1;
   return project;
