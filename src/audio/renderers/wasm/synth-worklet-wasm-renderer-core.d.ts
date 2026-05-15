@@ -59,6 +59,7 @@ export interface SharedWasmPreviewCaptureSnapshot {
   captures: Array<{
     probeId: string;
     sampleStride?: number;
+    sourceCapturedSamples?: number;
     samples: number[];
     sampleBuffer?: SharedArrayBuffer;
     sampleLength?: number;

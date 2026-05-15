@@ -151,6 +151,7 @@ export class SharedWasmRenderStream {
                 sampleRate: this.renderer.sampleRateInternal / sampleStride,
                 durationSamples: Math.ceil(meta.durationSamples / sampleStride),
                 capturedSamples: Math.ceil(Math.min(capturedSamples, meta.durationSamples) / sampleStride),
+                sourceCapturedSamples: Math.min(capturedSamples, meta.durationSamples),
                 sampleStride,
                 samples: sharedSamples ? [] : capture.samples,
                 sampleBuffer: sharedSamples?.sampleBuffer,
