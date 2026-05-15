@@ -632,7 +632,7 @@ function SpectrumProbeGraph(props: {
       (gridPeak, row) =>
         Math.max(
           gridPeak,
-          sourceColumns.reduce((rowPeak, sourceColumn) => Math.max(rowPeak, row[sourceColumn] ?? 0), 0)
+          row.reduce((rowPeak, value) => Math.max(rowPeak, value), 0)
         ),
       0
     );
@@ -684,7 +684,7 @@ function SpectrumProbeGraph(props: {
       const row = displaySpectrogram[rowIndex] ?? [];
       for (let columnIndex = 0; columnIndex < columns; columnIndex += 1) {
         const value = row[columnIndex] ?? 0;
-        const alpha = clamp(value * 0.95, 0.03, 0.96);
+        const alpha = value <= 0 ? 0 : clamp(value * 0.95, 0, 0.96);
         context.fillStyle = `rgba(${PATCH_COLOR_PROBE_SPECTROGRAM_BIN_RGB}, ${alpha})`;
         context.fillRect(
           columnIndex * cellWidth,
