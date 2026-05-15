@@ -281,20 +281,6 @@ function ProbeCard(props: {
     }
   };
 
-  const spectrumColumn = useMemo(
-    () =>
-      props.capture && props.probe.kind === "spectrum"
-        ? buildProbeSpectrumColumn(
-            props.capture.samples,
-            props.probe.spectrumWindowSize ?? 1024,
-            props.probe.expanded ? 30 : 18,
-            props.capture.capturedSamples,
-            props.capture.sampleRate,
-            resolveProbeFrequencyView(props.probe.frequencyView).maxHz
-          )
-        : [],
-    [props.capture, props.probe.kind, props.probe.spectrumWindowSize, props.probe.frequencyView, props.probe.expanded]
-  );
   const spectrumElapsedSeconds =
     props.capture && props.probe.kind === "spectrum"
       ? (props.capture.sourceCapturedSamples ?? props.capture.capturedSamples * (props.capture.sampleStride ?? 1)) /
@@ -354,7 +340,6 @@ function ProbeCard(props: {
         <ProbeGraphBody
           probe={props.probe}
           capture={props.capture}
-          spectrumColumn={spectrumColumn}
           spectrumElapsedSeconds={spectrumElapsedSeconds}
           spectrogramResetKey={spectrogramResetKey}
           compact={!props.probe.expanded}
@@ -368,7 +353,6 @@ function ProbeCard(props: {
 function ProbeGraphBody(props: {
   probe: PatchWorkspaceProbeState;
   capture?: PreviewProbeCapture;
-  spectrumColumn: number[];
   spectrumElapsedSeconds: number;
   spectrogramResetKey: string;
   compact?: boolean;
@@ -382,7 +366,7 @@ function ProbeGraphBody(props: {
   }
   return (
     <SpectrumProbeGraph
-      spectrumColumn={props.spectrumColumn}
+      capture={props.capture}
       elapsedSeconds={props.spectrumElapsedSeconds}
       resetKey={props.spectrogramResetKey}
       selectedWindowSize={props.probe.spectrumWindowSize ?? 1024}
@@ -557,7 +541,7 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; compact?: boole
 }
 
 function SpectrumProbeGraph(props: {
-  spectrumColumn: number[];
+  capture?: PreviewProbeCapture;
   elapsedSeconds: number;
   resetKey: string;
   selectedWindowSize: number;
@@ -577,10 +561,10 @@ function SpectrumProbeGraph(props: {
   } | null>(null);
   const frequencyMarkers = useMemo(() => resolveSpectrumFrequencyMarkers(props.maxFrequencyHz), [props.maxFrequencyHz]);
   const displaySpectrogram = useMemo(() => {
-    const rows = props.spectrumColumn.length;
+    const rows = props.compact ? 18 : 30;
     const viewportColumns = props.compact ? 240 : 320;
     const historyColumns = viewportColumns * SPECTRUM_HISTORY_SECONDS;
-    if (!rows) {
+    if (!props.capture) {
       spectrumHistoryRef.current = null;
       return [];
     }
@@ -611,8 +595,22 @@ function SpectrumProbeGraph(props: {
 
     if (currentColumn > history.lastWrittenColumn) {
       for (let columnIndex = history.lastWrittenColumn + 1; columnIndex <= currentColumn; columnIndex += 1) {
+        const columnElapsedSeconds = (columnIndex + 1) / viewportColumns;
+        const columnCapturedSamples = clamp(
+          Math.round(columnElapsedSeconds * props.capture.sampleRate),
+          0,
+          props.capture.capturedSamples
+        );
+        const column = buildProbeSpectrumColumn(
+          props.capture.samples,
+          props.selectedWindowSize,
+          rows,
+          columnCapturedSamples,
+          props.capture.sampleRate,
+          props.maxFrequencyHz
+        );
         for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
-          history.grid[rowIndex][columnIndex] = props.spectrumColumn[rowIndex] ?? 0;
+          history.grid[rowIndex][columnIndex] = column[rowIndex] ?? 0;
         }
       }
       history.lastWrittenColumn = currentColumn;
@@ -632,7 +630,14 @@ function SpectrumProbeGraph(props: {
         return row[sourceColumn] ?? 0;
       })
     );
-  }, [props.compact, props.elapsedSeconds, props.resetKey, props.spectrumColumn]);
+  }, [
+    props.capture,
+    props.compact,
+    props.elapsedSeconds,
+    props.maxFrequencyHz,
+    props.resetKey,
+    props.selectedWindowSize
+  ]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
