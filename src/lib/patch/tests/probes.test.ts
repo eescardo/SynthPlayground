@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildProbeSpectrogram,
   buildProbeSpectrumColumn,
+  buildProbeSpectrumFrameGrid,
   buildSpectrumBins,
   normalizeProbeSamples,
   resolveProbeSpectrogramTimeline
@@ -116,6 +117,39 @@ describe("probe helpers", () => {
     const loudColumn = buildProbeSpectrumColumn(loudSamples, 256, 10, loudSamples.length, 1536, undefined, false);
 
     expect(Math.max(...loudColumn)).toBeGreaterThan(Math.max(...quietColumn));
+  });
+
+  it("builds immutable spectrum frame columns and one global display peak", () => {
+    const frameSize = 256;
+    const samples = new Array(frameSize * 3).fill(0).map((_, index) => {
+      if (index < frameSize) {
+        return Math.sin((2 * Math.PI * index) / 64) * 0.35;
+      }
+      if (index < frameSize * 2) {
+        return Math.sin((2 * Math.PI * index) / 16) * 0.12;
+      }
+      return Math.sin((2 * Math.PI * index) / 16) * 0.7;
+    });
+
+    const grid = buildProbeSpectrumFrameGrid(samples, frameSize, 16, samples.length, 2048);
+
+    expect(grid.frameSize).toBe(frameSize);
+    expect(grid.columns).toHaveLength(3);
+    const columnPeaks = grid.columns.map((column) => Math.max(...column));
+    expect(grid.peak).toBe(Math.max(...columnPeaks));
+    expect(columnPeaks[2]).toBeGreaterThan(columnPeaks[1] * 2);
+    expect(grid.columns[0]).not.toEqual(grid.columns[1]);
+  });
+
+  it("does not fill future spectrum frames before enough samples are captured", () => {
+    const frameSize = 256;
+    const samples = new Array(frameSize * 2).fill(0).map((_, index) => Math.sin((2 * Math.PI * index) / 32) * 0.2);
+
+    const partialGrid = buildProbeSpectrumFrameGrid(samples, frameSize, 12, frameSize - 1, 2048);
+    const oneFrameGrid = buildProbeSpectrumFrameGrid(samples, frameSize, 12, frameSize, 2048);
+
+    expect(partialGrid.columns).toHaveLength(0);
+    expect(oneFrameGrid.columns).toHaveLength(1);
   });
 
   it("reports spectrogram timeline fill before and after the first second", () => {

@@ -27,7 +27,7 @@ import {
   PATCH_COLOR_PROBE_SCOPE_TRACE,
   PATCH_COLOR_PROBE_SPECTROGRAM_BIN_RGB
 } from "@/components/patch/patchCanvasConstants";
-import { buildProbeSpectrumColumn, EXPANDED_PROBE_SIZE, resolveProbeFrequencyView } from "@/lib/patch/probes";
+import { buildProbeSpectrumFrameGrid, EXPANDED_PROBE_SIZE, resolveProbeFrequencyView } from "@/lib/patch/probes";
 import { clamp } from "@/lib/numeric";
 import { detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
 import {
@@ -60,7 +60,7 @@ interface PatchProbeOverlayProps {
 
 const PROBE_SPECTRUM_WINDOWS = [256, 512, 1024, 2048];
 const PROBE_DRAG_THRESHOLD_PX = 6;
-const SPECTRUM_HISTORY_SECONDS = 4;
+const SPECTRUM_MAX_DISPLAY_SECONDS = 4;
 
 function resolveNearestProbeEdgePoint(
   probe: PatchWorkspaceProbeState,
@@ -286,17 +286,6 @@ function ProbeCard(props: {
       ? (props.capture.sourceCapturedSamples ?? props.capture.capturedSamples * (props.capture.sampleStride ?? 1)) /
         Math.max(1, props.capture.sampleRate * (props.capture.sampleStride ?? 1))
       : 0;
-  const spectrogramResetKey =
-    props.capture && props.probe.kind === "spectrum"
-      ? [
-          props.capture.probeId,
-          props.capture.sampleRate,
-          props.probe.spectrumWindowSize ?? 1024,
-          resolveProbeFrequencyView(props.probe.frequencyView).maxHz,
-          props.probe.expanded ? "expanded" : "compact"
-        ].join(":")
-      : props.probe.id;
-
   return (
     <div
       className={`patch-probe-card${props.selected ? " selected" : ""}${props.attaching ? " attaching" : ""}${props.probe.expanded ? " expanded" : ""}`}
@@ -341,7 +330,6 @@ function ProbeCard(props: {
           probe={props.probe}
           capture={props.capture}
           spectrumElapsedSeconds={spectrumElapsedSeconds}
-          spectrogramResetKey={spectrogramResetKey}
           compact={!props.probe.expanded}
           onUpdateSpectrumWindow={props.onUpdateSpectrumWindow}
         />
@@ -354,7 +342,6 @@ function ProbeGraphBody(props: {
   probe: PatchWorkspaceProbeState;
   capture?: PreviewProbeCapture;
   spectrumElapsedSeconds: number;
-  spectrogramResetKey: string;
   compact?: boolean;
   onUpdateSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
 }) {
@@ -368,7 +355,6 @@ function ProbeGraphBody(props: {
     <SpectrumProbeGraph
       capture={props.capture}
       elapsedSeconds={props.spectrumElapsedSeconds}
-      resetKey={props.spectrogramResetKey}
       selectedWindowSize={props.probe.spectrumWindowSize ?? 1024}
       maxFrequencyHz={resolveProbeFrequencyView(props.probe.frequencyView).maxHz}
       compact={props.compact}
@@ -543,101 +529,51 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; compact?: boole
 function SpectrumProbeGraph(props: {
   capture?: PreviewProbeCapture;
   elapsedSeconds: number;
-  resetKey: string;
   selectedWindowSize: number;
   maxFrequencyHz: number;
   compact?: boolean;
   onChangeWindowSize: (windowSize: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const spectrumHistoryRef = useRef<{
-    elapsedSeconds: number;
-    key: string;
-    rows: number;
-    slices: Array<{ elapsedSeconds: number; values: number[] }>;
-  } | null>(null);
   const frequencyMarkers = useMemo(() => resolveSpectrumFrequencyMarkers(props.maxFrequencyHz), [props.maxFrequencyHz]);
   const displaySpectrogram = useMemo(() => {
     const rows = props.compact ? 18 : 30;
     const viewportColumns = props.compact ? 240 : 320;
     if (!props.capture) {
-      spectrumHistoryRef.current = null;
       return [];
     }
 
-    const elapsedSeconds = clamp(props.elapsedSeconds, 0, SPECTRUM_HISTORY_SECONDS);
-    const existing = spectrumHistoryRef.current;
-    const shouldReset =
-      !existing ||
-      existing.key !== props.resetKey ||
-      existing.rows !== rows ||
-      elapsedSeconds < existing.elapsedSeconds;
-
-    const history = shouldReset
-      ? {
-          key: props.resetKey,
-          elapsedSeconds,
-          rows,
-          slices: []
-        }
-      : existing;
-
-    const previousSlice = history.slices[history.slices.length - 1];
-    if (!previousSlice || elapsedSeconds > previousSlice.elapsedSeconds) {
-      const values = buildProbeSpectrumColumn(
-        props.capture.samples,
-        props.selectedWindowSize,
-        rows,
-        props.capture.capturedSamples,
-        props.capture.sampleRate,
-        props.maxFrequencyHz,
-        false
-      );
-      history.slices.push({ elapsedSeconds, values });
-    }
-    history.elapsedSeconds = elapsedSeconds;
-    spectrumHistoryRef.current = history;
-
-    const peak = history.slices.reduce(
-      (slicePeak, slice) =>
-        Math.max(
-          slicePeak,
-          slice.values.reduce((rowPeak, value) => Math.max(rowPeak, value), 0)
-        ),
-      0
+    const elapsedSeconds = clamp(props.elapsedSeconds, 0, SPECTRUM_MAX_DISPLAY_SECONDS);
+    const grid = buildProbeSpectrumFrameGrid(
+      props.capture.samples,
+      props.selectedWindowSize,
+      rows,
+      props.capture.capturedSamples,
+      props.capture.sampleRate,
+      props.maxFrequencyHz
     );
-    if (peak <= 0) {
+    if (grid.peak <= 0 || grid.columns.length <= 0) {
       return Array.from({ length: rows }, () => new Array(viewportColumns).fill(0));
     }
-    const viewportSeconds = clamp(Math.max(1, elapsedSeconds), 1, SPECTRUM_HISTORY_SECONDS);
+    const viewportSeconds = clamp(Math.max(1, elapsedSeconds), 1, SPECTRUM_MAX_DISPLAY_SECONDS);
+    const visibleFrameCount = Math.max(
+      1,
+      Math.min(grid.columns.length, Math.ceil((viewportSeconds * props.capture.sampleRate) / grid.frameSize))
+    );
     const display = Array.from({ length: rows }, () => new Array(viewportColumns).fill(0));
-    let sliceIndex = 0;
     for (let columnIndex = 0; columnIndex < viewportColumns; columnIndex += 1) {
       const ratio = viewportColumns <= 1 ? 0 : columnIndex / (viewportColumns - 1);
-      const sourceTimeSeconds = ratio * viewportSeconds;
-      while (
-        sliceIndex + 1 < history.slices.length &&
-        history.slices[sliceIndex + 1].elapsedSeconds <= sourceTimeSeconds
-      ) {
-        sliceIndex += 1;
-      }
-      const slice = history.slices[sliceIndex];
-      if (!slice || slice.elapsedSeconds > sourceTimeSeconds) {
+      const frameIndex = clamp(Math.floor(ratio * visibleFrameCount), 0, visibleFrameCount - 1);
+      const column = grid.columns[frameIndex];
+      if (!column) {
         continue;
       }
       for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
-        display[rowIndex][columnIndex] = clamp(Math.pow((slice.values[rowIndex] ?? 0) / peak, 0.48), 0, 1);
+        display[rowIndex][columnIndex] = clamp(Math.pow((column[rowIndex] ?? 0) / grid.peak, 0.48), 0, 1);
       }
     }
     return display;
-  }, [
-    props.capture,
-    props.compact,
-    props.elapsedSeconds,
-    props.maxFrequencyHz,
-    props.resetKey,
-    props.selectedWindowSize
-  ]);
+  }, [props.capture, props.compact, props.elapsedSeconds, props.maxFrequencyHz, props.selectedWindowSize]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
