@@ -78,23 +78,6 @@ const sanitizePresetUpdateVersionMap = (raw: unknown): Record<string, number> | 
   return Object.keys(versions).length > 0 ? versions : undefined;
 };
 
-const parseLegacyPresetUpdateKey = (raw: unknown): Record<string, number> | undefined => {
-  if (typeof raw !== "string") {
-    return undefined;
-  }
-
-  const key = raw.startsWith("preset-updates:") ? raw.slice("preset-updates:".length) : raw;
-  const versions: Record<string, number> = {};
-  for (const entry of key.split("|")) {
-    const [presetId, versionText] = entry.split("@");
-    const version = Number(versionText);
-    if (presetId && Number.isInteger(version) && version > 0) {
-      versions[presetId] = version;
-    }
-  }
-  return Object.keys(versions).length > 0 ? versions : undefined;
-};
-
 const sanitizeProbeTarget = (raw: unknown): PatchProbeTarget | undefined => {
   const target = isObject(raw) ? raw : {};
   if (target.kind === "connection" && typeof target.connectionId === "string") {
@@ -286,9 +269,7 @@ export const normalizeProject = (raw: unknown): Project => {
   const masterFxRaw = isObject(raw.masterFx) ? raw.masterFx : {};
   const uiRaw = isObject(raw.ui) ? raw.ui : {};
   const patchWorkspaceRaw = isObject(uiRaw.patchWorkspace) ? uiRaw.patchWorkspace : {};
-  const dismissedPresetUpdateVersions =
-    sanitizePresetUpdateVersionMap(uiRaw.dismissedPresetUpdateVersions) ??
-    parseLegacyPresetUpdateKey(uiRaw.dismissedPresetUpdateKey);
+  const dismissedPresetUpdateVersions = sanitizePresetUpdateVersionMap(uiRaw.dismissedPresetUpdateVersions);
   const patchWorkspaceTabsRaw = Array.isArray(patchWorkspaceRaw.tabs) ? patchWorkspaceRaw.tabs : [];
   const patchWorkspaceTabs = patchWorkspaceTabsRaw.map((tab, index) =>
     sanitizePatchWorkspaceTab(tab, index, patchIds, fallbackPatchId, patchNameById)
