@@ -108,6 +108,16 @@ describe("probe helpers", () => {
     expect(Math.max(...lateColumn)).toBeGreaterThan(0.05);
   });
 
+  it("can build an unnormalized spectrum column for history rendering", () => {
+    const quietSamples = new Array(512).fill(0).map((_, index) => Math.sin((2 * Math.PI * index) / 32) * 0.05);
+    const loudSamples = new Array(512).fill(0).map((_, index) => Math.sin((2 * Math.PI * index) / 32) * 0.4);
+
+    const quietColumn = buildProbeSpectrumColumn(quietSamples, 256, 10, quietSamples.length, 1536, undefined, false);
+    const loudColumn = buildProbeSpectrumColumn(loudSamples, 256, 10, loudSamples.length, 1536, undefined, false);
+
+    expect(Math.max(...loudColumn)).toBeGreaterThan(Math.max(...quietColumn));
+  });
+
   it("reports spectrogram timeline fill before and after the first second", () => {
     const partialSamples = new Array(256).fill(0);
     const fullSamples = new Array(1024).fill(0);

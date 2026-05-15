@@ -197,7 +197,8 @@ export const buildProbeSpectrumColumn = (
   freqBinCount = 24,
   capturedSamples = samples.length,
   sampleRate = 48000,
-  maxFrequencyHz = DEFAULT_PROBE_MAX_FREQUENCY_HZ
+  maxFrequencyHz = DEFAULT_PROBE_MAX_FREQUENCY_HZ,
+  normalize = true
 ) => {
   const safeCapturedSamples = clamp(capturedSamples || samples.length, 0, samples.length);
   const magnitudes = new Array(freqBinCount).fill(0);
@@ -217,7 +218,7 @@ export const buildProbeSpectrumColumn = (
     { length: frameSize },
     (_, index) => 0.5 - 0.5 * Math.cos((2 * Math.PI * index) / Math.max(1, frameSize - 1))
   );
-  const peak = resolveProbeFramePeak(samples, frameStart, frameSize);
+  const peak = normalize ? resolveProbeFramePeak(samples, frameStart, frameSize) : 1;
   let peakMagnitude = 0;
   for (let freqIndex = 0; freqIndex < freqBinCount; freqIndex += 1) {
     const magnitude = measureGoertzelMagnitude(
@@ -232,6 +233,9 @@ export const buildProbeSpectrumColumn = (
     peakMagnitude = Math.max(peakMagnitude, magnitude);
   }
   if (peakMagnitude <= 0) {
+    return magnitudes;
+  }
+  if (!normalize) {
     return magnitudes;
   }
   return magnitudes.map((magnitude) => clamp(Math.pow(magnitude / peakMagnitude, 0.48), 0.02, 1));

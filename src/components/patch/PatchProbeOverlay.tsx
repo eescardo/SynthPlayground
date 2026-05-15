@@ -607,7 +607,8 @@ function SpectrumProbeGraph(props: {
           rows,
           columnCapturedSamples,
           props.capture.sampleRate,
-          props.maxFrequencyHz
+          props.maxFrequencyHz,
+          false
         );
         for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
           history.grid[rowIndex][columnIndex] = column[rowIndex] ?? 0;
@@ -623,12 +624,23 @@ function SpectrumProbeGraph(props: {
       viewportColumns,
       historyColumns
     );
+    const sourceColumns = Array.from({ length: viewportColumns }, (_, columnIndex) => {
+      const ratio = viewportColumns <= 1 ? 0 : columnIndex / (viewportColumns - 1);
+      return Math.round(ratio * Math.max(0, viewportHistoryColumns - 1));
+    });
+    const peak = history.grid.reduce(
+      (gridPeak, row) =>
+        Math.max(
+          gridPeak,
+          sourceColumns.reduce((rowPeak, sourceColumn) => Math.max(rowPeak, row[sourceColumn] ?? 0), 0)
+        ),
+      0
+    );
+    if (peak <= 0) {
+      return history.grid.map(() => new Array(viewportColumns).fill(0));
+    }
     return history.grid.map((row) =>
-      Array.from({ length: viewportColumns }, (_, columnIndex) => {
-        const ratio = viewportColumns <= 1 ? 0 : columnIndex / (viewportColumns - 1);
-        const sourceColumn = Math.round(ratio * Math.max(0, viewportHistoryColumns - 1));
-        return row[sourceColumn] ?? 0;
-      })
+      sourceColumns.map((sourceColumn) => clamp(Math.pow((row[sourceColumn] ?? 0) / peak, 0.48), 0, 1))
     );
   }, [
     props.capture,
