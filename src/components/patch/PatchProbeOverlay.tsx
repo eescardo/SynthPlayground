@@ -552,33 +552,25 @@ function SpectrumProbeGraph(props: {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const spectrumHistoryRef = useRef<{
     elapsedSeconds: number;
-    grid: number[][];
-    historyColumns: number;
     key: string;
-    lastWrittenColumn: number;
     rows: number;
-    viewportColumns: number;
+    slices: Array<{ elapsedSeconds: number; values: number[] }>;
   } | null>(null);
   const frequencyMarkers = useMemo(() => resolveSpectrumFrequencyMarkers(props.maxFrequencyHz), [props.maxFrequencyHz]);
   const displaySpectrogram = useMemo(() => {
     const rows = props.compact ? 18 : 30;
     const viewportColumns = props.compact ? 240 : 320;
-    const historyColumns = viewportColumns * SPECTRUM_HISTORY_SECONDS;
     if (!props.capture) {
       spectrumHistoryRef.current = null;
       return [];
     }
 
     const elapsedSeconds = clamp(props.elapsedSeconds, 0, SPECTRUM_HISTORY_SECONDS);
-    const currentColumn =
-      elapsedSeconds > 0 ? clamp(Math.ceil(elapsedSeconds * viewportColumns) - 1, 0, historyColumns - 1) : -1;
     const existing = spectrumHistoryRef.current;
     const shouldReset =
       !existing ||
       existing.key !== props.resetKey ||
       existing.rows !== rows ||
-      existing.viewportColumns !== viewportColumns ||
-      existing.historyColumns !== historyColumns ||
       elapsedSeconds < existing.elapsedSeconds;
 
     const history = shouldReset
@@ -586,62 +578,58 @@ function SpectrumProbeGraph(props: {
           key: props.resetKey,
           elapsedSeconds,
           rows,
-          viewportColumns,
-          historyColumns,
-          lastWrittenColumn: -1,
-          grid: Array.from({ length: rows }, () => new Array(historyColumns).fill(0))
+          slices: []
         }
       : existing;
 
-    if (currentColumn > history.lastWrittenColumn) {
-      for (let columnIndex = history.lastWrittenColumn + 1; columnIndex <= currentColumn; columnIndex += 1) {
-        const columnElapsedSeconds = (columnIndex + 1) / viewportColumns;
-        const columnCapturedSamples = clamp(
-          Math.round(columnElapsedSeconds * props.capture.sampleRate),
-          0,
-          props.capture.capturedSamples
-        );
-        const column = buildProbeSpectrumColumn(
-          props.capture.samples,
-          props.selectedWindowSize,
-          rows,
-          columnCapturedSamples,
-          props.capture.sampleRate,
-          props.maxFrequencyHz,
-          false
-        );
-        for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
-          history.grid[rowIndex][columnIndex] = column[rowIndex] ?? 0;
-        }
-      }
-      history.lastWrittenColumn = currentColumn;
+    const previousSlice = history.slices[history.slices.length - 1];
+    if (!previousSlice || elapsedSeconds > previousSlice.elapsedSeconds) {
+      const values = buildProbeSpectrumColumn(
+        props.capture.samples,
+        props.selectedWindowSize,
+        rows,
+        props.capture.capturedSamples,
+        props.capture.sampleRate,
+        props.maxFrequencyHz,
+        false
+      );
+      history.slices.push({ elapsedSeconds, values });
     }
     history.elapsedSeconds = elapsedSeconds;
     spectrumHistoryRef.current = history;
 
-    const viewportHistoryColumns = clamp(
-      Math.ceil(Math.max(1, elapsedSeconds) * viewportColumns),
-      viewportColumns,
-      historyColumns
-    );
-    const sourceColumns = Array.from({ length: viewportColumns }, (_, columnIndex) => {
-      const ratio = viewportColumns <= 1 ? 0 : columnIndex / (viewportColumns - 1);
-      return Math.round(ratio * Math.max(0, viewportHistoryColumns - 1));
-    });
-    const peak = history.grid.reduce(
-      (gridPeak, row) =>
+    const peak = history.slices.reduce(
+      (slicePeak, slice) =>
         Math.max(
-          gridPeak,
-          row.reduce((rowPeak, value) => Math.max(rowPeak, value), 0)
+          slicePeak,
+          slice.values.reduce((rowPeak, value) => Math.max(rowPeak, value), 0)
         ),
       0
     );
     if (peak <= 0) {
-      return history.grid.map(() => new Array(viewportColumns).fill(0));
+      return Array.from({ length: rows }, () => new Array(viewportColumns).fill(0));
     }
-    return history.grid.map((row) =>
-      sourceColumns.map((sourceColumn) => clamp(Math.pow((row[sourceColumn] ?? 0) / peak, 0.48), 0, 1))
-    );
+    const viewportSeconds = clamp(Math.max(1, elapsedSeconds), 1, SPECTRUM_HISTORY_SECONDS);
+    const display = Array.from({ length: rows }, () => new Array(viewportColumns).fill(0));
+    let sliceIndex = 0;
+    for (let columnIndex = 0; columnIndex < viewportColumns; columnIndex += 1) {
+      const ratio = viewportColumns <= 1 ? 0 : columnIndex / (viewportColumns - 1);
+      const sourceTimeSeconds = ratio * viewportSeconds;
+      while (
+        sliceIndex + 1 < history.slices.length &&
+        history.slices[sliceIndex + 1].elapsedSeconds <= sourceTimeSeconds
+      ) {
+        sliceIndex += 1;
+      }
+      const slice = history.slices[sliceIndex];
+      if (!slice || slice.elapsedSeconds > sourceTimeSeconds) {
+        continue;
+      }
+      for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
+        display[rowIndex][columnIndex] = clamp(Math.pow((slice.values[rowIndex] ?? 0) / peak, 0.48), 0, 1);
+      }
+    }
+    return display;
   }, [
     props.capture,
     props.compact,
