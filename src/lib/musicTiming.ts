@@ -18,6 +18,8 @@ export const beatRangeToSampleRange = (
 
 export const snapToGrid = (value: number, gridBeats: number): number => Math.round(value / gridBeats) * gridBeats;
 
+export const snapDownToGrid = (value: number, gridBeats: number): number => Math.floor(value / gridBeats) * gridBeats;
+
 export const snapUpToGrid = (value: number, gridBeats: number): number => Math.ceil(value / gridBeats) * gridBeats;
 
 export const formatBeatName = (zeroBasedBeat: number, gridBeats = 0.25): string => {

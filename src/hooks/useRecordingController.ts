@@ -5,7 +5,7 @@ import { AudioEngine } from "@/audio/engine";
 import { createId } from "@/lib/ids";
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
 import { eraseNotesInBeatRange } from "@/lib/noteEditing";
-import { formatBeatName, snapToGrid } from "@/lib/musicTiming";
+import { formatBeatName, snapDownToGrid, snapToGrid } from "@/lib/musicTiming";
 import { Note, Project, Track } from "@/types/music";
 
 export type RecordPhase = "idle" | "count_in" | "recording";
@@ -25,6 +25,22 @@ interface ActiveRecordNote {
 }
 
 const COUNT_IN_BEATS = 3;
+const RECORD_NOTE_START_LATE_SNAP_GRACE_MS = 80;
+const RECORD_NOTE_START_LATE_SNAP_GRID_FRACTION = 0.6;
+
+export const getRecordNoteStartLateSnapGraceBeats = (tempoBpm: number, gridBeats: number): number => {
+  const graceBeats = (RECORD_NOTE_START_LATE_SNAP_GRACE_MS / 1000) * (tempoBpm / 60);
+  return Math.min(graceBeats, gridBeats * RECORD_NOTE_START_LATE_SNAP_GRID_FRACTION);
+};
+
+export const snapRecordedNoteStartBeat = (beat: number, gridBeats: number, tempoBpm: number): number => {
+  const clampedBeat = Math.max(0, beat);
+  const previousGridBeat = snapDownToGrid(clampedBeat, gridBeats);
+  if (clampedBeat - previousGridBeat <= getRecordNoteStartLateSnapGraceBeats(tempoBpm, gridBeats)) {
+    return previousGridBeat;
+  }
+  return snapToGrid(clampedBeat, gridBeats);
+};
 
 interface UseRecordingControllerArgs {
   project: Project;
@@ -83,8 +99,8 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
 
   const eraseRecordedWindow = useCallback(
     (trackId: string, fromBeat: number, toBeat: number) => {
-      const eraseStartBeat = snapToGrid(fromBeat, project.global.gridBeats);
-      const eraseEndBeat = snapToGrid(toBeat, project.global.gridBeats);
+      const eraseStartBeat = snapDownToGrid(fromBeat, project.global.gridBeats);
+      const eraseEndBeat = snapDownToGrid(toBeat, project.global.gridBeats);
       if (eraseEndBeat <= eraseStartBeat) {
         return;
       }
@@ -217,7 +233,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
       }
 
       if (recordPassRef.current) {
-        const nextErasedBeat = snapToGrid(beat, project.global.gridBeats);
+        const nextErasedBeat = snapDownToGrid(beat, project.global.gridBeats);
         if (nextErasedBeat > recordPassRef.current.lastErasedBeat) {
           eraseRecordedWindow(recordPassRef.current.trackId, recordPassRef.current.lastErasedBeat, nextErasedBeat);
           recordPassRef.current.lastErasedBeat = nextErasedBeat;
@@ -313,9 +329,10 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
         return;
       }
 
-      const currentBeat = snapToGrid(
+      const currentBeat = snapRecordedNoteStartBeat(
         audioEngineRef.current?.getPlayheadBeat() ?? playheadBeat,
-        project.global.gridBeats
+        project.global.gridBeats,
+        project.global.tempo
       );
       if (activeRecordKeys.current.size > 0) {
         finishActiveRecordedNotes(currentBeat);
@@ -353,6 +370,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
       finishActiveRecordedNotes,
       playheadBeat,
       project.global.gridBeats,
+      project.global.tempo,
       project.tracks,
       recordPhase,
       recordingTrackId,
