@@ -85,6 +85,28 @@ describe("probe helpers", () => {
     expect(renderData.peak).toBeGreaterThan(0);
   });
 
+  it("fits partial scope captures across the probe face", () => {
+    const capturedSamples = new Array(256).fill(0).map((_, index) => Math.sin((2 * Math.PI * index) / 16) * 0.15);
+    const backingSamples = [...capturedSamples, ...new Array(768).fill(0)];
+
+    const renderData = buildScopeRenderData(
+      {
+        probeId: "probe_scope",
+        kind: "scope",
+        target: { kind: "connection", connectionId: "conn_1" },
+        sampleRate: 48000,
+        durationSamples: backingSamples.length,
+        capturedSamples: capturedSamples.length,
+        samples: backingSamples
+      },
+      false
+    );
+
+    expect(renderData.waveformSegments.at(-1)?.x).toBeCloseTo(98);
+    expect(renderData.capturedRatio).toBe(1);
+    expect(renderData.durationSeconds).toBeCloseTo(capturedSamples.length / 48000);
+  });
+
   it("builds fixed scope time markers for full-duration rendering", () => {
     const markers = resolveScopeTimeMarkers(1.2, false);
 

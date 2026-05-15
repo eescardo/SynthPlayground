@@ -24,10 +24,10 @@ export interface SpectrumFrequencyMarker {
 }
 
 export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, compact = false): ScopeRenderData {
-  const durationSamples = capture?.durationSamples ?? 0;
-  const capturedSamples = capture?.capturedSamples ?? 0;
+  const durationSamples = Math.max(0, capture?.durationSamples ?? 0);
+  const capturedSamples = Math.max(0, capture?.capturedSamples ?? 0);
   const sampleRate = capture?.sampleRate ?? 48000;
-  if (!capture?.samples?.length || durationSamples <= 0) {
+  if (!capture?.samples?.length) {
     return {
       waveformSegments: [],
       envelopeLine: "",
@@ -37,8 +37,24 @@ export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, c
     };
   }
 
-  const visibleSamples = capture.samples.slice(0, capturedSamples);
+  const safeCapturedSamples = clamp(
+    capturedSamples || capture.samples.length,
+    0,
+    Math.min(capture.samples.length, durationSamples || capture.samples.length)
+  );
+  const visibleSamples = capture.samples.slice(0, safeCapturedSamples);
+  if (visibleSamples.length <= 0) {
+    return {
+      waveformSegments: [],
+      envelopeLine: "",
+      peak: 0,
+      capturedRatio: 0,
+      durationSeconds: 0
+    };
+  }
+
   const normalized = normalizeProbeSamples(visibleSamples);
+  const renderSampleCount = Math.max(1, visibleSamples.length);
   const bucketCount = compact ? 72 : 120;
   const waveformSegments: ScopeWaveformSegment[] = [];
   const envelopePoints: string[] = [];
@@ -50,16 +66,16 @@ export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, c
   const plotWidth = compact ? 97 : 90;
 
   for (let bucket = 0; bucket < bucketCount; bucket += 1) {
-    const bucketStart = Math.floor((bucket / bucketCount) * durationSamples);
-    const bucketEnd = Math.max(bucketStart + 1, Math.floor(((bucket + 1) / bucketCount) * durationSamples));
+    const bucketStart = Math.floor((bucket / bucketCount) * renderSampleCount);
+    const bucketEnd = Math.max(bucketStart + 1, Math.floor(((bucket + 1) / bucketCount) * renderSampleCount));
     const x = plotStartX + (bucket / Math.max(1, bucketCount - 1)) * plotWidth;
-    if (bucketStart >= capturedSamples) {
+    if (bucketStart >= renderSampleCount) {
       continue;
     }
-    const normalizedStart = Math.floor((bucketStart / Math.max(1, capturedSamples)) * normalized.length);
+    const normalizedStart = Math.floor((bucketStart / renderSampleCount) * normalized.length);
     const normalizedEnd = Math.max(
       normalizedStart + 1,
-      Math.floor((Math.min(bucketEnd, capturedSamples) / Math.max(1, capturedSamples)) * normalized.length)
+      Math.floor((Math.min(bucketEnd, renderSampleCount) / renderSampleCount) * normalized.length)
     );
     let min = 1;
     let max = -1;
@@ -82,8 +98,8 @@ export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, c
     waveformSegments,
     envelopeLine: envelopePoints.join(" "),
     peak: resolveProbePeakAmplitude(visibleSamples),
-    capturedRatio: capturedSamples / Math.max(1, durationSamples),
-    durationSeconds: durationSamples / Math.max(1, sampleRate)
+    capturedRatio: 1,
+    durationSeconds: renderSampleCount / Math.max(1, sampleRate)
   };
 }
 
