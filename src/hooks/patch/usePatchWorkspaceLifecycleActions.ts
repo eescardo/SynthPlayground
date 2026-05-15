@@ -9,7 +9,12 @@ import {
 } from "@/hooks/patch/patchWorkspaceStateUtils";
 import { createClearedWorkspacePatch, createCustomDuplicatePatch } from "@/hooks/patch/patchWorkspacePatchHelpers";
 import { createId } from "@/lib/ids";
-import { getBundledPresetPatch, resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
+import {
+  getBundledPresetPatch,
+  resolvePatchPresetStatus,
+  resolvePatchSource,
+  updatePresetPatchToLatest
+} from "@/lib/patch/source";
 import { Project } from "@/types/music";
 import { Patch } from "@/types/patch";
 import { PatchRemovalDialogState } from "@/components/composer/PatchRemovalDialogModal";
@@ -137,22 +142,9 @@ export function usePatchWorkspaceLifecycleActions({
       return;
     }
 
-    const savedLayoutByNodeId = new Map(selectedPatch.layout.nodes.map((entry) => [entry.nodeId, entry] as const));
     const nextNodeIds = new Set(latestPreset.nodes.map((node) => node.id));
     const droppedLayoutCount = selectedPatch.layout.nodes.filter((entry) => !nextNodeIds.has(entry.nodeId)).length;
-    const migratedPatch: Patch = {
-      ...structuredClone(latestPreset),
-      id: selectedPatch.id,
-      name: selectedPatch.name,
-      meta: {
-        source: "preset",
-        presetId: latestPreset.meta.presetId,
-        presetVersion: latestPreset.meta.presetVersion
-      },
-      layout: {
-        nodes: latestPreset.layout.nodes.map((entry) => savedLayoutByNodeId.get(entry.nodeId) ?? entry)
-      }
-    };
+    const migratedPatch = updatePresetPatchToLatest(selectedPatch);
 
     commitProjectChange(
       (current) => ({

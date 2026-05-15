@@ -52,16 +52,17 @@ describe("projectManagement", () => {
     const summaries = upsertRecentProjectSummary([], createProject({ id: "a", name: "A", updatedAt: 1 }));
     const updated = upsertRecentProjectSummary(summaries, createProject({ id: "b", name: "B", updatedAt: 2 }));
     const deduped = upsertRecentProjectSummary(updated, createProject({ id: "a", name: "A2", updatedAt: 3 }));
-    const trimmed = upsertRecentProjectSummary(
-      upsertRecentProjectSummary(
-        upsertRecentProjectSummary(deduped, createProject({ id: "c", name: "C", updatedAt: 4 })),
-        createProject({ id: "d", name: "D", updatedAt: 5 })
-      ),
-      createProject({ id: "e", name: "E", updatedAt: 6 })
+    const trimmed = ["c", "d", "e", "f", "g", "h", "i"].reduce(
+      (currentSummaries, id, index) =>
+        upsertRecentProjectSummary(
+          currentSummaries,
+          createProject({ id, name: id.toLocaleUpperCase(), updatedAt: index + 4 })
+        ),
+      deduped
     );
 
     expect(deduped.map((entry) => entry.name)).toEqual(["A2", "B"]);
-    expect(trimmed.map((entry) => entry.id)).toEqual(["e", "d", "c", "a"]);
+    expect(trimmed.map((entry) => entry.id)).toEqual(["i", "h", "g", "f", "e", "d", "c", "a"]);
   });
 
   it("removes recent projects by id", () => {

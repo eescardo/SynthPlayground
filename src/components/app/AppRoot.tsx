@@ -16,6 +16,7 @@ import {
   createTrackCanvasActionGroups
 } from "@/components/app/appRootViewModels";
 import { PatchRemovalDialogModal } from "@/components/composer/PatchRemovalDialogModal";
+import { PresetUpdateDialogModal } from "@/components/composer/PresetUpdateDialogModal";
 import { PitchPickerModal } from "@/components/composer/PitchPickerModal";
 import { RecordingDock } from "@/components/composer/RecordingDock";
 import { ExplodeSelectionDialog } from "@/components/ExplodeSelectionDialog";
@@ -50,7 +51,12 @@ import { freezeProjectSnapshot } from "@/lib/projectImmutability";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { createDefaultProject, createEmptyProject } from "@/lib/patch/presets";
 import { renameProjectInProject } from "@/lib/projectManagement";
-import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
+import {
+  getProjectPresetUpdateSummary,
+  resolvePatchPresetStatus,
+  resolvePatchSource,
+  updateProjectPresetsToLatest
+} from "@/lib/patch/source";
 import { exportProjectToJson } from "@/lib/projectSerde";
 import { pitchToVoct } from "@/lib/pitch";
 import {
@@ -225,6 +231,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
     () => project.patches.find((patch) => patch.id === selectedTrack?.instrumentPatchId) ?? project.patches[0],
     [project.patches, selectedTrack?.instrumentPatchId]
   );
+  const presetUpdateSummary = useMemo(() => getProjectPresetUpdateSummary(project), [project]);
+  const showPresetUpdatePrompt = Boolean(ready && presetUpdateSummary);
   const selectedContent = editorSelection.content;
   const selectedNoteKeySet = useMemo(() => new Set(selectedContent.noteKeys), [selectedContent.noteKeys]);
   const selectedAutomationKeyframeSet = useMemo(
@@ -331,6 +339,32 @@ export function AppRoot({ children }: { children: ReactNode }) {
     },
     []
   );
+
+  const dismissPresetUpdatePrompt = useCallback(() => {
+    if (!presetUpdateSummary) {
+      return;
+    }
+    const dismissedPresetUpdateVersions = Object.fromEntries(
+      presetUpdateSummary.updates.map((update) => [update.presetId, update.nextVersion])
+    );
+    commitProjectChange(
+      (current) => ({
+        ...current,
+        ui: {
+          ...current.ui,
+          dismissedPresetUpdateVersions: {
+            ...(current.ui.dismissedPresetUpdateVersions ?? {}),
+            ...dismissedPresetUpdateVersions
+          }
+        }
+      }),
+      { actionKey: "project:dismiss-preset-updates", skipHistory: true }
+    );
+  }, [commitProjectChange, presetUpdateSummary]);
+
+  const updateAllPresetUpdates = useCallback(() => {
+    commitProjectChange(updateProjectPresetsToLatest, { actionKey: "project:update-presets" });
+  }, [commitProjectChange]);
 
   const upsertWorkspaceSamplePlayerAssetData = useCallback(
     (serializedSampleData: string, existingAssetId?: string | null) => {
@@ -1420,6 +1454,13 @@ export function AppRoot({ children }: { children: ReactNode }) {
           project={project}
           setDialog={setPatchRemovalDialog}
           onConfirm={confirmRemovePatch}
+        />
+
+        <PresetUpdateDialogModal
+          open={showPresetUpdatePrompt}
+          summary={presetUpdateSummary}
+          onCancel={dismissPresetUpdatePrompt}
+          onUpdateAll={updateAllPresetUpdates}
         />
       </main>
     </AppRootContext.Provider>

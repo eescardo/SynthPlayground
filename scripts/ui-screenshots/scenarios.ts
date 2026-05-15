@@ -4,6 +4,7 @@ export const SCREENSHOT_SCENARIO = {
   SELECTION_POPOVER: "selection-popover",
   TRACK_NOTE_HOVER: "track-note-hover",
   HELP_MODAL: "help-modal",
+  PRESET_UPDATE_MODAL: "preset-update-modal",
   RECORD_MODE: "record-mode",
   PATCH_EDITOR: "patch-editor",
   PATCH_MODULE_FACES: "patch-module-faces",

@@ -1,5 +1,6 @@
 import { presetPatches } from "@/lib/patch/presets";
-import { Patch, PatchMeta } from "@/types/patch";
+import type { Project } from "@/types/music";
+import type { Patch, PatchMeta } from "@/types/patch";
 
 export type PatchSource = Patch["meta"]["source"];
 export type PatchPresetStatus = "preset" | "preset_update_available" | "legacy_preset" | "custom";
@@ -51,4 +52,102 @@ export const resolvePatchPresetStatus = (patch: Pick<Patch, "id"> & { meta?: Pat
 
   const storedVersion = patch.meta?.source === "preset" ? patch.meta.presetVersion : bundled.presetVersion;
   return bundled.presetVersion > storedVersion ? "preset_update_available" : "preset";
+};
+
+export interface ProjectPresetUpdateSummary {
+  updates: Array<{
+    patchId: string;
+    presetId: string;
+    currentVersion: number;
+    nextVersion: number;
+  }>;
+}
+
+export const getProjectPresetUpdateSummary = (
+  project: Pick<Project, "patches"> & { ui?: Pick<Project["ui"], "dismissedPresetUpdateVersions"> },
+  options: { includeDismissed?: boolean } = {}
+): ProjectPresetUpdateSummary | null => {
+  const dismissedVersions = project.ui?.dismissedPresetUpdateVersions ?? {};
+  const updates = project.patches.flatMap((patch) => {
+    if (resolvePatchPresetStatus(patch) !== "preset_update_available" || patch.meta?.source !== "preset") {
+      return [];
+    }
+    const bundled = getBundledPresetLineage(patch.meta.presetId);
+    if (!bundled) {
+      return [];
+    }
+    if (!options.includeDismissed && (dismissedVersions[patch.meta.presetId] ?? 0) >= bundled.presetVersion) {
+      return [];
+    }
+    return [
+      {
+        patchId: patch.id,
+        presetId: patch.meta.presetId,
+        currentVersion: patch.meta.presetVersion,
+        nextVersion: bundled.presetVersion
+      }
+    ];
+  });
+
+  if (updates.length === 0) {
+    return null;
+  }
+
+  updates.sort((a, b) => a.presetId.localeCompare(b.presetId) || a.patchId.localeCompare(b.patchId));
+  return { updates };
+};
+
+export const updatePresetPatchToLatest = (patch: Patch): Patch => {
+  if (patch.meta.source !== "preset") {
+    return patch;
+  }
+
+  const latestPreset = getBundledPresetPatch(patch.meta.presetId);
+  if (
+    !latestPreset ||
+    latestPreset.meta.source !== "preset" ||
+    latestPreset.meta.presetVersion <= patch.meta.presetVersion
+  ) {
+    return patch;
+  }
+
+  const savedLayoutByNodeId = new Map(patch.layout.nodes.map((entry) => [entry.nodeId, entry] as const));
+  const latestLayoutByNodeId = new Map(latestPreset.layout.nodes.map((entry) => [entry.nodeId, entry] as const));
+  return {
+    ...structuredClone(latestPreset),
+    id: patch.id,
+    name: patch.name,
+    meta: {
+      source: "preset",
+      presetId: latestPreset.meta.presetId,
+      presetVersion: latestPreset.meta.presetVersion
+    },
+    layout: {
+      nodes: latestPreset.nodes.map(
+        (node) =>
+          savedLayoutByNodeId.get(node.id) ??
+          latestLayoutByNodeId.get(node.id) ?? {
+            nodeId: node.id,
+            x: 0,
+            y: 0
+          }
+      )
+    }
+  };
+};
+
+export const updateProjectPresetsToLatest = (project: Project): Project => {
+  const summary = getProjectPresetUpdateSummary(project, { includeDismissed: true });
+  if (!summary) {
+    return project;
+  }
+
+  return {
+    ...project,
+    patches: project.patches.map(updatePresetPatchToLatest),
+    ui: {
+      ...project.ui,
+      dismissedPresetUpdateVersions: undefined
+    }
+  };
 };
