@@ -13,6 +13,7 @@ export const DEFAULT_PROBE_FREQUENCY_VIEW: PatchProbeFrequencyView = {
 };
 const MIN_PROBE_NORMALIZATION_PEAK = 0.0001;
 const SPECTROGRAM_MIN_FRAME_SIZE = 96;
+const SPECTROGRAM_MIN_TIMELINE_SECONDS = 1;
 
 export const createPatchWorkspaceProbe = (
   kind: PatchWorkspaceProbeState["kind"],
@@ -127,7 +128,8 @@ export const buildProbeSpectrogram = (
   sampleRate = 48000,
   maxFrequencyHz = DEFAULT_PROBE_MAX_FREQUENCY_HZ
 ) => {
-  const safeDurationSamples = Math.max(durationSamples, 1);
+  const minimumTimelineSamples = Math.max(1, Math.round(sampleRate * SPECTROGRAM_MIN_TIMELINE_SECONDS));
+  const safeDurationSamples = Math.max(durationSamples, minimumTimelineSamples, 1);
   const safeCapturedSamples = clamp(capturedSamples, 0, Math.min(samples.length, safeDurationSamples));
   const grid = Array.from({ length: freqBinCount }, () => new Array(timeBinCount).fill(0));
   if (safeCapturedSamples < SPECTROGRAM_MIN_FRAME_SIZE) {
