@@ -11,6 +11,7 @@ let previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] 
 let previewCaptureSampleCount = 0;
 let writeInvalidPreviewCaptureJson = false;
 let hasActiveVoices = false;
+let configuredPreviewCaptureJson = "";
 const engineStop = vi.fn();
 
 vi.mock("../synth-worklet-dsp-bindgen.js", () => {
@@ -22,7 +23,9 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
 
     start_stream() {}
     enqueue_events() {}
-    configure_preview_probe_capture() {}
+    configure_preview_probe_capture(captureJson: string) {
+      configuredPreviewCaptureJson = captureJson;
+    }
     process_block() {
       previewCaptureSampleCount = writeInvalidPreviewCaptureJson ? 1024 : blockSize;
       previewCaptureStateJson = writeInvalidPreviewCaptureJson
@@ -160,6 +163,7 @@ beforeEach(() => {
   writeInvalidPreviewCaptureJson = false;
   hasActiveVoices = false;
   previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
+  configuredPreviewCaptureJson = "";
 });
 
 describe("WASM worklet renderer", () => {
@@ -223,6 +227,58 @@ describe("WASM worklet renderer", () => {
         ]
       })
     );
+  });
+
+  it("uses a separate probe capture duration for held previews", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+
+    const stream = renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize * 64,
+      captureDurationSamples: blockSize * 2,
+      trackId: "track_1",
+      previewId: "preview_held",
+      events: [
+        {
+          id: "note_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
+      captureProbes: [
+        {
+          probeId: "probe_1",
+          kind: "scope",
+          target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
+        }
+      ],
+      randomSeed: 123
+    });
+
+    expect(stream).not.toBeNull();
+    expect(JSON.parse(configuredPreviewCaptureJson)).toEqual([
+      expect.objectContaining({
+        probeId: "probe_1",
+        durationSamples: blockSize * 2
+      })
+    ]);
   });
 
   it("does not force a final preview capture when a preview stream is stopped early", async () => {

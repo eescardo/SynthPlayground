@@ -191,6 +191,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
           {
             projectOverride: previewProject,
             captureProbes: captureRequests,
+            captureDurationBeats: PREVIEW_DURATION_BEATS,
             previewId,
             holdUntilReleased: options?.holdUntilReleased
           }

@@ -132,6 +132,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
             events: message.events || [],
             mode: "preview",
             durationSamples: message.durationSamples || 0,
+            captureDurationSamples: message.captureDurationSamples || message.durationSamples || 0,
             ignoreVolume: message.ignoreVolume,
             previewId: message.previewId,
             trackId: message.trackId,

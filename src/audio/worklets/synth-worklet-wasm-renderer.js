@@ -37,7 +37,7 @@ export class WasmWorkletRenderer extends SharedWasmRenderer {
           projectSpec,
           options.trackId,
           options.captureProbes,
-          options.durationSamples || 0
+          options.captureDurationSamples || options.durationSamples || 0
         );
         if (!compiled.length) {
           return null;
@@ -51,7 +51,7 @@ export class WasmWorkletRenderer extends SharedWasmRenderer {
               {
                 kind: probe.kind,
                 target: probe.target,
-                durationSamples: Math.max(0, Math.floor(options.durationSamples || 0))
+                durationSamples: Math.max(0, Math.floor(options.captureDurationSamples || options.durationSamples || 0))
               }
             ])
           )

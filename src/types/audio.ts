@@ -33,6 +33,7 @@ export interface TransportSynthStreamStartOptions extends BaseSynthStreamStartOp
 export interface PreviewSynthStreamStartOptions extends BaseSynthStreamStartOptions {
   mode: "preview";
   durationSamples: number;
+  captureDurationSamples?: number;
   trackId: string;
   ignoreVolume?: boolean;
   previewId?: string;
@@ -112,6 +113,7 @@ export interface WorkletPreviewMessage {
   type: "PREVIEW";
   events: SchedulerEvent[];
   durationSamples: number;
+  captureDurationSamples?: number;
   trackId: string;
   project?: AudioProject;
   ignoreVolume?: boolean;

@@ -41,6 +41,7 @@ export interface AudioEngineBackend {
       ignoreVolume?: boolean;
       projectOverride?: AudioProject;
       captureProbes?: PreviewProbeRequest[];
+      captureDurationBeats?: number;
       previewId?: string;
       holdUntilReleased?: boolean;
     }
@@ -366,6 +367,7 @@ class RealAudioEngineBackend implements AudioEngineBackend {
       ignoreVolume?: boolean;
       projectOverride?: AudioProject;
       captureProbes?: PreviewProbeRequest[];
+      captureDurationBeats?: number;
       previewId?: string;
       holdUntilReleased?: boolean;
     }
@@ -379,7 +381,11 @@ class RealAudioEngineBackend implements AudioEngineBackend {
       return;
     }
 
-    const durationSamples = Math.max(1, beatToSample(durationBeats, FIXED_SAMPLE_RATE, this.project.global.tempo));
+    const previewProject = options?.projectOverride ?? this.project;
+    const durationSamples = Math.max(1, beatToSample(durationBeats, FIXED_SAMPLE_RATE, previewProject.global.tempo));
+    const captureDurationBeats = options?.captureDurationBeats ?? durationBeats;
+    const captureDurationSamples =
+      Math.max(1, beatToSample(captureDurationBeats, FIXED_SAMPLE_RATE, previewProject.global.tempo)) + BLOCK_SIZE;
     const previewId = options?.previewId ?? createId("preview");
     const events: SchedulerEvent[] = [
       {
@@ -410,6 +416,7 @@ class RealAudioEngineBackend implements AudioEngineBackend {
       previewId,
       events,
       durationSamples: durationSamples + BLOCK_SIZE,
+      captureDurationSamples,
       ignoreVolume: options?.ignoreVolume !== false,
       project: options?.projectOverride,
       captureProbes: options?.captureProbes
@@ -526,6 +533,7 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
       ignoreVolume?: boolean;
       projectOverride?: AudioProject;
       captureProbes?: PreviewProbeRequest[];
+      captureDurationBeats?: number;
       previewId?: string;
       holdUntilReleased?: boolean;
     }
