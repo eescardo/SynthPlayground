@@ -90,7 +90,7 @@ export const getProjectPresetUpdateSummary = (project: Pick<Project, "patches">)
   updates.sort((a, b) => a.presetId.localeCompare(b.presetId) || a.patchId.localeCompare(b.patchId));
   return {
     updates,
-    updateKey: updates.map((update) => `${update.presetId}@${update.nextVersion}`).join("|")
+    updateKey: `preset-updates:${updates.map((update) => `${update.presetId}@${update.nextVersion}`).join("|")}`
   };
 };
 

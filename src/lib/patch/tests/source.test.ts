@@ -44,7 +44,7 @@ describe("patch source helpers", () => {
         nextVersion: bass.meta.presetVersion + 1
       }
     ]);
-    expect(summary?.updateKey).toBe(`preset_bass@${bass.meta.presetVersion + 1}`);
+    expect(summary?.updateKey).toBe(`preset-updates:preset_bass@${bass.meta.presetVersion + 1}`);
   });
 
   it("updates stale preset patches while preserving the patch identity and saved layout", () => {
