@@ -8,6 +8,7 @@ import {
   resolveOutputHostPatchPortRect,
   resolveOutputHostPlacement,
   resolvePatchCanvasSize,
+  resolvePatchCanvasHitPorts,
   resolvePatchConnectionAnchorPoint,
   resolvePatchConnectionMidpoint,
   resolvePatchDiagramSize,
@@ -19,7 +20,8 @@ import {
   PATCH_CANVAS_GRID,
   PATCH_NODE_HEIGHT,
   PATCH_NODE_WIDTH,
-  PATCH_OUTPUT_HOST_STRIP_Y
+  PATCH_OUTPUT_HOST_STRIP_Y,
+  PATCH_PORT_START_Y
 } from "@/components/patch/patchCanvasConstants";
 import { Patch, PatchLayoutNode } from "@/types/patch";
 
@@ -76,6 +78,32 @@ describe("patch canvas geometry", () => {
     expect(findPatchPortAtPoint(hitPorts, 124, 51)).toEqual(hitPorts[0]);
     expect(findPatchPortAtPoint(hitPorts, 156, 70)).toBeNull();
     expect(findPatchPortAtPointWithPadding(hitPorts, 156, 51, 6)).toEqual(hitPorts[0]);
+  });
+
+  it("resolves module hit ports without requiring a canvas draw pass", () => {
+    const patch: Pick<Patch, "nodes" | "ports"> = {
+      nodes: [
+        { id: "vco1", typeId: "VCO", params: {} },
+        { id: "output", typeId: "Output", params: {} }
+      ],
+      ports: [{ id: "output", typeId: "Output", label: "output", params: {} }]
+    };
+    const layoutByNode = new Map<string, PatchLayoutNode>([
+      ["vco1", { nodeId: "vco1", x: 4, y: 3 }],
+      ["output", { nodeId: "output", x: 12, y: 3 }]
+    ]);
+
+    const hitPorts = resolvePatchCanvasHitPorts(patch, layoutByNode);
+
+    expect(hitPorts.map((port) => `${port.nodeId}:${port.kind}:${port.portId}`)).toEqual([
+      "vco1:in:pitch",
+      "vco1:in:fm",
+      "vco1:in:pwm",
+      "vco1:out:out"
+    ]);
+    expect(hitPorts[0]?.x).toBeLessThan(4 * PATCH_CANVAS_GRID);
+    expect(hitPorts[0]?.y).toBe(3 * PATCH_CANVAS_GRID + PATCH_PORT_START_Y);
+    expect(hitPorts[3]?.x).toBeGreaterThan(4 * PATCH_CANVAS_GRID);
   });
 
   it("anchors the patch output port to the canvas right edge", () => {

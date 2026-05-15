@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolvePatchCanvasHitTarget } from "@/components/patch/patchCanvasHitTargets";
-import { resolvePatchConnectionMidpoint } from "@/components/patch/patchCanvasGeometry";
+import { resolvePatchCanvasHitPorts, resolvePatchConnectionMidpoint } from "@/components/patch/patchCanvasGeometry";
 import { Patch, PatchLayoutNode } from "@/types/patch";
 
 const patch: Pick<Patch, "nodes" | "ports" | "connections"> = {
@@ -69,6 +69,38 @@ describe("patch canvas hit targets", () => {
       kind: "port",
       port
     });
+  });
+
+  it("treats port hit rectangles as unzoomed canvas geometry", () => {
+    const [port] = resolvePatchCanvasHitPorts(patch, layoutByNode);
+    expect(port).toBeDefined();
+    const zoom = 2;
+    const screenPointInsidePort = {
+      x: (port.x + port.width - 1) * zoom,
+      y: port.y * zoom
+    };
+    const convertedCanvasPoint = {
+      x: screenPointInsidePort.x / zoom,
+      y: screenPointInsidePort.y / zoom
+    };
+
+    expect(
+      resolveBaseTarget({
+        point: convertedCanvasPoint,
+        hitPorts: [port],
+        zoom
+      })
+    ).toEqual({
+      kind: "port",
+      port
+    });
+    expect(
+      resolveBaseTarget({
+        point: { x: (port.x + port.width) * zoom - 1, y: port.y },
+        hitPorts: [port],
+        zoom
+      }).kind
+    ).not.toBe("port");
   });
 
   it("keeps wires attachable over module bodies while attaching a probe", () => {
