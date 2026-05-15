@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildProbeSpectrogram,
+  buildProbeSpectrumColumn,
   buildSpectrumBins,
   normalizeProbeSamples,
   resolveProbeSpectrogramTimeline
@@ -89,6 +90,22 @@ describe("probe helpers", () => {
     expect(firstColumnEnergy).toBeGreaterThan(0.01);
     expect(lastColumnEnergy).toBeGreaterThan(0.01);
     expect(grid.map((row) => row[1])).not.toEqual(grid.map((row) => row[10]));
+  });
+
+  it("builds the latest spectrum column without repainting history", () => {
+    const samples = new Array(1536)
+      .fill(0)
+      .map((_, index) =>
+        index < 768 ? Math.sin((2 * Math.PI * index) / 32) * 0.2 : Math.sin((2 * Math.PI * index) / 8) * 0.2
+      );
+
+    const earlyColumn = buildProbeSpectrumColumn(samples.slice(0, 768), 256, 10, 768, 1536);
+    const lateColumn = buildProbeSpectrumColumn(samples, 256, 10, samples.length, 1536);
+
+    expect(earlyColumn).toHaveLength(10);
+    expect(lateColumn).toHaveLength(10);
+    expect(earlyColumn).not.toEqual(lateColumn);
+    expect(Math.max(...lateColumn)).toBeGreaterThan(0.05);
   });
 
   it("reports spectrogram timeline fill before and after the first second", () => {

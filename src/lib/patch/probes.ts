@@ -191,6 +191,52 @@ export const buildProbeSpectrogram = (
   return grid;
 };
 
+export const buildProbeSpectrumColumn = (
+  samples: ArrayLike<number>,
+  windowSize = 1024,
+  freqBinCount = 24,
+  capturedSamples = samples.length,
+  sampleRate = 48000,
+  maxFrequencyHz = DEFAULT_PROBE_MAX_FREQUENCY_HZ
+) => {
+  const safeCapturedSamples = clamp(capturedSamples || samples.length, 0, samples.length);
+  const magnitudes = new Array(freqBinCount).fill(0);
+  if (safeCapturedSamples < SPECTROGRAM_MIN_FRAME_SIZE) {
+    return magnitudes;
+  }
+
+  const frameSize = Math.max(SPECTROGRAM_MIN_FRAME_SIZE, Math.min(windowSize, safeCapturedSamples, 384));
+  const frameStart = clamp(safeCapturedSamples - frameSize, 0, safeCapturedSamples - frameSize);
+  const nyquistHz = Math.max(1, sampleRate / 2);
+  const clampedMaxFrequencyHz = Math.min(clampProbeMaxFrequencyHz(maxFrequencyHz), nyquistHz);
+  const maxBin = Math.max(2, Math.floor((clampedMaxFrequencyHz / sampleRate) * frameSize));
+  const bandCenters = Array.from({ length: freqBinCount }, (_, index) =>
+    Math.max(1, Math.floor(Math.pow((index + 0.5) / freqBinCount, 2) * maxBin))
+  );
+  const hannWindow = Float32Array.from(
+    { length: frameSize },
+    (_, index) => 0.5 - 0.5 * Math.cos((2 * Math.PI * index) / Math.max(1, frameSize - 1))
+  );
+  const peak = resolveProbeFramePeak(samples, frameStart, frameSize);
+  let peakMagnitude = 0;
+  for (let freqIndex = 0; freqIndex < freqBinCount; freqIndex += 1) {
+    const magnitude = measureGoertzelMagnitude(
+      samples,
+      frameStart,
+      frameSize,
+      bandCenters[freqIndex],
+      peak,
+      hannWindow
+    );
+    magnitudes[freqIndex] = magnitude;
+    peakMagnitude = Math.max(peakMagnitude, magnitude);
+  }
+  if (peakMagnitude <= 0) {
+    return magnitudes;
+  }
+  return magnitudes.map((magnitude) => clamp(Math.pow(magnitude / peakMagnitude, 0.48), 0.02, 1));
+};
+
 export const resolveProbeSpectrogramTimeline = (
   samples: ArrayLike<number>,
   durationSamples = samples.length,

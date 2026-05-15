@@ -29,6 +29,7 @@ import {
 } from "@/components/patch/patchCanvasConstants";
 import {
   buildProbeSpectrogram,
+  buildProbeSpectrumColumn,
   EXPANDED_PROBE_SIZE,
   resolveProbeFrequencyView,
   resolveProbeSpectrogramTimeline
@@ -301,6 +302,20 @@ function ProbeCard(props: {
         : [],
     [props.capture, props.probe.kind, props.probe.spectrumWindowSize, props.probe.frequencyView, props.probe.expanded]
   );
+  const spectrumColumn = useMemo(
+    () =>
+      props.capture && props.probe.kind === "spectrum"
+        ? buildProbeSpectrumColumn(
+            props.capture.samples,
+            props.probe.spectrumWindowSize ?? 1024,
+            props.probe.expanded ? 30 : 18,
+            props.capture.capturedSamples,
+            props.capture.sampleRate,
+            resolveProbeFrequencyView(props.probe.frequencyView).maxHz
+          )
+        : [],
+    [props.capture, props.probe.kind, props.probe.spectrumWindowSize, props.probe.frequencyView, props.probe.expanded]
+  );
   const spectrogramTimeline = useMemo(
     () =>
       props.capture && props.probe.kind === "spectrum"
@@ -368,6 +383,7 @@ function ProbeCard(props: {
           probe={props.probe}
           capture={props.capture}
           spectrogram={spectrogram}
+          spectrumColumn={spectrumColumn}
           spectrogramCapturedRatio={spectrogramTimeline?.capturedRatio ?? 0}
           spectrogramCapturedSamples={props.capture?.sourceCapturedSamples ?? props.capture?.capturedSamples ?? 0}
           spectrogramResetKey={spectrogramResetKey}
@@ -383,6 +399,7 @@ function ProbeGraphBody(props: {
   probe: PatchWorkspaceProbeState;
   capture?: PreviewProbeCapture;
   spectrogram: number[][];
+  spectrumColumn: number[];
   spectrogramCapturedRatio: number;
   spectrogramCapturedSamples: number;
   spectrogramResetKey: string;
@@ -398,6 +415,7 @@ function ProbeGraphBody(props: {
   return (
     <SpectrumProbeGraph
       spectrogram={props.spectrogram}
+      spectrumColumn={props.spectrumColumn}
       capturedRatio={props.spectrogramCapturedRatio}
       capturedSamples={props.spectrogramCapturedSamples}
       resetKey={props.spectrogramResetKey}
@@ -574,7 +592,7 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; compact?: boole
 
 function appendFillingSpectrogramColumns(
   existingGrid: number[][],
-  nextGrid: number[][],
+  nextColumn: number[],
   previousRatio: number,
   nextRatio: number,
   columns: number
@@ -583,9 +601,8 @@ function appendFillingSpectrogramColumns(
   const nextColumnCount = clamp(Math.ceil(nextRatio * columns), previousColumnCount, columns);
   return existingGrid.map((row, rowIndex) => {
     const nextRow = [...row];
-    const sourceRow = nextGrid[rowIndex] ?? [];
     for (let columnIndex = previousColumnCount; columnIndex < nextColumnCount; columnIndex += 1) {
-      nextRow[columnIndex] = sourceRow[columnIndex] ?? 0;
+      nextRow[columnIndex] = nextColumn[rowIndex] ?? 0;
     }
     return nextRow;
   });
@@ -593,14 +610,13 @@ function appendFillingSpectrogramColumns(
 
 function appendCompressedSpectrogramColumns(
   existingGrid: number[][],
-  nextGrid: number[][],
+  nextColumn: number[],
   previousRatio: number,
   columns: number
 ) {
   const existingColumnCount = previousRatio < 1 ? clamp(Math.ceil(previousRatio * columns), 1, columns) : columns;
   return existingGrid.map((row, rowIndex) => {
-    const sourceRow = nextGrid[rowIndex] ?? [];
-    const latestColumn = sourceRow[columns - 1] ?? 0;
+    const latestColumn = nextColumn[rowIndex] ?? 0;
     const combined = [...row.slice(0, existingColumnCount), latestColumn];
     if (combined.length <= columns) {
       return [...combined, ...new Array(columns - combined.length).fill(0)];
@@ -615,6 +631,7 @@ function appendCompressedSpectrogramColumns(
 
 function SpectrumProbeGraph(props: {
   spectrogram: number[][];
+  spectrumColumn: number[];
   capturedRatio: number;
   capturedSamples: number;
   resetKey: string;
@@ -641,10 +658,13 @@ function SpectrumProbeGraph(props: {
       return props.spectrogram;
     }
 
+    const latestColumn = props.spectrumColumn.length
+      ? props.spectrumColumn
+      : props.spectrogram.map((row) => row[columns - 1] ?? 0);
     const cloneActiveGrid = (activeColumnCount: number) =>
-      props.spectrogram.map((row) =>
+      props.spectrogram.map((_row, rowIndex) =>
         Array.from({ length: columns }, (_, columnIndex) =>
-          columnIndex < activeColumnCount ? (row[columnIndex] ?? 0) : 0
+          columnIndex < activeColumnCount ? (latestColumn[rowIndex] ?? 0) : 0
         )
       );
     const existing = accumulatedSpectrogramRef.current;
@@ -677,8 +697,8 @@ function SpectrumProbeGraph(props: {
 
     const grid =
       capturedRatio < 1
-        ? appendFillingSpectrogramColumns(existing.grid, props.spectrogram, existing.ratio, capturedRatio, columns)
-        : appendCompressedSpectrogramColumns(existing.grid, props.spectrogram, existing.ratio, columns);
+        ? appendFillingSpectrogramColumns(existing.grid, latestColumn, existing.ratio, capturedRatio, columns)
+        : appendCompressedSpectrogramColumns(existing.grid, latestColumn, existing.ratio, columns);
 
     accumulatedSpectrogramRef.current = {
       key: props.resetKey,
@@ -689,7 +709,7 @@ function SpectrumProbeGraph(props: {
       grid
     };
     return grid;
-  }, [props.capturedRatio, props.capturedSamples, props.resetKey, props.spectrogram]);
+  }, [props.capturedRatio, props.capturedSamples, props.resetKey, props.spectrogram, props.spectrumColumn]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
