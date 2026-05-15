@@ -7,6 +7,7 @@ import type { WasmPreviewProbeCaptureRequest } from "@/audio/renderers/wasm/synt
 
 export const DEFAULT_RANDOM_SEED: number;
 export const MACRO_EVENT_LEAD_SAMPLES: number;
+export const PREVIEW_CAPTURE_EMIT_INTERVAL_SAMPLES: number;
 
 export class NullPort implements WorkletPortLike {
   onmessage: ((event: unknown) => void) | null;

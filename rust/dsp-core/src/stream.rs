@@ -7,6 +7,8 @@ use serde_json::Value;
 use std::collections::HashMap;
 use wasm_bindgen::JsValue;
 
+const PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES: usize = 16_384;
+
 #[derive(Clone)]
 struct TrackFxState {
     delay_buf: Vec<f32>,
@@ -220,12 +222,7 @@ impl TrackRuntime {
             .iter()
             .map(|capture| PreviewProbeCaptureSnapshot {
                 probe_id: capture.probe_id.clone(),
-                samples: capture
-                    .samples
-                    .iter()
-                    .take(captured_samples.min(capture.duration_samples))
-                    .copied()
-                    .collect(),
+                samples: build_preview_capture_snapshot_samples(capture, captured_samples),
             })
             .collect()
     }
@@ -636,5 +633,49 @@ impl TrackRuntime {
 
     pub(crate) fn set_volume(&mut self, value: f32) {
         self.volume = clamp(value, 0.0, 2.0);
+    }
+}
+
+fn build_preview_capture_snapshot_samples(
+    capture: &TrackProbeCaptureState,
+    captured_samples: usize,
+) -> Vec<f32> {
+    let captured_end = captured_samples.min(capture.duration_samples);
+    let snapshot_start = captured_end.saturating_sub(PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES);
+    capture
+        .samples
+        .iter()
+        .skip(snapshot_start)
+        .take(captured_end - snapshot_start)
+        .copied()
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn preview_capture_snapshots_use_a_bounded_recent_window() {
+        let capture = TrackProbeCaptureState {
+            probe_id: "probe_1".to_string(),
+            signal_start: 0,
+            duration_samples: PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES + 32,
+            samples: (0..PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES + 32)
+                .map(|sample| sample as f32)
+                .collect(),
+        };
+
+        let samples = build_preview_capture_snapshot_samples(
+            &capture,
+            PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES + 32,
+        );
+
+        assert_eq!(samples.len(), PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES);
+        assert_eq!(samples.first().copied(), Some(32.0));
+        assert_eq!(
+            samples.last().copied(),
+            Some((PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES + 31) as f32)
+        );
     }
 }

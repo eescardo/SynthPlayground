@@ -6,6 +6,7 @@ import {
 
 export const DEFAULT_RANDOM_SEED = 0x1234_5678;
 export const MACRO_EVENT_LEAD_SAMPLES = 256;
+export const PREVIEW_CAPTURE_EMIT_INTERVAL_SAMPLES = 8192;
 
 export class NullPort {
   constructor() {
@@ -71,7 +72,10 @@ export class SharedWasmRenderStream {
     if (!Number.isFinite(capturedSamples)) {
       return;
     }
-    if (!force && capturedSamples - this.previewCaptureState.lastEmittedCapturedSamples < 1024) {
+    if (
+      !force &&
+      capturedSamples - this.previewCaptureState.lastEmittedCapturedSamples < PREVIEW_CAPTURE_EMIT_INTERVAL_SAMPLES
+    ) {
       return;
     }
     let snapshot = null;
