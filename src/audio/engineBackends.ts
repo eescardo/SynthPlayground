@@ -9,6 +9,7 @@ import {
   transportMsToSamples
 } from "@/audio/transportScheduling";
 import { getSongBeatForPlaybackBeat } from "@/lib/looping";
+import { getProjectTimelineEndBeat, getTrackMacroValueAtBeat, TRACK_VOLUME_AUTOMATION_ID } from "@/lib/macroAutomation";
 import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
 import { createId } from "@/lib/ids";
 import { AudioProject, SchedulerEvent, WorkletOutboundMessage } from "@/types/audio";
@@ -64,6 +65,70 @@ const loadWorkletWasmBytes = async () => {
     throw new Error(`Failed to load worklet WASM binary: ${response.status} ${response.statusText}`);
   }
   return await response.arrayBuffer();
+};
+
+export const collectLiveMuteTransitionEvents = (
+  previousProject: AudioProject | null,
+  nextProject: AudioProject,
+  sampleTime: number,
+  songBeat: number
+): SchedulerEvent[] => {
+  if (!previousProject) {
+    return [];
+  }
+
+  const events: SchedulerEvent[] = [];
+  const previousTracksById = new Map(previousProject.tracks.map((track) => [track.id, track]));
+  const timelineEndBeat = getProjectTimelineEndBeat(nextProject);
+
+  for (const nextTrack of nextProject.tracks) {
+    const previousTrack = previousTracksById.get(nextTrack.id);
+    if (!previousTrack || previousTrack.mute === nextTrack.mute) {
+      continue;
+    }
+
+    if (nextTrack.mute) {
+      const noteIds = new Set([...previousTrack.notes, ...nextTrack.notes].map((note) => note.id));
+      for (const noteId of noteIds) {
+        events.push({
+          id: `live_mute:${nextTrack.id}:${noteId}:off:${sampleTime}`,
+          type: "NoteOff",
+          source: "live_input",
+          sampleTime,
+          trackId: nextTrack.id,
+          noteId
+        });
+      }
+      events.push({
+        id: `live_mute:${nextTrack.id}:volume:${sampleTime}`,
+        type: "MacroChange",
+        source: "live_input",
+        sampleTime,
+        trackId: nextTrack.id,
+        macroId: TRACK_VOLUME_AUTOMATION_ID,
+        normalized: 0
+      });
+      continue;
+    }
+
+    events.push({
+      id: `live_unmute:${nextTrack.id}:volume:${sampleTime}`,
+      type: "MacroChange",
+      source: "live_input",
+      sampleTime,
+      trackId: nextTrack.id,
+      macroId: TRACK_VOLUME_AUTOMATION_ID,
+      normalized: getTrackMacroValueAtBeat(
+        nextTrack,
+        TRACK_VOLUME_AUTOMATION_ID,
+        nextTrack.volume / 2,
+        songBeat,
+        timelineEndBeat
+      )
+    });
+  }
+
+  return events;
 };
 
 class RealAudioEngineBackend implements AudioEngineBackend {
@@ -181,7 +246,19 @@ class RealAudioEngineBackend implements AudioEngineBackend {
   }
 
   setProject(project: AudioProject, options?: { syncToWorklet?: boolean }): void {
+    const previousProject = this.project;
     this.project = project;
+    if (this.isPlaying && this.worklet) {
+      const muteEvents = collectLiveMuteTransitionEvents(
+        previousProject,
+        project,
+        this.getSafeLiveSampleTime(),
+        this.getPlayheadBeat()
+      );
+      if (muteEvents.length > 0) {
+        this.worklet.port.postMessage({ type: "EVENTS", events: muteEvents, sessionId: this.playSessionId });
+      }
+    }
     if (options?.syncToWorklet === false) {
       return;
     }
