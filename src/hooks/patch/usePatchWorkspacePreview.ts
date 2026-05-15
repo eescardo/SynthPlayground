@@ -17,13 +17,19 @@ import { ProjectAssetLibrary } from "@/types/assets";
 
 const PREVIEW_DURATION_BEATS = 1;
 const HELD_PREVIEW_DURATION_BEATS = 120;
+const MAX_PROBE_CAPTURE_SECONDS = 4;
 const PREVIEW_PROGRESS_TICK_MS = 33;
 
 export const hasHostGateConnection = (patch: Patch): boolean =>
   patch.connections.some((connection) => connection.from.nodeId === HOST_PORT_IDS.gate);
 
-export const resolvePatchPreviewCaptureDurationBeats = (holdUntilReleased?: boolean) =>
-  holdUntilReleased ? HELD_PREVIEW_DURATION_BEATS : PREVIEW_DURATION_BEATS;
+export const resolvePatchPreviewCaptureDurationBeats = (holdUntilReleased: boolean | undefined, tempo: number) => {
+  if (!holdUntilReleased) {
+    return PREVIEW_DURATION_BEATS;
+  }
+  const maxCaptureBeats = (MAX_PROBE_CAPTURE_SECONDS * Math.max(tempo, 1)) / 60;
+  return Math.min(HELD_PREVIEW_DURATION_BEATS, maxCaptureBeats);
+};
 
 export const buildPatchedPreviewProject = (
   project: AudioProject,
@@ -194,7 +200,10 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
           {
             projectOverride: previewProject,
             captureProbes: captureRequests,
-            captureDurationBeats: resolvePatchPreviewCaptureDurationBeats(options?.holdUntilReleased),
+            captureDurationBeats: resolvePatchPreviewCaptureDurationBeats(
+              options?.holdUntilReleased,
+              previewProject?.global.tempo ?? audioProject.global.tempo
+            ),
             previewId,
             holdUntilReleased: options?.holdUntilReleased
           }

@@ -44,6 +44,23 @@ describe("probe helpers", () => {
     expect(grid.map((row) => row[1])).not.toEqual(grid.map((row) => row[10]));
   });
 
+  it("fits partial spectrogram captures across the probe face", () => {
+    const capturedSamples = new Array(1536)
+      .fill(0)
+      .map((_, index) =>
+        index < 768 ? Math.sin((2 * Math.PI * index) / 32) * 0.2 : Math.sin((2 * Math.PI * index) / 8) * 0.2
+      );
+    const backingSamples = [...capturedSamples, ...new Array(4096).fill(0)];
+
+    const grid = buildProbeSpectrogram(backingSamples, 256, 12, 10, backingSamples.length, capturedSamples.length);
+
+    const firstColumnEnergy = grid.reduce((sum, row) => sum + row[1], 0);
+    const lastColumnEnergy = grid.reduce((sum, row) => sum + row[10], 0);
+    expect(firstColumnEnergy).toBeGreaterThan(0.01);
+    expect(lastColumnEnergy).toBeGreaterThan(0.01);
+    expect(grid.map((row) => row[1])).not.toEqual(grid.map((row) => row[10]));
+  });
+
   it("reallocates spectrum detail when max frequency is narrowed", () => {
     const samples = new Array(2048).fill(0).map((_, index) => Math.sin((2 * Math.PI * index) / 12) * 0.2);
 

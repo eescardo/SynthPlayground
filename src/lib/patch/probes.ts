@@ -127,7 +127,7 @@ export const buildProbeSpectrogram = (
   sampleRate = 48000,
   maxFrequencyHz = DEFAULT_PROBE_MAX_FREQUENCY_HZ
 ) => {
-  const safeDurationSamples = Math.max(durationSamples, samples.length, 1);
+  const safeDurationSamples = Math.max(durationSamples, 1);
   const safeCapturedSamples = clamp(capturedSamples, 0, Math.min(samples.length, safeDurationSamples));
   const grid = Array.from({ length: freqBinCount }, () => new Array(timeBinCount).fill(0));
   if (safeCapturedSamples < SPECTROGRAM_MIN_FRAME_SIZE) {
@@ -149,10 +149,7 @@ export const buildProbeSpectrogram = (
 
   for (let timeIndex = 0; timeIndex < timeBinCount; timeIndex += 1) {
     const normalizedTime = timeBinCount <= 1 ? 0 : timeIndex / (timeBinCount - 1);
-    const centerSample = Math.floor(normalizedTime * Math.max(0, safeDurationSamples - 1));
-    if (centerSample >= safeCapturedSamples) {
-      continue;
-    }
+    const centerSample = Math.floor(normalizedTime * Math.max(0, safeCapturedSamples - 1));
     const frameStart = clamp(centerSample - Math.floor(frameSize / 2), 0, safeCapturedSamples - frameSize);
     const peak = resolveProbeFramePeak(samples, frameStart, frameSize);
     for (let freqIndex = 0; freqIndex < freqBinCount; freqIndex += 1) {

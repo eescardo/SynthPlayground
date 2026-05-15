@@ -13,8 +13,13 @@ import type { Track } from "@/types/music";
 
 describe("patch workspace preview", () => {
   it("keeps probe capture open for held previews", () => {
-    expect(resolvePatchPreviewCaptureDurationBeats(false)).toBe(1);
-    expect(resolvePatchPreviewCaptureDurationBeats(true)).toBeGreaterThan(1);
+    expect(resolvePatchPreviewCaptureDurationBeats(false, 120)).toBe(1);
+    expect(resolvePatchPreviewCaptureDurationBeats(true, 120)).toBe(8);
+  });
+
+  it("caps held preview probe capture to a short diagnostic window", () => {
+    expect(resolvePatchPreviewCaptureDurationBeats(true, 60)).toBe(4);
+    expect(resolvePatchPreviewCaptureDurationBeats(true, 240)).toBe(16);
   });
 
   it("detects whether a patch uses the host gate for held preview release", () => {
