@@ -27,7 +27,12 @@ import {
   PATCH_COLOR_PROBE_SCOPE_TRACE,
   PATCH_COLOR_PROBE_SPECTROGRAM_BIN_RGB
 } from "@/components/patch/patchCanvasConstants";
-import { buildProbeSpectrumFrameGrid, EXPANDED_PROBE_SIZE, resolveProbeFrequencyView } from "@/lib/patch/probes";
+import {
+  buildProbeSpectrumFrameGrid,
+  EXPANDED_PROBE_SIZE,
+  resolveProbeFrequencyView,
+  resolveProbeSpectrumCaptureFrameSize
+} from "@/lib/patch/probes";
 import { clamp } from "@/lib/numeric";
 import { detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
 import {
@@ -544,9 +549,13 @@ function SpectrumProbeGraph(props: {
     }
 
     const elapsedSeconds = clamp(props.elapsedSeconds, 0, SPECTRUM_MAX_DISPLAY_SECONDS);
+    const captureFrameSize = resolveProbeSpectrumCaptureFrameSize(
+      props.selectedWindowSize,
+      props.capture.sampleStride ?? 1
+    );
     const grid = buildProbeSpectrumFrameGrid(
       props.capture.samples,
-      props.selectedWindowSize,
+      captureFrameSize,
       rows,
       props.capture.capturedSamples,
       props.capture.sampleRate,

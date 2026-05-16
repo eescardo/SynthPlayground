@@ -12,6 +12,7 @@ export const DEFAULT_PROBE_FREQUENCY_VIEW: PatchProbeFrequencyView = {
   maxHz: DEFAULT_PROBE_MAX_FREQUENCY_HZ
 };
 const MIN_PROBE_NORMALIZATION_PEAK = 0.0001;
+const SPECTRUM_FRAME_GRID_MIN_FRAME_SIZE = 8;
 const SPECTROGRAM_MIN_FRAME_SIZE = 96;
 const SPECTROGRAM_MIN_TIMELINE_SECONDS = 1;
 
@@ -256,7 +257,7 @@ export const buildProbeSpectrumFrameGrid = (
   maxFrequencyHz = DEFAULT_PROBE_MAX_FREQUENCY_HZ
 ): ProbeSpectrumFrameGrid => {
   const safeCapturedSamples = clamp(capturedSamples, 0, samples.length);
-  const frameSize = Math.max(SPECTROGRAM_MIN_FRAME_SIZE, Math.round(windowSize));
+  const frameSize = Math.max(SPECTRUM_FRAME_GRID_MIN_FRAME_SIZE, Math.round(windowSize));
   const columns: number[][] = [];
   if (safeCapturedSamples < frameSize) {
     return { columns, frameSize, peak: 0 };
@@ -286,6 +287,9 @@ export const buildProbeSpectrumFrameGrid = (
 
   return { columns, frameSize, peak };
 };
+
+export const resolveProbeSpectrumCaptureFrameSize = (sourceWindowSize = 1024, sampleStride = 1) =>
+  Math.max(SPECTRUM_FRAME_GRID_MIN_FRAME_SIZE, Math.round(sourceWindowSize / Math.max(1, sampleStride)));
 
 export const resolveProbeSpectrogramTimeline = (
   samples: ArrayLike<number>,

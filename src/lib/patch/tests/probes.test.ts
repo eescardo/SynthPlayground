@@ -5,6 +5,7 @@ import {
   buildProbeSpectrumFrameGrid,
   buildSpectrumBins,
   normalizeProbeSamples,
+  resolveProbeSpectrumCaptureFrameSize,
   resolveProbeSpectrogramTimeline
 } from "@/lib/patch/probes";
 import {
@@ -150,6 +151,12 @@ describe("probe helpers", () => {
 
     expect(partialGrid.columns).toHaveLength(0);
     expect(oneFrameGrid.columns).toHaveLength(1);
+  });
+
+  it("translates source spectrum windows into decimated capture frame sizes", () => {
+    expect(resolveProbeSpectrumCaptureFrameSize(1024, 1)).toBe(1024);
+    expect(resolveProbeSpectrumCaptureFrameSize(1024, 16)).toBe(64);
+    expect(resolveProbeSpectrumCaptureFrameSize(1024, 256)).toBe(8);
   });
 
   it("reports spectrogram timeline fill before and after the first second", () => {
