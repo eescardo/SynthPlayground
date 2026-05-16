@@ -63,6 +63,7 @@ export interface SharedWasmPreviewCaptureSnapshot {
     samples: number[];
     sampleBuffer?: SharedArrayBuffer;
     sampleLength?: number;
+    spectrumFrames?: PreviewProbeCapture["spectrumFrames"];
   }>;
 }
 

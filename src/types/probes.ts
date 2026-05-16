@@ -53,6 +53,15 @@ export interface PreviewProbeCapture {
   samples: ArrayLike<number>;
   sampleBuffer?: SharedArrayBuffer;
   sampleLength?: number;
+  spectrumFrames?: PreviewProbeSpectrumFrames;
+}
+
+export interface PreviewProbeSpectrumFrames {
+  columns: number[][];
+  binFrequencies: number[];
+  frameSize: number;
+  sampleRate: number;
+  capturedSamples: number;
 }
 
 export interface PreviewProbeSharedBuffer {

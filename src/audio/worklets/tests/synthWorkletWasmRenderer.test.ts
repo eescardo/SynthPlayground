@@ -36,7 +36,14 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
               {
                 probeId: "probe_1",
                 sampleStride: 4,
-                samples: Array.from({ length: blockSize }, () => 0.5)
+                samples: Array.from({ length: blockSize }, () => 0.5),
+                spectrumFrames: {
+                  columns: [[0.25, 0.5]],
+                  binFrequencies: [120, 240],
+                  frameSize: 1024,
+                  sampleRate: 48000,
+                  capturedSamples: 1024
+                }
               }
             ]
           });
@@ -205,7 +212,8 @@ describe("WASM worklet renderer", () => {
       captureProbes: [
         {
           probeId: "probe_1",
-          kind: "scope",
+          kind: "spectrum",
+          spectrumWindowSize: 1024,
           target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
         }
       ],
@@ -225,7 +233,11 @@ describe("WASM worklet renderer", () => {
             capturedSamples: blockSize / 4,
             sampleRate: 12000,
             sampleStride: 4,
-            samples: expect.arrayContaining([0.5])
+            samples: expect.arrayContaining([0.5]),
+            spectrumFrames: expect.objectContaining({
+              columns: [[0.25, 0.5]],
+              sampleRate: 48000
+            })
           })
         ]
       })
@@ -270,7 +282,8 @@ describe("WASM worklet renderer", () => {
       captureProbes: [
         {
           probeId: "probe_1",
-          kind: "scope",
+          kind: "spectrum",
+          spectrumWindowSize: 1024,
           target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
         }
       ],
@@ -336,7 +349,8 @@ describe("WASM worklet renderer", () => {
       captureProbes: [
         {
           probeId: "probe_1",
-          kind: "scope",
+          kind: "spectrum",
+          spectrumWindowSize: 1024,
           target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
         }
       ],
@@ -395,7 +409,8 @@ describe("WASM worklet renderer", () => {
       captureProbes: [
         {
           probeId: "probe_1",
-          kind: "scope",
+          kind: "spectrum",
+          spectrumWindowSize: 1024,
           target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
         }
       ],
@@ -406,6 +421,8 @@ describe("WASM worklet renderer", () => {
     expect(JSON.parse(configuredPreviewCaptureJson)).toEqual([
       expect.objectContaining({
         probeId: "probe_1",
+        kind: "spectrum",
+        spectrumWindowSize: 1024,
         durationSamples: blockSize * 2
       })
     ]);

@@ -308,12 +308,15 @@ struct ProjectSpec {
 struct PreviewProbeCaptureSpec {
     #[serde(rename = "probeId")]
     probe_id: String,
+    kind: String,
     #[serde(rename = "trackIndex")]
     track_index: usize,
     #[serde(rename = "signalIndex")]
     signal_index: usize,
     #[serde(rename = "durationSamples")]
     duration_samples: usize,
+    #[serde(rename = "spectrumWindowSize")]
+    spectrum_window_size: Option<usize>,
 }
 
 #[derive(Clone, Serialize)]
@@ -323,6 +326,21 @@ struct PreviewProbeCaptureSnapshot {
     #[serde(rename = "sampleStride")]
     sample_stride: f32,
     samples: Vec<f32>,
+    #[serde(rename = "spectrumFrames", skip_serializing_if = "Option::is_none")]
+    spectrum_frames: Option<PreviewProbeSpectrumFrames>,
+}
+
+#[derive(Clone, Serialize)]
+struct PreviewProbeSpectrumFrames {
+    columns: Vec<Vec<f32>>,
+    #[serde(rename = "binFrequencies")]
+    bin_frequencies: Vec<f32>,
+    #[serde(rename = "frameSize")]
+    frame_size: usize,
+    #[serde(rename = "sampleRate")]
+    sample_rate: f32,
+    #[serde(rename = "capturedSamples")]
+    captured_samples: usize,
 }
 
 #[derive(Clone, Serialize)]

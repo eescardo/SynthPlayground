@@ -43,7 +43,7 @@ import {
   resolveSpectrumFrequencyMarkers
 } from "@/lib/patch/probeViewMath";
 import { Patch, PatchLayoutNode } from "@/types/patch";
-import { PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
+import { PatchWorkspaceProbeState, PreviewProbeCapture, PreviewProbeSpectrumFrames } from "@/types/probes";
 import { PatchCanvasFocusable } from "@/lib/patch/hardwareNavigation";
 
 interface PatchProbeOverlayProps {
@@ -543,7 +543,7 @@ function SpectrumProbeGraph(props: {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const effectiveMaxFrequencyHz = resolveProbeSpectrumEffectiveMaxFrequencyHz(
     props.maxFrequencyHz,
-    props.capture?.sampleRate ?? 48000
+    props.capture?.spectrumFrames?.sampleRate ?? props.capture?.sampleRate ?? 48000
   );
   const frequencyMarkers = useMemo(
     () => resolveSpectrumFrequencyMarkers(effectiveMaxFrequencyHz),
@@ -557,6 +557,17 @@ function SpectrumProbeGraph(props: {
     }
 
     const elapsedSeconds = clamp(props.elapsedSeconds, 0, SPECTRUM_MAX_DISPLAY_SECONDS);
+    const viewportSeconds = clamp(Math.max(1, elapsedSeconds), 1, SPECTRUM_MAX_DISPLAY_SECONDS);
+    if (props.capture.spectrumFrames?.columns.length) {
+      return buildSpectrumFramesDisplay(
+        props.capture.spectrumFrames,
+        rows,
+        viewportColumns,
+        viewportSeconds,
+        effectiveMaxFrequencyHz
+      );
+    }
+
     const captureFrameSize = resolveProbeSpectrumCaptureFrameSize(
       props.selectedWindowSize,
       props.capture.sampleStride ?? 1
@@ -572,7 +583,6 @@ function SpectrumProbeGraph(props: {
     if (grid.peak <= 0 || grid.columns.length <= 0) {
       return Array.from({ length: rows }, () => new Array(viewportColumns).fill(0));
     }
-    const viewportSeconds = clamp(Math.max(1, elapsedSeconds), 1, SPECTRUM_MAX_DISPLAY_SECONDS);
     const visibleFrameCount = Math.max(
       1,
       Math.min(grid.columns.length, Math.ceil((viewportSeconds * props.capture.sampleRate) / grid.frameSize))
@@ -677,6 +687,58 @@ function SpectrumProbeGraph(props: {
       )}
     </div>
   );
+}
+
+function buildSpectrumFramesDisplay(
+  spectrumFrames: PreviewProbeSpectrumFrames,
+  rows: number,
+  viewportColumns: number,
+  viewportSeconds: number,
+  maxFrequencyHz: number
+) {
+  const display = Array.from({ length: rows }, () => new Array(viewportColumns).fill(0));
+  const visibleFrameCount = Math.max(
+    1,
+    Math.min(
+      spectrumFrames.columns.length,
+      Math.ceil((viewportSeconds * spectrumFrames.sampleRate) / spectrumFrames.frameSize)
+    )
+  );
+  const rowBinIndices = Array.from({ length: rows }, (_, rowIndex) => {
+    const rowRatio = (rowIndex + 0.5) / rows;
+    const targetFrequency = Math.pow(rowRatio, 2) * maxFrequencyHz;
+    return resolveNearestSpectrumBinIndex(spectrumFrames.binFrequencies, targetFrequency);
+  });
+
+  for (let columnIndex = 0; columnIndex < viewportColumns; columnIndex += 1) {
+    const ratio = viewportColumns <= 1 ? 0 : columnIndex / (viewportColumns - 1);
+    const frameIndex = clamp(Math.floor(ratio * visibleFrameCount), 0, visibleFrameCount - 1);
+    const column = spectrumFrames.columns[frameIndex];
+    if (!column) {
+      continue;
+    }
+    for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
+      display[rowIndex][columnIndex] = column[rowBinIndices[rowIndex] ?? 0] ?? 0;
+    }
+  }
+
+  return display;
+}
+
+function resolveNearestSpectrumBinIndex(binFrequencies: number[], targetFrequency: number) {
+  if (binFrequencies.length <= 0) {
+    return 0;
+  }
+  let bestIndex = 0;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < binFrequencies.length; index += 1) {
+    const distance = Math.abs((binFrequencies[index] ?? 0) - targetFrequency);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  }
+  return bestIndex;
 }
 
 function resolveRenderedProbeWidth(probe: PatchWorkspaceProbeState, zoom: number) {

@@ -497,9 +497,11 @@ export const compilePreviewProbeCaptureRequestsCore = (
       }
       return {
         probeId: probe.probeId,
+        kind: probe.kind,
         trackIndex,
         signalIndex,
-        durationSamples: Math.max(0, Math.floor(durationSamples || 0))
+        durationSamples: Math.max(0, Math.floor(durationSamples || 0)),
+        spectrumWindowSize: probe.spectrumWindowSize
       };
     })
     .filter(Boolean);

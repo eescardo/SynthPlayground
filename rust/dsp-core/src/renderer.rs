@@ -148,7 +148,10 @@ impl WasmSubsetEngine {
             .tracks
             .iter()
             .flat_map(|track| {
-                track.preview_capture_state_snapshot(self.preview_capture_sample_count)
+                track.preview_capture_state_snapshot(
+                    self.preview_capture_sample_count,
+                    self.sample_rate,
+                )
             })
             .collect();
         serde_json::to_string(&PreviewProbeCaptureStateSnapshot {
