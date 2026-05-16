@@ -581,7 +581,7 @@ function SpectrumProbeGraph(props: {
   );
   const displaySpectrogram = useMemo(() => {
     const finalSpectrum = !props.compact ? props.capture?.finalSpectrum : undefined;
-    const rows = finalSpectrum ? 128 : SPECTRUM_STREAM_ROWS;
+    const rows = finalSpectrum ? 256 : SPECTRUM_STREAM_ROWS;
     const viewportColumns = finalSpectrum ? 512 : props.compact ? 240 : 320;
     if (!props.capture) {
       return [];
@@ -654,8 +654,11 @@ function SpectrumProbeGraph(props: {
     if (!context) {
       return;
     }
-    const width = props.compact ? 240 : 320;
-    const height = props.compact ? 144 : 192;
+    const rows = displaySpectrogram.length;
+    const columns = displaySpectrogram[0]?.length ?? 0;
+    const usesFinalSpectrum = !props.compact && Boolean(props.capture?.finalSpectrum);
+    const width = usesFinalSpectrum && columns > 0 ? columns : props.compact ? 240 : 320;
+    const height = usesFinalSpectrum && rows > 0 ? rows : props.compact ? 144 : 192;
     const devicePixelRatio = window.devicePixelRatio || 1;
     canvas.width = Math.round(width * devicePixelRatio);
     canvas.height = Math.round(height * devicePixelRatio);
@@ -666,28 +669,23 @@ function SpectrumProbeGraph(props: {
     context.fillStyle = PATCH_COLOR_PROBE_GRAPH_BG;
     context.fillRect(0, 0, width, height);
 
-    const rows = displaySpectrogram.length;
-    const columns = displaySpectrogram[0]?.length ?? 0;
     if (!rows || !columns) {
       return;
     }
 
     const cellWidth = width / columns;
     const cellHeight = height / rows;
+    const fillWidth = usesFinalSpectrum ? Math.max(cellWidth, 1) : Math.ceil(cellWidth + 1);
+    const fillHeight = usesFinalSpectrum ? Math.max(cellHeight, 1) : Math.ceil(cellHeight + 1);
     for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
       const row = displaySpectrogram[rowIndex] ?? [];
       for (let columnIndex = 0; columnIndex < columns; columnIndex += 1) {
         const value = row[columnIndex] ?? 0;
         context.fillStyle = resolveProbeSpectrumMagnitudeColor(value);
-        context.fillRect(
-          columnIndex * cellWidth,
-          height - (rowIndex + 1) * cellHeight,
-          Math.ceil(cellWidth + 1),
-          Math.ceil(cellHeight + 1)
-        );
+        context.fillRect(columnIndex * cellWidth, height - (rowIndex + 1) * cellHeight, fillWidth, fillHeight);
       }
     }
-  }, [displaySpectrogram, props.compact]);
+  }, [displaySpectrogram, props.capture?.finalSpectrum, props.compact]);
 
   return (
     <div className="patch-probe-spectrum-shell">
@@ -748,7 +746,7 @@ function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeName: st
   const rowCount = finalSpectrum?.columns[0]?.length ?? 0;
   const columnCount = finalSpectrum?.columns.length ?? 0;
   const imageWidth = Math.max(720, columnCount * 2);
-  const imageHeight = Math.max(320, rowCount * 3);
+  const imageHeight = rowCount > 0 ? rowCount : 320;
 
   useEffect(() => {
     const onClose = props.onClose;
@@ -788,17 +786,14 @@ function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeName: st
     }
     const cellWidth = imageWidth / columnCount;
     const cellHeight = imageHeight / rowCount;
+    const fillWidth = Math.max(cellWidth, 1);
+    const fillHeight = Math.max(cellHeight, 1);
     for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
       const column = finalSpectrum.columns[columnIndex] ?? [];
       for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
         const value = column[rowIndex] ?? 0;
         context.fillStyle = resolveProbeSpectrumMagnitudeColor(value);
-        context.fillRect(
-          columnIndex * cellWidth,
-          imageHeight - (rowIndex + 1) * cellHeight,
-          Math.ceil(cellWidth + 1),
-          Math.ceil(cellHeight + 1)
-        );
+        context.fillRect(columnIndex * cellWidth, imageHeight - (rowIndex + 1) * cellHeight, fillWidth, fillHeight);
       }
     }
   }, [columnCount, finalSpectrum, imageHeight, imageWidth, rowCount]);
