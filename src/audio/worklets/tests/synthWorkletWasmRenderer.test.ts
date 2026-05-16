@@ -52,8 +52,31 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
     has_active_voices() {
       return hasActiveVoices;
     }
-    preview_capture_state_json() {
-      return previewCaptureStateJson;
+    preview_capture_state_json(includeFinal?: boolean) {
+      if (!includeFinal || writeInvalidPreviewCaptureJson) {
+        return previewCaptureStateJson;
+      }
+      const snapshot = JSON.parse(previewCaptureStateJson);
+      return JSON.stringify({
+        ...snapshot,
+        captures: snapshot.captures.map((capture: Record<string, unknown>) => ({
+          ...capture,
+          finalSpectrum: {
+            columns: [
+              [0.1, 0.2, 0.3],
+              [0.2, 0.4, 0.6]
+            ],
+            binFrequencies: [100, 200, 300],
+            frameSize: 1024,
+            sampleRate: 48000,
+            capturedSamples: previewCaptureSampleCount,
+            requestedTimeColumns: 512,
+            requestedFrequencyBins: 256,
+            sourceColumnCount: 2
+          },
+          fullResolutionSamples: [0, 0.5, -0.5]
+        }))
+      });
     }
     preview_capture_sample_count() {
       return previewCaptureSampleCount;
@@ -304,6 +327,69 @@ describe("WASM worklet renderer", () => {
             sampleBuffer,
             sampleLength: blockSize,
             samples: []
+          })
+        ]
+      })
+    );
+  });
+
+  it("emits final spectrum grids and full-resolution samples on final preview capture", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+    const postMessage = vi.fn();
+    renderer.port.postMessage = postMessage;
+
+    const stream = renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize,
+      trackId: "track_1",
+      previewId: "preview_final_spectrum",
+      events: [
+        {
+          id: "note_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
+      captureProbes: [
+        {
+          probeId: "probe_1",
+          kind: "spectrum",
+          target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
+        }
+      ],
+      randomSeed: 123
+    });
+
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "PREVIEW_CAPTURE",
+        previewId: "preview_final_spectrum",
+        captures: [
+          expect.objectContaining({
+            finalSpectrum: expect.objectContaining({
+              requestedTimeColumns: 512,
+              requestedFrequencyBins: 256
+            }),
+            fullResolutionSamples: [0, 0.5, -0.5]
           })
         ]
       })

@@ -900,6 +900,13 @@
   text-overflow: ellipsis;
 }
 
+.patch-probe-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
 .patch-probe-attach-button {
   padding: 0.12rem 0.4rem;
   border-radius: 999px;
@@ -907,6 +914,16 @@
   background: rgba(200, 255, 57, 0.12);
   color: #e7f3ff;
   font-size: 0.68rem;
+}
+
+.patch-probe-attach-button:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.patch-probe-full-spectrum-button {
+  border-color: rgba(151, 214, 255, 0.38);
+  background: rgba(151, 214, 255, 0.1);
 }
 
 .patch-probe-attach-button.keyboard-focused {
@@ -1022,6 +1039,112 @@
   gap: 0.4rem;
   color: #8fb4d4;
   font-size: 0.7rem;
+}
+
+.patch-probe-full-spectrum-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  padding: 2rem;
+  background: rgba(3, 7, 11, 0.78);
+  pointer-events: auto;
+}
+
+.patch-probe-full-spectrum-modal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.85rem;
+  width: 100%;
+  max-width: 1120px;
+  min-height: 0;
+  margin: auto;
+  padding: 1rem;
+  border: 1px solid rgba(151, 214, 255, 0.34);
+  border-radius: 8px;
+  background: rgba(6, 12, 18, 0.96);
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.52);
+}
+
+.patch-probe-full-spectrum-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #e7f3ff;
+}
+
+.patch-probe-full-spectrum-header > div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.patch-probe-full-spectrum-header strong {
+  font-size: 0.95rem;
+}
+
+.patch-probe-full-spectrum-header span {
+  color: #8fb4d4;
+  font-size: 0.72rem;
+}
+
+.patch-probe-full-spectrum-scroll {
+  position: relative;
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr);
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 1.7rem;
+}
+
+.patch-probe-full-spectrum-axis-y {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-height: 320px;
+  background: rgba(6, 12, 18, 0.96);
+}
+
+.patch-probe-full-spectrum-axis-y span {
+  position: absolute;
+  right: 0.7rem;
+  color: rgba(231, 243, 255, 0.72);
+  font-size: 0.68rem;
+  font-weight: 600;
+  transform: translateY(50%);
+  white-space: nowrap;
+}
+
+.patch-probe-full-spectrum-image-wrap {
+  position: relative;
+  min-width: 100%;
+}
+
+.patch-probe-full-spectrum-canvas {
+  display: block;
+  min-width: 100%;
+  border-radius: 8px;
+  background: rgba(10, 18, 28, 0.9);
+}
+
+.patch-probe-full-spectrum-time-marker {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  color: rgba(231, 243, 255, 0.72);
+  font-size: 0.68rem;
+  font-weight: 600;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.patch-probe-full-spectrum-time-marker:first-of-type {
+  transform: none;
+}
+
+.patch-probe-full-spectrum-time-marker:last-of-type {
+  transform: translateX(-100%);
 }
 
 .pitch-tracker-probe {

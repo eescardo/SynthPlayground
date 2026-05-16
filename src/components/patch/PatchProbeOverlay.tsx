@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   resolveNearestRectEdgePoint,
   resolvePatchConnectionAnchorPoint,
@@ -39,6 +39,7 @@ import { detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
 import {
   buildScopeRenderData,
   formatSpectrumFrequency,
+  formatScopeTimestamp,
   resolveScopeTimeMarkers,
   resolveSpectrumFrequencyMarkers,
   resolveSpectrumTimelineFillRatio,
@@ -69,6 +70,7 @@ interface PatchProbeOverlayProps {
 const PROBE_SPECTRUM_WINDOWS = [256, 512, 1024, 2048];
 const PROBE_DRAG_THRESHOLD_PX = 6;
 const SPECTRUM_MAX_DISPLAY_SECONDS = 4;
+const SPECTRUM_STREAM_ROWS = 32;
 
 function resolveNearestProbeEdgePoint(
   probe: PatchWorkspaceProbeState,
@@ -83,6 +85,7 @@ function resolveNearestProbeEdgePoint(
 }
 
 export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
+  const [fullSpectrumProbeId, setFullSpectrumProbeId] = useState<string | null>(null);
   const connectionLines = useMemo(
     () =>
       props.probes.flatMap((probe) => {
@@ -219,9 +222,17 @@ export function PatchProbeOverlay(props: PatchProbeOverlayProps) {
             onStartAttachProbe={props.onStartAttachProbe}
             onUpdateSpectrumWindow={props.onUpdateSpectrumWindow}
             onToggleExpanded={props.onToggleExpanded}
+            onOpenFullSpectrum={() => setFullSpectrumProbeId(probe.id)}
           />
         );
       })}
+      {fullSpectrumProbeId && (
+        <FullSpectrumModal
+          capture={props.previewCaptureByProbeId[fullSpectrumProbeId]}
+          probeName={props.probes.find((probe) => probe.id === fullSpectrumProbeId)?.name ?? "Spectrum Probe"}
+          onClose={() => setFullSpectrumProbeId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -238,6 +249,7 @@ function ProbeCard(props: {
   onStartAttachProbe: (probeId: string) => void;
   onUpdateSpectrumWindow: (probeId: string, spectrumWindowSize: number) => void;
   onToggleExpanded: (probeId: string) => void;
+  onOpenFullSpectrum: () => void;
 }) {
   const gestureStateRef = useRef<{
     pointerId: number;
@@ -317,16 +329,31 @@ function ProbeCard(props: {
     >
       <div className="patch-probe-card-header">
         <strong>{props.probe.name}</strong>
-        <button
-          type="button"
-          className={`patch-probe-attach-button${props.attachKeyboardFocused ? " keyboard-focused" : ""}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            props.onStartAttachProbe(props.probe.id);
-          }}
-        >
-          {props.attaching ? "Cancel" : "Attach"}
-        </button>
+        <div className="patch-probe-header-actions">
+          {props.probe.kind === "spectrum" && (
+            <button
+              type="button"
+              className="patch-probe-attach-button patch-probe-full-spectrum-button"
+              disabled={!props.capture?.finalSpectrum}
+              onClick={(event) => {
+                event.stopPropagation();
+                props.onOpenFullSpectrum();
+              }}
+            >
+              Full spectrum
+            </button>
+          )}
+          <button
+            type="button"
+            className={`patch-probe-attach-button${props.attachKeyboardFocused ? " keyboard-focused" : ""}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              props.onStartAttachProbe(props.probe.id);
+            }}
+          >
+            {props.attaching ? "Cancel" : "Attach"}
+          </button>
+        </div>
       </div>
       {props.attaching && (
         <div className="patch-probe-attach-tooltip" role="status">
@@ -552,7 +579,7 @@ function SpectrumProbeGraph(props: {
     [effectiveMaxFrequencyHz]
   );
   const displaySpectrogram = useMemo(() => {
-    const rows = props.compact ? 18 : 30;
+    const rows = SPECTRUM_STREAM_ROWS;
     const viewportColumns = props.compact ? 240 : 320;
     if (!props.capture) {
       return [];
@@ -695,6 +722,126 @@ function SpectrumProbeGraph(props: {
           </select>
         </label>
       )}
+    </div>
+  );
+}
+
+function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeName: string; onClose: () => void }) {
+  const finalSpectrum = props.capture?.finalSpectrum;
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const maxFrequencyHz = resolveProbeSpectrumEffectiveMaxFrequencyHz(
+    finalSpectrum?.binFrequencies.at(-1) ?? 24000,
+    finalSpectrum?.sampleRate ?? 48000
+  );
+  const frequencyMarkers = useMemo(() => resolveSpectrumFrequencyMarkers(maxFrequencyHz), [maxFrequencyHz]);
+  const durationSeconds = finalSpectrum ? finalSpectrum.capturedSamples / Math.max(1, finalSpectrum.sampleRate) : 0;
+  const timeMarkers = useMemo(
+    () => [0, 0.5, 1].map((ratio) => ({ ratio, label: formatScopeTimestamp(durationSeconds * ratio) })),
+    [durationSeconds]
+  );
+  const rowCount = finalSpectrum?.columns[0]?.length ?? 0;
+  const columnCount = finalSpectrum?.columns.length ?? 0;
+  const imageWidth = Math.max(720, columnCount * 2);
+  const imageHeight = Math.max(320, rowCount * 3);
+
+  useEffect(() => {
+    const onClose = props.onClose;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key === " " || event.code === "Space") {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown, { capture: true });
+    return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
+  }, [props.onClose]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context || !finalSpectrum) {
+      return;
+    }
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    canvas.width = Math.round(imageWidth * devicePixelRatio);
+    canvas.height = Math.round(imageHeight * devicePixelRatio);
+    canvas.style.width = `${imageWidth}px`;
+    canvas.style.height = `${imageHeight}px`;
+    context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    context.clearRect(0, 0, imageWidth, imageHeight);
+    context.fillStyle = PATCH_COLOR_PROBE_GRAPH_BG;
+    context.fillRect(0, 0, imageWidth, imageHeight);
+
+    if (columnCount <= 0 || rowCount <= 0) {
+      return;
+    }
+    const cellWidth = imageWidth / columnCount;
+    const cellHeight = imageHeight / rowCount;
+    for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
+      const column = finalSpectrum.columns[columnIndex] ?? [];
+      for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
+        const value = column[rowIndex] ?? 0;
+        context.fillStyle = resolveProbeSpectrumMagnitudeColor(value);
+        context.fillRect(
+          columnIndex * cellWidth,
+          imageHeight - (rowIndex + 1) * cellHeight,
+          Math.ceil(cellWidth + 1),
+          Math.ceil(cellHeight + 1)
+        );
+      }
+    }
+  }, [columnCount, finalSpectrum, imageHeight, imageWidth, rowCount]);
+
+  return (
+    <div
+      className="patch-probe-full-spectrum-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Full spectrum"
+      onClick={props.onClose}
+    >
+      <div className="patch-probe-full-spectrum-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="patch-probe-full-spectrum-header">
+          <div>
+            <strong>{props.probeName}</strong>
+            {finalSpectrum && (
+              <span>
+                {finalSpectrum.columns.length} x {finalSpectrum.requestedFrequencyBins} /{" "}
+                {formatScopeTimestamp(durationSeconds)}
+              </span>
+            )}
+          </div>
+          <button type="button" className="patch-probe-attach-button" onClick={props.onClose}>
+            Close
+          </button>
+        </div>
+        <div className="patch-probe-full-spectrum-scroll">
+          <div className="patch-probe-full-spectrum-axis-y">
+            {frequencyMarkers.map((marker) => (
+              <span key={marker.frequency} style={{ bottom: `${marker.bottomPercent}%` }}>
+                {formatSpectrumFrequency(marker.frequency)}
+              </span>
+            ))}
+          </div>
+          <div className="patch-probe-full-spectrum-image-wrap">
+            <canvas ref={canvasRef} className="patch-probe-full-spectrum-canvas" />
+            {timeMarkers.map((marker) => (
+              <span
+                key={marker.ratio}
+                className="patch-probe-full-spectrum-time-marker"
+                style={{ left: `${marker.ratio * 100}%` }}
+              >
+                {marker.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -54,6 +54,8 @@ export interface PreviewProbeCapture {
   sampleBuffer?: SharedArrayBuffer;
   sampleLength?: number;
   spectrumFrames?: PreviewProbeSpectrumFrames;
+  finalSpectrum?: PreviewProbeFinalSpectrum;
+  fullResolutionSamples?: number[];
 }
 
 export interface PreviewProbeSpectrumFrames {
@@ -63,6 +65,17 @@ export interface PreviewProbeSpectrumFrames {
   frameSize: number;
   sampleRate: number;
   capturedSamples: number;
+}
+
+export interface PreviewProbeFinalSpectrum {
+  columns: number[][];
+  binFrequencies: number[];
+  frameSize: number;
+  sampleRate: number;
+  capturedSamples: number;
+  requestedTimeColumns: number;
+  requestedFrequencyBins: number;
+  sourceColumnCount: number;
 }
 
 export interface PreviewProbeSharedBuffer {

@@ -32,7 +32,7 @@ export interface SharedWasmEngine {
   right_ptr(): number;
   block_size(): number;
   configure_preview_probe_capture?(captureJson: string): void;
-  preview_capture_state_json?(): string;
+  preview_capture_state_json?(includeFinal?: boolean): string;
   preview_capture_sample_count?(): number;
 }
 
@@ -64,6 +64,8 @@ export interface SharedWasmPreviewCaptureSnapshot {
     sampleBuffer?: SharedArrayBuffer;
     sampleLength?: number;
     spectrumFrames?: PreviewProbeCapture["spectrumFrames"];
+    finalSpectrum?: PreviewProbeCapture["finalSpectrum"];
+    fullResolutionSamples?: PreviewProbeCapture["fullResolutionSamples"];
   }>;
 }
 
