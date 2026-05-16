@@ -157,11 +157,11 @@ export class WasmSubsetEngine {
     return wasm.wasmsubsetengine_has_active_voices(this.__wbg_ptr) !== 0;
   }
 
-  preview_capture_state_json() {
+  preview_capture_state_json(include_final) {
     let ptr1 = 0;
     let len1 = 0;
     try {
-      const ret = wasm.wasmsubsetengine_preview_capture_state_json(this.__wbg_ptr);
+      const ret = wasm.wasmsubsetengine_preview_capture_state_json(this.__wbg_ptr, include_final);
       ptr1 = ret[0];
       len1 = ret[1];
       if (ret[3]) {

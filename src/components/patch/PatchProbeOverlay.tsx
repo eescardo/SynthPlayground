@@ -335,6 +335,7 @@ function ProbeCard(props: {
               type="button"
               className="patch-probe-attach-button patch-probe-full-spectrum-button"
               disabled={!props.capture?.finalSpectrum}
+              hidden={!props.probe.expanded}
               onClick={(event) => {
                 event.stopPropagation();
                 props.onOpenFullSpectrum();
@@ -579,10 +580,15 @@ function SpectrumProbeGraph(props: {
     [effectiveMaxFrequencyHz]
   );
   const displaySpectrogram = useMemo(() => {
-    const rows = SPECTRUM_STREAM_ROWS;
-    const viewportColumns = props.compact ? 240 : 320;
+    const finalSpectrum = !props.compact ? props.capture?.finalSpectrum : undefined;
+    const rows = finalSpectrum ? 128 : SPECTRUM_STREAM_ROWS;
+    const viewportColumns = finalSpectrum ? 512 : props.compact ? 240 : 320;
     if (!props.capture) {
       return [];
+    }
+
+    if (finalSpectrum) {
+      return buildFinalSpectrumDisplay(finalSpectrum, rows, viewportColumns, effectiveMaxFrequencyHz);
     }
 
     const elapsedSeconds = clamp(props.elapsedSeconds, 0, SPECTRUM_MAX_DISPLAY_SECONDS);
@@ -879,6 +885,41 @@ function buildSpectrumFramesDisplay(
       continue;
     }
     const column = spectrumFrames.columns[frameIndex];
+    if (!column) {
+      continue;
+    }
+    for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
+      display[rowIndex][columnIndex] = column[rowBinIndices[rowIndex] ?? 0] ?? 0;
+    }
+  }
+
+  return display;
+}
+
+function buildFinalSpectrumDisplay(
+  finalSpectrum: NonNullable<PreviewProbeCapture["finalSpectrum"]>,
+  rows: number,
+  viewportColumns: number,
+  maxFrequencyHz: number
+) {
+  const display = Array.from({ length: rows }, () => new Array(viewportColumns).fill(0));
+  if (finalSpectrum.columns.length <= 0 || rows <= 0 || viewportColumns <= 0) {
+    return display;
+  }
+  const rowBinIndices = Array.from({ length: rows }, (_, rowIndex) => {
+    const rowRatio = (rowIndex + 0.5) / rows;
+    const targetFrequency = Math.pow(rowRatio, 2) * maxFrequencyHz;
+    return resolveNearestSpectrumBinIndex(finalSpectrum.binFrequencies, targetFrequency);
+  });
+
+  for (let columnIndex = 0; columnIndex < viewportColumns; columnIndex += 1) {
+    const ratio = viewportColumns <= 1 ? 0 : columnIndex / (viewportColumns - 1);
+    const sourceColumnIndex = clamp(
+      Math.round(ratio * (finalSpectrum.columns.length - 1)),
+      0,
+      finalSpectrum.columns.length - 1
+    );
+    const column = finalSpectrum.columns[sourceColumnIndex];
     if (!column) {
       continue;
     }
