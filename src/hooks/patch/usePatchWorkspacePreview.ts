@@ -131,7 +131,29 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
       if (previewId && activePreviewId && previewId !== activePreviewId) {
         return;
       }
-      setPreviewCaptureByProbeId(Object.fromEntries(captures.map((capture) => [capture.probeId, capture])));
+      setPreviewCaptureByProbeId((current) =>
+        Object.fromEntries(
+          captures.map((capture) => {
+            const previous = current[capture.probeId];
+            if (!capture.spectrumFrames || !previous?.spectrumFrames) {
+              return [capture.probeId, capture];
+            }
+            const startColumn = capture.spectrumFrames.startColumn ?? 0;
+            const previousColumns = startColumn === 0 ? [] : previous.spectrumFrames.columns.slice(0, startColumn);
+            return [
+              capture.probeId,
+              {
+                ...capture,
+                spectrumFrames: {
+                  ...capture.spectrumFrames,
+                  columns: [...previousColumns, ...capture.spectrumFrames.columns],
+                  startColumn: 0
+                }
+              }
+            ];
+          })
+        )
+      );
     });
     return () => engine.setPreviewCaptureListener(null);
   }, [activePreviewId, audioEngineRef]);

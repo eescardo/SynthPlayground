@@ -233,7 +233,7 @@ describe("WASM worklet renderer", () => {
             capturedSamples: blockSize / 4,
             sampleRate: 12000,
             sampleStride: 4,
-            samples: expect.arrayContaining([0.5]),
+            samples: [],
             spectrumFrames: expect.objectContaining({
               columns: [[0.25, 0.5]],
               sampleRate: 48000
@@ -282,8 +282,7 @@ describe("WASM worklet renderer", () => {
       captureProbes: [
         {
           probeId: "probe_1",
-          kind: "spectrum",
-          spectrumWindowSize: 1024,
+          kind: "scope",
           target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
         }
       ],

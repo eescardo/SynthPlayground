@@ -35,6 +35,7 @@ struct TrackProbeCaptureState {
     spectrum_columns: Vec<Vec<f32>>,
     spectrum_bin_frequencies: Vec<f32>,
     spectrum_analyzed_samples: usize,
+    spectrum_emitted_columns: usize,
 }
 
 #[derive(Clone)]
@@ -211,6 +212,7 @@ impl TrackRuntime {
                 spectrum_columns: Vec::new(),
                 spectrum_bin_frequencies: Vec::new(),
                 spectrum_analyzed_samples: 0,
+                spectrum_emitted_columns: 0,
             })
             .collect();
     }
@@ -709,9 +711,12 @@ fn update_and_build_preview_capture_spectrum_frames(
         );
     }
     if captured_end < frame_size {
+        let start_column = capture.spectrum_emitted_columns;
+        capture.spectrum_emitted_columns = capture.spectrum_columns.len();
         return Some(PreviewProbeSpectrumFrames {
-            columns: capture.spectrum_columns.clone(),
+            columns: capture.spectrum_columns[start_column..].to_vec(),
             bin_frequencies: capture.spectrum_bin_frequencies.clone(),
+            start_column,
             frame_size,
             sample_rate,
             captured_samples: captured_end,
@@ -748,10 +753,13 @@ fn update_and_build_preview_capture_spectrum_frames(
         frame_start += frame_size;
     }
     capture.spectrum_analyzed_samples = frame_start;
+    let start_column = capture.spectrum_emitted_columns;
+    capture.spectrum_emitted_columns = capture.spectrum_columns.len();
 
     Some(PreviewProbeSpectrumFrames {
-        columns: capture.spectrum_columns.clone(),
+        columns: capture.spectrum_columns[start_column..].to_vec(),
         bin_frequencies: capture.spectrum_bin_frequencies.clone(),
+        start_column,
         frame_size,
         sample_rate,
         captured_samples: captured_end,
@@ -875,6 +883,7 @@ mod tests {
             spectrum_columns: Vec::new(),
             spectrum_bin_frequencies: Vec::new(),
             spectrum_analyzed_samples: 0,
+            spectrum_emitted_columns: 0,
         };
 
         let samples = build_preview_capture_snapshot_samples(
@@ -914,6 +923,7 @@ mod tests {
             spectrum_columns: Vec::new(),
             spectrum_bin_frequencies: Vec::new(),
             spectrum_analyzed_samples: 0,
+            spectrum_emitted_columns: 0,
         };
 
         let frames = update_and_build_preview_capture_spectrum_frames(
@@ -927,6 +937,7 @@ mod tests {
         assert_eq!(frames.sample_rate, sample_rate);
         assert_eq!(frames.captured_samples, frame_size * 2);
         assert_eq!(frames.columns.len(), 2);
+        assert_eq!(frames.start_column, 0);
         assert_eq!(capture.spectrum_analyzed_samples, frame_size * 2);
         let repeated_frames = update_and_build_preview_capture_spectrum_frames(
             &mut capture,
@@ -934,7 +945,8 @@ mod tests {
             sample_rate,
         )
         .unwrap();
-        assert_eq!(repeated_frames.columns.len(), 2);
+        assert_eq!(repeated_frames.columns.len(), 0);
+        assert_eq!(repeated_frames.start_column, 2);
         assert_eq!(capture.spectrum_analyzed_samples, frame_size * 2);
         assert_eq!(
             frames.bin_frequencies.len(),

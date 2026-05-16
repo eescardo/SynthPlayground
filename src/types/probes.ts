@@ -59,6 +59,7 @@ export interface PreviewProbeCapture {
 export interface PreviewProbeSpectrumFrames {
   columns: number[][];
   binFrequencies: number[];
+  startColumn?: number;
   frameSize: number;
   sampleRate: number;
   capturedSamples: number;

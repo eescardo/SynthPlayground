@@ -139,10 +139,13 @@ export class SharedWasmRenderStream {
         .map((capture) => {
           const meta = this.previewCaptureState.metaByProbeId.get(capture.probeId);
           const sampleStride = Math.max(1, capture.sampleStride || 1);
-          const sharedSamples = writeCaptureSamplesToSharedBuffer(
-            capture,
-            this.previewCaptureState.sharedBufferByProbeId?.get(capture.probeId)
-          );
+          const shouldUseSpectrumFrames = meta?.kind === "spectrum" && capture.spectrumFrames;
+          const sharedSamples = shouldUseSpectrumFrames
+            ? null
+            : writeCaptureSamplesToSharedBuffer(
+                capture,
+                this.previewCaptureState.sharedBufferByProbeId?.get(capture.probeId)
+              );
           return meta
             ? {
                 probeId: capture.probeId,
@@ -153,7 +156,7 @@ export class SharedWasmRenderStream {
                 capturedSamples: Math.ceil(Math.min(capturedSamples, meta.durationSamples) / sampleStride),
                 sourceCapturedSamples: Math.min(capturedSamples, meta.durationSamples),
                 sampleStride,
-                samples: sharedSamples ? [] : capture.samples,
+                samples: sharedSamples || shouldUseSpectrumFrames ? [] : capture.samples,
                 sampleBuffer: sharedSamples?.sampleBuffer,
                 sampleLength: sharedSamples?.sampleLength,
                 spectrumFrames: capture.spectrumFrames

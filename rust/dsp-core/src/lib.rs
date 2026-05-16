@@ -335,6 +335,8 @@ struct PreviewProbeSpectrumFrames {
     columns: Vec<Vec<f32>>,
     #[serde(rename = "binFrequencies")]
     bin_frequencies: Vec<f32>,
+    #[serde(rename = "startColumn")]
+    start_column: usize,
     #[serde(rename = "frameSize")]
     frame_size: usize,
     #[serde(rename = "sampleRate")]
