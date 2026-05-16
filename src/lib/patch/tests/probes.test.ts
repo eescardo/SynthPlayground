@@ -156,7 +156,31 @@ describe("probe helpers", () => {
   it("translates source spectrum windows into decimated capture frame sizes", () => {
     expect(resolveProbeSpectrumCaptureFrameSize(1024, 1)).toBe(1024);
     expect(resolveProbeSpectrumCaptureFrameSize(1024, 16)).toBe(64);
-    expect(resolveProbeSpectrumCaptureFrameSize(1024, 256)).toBe(8);
+    expect(resolveProbeSpectrumCaptureFrameSize(1024, 256)).toBe(64);
+  });
+
+  it("keeps bass spectrum brightness from increasing as capture stride grows", () => {
+    const sourceSampleRate = 48000;
+    const summarySamples = 4096;
+    const summarizeBassCapture = (durationSeconds: number) => {
+      const sourceSamples = Math.round(durationSeconds * sourceSampleRate);
+      const source = new Array(sourceSamples)
+        .fill(0)
+        .map((_, index) => Math.sin((2 * Math.PI * 90 * index) / sourceSampleRate) * 0.4);
+      const sampleStride = sourceSamples / summarySamples;
+      const samples = new Array(summarySamples)
+        .fill(0)
+        .map((_, index) => source[Math.round((index / (summarySamples - 1)) * (sourceSamples - 1))] ?? 0);
+      const frameSize = resolveProbeSpectrumCaptureFrameSize(1024, sampleStride);
+      const grid = buildProbeSpectrumFrameGrid(samples, frameSize, 30, samples.length, sourceSampleRate / sampleStride);
+      const displayValues = grid.columns.flat().map((value) => Math.pow(value / Math.max(grid.peak, 0.000001), 0.48));
+      return displayValues.reduce((sum, value) => sum + value, 0) / displayValues.length;
+    };
+
+    const oneSecondBrightness = summarizeBassCapture(1);
+    const twoSecondBrightness = summarizeBassCapture(2);
+
+    expect(twoSecondBrightness).toBeLessThan(oneSecondBrightness);
   });
 
   it("reports spectrogram timeline fill before and after the first second", () => {
