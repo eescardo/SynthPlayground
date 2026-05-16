@@ -6,6 +6,7 @@ import {
   buildSpectrumBins,
   normalizeProbeSamples,
   resolveProbeSpectrumCaptureFrameSize,
+  resolveProbeSpectrumEffectiveMaxFrequencyHz,
   resolveProbeSpectrumMagnitudeColor,
   resolveProbeSpectrogramTimeline
 } from "@/lib/patch/probes";
@@ -158,6 +159,12 @@ describe("probe helpers", () => {
     expect(resolveProbeSpectrumCaptureFrameSize(1024, 1)).toBe(1024);
     expect(resolveProbeSpectrumCaptureFrameSize(1024, 16)).toBe(64);
     expect(resolveProbeSpectrumCaptureFrameSize(1024, 256)).toBe(64);
+  });
+
+  it("clamps spectrum view frequency to the captured signal nyquist", () => {
+    expect(resolveProbeSpectrumEffectiveMaxFrequencyHz(24000, 48000)).toBe(24000);
+    expect(resolveProbeSpectrumEffectiveMaxFrequencyHz(24000, 3000)).toBe(1500);
+    expect(resolveProbeSpectrumEffectiveMaxFrequencyHz(1000, 3000)).toBe(1000);
   });
 
   it("maps spectrum magnitudes onto an absolute logarithmic color scale", () => {

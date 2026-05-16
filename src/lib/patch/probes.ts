@@ -299,6 +299,9 @@ export const buildProbeSpectrumFrameGrid = (
 export const resolveProbeSpectrumCaptureFrameSize = (sourceWindowSize = 1024, sampleStride = 1) =>
   Math.max(SPECTRUM_FRAME_GRID_MIN_FRAME_SIZE, Math.round(sourceWindowSize / Math.max(1, sampleStride)));
 
+export const resolveProbeSpectrumEffectiveMaxFrequencyHz = (requestedMaxFrequencyHz: number, sampleRate = 48000) =>
+  Math.min(clampProbeMaxFrequencyHz(requestedMaxFrequencyHz), Math.max(1, sampleRate / 2));
+
 export const resolveProbeSpectrumMagnitudeColor = (magnitude: number) => {
   const safeMagnitude = Math.max(0, Number(magnitude) || 0);
   if (safeMagnitude <= 0) {

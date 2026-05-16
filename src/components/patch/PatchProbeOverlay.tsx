@@ -31,6 +31,7 @@ import {
   EXPANDED_PROBE_SIZE,
   resolveProbeFrequencyView,
   resolveProbeSpectrumCaptureFrameSize,
+  resolveProbeSpectrumEffectiveMaxFrequencyHz,
   resolveProbeSpectrumMagnitudeColor
 } from "@/lib/patch/probes";
 import { clamp } from "@/lib/numeric";
@@ -540,7 +541,14 @@ function SpectrumProbeGraph(props: {
   onChangeWindowSize: (windowSize: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const frequencyMarkers = useMemo(() => resolveSpectrumFrequencyMarkers(props.maxFrequencyHz), [props.maxFrequencyHz]);
+  const effectiveMaxFrequencyHz = resolveProbeSpectrumEffectiveMaxFrequencyHz(
+    props.maxFrequencyHz,
+    props.capture?.sampleRate ?? 48000
+  );
+  const frequencyMarkers = useMemo(
+    () => resolveSpectrumFrequencyMarkers(effectiveMaxFrequencyHz),
+    [effectiveMaxFrequencyHz]
+  );
   const displaySpectrogram = useMemo(() => {
     const rows = props.compact ? 18 : 30;
     const viewportColumns = props.compact ? 240 : 320;
@@ -559,7 +567,7 @@ function SpectrumProbeGraph(props: {
       rows,
       props.capture.capturedSamples,
       props.capture.sampleRate,
-      props.maxFrequencyHz
+      effectiveMaxFrequencyHz
     );
     if (grid.peak <= 0 || grid.columns.length <= 0) {
       return Array.from({ length: rows }, () => new Array(viewportColumns).fill(0));
@@ -582,7 +590,7 @@ function SpectrumProbeGraph(props: {
       }
     }
     return display;
-  }, [props.capture, props.compact, props.elapsedSeconds, props.maxFrequencyHz, props.selectedWindowSize]);
+  }, [props.capture, props.compact, props.elapsedSeconds, effectiveMaxFrequencyHz, props.selectedWindowSize]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
