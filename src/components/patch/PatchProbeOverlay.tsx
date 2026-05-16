@@ -659,8 +659,8 @@ function SpectrumProbeGraph(props: {
     const devicePixelRatio = window.devicePixelRatio || 1;
     canvas.width = Math.round(width * devicePixelRatio);
     canvas.height = Math.round(height * devicePixelRatio);
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
     context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     context.clearRect(0, 0, width, height);
     context.fillStyle = PATCH_COLOR_PROBE_GRAPH_BG;
@@ -817,8 +817,8 @@ function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeName: st
             <strong>{props.probeName}</strong>
             {finalSpectrum && (
               <span>
-                {finalSpectrum.columns.length} x {finalSpectrum.requestedFrequencyBins} /{" "}
-                {formatScopeTimestamp(durationSeconds)}
+                Window {finalSpectrum.frameSize} | {finalSpectrum.columns.length} frames |{" "}
+                {finalSpectrum.requestedFrequencyBins} bins | {formatScopeTimestamp(durationSeconds)}
               </span>
             )}
           </div>
