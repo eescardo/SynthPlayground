@@ -13,7 +13,9 @@ import {
 import {
   buildScopeRenderData,
   resolveScopeTimeMarkers,
-  resolveSpectrumFrequencyMarkers
+  resolveSpectrumFrequencyMarkers,
+  resolveSpectrumTimelineFillRatio,
+  resolveSpectrumTimelineFrameIndex
 } from "@/lib/patch/probeViewMath";
 
 describe("probe helpers", () => {
@@ -187,6 +189,23 @@ describe("probe helpers", () => {
     expect(
       resolveProbeSpectrogramTimeline(fullSamples, fullSamples.length, fullSamples.length, 512).capturedRatio
     ).toBe(1);
+  });
+
+  it("maps partial spectrum timelines into a left-to-right fill region", () => {
+    const filledRatio = resolveSpectrumTimelineFillRatio(24000, 48000, 1);
+
+    expect(filledRatio).toBeCloseTo(0.5);
+    expect(resolveSpectrumTimelineFrameIndex(0, filledRatio, 12)).toBe(0);
+    expect(resolveSpectrumTimelineFrameIndex(0.25, filledRatio, 12)).toBe(6);
+    expect(resolveSpectrumTimelineFrameIndex(0.5, filledRatio, 12)).toBe(11);
+    expect(resolveSpectrumTimelineFrameIndex(0.75, filledRatio, 12)).toBe(-1);
+  });
+
+  it("fills the spectrum timeline after the viewport duration is populated", () => {
+    const filledRatio = resolveSpectrumTimelineFillRatio(96000, 48000, 2);
+
+    expect(filledRatio).toBe(1);
+    expect(resolveSpectrumTimelineFrameIndex(0.75, filledRatio, 12)).toBe(9);
   });
 
   it("reallocates spectrum detail when max frequency is narrowed", () => {

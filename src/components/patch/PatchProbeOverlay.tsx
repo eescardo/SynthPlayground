@@ -40,7 +40,9 @@ import {
   buildScopeRenderData,
   formatSpectrumFrequency,
   resolveScopeTimeMarkers,
-  resolveSpectrumFrequencyMarkers
+  resolveSpectrumFrequencyMarkers,
+  resolveSpectrumTimelineFillRatio,
+  resolveSpectrumTimelineFrameIndex
 } from "@/lib/patch/probeViewMath";
 import { Patch, PatchLayoutNode } from "@/types/patch";
 import { PatchWorkspaceProbeState, PreviewProbeCapture, PreviewProbeSpectrumFrames } from "@/types/probes";
@@ -587,10 +589,18 @@ function SpectrumProbeGraph(props: {
       1,
       Math.min(grid.columns.length, Math.ceil((viewportSeconds * props.capture.sampleRate) / grid.frameSize))
     );
+    const filledRatio = resolveSpectrumTimelineFillRatio(
+      props.capture.capturedSamples,
+      props.capture.sampleRate,
+      viewportSeconds
+    );
     const display = Array.from({ length: rows }, () => new Array(viewportColumns).fill(0));
     for (let columnIndex = 0; columnIndex < viewportColumns; columnIndex += 1) {
       const ratio = viewportColumns <= 1 ? 0 : columnIndex / (viewportColumns - 1);
-      const frameIndex = clamp(Math.floor(ratio * visibleFrameCount), 0, visibleFrameCount - 1);
+      const frameIndex = resolveSpectrumTimelineFrameIndex(ratio, filledRatio, visibleFrameCount);
+      if (frameIndex < 0) {
+        continue;
+      }
       const column = grid.columns[frameIndex];
       if (!column) {
         continue;
@@ -704,6 +714,11 @@ function buildSpectrumFramesDisplay(
       Math.ceil((viewportSeconds * spectrumFrames.sampleRate) / spectrumFrames.frameSize)
     )
   );
+  const filledRatio = resolveSpectrumTimelineFillRatio(
+    spectrumFrames.capturedSamples,
+    spectrumFrames.sampleRate,
+    viewportSeconds
+  );
   const rowBinIndices = Array.from({ length: rows }, (_, rowIndex) => {
     const rowRatio = (rowIndex + 0.5) / rows;
     const targetFrequency = Math.pow(rowRatio, 2) * maxFrequencyHz;
@@ -712,7 +727,10 @@ function buildSpectrumFramesDisplay(
 
   for (let columnIndex = 0; columnIndex < viewportColumns; columnIndex += 1) {
     const ratio = viewportColumns <= 1 ? 0 : columnIndex / (viewportColumns - 1);
-    const frameIndex = clamp(Math.floor(ratio * visibleFrameCount), 0, visibleFrameCount - 1);
+    const frameIndex = resolveSpectrumTimelineFrameIndex(ratio, filledRatio, visibleFrameCount);
+    if (frameIndex < 0) {
+      continue;
+    }
     const column = spectrumFrames.columns[frameIndex];
     if (!column) {
       continue;

@@ -24,6 +24,24 @@ export interface SpectrumFrequencyMarker {
   bottomPercent: number;
 }
 
+export function resolveSpectrumTimelineFillRatio(capturedSamples: number, sampleRate: number, viewportSeconds: number) {
+  const viewportSamples = Math.max(1, Math.round(Math.max(0, viewportSeconds) * Math.max(1, sampleRate)));
+  return clamp(Math.max(0, capturedSamples) / viewportSamples, 0, 1);
+}
+
+export function resolveSpectrumTimelineFrameIndex(
+  displayRatio: number,
+  filledRatio: number,
+  visibleFrameCount: number
+) {
+  const safeFilledRatio = clamp(filledRatio, 0, 1);
+  if (visibleFrameCount <= 0 || safeFilledRatio <= 0 || displayRatio > safeFilledRatio) {
+    return -1;
+  }
+  const sourceRatio = clamp(displayRatio, 0, 1) / safeFilledRatio;
+  return clamp(Math.floor(sourceRatio * visibleFrameCount), 0, visibleFrameCount - 1);
+}
+
 export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, compact = false): ScopeRenderData {
   const durationSamples = Math.max(0, capture?.durationSamples ?? 0);
   const capturedSamples = Math.max(0, capture?.capturedSamples ?? 0);
