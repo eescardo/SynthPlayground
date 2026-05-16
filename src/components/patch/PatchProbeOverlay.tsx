@@ -733,6 +733,7 @@ function SpectrumProbeGraph(props: {
 function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeName: string; onClose: () => void }) {
   const finalSpectrum = props.capture?.finalSpectrum;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const maxFrequencyHz = resolveProbeSpectrumEffectiveMaxFrequencyHz(
     finalSpectrum?.binFrequencies.at(-1) ?? 24000,
     finalSpectrum?.sampleRate ?? 48000
@@ -798,6 +799,14 @@ function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeName: st
     }
   }, [columnCount, finalSpectrum, imageHeight, imageWidth, rowCount]);
 
+  useEffect(() => {
+    const scrollElement = scrollRef.current;
+    if (!scrollElement || !finalSpectrum) {
+      return;
+    }
+    scrollElement.scrollTop = scrollElement.scrollHeight;
+  }, [finalSpectrum, imageHeight]);
+
   return (
     <div
       className="patch-probe-full-spectrum-backdrop"
@@ -821,7 +830,7 @@ function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeName: st
             Close
           </button>
         </div>
-        <div className="patch-probe-full-spectrum-scroll">
+        <div ref={scrollRef} className="patch-probe-full-spectrum-scroll">
           <div className="patch-probe-full-spectrum-axis-y">
             {frequencyMarkers.map((marker) => (
               <span key={marker.frequency} style={{ bottom: `${marker.bottomPercent}%` }}>
