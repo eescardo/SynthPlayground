@@ -143,10 +143,10 @@ impl WasmSubsetEngine {
     /// Serializes the probe capture buffers accumulated so far for the active preview.
     /// Params:
     /// - `self`: engine whose tracks currently own the capture buffers.
-    pub fn preview_capture_state_json(&self) -> Result<String, JsValue> {
+    pub fn preview_capture_state_json(&mut self) -> Result<String, JsValue> {
         let captures = self
             .tracks
-            .iter()
+            .iter_mut()
             .flat_map(|track| {
                 track.preview_capture_state_snapshot(
                     self.preview_capture_sample_count,
