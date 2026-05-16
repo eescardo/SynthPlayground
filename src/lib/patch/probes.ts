@@ -28,11 +28,13 @@ export interface ProbeSpectrumFrameGrid {
   peak: number;
 }
 
-export interface ProbeSpectrumPeakState {
-  elapsedSeconds: number;
-  key: string;
-  peak: number;
-}
+const PROBE_SPECTRUM_COLOR_STOPS = [
+  { value: 0, color: [0, 0, 0] },
+  { value: 0.001, color: [95, 57, 34] },
+  { value: 0.01, color: [196, 42, 32] },
+  { value: 0.1, color: [245, 134, 42] },
+  { value: 1, color: [255, 246, 124] }
+] as const;
 
 export const createPatchWorkspaceProbe = (
   kind: PatchWorkspaceProbeState["kind"],
@@ -297,18 +299,34 @@ export const buildProbeSpectrumFrameGrid = (
 export const resolveProbeSpectrumCaptureFrameSize = (sourceWindowSize = 1024, sampleStride = 1) =>
   Math.max(SPECTRUM_FRAME_GRID_MIN_FRAME_SIZE, Math.round(sourceWindowSize / Math.max(1, sampleStride)));
 
-export const resolveProbeSpectrumRunningPeak = (
-  previous: ProbeSpectrumPeakState | null,
-  key: string,
-  elapsedSeconds: number,
-  currentPeak: number
-): ProbeSpectrumPeakState => {
-  const shouldReset = !previous || previous.key !== key || elapsedSeconds < previous.elapsedSeconds;
-  return {
-    key,
-    elapsedSeconds,
-    peak: Math.max(shouldReset ? 0 : previous.peak, currentPeak)
-  };
+export const resolveProbeSpectrumMagnitudeColor = (magnitude: number) => {
+  const safeMagnitude = Math.max(0, Number(magnitude) || 0);
+  if (safeMagnitude <= 0) {
+    return "rgb(0, 0, 0)";
+  }
+
+  const firstStop = PROBE_SPECTRUM_COLOR_STOPS[1];
+  if (safeMagnitude < firstStop.value) {
+    const ratio = safeMagnitude / firstStop.value;
+    const color = firstStop.color.map((channel) => Math.round(channel * ratio));
+    return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+  }
+
+  for (let index = 1; index < PROBE_SPECTRUM_COLOR_STOPS.length - 1; index += 1) {
+    const low = PROBE_SPECTRUM_COLOR_STOPS[index];
+    const high = PROBE_SPECTRUM_COLOR_STOPS[index + 1];
+    if (safeMagnitude <= high.value) {
+      const ratio =
+        (Math.log10(safeMagnitude) - Math.log10(low.value)) / (Math.log10(high.value) - Math.log10(low.value));
+      const color = low.color.map((channel, channelIndex) =>
+        Math.round(channel + (high.color[channelIndex] - channel) * clamp(ratio, 0, 1))
+      );
+      return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+    }
+  }
+
+  const finalColor = PROBE_SPECTRUM_COLOR_STOPS[PROBE_SPECTRUM_COLOR_STOPS.length - 1].color;
+  return `rgb(${finalColor[0]}, ${finalColor[1]}, ${finalColor[2]})`;
 };
 
 export const resolveProbeSpectrogramTimeline = (

@@ -6,7 +6,7 @@ import {
   buildSpectrumBins,
   normalizeProbeSamples,
   resolveProbeSpectrumCaptureFrameSize,
-  resolveProbeSpectrumRunningPeak,
+  resolveProbeSpectrumMagnitudeColor,
   resolveProbeSpectrogramTimeline
 } from "@/lib/patch/probes";
 import {
@@ -160,42 +160,14 @@ describe("probe helpers", () => {
     expect(resolveProbeSpectrumCaptureFrameSize(1024, 256)).toBe(64);
   });
 
-  it("keeps bass spectrum brightness from increasing as capture stride grows", () => {
-    const sourceSampleRate = 48000;
-    const summarySamples = 4096;
-    const summarizeBassCapture = (durationSeconds: number) => {
-      const sourceSamples = Math.round(durationSeconds * sourceSampleRate);
-      const source = new Array(sourceSamples)
-        .fill(0)
-        .map((_, index) => Math.sin((2 * Math.PI * 90 * index) / sourceSampleRate) * 0.4);
-      const sampleStride = sourceSamples / summarySamples;
-      const samples = new Array(summarySamples)
-        .fill(0)
-        .map((_, index) => source[Math.round((index / (summarySamples - 1)) * (sourceSamples - 1))] ?? 0);
-      const frameSize = resolveProbeSpectrumCaptureFrameSize(1024, sampleStride);
-      const grid = buildProbeSpectrumFrameGrid(samples, frameSize, 30, samples.length, sourceSampleRate / sampleStride);
-      const displayValues = grid.columns.flat().map((value) => Math.pow(value / Math.max(grid.peak, 0.000001), 0.48));
-      return displayValues.reduce((sum, value) => sum + value, 0) / displayValues.length;
-    };
-
-    const oneSecondBrightness = summarizeBassCapture(1);
-    const twoSecondBrightness = summarizeBassCapture(2);
-
-    expect(twoSecondBrightness).toBeLessThan(oneSecondBrightness);
-  });
-
-  it("keeps a running spectrum peak for one preview event", () => {
-    const first = resolveProbeSpectrumRunningPeak(null, "probe:1024", 0.25, 0.5);
-    const quieter = resolveProbeSpectrumRunningPeak(first, "probe:1024", 0.5, 0.2);
-    const louder = resolveProbeSpectrumRunningPeak(quieter, "probe:1024", 0.75, 0.8);
-    const restarted = resolveProbeSpectrumRunningPeak(louder, "probe:1024", 0.1, 0.3);
-    const reconfigured = resolveProbeSpectrumRunningPeak(louder, "probe:2048", 1, 0.4);
-
-    expect(first.peak).toBe(0.5);
-    expect(quieter.peak).toBe(0.5);
-    expect(louder.peak).toBe(0.8);
-    expect(restarted.peak).toBe(0.3);
-    expect(reconfigured.peak).toBe(0.4);
+  it("maps spectrum magnitudes onto an absolute logarithmic color scale", () => {
+    expect(resolveProbeSpectrumMagnitudeColor(0)).toBe("rgb(0, 0, 0)");
+    expect(resolveProbeSpectrumMagnitudeColor(0.001)).toBe("rgb(95, 57, 34)");
+    expect(resolveProbeSpectrumMagnitudeColor(0.01)).toBe("rgb(196, 42, 32)");
+    expect(resolveProbeSpectrumMagnitudeColor(0.1)).toBe("rgb(245, 134, 42)");
+    expect(resolveProbeSpectrumMagnitudeColor(1)).toBe("rgb(255, 246, 124)");
+    expect(resolveProbeSpectrumMagnitudeColor(10)).toBe("rgb(255, 246, 124)");
+    expect(resolveProbeSpectrumMagnitudeColor(Math.sqrt(0.001 * 0.01))).toBe("rgb(146, 50, 33)");
   });
 
   it("reports spectrogram timeline fill before and after the first second", () => {

@@ -24,16 +24,14 @@ import {
   PATCH_COLOR_PROBE_PENDING_TARGET_FILL,
   PATCH_COLOR_PROBE_PENDING_TARGET_STROKE,
   PATCH_COLOR_PROBE_PLAYHEAD,
-  PATCH_COLOR_PROBE_SCOPE_TRACE,
-  PATCH_COLOR_PROBE_SPECTROGRAM_BIN_RGB
+  PATCH_COLOR_PROBE_SCOPE_TRACE
 } from "@/components/patch/patchCanvasConstants";
 import {
   buildProbeSpectrumFrameGrid,
   EXPANDED_PROBE_SIZE,
   resolveProbeFrequencyView,
   resolveProbeSpectrumCaptureFrameSize,
-  resolveProbeSpectrumRunningPeak,
-  type ProbeSpectrumPeakState
+  resolveProbeSpectrumMagnitudeColor
 } from "@/lib/patch/probes";
 import { clamp } from "@/lib/numeric";
 import { detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
@@ -542,13 +540,11 @@ function SpectrumProbeGraph(props: {
   onChangeWindowSize: (windowSize: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const runningPeakRef = useRef<ProbeSpectrumPeakState | null>(null);
   const frequencyMarkers = useMemo(() => resolveSpectrumFrequencyMarkers(props.maxFrequencyHz), [props.maxFrequencyHz]);
   const displaySpectrogram = useMemo(() => {
     const rows = props.compact ? 18 : 30;
     const viewportColumns = props.compact ? 240 : 320;
     if (!props.capture) {
-      runningPeakRef.current = null;
       return [];
     }
 
@@ -568,20 +564,6 @@ function SpectrumProbeGraph(props: {
     if (grid.peak <= 0 || grid.columns.length <= 0) {
       return Array.from({ length: rows }, () => new Array(viewportColumns).fill(0));
     }
-    const peakKey = [
-      props.capture.probeId,
-      props.selectedWindowSize,
-      rows,
-      props.maxFrequencyHz,
-      props.compact ? "compact" : "expanded"
-    ].join(":");
-    runningPeakRef.current = resolveProbeSpectrumRunningPeak(
-      runningPeakRef.current,
-      peakKey,
-      elapsedSeconds,
-      grid.peak
-    );
-    const displayPeak = runningPeakRef.current.peak;
     const viewportSeconds = clamp(Math.max(1, elapsedSeconds), 1, SPECTRUM_MAX_DISPLAY_SECONDS);
     const visibleFrameCount = Math.max(
       1,
@@ -596,7 +578,7 @@ function SpectrumProbeGraph(props: {
         continue;
       }
       for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
-        display[rowIndex][columnIndex] = clamp(Math.pow((column[rowIndex] ?? 0) / displayPeak, 0.48), 0, 1);
+        display[rowIndex][columnIndex] = column[rowIndex] ?? 0;
       }
     }
     return display;
@@ -635,8 +617,7 @@ function SpectrumProbeGraph(props: {
       const row = displaySpectrogram[rowIndex] ?? [];
       for (let columnIndex = 0; columnIndex < columns; columnIndex += 1) {
         const value = row[columnIndex] ?? 0;
-        const alpha = value <= 0 ? 0 : clamp(value * 0.95, 0, 0.96);
-        context.fillStyle = `rgba(${PATCH_COLOR_PROBE_SPECTROGRAM_BIN_RGB}, ${alpha})`;
+        context.fillStyle = resolveProbeSpectrumMagnitudeColor(value);
         context.fillRect(
           columnIndex * cellWidth,
           height - (rowIndex + 1) * cellHeight,
