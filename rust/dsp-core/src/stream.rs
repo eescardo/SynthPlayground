@@ -10,7 +10,6 @@ use wasm_bindgen::JsValue;
 
 const PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES: usize = 4_096;
 const PREVIEW_CAPTURE_SPECTRUM_BIN_COUNT: usize = 64;
-const PREVIEW_CAPTURE_FINAL_SPECTRUM_BIN_COUNT: usize = 256;
 const PREVIEW_CAPTURE_FINAL_SPECTRUM_MAX_COLUMNS: usize = 512;
 const PREVIEW_CAPTURE_SPECTRUM_DEFAULT_FRAME_SIZE: usize = 1024;
 const PREVIEW_CAPTURE_SPECTRUM_MIN_FRAME_SIZE: usize = 64;
@@ -803,32 +802,23 @@ fn build_preview_capture_final_spectrum(
         .max(PREVIEW_CAPTURE_SPECTRUM_MIN_FRAME_SIZE);
     let source_column_count = captured_end / frame_size;
     if source_column_count == 0 {
+        let bin_frequencies =
+            build_preview_capture_full_spectrum_bin_frequencies(frame_size, sample_rate);
         return Some(PreviewProbeFinalSpectrum {
             columns: Vec::new(),
-            bin_frequencies: build_preview_capture_spectrum_bin_frequencies(
-                PREVIEW_CAPTURE_FINAL_SPECTRUM_BIN_COUNT,
-                frame_size,
-                sample_rate,
-            ),
+            requested_frequency_bins: bin_frequencies.len(),
+            bin_frequencies,
             frame_size,
             sample_rate,
             captured_samples: captured_end,
             requested_time_columns: PREVIEW_CAPTURE_FINAL_SPECTRUM_MAX_COLUMNS,
-            requested_frequency_bins: PREVIEW_CAPTURE_FINAL_SPECTRUM_BIN_COUNT,
             source_column_count,
         });
     }
 
     let output_column_count = source_column_count.min(PREVIEW_CAPTURE_FINAL_SPECTRUM_MAX_COLUMNS);
-    let bin_indices = build_preview_capture_spectrum_bin_indices(
-        PREVIEW_CAPTURE_FINAL_SPECTRUM_BIN_COUNT,
-        frame_size,
-        sample_rate,
-    );
-    let bin_frequencies = bin_indices
-        .iter()
-        .map(|bin_index| (*bin_index as f32 * sample_rate) / frame_size as f32)
-        .collect::<Vec<_>>();
+    let bin_frequencies =
+        build_preview_capture_full_spectrum_bin_frequencies(frame_size, sample_rate);
     let hann_window = (0..frame_size)
         .map(|index| {
             0.5 - 0.5
@@ -854,12 +844,10 @@ fn build_preview_capture_final_spectrum(
                 frame_size,
                 &hann_window,
             );
-            bin_indices
-                .iter()
-                .map(|bin_index| magnitudes.get(*bin_index).copied().unwrap_or(0.0))
-                .collect()
+            magnitudes
         })
         .collect();
+    let requested_frequency_bins = bin_frequencies.len();
 
     Some(PreviewProbeFinalSpectrum {
         columns,
@@ -868,9 +856,18 @@ fn build_preview_capture_final_spectrum(
         sample_rate,
         captured_samples: captured_end,
         requested_time_columns: PREVIEW_CAPTURE_FINAL_SPECTRUM_MAX_COLUMNS,
-        requested_frequency_bins: PREVIEW_CAPTURE_FINAL_SPECTRUM_BIN_COUNT,
+        requested_frequency_bins,
         source_column_count,
     })
+}
+
+fn build_preview_capture_full_spectrum_bin_frequencies(
+    frame_size: usize,
+    sample_rate: f32,
+) -> Vec<f32> {
+    (0..=frame_size / 2)
+        .map(|bin_index| (bin_index as f32 * sample_rate) / frame_size as f32)
+        .collect()
 }
 
 fn build_preview_capture_spectrum_bin_indices(
@@ -1092,21 +1089,17 @@ mod tests {
             .take(frame_size * 3)
             .copied()
             .collect::<Vec<_>>();
+        let unique_fft_bins = frame_size / 2 + 1;
 
-        assert_eq!(
-            final_spectrum.requested_frequency_bins,
-            PREVIEW_CAPTURE_FINAL_SPECTRUM_BIN_COUNT
-        );
+        assert_eq!(final_spectrum.requested_frequency_bins, unique_fft_bins);
         assert_eq!(
             final_spectrum.requested_time_columns,
             PREVIEW_CAPTURE_FINAL_SPECTRUM_MAX_COLUMNS
         );
         assert_eq!(final_spectrum.source_column_count, 3);
         assert_eq!(final_spectrum.columns.len(), 3);
-        assert_eq!(
-            final_spectrum.columns[0].len(),
-            PREVIEW_CAPTURE_FINAL_SPECTRUM_BIN_COUNT
-        );
+        assert_eq!(final_spectrum.columns[0].len(), unique_fft_bins);
+        assert_eq!(final_spectrum.bin_frequencies.len(), unique_fft_bins);
         assert_eq!(full_resolution_samples.len(), frame_size * 3);
     }
 }

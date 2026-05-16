@@ -71,7 +71,7 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
             sampleRate: 48000,
             capturedSamples: previewCaptureSampleCount,
             requestedTimeColumns: 512,
-            requestedFrequencyBins: 256,
+            requestedFrequencyBins: 1025,
             sourceColumnCount: 2
           },
           fullResolutionSamples: [0, 0.5, -0.5]
@@ -387,7 +387,7 @@ describe("WASM worklet renderer", () => {
           expect.objectContaining({
             finalSpectrum: expect.objectContaining({
               requestedTimeColumns: 512,
-              requestedFrequencyBins: 256
+              requestedFrequencyBins: 1025
             }),
             fullResolutionSamples: [0, 0.5, -0.5]
           })
