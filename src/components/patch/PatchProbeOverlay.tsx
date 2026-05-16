@@ -31,7 +31,9 @@ import {
   buildProbeSpectrumFrameGrid,
   EXPANDED_PROBE_SIZE,
   resolveProbeFrequencyView,
-  resolveProbeSpectrumCaptureFrameSize
+  resolveProbeSpectrumCaptureFrameSize,
+  resolveProbeSpectrumRunningPeak,
+  type ProbeSpectrumPeakState
 } from "@/lib/patch/probes";
 import { clamp } from "@/lib/numeric";
 import { detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
@@ -540,11 +542,13 @@ function SpectrumProbeGraph(props: {
   onChangeWindowSize: (windowSize: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const runningPeakRef = useRef<ProbeSpectrumPeakState | null>(null);
   const frequencyMarkers = useMemo(() => resolveSpectrumFrequencyMarkers(props.maxFrequencyHz), [props.maxFrequencyHz]);
   const displaySpectrogram = useMemo(() => {
     const rows = props.compact ? 18 : 30;
     const viewportColumns = props.compact ? 240 : 320;
     if (!props.capture) {
+      runningPeakRef.current = null;
       return [];
     }
 
@@ -564,6 +568,20 @@ function SpectrumProbeGraph(props: {
     if (grid.peak <= 0 || grid.columns.length <= 0) {
       return Array.from({ length: rows }, () => new Array(viewportColumns).fill(0));
     }
+    const peakKey = [
+      props.capture.probeId,
+      props.selectedWindowSize,
+      rows,
+      props.maxFrequencyHz,
+      props.compact ? "compact" : "expanded"
+    ].join(":");
+    runningPeakRef.current = resolveProbeSpectrumRunningPeak(
+      runningPeakRef.current,
+      peakKey,
+      elapsedSeconds,
+      grid.peak
+    );
+    const displayPeak = runningPeakRef.current.peak;
     const viewportSeconds = clamp(Math.max(1, elapsedSeconds), 1, SPECTRUM_MAX_DISPLAY_SECONDS);
     const visibleFrameCount = Math.max(
       1,
@@ -578,7 +596,7 @@ function SpectrumProbeGraph(props: {
         continue;
       }
       for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
-        display[rowIndex][columnIndex] = clamp(Math.pow((column[rowIndex] ?? 0) / grid.peak, 0.48), 0, 1);
+        display[rowIndex][columnIndex] = clamp(Math.pow((column[rowIndex] ?? 0) / displayPeak, 0.48), 0, 1);
       }
     }
     return display;

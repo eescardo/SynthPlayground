@@ -28,6 +28,12 @@ export interface ProbeSpectrumFrameGrid {
   peak: number;
 }
 
+export interface ProbeSpectrumPeakState {
+  elapsedSeconds: number;
+  key: string;
+  peak: number;
+}
+
 export const createPatchWorkspaceProbe = (
   kind: PatchWorkspaceProbeState["kind"],
   x: number,
@@ -290,6 +296,20 @@ export const buildProbeSpectrumFrameGrid = (
 
 export const resolveProbeSpectrumCaptureFrameSize = (sourceWindowSize = 1024, sampleStride = 1) =>
   Math.max(SPECTRUM_FRAME_GRID_MIN_FRAME_SIZE, Math.round(sourceWindowSize / Math.max(1, sampleStride)));
+
+export const resolveProbeSpectrumRunningPeak = (
+  previous: ProbeSpectrumPeakState | null,
+  key: string,
+  elapsedSeconds: number,
+  currentPeak: number
+): ProbeSpectrumPeakState => {
+  const shouldReset = !previous || previous.key !== key || elapsedSeconds < previous.elapsedSeconds;
+  return {
+    key,
+    elapsedSeconds,
+    peak: Math.max(shouldReset ? 0 : previous.peak, currentPeak)
+  };
+};
 
 export const resolveProbeSpectrogramTimeline = (
   samples: ArrayLike<number>,

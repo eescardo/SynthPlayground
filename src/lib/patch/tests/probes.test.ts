@@ -6,6 +6,7 @@ import {
   buildSpectrumBins,
   normalizeProbeSamples,
   resolveProbeSpectrumCaptureFrameSize,
+  resolveProbeSpectrumRunningPeak,
   resolveProbeSpectrogramTimeline
 } from "@/lib/patch/probes";
 import {
@@ -181,6 +182,20 @@ describe("probe helpers", () => {
     const twoSecondBrightness = summarizeBassCapture(2);
 
     expect(twoSecondBrightness).toBeLessThan(oneSecondBrightness);
+  });
+
+  it("keeps a running spectrum peak for one preview event", () => {
+    const first = resolveProbeSpectrumRunningPeak(null, "probe:1024", 0.25, 0.5);
+    const quieter = resolveProbeSpectrumRunningPeak(first, "probe:1024", 0.5, 0.2);
+    const louder = resolveProbeSpectrumRunningPeak(quieter, "probe:1024", 0.75, 0.8);
+    const restarted = resolveProbeSpectrumRunningPeak(louder, "probe:1024", 0.1, 0.3);
+    const reconfigured = resolveProbeSpectrumRunningPeak(louder, "probe:2048", 1, 0.4);
+
+    expect(first.peak).toBe(0.5);
+    expect(quieter.peak).toBe(0.5);
+    expect(louder.peak).toBe(0.8);
+    expect(restarted.peak).toBe(0.3);
+    expect(reconfigured.peak).toBe(0.4);
   });
 
   it("reports spectrogram timeline fill before and after the first second", () => {
