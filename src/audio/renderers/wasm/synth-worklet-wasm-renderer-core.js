@@ -88,6 +88,7 @@ export class SharedWasmRenderStream {
     this.previewId = options.previewId;
     this.captureProbes = options.captureProbes || [];
     this.stopped = false;
+    this.finalizingPreviewCapture = false;
     this.implementation = implementation;
     this.previewCaptureState = null;
     this.engine = implementation.createEngine(renderer, this.project, this.projectSpec, options);
@@ -108,27 +109,27 @@ export class SharedWasmRenderStream {
 
   maybeEmitPreviewCapture(force = false) {
     if (!this.previewCaptureState) {
-      return;
+      return true;
     }
     const capturedSamples =
       this.implementation.getPreviewCaptureSampleCount?.(this.renderer, this.engine, this.previewCaptureState) ?? null;
     if (!Number.isFinite(capturedSamples)) {
-      return;
+      return false;
     }
     if (
       !force &&
       capturedSamples - this.previewCaptureState.lastEmittedCapturedSamples < PREVIEW_CAPTURE_EMIT_INTERVAL_SAMPLES
     ) {
-      return;
+      return false;
     }
     let snapshot = null;
     try {
       snapshot = this.implementation.readPreviewCapture?.(this.renderer, this.engine, this.previewCaptureState, force);
     } catch {
-      return;
+      return false;
     }
     if (!snapshot) {
-      return;
+      return false;
     }
     const { captures } = snapshot;
     this.previewCaptureState.lastEmittedCapturedSamples = capturedSamples;
@@ -162,15 +163,38 @@ export class SharedWasmRenderStream {
                 sampleLength: sharedSamples?.sampleLength,
                 spectrumFrames: capture.spectrumFrames,
                 finalSpectrum: capture.finalSpectrum,
-                fullResolutionSamples: isFinalSpectrumCapture ? capture.fullResolutionSamples : undefined
+                fullResolutionSamples: isFinalSpectrumCapture ? capture.fullResolutionSamples : undefined,
+                fullResolutionSampleStart: isFinalSpectrumCapture ? capture.fullResolutionSampleStart : undefined,
+                fullResolutionSamplesComplete: isFinalSpectrumCapture
+                  ? capture.fullResolutionSamplesComplete
+                  : undefined
               }
             : null;
         })
         .filter(Boolean)
     });
-    if (force) {
+    const finalComplete =
+      !force ||
+      captures.every((capture) => {
+        const meta = this.previewCaptureState.metaByProbeId.get(capture.probeId);
+        if (meta?.kind !== "spectrum") {
+          return true;
+        }
+        return capture.finalSpectrum?.complete !== false && capture.fullResolutionSamplesComplete !== false;
+      });
+    if (force && finalComplete) {
       this.previewCaptureState = null;
     }
+    return finalComplete;
+  }
+
+  beginFinalPreviewCapture() {
+    if (!this.previewCaptureState) {
+      this.stop({ emitPreviewCapture: false });
+      return;
+    }
+    this.previewRemainingSamples = 0;
+    this.finalizingPreviewCapture = true;
   }
 
   consumeProcessedEvents() {
@@ -200,6 +224,16 @@ export class SharedWasmRenderStream {
       }
       return true;
     }
+    if (this.finalizingPreviewCapture) {
+      leftOut.fill(0);
+      if (rightOut !== leftOut) {
+        rightOut.fill(0);
+      }
+      if (this.maybeEmitPreviewCapture(true)) {
+        this.stop({ emitPreviewCapture: false });
+      }
+      return true;
+    }
 
     const keepAlive = this.engine.process_block();
     const memory = this.implementation.getMemory(this.renderer);
@@ -217,13 +251,11 @@ export class SharedWasmRenderStream {
       this.previewRemainingSamples -= leftOut.length;
       this.maybeEmitPreviewCapture(false);
       if (this.previewRemainingSamples <= 0) {
-        this.maybeEmitPreviewCapture(true);
-        this.stop({ emitPreviewCapture: false });
+        this.beginFinalPreviewCapture();
       } else if (this.eventQueue.length === 0 && !this.hasActiveVoices()) {
         // Long-held keyboard previews schedule a generous duration up front, then rely on
         // NoteOff plus voice-idle detection to end naturally once the release tail is done.
-        this.maybeEmitPreviewCapture(true);
-        this.stop({ emitPreviewCapture: false });
+        this.beginFinalPreviewCapture();
       }
     }
 

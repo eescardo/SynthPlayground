@@ -335,6 +335,16 @@ struct PreviewProbeCaptureSnapshot {
         skip_serializing_if = "Option::is_none"
     )]
     full_resolution_samples: Option<Vec<f32>>,
+    #[serde(
+        rename = "fullResolutionSampleStart",
+        skip_serializing_if = "Option::is_none"
+    )]
+    full_resolution_sample_start: Option<usize>,
+    #[serde(
+        rename = "fullResolutionSamplesComplete",
+        skip_serializing_if = "Option::is_none"
+    )]
+    full_resolution_samples_complete: Option<bool>,
 }
 
 #[derive(Clone, Serialize)]
@@ -357,6 +367,9 @@ struct PreviewProbeFinalSpectrum {
     columns: Vec<Vec<f32>>,
     #[serde(rename = "binFrequencies")]
     bin_frequencies: Vec<f32>,
+    #[serde(rename = "startColumn")]
+    start_column: usize,
+    complete: bool,
     #[serde(rename = "frameSize")]
     frame_size: usize,
     #[serde(rename = "sampleRate")]

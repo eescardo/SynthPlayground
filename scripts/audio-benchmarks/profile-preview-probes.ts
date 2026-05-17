@@ -348,7 +348,7 @@ const runCase = async (
   const right = new Float32Array(blockSize);
   const blockTimes: number[] = [];
   const overBudgetBlocks: Array<{ blockIndex: number; ms: number; postedMessages: number }> = [];
-  const maxBlocks = Math.ceil(durationSamples / blockSize) + 8;
+  const maxBlocks = Math.ceil(durationSamples / blockSize) + 768;
 
   for (let blockIndex = 0; blockIndex < maxBlocks; blockIndex += 1) {
     blockPostMessageCount = 0;

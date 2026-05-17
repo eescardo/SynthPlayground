@@ -67,6 +67,8 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
               [0.2, 0.4, 0.6]
             ],
             binFrequencies: [100, 200, 300],
+            startColumn: 0,
+            complete: true,
             frameSize: 1024,
             sampleRate: 48000,
             capturedSamples: previewCaptureSampleCount,
@@ -74,7 +76,9 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
             requestedFrequencyBins: 1025,
             sourceColumnCount: 2
           },
-          fullResolutionSamples: [0, 0.5, -0.5]
+          fullResolutionSamples: [0, 0.5, -0.5],
+          fullResolutionSampleStart: 0,
+          fullResolutionSamplesComplete: true
         }))
       });
     }
@@ -245,6 +249,7 @@ describe("WASM worklet renderer", () => {
 
     expect(stream).not.toBeNull();
     stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
 
     expect(postMessage).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -315,6 +320,7 @@ describe("WASM worklet renderer", () => {
 
     expect(stream).not.toBeNull();
     stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
 
     expect(new Float32Array(sampleBuffer)[0]).toBe(0.5);
     expect(postMessage).toHaveBeenCalledWith(
@@ -377,6 +383,7 @@ describe("WASM worklet renderer", () => {
       randomSeed: 123
     });
 
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
     stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
 
     expect(postMessage).toHaveBeenCalledWith(

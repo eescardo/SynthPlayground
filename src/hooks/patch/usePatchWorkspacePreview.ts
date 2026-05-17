@@ -133,25 +133,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
       }
       setPreviewCaptureByProbeId((current) =>
         Object.fromEntries(
-          captures.map((capture) => {
-            const previous = current[capture.probeId];
-            if (!capture.spectrumFrames || !previous?.spectrumFrames) {
-              return [capture.probeId, capture];
-            }
-            const startColumn = capture.spectrumFrames.startColumn ?? 0;
-            const previousColumns = startColumn === 0 ? [] : previous.spectrumFrames.columns.slice(0, startColumn);
-            return [
-              capture.probeId,
-              {
-                ...capture,
-                spectrumFrames: {
-                  ...capture.spectrumFrames,
-                  columns: [...previousColumns, ...capture.spectrumFrames.columns],
-                  startColumn: 0
-                }
-              }
-            ];
-          })
+          captures.map((capture) => [capture.probeId, mergePreviewProbeCapture(current[capture.probeId], capture)])
         )
       );
     });
@@ -304,5 +286,54 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
     setPreviewPitch,
     setPreviewPitchPickerOpen,
     startHeldPatchPreview
+  };
+}
+
+function mergePreviewProbeCapture(
+  previous: PreviewProbeCapture | undefined,
+  capture: PreviewProbeCapture
+): PreviewProbeCapture {
+  const spectrumFrames =
+    capture.spectrumFrames && previous?.spectrumFrames
+      ? {
+          ...capture.spectrumFrames,
+          columns: [
+            ...(capture.spectrumFrames.startColumn === 0
+              ? []
+              : previous.spectrumFrames.columns.slice(0, capture.spectrumFrames.startColumn ?? 0)),
+            ...capture.spectrumFrames.columns
+          ],
+          startColumn: 0
+        }
+      : capture.spectrumFrames;
+
+  const finalSpectrum =
+    capture.finalSpectrum && previous?.finalSpectrum
+      ? {
+          ...capture.finalSpectrum,
+          columns: [
+            ...(capture.finalSpectrum.startColumn === 0
+              ? []
+              : previous.finalSpectrum.columns.slice(0, capture.finalSpectrum.startColumn ?? 0)),
+            ...capture.finalSpectrum.columns
+          ],
+          startColumn: 0
+        }
+      : capture.finalSpectrum;
+  const fullResolutionSamples =
+    capture.fullResolutionSamples && previous?.fullResolutionSamples
+      ? [
+          ...(capture.fullResolutionSampleStart === 0
+            ? []
+            : previous.fullResolutionSamples.slice(0, capture.fullResolutionSampleStart ?? 0)),
+          ...capture.fullResolutionSamples
+        ]
+      : capture.fullResolutionSamples;
+
+  return {
+    ...capture,
+    spectrumFrames,
+    finalSpectrum,
+    fullResolutionSamples
   };
 }

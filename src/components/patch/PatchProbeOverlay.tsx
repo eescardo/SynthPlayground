@@ -336,7 +336,9 @@ function ProbeCard(props: {
             <button
               type="button"
               className="patch-probe-attach-button patch-probe-full-spectrum-button"
-              disabled={!props.capture?.finalSpectrum}
+              disabled={
+                !props.capture?.finalSpectrum?.complete || props.capture?.fullResolutionSamplesComplete === false
+              }
               hidden={!props.probe.expanded}
               onClick={(event) => {
                 event.stopPropagation();
@@ -715,7 +717,7 @@ function SpectrumProbeGraph(props: {
       </div>
       {!props.compact && (
         <label className="patch-probe-window-label">
-          Window
+          Analysis frame
           <select
             value={props.selectedWindowSize}
             onChange={(event) => props.onChangeWindowSize(Number(event.target.value))}
@@ -826,8 +828,8 @@ function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeName: st
             <strong>{props.probeName}</strong>
             {finalSpectrum && (
               <span>
-                Window {finalSpectrum.frameSize} | {finalSpectrum.columns.length} frames |{" "}
-                {finalSpectrum.requestedFrequencyBins} bins | {formatScopeTimestamp(durationSeconds)}
+                {finalSpectrum.frameSize} samples per frame -&gt; {finalSpectrum.requestedFrequencyBins} freq. bins |{" "}
+                {formatScopeTimestamp(durationSeconds)} -&gt; {finalSpectrum.sourceColumnCount} frames
               </span>
             )}
           </div>

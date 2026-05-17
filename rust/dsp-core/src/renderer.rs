@@ -276,6 +276,12 @@ impl WasmSubsetEngine {
             self.preview_capture_sample_count = self
                 .preview_capture_sample_count
                 .saturating_add(rendered_frames as usize);
+            for track in self.tracks.iter_mut() {
+                track.advance_probe_capture_analysis(
+                    self.preview_capture_sample_count,
+                    self.sample_rate,
+                );
+            }
             frame = segment_end;
         }
 

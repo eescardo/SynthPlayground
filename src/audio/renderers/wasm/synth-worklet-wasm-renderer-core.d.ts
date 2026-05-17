@@ -66,6 +66,8 @@ export interface SharedWasmPreviewCaptureSnapshot {
     spectrumFrames?: PreviewProbeCapture["spectrumFrames"];
     finalSpectrum?: PreviewProbeCapture["finalSpectrum"];
     fullResolutionSamples?: PreviewProbeCapture["fullResolutionSamples"];
+    fullResolutionSampleStart?: PreviewProbeCapture["fullResolutionSampleStart"];
+    fullResolutionSamplesComplete?: PreviewProbeCapture["fullResolutionSamplesComplete"];
   }>;
 }
 
@@ -141,11 +143,13 @@ export class SharedWasmRenderStream {
   previewId: string | undefined;
   captureProbes: PreviewProbeRequest[];
   stopped: boolean;
+  finalizingPreviewCapture: boolean;
   implementation: SharedWasmImplementation;
   previewCaptureState: SharedWasmPreviewCaptureState | null;
   engine: SharedWasmEngine;
   hasActiveVoices(): boolean;
-  maybeEmitPreviewCapture(force?: boolean): void;
+  maybeEmitPreviewCapture(force?: boolean): boolean;
+  beginFinalPreviewCapture(): void;
   processBlock(output: Float32Array[]): boolean;
   enqueueEvents(events: SchedulerEvent[]): void;
   setMacroValue(trackId: string, macroId: string, normalized: number): void;

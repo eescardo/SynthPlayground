@@ -61,7 +61,7 @@ export function ProbeInspectorSection(props: ProbeInspectorSectionProps) {
       {selectedProbe.kind === "spectrum" && (
         <>
           <div className="param-row">
-            <span>Window</span>
+            <span>Analysis frame</span>
             <div className="param-control-stack">
               <select
                 value={selectedProbe.spectrumWindowSize ?? 1024}
