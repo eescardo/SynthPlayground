@@ -558,15 +558,15 @@ function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; compact?: boole
       />
       {!props.compact && graphData.peak > 0 && (
         <>
-          <text x="0.2" y="5.2" className="patch-probe-axis-label">{`+${graphData.peak.toFixed(3)}`}</text>
-          <text x="0.2" y="16.5" className="patch-probe-axis-label">
+          <text x="-3.2" y="5.2" className="patch-probe-axis-label">{`+${graphData.peak.toFixed(3)}`}</text>
+          <text x="-3.2" y="16.5" className="patch-probe-axis-label">
             0
           </text>
-          <text x="0.2" y="27.5" className="patch-probe-axis-label">{`-${graphData.peak.toFixed(3)}`}</text>
-          <text x="0.2" y="34.2" className="patch-probe-axis-label">
+          <text x="-3.2" y="27.5" className="patch-probe-axis-label">{`-${graphData.peak.toFixed(3)}`}</text>
+          <text x="-3.2" y="34.2" className="patch-probe-axis-label">
             1.0
           </text>
-          <text x="0.2" y="56.8" className="patch-probe-axis-label">
+          <text x="-3.2" y="56.8" className="patch-probe-axis-label">
             0
           </text>
           {adsrEstimate && (
