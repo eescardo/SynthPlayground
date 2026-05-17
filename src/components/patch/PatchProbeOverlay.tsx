@@ -71,6 +71,8 @@ const PROBE_SPECTRUM_WINDOWS = [256, 512, 1024, 2048];
 const PROBE_DRAG_THRESHOLD_PX = 6;
 const SPECTRUM_MAX_DISPLAY_SECONDS = 4;
 const SPECTRUM_STREAM_ROWS = 32;
+const FULL_SPECTRUM_GRID_MINOR_HZ = 500;
+const FULL_SPECTRUM_GRID_MAJOR_HZ = 2000;
 
 function resolveNearestProbeEdgePoint(
   probe: PatchWorkspaceProbeState,
@@ -734,11 +736,9 @@ function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeName: st
   const finalSpectrum = props.capture?.finalSpectrum;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const maxFrequencyHz = resolveProbeSpectrumEffectiveMaxFrequencyHz(
-    finalSpectrum?.binFrequencies.at(-1) ?? 24000,
-    finalSpectrum?.sampleRate ?? 48000
-  );
-  const frequencyMarkers = useMemo(() => resolveSpectrumFrequencyMarkers(maxFrequencyHz), [maxFrequencyHz]);
+  const maxFrequencyHz = finalSpectrum?.binFrequencies.at(-1) ?? 24000;
+  const frequencyMarkers = useMemo(() => resolveFullSpectrumFrequencyMarkers(maxFrequencyHz), [maxFrequencyHz]);
+  const gridLines = useMemo(() => resolveFullSpectrumGridLines(maxFrequencyHz), [maxFrequencyHz]);
   const durationSeconds = finalSpectrum ? finalSpectrum.capturedSamples / Math.max(1, finalSpectrum.sampleRate) : 0;
   const timeMarkers = useMemo(
     () => [0, 0.5, 1].map((ratio) => ({ ratio, label: formatScopeTimestamp(durationSeconds * ratio) })),
@@ -781,6 +781,7 @@ function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeName: st
     context.clearRect(0, 0, imageWidth, imageHeight);
     context.fillStyle = PATCH_COLOR_PROBE_GRAPH_BG;
     context.fillRect(0, 0, imageWidth, imageHeight);
+    drawFullSpectrumGrid(context, gridLines, imageWidth, imageHeight, maxFrequencyHz);
 
     if (columnCount <= 0 || rowCount <= 0) {
       return;
@@ -793,11 +794,14 @@ function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeName: st
       const column = finalSpectrum.columns[columnIndex] ?? [];
       for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
         const value = column[rowIndex] ?? 0;
+        if (value <= 0) {
+          continue;
+        }
         context.fillStyle = resolveProbeSpectrumMagnitudeColor(value);
         context.fillRect(columnIndex * cellWidth, imageHeight - (rowIndex + 1) * cellHeight, fillWidth, fillHeight);
       }
     }
-  }, [columnCount, finalSpectrum, imageHeight, imageWidth, rowCount]);
+  }, [columnCount, finalSpectrum, gridLines, imageHeight, imageWidth, maxFrequencyHz, rowCount]);
 
   useEffect(() => {
     const scrollElement = scrollRef.current;
@@ -933,6 +937,55 @@ function buildFinalSpectrumDisplay(
   }
 
   return display;
+}
+
+function resolveFullSpectrumFrequencyMarkers(maxFrequencyHz: number) {
+  const safeMaxFrequencyHz = Math.max(1, maxFrequencyHz);
+  const markerCount = Math.floor(safeMaxFrequencyHz / FULL_SPECTRUM_GRID_MAJOR_HZ);
+  return Array.from({ length: markerCount }, (_, index) => {
+    const frequency = (index + 1) * FULL_SPECTRUM_GRID_MAJOR_HZ;
+    return {
+      frequency,
+      bottomPercent: (frequency / safeMaxFrequencyHz) * 100
+    };
+  });
+}
+
+function resolveFullSpectrumGridLines(maxFrequencyHz: number) {
+  const safeMaxFrequencyHz = Math.max(1, maxFrequencyHz);
+  const lineCount = Math.floor(safeMaxFrequencyHz / FULL_SPECTRUM_GRID_MINOR_HZ);
+  return Array.from({ length: lineCount }, (_, index) => {
+    const frequency = (index + 1) * FULL_SPECTRUM_GRID_MINOR_HZ;
+    return {
+      frequency,
+      major: frequency % FULL_SPECTRUM_GRID_MAJOR_HZ === 0,
+      y: 1 - frequency / safeMaxFrequencyHz
+    };
+  });
+}
+
+function drawFullSpectrumGrid(
+  context: CanvasRenderingContext2D,
+  gridLines: ReturnType<typeof resolveFullSpectrumGridLines>,
+  width: number,
+  height: number,
+  maxFrequencyHz: number
+) {
+  if (width <= 0 || height <= 0 || maxFrequencyHz <= 0) {
+    return;
+  }
+  for (const line of gridLines) {
+    const y = line.y * height;
+    context.save();
+    context.beginPath();
+    context.setLineDash(line.major ? [] : [2, 3]);
+    context.strokeStyle = line.major ? "rgba(231, 243, 255, 0.16)" : "rgba(231, 243, 255, 0.08)";
+    context.lineWidth = line.major ? 1 : 0.75;
+    context.moveTo(0, y);
+    context.lineTo(width, y);
+    context.stroke();
+    context.restore();
+  }
 }
 
 function resolveNearestSpectrumBinIndex(binFrequencies: number[], targetFrequency: number) {
