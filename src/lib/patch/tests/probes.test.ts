@@ -8,6 +8,7 @@ import {
 } from "@/lib/patch/probes";
 import {
   buildScopeRenderData,
+  estimateScopeAdsrEnvelope,
   resolveScopeTimeMarkers,
   resolveSpectrumFrequencyMarkers,
   resolveSpectrumTimelineFillRatio,
@@ -137,8 +138,8 @@ describe("probe helpers", () => {
       false
     );
 
-    expect(renderData.waveformSegments.at(-1)?.x).toBeGreaterThan(52);
-    expect(renderData.waveformSegments.at(-1)?.x).toBeLessThan(54);
+    expect(renderData.waveformSegments.at(-1)?.x).toBeGreaterThan(51);
+    expect(renderData.waveformSegments.at(-1)?.x).toBeLessThan(53);
     expect(renderData.capturedRatio).toBeCloseTo(0.5);
     expect(renderData.durationSeconds).toBe(1);
   });
@@ -171,5 +172,42 @@ describe("probe helpers", () => {
     expect(markers[0]?.label).toBe("0ms");
     expect(markers[1]?.label).toBe("600ms");
     expect(markers[2]?.label).toBe("1.2s");
+  });
+
+  it("estimates a concise ADSR label once expanded scope capture completes", () => {
+    const sampleRate = 1000;
+    const samples = Array.from({ length: 1000 }, (_, index) => {
+      const time = index / sampleRate;
+      if (time < 0.1) {
+        return time / 0.1;
+      }
+      if (time < 0.25) {
+        return 1 - ((time - 0.1) / 0.15) * 0.5;
+      }
+      if (time < 0.7) {
+        return 0.5;
+      }
+      if (time < 0.9) {
+        return 0.5 * (1 - (time - 0.7) / 0.2);
+      }
+      return 0;
+    });
+
+    const estimate = estimateScopeAdsrEnvelope(
+      {
+        probeId: "probe_scope",
+        kind: "scope",
+        target: { kind: "connection", connectionId: "conn_1" },
+        sampleRate,
+        durationSamples: samples.length,
+        capturedSamples: samples.length,
+        samples
+      },
+      false
+    );
+
+    expect(estimate?.label).toMatch(/^A: \d+ms\|D:\d+ms\|S:\d+%\|R:\d+ms$/);
+    expect(estimate?.sustainRatio).toBeGreaterThan(0.35);
+    expect(estimate?.sustainRatio).toBeLessThan(0.65);
   });
 });

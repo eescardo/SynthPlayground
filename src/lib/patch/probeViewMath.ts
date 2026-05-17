@@ -19,6 +19,14 @@ export interface ScopeRenderData {
   durationSeconds: number;
 }
 
+export interface ScopeAdsrEstimate {
+  attackSeconds: number;
+  decaySeconds: number;
+  sustainRatio: number;
+  releaseSeconds: number;
+  label: string;
+}
+
 export interface SpectrumFrequencyMarker {
   frequency: number;
   bottomPercent: number;
@@ -78,12 +86,12 @@ export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, c
   const bucketCount = compact ? 72 : 120;
   const waveformSegments: ScopeWaveformSegment[] = [];
   const envelopePoints: string[] = [];
-  const waveformCenterY = compact ? 18 : 17;
-  const waveformHalfHeight = compact ? 10 : 9;
-  const envelopeTopY = compact ? 35 : 33;
-  const envelopeHeight = compact ? 18 : 19;
-  const plotStartX = compact ? 2 : 8;
-  const plotWidth = compact ? 97 : 90;
+  const waveformCenterY = compact ? 18 : 15;
+  const waveformHalfHeight = compact ? 10 : 11;
+  const envelopeTopY = compact ? 35 : 31;
+  const envelopeHeight = compact ? 18 : 23;
+  const plotStartX = compact ? 2 : 6;
+  const plotWidth = compact ? 97 : 92;
 
   for (let bucket = 0; bucket < bucketCount; bucket += 1) {
     const bucketStart = Math.floor((bucket / bucketCount) * displaySampleCount);
@@ -124,13 +132,97 @@ export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, c
 }
 
 export function resolveScopeTimeMarkers(durationSeconds: number, compact = false) {
-  const plotStartX = compact ? 2 : 8;
-  const plotWidth = compact ? 97 : 90;
+  const plotStartX = compact ? 2 : 6;
+  const plotWidth = compact ? 97 : 92;
   return [0, 0.5, 1].map((ratio) => ({
     ratio,
     x: plotStartX + ratio * plotWidth,
     label: formatScopeTimestamp(durationSeconds * ratio)
   }));
+}
+
+export function estimateScopeAdsrEnvelope(
+  capture: PreviewProbeCapture | undefined,
+  compact = false
+): ScopeAdsrEstimate | null {
+  if (compact || !capture?.samples?.length) {
+    return null;
+  }
+  const durationSamples = Math.max(0, capture.durationSamples || capture.samples.length);
+  const capturedSamples = clamp(capture.capturedSamples || capture.samples.length, 0, capture.samples.length);
+  if (capturedSamples <= 0 || capturedSamples < Math.min(durationSamples, capture.samples.length) * 0.98) {
+    return null;
+  }
+
+  const sampleRate = Math.max(1, capture.sampleRate || 48000);
+  const bucketCount = clamp(Math.floor(capturedSamples / 128), 32, 384);
+  const envelope = Array.from({ length: bucketCount }, (_, bucket) => {
+    const start = Math.floor((bucket / bucketCount) * capturedSamples);
+    const end = Math.max(start + 1, Math.floor(((bucket + 1) / bucketCount) * capturedSamples));
+    let peak = 0;
+    for (let index = start; index < end; index += 1) {
+      peak = Math.max(peak, Math.abs(Number(capture.samples[index] ?? 0)));
+    }
+    return peak;
+  });
+  const peak = envelope.reduce((max, value) => Math.max(max, value), 0);
+  if (peak <= 0.0005) {
+    return null;
+  }
+
+  const onsetThreshold = peak * 0.05;
+  const attackThreshold = peak * 0.9;
+  const releaseThreshold = peak * 0.06;
+  const onsetBucket = envelope.findIndex((value) => value >= onsetThreshold);
+  const attackBucket = envelope.findIndex(
+    (value, index) => index >= Math.max(0, onsetBucket) && value >= attackThreshold
+  );
+  const releaseEndBucket = findLastIndex(envelope, (value) => value >= releaseThreshold);
+  if (onsetBucket < 0 || attackBucket < 0 || releaseEndBucket <= attackBucket) {
+    return null;
+  }
+
+  const sustainWindowStart = clamp(
+    Math.floor(attackBucket + (releaseEndBucket - attackBucket) * 0.45),
+    attackBucket,
+    releaseEndBucket
+  );
+  const sustainWindowEnd = clamp(
+    Math.floor(attackBucket + (releaseEndBucket - attackBucket) * 0.72),
+    sustainWindowStart + 1,
+    releaseEndBucket + 1
+  );
+  const sustainValues = envelope.slice(sustainWindowStart, sustainWindowEnd).sort((left, right) => left - right);
+  const sustain = sustainValues.length ? sustainValues[Math.floor(sustainValues.length / 2)] : peak * 0.5;
+  const sustainRatio = clamp(sustain / peak, 0, 1);
+  const decayThreshold = Math.max(sustain * 1.08, peak * 0.08);
+  const decayBucket =
+    envelope.findIndex((value, index) => index > attackBucket && value <= decayThreshold) >= 0
+      ? envelope.findIndex((value, index) => index > attackBucket && value <= decayThreshold)
+      : sustainWindowStart;
+  const releaseStartThreshold = Math.max(sustain * 0.8, peak * 0.08);
+  let releaseStartBucket = attackBucket;
+  for (let index = releaseEndBucket; index > attackBucket; index -= 1) {
+    if ((envelope[index] ?? 0) >= releaseStartThreshold) {
+      releaseStartBucket = index;
+      break;
+    }
+  }
+
+  const secondsPerBucket = capturedSamples / bucketCount / sampleRate;
+  const attackSeconds = Math.max(0, (attackBucket - onsetBucket) * secondsPerBucket);
+  const decaySeconds = Math.max(0, (decayBucket - attackBucket) * secondsPerBucket);
+  const releaseSeconds = Math.max(0, (releaseEndBucket - releaseStartBucket) * secondsPerBucket);
+
+  return {
+    attackSeconds,
+    decaySeconds,
+    sustainRatio,
+    releaseSeconds,
+    label: `A: ${formatAdsrDuration(attackSeconds)}|D:${formatAdsrDuration(decaySeconds)}|S:${Math.round(
+      sustainRatio * 100
+    )}%|R:${formatAdsrDuration(releaseSeconds)}`
+  };
 }
 
 export function resolveSpectrumFrequencyMarkers(maxFrequencyHz: number): SpectrumFrequencyMarker[] {
@@ -181,4 +273,20 @@ export function formatScopeTimestamp(seconds: number) {
     return `${Math.round(seconds * 1000)}ms`;
   }
   return `${seconds.toFixed(seconds >= 10 ? 0 : 1)}s`;
+}
+
+function formatAdsrDuration(seconds: number) {
+  if (seconds < 1) {
+    return `${Math.round(seconds * 1000)}ms`;
+  }
+  return `${seconds.toFixed(seconds >= 10 ? 0 : 1)}s`;
+}
+
+function findLastIndex<T>(values: T[], predicate: (value: T, index: number) => boolean) {
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    if (predicate(values[index], index)) {
+      return index;
+    }
+  }
+  return -1;
 }
