@@ -552,7 +552,6 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
               probes={probeState.probes}
               selectedProbeId={probeState.selectedProbeId}
               previewCaptureByProbeId={probeState.previewCaptureByProbeId}
-              previewProgress={probeState.previewProgress}
               zoom={zoom}
               attachingProbeId={probeState.attachingProbeId}
               keyboardFocus={keyboardFocus}

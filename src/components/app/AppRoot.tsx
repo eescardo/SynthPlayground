@@ -99,6 +99,7 @@ interface AppRootContextValue {
 }
 
 const AppRootContext = createContext<AppRootContextValue | null>(null);
+const USE_UI_CAPTURE_FAKE_AUDIO = process.env.NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO === "1";
 
 export const useAppRoot = () => {
   const context = useContext(AppRootContext);
@@ -503,6 +504,12 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!ready) return;
+    if (USE_UI_CAPTURE_FAKE_AUDIO) {
+      setBrowserCompatibilityIssue(null);
+      setRuntimeError(null);
+      setWasmReady(true);
+      return;
+    }
     const compatibilityIssue = getBrowserCompatibilityIssue(["wasm-simd"], {
       title: "Browser not compatible with the WASM renderer",
       summary:

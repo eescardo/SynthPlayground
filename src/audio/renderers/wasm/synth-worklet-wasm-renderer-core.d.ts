@@ -1,12 +1,13 @@
 import type { Track } from "@/types/music";
 import type { AudioProject, SchedulerEvent, SynthRendererConfig, SynthStreamStartOptions } from "@/types/audio";
-import type { PreviewProbeCapture, PreviewProbeRequest } from "@/types/probes";
+import type { PreviewProbeCapture, PreviewProbeRequest, PreviewProbeSharedBuffer } from "@/types/probes";
 import type { WasmEvent, WasmProjectSpec } from "@/audio/renderers/wasm/wasmSubsetCompiler";
 import type { WorkletPortLike } from "@/audio/renderers/shared/synth-renderer";
 import type { WasmPreviewProbeCaptureRequest } from "@/audio/renderers/wasm/synth-worklet-wasm-compiler-core.js";
 
 export const DEFAULT_RANDOM_SEED: number;
 export const MACRO_EVENT_LEAD_SAMPLES: number;
+export const PREVIEW_CAPTURE_EMIT_INTERVAL_SAMPLES: number;
 
 export class NullPort implements WorkletPortLike {
   onmessage: ((event: unknown) => void) | null;
@@ -31,12 +32,18 @@ export interface SharedWasmEngine {
   right_ptr(): number;
   block_size(): number;
   configure_preview_probe_capture?(captureJson: string): void;
-  preview_capture_state_json?(): string;
+  preview_capture_state_json?(includeFinal?: boolean): string;
   preview_capture_sample_count?(): number;
+}
+
+export interface SharedWasmPreviewCaptureBuffer {
+  sampleBuffer: SharedArrayBuffer;
+  capacitySamples: number;
 }
 
 export interface SharedWasmPreviewCaptureState {
   lastEmittedCapturedSamples: number;
+  sharedBufferByProbeId?: Map<string, SharedWasmPreviewCaptureBuffer>;
   metaByProbeId: Map<
     string,
     {
@@ -51,7 +58,13 @@ export interface SharedWasmPreviewCaptureSnapshot {
   capturedSamples: number;
   captures: Array<{
     probeId: string;
+    sampleStride?: number;
+    sourceCapturedSamples?: number;
     samples: number[];
+    sampleBuffer?: SharedArrayBuffer;
+    sampleLength?: number;
+    spectrumFrames?: PreviewProbeCapture["spectrumFrames"];
+    finalSpectrum?: PreviewProbeCapture["finalSpectrum"];
   }>;
 }
 
@@ -67,6 +80,9 @@ export interface SharedWasmRendererLike {
     projectSpec: WasmProjectSpec;
     projectSpecJson: string;
   };
+  resolveSharedCaptureBufferMap?(
+    captureSharedBuffers?: PreviewProbeSharedBuffer[]
+  ): Map<string, SharedWasmPreviewCaptureBuffer>;
 }
 
 export interface SharedWasmImplementation {
@@ -124,11 +140,13 @@ export class SharedWasmRenderStream {
   previewId: string | undefined;
   captureProbes: PreviewProbeRequest[];
   stopped: boolean;
+  finalizingPreviewCapture: boolean;
   implementation: SharedWasmImplementation;
   previewCaptureState: SharedWasmPreviewCaptureState | null;
   engine: SharedWasmEngine;
   hasActiveVoices(): boolean;
-  maybeEmitPreviewCapture(force?: boolean): void;
+  maybeEmitPreviewCapture(force?: boolean): boolean;
+  beginFinalPreviewCapture(): void;
   processBlock(output: Float32Array[]): boolean;
   enqueueEvents(events: SchedulerEvent[]): void;
   setMacroValue(trackId: string, macroId: string, normalized: number): void;

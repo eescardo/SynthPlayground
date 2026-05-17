@@ -132,10 +132,12 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
             events: message.events || [],
             mode: "preview",
             durationSamples: message.durationSamples || 0,
+            captureDurationSamples: message.captureDurationSamples || message.durationSamples || 0,
             ignoreVolume: message.ignoreVolume,
             previewId: message.previewId,
             trackId: message.trackId,
             captureProbes: message.captureProbes,
+            captureSharedBuffers: message.captureSharedBuffers,
             randomSeed: message.randomSeed
           })
         );
@@ -145,7 +147,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
           break;
         }
         if (message.forceStop) {
-          this.stopCurrentStream("preview_release_force_stop", { emitPreviewCapture: true });
+          this.currentStream.beginFinalPreviewCapture?.();
           break;
         }
         this.currentStream.enqueueEvents?.([

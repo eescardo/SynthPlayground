@@ -74,7 +74,6 @@ export const PATCH_COLOR_PROBE_GRAPH_FUTURE_MASK = "rgba(6, 12, 18, 0.42)";
 export const PATCH_COLOR_PROBE_SCOPE_TRACE = "rgba(163, 219, 255, 0.95)";
 export const PATCH_COLOR_PROBE_ENVELOPE_TRACE = "rgba(200, 255, 57, 0.96)";
 export const PATCH_COLOR_PROBE_PLAYHEAD = "rgba(200, 255, 57, 0.85)";
-export const PATCH_COLOR_PROBE_SPECTROGRAM_BIN_RGB = "255, 214, 145";
 export const PATCH_COLOR_HOST_STRIP_FILL = "#c9d6de";
 export const PATCH_COLOR_HOST_STRIP_STROKE = "#93a8b6";
 export const PATCH_COLOR_HOST_PORT_TEXT = "#10202c";

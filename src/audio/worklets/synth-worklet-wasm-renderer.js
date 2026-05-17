@@ -37,7 +37,7 @@ export class WasmWorkletRenderer extends SharedWasmRenderer {
           projectSpec,
           options.trackId,
           options.captureProbes,
-          options.durationSamples || 0
+          options.captureDurationSamples || options.durationSamples || 0
         );
         if (!compiled.length) {
           return null;
@@ -45,20 +45,21 @@ export class WasmWorkletRenderer extends SharedWasmRenderer {
         engine.configure_preview_probe_capture(JSON.stringify(compiled));
         return {
           lastEmittedCapturedSamples: 0,
+          sharedBufferByProbeId: renderer.resolveSharedCaptureBufferMap?.(options.captureSharedBuffers),
           metaByProbeId: new Map(
             options.captureProbes.map((probe) => [
               probe.probeId,
               {
                 kind: probe.kind,
                 target: probe.target,
-                durationSamples: Math.max(0, Math.floor(options.durationSamples || 0))
+                durationSamples: Math.max(0, Math.floor(options.captureDurationSamples || options.durationSamples || 0))
               }
             ])
           )
         };
       },
-      readPreviewCapture: (_renderer, engine) => {
-        const rawSnapshot = engine.preview_capture_state_json();
+      readPreviewCapture: (_renderer, engine, _previewCaptureState, force) => {
+        const rawSnapshot = engine.preview_capture_state_json(Boolean(force));
         if (typeof rawSnapshot !== "string" || rawSnapshot.length === 0 || rawSnapshot.charCodeAt(0) === 0) {
           return null;
         }

@@ -12,7 +12,21 @@ export const DEFAULT_PROBE_FREQUENCY_VIEW: PatchProbeFrequencyView = {
   maxHz: DEFAULT_PROBE_MAX_FREQUENCY_HZ
 };
 const MIN_PROBE_NORMALIZATION_PEAK = 0.0001;
-const SPECTROGRAM_MIN_FRAME_SIZE = 96;
+const SPECTRUM_FRAME_GRID_MIN_FRAME_SIZE = 64;
+
+export interface ProbeSpectrumFrameGrid {
+  columns: number[][];
+  frameSize: number;
+  peak: number;
+}
+
+const PROBE_SPECTRUM_COLOR_STOPS = [
+  { value: 0, color: [0, 0, 0] },
+  { value: 0.001, color: [95, 57, 34] },
+  { value: 0.01, color: [196, 42, 32] },
+  { value: 0.1, color: [245, 134, 42] },
+  { value: 1, color: [255, 246, 124] }
+] as const;
 
 export const createPatchWorkspaceProbe = (
   kind: PatchWorkspaceProbeState["kind"],
@@ -51,90 +65,21 @@ export const normalizeProbeSamples = (samples: ArrayLike<number>) => {
   return Array.from({ length: samples.length }, (_, index) => Number(samples[index] ?? 0) / peak);
 };
 
-export const resolveProbeCaptureWindow = (
-  samples: ArrayLike<number>,
-  durationSamples: number,
-  capturedSamples: number,
-  progress: number,
-  requestedWindowSize: number
-) => {
-  const safeCapturedSamples = clamp(
-    capturedSamples || samples.length,
-    0,
-    Math.min(samples.length, durationSamples || samples.length)
-  );
-  if (safeCapturedSamples <= 0) {
-    return [];
-  }
-  const frameSize = clamp(requestedWindowSize, 32, safeCapturedSamples);
-  const progressIndex = clamp(Math.floor(progress * Math.max(0, durationSamples - 1)), 0, safeCapturedSamples - 1);
-  const windowEnd = clamp(progressIndex + 1, frameSize, safeCapturedSamples);
-  const windowStart = Math.max(0, windowEnd - frameSize);
-  return Array.from({ length: windowEnd - windowStart }, (_, index) => Number(samples[windowStart + index] ?? 0));
-};
-
-export const buildSpectrumBins = (
+export const buildProbeSpectrumFrameGrid = (
   samples: ArrayLike<number>,
   windowSize = 1024,
-  binCount = 32,
-  progress = 1,
-  durationSamples = samples.length,
-  capturedSamples = samples.length
-) => {
-  const activeWindow = resolveProbeCaptureWindow(samples, durationSamples, capturedSamples, progress, windowSize);
-  const frameSize = clamp(windowSize, 32, activeWindow.length);
-  if (frameSize < 32) {
-    return new Array(binCount).fill(0);
-  }
-  const windowed = new Float32Array(frameSize);
-  const peak = resolveProbePeakAmplitude(activeWindow);
-  for (let index = 0; index < frameSize; index += 1) {
-    const source = Number(activeWindow[index] ?? 0) / peak;
-    const hann = 0.5 - 0.5 * Math.cos((2 * Math.PI * index) / Math.max(1, frameSize - 1));
-    windowed[index] = source * hann;
-  }
-
-  const magnitudes = new Array(binCount).fill(0);
-  const maxK = Math.max(binCount, Math.floor(frameSize / 2));
-  for (let bin = 0; bin < binCount; bin += 1) {
-    const low = Math.floor(Math.pow(bin / binCount, 2) * maxK);
-    const high = Math.max(low + 1, Math.floor(Math.pow((bin + 1) / binCount, 2) * maxK));
-    let energy = 0;
-    let count = 0;
-    for (let k = low; k < high; k += 1) {
-      let real = 0;
-      let imag = 0;
-      for (let sampleIndex = 0; sampleIndex < frameSize; sampleIndex += 1) {
-        const phase = (2 * Math.PI * k * sampleIndex) / frameSize;
-        real += windowed[sampleIndex] * Math.cos(phase);
-        imag -= windowed[sampleIndex] * Math.sin(phase);
-      }
-      energy += Math.sqrt(real * real + imag * imag) / frameSize;
-      count += 1;
-    }
-    magnitudes[bin] = count > 0 ? Math.min(1, (energy / count) * 8) : 0;
-  }
-  return magnitudes;
-};
-
-export const buildProbeSpectrogram = (
-  samples: ArrayLike<number>,
-  windowSize = 1024,
-  timeBinCount = 40,
   freqBinCount = 24,
-  durationSamples = samples.length,
   capturedSamples = samples.length,
   sampleRate = 48000,
   maxFrequencyHz = DEFAULT_PROBE_MAX_FREQUENCY_HZ
-) => {
-  const safeDurationSamples = Math.max(durationSamples, samples.length, 1);
-  const safeCapturedSamples = clamp(capturedSamples, 0, Math.min(samples.length, safeDurationSamples));
-  const grid = Array.from({ length: freqBinCount }, () => new Array(timeBinCount).fill(0));
-  if (safeCapturedSamples < SPECTROGRAM_MIN_FRAME_SIZE) {
-    return grid;
+): ProbeSpectrumFrameGrid => {
+  const safeCapturedSamples = clamp(capturedSamples, 0, samples.length);
+  const frameSize = Math.max(SPECTRUM_FRAME_GRID_MIN_FRAME_SIZE, Math.round(windowSize));
+  const columns: number[][] = [];
+  if (safeCapturedSamples < frameSize) {
+    return { columns, frameSize, peak: 0 };
   }
 
-  const frameSize = Math.max(SPECTROGRAM_MIN_FRAME_SIZE, Math.min(windowSize, safeCapturedSamples, 384));
   const nyquistHz = Math.max(1, sampleRate / 2);
   const clampedMaxFrequencyHz = Math.min(clampProbeMaxFrequencyHz(maxFrequencyHz), nyquistHz);
   const maxBin = Math.max(2, Math.floor((clampedMaxFrequencyHz / sampleRate) * frameSize));
@@ -145,51 +90,56 @@ export const buildProbeSpectrogram = (
     { length: frameSize },
     (_, index) => 0.5 - 0.5 * Math.cos((2 * Math.PI * index) / Math.max(1, frameSize - 1))
   );
-  let peakMagnitude = 0;
+  let peak = 0;
 
-  for (let timeIndex = 0; timeIndex < timeBinCount; timeIndex += 1) {
-    const normalizedTime = timeBinCount <= 1 ? 0 : timeIndex / (timeBinCount - 1);
-    const centerSample = Math.floor(normalizedTime * Math.max(0, safeDurationSamples - 1));
-    if (centerSample >= safeCapturedSamples) {
-      continue;
-    }
-    const frameStart = clamp(centerSample - Math.floor(frameSize / 2), 0, safeCapturedSamples - frameSize);
-    const peak = resolveProbeFramePeak(samples, frameStart, frameSize);
+  for (let frameStart = 0; frameStart + frameSize <= safeCapturedSamples; frameStart += frameSize) {
+    const column = new Array(freqBinCount).fill(0);
     for (let freqIndex = 0; freqIndex < freqBinCount; freqIndex += 1) {
-      const magnitude = measureGoertzelMagnitude(
-        samples,
-        frameStart,
-        frameSize,
-        bandCenters[freqIndex],
-        peak,
-        hannWindow
-      );
-      grid[freqIndex][timeIndex] = magnitude;
-      peakMagnitude = Math.max(peakMagnitude, magnitude);
+      const magnitude = measureGoertzelMagnitude(samples, frameStart, frameSize, bandCenters[freqIndex], 1, hannWindow);
+      column[freqIndex] = magnitude;
+      peak = Math.max(peak, magnitude);
     }
+    columns.push(column);
   }
 
-  if (peakMagnitude <= 0) {
-    return grid;
-  }
-
-  for (let freqIndex = 0; freqIndex < freqBinCount; freqIndex += 1) {
-    for (let timeIndex = 0; timeIndex < timeBinCount; timeIndex += 1) {
-      const normalizedMagnitude = grid[freqIndex][timeIndex] / peakMagnitude;
-      grid[freqIndex][timeIndex] = clamp(Math.pow(normalizedMagnitude, 0.48), 0.02, 1);
-    }
-  }
-
-  return grid;
+  return { columns, frameSize, peak };
 };
 
-function resolveProbeFramePeak(samples: ArrayLike<number>, frameStart: number, frameSize: number) {
-  let peak = 0;
-  for (let index = 0; index < frameSize; index += 1) {
-    peak = Math.max(peak, Math.abs(Number(samples[frameStart + index] ?? 0)));
+export const resolveProbeSpectrumCaptureFrameSize = (sourceWindowSize = 1024, sampleStride = 1) =>
+  Math.max(SPECTRUM_FRAME_GRID_MIN_FRAME_SIZE, Math.round(sourceWindowSize / Math.max(1, sampleStride)));
+
+export const resolveProbeSpectrumEffectiveMaxFrequencyHz = (requestedMaxFrequencyHz: number, sampleRate = 48000) =>
+  Math.min(clampProbeMaxFrequencyHz(requestedMaxFrequencyHz), Math.max(1, sampleRate / 2));
+
+export const resolveProbeSpectrumMagnitudeColor = (magnitude: number) => {
+  const safeMagnitude = Math.max(0, Number(magnitude) || 0);
+  if (safeMagnitude <= 0) {
+    return "rgb(0, 0, 0)";
   }
-  return Math.max(peak, MIN_PROBE_NORMALIZATION_PEAK);
-}
+
+  const firstStop = PROBE_SPECTRUM_COLOR_STOPS[1];
+  if (safeMagnitude < firstStop.value) {
+    const ratio = safeMagnitude / firstStop.value;
+    const color = firstStop.color.map((channel) => Math.round(channel * ratio));
+    return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+  }
+
+  for (let index = 1; index < PROBE_SPECTRUM_COLOR_STOPS.length - 1; index += 1) {
+    const low = PROBE_SPECTRUM_COLOR_STOPS[index];
+    const high = PROBE_SPECTRUM_COLOR_STOPS[index + 1];
+    if (safeMagnitude <= high.value) {
+      const ratio =
+        (Math.log10(safeMagnitude) - Math.log10(low.value)) / (Math.log10(high.value) - Math.log10(low.value));
+      const color = low.color.map((channel, channelIndex) =>
+        Math.round(channel + (high.color[channelIndex] - channel) * clamp(ratio, 0, 1))
+      );
+      return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+    }
+  }
+
+  const finalColor = PROBE_SPECTRUM_COLOR_STOPS[PROBE_SPECTRUM_COLOR_STOPS.length - 1].color;
+  return `rgb(${finalColor[0]}, ${finalColor[1]}, ${finalColor[2]})`;
+};
 
 function measureGoertzelMagnitude(
   samples: ArrayLike<number>,

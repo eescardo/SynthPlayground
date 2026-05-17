@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { buildProbeSpectrogram, buildSpectrumBins, normalizeProbeSamples } from "@/lib/patch/probes";
+import {
+  buildProbeSpectrumFrameGrid,
+  normalizeProbeSamples,
+  resolveProbeSpectrumCaptureFrameSize,
+  resolveProbeSpectrumEffectiveMaxFrequencyHz,
+  resolveProbeSpectrumMagnitudeColor
+} from "@/lib/patch/probes";
 import {
   buildScopeRenderData,
   resolveScopeTimeMarkers,
-  resolveSpectrumFrequencyMarkers
+  resolveSpectrumFrequencyMarkers,
+  resolveSpectrumTimelineFillRatio,
+  resolveSpectrumTimelineFrameIndex
 } from "@/lib/patch/probeViewMath";
 
 describe("probe helpers", () => {
@@ -11,49 +19,76 @@ describe("probe helpers", () => {
     expect(normalizeProbeSamples([0, 0.002, -0.001, 0.0015])).toEqual([0, 1, -0.5, 0.75]);
   });
 
-  it("builds spectrum bins from the current preview window instead of only the note tail", () => {
-    const samples = new Array(2048)
-      .fill(0)
-      .map((_, index) =>
-        index < 1024 ? Math.sin((2 * Math.PI * index) / 32) * 0.005 : Math.sin((2 * Math.PI * index) / 8) * 0.25
-      );
+  it("builds immutable spectrum frame columns and one global display peak", () => {
+    const frameSize = 256;
+    const samples = new Array(frameSize * 3).fill(0).map((_, index) => {
+      if (index < frameSize) {
+        return Math.sin((2 * Math.PI * index) / 64) * 0.35;
+      }
+      if (index < frameSize * 2) {
+        return Math.sin((2 * Math.PI * index) / 16) * 0.12;
+      }
+      return Math.sin((2 * Math.PI * index) / 16) * 0.7;
+    });
 
-    const earlyBins = buildSpectrumBins(samples, 256, 24, 0.2, samples.length, samples.length);
-    const lateBins = buildSpectrumBins(samples, 256, 24, 0.9, samples.length, samples.length);
+    const grid = buildProbeSpectrumFrameGrid(samples, frameSize, 16, samples.length, 2048);
 
-    expect(Math.max(...earlyBins)).toBeGreaterThan(0.05);
-    expect(Math.max(...lateBins)).toBeGreaterThan(0.05);
-    expect(earlyBins).not.toEqual(lateBins);
+    expect(grid.frameSize).toBe(frameSize);
+    expect(grid.columns).toHaveLength(3);
+    const columnPeaks = grid.columns.map((column) => Math.max(...column));
+    expect(grid.peak).toBe(Math.max(...columnPeaks));
+    expect(columnPeaks[2]).toBeGreaterThan(columnPeaks[1] * 2);
+    expect(grid.columns[0]).not.toEqual(grid.columns[1]);
   });
 
-  it("builds a spectrogram grid whose columns represent successive time slices", () => {
-    const samples = new Array(1536)
-      .fill(0)
-      .map((_, index) =>
-        index < 768 ? Math.sin((2 * Math.PI * index) / 32) * 0.2 : Math.sin((2 * Math.PI * index) / 8) * 0.2
-      );
+  it("does not fill future spectrum frames before enough samples are captured", () => {
+    const frameSize = 256;
+    const samples = new Array(frameSize * 2).fill(0).map((_, index) => Math.sin((2 * Math.PI * index) / 32) * 0.2);
 
-    const grid = buildProbeSpectrogram(samples, 256, 12, 10, samples.length, samples.length);
+    const partialGrid = buildProbeSpectrumFrameGrid(samples, frameSize, 12, frameSize - 1, 2048);
+    const oneFrameGrid = buildProbeSpectrumFrameGrid(samples, frameSize, 12, frameSize, 2048);
 
-    expect(grid).toHaveLength(10);
-    expect(grid[0]).toHaveLength(12);
-    const firstColumnEnergy = grid.reduce((sum, row) => sum + row[1], 0);
-    const lastColumnEnergy = grid.reduce((sum, row) => sum + row[10], 0);
-    expect(firstColumnEnergy).toBeGreaterThan(0.01);
-    expect(lastColumnEnergy).toBeGreaterThan(0.01);
-    expect(grid.map((row) => row[1])).not.toEqual(grid.map((row) => row[10]));
+    expect(partialGrid.columns).toHaveLength(0);
+    expect(oneFrameGrid.columns).toHaveLength(1);
   });
 
-  it("reallocates spectrum detail when max frequency is narrowed", () => {
-    const samples = new Array(2048).fill(0).map((_, index) => Math.sin((2 * Math.PI * index) / 12) * 0.2);
+  it("translates source spectrum windows into decimated capture frame sizes", () => {
+    expect(resolveProbeSpectrumCaptureFrameSize(1024, 1)).toBe(1024);
+    expect(resolveProbeSpectrumCaptureFrameSize(1024, 16)).toBe(64);
+    expect(resolveProbeSpectrumCaptureFrameSize(1024, 256)).toBe(64);
+  });
 
-    const fullRange = buildProbeSpectrogram(samples, 256, 12, 10, samples.length, samples.length, 48000, 24000);
-    const narrowedRange = buildProbeSpectrogram(samples, 256, 12, 10, samples.length, samples.length, 48000, 4000);
+  it("clamps spectrum view frequency to the captured signal nyquist", () => {
+    expect(resolveProbeSpectrumEffectiveMaxFrequencyHz(24000, 48000)).toBe(24000);
+    expect(resolveProbeSpectrumEffectiveMaxFrequencyHz(24000, 3000)).toBe(1500);
+    expect(resolveProbeSpectrumEffectiveMaxFrequencyHz(1000, 3000)).toBe(1000);
+  });
 
-    const fullTopHalfEnergy = fullRange.slice(5).reduce((sum, row) => sum + row[6], 0);
-    const narrowedTopHalfEnergy = narrowedRange.slice(5).reduce((sum, row) => sum + row[6], 0);
+  it("maps spectrum magnitudes onto an absolute logarithmic color scale", () => {
+    expect(resolveProbeSpectrumMagnitudeColor(0)).toBe("rgb(0, 0, 0)");
+    expect(resolveProbeSpectrumMagnitudeColor(0.001)).toBe("rgb(95, 57, 34)");
+    expect(resolveProbeSpectrumMagnitudeColor(0.01)).toBe("rgb(196, 42, 32)");
+    expect(resolveProbeSpectrumMagnitudeColor(0.1)).toBe("rgb(245, 134, 42)");
+    expect(resolveProbeSpectrumMagnitudeColor(1)).toBe("rgb(255, 246, 124)");
+    expect(resolveProbeSpectrumMagnitudeColor(10)).toBe("rgb(255, 246, 124)");
+    expect(resolveProbeSpectrumMagnitudeColor(Math.sqrt(0.001 * 0.01))).toBe("rgb(146, 50, 33)");
+  });
 
-    expect(narrowedTopHalfEnergy).toBeGreaterThan(fullTopHalfEnergy);
+  it("maps partial spectrum timelines into a left-to-right fill region", () => {
+    const filledRatio = resolveSpectrumTimelineFillRatio(24000, 48000, 1);
+
+    expect(filledRatio).toBeCloseTo(0.5);
+    expect(resolveSpectrumTimelineFrameIndex(0, filledRatio, 12)).toBe(0);
+    expect(resolveSpectrumTimelineFrameIndex(0.25, filledRatio, 12)).toBe(6);
+    expect(resolveSpectrumTimelineFrameIndex(0.5, filledRatio, 12)).toBe(11);
+    expect(resolveSpectrumTimelineFrameIndex(0.75, filledRatio, 12)).toBe(-1);
+  });
+
+  it("fills the spectrum timeline after the viewport duration is populated", () => {
+    const filledRatio = resolveSpectrumTimelineFillRatio(96000, 48000, 2);
+
+    expect(filledRatio).toBe(1);
+    expect(resolveSpectrumTimelineFrameIndex(0.75, filledRatio, 12)).toBe(9);
   });
 
   it("places spectrum markers within the selected frequency view", () => {
@@ -83,6 +118,50 @@ describe("probe helpers", () => {
     expect(renderData.waveformSegments.length).toBeGreaterThan(0);
     expect(renderData.envelopeLine.length).toBeGreaterThan(0);
     expect(renderData.peak).toBeGreaterThan(0);
+  });
+
+  it("fills the first second of a partial scope capture left to right", () => {
+    const capturedSamples = new Array(256).fill(0).map((_, index) => Math.sin((2 * Math.PI * index) / 16) * 0.15);
+    const backingSamples = [...capturedSamples, ...new Array(768).fill(0)];
+
+    const renderData = buildScopeRenderData(
+      {
+        probeId: "probe_scope",
+        kind: "scope",
+        target: { kind: "connection", connectionId: "conn_1" },
+        sampleRate: 512,
+        durationSamples: backingSamples.length,
+        capturedSamples: capturedSamples.length,
+        samples: backingSamples
+      },
+      false
+    );
+
+    expect(renderData.waveformSegments.at(-1)?.x).toBeGreaterThan(52);
+    expect(renderData.waveformSegments.at(-1)?.x).toBeLessThan(54);
+    expect(renderData.capturedRatio).toBeCloseTo(0.5);
+    expect(renderData.durationSeconds).toBe(1);
+  });
+
+  it("compresses scope captures after the first second is populated", () => {
+    const samples = new Array(1024).fill(0).map((_, index) => Math.sin((2 * Math.PI * index) / 16) * 0.15);
+
+    const renderData = buildScopeRenderData(
+      {
+        probeId: "probe_scope",
+        kind: "scope",
+        target: { kind: "connection", connectionId: "conn_1" },
+        sampleRate: 512,
+        durationSamples: samples.length,
+        capturedSamples: samples.length,
+        samples
+      },
+      false
+    );
+
+    expect(renderData.waveformSegments.at(-1)?.x).toBeCloseTo(98);
+    expect(renderData.capturedRatio).toBe(1);
+    expect(renderData.durationSeconds).toBe(2);
   });
 
   it("builds fixed scope time markers for full-duration rendering", () => {

@@ -83,6 +83,7 @@ export class AudioEngine {
       ignoreVolume?: boolean;
       projectOverride?: AudioProject;
       captureProbes?: PreviewProbeRequest[];
+      captureDurationBeats?: number;
       previewId?: string;
       holdUntilReleased?: boolean;
     }
