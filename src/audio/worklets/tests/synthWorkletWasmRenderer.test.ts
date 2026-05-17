@@ -75,6 +75,13 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
             requestedTimeColumns: 512,
             requestedFrequencyBins: 1025,
             sourceColumnCount: 2
+          },
+          adsrEstimate: {
+            attackSeconds: 0.01,
+            decaySeconds: 0.05,
+            sustainRatio: 0.38,
+            releaseSeconds: 0.024,
+            label: "A: 10ms|D:50ms|S:38%|R:24ms"
           }
         }))
       });
@@ -393,6 +400,9 @@ describe("WASM worklet renderer", () => {
             finalSpectrum: expect.objectContaining({
               requestedTimeColumns: 512,
               requestedFrequencyBins: 1025
+            }),
+            adsrEstimate: expect.objectContaining({
+              label: "A: 10ms|D:50ms|S:38%|R:24ms"
             })
           })
         ]

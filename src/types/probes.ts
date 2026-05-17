@@ -56,6 +56,15 @@ export interface PreviewProbeCapture {
   sampleLength?: number;
   spectrumFrames?: PreviewProbeSpectrumFrames;
   finalSpectrum?: PreviewProbeFinalSpectrum;
+  adsrEstimate?: PreviewProbeAdsrEstimate;
+}
+
+export interface PreviewProbeAdsrEstimate {
+  attackSeconds: number;
+  decaySeconds: number;
+  sustainRatio: number;
+  releaseSeconds: number;
+  label: string;
 }
 
 export interface PreviewProbeSpectrumFrames {

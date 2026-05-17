@@ -1,8 +1,8 @@
 use crate::nodes::RuntimeNode;
 use crate::{
-    clamp, now_ms, EngineProfileStats, HostSignalIndices, PreviewProbeCaptureSnapshot,
-    PreviewProbeCaptureSpec, PreviewProbeFinalSpectrum, PreviewProbeSpectrumFrames, TrackFxSpec,
-    TrackSpec, MAX_VOICES,
+    clamp, now_ms, EngineProfileStats, HostSignalIndices, PreviewProbeAdsrEstimate,
+    PreviewProbeCaptureSnapshot, PreviewProbeCaptureSpec, PreviewProbeFinalSpectrum,
+    PreviewProbeSpectrumFrames, TrackFxSpec, TrackSpec, MAX_VOICES,
 };
 use serde_json::Value;
 use std::collections::HashMap;
@@ -274,6 +274,12 @@ impl TrackRuntime {
                     sample_rate,
                     include_final,
                 );
+                let adsr_estimate = build_preview_capture_adsr_estimate(
+                    capture,
+                    captured_samples,
+                    sample_rate,
+                    include_final,
+                );
                 PreviewProbeCaptureSnapshot {
                     probe_id: capture.probe_id.clone(),
                     sample_stride: resolve_preview_capture_snapshot_stride(
@@ -287,6 +293,7 @@ impl TrackRuntime {
                         sample_rate,
                     ),
                     final_spectrum,
+                    adsr_estimate,
                 }
             })
             .collect()
@@ -732,6 +739,134 @@ fn resolve_preview_capture_snapshot_stride(
     captured_end as f32 / PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES as f32
 }
 
+fn build_preview_capture_adsr_estimate(
+    capture: &TrackProbeCaptureState,
+    captured_samples: usize,
+    sample_rate: f32,
+    include_final: bool,
+) -> Option<PreviewProbeAdsrEstimate> {
+    if !include_final || capture.kind != "scope" {
+        return None;
+    }
+    let captured_end = captured_samples
+        .min(capture.duration_samples)
+        .min(capture.samples.len());
+    if captured_end <= 0 {
+        return None;
+    }
+
+    let sample_rate = sample_rate.max(1.0);
+    let bucket_count = ((captured_end as f32 / (sample_rate * 0.005).max(1.0)).floor() as usize)
+        .clamp(64, 1024)
+        .min(captured_end.max(1));
+    let envelope = (0..bucket_count)
+        .map(|bucket| {
+            let start =
+                ((bucket as f64 / bucket_count as f64) * captured_end as f64).floor() as usize;
+            let end = (((bucket + 1) as f64 / bucket_count as f64) * captured_end as f64)
+                .floor()
+                .max((start + 1) as f64) as usize;
+            let end = end.min(captured_end);
+            let sum = capture.samples[start..end]
+                .iter()
+                .fold(0.0_f32, |total, sample| total + sample.abs());
+            sum / (end - start).max(1) as f32
+        })
+        .collect::<Vec<_>>();
+
+    let peak = capture.samples[..captured_end]
+        .iter()
+        .fold(0.0_f32, |max, sample| max.max(sample.abs()));
+    let envelope_peak = envelope.iter().fold(0.0_f32, |max, value| max.max(*value));
+    if peak <= 0.0005 || envelope_peak <= 0.0005 {
+        return None;
+    }
+
+    let onset_threshold = envelope_peak * 0.05;
+    let attack_threshold = envelope_peak * 0.9;
+    let release_threshold = envelope_peak * 0.06;
+    let onset_bucket = envelope
+        .iter()
+        .position(|value| *value >= onset_threshold)?;
+    let attack_bucket = envelope
+        .iter()
+        .enumerate()
+        .position(|(index, value)| index >= onset_bucket && *value >= attack_threshold)?;
+    let release_end_bucket = envelope
+        .iter()
+        .rposition(|value| *value >= release_threshold)?;
+    if release_end_bucket <= attack_bucket {
+        return None;
+    }
+
+    let sustain_window_start =
+        ((bucket_count as f32 * 0.58).floor() as usize).clamp(attack_bucket, bucket_count - 1);
+    let sustain_window_end = ((bucket_count as f32 * 0.85).floor() as usize)
+        .clamp(sustain_window_start + 1, bucket_count);
+    let mut sustain_values = envelope[sustain_window_start..sustain_window_end].to_vec();
+    sustain_values.sort_by(|left, right| left.total_cmp(right));
+    let sustain = sustain_values
+        .get(sustain_values.len() / 2)
+        .copied()
+        .unwrap_or(peak * 0.5);
+    let sustain_ratio = clamp(sustain / peak, 0.0, 1.0);
+
+    let decay_threshold = sustain + (envelope_peak - sustain) * 0.1;
+    let decay_bucket = envelope
+        .iter()
+        .enumerate()
+        .position(|(index, value)| index > attack_bucket && *value <= decay_threshold)
+        .unwrap_or(sustain_window_start);
+
+    let release_drop_threshold = (sustain * 0.9).max(envelope_peak * 0.06);
+    let forward_release_bucket = envelope
+        .iter()
+        .enumerate()
+        .position(|(index, value)| index >= sustain_window_end && *value < release_drop_threshold);
+    let mut release_start_bucket = forward_release_bucket
+        .map(|bucket| bucket.saturating_sub(1).max(attack_bucket))
+        .unwrap_or(attack_bucket);
+    if forward_release_bucket.is_none() {
+        let release_start_threshold = (sustain * 0.95).max(envelope_peak * 0.06);
+        if let Some(bucket) = (attack_bucket + 1..=release_end_bucket)
+            .rev()
+            .find(|index| envelope[*index] >= release_start_threshold)
+        {
+            release_start_bucket = bucket;
+        }
+    }
+
+    let seconds_per_bucket = captured_end as f32 / bucket_count as f32 / sample_rate;
+    let attack_seconds = (attack_bucket.saturating_sub(onset_bucket)) as f32 * seconds_per_bucket;
+    let decay_seconds = (decay_bucket.saturating_sub(attack_bucket)) as f32 * seconds_per_bucket;
+    let release_seconds =
+        (release_end_bucket + 1).saturating_sub(release_start_bucket) as f32 * seconds_per_bucket;
+
+    Some(PreviewProbeAdsrEstimate {
+        attack_seconds,
+        decay_seconds,
+        sustain_ratio,
+        release_seconds,
+        label: format!(
+            "A: {}|D:{}|S:{}%|R:{}",
+            format_preview_capture_adsr_duration(attack_seconds),
+            format_preview_capture_adsr_duration(decay_seconds),
+            (sustain_ratio * 100.0).round() as usize,
+            format_preview_capture_adsr_duration(release_seconds)
+        ),
+    })
+}
+
+fn format_preview_capture_adsr_duration(seconds: f32) -> String {
+    if seconds < 1.0 {
+        return format!("{}ms", (seconds * 1000.0).round() as usize);
+    }
+    if seconds >= 10.0 {
+        return format!("{:.0}s", seconds);
+    }
+    format!("{:.1}s", seconds)
+}
+
 fn update_and_build_preview_capture_spectrum_frames(
     capture: &mut TrackProbeCaptureState,
     captured_samples: usize,
@@ -1163,5 +1298,51 @@ mod tests {
         assert!(final_spectrum.complete);
         assert_eq!(final_spectrum.columns[0].len(), unique_fft_bins);
         assert_eq!(final_spectrum.bin_frequencies.len(), unique_fft_bins);
+    }
+
+    #[test]
+    fn scope_adsr_estimate_uses_full_resolution_capture() {
+        let sample_rate = 1_000.0;
+        let sample_count = 1_500;
+        let capture = TrackProbeCaptureState {
+            probe_id: "probe_1".to_string(),
+            kind: "scope".to_string(),
+            signal_start: 0,
+            duration_samples: sample_count,
+            spectrum_window_size: None,
+            samples: (0..sample_count)
+                .map(|sample| {
+                    let time = sample as f32 / sample_rate;
+                    if time < 0.046 {
+                        return 1.0 - (time / 0.046) * 0.62;
+                    }
+                    if time < 1.42 {
+                        return 0.38;
+                    }
+                    if time < 1.444 {
+                        return 0.38 * (1.0 - (time - 1.42) / 0.024);
+                    }
+                    0.0
+                })
+                .collect(),
+            spectrum_columns: Vec::new(),
+            spectrum_bin_frequencies: Vec::new(),
+            spectrum_bin_indices: Vec::new(),
+            spectrum_hann_window: Vec::new(),
+            final_spectrum_bin_frequencies: Vec::new(),
+            final_spectrum_hann_window: Vec::new(),
+            spectrum_analyzed_samples: 0,
+            spectrum_emitted_columns: 0,
+            final_spectrum_emitted_columns: 0,
+        };
+
+        let estimate =
+            build_preview_capture_adsr_estimate(&capture, sample_count, sample_rate, true).unwrap();
+
+        assert!(estimate.sustain_ratio > 0.3);
+        assert!(estimate.sustain_ratio < 0.45);
+        assert!(estimate.release_seconds > 0.01);
+        assert!(estimate.release_seconds < 0.08);
+        assert!(estimate.label.contains("S:38%"));
     }
 }

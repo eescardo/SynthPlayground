@@ -436,7 +436,7 @@ function PitchTrackerProbeGraph(props: { capture?: PreviewProbeCapture; compact?
 function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; compact?: boolean }) {
   const graphData = useMemo(() => buildScopeRenderData(props.capture, props.compact), [props.capture, props.compact]);
   const adsrEstimate = useMemo(
-    () => estimateScopeAdsrEnvelope(props.capture, props.compact),
+    () => props.capture?.adsrEstimate ?? estimateScopeAdsrEnvelope(props.capture, props.compact),
     [props.capture, props.compact]
   );
 

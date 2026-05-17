@@ -330,6 +330,21 @@ struct PreviewProbeCaptureSnapshot {
     spectrum_frames: Option<PreviewProbeSpectrumFrames>,
     #[serde(rename = "finalSpectrum", skip_serializing_if = "Option::is_none")]
     final_spectrum: Option<PreviewProbeFinalSpectrum>,
+    #[serde(rename = "adsrEstimate", skip_serializing_if = "Option::is_none")]
+    adsr_estimate: Option<PreviewProbeAdsrEstimate>,
+}
+
+#[derive(Clone, Serialize)]
+struct PreviewProbeAdsrEstimate {
+    #[serde(rename = "attackSeconds")]
+    attack_seconds: f32,
+    #[serde(rename = "decaySeconds")]
+    decay_seconds: f32,
+    #[serde(rename = "sustainRatio")]
+    sustain_ratio: f32,
+    #[serde(rename = "releaseSeconds")]
+    release_seconds: f32,
+    label: String,
 }
 
 #[derive(Clone, Serialize)]
