@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 
 mod nodes;
+mod probe_capture;
 mod renderer;
 mod stream;
 

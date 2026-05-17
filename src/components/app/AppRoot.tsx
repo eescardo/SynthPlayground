@@ -20,13 +20,10 @@ import { PresetUpdateDialogModal } from "@/components/composer/PresetUpdateDialo
 import { PitchPickerModal } from "@/components/composer/PitchPickerModal";
 import { RecordingDock } from "@/components/composer/RecordingDock";
 import { ExplodeSelectionDialog } from "@/components/ExplodeSelectionDialog";
-import { loadDspWasm } from "@/audio/renderers/wasm/wasmBridge";
-import { BrowserCompatibilityIssue, getBrowserCompatibilityIssue } from "@/lib/browserCompatibility";
 import { downloadJsonFile } from "@/lib/browserDownloads";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import { TimelineActionsPopoverRequest, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { createId } from "@/lib/ids";
-import { createProjectSnapshot, hydrateProjectSnapshot } from "@/lib/projectLifecycle";
 import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
 import { getProjectTimelineEndBeat, getTrackPreviewStateAtBeat } from "@/lib/macroAutomation";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
@@ -45,11 +42,9 @@ import {
   setEditorSelectionMarqueeActive,
   setEditorTimelineSelection
 } from "@/lib/clipboard";
-import { loadProjectState, loadRecentProjectSnapshots, saveProjectState } from "@/lib/persistence";
-import { createHistory, HistoryState, pushHistory, redoHistory, undoHistory } from "@/lib/history";
+import { pushHistory, redoHistory, undoHistory } from "@/lib/history";
 import { freezeProjectSnapshot } from "@/lib/projectImmutability";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
-import { createDefaultProject, createEmptyProject } from "@/lib/patch/presets";
 import { renameProjectInProject } from "@/lib/projectManagement";
 import {
   getProjectPresetUpdateSummary,
@@ -84,6 +79,8 @@ import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActio
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
 import { useHardwareNavigation } from "@/hooks/useHardwareNavigation";
 import { useHardwareNavigationPreview } from "@/hooks/useHardwareNavigationPreview";
+import { createProjectHistory, useAppBootstrap } from "@/hooks/app/useAppBootstrap";
+import { useWasmReadiness } from "@/hooks/app/useWasmReadiness";
 import { UsePatchWorkspaceControllerOptions } from "@/hooks/patch/usePatchWorkspaceController";
 import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
 import { resolveRemovedPatchFallbackId } from "@/hooks/patch/patchWorkspaceStateUtils";
@@ -99,7 +96,6 @@ interface AppRootContextValue {
 }
 
 const AppRootContext = createContext<AppRootContextValue | null>(null);
-const USE_UI_CAPTURE_FAKE_AUDIO = process.env.NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO === "1";
 
 export const useAppRoot = () => {
   const context = useContext(AppRootContext);
@@ -109,27 +105,10 @@ export const useAppRoot = () => {
   return context;
 };
 
-const createProjectHistory = (project: Project): HistoryState<Project> => {
-  const history = createHistory(project);
-  return {
-    ...history,
-    current: freezeProjectSnapshot(history.current)
-  };
-};
-
 export function AppRoot({ children }: { children: ReactNode }) {
-  const [projectHistory, setProjectHistory] = useState<HistoryState<Project>>(() =>
-    createProjectHistory(createEmptyProject())
-  );
-  const [projectAssets, setProjectAssets] = useState<ProjectAssetLibrary>(() => createEmptyProjectAssetLibrary());
-  const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [playheadBeat, setPlayheadBeat] = useState(0);
   const [userCueBeat, setUserCueBeat] = useState(0);
-  const [selectedTrackId, setSelectedTrackId] = useState<string | undefined>(undefined);
-  const [runtimeError, setRuntimeError] = useState<string | null>(null);
-  const [wasmReady, setWasmReady] = useState(false);
-  const [browserCompatibilityIssue, setBrowserCompatibilityIssue] = useState<BrowserCompatibilityIssue | null>(null);
   const [editorSelection, setEditorSelection] = useState(createEmptyEditorSelection);
   const clearEditorSelectionState = useCallback(() => {
     setEditorSelection(clearEditorSelection());
@@ -148,6 +127,21 @@ export function AppRoot({ children }: { children: ReactNode }) {
   } = useComposerTransientUi({
     onClearEditorSelection: clearEditorSelectionState
   });
+  const {
+    project,
+    projectAssets,
+    ready,
+    runtimeError,
+    selectedTrackId,
+    setProjectAssets,
+    setProjectHistory,
+    setRuntimeError,
+    setSelectedTrackId
+  } = useAppBootstrap({ setRecentProjects });
+  const { browserCompatibilityIssue, setBrowserCompatibilityIssue, wasmReady } = useWasmReadiness({
+    ready,
+    setRuntimeError
+  });
 
   const router = useRouter();
   const pathname = usePathname();
@@ -156,7 +150,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const recordingHandleBeatRef = useRef<(beat: number) => void>(() => {});
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const keepSelectionPopoverCollapsedRef = useRef(false);
-  const project = projectHistory.current;
   const audioProject = useMemo(() => toAudioProject(project, projectAssets), [project, projectAssets]);
   const {
     noteClipboardPayload,
@@ -166,64 +159,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
     syncNoteClipboardPayload
   } = useNoteClipboard();
   const { isDeleteShortcutKey } = usePlatformShortcuts();
-  useEffect(() => {
-    let cancelled = false;
-
-    const boot = async () => {
-      try {
-        const [savedState, loadedRecentProjects] = await Promise.all([
-          loadProjectState(),
-          loadRecentProjectSnapshots()
-        ]);
-        const migratedState = savedState
-          ? hydrateProjectSnapshot(savedState.project, savedState.assets)
-          : { project: createDefaultProject(), assets: createEmptyProjectAssetLibrary() };
-        if (cancelled) {
-          return;
-        }
-        if (savedState) {
-          saveProjectState(migratedState.project, migratedState.assets).catch(() => {
-            // ignore migration save failures
-          });
-        }
-        setProjectAssets(migratedState.assets);
-        setProjectHistory(createProjectHistory(migratedState.project));
-        setSelectedTrackId(migratedState.project.tracks[0]?.id);
-        setRecentProjects(loadedRecentProjects.filter(({ project }) => project.id !== migratedState.project.id));
-        setReady(true);
-      } catch (error) {
-        if (cancelled) {
-          return;
-        }
-        const fallbackProject = createDefaultProject();
-        setProjectAssets(createEmptyProjectAssetLibrary());
-        setProjectHistory(createProjectHistory(fallbackProject));
-        setSelectedTrackId(fallbackProject.tracks[0]?.id);
-        setRecentProjects([]);
-        setRuntimeError(
-          `Failed to load the saved project. Loaded the default project instead. ${(error as Error).message}`
-        );
-        setReady(true);
-      }
-    };
-
-    void boot();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [setRecentProjects]);
-
-  useEffect(() => {
-    if (!ready) return;
-    const timer = window.setTimeout(() => {
-      saveProjectState(createProjectSnapshot(project), projectAssets).catch(() => {
-        // ignore autosave errors
-      });
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [project, projectAssets, ready]);
-
   const selectedTrack = useMemo(
     () => project.tracks.find((track) => track.id === selectedTrackId) ?? project.tracks[0],
     [project.tracks, selectedTrackId]
@@ -330,7 +265,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         return pushHistory(prev, frozenNext, options);
       });
     },
-    []
+    [setProjectHistory]
   );
 
   const resetProjectState = useCallback(
@@ -338,7 +273,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
       setProjectAssets(nextAssets);
       setProjectHistory(createProjectHistory(nextProject));
     },
-    []
+    [setProjectAssets, setProjectHistory]
   );
 
   const dismissPresetUpdatePrompt = useCallback(() => {
@@ -373,7 +308,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
       setProjectAssets(nextState.assets);
       return nextState.assetId;
     },
-    [projectAssets]
+    [projectAssets, setProjectAssets]
   );
 
   const patchWorkspace = usePatchWorkspaceState({
@@ -470,7 +405,13 @@ export function AppRoot({ children }: { children: ReactNode }) {
       return;
     }
     setSelectedTrackId((current) => (current === noteSelectionSourceTrackId ? current : noteSelectionSourceTrackId));
-  }, [canvasSelection.kind, editorSelection.marqueeActive, noteSelectionSourceTrackId, pitchPicker]);
+  }, [
+    canvasSelection.kind,
+    editorSelection.marqueeActive,
+    noteSelectionSourceTrackId,
+    pitchPicker,
+    setSelectedTrackId
+  ]);
 
   useEffect(() => {
     if (!selectionBeatRange) {
@@ -501,38 +442,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
     }
     setEditorSelection((current) => setEditorSelectionActionScopePreview(current, "source"));
   }, [canvasSelection.kind, noteSelectionSourceTrackId]);
-
-  useEffect(() => {
-    if (!ready) return;
-    if (USE_UI_CAPTURE_FAKE_AUDIO) {
-      setBrowserCompatibilityIssue(null);
-      setRuntimeError(null);
-      setWasmReady(true);
-      return;
-    }
-    const compatibilityIssue = getBrowserCompatibilityIssue(["wasm-simd"], {
-      title: "Browser not compatible with the WASM renderer",
-      summary:
-        "This build uses the WASM audio renderer by default and requires browser features that are not available in your current browser."
-    });
-    if (compatibilityIssue) {
-      setBrowserCompatibilityIssue(compatibilityIssue);
-      setRuntimeError("The default WASM renderer requires WebAssembly SIMD support in this browser.");
-      setWasmReady(false);
-      return;
-    }
-
-    loadDspWasm()
-      .then(() => {
-        setBrowserCompatibilityIssue(null);
-        setRuntimeError(null);
-        setWasmReady(true);
-      })
-      .catch((error) => {
-        setRuntimeError((error as Error).message);
-        setWasmReady(false);
-      });
-  }, [ready]);
 
   const { upsertNote, updateNote, deleteNote } = useNoteEditor({ commitProjectChange });
 
@@ -611,7 +520,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         ?.previewNote(trackId, pitchToVoct(pitch), note.durationBeats, note.velocity)
         .catch((error) => setRuntimeError((error as Error).message));
     },
-    [playing, project.tracks]
+    [playing, project.tracks, setRuntimeError]
   );
 
   const setPlayheadFromUser = useCallback(
@@ -837,7 +746,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         })
       };
     });
-  }, []);
+  }, [setProjectHistory]);
 
   const redoProject = useCallback(() => {
     setProjectHistory((prev) => {
@@ -856,7 +765,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         })
       };
     });
-  }, []);
+  }, [setProjectHistory]);
 
   useEditActionKeyboardShortcuts({
     applyNoteClipboardPaste,
@@ -1015,7 +924,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     });
     setSelectedTrackId(remainingTracks[0]?.id);
     patchWorkspace.setSelectedNodeId(undefined);
-  }, [commitProjectChange, patchWorkspace, project.tracks, selectedTrack]);
+  }, [commitProjectChange, patchWorkspace, project.tracks, selectedTrack, setSelectedTrackId]);
 
   const duplicatePatchForSelectedTrack = () => {
     if (!selectedTrackPatch || !selectedTrack) return;
@@ -1118,7 +1027,16 @@ export function AppRoot({ children }: { children: ReactNode }) {
     setSelectedTrackId(survivingSelectedTrack);
     setPatchRemovalDialog(null);
     patchWorkspace.setSelectedNodeId(undefined);
-  }, [commitProjectChange, patchRemovalDialog, patchWorkspace, project.tracks, selectedTrackId, setPatchRemovalDialog]);
+  }, [
+    commitProjectChange,
+    patchRemovalDialog,
+    patchWorkspace,
+    project.tracks,
+    selectedTrackId,
+    setPatchRemovalDialog,
+    setRuntimeError,
+    setSelectedTrackId
+  ]);
 
   const updateTrackPatch = (trackId: string, patchId: string) => {
     commitProjectChange((current) => switchTrackPatchInProject(current, trackId, patchId), {
@@ -1154,11 +1072,14 @@ export function AppRoot({ children }: { children: ReactNode }) {
     [commitProjectChange, patchWorkspace, project.tracks]
   );
 
-  const previewPlacedNote = useCallback((trackId: string, note: Project["tracks"][number]["notes"][number]) => {
-    audioEngineRef.current
-      ?.previewNote(trackId, pitchToVoct(note.pitchStr), note.durationBeats, note.velocity)
-      .catch((error) => setRuntimeError((error as Error).message));
-  }, []);
+  const previewPlacedNote = useCallback(
+    (trackId: string, note: Project["tracks"][number]["notes"][number]) => {
+      audioEngineRef.current
+        ?.previewNote(trackId, pitchToVoct(note.pitchStr), note.durationBeats, note.velocity)
+        .catch((error) => setRuntimeError((error as Error).message));
+    },
+    [setRuntimeError]
+  );
 
   const pitchPickerTrack = pitchPicker ? project.tracks.find((track) => track.id === pitchPicker.trackId) : undefined;
   const pitchPickerNote = pitchPickerTrack?.notes.find((note) => note.id === pitchPicker?.noteId);
