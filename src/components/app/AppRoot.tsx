@@ -83,7 +83,12 @@ import { createProjectHistory, useAppBootstrap } from "@/hooks/app/useAppBootstr
 import { useWasmReadiness } from "@/hooks/app/useWasmReadiness";
 import { UsePatchWorkspaceControllerOptions } from "@/hooks/patch/usePatchWorkspaceController";
 import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
-import { resolveRemovedPatchFallbackId } from "@/hooks/patch/patchWorkspaceStateUtils";
+import {
+  buildPatchRemovalRequest,
+  hasInvalidPatchRemovalFallback,
+  removePatchFromProject,
+  resolveSurvivingTrackIds
+} from "@/lib/patch/patchRemoval";
 import { useTrackMacroAutomationActions } from "@/hooks/tracks/useTrackMacroAutomationActions";
 import { useTrackVolumeAutomationActions } from "@/hooks/tracks/useTrackVolumeAutomationActions";
 import { ProjectAssetLibrary } from "@/types/assets";
@@ -954,9 +959,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
     ) {
       return;
     }
-    const affectedTracks = project.tracks.filter((track) => track.instrumentPatchId === selectedTrackPatch.id);
-    const fallbackPatchId = resolveRemovedPatchFallbackId(project.patches, selectedTrackPatch.id) ?? "";
-    if (affectedTracks.length === 0) {
+    const removalRequest = buildPatchRemovalRequest(project, selectedTrackPatch);
+    if (!removalRequest) {
+      return;
+    }
+    if (removalRequest.rows.length === 0) {
       commitProjectChange(
         (current) => ({
           ...current,
@@ -967,58 +974,26 @@ export function AppRoot({ children }: { children: ReactNode }) {
       patchWorkspace.setSelectedNodeId(undefined);
       return;
     }
-    setPatchRemovalDialog({
-      patchId: selectedTrackPatch.id,
-      rows: affectedTracks.map((track) => ({
-        trackId: track.id,
-        mode: fallbackPatchId ? "fallback" : "remove",
-        fallbackPatchId
-      }))
-    });
-  }, [commitProjectChange, patchWorkspace, project.patches, project.tracks, selectedTrackPatch, setPatchRemovalDialog]);
+    setPatchRemovalDialog(removalRequest);
+  }, [commitProjectChange, patchWorkspace, project, selectedTrackPatch, setPatchRemovalDialog]);
 
   const confirmRemovePatch = useCallback(() => {
     if (!patchRemovalDialog) {
       return;
     }
 
-    const nextTrackIds = new Set(project.tracks.map((track) => track.id));
-    for (const row of patchRemovalDialog.rows) {
-      if (row.mode === "remove") {
-        nextTrackIds.delete(row.trackId);
-        continue;
-      }
-      if (!row.fallbackPatchId || row.fallbackPatchId === patchRemovalDialog.patchId) {
-        return;
-      }
+    if (hasInvalidPatchRemovalFallback(patchRemovalDialog)) {
+      return;
     }
+    const nextTrackIds = resolveSurvivingTrackIds(project, patchRemovalDialog);
     if (nextTrackIds.size === 0) {
       setRuntimeError("At least one track must remain in the project.");
       return;
     }
 
-    commitProjectChange(
-      (current) => {
-        const rowsByTrackId = new Map(patchRemovalDialog.rows.map((row) => [row.trackId, row] as const));
-        const tracks = current.tracks.flatMap((track) => {
-          if (track.instrumentPatchId !== patchRemovalDialog.patchId) {
-            return [track];
-          }
-          const row = rowsByTrackId.get(track.id);
-          if (!row || row.mode === "remove") {
-            return [];
-          }
-          return [{ ...track, instrumentPatchId: row.fallbackPatchId }];
-        });
-
-        return {
-          ...current,
-          tracks,
-          patches: current.patches.filter((patch) => patch.id !== patchRemovalDialog.patchId)
-        };
-      },
-      { actionKey: `patch:${patchRemovalDialog.patchId}:remove` }
-    );
+    commitProjectChange((current) => removePatchFromProject(current, patchRemovalDialog), {
+      actionKey: `patch:${patchRemovalDialog.patchId}:remove`
+    });
 
     const survivingSelectedTrack =
       selectedTrackId && nextTrackIds.has(selectedTrackId)
@@ -1031,7 +1006,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     commitProjectChange,
     patchRemovalDialog,
     patchWorkspace,
-    project.tracks,
+    project,
     selectedTrackId,
     setPatchRemovalDialog,
     setRuntimeError,

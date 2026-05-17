@@ -98,7 +98,6 @@ export function useAppBootstrap({
   return {
     project,
     projectAssets,
-    projectHistory,
     ready,
     runtimeError,
     selectedTrackId,

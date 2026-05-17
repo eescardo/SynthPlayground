@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { PATCH_COLOR_PROBE_GRAPH_BG } from "@/components/patch/patchCanvasConstants";
+import { useDelayedSpectrumTooltip } from "@/hooks/patch/useDelayedSpectrumTooltip";
 import { clamp } from "@/lib/numeric";
 import { formatScopeTimestamp, formatSpectrumFrequency } from "@/lib/patch/probeViewMath";
 import { resolveProbeSpectrumMagnitudeColor } from "@/lib/patch/probes";
@@ -12,18 +13,11 @@ import {
 } from "@/lib/patch/spectrumDisplayMath";
 import { PreviewProbeCapture } from "@/types/probes";
 
-interface SpectrumTooltipState {
-  x: number;
-  y: number;
-  label: string;
-}
-
 export function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeName: string; onClose: () => void }) {
   const finalSpectrum = props.capture?.finalSpectrum;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const tooltipTimerRef = useRef<number | null>(null);
-  const [tooltip, setTooltip] = useState<SpectrumTooltipState | null>(null);
+  const { clearTooltip, scheduleTooltip, tooltip } = useDelayedSpectrumTooltip();
   const maxFrequencyHz = finalSpectrum?.binFrequencies.at(-1) ?? 24000;
   const frequencyMarkers = useMemo(() => resolveFullSpectrumFrequencyMarkers(maxFrequencyHz), [maxFrequencyHz]);
   const gridLines = useMemo(() => resolveFullSpectrumGridLines(maxFrequencyHz), [maxFrequencyHz]);
@@ -100,22 +94,6 @@ export function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeN
     scrollElement.scrollTop = scrollElement.scrollHeight;
   }, [finalSpectrum, imageHeight]);
 
-  useEffect(() => {
-    return () => {
-      if (tooltipTimerRef.current !== null) {
-        window.clearTimeout(tooltipTimerRef.current);
-      }
-    };
-  }, []);
-
-  const clearTooltip = () => {
-    if (tooltipTimerRef.current !== null) {
-      window.clearTimeout(tooltipTimerRef.current);
-      tooltipTimerRef.current = null;
-    }
-    setTooltip(null);
-  };
-
   const handleFullSpectrumPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas || !finalSpectrum || rowCount <= 0 || columnCount <= 0) {
@@ -136,20 +114,7 @@ export function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeN
     const freqHigh = finalSpectrum.binFrequencies[rowIndex + 1] ?? freqLow + binStep;
     const timeSeconds = (columnIndex / Math.max(1, columnCount - 1)) * durationSeconds;
     const label = formatSpectrumTooltip(freqLow, freqHigh, timeSeconds, value);
-    const tooltipX = clamp(event.clientX + 12, 8, Math.max(8, window.innerWidth - 16));
-    const tooltipY = clamp(event.clientY - 32, 8, Math.max(8, window.innerHeight - 16));
-    if (tooltipTimerRef.current !== null) {
-      window.clearTimeout(tooltipTimerRef.current);
-    }
-    setTooltip(null);
-    tooltipTimerRef.current = window.setTimeout(() => {
-      setTooltip({
-        x: tooltipX,
-        y: tooltipY,
-        label
-      });
-      tooltipTimerRef.current = null;
-    }, 1000);
+    scheduleTooltip(event.clientX, event.clientY, label);
   };
 
   return (

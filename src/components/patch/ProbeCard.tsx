@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { PATCH_CANVAS_GRID } from "@/components/patch/patchCanvasConstants";
-import { PitchTrackerProbeGraph, ScopeProbeGraph, SpectrumProbeGraph } from "@/components/patch/ProbeGraphs";
+import { PitchTrackerProbeGraph, ScopeProbeGraph } from "@/components/patch/ProbeGraphs";
+import { SpectrumProbeGraph } from "@/components/patch/SpectrumProbeGraph";
 import { resolveRenderedProbeHeight, resolveRenderedProbeWidth } from "@/components/patch/patchProbeLayout";
 import { resolveProbeFrequencyView } from "@/lib/patch/probes";
 import { PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";

@@ -12,8 +12,8 @@ export const SPECTRUM_FINAL_FACE_ROWS = 256;
 export const SPECTRUM_FINAL_COMPACT_FACE_ROWS = 64;
 export const SPECTRUM_FINAL_FACE_COLUMNS = 512;
 export const SPECTRUM_FINAL_COMPACT_FACE_COLUMNS = 480;
-export const FULL_SPECTRUM_GRID_MINOR_HZ = 500;
-export const FULL_SPECTRUM_GRID_MAJOR_HZ = 2000;
+const FULL_SPECTRUM_GRID_MINOR_HZ = 500;
+const FULL_SPECTRUM_GRID_MAJOR_HZ = 2000;
 
 export function buildSpectrumFramesDisplay(
   spectrumFrames: PreviewProbeSpectrumFrames,
@@ -109,10 +109,7 @@ export function resolveFinalSpectrumOutputColumnCount(
   return Math.max(finalSpectrum.columns.length, expectedColumnCount);
 }
 
-export function resolveFallbackSpectrumFrameColumn(
-  spectrumFrames: PreviewProbeSpectrumFrames | undefined,
-  ratio: number
-) {
+function resolveFallbackSpectrumFrameColumn(spectrumFrames: PreviewProbeSpectrumFrames | undefined, ratio: number) {
   const columns = spectrumFrames?.columns ?? [];
   if (columns.length <= 0) {
     return undefined;
@@ -152,7 +149,7 @@ export function resolveFullSpectrumGridLines(maxFrequencyHz: number) {
   });
 }
 
-export function resolveNearestSpectrumBinIndex(binFrequencies: number[], targetFrequency: number) {
+function resolveNearestSpectrumBinIndex(binFrequencies: number[], targetFrequency: number) {
   if (binFrequencies.length <= 0) {
     return 0;
   }
