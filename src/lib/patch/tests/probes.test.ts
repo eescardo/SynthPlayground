@@ -13,6 +13,11 @@ import {
   resolveSpectrumTimelineFillRatio,
   resolveSpectrumTimelineFrameIndex
 } from "@/lib/patch/probeViewMath";
+import {
+  buildFinalSpectrumDisplay,
+  buildSpectrumFramesDisplay,
+  resolveFinalSpectrumOutputColumnCount
+} from "@/lib/patch/spectrumDisplayMath";
 
 describe("probe helpers", () => {
   it("normalizes quiet sample streams so they remain visible", () => {
@@ -97,6 +102,54 @@ describe("probe helpers", () => {
     expect(markers).toHaveLength(3);
     expect(markers.every((marker) => marker.frequency < 4000)).toBe(true);
     expect(markers.every((marker) => marker.bottomPercent > 0 && marker.bottomPercent < 100)).toBe(true);
+  });
+
+  it("maps streamed spectrum frames into an accumulated display grid", () => {
+    const display = buildSpectrumFramesDisplay(
+      {
+        columns: [
+          [0.1, 0.2, 0.3],
+          [0.4, 0.5, 0.6]
+        ],
+        binFrequencies: [100, 200, 300],
+        frameSize: 1024,
+        sampleRate: 4096,
+        capturedSamples: 2048
+      },
+      2,
+      4,
+      1,
+      300
+    );
+
+    expect(display).toHaveLength(2);
+    expect(display[0]).toHaveLength(4);
+    expect(display[0]?.at(0)).toBeGreaterThan(0);
+    expect(display[0]?.at(-1)).toBe(0);
+  });
+
+  it("maps final spectrum chunks over their expected output column count", () => {
+    const finalSpectrum = {
+      columns: [
+        [0.1, 0.2, 0.3],
+        [0.4, 0.5, 0.6]
+      ],
+      binFrequencies: [100, 200, 300],
+      complete: false,
+      frameSize: 1024,
+      sampleRate: 48000,
+      capturedSamples: 2048,
+      requestedTimeColumns: 4,
+      requestedFrequencyBins: 3,
+      sourceColumnCount: 4
+    };
+
+    const display = buildFinalSpectrumDisplay(finalSpectrum, 2, 4, 300);
+
+    expect(resolveFinalSpectrumOutputColumnCount(finalSpectrum)).toBe(4);
+    expect(display[0]).toHaveLength(4);
+    expect(display[0]?.[0]).toBeGreaterThan(0);
+    expect(display[0]?.[2]).toBe(0);
   });
 
   it("builds separate scope waveform and envelope render data", () => {
