@@ -141,7 +141,7 @@ export function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeN
           </button>
         </div>
         <div ref={scrollRef} className="patch-probe-full-spectrum-scroll">
-          <div className="patch-probe-full-spectrum-axis-y">
+          <div className="patch-probe-full-spectrum-axis-y" style={{ height: `${imageHeight}px` }}>
             {frequencyMarkers.map((marker) => (
               <span key={marker.frequency} style={{ bottom: `${marker.bottomPercent}%` }}>
                 {formatSpectrumFrequency(marker.frequency)}

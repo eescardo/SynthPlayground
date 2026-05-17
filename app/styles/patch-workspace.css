@@ -1135,7 +1135,7 @@
   position: sticky;
   left: 0;
   z-index: 2;
-  min-height: 320px;
+  align-self: start;
   background: rgba(6, 12, 18, 0.96);
 }
 

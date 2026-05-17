@@ -12,8 +12,8 @@ export const SPECTRUM_FINAL_FACE_ROWS = 256;
 export const SPECTRUM_FINAL_COMPACT_FACE_ROWS = 64;
 export const SPECTRUM_FINAL_FACE_COLUMNS = 512;
 export const SPECTRUM_FINAL_COMPACT_FACE_COLUMNS = 480;
-const FULL_SPECTRUM_GRID_MINOR_HZ = 500;
-const FULL_SPECTRUM_GRID_MAJOR_HZ = 2000;
+const FULL_SPECTRUM_GRID_MINOR_HZ = 2000;
+const FULL_SPECTRUM_GRID_MAJOR_HZ = 8000;
 
 export function buildSpectrumFramesDisplay(
   spectrumFrames: PreviewProbeSpectrumFrames,
@@ -127,13 +127,13 @@ export function formatSpectrumTooltip(freqLow: number, freqHigh: number, timeSec
 export function resolveFullSpectrumFrequencyMarkers(maxFrequencyHz: number) {
   const safeMaxFrequencyHz = Math.max(1, maxFrequencyHz);
   const markerCount = Math.floor(safeMaxFrequencyHz / FULL_SPECTRUM_GRID_MAJOR_HZ);
-  return Array.from({ length: markerCount }, (_, index) => {
-    const frequency = (index + 1) * FULL_SPECTRUM_GRID_MAJOR_HZ;
+  return Array.from({ length: markerCount + 1 }, (_, index) => {
+    const frequency = index * FULL_SPECTRUM_GRID_MAJOR_HZ;
     return {
       frequency,
       bottomPercent: (frequency / safeMaxFrequencyHz) * 100
     };
-  });
+  }).filter((marker) => marker.frequency <= safeMaxFrequencyHz);
 }
 
 export function resolveFullSpectrumGridLines(maxFrequencyHz: number) {
