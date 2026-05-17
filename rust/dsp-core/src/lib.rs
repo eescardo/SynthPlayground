@@ -388,7 +388,7 @@ struct PreviewProbeSpectrumFrames {
 #[derive(Clone, Serialize)]
 struct PreviewProbeFinalSpectrum {
     columns: Vec<Vec<f32>>,
-    #[serde(rename = "binFrequencies")]
+    #[serde(rename = "binFrequencies", skip_serializing_if = "Vec::is_empty")]
     bin_frequencies: Vec<f32>,
     #[serde(rename = "startColumn")]
     start_column: usize,

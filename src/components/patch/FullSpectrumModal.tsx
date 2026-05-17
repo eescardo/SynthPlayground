@@ -18,7 +18,8 @@ export function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeN
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const { clearTooltip, scheduleTooltip, tooltip } = useDelayedSpectrumTooltip();
-  const maxFrequencyHz = finalSpectrum?.binFrequencies.at(-1) ?? 24000;
+  const binFrequencies = finalSpectrum?.binFrequencies ?? [];
+  const maxFrequencyHz = binFrequencies.at(-1) ?? 24000;
   const frameSize = finalSpectrum?.frameSize ?? 512;
   const frequencyMarkers = useMemo(
     () => resolveFullSpectrumFrequencyMarkers(maxFrequencyHz, frameSize),
@@ -111,11 +112,9 @@ export function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeN
     const rowIndex = clamp(rowCount - 1 - Math.floor((localY / Math.max(1, rect.height)) * rowCount), 0, rowCount - 1);
     const value = finalSpectrum.columns[columnIndex]?.[rowIndex] ?? 0;
     const binStep =
-      finalSpectrum.binFrequencies.length > 1
-        ? (finalSpectrum.binFrequencies.at(-1) ?? 0) / Math.max(1, finalSpectrum.binFrequencies.length - 1)
-        : 0;
-    const freqLow = finalSpectrum.binFrequencies[rowIndex] ?? rowIndex * binStep;
-    const freqHigh = finalSpectrum.binFrequencies[rowIndex + 1] ?? freqLow + binStep;
+      binFrequencies.length > 1 ? (binFrequencies.at(-1) ?? 0) / Math.max(1, binFrequencies.length - 1) : 0;
+    const freqLow = binFrequencies[rowIndex] ?? rowIndex * binStep;
+    const freqHigh = binFrequencies[rowIndex + 1] ?? freqLow + binStep;
     const timeSeconds = (columnIndex / Math.max(1, columnCount - 1)) * durationSeconds;
     const label = formatSpectrumTooltip(freqLow, freqHigh, timeSeconds, value);
     scheduleTooltip(event.clientX, event.clientY, label);

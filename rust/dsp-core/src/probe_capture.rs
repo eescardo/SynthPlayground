@@ -375,7 +375,11 @@ pub(crate) fn build_preview_capture_final_spectrum(
         .min(output_column_count);
     let end_column =
         (start_column + PREVIEW_CAPTURE_FINAL_SPECTRUM_CHUNK_COLUMNS).min(output_column_count);
-    let bin_frequencies = capture.final_spectrum_bin_frequencies.clone();
+    let bin_frequencies = if start_column == 0 {
+        capture.final_spectrum_bin_frequencies.clone()
+    } else {
+        Vec::new()
+    };
     let columns = (start_column..end_column)
         .map(|column_index| {
             let source_column_index = if output_column_count <= 1 {
@@ -397,7 +401,7 @@ pub(crate) fn build_preview_capture_final_spectrum(
         })
         .collect();
     capture.final_spectrum_emitted_columns = end_column;
-    let requested_frequency_bins = bin_frequencies.len();
+    let requested_frequency_bins = capture.final_spectrum_bin_frequencies.len();
 
     Some(PreviewProbeFinalSpectrum {
         columns,
@@ -726,6 +730,50 @@ mod tests {
         assert!(final_spectrum.complete);
         assert_eq!(final_spectrum.columns[0].len(), unique_fft_bins);
         assert_eq!(final_spectrum.bin_frequencies.len(), unique_fft_bins);
+    }
+
+    #[test]
+    fn final_spectrum_sends_bin_frequencies_only_on_first_chunk() {
+        let frame_size = 256;
+        let sample_rate = 48_000.0;
+        let unique_fft_bins = frame_size / 2 + 1;
+        let mut capture = TrackProbeCaptureState {
+            probe_id: "probe_1".to_string(),
+            kind: "spectrum".to_string(),
+            signal_start: 0,
+            duration_samples: frame_size * 6,
+            spectrum_window_size: Some(frame_size),
+            samples: (0..frame_size * 6)
+                .map(|sample| {
+                    ((2.0 * std::f32::consts::PI * 220.0 * sample as f32) / sample_rate).sin() * 0.4
+                })
+                .collect(),
+            spectrum_columns: Vec::new(),
+            spectrum_bin_frequencies: Vec::new(),
+            spectrum_bin_indices: Vec::new(),
+            spectrum_hann_window: Vec::new(),
+            final_spectrum_bin_frequencies: Vec::new(),
+            final_spectrum_hann_window: Vec::new(),
+            spectrum_analyzed_samples: 0,
+            spectrum_emitted_columns: 0,
+            final_spectrum_emitted_columns: 0,
+        };
+
+        let first_chunk =
+            build_preview_capture_final_spectrum(&mut capture, frame_size * 6, sample_rate, true)
+                .unwrap();
+        let second_chunk =
+            build_preview_capture_final_spectrum(&mut capture, frame_size * 6, sample_rate, true)
+                .unwrap();
+
+        assert_eq!(first_chunk.start_column, 0);
+        assert_eq!(first_chunk.bin_frequencies.len(), unique_fft_bins);
+        assert_eq!(
+            second_chunk.start_column,
+            PREVIEW_CAPTURE_FINAL_SPECTRUM_CHUNK_COLUMNS
+        );
+        assert!(second_chunk.bin_frequencies.is_empty());
+        assert_eq!(second_chunk.requested_frequency_bins, unique_fft_bins);
     }
 
     #[test]

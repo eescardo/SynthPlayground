@@ -77,7 +77,7 @@ export function buildFinalSpectrumDisplay(
   const rowBinIndices = Array.from({ length: rows }, (_, rowIndex) => {
     const rowRatio = (rowIndex + 0.5) / rows;
     const targetFrequency = Math.pow(rowRatio, 2) * maxFrequencyHz;
-    return resolveNearestSpectrumBinIndex(finalSpectrum.binFrequencies, targetFrequency);
+    return resolveNearestSpectrumBinIndex(finalSpectrum.binFrequencies ?? [], targetFrequency);
   });
   const fallbackRowBinIndices = fallbackSpectrumFrames
     ? Array.from({ length: rows }, (_, rowIndex) => {

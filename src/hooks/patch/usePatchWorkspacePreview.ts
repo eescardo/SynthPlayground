@@ -311,6 +311,9 @@ function mergePreviewProbeCapture(
     capture.finalSpectrum && previous?.finalSpectrum
       ? {
           ...capture.finalSpectrum,
+          binFrequencies: capture.finalSpectrum.binFrequencies?.length
+            ? capture.finalSpectrum.binFrequencies
+            : previous.finalSpectrum.binFrequencies,
           columns: [
             ...(capture.finalSpectrum.startColumn === 0
               ? []

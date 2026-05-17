@@ -93,7 +93,7 @@ export interface PreviewProbeSpectrumFrames {
 
 export interface PreviewProbeFinalSpectrum {
   columns: number[][];
-  binFrequencies: number[];
+  binFrequencies?: number[];
   startColumn?: number;
   complete?: boolean;
   frameSize: number;
