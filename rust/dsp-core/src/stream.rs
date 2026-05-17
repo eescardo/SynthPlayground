@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use wasm_bindgen::JsValue;
 
 const PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES: usize = 4_096;
-const PREVIEW_CAPTURE_SPECTRUM_BIN_COUNT: usize = 64;
+const PREVIEW_CAPTURE_SPECTRUM_BIN_COUNT: usize = 32;
 const PREVIEW_CAPTURE_FINAL_SPECTRUM_MAX_COLUMNS: usize = 512;
 const PREVIEW_CAPTURE_SPECTRUM_DEFAULT_FRAME_SIZE: usize = 1024;
 const PREVIEW_CAPTURE_SPECTRUM_MIN_FRAME_SIZE: usize = 64;
@@ -242,13 +242,19 @@ impl TrackRuntime {
             .iter_mut()
             .map(|capture| {
                 let captured_end = captured_samples.min(capture.duration_samples);
+                let is_spectrum = capture.kind == "spectrum";
+                let samples = if is_spectrum {
+                    Vec::new()
+                } else {
+                    build_preview_capture_snapshot_samples(capture, captured_samples)
+                };
                 PreviewProbeCaptureSnapshot {
                     probe_id: capture.probe_id.clone(),
                     sample_stride: resolve_preview_capture_snapshot_stride(
                         capture,
                         captured_samples,
                     ),
-                    samples: build_preview_capture_snapshot_samples(capture, captured_samples),
+                    samples,
                     spectrum_frames: update_and_build_preview_capture_spectrum_frames(
                         capture,
                         captured_samples,
@@ -260,7 +266,7 @@ impl TrackRuntime {
                         sample_rate,
                         include_final,
                     ),
-                    full_resolution_samples: if include_final && capture.kind == "spectrum" {
+                    full_resolution_samples: if include_final && is_spectrum {
                         Some(capture.samples.iter().take(captured_end).copied().collect())
                     } else {
                         None
