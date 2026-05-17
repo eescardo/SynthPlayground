@@ -592,7 +592,13 @@ function SpectrumProbeGraph(props: {
     }
 
     if (finalSpectrum) {
-      return buildFinalSpectrumDisplay(finalSpectrum, rows, viewportColumns, effectiveMaxFrequencyHz);
+      return buildFinalSpectrumDisplay(
+        finalSpectrum,
+        rows,
+        viewportColumns,
+        effectiveMaxFrequencyHz,
+        props.capture.spectrumFrames
+      );
     }
 
     const elapsedSeconds = clamp(props.elapsedSeconds, 0, SPECTRUM_MAX_DISPLAY_SECONDS);
@@ -911,10 +917,12 @@ function buildFinalSpectrumDisplay(
   finalSpectrum: NonNullable<PreviewProbeCapture["finalSpectrum"]>,
   rows: number,
   viewportColumns: number,
-  maxFrequencyHz: number
+  maxFrequencyHz: number,
+  fallbackSpectrumFrames?: PreviewProbeSpectrumFrames
 ) {
   const display = Array.from({ length: rows }, () => new Array(viewportColumns).fill(0));
-  if (finalSpectrum.columns.length <= 0 || rows <= 0 || viewportColumns <= 0) {
+  const expectedColumnCount = resolveFinalSpectrumOutputColumnCount(finalSpectrum);
+  if (expectedColumnCount <= 0 || rows <= 0 || viewportColumns <= 0) {
     return display;
   }
   const rowBinIndices = Array.from({ length: rows }, (_, rowIndex) => {
@@ -922,24 +930,44 @@ function buildFinalSpectrumDisplay(
     const targetFrequency = Math.pow(rowRatio, 2) * maxFrequencyHz;
     return resolveNearestSpectrumBinIndex(finalSpectrum.binFrequencies, targetFrequency);
   });
+  const fallbackRowBinIndices = fallbackSpectrumFrames
+    ? Array.from({ length: rows }, (_, rowIndex) => {
+        const rowRatio = (rowIndex + 0.5) / rows;
+        const targetFrequency = Math.pow(rowRatio, 2) * maxFrequencyHz;
+        return resolveNearestSpectrumBinIndex(fallbackSpectrumFrames.binFrequencies, targetFrequency);
+      })
+    : [];
 
   for (let columnIndex = 0; columnIndex < viewportColumns; columnIndex += 1) {
     const ratio = viewportColumns <= 1 ? 0 : columnIndex / (viewportColumns - 1);
-    const sourceColumnIndex = clamp(
-      Math.round(ratio * (finalSpectrum.columns.length - 1)),
-      0,
-      finalSpectrum.columns.length - 1
-    );
+    const sourceColumnIndex = clamp(Math.round(ratio * (expectedColumnCount - 1)), 0, expectedColumnCount - 1);
     const column = finalSpectrum.columns[sourceColumnIndex];
-    if (!column) {
-      continue;
-    }
+    const fallbackColumn = column ? undefined : resolveFallbackSpectrumFrameColumn(fallbackSpectrumFrames, ratio);
     for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
-      display[rowIndex][columnIndex] = column[rowBinIndices[rowIndex] ?? 0] ?? 0;
+      display[rowIndex][columnIndex] = column
+        ? (column[rowBinIndices[rowIndex] ?? 0] ?? 0)
+        : (fallbackColumn?.[fallbackRowBinIndices[rowIndex] ?? 0] ?? 0);
     }
   }
 
   return display;
+}
+
+function resolveFinalSpectrumOutputColumnCount(finalSpectrum: NonNullable<PreviewProbeCapture["finalSpectrum"]>) {
+  const requestedColumnCount = Math.max(0, Math.floor(finalSpectrum.requestedTimeColumns || 0));
+  const sourceColumnCount = Math.max(0, Math.floor(finalSpectrum.sourceColumnCount || 0));
+  const expectedColumnCount =
+    requestedColumnCount > 0 ? Math.min(sourceColumnCount, requestedColumnCount) : sourceColumnCount;
+  return Math.max(finalSpectrum.columns.length, expectedColumnCount);
+}
+
+function resolveFallbackSpectrumFrameColumn(spectrumFrames: PreviewProbeSpectrumFrames | undefined, ratio: number) {
+  const columns = spectrumFrames?.columns ?? [];
+  if (columns.length <= 0) {
+    return undefined;
+  }
+  const sourceColumnIndex = clamp(Math.round(ratio * (columns.length - 1)), 0, columns.length - 1);
+  return columns[sourceColumnIndex];
 }
 
 function resolveFullSpectrumFrequencyMarkers(maxFrequencyHz: number) {
