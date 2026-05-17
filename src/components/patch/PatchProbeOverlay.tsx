@@ -781,9 +781,9 @@ function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeName: st
     context.clearRect(0, 0, imageWidth, imageHeight);
     context.fillStyle = PATCH_COLOR_PROBE_GRAPH_BG;
     context.fillRect(0, 0, imageWidth, imageHeight);
-    drawFullSpectrumGrid(context, gridLines, imageWidth, imageHeight, maxFrequencyHz);
 
     if (columnCount <= 0 || rowCount <= 0) {
+      drawFullSpectrumGrid(context, gridLines, imageWidth, imageHeight, maxFrequencyHz);
       return;
     }
     const cellWidth = imageWidth / columnCount;
@@ -801,6 +801,7 @@ function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeName: st
         context.fillRect(columnIndex * cellWidth, imageHeight - (rowIndex + 1) * cellHeight, fillWidth, fillHeight);
       }
     }
+    drawFullSpectrumGrid(context, gridLines, imageWidth, imageHeight, maxFrequencyHz);
   }, [columnCount, finalSpectrum, gridLines, imageHeight, imageWidth, maxFrequencyHz, rowCount]);
 
   useEffect(() => {
@@ -979,7 +980,7 @@ function drawFullSpectrumGrid(
     context.save();
     context.beginPath();
     context.setLineDash(line.major ? [] : [2, 3]);
-    context.strokeStyle = line.major ? "rgba(231, 243, 255, 0.16)" : "rgba(231, 243, 255, 0.08)";
+    context.strokeStyle = line.major ? "rgba(231, 243, 255, 0.5)" : "rgba(231, 243, 255, 0.3)";
     context.lineWidth = line.major ? 1 : 0.75;
     context.moveTo(0, y);
     context.lineTo(width, y);
