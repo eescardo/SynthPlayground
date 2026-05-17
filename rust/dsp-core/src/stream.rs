@@ -12,7 +12,6 @@ const PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES: usize = 4_096;
 const PREVIEW_CAPTURE_SPECTRUM_BIN_COUNT: usize = 32;
 const PREVIEW_CAPTURE_FINAL_SPECTRUM_MAX_COLUMNS: usize = 512;
 const PREVIEW_CAPTURE_FINAL_SPECTRUM_CHUNK_COLUMNS: usize = 4;
-const PREVIEW_CAPTURE_FULL_RESOLUTION_SAMPLE_CHUNK_SIZE: usize = 4_096;
 const PREVIEW_CAPTURE_SPECTRUM_DEFAULT_FRAME_SIZE: usize = 1024;
 const PREVIEW_CAPTURE_SPECTRUM_MIN_FRAME_SIZE: usize = 64;
 const PREVIEW_CAPTURE_SPECTRUM_MAX_FREQUENCY_HZ: f32 = 24_000.0;
@@ -38,10 +37,13 @@ struct TrackProbeCaptureState {
     samples: Vec<f32>,
     spectrum_columns: Vec<Vec<f32>>,
     spectrum_bin_frequencies: Vec<f32>,
+    spectrum_bin_indices: Vec<usize>,
+    spectrum_hann_window: Vec<f32>,
+    final_spectrum_bin_frequencies: Vec<f32>,
+    final_spectrum_hann_window: Vec<f32>,
     spectrum_analyzed_samples: usize,
     spectrum_emitted_columns: usize,
     final_spectrum_emitted_columns: usize,
-    full_resolution_emitted_samples: usize,
 }
 
 #[derive(Clone)]
@@ -217,10 +219,13 @@ impl TrackRuntime {
                 samples: vec![0.0; spec.duration_samples],
                 spectrum_columns: Vec::new(),
                 spectrum_bin_frequencies: Vec::new(),
+                spectrum_bin_indices: Vec::new(),
+                spectrum_hann_window: Vec::new(),
+                final_spectrum_bin_frequencies: Vec::new(),
+                final_spectrum_hann_window: Vec::new(),
                 spectrum_analyzed_samples: 0,
                 spectrum_emitted_columns: 0,
                 final_spectrum_emitted_columns: 0,
-                full_resolution_emitted_samples: 0,
             })
             .collect();
     }
@@ -257,7 +262,6 @@ impl TrackRuntime {
         self.probe_captures
             .iter_mut()
             .map(|capture| {
-                let captured_end = captured_samples.min(capture.duration_samples);
                 let is_spectrum = capture.kind == "spectrum";
                 let samples = if is_spectrum {
                     Vec::new()
@@ -270,16 +274,6 @@ impl TrackRuntime {
                     sample_rate,
                     include_final,
                 );
-                let include_full_resolution_samples = final_spectrum
-                    .as_ref()
-                    .map(|spectrum| spectrum.complete)
-                    .unwrap_or(false);
-                let full_resolution_sample_chunk =
-                    build_preview_capture_full_resolution_sample_chunk(
-                        capture,
-                        captured_end,
-                        include_full_resolution_samples && is_spectrum,
-                    );
                 PreviewProbeCaptureSnapshot {
                     probe_id: capture.probe_id.clone(),
                     sample_stride: resolve_preview_capture_snapshot_stride(
@@ -293,15 +287,6 @@ impl TrackRuntime {
                         sample_rate,
                     ),
                     final_spectrum,
-                    full_resolution_samples: full_resolution_sample_chunk
-                        .as_ref()
-                        .map(|chunk| chunk.samples.clone()),
-                    full_resolution_sample_start: full_resolution_sample_chunk
-                        .as_ref()
-                        .map(|chunk| chunk.start),
-                    full_resolution_samples_complete: full_resolution_sample_chunk
-                        .as_ref()
-                        .map(|chunk| chunk.complete),
                 }
             })
             .collect()
@@ -716,30 +701,6 @@ impl TrackRuntime {
     }
 }
 
-struct PreviewCaptureFullResolutionSampleChunk {
-    samples: Vec<f32>,
-    start: usize,
-    complete: bool,
-}
-
-fn build_preview_capture_full_resolution_sample_chunk(
-    capture: &mut TrackProbeCaptureState,
-    captured_end: usize,
-    include_samples: bool,
-) -> Option<PreviewCaptureFullResolutionSampleChunk> {
-    if !include_samples {
-        return None;
-    }
-    let start = capture.full_resolution_emitted_samples.min(captured_end);
-    let end = (start + PREVIEW_CAPTURE_FULL_RESOLUTION_SAMPLE_CHUNK_SIZE).min(captured_end);
-    capture.full_resolution_emitted_samples = end;
-    Some(PreviewCaptureFullResolutionSampleChunk {
-        samples: capture.samples[start..end].to_vec(),
-        start,
-        complete: end >= captured_end,
-    })
-}
-
 fn build_preview_capture_snapshot_samples(
     capture: &TrackProbeCaptureState,
     captured_samples: usize,
@@ -826,31 +787,29 @@ fn advance_preview_capture_spectrum_analysis(
             sample_rate,
         );
     }
+    if capture.spectrum_bin_indices.is_empty() {
+        capture.spectrum_bin_indices = build_preview_capture_spectrum_bin_indices(
+            PREVIEW_CAPTURE_SPECTRUM_BIN_COUNT,
+            frame_size,
+            sample_rate,
+        );
+    }
+    if capture.spectrum_hann_window.is_empty() {
+        capture.spectrum_hann_window = build_preview_capture_hann_window(frame_size);
+    }
     if captured_end < frame_size || capture.spectrum_analyzed_samples + frame_size > captured_end {
         return;
     }
-    let bin_indices = build_preview_capture_spectrum_bin_indices(
-        PREVIEW_CAPTURE_SPECTRUM_BIN_COUNT,
-        frame_size,
-        sample_rate,
-    );
-    let hann_window = (0..frame_size)
-        .map(|index| {
-            0.5 - 0.5
-                * ((2.0 * std::f32::consts::PI * index as f32)
-                    / (frame_size.saturating_sub(1).max(1) as f32))
-                    .cos()
-        })
-        .collect::<Vec<_>>();
     let frame_start = capture.spectrum_analyzed_samples;
     let magnitudes = measure_preview_capture_fft_magnitudes(
         &capture.samples,
         frame_start,
         frame_size,
-        &hann_window,
+        &capture.spectrum_hann_window,
     );
     capture.spectrum_columns.push(
-        bin_indices
+        capture
+            .spectrum_bin_indices
             .iter()
             .map(|bin_index| magnitudes.get(*bin_index).copied().unwrap_or(0.0))
             .collect(),
@@ -873,9 +832,15 @@ fn build_preview_capture_final_spectrum(
         .unwrap_or(PREVIEW_CAPTURE_SPECTRUM_DEFAULT_FRAME_SIZE)
         .max(PREVIEW_CAPTURE_SPECTRUM_MIN_FRAME_SIZE);
     let source_column_count = captured_end / frame_size;
-    if source_column_count == 0 {
-        let bin_frequencies =
+    if capture.final_spectrum_bin_frequencies.is_empty() {
+        capture.final_spectrum_bin_frequencies =
             build_preview_capture_full_spectrum_bin_frequencies(frame_size, sample_rate);
+    }
+    if capture.final_spectrum_hann_window.is_empty() {
+        capture.final_spectrum_hann_window = build_preview_capture_hann_window(frame_size);
+    }
+    if source_column_count == 0 {
+        let bin_frequencies = capture.final_spectrum_bin_frequencies.clone();
         capture.final_spectrum_emitted_columns = 0;
         return Some(PreviewProbeFinalSpectrum {
             columns: Vec::new(),
@@ -897,16 +862,7 @@ fn build_preview_capture_final_spectrum(
         .min(output_column_count);
     let end_column =
         (start_column + PREVIEW_CAPTURE_FINAL_SPECTRUM_CHUNK_COLUMNS).min(output_column_count);
-    let bin_frequencies =
-        build_preview_capture_full_spectrum_bin_frequencies(frame_size, sample_rate);
-    let hann_window = (0..frame_size)
-        .map(|index| {
-            0.5 - 0.5
-                * ((2.0 * std::f32::consts::PI * index as f32)
-                    / (frame_size.saturating_sub(1).max(1) as f32))
-                    .cos()
-        })
-        .collect::<Vec<_>>();
+    let bin_frequencies = capture.final_spectrum_bin_frequencies.clone();
     let columns = (start_column..end_column)
         .map(|column_index| {
             let source_column_index = if output_column_count <= 1 {
@@ -922,7 +878,7 @@ fn build_preview_capture_final_spectrum(
                 &capture.samples,
                 frame_start,
                 frame_size,
-                &hann_window,
+                &capture.final_spectrum_hann_window,
             );
             magnitudes
         })
@@ -950,6 +906,17 @@ fn build_preview_capture_full_spectrum_bin_frequencies(
 ) -> Vec<f32> {
     (0..=frame_size / 2)
         .map(|bin_index| (bin_index as f32 * sample_rate) / frame_size as f32)
+        .collect()
+}
+
+fn build_preview_capture_hann_window(frame_size: usize) -> Vec<f32> {
+    (0..frame_size)
+        .map(|index| {
+            0.5 - 0.5
+                * ((2.0 * std::f32::consts::PI * index as f32)
+                    / (frame_size.saturating_sub(1).max(1) as f32))
+                    .cos()
+        })
         .collect()
 }
 
@@ -1069,10 +1036,13 @@ mod tests {
                 .collect(),
             spectrum_columns: Vec::new(),
             spectrum_bin_frequencies: Vec::new(),
+            spectrum_bin_indices: Vec::new(),
+            spectrum_hann_window: Vec::new(),
+            final_spectrum_bin_frequencies: Vec::new(),
+            final_spectrum_hann_window: Vec::new(),
             spectrum_analyzed_samples: 0,
             spectrum_emitted_columns: 0,
             final_spectrum_emitted_columns: 0,
-            full_resolution_emitted_samples: 0,
         };
 
         let samples = build_preview_capture_snapshot_samples(
@@ -1111,10 +1081,13 @@ mod tests {
                 .collect(),
             spectrum_columns: Vec::new(),
             spectrum_bin_frequencies: Vec::new(),
+            spectrum_bin_indices: Vec::new(),
+            spectrum_hann_window: Vec::new(),
+            final_spectrum_bin_frequencies: Vec::new(),
+            final_spectrum_hann_window: Vec::new(),
             spectrum_analyzed_samples: 0,
             spectrum_emitted_columns: 0,
             final_spectrum_emitted_columns: 0,
-            full_resolution_emitted_samples: 0,
         };
 
         advance_preview_capture_spectrum_analysis(&mut capture, frame_size * 2, sample_rate);
@@ -1149,7 +1122,7 @@ mod tests {
     }
 
     #[test]
-    fn final_spectrum_uses_higher_frequency_resolution_and_full_samples() {
+    fn final_spectrum_uses_higher_frequency_resolution() {
         let frame_size = 256;
         let sample_rate = 48_000.0;
         let mut capture = TrackProbeCaptureState {
@@ -1165,21 +1138,18 @@ mod tests {
                 .collect(),
             spectrum_columns: Vec::new(),
             spectrum_bin_frequencies: Vec::new(),
+            spectrum_bin_indices: Vec::new(),
+            spectrum_hann_window: Vec::new(),
+            final_spectrum_bin_frequencies: Vec::new(),
+            final_spectrum_hann_window: Vec::new(),
             spectrum_analyzed_samples: 0,
             spectrum_emitted_columns: 0,
             final_spectrum_emitted_columns: 0,
-            full_resolution_emitted_samples: 0,
         };
 
         let final_spectrum =
             build_preview_capture_final_spectrum(&mut capture, frame_size * 3, sample_rate, true)
                 .unwrap();
-        let full_resolution_samples = capture
-            .samples
-            .iter()
-            .take(frame_size * 3)
-            .copied()
-            .collect::<Vec<_>>();
         let unique_fft_bins = frame_size / 2 + 1;
 
         assert_eq!(final_spectrum.requested_frequency_bins, unique_fft_bins);
@@ -1193,6 +1163,5 @@ mod tests {
         assert!(final_spectrum.complete);
         assert_eq!(final_spectrum.columns[0].len(), unique_fft_bins);
         assert_eq!(final_spectrum.bin_frequencies.len(), unique_fft_bins);
-        assert_eq!(full_resolution_samples.len(), frame_size * 3);
     }
 }

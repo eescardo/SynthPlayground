@@ -55,9 +55,6 @@ export interface PreviewProbeCapture {
   sampleLength?: number;
   spectrumFrames?: PreviewProbeSpectrumFrames;
   finalSpectrum?: PreviewProbeFinalSpectrum;
-  fullResolutionSamples?: number[];
-  fullResolutionSampleStart?: number;
-  fullResolutionSamplesComplete?: boolean;
 }
 
 export interface PreviewProbeSpectrumFrames {

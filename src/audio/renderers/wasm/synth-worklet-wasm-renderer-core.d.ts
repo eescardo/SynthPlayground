@@ -65,9 +65,6 @@ export interface SharedWasmPreviewCaptureSnapshot {
     sampleLength?: number;
     spectrumFrames?: PreviewProbeCapture["spectrumFrames"];
     finalSpectrum?: PreviewProbeCapture["finalSpectrum"];
-    fullResolutionSamples?: PreviewProbeCapture["fullResolutionSamples"];
-    fullResolutionSampleStart?: PreviewProbeCapture["fullResolutionSampleStart"];
-    fullResolutionSamplesComplete?: PreviewProbeCapture["fullResolutionSamplesComplete"];
   }>;
 }
 

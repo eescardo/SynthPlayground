@@ -27,8 +27,12 @@ const createPreviewProbeSharedBuffers = (
   if (!captureProbes?.length || !canUseSharedProbeBuffers()) {
     return undefined;
   }
+  const sharedBufferProbes = captureProbes.filter((probe) => probe.kind !== "spectrum");
+  if (!sharedBufferProbes.length) {
+    return undefined;
+  }
   const safeCapacitySamples = Math.max(1, Math.floor(capacitySamples));
-  return captureProbes.map((probe) => ({
+  return sharedBufferProbes.map((probe) => ({
     probeId: probe.probeId,
     capacitySamples: safeCapacitySamples,
     sampleBuffer: new SharedArrayBuffer(safeCapacitySamples * Float32Array.BYTES_PER_ELEMENT)

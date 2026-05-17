@@ -141,7 +141,6 @@ export class SharedWasmRenderStream {
           const meta = this.previewCaptureState.metaByProbeId.get(capture.probeId);
           const sampleStride = Math.max(1, capture.sampleStride || 1);
           const shouldUseSpectrumFrames = meta?.kind === "spectrum" && capture.spectrumFrames;
-          const isFinalSpectrumCapture = Boolean(capture.finalSpectrum);
           const sharedSamples = shouldUseSpectrumFrames
             ? null
             : writeCaptureSamplesToSharedBuffer(
@@ -162,12 +161,7 @@ export class SharedWasmRenderStream {
                 sampleBuffer: sharedSamples?.sampleBuffer,
                 sampleLength: sharedSamples?.sampleLength,
                 spectrumFrames: capture.spectrumFrames,
-                finalSpectrum: capture.finalSpectrum,
-                fullResolutionSamples: isFinalSpectrumCapture ? capture.fullResolutionSamples : undefined,
-                fullResolutionSampleStart: isFinalSpectrumCapture ? capture.fullResolutionSampleStart : undefined,
-                fullResolutionSamplesComplete: isFinalSpectrumCapture
-                  ? capture.fullResolutionSamplesComplete
-                  : undefined
+                finalSpectrum: capture.finalSpectrum
               }
             : null;
         })
@@ -180,7 +174,7 @@ export class SharedWasmRenderStream {
         if (meta?.kind !== "spectrum") {
           return true;
         }
-        return capture.finalSpectrum?.complete !== false && capture.fullResolutionSamplesComplete !== false;
+        return capture.finalSpectrum?.complete !== false;
       });
     if (force && finalComplete) {
       this.previewCaptureState = null;

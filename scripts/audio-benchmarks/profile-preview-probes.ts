@@ -55,7 +55,6 @@ type CaseMetrics = {
     maxSpectrumBins: number;
     maxFinalSpectrumColumns: number;
     maxFinalSpectrumBins: number;
-    maxFullResolutionSamples: number;
   };
 };
 
@@ -277,8 +276,7 @@ const runCase = async (
     maxSpectrumColumns: 0,
     maxSpectrumBins: 0,
     maxFinalSpectrumColumns: 0,
-    maxFinalSpectrumBins: 0,
-    maxFullResolutionSamples: 0
+    maxFinalSpectrumBins: 0
   };
   let blockPostMessageCount = 0;
 
@@ -319,11 +317,6 @@ const runCase = async (
           finalSpectrum.binFrequencies?.length ?? 0
         );
       }
-      const fullResolutionSamples = capture.fullResolutionSamples as unknown[] | undefined;
-      postMessageStats.maxFullResolutionSamples = Math.max(
-        postMessageStats.maxFullResolutionSamples,
-        fullResolutionSamples?.length ?? 0
-      );
     }
   };
 

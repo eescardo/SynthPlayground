@@ -75,10 +75,7 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
             requestedTimeColumns: 512,
             requestedFrequencyBins: 1025,
             sourceColumnCount: 2
-          },
-          fullResolutionSamples: [0, 0.5, -0.5],
-          fullResolutionSampleStart: 0,
-          fullResolutionSamplesComplete: true
+          }
         }))
       });
     }
@@ -395,8 +392,7 @@ describe("WASM worklet renderer", () => {
             finalSpectrum: expect.objectContaining({
               requestedTimeColumns: 512,
               requestedFrequencyBins: 1025
-            }),
-            fullResolutionSamples: [0, 0.5, -0.5]
+            })
           })
         ]
       })

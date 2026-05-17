@@ -336,9 +336,7 @@ function ProbeCard(props: {
             <button
               type="button"
               className="patch-probe-attach-button patch-probe-full-spectrum-button"
-              disabled={
-                !props.capture?.finalSpectrum?.complete || props.capture?.fullResolutionSamplesComplete === false
-              }
+              disabled={!props.capture?.finalSpectrum?.complete}
               hidden={!props.probe.expanded}
               onClick={(event) => {
                 event.stopPropagation();

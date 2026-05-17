@@ -320,20 +320,10 @@ function mergePreviewProbeCapture(
           startColumn: 0
         }
       : capture.finalSpectrum;
-  const fullResolutionSamples =
-    capture.fullResolutionSamples && previous?.fullResolutionSamples
-      ? [
-          ...(capture.fullResolutionSampleStart === 0
-            ? []
-            : previous.fullResolutionSamples.slice(0, capture.fullResolutionSampleStart ?? 0)),
-          ...capture.fullResolutionSamples
-        ]
-      : capture.fullResolutionSamples;
 
   return {
     ...capture,
     spectrumFrames,
-    finalSpectrum,
-    fullResolutionSamples
+    finalSpectrum
   };
 }

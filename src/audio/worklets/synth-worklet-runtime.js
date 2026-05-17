@@ -147,7 +147,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
           break;
         }
         if (message.forceStop) {
-          this.stopCurrentStream("preview_release_force_stop", { emitPreviewCapture: true });
+          this.currentStream.beginFinalPreviewCapture?.();
           break;
         }
         this.currentStream.enqueueEvents?.([
