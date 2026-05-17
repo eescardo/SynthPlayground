@@ -19,8 +19,12 @@ export function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeN
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const { clearTooltip, scheduleTooltip, tooltip } = useDelayedSpectrumTooltip();
   const maxFrequencyHz = finalSpectrum?.binFrequencies.at(-1) ?? 24000;
-  const frequencyMarkers = useMemo(() => resolveFullSpectrumFrequencyMarkers(maxFrequencyHz), [maxFrequencyHz]);
-  const gridLines = useMemo(() => resolveFullSpectrumGridLines(maxFrequencyHz), [maxFrequencyHz]);
+  const frameSize = finalSpectrum?.frameSize ?? 512;
+  const frequencyMarkers = useMemo(
+    () => resolveFullSpectrumFrequencyMarkers(maxFrequencyHz, frameSize),
+    [frameSize, maxFrequencyHz]
+  );
+  const gridLines = useMemo(() => resolveFullSpectrumGridLines(maxFrequencyHz, frameSize), [frameSize, maxFrequencyHz]);
   const durationSeconds = finalSpectrum ? finalSpectrum.capturedSamples / Math.max(1, finalSpectrum.sampleRate) : 0;
   const timeMarkers = useMemo(
     () => [0, 0.5, 1].map((ratio) => ({ ratio, label: formatScopeTimestamp(durationSeconds * ratio) })),

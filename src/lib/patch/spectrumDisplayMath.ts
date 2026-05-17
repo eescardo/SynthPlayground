@@ -14,6 +14,9 @@ export const SPECTRUM_FINAL_FACE_COLUMNS = 512;
 export const SPECTRUM_FINAL_COMPACT_FACE_COLUMNS = 480;
 const FULL_SPECTRUM_GRID_MINOR_HZ = 2000;
 const FULL_SPECTRUM_GRID_MAJOR_HZ = 8000;
+const FULL_SPECTRUM_DENSE_GRID_MINOR_HZ = 500;
+const FULL_SPECTRUM_DENSE_GRID_MAJOR_HZ = 2000;
+const FULL_SPECTRUM_DENSE_GRID_MIN_FRAME_SIZE = 1024;
 
 export function buildSpectrumFramesDisplay(
   spectrumFrames: PreviewProbeSpectrumFrames,
@@ -124,11 +127,12 @@ export function formatSpectrumTooltip(freqLow: number, freqHigh: number, timeSec
   )}`;
 }
 
-export function resolveFullSpectrumFrequencyMarkers(maxFrequencyHz: number) {
+export function resolveFullSpectrumFrequencyMarkers(maxFrequencyHz: number, frameSize = 512) {
   const safeMaxFrequencyHz = Math.max(1, maxFrequencyHz);
-  const markerCount = Math.floor(safeMaxFrequencyHz / FULL_SPECTRUM_GRID_MAJOR_HZ);
+  const majorHz = resolveFullSpectrumGridSpacing(frameSize).majorHz;
+  const markerCount = Math.floor(safeMaxFrequencyHz / majorHz);
   return Array.from({ length: markerCount + 1 }, (_, index) => {
-    const frequency = index * FULL_SPECTRUM_GRID_MAJOR_HZ;
+    const frequency = index * majorHz;
     return {
       frequency,
       bottomPercent: (frequency / safeMaxFrequencyHz) * 100
@@ -136,17 +140,30 @@ export function resolveFullSpectrumFrequencyMarkers(maxFrequencyHz: number) {
   }).filter((marker) => marker.frequency <= safeMaxFrequencyHz);
 }
 
-export function resolveFullSpectrumGridLines(maxFrequencyHz: number) {
+export function resolveFullSpectrumGridLines(maxFrequencyHz: number, frameSize = 512) {
   const safeMaxFrequencyHz = Math.max(1, maxFrequencyHz);
-  const lineCount = Math.floor(safeMaxFrequencyHz / FULL_SPECTRUM_GRID_MINOR_HZ);
+  const { minorHz, majorHz } = resolveFullSpectrumGridSpacing(frameSize);
+  const lineCount = Math.floor(safeMaxFrequencyHz / minorHz);
   return Array.from({ length: lineCount }, (_, index) => {
-    const frequency = (index + 1) * FULL_SPECTRUM_GRID_MINOR_HZ;
+    const frequency = (index + 1) * minorHz;
     return {
       frequency,
-      major: frequency % FULL_SPECTRUM_GRID_MAJOR_HZ === 0,
+      major: frequency % majorHz === 0,
       y: 1 - frequency / safeMaxFrequencyHz
     };
   });
+}
+
+function resolveFullSpectrumGridSpacing(frameSize: number) {
+  return frameSize >= FULL_SPECTRUM_DENSE_GRID_MIN_FRAME_SIZE
+    ? {
+        minorHz: FULL_SPECTRUM_DENSE_GRID_MINOR_HZ,
+        majorHz: FULL_SPECTRUM_DENSE_GRID_MAJOR_HZ
+      }
+    : {
+        minorHz: FULL_SPECTRUM_GRID_MINOR_HZ,
+        majorHz: FULL_SPECTRUM_GRID_MAJOR_HZ
+      };
 }
 
 function resolveNearestSpectrumBinIndex(binFrequencies: number[], targetFrequency: number) {

@@ -16,6 +16,8 @@ import {
 import {
   buildFinalSpectrumDisplay,
   buildSpectrumFramesDisplay,
+  resolveFullSpectrumFrequencyMarkers,
+  resolveFullSpectrumGridLines,
   resolveFinalSpectrumOutputColumnCount
 } from "@/lib/patch/spectrumDisplayMath";
 
@@ -150,6 +152,24 @@ describe("probe helpers", () => {
     expect(display[0]).toHaveLength(4);
     expect(display[0]?.[0]).toBeGreaterThan(0);
     expect(display[0]?.[2]).toBe(0);
+  });
+
+  it("uses denser full-spectrum guides for larger analysis frames", () => {
+    expect(resolveFullSpectrumFrequencyMarkers(24000, 512).map((marker) => marker.frequency)).toEqual([
+      0, 8000, 16000, 24000
+    ]);
+    expect(
+      resolveFullSpectrumGridLines(24000, 512)
+        .filter((line) => line.major)
+        .map((line) => line.frequency)
+    ).toEqual([8000, 16000, 24000]);
+    expect(
+      resolveFullSpectrumFrequencyMarkers(24000, 1024)
+        .slice(0, 4)
+        .map((marker) => marker.frequency)
+    ).toEqual([0, 2000, 4000, 6000]);
+    expect(resolveFullSpectrumGridLines(24000, 1024).filter((line) => line.major)[0]?.frequency).toBe(2000);
+    expect(resolveFullSpectrumGridLines(24000, 2048).filter((line) => line.major)[0]?.frequency).toBe(2000);
   });
 
   it("builds separate scope waveform and envelope render data", () => {
