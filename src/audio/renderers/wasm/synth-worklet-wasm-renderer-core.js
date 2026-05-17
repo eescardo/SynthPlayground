@@ -7,6 +7,7 @@ import {
 export const DEFAULT_RANDOM_SEED = 0x1234_5678;
 export const MACRO_EVENT_LEAD_SAMPLES = 256;
 export const PREVIEW_CAPTURE_EMIT_INTERVAL_SAMPLES = 8192;
+export const FINAL_PREVIEW_CAPTURE_READ_FAILURE_LIMIT = 3;
 
 export class NullPort {
   constructor() {
@@ -89,6 +90,7 @@ export class SharedWasmRenderStream {
     this.captureProbes = options.captureProbes || [];
     this.stopped = false;
     this.finalizingPreviewCapture = false;
+    this.finalPreviewCaptureReadFailures = 0;
     this.implementation = implementation;
     this.previewCaptureState = null;
     this.engine = implementation.createEngine(renderer, this.project, this.projectSpec, options);
@@ -114,6 +116,9 @@ export class SharedWasmRenderStream {
     const capturedSamples =
       this.implementation.getPreviewCaptureSampleCount?.(this.renderer, this.engine, this.previewCaptureState) ?? null;
     if (!Number.isFinite(capturedSamples)) {
+      if (force) {
+        this.finalPreviewCaptureReadFailures += 1;
+      }
       return false;
     }
     if (
@@ -126,10 +131,19 @@ export class SharedWasmRenderStream {
     try {
       snapshot = this.implementation.readPreviewCapture?.(this.renderer, this.engine, this.previewCaptureState, force);
     } catch {
+      if (force) {
+        this.finalPreviewCaptureReadFailures += 1;
+      }
       return false;
     }
     if (!snapshot) {
+      if (force) {
+        this.finalPreviewCaptureReadFailures += 1;
+      }
       return false;
+    }
+    if (force) {
+      this.finalPreviewCaptureReadFailures = 0;
     }
     const { captures } = snapshot;
     this.previewCaptureState.lastEmittedCapturedSamples = capturedSamples;
@@ -228,6 +242,8 @@ export class SharedWasmRenderStream {
         rightOut.fill(0);
       }
       if (this.maybeEmitPreviewCapture(true)) {
+        this.stop({ emitPreviewCapture: false });
+      } else if (this.finalPreviewCaptureReadFailures >= FINAL_PREVIEW_CAPTURE_READ_FAILURE_LIMIT) {
         this.stop({ emitPreviewCapture: false });
       }
       return true;
