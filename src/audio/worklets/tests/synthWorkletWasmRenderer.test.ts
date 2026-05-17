@@ -336,7 +336,7 @@ describe("WASM worklet renderer", () => {
     );
   });
 
-  it("emits final spectrum grids and full-resolution samples on final preview capture", async () => {
+  it("emits final spectrum grids on final preview capture", async () => {
     const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
 
     const project = createProject();
