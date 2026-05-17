@@ -389,6 +389,7 @@ describe("WASM worklet renderer", () => {
         previewId: "preview_final_spectrum",
         captures: [
           expect.objectContaining({
+            captureComplete: true,
             finalSpectrum: expect.objectContaining({
               requestedTimeColumns: 512,
               requestedFrequencyBins: 1025

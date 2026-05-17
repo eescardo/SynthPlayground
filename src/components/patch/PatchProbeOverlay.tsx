@@ -774,14 +774,16 @@ function SpectrumProbeGraph(props: {
     const freqHigh = Math.pow((rowIndex + 1) / rows, 2) * effectiveMaxFrequencyHz;
     const timeSeconds = (columns <= 1 ? 0 : columnIndex / (columns - 1)) * displayDurationSeconds;
     const label = formatSpectrumTooltip(freqLow, freqHigh, timeSeconds, value);
+    const tooltipX = clamp(event.clientX + 12, 8, Math.max(8, window.innerWidth - 16));
+    const tooltipY = clamp(event.clientY - 32, 8, Math.max(8, window.innerHeight - 16));
     if (tooltipTimerRef.current !== null) {
       window.clearTimeout(tooltipTimerRef.current);
     }
     setTooltip(null);
     tooltipTimerRef.current = window.setTimeout(() => {
       setTooltip({
-        x: clamp(localX + 10, 6, Math.max(6, rect.width - 12)),
-        y: clamp(localY - 28, 6, Math.max(6, rect.height - 12)),
+        x: tooltipX,
+        y: tooltipY,
         label
       });
       tooltipTimerRef.current = null;
@@ -958,14 +960,16 @@ function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeName: st
     const freqHigh = finalSpectrum.binFrequencies[rowIndex + 1] ?? freqLow + binStep;
     const timeSeconds = (columnIndex / Math.max(1, columnCount - 1)) * durationSeconds;
     const label = formatSpectrumTooltip(freqLow, freqHigh, timeSeconds, value);
+    const tooltipX = clamp(event.clientX + 12, 8, Math.max(8, window.innerWidth - 16));
+    const tooltipY = clamp(event.clientY - 32, 8, Math.max(8, window.innerHeight - 16));
     if (tooltipTimerRef.current !== null) {
       window.clearTimeout(tooltipTimerRef.current);
     }
     setTooltip(null);
     tooltipTimerRef.current = window.setTimeout(() => {
       setTooltip({
-        x: clamp(localX + 10, 6, Math.max(6, rect.width - 12)),
-        y: clamp(localY - 30, 6, Math.max(6, rect.height - 12)),
+        x: tooltipX,
+        y: tooltipY,
         label
       });
       tooltipTimerRef.current = null;

@@ -201,6 +201,7 @@ describe("probe helpers", () => {
         sampleRate,
         durationSamples: samples.length,
         capturedSamples: samples.length,
+        captureComplete: true,
         samples
       },
       false
@@ -209,5 +210,46 @@ describe("probe helpers", () => {
     expect(estimate?.label).toMatch(/^A: \d+ms\|D:\d+ms\|S:\d+%\|R:\d+ms$/);
     expect(estimate?.sustainRatio).toBeGreaterThan(0.35);
     expect(estimate?.sustainRatio).toBeLessThan(0.65);
+  });
+
+  it("waits for final scope capture before estimating ADSR", () => {
+    const samples = new Array(1000).fill(0).map((_, index) => Math.max(0, 1 - index / 100));
+
+    const estimate = estimateScopeAdsrEnvelope(
+      {
+        probeId: "probe_scope",
+        kind: "scope",
+        target: { kind: "connection", connectionId: "conn_1" },
+        sampleRate: 1000,
+        durationSamples: samples.length,
+        capturedSamples: samples.length,
+        samples
+      },
+      false
+    );
+
+    expect(estimate).toBeNull();
+  });
+
+  it("estimates zero sustain for one-shot decay envelopes", () => {
+    const sampleRate = 1000;
+    const samples = Array.from({ length: 1000 }, (_, index) => (index < 50 ? 1 - index / 50 : 0));
+
+    const estimate = estimateScopeAdsrEnvelope(
+      {
+        probeId: "probe_scope",
+        kind: "scope",
+        target: { kind: "connection", connectionId: "conn_1" },
+        sampleRate,
+        durationSamples: samples.length,
+        capturedSamples: samples.length,
+        captureComplete: true,
+        samples
+      },
+      false
+    );
+
+    expect(estimate?.sustainRatio).toBeLessThan(0.05);
+    expect(estimate?.label).toContain("S:0%");
   });
 });

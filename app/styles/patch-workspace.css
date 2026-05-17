@@ -1001,9 +1001,9 @@
 }
 
 .patch-probe-spectrum-tooltip {
-  position: absolute;
-  z-index: 6;
-  max-width: calc(100% - 0.6rem);
+  position: fixed;
+  z-index: 80;
+  max-width: min(20rem, calc(100vw - 1rem));
   padding: 0.2rem 0.34rem;
   border: 1px solid rgba(151, 214, 255, 0.34);
   border-radius: 4px;

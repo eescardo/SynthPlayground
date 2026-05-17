@@ -133,6 +133,16 @@ export class SharedWasmRenderStream {
     }
     const { captures } = snapshot;
     this.previewCaptureState.lastEmittedCapturedSamples = capturedSamples;
+    const finalComplete =
+      !force ||
+      captures.every((capture) => {
+        const meta = this.previewCaptureState.metaByProbeId.get(capture.probeId);
+        if (meta?.kind !== "spectrum") {
+          return true;
+        }
+        return capture.finalSpectrum?.complete !== false;
+      });
+    const captureComplete = force && finalComplete;
     this.port.postMessage({
       type: "PREVIEW_CAPTURE",
       previewId: this.previewId,
@@ -155,6 +165,7 @@ export class SharedWasmRenderStream {
                 sampleRate: this.renderer.sampleRateInternal / sampleStride,
                 durationSamples: Math.ceil(meta.durationSamples / sampleStride),
                 capturedSamples: Math.ceil(Math.min(capturedSamples, meta.durationSamples) / sampleStride),
+                captureComplete,
                 sourceCapturedSamples: Math.min(capturedSamples, meta.durationSamples),
                 sampleStride,
                 samples: sharedSamples || shouldUseSpectrumFrames ? [] : capture.samples,
@@ -167,15 +178,6 @@ export class SharedWasmRenderStream {
         })
         .filter(Boolean)
     });
-    const finalComplete =
-      !force ||
-      captures.every((capture) => {
-        const meta = this.previewCaptureState.metaByProbeId.get(capture.probeId);
-        if (meta?.kind !== "spectrum") {
-          return true;
-        }
-        return capture.finalSpectrum?.complete !== false;
-      });
     if (force && finalComplete) {
       this.previewCaptureState = null;
     }

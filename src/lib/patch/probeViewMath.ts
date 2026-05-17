@@ -145,7 +145,7 @@ export function estimateScopeAdsrEnvelope(
   capture: PreviewProbeCapture | undefined,
   compact = false
 ): ScopeAdsrEstimate | null {
-  if (compact || !capture?.samples?.length) {
+  if (compact || !capture?.captureComplete || !capture.samples?.length) {
     return null;
   }
   const durationSamples = Math.max(0, capture.durationSamples || capture.samples.length);
@@ -182,25 +182,15 @@ export function estimateScopeAdsrEnvelope(
     return null;
   }
 
-  const sustainWindowStart = clamp(
-    Math.floor(attackBucket + (releaseEndBucket - attackBucket) * 0.45),
-    attackBucket,
-    releaseEndBucket
-  );
-  const sustainWindowEnd = clamp(
-    Math.floor(attackBucket + (releaseEndBucket - attackBucket) * 0.72),
-    sustainWindowStart + 1,
-    releaseEndBucket + 1
-  );
+  const sustainWindowStart = clamp(Math.floor(bucketCount * 0.58), attackBucket, bucketCount - 1);
+  const sustainWindowEnd = clamp(Math.floor(bucketCount * 0.85), sustainWindowStart + 1, bucketCount);
   const sustainValues = envelope.slice(sustainWindowStart, sustainWindowEnd).sort((left, right) => left - right);
   const sustain = sustainValues.length ? sustainValues[Math.floor(sustainValues.length / 2)] : peak * 0.5;
   const sustainRatio = clamp(sustain / peak, 0, 1);
-  const decayThreshold = Math.max(sustain * 1.08, peak * 0.08);
-  const decayBucket =
-    envelope.findIndex((value, index) => index > attackBucket && value <= decayThreshold) >= 0
-      ? envelope.findIndex((value, index) => index > attackBucket && value <= decayThreshold)
-      : sustainWindowStart;
-  const releaseStartThreshold = Math.max(sustain * 0.8, peak * 0.08);
+  const decayThreshold = sustain + (peak - sustain) * 0.1;
+  const resolvedDecayBucket = envelope.findIndex((value, index) => index > attackBucket && value <= decayThreshold);
+  const decayBucket = resolvedDecayBucket >= 0 ? resolvedDecayBucket : sustainWindowStart;
+  const releaseStartThreshold = Math.max(sustain + (peak - sustain) * 0.1, peak * 0.06);
   let releaseStartBucket = attackBucket;
   for (let index = releaseEndBucket; index > attackBucket; index -= 1) {
     if ((envelope[index] ?? 0) >= releaseStartThreshold) {
