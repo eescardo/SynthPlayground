@@ -173,6 +173,7 @@ export class SharedWasmRenderStream {
                 sampleLength: sharedSamples?.sampleLength,
                 spectrumFrames: capture.spectrumFrames,
                 finalSpectrum: capture.finalSpectrum,
+                finalScope: capture.finalScope,
                 adsrEstimate: capture.adsrEstimate
               }
             : null;

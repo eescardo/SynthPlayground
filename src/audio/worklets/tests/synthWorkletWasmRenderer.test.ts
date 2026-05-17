@@ -76,6 +76,13 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
             requestedFrequencyBins: 1025,
             sourceColumnCount: 2
           },
+          finalScope: {
+            waveformBuckets: [{ min: -0.5, max: 0.5, peak: 0.5 }],
+            envelopeBuckets: [0.5],
+            peak: 0.5,
+            sampleRate: 48000,
+            capturedSamples: previewCaptureSampleCount
+          },
           adsrEstimate: {
             attackSeconds: 0.01,
             decaySeconds: 0.05,
@@ -400,6 +407,10 @@ describe("WASM worklet renderer", () => {
             finalSpectrum: expect.objectContaining({
               requestedTimeColumns: 512,
               requestedFrequencyBins: 1025
+            }),
+            finalScope: expect.objectContaining({
+              peak: 0.5,
+              capturedSamples: previewCaptureSampleCount
             }),
             adsrEstimate: expect.objectContaining({
               label: "A: 10ms|D:50ms|S:38%|R:24ms"

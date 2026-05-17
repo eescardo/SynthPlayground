@@ -56,7 +56,22 @@ export interface PreviewProbeCapture {
   sampleLength?: number;
   spectrumFrames?: PreviewProbeSpectrumFrames;
   finalSpectrum?: PreviewProbeFinalSpectrum;
+  finalScope?: PreviewProbeFinalScope;
   adsrEstimate?: PreviewProbeAdsrEstimate;
+}
+
+export interface PreviewProbeScopeBucket {
+  min: number;
+  max: number;
+  peak: number;
+}
+
+export interface PreviewProbeFinalScope {
+  waveformBuckets: PreviewProbeScopeBucket[];
+  envelopeBuckets: number[];
+  peak: number;
+  sampleRate: number;
+  capturedSamples: number;
 }
 
 export interface PreviewProbeAdsrEstimate {

@@ -65,6 +65,7 @@ export interface SharedWasmPreviewCaptureSnapshot {
     sampleLength?: number;
     spectrumFrames?: PreviewProbeCapture["spectrumFrames"];
     finalSpectrum?: PreviewProbeCapture["finalSpectrum"];
+    finalScope?: PreviewProbeCapture["finalScope"];
     adsrEstimate?: PreviewProbeCapture["adsrEstimate"];
   }>;
 }

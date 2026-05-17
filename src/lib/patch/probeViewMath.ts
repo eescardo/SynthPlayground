@@ -43,6 +43,10 @@ export function resolveSpectrumTimelineFrameIndex(
 }
 
 export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, compact = false): ScopeRenderData {
+  if (capture?.finalScope?.waveformBuckets?.length) {
+    return buildFinalScopeRenderData(capture, compact);
+  }
+
   const durationSamples = Math.max(0, capture?.durationSamples ?? 0);
   const capturedSamples = Math.max(0, capture?.capturedSamples ?? 0);
   const sampleRate = capture?.sampleRate ?? 48000;
@@ -119,6 +123,81 @@ export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, c
     envelopeLine: envelopePoints.join(" "),
     peak: resolveProbePeakAmplitude(visibleSamples),
     capturedRatio: renderSampleCount / displaySampleCount,
+    durationSeconds: displaySampleCount / Math.max(1, sampleRate)
+  };
+}
+
+function buildFinalScopeRenderData(capture: PreviewProbeCapture, compact: boolean): ScopeRenderData {
+  const finalScope = capture.finalScope;
+  if (!finalScope?.waveformBuckets?.length) {
+    return {
+      waveformSegments: [],
+      envelopeLine: "",
+      peak: 0,
+      capturedRatio: 0,
+      durationSeconds: 0
+    };
+  }
+
+  const sourceBuckets = finalScope.waveformBuckets;
+  const sampleRate = finalScope.sampleRate || capture.sampleRate || 48000;
+  const capturedSamples = Math.max(0, finalScope.capturedSamples || capture.sourceCapturedSamples || 0);
+  const displaySampleCount = Math.max(capturedSamples, Math.round(sampleRate * SCOPE_MIN_TIMELINE_SECONDS), 1);
+  const capturedRatio = clamp(capturedSamples / displaySampleCount, 0, 1);
+  const targetBucketCount = compact ? Math.min(192, sourceBuckets.length) : sourceBuckets.length;
+  const displayBucketCount = Math.max(
+    1,
+    Math.round(targetBucketCount / Math.max(capturedRatio, 1 / targetBucketCount))
+  );
+  const waveformSegments: ScopeWaveformSegment[] = [];
+  const envelopePoints: string[] = [];
+  const peak = Math.max(0, finalScope.peak || 0);
+  const safePeak = peak > 0 ? peak : 1;
+  const waveformCenterY = compact ? 18 : 15;
+  const waveformHalfHeight = compact ? 10 : 11;
+  const envelopeTopY = compact ? 35 : 31;
+  const envelopeHeight = compact ? 18 : 23;
+  const plotStartX = compact ? 2 : 6;
+  const plotWidth = compact ? 97 : 92;
+
+  for (let bucket = 0; bucket < targetBucketCount; bucket += 1) {
+    const sourceStart = Math.floor((bucket / targetBucketCount) * sourceBuckets.length);
+    const sourceEnd = Math.max(sourceStart + 1, Math.floor(((bucket + 1) / targetBucketCount) * sourceBuckets.length));
+    const x = plotStartX + (bucket / Math.max(1, displayBucketCount - 1)) * plotWidth;
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    let absolutePeak = 0;
+
+    for (let index = sourceStart; index < sourceEnd; index += 1) {
+      const sourceBucket = sourceBuckets[index];
+      if (!sourceBucket) {
+        continue;
+      }
+      min = Math.min(min, sourceBucket.min / safePeak);
+      max = Math.max(max, sourceBucket.max / safePeak);
+      absolutePeak = Math.max(
+        absolutePeak,
+        sourceBucket.peak / safePeak,
+        (finalScope.envelopeBuckets[index] ?? 0) / safePeak
+      );
+    }
+
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      continue;
+    }
+    waveformSegments.push({
+      x,
+      y1: waveformCenterY - clamp(max, -1, 1) * waveformHalfHeight,
+      y2: waveformCenterY - clamp(min, -1, 1) * waveformHalfHeight
+    });
+    envelopePoints.push(`${x},${envelopeTopY + (1 - clamp(absolutePeak, 0, 1)) * envelopeHeight}`);
+  }
+
+  return {
+    waveformSegments,
+    envelopeLine: envelopePoints.join(" "),
+    peak,
+    capturedRatio,
     durationSeconds: displaySampleCount / Math.max(1, sampleRate)
   };
 }

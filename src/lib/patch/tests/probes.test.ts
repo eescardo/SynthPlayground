@@ -164,6 +164,37 @@ describe("probe helpers", () => {
     expect(renderData.durationSeconds).toBe(2);
   });
 
+  it("prefers final scope buckets for completed scope rendering", () => {
+    const renderData = buildScopeRenderData(
+      {
+        probeId: "probe_scope",
+        kind: "scope",
+        target: { kind: "connection", connectionId: "conn_1" },
+        sampleRate: 512,
+        durationSamples: 1024,
+        capturedSamples: 1024,
+        samples: new Array(128).fill(0),
+        finalScope: {
+          waveformBuckets: new Array(512).fill(0).map((_, index) => ({
+            min: index < 256 ? -0.1 : -0.5,
+            max: index < 256 ? 0.1 : 0.5,
+            peak: index < 256 ? 0.1 : 0.5
+          })),
+          envelopeBuckets: new Array(512).fill(0).map((_, index) => (index < 256 ? 0.1 : 0.5)),
+          peak: 0.5,
+          sampleRate: 512,
+          capturedSamples: 1024
+        }
+      },
+      false
+    );
+
+    expect(renderData.waveformSegments).toHaveLength(512);
+    expect(renderData.waveformSegments.at(-1)?.y1).toBeLessThan(6);
+    expect(renderData.peak).toBe(0.5);
+    expect(renderData.durationSeconds).toBe(2);
+  });
+
   it("builds fixed scope time markers for full-duration rendering", () => {
     const markers = resolveScopeTimeMarkers(1.2, false);
 

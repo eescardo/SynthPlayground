@@ -330,8 +330,30 @@ struct PreviewProbeCaptureSnapshot {
     spectrum_frames: Option<PreviewProbeSpectrumFrames>,
     #[serde(rename = "finalSpectrum", skip_serializing_if = "Option::is_none")]
     final_spectrum: Option<PreviewProbeFinalSpectrum>,
+    #[serde(rename = "finalScope", skip_serializing_if = "Option::is_none")]
+    final_scope: Option<PreviewProbeFinalScope>,
     #[serde(rename = "adsrEstimate", skip_serializing_if = "Option::is_none")]
     adsr_estimate: Option<PreviewProbeAdsrEstimate>,
+}
+
+#[derive(Clone, Serialize)]
+struct PreviewProbeScopeBucket {
+    min: f32,
+    max: f32,
+    peak: f32,
+}
+
+#[derive(Clone, Serialize)]
+struct PreviewProbeFinalScope {
+    #[serde(rename = "waveformBuckets")]
+    waveform_buckets: Vec<PreviewProbeScopeBucket>,
+    #[serde(rename = "envelopeBuckets")]
+    envelope_buckets: Vec<f32>,
+    peak: f32,
+    #[serde(rename = "sampleRate")]
+    sample_rate: f32,
+    #[serde(rename = "capturedSamples")]
+    captured_samples: usize,
 }
 
 #[derive(Clone, Serialize)]

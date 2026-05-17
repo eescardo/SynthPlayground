@@ -1,14 +1,16 @@
 use crate::nodes::RuntimeNode;
 use crate::{
     clamp, now_ms, EngineProfileStats, HostSignalIndices, PreviewProbeAdsrEstimate,
-    PreviewProbeCaptureSnapshot, PreviewProbeCaptureSpec, PreviewProbeFinalSpectrum,
-    PreviewProbeSpectrumFrames, TrackFxSpec, TrackSpec, MAX_VOICES,
+    PreviewProbeCaptureSnapshot, PreviewProbeCaptureSpec, PreviewProbeFinalScope,
+    PreviewProbeFinalSpectrum, PreviewProbeScopeBucket, PreviewProbeSpectrumFrames, TrackFxSpec,
+    TrackSpec, MAX_VOICES,
 };
 use serde_json::Value;
 use std::collections::HashMap;
 use wasm_bindgen::JsValue;
 
 const PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES: usize = 4_096;
+const PREVIEW_CAPTURE_FINAL_SCOPE_BUCKETS: usize = 512;
 const PREVIEW_CAPTURE_SPECTRUM_BIN_COUNT: usize = 32;
 const PREVIEW_CAPTURE_FINAL_SPECTRUM_MAX_COLUMNS: usize = 512;
 const PREVIEW_CAPTURE_FINAL_SPECTRUM_CHUNK_COLUMNS: usize = 4;
@@ -274,6 +276,12 @@ impl TrackRuntime {
                     sample_rate,
                     include_final,
                 );
+                let final_scope = build_preview_capture_final_scope(
+                    capture,
+                    captured_samples,
+                    sample_rate,
+                    include_final,
+                );
                 let adsr_estimate = build_preview_capture_adsr_estimate(
                     capture,
                     captured_samples,
@@ -293,6 +301,7 @@ impl TrackRuntime {
                         sample_rate,
                     ),
                     final_spectrum,
+                    final_scope,
                     adsr_estimate,
                 }
             })
@@ -737,6 +746,61 @@ fn resolve_preview_capture_snapshot_stride(
         return 1.0;
     }
     captured_end as f32 / PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES as f32
+}
+
+fn build_preview_capture_final_scope(
+    capture: &TrackProbeCaptureState,
+    captured_samples: usize,
+    sample_rate: f32,
+    include_final: bool,
+) -> Option<PreviewProbeFinalScope> {
+    if !include_final || capture.kind != "scope" {
+        return None;
+    }
+    let captured_end = captured_samples
+        .min(capture.duration_samples)
+        .min(capture.samples.len());
+    if captured_end == 0 {
+        return None;
+    }
+
+    let bucket_count = PREVIEW_CAPTURE_FINAL_SCOPE_BUCKETS.min(captured_end.max(1));
+    let mut waveform_buckets = Vec::with_capacity(bucket_count);
+    let mut envelope_buckets = Vec::with_capacity(bucket_count);
+    let mut global_peak = 0.0_f32;
+
+    for bucket in 0..bucket_count {
+        let start = ((bucket as f64 / bucket_count as f64) * captured_end as f64).floor() as usize;
+        let end = (((bucket + 1) as f64 / bucket_count as f64) * captured_end as f64)
+            .floor()
+            .max((start + 1) as f64) as usize;
+        let end = end.min(captured_end);
+        let mut min = f32::INFINITY;
+        let mut max = f32::NEG_INFINITY;
+        let mut peak = 0.0_f32;
+
+        for sample in capture.samples[start..end].iter().copied() {
+            min = min.min(sample);
+            max = max.max(sample);
+            peak = peak.max(sample.abs());
+        }
+
+        if !min.is_finite() || !max.is_finite() {
+            min = 0.0;
+            max = 0.0;
+        }
+        global_peak = global_peak.max(peak);
+        waveform_buckets.push(PreviewProbeScopeBucket { min, max, peak });
+        envelope_buckets.push(peak);
+    }
+
+    Some(PreviewProbeFinalScope {
+        waveform_buckets,
+        envelope_buckets,
+        peak: global_peak,
+        sample_rate,
+        captured_samples: captured_end,
+    })
 }
 
 fn build_preview_capture_adsr_estimate(
@@ -1197,6 +1261,56 @@ mod tests {
                 PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES + 32
             ) > 1.0
         );
+    }
+
+    #[test]
+    fn final_scope_uses_full_resolution_capture_summary() {
+        let sample_rate = 48_000.0;
+        let sample_count = 8_192;
+        let capture = TrackProbeCaptureState {
+            probe_id: "probe_1".to_string(),
+            kind: "scope".to_string(),
+            signal_start: 0,
+            duration_samples: sample_count,
+            spectrum_window_size: None,
+            samples: (0..sample_count)
+                .map(|sample| {
+                    if sample < sample_count / 2 {
+                        0.2
+                    } else if sample % 2 == 0 {
+                        0.75
+                    } else {
+                        -0.75
+                    }
+                })
+                .collect(),
+            spectrum_columns: Vec::new(),
+            spectrum_bin_frequencies: Vec::new(),
+            spectrum_bin_indices: Vec::new(),
+            spectrum_hann_window: Vec::new(),
+            final_spectrum_bin_frequencies: Vec::new(),
+            final_spectrum_hann_window: Vec::new(),
+            spectrum_analyzed_samples: 0,
+            spectrum_emitted_columns: 0,
+            final_spectrum_emitted_columns: 0,
+        };
+
+        let final_scope =
+            build_preview_capture_final_scope(&capture, sample_count, sample_rate, true).unwrap();
+
+        assert_eq!(
+            final_scope.waveform_buckets.len(),
+            PREVIEW_CAPTURE_FINAL_SCOPE_BUCKETS
+        );
+        assert_eq!(
+            final_scope.envelope_buckets.len(),
+            PREVIEW_CAPTURE_FINAL_SCOPE_BUCKETS
+        );
+        assert_eq!(final_scope.captured_samples, sample_count);
+        assert_eq!(final_scope.sample_rate, sample_rate);
+        assert!((final_scope.peak - 0.75).abs() < 0.0001);
+        assert!(final_scope.waveform_buckets[0].peak < 0.25);
+        assert!(final_scope.waveform_buckets.last().unwrap().peak > 0.7);
     }
 
     #[test]
