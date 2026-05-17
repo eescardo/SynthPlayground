@@ -38,7 +38,6 @@ import { clamp } from "@/lib/numeric";
 import { detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
 import {
   buildScopeRenderData,
-  estimateScopeAdsrEnvelope,
   formatSpectrumFrequency,
   formatScopeTimestamp,
   resolveScopeTimeMarkers,
@@ -435,10 +434,7 @@ function PitchTrackerProbeGraph(props: { capture?: PreviewProbeCapture; compact?
 
 function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; compact?: boolean }) {
   const graphData = useMemo(() => buildScopeRenderData(props.capture, props.compact), [props.capture, props.compact]);
-  const adsrEstimate = useMemo(
-    () => props.capture?.adsrEstimate ?? estimateScopeAdsrEnvelope(props.capture, props.compact),
-    [props.capture, props.compact]
-  );
+  const adsrEstimate = props.compact ? undefined : props.capture?.adsrEstimate;
 
   const timeMarkers = useMemo(
     () => resolveScopeTimeMarkers(graphData.durationSeconds, props.compact),

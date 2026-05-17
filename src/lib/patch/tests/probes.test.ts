@@ -8,7 +8,6 @@ import {
 } from "@/lib/patch/probes";
 import {
   buildScopeRenderData,
-  estimateScopeAdsrEnvelope,
   resolveScopeTimeMarkers,
   resolveSpectrumFrequencyMarkers,
   resolveSpectrumTimelineFillRatio,
@@ -172,120 +171,5 @@ describe("probe helpers", () => {
     expect(markers[0]?.label).toBe("0ms");
     expect(markers[1]?.label).toBe("600ms");
     expect(markers[2]?.label).toBe("1.2s");
-  });
-
-  it("estimates a concise ADSR label once expanded scope capture completes", () => {
-    const sampleRate = 1000;
-    const samples = Array.from({ length: 1000 }, (_, index) => {
-      const time = index / sampleRate;
-      if (time < 0.1) {
-        return time / 0.1;
-      }
-      if (time < 0.25) {
-        return 1 - ((time - 0.1) / 0.15) * 0.5;
-      }
-      if (time < 0.7) {
-        return 0.5;
-      }
-      if (time < 0.9) {
-        return 0.5 * (1 - (time - 0.7) / 0.2);
-      }
-      return 0;
-    });
-
-    const estimate = estimateScopeAdsrEnvelope(
-      {
-        probeId: "probe_scope",
-        kind: "scope",
-        target: { kind: "connection", connectionId: "conn_1" },
-        sampleRate,
-        durationSamples: samples.length,
-        capturedSamples: samples.length,
-        captureComplete: true,
-        samples
-      },
-      false
-    );
-
-    expect(estimate?.label).toMatch(/^A: \d+ms\|D:\d+ms\|S:\d+%\|R:\d+ms$/);
-    expect(estimate?.sustainRatio).toBeGreaterThan(0.35);
-    expect(estimate?.sustainRatio).toBeLessThan(0.65);
-  });
-
-  it("waits for final scope capture before estimating ADSR", () => {
-    const samples = new Array(1000).fill(0).map((_, index) => Math.max(0, 1 - index / 100));
-
-    const estimate = estimateScopeAdsrEnvelope(
-      {
-        probeId: "probe_scope",
-        kind: "scope",
-        target: { kind: "connection", connectionId: "conn_1" },
-        sampleRate: 1000,
-        durationSamples: samples.length,
-        capturedSamples: samples.length,
-        samples
-      },
-      false
-    );
-
-    expect(estimate).toBeNull();
-  });
-
-  it("estimates zero sustain for one-shot decay envelopes", () => {
-    const sampleRate = 1000;
-    const samples = Array.from({ length: 1000 }, (_, index) => (index < 50 ? 1 - index / 50 : 0));
-
-    const estimate = estimateScopeAdsrEnvelope(
-      {
-        probeId: "probe_scope",
-        kind: "scope",
-        target: { kind: "connection", connectionId: "conn_1" },
-        sampleRate,
-        durationSamples: samples.length,
-        capturedSamples: samples.length,
-        captureComplete: true,
-        samples
-      },
-      false
-    );
-
-    expect(estimate?.sustainRatio).toBeLessThan(0.05);
-    expect(estimate?.label).toContain("S:0%");
-  });
-
-  it("measures release from the final sustain fall instead of the whole held note", () => {
-    const sampleRate = 1000;
-    const samples = Array.from({ length: 1500 }, (_, index) => {
-      const time = index / sampleRate;
-      if (time < 0.046) {
-        return 1 - ((time - 0.0) / 0.046) * 0.62;
-      }
-      if (time < 1.42) {
-        return 0.38;
-      }
-      if (time < 1.444) {
-        return 0.38 * (1 - (time - 1.42) / 0.024);
-      }
-      return 0;
-    });
-
-    const estimate = estimateScopeAdsrEnvelope(
-      {
-        probeId: "probe_scope",
-        kind: "scope",
-        target: { kind: "connection", connectionId: "conn_1" },
-        sampleRate,
-        durationSamples: samples.length,
-        capturedSamples: samples.length,
-        captureComplete: true,
-        samples
-      },
-      false
-    );
-
-    expect(estimate?.sustainRatio).toBeGreaterThan(0.3);
-    expect(estimate?.sustainRatio).toBeLessThan(0.45);
-    expect(estimate?.releaseSeconds).toBeGreaterThan(0.01);
-    expect(estimate?.releaseSeconds).toBeLessThan(0.08);
   });
 });
