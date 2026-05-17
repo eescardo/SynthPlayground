@@ -155,24 +155,28 @@ export function estimateScopeAdsrEnvelope(
   }
 
   const sampleRate = Math.max(1, capture.sampleRate || 48000);
-  const bucketCount = clamp(Math.floor(capturedSamples / 128), 32, 384);
+  const bucketCount = clamp(Math.floor(capturedSamples / Math.max(1, sampleRate * 0.005)), 64, 1024);
   const envelope = Array.from({ length: bucketCount }, (_, bucket) => {
     const start = Math.floor((bucket / bucketCount) * capturedSamples);
     const end = Math.max(start + 1, Math.floor(((bucket + 1) / bucketCount) * capturedSamples));
-    let peak = 0;
+    let sum = 0;
     for (let index = start; index < end; index += 1) {
-      peak = Math.max(peak, Math.abs(Number(capture.samples[index] ?? 0)));
+      sum += Math.abs(Number(capture.samples[index] ?? 0));
     }
-    return peak;
+    return sum / Math.max(1, end - start);
   });
-  const peak = envelope.reduce((max, value) => Math.max(max, value), 0);
+  let peak = 0;
+  for (let index = 0; index < capturedSamples; index += 1) {
+    peak = Math.max(peak, Math.abs(Number(capture.samples[index] ?? 0)));
+  }
+  const envelopePeak = envelope.reduce((max, value) => Math.max(max, value), 0);
   if (peak <= 0.0005) {
     return null;
   }
 
-  const onsetThreshold = peak * 0.05;
-  const attackThreshold = peak * 0.9;
-  const releaseThreshold = peak * 0.06;
+  const onsetThreshold = envelopePeak * 0.05;
+  const attackThreshold = envelopePeak * 0.9;
+  const releaseThreshold = envelopePeak * 0.06;
   const onsetBucket = envelope.findIndex((value) => value >= onsetThreshold);
   const attackBucket = envelope.findIndex(
     (value, index) => index >= Math.max(0, onsetBucket) && value >= attackThreshold
@@ -187,22 +191,28 @@ export function estimateScopeAdsrEnvelope(
   const sustainValues = envelope.slice(sustainWindowStart, sustainWindowEnd).sort((left, right) => left - right);
   const sustain = sustainValues.length ? sustainValues[Math.floor(sustainValues.length / 2)] : peak * 0.5;
   const sustainRatio = clamp(sustain / peak, 0, 1);
-  const decayThreshold = sustain + (peak - sustain) * 0.1;
+  const decayThreshold = sustain + (envelopePeak - sustain) * 0.1;
   const resolvedDecayBucket = envelope.findIndex((value, index) => index > attackBucket && value <= decayThreshold);
   const decayBucket = resolvedDecayBucket >= 0 ? resolvedDecayBucket : sustainWindowStart;
-  const releaseStartThreshold = Math.max(sustain + (peak - sustain) * 0.1, peak * 0.06);
-  let releaseStartBucket = attackBucket;
-  for (let index = releaseEndBucket; index > attackBucket; index -= 1) {
-    if ((envelope[index] ?? 0) >= releaseStartThreshold) {
-      releaseStartBucket = index;
-      break;
+  const releaseDropThreshold = Math.max(sustain * 0.9, envelopePeak * 0.06);
+  const forwardReleaseBucket = envelope.findIndex(
+    (value, index) => index >= sustainWindowEnd && value < releaseDropThreshold
+  );
+  let releaseStartBucket = forwardReleaseBucket >= 0 ? Math.max(attackBucket, forwardReleaseBucket - 1) : attackBucket;
+  if (forwardReleaseBucket < 0) {
+    const releaseStartThreshold = Math.max(sustain * 0.95, envelopePeak * 0.06);
+    for (let index = releaseEndBucket; index > attackBucket; index -= 1) {
+      if ((envelope[index] ?? 0) >= releaseStartThreshold) {
+        releaseStartBucket = index;
+        break;
+      }
     }
   }
 
   const secondsPerBucket = capturedSamples / bucketCount / sampleRate;
   const attackSeconds = Math.max(0, (attackBucket - onsetBucket) * secondsPerBucket);
   const decaySeconds = Math.max(0, (decayBucket - attackBucket) * secondsPerBucket);
-  const releaseSeconds = Math.max(0, (releaseEndBucket - releaseStartBucket) * secondsPerBucket);
+  const releaseSeconds = Math.max(0, (releaseEndBucket + 1 - releaseStartBucket) * secondsPerBucket);
 
   return {
     attackSeconds,

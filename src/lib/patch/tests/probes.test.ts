@@ -252,4 +252,40 @@ describe("probe helpers", () => {
     expect(estimate?.sustainRatio).toBeLessThan(0.05);
     expect(estimate?.label).toContain("S:0%");
   });
+
+  it("measures release from the final sustain fall instead of the whole held note", () => {
+    const sampleRate = 1000;
+    const samples = Array.from({ length: 1500 }, (_, index) => {
+      const time = index / sampleRate;
+      if (time < 0.046) {
+        return 1 - ((time - 0.0) / 0.046) * 0.62;
+      }
+      if (time < 1.42) {
+        return 0.38;
+      }
+      if (time < 1.444) {
+        return 0.38 * (1 - (time - 1.42) / 0.024);
+      }
+      return 0;
+    });
+
+    const estimate = estimateScopeAdsrEnvelope(
+      {
+        probeId: "probe_scope",
+        kind: "scope",
+        target: { kind: "connection", connectionId: "conn_1" },
+        sampleRate,
+        durationSamples: samples.length,
+        capturedSamples: samples.length,
+        captureComplete: true,
+        samples
+      },
+      false
+    );
+
+    expect(estimate?.sustainRatio).toBeGreaterThan(0.3);
+    expect(estimate?.sustainRatio).toBeLessThan(0.45);
+    expect(estimate?.releaseSeconds).toBeGreaterThan(0.01);
+    expect(estimate?.releaseSeconds).toBeLessThan(0.08);
+  });
 });
