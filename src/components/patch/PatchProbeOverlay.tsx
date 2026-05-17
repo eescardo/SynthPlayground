@@ -715,8 +715,6 @@ function SpectrumProbeGraph(props: {
                 </span>
               </div>
             ))}
-            <span className="patch-probe-spectrogram-axis patch-probe-spectrogram-axis-high">High</span>
-            <span className="patch-probe-spectrogram-axis patch-probe-spectrogram-axis-low">Low</span>
             <span className="patch-probe-spectrogram-axis patch-probe-spectrogram-axis-time">Time</span>
           </>
         )}

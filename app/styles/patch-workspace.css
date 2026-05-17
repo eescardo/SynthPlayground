@@ -1033,16 +1033,6 @@
   pointer-events: none;
 }
 
-.patch-probe-spectrogram-axis-high {
-  left: 0.45rem;
-  top: 0.35rem;
-}
-
-.patch-probe-spectrogram-axis-low {
-  left: 0.45rem;
-  bottom: 0.35rem;
-}
-
 .patch-probe-spectrogram-axis-time {
   right: 0.45rem;
   bottom: 0.35rem;
