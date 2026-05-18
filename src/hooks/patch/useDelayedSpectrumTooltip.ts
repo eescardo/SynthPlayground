@@ -18,14 +18,26 @@ export function resolveSpectrumTooltipPosition(clientX: number, clientY: number)
 
 export function useDelayedSpectrumTooltip(delayMs = 1000) {
   const tooltipTimerRef = useRef<number | null>(null);
+  const tooltipRef = useRef<SpectrumTooltipState | null>(null);
   const [tooltip, setTooltip] = useState<SpectrumTooltipState | null>(null);
+
+  const setTooltipState = (nextTooltip: SpectrumTooltipState | null) => {
+    tooltipRef.current = nextTooltip;
+    setTooltip(nextTooltip);
+  };
+
+  const hideVisibleTooltip = () => {
+    if (tooltipRef.current !== null) {
+      setTooltipState(null);
+    }
+  };
 
   const clearTooltip = () => {
     if (tooltipTimerRef.current !== null) {
       window.clearTimeout(tooltipTimerRef.current);
       tooltipTimerRef.current = null;
     }
-    setTooltip(null);
+    hideVisibleTooltip();
   };
 
   const scheduleTooltip = (clientX: number, clientY: number, label: string) => {
@@ -33,9 +45,9 @@ export function useDelayedSpectrumTooltip(delayMs = 1000) {
     if (tooltipTimerRef.current !== null) {
       window.clearTimeout(tooltipTimerRef.current);
     }
-    setTooltip(null);
+    hideVisibleTooltip();
     tooltipTimerRef.current = window.setTimeout(() => {
-      setTooltip({
+      setTooltipState({
         ...position,
         label
       });
@@ -43,7 +55,15 @@ export function useDelayedSpectrumTooltip(delayMs = 1000) {
     }, delayMs);
   };
 
-  useEffect(() => clearTooltip, []);
+  useEffect(
+    () => () => {
+      if (tooltipTimerRef.current !== null) {
+        window.clearTimeout(tooltipTimerRef.current);
+        tooltipTimerRef.current = null;
+      }
+    },
+    []
+  );
 
   return {
     clearTooltip,
