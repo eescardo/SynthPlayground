@@ -1014,7 +1014,7 @@
   height: 100%;
   display: block;
   border-radius: 8px;
-  background: rgba(10, 18, 28, 0.9);
+  background: #000;
 }
 
 .patch-probe-spectrum-tooltip {

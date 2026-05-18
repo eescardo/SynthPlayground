@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { PATCH_COLOR_PROBE_GRAPH_BG } from "@/components/patch/patchCanvasConstants";
 import { useDelayedSpectrumTooltip } from "@/hooks/patch/useDelayedSpectrumTooltip";
 import { clamp } from "@/lib/numeric";
 import {
@@ -32,6 +31,7 @@ import {
 import { PreviewProbeCapture } from "@/types/probes";
 
 const PROBE_SPECTRUM_WINDOWS = [256, 512, 1024, 2048];
+const PROBE_SPECTRUM_FACE_BG = "rgb(0, 0, 0)";
 
 export function SpectrumProbeGraph(props: {
   capture?: PreviewProbeCapture;
@@ -161,7 +161,7 @@ export function SpectrumProbeGraph(props: {
     canvas.style.height = "100%";
     context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     context.clearRect(0, 0, width, height);
-    context.fillStyle = PATCH_COLOR_PROBE_GRAPH_BG;
+    context.fillStyle = PROBE_SPECTRUM_FACE_BG;
     context.fillRect(0, 0, width, height);
 
     if (!rows || !columns) {
