@@ -154,6 +154,24 @@ export function readSpectrumGridValue(
   return grid.columns?.[columnIndex]?.[rowIndex] ?? 0;
 }
 
+export function resolveSpectrumPointerCell(
+  clientX: number,
+  clientY: number,
+  rect: Pick<DOMRect, "left" | "top" | "width" | "height">,
+  rowCount: number,
+  columnCount: number
+) {
+  if (rowCount <= 0 || columnCount <= 0) {
+    return null;
+  }
+  const localX = clamp(clientX - rect.left, 0, rect.width);
+  const localY = clamp(clientY - rect.top, 0, rect.height);
+  return {
+    columnIndex: clamp(Math.floor((localX / Math.max(1, rect.width)) * columnCount), 0, columnCount - 1),
+    rowIndex: clamp(rowCount - 1 - Math.floor((localY / Math.max(1, rect.height)) * rowCount), 0, rowCount - 1)
+  };
+}
+
 function resolveFallbackSpectrumFrameColumnIndex(
   spectrumFrames: PreviewProbeSpectrumFrames | undefined,
   ratio: number

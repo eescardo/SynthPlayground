@@ -27,6 +27,7 @@ import {
   buildSpectrumFramesDisplay,
   formatSpectrumTooltip,
   resolveSpectrumGridColumnCount,
+  resolveSpectrumPointerCell,
   SPECTRUM_FINAL_COMPACT_FACE_COLUMNS,
   SPECTRUM_FINAL_COMPACT_FACE_ROWS,
   SPECTRUM_FINAL_FACE_COLUMNS,
@@ -205,11 +206,18 @@ export function SpectrumProbeGraph(props: {
       clearTooltip();
       return;
     }
-    const rect = canvas.getBoundingClientRect();
-    const localX = clamp(event.clientX - rect.left, 0, rect.width);
-    const localY = clamp(event.clientY - rect.top, 0, rect.height);
-    const columnIndex = clamp(Math.floor((localX / Math.max(1, rect.width)) * columns), 0, columns - 1);
-    const rowIndex = clamp(rows - 1 - Math.floor((localY / Math.max(1, rect.height)) * rows), 0, rows - 1);
+    const cell = resolveSpectrumPointerCell(
+      event.clientX,
+      event.clientY,
+      canvas.getBoundingClientRect(),
+      rows,
+      columns
+    );
+    if (!cell) {
+      clearTooltip();
+      return;
+    }
+    const { columnIndex, rowIndex } = cell;
     const value = displaySpectrogram[rowIndex]?.[columnIndex] ?? 0;
     const freqLow = Math.pow(rowIndex / rows, 2) * effectiveMaxFrequencyHz;
     const freqHigh = Math.pow((rowIndex + 1) / rows, 2) * effectiveMaxFrequencyHz;

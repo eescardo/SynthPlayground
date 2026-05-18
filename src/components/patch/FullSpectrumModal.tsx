@@ -14,7 +14,6 @@ import {
   PATCH_FULL_SPECTRUM_TIME_MARKER_RATIOS
 } from "@/components/patch/patchCanvasConstants";
 import { useDelayedSpectrumTooltip } from "@/hooks/patch/useDelayedSpectrumTooltip";
-import { clamp } from "@/lib/numeric";
 import { formatScopeTimestamp, formatSpectrumFrequency } from "@/lib/patch/probeViewMath";
 import { PROBE_MAX_MAX_FREQUENCY_HZ, resolveProbeSpectrumMagnitudeColor } from "@/lib/patch/probes";
 import {
@@ -23,7 +22,8 @@ import {
   resolveFullSpectrumFrequencyMarkers,
   resolveFullSpectrumGridLines,
   resolveSpectrumGridColumnCount,
-  resolveSpectrumGridRowCount
+  resolveSpectrumGridRowCount,
+  resolveSpectrumPointerCell
 } from "@/lib/patch/spectrumDisplayMath";
 import { PreviewProbeCapture } from "@/types/probes";
 
@@ -122,11 +122,18 @@ export function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeN
       clearTooltip();
       return;
     }
-    const rect = canvas.getBoundingClientRect();
-    const localX = clamp(event.clientX - rect.left, 0, rect.width);
-    const localY = clamp(event.clientY - rect.top, 0, rect.height);
-    const columnIndex = clamp(Math.floor((localX / Math.max(1, rect.width)) * columnCount), 0, columnCount - 1);
-    const rowIndex = clamp(rowCount - 1 - Math.floor((localY / Math.max(1, rect.height)) * rowCount), 0, rowCount - 1);
+    const cell = resolveSpectrumPointerCell(
+      event.clientX,
+      event.clientY,
+      canvas.getBoundingClientRect(),
+      rowCount,
+      columnCount
+    );
+    if (!cell) {
+      clearTooltip();
+      return;
+    }
+    const { columnIndex, rowIndex } = cell;
     const value = readSpectrumGridValue(finalSpectrum, columnIndex, rowIndex);
     const binStep =
       binFrequencies.length > 1 ? (binFrequencies.at(-1) ?? 0) / Math.max(1, binFrequencies.length - 1) : 0;

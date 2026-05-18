@@ -21,7 +21,8 @@ import {
   formatSpectrumTooltip,
   resolveFullSpectrumFrequencyMarkers,
   resolveFullSpectrumGridLines,
-  resolveFinalSpectrumOutputColumnCount
+  resolveFinalSpectrumOutputColumnCount,
+  resolveSpectrumPointerCell
 } from "@/lib/patch/spectrumDisplayMath";
 
 describe("probe helpers", () => {
@@ -119,6 +120,15 @@ describe("probe helpers", () => {
 
   it("formats spectrum tooltips with frequency and time ranges", () => {
     expect(formatSpectrumTooltip(70, 93, 0.3, 0.325, 0.0112)).toBe("70-93Hz | 300ms-325ms | 0.0112");
+  });
+
+  it("resolves spectrum pointer coordinates to row and column cells", () => {
+    const rect = { left: 10, top: 20, width: 200, height: 100 };
+
+    expect(resolveSpectrumPointerCell(10, 20, rect, 5, 4)).toEqual({ columnIndex: 0, rowIndex: 4 });
+    expect(resolveSpectrumPointerCell(209, 119, rect, 5, 4)).toEqual({ columnIndex: 3, rowIndex: 0 });
+    expect(resolveSpectrumPointerCell(110, 70, rect, 5, 4)).toEqual({ columnIndex: 2, rowIndex: 2 });
+    expect(resolveSpectrumPointerCell(110, 70, rect, 0, 4)).toBeNull();
   });
 
   it("maps streamed spectrum frames into an accumulated display grid", () => {
