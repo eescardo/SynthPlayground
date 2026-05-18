@@ -295,7 +295,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
   };
 }
 
-function mergePreviewProbeCapture(
+export function mergePreviewProbeCapture(
   previous: PreviewProbeCapture | undefined,
   capture: PreviewProbeCapture
 ): PreviewProbeCapture {
