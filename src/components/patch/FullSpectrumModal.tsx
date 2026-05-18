@@ -117,8 +117,9 @@ export function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeN
       binFrequencies.length > 1 ? (binFrequencies.at(-1) ?? 0) / Math.max(1, binFrequencies.length - 1) : 0;
     const freqLow = binFrequencies[rowIndex] ?? rowIndex * binStep;
     const freqHigh = binFrequencies[rowIndex + 1] ?? freqLow + binStep;
-    const timeSeconds = (columnIndex / Math.max(1, columnCount - 1)) * durationSeconds;
-    const label = formatSpectrumTooltip(freqLow, freqHigh, timeSeconds, value);
+    const timeStartSeconds = (columnIndex / Math.max(1, columnCount)) * durationSeconds;
+    const timeEndSeconds = ((columnIndex + 1) / Math.max(1, columnCount)) * durationSeconds;
+    const label = formatSpectrumTooltip(freqLow, freqHigh, timeStartSeconds, timeEndSeconds, value);
     scheduleTooltip(event.clientX, event.clientY, label);
   };
 

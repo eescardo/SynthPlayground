@@ -197,8 +197,9 @@ export function SpectrumProbeGraph(props: {
     const value = displaySpectrogram[rowIndex]?.[columnIndex] ?? 0;
     const freqLow = Math.pow(rowIndex / rows, 2) * effectiveMaxFrequencyHz;
     const freqHigh = Math.pow((rowIndex + 1) / rows, 2) * effectiveMaxFrequencyHz;
-    const timeSeconds = (columns <= 1 ? 0 : columnIndex / (columns - 1)) * displayDurationSeconds;
-    const label = formatSpectrumTooltip(freqLow, freqHigh, timeSeconds, value);
+    const timeStartSeconds = (columnIndex / Math.max(1, columns)) * displayDurationSeconds;
+    const timeEndSeconds = ((columnIndex + 1) / Math.max(1, columns)) * displayDurationSeconds;
+    const label = formatSpectrumTooltip(freqLow, freqHigh, timeStartSeconds, timeEndSeconds, value);
     scheduleTooltip(event.clientX, event.clientY, label);
   };
 

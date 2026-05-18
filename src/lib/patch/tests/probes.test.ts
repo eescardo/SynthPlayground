@@ -16,6 +16,7 @@ import {
 import {
   buildFinalSpectrumDisplay,
   buildSpectrumFramesDisplay,
+  formatSpectrumTooltip,
   resolveFullSpectrumFrequencyMarkers,
   resolveFullSpectrumGridLines,
   resolveFinalSpectrumOutputColumnCount
@@ -104,6 +105,10 @@ describe("probe helpers", () => {
     expect(markers).toHaveLength(3);
     expect(markers.every((marker) => marker.frequency < 4000)).toBe(true);
     expect(markers.every((marker) => marker.bottomPercent > 0 && marker.bottomPercent < 100)).toBe(true);
+  });
+
+  it("formats spectrum tooltips with frequency and time ranges", () => {
+    expect(formatSpectrumTooltip(70, 93, 0.3, 0.325, 0.0112)).toBe("70-93Hz | 300ms-325ms | 0.0112");
   });
 
   it("maps streamed spectrum frames into an accumulated display grid", () => {

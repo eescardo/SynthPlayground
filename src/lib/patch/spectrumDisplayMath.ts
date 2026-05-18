@@ -165,10 +165,17 @@ function resolveFallbackSpectrumFrameColumnIndex(
   return clamp(Math.round(ratio * (columnCount - 1)), 0, columnCount - 1);
 }
 
-export function formatSpectrumTooltip(freqLow: number, freqHigh: number, timeSeconds: number, value: number) {
-  return `${formatSpectrumFrequencyRange(freqLow, freqHigh)} | ${formatSpectrumTooltipTime(timeSeconds)} | ${formatSpectrumValue(
-    value
-  )}`;
+export function formatSpectrumTooltip(
+  freqLow: number,
+  freqHigh: number,
+  timeStartSeconds: number,
+  timeEndSeconds: number,
+  value: number
+) {
+  return `${formatSpectrumFrequencyRange(freqLow, freqHigh)} | ${formatSpectrumTooltipTimeRange(
+    timeStartSeconds,
+    timeEndSeconds
+  )} | ${formatSpectrumValue(value)}`;
 }
 
 export function resolveFullSpectrumFrequencyMarkers(maxFrequencyHz: number, frameSize = 512) {
@@ -244,8 +251,10 @@ function formatTooltipKhz(value: number) {
   return value >= 10 ? value.toFixed(0) : value.toFixed(1).replace(/\.0$/, "");
 }
 
-function formatSpectrumTooltipTime(seconds: number) {
-  return formatScopeTimestamp(seconds);
+function formatSpectrumTooltipTimeRange(startSeconds: number, endSeconds: number) {
+  const safeStart = Math.max(0, startSeconds);
+  const safeEnd = Math.max(safeStart, endSeconds);
+  return `${formatScopeTimestamp(safeStart)}-${formatScopeTimestamp(safeEnd)}`;
 }
 
 function formatSpectrumValue(value: number) {
