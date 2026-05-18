@@ -8,8 +8,11 @@ import { formatScopeTimestamp, formatSpectrumFrequency } from "@/lib/patch/probe
 import { resolveProbeSpectrumMagnitudeColor } from "@/lib/patch/probes";
 import {
   formatSpectrumTooltip,
+  readSpectrumGridValue,
   resolveFullSpectrumFrequencyMarkers,
-  resolveFullSpectrumGridLines
+  resolveFullSpectrumGridLines,
+  resolveSpectrumGridColumnCount,
+  resolveSpectrumGridRowCount
 } from "@/lib/patch/spectrumDisplayMath";
 import { PreviewProbeCapture } from "@/types/probes";
 
@@ -31,8 +34,8 @@ export function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeN
     () => [0, 0.5, 1].map((ratio) => ({ ratio, label: formatScopeTimestamp(durationSeconds * ratio) })),
     [durationSeconds]
   );
-  const rowCount = finalSpectrum?.columns[0]?.length ?? 0;
-  const columnCount = finalSpectrum?.columns.length ?? 0;
+  const rowCount = resolveSpectrumGridRowCount(finalSpectrum);
+  const columnCount = resolveSpectrumGridColumnCount(finalSpectrum);
   const imageWidth = Math.max(720, columnCount * 2);
   const imageHeight = rowCount > 0 ? rowCount : 320;
 
@@ -78,9 +81,8 @@ export function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeN
     const fillWidth = Math.max(cellWidth, 1);
     const fillHeight = Math.max(cellHeight, 1);
     for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
-      const column = finalSpectrum.columns[columnIndex] ?? [];
       for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
-        const value = column[rowIndex] ?? 0;
+        const value = readSpectrumGridValue(finalSpectrum, columnIndex, rowIndex);
         if (value <= 0) {
           continue;
         }
@@ -110,7 +112,7 @@ export function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeN
     const localY = clamp(event.clientY - rect.top, 0, rect.height);
     const columnIndex = clamp(Math.floor((localX / Math.max(1, rect.width)) * columnCount), 0, columnCount - 1);
     const rowIndex = clamp(rowCount - 1 - Math.floor((localY / Math.max(1, rect.height)) * rowCount), 0, rowCount - 1);
-    const value = finalSpectrum.columns[columnIndex]?.[rowIndex] ?? 0;
+    const value = readSpectrumGridValue(finalSpectrum, columnIndex, rowIndex);
     const binStep =
       binFrequencies.length > 1 ? (binFrequencies.at(-1) ?? 0) / Math.max(1, binFrequencies.length - 1) : 0;
     const freqLow = binFrequencies[rowIndex] ?? rowIndex * binStep;

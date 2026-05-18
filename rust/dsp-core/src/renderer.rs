@@ -143,7 +143,12 @@ impl WasmSubsetEngine {
     /// Serializes the probe capture buffers accumulated so far for the active preview.
     /// Params:
     /// - `self`: engine whose tracks currently own the capture buffers.
-    pub fn preview_capture_state_json(&mut self, include_final: bool) -> Result<String, JsValue> {
+    pub fn preview_capture_state_json(
+        &mut self,
+        include_final: bool,
+        include_samples: Option<bool>,
+    ) -> Result<String, JsValue> {
+        let include_samples = include_samples.unwrap_or(true);
         let captures = self
             .tracks
             .iter_mut()
@@ -152,6 +157,7 @@ impl WasmSubsetEngine {
                     self.preview_capture_sample_count,
                     self.sample_rate,
                     include_final,
+                    include_samples,
                 )
             })
             .collect();
@@ -168,6 +174,24 @@ impl WasmSubsetEngine {
 
     pub fn preview_capture_sample_count(&self) -> usize {
         self.preview_capture_sample_count
+    }
+
+    pub fn preview_capture_samples_ptr(&self, probe_id: &str) -> *const f32 {
+        self.tracks
+            .iter()
+            .map(|track| track.probe_capture_samples_ptr(probe_id))
+            .find(|ptr| !ptr.is_null())
+            .unwrap_or(std::ptr::null())
+    }
+
+    pub fn preview_capture_samples_len(&self, probe_id: &str) -> usize {
+        self.tracks
+            .iter()
+            .map(|track| {
+                track.probe_capture_samples_len(probe_id, self.preview_capture_sample_count)
+            })
+            .find(|length| *length > 0)
+            .unwrap_or(0)
     }
 
     pub fn has_active_voices(&self) -> bool {

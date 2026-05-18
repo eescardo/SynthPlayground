@@ -71,6 +71,34 @@ const writeCaptureSamplesToSharedBuffer = (capture, sharedBuffer) => {
   };
 };
 
+const writeWasmCaptureSamplesToSharedBuffer = (implementation, renderer, engine, capture, sharedBuffer) => {
+  if (!sharedBuffer?.sampleBuffer || !implementation.getPreviewCaptureSamplesPointer) {
+    return null;
+  }
+  const memory = implementation.getMemory(renderer);
+  const capacitySamples = Math.min(
+    sharedBuffer.capacitySamples,
+    sharedBuffer.sampleBuffer.byteLength / Float32Array.BYTES_PER_ELEMENT
+  );
+  const sourceLength =
+    implementation.getPreviewCaptureSamplesLength?.(renderer, engine, capture.probeId) ?? capture.samples?.length ?? 0;
+  const sampleLength = Math.min(capacitySamples, Math.max(0, Math.floor(sourceLength)));
+  if (sampleLength <= 0) {
+    return null;
+  }
+  const pointer = implementation.getPreviewCaptureSamplesPointer(renderer, engine, capture.probeId);
+  if (!Number.isFinite(pointer) || pointer <= 0) {
+    return null;
+  }
+  const source = new Float32Array(memory.buffer, pointer, sampleLength);
+  new Float32Array(sharedBuffer.sampleBuffer, 0, sampleLength).set(source);
+  return {
+    sampleBuffer: sharedBuffer.sampleBuffer,
+    sampleLength,
+    sampleStride: 1
+  };
+};
+
 export class SharedWasmRenderStream {
   constructor(renderer, options, implementation) {
     this.port = renderer.port;
@@ -163,14 +191,18 @@ export class SharedWasmRenderStream {
       captures: captures
         .map((capture) => {
           const meta = this.previewCaptureState.metaByProbeId.get(capture.probeId);
-          const sampleStride = Math.max(1, capture.sampleStride || 1);
           const shouldUseSpectrumFrames = meta?.kind === "spectrum" && capture.spectrumFrames;
+          const sharedBuffer = this.previewCaptureState.sharedBufferByProbeId?.get(capture.probeId);
           const sharedSamples = shouldUseSpectrumFrames
             ? null
-            : writeCaptureSamplesToSharedBuffer(
+            : (writeWasmCaptureSamplesToSharedBuffer(
+                this.implementation,
+                this.renderer,
+                this.engine,
                 capture,
-                this.previewCaptureState.sharedBufferByProbeId?.get(capture.probeId)
-              );
+                sharedBuffer
+              ) ?? writeCaptureSamplesToSharedBuffer(capture, sharedBuffer));
+          const sampleStride = Math.max(1, sharedSamples?.sampleStride || capture.sampleStride || 1);
           return meta
             ? {
                 probeId: capture.probeId,

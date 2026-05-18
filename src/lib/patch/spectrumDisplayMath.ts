@@ -26,12 +26,10 @@ export function buildSpectrumFramesDisplay(
   maxFrequencyHz: number
 ) {
   const display = Array.from({ length: rows }, () => new Array(viewportColumns).fill(0));
+  const spectrumColumnCount = resolveSpectrumGridColumnCount(spectrumFrames);
   const visibleFrameCount = Math.max(
     1,
-    Math.min(
-      spectrumFrames.columns.length,
-      Math.ceil((viewportSeconds * spectrumFrames.sampleRate) / spectrumFrames.frameSize)
-    )
+    Math.min(spectrumColumnCount, Math.ceil((viewportSeconds * spectrumFrames.sampleRate) / spectrumFrames.frameSize))
   );
   const filledRatio = resolveSpectrumTimelineFillRatio(
     spectrumFrames.capturedSamples,
@@ -50,12 +48,11 @@ export function buildSpectrumFramesDisplay(
     if (frameIndex < 0) {
       continue;
     }
-    const column = spectrumFrames.columns[frameIndex];
-    if (!column) {
+    if (frameIndex >= spectrumColumnCount) {
       continue;
     }
     for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
-      display[rowIndex][columnIndex] = column[rowBinIndices[rowIndex] ?? 0] ?? 0;
+      display[rowIndex][columnIndex] = readSpectrumGridValue(spectrumFrames, frameIndex, rowBinIndices[rowIndex] ?? 0);
     }
   }
 
@@ -90,12 +87,14 @@ export function buildFinalSpectrumDisplay(
   for (let columnIndex = 0; columnIndex < viewportColumns; columnIndex += 1) {
     const ratio = viewportColumns <= 1 ? 0 : columnIndex / (viewportColumns - 1);
     const sourceColumnIndex = clamp(Math.round(ratio * (expectedColumnCount - 1)), 0, expectedColumnCount - 1);
-    const column = finalSpectrum.columns[sourceColumnIndex];
-    const fallbackColumn = column ? undefined : resolveFallbackSpectrumFrameColumn(fallbackSpectrumFrames, ratio);
+    const hasColumn = sourceColumnIndex < resolveSpectrumGridColumnCount(finalSpectrum);
+    const fallbackColumnIndex = hasColumn ? -1 : resolveFallbackSpectrumFrameColumnIndex(fallbackSpectrumFrames, ratio);
     for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
-      display[rowIndex][columnIndex] = column
-        ? (column[rowBinIndices[rowIndex] ?? 0] ?? 0)
-        : (fallbackColumn?.[fallbackRowBinIndices[rowIndex] ?? 0] ?? 0);
+      display[rowIndex][columnIndex] = hasColumn
+        ? readSpectrumGridValue(finalSpectrum, sourceColumnIndex, rowBinIndices[rowIndex] ?? 0)
+        : fallbackColumnIndex >= 0
+          ? readSpectrumGridValue(fallbackSpectrumFrames, fallbackColumnIndex, fallbackRowBinIndices[rowIndex] ?? 0)
+          : 0;
     }
   }
 
@@ -109,16 +108,61 @@ export function resolveFinalSpectrumOutputColumnCount(
   const sourceColumnCount = Math.max(0, Math.floor(finalSpectrum.sourceColumnCount || 0));
   const expectedColumnCount =
     requestedColumnCount > 0 ? Math.min(sourceColumnCount, requestedColumnCount) : sourceColumnCount;
-  return Math.max(finalSpectrum.columns.length, expectedColumnCount);
+  return Math.max(resolveSpectrumGridColumnCount(finalSpectrum), expectedColumnCount);
 }
 
-function resolveFallbackSpectrumFrameColumn(spectrumFrames: PreviewProbeSpectrumFrames | undefined, ratio: number) {
-  const columns = spectrumFrames?.columns ?? [];
-  if (columns.length <= 0) {
-    return undefined;
+export function resolveSpectrumGridColumnCount(
+  grid: Pick<PreviewProbeSpectrumFrames, "columns" | "values" | "rowCount" | "columnCount"> | undefined
+) {
+  if (!grid) {
+    return 0;
   }
-  const sourceColumnIndex = clamp(Math.round(ratio * (columns.length - 1)), 0, columns.length - 1);
-  return columns[sourceColumnIndex];
+  if (Number.isFinite(grid.columnCount)) {
+    return Math.max(0, Math.floor(grid.columnCount ?? 0));
+  }
+  if (grid.columns?.length) {
+    return grid.columns.length;
+  }
+  const rowCount = resolveSpectrumGridRowCount(grid);
+  return rowCount > 0 ? Math.floor((grid.values?.length ?? 0) / rowCount) : 0;
+}
+
+export function resolveSpectrumGridRowCount(
+  grid: Pick<PreviewProbeSpectrumFrames, "columns" | "values" | "rowCount" | "columnCount"> | undefined
+) {
+  if (!grid) {
+    return 0;
+  }
+  if (Number.isFinite(grid.rowCount)) {
+    return Math.max(0, Math.floor(grid.rowCount ?? 0));
+  }
+  return grid.columns?.[0]?.length ?? 0;
+}
+
+export function readSpectrumGridValue(
+  grid: Pick<PreviewProbeSpectrumFrames, "columns" | "values" | "rowCount" | "columnCount"> | undefined,
+  columnIndex: number,
+  rowIndex: number
+) {
+  if (!grid || columnIndex < 0 || rowIndex < 0) {
+    return 0;
+  }
+  const rowCount = resolveSpectrumGridRowCount(grid);
+  if (grid.values && rowCount > 0) {
+    return grid.values[columnIndex * rowCount + rowIndex] ?? 0;
+  }
+  return grid.columns?.[columnIndex]?.[rowIndex] ?? 0;
+}
+
+function resolveFallbackSpectrumFrameColumnIndex(
+  spectrumFrames: PreviewProbeSpectrumFrames | undefined,
+  ratio: number
+) {
+  const columnCount = resolveSpectrumGridColumnCount(spectrumFrames);
+  if (columnCount <= 0) {
+    return -1;
+  }
+  return clamp(Math.round(ratio * (columnCount - 1)), 0, columnCount - 1);
 }
 
 export function formatSpectrumTooltip(freqLow: number, freqHigh: number, timeSeconds: number, value: number) {

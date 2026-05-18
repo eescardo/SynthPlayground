@@ -270,8 +270,16 @@ pub(crate) fn update_and_build_preview_capture_spectrum_frames(
     let start_column = capture.spectrum_emitted_columns;
     capture.spectrum_emitted_columns = capture.spectrum_columns.len();
 
+    let columns = &capture.spectrum_columns[start_column..];
+    let row_count = capture.spectrum_bin_frequencies.len();
+    let values = columns
+        .iter()
+        .flat_map(|column| column.iter().copied())
+        .collect::<Vec<_>>();
     Some(PreviewProbeSpectrumFrames {
-        columns: capture.spectrum_columns[start_column..].to_vec(),
+        values,
+        row_count,
+        column_count: columns.len(),
         bin_frequencies: capture.spectrum_bin_frequencies.clone(),
         start_column,
         frame_size,
@@ -356,7 +364,9 @@ pub(crate) fn build_preview_capture_final_spectrum(
         let bin_frequencies = capture.final_spectrum_bin_frequencies.clone();
         capture.final_spectrum_emitted_columns = 0;
         return Some(PreviewProbeFinalSpectrum {
-            columns: Vec::new(),
+            values: Vec::new(),
+            row_count: bin_frequencies.len(),
+            column_count: 0,
             start_column: 0,
             complete: true,
             requested_frequency_bins: bin_frequencies.len(),
@@ -399,12 +409,18 @@ pub(crate) fn build_preview_capture_final_spectrum(
             );
             magnitudes
         })
-        .collect();
+        .collect::<Vec<_>>();
     capture.final_spectrum_emitted_columns = end_column;
     let requested_frequency_bins = capture.final_spectrum_bin_frequencies.len();
+    let values = columns
+        .iter()
+        .flat_map(|column| column.iter().copied())
+        .collect::<Vec<_>>();
 
     Some(PreviewProbeFinalSpectrum {
-        columns,
+        values,
+        row_count: requested_frequency_bins,
+        column_count: columns.len(),
         start_column,
         complete: end_column >= output_column_count,
         bin_frequencies,
@@ -669,7 +685,12 @@ mod tests {
         assert_eq!(frames.frame_size, frame_size);
         assert_eq!(frames.sample_rate, sample_rate);
         assert_eq!(frames.captured_samples, frame_size * 2);
-        assert_eq!(frames.columns.len(), 2);
+        assert_eq!(frames.column_count, 2);
+        assert_eq!(frames.row_count, PREVIEW_CAPTURE_SPECTRUM_BIN_COUNT);
+        assert_eq!(
+            frames.values.len(),
+            frames.column_count * PREVIEW_CAPTURE_SPECTRUM_BIN_COUNT
+        );
         assert_eq!(frames.start_column, 0);
         assert_eq!(capture.spectrum_analyzed_samples, frame_size * 2);
         let repeated_frames = update_and_build_preview_capture_spectrum_frames(
@@ -678,14 +699,15 @@ mod tests {
             sample_rate,
         )
         .unwrap();
-        assert_eq!(repeated_frames.columns.len(), 0);
+        assert_eq!(repeated_frames.column_count, 0);
+        assert_eq!(repeated_frames.values.len(), 0);
         assert_eq!(repeated_frames.start_column, 2);
         assert_eq!(capture.spectrum_analyzed_samples, frame_size * 2);
         assert_eq!(
             frames.bin_frequencies.len(),
             PREVIEW_CAPTURE_SPECTRUM_BIN_COUNT
         );
-        assert!(frames.columns[0].iter().copied().fold(0.0, f32::max) > 0.01);
+        assert!(frames.values.iter().copied().fold(0.0, f32::max) > 0.01);
     }
 
     #[test]
@@ -725,10 +747,11 @@ mod tests {
             PREVIEW_CAPTURE_FINAL_SPECTRUM_MAX_COLUMNS
         );
         assert_eq!(final_spectrum.source_column_count, 3);
-        assert_eq!(final_spectrum.columns.len(), 3);
+        assert_eq!(final_spectrum.column_count, 3);
+        assert_eq!(final_spectrum.row_count, unique_fft_bins);
         assert_eq!(final_spectrum.start_column, 0);
         assert!(final_spectrum.complete);
-        assert_eq!(final_spectrum.columns[0].len(), unique_fft_bins);
+        assert_eq!(final_spectrum.values.len(), 3 * unique_fft_bins);
         assert_eq!(final_spectrum.bin_frequencies.len(), unique_fft_bins);
     }
 

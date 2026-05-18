@@ -212,6 +212,30 @@ impl TrackRuntime {
         self.probe_captures.clear();
     }
 
+    pub(crate) fn probe_capture_samples_ptr(&self, probe_id: &str) -> *const f32 {
+        self.probe_captures
+            .iter()
+            .find(|capture| capture.probe_id == probe_id)
+            .map(|capture| capture.samples.as_ptr())
+            .unwrap_or(std::ptr::null())
+    }
+
+    pub(crate) fn probe_capture_samples_len(
+        &self,
+        probe_id: &str,
+        captured_samples: usize,
+    ) -> usize {
+        self.probe_captures
+            .iter()
+            .find(|capture| capture.probe_id == probe_id)
+            .map(|capture| {
+                captured_samples
+                    .min(capture.duration_samples)
+                    .min(capture.samples.len())
+            })
+            .unwrap_or(0)
+    }
+
     pub(crate) fn has_active_voices(&self) -> bool {
         // Used by preview mode to detect when NoteOff plus envelope release has finished
         // and the stream can stop without waiting for the original preview duration.
@@ -236,12 +260,13 @@ impl TrackRuntime {
         captured_samples: usize,
         sample_rate: f32,
         include_final: bool,
+        include_samples: bool,
     ) -> Vec<PreviewProbeCaptureSnapshot> {
         self.probe_captures
             .iter_mut()
             .map(|capture| {
                 let is_spectrum = capture.kind == "spectrum";
-                let samples = if is_spectrum {
+                let samples = if is_spectrum || !include_samples {
                     Vec::new()
                 } else {
                     build_preview_capture_snapshot_samples(capture, captured_samples)

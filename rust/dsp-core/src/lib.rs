@@ -372,7 +372,11 @@ struct PreviewProbeAdsrEstimate {
 
 #[derive(Clone, Serialize)]
 struct PreviewProbeSpectrumFrames {
-    columns: Vec<Vec<f32>>,
+    values: Vec<f32>,
+    #[serde(rename = "rowCount")]
+    row_count: usize,
+    #[serde(rename = "columnCount")]
+    column_count: usize,
     #[serde(rename = "binFrequencies")]
     bin_frequencies: Vec<f32>,
     #[serde(rename = "startColumn")]
@@ -387,7 +391,11 @@ struct PreviewProbeSpectrumFrames {
 
 #[derive(Clone, Serialize)]
 struct PreviewProbeFinalSpectrum {
-    columns: Vec<Vec<f32>>,
+    values: Vec<f32>,
+    #[serde(rename = "rowCount")]
+    row_count: usize,
+    #[serde(rename = "columnCount")]
+    column_count: usize,
     #[serde(rename = "binFrequencies", skip_serializing_if = "Vec::is_empty")]
     bin_frequencies: Vec<f32>,
     #[serde(rename = "startColumn")]

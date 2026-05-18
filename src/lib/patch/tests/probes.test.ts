@@ -109,10 +109,9 @@ describe("probe helpers", () => {
   it("maps streamed spectrum frames into an accumulated display grid", () => {
     const display = buildSpectrumFramesDisplay(
       {
-        columns: [
-          [0.1, 0.2, 0.3],
-          [0.4, 0.5, 0.6]
-        ],
+        values: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+        rowCount: 3,
+        columnCount: 2,
         binFrequencies: [100, 200, 300],
         frameSize: 1024,
         sampleRate: 4096,
@@ -132,10 +131,9 @@ describe("probe helpers", () => {
 
   it("maps final spectrum chunks over their expected output column count", () => {
     const finalSpectrum = {
-      columns: [
-        [0.1, 0.2, 0.3],
-        [0.4, 0.5, 0.6]
-      ],
+      values: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+      rowCount: 3,
+      columnCount: 2,
       binFrequencies: [100, 200, 300],
       complete: false,
       frameSize: 1024,

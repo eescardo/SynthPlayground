@@ -83,7 +83,10 @@ export interface PreviewProbeAdsrEstimate {
 }
 
 export interface PreviewProbeSpectrumFrames {
-  columns: number[][];
+  columns?: number[][];
+  values?: number[];
+  rowCount?: number;
+  columnCount?: number;
   binFrequencies: number[];
   startColumn?: number;
   frameSize: number;
@@ -92,7 +95,10 @@ export interface PreviewProbeSpectrumFrames {
 }
 
 export interface PreviewProbeFinalSpectrum {
-  columns: number[][];
+  columns?: number[][];
+  values?: number[];
+  rowCount?: number;
+  columnCount?: number;
   binFrequencies?: number[];
   startColumn?: number;
   complete?: boolean;

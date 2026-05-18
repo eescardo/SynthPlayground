@@ -7,6 +7,8 @@ const sharedMemory = new WebAssembly.Memory({ initial: 1 });
 const blockSize = 128;
 const leftView = new Float32Array(sharedMemory.buffer, 0, blockSize);
 const rightView = new Float32Array(sharedMemory.buffer, blockSize * Float32Array.BYTES_PER_ELEMENT, blockSize);
+const captureSamplesPtr = blockSize * 2 * Float32Array.BYTES_PER_ELEMENT;
+const captureSampleView = new Float32Array(sharedMemory.buffer, captureSamplesPtr, blockSize * 4);
 let previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
 let previewCaptureSampleCount = 0;
 let writeInvalidPreviewCaptureJson = false;
@@ -28,6 +30,7 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
     }
     process_block() {
       previewCaptureSampleCount += blockSize;
+      captureSampleView.fill(0.5, 0, previewCaptureSampleCount);
       previewCaptureStateJson = writeInvalidPreviewCaptureJson
         ? "\0".repeat(16)
         : JSON.stringify({
@@ -52,15 +55,26 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
     has_active_voices() {
       return hasActiveVoices;
     }
-    preview_capture_state_json(includeFinal?: boolean) {
-      if (!includeFinal || writeInvalidPreviewCaptureJson) {
+    preview_capture_state_json(includeFinal?: boolean, includeSamples = true) {
+      if (writeInvalidPreviewCaptureJson) {
         return previewCaptureStateJson;
+      }
+      if (!includeFinal) {
+        const snapshot = JSON.parse(previewCaptureStateJson);
+        return JSON.stringify({
+          ...snapshot,
+          captures: snapshot.captures.map((capture: Record<string, unknown>) => ({
+            ...capture,
+            samples: includeSamples ? capture.samples : []
+          }))
+        });
       }
       const snapshot = JSON.parse(previewCaptureStateJson);
       return JSON.stringify({
         ...snapshot,
         captures: snapshot.captures.map((capture: Record<string, unknown>) => ({
           ...capture,
+          samples: includeSamples ? capture.samples : [],
           finalSpectrum: {
             columns: [
               [0.1, 0.2, 0.3],
@@ -94,6 +108,12 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
       });
     }
     preview_capture_sample_count() {
+      return previewCaptureSampleCount;
+    }
+    preview_capture_samples_ptr() {
+      return captureSamplesPtr;
+    }
+    preview_capture_samples_len() {
       return previewCaptureSampleCount;
     }
     stop() {
@@ -206,6 +226,7 @@ beforeEach(() => {
   leftView.fill(0);
   rightView.fill(0);
   previewCaptureSampleCount = 0;
+  captureSampleView.fill(0);
   writeInvalidPreviewCaptureJson = false;
   hasActiveVoices = false;
   previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });

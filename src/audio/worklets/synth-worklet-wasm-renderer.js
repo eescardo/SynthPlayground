@@ -58,8 +58,9 @@ export class WasmWorkletRenderer extends SharedWasmRenderer {
           )
         };
       },
-      readPreviewCapture: (_renderer, engine, _previewCaptureState, force) => {
-        const rawSnapshot = engine.preview_capture_state_json(Boolean(force));
+      readPreviewCapture: (_renderer, engine, previewCaptureState, force) => {
+        const includeSamples = !previewCaptureState.sharedBufferByProbeId?.size;
+        const rawSnapshot = engine.preview_capture_state_json(Boolean(force), includeSamples);
         if (typeof rawSnapshot !== "string" || rawSnapshot.length === 0 || rawSnapshot.charCodeAt(0) === 0) {
           return null;
         }
@@ -74,7 +75,9 @@ export class WasmWorkletRenderer extends SharedWasmRenderer {
         }
         return snapshot;
       },
-      getPreviewCaptureSampleCount: (_renderer, engine) => engine.preview_capture_sample_count()
+      getPreviewCaptureSampleCount: (_renderer, engine) => engine.preview_capture_sample_count(),
+      getPreviewCaptureSamplesPointer: (_renderer, engine, probeId) => engine.preview_capture_samples_ptr(probeId),
+      getPreviewCaptureSamplesLength: (_renderer, engine, probeId) => engine.preview_capture_samples_len(probeId)
     };
     super(options, implementation);
     if (typeof this.wasmBytes === "undefined") {

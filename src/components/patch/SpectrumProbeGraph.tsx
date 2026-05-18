@@ -20,6 +20,7 @@ import {
   buildFinalSpectrumDisplay,
   buildSpectrumFramesDisplay,
   formatSpectrumTooltip,
+  resolveSpectrumGridColumnCount,
   SPECTRUM_FINAL_COMPACT_FACE_COLUMNS,
   SPECTRUM_FINAL_COMPACT_FACE_ROWS,
   SPECTRUM_FINAL_FACE_COLUMNS,
@@ -79,9 +80,10 @@ export function SpectrumProbeGraph(props: {
 
     const elapsedSeconds = clamp(props.elapsedSeconds, 0, SPECTRUM_MAX_DISPLAY_SECONDS);
     const viewportSeconds = clamp(Math.max(1, elapsedSeconds), 1, SPECTRUM_MAX_DISPLAY_SECONDS);
-    if (props.capture.spectrumFrames?.columns.length) {
+    const spectrumFrames = props.capture.spectrumFrames;
+    if (resolveSpectrumGridColumnCount(spectrumFrames) > 0 && spectrumFrames) {
       return buildSpectrumFramesDisplay(
-        props.capture.spectrumFrames,
+        spectrumFrames,
         rows,
         viewportColumns,
         viewportSeconds,
