@@ -1,6 +1,6 @@
 "use client";
 
-import { RefObject, useCallback, useEffect, useState } from "react";
+import { RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { PATCH_CANVAS_GRID } from "@/components/patch/patchCanvasConstants";
 import { PatchProbeEditorActions, PatchWorkspaceProbeState } from "@/types/probes";
 
@@ -10,12 +10,20 @@ export function usePatchProbeDrag(args: {
   probeActions: Pick<PatchProbeEditorActions, "moveProbe">;
 }) {
   const [dragProbe, setDragProbe] = useState<{ probeId: string; offsetX: number; offsetY: number } | null>(null);
+  const moveProbeRef = useRef(args.probeActions.moveProbe);
+  const lastDragPositionRef = useRef<{ probeId: string; x: number; y: number } | null>(null);
+  const pendingPointerEventRef = useRef<PointerEvent | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    moveProbeRef.current = args.probeActions.moveProbe;
+  }, [args.probeActions.moveProbe]);
 
   useEffect(() => {
     if (!dragProbe) {
       return;
     }
-    const handlePointerMove = (event: PointerEvent) => {
+    const moveProbeToPointer = (event: PointerEvent) => {
       const canvas = args.canvasRef.current;
       if (!canvas) {
         return;
@@ -25,20 +33,45 @@ export function usePatchProbeDrag(args: {
       const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
       const rawX = (event.clientX - rect.left) * scaleX;
       const rawY = (event.clientY - rect.top) * scaleY;
-      args.probeActions.moveProbe(
-        dragProbe.probeId,
-        Math.max(0, Math.round((rawX - dragProbe.offsetX) / PATCH_CANVAS_GRID)),
-        Math.max(0, Math.round((rawY - dragProbe.offsetY) / PATCH_CANVAS_GRID))
-      );
+      const x = Math.max(0, Math.round((rawX - dragProbe.offsetX) / PATCH_CANVAS_GRID));
+      const y = Math.max(0, Math.round((rawY - dragProbe.offsetY) / PATCH_CANVAS_GRID));
+      const lastPosition = lastDragPositionRef.current;
+      if (lastPosition?.probeId === dragProbe.probeId && lastPosition.x === x && lastPosition.y === y) {
+        return;
+      }
+      lastDragPositionRef.current = { probeId: dragProbe.probeId, x, y };
+      moveProbeRef.current(dragProbe.probeId, x, y);
     };
-    const handlePointerUp = () => setDragProbe(null);
+    const flushPendingPointerMove = () => {
+      animationFrameRef.current = null;
+      const event = pendingPointerEventRef.current;
+      pendingPointerEventRef.current = null;
+      if (event) {
+        moveProbeToPointer(event);
+      }
+    };
+    const handlePointerMove = (event: PointerEvent) => {
+      pendingPointerEventRef.current = event;
+      if (animationFrameRef.current === null) {
+        animationFrameRef.current = window.requestAnimationFrame(flushPendingPointerMove);
+      }
+    };
+    const handlePointerUp = () => {
+      setDragProbe(null);
+    };
+    lastDragPositionRef.current = null;
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp);
     return () => {
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      pendingPointerEventRef.current = null;
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
     };
-  }, [args.canvasRef, args.probeActions, dragProbe]);
+  }, [args.canvasRef, dragProbe]);
 
   const beginProbeDrag = useCallback(
     (probeId: string, clientX: number, clientY: number) => {
