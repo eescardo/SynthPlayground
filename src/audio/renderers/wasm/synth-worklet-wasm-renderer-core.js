@@ -273,6 +273,7 @@ export class SharedWasmRenderStream {
       if (rightOut !== leftOut) {
         rightOut.fill(0);
       }
+      // TODO(#86): Move final probe extraction off the AudioWorklet render callback.
       if (this.maybeEmitPreviewCapture(true)) {
         this.stop({ emitPreviewCapture: false });
       } else if (this.finalPreviewCaptureReadFailures >= FINAL_PREVIEW_CAPTURE_READ_FAILURE_LIMIT) {
