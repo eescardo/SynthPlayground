@@ -59,7 +59,11 @@ export function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; compact?
   const playheadX = plotStartX + graphData.capturedRatio * plotWidth;
 
   return (
-    <svg viewBox="0 0 100 60" className="patch-probe-graph">
+    <svg
+      viewBox="0 0 100 60"
+      preserveAspectRatio={props.compact ? "none" : "xMidYMid meet"}
+      className="patch-probe-graph"
+    >
       <rect x="0" y="0" width="100" height="60" fill={PATCH_COLOR_PROBE_GRAPH_BG} rx="6" />
       <rect
         x={plotStartX}

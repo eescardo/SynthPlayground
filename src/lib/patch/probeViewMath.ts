@@ -86,8 +86,8 @@ export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, c
   const waveformHalfHeight = compact ? 10 : 11;
   const envelopeTopY = compact ? 35 : 31;
   const envelopeHeight = compact ? 18 : 23;
-  const plotStartX = compact ? 2 : 6;
-  const plotWidth = compact ? 97 : 92;
+  const plotStartX = compact ? 0 : 6;
+  const plotWidth = compact ? 100 : 92;
 
   for (let bucket = 0; bucket < bucketCount; bucket += 1) {
     const bucketStart = Math.floor((bucket / bucketCount) * displaySampleCount);
@@ -157,8 +157,8 @@ function buildFinalScopeRenderData(capture: PreviewProbeCapture, compact: boolea
   const waveformHalfHeight = compact ? 10 : 11;
   const envelopeTopY = compact ? 35 : 31;
   const envelopeHeight = compact ? 18 : 23;
-  const plotStartX = compact ? 2 : 6;
-  const plotWidth = compact ? 97 : 92;
+  const plotStartX = compact ? 0 : 6;
+  const plotWidth = compact ? 100 : 92;
 
   for (let bucket = 0; bucket < targetBucketCount; bucket += 1) {
     const sourceStart = Math.floor((bucket / targetBucketCount) * sourceBuckets.length);
@@ -203,8 +203,8 @@ function buildFinalScopeRenderData(capture: PreviewProbeCapture, compact: boolea
 }
 
 export function resolveScopeTimeMarkers(durationSeconds: number, compact = false) {
-  const plotStartX = compact ? 2 : 6;
-  const plotWidth = compact ? 97 : 92;
+  const plotStartX = compact ? 0 : 6;
+  const plotWidth = compact ? 100 : 92;
   return [0, 0.5, 1].map((ratio) => ({
     ratio,
     x: plotStartX + ratio * plotWidth,
