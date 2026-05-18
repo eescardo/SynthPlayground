@@ -89,8 +89,28 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
   const pointerMovedRef = useRef(false);
   const [pendingProbePointer, setPendingProbePointer] = useState<{ x: number; y: number } | null>(null);
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
+  const [dragLayoutOverride, setDragLayoutOverride] = useState<{ nodeId: string; x: number; y: number } | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const hitPorts = useMemo(() => resolvePatchCanvasHitPorts(patch, layoutByNode), [layoutByNode, patch]);
+  const renderedLayoutByNode = useMemo(() => {
+    if (!dragLayoutOverride) {
+      return layoutByNode;
+    }
+    const layout = layoutByNode.get(dragLayoutOverride.nodeId);
+    if (!layout) {
+      return layoutByNode;
+    }
+    const nextLayoutByNode = new Map(layoutByNode);
+    nextLayoutByNode.set(dragLayoutOverride.nodeId, {
+      ...layout,
+      x: dragLayoutOverride.x,
+      y: dragLayoutOverride.y
+    });
+    return nextLayoutByNode;
+  }, [dragLayoutOverride, layoutByNode]);
+  const hitPorts = useMemo(
+    () => resolvePatchCanvasHitPorts(patch, renderedLayoutByNode),
+    [patch, renderedLayoutByNode]
+  );
   const {
     armedWireModuleHover,
     clearPendingConnection,
@@ -147,6 +167,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     dragNodeIdRef.current = null;
     pointerDownNodeIdRef.current = null;
     pointerMovedRef.current = false;
+    setDragLayoutOverride(null);
     setDragNodeId(null);
   }, []);
 
@@ -161,6 +182,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       const initialLayout = layout ? { x: layout.x, y: layout.y } : null;
       dragInitialLayoutRef.current = initialLayout;
       dragLastLayoutRef.current = initialLayout;
+      setDragLayoutOverride(initialLayout ? { nodeId, x: initialLayout.x, y: initialLayout.y } : null);
       dragPointerOffsetRef.current = layout
         ? {
             x: pointer.x - layout.x * PATCH_CANVAS_GRID,
@@ -178,15 +200,6 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     if (!nodeId) {
       return false;
     }
-    const initialLayout = dragInitialLayoutRef.current;
-    const lastLayout = dragLastLayoutRef.current;
-    if (initialLayout && (!lastLayout || lastLayout.x !== initialLayout.x || lastLayout.y !== initialLayout.y)) {
-      onApplyOp({
-        type: "moveNode",
-        nodeId,
-        newLayoutPos: initialLayout
-      });
-    }
     const canvas = canvasRef.current;
     const pointerId = dragPointerIdRef.current;
     if (canvas && pointerId !== null) {
@@ -200,7 +213,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     }
     clearActiveNodeDrag();
     return true;
-  }, [canvasRef, clearActiveNodeDrag, dragNodeId, onApplyOp]);
+  }, [canvasRef, clearActiveNodeDrag, dragNodeId]);
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
@@ -211,7 +224,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       canvas,
       facePopoverNodeId,
       getFacePopoverRect,
-      layoutByNode,
+      layoutByNode: renderedLayoutByNode,
       nodeById,
       patch,
       renderState: {
@@ -244,7 +257,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     canvasRef,
     facePopoverNodeId,
     getFacePopoverRect,
-    layoutByNode,
+    renderedLayoutByNode,
     nodeById,
     patch,
     viewport,
@@ -292,12 +305,12 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     (rawX: number, rawY: number) => {
       return findPatchNodeAtPoint(
         { nodes: patch.nodes.filter((node) => !isPatchOutputPortId(patch, node.id)) },
-        layoutByNode,
+        renderedLayoutByNode,
         rawX,
         rawY
       );
     },
-    [layoutByNode, patch]
+    [patch, renderedLayoutByNode]
   );
 
   const getNearestNodePortAtPointer = useCallback((nodeId: string, rawX: number, rawY: number): HitPort | null => {
@@ -314,13 +327,13 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
 
   const resolveArmedWireCancelRectForNode = useCallback(
     (nodeId: string) => {
-      const layout = layoutByNode.get(nodeId);
+      const layout = renderedLayoutByNode.get(nodeId);
       if (!layout) {
         return null;
       }
       return resolveArmedWireCancelButtonRect(layout.x * PATCH_CANVAS_GRID, layout.y * PATCH_CANVAS_GRID);
     },
-    [layoutByNode]
+    [renderedLayoutByNode]
   );
 
   const onPointerDown = useCallback(
@@ -532,11 +545,7 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       }
       dragLastLayoutRef.current = nextLayout;
       pointerMovedRef.current = true;
-      onApplyOp({
-        type: "moveNode",
-        nodeId: activeDragNodeId,
-        newLayoutPos: nextLayout
-      });
+      setDragLayoutOverride({ nodeId: activeDragNodeId, ...nextLayout });
     },
     [
       canvasRef,
@@ -547,7 +556,6 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       handlePortHover,
       handleReplacePromptHover,
       layoutByNode,
-      onApplyOp,
       outputHostCanvasLeft,
       patch,
       pendingFromPort,
@@ -561,12 +569,27 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
       const clickedNodeId = pointerDownNodeIdRef.current;
       const moved = pointerMovedRef.current;
-      if (dragNodeId) {
+      const activeDragNodeId = dragNodeIdRef.current ?? dragNodeId;
+      const initialLayout = dragInitialLayoutRef.current;
+      const finalLayout = dragLastLayoutRef.current;
+      if (activeDragNodeId) {
         try {
           event.currentTarget.releasePointerCapture(event.pointerId);
         } catch {
           // ignore
         }
+      }
+      if (
+        activeDragNodeId &&
+        initialLayout &&
+        finalLayout &&
+        (finalLayout.x !== initialLayout.x || finalLayout.y !== initialLayout.y)
+      ) {
+        onApplyOp({
+          type: "moveNode",
+          nodeId: activeDragNodeId,
+          newLayoutPos: finalLayout
+        });
       }
       dragInitialLayoutRef.current = null;
       dragLastLayoutRef.current = null;
@@ -575,12 +598,13 @@ export function usePatchCanvasInteractions(args: UsePatchCanvasInteractionsArgs)
       dragNodeIdRef.current = null;
       pointerDownNodeIdRef.current = null;
       pointerMovedRef.current = false;
+      setDragLayoutOverride(null);
       setDragNodeId(null);
       if (clickedNodeId && !moved) {
         togglePopoverForNode(clickedNodeId);
       }
     },
-    [dragNodeId, togglePopoverForNode]
+    [dragNodeId, onApplyOp, togglePopoverForNode]
   );
 
   return {
