@@ -276,6 +276,9 @@ describe("probe helpers", () => {
 
     expect(renderData.waveformSegments).toHaveLength(512);
     expect(renderData.waveformSegments.at(-1)?.y1).toBeLessThan(6);
+    expect(renderData.usesFinalScope).toBe(true);
+    expect(renderData.waveformRegionPath).toContain("M ");
+    expect(renderData.envelopeRegionPath).toContain("M ");
     expect(renderData.peak).toBe(0.5);
     expect(renderData.durationSeconds).toBe(2);
   });

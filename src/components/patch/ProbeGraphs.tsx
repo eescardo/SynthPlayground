@@ -10,6 +10,8 @@ import {
   PATCH_COLOR_PROBE_GRAPH_GRID,
   PATCH_COLOR_PROBE_GRAPH_REGION_A,
   PATCH_COLOR_PROBE_GRAPH_REGION_B,
+  PATCH_COLOR_PROBE_SCOPE_ENVELOPE_REGION,
+  PATCH_COLOR_PROBE_SCOPE_WAVE_REGION,
   PATCH_COLOR_PROBE_PLAYHEAD,
   PATCH_COLOR_PROBE_SCOPE_TRACE
 } from "@/components/patch/patchCanvasConstants";
@@ -57,6 +59,8 @@ export function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; compact?
   const futureMaskX = plotStartX + graphData.capturedRatio * plotWidth;
   const futureMaskWidth = Math.max(0, plotStartX + plotWidth - futureMaskX);
   const playheadX = plotStartX + graphData.capturedRatio * plotWidth;
+  const hasSignal = graphData.waveformSegments.length > 0 || Boolean(graphData.envelopeLine);
+  const useFinalSignalRegions = graphData.usesFinalScope && hasSignal;
 
   return (
     <svg
@@ -64,23 +68,33 @@ export function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; compact?
       preserveAspectRatio={props.compact ? "none" : "xMidYMid meet"}
       className="patch-probe-graph"
     >
-      <rect x="0" y="0" width="100" height="60" fill={PATCH_COLOR_PROBE_GRAPH_BG} rx="6" />
-      <rect
-        x={plotStartX}
-        y={waveformTopY}
-        width={plotWidth}
-        height={waveformBottomY - waveformTopY}
-        fill={PATCH_COLOR_PROBE_GRAPH_REGION_A}
-        rx="4"
-      />
-      <rect
-        x={plotStartX}
-        y={envelopeTopY}
-        width={plotWidth}
-        height={envelopeBottomY - envelopeTopY}
-        fill={PATCH_COLOR_PROBE_GRAPH_REGION_B}
-        rx="4"
-      />
+      {hasSignal && !useFinalSignalRegions && (
+        <>
+          <rect x="0" y="0" width="100" height="60" fill={PATCH_COLOR_PROBE_GRAPH_BG} rx="6" />
+          <rect
+            x={plotStartX}
+            y={waveformTopY}
+            width={plotWidth}
+            height={waveformBottomY - waveformTopY}
+            fill={PATCH_COLOR_PROBE_GRAPH_REGION_A}
+            rx="4"
+          />
+          <rect
+            x={plotStartX}
+            y={envelopeTopY}
+            width={plotWidth}
+            height={envelopeBottomY - envelopeTopY}
+            fill={PATCH_COLOR_PROBE_GRAPH_REGION_B}
+            rx="4"
+          />
+        </>
+      )}
+      {useFinalSignalRegions && (
+        <>
+          <path d={graphData.waveformRegionPath} fill={PATCH_COLOR_PROBE_SCOPE_WAVE_REGION} />
+          <path d={graphData.envelopeRegionPath} fill={PATCH_COLOR_PROBE_SCOPE_ENVELOPE_REGION} />
+        </>
+      )}
       {timeMarkers.map((marker) => (
         <line
           key={marker.ratio}

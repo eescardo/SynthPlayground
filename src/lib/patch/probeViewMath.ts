@@ -14,6 +14,9 @@ export interface ScopeWaveformSegment {
 export interface ScopeRenderData {
   waveformSegments: ScopeWaveformSegment[];
   envelopeLine: string;
+  waveformRegionPath: string;
+  envelopeRegionPath: string;
+  usesFinalScope: boolean;
   peak: number;
   capturedRatio: number;
   durationSeconds: number;
@@ -54,6 +57,9 @@ export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, c
     return {
       waveformSegments: [],
       envelopeLine: "",
+      waveformRegionPath: "",
+      envelopeRegionPath: "",
+      usesFinalScope: false,
       peak: 0,
       capturedRatio: 0,
       durationSeconds: 0
@@ -70,6 +76,9 @@ export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, c
     return {
       waveformSegments: [],
       envelopeLine: "",
+      waveformRegionPath: "",
+      envelopeRegionPath: "",
+      usesFinalScope: false,
       peak: 0,
       capturedRatio: 0,
       durationSeconds: 0
@@ -121,6 +130,9 @@ export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, c
   return {
     waveformSegments,
     envelopeLine: envelopePoints.join(" "),
+    waveformRegionPath: "",
+    envelopeRegionPath: "",
+    usesFinalScope: false,
     peak: resolveProbePeakAmplitude(visibleSamples),
     capturedRatio: renderSampleCount / displaySampleCount,
     durationSeconds: displaySampleCount / Math.max(1, sampleRate)
@@ -133,6 +145,9 @@ function buildFinalScopeRenderData(capture: PreviewProbeCapture, compact: boolea
     return {
       waveformSegments: [],
       envelopeLine: "",
+      waveformRegionPath: "",
+      envelopeRegionPath: "",
+      usesFinalScope: false,
       peak: 0,
       capturedRatio: 0,
       durationSeconds: 0
@@ -151,14 +166,23 @@ function buildFinalScopeRenderData(capture: PreviewProbeCapture, compact: boolea
   );
   const waveformSegments: ScopeWaveformSegment[] = [];
   const envelopePoints: string[] = [];
+  const waveformRegionTopPoints: string[] = [];
+  const waveformRegionBottomPoints: string[] = [];
+  const envelopeRegionTopPoints: string[] = [];
+  const envelopeRegionBottomPoints: string[] = [];
   const peak = Math.max(0, finalScope.peak || 0);
   const safePeak = peak > 0 ? peak : 1;
+  const waveformTopY = compact ? 6 : 2;
   const waveformCenterY = compact ? 18 : 15;
+  const waveformBottomY = compact ? 28 : 28;
   const waveformHalfHeight = compact ? 10 : 11;
   const envelopeTopY = compact ? 35 : 31;
+  const envelopeBottomY = compact ? 54 : 56;
   const envelopeHeight = compact ? 18 : 23;
   const plotStartX = compact ? 0 : 6;
   const plotWidth = compact ? 100 : 92;
+  const waveformBufferY = compact ? 1.3 : 1.7;
+  const envelopeBufferY = compact ? 0.9 : 1.2;
 
   for (let bucket = 0; bucket < targetBucketCount; bucket += 1) {
     const sourceStart = Math.floor((bucket / targetBucketCount) * sourceBuckets.length);
@@ -190,12 +214,34 @@ function buildFinalScopeRenderData(capture: PreviewProbeCapture, compact: boolea
       y1: waveformCenterY - clamp(max, -1, 1) * waveformHalfHeight,
       y2: waveformCenterY - clamp(min, -1, 1) * waveformHalfHeight
     });
-    envelopePoints.push(`${x},${envelopeTopY + (1 - clamp(absolutePeak, 0, 1)) * envelopeHeight}`);
+    const envelopeRatio = clamp(absolutePeak, 0, 1);
+    const envelopeY = envelopeTopY + (1 - envelopeRatio) * envelopeHeight;
+    envelopePoints.push(`${x},${envelopeY}`);
+    waveformRegionTopPoints.push(
+      `${x},${clamp(waveformCenterY - envelopeRatio * waveformHalfHeight - waveformBufferY, waveformTopY, waveformBottomY)}`
+    );
+    waveformRegionBottomPoints.push(
+      `${x},${clamp(waveformCenterY + envelopeRatio * waveformHalfHeight + waveformBufferY, waveformTopY, waveformBottomY)}`
+    );
+    envelopeRegionTopPoints.push(`${x},${clamp(envelopeY - envelopeBufferY, envelopeTopY, envelopeBottomY)}`);
+    envelopeRegionBottomPoints.push(`${x},${envelopeBottomY}`);
   }
+
+  const waveformRegionPath =
+    waveformRegionTopPoints.length > 0
+      ? `M ${waveformRegionTopPoints.join(" L ")} L ${waveformRegionBottomPoints.reverse().join(" L ")} Z`
+      : "";
+  const envelopeRegionPath =
+    envelopeRegionTopPoints.length > 0
+      ? `M ${envelopeRegionTopPoints.join(" L ")} L ${envelopeRegionBottomPoints.reverse().join(" L ")} Z`
+      : "";
 
   return {
     waveformSegments,
     envelopeLine: envelopePoints.join(" "),
+    waveformRegionPath,
+    envelopeRegionPath,
+    usesFinalScope: true,
     peak,
     capturedRatio,
     durationSeconds: displaySampleCount / Math.max(1, sampleRate)
