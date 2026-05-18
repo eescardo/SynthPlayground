@@ -27,6 +27,12 @@ const PROBE_SPECTRUM_COLOR_STOPS = [
   { value: 0.1, color: [245, 134, 42] },
   { value: 1, color: [255, 246, 124] }
 ] as const;
+const PROBE_SPECTRUM_ALPHA_STOPS = [
+  { value: 0, alpha: 0 },
+  { value: 0.001, alpha: 0.4 },
+  { value: 0.01, alpha: 0.8 },
+  { value: 0.1, alpha: 1 }
+] as const;
 
 export const createPatchWorkspaceProbe = (
   kind: PatchWorkspaceProbeState["kind"],
@@ -139,6 +145,30 @@ export const resolveProbeSpectrumMagnitudeColor = (magnitude: number) => {
 
   const finalColor = PROBE_SPECTRUM_COLOR_STOPS[PROBE_SPECTRUM_COLOR_STOPS.length - 1].color;
   return `rgb(${finalColor[0]}, ${finalColor[1]}, ${finalColor[2]})`;
+};
+
+export const resolveProbeSpectrumMagnitudeAlpha = (magnitude: number) => {
+  const safeMagnitude = Math.max(0, Number(magnitude) || 0);
+  if (safeMagnitude <= 0) {
+    return 0;
+  }
+
+  const firstStop = PROBE_SPECTRUM_ALPHA_STOPS[1];
+  if (safeMagnitude < firstStop.value) {
+    return clamp((safeMagnitude / firstStop.value) * firstStop.alpha, 0, firstStop.alpha);
+  }
+
+  for (let index = 1; index < PROBE_SPECTRUM_ALPHA_STOPS.length - 1; index += 1) {
+    const low = PROBE_SPECTRUM_ALPHA_STOPS[index];
+    const high = PROBE_SPECTRUM_ALPHA_STOPS[index + 1];
+    if (safeMagnitude <= high.value) {
+      const ratio =
+        (Math.log10(safeMagnitude) - Math.log10(low.value)) / (Math.log10(high.value) - Math.log10(low.value));
+      return clamp(low.alpha + (high.alpha - low.alpha) * ratio, low.alpha, high.alpha);
+    }
+  }
+
+  return 1;
 };
 
 function measureGoertzelMagnitude(

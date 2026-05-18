@@ -4,6 +4,7 @@ import {
   normalizeProbeSamples,
   resolveProbeSpectrumCaptureFrameSize,
   resolveProbeSpectrumEffectiveMaxFrequencyHz,
+  resolveProbeSpectrumMagnitudeAlpha,
   resolveProbeSpectrumMagnitudeColor
 } from "@/lib/patch/probes";
 import {
@@ -80,6 +81,14 @@ describe("probe helpers", () => {
     expect(resolveProbeSpectrumMagnitudeColor(1)).toBe("rgb(255, 246, 124)");
     expect(resolveProbeSpectrumMagnitudeColor(10)).toBe("rgb(255, 246, 124)");
     expect(resolveProbeSpectrumMagnitudeColor(Math.sqrt(0.001 * 0.01))).toBe("rgb(146, 50, 33)");
+  });
+
+  it("maps spectrum magnitudes onto the probe-face alpha scale", () => {
+    expect(resolveProbeSpectrumMagnitudeAlpha(0)).toBe(0);
+    expect(resolveProbeSpectrumMagnitudeAlpha(0.001)).toBeCloseTo(0.4);
+    expect(resolveProbeSpectrumMagnitudeAlpha(0.01)).toBeCloseTo(0.8);
+    expect(resolveProbeSpectrumMagnitudeAlpha(0.1)).toBe(1);
+    expect(resolveProbeSpectrumMagnitudeAlpha(1)).toBe(1);
   });
 
   it("maps partial spectrum timelines into a left-to-right fill region", () => {

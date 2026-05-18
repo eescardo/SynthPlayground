@@ -8,6 +8,7 @@ import {
   buildProbeSpectrumFrameGrid,
   resolveProbeSpectrumCaptureFrameSize,
   resolveProbeSpectrumEffectiveMaxFrequencyHz,
+  resolveProbeSpectrumMagnitudeAlpha,
   resolveProbeSpectrumMagnitudeColor
 } from "@/lib/patch/probes";
 import {
@@ -175,10 +176,12 @@ export function SpectrumProbeGraph(props: {
       const row = displaySpectrogram[rowIndex] ?? [];
       for (let columnIndex = 0; columnIndex < columns; columnIndex += 1) {
         const value = row[columnIndex] ?? 0;
+        context.globalAlpha = usesFinalSpectrum ? 1 : resolveProbeSpectrumMagnitudeAlpha(value);
         context.fillStyle = resolveProbeSpectrumMagnitudeColor(value);
         context.fillRect(columnIndex * cellWidth, height - (rowIndex + 1) * cellHeight, fillWidth, fillHeight);
       }
     }
+    context.globalAlpha = 1;
   }, [displaySpectrogram, props.capture?.finalSpectrum, props.compact]);
 
   const handleSpectrumPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
