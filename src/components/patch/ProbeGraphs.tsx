@@ -47,8 +47,8 @@ export function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; compact?
     [graphData.durationSeconds, props.compact]
   );
 
-  const plotStartX = props.compact ? 2 : 6;
-  const plotWidth = props.compact ? 97 : 92;
+  const plotStartX = props.compact ? 0 : 6;
+  const plotWidth = props.compact ? 100 : 92;
   const waveformTopY = props.compact ? 6 : 2;
   const waveformCenterY = props.compact ? 17 : 15;
   const waveformBottomY = props.compact ? 28 : 28;

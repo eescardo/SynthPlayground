@@ -903,6 +903,7 @@
 
 .patch-probe-card-header strong {
   min-width: 0;
+  flex: 1 1 auto;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -916,6 +917,7 @@
 }
 
 .patch-probe-attach-button {
+  flex: 0 0 auto;
   padding: 0.08rem 0.28rem;
   border-radius: 999px;
   border: 1px solid rgba(200, 255, 57, 0.42);
@@ -924,6 +926,20 @@
   font-size: 0.58rem;
   line-height: 1.05;
   white-space: nowrap;
+}
+
+.patch-probe-card.spectrum:not(.expanded) .patch-probe-card-header {
+  gap: 0.18rem;
+  font-size: 0.58rem;
+}
+
+.patch-probe-card.spectrum:not(.expanded) .patch-probe-header-actions {
+  gap: 0.18rem;
+}
+
+.patch-probe-card.spectrum:not(.expanded) .patch-probe-attach-button {
+  padding: 0.06rem 0.2rem;
+  font-size: 0.52rem;
 }
 
 .patch-probe-card.expanded .patch-probe-attach-button {

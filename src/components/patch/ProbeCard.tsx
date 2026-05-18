@@ -81,7 +81,7 @@ export function ProbeCard(props: {
       : 0;
   return (
     <div
-      className={`patch-probe-card${props.selected ? " selected" : ""}${props.attaching ? " attaching" : ""}${props.probe.expanded ? " expanded" : ""}`}
+      className={`patch-probe-card ${props.probe.kind}${props.selected ? " selected" : ""}${props.attaching ? " attaching" : ""}${props.probe.expanded ? " expanded" : ""}`}
       style={{
         left: `${props.probe.x * PATCH_CANVAS_GRID * props.zoom}px`,
         top: `${props.probe.y * PATCH_CANVAS_GRID * props.zoom}px`,
