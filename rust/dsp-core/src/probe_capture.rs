@@ -226,7 +226,7 @@ pub(crate) fn build_preview_capture_adsr_estimate(
         sustain_ratio,
         release_seconds,
         label: format!(
-            "A: {}|D:{}|S:{}%|R:{}",
+            "A: {}|D: {}|S: {}%|R: {}",
             format_preview_capture_adsr_duration(attack_seconds),
             format_preview_capture_adsr_duration(decay_seconds),
             (sustain_ratio * 100.0).round() as usize,
