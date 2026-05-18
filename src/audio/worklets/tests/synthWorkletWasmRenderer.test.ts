@@ -442,6 +442,77 @@ describe("WASM worklet renderer", () => {
     expect(sharedSamples[blockSize * 64]).toBe(0.5);
   });
 
+  it("keeps JSON samples when shared buffers do not cover every sample capture", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+    const postMessage = vi.fn();
+    renderer.port.postMessage = postMessage;
+    const unrelatedSampleBuffer = new SharedArrayBuffer(blockSize * Float32Array.BYTES_PER_ELEMENT);
+
+    const stream = renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize,
+      trackId: "track_1",
+      previewId: "preview_partial_shared",
+      events: [
+        {
+          id: "note_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
+      captureProbes: [
+        {
+          probeId: "probe_1",
+          kind: "scope",
+          target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
+        }
+      ],
+      captureSharedBuffers: [
+        {
+          probeId: "unrelated_probe",
+          sampleBuffer: unrelatedSampleBuffer,
+          capacitySamples: blockSize
+        }
+      ],
+      randomSeed: 123
+    });
+
+    expect(stream).not.toBeNull();
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "PREVIEW_CAPTURE",
+        previewId: "preview_partial_shared",
+        captures: [
+          expect.objectContaining({
+            probeId: "probe_1",
+            sampleBuffer: undefined,
+            samples: expect.arrayContaining([0.5])
+          })
+        ]
+      })
+    );
+  });
+
   it("emits final spectrum grids on final preview capture", async () => {
     const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
 

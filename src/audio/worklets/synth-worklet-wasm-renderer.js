@@ -43,10 +43,16 @@ export class WasmWorkletRenderer extends SharedWasmRenderer {
           return null;
         }
         engine.configure_preview_probe_capture(JSON.stringify(compiled));
+        const sharedBufferByProbeId = renderer.resolveSharedCaptureBufferMap?.(options.captureSharedBuffers);
+        const sampleProbeIds = options.captureProbes
+          .filter((probe) => probe.kind !== "spectrum")
+          .map((probe) => probe.probeId);
         return {
           lastEmittedCapturedSamples: 0,
-          sharedBufferByProbeId: renderer.resolveSharedCaptureBufferMap?.(options.captureSharedBuffers),
+          sharedBufferByProbeId,
           copiedSampleCountByProbeId: new Map(),
+          hasSharedBufferForAllSampleCaptures:
+            sampleProbeIds.length > 0 && sampleProbeIds.every((probeId) => sharedBufferByProbeId?.has(probeId)),
           metaByProbeId: new Map(
             options.captureProbes.map((probe) => [
               probe.probeId,
@@ -60,7 +66,7 @@ export class WasmWorkletRenderer extends SharedWasmRenderer {
         };
       },
       readPreviewCapture: (_renderer, engine, previewCaptureState, force) => {
-        const includeSamples = !previewCaptureState.sharedBufferByProbeId?.size;
+        const includeSamples = !previewCaptureState.hasSharedBufferForAllSampleCaptures;
         const rawSnapshot = engine.preview_capture_state_json(Boolean(force), includeSamples);
         if (typeof rawSnapshot !== "string" || rawSnapshot.length === 0 || rawSnapshot.charCodeAt(0) === 0) {
           return null;
