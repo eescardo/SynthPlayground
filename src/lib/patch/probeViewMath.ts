@@ -22,9 +22,39 @@ export interface ScopeRenderData {
   durationSeconds: number;
 }
 
+export interface ScopeGraphLayout {
+  plotStartX: number;
+  plotWidth: number;
+  waveformTopY: number;
+  waveformCenterY: number;
+  waveformBottomY: number;
+  waveformHalfHeight: number;
+  envelopeTopY: number;
+  envelopeBottomY: number;
+  envelopeHeight: number;
+  waveformBufferY: number;
+  envelopeBufferY: number;
+}
+
 export interface SpectrumFrequencyMarker {
   frequency: number;
   bottomPercent: number;
+}
+
+export function resolveScopeGraphLayout(compact = false): ScopeGraphLayout {
+  return {
+    plotStartX: compact ? 0 : 6,
+    plotWidth: compact ? 100 : 92,
+    waveformTopY: compact ? 6 : 2,
+    waveformCenterY: compact ? 17 : 15,
+    waveformBottomY: compact ? 28 : 28,
+    waveformHalfHeight: compact ? 10 : 11,
+    envelopeTopY: compact ? 33 : 31,
+    envelopeBottomY: compact ? 54 : 56,
+    envelopeHeight: compact ? 21 : 25,
+    waveformBufferY: compact ? 1.3 : 1.7,
+    envelopeBufferY: compact ? 0.9 : 1.2
+  };
 }
 
 export function resolveSpectrumTimelineFillRatio(capturedSamples: number, sampleRate: number, viewportSeconds: number) {
@@ -91,17 +121,12 @@ export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, c
   const bucketCount = compact ? 72 : 120;
   const waveformSegments: ScopeWaveformSegment[] = [];
   const envelopePoints: string[] = [];
-  const waveformCenterY = compact ? 18 : 15;
-  const waveformHalfHeight = compact ? 10 : 11;
-  const envelopeTopY = compact ? 35 : 31;
-  const envelopeHeight = compact ? 18 : 23;
-  const plotStartX = compact ? 0 : 6;
-  const plotWidth = compact ? 100 : 92;
+  const layout = resolveScopeGraphLayout(compact);
 
   for (let bucket = 0; bucket < bucketCount; bucket += 1) {
     const bucketStart = Math.floor((bucket / bucketCount) * displaySampleCount);
     const bucketEnd = Math.max(bucketStart + 1, Math.floor(((bucket + 1) / bucketCount) * displaySampleCount));
-    const x = plotStartX + (bucket / Math.max(1, bucketCount - 1)) * plotWidth;
+    const x = layout.plotStartX + (bucket / Math.max(1, bucketCount - 1)) * layout.plotWidth;
     if (bucketStart >= renderSampleCount) {
       continue;
     }
@@ -121,10 +146,10 @@ export function buildScopeRenderData(capture: PreviewProbeCapture | undefined, c
     }
     waveformSegments.push({
       x,
-      y1: waveformCenterY - max * waveformHalfHeight,
-      y2: waveformCenterY - min * waveformHalfHeight
+      y1: layout.waveformCenterY - max * layout.waveformHalfHeight,
+      y2: layout.waveformCenterY - min * layout.waveformHalfHeight
     });
-    envelopePoints.push(`${x},${envelopeTopY + (1 - absolutePeak) * envelopeHeight}`);
+    envelopePoints.push(`${x},${layout.envelopeTopY + (1 - absolutePeak) * layout.envelopeHeight}`);
   }
 
   return {
@@ -172,22 +197,12 @@ function buildFinalScopeRenderData(capture: PreviewProbeCapture, compact: boolea
   const envelopeRegionBottomPoints: string[] = [];
   const peak = Math.max(0, finalScope.peak || 0);
   const safePeak = peak > 0 ? peak : 1;
-  const waveformTopY = compact ? 6 : 2;
-  const waveformCenterY = compact ? 18 : 15;
-  const waveformBottomY = compact ? 28 : 28;
-  const waveformHalfHeight = compact ? 10 : 11;
-  const envelopeTopY = compact ? 35 : 31;
-  const envelopeBottomY = compact ? 54 : 56;
-  const envelopeHeight = compact ? 18 : 23;
-  const plotStartX = compact ? 0 : 6;
-  const plotWidth = compact ? 100 : 92;
-  const waveformBufferY = compact ? 1.3 : 1.7;
-  const envelopeBufferY = compact ? 0.9 : 1.2;
+  const layout = resolveScopeGraphLayout(compact);
 
   for (let bucket = 0; bucket < targetBucketCount; bucket += 1) {
     const sourceStart = Math.floor((bucket / targetBucketCount) * sourceBuckets.length);
     const sourceEnd = Math.max(sourceStart + 1, Math.floor(((bucket + 1) / targetBucketCount) * sourceBuckets.length));
-    const x = plotStartX + (bucket / Math.max(1, displayBucketCount - 1)) * plotWidth;
+    const x = layout.plotStartX + (bucket / Math.max(1, displayBucketCount - 1)) * layout.plotWidth;
     let min = Number.POSITIVE_INFINITY;
     let max = Number.NEGATIVE_INFINITY;
     let absolutePeak = 0;
@@ -211,20 +226,30 @@ function buildFinalScopeRenderData(capture: PreviewProbeCapture, compact: boolea
     }
     waveformSegments.push({
       x,
-      y1: waveformCenterY - clamp(max, -1, 1) * waveformHalfHeight,
-      y2: waveformCenterY - clamp(min, -1, 1) * waveformHalfHeight
+      y1: layout.waveformCenterY - clamp(max, -1, 1) * layout.waveformHalfHeight,
+      y2: layout.waveformCenterY - clamp(min, -1, 1) * layout.waveformHalfHeight
     });
     const envelopeRatio = clamp(absolutePeak, 0, 1);
-    const envelopeY = envelopeTopY + (1 - envelopeRatio) * envelopeHeight;
+    const envelopeY = layout.envelopeTopY + (1 - envelopeRatio) * layout.envelopeHeight;
     envelopePoints.push(`${x},${envelopeY}`);
     waveformRegionTopPoints.push(
-      `${x},${clamp(waveformCenterY - envelopeRatio * waveformHalfHeight - waveformBufferY, waveformTopY, waveformBottomY)}`
+      `${x},${clamp(
+        layout.waveformCenterY - envelopeRatio * layout.waveformHalfHeight - layout.waveformBufferY,
+        layout.waveformTopY,
+        layout.waveformBottomY
+      )}`
     );
     waveformRegionBottomPoints.push(
-      `${x},${clamp(waveformCenterY + envelopeRatio * waveformHalfHeight + waveformBufferY, waveformTopY, waveformBottomY)}`
+      `${x},${clamp(
+        layout.waveformCenterY + envelopeRatio * layout.waveformHalfHeight + layout.waveformBufferY,
+        layout.waveformTopY,
+        layout.waveformBottomY
+      )}`
     );
-    envelopeRegionTopPoints.push(`${x},${clamp(envelopeY - envelopeBufferY, envelopeTopY, envelopeBottomY)}`);
-    envelopeRegionBottomPoints.push(`${x},${envelopeBottomY}`);
+    envelopeRegionTopPoints.push(
+      `${x},${clamp(envelopeY - layout.envelopeBufferY, layout.envelopeTopY, layout.envelopeBottomY)}`
+    );
+    envelopeRegionBottomPoints.push(`${x},${layout.envelopeBottomY}`);
   }
 
   const waveformRegionPath =
@@ -249,11 +274,10 @@ function buildFinalScopeRenderData(capture: PreviewProbeCapture, compact: boolea
 }
 
 export function resolveScopeTimeMarkers(durationSeconds: number, compact = false) {
-  const plotStartX = compact ? 0 : 6;
-  const plotWidth = compact ? 100 : 92;
+  const layout = resolveScopeGraphLayout(compact);
   return [0, 0.5, 1].map((ratio) => ({
     ratio,
-    x: plotStartX + ratio * plotWidth,
+    x: layout.plotStartX + ratio * layout.plotWidth,
     label: formatScopeTimestamp(durationSeconds * ratio)
   }));
 }

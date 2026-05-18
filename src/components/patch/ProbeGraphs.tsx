@@ -16,7 +16,7 @@ import {
   PATCH_COLOR_PROBE_SCOPE_TRACE
 } from "@/components/patch/patchCanvasConstants";
 import { detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
-import { buildScopeRenderData, resolveScopeTimeMarkers } from "@/lib/patch/probeViewMath";
+import { buildScopeRenderData, resolveScopeGraphLayout, resolveScopeTimeMarkers } from "@/lib/patch/probeViewMath";
 import { PreviewProbeCapture } from "@/types/probes";
 
 export function PitchTrackerProbeGraph(props: { capture?: PreviewProbeCapture; compact?: boolean }) {
@@ -49,16 +49,10 @@ export function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; compact?
     [graphData.durationSeconds, props.compact]
   );
 
-  const plotStartX = props.compact ? 0 : 6;
-  const plotWidth = props.compact ? 100 : 92;
-  const waveformTopY = props.compact ? 6 : 2;
-  const waveformCenterY = props.compact ? 17 : 15;
-  const waveformBottomY = props.compact ? 28 : 28;
-  const envelopeTopY = props.compact ? 33 : 31;
-  const envelopeBottomY = props.compact ? 54 : 56;
-  const futureMaskX = plotStartX + graphData.capturedRatio * plotWidth;
-  const futureMaskWidth = Math.max(0, plotStartX + plotWidth - futureMaskX);
-  const playheadX = plotStartX + graphData.capturedRatio * plotWidth;
+  const layout = useMemo(() => resolveScopeGraphLayout(props.compact), [props.compact]);
+  const futureMaskX = layout.plotStartX + graphData.capturedRatio * layout.plotWidth;
+  const futureMaskWidth = Math.max(0, layout.plotStartX + layout.plotWidth - futureMaskX);
+  const playheadX = layout.plotStartX + graphData.capturedRatio * layout.plotWidth;
   const hasSignal = graphData.waveformSegments.length > 0 || Boolean(graphData.envelopeLine);
   const useFinalSignalRegions = graphData.usesFinalScope && hasSignal;
 
@@ -72,18 +66,18 @@ export function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; compact?
         <>
           <rect x="0" y="0" width="100" height="60" fill={PATCH_COLOR_PROBE_GRAPH_BG} rx="6" />
           <rect
-            x={plotStartX}
-            y={waveformTopY}
-            width={plotWidth}
-            height={waveformBottomY - waveformTopY}
+            x={layout.plotStartX}
+            y={layout.waveformTopY}
+            width={layout.plotWidth}
+            height={layout.waveformBottomY - layout.waveformTopY}
             fill={PATCH_COLOR_PROBE_GRAPH_REGION_A}
             rx="4"
           />
           <rect
-            x={plotStartX}
-            y={envelopeTopY}
-            width={plotWidth}
-            height={envelopeBottomY - envelopeTopY}
+            x={layout.plotStartX}
+            y={layout.envelopeTopY}
+            width={layout.plotWidth}
+            height={layout.envelopeBottomY - layout.envelopeTopY}
             fill={PATCH_COLOR_PROBE_GRAPH_REGION_B}
             rx="4"
           />
@@ -99,37 +93,37 @@ export function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; compact?
         <line
           key={marker.ratio}
           x1={marker.x}
-          y1={waveformTopY}
+          y1={layout.waveformTopY}
           x2={marker.x}
-          y2={envelopeBottomY}
+          y2={layout.envelopeBottomY}
           stroke={PATCH_COLOR_PROBE_GRAPH_GRID}
           strokeWidth="0.35"
           shapeRendering="crispEdges"
         />
       ))}
       <line
-        x1={plotStartX}
-        y1={waveformCenterY}
-        x2={plotStartX + plotWidth}
-        y2={waveformCenterY}
+        x1={layout.plotStartX}
+        y1={layout.waveformCenterY}
+        x2={layout.plotStartX + layout.plotWidth}
+        y2={layout.waveformCenterY}
         stroke={PATCH_COLOR_PROBE_GRAPH_AXIS_STRONG}
         strokeWidth="0.45"
         shapeRendering="crispEdges"
       />
       <line
-        x1={plotStartX}
-        y1={envelopeTopY}
-        x2={plotStartX + plotWidth}
-        y2={envelopeTopY}
+        x1={layout.plotStartX}
+        y1={layout.envelopeTopY}
+        x2={layout.plotStartX + layout.plotWidth}
+        y2={layout.envelopeTopY}
         stroke={PATCH_COLOR_PROBE_GRAPH_AXIS}
         strokeWidth="0.35"
         shapeRendering="crispEdges"
       />
       <line
-        x1={plotStartX}
-        y1={envelopeBottomY}
-        x2={plotStartX + plotWidth}
-        y2={envelopeBottomY}
+        x1={layout.plotStartX}
+        y1={layout.envelopeBottomY}
+        x2={layout.plotStartX + layout.plotWidth}
+        y2={layout.envelopeBottomY}
         stroke={PATCH_COLOR_PROBE_GRAPH_AXIS}
         strokeWidth="0.35"
         shapeRendering="crispEdges"
@@ -137,9 +131,9 @@ export function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; compact?
       {graphData.capturedRatio < 1 && (
         <rect
           x={futureMaskX}
-          y={waveformTopY}
+          y={layout.waveformTopY}
           width={futureMaskWidth}
-          height={envelopeBottomY - waveformTopY}
+          height={layout.envelopeBottomY - layout.waveformTopY}
           fill={PATCH_COLOR_PROBE_GRAPH_FUTURE_MASK}
         />
       )}
@@ -169,9 +163,9 @@ export function ScopeProbeGraph(props: { capture?: PreviewProbeCapture; compact?
       )}
       <line
         x1={playheadX}
-        y1={waveformTopY}
+        y1={layout.waveformTopY}
         x2={playheadX}
-        y2={envelopeBottomY}
+        y2={layout.envelopeBottomY}
         stroke={PATCH_COLOR_PROBE_PLAYHEAD}
         strokeWidth="0.7"
         shapeRendering="crispEdges"

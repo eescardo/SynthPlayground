@@ -9,6 +9,7 @@ import {
 } from "@/lib/patch/probes";
 import {
   buildScopeRenderData,
+  resolveScopeGraphLayout,
   resolveScopeTimeMarkers,
   resolveSpectrumFrequencyMarkers,
   resolveSpectrumTimelineFillRatio,
@@ -285,10 +286,13 @@ describe("probe helpers", () => {
 
   it("builds fixed scope time markers for full-duration rendering", () => {
     const markers = resolveScopeTimeMarkers(1.2, false);
+    const layout = resolveScopeGraphLayout(false);
 
     expect(markers).toHaveLength(3);
     expect(markers[0]?.label).toBe("0ms");
+    expect(markers[0]?.x).toBe(layout.plotStartX);
     expect(markers[1]?.label).toBe("600ms");
     expect(markers[2]?.label).toBe("1.2s");
+    expect(markers[2]?.x).toBe(layout.plotStartX + layout.plotWidth);
   });
 });
