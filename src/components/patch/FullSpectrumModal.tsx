@@ -192,7 +192,9 @@ export function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeN
             {timeMarkers.map((marker) => (
               <span
                 key={marker.ratio}
-                className="patch-probe-full-spectrum-time-marker"
+                className={`patch-probe-full-spectrum-time-marker${
+                  marker.ratio === 0 ? " start" : marker.ratio === 1 ? " end" : ""
+                }`}
                 style={{ left: `${marker.ratio * 100}%` }}
               >
                 {marker.label}

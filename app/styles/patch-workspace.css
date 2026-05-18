@@ -1189,11 +1189,11 @@
   white-space: nowrap;
 }
 
-.patch-probe-full-spectrum-time-marker:first-of-type {
+.patch-probe-full-spectrum-time-marker.start {
   transform: none;
 }
 
-.patch-probe-full-spectrum-time-marker:last-of-type {
+.patch-probe-full-spectrum-time-marker.end {
   transform: translateX(-100%);
 }
 
