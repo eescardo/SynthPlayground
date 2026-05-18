@@ -10,8 +10,9 @@ export function usePatchProbeDrag(args: {
   probeActions: Pick<PatchProbeEditorActions, "moveProbe">;
 }) {
   const [dragProbe, setDragProbe] = useState<{ probeId: string; offsetX: number; offsetY: number } | null>(null);
+  const [dragPosition, setDragPosition] = useState<{ probeId: string; x: number; y: number } | null>(null);
   const moveProbeRef = useRef(args.probeActions.moveProbe);
-  const lastDragPositionRef = useRef<{ probeId: string; x: number; y: number } | null>(null);
+  const dragPositionRef = useRef<{ probeId: string; x: number; y: number } | null>(null);
   const pendingPointerEventRef = useRef<PointerEvent | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
@@ -35,12 +36,13 @@ export function usePatchProbeDrag(args: {
       const rawY = (event.clientY - rect.top) * scaleY;
       const x = Math.max(0, Math.round((rawX - dragProbe.offsetX) / PATCH_CANVAS_GRID));
       const y = Math.max(0, Math.round((rawY - dragProbe.offsetY) / PATCH_CANVAS_GRID));
-      const lastPosition = lastDragPositionRef.current;
+      const lastPosition = dragPositionRef.current;
       if (lastPosition?.probeId === dragProbe.probeId && lastPosition.x === x && lastPosition.y === y) {
         return;
       }
-      lastDragPositionRef.current = { probeId: dragProbe.probeId, x, y };
-      moveProbeRef.current(dragProbe.probeId, x, y);
+      const nextPosition = { probeId: dragProbe.probeId, x, y };
+      dragPositionRef.current = nextPosition;
+      setDragPosition(nextPosition);
     };
     const flushPendingPointerMove = () => {
       animationFrameRef.current = null;
@@ -56,12 +58,27 @@ export function usePatchProbeDrag(args: {
         animationFrameRef.current = window.requestAnimationFrame(flushPendingPointerMove);
       }
     };
-    const handlePointerUp = () => {
+    const commitDragPosition = () => {
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      const pendingEvent = pendingPointerEventRef.current;
+      pendingPointerEventRef.current = null;
+      if (pendingEvent) {
+        moveProbeToPointer(pendingEvent);
+      }
+      const finalPosition = dragPositionRef.current;
+      if (finalPosition) {
+        moveProbeRef.current(finalPosition.probeId, finalPosition.x, finalPosition.y);
+      }
+      dragPositionRef.current = null;
+      setDragPosition(null);
       setDragProbe(null);
     };
-    lastDragPositionRef.current = null;
     window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointerup", commitDragPosition);
+    window.addEventListener("pointercancel", commitDragPosition);
     return () => {
       if (animationFrameRef.current !== null) {
         window.cancelAnimationFrame(animationFrameRef.current);
@@ -69,7 +86,8 @@ export function usePatchProbeDrag(args: {
       }
       pendingPointerEventRef.current = null;
       window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointerup", commitDragPosition);
+      window.removeEventListener("pointercancel", commitDragPosition);
     };
   }, [args.canvasRef, dragProbe]);
 
@@ -85,6 +103,9 @@ export function usePatchProbeDrag(args: {
       const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
       const rawX = (clientX - rect.left) * scaleX;
       const rawY = (clientY - rect.top) * scaleY;
+      const initialPosition = { probeId, x: probe.x, y: probe.y };
+      dragPositionRef.current = initialPosition;
+      setDragPosition(initialPosition);
       setDragProbe({
         probeId,
         offsetX: rawX - probe.x * PATCH_CANVAS_GRID,
@@ -94,5 +115,5 @@ export function usePatchProbeDrag(args: {
     [args.canvasRef, args.probes]
   );
 
-  return { beginProbeDrag };
+  return { beginProbeDrag, dragPosition };
 }

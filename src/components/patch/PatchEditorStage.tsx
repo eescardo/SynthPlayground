@@ -423,11 +423,19 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [canDeleteConnection, canDeleteNode, canDeleteProbe, deleteSelectedCanvasObject, pendingFromPort]);
 
-  const { beginProbeDrag } = usePatchProbeDrag({
+  const { beginProbeDrag, dragPosition } = usePatchProbeDrag({
     canvasRef,
     probes: probeState.probes,
     probeActions
   });
+  const renderedProbes = useMemo(() => {
+    if (!dragPosition) {
+      return probeState.probes;
+    }
+    return probeState.probes.map((probe) =>
+      probe.id === dragPosition.probeId ? { ...probe, x: dragPosition.x, y: dragPosition.y } : probe
+    );
+  }, [dragPosition, probeState.probes]);
 
   return (
     <div className={styles.stage} ref={rootRef}>
@@ -549,7 +557,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
               patch={patch}
               layoutByNode={layoutByNode}
               outputHostCanvasLeft={outputHostCanvasLeft}
-              probes={probeState.probes}
+              probes={renderedProbes}
               selectedProbeId={probeState.selectedProbeId}
               previewCaptureByProbeId={probeState.previewCaptureByProbeId}
               zoom={zoom}
@@ -567,7 +575,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
                 focus={keyboardFocus}
                 model={keyboardNavigationModel}
                 ports={keyboardPorts}
-                probes={probeState.probes}
+                probes={renderedProbes}
                 selectedNodeId={selectedNodeId}
                 selectedProbeId={probeState.selectedProbeId}
                 zoom={zoom}
