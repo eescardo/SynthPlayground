@@ -1,11 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { PATCH_COLOR_PROBE_GRAPH_BG } from "@/components/patch/patchCanvasConstants";
+import {
+  PATCH_COLOR_FULL_SPECTRUM_GRID_MAJOR,
+  PATCH_COLOR_FULL_SPECTRUM_GRID_MINOR,
+  PATCH_COLOR_PROBE_GRAPH_BG,
+  PATCH_FULL_SPECTRUM_COLUMN_WIDTH,
+  PATCH_FULL_SPECTRUM_EMPTY_IMAGE_HEIGHT,
+  PATCH_FULL_SPECTRUM_MAJOR_GRID_LINE_WIDTH,
+  PATCH_FULL_SPECTRUM_MIN_IMAGE_WIDTH,
+  PATCH_FULL_SPECTRUM_MINOR_GRID_DASH,
+  PATCH_FULL_SPECTRUM_MINOR_GRID_LINE_WIDTH,
+  PATCH_FULL_SPECTRUM_TIME_MARKER_RATIOS
+} from "@/components/patch/patchCanvasConstants";
 import { useDelayedSpectrumTooltip } from "@/hooks/patch/useDelayedSpectrumTooltip";
 import { clamp } from "@/lib/numeric";
 import { formatScopeTimestamp, formatSpectrumFrequency } from "@/lib/patch/probeViewMath";
-import { resolveProbeSpectrumMagnitudeColor } from "@/lib/patch/probes";
+import { PROBE_MAX_MAX_FREQUENCY_HZ, resolveProbeSpectrumMagnitudeColor } from "@/lib/patch/probes";
 import {
   formatSpectrumTooltip,
   readSpectrumGridValue,
@@ -22,7 +33,7 @@ export function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeN
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const { clearTooltip, scheduleTooltip, tooltip } = useDelayedSpectrumTooltip();
   const binFrequencies = finalSpectrum?.binFrequencies ?? [];
-  const maxFrequencyHz = binFrequencies.at(-1) ?? 24000;
+  const maxFrequencyHz = binFrequencies.at(-1) ?? PROBE_MAX_MAX_FREQUENCY_HZ;
   const frameSize = finalSpectrum?.frameSize ?? 512;
   const frequencyMarkers = useMemo(
     () => resolveFullSpectrumFrequencyMarkers(maxFrequencyHz, frameSize),
@@ -31,13 +42,17 @@ export function FullSpectrumModal(props: { capture?: PreviewProbeCapture; probeN
   const gridLines = useMemo(() => resolveFullSpectrumGridLines(maxFrequencyHz, frameSize), [frameSize, maxFrequencyHz]);
   const durationSeconds = finalSpectrum ? finalSpectrum.capturedSamples / Math.max(1, finalSpectrum.sampleRate) : 0;
   const timeMarkers = useMemo(
-    () => [0, 0.5, 1].map((ratio) => ({ ratio, label: formatScopeTimestamp(durationSeconds * ratio) })),
+    () =>
+      PATCH_FULL_SPECTRUM_TIME_MARKER_RATIOS.map((ratio) => ({
+        ratio,
+        label: formatScopeTimestamp(durationSeconds * ratio)
+      })),
     [durationSeconds]
   );
   const rowCount = resolveSpectrumGridRowCount(finalSpectrum);
   const columnCount = resolveSpectrumGridColumnCount(finalSpectrum);
-  const imageWidth = Math.max(720, columnCount * 2);
-  const imageHeight = rowCount > 0 ? rowCount : 320;
+  const imageWidth = Math.max(PATCH_FULL_SPECTRUM_MIN_IMAGE_WIDTH, columnCount * PATCH_FULL_SPECTRUM_COLUMN_WIDTH);
+  const imageHeight = rowCount > 0 ? rowCount : PATCH_FULL_SPECTRUM_EMPTY_IMAGE_HEIGHT;
 
   useEffect(() => {
     const onClose = props.onClose;
@@ -197,9 +212,11 @@ function drawFullSpectrumGrid(
     const y = line.y * height;
     context.save();
     context.beginPath();
-    context.setLineDash(line.major ? [] : [2, 3]);
-    context.strokeStyle = line.major ? "rgba(231, 243, 255, 0.5)" : "rgba(231, 243, 255, 0.3)";
-    context.lineWidth = line.major ? 1 : 0.75;
+    context.setLineDash(line.major ? [] : [...PATCH_FULL_SPECTRUM_MINOR_GRID_DASH]);
+    context.strokeStyle = line.major ? PATCH_COLOR_FULL_SPECTRUM_GRID_MAJOR : PATCH_COLOR_FULL_SPECTRUM_GRID_MINOR;
+    context.lineWidth = line.major
+      ? PATCH_FULL_SPECTRUM_MAJOR_GRID_LINE_WIDTH
+      : PATCH_FULL_SPECTRUM_MINOR_GRID_LINE_WIDTH;
     context.moveTo(0, y);
     context.lineTo(width, y);
     context.stroke();

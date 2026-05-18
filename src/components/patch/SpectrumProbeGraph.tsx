@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import {
+  PATCH_SPECTRUM_FACE_COMPACT_STREAM_COLUMNS,
+  PATCH_SPECTRUM_FACE_COMPACT_STREAM_HEIGHT,
+  PATCH_SPECTRUM_FACE_EXPANDED_STREAM_COLUMNS,
+  PATCH_SPECTRUM_FACE_EXPANDED_STREAM_HEIGHT
+} from "@/components/patch/patchCanvasConstants";
 import { useDelayedSpectrumTooltip } from "@/hooks/patch/useDelayedSpectrumTooltip";
 import { clamp } from "@/lib/numeric";
 import {
@@ -62,8 +68,8 @@ export function SpectrumProbeGraph(props: {
         ? SPECTRUM_FINAL_COMPACT_FACE_COLUMNS
         : SPECTRUM_FINAL_FACE_COLUMNS
       : props.compact
-        ? 240
-        : 320;
+        ? PATCH_SPECTRUM_FACE_COMPACT_STREAM_COLUMNS
+        : PATCH_SPECTRUM_FACE_EXPANDED_STREAM_COLUMNS;
     if (!props.capture) {
       return [];
     }
@@ -151,8 +157,18 @@ export function SpectrumProbeGraph(props: {
     const rows = displaySpectrogram.length;
     const columns = displaySpectrogram[0]?.length ?? 0;
     const usesFinalSpectrum = Boolean(props.capture?.finalSpectrum);
-    const width = usesFinalSpectrum && columns > 0 ? columns : props.compact ? 240 : 320;
-    const height = usesFinalSpectrum && rows > 0 ? rows : props.compact ? 144 : 192;
+    const width =
+      usesFinalSpectrum && columns > 0
+        ? columns
+        : props.compact
+          ? PATCH_SPECTRUM_FACE_COMPACT_STREAM_COLUMNS
+          : PATCH_SPECTRUM_FACE_EXPANDED_STREAM_COLUMNS;
+    const height =
+      usesFinalSpectrum && rows > 0
+        ? rows
+        : props.compact
+          ? PATCH_SPECTRUM_FACE_COMPACT_STREAM_HEIGHT
+          : PATCH_SPECTRUM_FACE_EXPANDED_STREAM_HEIGHT;
     const devicePixelRatio = window.devicePixelRatio || 1;
     canvas.width = Math.round(width * devicePixelRatio);
     canvas.height = Math.round(height * devicePixelRatio);
