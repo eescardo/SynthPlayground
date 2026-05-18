@@ -71,7 +71,14 @@ const writeCaptureSamplesToSharedBuffer = (capture, sharedBuffer) => {
   };
 };
 
-const writeWasmCaptureSamplesToSharedBuffer = (implementation, renderer, engine, capture, sharedBuffer) => {
+const writeWasmCaptureSamplesToSharedBuffer = (
+  implementation,
+  renderer,
+  engine,
+  capture,
+  sharedBuffer,
+  copiedSampleCountByProbeId
+) => {
   if (!sharedBuffer?.sampleBuffer || !implementation.getPreviewCaptureSamplesPointer) {
     return null;
   }
@@ -90,8 +97,22 @@ const writeWasmCaptureSamplesToSharedBuffer = (implementation, renderer, engine,
   if (!Number.isFinite(pointer) || pointer <= 0) {
     return null;
   }
-  const source = new Float32Array(memory.buffer, pointer, sampleLength);
-  new Float32Array(sharedBuffer.sampleBuffer, 0, sampleLength).set(source);
+  const previousSampleLength = Math.min(
+    sampleLength,
+    Math.max(0, Math.floor(copiedSampleCountByProbeId?.get(capture.probeId) ?? 0))
+  );
+  const copyLength = sampleLength - previousSampleLength;
+  if (copyLength > 0) {
+    const source = new Float32Array(
+      memory.buffer,
+      pointer + previousSampleLength * Float32Array.BYTES_PER_ELEMENT,
+      copyLength
+    );
+    new Float32Array(sharedBuffer.sampleBuffer, previousSampleLength * Float32Array.BYTES_PER_ELEMENT, copyLength).set(
+      source
+    );
+  }
+  copiedSampleCountByProbeId?.set(capture.probeId, sampleLength);
   return {
     sampleBuffer: sharedBuffer.sampleBuffer,
     sampleLength,
@@ -200,7 +221,8 @@ export class SharedWasmRenderStream {
                 this.renderer,
                 this.engine,
                 capture,
-                sharedBuffer
+                sharedBuffer,
+                this.previewCaptureState.copiedSampleCountByProbeId
               ) ?? writeCaptureSamplesToSharedBuffer(capture, sharedBuffer));
           const sampleStride = Math.max(1, sharedSamples?.sampleStride || capture.sampleStride || 1);
           return meta

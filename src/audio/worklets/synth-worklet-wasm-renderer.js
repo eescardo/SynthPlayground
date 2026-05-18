@@ -46,6 +46,7 @@ export class WasmWorkletRenderer extends SharedWasmRenderer {
         return {
           lastEmittedCapturedSamples: 0,
           sharedBufferByProbeId: renderer.resolveSharedCaptureBufferMap?.(options.captureSharedBuffers),
+          copiedSampleCountByProbeId: new Map(),
           metaByProbeId: new Map(
             options.captureProbes.map((probe) => [
               probe.probeId,

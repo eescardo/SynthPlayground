@@ -46,6 +46,7 @@ export interface SharedWasmPreviewCaptureBuffer {
 export interface SharedWasmPreviewCaptureState {
   lastEmittedCapturedSamples: number;
   sharedBufferByProbeId?: Map<string, SharedWasmPreviewCaptureBuffer>;
+  copiedSampleCountByProbeId?: Map<string, number>;
   metaByProbeId: Map<
     string,
     {

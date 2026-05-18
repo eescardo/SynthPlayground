@@ -3,12 +3,12 @@ import { createPatchOutputPort, PATCH_OUTPUT_PORT_ID } from "@/lib/patch/ports";
 import type { Project, Track } from "@/types/music";
 import type { Patch } from "@/types/patch";
 
-const sharedMemory = new WebAssembly.Memory({ initial: 1 });
+const sharedMemory = new WebAssembly.Memory({ initial: 2 });
 const blockSize = 128;
 const leftView = new Float32Array(sharedMemory.buffer, 0, blockSize);
 const rightView = new Float32Array(sharedMemory.buffer, blockSize * Float32Array.BYTES_PER_ELEMENT, blockSize);
 const captureSamplesPtr = blockSize * 2 * Float32Array.BYTES_PER_ELEMENT;
-const captureSampleView = new Float32Array(sharedMemory.buffer, captureSamplesPtr, blockSize * 4);
+const captureSampleView = new Float32Array(sharedMemory.buffer, captureSamplesPtr, blockSize * 160);
 let previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
 let previewCaptureSampleCount = 0;
 let writeInvalidPreviewCaptureJson = false;
@@ -29,8 +29,9 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
       configuredPreviewCaptureJson = captureJson;
     }
     process_block() {
+      const previousSampleCount = previewCaptureSampleCount;
       previewCaptureSampleCount += blockSize;
-      captureSampleView.fill(0.5, 0, previewCaptureSampleCount);
+      captureSampleView.fill(0.5, previousSampleCount, previewCaptureSampleCount);
       previewCaptureStateJson = writeInvalidPreviewCaptureJson
         ? "\0".repeat(16)
         : JSON.stringify({
@@ -369,6 +370,76 @@ describe("WASM worklet renderer", () => {
         ]
       })
     );
+  });
+
+  it("copies only new WASM preview samples into shared buffers on later emits", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+    const postMessage = vi.fn();
+    renderer.port.postMessage = postMessage;
+    hasActiveVoices = true;
+    const sampleBuffer = new SharedArrayBuffer(blockSize * 128 * Float32Array.BYTES_PER_ELEMENT);
+    const sharedSamples = new Float32Array(sampleBuffer);
+
+    const stream = renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize * 160,
+      trackId: "track_1",
+      previewId: "preview_shared_incremental",
+      events: [
+        {
+          id: "note_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
+      captureProbes: [
+        {
+          probeId: "probe_1",
+          kind: "scope",
+          target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
+        }
+      ],
+      captureSharedBuffers: [{ probeId: "probe_1", sampleBuffer, capacitySamples: blockSize * 128 }],
+      randomSeed: 123
+    });
+
+    expect(stream).not.toBeNull();
+    for (let index = 0; index < 64; index += 1) {
+      stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+    }
+    expect(sharedSamples[0]).toBe(0.5);
+    captureSampleView[0] = 0.25;
+
+    for (let index = 0; index < 64; index += 1) {
+      stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+    }
+
+    expect(postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        type: "PREVIEW_CAPTURE",
+        previewId: "preview_shared_incremental",
+        captures: [expect.objectContaining({ sampleLength: blockSize * 128 })]
+      })
+    );
+    expect(sharedSamples[0]).toBe(0.5);
+    expect(sharedSamples[blockSize * 64]).toBe(0.5);
   });
 
   it("emits final spectrum grids on final preview capture", async () => {
