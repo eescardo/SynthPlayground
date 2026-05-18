@@ -59,17 +59,27 @@ export function usePatchWorkspaceProbeState({ activeTab, updateActiveTab }: UseP
 
   const updateProbeState = useCallback(
     (probeId: string, updater: (probe: PatchWorkspaceProbeState) => PatchWorkspaceProbeState) => {
-      updateActiveTab((tab) => ({
-        ...tab,
-        probes: tab.probes.map((probe) => (probe.id === probeId ? updater(probe) : probe))
-      }));
+      updateActiveTab((tab) => {
+        let changed = false;
+        const probes = tab.probes.map((probe) => {
+          if (probe.id !== probeId) {
+            return probe;
+          }
+          const nextProbe = updater(probe);
+          if (nextProbe !== probe) {
+            changed = true;
+          }
+          return nextProbe;
+        });
+        return changed ? { ...tab, probes } : tab;
+      });
     },
     [updateActiveTab]
   );
 
   const moveProbe = useCallback(
     (probeId: string, x: number, y: number) => {
-      updateProbeState(probeId, (probe) => ({ ...probe, x, y }));
+      updateProbeState(probeId, (probe) => (probe.x === x && probe.y === y ? probe : { ...probe, x, y }));
     },
     [updateProbeState]
   );
