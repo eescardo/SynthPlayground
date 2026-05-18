@@ -176,7 +176,7 @@ export function SpectrumProbeGraph(props: {
       const row = displaySpectrogram[rowIndex] ?? [];
       for (let columnIndex = 0; columnIndex < columns; columnIndex += 1) {
         const value = row[columnIndex] ?? 0;
-        context.globalAlpha = usesFinalSpectrum ? 1 : resolveProbeSpectrumMagnitudeAlpha(value);
+        context.globalAlpha = resolveProbeSpectrumMagnitudeAlpha(value);
         context.fillStyle = resolveProbeSpectrumMagnitudeColor(value);
         context.fillRect(columnIndex * cellWidth, height - (rowIndex + 1) * cellHeight, fillWidth, fillHeight);
       }
