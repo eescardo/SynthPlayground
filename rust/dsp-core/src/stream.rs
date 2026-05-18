@@ -271,24 +271,36 @@ impl TrackRuntime {
                 } else {
                     build_preview_capture_snapshot_samples(capture, captured_samples)
                 };
-                let final_spectrum = build_preview_capture_final_spectrum(
-                    capture,
-                    captured_samples,
-                    sample_rate,
-                    include_final,
-                );
-                let final_scope = build_preview_capture_final_scope(
-                    capture,
-                    captured_samples,
-                    sample_rate,
-                    include_final,
-                );
-                let adsr_estimate = build_preview_capture_adsr_estimate(
-                    capture,
-                    captured_samples,
-                    sample_rate,
-                    include_final,
-                );
+                let final_spectrum = if is_spectrum {
+                    build_preview_capture_final_spectrum(
+                        capture,
+                        captured_samples,
+                        sample_rate,
+                        include_final,
+                    )
+                } else {
+                    None
+                };
+                let final_scope = if is_spectrum {
+                    None
+                } else {
+                    build_preview_capture_final_scope(
+                        capture,
+                        captured_samples,
+                        sample_rate,
+                        include_final,
+                    )
+                };
+                let adsr_estimate = if is_spectrum {
+                    None
+                } else {
+                    build_preview_capture_adsr_estimate(
+                        capture,
+                        captured_samples,
+                        sample_rate,
+                        include_final,
+                    )
+                };
                 PreviewProbeCaptureSnapshot {
                     probe_id: capture.probe_id.clone(),
                     sample_stride: resolve_preview_capture_snapshot_stride(
