@@ -158,6 +158,14 @@ export class SharedWasmRenderStream {
     }
   }
 
+  recordFinalPreviewCaptureReadFailure() {
+    this.finalPreviewCaptureReadFailures += 1;
+  }
+
+  resetFinalPreviewCaptureReadFailures() {
+    this.finalPreviewCaptureReadFailures = 0;
+  }
+
   maybeEmitPreviewCapture(force = false) {
     if (!this.previewCaptureState) {
       return true;
@@ -166,7 +174,7 @@ export class SharedWasmRenderStream {
       this.implementation.getPreviewCaptureSampleCount?.(this.renderer, this.engine, this.previewCaptureState) ?? null;
     if (!Number.isFinite(capturedSamples)) {
       if (force) {
-        this.finalPreviewCaptureReadFailures += 1;
+        this.recordFinalPreviewCaptureReadFailure();
       }
       return false;
     }
@@ -181,18 +189,18 @@ export class SharedWasmRenderStream {
       snapshot = this.implementation.readPreviewCapture?.(this.renderer, this.engine, this.previewCaptureState, force);
     } catch {
       if (force) {
-        this.finalPreviewCaptureReadFailures += 1;
+        this.recordFinalPreviewCaptureReadFailure();
       }
       return false;
     }
     if (!snapshot) {
       if (force) {
-        this.finalPreviewCaptureReadFailures += 1;
+        this.recordFinalPreviewCaptureReadFailure();
       }
       return false;
     }
     if (force) {
-      this.finalPreviewCaptureReadFailures = 0;
+      this.resetFinalPreviewCaptureReadFailures();
     }
     const { captures } = snapshot;
     this.previewCaptureState.lastEmittedCapturedSamples = capturedSamples;
