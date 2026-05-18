@@ -21,6 +21,7 @@
     "benchmark:audio": "node --expose-gc --import tsx scripts/audio-benchmarks/run.ts",
     "benchmark:audio:compare": "node --import tsx scripts/audio-benchmarks/compare.ts",
     "profile:audio": "node --expose-gc --import tsx scripts/audio-benchmarks/profile-audio.ts",
+    "profile:preview-probes": "node --expose-gc --import tsx scripts/audio-benchmarks/profile-preview-probes.ts",
     "presets:manifest": "node --import tsx scripts/generate-preset-manifest.ts --write",
     "check:presets:manifest": "node --import tsx scripts/check-preset-manifest.ts",
     "check:presets:definitions": "node --import tsx scripts/check-preset-definitions.ts",

@@ -4,7 +4,8 @@ import {
   PatchCanvasFocusable,
   resolvePatchFocusablePorts
 } from "@/lib/patch/hardwareNavigation";
-import { EXPANDED_PROBE_SIZE } from "@/lib/patch/probes";
+import { PATCH_CANVAS_GRID } from "@/components/patch/patchCanvasConstants";
+import { resolveRenderedProbeHeight, resolveRenderedProbeWidth } from "@/components/patch/patchProbeLayout";
 import { PatchWorkspaceProbeState } from "@/types/probes";
 
 const PATCH_PORT_FOCUS_PAD_X = 2;
@@ -66,15 +67,13 @@ function resolveKeyboardFocusRect(
   }
   if (focus.kind === "probe") {
     const probe = probes.find((entry) => entry.id === focus.probeId);
-    if (probe?.expanded) {
-      const rect = model.itemById.get(buildPatchFocusableId(focus))?.rect;
-      return rect
-        ? {
-            ...rect,
-            width: EXPANDED_PROBE_SIZE.width / zoom,
-            height: EXPANDED_PROBE_SIZE.height / zoom
-          }
-        : null;
+    if (probe) {
+      return {
+        x: probe.x * PATCH_CANVAS_GRID,
+        y: probe.y * PATCH_CANVAS_GRID,
+        width: resolveRenderedProbeWidth(probe, zoom) / zoom,
+        height: resolveRenderedProbeHeight(probe, zoom) / zoom
+      };
     }
   }
   if (focus.kind === "probe-action") {

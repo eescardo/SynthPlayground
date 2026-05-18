@@ -1,4 +1,10 @@
 use crate::nodes::RuntimeNode;
+use crate::probe_capture::{
+    advance_preview_capture_spectrum_analysis, build_preview_capture_adsr_estimate,
+    build_preview_capture_final_scope, build_preview_capture_final_spectrum,
+    build_preview_capture_snapshot_samples, resolve_preview_capture_snapshot_stride,
+    update_and_build_preview_capture_spectrum_frames, TrackProbeCaptureState,
+};
 use crate::{
     clamp, now_ms, EngineProfileStats, HostSignalIndices, PreviewProbeCaptureSnapshot,
     PreviewProbeCaptureSpec, TrackFxSpec, TrackSpec, MAX_VOICES,
@@ -16,14 +22,6 @@ struct TrackFxState {
     reverb_idx1: usize,
     reverb_idx2: usize,
     compressor_env: f32,
-}
-
-#[derive(Clone)]
-struct TrackProbeCaptureState {
-    probe_id: String,
-    signal_start: usize,
-    duration_samples: usize,
-    samples: Vec<f32>,
 }
 
 #[derive(Clone)]
@@ -192,9 +190,20 @@ impl TrackRuntime {
             .into_iter()
             .map(|spec| TrackProbeCaptureState {
                 probe_id: spec.probe_id,
+                kind: spec.kind,
                 signal_start: spec.signal_index * self.block_size,
                 duration_samples: spec.duration_samples,
+                spectrum_window_size: spec.spectrum_window_size,
                 samples: vec![0.0; spec.duration_samples],
+                spectrum_columns: Vec::new(),
+                spectrum_bin_frequencies: Vec::new(),
+                spectrum_bin_indices: Vec::new(),
+                spectrum_hann_window: Vec::new(),
+                final_spectrum_bin_frequencies: Vec::new(),
+                final_spectrum_hann_window: Vec::new(),
+                spectrum_analyzed_samples: 0,
+                spectrum_emitted_columns: 0,
+                final_spectrum_emitted_columns: 0,
             })
             .collect();
     }
@@ -203,29 +212,111 @@ impl TrackRuntime {
         self.probe_captures.clear();
     }
 
+    pub(crate) fn probe_capture_samples_ptr(&self, probe_id: &str) -> *const f32 {
+        self.probe_captures
+            .iter()
+            .find(|capture| capture.probe_id == probe_id)
+            .map(|capture| capture.samples.as_ptr())
+            .unwrap_or(std::ptr::null())
+    }
+
+    pub(crate) fn probe_capture_samples_len(
+        &self,
+        probe_id: &str,
+        captured_samples: usize,
+    ) -> usize {
+        self.probe_captures
+            .iter()
+            .find(|capture| capture.probe_id == probe_id)
+            .map(|capture| {
+                captured_samples
+                    .min(capture.duration_samples)
+                    .min(capture.samples.len())
+            })
+            .unwrap_or(0)
+    }
+
     pub(crate) fn has_active_voices(&self) -> bool {
         // Used by preview mode to detect when NoteOff plus envelope release has finished
         // and the stream can stop without waiting for the original preview duration.
         self.voices.iter().any(|voice| voice.active)
     }
 
+    pub(crate) fn advance_probe_capture_analysis(
+        &mut self,
+        captured_samples: usize,
+        sample_rate: f32,
+    ) {
+        for capture in self.probe_captures.iter_mut() {
+            advance_preview_capture_spectrum_analysis(capture, captured_samples, sample_rate);
+        }
+    }
+
     /// Clones the current probe capture buffers into a serializable snapshot.
     /// Params:
     /// - `captured_samples`: number of valid samples currently written into each capture buffer.
     pub(crate) fn preview_capture_state_snapshot(
-        &self,
+        &mut self,
         captured_samples: usize,
+        sample_rate: f32,
+        include_final: bool,
+        include_samples: bool,
     ) -> Vec<PreviewProbeCaptureSnapshot> {
         self.probe_captures
-            .iter()
-            .map(|capture| PreviewProbeCaptureSnapshot {
-                probe_id: capture.probe_id.clone(),
-                samples: capture
-                    .samples
-                    .iter()
-                    .take(captured_samples.min(capture.duration_samples))
-                    .copied()
-                    .collect(),
+            .iter_mut()
+            .map(|capture| {
+                let is_spectrum = capture.kind == "spectrum";
+                let samples = if is_spectrum || !include_samples {
+                    Vec::new()
+                } else {
+                    build_preview_capture_snapshot_samples(capture, captured_samples)
+                };
+                let final_spectrum = if is_spectrum {
+                    build_preview_capture_final_spectrum(
+                        capture,
+                        captured_samples,
+                        sample_rate,
+                        include_final,
+                    )
+                } else {
+                    None
+                };
+                let final_scope = if is_spectrum {
+                    None
+                } else {
+                    build_preview_capture_final_scope(
+                        capture,
+                        captured_samples,
+                        sample_rate,
+                        include_final,
+                    )
+                };
+                let adsr_estimate = if is_spectrum {
+                    None
+                } else {
+                    build_preview_capture_adsr_estimate(
+                        capture,
+                        captured_samples,
+                        sample_rate,
+                        include_final,
+                    )
+                };
+                PreviewProbeCaptureSnapshot {
+                    probe_id: capture.probe_id.clone(),
+                    sample_stride: resolve_preview_capture_snapshot_stride(
+                        capture,
+                        captured_samples,
+                    ),
+                    samples,
+                    spectrum_frames: update_and_build_preview_capture_spectrum_frames(
+                        capture,
+                        captured_samples,
+                        sample_rate,
+                    ),
+                    final_spectrum,
+                    final_scope,
+                    adsr_estimate,
+                }
             })
             .collect()
     }

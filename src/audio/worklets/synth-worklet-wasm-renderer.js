@@ -37,28 +37,37 @@ export class WasmWorkletRenderer extends SharedWasmRenderer {
           projectSpec,
           options.trackId,
           options.captureProbes,
-          options.durationSamples || 0
+          options.captureDurationSamples || options.durationSamples || 0
         );
         if (!compiled.length) {
           return null;
         }
         engine.configure_preview_probe_capture(JSON.stringify(compiled));
+        const sharedBufferByProbeId = renderer.resolveSharedCaptureBufferMap?.(options.captureSharedBuffers);
+        const sampleProbeIds = options.captureProbes
+          .filter((probe) => probe.kind !== "spectrum")
+          .map((probe) => probe.probeId);
         return {
           lastEmittedCapturedSamples: 0,
+          sharedBufferByProbeId,
+          copiedSampleCountByProbeId: new Map(),
+          hasSharedBufferForAllSampleCaptures:
+            sampleProbeIds.length > 0 && sampleProbeIds.every((probeId) => sharedBufferByProbeId?.has(probeId)),
           metaByProbeId: new Map(
             options.captureProbes.map((probe) => [
               probe.probeId,
               {
                 kind: probe.kind,
                 target: probe.target,
-                durationSamples: Math.max(0, Math.floor(options.durationSamples || 0))
+                durationSamples: Math.max(0, Math.floor(options.captureDurationSamples || options.durationSamples || 0))
               }
             ])
           )
         };
       },
-      readPreviewCapture: (_renderer, engine) => {
-        const rawSnapshot = engine.preview_capture_state_json();
+      readPreviewCapture: (_renderer, engine, previewCaptureState, force) => {
+        const includeSamples = !previewCaptureState.hasSharedBufferForAllSampleCaptures;
+        const rawSnapshot = engine.preview_capture_state_json(Boolean(force), includeSamples);
         if (typeof rawSnapshot !== "string" || rawSnapshot.length === 0 || rawSnapshot.charCodeAt(0) === 0) {
           return null;
         }
@@ -73,7 +82,9 @@ export class WasmWorkletRenderer extends SharedWasmRenderer {
         }
         return snapshot;
       },
-      getPreviewCaptureSampleCount: (_renderer, engine) => engine.preview_capture_sample_count()
+      getPreviewCaptureSampleCount: (_renderer, engine) => engine.preview_capture_sample_count(),
+      getPreviewCaptureSamplesPointer: (_renderer, engine, probeId) => engine.preview_capture_samples_ptr(probeId),
+      getPreviewCaptureSamplesLength: (_renderer, engine, probeId) => engine.preview_capture_samples_len(probeId)
     };
     super(options, implementation);
     if (typeof this.wasmBytes === "undefined") {

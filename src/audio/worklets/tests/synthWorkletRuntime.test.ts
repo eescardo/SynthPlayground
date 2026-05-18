@@ -367,6 +367,7 @@ describe("synth worklet runtime", () => {
   it("force-stops a held preview release for ungated patches", async () => {
     const runtime = await loadRuntimeModule();
     const enqueueEvents = vi.fn();
+    const beginFinalPreviewCapture = vi.fn();
     const stop = vi.fn();
     const startStream = vi.fn(() => ({
       port: { onmessage: null, postMessage() {} },
@@ -380,6 +381,7 @@ describe("synth worklet runtime", () => {
         return true;
       },
       enqueueEvents,
+      beginFinalPreviewCapture,
       stop,
       setMacroValue() {},
       setRecordingTrack() {}
@@ -426,7 +428,8 @@ describe("synth worklet runtime", () => {
 
     expect(startStream).toHaveBeenCalledTimes(1);
     expect(enqueueEvents).not.toHaveBeenCalled();
-    expect(stop).toHaveBeenCalledWith({ emitPreviewCapture: true });
+    expect(stop).not.toHaveBeenCalled();
+    expect(beginFinalPreviewCapture).toHaveBeenCalledTimes(1);
     runtime.resetRendererFactory();
   });
 

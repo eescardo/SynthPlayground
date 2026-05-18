@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 
 mod nodes;
+mod probe_capture;
 mod renderer;
 mod stream;
 
@@ -308,19 +309,110 @@ struct ProjectSpec {
 struct PreviewProbeCaptureSpec {
     #[serde(rename = "probeId")]
     probe_id: String,
+    kind: String,
     #[serde(rename = "trackIndex")]
     track_index: usize,
     #[serde(rename = "signalIndex")]
     signal_index: usize,
     #[serde(rename = "durationSamples")]
     duration_samples: usize,
+    #[serde(rename = "spectrumWindowSize")]
+    spectrum_window_size: Option<usize>,
 }
 
 #[derive(Clone, Serialize)]
 struct PreviewProbeCaptureSnapshot {
     #[serde(rename = "probeId")]
     probe_id: String,
+    #[serde(rename = "sampleStride")]
+    sample_stride: f32,
     samples: Vec<f32>,
+    #[serde(rename = "spectrumFrames", skip_serializing_if = "Option::is_none")]
+    spectrum_frames: Option<PreviewProbeSpectrumFrames>,
+    #[serde(rename = "finalSpectrum", skip_serializing_if = "Option::is_none")]
+    final_spectrum: Option<PreviewProbeFinalSpectrum>,
+    #[serde(rename = "finalScope", skip_serializing_if = "Option::is_none")]
+    final_scope: Option<PreviewProbeFinalScope>,
+    #[serde(rename = "adsrEstimate", skip_serializing_if = "Option::is_none")]
+    adsr_estimate: Option<PreviewProbeAdsrEstimate>,
+}
+
+#[derive(Clone, Serialize)]
+struct PreviewProbeScopeBucket {
+    min: f32,
+    max: f32,
+    peak: f32,
+}
+
+#[derive(Clone, Serialize)]
+struct PreviewProbeFinalScope {
+    #[serde(rename = "waveformBuckets")]
+    waveform_buckets: Vec<PreviewProbeScopeBucket>,
+    #[serde(rename = "envelopeBuckets")]
+    envelope_buckets: Vec<f32>,
+    peak: f32,
+    #[serde(rename = "sampleRate")]
+    sample_rate: f32,
+    #[serde(rename = "capturedSamples")]
+    captured_samples: usize,
+}
+
+#[derive(Clone, Serialize)]
+struct PreviewProbeAdsrEstimate {
+    #[serde(rename = "attackSeconds")]
+    attack_seconds: f32,
+    #[serde(rename = "decaySeconds")]
+    decay_seconds: f32,
+    #[serde(rename = "sustainRatio")]
+    sustain_ratio: f32,
+    #[serde(rename = "releaseSeconds")]
+    release_seconds: f32,
+    label: String,
+}
+
+#[derive(Clone, Serialize)]
+struct PreviewProbeSpectrumFrames {
+    values: Vec<f32>,
+    #[serde(rename = "rowCount")]
+    row_count: usize,
+    #[serde(rename = "columnCount")]
+    column_count: usize,
+    #[serde(rename = "binFrequencies")]
+    bin_frequencies: Vec<f32>,
+    #[serde(rename = "startColumn")]
+    start_column: usize,
+    #[serde(rename = "frameSize")]
+    frame_size: usize,
+    #[serde(rename = "sampleRate")]
+    sample_rate: f32,
+    #[serde(rename = "capturedSamples")]
+    captured_samples: usize,
+}
+
+#[derive(Clone, Serialize)]
+struct PreviewProbeFinalSpectrum {
+    values: Vec<f32>,
+    #[serde(rename = "rowCount")]
+    row_count: usize,
+    #[serde(rename = "columnCount")]
+    column_count: usize,
+    #[serde(rename = "binFrequencies", skip_serializing_if = "Vec::is_empty")]
+    bin_frequencies: Vec<f32>,
+    #[serde(rename = "startColumn")]
+    start_column: usize,
+    complete: bool,
+    #[serde(rename = "frameSize")]
+    frame_size: usize,
+    #[serde(rename = "sampleRate")]
+    sample_rate: f32,
+    #[serde(rename = "capturedSamples")]
+    captured_samples: usize,
+    #[serde(rename = "requestedTimeColumns")]
+    requested_time_columns: usize,
+    #[serde(rename = "requestedFrequencyBins")]
+    requested_frequency_bins: usize,
+    #[serde(rename = "sourceColumnCount")]
+    source_column_count: usize,
 }
 
 #[derive(Clone, Serialize)]

@@ -48,7 +48,72 @@ export interface PreviewProbeCapture {
   sampleRate: number;
   durationSamples: number;
   capturedSamples: number;
-  samples: number[];
+  captureComplete?: boolean;
+  sourceCapturedSamples?: number;
+  sampleStride?: number;
+  samples: ArrayLike<number>;
+  sampleBuffer?: SharedArrayBuffer;
+  sampleLength?: number;
+  spectrumFrames?: PreviewProbeSpectrumFrames;
+  finalSpectrum?: PreviewProbeFinalSpectrum;
+  finalScope?: PreviewProbeFinalScope;
+  adsrEstimate?: PreviewProbeAdsrEstimate;
+}
+
+export interface PreviewProbeScopeBucket {
+  min: number;
+  max: number;
+  peak: number;
+}
+
+export interface PreviewProbeFinalScope {
+  waveformBuckets: PreviewProbeScopeBucket[];
+  envelopeBuckets: number[];
+  peak: number;
+  sampleRate: number;
+  capturedSamples: number;
+}
+
+export interface PreviewProbeAdsrEstimate {
+  attackSeconds: number;
+  decaySeconds: number;
+  sustainRatio: number;
+  releaseSeconds: number;
+  label: string;
+}
+
+export interface PreviewProbeSpectrumFrames {
+  columns?: number[][];
+  values?: number[];
+  rowCount?: number;
+  columnCount?: number;
+  binFrequencies: number[];
+  startColumn?: number;
+  frameSize: number;
+  sampleRate: number;
+  capturedSamples: number;
+}
+
+export interface PreviewProbeFinalSpectrum {
+  columns?: number[][];
+  values?: number[];
+  rowCount?: number;
+  columnCount?: number;
+  binFrequencies?: number[];
+  startColumn?: number;
+  complete?: boolean;
+  frameSize: number;
+  sampleRate: number;
+  capturedSamples: number;
+  requestedTimeColumns: number;
+  requestedFrequencyBins: number;
+  sourceColumnCount: number;
+}
+
+export interface PreviewProbeSharedBuffer {
+  probeId: string;
+  sampleBuffer: SharedArrayBuffer;
+  capacitySamples: number;
 }
 
 export interface PatchProbeEditorState {

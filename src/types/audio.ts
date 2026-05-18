@@ -1,6 +1,6 @@
 import { MasterFxSettings, ProjectGlobalSettings, Track } from "@/types/music";
 import { Patch } from "@/types/patch";
-import { PreviewProbeCapture, PreviewProbeRequest } from "@/types/probes";
+import { PreviewProbeCapture, PreviewProbeRequest, PreviewProbeSharedBuffer } from "@/types/probes";
 
 export interface AudioProject {
   global: ProjectGlobalSettings;
@@ -33,10 +33,12 @@ export interface TransportSynthStreamStartOptions extends BaseSynthStreamStartOp
 export interface PreviewSynthStreamStartOptions extends BaseSynthStreamStartOptions {
   mode: "preview";
   durationSamples: number;
+  captureDurationSamples?: number;
   trackId: string;
   ignoreVolume?: boolean;
   previewId?: string;
   captureProbes?: PreviewProbeRequest[];
+  captureSharedBuffers?: PreviewProbeSharedBuffer[];
 }
 
 export type SynthStreamStartOptions = TransportSynthStreamStartOptions | PreviewSynthStreamStartOptions;
@@ -112,11 +114,13 @@ export interface WorkletPreviewMessage {
   type: "PREVIEW";
   events: SchedulerEvent[];
   durationSamples: number;
+  captureDurationSamples?: number;
   trackId: string;
   project?: AudioProject;
   ignoreVolume?: boolean;
   previewId?: string;
   captureProbes?: PreviewProbeRequest[];
+  captureSharedBuffers?: PreviewProbeSharedBuffer[];
   randomSeed?: number;
 }
 

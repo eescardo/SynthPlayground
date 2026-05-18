@@ -6,6 +6,8 @@ import {
 
 export const DEFAULT_RANDOM_SEED = 0x1234_5678;
 export const MACRO_EVENT_LEAD_SAMPLES = 256;
+export const PREVIEW_CAPTURE_EMIT_INTERVAL_SAMPLES = 8192;
+export const FINAL_PREVIEW_CAPTURE_READ_FAILURE_LIMIT = 3;
 
 export class NullPort {
   constructor() {
@@ -26,6 +28,98 @@ const areEventsSorted = (events) => {
   return true;
 };
 
+const resolveSharedCaptureBufferMap = (captureSharedBuffers) => {
+  if (!Array.isArray(captureSharedBuffers) || captureSharedBuffers.length === 0) {
+    return new Map();
+  }
+  const SharedArrayBufferCtor = globalThis.SharedArrayBuffer;
+  if (typeof SharedArrayBufferCtor !== "function") {
+    return new Map();
+  }
+  return new Map(
+    captureSharedBuffers
+      .filter((entry) => entry?.probeId && entry.sampleBuffer instanceof SharedArrayBufferCtor)
+      .map((entry) => [
+        entry.probeId,
+        {
+          sampleBuffer: entry.sampleBuffer,
+          capacitySamples: Math.max(0, Math.floor(entry.capacitySamples || 0))
+        }
+      ])
+  );
+};
+
+const writeCaptureSamplesToSharedBuffer = (capture, sharedBuffer) => {
+  if (!sharedBuffer?.sampleBuffer) {
+    return null;
+  }
+  const capacitySamples = Math.min(
+    sharedBuffer.capacitySamples,
+    sharedBuffer.sampleBuffer.byteLength / Float32Array.BYTES_PER_ELEMENT
+  );
+  if (capacitySamples <= 0) {
+    return null;
+  }
+  const sampleLength = Math.min(capacitySamples, capture.samples?.length || 0);
+  const view = new Float32Array(sharedBuffer.sampleBuffer, 0, sampleLength);
+  for (let index = 0; index < sampleLength; index += 1) {
+    view[index] = Number(capture.samples[index] || 0);
+  }
+  return {
+    sampleBuffer: sharedBuffer.sampleBuffer,
+    sampleLength
+  };
+};
+
+const writeWasmCaptureSamplesToSharedBuffer = (
+  implementation,
+  renderer,
+  engine,
+  capture,
+  sharedBuffer,
+  copiedSampleCountByProbeId
+) => {
+  if (!sharedBuffer?.sampleBuffer || !implementation.getPreviewCaptureSamplesPointer) {
+    return null;
+  }
+  const memory = implementation.getMemory(renderer);
+  const capacitySamples = Math.min(
+    sharedBuffer.capacitySamples,
+    sharedBuffer.sampleBuffer.byteLength / Float32Array.BYTES_PER_ELEMENT
+  );
+  const sourceLength =
+    implementation.getPreviewCaptureSamplesLength?.(renderer, engine, capture.probeId) ?? capture.samples?.length ?? 0;
+  const sampleLength = Math.min(capacitySamples, Math.max(0, Math.floor(sourceLength)));
+  if (sampleLength <= 0) {
+    return null;
+  }
+  const pointer = implementation.getPreviewCaptureSamplesPointer(renderer, engine, capture.probeId);
+  if (!Number.isFinite(pointer) || pointer <= 0) {
+    return null;
+  }
+  const previousSampleLength = Math.min(
+    sampleLength,
+    Math.max(0, Math.floor(copiedSampleCountByProbeId?.get(capture.probeId) ?? 0))
+  );
+  const copyLength = sampleLength - previousSampleLength;
+  if (copyLength > 0) {
+    const source = new Float32Array(
+      memory.buffer,
+      pointer + previousSampleLength * Float32Array.BYTES_PER_ELEMENT,
+      copyLength
+    );
+    new Float32Array(sharedBuffer.sampleBuffer, previousSampleLength * Float32Array.BYTES_PER_ELEMENT, copyLength).set(
+      source
+    );
+  }
+  copiedSampleCountByProbeId?.set(capture.probeId, sampleLength);
+  return {
+    sampleBuffer: sharedBuffer.sampleBuffer,
+    sampleLength,
+    sampleStride: 1
+  };
+};
+
 export class SharedWasmRenderStream {
   constructor(renderer, options, implementation) {
     this.port = renderer.port;
@@ -44,6 +138,8 @@ export class SharedWasmRenderStream {
     this.previewId = options.previewId;
     this.captureProbes = options.captureProbes || [];
     this.stopped = false;
+    this.finalizingPreviewCapture = false;
+    this.finalPreviewCaptureReadFailures = 0;
     this.implementation = implementation;
     this.previewCaptureState = null;
     this.engine = implementation.createEngine(renderer, this.project, this.projectSpec, options);
@@ -62,52 +158,117 @@ export class SharedWasmRenderStream {
     }
   }
 
+  recordFinalPreviewCaptureReadFailure() {
+    this.finalPreviewCaptureReadFailures += 1;
+  }
+
+  resetFinalPreviewCaptureReadFailures() {
+    this.finalPreviewCaptureReadFailures = 0;
+  }
+
   maybeEmitPreviewCapture(force = false) {
     if (!this.previewCaptureState) {
-      return;
+      return true;
     }
     const capturedSamples =
       this.implementation.getPreviewCaptureSampleCount?.(this.renderer, this.engine, this.previewCaptureState) ?? null;
     if (!Number.isFinite(capturedSamples)) {
-      return;
+      if (force) {
+        this.recordFinalPreviewCaptureReadFailure();
+      }
+      return false;
     }
-    if (!force && capturedSamples - this.previewCaptureState.lastEmittedCapturedSamples < 1024) {
-      return;
+    if (
+      !force &&
+      capturedSamples - this.previewCaptureState.lastEmittedCapturedSamples < PREVIEW_CAPTURE_EMIT_INTERVAL_SAMPLES
+    ) {
+      return false;
     }
     let snapshot = null;
     try {
       snapshot = this.implementation.readPreviewCapture?.(this.renderer, this.engine, this.previewCaptureState, force);
     } catch {
-      return;
+      if (force) {
+        this.recordFinalPreviewCaptureReadFailure();
+      }
+      return false;
     }
     if (!snapshot) {
-      return;
+      if (force) {
+        this.recordFinalPreviewCaptureReadFailure();
+      }
+      return false;
+    }
+    if (force) {
+      this.resetFinalPreviewCaptureReadFailures();
     }
     const { captures } = snapshot;
     this.previewCaptureState.lastEmittedCapturedSamples = capturedSamples;
+    const finalComplete =
+      !force ||
+      captures.every((capture) => {
+        const meta = this.previewCaptureState.metaByProbeId.get(capture.probeId);
+        if (meta?.kind !== "spectrum") {
+          return true;
+        }
+        return capture.finalSpectrum?.complete !== false;
+      });
+    const captureComplete = force && finalComplete;
     this.port.postMessage({
       type: "PREVIEW_CAPTURE",
       previewId: this.previewId,
       captures: captures
         .map((capture) => {
           const meta = this.previewCaptureState.metaByProbeId.get(capture.probeId);
+          const shouldUseSpectrumFrames = meta?.kind === "spectrum" && capture.spectrumFrames;
+          const sharedBuffer = this.previewCaptureState.sharedBufferByProbeId?.get(capture.probeId);
+          const sharedSamples = shouldUseSpectrumFrames
+            ? null
+            : (writeWasmCaptureSamplesToSharedBuffer(
+                this.implementation,
+                this.renderer,
+                this.engine,
+                capture,
+                sharedBuffer,
+                this.previewCaptureState.copiedSampleCountByProbeId
+              ) ?? writeCaptureSamplesToSharedBuffer(capture, sharedBuffer));
+          const sampleStride = Math.max(1, sharedSamples?.sampleStride || capture.sampleStride || 1);
           return meta
             ? {
                 probeId: capture.probeId,
                 kind: meta.kind,
                 target: meta.target,
-                sampleRate: this.renderer.sampleRateInternal,
-                durationSamples: meta.durationSamples,
-                capturedSamples,
-                samples: capture.samples
+                sampleRate: this.renderer.sampleRateInternal / sampleStride,
+                durationSamples: Math.ceil(meta.durationSamples / sampleStride),
+                capturedSamples: Math.ceil(Math.min(capturedSamples, meta.durationSamples) / sampleStride),
+                captureComplete,
+                sourceCapturedSamples: Math.min(capturedSamples, meta.durationSamples),
+                sampleStride,
+                samples: sharedSamples || shouldUseSpectrumFrames ? [] : capture.samples,
+                sampleBuffer: sharedSamples?.sampleBuffer,
+                sampleLength: sharedSamples?.sampleLength,
+                spectrumFrames: capture.spectrumFrames,
+                finalSpectrum: capture.finalSpectrum,
+                finalScope: capture.finalScope,
+                adsrEstimate: capture.adsrEstimate
               }
             : null;
         })
         .filter(Boolean)
     });
-    if (force) {
+    if (force && finalComplete) {
       this.previewCaptureState = null;
     }
+    return finalComplete;
+  }
+
+  beginFinalPreviewCapture() {
+    if (!this.previewCaptureState) {
+      this.stop({ emitPreviewCapture: false });
+      return;
+    }
+    this.previewRemainingSamples = 0;
+    this.finalizingPreviewCapture = true;
   }
 
   consumeProcessedEvents() {
@@ -137,6 +298,19 @@ export class SharedWasmRenderStream {
       }
       return true;
     }
+    if (this.finalizingPreviewCapture) {
+      leftOut.fill(0);
+      if (rightOut !== leftOut) {
+        rightOut.fill(0);
+      }
+      // TODO(#86): Move final probe extraction off the AudioWorklet render callback.
+      if (this.maybeEmitPreviewCapture(true)) {
+        this.stop({ emitPreviewCapture: false });
+      } else if (this.finalPreviewCaptureReadFailures >= FINAL_PREVIEW_CAPTURE_READ_FAILURE_LIMIT) {
+        this.stop({ emitPreviewCapture: false });
+      }
+      return true;
+    }
 
     const keepAlive = this.engine.process_block();
     const memory = this.implementation.getMemory(this.renderer);
@@ -154,13 +328,11 @@ export class SharedWasmRenderStream {
       this.previewRemainingSamples -= leftOut.length;
       this.maybeEmitPreviewCapture(false);
       if (this.previewRemainingSamples <= 0) {
-        this.maybeEmitPreviewCapture(true);
-        this.stop({ emitPreviewCapture: false });
+        this.beginFinalPreviewCapture();
       } else if (this.eventQueue.length === 0 && !this.hasActiveVoices()) {
         // Long-held keyboard previews schedule a generous duration up front, then rely on
         // NoteOff plus voice-idle detection to end naturally once the release tail is done.
-        this.maybeEmitPreviewCapture(true);
-        this.stop({ emitPreviewCapture: false });
+        this.beginFinalPreviewCapture();
       }
     }
 
@@ -271,6 +443,10 @@ export class SharedWasmRenderer {
     }
     this.implementation.prepare?.(this, options);
     return new SharedWasmRenderStream(this, { ...options, project }, this.implementation);
+  }
+
+  resolveSharedCaptureBufferMap(captureSharedBuffers) {
+    return resolveSharedCaptureBufferMap(captureSharedBuffers);
   }
 
   get project() {

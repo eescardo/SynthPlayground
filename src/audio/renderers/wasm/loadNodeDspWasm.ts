@@ -14,8 +14,10 @@ interface WasmSubsetEngineInstance {
   configure_preview_probe_capture(captureJson: string): void;
   process_block(): boolean;
   has_active_voices(): boolean;
-  preview_capture_state_json(): string;
+  preview_capture_state_json(includeFinal?: boolean, includeSamples?: boolean): string;
   preview_capture_sample_count(): number;
+  preview_capture_samples_ptr(probeId: string): number;
+  preview_capture_samples_len(probeId: string): number;
   stop(): void;
   left_ptr(): number;
   right_ptr(): number;

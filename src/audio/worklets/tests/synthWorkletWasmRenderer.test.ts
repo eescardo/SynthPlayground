@@ -3,14 +3,17 @@ import { createPatchOutputPort, PATCH_OUTPUT_PORT_ID } from "@/lib/patch/ports";
 import type { Project, Track } from "@/types/music";
 import type { Patch } from "@/types/patch";
 
-const sharedMemory = new WebAssembly.Memory({ initial: 1 });
+const sharedMemory = new WebAssembly.Memory({ initial: 2 });
 const blockSize = 128;
 const leftView = new Float32Array(sharedMemory.buffer, 0, blockSize);
 const rightView = new Float32Array(sharedMemory.buffer, blockSize * Float32Array.BYTES_PER_ELEMENT, blockSize);
+const captureSamplesPtr = blockSize * 2 * Float32Array.BYTES_PER_ELEMENT;
+const captureSampleView = new Float32Array(sharedMemory.buffer, captureSamplesPtr, blockSize * 160);
 let previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
 let previewCaptureSampleCount = 0;
 let writeInvalidPreviewCaptureJson = false;
 let hasActiveVoices = false;
+let configuredPreviewCaptureJson = "";
 const engineStop = vi.fn();
 
 vi.mock("../synth-worklet-dsp-bindgen.js", () => {
@@ -22,17 +25,29 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
 
     start_stream() {}
     enqueue_events() {}
-    configure_preview_probe_capture() {}
+    configure_preview_probe_capture(captureJson: string) {
+      configuredPreviewCaptureJson = captureJson;
+    }
     process_block() {
-      previewCaptureSampleCount = writeInvalidPreviewCaptureJson ? 1024 : blockSize;
+      const previousSampleCount = previewCaptureSampleCount;
+      previewCaptureSampleCount += blockSize;
+      captureSampleView.fill(0.5, previousSampleCount, previewCaptureSampleCount);
       previewCaptureStateJson = writeInvalidPreviewCaptureJson
         ? "\0".repeat(16)
         : JSON.stringify({
-            capturedSamples: blockSize,
+            capturedSamples: previewCaptureSampleCount,
             captures: [
               {
                 probeId: "probe_1",
-                samples: Array.from({ length: blockSize }, () => 0.5)
+                sampleStride: 4,
+                samples: Array.from({ length: blockSize }, () => 0.5),
+                spectrumFrames: {
+                  columns: [[0.25, 0.5]],
+                  binFrequencies: [120, 240],
+                  frameSize: 1024,
+                  sampleRate: 48000,
+                  capturedSamples: 1024
+                }
               }
             ]
           });
@@ -41,10 +56,65 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
     has_active_voices() {
       return hasActiveVoices;
     }
-    preview_capture_state_json() {
-      return previewCaptureStateJson;
+    preview_capture_state_json(includeFinal?: boolean, includeSamples = true) {
+      if (writeInvalidPreviewCaptureJson) {
+        return previewCaptureStateJson;
+      }
+      if (!includeFinal) {
+        const snapshot = JSON.parse(previewCaptureStateJson);
+        return JSON.stringify({
+          ...snapshot,
+          captures: snapshot.captures.map((capture: Record<string, unknown>) => ({
+            ...capture,
+            samples: includeSamples ? capture.samples : []
+          }))
+        });
+      }
+      const snapshot = JSON.parse(previewCaptureStateJson);
+      return JSON.stringify({
+        ...snapshot,
+        captures: snapshot.captures.map((capture: Record<string, unknown>) => ({
+          ...capture,
+          samples: includeSamples ? capture.samples : [],
+          finalSpectrum: {
+            columns: [
+              [0.1, 0.2, 0.3],
+              [0.2, 0.4, 0.6]
+            ],
+            binFrequencies: [100, 200, 300],
+            startColumn: 0,
+            complete: true,
+            frameSize: 1024,
+            sampleRate: 48000,
+            capturedSamples: previewCaptureSampleCount,
+            requestedTimeColumns: 512,
+            requestedFrequencyBins: 1025,
+            sourceColumnCount: 2
+          },
+          finalScope: {
+            waveformBuckets: [{ min: -0.5, max: 0.5, peak: 0.5 }],
+            envelopeBuckets: [0.5],
+            peak: 0.5,
+            sampleRate: 48000,
+            capturedSamples: previewCaptureSampleCount
+          },
+          adsrEstimate: {
+            attackSeconds: 0.01,
+            decaySeconds: 0.05,
+            sustainRatio: 0.38,
+            releaseSeconds: 0.024,
+            label: "A: 10ms|D:50ms|S:38%|R:24ms"
+          }
+        }))
+      });
     }
     preview_capture_sample_count() {
+      return previewCaptureSampleCount;
+    }
+    preview_capture_samples_ptr() {
+      return captureSamplesPtr;
+    }
+    preview_capture_samples_len() {
       return previewCaptureSampleCount;
     }
     stop() {
@@ -157,9 +227,11 @@ beforeEach(() => {
   leftView.fill(0);
   rightView.fill(0);
   previewCaptureSampleCount = 0;
+  captureSampleView.fill(0);
   writeInvalidPreviewCaptureJson = false;
   hasActiveVoices = false;
   previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
+  configuredPreviewCaptureJson = "";
 });
 
 describe("WASM worklet renderer", () => {
@@ -200,7 +272,8 @@ describe("WASM worklet renderer", () => {
       captureProbes: [
         {
           probeId: "probe_1",
-          kind: "scope",
+          kind: "spectrum",
+          spectrumWindowSize: 1024,
           target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
         }
       ],
@@ -208,6 +281,7 @@ describe("WASM worklet renderer", () => {
     });
 
     expect(stream).not.toBeNull();
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
     stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
 
     expect(postMessage).toHaveBeenCalledWith(
@@ -217,12 +291,414 @@ describe("WASM worklet renderer", () => {
         captures: [
           expect.objectContaining({
             probeId: "probe_1",
-            capturedSamples: blockSize,
+            capturedSamples: blockSize / 4,
+            sampleRate: 12000,
+            sampleStride: 4,
+            samples: [],
+            spectrumFrames: expect.objectContaining({
+              columns: [[0.25, 0.5]],
+              sampleRate: 48000
+            })
+          })
+        ]
+      })
+    );
+  });
+
+  it("writes preview probe captures into provided shared buffers", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+    const postMessage = vi.fn();
+    renderer.port.postMessage = postMessage;
+    const sampleBuffer = new SharedArrayBuffer(blockSize * Float32Array.BYTES_PER_ELEMENT);
+
+    const stream = renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize,
+      trackId: "track_1",
+      previewId: "preview_shared",
+      events: [
+        {
+          id: "note_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
+      captureProbes: [
+        {
+          probeId: "probe_1",
+          kind: "scope",
+          target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
+        }
+      ],
+      captureSharedBuffers: [{ probeId: "probe_1", sampleBuffer, capacitySamples: blockSize }],
+      randomSeed: 123
+    });
+
+    expect(stream).not.toBeNull();
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+
+    expect(new Float32Array(sampleBuffer)[0]).toBe(0.5);
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "PREVIEW_CAPTURE",
+        previewId: "preview_shared",
+        captures: [
+          expect.objectContaining({
+            probeId: "probe_1",
+            sampleBuffer,
+            sampleLength: blockSize,
+            samples: []
+          })
+        ]
+      })
+    );
+  });
+
+  it("copies only new WASM preview samples into shared buffers on later emits", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+    const postMessage = vi.fn();
+    renderer.port.postMessage = postMessage;
+    hasActiveVoices = true;
+    const sampleBuffer = new SharedArrayBuffer(blockSize * 128 * Float32Array.BYTES_PER_ELEMENT);
+    const sharedSamples = new Float32Array(sampleBuffer);
+
+    const stream = renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize * 160,
+      trackId: "track_1",
+      previewId: "preview_shared_incremental",
+      events: [
+        {
+          id: "note_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
+      captureProbes: [
+        {
+          probeId: "probe_1",
+          kind: "scope",
+          target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
+        }
+      ],
+      captureSharedBuffers: [{ probeId: "probe_1", sampleBuffer, capacitySamples: blockSize * 128 }],
+      randomSeed: 123
+    });
+
+    expect(stream).not.toBeNull();
+    for (let index = 0; index < 64; index += 1) {
+      stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+    }
+    expect(sharedSamples[0]).toBe(0.5);
+    captureSampleView[0] = 0.25;
+
+    for (let index = 0; index < 64; index += 1) {
+      stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+    }
+
+    expect(postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        type: "PREVIEW_CAPTURE",
+        previewId: "preview_shared_incremental",
+        captures: [expect.objectContaining({ sampleLength: blockSize * 128 })]
+      })
+    );
+    expect(sharedSamples[0]).toBe(0.5);
+    expect(sharedSamples[blockSize * 64]).toBe(0.5);
+  });
+
+  it("keeps JSON samples when shared buffers do not cover every sample capture", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+    const postMessage = vi.fn();
+    renderer.port.postMessage = postMessage;
+    const unrelatedSampleBuffer = new SharedArrayBuffer(blockSize * Float32Array.BYTES_PER_ELEMENT);
+
+    const stream = renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize,
+      trackId: "track_1",
+      previewId: "preview_partial_shared",
+      events: [
+        {
+          id: "note_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
+      captureProbes: [
+        {
+          probeId: "probe_1",
+          kind: "scope",
+          target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
+        }
+      ],
+      captureSharedBuffers: [
+        {
+          probeId: "unrelated_probe",
+          sampleBuffer: unrelatedSampleBuffer,
+          capacitySamples: blockSize
+        }
+      ],
+      randomSeed: 123
+    });
+
+    expect(stream).not.toBeNull();
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "PREVIEW_CAPTURE",
+        previewId: "preview_partial_shared",
+        captures: [
+          expect.objectContaining({
+            probeId: "probe_1",
+            sampleBuffer: undefined,
             samples: expect.arrayContaining([0.5])
           })
         ]
       })
     );
+  });
+
+  it("emits final spectrum grids on final preview capture", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+    const postMessage = vi.fn();
+    renderer.port.postMessage = postMessage;
+
+    const stream = renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize,
+      trackId: "track_1",
+      previewId: "preview_final_spectrum",
+      events: [
+        {
+          id: "note_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
+      captureProbes: [
+        {
+          probeId: "probe_1",
+          kind: "spectrum",
+          target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
+        }
+      ],
+      randomSeed: 123
+    });
+
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "PREVIEW_CAPTURE",
+        previewId: "preview_final_spectrum",
+        captures: [
+          expect.objectContaining({
+            captureComplete: true,
+            finalSpectrum: expect.objectContaining({
+              requestedTimeColumns: 512,
+              requestedFrequencyBins: 1025
+            }),
+            finalScope: expect.objectContaining({
+              peak: 0.5,
+              capturedSamples: previewCaptureSampleCount
+            }),
+            adsrEstimate: expect.objectContaining({
+              label: "A: 10ms|D:50ms|S:38%|R:24ms"
+            })
+          })
+        ]
+      })
+    );
+  });
+
+  it("throttles progressive preview capture snapshots", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+    const postMessage = vi.fn();
+    renderer.port.postMessage = postMessage;
+    hasActiveVoices = true;
+
+    const stream = renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize * 128,
+      trackId: "track_1",
+      previewId: "preview_throttled",
+      events: [
+        {
+          id: "note_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
+      captureProbes: [
+        {
+          probeId: "probe_1",
+          kind: "spectrum",
+          spectrumWindowSize: 1024,
+          target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
+        }
+      ],
+      randomSeed: 123
+    });
+
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+    expect(postMessage).not.toHaveBeenCalled();
+
+    for (let index = 1; index < 64; index += 1) {
+      stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+    }
+
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "PREVIEW_CAPTURE",
+        captures: [expect.objectContaining({ capturedSamples: blockSize * 16 })]
+      })
+    );
+  });
+
+  it("uses a separate probe capture duration for held previews", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+
+    const stream = renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize * 64,
+      captureDurationSamples: blockSize * 2,
+      trackId: "track_1",
+      previewId: "preview_held",
+      events: [
+        {
+          id: "note_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
+      captureProbes: [
+        {
+          probeId: "probe_1",
+          kind: "spectrum",
+          spectrumWindowSize: 1024,
+          target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
+        }
+      ],
+      randomSeed: 123
+    });
+
+    expect(stream).not.toBeNull();
+    expect(JSON.parse(configuredPreviewCaptureJson)).toEqual([
+      expect.objectContaining({
+        probeId: "probe_1",
+        kind: "spectrum",
+        spectrumWindowSize: 1024,
+        durationSamples: blockSize * 2
+      })
+    ]);
   });
 
   it("does not force a final preview capture when a preview stream is stopped early", async () => {
@@ -296,7 +772,7 @@ describe("WASM worklet renderer", () => {
       project,
       songStartSample: 0,
       mode: "preview",
-      durationSamples: blockSize * 16,
+      durationSamples: blockSize * 128,
       trackId: "track_1",
       previewId: "preview_bad_capture",
       events: [
@@ -321,9 +797,70 @@ describe("WASM worklet renderer", () => {
       randomSeed: 123
     });
 
-    previewCaptureStateJson = "\0".repeat(16);
-    expect(() => stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)])).not.toThrow();
+    expect(() => {
+      for (let index = 0; index < 64; index += 1) {
+        stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+      }
+    }).not.toThrow();
     expect(stream!.stopped).toBe(false);
+    expect(postMessage).not.toHaveBeenCalled();
+  });
+
+  it("stops final preview capture after invalid final capture JSON retries", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+    const postMessage = vi.fn();
+    renderer.port.postMessage = postMessage;
+    writeInvalidPreviewCaptureJson = true;
+
+    const stream = renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize,
+      trackId: "track_1",
+      previewId: "preview_bad_final_capture",
+      events: [
+        {
+          id: "note_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
+      captureProbes: [
+        {
+          probeId: "probe_1",
+          kind: "scope",
+          target: { kind: "port", nodeId: "osc", portId: "out", portKind: "out" }
+        }
+      ],
+      randomSeed: 123
+    });
+
+    expect(stream).not.toBeNull();
+    stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+    expect(stream!.stopped).toBe(false);
+
+    for (let index = 0; index < 3; index += 1) {
+      stream!.processBlock([new Float32Array(blockSize), new Float32Array(blockSize)]);
+    }
+
+    expect(stream!.stopped).toBe(true);
+    expect(engineStop).toHaveBeenCalledTimes(1);
     expect(postMessage).not.toHaveBeenCalled();
   });
 

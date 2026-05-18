@@ -70,13 +70,18 @@ export function usePatchWorkspaceTabState(options: UsePatchWorkspaceTabStateOpti
     }
     workspaceSyncSignatureRef.current = persistedWorkspaceSignature;
     commitProjectChange(
-      (current) => ({
-        ...current,
-        ui: {
-          ...current.ui,
-          patchWorkspace: persistedWorkspaceState
+      (current) => {
+        if (JSON.stringify(current.ui.patchWorkspace) === persistedWorkspaceSignature) {
+          return current;
         }
-      }),
+        return {
+          ...current,
+          ui: {
+            ...current.ui,
+            patchWorkspace: persistedWorkspaceState
+          }
+        };
+      },
       { skipHistory: skipNextWorkspaceHistoryRef.current }
     );
     skipNextWorkspaceHistoryRef.current = true;
@@ -93,7 +98,20 @@ export function usePatchWorkspaceTabState(options: UsePatchWorkspaceTabStateOpti
       if (!activeTab) {
         return;
       }
-      setTabs((currentTabs) => currentTabs.map((tab) => (tab.id === activeTab.id ? updater(tab) : tab)));
+      setTabs((currentTabs) => {
+        let changed = false;
+        const nextTabs = currentTabs.map((tab) => {
+          if (tab.id !== activeTab.id) {
+            return tab;
+          }
+          const nextTab = updater(tab);
+          if (nextTab !== tab) {
+            changed = true;
+          }
+          return nextTab;
+        });
+        return changed ? nextTabs : currentTabs;
+      });
     },
     [activeTab]
   );

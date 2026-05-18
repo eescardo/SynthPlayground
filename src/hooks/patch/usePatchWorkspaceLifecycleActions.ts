@@ -15,6 +15,7 @@ import {
   resolvePatchSource,
   updatePresetPatchToLatest
 } from "@/lib/patch/source";
+import { buildPatchRemovalRequest } from "@/lib/patch/patchRemoval";
 import { Project } from "@/types/music";
 import { Patch } from "@/types/patch";
 import { PatchRemovalDialogState } from "@/components/composer/PatchRemovalDialogModal";
@@ -262,9 +263,12 @@ export function usePatchWorkspaceLifecycleActions({
     if (!selectedPatch || (resolvePatchSource(selectedPatch) !== "custom" && patchStatus !== "legacy_preset")) {
       return;
     }
-    const affectedTracks = project.tracks.filter((track) => track.instrumentPatchId === selectedPatch.id);
     const fallbackPatchId = resolveRemovedPatchFallbackId(project.patches, selectedPatch.id) ?? "";
-    if (affectedTracks.length === 0) {
+    const removalRequest = buildPatchRemovalRequest(project, selectedPatch);
+    if (!removalRequest) {
+      return;
+    }
+    if (removalRequest.rows.length === 0) {
       if (!fallbackPatchId) {
         setRuntimeError("No fallback instrument is available for this tab.");
         return;
@@ -287,19 +291,11 @@ export function usePatchWorkspaceLifecycleActions({
       );
       return;
     }
-    setPatchRemovalDialog({
-      patchId: selectedPatch.id,
-      rows: affectedTracks.map((track) => ({
-        trackId: track.id,
-        mode: fallbackPatchId ? "fallback" : "remove",
-        fallbackPatchId
-      }))
-    });
+    setPatchRemovalDialog(removalRequest);
   }, [
     clearPreviewCaptures,
     commitProjectChange,
-    project.patches,
-    project.tracks,
+    project,
     selectedPatch,
     setPatchRemovalDialog,
     setRuntimeError,

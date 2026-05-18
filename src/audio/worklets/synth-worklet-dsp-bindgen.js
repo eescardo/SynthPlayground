@@ -157,11 +157,27 @@ export class WasmSubsetEngine {
     return wasm.wasmsubsetengine_has_active_voices(this.__wbg_ptr) !== 0;
   }
 
-  preview_capture_state_json() {
+  preview_capture_samples_len(probeId) {
+    const ptr0 = passStringToWasm0(probeId, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    return wasm.wasmsubsetengine_preview_capture_samples_len(this.__wbg_ptr, ptr0, len0) >>> 0;
+  }
+
+  preview_capture_samples_ptr(probeId) {
+    const ptr0 = passStringToWasm0(probeId, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    return wasm.wasmsubsetengine_preview_capture_samples_ptr(this.__wbg_ptr, ptr0, len0) >>> 0;
+  }
+
+  preview_capture_state_json(include_final, include_samples) {
     let ptr1 = 0;
     let len1 = 0;
     try {
-      const ret = wasm.wasmsubsetengine_preview_capture_state_json(this.__wbg_ptr);
+      const ret = wasm.wasmsubsetengine_preview_capture_state_json(
+        this.__wbg_ptr,
+        include_final,
+        include_samples == null ? 0xffffff : include_samples ? 1 : 0
+      );
       ptr1 = ret[0];
       len1 = ret[1];
       if (ret[3]) {
