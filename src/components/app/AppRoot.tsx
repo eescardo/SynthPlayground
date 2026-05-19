@@ -393,7 +393,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     if (!audioEngineRef.current) {
       audioEngineRef.current = new AudioEngine();
     }
-    audioEngineRef.current.setProject(audioProject, { syncToWorklet: !playing });
+    audioEngineRef.current.syncProjectSnapshot(audioProject, { syncToWorklet: !playing });
   }, [audioProject, playing, ready]);
 
   useEffect(() => {

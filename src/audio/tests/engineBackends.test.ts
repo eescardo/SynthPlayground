@@ -39,7 +39,7 @@ describe("audio engine live mute transitions", () => {
 
     const backend = new RealAudioEngineBackend();
     const postMessage = vi.fn();
-    backend.setProject(project, { syncToWorklet: false });
+    backend.syncProjectSnapshot(project, { syncToWorklet: false });
     const testBackend = backend as unknown as {
       context: { currentTime: number };
       worklet: { port: { postMessage: typeof postMessage } };
@@ -63,7 +63,7 @@ describe("audio engine live mute transitions", () => {
       ...project,
       tracks: project.tracks.map((entry) => (entry.id === track.id ? { ...entry, mute: false } : entry))
     };
-    backend.setProject(syncedProject, { syncToWorklet: false });
+    backend.syncProjectSnapshot(syncedProject, { syncToWorklet: false });
 
     expect(postMessage.mock.calls).toHaveLength(immediateCalls);
     expect(
@@ -72,6 +72,38 @@ describe("audio engine live mute transitions", () => {
       )
     ).toHaveLength(1);
     expect(postMessage.mock.calls.filter(([message]) => message.type === "EVENTS")).toHaveLength(1);
+  });
+
+  it("resets transport state when replacing the project", () => {
+    const project = createDefaultProject();
+    const nextProject = createDefaultProject();
+    nextProject.id = "replacement_project";
+
+    const backend = new RealAudioEngineBackend();
+    const postMessage = vi.fn();
+    backend.syncProjectSnapshot(project, { syncToWorklet: false });
+    const testBackend = backend as unknown as {
+      worklet: { port: { postMessage: typeof postMessage } };
+      isPlaying: boolean;
+      scheduler: number | null;
+    };
+    testBackend.worklet = { port: { postMessage } };
+    testBackend.isPlaying = true;
+    testBackend.scheduler = null;
+
+    backend.replaceProject(nextProject);
+
+    expect(postMessage.mock.calls.map(([message]) => message.type)).toEqual(["RECORDING", "TRANSPORT", "SET_PROJECT"]);
+    expect(postMessage.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        type: "TRANSPORT",
+        isPlaying: false
+      })
+    );
+    expect(postMessage.mock.calls[2]?.[0]).toEqual({
+      type: "SET_PROJECT",
+      project: nextProject
+    });
   });
 
   it("builds a live volume restore command for unmuting during playback", () => {

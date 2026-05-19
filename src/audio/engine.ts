@@ -26,8 +26,12 @@ export class AudioEngine {
     return this.backend.ensureRunning();
   }
 
-  setProject(project: AudioProject, options?: { syncToWorklet?: boolean }): void {
-    this.backend.setProject(project, options);
+  replaceProject(project: AudioProject): void {
+    this.backend.replaceProject(project);
+  }
+
+  syncProjectSnapshot(project: AudioProject, options?: { syncToWorklet?: boolean }): void {
+    this.backend.syncProjectSnapshot(project, options);
   }
 
   setTrackMuted(trackId: string, muted: boolean, options?: { restoreVolume?: boolean }): void {

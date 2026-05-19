@@ -62,7 +62,8 @@ const hydrateSharedPreviewCaptureSamples = (capture: PreviewProbeCapture): Previ
 export interface AudioEngineBackend {
   init(): Promise<void>;
   ensureRunning(): Promise<void>;
-  setProject(project: AudioProject, options?: { syncToWorklet?: boolean }): void;
+  replaceProject(project: AudioProject): void;
+  syncProjectSnapshot(project: AudioProject, options?: { syncToWorklet?: boolean }): void;
   setTrackMuted(trackId: string, muted: boolean, options?: { restoreVolume?: boolean }): void;
   play(startBeat?: number): Promise<void>;
   stop(): void;
@@ -357,7 +358,16 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
     }
   }
 
-  setProject(project: AudioProject, options?: { syncToWorklet?: boolean }): void {
+  replaceProject(project: AudioProject): void {
+    this.stop();
+    this.project = project;
+    this.worklet?.port.postMessage({
+      type: "SET_PROJECT",
+      project
+    });
+  }
+
+  syncProjectSnapshot(project: AudioProject, options?: { syncToWorklet?: boolean }): void {
     const previousProject = this.project;
     this.project = project;
     if (this.isPlaying && this.worklet) {
@@ -639,7 +649,12 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
     await this.init();
   }
 
-  setProject(project: AudioProject): void {
+  replaceProject(project: AudioProject): void {
+    this.stop();
+    this.project = project;
+  }
+
+  syncProjectSnapshot(project: AudioProject): void {
     this.project = project;
   }
 
