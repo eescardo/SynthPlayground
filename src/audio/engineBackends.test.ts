@@ -3,13 +3,27 @@ import { describe, expect, it } from "vitest";
 import {
   createActiveTrackNoteEvents,
   createTrackVolumeRestoreCommand,
-  filterEventsForTrack
+  filterEventsForTrack,
+  updateTrackMuteSnapshot
 } from "@/audio/engineBackends";
 import { SchedulerEvent } from "@/types/audio";
 import { createDefaultProject } from "@/lib/patch/presets";
 import { samplesPerBeat } from "@/lib/musicTiming";
 
 describe("audio engine live mute transitions", () => {
+  it("updates the backend mute snapshot so project sync does not replay an immediate transition", () => {
+    const project = createDefaultProject();
+    const track = project.tracks[0];
+    track.mute = true;
+
+    const snapshot = updateTrackMuteSnapshot(project, track.id, false);
+
+    expect(snapshot).not.toBe(project);
+    expect(snapshot.tracks.find((entry) => entry.id === track.id)?.mute).toBe(false);
+    expect(project.tracks.find((entry) => entry.id === track.id)?.mute).toBe(true);
+    expect(updateTrackMuteSnapshot(snapshot, track.id, false)).toBe(snapshot);
+  });
+
   it("builds a live volume restore command for unmuting during playback", () => {
     const project = createDefaultProject();
     const track = project.tracks[0];

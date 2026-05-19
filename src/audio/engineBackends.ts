@@ -129,6 +129,18 @@ export const createTrackVolumeRestoreCommand = (
 export const filterEventsForTrack = (events: SchedulerEvent[], trackId: string): SchedulerEvent[] =>
   events.filter((event) => "trackId" in event && event.trackId === trackId);
 
+export const updateTrackMuteSnapshot = (project: AudioProject, trackId: string, muted: boolean): AudioProject => {
+  let changed = false;
+  const tracks = project.tracks.map((track) => {
+    if (track.id !== trackId || Boolean(track.mute) === muted) {
+      return track;
+    }
+    changed = true;
+    return { ...track, mute: muted };
+  });
+  return changed ? { ...project, tracks } : project;
+};
+
 export const createActiveTrackNoteEvents = (
   project: AudioProject,
   trackId: string,
@@ -275,6 +287,9 @@ class RealAudioEngineBackend implements AudioEngineBackend {
   }
 
   setTrackMuted(trackId: string, muted: boolean, options?: { restoreVolume?: boolean }): void {
+    if (this.project) {
+      this.project = updateTrackMuteSnapshot(this.project, trackId, muted);
+    }
     this.dispatchTransportCommand({ type: "SetTrackMute", trackId, muted });
     if (!muted && options?.restoreVolume !== false) {
       const restoreCommand = this.getTrackVolumeRestoreCommand(trackId);
