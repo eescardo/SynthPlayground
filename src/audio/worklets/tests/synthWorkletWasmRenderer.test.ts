@@ -16,7 +16,6 @@ let hasActiveVoices = false;
 let configuredPreviewCaptureJson = "";
 const engineStop = vi.fn();
 const engineStopTrack = vi.fn();
-const engineSetTrackMute = vi.fn();
 
 vi.mock("../synth-worklet-dsp-bindgen.js", () => {
   class MockWasmSubsetEngine {
@@ -121,9 +120,6 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
     }
     stop() {
       engineStop();
-    }
-    set_track_mute(trackIndex: number, muted: boolean) {
-      engineSetTrackMute(trackIndex, muted);
     }
     stop_track(trackIndex: number) {
       engineStopTrack(trackIndex);
@@ -233,7 +229,6 @@ beforeEach(() => {
   vi.resetModules();
   engineStop.mockReset();
   engineStopTrack.mockReset();
-  engineSetTrackMute.mockReset();
   leftView.fill(0);
   rightView.fill(0);
   previewCaptureSampleCount = 0;
@@ -332,7 +327,6 @@ describe("WASM worklet renderer", () => {
     ]);
 
     expect(engineStopTrack).toHaveBeenCalledWith(0);
-    expect(engineSetTrackMute).not.toHaveBeenCalled();
     expect(stream!.eventQueue.map((event) => event.id)).toEqual(["track_2_on", "track_1_late_on", "track_2_late_on"]);
   });
 

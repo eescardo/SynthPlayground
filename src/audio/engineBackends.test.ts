@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   createActiveTrackNoteEvents,
   createTrackVolumeRestoreCommand,
   filterEventsForTrack,
+  RealAudioEngineBackend,
   updateTrackMuteSnapshot
 } from "@/audio/engineBackends";
 import { SchedulerEvent } from "@/types/audio";
@@ -22,6 +23,57 @@ describe("audio engine live mute transitions", () => {
     expect(snapshot.tracks.find((entry) => entry.id === track.id)?.mute).toBe(false);
     expect(project.tracks.find((entry) => entry.id === track.id)?.mute).toBe(true);
     expect(updateTrackMuteSnapshot(snapshot, track.id, false)).toBe(snapshot);
+  });
+
+  it("does not replay an immediate unmute when the synced project arrives", () => {
+    const project = createDefaultProject();
+    const track = project.tracks[0];
+    track.mute = true;
+    track.notes = [
+      {
+        id: "active_note",
+        pitchStr: "C3",
+        startBeat: 1,
+        durationBeats: 2,
+        velocity: 0.8
+      }
+    ];
+
+    const backend = new RealAudioEngineBackend();
+    const postMessage = vi.fn();
+    backend.setProject(project, { syncToWorklet: false });
+    const testBackend = backend as unknown as {
+      context: { currentTime: number };
+      worklet: { port: { postMessage: typeof postMessage } };
+      isPlaying: boolean;
+      playSessionId: number;
+      scheduledUntilSample: number;
+      songStartContextTime: number;
+      cueBeat: number;
+    };
+    testBackend.context = { currentTime: 1 };
+    testBackend.worklet = { port: { postMessage } };
+    testBackend.isPlaying = true;
+    testBackend.playSessionId = 7;
+    testBackend.scheduledUntilSample = 96000;
+    testBackend.songStartContextTime = 0;
+    testBackend.cueBeat = 0;
+
+    backend.setTrackMuted(track.id, false);
+    const immediateCalls = postMessage.mock.calls.length;
+    const syncedProject = {
+      ...project,
+      tracks: project.tracks.map((entry) => (entry.id === track.id ? { ...entry, mute: false } : entry))
+    };
+    backend.setProject(syncedProject, { syncToWorklet: false });
+
+    expect(postMessage.mock.calls).toHaveLength(immediateCalls);
+    expect(
+      postMessage.mock.calls.filter(
+        ([message]) => message.type === "TRANSPORT_COMMAND" && message.command.type === "SetTrackMute"
+      )
+    ).toHaveLength(1);
+    expect(postMessage.mock.calls.filter(([message]) => message.type === "EVENTS")).toHaveLength(1);
   });
 
   it("builds a live volume restore command for unmuting during playback", () => {

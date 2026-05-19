@@ -186,7 +186,7 @@ export const createActiveTrackNoteEvents = (
   });
 };
 
-class RealAudioEngineBackend implements AudioEngineBackend {
+export class RealAudioEngineBackend implements AudioEngineBackend {
   private context: AudioContext | null = null;
   private worklet: AudioWorkletNode | null = null;
   private scheduler: number | null = null;
