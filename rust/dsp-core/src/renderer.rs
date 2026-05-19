@@ -349,12 +349,6 @@ impl WasmSubsetEngine {
         self.event_cursor = next_cursor.min(self.event_queue.len());
     }
 
-    pub fn set_track_mute(&mut self, track_index: usize, muted: bool) {
-        if let Some(track) = self.tracks.get_mut(track_index) {
-            track.set_mute(muted);
-        }
-    }
-
     pub fn left_ptr(&self) -> *const f32 {
         self.left.as_ptr()
     }

@@ -331,7 +331,7 @@ describe("WASM worklet renderer", () => {
       }
     ]);
 
-    expect(engineStopTrack).not.toHaveBeenCalled();
+    expect(engineStopTrack).toHaveBeenCalledWith(0);
     expect(engineSetTrackMute).not.toHaveBeenCalled();
     expect(stream!.eventQueue.map((event) => event.id)).toEqual(["track_2_on", "track_1_late_on", "track_2_late_on"]);
   });

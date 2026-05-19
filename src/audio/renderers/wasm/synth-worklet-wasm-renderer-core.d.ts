@@ -33,7 +33,6 @@ export interface SharedWasmEngine {
   enqueue_events(eventsJson: string): void;
   process_block(): boolean;
   has_active_voices?(): boolean;
-  set_track_mute?(trackIndex: number, muted: boolean): void;
   stop_track?(trackIndex: number): void;
   stop(): void;
   left_ptr(): number;

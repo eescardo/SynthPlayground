@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import crypto from "node:crypto";
 import path from "node:path";
 import process from "node:process";
 
@@ -26,14 +25,9 @@ const walkFiles = (dir) => {
   return files;
 };
 
-const contentHashFor = (source) => crypto.createHash("sha256").update(source).digest("hex").slice(0, 12);
-
-const rewritePublicImportPaths = (source, options = {}) =>
+const rewritePublicImportPaths = (source) =>
   source.replace(/(["'])(\.{1,2}\/[^"']+\.(?:js|d\.ts))\1/g, (_match, quote, specifier) => {
-    const filename = path.basename(specifier);
-    const version = options.versionByFilename?.get(filename);
-    const versionSuffix = filename.endsWith(".js") && version ? `?v=${version}` : "";
-    return `${quote}./${filename}${versionSuffix}${quote}`;
+    return `${quote}./${path.basename(specifier)}${quote}`;
   });
 
 fs.mkdirSync(publicDir, { recursive: true });
@@ -58,25 +52,13 @@ for (const sourceDir of sourceDirs) {
   }
 }
 
-const versionByFilename = new Map(
-  (() => {
-    const jsFiles = [...filesByName.entries()]
-      .filter(([filename]) => filename.endsWith(".js"))
-      .sort((a, b) => a[0].localeCompare(b[0]));
-    const graphHash = contentHashFor(
-      jsFiles.map(([filename, sourcePath]) => `${filename}\n${fs.readFileSync(sourcePath, "utf8")}`).join("\n")
-    );
-    return jsFiles.map(([filename]) => [filename, graphHash]);
-  })()
-);
-
 for (const [filename, sourcePath] of [...filesByName.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
   const outputPath = path.join(publicDir, filename);
   if (filename.endsWith(".js")) {
     const relativeSource = path.relative(repoRoot, sourcePath);
     const generatedBanner = `// Generated from ${relativeSource} by scripts/worklets/sync-worklet-runtime.mjs.\n`;
     const source = fs.readFileSync(sourcePath, "utf8");
-    fs.writeFileSync(outputPath, `${generatedBanner}${rewritePublicImportPaths(source, { versionByFilename })}`);
+    fs.writeFileSync(outputPath, `${generatedBanner}${rewritePublicImportPaths(source)}`);
     continue;
   }
 

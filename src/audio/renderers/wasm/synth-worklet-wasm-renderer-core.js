@@ -394,21 +394,7 @@ export class SharedWasmRenderStream {
       }
       return true;
     });
-    this.enqueueCompiledEvents([
-      {
-        type: "TrackVolumeChange",
-        sampleTime: this.songSampleCounter,
-        trackIndex,
-        value: 0
-      }
-    ]);
-  }
-
-  enqueueCompiledEvents(events) {
-    if (!events || events.length === 0) {
-      return;
-    }
-    this.engine.enqueue_events(JSON.stringify(events));
+    this.engine.stop_track?.(trackIndex);
   }
 
   setMacroValue(trackId, macroId, normalized) {

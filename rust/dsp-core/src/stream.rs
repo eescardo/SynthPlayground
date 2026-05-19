@@ -106,7 +106,6 @@ impl VoiceRuntime {
 
 #[derive(Clone)]
 pub(crate) struct TrackRuntime {
-    mute: bool,
     volume: f32,
     block_size: usize,
     fx: TrackFxSpec,
@@ -158,7 +157,6 @@ impl TrackRuntime {
             })
             .collect();
         Ok(Self {
-            mute: spec.mute,
             volume: spec.volume,
             block_size,
             fx: spec.fx,
@@ -527,10 +525,6 @@ impl TrackRuntime {
             .track_samples_rendered
             .saturating_add((end_frame.saturating_sub(start_frame)) as u64);
 
-        if self.mute {
-            return;
-        }
-
         for frame in start_frame..end_frame {
             target_buffer[frame] += self.track_buffer[frame] * self.volume;
         }
@@ -727,9 +721,5 @@ impl TrackRuntime {
 
     pub(crate) fn set_volume(&mut self, value: f32) {
         self.volume = clamp(value, 0.0, 2.0);
-    }
-
-    pub(crate) fn set_mute(&mut self, muted: bool) {
-        self.mute = muted;
     }
 }

@@ -237,7 +237,6 @@ const compileTrackPatch = (patch, track, trackIndex) => {
     trackIndex,
     trackId: track.id,
     volume: Number(track.volume ?? 1),
-    mute: false,
     fx: {
       delayEnabled: Boolean(track.fx?.delayEnabled),
       reverbEnabled: Boolean(track.fx?.reverbEnabled),

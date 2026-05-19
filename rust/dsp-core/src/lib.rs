@@ -283,7 +283,6 @@ struct TrackSpec {
     #[serde(rename = "trackId")]
     _track_id: String,
     volume: f32,
-    mute: bool,
     fx: TrackFxSpec,
     #[serde(rename = "signalCount")]
     signal_count: usize,
