@@ -126,9 +126,6 @@ export const createTrackVolumeRestoreCommand = (
   )
 });
 
-export const filterEventsForTrack = (events: SchedulerEvent[], trackId: string): SchedulerEvent[] =>
-  events.filter((event) => "trackId" in event && event.trackId === trackId);
-
 export const updateTrackMuteSnapshot = (project: AudioProject, trackId: string, muted: boolean): AudioProject => {
   let changed = false;
   const tracks = project.tracks.map((track) => {
@@ -265,10 +262,11 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
     const noteOnSample = this.getSafeLiveSampleTime();
     const activeNoteEvents = createActiveTrackNoteEvents(this.project, trackId, this.getPlayheadBeat(), noteOnSample);
     const events = activeNoteEvents.concat(
-      filterEventsForTrack(
-        collectEventsInWindow(this.project, { fromSample: currentSongSample, toSample }, { cueBeat: this.cueBeat }),
-        trackId
-      )
+      collectEventsInWindow(
+        this.project,
+        { fromSample: currentSongSample, toSample },
+        { cueBeat: this.cueBeat }
+      ).filter((event) => "trackId" in event && event.trackId === trackId)
     );
     if (events.length > 0) {
       this.worklet.port.postMessage({ type: "EVENTS", events, sessionId: this.playSessionId });
