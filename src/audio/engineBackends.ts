@@ -247,7 +247,7 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
     this.worklet.port.postMessage({ type: "TRANSPORT_COMMAND", command, sessionId: this.playSessionId });
   }
 
-  private rescheduleTrackFromCurrentSample(trackId: string): void {
+  private rescheduleUnmutedTrackEvents(trackId: string): void {
     if (!this.project || !this.worklet || !this.isPlaying) {
       return;
     }
@@ -296,7 +296,7 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
       }
     }
     if (!muted) {
-      this.rescheduleTrackFromCurrentSample(trackId);
+      this.rescheduleUnmutedTrackEvents(trackId);
     }
   }
 
