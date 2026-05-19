@@ -7,6 +7,9 @@ import {
   AUTOMATION_LANE_COLLAPSED_HEIGHT,
   HEADER_WIDTH,
   MACRO_PANEL_TOGGLE_Y_OFFSET,
+  MUTE_ICON_SIZE,
+  SPEAKER_ICON_SRC,
+  SPEAKER_MUTED_ICON_SRC,
   TRACK_PATCH_CONTROL_SIZE,
   SPEAKER_Y_OFFSET
 } from "@/components/tracks/trackCanvasConstants";
@@ -19,6 +22,7 @@ import {
 import { usePatchSummaryPopover } from "@/hooks/tracks/usePatchSummaryPopover";
 import { getTrackMacroLane, getTrackVolumeLane } from "@/lib/macroAutomation";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
+import { isTrackVolumeMuted } from "@/lib/trackVolume";
 import { Project } from "@/types/music";
 
 interface TrackHeaderChromeProps {
@@ -118,7 +122,7 @@ export function TrackHeaderChrome({
   }, [canvasShellRef]);
 
   return (
-    <div className="track-header-overlays">
+    <div className="track-header-overlays" style={{ transform: `translate3d(${canvasViewport.scrollLeft}px, 0, 0)` }}>
       {project.tracks.map((track) => {
         const layout = trackLayouts.find((entry) => entry.trackId === track.id);
         if (!layout) {
@@ -128,6 +132,7 @@ export function TrackHeaderChrome({
         const volumeLane = getTrackVolumeLane(track);
         const selected = selectedTrackId === track.id;
         const effectiveVolume = track.mute ? 0 : track.volume;
+        const trackSilenced = track.mute || isTrackVolumeMuted(track.volume);
         const rememberedVolume = track.volume;
         const volumeLaneLayout = layout.automationLanes.find((entry) => entry.laneType === "volume") ?? null;
         const macroLaneLayouts = layout.automationLanes.filter((entry) => entry.laneType === "macro");
@@ -182,7 +187,7 @@ export function TrackHeaderChrome({
         const patchSummaryLocalTop =
           patchSummaryPopover?.mode === "expanded" ? patchSummaryExpandedTop : patchSummaryAnchorTop;
         const patchSummaryLeft = HEADER_WIDTH;
-        const patchSummaryViewportLeft = canvasViewport.left + patchSummaryLeft - canvasViewport.scrollLeft;
+        const patchSummaryViewportLeft = canvasViewport.left + patchSummaryLeft;
         const patchSummaryViewportTop = canvasViewport.top + patchSummaryLocalTop - canvasViewport.scrollTop;
         const patchInvalid = Boolean(invalidPatchIds?.has(track.instrumentPatchId));
 
@@ -240,9 +245,18 @@ export function TrackHeaderChrome({
 
         return (
           <div key={track.id}>
+            <div
+              className={`track-header-row${selected ? " selected" : ""}${patchInvalid ? " invalid" : ""}`}
+              style={{
+                top: `${layout.y}px`,
+                height: `${layout.height}px`
+              }}
+            />
             <button
               type="button"
-              className={`track-name-button${renameActivation.isArmed(track.id) ? " rename-armed" : ""}`}
+              className={`track-name-button${renameActivation.isArmed(track.id) ? " rename-armed" : ""}${
+                patchInvalid ? " invalid" : ""
+              }`}
               aria-label={`Rename track ${track.name}`}
               style={{
                 top: `${layout.y + 8}px`,
@@ -262,14 +276,18 @@ export function TrackHeaderChrome({
                   setEditingTrackName(track.name);
                 }
               })}
-            />
+            >
+              {track.name}
+            </button>
             <button
               type="button"
               className="track-volume-button"
               aria-label={`Track volume for ${track.name}`}
               aria-expanded={volumePopoverTrackId === track.id}
               style={{
-                top: `${layout.y + SPEAKER_Y_OFFSET}px`
+                top: `${layout.y + SPEAKER_Y_OFFSET}px`,
+                backgroundImage: `url("${trackSilenced ? SPEAKER_MUTED_ICON_SRC : SPEAKER_ICON_SRC}")`,
+                backgroundSize: `${MUTE_ICON_SIZE}px ${MUTE_ICON_SIZE}px`
               }}
               onMouseEnter={(event) => scheduleVolumePopoverOpen(track.id, event.currentTarget)}
               onMouseLeave={() => scheduleVolumePopoverDismiss()}
