@@ -252,6 +252,10 @@ export class WasmSubsetEngine {
   stop() {
     wasm.wasmsubsetengine_stop(this.__wbg_ptr);
   }
+
+  stop_track(trackIndex) {
+    wasm.wasmsubsetengine_stop_track(this.__wbg_ptr, trackIndex);
+  }
 }
 
 export const initSync = ({ module }) => {

@@ -6,6 +6,29 @@ import { beatToSample } from "@/lib/musicTiming";
 import { createDefaultProject } from "@/lib/patch/presets";
 
 describe("audio scheduler macro automation", () => {
+  it("still emits timeline events for muted tracks so transport runtime owns live mute state", () => {
+    const project = createDefaultProject();
+    const track = project.tracks[0];
+    track.mute = true;
+    track.notes = [
+      {
+        id: "muted_note",
+        pitchStr: "C3",
+        startBeat: 1,
+        durationBeats: 1,
+        velocity: 0.8
+      }
+    ];
+
+    const events = collectEventsInWindow(project, {
+      fromSample: 0,
+      toSample: Number.MAX_SAFE_INTEGER
+    });
+
+    expect(events.some((event) => event.type === "NoteOn" && event.trackId === track.id)).toBe(true);
+    expect(events.some((event) => event.type === "NoteOff" && event.trackId === track.id)).toBe(true);
+  });
+
   it("emits macro automation events before same-sample note attacks", () => {
     const project = createDefaultProject();
     const track = project.tracks[0];

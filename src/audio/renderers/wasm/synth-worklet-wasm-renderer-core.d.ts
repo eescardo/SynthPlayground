@@ -1,5 +1,11 @@
 import type { Track } from "@/types/music";
-import type { AudioProject, SchedulerEvent, SynthRendererConfig, SynthStreamStartOptions } from "@/types/audio";
+import type {
+  AudioProject,
+  SchedulerEvent,
+  SynthRendererConfig,
+  SynthStreamStartOptions,
+  TransportCommand
+} from "@/types/audio";
 import type { PreviewProbeCapture, PreviewProbeRequest, PreviewProbeSharedBuffer } from "@/types/probes";
 import type { WasmEvent, WasmProjectSpec } from "@/audio/renderers/wasm/wasmSubsetCompiler";
 import type { WorkletPortLike } from "@/audio/renderers/shared/synth-renderer";
@@ -27,6 +33,7 @@ export interface SharedWasmEngine {
   enqueue_events(eventsJson: string): void;
   process_block(): boolean;
   has_active_voices?(): boolean;
+  stop_track?(trackIndex: number): void;
   stop(): void;
   left_ptr(): number;
   right_ptr(): number;
@@ -160,11 +167,15 @@ export class SharedWasmRenderStream {
   implementation: SharedWasmImplementation;
   previewCaptureState: SharedWasmPreviewCaptureState | null;
   engine: SharedWasmEngine;
+  mutedTrackIds: Set<string>;
   hasActiveVoices(): boolean;
   maybeEmitPreviewCapture(force?: boolean): boolean;
   beginFinalPreviewCapture(): void;
   processBlock(output: Float32Array[]): boolean;
   enqueueEvents(events: SchedulerEvent[]): void;
+  filterMutedTrackEvents(events: SchedulerEvent[]): SchedulerEvent[];
+  dispatchTransportCommand(command: TransportCommand): void;
+  stopTrack(trackId: string): void;
   setMacroValue(trackId: string, macroId: string, normalized: number): void;
   setRecordingTrack(trackId?: string | null): void;
   stop(options?: { emitPreviewCapture?: boolean }): void;

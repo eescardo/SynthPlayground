@@ -29,6 +29,22 @@ const downloadBlob = (blob: Blob, filename: string) => {
   URL.revokeObjectURL(url);
 };
 
+export const getTrackMuteForVolumeChange = (
+  project: Project,
+  trackId: string,
+  volume: number
+): { muted: boolean; changed: boolean } | null => {
+  const currentTrack = project.tracks.find((track) => track.id === trackId);
+  if (!currentTrack) {
+    return null;
+  }
+  const muted = isTrackVolumeMuted(clampTrackVolume(volume));
+  return {
+    muted,
+    changed: Boolean(currentTrack.mute) !== muted
+  };
+};
+
 export function useProjectAudioActions(options: UseProjectAudioActionsOptions) {
   const { audioEngineRef, commitProjectChange, project, projectAssets, setRuntimeError } = options;
   const [exportingAudio, setExportingAudio] = useState(false);
@@ -36,6 +52,10 @@ export function useProjectAudioActions(options: UseProjectAudioActionsOptions) {
   const setTrackVolume = useCallback(
     (trackId: string, volume: number, actionOptions?: { commit?: boolean }) => {
       const clampedVolume = clampTrackVolume(volume);
+      const muteChange = getTrackMuteForVolumeChange(project, trackId, clampedVolume);
+      if (muteChange?.changed) {
+        audioEngineRef.current?.setTrackMuted(trackId, muteChange.muted, { restoreVolume: false });
+      }
       audioEngineRef.current?.setMacroValue(trackId, TRACK_VOLUME_AUTOMATION_ID, clampedVolume / 2);
       commitProjectChange(
         (current) => ({
@@ -45,7 +65,7 @@ export function useProjectAudioActions(options: UseProjectAudioActionsOptions) {
               ? {
                   ...track,
                   volume: clampedVolume,
-                  mute: isTrackVolumeMuted(volume) ? true : false
+                  mute: muteChange?.muted ?? track.mute
                 }
               : track
           )
@@ -56,7 +76,7 @@ export function useProjectAudioActions(options: UseProjectAudioActionsOptions) {
         }
       );
     },
-    [audioEngineRef, commitProjectChange]
+    [audioEngineRef, commitProjectChange, project]
   );
 
   const exportAudio = useCallback(async () => {

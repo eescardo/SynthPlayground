@@ -87,7 +87,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
       if (!audioEngineRef.current) {
         audioEngineRef.current = new AudioEngine();
       }
-      audioEngineRef.current.setProject(audioProject, { syncToWorklet: true });
+      audioEngineRef.current.syncProjectSnapshot(audioProject, { syncToWorklet: true });
       await audioEngineRef.current.play(cueBeat);
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);

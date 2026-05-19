@@ -19,6 +19,7 @@ interface WasmSubsetEngineInstance {
   preview_capture_samples_ptr(probeId: string): number;
   preview_capture_samples_len(probeId: string): number;
   stop(): void;
+  stop_track(trackIndex: number): void;
   left_ptr(): number;
   right_ptr(): number;
   block_size(): number;

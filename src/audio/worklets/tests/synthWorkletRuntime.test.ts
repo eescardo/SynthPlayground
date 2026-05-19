@@ -226,6 +226,116 @@ describe("synth worklet runtime", () => {
     runtime.resetRendererFactory();
   });
 
+  it("routes transport commands only to the active transport session", async () => {
+    const runtime = await loadRuntimeModule();
+    const dispatchTransportCommand = vi.fn();
+    const startStream = vi.fn(() => ({
+      port: { onmessage: null, postMessage() {} },
+      project: createProject(),
+      trackRuntimes: [],
+      eventQueue: [],
+      stopped: false,
+      transportSessionId: 12,
+      processBlock() {
+        return true;
+      },
+      enqueueEvents() {},
+      stop() {},
+      dispatchTransportCommand,
+      setMacroValue() {},
+      setRecordingTrack() {}
+    }));
+
+    runtime.setRendererFactory(() => ({
+      port: { onmessage: null, postMessage() {} },
+      sampleRateInternal: 48000,
+      blockSize: 128,
+      project: createProject(),
+      configure() {},
+      setDefaultProject() {},
+      startStream
+    }));
+
+    const processor = new runtime.SynthWorkletProcessor({
+      processorOptions: { sampleRate: 48000, blockSize: 128 }
+    });
+
+    processor.onMessage({
+      type: "TRANSPORT",
+      isPlaying: true,
+      songStartSample: 0,
+      events: [],
+      sessionId: 12
+    });
+    processor.onMessage({
+      type: "TRANSPORT_COMMAND",
+      command: { type: "SetTrackMute", trackId: "track_1", muted: true },
+      sessionId: 11
+    });
+    processor.onMessage({
+      type: "TRANSPORT_COMMAND",
+      command: { type: "SetTrackMute", trackId: "track_1", muted: true },
+      sessionId: 12
+    });
+
+    expect(dispatchTransportCommand).toHaveBeenCalledTimes(1);
+    expect(dispatchTransportCommand).toHaveBeenCalledWith({ type: "SetTrackMute", trackId: "track_1", muted: true });
+    runtime.resetRendererFactory();
+  });
+
+  it("does not dispatch transport commands to a preview stream", async () => {
+    const runtime = await loadRuntimeModule();
+    const dispatchTransportCommand = vi.fn();
+    const startStream = vi.fn(() => ({
+      port: { onmessage: null, postMessage() {} },
+      project: createProject(),
+      trackRuntimes: [],
+      eventQueue: [],
+      stopped: false,
+      previewing: true,
+      previewId: "preview_1",
+      transportSessionId: 0,
+      processBlock() {
+        return true;
+      },
+      enqueueEvents() {},
+      stop() {},
+      dispatchTransportCommand,
+      setMacroValue() {},
+      setRecordingTrack() {}
+    }));
+
+    runtime.setRendererFactory(() => ({
+      port: { onmessage: null, postMessage() {} },
+      sampleRateInternal: 48000,
+      blockSize: 128,
+      project: createProject(),
+      configure() {},
+      setDefaultProject() {},
+      startStream
+    }));
+
+    const processor = new runtime.SynthWorkletProcessor({
+      processorOptions: { sampleRate: 48000, blockSize: 128 }
+    });
+
+    processor.onMessage({
+      type: "PREVIEW",
+      trackId: "track_1",
+      previewId: "preview_1",
+      events: [],
+      durationSamples: 48000
+    });
+    processor.onMessage({
+      type: "TRANSPORT_COMMAND",
+      command: { type: "SetTrackMute", trackId: "track_1", muted: true },
+      sessionId: 0
+    });
+
+    expect(dispatchTransportCommand).not.toHaveBeenCalled();
+    runtime.resetRendererFactory();
+  });
+
   it("stops the active transport stream before starting a new transport session", async () => {
     const runtime = await loadRuntimeModule();
     const firstStop = vi.fn();

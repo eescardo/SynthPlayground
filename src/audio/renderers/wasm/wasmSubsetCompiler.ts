@@ -66,7 +66,6 @@ export interface WasmTrackSpec {
   trackIndex: number;
   trackId: string;
   volume: number;
-  mute: boolean;
   fx: WasmTrackFxSpec;
   signalCount: number;
   hostSignalIndices: {

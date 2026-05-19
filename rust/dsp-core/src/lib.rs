@@ -283,7 +283,6 @@ struct TrackSpec {
     #[serde(rename = "trackId")]
     _track_id: String,
     volume: f32,
-    mute: bool,
     fx: TrackFxSpec,
     #[serde(rename = "signalCount")]
     signal_count: usize,
@@ -479,6 +478,15 @@ impl EventSpec {
             EventSpec::NoteOff { .. } => 0,
             EventSpec::ParamChange { .. } | EventSpec::TrackVolumeChange { .. } => 1,
             EventSpec::NoteOn { .. } => 3,
+        }
+    }
+
+    pub(crate) fn track_index(&self) -> usize {
+        match self {
+            EventSpec::NoteOn { track_index, .. }
+            | EventSpec::NoteOff { track_index, .. }
+            | EventSpec::ParamChange { track_index, .. }
+            | EventSpec::TrackVolumeChange { track_index, .. } => *track_index,
         }
     }
 
