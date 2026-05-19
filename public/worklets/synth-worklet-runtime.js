@@ -1,5 +1,5 @@
 // Generated from src/audio/worklets/synth-worklet-runtime.js by scripts/worklets/sync-worklet-runtime.mjs.
-import { createWasmRenderer } from "./synth-worklet-wasm-renderer.js?v=8b084eca51eb";
+import { createWasmRenderer } from "./synth-worklet-wasm-renderer.js?v=a2dce5dbef27";
 
 const BaseAudioWorkletProcessor =
   globalThis.AudioWorkletProcessor ||

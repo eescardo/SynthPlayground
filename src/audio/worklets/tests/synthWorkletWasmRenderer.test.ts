@@ -245,7 +245,7 @@ beforeEach(() => {
 });
 
 describe("WASM worklet renderer", () => {
-  it("hard-stops muted tracks and re-enables the DSP track on unmute", async () => {
+  it("hard-stops muted tracks and accepts track events after unmute", async () => {
     const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
 
     const project = createProject({
@@ -331,10 +331,62 @@ describe("WASM worklet renderer", () => {
       }
     ]);
 
-    expect(engineStopTrack).toHaveBeenCalledWith(0);
-    expect(engineSetTrackMute).toHaveBeenCalledWith(0, true);
-    expect(engineSetTrackMute).toHaveBeenCalledWith(0, false);
+    expect(engineStopTrack).not.toHaveBeenCalled();
+    expect(engineSetTrackMute).not.toHaveBeenCalled();
     expect(stream!.eventQueue.map((event) => event.id)).toEqual(["track_2_on", "track_1_late_on", "track_2_late_on"]);
+  });
+
+  it("filters initial transport events for tracks muted in the project", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject({
+      track: createTrack({
+        id: "track_1",
+        mute: true
+      })
+    });
+    project.tracks.push(createTrack({ id: "track_2", name: "Track 2" }));
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+
+    const stream = renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "transport",
+      events: [
+        {
+          id: "track_1_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "timeline",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        },
+        {
+          id: "track_2_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "timeline",
+          trackId: "track_2",
+          noteId: "note_2",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ],
+      sessionId: 1
+    });
+
+    const mutableStream = stream as typeof stream & { mutedTrackIds: Set<string> };
+    expect(mutableStream!.eventQueue.map((event) => event.id)).toEqual(["track_2_on"]);
+    expect([...mutableStream!.mutedTrackIds]).toEqual(["track_1"]);
   });
 
   it("emits preview probe captures from backend-owned capture state", async () => {

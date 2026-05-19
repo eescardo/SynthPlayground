@@ -2,4 +2,4 @@
 export {
   compileAudioProjectToWasmSubsetCore as compileAudioProjectToWasmSubset,
   compileSchedulerEventsToWasmSubsetCore as compileSchedulerEventsToWasmSubset
-} from "./synth-worklet-wasm-compiler-core.js?v=8b084eca51eb";
+} from "./synth-worklet-wasm-compiler-core.js?v=a2dce5dbef27";

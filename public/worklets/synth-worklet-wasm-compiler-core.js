@@ -1,5 +1,5 @@
 // Generated from src/audio/renderers/wasm/synth-worklet-wasm-compiler-core.js by scripts/worklets/sync-worklet-runtime.mjs.
-import { TRACK_VOLUME_AUTOMATION_ID } from "./synth-renderer-constants.js?v=8b084eca51eb";
+import { TRACK_VOLUME_AUTOMATION_ID } from "./synth-renderer-constants.js?v=a2dce5dbef27";
 
 // TODO(host-boundary-ports): Host source ports are still compiled as implicit
 // renderer-fed signal indices. Once patch input ports become serialized peers
@@ -238,7 +238,7 @@ const compileTrackPatch = (patch, track, trackIndex) => {
     trackIndex,
     trackId: track.id,
     volume: Number(track.volume ?? 1),
-    mute: Boolean(track.mute),
+    mute: false,
     fx: {
       delayEnabled: Boolean(track.fx?.delayEnabled),
       reverbEnabled: Boolean(track.fx?.reverbEnabled),

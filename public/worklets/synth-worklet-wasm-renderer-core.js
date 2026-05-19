@@ -1,10 +1,10 @@
 // Generated from src/audio/renderers/wasm/synth-worklet-wasm-renderer-core.js by scripts/worklets/sync-worklet-runtime.mjs.
-import { compareScheduledEvents } from "./synth-renderer-events.js?v=8b084eca51eb";
-import { TRACK_VOLUME_AUTOMATION_ID } from "./synth-renderer-constants.js?v=8b084eca51eb";
+import { compareScheduledEvents } from "./synth-renderer-events.js?v=a2dce5dbef27";
+import { TRACK_VOLUME_AUTOMATION_ID } from "./synth-renderer-constants.js?v=a2dce5dbef27";
 import {
   compileAudioProjectToWasmSubsetCore,
   compileSchedulerEventsToWasmSubsetCore
-} from "./synth-worklet-wasm-compiler-core.js?v=8b084eca51eb";
+} from "./synth-worklet-wasm-compiler-core.js?v=a2dce5dbef27";
 
 export const DEFAULT_RANDOM_SEED = 0x1234_5678;
 export const MACRO_EVENT_LEAD_SAMPLES = 256;
@@ -131,18 +131,20 @@ export class SharedWasmRenderStream {
     this.projectSpec = projectPlan.projectSpec;
     this.projectSpecJson = projectPlan.projectSpecJson;
     this.trackRuntimes = this.project.tracks.map((track) => ({ track }));
-    const inputEvents = options.events || [];
-    this.eventQueue = areEventsSorted(inputEvents) ? [...inputEvents] : [...inputEvents].sort(compareScheduledEvents);
     this.transportSessionId = Number.isFinite(options.sessionId) ? options.sessionId : 1;
     this.songSampleCounter = options.songStartSample || 0;
     this.previewing = options.mode === "preview";
+    this.mutedTrackIds = this.previewing
+      ? new Set()
+      : new Set(this.project.tracks.filter((track) => Boolean(track.mute)).map((track) => track.id));
+    const inputEvents = this.filterMutedTrackEvents(options.events || []);
+    this.eventQueue = areEventsSorted(inputEvents) ? [...inputEvents] : [...inputEvents].sort(compareScheduledEvents);
     this.previewRemainingSamples = this.previewing ? Number(options.durationSamples || 0) : 0;
     this.previewId = options.previewId;
     this.captureProbes = options.captureProbes || [];
     this.stopped = false;
     this.finalizingPreviewCapture = false;
     this.finalPreviewCaptureReadFailures = 0;
-    this.mutedTrackIds = new Set();
     this.implementation = implementation;
     this.previewCaptureState = null;
     this.engine = implementation.createEngine(renderer, this.project, this.projectSpec, options);
@@ -371,11 +373,9 @@ export class SharedWasmRenderStream {
     if (command.type === "SetTrackMute") {
       if (command.muted) {
         this.mutedTrackIds.add(command.trackId);
-        this.setTrackMute(command.trackId, true);
         this.stopTrack(command.trackId);
       } else {
         this.mutedTrackIds.delete(command.trackId);
-        this.setTrackMute(command.trackId, false);
       }
       return;
     }
@@ -395,15 +395,21 @@ export class SharedWasmRenderStream {
       }
       return true;
     });
-    this.engine.stop_track?.(trackIndex);
+    this.enqueueCompiledEvents([
+      {
+        type: "TrackVolumeChange",
+        sampleTime: this.songSampleCounter,
+        trackIndex,
+        value: 0
+      }
+    ]);
   }
 
-  setTrackMute(trackId, muted) {
-    const trackIndex = this.project.tracks.findIndex((track) => track.id === trackId);
-    if (trackIndex < 0) {
+  enqueueCompiledEvents(events) {
+    if (!events || events.length === 0) {
       return;
     }
-    this.engine.set_track_mute?.(trackIndex, muted);
+    this.engine.enqueue_events(JSON.stringify(events));
   }
 
   setMacroValue(trackId, macroId, normalized) {

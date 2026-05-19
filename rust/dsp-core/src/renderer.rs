@@ -331,7 +331,6 @@ impl WasmSubsetEngine {
 
     pub fn stop_track(&mut self, track_index: usize) {
         if let Some(track) = self.tracks.get_mut(track_index) {
-            track.set_mute(true);
             track.stop_all_voices();
             track.set_volume(0.0);
         }

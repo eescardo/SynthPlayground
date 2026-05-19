@@ -1,12 +1,12 @@
 // Generated from src/audio/worklets/synth-worklet-wasm-renderer.js by scripts/worklets/sync-worklet-runtime.mjs.
-import { initSync, WasmSubsetEngine } from "./synth-worklet-dsp-bindgen.js?v=8b084eca51eb";
+import { initSync, WasmSubsetEngine } from "./synth-worklet-dsp-bindgen.js?v=a2dce5dbef27";
 import {
   SharedWasmRenderStream,
   SharedWasmRenderer,
   defaultCompileEvents,
   defaultCompileProject
-} from "./synth-worklet-wasm-renderer-core.js?v=8b084eca51eb";
-import { compilePreviewProbeCaptureRequestsCore } from "./synth-worklet-wasm-compiler-core.js?v=8b084eca51eb";
+} from "./synth-worklet-wasm-renderer-core.js?v=a2dce5dbef27";
+import { compilePreviewProbeCaptureRequestsCore } from "./synth-worklet-wasm-compiler-core.js?v=a2dce5dbef27";
 
 class WasmWorkletRenderStream extends SharedWasmRenderStream {}
 
