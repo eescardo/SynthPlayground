@@ -63,6 +63,7 @@ const hydrateSharedPreviewCaptureSamples = (capture: PreviewProbeCapture): Previ
 export interface AudioEngineBackend {
   init(): Promise<void>;
   ensureRunning(): Promise<void>;
+  setRuntimeErrorListener(listener: ((message: string) => void) | null): void;
   replaceProject(project: AudioProject): void;
   syncProjectSnapshot(project: AudioProject, options?: { syncToWorklet?: boolean }): void;
   setTrackMuted(trackId: string, muted: boolean, options?: { restoreVolume?: boolean }): void;
@@ -100,6 +101,9 @@ export interface AudioEngineBackend {
 export interface AudioEnginePlayOptions {
   recordingTrackId?: string | null;
 }
+
+export const formatWorkletRuntimeError = (message: Extract<WorkletOutboundMessage, { type: "RUNTIME_ERROR" }>) =>
+  `Audio worklet ${message.phase} failed: ${message.error}`;
 
 const getWorkletUrl = () => {
   const basePath = "/worklets/synth-worklet.js";
@@ -203,6 +207,7 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
   private cueBeat = 0;
   private previewCaptureListener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null =
     null;
+  private runtimeErrorListener: ((message: string) => void) | null = null;
 
   private async disposeContext(): Promise<void> {
     this.worklet?.disconnect();
@@ -351,7 +356,9 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
           if (message?.type === "PREVIEW_CAPTURE") {
             this.previewCaptureListener?.(message.previewId, message.captures.map(hydrateSharedPreviewCaptureSamples));
           } else if (message?.type === "RUNTIME_ERROR") {
-            console.error(`Audio worklet ${message.phase} failed: ${message.error}`);
+            const formattedError = formatWorkletRuntimeError(message);
+            this.runtimeErrorListener?.(formattedError);
+            console.warn(formattedError);
           }
         }
       });
@@ -385,6 +392,10 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
     if (this.context.state !== "running") {
       await this.context.resume();
     }
+  }
+
+  setRuntimeErrorListener(listener: ((message: string) => void) | null): void {
+    this.runtimeErrorListener = listener;
   }
 
   replaceProject(project: AudioProject): void {
@@ -689,6 +700,8 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
   async ensureRunning(): Promise<void> {
     await this.init();
   }
+
+  setRuntimeErrorListener(): void {}
 
   replaceProject(project: AudioProject): void {
     this.stop();

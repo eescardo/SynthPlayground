@@ -393,8 +393,9 @@ export function AppRoot({ children }: { children: ReactNode }) {
     if (!audioEngineRef.current) {
       audioEngineRef.current = new AudioEngine();
     }
+    audioEngineRef.current.setRuntimeErrorListener(setRuntimeError);
     audioEngineRef.current.syncProjectSnapshot(audioProject, { syncToWorklet: !playing });
-  }, [audioProject, playing, ready]);
+  }, [audioProject, playing, ready, setRuntimeError]);
 
   useEffect(() => {
     setEditorSelection((current) => filterEditorSelectionToProject(project, current));

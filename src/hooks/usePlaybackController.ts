@@ -88,6 +88,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
       if (!audioEngineRef.current) {
         audioEngineRef.current = new AudioEngine();
       }
+      audioEngineRef.current.setRuntimeErrorListener(setRuntimeError);
       audioEngineRef.current.syncProjectSnapshot(audioProject, { syncToWorklet: true });
       await audioEngineRef.current.play(cueBeat, { recordingTrackId: options?.recordingTrackId ?? null });
       if (rafRef.current !== null) {
@@ -95,7 +96,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
       }
       rafRef.current = requestAnimationFrame(tickPlayhead);
     },
-    [audioEngineRef, audioProject, tickPlayhead]
+    [audioEngineRef, audioProject, setRuntimeError, tickPlayhead]
   );
 
   const seekPlaybackToBeat = useCallback(

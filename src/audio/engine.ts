@@ -32,6 +32,10 @@ export class AudioEngine {
     return this.backend.ensureRunning();
   }
 
+  setRuntimeErrorListener(listener: ((message: string) => void) | null): void {
+    this.backend.setRuntimeErrorListener(listener);
+  }
+
   replaceProject(project: AudioProject): void {
     this.backend.replaceProject(project);
   }
