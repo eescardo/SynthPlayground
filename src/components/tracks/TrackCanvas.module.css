@@ -231,6 +231,9 @@
 .inspectorExpandButton {
   min-width: 0;
   height: 100%;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
   padding: 0;
   border: 0;
   background: transparent;
@@ -242,7 +245,8 @@
 
 .inspectorStatusButton {
   flex: 1 1 auto;
-  padding: 0 0.24rem;
+  justify-content: flex-start;
+  padding: 0.05rem 0.24rem 0;
   font-size: 0.56rem;
   letter-spacing: 0.02em;
   text-align: left;
@@ -255,6 +259,8 @@
 
 .inspectorExpandButton {
   flex: 0 0 0.86rem;
+  justify-content: center;
+  padding-top: 0.05rem;
   border-left: 1px solid rgba(175, 210, 239, 0.28);
   color: #f4fbff;
   font-size: 0.64rem;

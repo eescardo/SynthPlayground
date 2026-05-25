@@ -8,7 +8,7 @@ export function TriangleGlyph({ direction, className }: TriangleGlyphProps) {
 
   return (
     <svg className={className} viewBox="0 0 12 12" aria-hidden="true" focusable="false">
-      <polygon points={points} fill="currentColor" fillOpacity="0.18" stroke="currentColor" strokeWidth="1.4" />
+      <polygon points={points} fill="currentColor" fillOpacity="0.8" />
     </svg>
   );
 }
