@@ -161,7 +161,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.35rem;
+  gap: 0.25rem;
   pointer-events: auto;
   z-index: 3;
   padding: 0 0.35rem 0 0.55rem;
@@ -201,8 +201,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.18rem;
-  min-width: 40px;
-  flex: 0 0 40px;
+  flex: 0 0 auto;
   justify-content: flex-end;
 }
 
@@ -221,14 +220,6 @@
 .inspectorActionButton:disabled {
   opacity: 0.45;
   cursor: not-allowed;
-}
-
-.placeholderActionButton {
-  opacity: 0;
-  border-color: transparent;
-  background: transparent;
-  cursor: default;
-  pointer-events: none;
 }
 
 .tabstopLabel {

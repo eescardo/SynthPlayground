@@ -1,4 +1,4 @@
-import { Dispatch, RefObject, SetStateAction, useEffect, useState } from "react";
+import { CSSProperties, Dispatch, RefObject, SetStateAction, useEffect, useState } from "react";
 import { MacroPanel, MacroPanelRow } from "@/components/tracks/MacroPanel";
 import { PatchSummaryPopover } from "@/components/PatchSummaryPopover";
 import { TrackVolumePopover } from "@/components/TrackVolumePopover";
@@ -134,7 +134,10 @@ export function TrackHeaderChrome({
   }, [canvasShellRef]);
 
   return (
-    <div className={`track-header-overlays ${styles.headerOverlays}`}>
+    <div
+      className={`track-header-overlays ${styles.headerOverlays}`}
+      style={{ "--track-header-width": `${HEADER_WIDTH}px` } as CSSProperties}
+    >
       <div className={`track-header-mask ${styles.headerMask}`} style={{ height: `${canvasHeight}px` }} />
       {project.tracks.map((track) => {
         const layout = trackLayouts.find((entry) => entry.trackId === track.id);
@@ -255,8 +258,7 @@ export function TrackHeaderChrome({
             expandIcon: lane ? (lane.expanded ? "^" : "v") : undefined,
             onExpandToggle: lane
               ? () => automationActions.onToggleTrackMacroAutomationLane(track.id, macro.id)
-              : undefined,
-            expandPlaceholder: !lane
+              : undefined
           });
         }
 

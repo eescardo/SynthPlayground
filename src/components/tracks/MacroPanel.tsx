@@ -15,7 +15,6 @@ export interface MacroPanelRow {
   expandAriaLabel?: string;
   expandIcon?: string;
   onExpandToggle?: () => void;
-  expandPlaceholder?: boolean;
 }
 
 interface MacroPanelProps {
@@ -73,18 +72,17 @@ export function MacroPanel({
             >
               {row.bindIcon}
             </button>
-            <button
-              type="button"
-              className={`track-inspector-action-button ${styles.inspectorActionButton}${
-                row.expandPlaceholder ? ` placeholder ${styles.placeholderActionButton}` : ""
-              }`}
-              title={row.expandTitle ?? "Expand lane"}
-              aria-label={row.expandAriaLabel ?? "Expand lane"}
-              disabled={!row.onExpandToggle}
-              onClick={row.onExpandToggle}
-            >
-              {row.expandIcon ?? " "}
-            </button>
+            {row.onExpandToggle && (
+              <button
+                type="button"
+                className={`track-inspector-action-button ${styles.inspectorActionButton}`}
+                title={row.expandTitle ?? "Expand lane"}
+                aria-label={row.expandAriaLabel ?? "Expand lane"}
+                onClick={row.onExpandToggle}
+              >
+                {row.expandIcon ?? " "}
+              </button>
+            )}
           </div>
         </div>
       ))}
