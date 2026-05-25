@@ -218,7 +218,7 @@
   position: sticky;
   top: 0;
   left: 0;
-  width: 170px;
+  width: var(--track-header-width);
   height: 0;
   overflow: visible;
   pointer-events: none;
@@ -229,7 +229,7 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 170px;
+  width: var(--track-header-width);
   pointer-events: auto;
   z-index: 1;
   background: #121b27;

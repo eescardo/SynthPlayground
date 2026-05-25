@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  CSSProperties,
   Dispatch,
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
@@ -10,7 +11,7 @@ import type {
 import { SelectionActionPopover } from "@/components/SelectionActionPopover";
 import { TrackCanvasTabStops } from "@/components/tracks/TrackCanvasTabStops";
 import { TrackHeaderChrome } from "@/components/tracks/TrackCanvasChrome";
-import { resolveTrackCanvasCursor } from "@/components/tracks/trackCanvasConstants";
+import { HEADER_WIDTH, resolveTrackCanvasCursor } from "@/components/tracks/trackCanvasConstants";
 import {
   TrackCanvasAutomationActions,
   TrackCanvasPatchActions,
@@ -74,7 +75,11 @@ interface TrackCanvasOverlaysProps {
 
 export function TrackCanvasOverlays(props: TrackCanvasOverlaysProps) {
   return (
-    <div className={`track-canvas-shell ${styles.shell}`} ref={props.wrapperRef}>
+    <div
+      className={`track-canvas-shell ${styles.shell}`}
+      ref={props.wrapperRef}
+      style={{ "--track-header-width": `${HEADER_WIDTH}px` } as CSSProperties}
+    >
       <TrackHeaderChrome
         project={props.project}
         canvasShellRef={props.wrapperRef}
