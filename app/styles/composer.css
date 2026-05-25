@@ -512,7 +512,7 @@
 }
 
 .track-patch-summary-popover.teaser {
-  width: 34px;
+  width: 21px;
   display: flex;
   align-items: stretch;
 }
@@ -526,9 +526,13 @@
     linear-gradient(180deg, rgba(17, 31, 46, 0.95), rgba(11, 19, 30, 0.98)),
     radial-gradient(circle at 50% 12%, rgba(164, 214, 255, 0.16), transparent 42%);
   color: rgba(223, 238, 252, 0.92);
-  font-size: 1rem;
-  letter-spacing: 0.06em;
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+}
+
+.track-patch-summary-teaser-glyph {
+  width: 0.72rem;
+  height: 0.72rem;
+  color: currentColor;
 }
 
 .track-patch-summary-popover.expanded {

@@ -1,5 +1,6 @@
 "use client";
 
+import { TriangleGlyph } from "@/components/icons/TriangleGlyph";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { getSignalCapabilityColor, resolvePatchModuleCategoryColor } from "@/lib/patch/moduleCategories";
 import { resolvePatchPresetStatus } from "@/lib/patch/source";
@@ -136,7 +137,7 @@ export function PatchSummaryPopover(props: PatchSummaryPopoverProps) {
           onClick={props.onExpand}
           aria-label="Open patch summary"
         >
-          &gt;&gt;
+          <TriangleGlyph direction="right" className="track-patch-summary-teaser-glyph" />
         </button>
       </div>
     );
