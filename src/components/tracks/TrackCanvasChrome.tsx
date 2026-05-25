@@ -222,7 +222,6 @@ export function TrackHeaderChrome({
               TRACK_INSPECTOR_ROW_Y_OFFSET,
             bindTitle: "Use fixed value",
             bindAriaLabel: "Use fixed value",
-            bindIcon: "◉",
             onBindToggle: () => trackActions.onUnbindTrackVolumeFromAutomation(track.id),
             expandTitle: volumeLane.expanded ? "Collapse lane" : "Expand lane",
             expandAriaLabel: volumeLane.expanded ? "Collapse lane" : "Expand lane",
@@ -244,7 +243,6 @@ export function TrackHeaderChrome({
               TRACK_INSPECTOR_ROW_Y_OFFSET,
             bindTitle: lane ? "Use fixed value" : "Automate in timeline",
             bindAriaLabel: lane ? "Use fixed value" : "Automate in timeline",
-            bindIcon: lane ? "◉" : "◎",
             onBindToggle: lane
               ? () => automationActions.onUnbindTrackMacroFromAutomation(track.id, macro.id)
               : () =>

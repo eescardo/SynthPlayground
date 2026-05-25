@@ -9,7 +9,6 @@ export interface MacroPanelRow {
   top: number;
   bindTitle: string;
   bindAriaLabel: string;
-  bindIcon: string;
   onBindToggle: () => void;
   expandTitle?: string;
   expandAriaLabel?: string;
@@ -58,31 +57,30 @@ export function MacroPanel({
         >
           <div className={`track-inspector-row-label ${styles.inspectorRowLabel}`}>
             <span className={`track-inspector-name ${styles.inspectorName}`}>{row.label}</span>
-            {row.stateLabel && (
-              <span className={`track-inspector-state ${styles.inspectorState}`}>{row.stateLabel}</span>
-            )}
           </div>
           <div className={`track-inspector-row-actions ${styles.inspectorRowActions}`}>
-            <button
-              type="button"
-              className={`track-inspector-action-button ${styles.inspectorActionButton}`}
-              title={row.bindTitle}
-              aria-label={row.bindAriaLabel}
-              onClick={row.onBindToggle}
-            >
-              {row.bindIcon}
-            </button>
-            {row.onExpandToggle && (
+            <span className={`${styles.inspectorStatusPill}${row.onExpandToggle ? ` ${styles.hasExpand}` : ""}`}>
               <button
                 type="button"
-                className={`track-inspector-action-button ${styles.inspectorActionButton}`}
-                title={row.expandTitle ?? "Expand lane"}
-                aria-label={row.expandAriaLabel ?? "Expand lane"}
-                onClick={row.onExpandToggle}
+                className={`track-inspector-action-button ${styles.inspectorStatusButton}`}
+                title={row.bindTitle}
+                aria-label={row.bindAriaLabel}
+                onClick={row.onBindToggle}
               >
-                {row.expandIcon ?? " "}
+                {row.stateLabel}
               </button>
-            )}
+              {row.onExpandToggle && (
+                <button
+                  type="button"
+                  className={`track-inspector-action-button ${styles.inspectorExpandButton}`}
+                  title={row.expandTitle ?? "Expand lane"}
+                  aria-label={row.expandAriaLabel ?? "Expand lane"}
+                  onClick={row.onExpandToggle}
+                >
+                  {row.expandIcon ?? " "}
+                </button>
+              )}
+            </span>
           </div>
         </div>
       ))}
