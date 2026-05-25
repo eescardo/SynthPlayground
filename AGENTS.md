@@ -55,6 +55,7 @@ Never commit or push directly to `main` / `origin/main`.
 - Always work on a task-specific branch.
 - After pushing the task branch to the remote, open or update a PR.
 - PRs should be opened as ready for review by default, unless explicitly requested otherwise.
+- When updating an existing PR during review, add follow-up commits instead of amending, squashing, or force-pushing rewritten history unless the user explicitly asks for that cleanup.
 
 When the mapping is clear from context, proceed. When it is ambiguous, ask a short clarifying question before making branch or PR changes.
 
