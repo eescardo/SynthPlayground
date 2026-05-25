@@ -78,6 +78,7 @@ export function TrackCanvasOverlays(props: TrackCanvasOverlaysProps) {
       <TrackHeaderChrome
         project={props.project}
         canvasShellRef={props.wrapperRef}
+        canvasHeight={props.height}
         trackLayouts={props.trackLayouts}
         selectedTrackId={props.selectedTrackId}
         invalidPatchIds={props.invalidPatchIds}

@@ -3,7 +3,8 @@ import {
   AUTOMATION_LANE_COLLAPSED_HEIGHT,
   AUTOMATION_LANE_HEIGHT,
   RULER_HEIGHT,
-  TRACK_HEIGHT
+  TRACK_HEIGHT,
+  TRACK_MACRO_PANEL_EXPANDED_BOTTOM_GAP
 } from "@/components/tracks/trackCanvasConstants";
 import { AutomationLaneLayout, TrackLayout } from "@/components/tracks/trackCanvasTypes";
 import { getTrackMacroLane, getTrackVolumeLane } from "@/lib/macroAutomation";
@@ -74,7 +75,10 @@ export function useTrackCanvasLayout(project: Project): { trackLayouts: TrackLay
         }
       }
 
-      const occupiedHeight = TRACK_HEIGHT + automationLanes.reduce((acc, lane) => acc + lane.height, 0);
+      const occupiedHeight =
+        TRACK_HEIGHT +
+        automationLanes.reduce((acc, lane) => acc + lane.height, 0) +
+        (track.macroPanelExpanded ? TRACK_MACRO_PANEL_EXPANDED_BOTTOM_GAP : 0);
       currentY += occupiedHeight;
       return {
         trackId: track.id,

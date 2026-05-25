@@ -10,8 +10,6 @@ import {
   MUTE_ICON_SIZE,
   NOTE_RESIZE_HANDLE_WIDTH,
   RULER_HEIGHT,
-  SPEAKER_ICON_SRC,
-  SPEAKER_MUTED_ICON_SRC,
   SPEAKER_X,
   SPEAKER_Y_OFFSET,
   TRACK_CANVAS_COLORS,
@@ -156,11 +154,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const muteRectsRef = useRef<MuteRect[]>([]);
   const pitchRectsRef = useRef<PitchRect[]>([]);
   const loopMarkerRectsRef = useRef<LoopMarkerRect[]>([]);
-  const speakerIconsRef = useRef<{ normal: HTMLImageElement | null; muted: HTMLImageElement | null }>({
-    normal: null,
-    muted: null
-  });
-  const [speakerIconsReady, setSpeakerIconsReady] = useState(false);
   const [playheadTabStopFocused, setPlayheadTabStopFocused] = useState(false);
   const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
   const [editingTrackName, setEditingTrackName] = useState("");
@@ -399,18 +392,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
         ctx.fillRect(0, y, width, layout.height);
       }
 
-      ctx.fillStyle = trackPatchInvalid ? TRACK_CANVAS_COLORS.trackInvalidName : TRACK_CANVAS_COLORS.trackName;
-      ctx.font = "13px 'Trebuchet MS', 'Segoe UI', sans-serif";
-      ctx.fillText(track.name, 12, y + 24);
       const muteY = y + SPEAKER_Y_OFFSET;
       const trackSilenced = isTrackSilenced(track);
-      const speakerIcon = trackSilenced ? speakerIconsRef.current.muted : speakerIconsRef.current.normal;
-      if (speakerIconsReady && speakerIcon) {
-        ctx.drawImage(speakerIcon, SPEAKER_X, muteY, MUTE_ICON_SIZE, MUTE_ICON_SIZE);
-      } else {
-        ctx.fillStyle = trackSilenced ? TRACK_CANVAS_COLORS.muteIconFallback : TRACK_CANVAS_COLORS.unmuteIconFallback;
-        ctx.fillRect(SPEAKER_X + 2, muteY + 2, 12, 12);
-      }
       muteRectsRef.current.push({ trackId: track.id, x: SPEAKER_X, y: muteY, w: MUTE_ICON_SIZE, h: MUTE_ICON_SIZE });
 
       for (const note of track.notes) {
@@ -715,41 +698,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
     selectionMarkerTrackId,
     selectedTrackId,
     selectionRect,
-    speakerIconsReady,
     totalBeats,
     trackLayouts,
     width
   ]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadImage = (src: string): Promise<HTMLImageElement> =>
-      new Promise((resolve, reject) => {
-        const image = new Image();
-        image.onload = () => resolve(image);
-        image.onerror = () => reject(new Error(`Failed to load image: ${src}`));
-        image.src = src;
-      });
-
-    Promise.all([loadImage(SPEAKER_ICON_SRC), loadImage(SPEAKER_MUTED_ICON_SRC)])
-      .then(([normal, muted]) => {
-        if (cancelled) {
-          return;
-        }
-        speakerIconsRef.current = { normal, muted };
-        setSpeakerIconsReady(true);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setSpeakerIconsReady(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     draw();
@@ -782,7 +734,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as HTMLElement | null;
-      if (target?.closest(".track-volume-button, .track-volume-popover")) {
+      if (target?.closest('[data-track-chrome="volume-button"], [data-track-popover="volume"]')) {
         return;
       }
       closeVolumePopover();

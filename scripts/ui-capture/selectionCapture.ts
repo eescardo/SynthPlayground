@@ -31,7 +31,7 @@ export const dragCanvasRegion = async (
 };
 
 export const showSelectionActionsPopover = async (page: Page, canvas: Locator) => {
-  await expect(page.locator(".track-name-button").first()).toBeVisible();
+  await expect(page.locator('[data-testid="track-name-button"]').first()).toBeVisible();
   await page.waitForTimeout(500);
 
   const attempts = [

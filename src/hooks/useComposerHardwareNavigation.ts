@@ -2,7 +2,12 @@
 
 import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import { BaseHardwareNavigationResult } from "@/hooks/useBaseHardwareNavigation";
-import { isModifierChord, isPlayheadTabStopFocused, isTextEditingTarget } from "@/hooks/hardwareNavigationUtils";
+import {
+  isModifierChord,
+  isPlayheadTabStopFocused,
+  isTextEditingTarget,
+  isTrackChromeKeyboardTarget
+} from "@/hooks/hardwareNavigationUtils";
 import {
   ActiveKeyboardPlacement,
   GhostPreviewNote,
@@ -723,17 +728,21 @@ export function useComposerHardwareNavigation({
 
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      const playheadDomFocused = target?.classList.contains("track-canvas-playhead-tabstop") ?? false;
-      const noteTabStopFocused = target?.classList.contains("track-canvas-note-tabstop") ?? false;
+      const playheadDomFocused = target?.dataset.trackControl === "playhead-tabstop";
+      const noteTabStopFocused = target?.dataset.trackControl === "selected-content-tabstop";
       const selectionPopoverFocused = Boolean(target?.closest(".selection-actions-popover"));
       const selectionCaptureFocused = noteTabStopFocused || selectionPopoverFocused;
       const hasContentSelection =
         selectionKind === "content" &&
         (contentSelection.noteKeys.length > 0 || contentSelection.automationKeyframeSelectionKeys.length > 0);
       const hasTimelineSelection = selectionKind === "timeline";
+      const trackChromeKeyboardFocused = isTrackChromeKeyboardTarget(event.target);
+      const arrowKeyPressed =
+        event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "ArrowUp" || event.key === "ArrowDown";
       const playheadNavigationActive = base.playheadNavigationFocused || playheadDomFocused;
+      const arrowNavigationActive = playheadNavigationActive || (trackChromeKeyboardFocused && arrowKeyPressed);
       const canHandleComposerKeyboardShortcut = isComposerView && arePitchPickersClosed;
-      const selectionOwnsEnter = selectionKind !== "none" && !playheadNavigationActive;
+      const selectionOwnsEnter = selectionKind !== "none" && !arrowNavigationActive;
 
       if (event.defaultPrevented) {
         return;
@@ -742,6 +751,9 @@ export function useComposerHardwareNavigation({
         return;
       }
       if (isModifierChord(event)) {
+        return;
+      }
+      if (trackChromeKeyboardFocused && !arrowKeyPressed) {
         return;
       }
       const normalizedPhysicalTriggerKey = normalizePhysicalPitchKey(event.key);
@@ -759,7 +771,7 @@ export function useComposerHardwareNavigation({
 
       if (event.key === "ArrowLeft") {
         handleHorizontalArrowNavigation(event, -1, {
-          playheadNavigationActive,
+          playheadNavigationActive: arrowNavigationActive,
           hasContentSelection,
           hasTimelineSelection,
           selectionCaptureFocused
@@ -769,7 +781,7 @@ export function useComposerHardwareNavigation({
 
       if (event.key === "ArrowRight") {
         handleHorizontalArrowNavigation(event, 1, {
-          playheadNavigationActive,
+          playheadNavigationActive: arrowNavigationActive,
           hasContentSelection,
           hasTimelineSelection,
           selectionCaptureFocused
@@ -789,7 +801,7 @@ export function useComposerHardwareNavigation({
         return;
       }
 
-      if (handleVerticalTrackNavigation(event, playheadNavigationActive)) {
+      if (handleVerticalTrackNavigation(event, arrowNavigationActive)) {
         return;
       }
 

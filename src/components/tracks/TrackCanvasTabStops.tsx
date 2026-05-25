@@ -53,6 +53,7 @@ export function TrackCanvasTabStops({
         type="button"
         tabIndex={0}
         className={styles.playheadTabstop}
+        data-track-control="playhead-tabstop"
         aria-label={playheadLabel}
         style={{
           left: playheadLeft,
@@ -69,6 +70,7 @@ export function TrackCanvasTabStops({
           type="button"
           tabIndex={0}
           className={styles.noteTabstop}
+          data-track-control="selected-content-tabstop"
           aria-label={selectedContentRect.ariaLabel}
           style={{
             left: selectedContentRect.x,

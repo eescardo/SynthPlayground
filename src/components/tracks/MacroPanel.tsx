@@ -1,17 +1,24 @@
 "use client";
 
+import { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
+import { TriangleGlyph } from "@/components/icons/TriangleGlyph";
+import { VerticalDirection } from "@/types/direction";
+import styles from "./TrackCanvas.module.css";
+
 export interface MacroPanelRow {
   id: string;
+  label: string;
+  stateLabel?: string;
   top: number;
+  height: number;
+  expanded: boolean;
   bindTitle: string;
   bindAriaLabel: string;
-  bindIcon: string;
   onBindToggle: () => void;
   expandTitle?: string;
   expandAriaLabel?: string;
-  expandIcon?: string;
+  expandDirection?: VerticalDirection;
   onExpandToggle?: () => void;
-  expandPlaceholder?: boolean;
 }
 
 interface MacroPanelProps {
@@ -20,7 +27,7 @@ interface MacroPanelProps {
   rows: MacroPanelRow[];
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
-  onDoubleClick?: () => void;
+  onDoubleClick?: (event: ReactMouseEvent<HTMLDivElement>) => void;
 }
 
 export function MacroPanel({
@@ -35,9 +42,21 @@ export function MacroPanel({
     return null;
   }
 
+  const handleButtonKeyDown = (onAction: () => void) => (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    if (!event.repeat) {
+      onAction();
+    }
+  };
+
   return (
     <div
-      className="track-macro-panel-area"
+      className={styles.macroPanelArea}
+      data-track-chrome="macro-panel"
       style={{
         top: `${panelTop}px`,
         height: `${panelHeight}px`
@@ -46,29 +65,48 @@ export function MacroPanel({
       onMouseLeave={onMouseLeave}
       onDoubleClick={onDoubleClick}
     >
-      <div className="track-inspector-panel" />
+      <div className={styles.inspectorPanel} />
       {rows.map((row) => (
-        <div key={row.id} className="track-inspector-row icon-only" style={{ top: `${row.top - panelTop}px` }}>
-          <div className="track-inspector-row-actions">
-            <button
-              type="button"
-              className="track-inspector-action-button"
-              title={row.bindTitle}
-              aria-label={row.bindAriaLabel}
-              onClick={row.onBindToggle}
-            >
-              {row.bindIcon}
-            </button>
-            <button
-              type="button"
-              className={`track-inspector-action-button${row.expandPlaceholder ? " placeholder" : ""}`}
-              title={row.expandTitle ?? "Expand lane"}
-              aria-label={row.expandAriaLabel ?? "Expand lane"}
-              disabled={!row.onExpandToggle}
-              onClick={row.onExpandToggle}
-            >
-              {row.expandIcon ?? " "}
-            </button>
+        <div
+          key={row.id}
+          className={`${styles.inspectorRow}${row.expanded ? ` ${styles.inspectorRowExpanded}` : ""}`}
+          style={{
+            top: `${row.top - panelTop}px`,
+            height: `${row.height}px`
+          }}
+        >
+          <div className={styles.inspectorRowLabel}>
+            <span className={styles.inspectorName}>{row.label}</span>
+          </div>
+          <div className={styles.inspectorRowActions}>
+            <span className={`${styles.inspectorStatusPill}${row.onExpandToggle ? ` ${styles.hasExpand}` : ""}`}>
+              <button
+                type="button"
+                className={styles.inspectorStatusButton}
+                data-testid="track-inspector-action-button"
+                title={row.bindTitle}
+                aria-label={row.bindAriaLabel}
+                onClick={row.onBindToggle}
+                onKeyDown={handleButtonKeyDown(row.onBindToggle)}
+                onDoubleClick={(event) => event.stopPropagation()}
+              >
+                {row.stateLabel}
+              </button>
+              {row.onExpandToggle && (
+                <button
+                  type="button"
+                  className={styles.inspectorExpandButton}
+                  data-testid="track-inspector-action-button"
+                  title={row.expandTitle ?? "Expand lane"}
+                  aria-label={row.expandAriaLabel ?? "Expand lane"}
+                  onClick={row.onExpandToggle}
+                  onKeyDown={handleButtonKeyDown(row.onExpandToggle)}
+                  onDoubleClick={(event) => event.stopPropagation()}
+                >
+                  <TriangleGlyph direction={row.expandDirection ?? "down"} className={styles.expandGlyph} />
+                </button>
+              )}
+            </span>
           </div>
         </div>
       ))}

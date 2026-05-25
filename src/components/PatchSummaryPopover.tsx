@@ -1,5 +1,6 @@
 "use client";
 
+import { TriangleGlyph } from "@/components/icons/TriangleGlyph";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { getSignalCapabilityColor, resolvePatchModuleCategoryColor } from "@/lib/patch/moduleCategories";
 import { resolvePatchPresetStatus } from "@/lib/patch/source";
@@ -121,6 +122,7 @@ export function PatchSummaryPopover(props: PatchSummaryPopoverProps) {
     return (
       <div
         className="track-patch-summary-popover teaser"
+        data-track-popover="patch-summary"
         style={{
           position: props.fixed ? "fixed" : undefined,
           top: `${props.top}px`,
@@ -136,7 +138,9 @@ export function PatchSummaryPopover(props: PatchSummaryPopoverProps) {
           onClick={props.onExpand}
           aria-label="Open patch summary"
         >
-          &gt;&gt;
+          <TriangleGlyph direction="right" className="track-patch-summary-teaser-glyph" />
+          <TriangleGlyph direction="right" className="track-patch-summary-teaser-glyph" />
+          <TriangleGlyph direction="right" className="track-patch-summary-teaser-glyph" />
         </button>
       </div>
     );
@@ -145,6 +149,7 @@ export function PatchSummaryPopover(props: PatchSummaryPopoverProps) {
   return (
     <div
       className="track-patch-summary-popover expanded"
+      data-track-popover="patch-summary"
       style={{
         position: props.fixed ? "fixed" : undefined,
         top: `${props.top}px`,

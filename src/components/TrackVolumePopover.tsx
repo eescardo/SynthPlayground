@@ -27,6 +27,7 @@ export function TrackVolumePopover(props: TrackVolumePopoverProps) {
   return (
     <div
       className="track-volume-popover"
+      data-track-popover="volume"
       style={{ top: props.top, left: props.left }}
       onMouseEnter={props.onMouseEnter}
       onMouseLeave={props.onMouseLeave}

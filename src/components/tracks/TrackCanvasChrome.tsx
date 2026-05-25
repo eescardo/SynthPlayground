@@ -1,16 +1,22 @@
-import { Dispatch, RefObject, SetStateAction, useEffect, useState } from "react";
+import { CSSProperties, Dispatch, RefObject, SetStateAction, useEffect, useState } from "react";
 import { MacroPanel, MacroPanelRow } from "@/components/tracks/MacroPanel";
 import { PatchSummaryPopover } from "@/components/PatchSummaryPopover";
 import { TrackVolumePopover } from "@/components/TrackVolumePopover";
+import { TriangleGlyph } from "@/components/icons/TriangleGlyph";
 import { useRenameActivation } from "@/hooks/useRenameActivation";
 import {
   AUTOMATION_LANE_COLLAPSED_HEIGHT,
   HEADER_WIDTH,
   MACRO_PANEL_TOGGLE_Y_OFFSET,
+  MUTE_ICON_SIZE,
+  SPEAKER_ICON_SRC,
+  SPEAKER_MUTED_ICON_SRC,
   TRACK_PATCH_CONTROL_SIZE,
+  TRACK_HEIGHT,
   SPEAKER_Y_OFFSET
 } from "@/components/tracks/trackCanvasConstants";
 import {
+  AutomationLaneLayout,
   TrackLayout,
   TrackCanvasAutomationActions,
   TrackCanvasPatchActions,
@@ -19,11 +25,15 @@ import {
 import { usePatchSummaryPopover } from "@/hooks/tracks/usePatchSummaryPopover";
 import { getTrackMacroLane, getTrackVolumeLane } from "@/lib/macroAutomation";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
+import { isTrackVolumeMuted } from "@/lib/trackVolume";
+import { VerticalDirection } from "@/types/direction";
 import { Project } from "@/types/music";
+import styles from "./TrackCanvas.module.css";
 
 interface TrackHeaderChromeProps {
   project: Project;
   canvasShellRef: RefObject<HTMLDivElement | null>;
+  canvasHeight: number;
   trackLayouts: TrackLayout[];
   selectedTrackId?: string;
   invalidPatchIds?: Set<string>;
@@ -58,14 +68,192 @@ const getPatchOptionLabel = (patch: Project["patches"][number]) => {
 
 const TRACK_INSPECTOR_PANEL_VERTICAL_PADDING = 6;
 const TRACK_INSPECTOR_PANEL_MARGIN_TOP = 2;
-const TRACK_INSPECTOR_PANEL_MARGIN_BOTTOM = 6;
+const TRACK_INSPECTOR_PANEL_MARGIN_BOTTOM = 1;
 const TRACK_INSPECTOR_ROW_HEIGHT = 20;
-const TRACK_INSPECTOR_ROW_Y_OFFSET = -3;
+const TRACK_INSPECTOR_ROW_TOP_INSET = 1;
 const PATCH_SUMMARY_EXPANDED_MIN_HEIGHT = 184;
+const MACRO_PILL_AUTO_TITLE = "Automated in timeline. Click to revert to fixed value";
+const MACRO_PILL_FIXED_TITLE = "Click to automate in timeline";
+
+interface MacroPanelGeometry {
+  shellTop: number | null;
+  shellHeight: number;
+}
+
+interface PatchSummaryAnchor {
+  viewportLeft: number;
+  viewportTop: number;
+  anchorHeight: number;
+  expandedHeight: number;
+}
+
+const resolveMacroPanelGeometry = (
+  layout: TrackLayout,
+  volumeLane: ReturnType<typeof getTrackVolumeLane>,
+  volumeLaneLayout: AutomationLaneLayout | null,
+  macroLaneLayouts: AutomationLaneLayout[]
+): MacroPanelGeometry => {
+  const volumeLaneTop = volumeLaneLayout?.y ?? null;
+  const panelTop = volumeLaneTop ?? macroLaneLayouts[0]?.y ?? null;
+  const panelBottom =
+    macroLaneLayouts.length > 0
+      ? Math.max(
+          ...macroLaneLayouts.map((entry) => entry.y + entry.height),
+          volumeLane
+            ? (volumeLaneLayout?.y ?? layout.y + TRACK_HEIGHT) +
+                (volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT)
+            : 0
+        )
+      : volumeLane
+        ? (volumeLaneLayout?.y ?? layout.y + TRACK_HEIGHT) +
+          (volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT)
+        : null;
+  const panelHeight = panelTop !== null && panelBottom !== null ? Math.max(20, panelBottom - panelTop - 2) : 0;
+  const shellTop =
+    panelTop !== null ? panelTop - TRACK_INSPECTOR_PANEL_VERTICAL_PADDING + TRACK_INSPECTOR_PANEL_MARGIN_TOP : null;
+  const shellHeight = Math.max(
+    20,
+    panelHeight +
+      TRACK_INSPECTOR_PANEL_VERTICAL_PADDING * 2 -
+      TRACK_INSPECTOR_PANEL_MARGIN_TOP -
+      TRACK_INSPECTOR_PANEL_MARGIN_BOTTOM
+  );
+  return { shellTop, shellHeight };
+};
+
+const resolvePatchSummaryAnchor = (args: {
+  layout: TrackLayout;
+  macroPanelShellTop: number | null;
+  macroPanelShellHeight: number;
+  popoverMode?: "teaser" | "expanded";
+  canvasViewport: { left: number; top: number; scrollTop: number };
+}): PatchSummaryAnchor => {
+  const anchorTop = args.layout.y + 8;
+  const anchorBottom =
+    args.macroPanelShellTop !== null
+      ? args.macroPanelShellTop + args.macroPanelShellHeight
+      : args.layout.y + 8 + TRACK_PATCH_CONTROL_SIZE;
+  const anchorHeight = Math.max(TRACK_PATCH_CONTROL_SIZE, anchorBottom - anchorTop);
+  const expandedHeight = Math.max(PATCH_SUMMARY_EXPANDED_MIN_HEIGHT, anchorHeight);
+  const expandedTop = anchorTop + (anchorHeight - expandedHeight) * 0.5;
+  const localTop = args.popoverMode === "expanded" ? expandedTop : anchorTop;
+  return {
+    viewportLeft: args.canvasViewport.left + HEADER_WIDTH,
+    viewportTop: args.canvasViewport.top + localTop - args.canvasViewport.scrollTop,
+    anchorHeight,
+    expandedHeight
+  };
+};
+
+const buildMacroPanelRow = (args: {
+  id: string;
+  label: string;
+  stateLabel: "auto" | "fixed";
+  laneLayout: AutomationLaneLayout | null;
+  fallbackY: number;
+  fallbackHeight: number;
+  expanded: boolean;
+  bindTitle: string;
+  bindAriaLabel: string;
+  onBindToggle: () => void;
+  expandTitle?: string;
+  expandAriaLabel?: string;
+  expandDirection?: VerticalDirection;
+  onExpandToggle?: () => void;
+}): MacroPanelRow => ({
+  id: args.id,
+  label: args.label,
+  stateLabel: args.stateLabel,
+  top: (args.laneLayout?.y ?? args.fallbackY) + TRACK_INSPECTOR_ROW_TOP_INSET,
+  height: Math.max(
+    TRACK_INSPECTOR_ROW_HEIGHT,
+    (args.laneLayout?.height ?? args.fallbackHeight) - TRACK_INSPECTOR_ROW_TOP_INSET * 2
+  ),
+  expanded: args.expanded,
+  bindTitle: args.bindTitle,
+  bindAriaLabel: args.bindAriaLabel,
+  onBindToggle: args.onBindToggle,
+  expandTitle: args.expandTitle,
+  expandAriaLabel: args.expandAriaLabel,
+  expandDirection: args.expandDirection,
+  onExpandToggle: args.onExpandToggle
+});
+
+const buildMacroPanelRows = (args: {
+  track: Project["tracks"][number];
+  trackPatch?: Project["patches"][number];
+  layout: TrackLayout;
+  volumeLane: ReturnType<typeof getTrackVolumeLane>;
+  volumeLaneLayout: AutomationLaneLayout | null;
+  trackActions: TrackCanvasTrackActions;
+  automationActions: TrackCanvasAutomationActions;
+}): MacroPanelRow[] => {
+  const rows: MacroPanelRow[] = [];
+  if (args.volumeLane) {
+    const expandTitle = args.volumeLane.expanded ? "Collapse lane" : "Expand lane";
+    rows.push(
+      buildMacroPanelRow({
+        id: `${args.track.id}:volume`,
+        label: "Volume",
+        stateLabel: "auto",
+        laneLayout: args.volumeLaneLayout,
+        fallbackY: args.layout.y + TRACK_HEIGHT,
+        fallbackHeight: AUTOMATION_LANE_COLLAPSED_HEIGHT,
+        expanded: Boolean(args.volumeLaneLayout?.expanded),
+        bindTitle: MACRO_PILL_AUTO_TITLE,
+        bindAriaLabel: MACRO_PILL_AUTO_TITLE,
+        onBindToggle: () => args.trackActions.onUnbindTrackVolumeFromAutomation(args.track.id),
+        expandTitle,
+        expandAriaLabel: expandTitle,
+        expandDirection: args.volumeLane.expanded ? "up" : "down",
+        onExpandToggle: () => args.trackActions.onToggleTrackVolumeAutomationLane(args.track.id)
+      })
+    );
+  }
+
+  for (const macro of args.trackPatch?.ui.macros ?? []) {
+    const laneLayout = args.layout.automationLanes.find((entry) => entry.macroId === macro.id) ?? null;
+    if (!laneLayout) {
+      continue;
+    }
+    const lane = getTrackMacroLane(args.track, macro.id);
+    const expandTitle = lane ? (lane.expanded ? "Collapse lane" : "Expand lane") : undefined;
+    rows.push(
+      buildMacroPanelRow({
+        id: macro.id,
+        label: macro.name,
+        stateLabel: lane ? "auto" : "fixed",
+        laneLayout,
+        fallbackY: laneLayout.y,
+        fallbackHeight: laneLayout.height,
+        expanded: laneLayout.expanded,
+        bindTitle: lane ? MACRO_PILL_AUTO_TITLE : MACRO_PILL_FIXED_TITLE,
+        bindAriaLabel: lane ? MACRO_PILL_AUTO_TITLE : MACRO_PILL_FIXED_TITLE,
+        onBindToggle: lane
+          ? () => args.automationActions.onUnbindTrackMacroFromAutomation(args.track.id, macro.id)
+          : () =>
+              args.automationActions.onBindTrackMacroToAutomation(
+                args.track.id,
+                macro.id,
+                args.track.macroValues[macro.id] ?? macro.defaultNormalized ?? 0.5
+              ),
+        expandTitle,
+        expandAriaLabel: expandTitle,
+        expandDirection: lane ? (lane.expanded ? "up" : "down") : undefined,
+        onExpandToggle: lane
+          ? () => args.automationActions.onToggleTrackMacroAutomationLane(args.track.id, macro.id)
+          : undefined
+      })
+    );
+  }
+
+  return rows;
+};
 
 export function TrackHeaderChrome({
   project,
   canvasShellRef,
+  canvasHeight,
   trackLayouts,
   selectedTrackId,
   invalidPatchIds,
@@ -87,12 +275,13 @@ export function TrackHeaderChrome({
   const {
     patchSummaryPopover,
     setPatchSummaryPopover,
+    closePatchSummaryPopover,
     openExpandedPatchSummary,
     scheduleTeaserPatchSummary,
     schedulePatchSummaryDismiss,
     cancelPatchSummaryDismiss
   } = usePatchSummaryPopover({ selectedTrackId });
-  const [canvasViewport, setCanvasViewport] = useState({ left: 0, top: 0, scrollLeft: 0, scrollTop: 0 });
+  const [canvasViewport, setCanvasViewport] = useState({ left: 0, top: 0, scrollTop: 0 });
 
   useEffect(() => {
     const shell = canvasShellRef.current;
@@ -101,11 +290,20 @@ export function TrackHeaderChrome({
     }
     const updateCanvasViewport = () => {
       const rect = shell.getBoundingClientRect();
-      setCanvasViewport({
+      const nextViewport = {
         left: rect.left,
         top: rect.top,
-        scrollLeft: shell.scrollLeft,
         scrollTop: shell.scrollTop
+      };
+      setCanvasViewport((previousViewport) => {
+        if (
+          previousViewport.left === nextViewport.left &&
+          previousViewport.top === nextViewport.top &&
+          previousViewport.scrollTop === nextViewport.scrollTop
+        ) {
+          return previousViewport;
+        }
+        return nextViewport;
       });
     };
     updateCanvasViewport();
@@ -118,7 +316,12 @@ export function TrackHeaderChrome({
   }, [canvasShellRef]);
 
   return (
-    <div className="track-header-overlays">
+    <div
+      className={styles.headerOverlays}
+      data-track-chrome="header-overlays"
+      style={{ "--track-header-width": `${HEADER_WIDTH}px` } as CSSProperties}
+    >
+      <div className={styles.headerMask} style={{ height: `${canvasHeight}px` }} />
       {project.tracks.map((track) => {
         const layout = trackLayouts.find((entry) => entry.trackId === track.id);
         if (!layout) {
@@ -128,121 +331,60 @@ export function TrackHeaderChrome({
         const volumeLane = getTrackVolumeLane(track);
         const selected = selectedTrackId === track.id;
         const effectiveVolume = track.mute ? 0 : track.volume;
+        const trackSilenced = track.mute || isTrackVolumeMuted(track.volume);
         const rememberedVolume = track.volume;
         const volumeLaneLayout = layout.automationLanes.find((entry) => entry.laneType === "volume") ?? null;
         const macroLaneLayouts = layout.automationLanes.filter((entry) => entry.laneType === "macro");
-        const volumeLaneTop = volumeLaneLayout?.y ?? null;
-        const macroRows =
-          trackPatch?.ui.macros
-            .map((macro) => ({
-              macro,
-              lane: getTrackMacroLane(track, macro.id),
-              laneLayout: layout.automationLanes.find((entry) => entry.macroId === macro.id) ?? null
-            }))
-            .filter((entry) => entry.laneLayout !== null) ?? [];
-        const macroPanelTop = volumeLaneTop ?? macroLaneLayouts[0]?.y ?? null;
-        const macroPanelBottom =
-          macroLaneLayouts.length > 0
-            ? Math.max(
-                ...macroLaneLayouts.map((entry) => entry.y + entry.height),
-                volumeLane
-                  ? (volumeLaneLayout?.y ?? layout.y + 72) +
-                      (volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT)
-                  : 0
-              )
-            : volumeLane
-              ? (volumeLaneLayout?.y ?? layout.y + 72) + (volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT)
-              : null;
-        const macroPanelHeight =
-          macroPanelTop !== null && macroPanelBottom !== null ? Math.max(20, macroPanelBottom - macroPanelTop - 2) : 0;
-        const macroPanelShellTop =
-          macroPanelTop !== null
-            ? macroPanelTop - TRACK_INSPECTOR_PANEL_VERTICAL_PADDING + TRACK_INSPECTOR_PANEL_MARGIN_TOP
-            : null;
-        const macroPanelShellHeight = Math.max(
-          20,
-          macroPanelHeight +
-            TRACK_INSPECTOR_PANEL_VERTICAL_PADDING * 2 -
-            TRACK_INSPECTOR_PANEL_MARGIN_TOP -
-            TRACK_INSPECTOR_PANEL_MARGIN_BOTTOM
-        );
+        const macroPanelGeometry = resolveMacroPanelGeometry(layout, volumeLane, volumeLaneLayout, macroLaneLayouts);
         const hasPatchSummaryPopover = patchSummaryPopover?.trackId === track.id;
-        const patchSummaryAnchorTop = layout.y + 8;
-        const patchSummaryAnchorBottom =
-          macroPanelShellTop !== null
-            ? macroPanelShellTop + macroPanelShellHeight
-            : layout.y + 8 + TRACK_PATCH_CONTROL_SIZE;
-        const patchSummaryAnchorHeight = Math.max(
-          TRACK_PATCH_CONTROL_SIZE,
-          patchSummaryAnchorBottom - patchSummaryAnchorTop
-        );
-        const patchSummaryExpandedHeight = Math.max(PATCH_SUMMARY_EXPANDED_MIN_HEIGHT, patchSummaryAnchorHeight);
-        const patchSummaryExpandedTop =
-          patchSummaryAnchorTop + (patchSummaryAnchorHeight - patchSummaryExpandedHeight) * 0.5;
-        const patchSummaryLocalTop =
-          patchSummaryPopover?.mode === "expanded" ? patchSummaryExpandedTop : patchSummaryAnchorTop;
-        const patchSummaryLeft = HEADER_WIDTH;
-        const patchSummaryViewportLeft = canvasViewport.left + patchSummaryLeft - canvasViewport.scrollLeft;
-        const patchSummaryViewportTop = canvasViewport.top + patchSummaryLocalTop - canvasViewport.scrollTop;
+        const patchSummaryAnchor = resolvePatchSummaryAnchor({
+          layout,
+          macroPanelShellTop: macroPanelGeometry.shellTop,
+          macroPanelShellHeight: macroPanelGeometry.shellHeight,
+          popoverMode: patchSummaryPopover?.mode,
+          canvasViewport
+        });
         const patchInvalid = Boolean(invalidPatchIds?.has(track.instrumentPatchId));
-
-        const macroPanelRows: MacroPanelRow[] = [];
-        if (volumeLane) {
-          macroPanelRows.push({
-            id: `${track.id}:volume`,
-            top:
-              (volumeLaneLayout?.y ?? layout.y + 72) +
-              Math.max(
-                0,
-                ((volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT) - TRACK_INSPECTOR_ROW_HEIGHT) / 2
-              ) +
-              TRACK_INSPECTOR_ROW_Y_OFFSET,
-            bindTitle: "Use fixed value",
-            bindAriaLabel: "Use fixed value",
-            bindIcon: "◉",
-            onBindToggle: () => trackActions.onUnbindTrackVolumeFromAutomation(track.id),
-            expandTitle: volumeLane.expanded ? "Collapse lane" : "Expand lane",
-            expandAriaLabel: volumeLane.expanded ? "Collapse lane" : "Expand lane",
-            expandIcon: volumeLane.expanded ? "^" : "v",
-            onExpandToggle: () => trackActions.onToggleTrackVolumeAutomationLane(track.id)
-          });
-        }
-        for (const { macro, lane, laneLayout } of macroRows) {
-          if (!laneLayout) {
-            continue;
-          }
-          macroPanelRows.push({
-            id: macro.id,
-            top:
-              laneLayout.y +
-              Math.max(0, (laneLayout.height - TRACK_INSPECTOR_ROW_HEIGHT) / 2) +
-              TRACK_INSPECTOR_ROW_Y_OFFSET,
-            bindTitle: lane ? "Use fixed value" : "Automate in timeline",
-            bindAriaLabel: lane ? "Use fixed value" : "Automate in timeline",
-            bindIcon: lane ? "◉" : "◎",
-            onBindToggle: lane
-              ? () => automationActions.onUnbindTrackMacroFromAutomation(track.id, macro.id)
-              : () =>
-                  automationActions.onBindTrackMacroToAutomation(
-                    track.id,
-                    macro.id,
-                    track.macroValues[macro.id] ?? macro.defaultNormalized ?? 0.5
-                  ),
-            expandTitle: lane ? (lane.expanded ? "Collapse lane" : "Expand lane") : undefined,
-            expandAriaLabel: lane ? (lane.expanded ? "Collapse lane" : "Expand lane") : undefined,
-            expandIcon: lane ? (lane.expanded ? "^" : "v") : undefined,
-            onExpandToggle: lane
-              ? () => automationActions.onToggleTrackMacroAutomationLane(track.id, macro.id)
-              : undefined,
-            expandPlaceholder: !lane
-          });
-        }
+        const macroPanelRows = buildMacroPanelRows({
+          track,
+          trackPatch,
+          layout,
+          volumeLane,
+          volumeLaneLayout,
+          trackActions,
+          automationActions
+        });
 
         return (
           <div key={track.id}>
+            <div
+              className={`${styles.headerRow}${selected ? ` ${styles.headerRowSelected}` : ""}${
+                patchInvalid ? ` ${styles.headerRowInvalid}` : ""
+              }`}
+              style={{
+                top: `${layout.y}px`,
+                height: `${layout.height}px`
+              }}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                trackActions.onSelectTrack(track.id);
+              }}
+              onDoubleClick={(event) => {
+                event.stopPropagation();
+                if (selectedTrackId !== track.id) {
+                  trackActions.onSelectTrack(track.id);
+                }
+                trackActions.onToggleTrackMacroPanel(track.id);
+              }}
+              onContextMenu={(event) => event.preventDefault()}
+            />
             <button
               type="button"
-              className={`track-name-button${renameActivation.isArmed(track.id) ? " rename-armed" : ""}`}
+              className={`${styles.trackNameButton}${
+                renameActivation.isArmed(track.id) ? ` ${styles.renameArmed}` : ""
+              }${patchInvalid ? ` ${styles.trackNameButtonInvalid}` : ""}`}
+              data-testid="track-name-button"
               aria-label={`Rename track ${track.name}`}
               style={{
                 top: `${layout.y + 8}px`,
@@ -262,14 +404,19 @@ export function TrackHeaderChrome({
                   setEditingTrackName(track.name);
                 }
               })}
-            />
+            >
+              {track.name}
+            </button>
             <button
               type="button"
-              className="track-volume-button"
+              className={styles.volumeButton}
+              data-track-chrome="volume-button"
               aria-label={`Track volume for ${track.name}`}
               aria-expanded={volumePopoverTrackId === track.id}
               style={{
-                top: `${layout.y + SPEAKER_Y_OFFSET}px`
+                top: `${layout.y + SPEAKER_Y_OFFSET}px`,
+                backgroundImage: `url("${trackSilenced ? SPEAKER_MUTED_ICON_SRC : SPEAKER_ICON_SRC}")`,
+                backgroundSize: `${MUTE_ICON_SIZE}px ${MUTE_ICON_SIZE}px`
               }}
               onMouseEnter={(event) => scheduleVolumePopoverOpen(track.id, event.currentTarget)}
               onMouseLeave={() => scheduleVolumePopoverDismiss()}
@@ -282,7 +429,7 @@ export function TrackHeaderChrome({
             {selected && (
               <button
                 type="button"
-                className="track-macro-toggle-button"
+                className={styles.macroToggleButton}
                 aria-label={track.macroPanelExpanded ? "Collapse macro lanes" : "Expand macro lanes"}
                 title={track.macroPanelExpanded ? "Collapse macro lanes" : "Expand macro lanes"}
                 style={{
@@ -295,7 +442,10 @@ export function TrackHeaderChrome({
                   trackActions.onToggleTrackMacroPanel(track.id);
                 }}
               >
-                {track.macroPanelExpanded ? "^" : "v"}
+                <TriangleGlyph
+                  direction={track.macroPanelExpanded ? "up" : "down"}
+                  className={styles.macroToggleGlyph}
+                />
               </button>
             )}
             {volumePopoverTrackId === track.id && (
@@ -346,7 +496,8 @@ export function TrackHeaderChrome({
               />
             )}
             <select
-              className={`track-patch-select track-instrument-selection${patchInvalid ? " invalid" : ""}`}
+              className={`${styles.patchSelect}${patchInvalid ? ` ${styles.patchSelectInvalid}` : ""}`}
+              data-track-control="instrument-selection"
               value={track.instrumentPatchId}
               style={{
                 top: `${layout.y + MACRO_PANEL_TOGGLE_Y_OFFSET}px`,
@@ -374,8 +525,8 @@ export function TrackHeaderChrome({
             </select>
             {selected && track.macroPanelExpanded && (
               <MacroPanel
-                panelTop={macroPanelShellTop}
-                panelHeight={macroPanelShellHeight}
+                panelTop={macroPanelGeometry.shellTop}
+                panelHeight={macroPanelGeometry.shellHeight}
                 rows={macroPanelRows}
                 onMouseEnter={() =>
                   scheduleTeaserPatchSummary({
@@ -385,15 +536,20 @@ export function TrackHeaderChrome({
                   })
                 }
                 onMouseLeave={() => schedulePatchSummaryDismiss(track.id)}
-                onDoubleClick={() =>
+                onDoubleClick={(event) => {
+                  event.stopPropagation();
+                  if (patchSummaryPopover?.trackId === track.id && patchSummaryPopover.mode === "expanded") {
+                    closePatchSummaryPopover();
+                    return;
+                  }
                   openExpandedPatchSummary({
                     trackId: track.id,
                     selected,
                     macroPanelExpanded: track.macroPanelExpanded,
                     onSelectTrack: trackActions.onSelectTrack,
                     onToggleTrackMacroPanel: trackActions.onToggleTrackMacroPanel
-                  })
-                }
+                  });
+                }}
               />
             )}
             {selected && track.macroPanelExpanded && trackPatch && hasPatchSummaryPopover && (
@@ -402,9 +558,13 @@ export function TrackHeaderChrome({
                 invalid={patchInvalid}
                 canRemove={patchActions.canRemoveSelectedPatch}
                 mode={patchSummaryPopover.mode}
-                top={patchSummaryViewportTop}
-                left={patchSummaryViewportLeft}
-                height={patchSummaryPopover.mode === "expanded" ? patchSummaryExpandedHeight : patchSummaryAnchorHeight}
+                top={patchSummaryAnchor.viewportTop}
+                left={patchSummaryAnchor.viewportLeft}
+                height={
+                  patchSummaryPopover.mode === "expanded"
+                    ? patchSummaryAnchor.expandedHeight
+                    : patchSummaryAnchor.anchorHeight
+                }
                 fixed
                 onExpand={() => setPatchSummaryPopover({ trackId: track.id, mode: "expanded" })}
                 onDuplicate={patchActions.onDuplicateSelectedPatch}

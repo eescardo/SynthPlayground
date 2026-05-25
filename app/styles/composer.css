@@ -214,59 +214,6 @@
   color: var(--muted);
 }
 
-.track-header-overlays {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 170px;
-  pointer-events: none;
-}
-
-.track-patch-select {
-  position: absolute;
-  left: 10px;
-  width: 108px;
-  box-sizing: border-box;
-  pointer-events: auto;
-  z-index: 2;
-  font-size: 0.72rem;
-  padding: 0.2rem 0.3rem;
-}
-
-.track-patch-select.invalid {
-  border-color: #b54a4a;
-  box-shadow: 0 0 0 1px rgba(181, 74, 74, 0.4);
-}
-
-.track-volume-button {
-  position: absolute;
-  left: 140px;
-  width: 20px;
-  height: 20px;
-  pointer-events: auto;
-  z-index: 2;
-  background: transparent;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-}
-
-.track-macro-toggle-button {
-  position: absolute;
-  left: 140px;
-  pointer-events: auto;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(187, 214, 239, 0.75);
-  border-radius: 5px;
-  background: rgba(10, 18, 27, 0.97);
-  color: var(--ink);
-  padding: 0;
-  line-height: 1;
-  cursor: pointer;
-}
-
 .track-volume-popover {
   position: fixed;
   width: 96px;
@@ -558,126 +505,6 @@
   padding-bottom: 0.1rem;
 }
 
-.track-macro-panel-area {
-  position: absolute;
-  left: 8px;
-  width: 154px;
-  pointer-events: auto;
-  z-index: 2;
-}
-
-.track-inspector-panel {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 2;
-  border: 1px solid rgba(148, 179, 213, 0.38);
-  border-radius: 8px;
-  background: rgba(214, 232, 248, 0.18);
-  box-shadow: inset 0 0 0 1px rgba(19, 40, 61, 0.06);
-}
-
-.track-name-button {
-  position: absolute;
-  left: 10px;
-  width: 108px;
-  height: 22px;
-  pointer-events: auto;
-  z-index: 2;
-  background: transparent;
-  border: 0;
-  padding: 0;
-  cursor: text;
-}
-
-.track-name-button.rename-armed {
-  background-image: radial-gradient(circle, rgba(167, 204, 240, 0.82) 1px, transparent 1.2px);
-  background-position: left calc(100% - 2px);
-  background-size: 6px 3px;
-  background-repeat: repeat-x;
-}
-
-.track-inspector-row {
-  position: absolute;
-  left: 4px;
-  width: 146px;
-  min-height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.35rem;
-  pointer-events: auto;
-  z-index: 3;
-  padding: 0 0.35rem 0 0.55rem;
-}
-
-.track-inspector-row.icon-only {
-  justify-content: flex-end;
-}
-
-.track-inspector-row-label {
-  min-width: 0;
-  flex: 1;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.38rem;
-  color: #122c43;
-  font-size: 0.69rem;
-  line-height: 1.1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.track-inspector-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.track-inspector-state {
-  flex: 0 0 auto;
-  color: #34526d;
-  font-family: "Courier New", monospace;
-  font-size: 0.62rem;
-  letter-spacing: 0.02em;
-  text-transform: lowercase;
-}
-
-.track-inspector-row-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.18rem;
-  min-width: 40px;
-  flex: 0 0 40px;
-  justify-content: flex-end;
-}
-
-.track-inspector-action-button {
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border-radius: 4px;
-  border: 1px solid rgba(86, 123, 161, 0.5);
-  background: rgba(214, 232, 248, 0.88);
-  color: #16334c;
-  font-size: 0.7rem;
-  line-height: 1;
-}
-
-.track-inspector-action-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.track-inspector-action-button.placeholder {
-  opacity: 0;
-  border-color: transparent;
-  background: transparent;
-  cursor: default;
-  pointer-events: none;
-}
-
 .track-patch-summary-popover {
   position: absolute;
   pointer-events: auto;
@@ -685,23 +512,44 @@
 }
 
 .track-patch-summary-popover.teaser {
+  --patch-summary-teaser-hover-bridge-width: 8px;
+
   width: 34px;
   display: flex;
   align-items: stretch;
+  opacity: 0.6;
+}
+
+.track-patch-summary-popover.teaser::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 100%;
+  bottom: 0;
+  width: var(--patch-summary-teaser-hover-bridge-width);
 }
 
 .track-patch-summary-teaser-button {
   width: 100%;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  padding: 0.5rem 0;
   border-radius: 10px;
   border: 1px solid rgba(148, 179, 213, 0.42);
   background:
     linear-gradient(180deg, rgba(17, 31, 46, 0.95), rgba(11, 19, 30, 0.98)),
     radial-gradient(circle at 50% 12%, rgba(164, 214, 255, 0.16), transparent 42%);
   color: rgba(223, 238, 252, 0.92);
-  font-size: 1rem;
-  letter-spacing: 0.06em;
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+}
+
+.track-patch-summary-teaser-glyph {
+  width: 0.72rem;
+  height: 0.72rem;
+  color: currentColor;
 }
 
 .track-patch-summary-popover.expanded {
