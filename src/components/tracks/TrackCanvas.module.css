@@ -281,7 +281,7 @@
 .inspectorExpandButton:focus-visible {
   position: relative;
   z-index: 1;
-  outline: 1px solid rgba(232, 248, 255, 0.78);
+  outline: 1px dotted rgba(232, 248, 255, 0.78);
   outline-offset: -2px;
 }
 
