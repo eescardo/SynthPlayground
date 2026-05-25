@@ -61,7 +61,7 @@ describe("audio scheduler macro automation", () => {
         fromSample: 0,
         toSample: Number.MAX_SAFE_INTEGER
       },
-      { skipTrackIds: new Set([recordingTrack.id]) }
+      { skipTimelineNoteTrackIds: new Set([recordingTrack.id]) }
     );
 
     expect(

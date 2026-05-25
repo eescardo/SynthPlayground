@@ -239,7 +239,7 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
       { fromSample, toSample },
       {
         cueBeat: this.cueBeat,
-        skipTrackIds: this.getScheduledNoteSkipTrackIds()
+        skipTimelineNoteTrackIds: this.getScheduledTimelineNoteSkipTrackIds()
       }
     );
     if (events.length > 0) {
@@ -278,7 +278,7 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
       collectEventsInWindow(
         this.project,
         { fromSample: currentSongSample, toSample },
-        { cueBeat: this.cueBeat, skipTrackIds: this.getScheduledNoteSkipTrackIds() }
+        { cueBeat: this.cueBeat, skipTimelineNoteTrackIds: this.getScheduledTimelineNoteSkipTrackIds() }
       ).filter((event) => "trackId" in event && event.trackId === trackId)
     );
     if (events.length > 0) {
@@ -425,7 +425,7 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
     const primedEvents = collectEventsInWindow(
       this.project,
       { fromSample: 0, toSample: primedToSample },
-      { cueBeat: startBeat, skipTrackIds: this.getScheduledNoteSkipTrackIds() }
+      { cueBeat: startBeat, skipTimelineNoteTrackIds: this.getScheduledTimelineNoteSkipTrackIds() }
     );
 
     this.scheduledUntilSample = primedToSample;
@@ -526,7 +526,7 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
     });
   }
 
-  private getScheduledNoteSkipTrackIds(): ReadonlySet<string> | undefined {
+  private getScheduledTimelineNoteSkipTrackIds(): ReadonlySet<string> | undefined {
     return this.recordingTrackId ? new Set([this.recordingTrackId]) : undefined;
   }
 
