@@ -512,10 +512,21 @@
 }
 
 .track-patch-summary-popover.teaser {
+  --patch-summary-teaser-hover-bridge-width: 8px;
+
   width: 34px;
   display: flex;
   align-items: stretch;
   opacity: 0.6;
+}
+
+.track-patch-summary-popover.teaser::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 100%;
+  bottom: 0;
+  width: var(--patch-summary-teaser-hover-bridge-width);
 }
 
 .track-patch-summary-teaser-button {
