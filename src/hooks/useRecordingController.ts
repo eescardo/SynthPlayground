@@ -15,6 +15,13 @@ import {
   RecordPassOverwrite,
   registerRecordPassCreatedNote
 } from "@/lib/recordPassOverwrite";
+import {
+  beginRecordingStart,
+  cancelRecordingStart,
+  claimRecordingPlaybackStart,
+  completeRecordingPlaybackStart,
+  createRecordingStartGate
+} from "@/lib/recordingStartGate";
 import { snapRecordedNoteStartBeat } from "@/lib/recordingTiming";
 import { Note, Project, Track } from "@/types/music";
 
@@ -94,8 +101,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
   const recordPassRef = useRef<RecordPassOverwrite | null>(null);
   const countInRafRef = useRef<number | null>(null);
   const hintTimerRef = useRef<number | null>(null);
-  const recordStartTokenRef = useRef(0);
-  const recordingPlaybackStartTokenRef = useRef<number | null>(null);
+  const recordingStartGateRef = useRef(createRecordingStartGate());
 
   const eraseRecordedWindow = useCallback(
     (trackId: string, fromBeat: number, toBeat: number) => {
@@ -256,8 +262,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
 
   const stopRecordSession = useCallback(
     (finalBeat?: number) => {
-      recordStartTokenRef.current += 1;
-      recordingPlaybackStartTokenRef.current = null;
+      cancelRecordingStart(recordingStartGateRef.current);
       if (recordPhase === "recording") {
         finishActiveRecordedNotes(finalBeat ?? playheadBeat);
       } else {
@@ -297,10 +302,12 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
   const beginRecordingPlayback = useCallback(
     async (trackId: string, cueBeat: number, token: number) => {
       await onBeginRecordingPlayback(trackId, cueBeat);
-      recordingPlaybackStartTokenRef.current = null;
-      if (recordStartTokenRef.current !== token) {
-        audioEngineRef.current?.stop();
-        setPlaying(false);
+      const startCompletion = completeRecordingPlaybackStart(recordingStartGateRef.current, token);
+      if (!startCompletion.current) {
+        if (startCompletion.ownsPlaybackStart) {
+          audioEngineRef.current?.stop();
+          setPlaying(false);
+        }
         return;
       }
       recordPassRef.current = createRecordPassOverwrite(trackId, cueBeat);
@@ -321,9 +328,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
       return;
     }
 
-    const token = recordStartTokenRef.current + 1;
-    recordStartTokenRef.current = token;
-    recordingPlaybackStartTokenRef.current = null;
+    const token = beginRecordingStart(recordingStartGateRef.current);
     const countIn: RecordCountInState = {
       cueBeat: userCueBeat,
       trackId: selectedTrack.id,
@@ -356,14 +361,16 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
       setCountInNowMs(now);
       if (now - recordCountIn.startedAtMs >= totalDurationMs) {
         countInRafRef.current = null;
-        if (recordingPlaybackStartTokenRef.current === recordCountIn.token) {
+        if (!claimRecordingPlaybackStart(recordingStartGateRef.current, recordCountIn.token)) {
           return;
         }
-        recordingPlaybackStartTokenRef.current = recordCountIn.token;
         setRecordCountIn(null);
         void beginRecordingPlayback(recordCountIn.trackId, recordCountIn.cueBeat, recordCountIn.token).catch(
           (error) => {
-            recordingPlaybackStartTokenRef.current = null;
+            const startCompletion = completeRecordingPlaybackStart(recordingStartGateRef.current, recordCountIn.token);
+            if (!startCompletion.current) {
+              return;
+            }
             setRecordPhase("idle");
             setRecordCountIn(null);
             setRuntimeError((error as Error).message);
@@ -514,9 +521,9 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
   ]);
 
   useEffect(() => {
+    const recordingStartGate = recordingStartGateRef.current;
     return () => {
-      recordStartTokenRef.current += 1;
-      recordingPlaybackStartTokenRef.current = null;
+      cancelRecordingStart(recordingStartGate);
       if (hintTimerRef.current !== null) {
         window.clearTimeout(hintTimerRef.current);
       }
