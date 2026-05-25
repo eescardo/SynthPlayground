@@ -95,6 +95,7 @@ export function TrackHeaderChrome({
   const {
     patchSummaryPopover,
     setPatchSummaryPopover,
+    closePatchSummaryPopover,
     openExpandedPatchSummary,
     scheduleTeaserPatchSummary,
     schedulePatchSummaryDismiss,
@@ -274,6 +275,13 @@ export function TrackHeaderChrome({
                 event.stopPropagation();
                 trackActions.onSelectTrack(track.id);
               }}
+              onDoubleClick={(event) => {
+                event.stopPropagation();
+                if (selectedTrackId !== track.id) {
+                  trackActions.onSelectTrack(track.id);
+                }
+                trackActions.onToggleTrackMacroPanel(track.id);
+              }}
               onContextMenu={(event) => event.preventDefault()}
             />
             <button
@@ -432,15 +440,20 @@ export function TrackHeaderChrome({
                   })
                 }
                 onMouseLeave={() => schedulePatchSummaryDismiss(track.id)}
-                onDoubleClick={() =>
+                onDoubleClick={(event) => {
+                  event.stopPropagation();
+                  if (patchSummaryPopover?.trackId === track.id && patchSummaryPopover.mode === "expanded") {
+                    closePatchSummaryPopover();
+                    return;
+                  }
                   openExpandedPatchSummary({
                     trackId: track.id,
                     selected,
                     macroPanelExpanded: track.macroPanelExpanded,
                     onSelectTrack: trackActions.onSelectTrack,
                     onToggleTrackMacroPanel: trackActions.onToggleTrackMacroPanel
-                  })
-                }
+                  });
+                }}
               />
             )}
             {selected && track.macroPanelExpanded && trackPatch && hasPatchSummaryPopover && (

@@ -1,5 +1,6 @@
 "use client";
 
+import { MouseEvent as ReactMouseEvent } from "react";
 import { TriangleGlyph } from "@/components/icons/TriangleGlyph";
 import styles from "./TrackCanvas.module.css";
 
@@ -25,7 +26,7 @@ interface MacroPanelProps {
   rows: MacroPanelRow[];
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
-  onDoubleClick?: () => void;
+  onDoubleClick?: (event: ReactMouseEvent<HTMLDivElement>) => void;
 }
 
 export function MacroPanel({
