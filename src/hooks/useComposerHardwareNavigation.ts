@@ -736,9 +736,13 @@ export function useComposerHardwareNavigation({
         selectionKind === "content" &&
         (contentSelection.noteKeys.length > 0 || contentSelection.automationKeyframeSelectionKeys.length > 0);
       const hasTimelineSelection = selectionKind === "timeline";
+      const trackChromeKeyboardFocused = isTrackChromeKeyboardTarget(event.target);
+      const arrowKeyPressed =
+        event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "ArrowUp" || event.key === "ArrowDown";
       const playheadNavigationActive = base.playheadNavigationFocused || playheadDomFocused;
+      const arrowNavigationActive = playheadNavigationActive || (trackChromeKeyboardFocused && arrowKeyPressed);
       const canHandleComposerKeyboardShortcut = isComposerView && arePitchPickersClosed;
-      const selectionOwnsEnter = selectionKind !== "none" && !playheadNavigationActive;
+      const selectionOwnsEnter = selectionKind !== "none" && !arrowNavigationActive;
 
       if (event.defaultPrevented) {
         return;
@@ -749,8 +753,7 @@ export function useComposerHardwareNavigation({
       if (isModifierChord(event)) {
         return;
       }
-      const trackChromeKeyboardFocused = isTrackChromeKeyboardTarget(event.target);
-      if (trackChromeKeyboardFocused && event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+      if (trackChromeKeyboardFocused && !arrowKeyPressed) {
         return;
       }
       const normalizedPhysicalTriggerKey = normalizePhysicalPitchKey(event.key);
@@ -768,7 +771,7 @@ export function useComposerHardwareNavigation({
 
       if (event.key === "ArrowLeft") {
         handleHorizontalArrowNavigation(event, -1, {
-          playheadNavigationActive,
+          playheadNavigationActive: arrowNavigationActive,
           hasContentSelection,
           hasTimelineSelection,
           selectionCaptureFocused
@@ -778,7 +781,7 @@ export function useComposerHardwareNavigation({
 
       if (event.key === "ArrowRight") {
         handleHorizontalArrowNavigation(event, 1, {
-          playheadNavigationActive,
+          playheadNavigationActive: arrowNavigationActive,
           hasContentSelection,
           hasTimelineSelection,
           selectionCaptureFocused
@@ -798,7 +801,7 @@ export function useComposerHardwareNavigation({
         return;
       }
 
-      if (handleVerticalTrackNavigation(event, playheadNavigationActive)) {
+      if (handleVerticalTrackNavigation(event, arrowNavigationActive)) {
         return;
       }
 
