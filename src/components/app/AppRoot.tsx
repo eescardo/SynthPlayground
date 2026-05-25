@@ -481,8 +481,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     setPlayheadBeat,
     setRuntimeError,
     onBeginRecordingPlayback: async (trackId, cueBeat) => {
-      await playback.beginPlaybackAtBeat(cueBeat);
-      audioEngineRef.current?.setRecordingTrack(trackId);
+      await playback.beginPlaybackAtBeat(cueBeat, { recordingTrackId: trackId });
     }
   });
 
@@ -1311,6 +1310,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
           track={activeRecordingTrack}
           title={recording.recordPhase === "count_in" ? "Record Count-In" : "Recording"}
           statusText={recording.recordStatusText}
+          hintText={recording.recordingHintText}
           pressedPitches={recording.pressedRecordingPitches}
           onPressStart={(pitch) => {
             if (recording.recordPhase === "recording") {

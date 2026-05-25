@@ -42,37 +42,40 @@ export const openPatchWorkspaceApp = async (page: Page) => {
 };
 
 export const seedProject = async (page: Page, project: Project) => {
-  await page.addInitScript(async (seededProject: Project) => {
-    window.localStorage.clear();
-    window.sessionStorage.clear();
-    await new Promise<void>((resolve, reject) => {
-      const deleteRequest = window.indexedDB.deleteDatabase("synth-playground");
-      deleteRequest.onerror = () =>
-        reject(deleteRequest.error ?? new Error("Failed to clear synth-playground database."));
-      deleteRequest.onblocked = () => resolve();
-      deleteRequest.onsuccess = () => resolve();
-    });
-    await new Promise<void>((resolve, reject) => {
-      const request = window.indexedDB.open("synth-playground", 1);
-      request.onupgradeneeded = () => {
-        const db = request.result;
-        if (!db.objectStoreNames.contains("projects")) {
-          db.createObjectStore("projects");
-        }
-      };
-      request.onerror = () => reject(request.error ?? new Error("Failed to open synth-playground database."));
-      request.onsuccess = () => {
-        const db = request.result;
-        const tx = db.transaction("projects", "readwrite");
-        tx.objectStore("projects").put(seededProject, "active");
-        tx.oncomplete = () => {
-          db.close();
-          resolve();
+  await page.addInitScript(
+    async ({ seededProject }: { seededProject: Project }) => {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+      await new Promise<void>((resolve, reject) => {
+        const deleteRequest = window.indexedDB.deleteDatabase("synth-playground");
+        deleteRequest.onerror = () =>
+          reject(deleteRequest.error ?? new Error("Failed to clear synth-playground database."));
+        deleteRequest.onblocked = () => resolve();
+        deleteRequest.onsuccess = () => resolve();
+      });
+      await new Promise<void>((resolve, reject) => {
+        const request = window.indexedDB.open("synth-playground", 1);
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains("projects")) {
+            db.createObjectStore("projects");
+          }
         };
-        tx.onerror = () => reject(tx.error ?? new Error("Failed to seed synth-playground database."));
-      };
-    });
-  }, project);
+        request.onerror = () => reject(request.error ?? new Error("Failed to open synth-playground database."));
+        request.onsuccess = () => {
+          const db = request.result;
+          const tx = db.transaction("projects", "readwrite");
+          tx.objectStore("projects").put(seededProject, "active");
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error ?? new Error("Failed to seed synth-playground database."));
+        };
+      });
+    },
+    { seededProject: project }
+  );
 };
 
 export const openSeededPatchWorkspaceApp = async (page: Page, project: Project) => {

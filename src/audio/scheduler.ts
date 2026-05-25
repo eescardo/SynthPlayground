@@ -18,6 +18,7 @@ interface SchedulerWindow {
 
 interface CollectEventsOptions {
   cueBeat?: number;
+  skipTimelineNoteTrackIds?: ReadonlySet<string>;
 }
 
 interface NoteEventCache {
@@ -122,6 +123,7 @@ export const collectEventsInWindow = (
   pruneStaleNoteEventIds(project);
   const events: SchedulerEvent[] = [];
   const cueBeat = Math.max(0, options?.cueBeat ?? 0);
+  const skipTimelineNoteTrackIds = options?.skipTimelineNoteTrackIds;
   const timelineEndBeat = getProjectTimelineEndBeat(project);
   const hasLoops = project.global.loop.length > 0;
   const unloopedBeatWindow = hasLoops ? null : getUnloopedSongBeatWindow(project, window, cueBeat);
@@ -194,6 +196,10 @@ export const collectEventsInWindow = (
           });
         });
       }
+    }
+
+    if (skipTimelineNoteTrackIds?.has(track.id)) {
+      continue;
     }
 
     for (const note of track.notes) {

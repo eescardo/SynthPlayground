@@ -166,6 +166,7 @@ export function ComposerView(props: ComposerViewProps) {
         defaultPitch={props.defaultPitch}
         selection={props.canvasSelection}
         playheadBeat={props.transport.playheadBeat}
+        isPlaying={props.recording.isPlaying}
         activeRecordedNotes={props.recording.activeRecordedNotes}
         keyboardPlacementNote={props.canvasPreview.keyboardPlacementNote}
         ghostPreviewNote={props.canvasPreview.ghostPreviewNote}

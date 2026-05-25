@@ -55,6 +55,7 @@ Never commit or push directly to `main` / `origin/main`.
 - Always work on a task-specific branch.
 - After pushing the task branch to the remote, open or update a PR.
 - PRs should be opened as ready for review by default, unless explicitly requested otherwise.
+- When updating an existing PR during review, add follow-up commits instead of amending, squashing, or force-pushing rewritten history unless the user explicitly asks for that cleanup.
 
 When the mapping is clear from context, proceed. When it is ambiguous, ask a short clarifying question before making branch or PR changes.
 
@@ -92,6 +93,7 @@ For visual or interaction changes, automated validation is necessary but not suf
   - add one or more `videos:<scenario>` labels such as `videos:play-from-start-5s` or `videos:record-from-start-8s`
 - Those labels trigger the workflow to capture PR-head videos from the task branch only, upload the artifact bundle, and post or update a sticky PR comment with hosted preview links and downloads.
 - Video captures are useful for motion and flow review, but they are not a substitute for manual audio listening when the change is primarily about sound.
+- Capture-only fake audio must be controlled by explicit capture/test environment, such as `NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO=1`. No need to leverage persisted browser state for this.
 - If capture tooling is not available yet, include a short manual verification checklist in the handoff.
 - PR descriptions for UI changes should say what changed visually and what to inspect.
 

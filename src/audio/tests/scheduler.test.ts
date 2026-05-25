@@ -29,6 +29,52 @@ describe("audio scheduler macro automation", () => {
     expect(events.some((event) => event.type === "NoteOff" && event.trackId === track.id)).toBe(true);
   });
 
+  it("skips timeline notes on requested tracks", () => {
+    const project = createDefaultProject();
+    const recordingTrack = project.tracks[0];
+    const playbackTrack = project.tracks[1];
+    if (!recordingTrack || !playbackTrack) {
+      throw new Error("Expected default project tracks");
+    }
+    recordingTrack.notes = [
+      {
+        id: "will_be_overwritten",
+        pitchStr: "C3",
+        startBeat: 0,
+        durationBeats: 1,
+        velocity: 0.8
+      }
+    ];
+    playbackTrack.notes = [
+      {
+        id: "still_audible",
+        pitchStr: "G3",
+        startBeat: 0,
+        durationBeats: 1,
+        velocity: 0.8
+      }
+    ];
+
+    const events = collectEventsInWindow(
+      project,
+      {
+        fromSample: 0,
+        toSample: Number.MAX_SAFE_INTEGER
+      },
+      { skipTimelineNoteTrackIds: new Set([recordingTrack.id]) }
+    );
+
+    expect(
+      events.some(
+        (event) =>
+          (event.type === "NoteOn" || event.type === "NoteOff") &&
+          "trackId" in event &&
+          event.trackId === recordingTrack.id
+      )
+    ).toBe(false);
+    expect(events.some((event) => event.type === "NoteOn" && event.trackId === playbackTrack.id)).toBe(true);
+  });
+
   it("emits macro automation events before same-sample note attacks", () => {
     const project = createDefaultProject();
     const track = project.tracks[0];

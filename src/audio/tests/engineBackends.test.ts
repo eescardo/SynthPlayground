@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
+const { createInitializedWorkletNodeMock } = vi.hoisted(() => ({
+  createInitializedWorkletNodeMock: vi.fn()
+}));
+
+vi.mock("@/audio/worklets/createInitializedWorkletNode", () => ({
+  createInitializedWorkletNode: createInitializedWorkletNodeMock
+}));
+
 import {
   createActiveTrackNoteEvents,
   createTrackVolumeRestoreCommand,
@@ -10,6 +18,55 @@ import { createDefaultProject } from "@/lib/patch/presets";
 import { samplesPerBeat } from "@/lib/musicTiming";
 
 describe("audio engine live mute transitions", () => {
+  it("coalesces concurrent initialization so cold record startup does not leak connected worklets", async () => {
+    const contexts: Array<{
+      state: string;
+      close: ReturnType<typeof vi.fn>;
+      resume: ReturnType<typeof vi.fn>;
+    }> = [];
+    class MockAudioContext {
+      currentTime = 0;
+      state = "running";
+      audioWorklet = {};
+      destination = {};
+      close = vi.fn(async () => {});
+      resume = vi.fn(async () => {});
+
+      constructor() {
+        contexts.push(this);
+      }
+    }
+
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(1)
+    }));
+    const connect = vi.fn();
+    const disconnect = vi.fn();
+    const postMessage = vi.fn();
+    createInitializedWorkletNodeMock.mockImplementation(async () => ({
+      connect,
+      disconnect,
+      port: { postMessage }
+    }));
+
+    vi.stubGlobal("AudioContext", MockAudioContext);
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const backend = new RealAudioEngineBackend();
+
+      await Promise.all([backend.init(), backend.init(), backend.ensureRunning()]);
+
+      expect(contexts).toHaveLength(1);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(createInitializedWorkletNodeMock).toHaveBeenCalledTimes(1);
+      expect(connect).toHaveBeenCalledTimes(1);
+    } finally {
+      createInitializedWorkletNodeMock.mockReset();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("updates the backend mute snapshot so project sync does not replay an immediate transition", () => {
     const project = createDefaultProject();
     const track = project.tracks[0];
@@ -104,6 +161,55 @@ describe("audio engine live mute transitions", () => {
       type: "SET_PROJECT",
       project: nextProject
     });
+  });
+
+  it("applies recording track context during playback startup after transport stream creation", async () => {
+    const project = createDefaultProject();
+    const track = project.tracks[0];
+    track.notes = [
+      {
+        id: "recorded_over_note",
+        pitchStr: "C3",
+        startBeat: 0,
+        durationBeats: 1,
+        velocity: 0.8
+      }
+    ];
+
+    const backend = new RealAudioEngineBackend();
+    const postMessage = vi.fn();
+    backend.syncProjectSnapshot(project, { syncToWorklet: false });
+    const testBackend = backend as unknown as {
+      context: { currentTime: number; state: string; resume: () => Promise<void> };
+      worklet: { port: { postMessage: typeof postMessage } };
+      songStartContextTime: number;
+      scheduler: number | null;
+    };
+    testBackend.context = { currentTime: 0, state: "running", resume: vi.fn() };
+    testBackend.worklet = { port: { postMessage } };
+    testBackend.scheduler = null;
+
+    vi.stubGlobal("window", { setInterval: vi.fn(() => 1), clearInterval: vi.fn() });
+    try {
+      await backend.play(0, { recordingTrackId: track.id });
+
+      const messageTypes = postMessage.mock.calls.map(([message]) => message.type);
+      expect(messageTypes).toEqual(["SET_PROJECT", "TRANSPORT", "RECORDING"]);
+      const transportMessage = postMessage.mock.calls[1]?.[0];
+      expect(transportMessage).toEqual(expect.objectContaining({ type: "TRANSPORT" }));
+      expect(
+        transportMessage.events.some(
+          (event: { type: string; trackId?: string }) =>
+            (event.type === "NoteOn" || event.type === "NoteOff") && event.trackId === track.id
+        )
+      ).toBe(false);
+      expect(postMessage.mock.calls[2]?.[0]).toEqual({
+        type: "RECORDING",
+        trackId: track.id
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("builds a live volume restore command for unmuting during playback", () => {

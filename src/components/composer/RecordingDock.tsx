@@ -6,6 +6,7 @@ interface RecordingDockProps {
   track: Project["tracks"][number] | undefined;
   title: string;
   statusText: string;
+  hintText?: string | null;
   pressedPitches: string[];
   onPressStart: (pitch: string) => void;
   onPressEnd: (pitch: string) => void;
@@ -16,6 +17,7 @@ export function RecordingDock({
   track,
   title,
   statusText,
+  hintText,
   pressedPitches,
   onPressStart,
   onPressEnd
@@ -33,7 +35,10 @@ export function RecordingDock({
             {track.name} · {track.instrumentPatchId.replace("preset_", "")}
           </span>
         </div>
-        <div className="recording-dock-status">{statusText}</div>
+        <div className="recording-dock-status">
+          <span>{statusText}</span>
+          {hintText ? <span className="recording-dock-hint">{hintText}</span> : null}
+        </div>
       </div>
       <PianoKeyboard
         minPitch="C2"

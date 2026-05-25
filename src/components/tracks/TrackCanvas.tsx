@@ -38,6 +38,7 @@ import { drawTrackCanvasNoteState } from "@/components/tracks/trackCanvasNoteSta
 import { drawGhostPreviewNote, drawTabSelectionPreview } from "@/components/tracks/trackCanvasPreviewGeometry";
 import { TrackCanvasProps, TrackLayout } from "@/components/tracks/trackCanvasTypes";
 import { findTrackOverlaps, useTrackCanvasRenderModel } from "@/components/tracks/trackCanvasRenderModel";
+import { useTrackCanvasPlayheadAutoScroll } from "@/hooks/tracks/useTrackCanvasPlayheadAutoScroll";
 import { useTrackCanvasWheelPitchEditing } from "@/hooks/tracks/useTrackCanvasWheelPitchEditing";
 import { useVolumePopover } from "@/hooks/useVolumePopover";
 import { clamp01 } from "@/lib/numeric";
@@ -753,6 +754,14 @@ export function TrackCanvas(props: TrackCanvasProps) {
   useEffect(() => {
     draw();
   }, [draw]);
+
+  useTrackCanvasPlayheadAutoScroll({
+    wrapperRef,
+    playheadBeat,
+    playheadFocused: Boolean(playheadFocused),
+    isPlaying: Boolean(props.isPlaying)
+  });
+
   useEffect(() => {
     if (!editingTrackId) {
       return;

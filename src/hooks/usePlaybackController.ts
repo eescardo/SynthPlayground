@@ -2,6 +2,7 @@
 
 import { RefObject, useCallback, useEffect, useRef } from "react";
 import { AudioEngine } from "@/audio/engine";
+import { AudioEnginePlayOptions } from "@/audio/engineBackends";
 import { getLoopPlaybackEndBeat } from "@/lib/looping";
 import { Project } from "@/types/music";
 import { AudioProject } from "@/types/audio";
@@ -83,12 +84,12 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
   }, [audioEngineRef, setPlayheadBeat, stopPlayback]);
 
   const beginPlaybackAtBeat = useCallback(
-    async (cueBeat: number) => {
+    async (cueBeat: number, options?: AudioEnginePlayOptions) => {
       if (!audioEngineRef.current) {
         audioEngineRef.current = new AudioEngine();
       }
       audioEngineRef.current.syncProjectSnapshot(audioProject, { syncToWorklet: true });
-      await audioEngineRef.current.play(cueBeat);
+      await audioEngineRef.current.play(cueBeat, { recordingTrackId: options?.recordingTrackId ?? null });
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
       }

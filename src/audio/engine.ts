@@ -5,7 +5,13 @@ import { collectEventsInWindow } from "@/audio/scheduler";
 import { pcmStereoToWavBlob } from "@/audio/wav";
 import { getLoopPlaybackEndBeat } from "@/lib/looping";
 import { beatToSample } from "@/lib/musicTiming";
-import { createAudioEngineBackend, AudioEngineBackend, BLOCK_SIZE, FIXED_SAMPLE_RATE } from "@/audio/engineBackends";
+import {
+  createAudioEngineBackend,
+  AudioEngineBackend,
+  AudioEnginePlayOptions,
+  BLOCK_SIZE,
+  FIXED_SAMPLE_RATE
+} from "@/audio/engineBackends";
 import { AudioProject } from "@/types/audio";
 import { PreviewProbeCapture, PreviewProbeRequest } from "@/types/probes";
 
@@ -38,8 +44,8 @@ export class AudioEngine {
     this.backend.setTrackMuted(trackId, muted, options);
   }
 
-  play(startBeat = 0): Promise<void> {
-    return this.backend.play(startBeat);
+  play(startBeat = 0, options?: AudioEnginePlayOptions): Promise<void> {
+    return this.backend.play(startBeat, options);
   }
 
   stop(): void {
