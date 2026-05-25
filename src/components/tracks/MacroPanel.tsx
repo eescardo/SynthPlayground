@@ -73,6 +73,7 @@ export function MacroPanel({
                 title={row.bindTitle}
                 aria-label={row.bindAriaLabel}
                 onClick={row.onBindToggle}
+                onDoubleClick={(event) => event.stopPropagation()}
               >
                 {row.stateLabel}
               </button>
@@ -83,6 +84,7 @@ export function MacroPanel({
                   title={row.expandTitle ?? "Expand lane"}
                   aria-label={row.expandAriaLabel ?? "Expand lane"}
                   onClick={row.onExpandToggle}
+                  onDoubleClick={(event) => event.stopPropagation()}
                 >
                   <TriangleGlyph direction={row.expandDirection ?? "down"} className={styles.expandGlyph} />
                 </button>
