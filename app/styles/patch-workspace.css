@@ -203,12 +203,11 @@
 }
 
 .patch-workspace-shell {
-  --patch-editor-surface: rgba(9, 17, 26, 0.92);
-  --patch-tab-inactive-surface: rgba(8, 14, 22, 0.72);
+  --patch-editor-surface: var(--color-workspace-panel);
 
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: var(--space-workspace-gap);
   min-height: 0;
   height: calc(100vh - 1.6rem);
 }
@@ -275,120 +274,6 @@
 
 .patch-workspace-runtime-status {
   margin: 0.45rem 0 0;
-}
-
-.patch-workspace-tabs {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.28rem;
-  padding-bottom: 0;
-  margin-bottom: -1px;
-  position: relative;
-  z-index: 2;
-}
-
-.patch-workspace-tab-list {
-  display: flex;
-  flex: 1 1 auto;
-  align-items: flex-end;
-  gap: 0.28rem;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-
-.patch-workspace-tab {
-  display: inline-flex;
-  align-items: center;
-  position: relative;
-  gap: 0.32rem;
-  min-width: 0;
-  max-width: 14rem;
-  padding: 0.35rem 1.15rem 0.4rem 0.65rem;
-  border: 1px solid rgba(131, 173, 216, 0.1);
-  border-radius: 10px 10px 0 0;
-  background: var(--patch-tab-inactive-surface);
-  color: rgba(188, 204, 220, 0.72);
-  cursor: pointer;
-}
-
-.patch-workspace-tab-baseline-indicator {
-  width: 0.44rem;
-  height: 0.44rem;
-  flex: 0 0 auto;
-  border-radius: 999px;
-  border: 1px solid rgba(154, 182, 208, 0.46);
-  background: rgba(108, 128, 146, 0.18);
-}
-
-.patch-workspace-tab-baseline-indicator.changed {
-  border-color: rgba(103, 224, 153, 0.72);
-  background: rgba(103, 224, 153, 0.3);
-  box-shadow: 0 0 0 1px rgba(103, 224, 153, 0.08);
-}
-
-.patch-workspace-tab.active {
-  color: var(--text);
-  border-color: rgba(131, 173, 216, 0.28);
-  border-bottom-color: var(--patch-editor-surface);
-  background: var(--patch-editor-surface);
-}
-
-.patch-workspace-tab-name {
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.patch-workspace-tab-name:focus-visible {
-  outline: 1px solid rgba(131, 173, 216, 0.65);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
-.patch-workspace-tab-name-input {
-  width: auto;
-  min-width: 1.8rem;
-  max-width: 12rem;
-  padding: 0.08rem 0.2rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.patch-workspace-tab-close,
-.patch-workspace-tab-add {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border-radius: 999px;
-  line-height: 1;
-}
-
-.patch-workspace-tab-close {
-  width: 0.66rem;
-  height: 0.66rem;
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  border: none;
-  background: rgba(228, 238, 248, 0.92);
-  color: rgba(10, 18, 28, 0.96);
-  font-size: 0.5rem;
-}
-
-.patch-workspace-tab-add {
-  width: 1.45rem;
-  height: 1.45rem;
-  flex: 0 0 auto;
-  align-self: center;
-  margin-right: 0.16rem;
-  border-color: rgba(131, 173, 216, 0.24);
-  font-size: 0.95rem;
-  font-weight: 600;
 }
 
 .patch-editor {

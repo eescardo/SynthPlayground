@@ -4,9 +4,15 @@
 classes. New component styles should prefer CSS Modules next to the component
 that owns the markup.
 
+Design tokens live in `base.css`. Prefer the `--color-*`, `--space-*`,
+`--radius-*`, and shared border tokens for DOM styling. The shorter legacy
+aliases (`--ink`, `--muted`, `--border`, etc.) are still available while older
+global styles are migrated, but new styles should use the explicit token names.
+
 Keep these files global:
 
-- `base.css`: design tokens, document reset, and native form element defaults.
+- `base.css`: design tokens, legacy token aliases, document reset, and native
+  form element defaults.
 - `app-shell.css`: root app/loading layout classes used by the Next shell.
 - `feedback.css`: small shared status text utilities used across editor panes.
 - `composer.css`: composer surface styles, including transport, track canvas,

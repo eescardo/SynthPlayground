@@ -1,13 +1,34 @@
 :root {
-  --bg: #060c12;
-  --panel: #0f1822;
-  --panel-2: #142131;
-  --ink: #e8f2ff;
-  --muted: #8ca8c4;
-  --border: #26425c;
-  --accent: #4fb8ff;
-  --danger: #ff5d78;
-  --ok: #6ddb84;
+  --color-canvas: #060c12;
+  --color-surface: #0f1822;
+  --color-surface-raised: #142131;
+  --color-text: #e8f2ff;
+  --color-text-muted: #8ca8c4;
+  --color-border: #26425c;
+  --color-accent: #4fb8ff;
+  --color-danger: #ff5d78;
+  --color-success: #6ddb84;
+  --color-focus-ring: rgba(131, 173, 216, 0.65);
+  --color-workspace-panel: rgba(9, 17, 26, 0.92);
+  --color-workspace-panel-muted: rgba(8, 14, 22, 0.72);
+
+  --space-workspace-gap: 0.8rem;
+  --space-control-gap: 0.28rem;
+  --radius-control: 6px;
+  --radius-tab: 10px;
+  --border-subtle: rgba(131, 173, 216, 0.24);
+
+  /* Legacy aliases kept while global styles are migrated into modules. */
+  --bg: var(--color-canvas);
+  --panel: var(--color-surface);
+  --panel-2: var(--color-surface-raised);
+  --ink: var(--color-text);
+  --text: var(--color-text);
+  --muted: var(--color-text-muted);
+  --border: var(--color-border);
+  --accent: var(--color-accent);
+  --danger: var(--color-danger);
+  --ok: var(--color-success);
 }
 
 * {
@@ -18,7 +39,7 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background: radial-gradient(circle at 20% 0%, #16273a, #060c12 45%);
+  background: radial-gradient(circle at 20% 0%, #16273a, var(--color-canvas) 45%);
   color: var(--ink);
   font-family: "Trebuchet MS", "Segoe UI", sans-serif;
 }
@@ -34,7 +55,7 @@ button {
   background: var(--panel-2);
   color: var(--ink);
   padding: 0.4rem 0.75rem;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   cursor: pointer;
 }
 
@@ -63,6 +84,6 @@ select {
   background: #0b131d;
   border: 1px solid var(--border);
   color: var(--ink);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   padding: 0.35rem 0.45rem;
 }

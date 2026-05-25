@@ -438,7 +438,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   }, [dragPosition, probeState.probes]);
 
   return (
-    <div className={styles.stage} ref={rootRef}>
+    <div className={styles.stage} data-ui="patch-canvas-stage" ref={rootRef}>
       <PatchEditorToolbar
         structureLocked={structureLocked}
         canClearPatch={visibleNodeCount > 0 || patch.connections.length > 0 || patch.ui.macros.length > 0}
@@ -488,9 +488,10 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
         }}
       />
 
-      <div className={styles.shell}>
+      <div className={styles.shell} data-ui="patch-canvas-shell">
         <div
           className={styles.scroll}
+          data-ui="patch-canvas-scroll"
           ref={scrollRef}
           tabIndex={0}
           aria-label="Patch canvas"
@@ -524,6 +525,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
         >
           <div
             className={styles.overlayShell}
+            data-ui="patch-canvas-overlay-shell"
             style={{ width: `${canvasSize.width * zoom}px`, height: `${canvasSize.height * zoom}px` }}
           >
             <canvas

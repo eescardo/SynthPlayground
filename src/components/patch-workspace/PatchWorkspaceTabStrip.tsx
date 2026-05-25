@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useInlineRename } from "@/hooks/useInlineRename";
 import { useRenameActivation } from "@/hooks/useRenameActivation";
+import styles from "./PatchWorkspaceTabStrip.module.css";
 
 export interface PatchWorkspaceTabViewModel {
   id: string;
@@ -55,26 +56,49 @@ export function PatchWorkspaceTabStrip(props: PatchWorkspaceTabStripProps) {
   };
 
   return (
-    <div className="patch-workspace-tabs" role="tablist" aria-label="Open instrument tabs">
+    <div className={`${styles.tabs} patch-workspace-tabs`} role="tablist" aria-label="Open instrument tabs">
       {props.canCreateTab !== false && (
         <button
           type="button"
-          className="patch-workspace-tab-add"
+          className={`${styles.add} patch-workspace-tab-add`}
           aria-label="New instrument tab"
           onClick={props.onCreateTab}
         >
           +
         </button>
       )}
-      <div className="patch-workspace-tab-list">
+      <div className={`${styles.list} patch-workspace-tab-list`}>
         {props.tabs.map((tab) => {
           const active = tab.id === props.activeTabId;
           const editing = renamingTabId === tab.id;
+          const tabClassName = [
+            styles.tab,
+            active ? styles.tabActive : "",
+            "patch-workspace-tab",
+            active ? "active" : ""
+          ]
+            .filter(Boolean)
+            .join(" ");
+          const baselineClassName = [
+            styles.baselineIndicator,
+            tab.hasPatchDiff ? styles.baselineChanged : "",
+            "patch-workspace-tab-baseline-indicator",
+            tab.hasPatchDiff ? "changed" : ""
+          ]
+            .filter(Boolean)
+            .join(" ");
+          const nameClassName = [
+            styles.name,
+            "patch-workspace-tab-name",
+            renameActivation.isArmed(tab.id) ? "rename-armed" : ""
+          ]
+            .filter(Boolean)
+            .join(" ");
 
           return (
             <div
               key={tab.id}
-              className={`patch-workspace-tab${active ? " active" : ""}`}
+              className={tabClassName}
               role="tab"
               tabIndex={active ? 0 : -1}
               aria-selected={active}
@@ -82,14 +106,14 @@ export function PatchWorkspaceTabStrip(props: PatchWorkspaceTabStripProps) {
             >
               {tab.hasBaseline && (
                 <span
-                  className={`patch-workspace-tab-baseline-indicator${tab.hasPatchDiff ? " changed" : ""}`}
+                  className={baselineClassName}
                   title={tab.hasPatchDiff ? "Has changes relative to baseline patch" : "Has baseline patch"}
                   aria-hidden="true"
                 />
               )}
               {editing ? (
                 <input
-                  className="patch-workspace-tab-name-input"
+                  className={`${styles.nameInput} patch-workspace-tab-name-input`}
                   aria-label="Tab name"
                   autoFocus
                   size={Math.max(1, draft.length)}
@@ -116,7 +140,7 @@ export function PatchWorkspaceTabStrip(props: PatchWorkspaceTabStripProps) {
               ) : (
                 <>
                   <span
-                    className={`patch-workspace-tab-name${renameActivation.isArmed(tab.id) ? " rename-armed" : ""}`}
+                    className={nameClassName}
                     role="button"
                     tabIndex={0}
                     {...renameActivation.getRenameTriggerProps({
@@ -129,7 +153,7 @@ export function PatchWorkspaceTabStrip(props: PatchWorkspaceTabStripProps) {
                   {props.tabs.length > 1 && (
                     <button
                       type="button"
-                      className="patch-workspace-tab-close"
+                      className={`${styles.close} patch-workspace-tab-close`}
                       aria-label={`Close ${tab.name} tab`}
                       onClick={(event) => {
                         event.stopPropagation();

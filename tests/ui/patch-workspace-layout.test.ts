@@ -192,7 +192,7 @@ async function selectBaselineOption(page: Page, index: number): Promise<string> 
 }
 
 async function zoomCanvasOut(page: Page, steps: number) {
-  const target = page.locator(".patch-canvas-scroll");
+  const target = page.locator('[data-ui="patch-canvas-scroll"]');
   const box = await target.boundingBox();
   if (!box) {
     throw new Error("Could not determine patch canvas scroll bounds.");
@@ -229,10 +229,10 @@ async function measurePatchWorkspace(page: Page): Promise<PatchWorkspaceMetrics>
       zoom: document.querySelector(".patch-zoom-readout")?.textContent ?? null,
       layout: pick(".patch-layout"),
       main: pick(".patch-editor-main-column"),
-      stage: pick(".patch-canvas-stage"),
-      shell: pick(".patch-canvas-shell"),
-      scroll: pick(".patch-canvas-scroll"),
-      canvas: pick(".patch-canvas-overlay-shell > canvas")
+      stage: pick('[data-ui="patch-canvas-stage"]'),
+      shell: pick('[data-ui="patch-canvas-shell"]'),
+      scroll: pick('[data-ui="patch-canvas-scroll"]'),
+      canvas: pick('[data-ui="patch-canvas-overlay-shell"] > canvas')
     };
   });
 }
