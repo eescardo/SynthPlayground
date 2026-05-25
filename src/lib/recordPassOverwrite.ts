@@ -1,4 +1,6 @@
-import { snapDownToGrid } from "@/lib/musicTiming";
+import { eraseNotesInBeatRange } from "@/lib/noteEditing";
+import { snapDownToGrid, snapUpToGrid } from "@/lib/musicTiming";
+import { Note } from "@/types/music";
 
 export interface RecordPassOverwrite {
   trackId: string;
@@ -10,6 +12,12 @@ export interface RecordPassOverwrite {
 export interface EraseBeatRange {
   fromBeat: number;
   toBeat: number;
+}
+
+export interface ActiveRecordedNoteExtension {
+  noteId: string;
+  startBeat: number;
+  durationBeats: number;
 }
 
 export const createRecordPassOverwrite = (trackId: string, cueBeat: number): RecordPassOverwrite => ({
@@ -72,4 +80,32 @@ export const advanceRecordPassEraseBeat = (
   };
   recordPass.lastErasedBeat = nextErasedBeat;
   return eraseRange;
+};
+
+export const applyActiveRecordedNoteExtensions = ({
+  activeNoteIds,
+  gridBeats,
+  notes,
+  recordPass,
+  trackId,
+  updates
+}: {
+  activeNoteIds: Iterable<string>;
+  gridBeats: number;
+  notes: Note[];
+  recordPass: RecordPassOverwrite | null;
+  trackId: string;
+  updates: ActiveRecordedNoteExtension[];
+}): Note[] => {
+  const protectedNoteIds = getRecordPassProtectedNoteIds(recordPass, trackId, activeNoteIds);
+  let nextNotes = notes;
+  for (const entry of updates) {
+    const eraseStartBeat = snapDownToGrid(entry.startBeat, gridBeats);
+    const eraseEndBeat = snapUpToGrid(entry.startBeat + entry.durationBeats, gridBeats);
+    nextNotes = eraseNotesInBeatRange(nextNotes, eraseStartBeat, eraseEndBeat, protectedNoteIds);
+  }
+  return nextNotes.map((note) => {
+    const match = updates.find((entry) => entry.noteId === note.id);
+    return match && note.durationBeats !== match.durationBeats ? { ...note, durationBeats: match.durationBeats } : note;
+  });
 };

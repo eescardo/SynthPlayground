@@ -5,9 +5,10 @@ import { AudioEngine } from "@/audio/engine";
 import { createId } from "@/lib/ids";
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
 import { eraseNotesInBeatRange } from "@/lib/noteEditing";
-import { formatBeatName, snapDownToGrid, snapToGrid, snapUpToGrid } from "@/lib/musicTiming";
+import { formatBeatName, snapDownToGrid, snapToGrid } from "@/lib/musicTiming";
 import {
   advanceRecordPassEraseBeat,
+  applyActiveRecordedNoteExtensions,
   createRecordPassOverwrite,
   getRecordPassProtectedNoteIds,
   markRecordPassGridCellErased,
@@ -179,29 +180,29 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
             if (trackUpdates.length === 0) {
               return track;
             }
-            const protectedNoteIds = getRecordPassProtectedNoteIds(
-              recordPassRef.current,
-              track.id,
-              Array.from(activeRecordKeys.current.values()).map((entry) => entry.noteId)
-            );
-            let nextNotes = track.notes;
-            for (const entry of trackUpdates) {
-              const eraseStartBeat = snapDownToGrid(entry.startBeat, project.global.gridBeats);
-              const eraseEndBeat = snapUpToGrid(entry.startBeat + entry.durationBeats, project.global.gridBeats);
-              const erasedNotes = eraseNotesInBeatRange(nextNotes, eraseStartBeat, eraseEndBeat, protectedNoteIds);
-              if (erasedNotes !== nextNotes) {
-                nextNotes = erasedNotes;
-                changed = true;
-              }
-            }
-            nextNotes = nextNotes.map((note) => {
-              const match = trackUpdates.find((entry) => entry.noteId === note.id);
-              if (!match || note.durationBeats === match.durationBeats) {
-                return note;
-              }
-              changed = true;
-              return { ...note, durationBeats: match.durationBeats };
+            const nextNotes = applyActiveRecordedNoteExtensions({
+              activeNoteIds: Array.from(activeRecordKeys.current.values()).map((entry) => entry.noteId),
+              gridBeats: project.global.gridBeats,
+              notes: track.notes,
+              recordPass: recordPassRef.current,
+              trackId: track.id,
+              updates: trackUpdates
             });
+            if (
+              nextNotes.length === track.notes.length &&
+              nextNotes.every((note, index) => {
+                const previous = track.notes[index];
+                return (
+                  previous &&
+                  previous.id === note.id &&
+                  previous.startBeat === note.startBeat &&
+                  previous.durationBeats === note.durationBeats
+                );
+              })
+            ) {
+              return track;
+            }
+            changed = true;
             return changed ? { ...track, notes: nextNotes } : track;
           });
           return changed ? { ...current, tracks } : current;
@@ -228,9 +229,13 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
               if (trackUpdates.length === 0) {
                 return track;
               }
-              const nextNotes = track.notes.map((note) => {
-                const match = trackUpdates.find((entry) => entry.noteId === note.id);
-                return match ? { ...note, durationBeats: match.durationBeats } : note;
+              const nextNotes = applyActiveRecordedNoteExtensions({
+                activeNoteIds: Array.from(activeRecordKeys.current.values()).map((entry) => entry.noteId),
+                gridBeats: project.global.gridBeats,
+                notes: track.notes,
+                recordPass: recordPassRef.current,
+                trackId: track.id,
+                updates: trackUpdates
               });
               return { ...track, notes: nextNotes };
             })

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   advanceRecordPassEraseBeat,
+  applyActiveRecordedNoteExtensions,
   createRecordPassOverwrite,
   getRecordPassProtectedNoteIds,
   markRecordPassGridCellErased,
@@ -32,5 +33,50 @@ describe("record pass overwrite helpers", () => {
       new Set(["active-note", "created-note"])
     );
     expect(getRecordPassProtectedNoteIds(recordPass, "other-track", ["active-note"])).toEqual(new Set(["active-note"]));
+  });
+
+  it("erases old timeline material touched by an extending active recorded note", () => {
+    const recordPass = createRecordPassOverwrite("track-1", 0);
+    registerRecordPassCreatedNote(recordPass, "track-1", "recorded-note");
+
+    const notes = applyActiveRecordedNoteExtensions({
+      activeNoteIds: ["recorded-note"],
+      gridBeats: 0.25,
+      notes: [
+        {
+          id: "recorded-note",
+          pitchStr: "F3",
+          startBeat: 0.25,
+          durationBeats: 0.25,
+          velocity: 0.9
+        },
+        {
+          id: "old-note",
+          pitchStr: "F3",
+          startBeat: 0.5,
+          durationBeats: 0.5,
+          velocity: 0.8
+        }
+      ],
+      recordPass,
+      trackId: "track-1",
+      updates: [{ noteId: "recorded-note", startBeat: 0.25, durationBeats: 0.5 }]
+    });
+
+    expect(notes).toEqual([
+      {
+        id: "recorded-note",
+        pitchStr: "F3",
+        startBeat: 0.25,
+        durationBeats: 0.5,
+        velocity: 0.9
+      },
+      expect.objectContaining({
+        pitchStr: "F3",
+        startBeat: 0.75,
+        durationBeats: 0.25,
+        velocity: 0.8
+      })
+    ]);
   });
 });
