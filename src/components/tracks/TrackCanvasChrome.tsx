@@ -28,6 +28,7 @@ import { Project } from "@/types/music";
 interface TrackHeaderChromeProps {
   project: Project;
   canvasShellRef: RefObject<HTMLDivElement | null>;
+  canvasHeight: number;
   trackLayouts: TrackLayout[];
   selectedTrackId?: string;
   invalidPatchIds?: Set<string>;
@@ -70,6 +71,7 @@ const PATCH_SUMMARY_EXPANDED_MIN_HEIGHT = 184;
 export function TrackHeaderChrome({
   project,
   canvasShellRef,
+  canvasHeight,
   trackLayouts,
   selectedTrackId,
   invalidPatchIds,
@@ -96,7 +98,7 @@ export function TrackHeaderChrome({
     schedulePatchSummaryDismiss,
     cancelPatchSummaryDismiss
   } = usePatchSummaryPopover({ selectedTrackId });
-  const [canvasViewport, setCanvasViewport] = useState({ left: 0, top: 0, scrollLeft: 0, scrollTop: 0 });
+  const [canvasViewport, setCanvasViewport] = useState({ left: 0, top: 0, scrollTop: 0 });
 
   useEffect(() => {
     const shell = canvasShellRef.current;
@@ -105,11 +107,20 @@ export function TrackHeaderChrome({
     }
     const updateCanvasViewport = () => {
       const rect = shell.getBoundingClientRect();
-      setCanvasViewport({
+      const nextViewport = {
         left: rect.left,
         top: rect.top,
-        scrollLeft: shell.scrollLeft,
         scrollTop: shell.scrollTop
+      };
+      setCanvasViewport((previousViewport) => {
+        if (
+          previousViewport.left === nextViewport.left &&
+          previousViewport.top === nextViewport.top &&
+          previousViewport.scrollTop === nextViewport.scrollTop
+        ) {
+          return previousViewport;
+        }
+        return nextViewport;
       });
     };
     updateCanvasViewport();
@@ -122,7 +133,8 @@ export function TrackHeaderChrome({
   }, [canvasShellRef]);
 
   return (
-    <div className="track-header-overlays" style={{ transform: `translate3d(${canvasViewport.scrollLeft}px, 0, 0)` }}>
+    <div className="track-header-overlays">
+      <div className="track-header-mask" style={{ height: `${canvasHeight}px` }} />
       {project.tracks.map((track) => {
         const layout = trackLayouts.find((entry) => entry.trackId === track.id);
         if (!layout) {
@@ -195,6 +207,8 @@ export function TrackHeaderChrome({
         if (volumeLane) {
           macroPanelRows.push({
             id: `${track.id}:volume`,
+            label: "Volume",
+            stateLabel: "auto",
             top:
               (volumeLaneLayout?.y ?? layout.y + 72) +
               Math.max(
@@ -218,6 +232,8 @@ export function TrackHeaderChrome({
           }
           macroPanelRows.push({
             id: macro.id,
+            label: macro.name,
+            stateLabel: lane ? "auto" : "fixed",
             top:
               laneLayout.y +
               Math.max(0, (laneLayout.height - TRACK_INSPECTOR_ROW_HEIGHT) / 2) +

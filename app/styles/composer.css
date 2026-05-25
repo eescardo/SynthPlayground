@@ -215,14 +215,24 @@
 }
 
 .track-header-overlays {
-  position: absolute;
-  inset: 0 auto 0 0;
+  position: sticky;
+  top: 0;
+  left: 0;
   width: 170px;
-  overflow: hidden;
+  height: 0;
+  overflow: visible;
   pointer-events: none;
   z-index: 3;
+}
+
+.track-header-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 170px;
+  pointer-events: none;
+  z-index: 1;
   background: #121b27;
-  will-change: transform;
 }
 
 .track-header-row {
@@ -230,7 +240,7 @@
   left: 0;
   width: 100%;
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
   background: #121b27;
   border-bottom: 1px solid #1a2e42;
 }
@@ -658,12 +668,13 @@
   display: inline-flex;
   align-items: baseline;
   gap: 0.38rem;
-  color: #122c43;
+  color: #edf6ff;
   font-size: 0.69rem;
   line-height: 1.1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(3, 12, 20, 0.42);
 }
 
 .track-inspector-name {
@@ -674,7 +685,7 @@
 
 .track-inspector-state {
   flex: 0 0 auto;
-  color: #34526d;
+  color: #b8d3eb;
   font-family: "Courier New", monospace;
   font-size: 0.62rem;
   letter-spacing: 0.02em;

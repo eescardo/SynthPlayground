@@ -2,6 +2,8 @@
 
 export interface MacroPanelRow {
   id: string;
+  label: string;
+  stateLabel?: string;
   top: number;
   bindTitle: string;
   bindAriaLabel: string;
@@ -48,7 +50,11 @@ export function MacroPanel({
     >
       <div className="track-inspector-panel" />
       {rows.map((row) => (
-        <div key={row.id} className="track-inspector-row icon-only" style={{ top: `${row.top - panelTop}px` }}>
+        <div key={row.id} className="track-inspector-row" style={{ top: `${row.top - panelTop}px` }}>
+          <div className="track-inspector-row-label">
+            <span className="track-inspector-name">{row.label}</span>
+            {row.stateLabel && <span className="track-inspector-state">{row.stateLabel}</span>}
+          </div>
           <div className="track-inspector-row-actions">
             <button
               type="button"
