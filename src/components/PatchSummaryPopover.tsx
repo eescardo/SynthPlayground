@@ -138,6 +138,8 @@ export function PatchSummaryPopover(props: PatchSummaryPopoverProps) {
           aria-label="Open patch summary"
         >
           <TriangleGlyph direction="right" className="track-patch-summary-teaser-glyph" />
+          <TriangleGlyph direction="right" className="track-patch-summary-teaser-glyph" />
+          <TriangleGlyph direction="right" className="track-patch-summary-teaser-glyph" />
         </button>
       </div>
     );
