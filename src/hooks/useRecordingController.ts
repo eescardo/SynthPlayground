@@ -5,7 +5,7 @@ import { AudioEngine } from "@/audio/engine";
 import { createId } from "@/lib/ids";
 import { keyToPitch, pitchToVoct } from "@/lib/pitch";
 import { eraseNotesInBeatRange } from "@/lib/noteEditing";
-import { formatBeatName, snapDownToGrid, snapToGrid } from "@/lib/musicTiming";
+import { formatBeatName, snapDownToGrid, snapToGrid, snapUpToGrid } from "@/lib/musicTiming";
 import {
   advanceRecordPassEraseBeat,
   createRecordPassOverwrite,
@@ -179,7 +179,22 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
             if (trackUpdates.length === 0) {
               return track;
             }
-            const nextNotes = track.notes.map((note) => {
+            const protectedNoteIds = getRecordPassProtectedNoteIds(
+              recordPassRef.current,
+              track.id,
+              Array.from(activeRecordKeys.current.values()).map((entry) => entry.noteId)
+            );
+            let nextNotes = track.notes;
+            for (const entry of trackUpdates) {
+              const eraseStartBeat = snapDownToGrid(entry.startBeat, project.global.gridBeats);
+              const eraseEndBeat = snapUpToGrid(entry.startBeat + entry.durationBeats, project.global.gridBeats);
+              const erasedNotes = eraseNotesInBeatRange(nextNotes, eraseStartBeat, eraseEndBeat, protectedNoteIds);
+              if (erasedNotes !== nextNotes) {
+                nextNotes = erasedNotes;
+                changed = true;
+              }
+            }
+            nextNotes = nextNotes.map((note) => {
               const match = trackUpdates.find((entry) => entry.noteId === note.id);
               if (!match || note.durationBeats === match.durationBeats) {
                 return note;
