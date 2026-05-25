@@ -2,6 +2,7 @@ import { CSSProperties, Dispatch, RefObject, SetStateAction, useEffect, useState
 import { MacroPanel, MacroPanelRow } from "@/components/tracks/MacroPanel";
 import { PatchSummaryPopover } from "@/components/PatchSummaryPopover";
 import { TrackVolumePopover } from "@/components/TrackVolumePopover";
+import { TriangleGlyph } from "@/components/icons/TriangleGlyph";
 import { useRenameActivation } from "@/hooks/useRenameActivation";
 import {
   AUTOMATION_LANE_COLLAPSED_HEIGHT,
@@ -224,7 +225,7 @@ export function TrackHeaderChrome({
             onBindToggle: () => trackActions.onUnbindTrackVolumeFromAutomation(track.id),
             expandTitle: volumeLane.expanded ? "Collapse lane" : "Expand lane",
             expandAriaLabel: volumeLane.expanded ? "Collapse lane" : "Expand lane",
-            expandIcon: volumeLane.expanded ? "^" : "v",
+            expandDirection: volumeLane.expanded ? "up" : "down",
             onExpandToggle: () => trackActions.onToggleTrackVolumeAutomationLane(track.id)
           });
         }
@@ -251,7 +252,7 @@ export function TrackHeaderChrome({
                   ),
             expandTitle: lane ? (lane.expanded ? "Collapse lane" : "Expand lane") : undefined,
             expandAriaLabel: lane ? (lane.expanded ? "Collapse lane" : "Expand lane") : undefined,
-            expandIcon: lane ? (lane.expanded ? "^" : "v") : undefined,
+            expandDirection: lane ? (lane.expanded ? "up" : "down") : undefined,
             onExpandToggle: lane
               ? () => automationActions.onToggleTrackMacroAutomationLane(track.id, macro.id)
               : undefined
@@ -336,7 +337,10 @@ export function TrackHeaderChrome({
                   trackActions.onToggleTrackMacroPanel(track.id);
                 }}
               >
-                {track.macroPanelExpanded ? "^" : "v"}
+                <TriangleGlyph
+                  direction={track.macroPanelExpanded ? "up" : "down"}
+                  className={styles.macroToggleGlyph}
+                />
               </button>
             )}
             {volumePopoverTrackId === track.id && (

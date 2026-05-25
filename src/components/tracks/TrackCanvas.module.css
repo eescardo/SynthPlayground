@@ -101,6 +101,12 @@
   cursor: pointer;
 }
 
+.macroToggleGlyph {
+  width: 0.72rem;
+  height: 0.72rem;
+  color: currentColor;
+}
+
 .macroPanelArea {
   position: absolute;
   left: 8px;
@@ -252,6 +258,12 @@
   border-left: 1px solid rgba(175, 210, 239, 0.28);
   color: #f4fbff;
   font-size: 0.64rem;
+}
+
+.expandGlyph {
+  width: 0.54rem;
+  height: 0.54rem;
+  color: currentColor;
 }
 
 .inspectorStatusButton:hover,

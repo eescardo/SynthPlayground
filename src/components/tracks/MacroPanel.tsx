@@ -1,5 +1,6 @@
 "use client";
 
+import { TriangleGlyph } from "@/components/icons/TriangleGlyph";
 import styles from "./TrackCanvas.module.css";
 
 export interface MacroPanelRow {
@@ -14,7 +15,7 @@ export interface MacroPanelRow {
   onBindToggle: () => void;
   expandTitle?: string;
   expandAriaLabel?: string;
-  expandIcon?: string;
+  expandDirection?: "up" | "down";
   onExpandToggle?: () => void;
 }
 
@@ -82,7 +83,7 @@ export function MacroPanel({
                   aria-label={row.expandAriaLabel ?? "Expand lane"}
                   onClick={row.onExpandToggle}
                 >
-                  {row.expandIcon ?? " "}
+                  <TriangleGlyph direction={row.expandDirection ?? "down"} className={styles.expandGlyph} />
                 </button>
               )}
             </span>
