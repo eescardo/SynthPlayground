@@ -26,6 +26,7 @@ import { usePatchSummaryPopover } from "@/hooks/tracks/usePatchSummaryPopover";
 import { getTrackMacroLane, getTrackVolumeLane } from "@/lib/macroAutomation";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
+import { VerticalDirection } from "@/types/direction";
 import { Project } from "@/types/music";
 import styles from "./TrackCanvas.module.css";
 
@@ -157,7 +158,7 @@ const buildMacroPanelRow = (args: {
   onBindToggle: () => void;
   expandTitle?: string;
   expandAriaLabel?: string;
-  expandDirection?: "up" | "down";
+  expandDirection?: VerticalDirection;
   onExpandToggle?: () => void;
 }): MacroPanelRow => ({
   id: args.id,

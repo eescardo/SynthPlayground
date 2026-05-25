@@ -2,6 +2,7 @@
 
 import { MouseEvent as ReactMouseEvent } from "react";
 import { TriangleGlyph } from "@/components/icons/TriangleGlyph";
+import { VerticalDirection } from "@/types/direction";
 import styles from "./TrackCanvas.module.css";
 
 export interface MacroPanelRow {
@@ -16,7 +17,7 @@ export interface MacroPanelRow {
   onBindToggle: () => void;
   expandTitle?: string;
   expandAriaLabel?: string;
-  expandDirection?: "up" | "down";
+  expandDirection?: VerticalDirection;
   onExpandToggle?: () => void;
 }
 
