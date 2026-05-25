@@ -66,7 +66,7 @@ const TRACK_INSPECTOR_PANEL_VERTICAL_PADDING = 6;
 const TRACK_INSPECTOR_PANEL_MARGIN_TOP = 2;
 const TRACK_INSPECTOR_PANEL_MARGIN_BOTTOM = 6;
 const TRACK_INSPECTOR_ROW_HEIGHT = 20;
-const TRACK_INSPECTOR_ROW_Y_OFFSET = -3;
+const TRACK_INSPECTOR_ROW_TOP_INSET = 1;
 const PATCH_SUMMARY_EXPANDED_MIN_HEIGHT = 184;
 
 export function TrackHeaderChrome({
@@ -213,13 +213,12 @@ export function TrackHeaderChrome({
             id: `${track.id}:volume`,
             label: "Volume",
             stateLabel: "auto",
-            top:
-              (volumeLaneLayout?.y ?? layout.y + 72) +
-              Math.max(
-                0,
-                ((volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT) - TRACK_INSPECTOR_ROW_HEIGHT) / 2
-              ) +
-              TRACK_INSPECTOR_ROW_Y_OFFSET,
+            top: (volumeLaneLayout?.y ?? layout.y + 72) + TRACK_INSPECTOR_ROW_TOP_INSET,
+            height: Math.max(
+              TRACK_INSPECTOR_ROW_HEIGHT,
+              (volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT) - TRACK_INSPECTOR_ROW_TOP_INSET * 2
+            ),
+            expanded: Boolean(volumeLaneLayout?.expanded),
             bindTitle: "Use fixed value",
             bindAriaLabel: "Use fixed value",
             onBindToggle: () => trackActions.onUnbindTrackVolumeFromAutomation(track.id),
@@ -237,10 +236,9 @@ export function TrackHeaderChrome({
             id: macro.id,
             label: macro.name,
             stateLabel: lane ? "auto" : "fixed",
-            top:
-              laneLayout.y +
-              Math.max(0, (laneLayout.height - TRACK_INSPECTOR_ROW_HEIGHT) / 2) +
-              TRACK_INSPECTOR_ROW_Y_OFFSET,
+            top: laneLayout.y + TRACK_INSPECTOR_ROW_TOP_INSET,
+            height: Math.max(TRACK_INSPECTOR_ROW_HEIGHT, laneLayout.height - TRACK_INSPECTOR_ROW_TOP_INSET * 2),
+            expanded: laneLayout.expanded,
             bindTitle: lane ? "Use fixed value" : "Automate in timeline",
             bindAriaLabel: lane ? "Use fixed value" : "Automate in timeline",
             onBindToggle: lane

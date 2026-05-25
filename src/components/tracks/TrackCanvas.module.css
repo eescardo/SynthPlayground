@@ -157,14 +157,17 @@
   position: absolute;
   left: 4px;
   width: 148px;
-  min-height: 20px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.25rem;
   pointer-events: auto;
   z-index: 3;
   padding: 0 0.2rem 0 0.55rem;
+}
+
+.inspectorRowExpanded {
+  align-items: flex-start;
 }
 
 .inspectorRowLabel {
@@ -180,16 +183,28 @@
   text-shadow: 0 1px 2px rgba(3, 12, 20, 0.42);
 }
 
+.inspectorRowExpanded .inspectorRowLabel {
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+
 .inspectorName {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.inspectorRowExpanded .inspectorName {
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .inspectorRowActions {
   display: inline-flex;
   align-items: center;
-  flex: 0 0 3.35rem;
+  flex: 0 0 2.9rem;
   justify-content: flex-end;
 }
 
@@ -197,7 +212,7 @@
   display: inline-flex;
   align-items: stretch;
   justify-content: flex-end;
-  width: 3.35rem;
+  width: 2.9rem;
   height: 1.14rem;
   overflow: hidden;
   border: 1px solid rgba(175, 210, 239, 0.38);
@@ -221,19 +236,19 @@
 
 .inspectorStatusButton {
   flex: 1 1 auto;
-  padding: 0 0.38rem;
-  font-size: 0.58rem;
+  padding: 0 0.24rem;
+  font-size: 0.56rem;
   letter-spacing: 0.02em;
-  text-align: right;
+  text-align: left;
   text-transform: lowercase;
 }
 
 .hasExpand .inspectorStatusButton {
-  padding-right: 0.24rem;
+  padding-right: 0.16rem;
 }
 
 .inspectorExpandButton {
-  flex: 0 0 1.05rem;
+  flex: 0 0 0.86rem;
   border-left: 1px solid rgba(175, 210, 239, 0.28);
   color: #f4fbff;
   font-size: 0.64rem;

@@ -7,6 +7,8 @@ export interface MacroPanelRow {
   label: string;
   stateLabel?: string;
   top: number;
+  height: number;
+  expanded: boolean;
   bindTitle: string;
   bindAriaLabel: string;
   onBindToggle: () => void;
@@ -52,8 +54,11 @@ export function MacroPanel({
       {rows.map((row) => (
         <div
           key={row.id}
-          className={`track-inspector-row ${styles.inspectorRow}`}
-          style={{ top: `${row.top - panelTop}px` }}
+          className={`track-inspector-row ${styles.inspectorRow}${row.expanded ? ` ${styles.inspectorRowExpanded}` : ""}`}
+          style={{
+            top: `${row.top - panelTop}px`,
+            height: `${row.height}px`
+          }}
         >
           <div className={`track-inspector-row-label ${styles.inspectorRowLabel}`}>
             <span className={`track-inspector-name ${styles.inspectorName}`}>{row.label}</span>
