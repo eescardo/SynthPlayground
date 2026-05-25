@@ -705,7 +705,9 @@ export const setupMacroAutomationLane = async (page: Page, options?: { settleMs?
     if (await expandButton.isVisible().catch(() => false)) {
       await expandButton.click();
     }
-    const automateButton = page.locator('.track-inspector-action-button[title="Automate in timeline"]').first();
+    const automateButton = page
+      .locator('.track-inspector-action-button[title="Click to automate in timeline"]')
+      .first();
     if (await automateButton.isVisible().catch(() => false)) {
       await automateButton.click();
       automated = true;
