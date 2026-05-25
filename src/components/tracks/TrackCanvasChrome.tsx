@@ -69,6 +69,8 @@ const TRACK_INSPECTOR_PANEL_MARGIN_BOTTOM = 1;
 const TRACK_INSPECTOR_ROW_HEIGHT = 20;
 const TRACK_INSPECTOR_ROW_TOP_INSET = 1;
 const PATCH_SUMMARY_EXPANDED_MIN_HEIGHT = 184;
+const MACRO_PILL_AUTO_TITLE = "Automated in timeline. Click to revert to fixed value";
+const MACRO_PILL_FIXED_TITLE = "Click to automate in timeline";
 
 export function TrackHeaderChrome({
   project,
@@ -221,8 +223,8 @@ export function TrackHeaderChrome({
               (volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT) - TRACK_INSPECTOR_ROW_TOP_INSET * 2
             ),
             expanded: Boolean(volumeLaneLayout?.expanded),
-            bindTitle: "Use fixed value",
-            bindAriaLabel: "Use fixed value",
+            bindTitle: MACRO_PILL_AUTO_TITLE,
+            bindAriaLabel: MACRO_PILL_AUTO_TITLE,
             onBindToggle: () => trackActions.onUnbindTrackVolumeFromAutomation(track.id),
             expandTitle: volumeLane.expanded ? "Collapse lane" : "Expand lane",
             expandAriaLabel: volumeLane.expanded ? "Collapse lane" : "Expand lane",
@@ -241,8 +243,8 @@ export function TrackHeaderChrome({
             top: laneLayout.y + TRACK_INSPECTOR_ROW_TOP_INSET,
             height: Math.max(TRACK_INSPECTOR_ROW_HEIGHT, laneLayout.height - TRACK_INSPECTOR_ROW_TOP_INSET * 2),
             expanded: laneLayout.expanded,
-            bindTitle: lane ? "Use fixed value" : "Automate in timeline",
-            bindAriaLabel: lane ? "Use fixed value" : "Automate in timeline",
+            bindTitle: lane ? MACRO_PILL_AUTO_TITLE : MACRO_PILL_FIXED_TITLE,
+            bindAriaLabel: lane ? MACRO_PILL_AUTO_TITLE : MACRO_PILL_FIXED_TITLE,
             onBindToggle: lane
               ? () => automationActions.onUnbindTrackMacroFromAutomation(track.id, macro.id)
               : () =>
