@@ -2,7 +2,12 @@
 
 import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import { BaseHardwareNavigationResult } from "@/hooks/useBaseHardwareNavigation";
-import { isModifierChord, isPlayheadTabStopFocused, isTextEditingTarget } from "@/hooks/hardwareNavigationUtils";
+import {
+  isModifierChord,
+  isPlayheadTabStopFocused,
+  isTextEditingTarget,
+  isTrackChromeKeyboardTarget
+} from "@/hooks/hardwareNavigationUtils";
 import {
   ActiveKeyboardPlacement,
   GhostPreviewNote,
@@ -723,8 +728,8 @@ export function useComposerHardwareNavigation({
 
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      const playheadDomFocused = target?.classList.contains("track-canvas-playhead-tabstop") ?? false;
-      const noteTabStopFocused = target?.classList.contains("track-canvas-note-tabstop") ?? false;
+      const playheadDomFocused = target?.dataset.trackControl === "playhead-tabstop";
+      const noteTabStopFocused = target?.dataset.trackControl === "selected-content-tabstop";
       const selectionPopoverFocused = Boolean(target?.closest(".selection-actions-popover"));
       const selectionCaptureFocused = noteTabStopFocused || selectionPopoverFocused;
       const hasContentSelection =
@@ -742,6 +747,10 @@ export function useComposerHardwareNavigation({
         return;
       }
       if (isModifierChord(event)) {
+        return;
+      }
+      const trackChromeKeyboardFocused = isTrackChromeKeyboardTarget(event.target);
+      if (trackChromeKeyboardFocused && event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
         return;
       }
       const normalizedPhysicalTriggerKey = normalizePhysicalPitchKey(event.key);

@@ -1,6 +1,6 @@
 "use client";
 
-import { MouseEvent as ReactMouseEvent } from "react";
+import { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
 import { TriangleGlyph } from "@/components/icons/TriangleGlyph";
 import { VerticalDirection } from "@/types/direction";
 import styles from "./TrackCanvas.module.css";
@@ -42,6 +42,17 @@ export function MacroPanel({
     return null;
   }
 
+  const handleButtonKeyDown = (onAction: () => void) => (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    if (!event.repeat) {
+      onAction();
+    }
+  };
+
   return (
     <div
       className={styles.macroPanelArea}
@@ -76,6 +87,7 @@ export function MacroPanel({
                 title={row.bindTitle}
                 aria-label={row.bindAriaLabel}
                 onClick={row.onBindToggle}
+                onKeyDown={handleButtonKeyDown(row.onBindToggle)}
                 onDoubleClick={(event) => event.stopPropagation()}
               >
                 {row.stateLabel}
@@ -88,6 +100,7 @@ export function MacroPanel({
                   title={row.expandTitle ?? "Expand lane"}
                   aria-label={row.expandAriaLabel ?? "Expand lane"}
                   onClick={row.onExpandToggle}
+                  onKeyDown={handleButtonKeyDown(row.onExpandToggle)}
                   onDoubleClick={(event) => event.stopPropagation()}
                 >
                   <TriangleGlyph direction={row.expandDirection ?? "down"} className={styles.expandGlyph} />

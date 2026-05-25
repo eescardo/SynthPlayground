@@ -15,7 +15,12 @@ export const isModifierChord = (event: KeyboardEvent) => event.metaKey || event.
 
 export const isPlayheadTabStopFocused = () => {
   const activeElement = document.activeElement as HTMLElement | null;
-  return activeElement?.classList.contains("track-canvas-playhead-tabstop") ?? false;
+  return activeElement?.dataset.trackControl === "playhead-tabstop";
+};
+
+export const isTrackChromeKeyboardTarget = (target: EventTarget | null) => {
+  const element = target as HTMLElement | null;
+  return Boolean(element?.closest('[data-track-chrome="header-overlays"]'));
 };
 
 export const focusLastTrackChromeTabStop = () => {
