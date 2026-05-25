@@ -5,6 +5,7 @@ export const RULER_HEIGHT = 28;
 export const TRACK_HEIGHT = 72;
 export const AUTOMATION_LANE_HEIGHT = 56;
 export const AUTOMATION_LANE_COLLAPSED_HEIGHT = 22;
+export const TRACK_MACRO_PANEL_EXPANDED_BOTTOM_GAP = 8;
 export const BEAT_WIDTH = 72;
 export const POINTER_DRAG_THRESHOLD_PX = 4;
 export const MUTE_ICON_SIZE = 16;
