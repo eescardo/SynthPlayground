@@ -24,6 +24,7 @@ import { getTrackMacroLane, getTrackVolumeLane } from "@/lib/macroAutomation";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
 import { Project } from "@/types/music";
+import styles from "./TrackCanvas.module.css";
 
 interface TrackHeaderChromeProps {
   project: Project;
@@ -133,8 +134,8 @@ export function TrackHeaderChrome({
   }, [canvasShellRef]);
 
   return (
-    <div className="track-header-overlays">
-      <div className="track-header-mask" style={{ height: `${canvasHeight}px` }} />
+    <div className={`track-header-overlays ${styles.headerOverlays}`}>
+      <div className={`track-header-mask ${styles.headerMask}`} style={{ height: `${canvasHeight}px` }} />
       {project.tracks.map((track) => {
         const layout = trackLayouts.find((entry) => entry.trackId === track.id);
         if (!layout) {
@@ -262,7 +263,9 @@ export function TrackHeaderChrome({
         return (
           <div key={track.id}>
             <div
-              className={`track-header-row${selected ? " selected" : ""}${patchInvalid ? " invalid" : ""}`}
+              className={`track-header-row ${styles.headerRow}${selected ? ` ${styles.headerRowSelected}` : ""}${
+                patchInvalid ? ` ${styles.headerRowInvalid}` : ""
+              }`}
               style={{
                 top: `${layout.y}px`,
                 height: `${layout.height}px`
@@ -276,9 +279,9 @@ export function TrackHeaderChrome({
             />
             <button
               type="button"
-              className={`track-name-button${renameActivation.isArmed(track.id) ? " rename-armed" : ""}${
-                patchInvalid ? " invalid" : ""
-              }`}
+              className={`track-name-button ${styles.trackNameButton}${
+                renameActivation.isArmed(track.id) ? ` rename-armed ${styles.renameArmed}` : ""
+              }${patchInvalid ? ` invalid ${styles.trackNameButtonInvalid}` : ""}`}
               aria-label={`Rename track ${track.name}`}
               style={{
                 top: `${layout.y + 8}px`,
@@ -303,7 +306,7 @@ export function TrackHeaderChrome({
             </button>
             <button
               type="button"
-              className="track-volume-button"
+              className={`track-volume-button ${styles.volumeButton}`}
               aria-label={`Track volume for ${track.name}`}
               aria-expanded={volumePopoverTrackId === track.id}
               style={{
@@ -322,7 +325,7 @@ export function TrackHeaderChrome({
             {selected && (
               <button
                 type="button"
-                className="track-macro-toggle-button"
+                className={`track-macro-toggle-button ${styles.macroToggleButton}`}
                 aria-label={track.macroPanelExpanded ? "Collapse macro lanes" : "Expand macro lanes"}
                 title={track.macroPanelExpanded ? "Collapse macro lanes" : "Expand macro lanes"}
                 style={{
@@ -386,7 +389,9 @@ export function TrackHeaderChrome({
               />
             )}
             <select
-              className={`track-patch-select track-instrument-selection${patchInvalid ? " invalid" : ""}`}
+              className={`track-patch-select track-instrument-selection ${styles.patchSelect}${
+                patchInvalid ? ` invalid ${styles.patchSelectInvalid}` : ""
+              }`}
               value={track.instrumentPatchId}
               style={{
                 top: `${layout.y + MACRO_PANEL_TOGGLE_Y_OFFSET}px`,

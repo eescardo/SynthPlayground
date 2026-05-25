@@ -1,5 +1,7 @@
 "use client";
 
+import styles from "./TrackCanvas.module.css";
+
 export interface MacroPanelRow {
   id: string;
   label: string;
@@ -39,7 +41,7 @@ export function MacroPanel({
 
   return (
     <div
-      className="track-macro-panel-area"
+      className={`track-macro-panel-area ${styles.macroPanelArea}`}
       style={{
         top: `${panelTop}px`,
         height: `${panelHeight}px`
@@ -48,17 +50,23 @@ export function MacroPanel({
       onMouseLeave={onMouseLeave}
       onDoubleClick={onDoubleClick}
     >
-      <div className="track-inspector-panel" />
+      <div className={`track-inspector-panel ${styles.inspectorPanel}`} />
       {rows.map((row) => (
-        <div key={row.id} className="track-inspector-row" style={{ top: `${row.top - panelTop}px` }}>
-          <div className="track-inspector-row-label">
-            <span className="track-inspector-name">{row.label}</span>
-            {row.stateLabel && <span className="track-inspector-state">{row.stateLabel}</span>}
+        <div
+          key={row.id}
+          className={`track-inspector-row ${styles.inspectorRow}`}
+          style={{ top: `${row.top - panelTop}px` }}
+        >
+          <div className={`track-inspector-row-label ${styles.inspectorRowLabel}`}>
+            <span className={`track-inspector-name ${styles.inspectorName}`}>{row.label}</span>
+            {row.stateLabel && (
+              <span className={`track-inspector-state ${styles.inspectorState}`}>{row.stateLabel}</span>
+            )}
           </div>
-          <div className="track-inspector-row-actions">
+          <div className={`track-inspector-row-actions ${styles.inspectorRowActions}`}>
             <button
               type="button"
-              className="track-inspector-action-button"
+              className={`track-inspector-action-button ${styles.inspectorActionButton}`}
               title={row.bindTitle}
               aria-label={row.bindAriaLabel}
               onClick={row.onBindToggle}
@@ -67,7 +75,9 @@ export function MacroPanel({
             </button>
             <button
               type="button"
-              className={`track-inspector-action-button${row.expandPlaceholder ? " placeholder" : ""}`}
+              className={`track-inspector-action-button ${styles.inspectorActionButton}${
+                row.expandPlaceholder ? ` placeholder ${styles.placeholderActionButton}` : ""
+              }`}
               title={row.expandTitle ?? "Expand lane"}
               aria-label={row.expandAriaLabel ?? "Expand lane"}
               disabled={!row.onExpandToggle}
