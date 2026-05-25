@@ -44,7 +44,8 @@ export function MacroPanel({
 
   return (
     <div
-      className={`track-macro-panel-area ${styles.macroPanelArea}`}
+      className={styles.macroPanelArea}
+      data-track-chrome="macro-panel"
       style={{
         top: `${panelTop}px`,
         height: `${panelHeight}px`
@@ -53,24 +54,25 @@ export function MacroPanel({
       onMouseLeave={onMouseLeave}
       onDoubleClick={onDoubleClick}
     >
-      <div className={`track-inspector-panel ${styles.inspectorPanel}`} />
+      <div className={styles.inspectorPanel} />
       {rows.map((row) => (
         <div
           key={row.id}
-          className={`track-inspector-row ${styles.inspectorRow}${row.expanded ? ` ${styles.inspectorRowExpanded}` : ""}`}
+          className={`${styles.inspectorRow}${row.expanded ? ` ${styles.inspectorRowExpanded}` : ""}`}
           style={{
             top: `${row.top - panelTop}px`,
             height: `${row.height}px`
           }}
         >
-          <div className={`track-inspector-row-label ${styles.inspectorRowLabel}`}>
-            <span className={`track-inspector-name ${styles.inspectorName}`}>{row.label}</span>
+          <div className={styles.inspectorRowLabel}>
+            <span className={styles.inspectorName}>{row.label}</span>
           </div>
-          <div className={`track-inspector-row-actions ${styles.inspectorRowActions}`}>
+          <div className={styles.inspectorRowActions}>
             <span className={`${styles.inspectorStatusPill}${row.onExpandToggle ? ` ${styles.hasExpand}` : ""}`}>
               <button
                 type="button"
-                className={`track-inspector-action-button ${styles.inspectorStatusButton}`}
+                className={styles.inspectorStatusButton}
+                data-testid="track-inspector-action-button"
                 title={row.bindTitle}
                 aria-label={row.bindAriaLabel}
                 onClick={row.onBindToggle}
@@ -81,7 +83,8 @@ export function MacroPanel({
               {row.onExpandToggle && (
                 <button
                   type="button"
-                  className={`track-inspector-action-button ${styles.inspectorExpandButton}`}
+                  className={styles.inspectorExpandButton}
+                  data-testid="track-inspector-action-button"
                   title={row.expandTitle ?? "Expand lane"}
                   aria-label={row.expandAriaLabel ?? "Expand lane"}
                   onClick={row.onExpandToggle}

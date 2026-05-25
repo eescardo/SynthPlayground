@@ -31,7 +31,7 @@ export const openApp = async (page: Page) => {
   await clearPersistedProject(page);
   await page.goto("/");
   await expect(page.locator(".track-canvas-shell")).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator(".track-name-button").first()).toBeVisible();
+  await expect(page.locator('[data-testid="track-name-button"]').first()).toBeVisible();
 };
 
 export const openPatchWorkspaceApp = async (page: Page) => {
@@ -89,7 +89,7 @@ export const openSeededApp = async (page: Page, project: Project) => {
   await seedProject(page, project);
   await page.goto("/");
   await expect(page.locator(".track-canvas-shell")).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator(".track-name-button").first()).toBeVisible();
+  await expect(page.locator('[data-testid="track-name-button"]').first()).toBeVisible();
 };
 
 const getDefaultPatchWorkspacePatch = (): Patch => {
@@ -696,7 +696,7 @@ const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canva
 export const setupMacroAutomationLane = async (page: Page, options?: { settleMs?: number }) => {
   await openApp(page);
   const settleMs = options?.settleMs ?? 0;
-  const trackButtons = page.locator(".track-name-button");
+  const trackButtons = page.locator('[data-testid="track-name-button"]');
   const trackCount = await trackButtons.count();
   let automated = false;
   for (let index = 0; index < trackCount; index += 1) {
@@ -706,7 +706,7 @@ export const setupMacroAutomationLane = async (page: Page, options?: { settleMs?
       await expandButton.click();
     }
     const automateButton = page
-      .locator('.track-inspector-action-button[title="Click to automate in timeline"]')
+      .locator('[data-testid="track-inspector-action-button"][title="Click to automate in timeline"]')
       .first();
     if (await automateButton.isVisible().catch(() => false)) {
       await automateButton.click();
@@ -717,7 +717,9 @@ export const setupMacroAutomationLane = async (page: Page, options?: { settleMs?
   if (!automated) {
     throw new Error("Could not find a track with macro automation actions for capture setup.");
   }
-  await expect(page.locator('.track-inspector-action-button[title="Collapse lane"]').first()).toBeVisible();
+  await expect(
+    page.locator('[data-testid="track-inspector-action-button"][title="Collapse lane"]').first()
+  ).toBeVisible();
 
   const canvas = getTrackCanvas(page);
   await canvas.click({ position: { x: 430, y: 118 } });

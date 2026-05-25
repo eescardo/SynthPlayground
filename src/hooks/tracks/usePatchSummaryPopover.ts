@@ -59,7 +59,11 @@ export function usePatchSummaryPopover(options: UsePatchSummaryPopoverOptions) {
 
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as HTMLElement | null;
-      if (target?.closest(".track-patch-summary-popover, .track-instrument-selection, .track-macro-panel-area")) {
+      if (
+        target?.closest(
+          '[data-track-popover="patch-summary"], [data-track-control="instrument-selection"], [data-track-chrome="macro-panel"]'
+        )
+      ) {
         return;
       }
       closePatchSummaryPopover();

@@ -317,10 +317,11 @@ export function TrackHeaderChrome({
 
   return (
     <div
-      className={`track-header-overlays ${styles.headerOverlays}`}
+      className={styles.headerOverlays}
+      data-track-chrome="header-overlays"
       style={{ "--track-header-width": `${HEADER_WIDTH}px` } as CSSProperties}
     >
-      <div className={`track-header-mask ${styles.headerMask}`} style={{ height: `${canvasHeight}px` }} />
+      <div className={styles.headerMask} style={{ height: `${canvasHeight}px` }} />
       {project.tracks.map((track) => {
         const layout = trackLayouts.find((entry) => entry.trackId === track.id);
         if (!layout) {
@@ -357,7 +358,7 @@ export function TrackHeaderChrome({
         return (
           <div key={track.id}>
             <div
-              className={`track-header-row ${styles.headerRow}${selected ? ` ${styles.headerRowSelected}` : ""}${
+              className={`${styles.headerRow}${selected ? ` ${styles.headerRowSelected}` : ""}${
                 patchInvalid ? ` ${styles.headerRowInvalid}` : ""
               }`}
               style={{
@@ -380,9 +381,10 @@ export function TrackHeaderChrome({
             />
             <button
               type="button"
-              className={`track-name-button ${styles.trackNameButton}${
-                renameActivation.isArmed(track.id) ? ` rename-armed ${styles.renameArmed}` : ""
-              }${patchInvalid ? ` invalid ${styles.trackNameButtonInvalid}` : ""}`}
+              className={`${styles.trackNameButton}${
+                renameActivation.isArmed(track.id) ? ` ${styles.renameArmed}` : ""
+              }${patchInvalid ? ` ${styles.trackNameButtonInvalid}` : ""}`}
+              data-testid="track-name-button"
               aria-label={`Rename track ${track.name}`}
               style={{
                 top: `${layout.y + 8}px`,
@@ -407,7 +409,8 @@ export function TrackHeaderChrome({
             </button>
             <button
               type="button"
-              className={`track-volume-button ${styles.volumeButton}`}
+              className={styles.volumeButton}
+              data-track-chrome="volume-button"
               aria-label={`Track volume for ${track.name}`}
               aria-expanded={volumePopoverTrackId === track.id}
               style={{
@@ -426,7 +429,7 @@ export function TrackHeaderChrome({
             {selected && (
               <button
                 type="button"
-                className={`track-macro-toggle-button ${styles.macroToggleButton}`}
+                className={styles.macroToggleButton}
                 aria-label={track.macroPanelExpanded ? "Collapse macro lanes" : "Expand macro lanes"}
                 title={track.macroPanelExpanded ? "Collapse macro lanes" : "Expand macro lanes"}
                 style={{
@@ -493,9 +496,8 @@ export function TrackHeaderChrome({
               />
             )}
             <select
-              className={`track-patch-select track-instrument-selection ${styles.patchSelect}${
-                patchInvalid ? ` invalid ${styles.patchSelectInvalid}` : ""
-              }`}
+              className={`${styles.patchSelect}${patchInvalid ? ` ${styles.patchSelectInvalid}` : ""}`}
+              data-track-control="instrument-selection"
               value={track.instrumentPatchId}
               style={{
                 top: `${layout.y + MACRO_PANEL_TOGGLE_Y_OFFSET}px`,

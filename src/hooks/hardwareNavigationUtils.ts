@@ -21,7 +21,7 @@ export const isPlayheadTabStopFocused = () => {
 export const focusLastTrackChromeTabStop = () => {
   const focusableElements = Array.from(
     document.querySelectorAll<HTMLElement>(
-      ".track-header-overlays button:not([disabled]), .track-header-overlays input:not([disabled]), .track-header-overlays select:not([disabled]), .track-header-overlays [tabindex]:not([tabindex='-1'])"
+      "[data-track-chrome='header-overlays'] button:not([disabled]), [data-track-chrome='header-overlays'] input:not([disabled]), [data-track-chrome='header-overlays'] select:not([disabled]), [data-track-chrome='header-overlays'] [tabindex]:not([tabindex='-1'])"
     )
   ).filter((element) => element.offsetParent !== null);
   const lastFocusable = focusableElements[focusableElements.length - 1];

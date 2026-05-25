@@ -122,6 +122,7 @@ export function PatchSummaryPopover(props: PatchSummaryPopoverProps) {
     return (
       <div
         className="track-patch-summary-popover teaser"
+        data-track-popover="patch-summary"
         style={{
           position: props.fixed ? "fixed" : undefined,
           top: `${props.top}px`,
@@ -148,6 +149,7 @@ export function PatchSummaryPopover(props: PatchSummaryPopoverProps) {
   return (
     <div
       className="track-patch-summary-popover expanded"
+      data-track-popover="patch-summary"
       style={{
         position: props.fixed ? "fixed" : undefined,
         top: `${props.top}px`,

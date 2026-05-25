@@ -734,7 +734,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as HTMLElement | null;
-      if (target?.closest(".track-volume-button, .track-volume-popover")) {
+      if (target?.closest('[data-track-chrome="volume-button"], [data-track-popover="volume"]')) {
         return;
       }
       closeVolumePopover();
