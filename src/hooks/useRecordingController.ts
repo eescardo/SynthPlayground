@@ -25,6 +25,7 @@ export interface RecordCountInState {
   trackId: string;
   startedAtMs: number;
   beats: number;
+  token: number;
 }
 
 interface ActiveRecordNote {
@@ -93,6 +94,8 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
   const recordPassRef = useRef<RecordPassOverwrite | null>(null);
   const countInRafRef = useRef<number | null>(null);
   const hintTimerRef = useRef<number | null>(null);
+  const recordStartTokenRef = useRef(0);
+  const recordingPlaybackStartTokenRef = useRef<number | null>(null);
 
   const eraseRecordedWindow = useCallback(
     (trackId: string, fromBeat: number, toBeat: number) => {
@@ -253,6 +256,8 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
 
   const stopRecordSession = useCallback(
     (finalBeat?: number) => {
+      recordStartTokenRef.current += 1;
+      recordingPlaybackStartTokenRef.current = null;
       if (recordPhase === "recording") {
         finishActiveRecordedNotes(finalBeat ?? playheadBeat);
       } else {
@@ -290,15 +295,21 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
   );
 
   const beginRecordingPlayback = useCallback(
-    async (trackId: string, cueBeat: number) => {
+    async (trackId: string, cueBeat: number, token: number) => {
       await onBeginRecordingPlayback(trackId, cueBeat);
+      recordingPlaybackStartTokenRef.current = null;
+      if (recordStartTokenRef.current !== token) {
+        audioEngineRef.current?.stop();
+        setPlaying(false);
+        return;
+      }
       recordPassRef.current = createRecordPassOverwrite(trackId, cueBeat);
       setRecordingTrackId(trackId);
       setRecordPhase("recording");
       setRecordCountIn(null);
       setPlaying(true);
     },
-    [onBeginRecordingPlayback, setPlaying]
+    [audioEngineRef, onBeginRecordingPlayback, setPlaying]
   );
 
   const startRecordMode = useCallback(async () => {
@@ -310,11 +321,15 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
       return;
     }
 
+    const token = recordStartTokenRef.current + 1;
+    recordStartTokenRef.current = token;
+    recordingPlaybackStartTokenRef.current = null;
     const countIn: RecordCountInState = {
       cueBeat: userCueBeat,
       trackId: selectedTrack.id,
       startedAtMs: performance.now(),
-      beats: COUNT_IN_BEATS
+      beats: COUNT_IN_BEATS,
+      token
     };
     setPlayheadBeat(userCueBeat);
     setRecordingTrackId(selectedTrack.id);
@@ -341,11 +356,19 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
       setCountInNowMs(now);
       if (now - recordCountIn.startedAtMs >= totalDurationMs) {
         countInRafRef.current = null;
-        void beginRecordingPlayback(recordCountIn.trackId, recordCountIn.cueBeat).catch((error) => {
-          setRecordPhase("idle");
-          setRecordCountIn(null);
-          setRuntimeError((error as Error).message);
-        });
+        if (recordingPlaybackStartTokenRef.current === recordCountIn.token) {
+          return;
+        }
+        recordingPlaybackStartTokenRef.current = recordCountIn.token;
+        setRecordCountIn(null);
+        void beginRecordingPlayback(recordCountIn.trackId, recordCountIn.cueBeat, recordCountIn.token).catch(
+          (error) => {
+            recordingPlaybackStartTokenRef.current = null;
+            setRecordPhase("idle");
+            setRecordCountIn(null);
+            setRuntimeError((error as Error).message);
+          }
+        );
         return;
       }
       countInRafRef.current = requestAnimationFrame(tick);
@@ -492,6 +515,8 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
 
   useEffect(() => {
     return () => {
+      recordStartTokenRef.current += 1;
+      recordingPlaybackStartTokenRef.current = null;
       if (hintTimerRef.current !== null) {
         window.clearTimeout(hintTimerRef.current);
       }
@@ -515,7 +540,9 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
     : null;
   const recordStatusText =
     recordPhase === "count_in"
-      ? `Starts on beat ${recordCountIn ? formatBeatName(recordCountIn.cueBeat, project.global.gridBeats) : ""}`
+      ? recordCountIn
+        ? `Starts on beat ${formatBeatName(recordCountIn.cueBeat, project.global.gridBeats)}`
+        : "Starting recording..."
       : selectedTrack
         ? `Writing on ${selectedTrack.name}`
         : "";

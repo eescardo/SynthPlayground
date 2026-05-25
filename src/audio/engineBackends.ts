@@ -199,6 +199,7 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
   private project: AudioProject | null = null;
   private playSessionId = 0;
   private recordingTrackId: string | null = null;
+  private initPromise: Promise<void> | null = null;
   private cueBeat = 0;
   private previewCaptureListener: ((previewId: string | undefined, captures: PreviewProbeCapture[]) => void) | null =
     null;
@@ -314,6 +315,22 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
   }
 
   async init(): Promise<void> {
+    if (this.context && this.worklet) {
+      return;
+    }
+    if (this.initPromise) {
+      return this.initPromise;
+    }
+
+    this.initPromise = this.initializeAudioContext();
+    try {
+      await this.initPromise;
+    } finally {
+      this.initPromise = null;
+    }
+  }
+
+  private async initializeAudioContext(): Promise<void> {
     if (this.context && this.worklet) {
       return;
     }

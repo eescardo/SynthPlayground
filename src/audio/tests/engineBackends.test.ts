@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
+const { createInitializedWorkletNodeMock } = vi.hoisted(() => ({
+  createInitializedWorkletNodeMock: vi.fn()
+}));
+
+vi.mock("@/audio/worklets/createInitializedWorkletNode", () => ({
+  createInitializedWorkletNode: createInitializedWorkletNodeMock
+}));
+
 import {
   createActiveTrackNoteEvents,
   createTrackVolumeRestoreCommand,
@@ -10,6 +18,55 @@ import { createDefaultProject } from "@/lib/patch/presets";
 import { samplesPerBeat } from "@/lib/musicTiming";
 
 describe("audio engine live mute transitions", () => {
+  it("coalesces concurrent initialization so cold record startup does not leak connected worklets", async () => {
+    const contexts: Array<{
+      state: string;
+      close: ReturnType<typeof vi.fn>;
+      resume: ReturnType<typeof vi.fn>;
+    }> = [];
+    class MockAudioContext {
+      currentTime = 0;
+      state = "running";
+      audioWorklet = {};
+      destination = {};
+      close = vi.fn(async () => {});
+      resume = vi.fn(async () => {});
+
+      constructor() {
+        contexts.push(this);
+      }
+    }
+
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(1)
+    }));
+    const connect = vi.fn();
+    const disconnect = vi.fn();
+    const postMessage = vi.fn();
+    createInitializedWorkletNodeMock.mockImplementation(async () => ({
+      connect,
+      disconnect,
+      port: { postMessage }
+    }));
+
+    vi.stubGlobal("AudioContext", MockAudioContext);
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const backend = new RealAudioEngineBackend();
+
+      await Promise.all([backend.init(), backend.init(), backend.ensureRunning()]);
+
+      expect(contexts).toHaveLength(1);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(createInitializedWorkletNodeMock).toHaveBeenCalledTimes(1);
+      expect(connect).toHaveBeenCalledTimes(1);
+    } finally {
+      createInitializedWorkletNodeMock.mockReset();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("updates the backend mute snapshot so project sync does not replay an immediate transition", () => {
     const project = createDefaultProject();
     const track = project.tracks[0];
