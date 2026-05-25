@@ -267,6 +267,12 @@ export function TrackHeaderChrome({
                 top: `${layout.y}px`,
                 height: `${layout.height}px`
               }}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                trackActions.onSelectTrack(track.id);
+              }}
+              onContextMenu={(event) => event.preventDefault()}
             />
             <button
               type="button"

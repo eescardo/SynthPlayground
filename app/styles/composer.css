@@ -230,7 +230,7 @@
   top: 0;
   left: 0;
   width: 170px;
-  pointer-events: none;
+  pointer-events: auto;
   z-index: 1;
   background: #121b27;
 }
@@ -239,7 +239,7 @@
   position: absolute;
   left: 0;
   width: 100%;
-  pointer-events: none;
+  pointer-events: auto;
   z-index: 2;
   background: #121b27;
   border-bottom: 1px solid #1a2e42;
