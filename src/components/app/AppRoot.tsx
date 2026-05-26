@@ -1263,6 +1263,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
       hardwareNavigation,
       patchWorkspace
     },
+    runtimeErrorMessage: runtimeError?.message,
     timelineState: {
       timelineActionsPopover,
       selectionActionPopoverVisible,
@@ -1304,6 +1305,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     validationIssues,
     selectedPatchHasErrors,
     patchWorkspace,
+    runtimeErrorMessage: runtimeError?.message,
     onWriteClipboardPayload: writeClipboardPayload,
     onUpsertSamplePlayerAssetData: upsertWorkspaceSamplePlayerAssetData,
     commitProjectChange,
@@ -1320,8 +1322,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
   return (
     <AppRootContext.Provider value={contextValue}>
       <main className="app">
-        {runtimeError && <p className="error">{runtimeError.message}</p>}
-
         {children}
 
         {showDebugOverlay && <AudioDebugPanel rendererLabel={rendererLabel} />}

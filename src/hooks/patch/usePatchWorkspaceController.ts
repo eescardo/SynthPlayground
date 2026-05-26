@@ -36,6 +36,7 @@ export interface UsePatchWorkspaceControllerOptions {
   importInputRef: RefObject<HTMLInputElement | null>;
   recentProjects: RecentProjectSnapshot[];
   selectedPatch: Patch;
+  runtimeErrorMessage?: string | null;
   validationIssues: PatchValidationIssue[];
   selectedPatchHasErrors: boolean;
   patchWorkspace: ReturnType<typeof usePatchWorkspaceState>;
@@ -91,6 +92,7 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
     project,
     projectAssets,
     recentProjects,
+    runtimeErrorMessage,
     selectedPatch,
     selectedPatchHasErrors,
     setProjectAssets,
@@ -237,6 +239,7 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
     macroValues: patchWorkspace.workspaceMacroValues,
     previewPitch: patchWorkspace.previewPitch,
     migrationNotice: patchWorkspace.migrationNotice,
+    runtimeErrorMessage,
     patchEditError: patchWorkspace.patchEditError,
     selectedNodeId: patchWorkspace.selectedNodeId,
     selectedMacroId: patchWorkspace.selectedMacroId,

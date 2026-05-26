@@ -30,6 +30,7 @@ interface PatchWorkspaceViewProps {
   macroValues: Record<string, number>;
   previewPitch: string;
   migrationNotice?: string | null;
+  runtimeErrorMessage?: string | null;
   patchEditError?: string | null;
   selectedNodeId?: string;
   selectedMacroId?: string;
@@ -73,7 +74,7 @@ function createPatchEditorSession(props: PatchWorkspaceViewProps): PatchEditorSe
       probeState: props.probeState,
       macroValues: props.macroValues,
       migrationNotice: props.migrationNotice,
-      patchEditError: props.patchEditError,
+      patchEditError: props.runtimeErrorMessage ?? props.patchEditError,
       selectedNodeId: props.selectedNodeId,
       selectedMacroId: props.selectedMacroId,
       validationIssues: props.validationIssues,
