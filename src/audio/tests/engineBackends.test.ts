@@ -73,10 +73,45 @@ describe("audio engine live mute transitions", () => {
     const message = {
       type: "RUNTIME_ERROR" as const,
       phase: "process_block" as const,
-      error: "sample playback failed"
+      error: "sample playback failed",
+      sproutError: {
+        source: "audio_worklet",
+        code: "runtime_error",
+        severity: "error" as const,
+        message: "Audio worklet process_block failed: sample playback failed",
+        errorMessage: "sample playback failed",
+        errorName: "Error",
+        details: {
+          phase: "process_block",
+          remoteStack: "Error: sample playback failed\n    at processBlock (synth-worklet-runtime.js:12:3)"
+        }
+      }
     };
 
     expect(formatWorkletRuntimeError(message)).toBe("Audio worklet process_block failed: sample playback failed");
+    const sproutError = createWorkletRuntimeSproutError(message);
+
+    expect(sproutError).toEqual(
+      expect.objectContaining({
+        source: "audio_worklet",
+        code: "runtime_error",
+        severity: "error",
+        error: expect.any(Error),
+        message: "Audio worklet process_block failed: sample playback failed",
+        details: expect.objectContaining({ phase: "process_block" })
+      })
+    );
+    expect(sproutError.error?.message).toBe("Audio worklet process_block failed: sample playback failed");
+    expect(sproutError.error?.stack).toContain("sample playback failed");
+  });
+
+  it("tolerates legacy worklet runtime error messages without structured reports", () => {
+    const message = {
+      type: "RUNTIME_ERROR" as const,
+      phase: "process_block" as const,
+      error: "sample playback failed"
+    };
+
     const sproutError = createWorkletRuntimeSproutError(message);
 
     expect(sproutError).toEqual({

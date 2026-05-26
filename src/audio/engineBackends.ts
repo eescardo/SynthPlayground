@@ -103,13 +103,16 @@ export interface AudioEnginePlayOptions {
   recordingTrackId?: string | null;
 }
 
-export const formatWorkletRuntimeError = (message: Extract<WorkletOutboundMessage, { type: "RUNTIME_ERROR" }>) =>
+type LegacyWorkletRuntimeErrorMessage = Omit<Extract<WorkletOutboundMessage, { type: "RUNTIME_ERROR" }>, "sproutError">;
+type ToleratedWorkletRuntimeErrorMessage =
+  | Extract<WorkletOutboundMessage, { type: "RUNTIME_ERROR" }>
+  | LegacyWorkletRuntimeErrorMessage;
+
+export const formatWorkletRuntimeError = (message: ToleratedWorkletRuntimeErrorMessage) =>
   `Audio worklet ${message.phase} failed: ${message.error}`;
 
-export const createWorkletRuntimeSproutError = (
-  message: Extract<WorkletOutboundMessage, { type: "RUNTIME_ERROR" }>
-): SproutError =>
-  message.sproutError
+export const createWorkletRuntimeSproutError = (message: ToleratedWorkletRuntimeErrorMessage): SproutError =>
+  "sproutError" in message
     ? hydrateSerializableSproutError(message.sproutError)
     : createSproutError({
         source: "audio_worklet",

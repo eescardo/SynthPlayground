@@ -169,7 +169,7 @@ export interface WorkletRuntimeErrorMessage {
   type: "RUNTIME_ERROR";
   phase: "message" | "start_stream" | "stop_stream" | "process_block";
   error: string;
-  sproutError?: SerializableSproutError;
+  sproutError: SerializableSproutError;
 }
 
 export interface WorkletTransportMessage {
