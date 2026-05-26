@@ -4,6 +4,7 @@ import { RefObject, useCallback, useState } from "react";
 import { AudioEngine } from "@/audio/engine";
 import { toAudioProject } from "@/audio/audioProject";
 import { TRACK_VOLUME_AUTOMATION_ID } from "@/lib/macroAutomation";
+import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { clampTrackVolume, isTrackVolumeMuted } from "@/lib/trackVolume";
 import { ProjectAssetLibrary } from "@/types/assets";
 import { Project } from "@/types/music";
@@ -17,7 +18,7 @@ interface UseProjectAudioActionsOptions {
   projectAssets: ProjectAssetLibrary;
   audioEngineRef: RefObject<AudioEngine | null>;
   commitProjectChange: CommitProjectChange;
-  setRuntimeError: (message: string | null | ((prev: string | null) => string | null)) => void;
+  setRuntimeError: SproutErrorSetter;
 }
 
 const downloadBlob = (blob: Blob, filename: string) => {
@@ -88,7 +89,17 @@ export function useProjectAudioActions(options: UseProjectAudioActionsOptions) {
       const blob = await audioEngineRef.current.exportProjectAudio(toAudioProject(project, projectAssets));
       downloadBlob(blob, `${project.name.replace(/\s+/g, "_").toLowerCase()}.wav`);
     } catch (error) {
-      setRuntimeError((error as Error).message);
+      const cause = toError(error);
+      setRuntimeError(
+        createSproutError({
+          source: "audio_export",
+          code: "render_failed",
+          severity: "error",
+          message: cause.message,
+          error: cause,
+          details: { phase: "render" }
+        })
+      );
     } finally {
       setExportingAudio(false);
     }

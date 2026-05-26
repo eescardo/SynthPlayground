@@ -4,6 +4,7 @@ import { RefObject, useCallback, useEffect, useRef } from "react";
 import { AudioEngine } from "@/audio/engine";
 import { AudioEnginePlayOptions } from "@/audio/engineBackends";
 import { getLoopPlaybackEndBeat } from "@/lib/looping";
+import { createSproutError, SproutErrorSetter } from "@/lib/sproutErrors";
 import { Project } from "@/types/music";
 import { AudioProject } from "@/types/audio";
 
@@ -17,7 +18,7 @@ interface UsePlaybackControllerArgs {
   audioEngineRef: RefObject<AudioEngine | null>;
   setPlaying: (value: boolean) => void;
   setPlayheadBeat: (value: number) => void;
-  setRuntimeError: (value: string | null) => void;
+  setRuntimeError: SproutErrorSetter;
   onStopRecordingSession: (finalBeat?: number) => void;
   onHandleRecordingBeat: (beat: number) => void;
 }
@@ -88,6 +89,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
       if (!audioEngineRef.current) {
         audioEngineRef.current = new AudioEngine();
       }
+      audioEngineRef.current.setRuntimeErrorListener(setRuntimeError);
       audioEngineRef.current.syncProjectSnapshot(audioProject, { syncToWorklet: true });
       await audioEngineRef.current.play(cueBeat, { recordingTrackId: options?.recordingTrackId ?? null });
       if (rafRef.current !== null) {
@@ -95,7 +97,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
       }
       rafRef.current = requestAnimationFrame(tickPlayhead);
     },
-    [audioEngineRef, audioProject, tickPlayhead]
+    [audioEngineRef, audioProject, setRuntimeError, tickPlayhead]
   );
 
   const seekPlaybackToBeat = useCallback(
@@ -108,7 +110,16 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
 
   const startPlayback = useCallback(async () => {
     if (!wasmReady) {
-      setRuntimeError("The default WASM renderer is not ready.");
+      setRuntimeError(
+        createSproutError({
+          source: "audio_playback",
+          code: "renderer_not_ready",
+          severity: "error",
+          message: "The default WASM renderer is not ready.",
+          error: new Error("The default WASM renderer is not ready."),
+          details: { phase: "start" }
+        })
+      );
       return;
     }
     setPlaying(true);

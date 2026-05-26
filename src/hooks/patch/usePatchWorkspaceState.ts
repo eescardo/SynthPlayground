@@ -30,6 +30,7 @@ import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
 import { validatePatchConnectionOp } from "@/lib/patch/connectionValidation";
 import { resolvePatchSource } from "@/lib/patch/source";
 import { validatePatch } from "@/lib/patch/validation";
+import { SproutErrorSetter } from "@/lib/sproutErrors";
 import { Project, Track } from "@/types/music";
 import { PatchOp } from "@/types/ops";
 import { PatchValidationIssue, Patch } from "@/types/patch";
@@ -47,7 +48,7 @@ interface UsePatchWorkspaceStateOptions {
   audioEngineRef: RefObject<AudioEngine | null>;
   playing: boolean;
   router: AppRouterInstance;
-  setRuntimeError: Dispatch<SetStateAction<string | null>>;
+  setRuntimeError: SproutErrorSetter;
   setPatchRemovalDialog: Dispatch<SetStateAction<PatchRemovalDialogState | null>>;
 }
 

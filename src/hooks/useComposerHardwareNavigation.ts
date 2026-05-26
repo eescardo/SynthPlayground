@@ -25,6 +25,7 @@ import { createId } from "@/lib/ids";
 import { DEFAULT_NOTE_VELOCITY } from "@/lib/noteDefaults";
 import { beatToSample, snapToGrid, snapUpToGrid } from "@/lib/musicTiming";
 import { keyToPitch, normalizePhysicalPitchKey, pitchToVoct } from "@/lib/pitch";
+import { createSproutError, toError } from "@/lib/sproutErrors";
 
 const GHOST_PREVIEW_DELAY_MS = 2000;
 const TAB_SELECTION_PREVIEW_DELAY_MS = 600;
@@ -171,7 +172,19 @@ export function useComposerHardwareNavigation({
         ) ?? Promise.resolve();
 
       previewPromise
-        .catch((error) => setRuntimeError((error as Error).message))
+        .catch((error) => {
+          const previewError = toError(error);
+          setRuntimeError(
+            createSproutError({
+              source: "composer_hardware_navigation",
+              code: "placement_preview_failed",
+              severity: "error",
+              message: `Placement preview failed: ${previewError.message}`,
+              error: previewError,
+              details: { phase: "start_placement_preview", trackId, noteId }
+            })
+          );
+        })
         .finally(() => {
           pendingPreviewStartIdsRef.current.delete(noteId);
           const pendingRelease = pendingPreviewReleasesRef.current.get(noteId);

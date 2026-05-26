@@ -20,6 +20,7 @@ export interface ComposerViewProps {
   canvasSelection: TrackCanvasSelection;
   projectMenu: ComposerProjectMenuProps;
   transport: ComposerTransportProps;
+  runtimeErrorMessage?: string | null;
   recording: ComposerRecordingProps;
   canvasPreview: ComposerCanvasPreviewProps;
   timeline: ComposerTimelineProps;
@@ -143,6 +144,7 @@ export function ComposerView(props: ComposerViewProps) {
       />
 
       <ComposerActionsBar
+        runtimeErrorMessage={props.runtimeErrorMessage}
         recordingDisabled={props.recording.recordingDisabled}
         isPlaying={props.recording.isPlaying}
         recordEnabled={props.recording.recordEnabled}

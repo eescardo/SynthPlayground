@@ -4,6 +4,7 @@ export type ComposerRecordPhase = "idle" | "count_in" | "recording";
 
 interface ComposerActionsBarProps {
   recordingDisabled: boolean;
+  runtimeErrorMessage?: string | null;
   isPlaying: boolean;
   recordEnabled: boolean;
   recordPhase?: ComposerRecordPhase;
@@ -45,6 +46,7 @@ function RecordButton({
 
 export function ComposerActionsBar({
   recordingDisabled,
+  runtimeErrorMessage,
   isPlaying,
   recordEnabled,
   recordPhase,
@@ -99,6 +101,11 @@ export function ComposerActionsBar({
           Clear
         </button>
       </div>
+      {runtimeErrorMessage ? (
+        <p className="composer-actions-status error" role="alert">
+          {runtimeErrorMessage}
+        </p>
+      ) : null}
     </section>
   );
 }

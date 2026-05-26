@@ -24,6 +24,9 @@ export const resetRendererFactory = () => {
 export const createRenderer = (config = {}) => rendererFactory(config);
 
 const formatErrorMessage = (error) => (error instanceof Error ? error.message : String(error));
+const formatErrorName = (error) => (error instanceof Error && error.name ? error.name : "Error");
+const formatErrorStack = (error) =>
+  error instanceof Error && typeof error.stack === "string" ? error.stack : undefined;
 
 export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
   constructor(options) {
@@ -49,10 +52,23 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
   }
 
   reportRuntimeError(phase, error) {
+    const errorMessage = formatErrorMessage(error);
     this.port.postMessage({
       type: "RUNTIME_ERROR",
       phase,
-      error: formatErrorMessage(error)
+      error: errorMessage,
+      sproutError: {
+        source: "audio_worklet",
+        code: "runtime_error",
+        severity: "error",
+        message: `Audio worklet ${phase} failed: ${errorMessage}`,
+        details: {
+          errorMessage,
+          errorName: formatErrorName(error),
+          phase,
+          remoteStack: formatErrorStack(error)
+        }
+      }
     });
   }
 

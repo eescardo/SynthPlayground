@@ -1,5 +1,6 @@
 import { MasterFxSettings, ProjectGlobalSettings, Track } from "@/types/music";
 import { Patch } from "@/types/patch";
+import type { SerializableSproutError } from "@/lib/sproutErrors";
 import { PreviewProbeCapture, PreviewProbeRequest, PreviewProbeSharedBuffer } from "@/types/probes";
 
 export interface AudioProject {
@@ -168,6 +169,7 @@ export interface WorkletRuntimeErrorMessage {
   type: "RUNTIME_ERROR";
   phase: "message" | "start_stream" | "stop_stream" | "process_block";
   error: string;
+  sproutError: SerializableSproutError;
 }
 
 export interface WorkletTransportMessage {

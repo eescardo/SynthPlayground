@@ -12,6 +12,7 @@ import {
 import { RecentProjectSnapshot, removeRecentProjectSnapshot, saveRecentProjectSnapshot } from "@/lib/persistence";
 import { importProjectBundleFromJson } from "@/lib/projectSerde";
 import { createEmptyProjectAssetLibrary } from "@/lib/sampleAssetLibrary";
+import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { ProjectAssetLibrary } from "@/types/assets";
 import { Project } from "@/types/music";
 
@@ -32,7 +33,7 @@ interface UseProjectLifecycleActionsArgs {
   resetProjectState: (nextProject: Project, nextAssets?: ProjectAssetLibrary) => void;
   refreshRecentProjects: (activeProjectId?: string) => Promise<void>;
   setSelectedTrackId: Dispatch<SetStateAction<string | undefined>>;
-  setRuntimeError: Dispatch<SetStateAction<string | null>>;
+  setRuntimeError: SproutErrorSetter;
   clearTransientComposerUi: () => void;
 }
 
@@ -117,7 +118,17 @@ export const useProjectLifecycleActions = ({
           removeRecentProjectId: projectId
         });
       } catch (error) {
-        setRuntimeError(`Failed to open recent project. ${(error as Error).message}`);
+        const cause = toError(error);
+        setRuntimeError(
+          createSproutError({
+            source: "project_lifecycle",
+            code: "open_recent_failed",
+            severity: "error",
+            message: `Failed to open recent project. ${cause.message}`,
+            error: cause,
+            details: { phase: "open_recent_project" }
+          })
+        );
       }
     },
     [recentProjects, setRuntimeError, switchToProject]
@@ -134,8 +145,18 @@ export const useProjectLifecycleActions = ({
         await switchToProject(importedProject, migratedState.assets, { rememberCurrent: true });
         setRuntimeError(null);
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        setRuntimeError(`Failed to import project "${file.name}". ${message || "Unknown error."}`);
+        const cause = toError(error);
+        const message = cause.message || "Unknown error.";
+        setRuntimeError(
+          createSproutError({
+            source: "project_lifecycle",
+            code: "import_failed",
+            severity: "error",
+            message: `Failed to import project "${file.name}". ${message}`,
+            error: cause,
+            details: { fileName: file.name, phase: "import_project" }
+          })
+        );
       }
     },
     [setRuntimeError, switchToProject]

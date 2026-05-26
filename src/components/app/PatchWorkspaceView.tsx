@@ -30,6 +30,7 @@ interface PatchWorkspaceViewProps {
   macroValues: Record<string, number>;
   previewPitch: string;
   migrationNotice?: string | null;
+  runtimeErrorMessage?: string | null;
   patchEditError?: string | null;
   selectedNodeId?: string;
   selectedMacroId?: string;
@@ -179,6 +180,12 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           onCloseTab={props.onCloseTab}
           onRenameTab={props.onRenameTab}
         />
+
+        {props.runtimeErrorMessage ? (
+          <p className="patch-workspace-runtime-status error" role="alert">
+            {props.runtimeErrorMessage}
+          </p>
+        ) : null}
 
         <InstrumentEditor session={createPatchEditorSession(props)} />
       </div>

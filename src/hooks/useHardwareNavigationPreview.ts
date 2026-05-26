@@ -3,6 +3,7 @@
 import { RefObject, useCallback } from "react";
 import { AudioEngine } from "@/audio/engine";
 import { pitchToVoct } from "@/lib/pitch";
+import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { Track } from "@/types/music";
 
 type WorkspaceView = "composer" | "patch-workspace";
@@ -16,7 +17,7 @@ interface UseHardwareNavigationPreviewArgs {
   previewSelectedPatchNow: (pitch?: string) => void;
   releaseHeldPatchPreview: () => void;
   startHeldPatchPreview: (pitch?: string) => void;
-  setRuntimeError: (message: string | null) => void;
+  setRuntimeError: SproutErrorSetter;
 }
 
 export function useHardwareNavigationPreview({
@@ -39,9 +40,19 @@ export function useHardwareNavigationPreview({
       if (isPlaying || !selectedTrack) {
         return;
       }
-      audioEngineRef.current
-        ?.previewNote(selectedTrack.id, pitchToVoct(pitch), 1, 0.9)
-        .catch((error) => setRuntimeError((error as Error).message));
+      audioEngineRef.current?.previewNote(selectedTrack.id, pitchToVoct(pitch), 1, 0.9).catch((error) => {
+        const previewError = toError(error);
+        setRuntimeError(
+          createSproutError({
+            source: "hardware_navigation",
+            code: "preview_failed",
+            severity: "error",
+            message: `Hardware navigation preview failed: ${previewError.message}`,
+            error: previewError,
+            details: { phase: "preview_default_pitch", trackId: selectedTrack.id }
+          })
+        );
+      });
     },
     [audioEngineRef, defaultPitch, isPlaying, previewSelectedPatchNow, selectedTrack, setRuntimeError, view]
   );

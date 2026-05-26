@@ -54,6 +54,7 @@ import {
 } from "@/lib/patch/source";
 import { exportProjectToJson } from "@/lib/projectSerde";
 import { pitchToVoct } from "@/lib/pitch";
+import { createSproutError, reportSproutErrorToConsole, toError } from "@/lib/sproutErrors";
 import {
   buildMissingSampleAssetIssues,
   createEmptyProjectAssetLibrary,
@@ -147,6 +148,13 @@ export function AppRoot({ children }: { children: ReactNode }) {
     ready,
     setRuntimeError
   });
+
+  useEffect(() => {
+    if (!runtimeError) {
+      return;
+    }
+    reportSproutErrorToConsole(runtimeError);
+  }, [runtimeError]);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -393,8 +401,9 @@ export function AppRoot({ children }: { children: ReactNode }) {
     if (!audioEngineRef.current) {
       audioEngineRef.current = new AudioEngine();
     }
+    audioEngineRef.current.setRuntimeErrorListener(setRuntimeError);
     audioEngineRef.current.syncProjectSnapshot(audioProject, { syncToWorklet: !playing });
-  }, [audioProject, playing, ready]);
+  }, [audioProject, playing, ready, setRuntimeError]);
 
   useEffect(() => {
     setEditorSelection((current) => filterEditorSelectionToProject(project, current));
@@ -526,7 +535,19 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
       audioEngineRef.current
         ?.previewNote(trackId, pitchToVoct(pitch), note.durationBeats, note.velocity)
-        .catch((error) => setRuntimeError((error as Error).message));
+        .catch((error) => {
+          const cause = toError(error);
+          setRuntimeError(
+            createSproutError({
+              source: "audio_playback",
+              code: "preview_failed",
+              severity: "error",
+              message: cause.message,
+              error: cause,
+              details: { phase: "pitch_picker_preview" }
+            })
+          );
+        });
     },
     [playing, project.tracks, setRuntimeError]
   );
@@ -538,7 +559,19 @@ export function AppRoot({ children }: { children: ReactNode }) {
       setEditorSelection(clearEditorSelection());
       setPitchPicker(null);
       if (playing) {
-        void playback.seekPlaybackToBeat(beat).catch((error) => setRuntimeError((error as Error).message));
+        void playback.seekPlaybackToBeat(beat).catch((error) => {
+          const cause = toError(error);
+          setRuntimeError(
+            createSproutError({
+              source: "audio_playback",
+              code: "seek_failed",
+              severity: "error",
+              message: cause.message,
+              error: cause,
+              details: { phase: "seek" }
+            })
+          );
+        });
       }
     },
     [playback, playing, setPitchPicker, setRuntimeError]
@@ -990,7 +1023,16 @@ export function AppRoot({ children }: { children: ReactNode }) {
     }
     const nextTrackIds = resolveSurvivingTrackIds(project, patchRemovalDialog);
     if (nextTrackIds.size === 0) {
-      setRuntimeError("At least one track must remain in the project.");
+      setRuntimeError(
+        createSproutError({
+          source: "patch_workspace",
+          code: "remove_patch_last_track",
+          severity: "error",
+          message: "At least one track must remain in the project.",
+          error: new Error("At least one track must remain in the project."),
+          details: { phase: "remove_patch" }
+        })
+      );
       return;
     }
 
@@ -1054,7 +1096,19 @@ export function AppRoot({ children }: { children: ReactNode }) {
     (trackId: string, note: Project["tracks"][number]["notes"][number]) => {
       audioEngineRef.current
         ?.previewNote(trackId, pitchToVoct(note.pitchStr), note.durationBeats, note.velocity)
-        .catch((error) => setRuntimeError((error as Error).message));
+        .catch((error) => {
+          const cause = toError(error);
+          setRuntimeError(
+            createSproutError({
+              source: "patch_workspace",
+              code: "preview_failed",
+              severity: "error",
+              message: cause.message,
+              error: cause,
+              details: { phase: "preview" }
+            })
+          );
+        });
     },
     [setRuntimeError]
   );
@@ -1189,6 +1243,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     deleteSelectedNoteSelection,
     openExplodeSelectionDialog
   });
+  const runtimeErrorDisplayMessage = runtimeError?.severity === "error" ? runtimeError.message : null;
 
   const composerControllerProps: ComposerControllerProps = createComposerControllerProps({
     clipboard: writeClipboardPayload,
@@ -1209,6 +1264,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
       hardwareNavigation,
       patchWorkspace
     },
+    runtimeErrorMessage: runtimeErrorDisplayMessage,
     timelineState: {
       timelineActionsPopover,
       selectionActionPopoverVisible,
@@ -1250,6 +1306,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     validationIssues,
     selectedPatchHasErrors,
     patchWorkspace,
+    runtimeErrorMessage: runtimeErrorDisplayMessage,
     onWriteClipboardPayload: writeClipboardPayload,
     onUpsertSamplePlayerAssetData: upsertWorkspaceSamplePlayerAssetData,
     commitProjectChange,
@@ -1266,8 +1323,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
   return (
     <AppRootContext.Provider value={contextValue}>
       <main className="app">
-        {runtimeError && <p className="error">{runtimeError}</p>}
-
         {children}
 
         {showDebugOverlay && <AudioDebugPanel rendererLabel={rendererLabel} />}

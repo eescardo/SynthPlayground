@@ -261,6 +261,7 @@ interface UseComposerControllerPropsOptions {
   projectMenuProps: ProjectMenuProps;
   projectState: ComposerProjectState;
   runtimeState: ComposerRuntimeState;
+  runtimeErrorMessage?: string | null;
   timelineState: ComposerTimelineState;
   exportingAudio: boolean;
   primaryActions: ComposerPrimaryActions;
@@ -283,6 +284,7 @@ export function createComposerControllerProps(options: UseComposerControllerProp
     projectMenuProps,
     projectState,
     runtimeState,
+    runtimeErrorMessage,
     selectionActions,
     timelineActions,
     timelineState,
@@ -310,6 +312,7 @@ export function createComposerControllerProps(options: UseComposerControllerProp
       playheadBeat,
       exportingAudio
     },
+    runtimeErrorMessage,
     recording: {
       activeRecordedNotes: recording.activeRecordedNotes,
       ghostPlayheadBeat: recording.ghostPlayheadBeat ?? undefined,
@@ -411,6 +414,7 @@ interface UsePatchWorkspaceControllerPropsOptions {
   validationIssues: UsePatchWorkspaceControllerOptions["validationIssues"];
   selectedPatchHasErrors: boolean;
   patchWorkspace: PatchWorkspaceState;
+  runtimeErrorMessage?: string | null;
   onWriteClipboardPayload: UsePatchWorkspaceControllerOptions["onWriteClipboardPayload"];
   onUpsertSamplePlayerAssetData: UsePatchWorkspaceControllerOptions["onUpsertSamplePlayerAssetData"];
   commitProjectChange: UsePatchWorkspaceControllerOptions["commitProjectChange"];
@@ -430,6 +434,7 @@ export function createPatchWorkspaceControllerProps(
     validationIssues: options.validationIssues,
     selectedPatchHasErrors: options.selectedPatchHasErrors,
     patchWorkspace: options.patchWorkspace,
+    runtimeErrorMessage: options.runtimeErrorMessage,
     onWriteClipboardPayload: options.onWriteClipboardPayload,
     onUpsertSamplePlayerAssetData: options.onUpsertSamplePlayerAssetData,
     commitProjectChange: options.commitProjectChange,

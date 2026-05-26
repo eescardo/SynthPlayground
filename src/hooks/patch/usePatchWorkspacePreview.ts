@@ -1,6 +1,6 @@
 "use client";
 
-import type { Dispatch, RefObject, SetStateAction } from "react";
+import type { RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toAudioProject } from "@/audio/audioProject";
 import { AudioEngine } from "@/audio/engine";
@@ -8,6 +8,7 @@ import { resolvePatchWorkspaceMacroValues } from "@/hooks/patch/usePatchWorkspac
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import { pitchToVoct } from "@/lib/pitch";
 import { hydratePatchSamplePlayerAssetsForRuntime } from "@/lib/sampleAssetLibrary";
+import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { HOST_PORT_IDS } from "@/lib/patch/constants";
 import { mergeSpectrumGrid } from "@/lib/patch/spectrumCaptureMerge";
 import { Patch } from "@/types/patch";
@@ -72,7 +73,7 @@ interface UsePatchWorkspacePreviewOptions {
   probes?: PatchWorkspaceProbeState[];
   audioEngineRef: RefObject<AudioEngine | null>;
   playing: boolean;
-  setRuntimeError: Dispatch<SetStateAction<string | null>>;
+  setRuntimeError: SproutErrorSetter;
 }
 
 export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOptions) {
@@ -213,7 +214,19 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
             holdUntilReleased: options?.holdUntilReleased
           }
         )
-        .catch((error) => setRuntimeError((error as Error).message));
+        .catch((error) => {
+          const previewError = toError(error);
+          setRuntimeError(
+            createSproutError({
+              source: "patch_workspace",
+              code: "preview_failed",
+              severity: "error",
+              message: `Patch preview failed: ${previewError.message}`,
+              error: previewError,
+              details: { phase: "preview_patch", trackId: previewTrack.id, previewId }
+            })
+          );
+        });
       return {
         previewId,
         trackId: previewTrack.id,

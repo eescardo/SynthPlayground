@@ -18,6 +18,7 @@ import { createImportedWorkspacePatch } from "@/hooks/patch/patchWorkspacePatchH
 import { mergeImportedPatchAssets } from "@/lib/sampleAssetLibrary";
 import { MAX_PATCH_WORKSPACE_TABS } from "@/hooks/patch/patchWorkspaceStateUtils";
 import { buildPatchDiff } from "@/lib/patch/diff";
+import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
 import { ProjectAssetLibrary } from "@/types/assets";
 import { Project } from "@/types/music";
@@ -35,6 +36,7 @@ export interface UsePatchWorkspaceControllerOptions {
   importInputRef: RefObject<HTMLInputElement | null>;
   recentProjects: RecentProjectSnapshot[];
   selectedPatch: Patch;
+  runtimeErrorMessage?: string | null;
   validationIssues: PatchValidationIssue[];
   selectedPatchHasErrors: boolean;
   patchWorkspace: ReturnType<typeof usePatchWorkspaceState>;
@@ -42,7 +44,7 @@ export interface UsePatchWorkspaceControllerOptions {
   onUpsertSamplePlayerAssetData: (serializedSampleData: string, existingAssetId?: string | null) => string;
   commitProjectChange: CommitProjectChange;
   setProjectAssets: Dispatch<SetStateAction<ProjectAssetLibrary>>;
-  setRuntimeError: Dispatch<SetStateAction<string | null>>;
+  setRuntimeError: SproutErrorSetter;
   onNewProject: () => void;
   onExportJson: () => void;
   onImportJson: () => void;
@@ -90,6 +92,7 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
     project,
     projectAssets,
     recentProjects,
+    runtimeErrorMessage,
     selectedPatch,
     selectedPatchHasErrors,
     setProjectAssets,
@@ -134,7 +137,17 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
         patchWorkspace.selectPatchInWorkspace(nextPatch.id);
         setRuntimeError(null);
       } catch (error) {
-        setRuntimeError((error as Error).message);
+        const cause = toError(error);
+        setRuntimeError(
+          createSproutError({
+            source: "patch_workspace",
+            code: "import_patch_failed",
+            severity: "error",
+            message: cause.message,
+            error: cause,
+            details: { phase: "import_patch" }
+          })
+        );
       }
     },
     [commitProjectChange, patchWorkspace, project.patches, projectAssets, setProjectAssets, setRuntimeError]
@@ -226,6 +239,7 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
     macroValues: patchWorkspace.workspaceMacroValues,
     previewPitch: patchWorkspace.previewPitch,
     migrationNotice: patchWorkspace.migrationNotice,
+    runtimeErrorMessage,
     patchEditError: patchWorkspace.patchEditError,
     selectedNodeId: patchWorkspace.selectedNodeId,
     selectedMacroId: patchWorkspace.selectedMacroId,

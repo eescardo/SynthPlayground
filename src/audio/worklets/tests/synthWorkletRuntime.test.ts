@@ -595,11 +595,25 @@ describe("synth worklet runtime", () => {
     expect(stop).toHaveBeenCalledTimes(1);
     expect(startStream).toHaveBeenCalledTimes(1);
     expect(processor.currentStream).toBeNull();
-    expect(portMessages).toContainEqual({
-      type: "RUNTIME_ERROR",
-      phase: "start_stream",
-      error: "start exploded"
-    });
+    expect(portMessages).toContainEqual(
+      expect.objectContaining({
+        type: "RUNTIME_ERROR",
+        phase: "start_stream",
+        error: "start exploded",
+        sproutError: expect.objectContaining({
+          source: "audio_worklet",
+          code: "runtime_error",
+          severity: "error",
+          message: "Audio worklet start_stream failed: start exploded",
+          details: expect.objectContaining({
+            errorMessage: "start exploded",
+            errorName: "Error",
+            phase: "start_stream",
+            remoteStack: expect.stringContaining("start exploded")
+          })
+        })
+      })
+    );
     runtime.resetRendererFactory();
   });
 
@@ -647,11 +661,25 @@ describe("synth worklet runtime", () => {
     expect(Array.from(left)).toEqual(new Array(128).fill(0));
     expect(Array.from(right)).toEqual(new Array(128).fill(0));
     expect(processor.currentStream).toBeNull();
-    expect(portMessages).toContainEqual({
-      type: "RUNTIME_ERROR",
-      phase: "process_block",
-      error: "process exploded"
-    });
+    expect(portMessages).toContainEqual(
+      expect.objectContaining({
+        type: "RUNTIME_ERROR",
+        phase: "process_block",
+        error: "process exploded",
+        sproutError: expect.objectContaining({
+          source: "audio_worklet",
+          code: "runtime_error",
+          severity: "error",
+          message: "Audio worklet process_block failed: process exploded",
+          details: expect.objectContaining({
+            errorMessage: "process exploded",
+            errorName: "Error",
+            phase: "process_block",
+            remoteStack: expect.stringContaining("process exploded")
+          })
+        })
+      })
+    );
     runtime.resetRendererFactory();
   });
 

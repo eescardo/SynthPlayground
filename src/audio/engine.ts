@@ -12,6 +12,7 @@ import {
   BLOCK_SIZE,
   FIXED_SAMPLE_RATE
 } from "@/audio/engineBackends";
+import { SproutError } from "@/lib/sproutErrors";
 import { AudioProject } from "@/types/audio";
 import { PreviewProbeCapture, PreviewProbeRequest } from "@/types/probes";
 
@@ -30,6 +31,10 @@ export class AudioEngine {
 
   ensureRunning(): Promise<void> {
     return this.backend.ensureRunning();
+  }
+
+  setRuntimeErrorListener(listener: ((error: SproutError) => void) | null): void {
+    this.backend.setRuntimeErrorListener(listener);
   }
 
   replaceProject(project: AudioProject): void {
