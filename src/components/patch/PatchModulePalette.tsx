@@ -207,7 +207,7 @@ export function PatchModulePalette(props: PatchModulePaletteProps) {
           return (
             <div
               key={group.category}
-              className={`${styles.categoryItem}${open ? ` ${styles.active}` : ""}`}
+              className={`${styles.categoryItem}${open ? ` ${styles.categoryItemActive}` : ""}`}
               data-ui="patch-module-category-item"
               style={style}
               onPointerEnter={() => setActiveCategory(group.category)}

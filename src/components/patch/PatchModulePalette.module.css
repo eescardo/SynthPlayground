@@ -29,7 +29,7 @@
   gap: 0.45rem;
 }
 
-.categoryItem.active > .categoryButton,
+.categoryItemActive > .categoryButton,
 .categoryButton:hover,
 .categoryButton:focus-visible {
   border-color: var(--module-category-accent);
@@ -65,7 +65,7 @@
   box-shadow: 0 18px 34px rgba(0, 0, 0, 0.38);
 }
 
-.categoryItem.active > .subpopover {
+.categoryItemActive > .subpopover {
   display: grid;
   gap: 0.28rem;
 }

@@ -181,7 +181,7 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
                 )}
 
                 <div
-                  className={`${styles.sliderShell}${pointerFocusedMacroId === macro.id ? ` ${styles.pointerFocused}` : ""}`}
+                  className={`${styles.sliderShell}${pointerFocusedMacroId === macro.id ? ` ${styles.sliderShellPointerFocused}` : ""}`}
                 >
                   <div className={styles.sliderKeyframes} aria-hidden="true">
                     {keyframePositions.map((position, index) => (
