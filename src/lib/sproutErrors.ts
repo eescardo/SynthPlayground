@@ -54,14 +54,14 @@ export const toError = (value: unknown): Error => {
 export const createSproutError = ({
   source,
   code,
-  severity = "error",
+  severity,
   message,
   error,
   details
 }: {
   source: string;
   code: string;
-  severity?: SproutErrorSeverity;
+  severity: SproutErrorSeverity;
   message: string;
   error: Error;
   details?: SproutError["details"];
