@@ -12,7 +12,7 @@ import {
   saveProjectState
 } from "@/lib/persistence";
 import { createEmptyProjectAssetLibrary } from "@/lib/sampleAssetLibrary";
-import { createSproutError, SproutError, SproutErrorSetter } from "@/lib/sproutErrors";
+import { createSproutError, SproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { ProjectAssetLibrary } from "@/types/assets";
 import { Project } from "@/types/music";
 
@@ -67,6 +67,7 @@ export function useAppBootstrap({
         setRecentProjects(loadedRecentProjects.filter(({ project }) => project.id !== migratedState.project.id));
         setReady(true);
       } catch (error) {
+        const cause = toError(error);
         if (cancelled) {
           return;
         }
@@ -80,8 +81,8 @@ export function useAppBootstrap({
             source: "project_bootstrap",
             code: "load_saved_project_failed",
             severity: "error",
-            message: `Failed to load the saved project. Loaded the default project instead. ${(error as Error).message}`,
-            error: error instanceof Error ? error : new Error(String(error)),
+            message: `Failed to load the saved project. Loaded the default project instead. ${cause.message}`,
+            error: cause,
             details: { phase: "load_saved_project" }
           })
         );

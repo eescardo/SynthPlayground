@@ -7,7 +7,7 @@ export interface SproutError {
   code: string;
   severity: SproutErrorSeverity;
   message: string;
-  error?: Error;
+  error: Error;
   details?: SproutErrorDetails;
 }
 
@@ -39,6 +39,7 @@ export const isSproutError = (value: unknown): value is SproutError => {
     typeof candidate.source === "string" &&
     typeof candidate.code === "string" &&
     typeof candidate.message === "string" &&
+    candidate.error instanceof Error &&
     (candidate.severity === "error" || candidate.severity === "warning" || candidate.severity === "info")
   );
 };
@@ -62,7 +63,7 @@ export const createSproutError = ({
   code: string;
   severity?: SproutErrorSeverity;
   message: string;
-  error?: Error;
+  error: Error;
   details?: SproutError["details"];
 }): SproutError => ({
   source,
@@ -74,7 +75,7 @@ export const createSproutError = ({
 });
 
 export const hydrateSerializableSproutError = (input: SerializableSproutError): SproutError => {
-  const remoteStack = input.details?.remoteStack;
+  const remoteStack = input.details.remoteStack;
   const remoteCause = new Error(input.details.errorMessage);
   remoteCause.name = input.details.errorName;
   if (remoteStack) {

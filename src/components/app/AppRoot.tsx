@@ -54,7 +54,7 @@ import {
 } from "@/lib/patch/source";
 import { exportProjectToJson } from "@/lib/projectSerde";
 import { pitchToVoct } from "@/lib/pitch";
-import { createSproutError, reportSproutErrorToConsole } from "@/lib/sproutErrors";
+import { createSproutError, reportSproutErrorToConsole, toError } from "@/lib/sproutErrors";
 import {
   buildMissingSampleAssetIssues,
   createEmptyProjectAssetLibrary,
@@ -535,18 +535,19 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
       audioEngineRef.current
         ?.previewNote(trackId, pitchToVoct(pitch), note.durationBeats, note.velocity)
-        .catch((error) =>
+        .catch((error) => {
+          const cause = toError(error);
           setRuntimeError(
             createSproutError({
               source: "audio_playback",
               code: "preview_failed",
               severity: "error",
-              message: (error as Error).message,
-              error: error instanceof Error ? error : new Error(String(error)),
+              message: cause.message,
+              error: cause,
               details: { phase: "pitch_picker_preview" }
             })
-          )
-        );
+          );
+        });
     },
     [playing, project.tracks, setRuntimeError]
   );
@@ -558,18 +559,19 @@ export function AppRoot({ children }: { children: ReactNode }) {
       setEditorSelection(clearEditorSelection());
       setPitchPicker(null);
       if (playing) {
-        void playback.seekPlaybackToBeat(beat).catch((error) =>
+        void playback.seekPlaybackToBeat(beat).catch((error) => {
+          const cause = toError(error);
           setRuntimeError(
             createSproutError({
               source: "audio_playback",
               code: "seek_failed",
               severity: "error",
-              message: (error as Error).message,
-              error: error instanceof Error ? error : new Error(String(error)),
+              message: cause.message,
+              error: cause,
               details: { phase: "seek" }
             })
-          )
-        );
+          );
+        });
       }
     },
     [playback, playing, setPitchPicker, setRuntimeError]
@@ -1094,18 +1096,19 @@ export function AppRoot({ children }: { children: ReactNode }) {
     (trackId: string, note: Project["tracks"][number]["notes"][number]) => {
       audioEngineRef.current
         ?.previewNote(trackId, pitchToVoct(note.pitchStr), note.durationBeats, note.velocity)
-        .catch((error) =>
+        .catch((error) => {
+          const cause = toError(error);
           setRuntimeError(
             createSproutError({
               source: "patch_workspace",
               code: "preview_failed",
               severity: "error",
-              message: (error as Error).message,
-              error: error instanceof Error ? error : new Error(String(error)),
+              message: cause.message,
+              error: cause,
               details: { phase: "preview" }
             })
-          )
-        );
+          );
+        });
     },
     [setRuntimeError]
   );

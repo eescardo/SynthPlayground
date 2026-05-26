@@ -18,7 +18,7 @@ import { createImportedWorkspacePatch } from "@/hooks/patch/patchWorkspacePatchH
 import { mergeImportedPatchAssets } from "@/lib/sampleAssetLibrary";
 import { MAX_PATCH_WORKSPACE_TABS } from "@/hooks/patch/patchWorkspaceStateUtils";
 import { buildPatchDiff } from "@/lib/patch/diff";
-import { createSproutError, SproutErrorSetter } from "@/lib/sproutErrors";
+import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
 import { ProjectAssetLibrary } from "@/types/assets";
 import { Project } from "@/types/music";
@@ -135,13 +135,14 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
         patchWorkspace.selectPatchInWorkspace(nextPatch.id);
         setRuntimeError(null);
       } catch (error) {
+        const cause = toError(error);
         setRuntimeError(
           createSproutError({
             source: "patch_workspace",
             code: "import_patch_failed",
             severity: "error",
-            message: (error as Error).message,
-            error: error instanceof Error ? error : new Error(String(error)),
+            message: cause.message,
+            error: cause,
             details: { phase: "import_patch" }
           })
         );

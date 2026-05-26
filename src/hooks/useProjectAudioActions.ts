@@ -4,7 +4,7 @@ import { RefObject, useCallback, useState } from "react";
 import { AudioEngine } from "@/audio/engine";
 import { toAudioProject } from "@/audio/audioProject";
 import { TRACK_VOLUME_AUTOMATION_ID } from "@/lib/macroAutomation";
-import { createSproutError, SproutErrorSetter } from "@/lib/sproutErrors";
+import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { clampTrackVolume, isTrackVolumeMuted } from "@/lib/trackVolume";
 import { ProjectAssetLibrary } from "@/types/assets";
 import { Project } from "@/types/music";
@@ -89,13 +89,14 @@ export function useProjectAudioActions(options: UseProjectAudioActionsOptions) {
       const blob = await audioEngineRef.current.exportProjectAudio(toAudioProject(project, projectAssets));
       downloadBlob(blob, `${project.name.replace(/\s+/g, "_").toLowerCase()}.wav`);
     } catch (error) {
+      const cause = toError(error);
       setRuntimeError(
         createSproutError({
           source: "audio_export",
           code: "render_failed",
           severity: "error",
-          message: (error as Error).message,
-          error: error instanceof Error ? error : new Error(String(error)),
+          message: cause.message,
+          error: cause,
           details: { phase: "render" }
         })
       );

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { loadDspWasm } from "@/audio/renderers/wasm/wasmBridge";
 import { BrowserCompatibilityIssue, getBrowserCompatibilityIssue } from "@/lib/browserCompatibility";
-import { createSproutError, SproutErrorSetter } from "@/lib/sproutErrors";
+import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { isUiCaptureFakeAudioEnabled } from "@/lib/uiCaptureMode";
 
 export function useWasmReadiness({ ready, setRuntimeError }: { ready: boolean; setRuntimeError: SproutErrorSetter }) {
@@ -46,13 +46,14 @@ export function useWasmReadiness({ ready, setRuntimeError }: { ready: boolean; s
         setWasmReady(true);
       })
       .catch((error) => {
+        const cause = toError(error);
         setRuntimeError(
           createSproutError({
             source: "wasm_readiness",
             code: "load_failed",
             severity: "error",
-            message: (error as Error).message,
-            error: error instanceof Error ? error : new Error(String(error)),
+            message: cause.message,
+            error: cause,
             details: { phase: "load_wasm" }
           })
         );
