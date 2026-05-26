@@ -66,7 +66,7 @@ export function usePatchWorkspaceHardwareNavigation({
 
 function isPatchWorkspacePreviewBlockedTarget(target: EventTarget | null) {
   const element = target as HTMLElement | null;
-  if (element?.closest(".patch-macro-panel input[type='range']")) {
+  if (element?.closest('[data-ui="patch-macro-panel"] input[type="range"]')) {
     return false;
   }
   return isTextEditingTarget(target);

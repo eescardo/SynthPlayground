@@ -97,12 +97,12 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
   }
 
   return (
-    <section className={`${styles.panel} patch-macro-panel`} aria-label="Patch macros">
-      <div className={`${styles.header} patch-macro-panel-header`}>
-        <div className={`${styles.tab} patch-macro-panel-tab`}>Macros</div>
+    <section className={styles.panel} data-ui="patch-macro-panel" aria-label="Patch macros">
+      <div className={styles.header}>
+        <div className={styles.tab}>Macros</div>
         <button
           type="button"
-          className={`${styles.clear} patch-macro-panel-clear`}
+          className={styles.clear}
           disabled={!model.selectedMacroId}
           onClick={actions.onClearSelection}
         >
@@ -110,7 +110,7 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
         </button>
         <button
           type="button"
-          className={`${styles.add} patch-macro-panel-add`}
+          className={styles.add}
           aria-label="Add macro"
           title={model.structureLocked ? "Preset macros cannot be added" : "Add macro"}
           disabled={model.structureLocked}
@@ -120,9 +120,9 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
         </button>
       </div>
 
-      <div className={`${styles.body} patch-macro-panel-body`}>
+      <div className={styles.body}>
         {model.patch.ui.macros.length === 0 ? (
-          <p className={`${styles.empty} patch-macro-panel-empty`}>No macros yet.</p>
+          <p className={styles.empty}>No macros yet.</p>
         ) : (
           model.patch.ui.macros.map((macro) => {
             const value = model.macroValues[macro.id] ?? macro.defaultNormalized ?? 0.5;
@@ -135,19 +135,20 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
               styles.row,
               isSelected ? styles.selected : "",
               diffHighlightClass === "positive" ? styles.diffPositive : "",
-              brokenBindingIssues.length > 0 ? styles.invalid : "",
-              "patch-macro-row",
-              isSelected ? "selected" : "",
-              diffHighlightClass ? `diff-${diffHighlightClass}` : "",
-              brokenBindingIssues.length > 0 ? "invalid" : ""
+              brokenBindingIssues.length > 0 ? styles.invalid : ""
             ]
               .filter(Boolean)
               .join(" ");
             return (
-              <div key={macro.id} className={rowClassName} onPointerDown={() => actions.onSelectMacro(macro.id)}>
+              <div
+                key={macro.id}
+                className={rowClassName}
+                data-ui="patch-macro-row"
+                onPointerDown={() => actions.onSelectMacro(macro.id)}
+              >
                 {isEditing ? (
                   <input
-                    className={`${styles.nameInput} patch-macro-name-input`}
+                    className={styles.nameInput}
                     value={editingMacroName}
                     autoFocus
                     aria-label={`Rename macro ${macro.name}`}
@@ -165,7 +166,7 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
                 ) : (
                   <button
                     type="button"
-                    className={`${styles.nameButton} patch-macro-name-button`}
+                    className={styles.nameButton}
                     disabled={model.structureLocked}
                     onClick={() => {
                       if (model.structureLocked) {
@@ -180,13 +181,13 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
                 )}
 
                 <div
-                  className={`${styles.sliderShell}${pointerFocusedMacroId === macro.id ? ` ${styles.pointerFocused}` : ""} patch-macro-slider-shell${pointerFocusedMacroId === macro.id ? " pointer-focused" : ""}`}
+                  className={`${styles.sliderShell}${pointerFocusedMacroId === macro.id ? ` ${styles.pointerFocused}` : ""}`}
                 >
-                  <div className={`${styles.sliderKeyframes} patch-macro-slider-keyframes`} aria-hidden="true">
+                  <div className={styles.sliderKeyframes} aria-hidden="true">
                     {keyframePositions.map((position, index) => (
                       <span
                         key={`${macro.id}_keyframe_${index}`}
-                        className={`${styles.sliderKeyframeNotch} patch-macro-slider-keyframe-notch`}
+                        className={styles.sliderKeyframeNotch}
                         style={
                           {
                             "--macro-keyframe-position": `${position * 100}%`
@@ -196,7 +197,7 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
                     ))}
                   </div>
                   <input
-                    className={`${styles.slider} patch-macro-slider`}
+                    className={styles.slider}
                     type="range"
                     min={0}
                     max={1}
@@ -304,7 +305,7 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
 
                 {brokenBindingIssues.length > 0 && (
                   <span
-                    className={`${styles.bindingWarning} patch-macro-binding-warning`}
+                    className={styles.bindingWarning}
                     title={brokenBindingIssues.map((issue) => issue.message).join("\n")}
                     aria-label={`${macro.name} has ${brokenBindingIssues.length} broken macro binding${brokenBindingIssues.length === 1 ? "" : "s"}`}
                   >
@@ -314,7 +315,7 @@ export function PatchMacroPanel(props: PatchMacroPanelProps) {
 
                 <button
                   type="button"
-                  className={`${styles.remove} patch-macro-panel-remove`}
+                  className={styles.remove}
                   aria-label={`Remove macro ${macro.name}`}
                   title={model.structureLocked ? "Preset macros cannot be removed" : `Remove macro ${macro.name}`}
                   disabled={model.structureLocked}

@@ -23,24 +23,18 @@ const CATEGORY_LABELS: Record<PatchModuleCategory, string> = {
 function PatchModulePaletteIcon({ module }: { module: ModuleTypeSchema }) {
   return (
     <svg
-      className={`${styles.icon} patch-module-palette-icon`}
+      className={styles.icon}
+      data-ui="patch-module-palette-icon"
       viewBox="0 0 38 24"
       aria-hidden="true"
       focusable="false"
     >
-      <rect className={`${styles.iconFace} patch-module-palette-icon-face`} x="1" y="1" width="36" height="22" rx="2" />
-      <rect
-        className={`${styles.iconHeader} patch-module-palette-icon-header`}
-        x="1"
-        y="1"
-        width="36"
-        height="5"
-        rx="2"
-      />
-      <path className={`${styles.iconHeaderMask} patch-module-palette-icon-header-mask`} d="M1 4h36v4H1z" />
-      <circle className={`${styles.iconPort} patch-module-palette-icon-port`} cx="1" cy="12" r="1.2" />
-      <circle className={`${styles.iconPort} patch-module-palette-icon-port`} cx="37" cy="12" r="1.2" />
-      <g className={`${styles.iconGlyph} patch-module-palette-icon-glyph`}>{renderModulePaletteGlyph(module.typeId)}</g>
+      <rect className={styles.iconFace} x="1" y="1" width="36" height="22" rx="2" />
+      <rect className={styles.iconHeader} x="1" y="1" width="36" height="5" rx="2" />
+      <path className={styles.iconHeaderMask} d="M1 4h36v4H1z" />
+      <circle className={styles.iconPort} cx="1" cy="12" r="1.2" />
+      <circle className={styles.iconPort} cx="37" cy="12" r="1.2" />
+      <g className={styles.iconGlyph}>{renderModulePaletteGlyph(module.typeId)}</g>
     </svg>
   );
 }
@@ -53,7 +47,7 @@ function renderModulePaletteGlyph(typeId: string): ReactNode {
       return (
         <>
           <path d="M8 15c5.5-5 10.5-5 16 0 2 1.8 4 2.6 6 2" />
-          <path className={`${styles.iconSubtle} patch-module-palette-icon-subtle`} d="M8 18h22" />
+          <path className={styles.iconSubtle} d="M8 18h22" />
         </>
       );
     case "KarplusStrong":
@@ -64,21 +58,18 @@ function renderModulePaletteGlyph(typeId: string): ReactNode {
           <rect x="16" y="8" width="7" height="7" rx="1" />
           <path d="M23 12h7" />
           <path d="M27 10l3 2-3 2" />
-          <path
-            className={`${styles.iconSubtle} patch-module-palette-icon-subtle`}
-            d="M25 12v3.2c0 5.4-17 4-16 -1l1-1"
-          />
+          <path className={styles.iconSubtle} d="M25 12v3.2c0 5.4-17 4-16 -1l1-1" />
         </>
       );
     case "SamplePlayer":
       return (
         <>
           <path
-            className={`${styles.iconBlob} patch-module-palette-icon-blob`}
+            className={styles.iconBlob}
             d="M8 14c2.2-4.8 4.7 4.2 6.9-1.1 2.1-5.1 4.8 6.9 7.2 1.2 2.3-5.5 5.2 3.5 7.9-.6v5H8z"
           />
           <path
-            className={`${styles.iconCutout} patch-module-palette-icon-cutout`}
+            className={styles.iconCutout}
             d="M8 14c2.2-4.8 4.7 4.2 6.9-1.1 2.1-5.1 4.8 6.9 7.2 1.2 2.3-5.5 5.2 3.5 7.9-.6"
           />
         </>
@@ -101,14 +92,14 @@ function renderModulePaletteGlyph(typeId: string): ReactNode {
       return (
         <>
           <path d="M9 17h7l8-8h5" />
-          <path className={`${styles.iconSubtle} patch-module-palette-icon-subtle`} d="M18 9v8" />
+          <path className={styles.iconSubtle} d="M18 9v8" />
         </>
       );
     case "VCF":
       return (
         <>
           <path d="M8 17h8c4 0 3-8 7-8s3 8 7 8" />
-          <path className={`${styles.iconSubtle} patch-module-palette-icon-subtle`} d="M23 8v10" />
+          <path className={styles.iconSubtle} d="M23 8v10" />
         </>
       );
     case "Mixer4":
@@ -158,8 +149,8 @@ function renderModulePaletteGlyph(typeId: string): ReactNode {
       return (
         <>
           <path d="M9 16c5-8 11-8 20 0" />
-          <path className={`${styles.iconSubtle} patch-module-palette-icon-subtle`} d="M12 17c4-5 9-5 14 0" />
-          <path className={`${styles.iconWhisper} patch-module-palette-icon-whisper`} d="M15 18c3-2.6 6-2.6 8 0" />
+          <path className={styles.iconSubtle} d="M12 17c4-5 9-5 14 0" />
+          <path className={styles.iconWhisper} d="M15 18c3-2.6 6-2.6 8 0" />
         </>
       );
     case "Saturation":
@@ -168,8 +159,8 @@ function renderModulePaletteGlyph(typeId: string): ReactNode {
       return (
         <>
           <path d="M8 17h9.8l1-8H30" />
-          <path className={`${styles.iconSubtle} patch-module-palette-icon-subtle`} d="M18.8 9v8" />
-          <path className={`${styles.iconWhisper} patch-module-palette-icon-whisper`} d="M13 11l3 6m8-8l3 6" />
+          <path className={styles.iconSubtle} d="M18.8 9v8" />
+          <path className={styles.iconWhisper} d="M13 11l3 6m8-8l3 6" />
         </>
       );
     case "Compressor":
@@ -179,14 +170,14 @@ function renderModulePaletteGlyph(typeId: string): ReactNode {
           <path d="M8 19l12-3" />
           <path d="M20 12h10" />
           <path d="M20 16h10" />
-          <path className={`${styles.iconSubtle} patch-module-palette-icon-subtle`} d="M10 12l8 2-8 2" />
+          <path className={styles.iconSubtle} d="M10 12l8 2-8 2" />
         </>
       );
     default:
       return (
         <>
           <rect x="9" y="10" width="20" height="8" rx="1" />
-          <path className={`${styles.iconCutout} patch-module-palette-icon-cutout`} d="M13 14h12" />
+          <path className={styles.iconCutout} d="M13 14h12" />
         </>
       );
   }
@@ -197,9 +188,10 @@ export function PatchModulePalette(props: PatchModulePaletteProps) {
   const [activeCategory, setActiveCategory] = useState<PatchModuleCategory | null>(groups[0]?.category ?? null);
 
   return (
-    <div className={`${styles.palette} patch-module-palette`}>
+    <div className={styles.palette} data-ui="patch-module-palette">
       <div
-        className={`${styles.categoryList} patch-module-category-list`}
+        className={styles.categoryList}
+        data-ui="patch-module-category-list"
         role="listbox"
         aria-label="Module categories"
       >
@@ -215,22 +207,25 @@ export function PatchModulePalette(props: PatchModulePaletteProps) {
           return (
             <div
               key={group.category}
-              className={`${styles.categoryItem}${open ? ` ${styles.active}` : ""} patch-module-category-item${open ? " active" : ""}`}
+              className={`${styles.categoryItem}${open ? ` ${styles.active}` : ""}`}
+              data-ui="patch-module-category-item"
               style={style}
               onPointerEnter={() => setActiveCategory(group.category)}
               onFocus={() => setActiveCategory(group.category)}
             >
               <button
                 type="button"
-                className={`${styles.categoryButton} patch-module-category-button`}
+                className={styles.categoryButton}
+                data-ui="patch-module-category-button"
                 aria-expanded={open}
               >
-                <span className={`${styles.swatch} patch-module-category-swatch`} aria-hidden="true" />
+                <span className={styles.swatch} aria-hidden="true" />
                 <span>{CATEGORY_LABELS[group.category]}</span>
-                <span className={`${styles.count} patch-module-category-count`}>{group.modules.length}</span>
+                <span className={styles.count}>{group.modules.length}</span>
               </button>
               <div
-                className={`${styles.subpopover} patch-module-subpopover`}
+                className={styles.subpopover}
+                data-ui="patch-module-subpopover"
                 role="menu"
                 aria-label={`${CATEGORY_LABELS[group.category]} modules`}
               >
@@ -246,15 +241,16 @@ export function PatchModulePalette(props: PatchModulePaletteProps) {
                     <button
                       key={module.typeId}
                       type="button"
-                      className={`${styles.option} patch-module-palette-option`}
+                      className={styles.option}
+                      data-ui="patch-module-palette-option"
                       style={moduleStyle}
                       role="menuitem"
                       aria-describedby={tooltipId}
                       onClick={() => props.onSelectModule(module.typeId)}
                     >
                       <PatchModulePaletteIcon module={module} />
-                      <span className={`${styles.name} patch-module-palette-name`}>{module.typeId}</span>
-                      <span id={tooltipId} className={`${styles.tooltip} patch-module-palette-tooltip`} role="tooltip">
+                      <span className={styles.name}>{module.typeId}</span>
+                      <span id={tooltipId} className={styles.tooltip} role="tooltip">
                         {module.doc.summary}
                       </span>
                     </button>

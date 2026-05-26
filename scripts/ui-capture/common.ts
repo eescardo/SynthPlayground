@@ -689,7 +689,7 @@ export const setupBaselineDiffWorkspace = async (page: Page) => {
   await expect(page.locator(".patch-workspace-tab")).toHaveCount(2);
   await expect(page.locator(".patch-workspace-tab").first()).toContainText("Original");
   await expect(page.locator(".patch-workspace-tab").last()).toContainText("Diff View");
-  await expect(page.locator(".patch-macro-row")).toHaveCount(2);
+  await expect(page.locator('[data-ui="patch-macro-row"]')).toHaveCount(2);
 };
 const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canvas");
 
