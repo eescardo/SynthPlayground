@@ -14,7 +14,7 @@ import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
 import { pitchToVoct } from "@/lib/pitch";
 import { createId } from "@/lib/ids";
 import { isUiCaptureFakeAudioEnabled } from "@/lib/uiCaptureMode";
-import { createSproutError, hydrateSerializableSproutError, SproutError } from "@/lib/sproutErrors";
+import { hydrateSerializableSproutError, SproutError } from "@/lib/sproutErrors";
 import { AudioProject, SchedulerEvent, TransportCommand, WorkletOutboundMessage } from "@/types/audio";
 import type { Track } from "@/types/music";
 import { PreviewProbeCapture, PreviewProbeRequest, PreviewProbeSharedBuffer } from "@/types/probes";
@@ -103,28 +103,12 @@ export interface AudioEnginePlayOptions {
   recordingTrackId?: string | null;
 }
 
-type UnstructuredWorkletRuntimeErrorMessage = Omit<
-  Extract<WorkletOutboundMessage, { type: "RUNTIME_ERROR" }>,
-  "sproutError"
->;
-type ToleratedWorkletRuntimeErrorMessage =
-  | Extract<WorkletOutboundMessage, { type: "RUNTIME_ERROR" }>
-  | UnstructuredWorkletRuntimeErrorMessage;
-
-export const formatWorkletRuntimeError = (message: ToleratedWorkletRuntimeErrorMessage) =>
+export const formatWorkletRuntimeError = (message: Extract<WorkletOutboundMessage, { type: "RUNTIME_ERROR" }>) =>
   `Audio worklet ${message.phase} failed: ${message.error}`;
 
-export const createWorkletRuntimeSproutError = (message: ToleratedWorkletRuntimeErrorMessage): SproutError =>
-  "sproutError" in message
-    ? hydrateSerializableSproutError(message.sproutError)
-    : createSproutError({
-        source: "audio_worklet",
-        code: "runtime_error",
-        severity: "error",
-        message: formatWorkletRuntimeError(message),
-        error: new Error(message.error),
-        details: { phase: message.phase }
-      });
+export const createWorkletRuntimeSproutError = (
+  message: Extract<WorkletOutboundMessage, { type: "RUNTIME_ERROR" }>
+): SproutError => hydrateSerializableSproutError(message.sproutError);
 
 const getWorkletUrl = () => {
   const basePath = "/worklets/synth-worklet.js";

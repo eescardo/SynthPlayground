@@ -20,8 +20,8 @@ export interface SerializableSproutError {
   code: string;
   severity: SproutErrorSeverity;
   message: string;
-  errorMessage?: string;
-  errorName?: string;
+  errorMessage: string;
+  errorName: string;
   details?: SerializableSproutErrorDetails;
 }
 
@@ -75,8 +75,8 @@ export const createSproutError = ({
 
 export const hydrateSerializableSproutError = (input: SerializableSproutError): SproutError => {
   const remoteStack = input.details?.remoteStack;
-  const remoteCause = new Error(input.errorMessage ?? input.message);
-  remoteCause.name = input.errorName ?? "RemoteError";
+  const remoteCause = new Error(input.errorMessage);
+  remoteCause.name = input.errorName;
   if (remoteStack) {
     remoteCause.stack = remoteStack;
   }
