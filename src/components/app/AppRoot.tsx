@@ -1243,6 +1243,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     deleteSelectedNoteSelection,
     openExplodeSelectionDialog
   });
+  const runtimeErrorDisplayMessage = runtimeError?.severity === "error" ? runtimeError.message : null;
 
   const composerControllerProps: ComposerControllerProps = createComposerControllerProps({
     clipboard: writeClipboardPayload,
@@ -1263,7 +1264,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
       hardwareNavigation,
       patchWorkspace
     },
-    runtimeErrorMessage: runtimeError?.message,
+    runtimeErrorMessage: runtimeErrorDisplayMessage,
     timelineState: {
       timelineActionsPopover,
       selectionActionPopoverVisible,
@@ -1305,7 +1306,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     validationIssues,
     selectedPatchHasErrors,
     patchWorkspace,
-    runtimeErrorMessage: runtimeError?.message,
+    runtimeErrorMessage: runtimeErrorDisplayMessage,
     onWriteClipboardPayload: writeClipboardPayload,
     onUpsertSamplePlayerAssetData: upsertWorkspaceSamplePlayerAssetData,
     commitProjectChange,
