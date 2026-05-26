@@ -79,9 +79,9 @@ describe("audio engine live mute transitions", () => {
         code: "runtime_error",
         severity: "error" as const,
         message: "Audio worklet process_block failed: sample playback failed",
-        errorMessage: "sample playback failed",
-        errorName: "Error",
         details: {
+          errorMessage: "sample playback failed",
+          errorName: "Error",
           phase: "process_block",
           remoteStack: "Error: sample playback failed\n    at processBlock (synth-worklet-runtime.js:12:3)"
         }

@@ -12,6 +12,8 @@ export interface SproutError {
 }
 
 export interface SerializableSproutErrorDetails extends SproutErrorDetails {
+  errorMessage: string;
+  errorName: string;
   remoteStack?: string;
 }
 
@@ -20,9 +22,7 @@ export interface SerializableSproutError {
   code: string;
   severity: SproutErrorSeverity;
   message: string;
-  errorMessage: string;
-  errorName: string;
-  details?: SerializableSproutErrorDetails;
+  details: SerializableSproutErrorDetails;
 }
 
 export type SproutErrorInput = SproutError | null;
@@ -75,8 +75,8 @@ export const createSproutError = ({
 
 export const hydrateSerializableSproutError = (input: SerializableSproutError): SproutError => {
   const remoteStack = input.details?.remoteStack;
-  const remoteCause = new Error(input.errorMessage);
-  remoteCause.name = input.errorName;
+  const remoteCause = new Error(input.details.errorMessage);
+  remoteCause.name = input.details.errorName;
   if (remoteStack) {
     remoteCause.stack = remoteStack;
   }

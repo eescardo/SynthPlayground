@@ -30,9 +30,7 @@ describe("sproutErrors", () => {
       code: "runtime_error",
       severity: "error",
       message: "Audio worklet process_block failed: boom",
-      errorMessage: "boom",
-      errorName: "Error",
-      details: { phase: "process_block", remoteStack }
+      details: { errorMessage: "boom", errorName: "Error", phase: "process_block", remoteStack }
     });
 
     expect(error.error).toEqual(expect.any(Error));

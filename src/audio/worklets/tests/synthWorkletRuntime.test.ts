@@ -605,9 +605,9 @@ describe("synth worklet runtime", () => {
           code: "runtime_error",
           severity: "error",
           message: "Audio worklet start_stream failed: start exploded",
-          errorMessage: "start exploded",
-          errorName: "Error",
           details: expect.objectContaining({
+            errorMessage: "start exploded",
+            errorName: "Error",
             phase: "start_stream",
             remoteStack: expect.stringContaining("start exploded")
           })
@@ -671,9 +671,9 @@ describe("synth worklet runtime", () => {
           code: "runtime_error",
           severity: "error",
           message: "Audio worklet process_block failed: process exploded",
-          errorMessage: "process exploded",
-          errorName: "Error",
           details: expect.objectContaining({
+            errorMessage: "process exploded",
+            errorName: "Error",
             phase: "process_block",
             remoteStack: expect.stringContaining("process exploded")
           })

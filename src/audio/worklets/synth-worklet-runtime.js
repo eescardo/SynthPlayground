@@ -62,9 +62,9 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         code: "runtime_error",
         severity: "error",
         message: `Audio worklet ${phase} failed: ${errorMessage}`,
-        errorMessage,
-        errorName: formatErrorName(error),
         details: {
+          errorMessage,
+          errorName: formatErrorName(error),
           phase,
           remoteStack: formatErrorStack(error)
         }
