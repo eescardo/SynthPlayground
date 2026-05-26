@@ -105,7 +105,7 @@ describe("audio engine live mute transitions", () => {
     expect(sproutError.error?.stack).toContain("sample playback failed");
   });
 
-  it("tolerates legacy worklet runtime error messages without structured reports", () => {
+  it("tolerates unstructured worklet runtime error messages at the postMessage boundary", () => {
     const message = {
       type: "RUNTIME_ERROR" as const,
       phase: "process_block" as const,
