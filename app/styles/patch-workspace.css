@@ -97,8 +97,7 @@
   text-overflow: ellipsis;
 }
 
-.instrument-patch-picker-name.rename-armed,
-.patch-workspace-tab-name.rename-armed {
+.instrument-patch-picker-name.rename-armed {
   color: #d7ebff;
   text-decoration: underline dotted rgba(167, 204, 240, 0.75);
   cursor: text;

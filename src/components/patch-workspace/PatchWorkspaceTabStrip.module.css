@@ -70,6 +70,12 @@
   border-radius: 4px;
 }
 
+.renameArmed {
+  color: #d7ebff;
+  text-decoration: underline dotted rgba(167, 204, 240, 0.75);
+  cursor: text;
+}
+
 .nameInput {
   width: auto;
   min-width: 1.8rem;

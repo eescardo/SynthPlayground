@@ -118,7 +118,7 @@ const resolveRawPortPoint = (patch: Patch, nodeId: string, portId: string, portK
 };
 
 const resolveCanvasDisplayScale = async (page: Page) => {
-  const canvas = page.locator(".patch-canvas-overlay-shell > canvas");
+  const canvas = page.locator('[data-ui="patch-canvas-overlay-shell"] > canvas');
   const box = await canvas.boundingBox();
   if (!box) {
     throw new Error("Patch canvas bounding box was not available.");
@@ -177,10 +177,10 @@ export const setupPatchWorkspaceProbes = async (page: Page) => {
   await clickPatchPort(page, "vca1", "out", "out");
 
   const cards = page.locator(".patch-probe-card");
-  await cards.nth(0).dragTo(page.locator(".patch-canvas-overlay-shell"), {
+  await cards.nth(0).dragTo(page.locator('[data-ui="patch-canvas-overlay-shell"]'), {
     targetPosition: { x: 360, y: 380 }
   });
-  await cards.nth(1).dragTo(page.locator(".patch-canvas-overlay-shell"), {
+  await cards.nth(1).dragTo(page.locator('[data-ui="patch-canvas-overlay-shell"]'), {
     targetPosition: { x: 860, y: 380 }
   });
 

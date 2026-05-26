@@ -26,7 +26,7 @@ export interface ScreenshotScenarioDefinition {
 }
 
 async function clickPatchCanvasRaw(page: Page, rawX: number, rawY: number) {
-  const canvas = page.locator(".patch-canvas-overlay-shell > canvas");
+  const canvas = page.locator('[data-ui="patch-canvas-overlay-shell"] > canvas');
   const box = await canvas.boundingBox();
   const metrics = await canvas.evaluate((element) => {
     const canvasElement = element as HTMLCanvasElement;

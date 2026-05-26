@@ -89,8 +89,8 @@ export function PatchWorkspaceTabStrip(props: PatchWorkspaceTabStripProps) {
             .join(" ");
           const nameClassName = [
             styles.name,
-            "patch-workspace-tab-name",
-            renameActivation.isArmed(tab.id) ? "rename-armed" : ""
+            renameActivation.isArmed(tab.id) ? styles.renameArmed : "",
+            "patch-workspace-tab-name"
           ]
             .filter(Boolean)
             .join(" ");
