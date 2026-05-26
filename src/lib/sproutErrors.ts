@@ -104,11 +104,11 @@ export const reportSproutErrorToConsole = (error: SproutError): void => {
     details: error.details
   };
   if (error.severity === "warning") {
-    console.warn(error.message, payload);
+    console.warn(error.message, error.error, payload);
     return;
   }
   if (error.severity === "info") {
-    console.info(error.message, payload);
+    console.info(error.message, error.error, payload);
     return;
   }
   console.error(error.message, error.error, payload);

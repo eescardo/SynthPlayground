@@ -79,6 +79,7 @@ describe("sproutErrors", () => {
       );
       expect(consoleWarn).toHaveBeenCalledWith(
         "Autosave skipped",
+        expect.any(Error),
         expect.objectContaining({
           source: "autosave",
           code: "save_failed",
