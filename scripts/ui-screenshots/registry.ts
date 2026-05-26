@@ -123,6 +123,17 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
       await savePageScreenshot(page, outputPath);
     }
   },
+  [SCREENSHOT_SCENARIO.ABOUT_PAGE]: {
+    name: SCREENSHOT_SCENARIO.ABOUT_PAGE,
+    description: "About page with release notes dialog open",
+    capture: async (page, outputPath) => {
+      await page.goto("/about");
+      await expect(page.getByRole("heading", { name: "SynthSprout" })).toBeVisible();
+      await page.getByRole("button", { name: "View full release notes" }).click();
+      await expect(page.getByRole("dialog", { name: "Release Notes" })).toBeVisible();
+      await savePageScreenshot(page, outputPath);
+    }
+  },
   [SCREENSHOT_SCENARIO.PRESET_UPDATE_MODAL]: {
     name: SCREENSHOT_SCENARIO.PRESET_UPDATE_MODAL,
     description: "Preset update modal open over the main view",

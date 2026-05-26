@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { RefObject } from "react";
 
 import { RecentProjectSnapshot } from "@/lib/persistence";
@@ -52,6 +53,10 @@ export function ProjectsPopover({
       <button type="button" onClick={onImportJson}>
         Import Project
       </button>
+      <div className="timeline-actions-popover-divider" aria-hidden="true" />
+      <Link className="projects-popover-link" href="/about" onClick={onClose}>
+        About SynthSprout
+      </Link>
       {recentProjects.length > 0 && (
         <>
           <div className="timeline-actions-popover-divider" aria-hidden="true" />
