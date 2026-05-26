@@ -120,7 +120,7 @@ describe.sequential("patch workspace layout regression", () => {
           await expect(activeTabLabel(page)).toHaveText("Tab 1");
           await expect(page.locator(".instrument-patch-picker-name")).toHaveText("Bass");
 
-          await expect(page.locator(".patch-workspace-tab")).toHaveCount(2);
+          await expect(page.locator('[data-ui="patch-workspace-tab"]')).toHaveCount(2);
         } finally {
           await page.close();
         }
@@ -176,7 +176,8 @@ describe.sequential("patch workspace layout regression", () => {
   }, 120_000);
 });
 
-const activeTabLabel = (page: Page) => page.locator(".patch-workspace-tab.active .patch-workspace-tab-name");
+const activeTabLabel = (page: Page) =>
+  page.locator('[data-ui="patch-workspace-tab"][aria-selected="true"] [data-ui="patch-workspace-tab-name"]');
 
 async function selectBaselineOption(page: Page, index: number): Promise<string> {
   const popover = page.getByRole("dialog", { name: "Select baseline patch" });

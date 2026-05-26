@@ -56,42 +56,27 @@ export function PatchWorkspaceTabStrip(props: PatchWorkspaceTabStripProps) {
   };
 
   return (
-    <div className={`${styles.tabs} patch-workspace-tabs`} role="tablist" aria-label="Open instrument tabs">
+    <div className={styles.tabs} data-ui="patch-workspace-tabs" role="tablist" aria-label="Open instrument tabs">
       {props.canCreateTab !== false && (
         <button
           type="button"
-          className={`${styles.add} patch-workspace-tab-add`}
+          className={styles.add}
+          data-ui="patch-workspace-tab-add"
           aria-label="New instrument tab"
           onClick={props.onCreateTab}
         >
           +
         </button>
       )}
-      <div className={`${styles.list} patch-workspace-tab-list`}>
+      <div className={styles.list} data-ui="patch-workspace-tab-list">
         {props.tabs.map((tab) => {
           const active = tab.id === props.activeTabId;
           const editing = renamingTabId === tab.id;
-          const tabClassName = [
-            styles.tab,
-            active ? styles.tabActive : "",
-            "patch-workspace-tab",
-            active ? "active" : ""
-          ]
+          const tabClassName = [styles.tab, active ? styles.tabActive : ""].filter(Boolean).join(" ");
+          const baselineClassName = [styles.baselineIndicator, tab.hasPatchDiff ? styles.baselineChanged : ""]
             .filter(Boolean)
             .join(" ");
-          const baselineClassName = [
-            styles.baselineIndicator,
-            tab.hasPatchDiff ? styles.baselineChanged : "",
-            "patch-workspace-tab-baseline-indicator",
-            tab.hasPatchDiff ? "changed" : ""
-          ]
-            .filter(Boolean)
-            .join(" ");
-          const nameClassName = [
-            styles.name,
-            renameActivation.isArmed(tab.id) ? styles.renameArmed : "",
-            "patch-workspace-tab-name"
-          ]
+          const nameClassName = [styles.name, renameActivation.isArmed(tab.id) ? styles.renameArmed : ""]
             .filter(Boolean)
             .join(" ");
 
@@ -99,6 +84,7 @@ export function PatchWorkspaceTabStrip(props: PatchWorkspaceTabStripProps) {
             <div
               key={tab.id}
               className={tabClassName}
+              data-ui="patch-workspace-tab"
               role="tab"
               tabIndex={active ? 0 : -1}
               aria-selected={active}
@@ -107,13 +93,15 @@ export function PatchWorkspaceTabStrip(props: PatchWorkspaceTabStripProps) {
               {tab.hasBaseline && (
                 <span
                   className={baselineClassName}
+                  data-ui="patch-workspace-tab-baseline-indicator"
                   title={tab.hasPatchDiff ? "Has changes relative to baseline patch" : "Has baseline patch"}
                   aria-hidden="true"
                 />
               )}
               {editing ? (
                 <input
-                  className={`${styles.nameInput} patch-workspace-tab-name-input`}
+                  className={styles.nameInput}
+                  data-ui="patch-workspace-tab-name-input"
                   aria-label="Tab name"
                   autoFocus
                   size={Math.max(1, draft.length)}
@@ -141,6 +129,7 @@ export function PatchWorkspaceTabStrip(props: PatchWorkspaceTabStripProps) {
                 <>
                   <span
                     className={nameClassName}
+                    data-ui="patch-workspace-tab-name"
                     role="button"
                     tabIndex={0}
                     {...renameActivation.getRenameTriggerProps({
@@ -153,7 +142,8 @@ export function PatchWorkspaceTabStrip(props: PatchWorkspaceTabStripProps) {
                   {props.tabs.length > 1 && (
                     <button
                       type="button"
-                      className={`${styles.close} patch-workspace-tab-close`}
+                      className={styles.close}
+                      data-ui="patch-workspace-tab-close"
                       aria-label={`Close ${tab.name} tab`}
                       onClick={(event) => {
                         event.stopPropagation();
