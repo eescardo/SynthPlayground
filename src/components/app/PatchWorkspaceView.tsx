@@ -74,7 +74,7 @@ function createPatchEditorSession(props: PatchWorkspaceViewProps): PatchEditorSe
       probeState: props.probeState,
       macroValues: props.macroValues,
       migrationNotice: props.migrationNotice,
-      patchEditError: props.runtimeErrorMessage ?? props.patchEditError,
+      patchEditError: props.patchEditError,
       selectedNodeId: props.selectedNodeId,
       selectedMacroId: props.selectedMacroId,
       validationIssues: props.validationIssues,
@@ -180,6 +180,12 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           onCloseTab={props.onCloseTab}
           onRenameTab={props.onRenameTab}
         />
+
+        {props.runtimeErrorMessage ? (
+          <p className="patch-workspace-runtime-status error" role="alert">
+            {props.runtimeErrorMessage}
+          </p>
+        ) : null}
 
         <InstrumentEditor session={createPatchEditorSession(props)} />
       </div>

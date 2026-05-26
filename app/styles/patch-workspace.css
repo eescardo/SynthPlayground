@@ -273,6 +273,10 @@
   gap: 0;
 }
 
+.patch-workspace-runtime-status {
+  margin: 0.45rem 0 0;
+}
+
 .patch-workspace-tabs {
   display: flex;
   align-items: flex-end;
