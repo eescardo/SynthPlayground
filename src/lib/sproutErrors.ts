@@ -25,7 +25,7 @@ export interface SerializableSproutError {
   details?: SerializableSproutErrorDetails;
 }
 
-export type SproutErrorInput = SproutError | string | null;
+export type SproutErrorInput = SproutError | null;
 export type SproutErrorSetter = (
   value: SproutErrorInput | ((previous: SproutError | null) => SproutErrorInput)
 ) => void;
@@ -74,8 +74,17 @@ export const createSproutError = ({
 });
 
 export const hydrateSerializableSproutError = (input: SerializableSproutError): SproutError => {
-  const error = new Error(input.errorMessage ?? input.message);
-  error.name = input.errorName ?? "RemoteError";
+  const remoteStack = input.details?.remoteStack;
+  const remoteCause = new Error(input.errorMessage ?? input.message);
+  remoteCause.name = input.errorName ?? "RemoteError";
+  if (remoteStack) {
+    remoteCause.stack = remoteStack;
+  }
+  const error = new Error(input.message, { cause: remoteCause });
+  error.name = "RemoteWorkletError";
+  if (remoteStack) {
+    error.stack = remoteStack;
+  }
   return createSproutError({
     source: input.source,
     code: input.code,
@@ -83,22 +92,6 @@ export const hydrateSerializableSproutError = (input: SerializableSproutError): 
     message: input.message,
     error,
     details: input.details
-  });
-};
-
-export const normalizeSproutError = (value: SproutErrorInput, fallbackSource = "app"): SproutError | null => {
-  if (value === null) {
-    return null;
-  }
-  if (isSproutError(value)) {
-    return value;
-  }
-  return createSproutError({
-    source: fallbackSource,
-    code: "runtime_error",
-    severity: "error",
-    message: value,
-    error: new Error(value)
   });
 };
 

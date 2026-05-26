@@ -5,7 +5,7 @@ import { AudioEngine } from "@/audio/engine";
 import { createTrackVolumeAutomationLane, TRACK_VOLUME_AUTOMATION_ID } from "@/lib/macroAutomation";
 import { clamp } from "@/lib/numeric";
 import { pitchToVoct } from "@/lib/pitch";
-import { SproutErrorSetter } from "@/lib/sproutErrors";
+import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { Project } from "@/types/music";
 
 type CommitProjectChange = (
@@ -110,7 +110,19 @@ export function useTrackVolumeAutomationActions({
       audioEngineRef.current?.setMacroValue(trackId, TRACK_VOLUME_AUTOMATION_ID, clamp(volume, 0, 2) / 2);
       audioEngineRef.current
         ?.previewNote(trackId, pitchToVoct(previewPitch), 1, 0.9, { ignoreVolume: false })
-        .catch((error) => setRuntimeError((error as Error).message));
+        .catch((error) => {
+          const previewError = toError(error);
+          setRuntimeError(
+            createSproutError({
+              source: "track_volume_automation",
+              code: "preview_failed",
+              severity: "error",
+              message: `Volume automation preview failed: ${previewError.message}`,
+              error: previewError,
+              details: { phase: "preview_volume_change", trackId }
+            })
+          );
+        });
     },
     [audioEngineRef, previewPitch, setRuntimeError]
   );

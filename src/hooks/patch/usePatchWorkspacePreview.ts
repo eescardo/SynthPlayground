@@ -8,7 +8,7 @@ import { resolvePatchWorkspaceMacroValues } from "@/hooks/patch/usePatchWorkspac
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import { pitchToVoct } from "@/lib/pitch";
 import { hydratePatchSamplePlayerAssetsForRuntime } from "@/lib/sampleAssetLibrary";
-import { SproutErrorSetter } from "@/lib/sproutErrors";
+import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { HOST_PORT_IDS } from "@/lib/patch/constants";
 import { mergeSpectrumGrid } from "@/lib/patch/spectrumCaptureMerge";
 import { Patch } from "@/types/patch";
@@ -214,7 +214,19 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
             holdUntilReleased: options?.holdUntilReleased
           }
         )
-        .catch((error) => setRuntimeError((error as Error).message));
+        .catch((error) => {
+          const previewError = toError(error);
+          setRuntimeError(
+            createSproutError({
+              source: "patch_workspace",
+              code: "preview_failed",
+              severity: "error",
+              message: `Patch preview failed: ${previewError.message}`,
+              error: previewError,
+              details: { phase: "preview_patch", trackId: previewTrack.id, previewId }
+            })
+          );
+        });
       return {
         previewId,
         trackId: previewTrack.id,

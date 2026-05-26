@@ -12,7 +12,7 @@ import {
   saveProjectState
 } from "@/lib/persistence";
 import { createEmptyProjectAssetLibrary } from "@/lib/sampleAssetLibrary";
-import { createSproutError, normalizeSproutError, SproutError, SproutErrorSetter } from "@/lib/sproutErrors";
+import { createSproutError, SproutError, SproutErrorSetter } from "@/lib/sproutErrors";
 import { ProjectAssetLibrary } from "@/types/assets";
 import { Project } from "@/types/music";
 
@@ -37,7 +37,7 @@ export function useAppBootstrap({
   const [selectedTrackId, setSelectedTrackId] = useState<string | undefined>(undefined);
   const [runtimeError, setRuntimeErrorState] = useState<SproutError | null>(null);
   const setRuntimeError = useCallback<SproutErrorSetter>((value) => {
-    setRuntimeErrorState((previous) => normalizeSproutError(typeof value === "function" ? value(previous) : value));
+    setRuntimeErrorState((previous) => (typeof value === "function" ? value(previous) : value));
   }, []);
   const project = projectHistory.current;
 

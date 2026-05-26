@@ -1,32 +1,47 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSproutError, normalizeSproutError, reportSproutErrorToConsole } from "@/lib/sproutErrors";
+import { createSproutError, hydrateSerializableSproutError, reportSproutErrorToConsole } from "@/lib/sproutErrors";
 
 describe("sproutErrors", () => {
-  it("normalizes legacy string messages into structured errors", () => {
-    const normalized = normalizeSproutError("Something failed", "legacy_ui");
-
-    expect(normalized).toEqual({
-      source: "legacy_ui",
-      code: "runtime_error",
-      severity: "error",
-      message: "Something failed",
-      error: expect.any(Error),
-      details: undefined
-    });
-    expect(normalized?.error?.message).toBe("Something failed");
-  });
-
-  it("keeps structured errors intact", () => {
+  it("creates structured errors with required telemetry fields", () => {
+    const cause = new Error("boom");
     const error = createSproutError({
       source: "audio_worklet",
       code: "runtime_error",
       severity: "error",
       message: "Audio worklet process_block failed: boom",
-      error: new Error("boom"),
+      error: cause,
       details: { phase: "process_block" }
     });
 
-    expect(normalizeSproutError(error)).toBe(error);
+    expect(error).toEqual({
+      source: "audio_worklet",
+      code: "runtime_error",
+      severity: "error",
+      message: "Audio worklet process_block failed: boom",
+      error: cause,
+      details: { phase: "process_block" }
+    });
+  });
+
+  it("hydrates remote worklet errors with the remote stack as the primary error and cause", () => {
+    const remoteStack = "Error: boom\n    at processBlock (synth-worklet-runtime.js:123:4)";
+    const error = hydrateSerializableSproutError({
+      source: "audio_worklet",
+      code: "runtime_error",
+      severity: "error",
+      message: "Audio worklet process_block failed: boom",
+      errorMessage: "boom",
+      errorName: "Error",
+      details: { phase: "process_block", remoteStack }
+    });
+
+    expect(error.error).toEqual(expect.any(Error));
+    expect(error.error?.name).toBe("RemoteWorkletError");
+    expect(error.error?.message).toBe("Audio worklet process_block failed: boom");
+    expect(error.error?.stack).toBe(remoteStack);
+    expect(error.error?.cause).toEqual(expect.any(Error));
+    expect((error.error?.cause as Error).message).toBe("boom");
+    expect((error.error?.cause as Error).stack).toBe(remoteStack);
   });
 
   it("reports severity through the matching console method", () => {

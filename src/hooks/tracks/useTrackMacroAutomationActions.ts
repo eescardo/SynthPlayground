@@ -15,7 +15,7 @@ import {
   upsertAutomationLaneKeyframe
 } from "@/lib/macroAutomation";
 import { pitchToVoct } from "@/lib/pitch";
-import { SproutErrorSetter } from "@/lib/sproutErrors";
+import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { Project } from "@/types/music";
 
 type CommitProjectChange = (
@@ -122,7 +122,19 @@ export function useTrackMacroAutomationActions({
             ignoreVolume: macroId !== TRACK_VOLUME_AUTOMATION_ID
           })
           .then(() => applyPreviewState(trackId, macroId, normalized, options?.beat))
-          .catch((error) => setRuntimeError((error as Error).message));
+          .catch((error) => {
+            const previewError = toError(error);
+            setRuntimeError(
+              createSproutError({
+                source: "track_macro_automation",
+                code: "preview_failed",
+                severity: "error",
+                message: `Macro automation preview failed: ${previewError.message}`,
+                error: previewError,
+                details: { phase: "preview_macro_change", trackId, macroId }
+              })
+            );
+          });
       }, 0);
     },
     [applyPreviewState, audioEngineRef, previewPitch, setRuntimeError]

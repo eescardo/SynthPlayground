@@ -23,7 +23,7 @@ import {
   createRecordingStartGate
 } from "@/lib/recordingStartGate";
 import { snapRecordedNoteStartBeat } from "@/lib/recordingTiming";
-import { createSproutError, SproutErrorSetter } from "@/lib/sproutErrors";
+import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { Note, Project, Track } from "@/types/music";
 
 export type RecordPhase = "idle" | "count_in" | "recording";
@@ -383,7 +383,17 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
             }
             setRecordPhase("idle");
             setRecordCountIn(null);
-            setRuntimeError((error as Error).message);
+            const recordingError = toError(error);
+            setRuntimeError(
+              createSproutError({
+                source: "recording",
+                code: "start_playback_failed",
+                severity: "error",
+                message: `Recording playback failed: ${recordingError.message}`,
+                error: recordingError,
+                details: { phase: "count_in_complete" }
+              })
+            );
           }
         );
         return;
@@ -446,9 +456,19 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
         },
         { actionKey: `track:${recordingTrackId}:record-note:${noteId}`, coalesce: true }
       );
-      void audioEngineRef.current
-        ?.recordNoteOn(recordingTrackId, noteId, pitchVoct, 0.9)
-        .catch((error) => setRuntimeError((error as Error).message));
+      void audioEngineRef.current?.recordNoteOn(recordingTrackId, noteId, pitchVoct, 0.9).catch((error) => {
+        const noteError = toError(error);
+        setRuntimeError(
+          createSproutError({
+            source: "recording",
+            code: "note_on_failed",
+            severity: "error",
+            message: `Recording note preview failed: ${noteError.message}`,
+            error: noteError,
+            details: { phase: "record_note_on", trackId: recordingTrackId, noteId }
+          })
+        );
+      });
     },
     [
       audioEngineRef,
