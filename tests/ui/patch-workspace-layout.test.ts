@@ -120,7 +120,7 @@ describe.sequential("patch workspace layout regression", () => {
           await expect(activeTabLabel(page)).toHaveText("Tab 1");
           await expect(page.locator(".instrument-patch-picker-name")).toHaveText("Bass");
 
-          await expect(page.locator(".patch-workspace-tab")).toHaveCount(2);
+          await expect(page.locator('[data-ui="patch-workspace-tab"]')).toHaveCount(2);
         } finally {
           await page.close();
         }
@@ -176,7 +176,8 @@ describe.sequential("patch workspace layout regression", () => {
   }, 120_000);
 });
 
-const activeTabLabel = (page: Page) => page.locator(".patch-workspace-tab.active .patch-workspace-tab-name");
+const activeTabLabel = (page: Page) =>
+  page.locator('[data-ui="patch-workspace-tab"][aria-selected="true"] [data-ui="patch-workspace-tab-name"]');
 
 async function selectBaselineOption(page: Page, index: number): Promise<string> {
   const popover = page.getByRole("dialog", { name: "Select baseline patch" });
@@ -192,7 +193,7 @@ async function selectBaselineOption(page: Page, index: number): Promise<string> 
 }
 
 async function zoomCanvasOut(page: Page, steps: number) {
-  const target = page.locator(".patch-canvas-scroll");
+  const target = page.locator('[data-ui="patch-canvas-scroll"]');
   const box = await target.boundingBox();
   if (!box) {
     throw new Error("Could not determine patch canvas scroll bounds.");
@@ -229,10 +230,10 @@ async function measurePatchWorkspace(page: Page): Promise<PatchWorkspaceMetrics>
       zoom: document.querySelector(".patch-zoom-readout")?.textContent ?? null,
       layout: pick(".patch-layout"),
       main: pick(".patch-editor-main-column"),
-      stage: pick(".patch-canvas-stage"),
-      shell: pick(".patch-canvas-shell"),
-      scroll: pick(".patch-canvas-scroll"),
-      canvas: pick(".patch-canvas-overlay-shell > canvas")
+      stage: pick('[data-ui="patch-canvas-stage"]'),
+      shell: pick('[data-ui="patch-canvas-shell"]'),
+      scroll: pick('[data-ui="patch-canvas-scroll"]'),
+      canvas: pick('[data-ui="patch-canvas-overlay-shell"] > canvas')
     };
   });
 }

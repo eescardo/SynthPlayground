@@ -118,7 +118,7 @@ const resolveRawPortPoint = (patch: Patch, nodeId: string, portId: string, portK
 };
 
 const resolveCanvasDisplayScale = async (page: Page) => {
-  const canvas = page.locator(".patch-canvas-overlay-shell > canvas");
+  const canvas = page.locator('[data-ui="patch-canvas-overlay-shell"] > canvas');
   const box = await canvas.boundingBox();
   if (!box) {
     throw new Error("Patch canvas bounding box was not available.");
@@ -177,10 +177,10 @@ export const setupPatchWorkspaceProbes = async (page: Page) => {
   await clickPatchPort(page, "vca1", "out", "out");
 
   const cards = page.locator(".patch-probe-card");
-  await cards.nth(0).dragTo(page.locator(".patch-canvas-overlay-shell"), {
+  await cards.nth(0).dragTo(page.locator('[data-ui="patch-canvas-overlay-shell"]'), {
     targetPosition: { x: 360, y: 380 }
   });
-  await cards.nth(1).dragTo(page.locator(".patch-canvas-overlay-shell"), {
+  await cards.nth(1).dragTo(page.locator('[data-ui="patch-canvas-overlay-shell"]'), {
     targetPosition: { x: 860, y: 380 }
   });
 
@@ -469,7 +469,7 @@ export const createPatchModuleFacesCaptureProject = (): Project => {
 export const setupPatchModuleFacesWorkspace = async (page: Page) => {
   await openSeededPatchWorkspaceApp(page, createPatchModuleFacesCaptureProject());
   await expect(page.getByRole("heading", { name: "Patch Workspace" })).toBeVisible();
-  await expect(page.locator(".patch-workspace-tab-name", { hasText: "Module Face Visuals" })).toBeVisible();
+  await expect(page.locator('[data-ui="patch-workspace-tab-name"]', { hasText: "Module Face Visuals" })).toBeVisible();
   await expect(page.locator(".patch-inspector")).toContainText("Compressor comp_shape");
   await expect(page.locator(".param-current-value-unit", { hasText: "ms" })).toBeVisible();
   await expect(page.locator(".compressor-derived-readouts")).toContainText("Auto Gain");
@@ -686,10 +686,10 @@ export const createBaselineDiffCaptureProject = (): Project => {
 export const setupBaselineDiffWorkspace = async (page: Page) => {
   await openSeededPatchWorkspaceApp(page, createBaselineDiffCaptureProject());
   await expect(page.getByRole("heading", { name: "Patch Workspace" })).toBeVisible();
-  await expect(page.locator(".patch-workspace-tab")).toHaveCount(2);
-  await expect(page.locator(".patch-workspace-tab").first()).toContainText("Original");
-  await expect(page.locator(".patch-workspace-tab").last()).toContainText("Diff View");
-  await expect(page.locator(".patch-macro-row")).toHaveCount(2);
+  await expect(page.locator('[data-ui="patch-workspace-tab"]')).toHaveCount(2);
+  await expect(page.locator('[data-ui="patch-workspace-tab"]').first()).toContainText("Original");
+  await expect(page.locator('[data-ui="patch-workspace-tab"]').last()).toContainText("Diff View");
+  await expect(page.locator('[data-ui="patch-macro-row"]')).toHaveCount(2);
 };
 const getTrackCanvas = (page: Page) => page.locator(".track-canvas-shell > canvas");
 
