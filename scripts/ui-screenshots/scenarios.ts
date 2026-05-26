@@ -5,6 +5,7 @@ export const SCREENSHOT_SCENARIO = {
   TIMELINE_SELECTION: "timeline-selection",
   TRACK_NOTE_HOVER: "track-note-hover",
   HELP_MODAL: "help-modal",
+  ABOUT_PAGE: "about-page",
   PRESET_UPDATE_MODAL: "preset-update-modal",
   RECORD_MODE: "record-mode",
   PATCH_EDITOR: "patch-editor",

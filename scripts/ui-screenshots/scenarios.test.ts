@@ -76,6 +76,15 @@ describe("resolveScreenshotScenariosFromLabelsJson", () => {
     });
   });
 
+  it("parses the about page label", () => {
+    expect(resolveScreenshotScenariosFromLabels(["screenshots:about-page"])).toMatchObject({
+      enabled: true,
+      value: "about-page",
+      grep: "@about-page",
+      error: ""
+    });
+  });
+
   it("returns a validation error for malformed JSON", () => {
     expect(resolveScreenshotScenariosFromLabelsJson("not-json")).toMatchObject({
       enabled: false,
