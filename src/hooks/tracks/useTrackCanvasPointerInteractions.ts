@@ -173,6 +173,7 @@ export function useTrackCanvasPointerInteractions({
   const pendingCanvasActionRef = useRef<PendingCanvasAction | null>(null);
   const automationDragRef = useRef<AutomationDragState | null>(null);
   const pendingLaneActionRef = useRef<PendingLaneAction | null>(null);
+  const timelineSelectionDragActiveRef = useRef(false);
 
   const [hoveredPitch, setHoveredPitch] = useState<{ trackId: string; noteId: string } | null>(null);
   const [hoveredNote, setHoveredNote] = useState<{ trackId: string; noteId: string } | null>(null);
@@ -285,6 +286,7 @@ export function useTrackCanvasPointerInteractions({
       const orderedStartBeat = Math.min(startBeat, endBeat);
       const orderedEndBeat = Math.max(startBeat, endBeat);
       const beatSpan = orderedEndBeat - orderedStartBeat;
+      timelineSelectionDragActiveRef.current = beatSpan > 0;
       selectionActions.onSetSelectionMarqueeActive(beatSpan > 0);
       selectionActions.onSetTimelineSelectionBeatRange(
         beatSpan > 0 ? { startBeat: orderedStartBeat, endBeat: orderedEndBeat, beatSpan } : null
@@ -336,6 +338,7 @@ export function useTrackCanvasPointerInteractions({
             startBeat: Math.max(0, snapToGrid(beatFromX(x), gridBeats)),
             pointerId: event.pointerId
           };
+          timelineSelectionDragActiveRef.current = false;
           selectionActions.onSetSelectionMarqueeActive(false);
           canvas.setPointerCapture(event.pointerId);
           return;
@@ -765,6 +768,7 @@ export function useTrackCanvasPointerInteractions({
       const hadAutomationDrag = Boolean(automationDrag);
       const pendingAction = pendingCanvasActionRef.current;
       const pendingLaneAction = pendingLaneActionRef.current;
+      const hadTimelineSelectionDrag = timelineSelectionDragActiveRef.current;
       const { x, y } = getCanvasPoint(event.clientX, event.clientY);
       if (canvasRef.current && (dragRef.current || pendingAction || automationDragRef.current || pendingLaneAction)) {
         try {
@@ -848,7 +852,7 @@ export function useTrackCanvasPointerInteractions({
 
       if (pendingAction?.kind === "ruler") {
         const beat = Math.max(0, snapToGrid(beatFromX(x), gridBeats));
-        if (!hadSelectionRect) {
+        if (!hadTimelineSelectionDrag) {
           onSetPlayheadBeat(beat);
         } else {
           selectionActions.onPreviewSelectionActionScopeChange("all-tracks");
@@ -857,6 +861,7 @@ export function useTrackCanvasPointerInteractions({
 
       pendingCanvasActionRef.current = null;
       pendingLaneActionRef.current = null;
+      timelineSelectionDragActiveRef.current = false;
       setSelectionRect(null);
       selectionActions.onSetSelectionMarqueeActive(false);
       const targets = resolvePointerTargets(x, y);
