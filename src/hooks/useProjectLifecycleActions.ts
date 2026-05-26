@@ -12,6 +12,7 @@ import {
 import { RecentProjectSnapshot, removeRecentProjectSnapshot, saveRecentProjectSnapshot } from "@/lib/persistence";
 import { importProjectBundleFromJson } from "@/lib/projectSerde";
 import { createEmptyProjectAssetLibrary } from "@/lib/sampleAssetLibrary";
+import { createSproutError, SproutErrorSetter } from "@/lib/sproutErrors";
 import { ProjectAssetLibrary } from "@/types/assets";
 import { Project } from "@/types/music";
 
@@ -32,7 +33,7 @@ interface UseProjectLifecycleActionsArgs {
   resetProjectState: (nextProject: Project, nextAssets?: ProjectAssetLibrary) => void;
   refreshRecentProjects: (activeProjectId?: string) => Promise<void>;
   setSelectedTrackId: Dispatch<SetStateAction<string | undefined>>;
-  setRuntimeError: Dispatch<SetStateAction<string | null>>;
+  setRuntimeError: SproutErrorSetter;
   clearTransientComposerUi: () => void;
 }
 
@@ -117,7 +118,15 @@ export const useProjectLifecycleActions = ({
           removeRecentProjectId: projectId
         });
       } catch (error) {
-        setRuntimeError(`Failed to open recent project. ${(error as Error).message}`);
+        setRuntimeError(
+          createSproutError({
+            source: "project_lifecycle",
+            severity: "error",
+            message: `Failed to open recent project. ${(error as Error).message}`,
+            error: (error as Error).message,
+            phase: "open_recent_project"
+          })
+        );
       }
     },
     [recentProjects, setRuntimeError, switchToProject]
@@ -135,7 +144,16 @@ export const useProjectLifecycleActions = ({
         setRuntimeError(null);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        setRuntimeError(`Failed to import project "${file.name}". ${message || "Unknown error."}`);
+        setRuntimeError(
+          createSproutError({
+            source: "project_lifecycle",
+            severity: "error",
+            message: `Failed to import project "${file.name}". ${message || "Unknown error."}`,
+            error: message || "Unknown error.",
+            phase: "import_project",
+            details: { fileName: file.name }
+          })
+        );
       }
     },
     [setRuntimeError, switchToProject]

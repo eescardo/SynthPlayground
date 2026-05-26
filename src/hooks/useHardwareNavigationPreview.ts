@@ -3,6 +3,7 @@
 import { RefObject, useCallback } from "react";
 import { AudioEngine } from "@/audio/engine";
 import { pitchToVoct } from "@/lib/pitch";
+import { SproutErrorSetter } from "@/lib/sproutErrors";
 import { Track } from "@/types/music";
 
 type WorkspaceView = "composer" | "patch-workspace";
@@ -16,7 +17,7 @@ interface UseHardwareNavigationPreviewArgs {
   previewSelectedPatchNow: (pitch?: string) => void;
   releaseHeldPatchPreview: () => void;
   startHeldPatchPreview: (pitch?: string) => void;
-  setRuntimeError: (message: string | null) => void;
+  setRuntimeError: SproutErrorSetter;
 }
 
 export function useHardwareNavigationPreview({

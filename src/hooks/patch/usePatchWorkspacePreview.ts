@@ -1,6 +1,6 @@
 "use client";
 
-import type { Dispatch, RefObject, SetStateAction } from "react";
+import type { RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toAudioProject } from "@/audio/audioProject";
 import { AudioEngine } from "@/audio/engine";
@@ -8,6 +8,7 @@ import { resolvePatchWorkspaceMacroValues } from "@/hooks/patch/usePatchWorkspac
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import { pitchToVoct } from "@/lib/pitch";
 import { hydratePatchSamplePlayerAssetsForRuntime } from "@/lib/sampleAssetLibrary";
+import { SproutErrorSetter } from "@/lib/sproutErrors";
 import { HOST_PORT_IDS } from "@/lib/patch/constants";
 import { mergeSpectrumGrid } from "@/lib/patch/spectrumCaptureMerge";
 import { Patch } from "@/types/patch";
@@ -72,7 +73,7 @@ interface UsePatchWorkspacePreviewOptions {
   probes?: PatchWorkspaceProbeState[];
   audioEngineRef: RefObject<AudioEngine | null>;
   playing: boolean;
-  setRuntimeError: Dispatch<SetStateAction<string | null>>;
+  setRuntimeError: SproutErrorSetter;
 }
 
 export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOptions) {

@@ -23,6 +23,7 @@ import {
   createRecordingStartGate
 } from "@/lib/recordingStartGate";
 import { snapRecordedNoteStartBeat } from "@/lib/recordingTiming";
+import { createSproutError, SproutErrorSetter } from "@/lib/sproutErrors";
 import { Note, Project, Track } from "@/types/music";
 
 export type RecordPhase = "idle" | "count_in" | "recording";
@@ -67,7 +68,7 @@ interface UseRecordingControllerArgs {
   ) => void;
   setPlaying: (value: boolean) => void;
   setPlayheadBeat: (value: number) => void;
-  setRuntimeError: (value: string | null) => void;
+  setRuntimeError: SproutErrorSetter;
   onBeginRecordingPlayback: (trackId: string, cueBeat: number) => Promise<void>;
 }
 
@@ -321,7 +322,15 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
 
   const startRecordMode = useCallback(async () => {
     if (!wasmReady) {
-      setRuntimeError("The default WASM renderer is not ready.");
+      setRuntimeError(
+        createSproutError({
+          source: "recording",
+          severity: "error",
+          message: "The default WASM renderer is not ready.",
+          error: "The default WASM renderer is not ready.",
+          phase: "start"
+        })
+      );
       return;
     }
     if (!selectedTrack) {

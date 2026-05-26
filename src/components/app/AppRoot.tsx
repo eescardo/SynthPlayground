@@ -54,6 +54,7 @@ import {
 } from "@/lib/patch/source";
 import { exportProjectToJson } from "@/lib/projectSerde";
 import { pitchToVoct } from "@/lib/pitch";
+import { createSproutError, reportSproutErrorToConsole } from "@/lib/sproutErrors";
 import {
   buildMissingSampleAssetIssues,
   createEmptyProjectAssetLibrary,
@@ -147,6 +148,13 @@ export function AppRoot({ children }: { children: ReactNode }) {
     ready,
     setRuntimeError
   });
+
+  useEffect(() => {
+    if (!runtimeError) {
+      return;
+    }
+    reportSproutErrorToConsole(runtimeError);
+  }, [runtimeError]);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -527,7 +535,17 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
       audioEngineRef.current
         ?.previewNote(trackId, pitchToVoct(pitch), note.durationBeats, note.velocity)
-        .catch((error) => setRuntimeError((error as Error).message));
+        .catch((error) =>
+          setRuntimeError(
+            createSproutError({
+              source: "audio_playback",
+              severity: "error",
+              message: (error as Error).message,
+              error: (error as Error).message,
+              phase: "pitch_picker_preview"
+            })
+          )
+        );
     },
     [playing, project.tracks, setRuntimeError]
   );
@@ -539,7 +557,17 @@ export function AppRoot({ children }: { children: ReactNode }) {
       setEditorSelection(clearEditorSelection());
       setPitchPicker(null);
       if (playing) {
-        void playback.seekPlaybackToBeat(beat).catch((error) => setRuntimeError((error as Error).message));
+        void playback.seekPlaybackToBeat(beat).catch((error) =>
+          setRuntimeError(
+            createSproutError({
+              source: "audio_playback",
+              severity: "error",
+              message: (error as Error).message,
+              error: (error as Error).message,
+              phase: "seek"
+            })
+          )
+        );
       }
     },
     [playback, playing, setPitchPicker, setRuntimeError]
@@ -991,7 +1019,15 @@ export function AppRoot({ children }: { children: ReactNode }) {
     }
     const nextTrackIds = resolveSurvivingTrackIds(project, patchRemovalDialog);
     if (nextTrackIds.size === 0) {
-      setRuntimeError("At least one track must remain in the project.");
+      setRuntimeError(
+        createSproutError({
+          source: "patch_workspace",
+          severity: "error",
+          message: "At least one track must remain in the project.",
+          error: "At least one track must remain in the project.",
+          phase: "remove_patch"
+        })
+      );
       return;
     }
 
@@ -1055,7 +1091,17 @@ export function AppRoot({ children }: { children: ReactNode }) {
     (trackId: string, note: Project["tracks"][number]["notes"][number]) => {
       audioEngineRef.current
         ?.previewNote(trackId, pitchToVoct(note.pitchStr), note.durationBeats, note.velocity)
-        .catch((error) => setRuntimeError((error as Error).message));
+        .catch((error) =>
+          setRuntimeError(
+            createSproutError({
+              source: "patch_workspace",
+              severity: "error",
+              message: (error as Error).message,
+              error: (error as Error).message,
+              phase: "preview"
+            })
+          )
+        );
     },
     [setRuntimeError]
   );
@@ -1267,7 +1313,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   return (
     <AppRootContext.Provider value={contextValue}>
       <main className="app">
-        {runtimeError && <p className="error">{runtimeError}</p>}
+        {runtimeError && <p className="error">{runtimeError.message}</p>}
 
         {children}
 

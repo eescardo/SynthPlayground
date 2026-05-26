@@ -15,6 +15,7 @@ import {
   upsertAutomationLaneKeyframe
 } from "@/lib/macroAutomation";
 import { pitchToVoct } from "@/lib/pitch";
+import { SproutErrorSetter } from "@/lib/sproutErrors";
 import { Project } from "@/types/music";
 
 type CommitProjectChange = (
@@ -31,7 +32,7 @@ interface UseTrackMacroAutomationActionsParams {
     beat: number,
     override: { macroId: string; normalized: number }
   ) => TrackPreviewStateAtBeat | null;
-  setRuntimeError: (message: string | null) => void;
+  setRuntimeError: SproutErrorSetter;
 }
 
 export function useTrackMacroAutomationActions({

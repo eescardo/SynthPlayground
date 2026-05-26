@@ -11,6 +11,7 @@ vi.mock("@/audio/worklets/createInitializedWorkletNode", () => ({
 import {
   createActiveTrackNoteEvents,
   createTrackVolumeRestoreCommand,
+  createWorkletRuntimeSproutError,
   formatWorkletRuntimeError,
   RealAudioEngineBackend,
   updateTrackMuteSnapshot
@@ -69,13 +70,20 @@ describe("audio engine live mute transitions", () => {
   });
 
   it("formats worklet runtime errors for app-level reporting", () => {
-    expect(
-      formatWorkletRuntimeError({
-        type: "RUNTIME_ERROR",
-        phase: "process_block",
-        error: "sample playback failed"
-      })
-    ).toBe("Audio worklet process_block failed: sample playback failed");
+    const message = {
+      type: "RUNTIME_ERROR" as const,
+      phase: "process_block" as const,
+      error: "sample playback failed"
+    };
+
+    expect(formatWorkletRuntimeError(message)).toBe("Audio worklet process_block failed: sample playback failed");
+    expect(createWorkletRuntimeSproutError(message)).toEqual({
+      source: "audio_worklet",
+      severity: "error",
+      phase: "process_block",
+      error: "sample playback failed",
+      message: "Audio worklet process_block failed: sample playback failed"
+    });
   });
 
   it("updates the backend mute snapshot so project sync does not replay an immediate transition", () => {

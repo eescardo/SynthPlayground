@@ -16,6 +16,7 @@ import {
   updatePresetPatchToLatest
 } from "@/lib/patch/source";
 import { buildPatchRemovalRequest } from "@/lib/patch/patchRemoval";
+import { createSproutError, SproutErrorSetter } from "@/lib/sproutErrors";
 import { Project } from "@/types/music";
 import { Patch } from "@/types/patch";
 import { PatchRemovalDialogState } from "@/components/composer/PatchRemovalDialogModal";
@@ -33,7 +34,7 @@ interface UsePatchWorkspaceLifecycleActionsOptions {
   selectedPatch?: Patch;
   setActiveTabId: (tabId: string | undefined) => void;
   setPatchRemovalDialog: Dispatch<SetStateAction<PatchRemovalDialogState | null>>;
-  setRuntimeError: Dispatch<SetStateAction<string | null>>;
+  setRuntimeError: SproutErrorSetter;
   setTabMacroValuesById: Dispatch<SetStateAction<Record<string, Record<string, number>>>>;
   setTabs: Dispatch<SetStateAction<LocalPatchWorkspaceTab[]>>;
   skipNextWorkspaceHistoryRef: MutableRefObject<boolean>;
@@ -270,7 +271,15 @@ export function usePatchWorkspaceLifecycleActions({
     }
     if (removalRequest.rows.length === 0) {
       if (!fallbackPatchId) {
-        setRuntimeError("No fallback instrument is available for this tab.");
+        setRuntimeError(
+          createSproutError({
+            source: "patch_workspace",
+            severity: "error",
+            message: "No fallback instrument is available for this tab.",
+            error: "No fallback instrument is available for this tab.",
+            phase: "remove_patch"
+          })
+        );
         return;
       }
       const affectedTabIds = tabs.filter((tab) => tab.patchId === selectedPatch.id).map((tab) => tab.id);

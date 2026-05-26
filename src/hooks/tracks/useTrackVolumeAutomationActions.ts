@@ -5,6 +5,7 @@ import { AudioEngine } from "@/audio/engine";
 import { createTrackVolumeAutomationLane, TRACK_VOLUME_AUTOMATION_ID } from "@/lib/macroAutomation";
 import { clamp } from "@/lib/numeric";
 import { pitchToVoct } from "@/lib/pitch";
+import { SproutErrorSetter } from "@/lib/sproutErrors";
 import { Project } from "@/types/music";
 
 type CommitProjectChange = (
@@ -16,7 +17,7 @@ interface UseTrackVolumeAutomationActionsParams {
   audioEngineRef: RefObject<AudioEngine | null>;
   commitProjectChange: CommitProjectChange;
   previewPitch: string;
-  setRuntimeError: (message: string | null) => void;
+  setRuntimeError: SproutErrorSetter;
 }
 
 export function useTrackVolumeAutomationActions({

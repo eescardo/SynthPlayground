@@ -18,6 +18,7 @@ import { createImportedWorkspacePatch } from "@/hooks/patch/patchWorkspacePatchH
 import { mergeImportedPatchAssets } from "@/lib/sampleAssetLibrary";
 import { MAX_PATCH_WORKSPACE_TABS } from "@/hooks/patch/patchWorkspaceStateUtils";
 import { buildPatchDiff } from "@/lib/patch/diff";
+import { createSproutError, SproutErrorSetter } from "@/lib/sproutErrors";
 import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
 import { ProjectAssetLibrary } from "@/types/assets";
 import { Project } from "@/types/music";
@@ -42,7 +43,7 @@ export interface UsePatchWorkspaceControllerOptions {
   onUpsertSamplePlayerAssetData: (serializedSampleData: string, existingAssetId?: string | null) => string;
   commitProjectChange: CommitProjectChange;
   setProjectAssets: Dispatch<SetStateAction<ProjectAssetLibrary>>;
-  setRuntimeError: Dispatch<SetStateAction<string | null>>;
+  setRuntimeError: SproutErrorSetter;
   onNewProject: () => void;
   onExportJson: () => void;
   onImportJson: () => void;
@@ -134,7 +135,15 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
         patchWorkspace.selectPatchInWorkspace(nextPatch.id);
         setRuntimeError(null);
       } catch (error) {
-        setRuntimeError((error as Error).message);
+        setRuntimeError(
+          createSproutError({
+            source: "patch_workspace",
+            severity: "error",
+            message: (error as Error).message,
+            error: (error as Error).message,
+            phase: "import_patch"
+          })
+        );
       }
     },
     [commitProjectChange, patchWorkspace, project.patches, projectAssets, setProjectAssets, setRuntimeError]

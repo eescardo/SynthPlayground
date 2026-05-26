@@ -3,6 +3,7 @@
 import { RefObject } from "react";
 import { AudioEngine } from "@/audio/engine";
 import { ContentSelection } from "@/lib/clipboard";
+import { SproutErrorSetter } from "@/lib/sproutErrors";
 import { Project, Track } from "@/types/music";
 
 export type WorkspaceView = "composer" | "patch-workspace";
@@ -60,7 +61,7 @@ export interface UseHardwareNavigationArgs {
   startHeldDefaultPitchPreview: (pitch?: string) => void;
   onComposerPlay: () => void;
   onComposerStop: () => void;
-  setRuntimeError: (message: string | null) => void;
+  setRuntimeError: SproutErrorSetter;
 }
 
 export interface HardwareNavigationResult {

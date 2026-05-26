@@ -4,6 +4,7 @@ import { RefObject, useCallback, useEffect, useRef } from "react";
 import { AudioEngine } from "@/audio/engine";
 import { AudioEnginePlayOptions } from "@/audio/engineBackends";
 import { getLoopPlaybackEndBeat } from "@/lib/looping";
+import { createSproutError, SproutErrorSetter } from "@/lib/sproutErrors";
 import { Project } from "@/types/music";
 import { AudioProject } from "@/types/audio";
 
@@ -17,7 +18,7 @@ interface UsePlaybackControllerArgs {
   audioEngineRef: RefObject<AudioEngine | null>;
   setPlaying: (value: boolean) => void;
   setPlayheadBeat: (value: number) => void;
-  setRuntimeError: (value: string | null) => void;
+  setRuntimeError: SproutErrorSetter;
   onStopRecordingSession: (finalBeat?: number) => void;
   onHandleRecordingBeat: (beat: number) => void;
 }
@@ -109,7 +110,15 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
 
   const startPlayback = useCallback(async () => {
     if (!wasmReady) {
-      setRuntimeError("The default WASM renderer is not ready.");
+      setRuntimeError(
+        createSproutError({
+          source: "audio_playback",
+          severity: "error",
+          message: "The default WASM renderer is not ready.",
+          error: "The default WASM renderer is not ready.",
+          phase: "start"
+        })
+      );
       return;
     }
     setPlaying(true);

@@ -1,6 +1,6 @@
 "use client";
 
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useCallback, useEffect, useState } from "react";
 import { createProjectSnapshot, hydrateProjectSnapshot } from "@/lib/projectLifecycle";
 import { createHistory, HistoryState } from "@/lib/history";
 import { freezeProjectSnapshot } from "@/lib/projectImmutability";
@@ -12,6 +12,7 @@ import {
   saveProjectState
 } from "@/lib/persistence";
 import { createEmptyProjectAssetLibrary } from "@/lib/sampleAssetLibrary";
+import { createSproutError, normalizeSproutError, SproutError, SproutErrorSetter } from "@/lib/sproutErrors";
 import { ProjectAssetLibrary } from "@/types/assets";
 import { Project } from "@/types/music";
 
@@ -34,7 +35,10 @@ export function useAppBootstrap({
   const [projectAssets, setProjectAssets] = useState<ProjectAssetLibrary>(() => createEmptyProjectAssetLibrary());
   const [ready, setReady] = useState(false);
   const [selectedTrackId, setSelectedTrackId] = useState<string | undefined>(undefined);
-  const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const [runtimeError, setRuntimeErrorState] = useState<SproutError | null>(null);
+  const setRuntimeError = useCallback<SproutErrorSetter>((value) => {
+    setRuntimeErrorState((previous) => normalizeSproutError(typeof value === "function" ? value(previous) : value));
+  }, []);
   const project = projectHistory.current;
 
   useEffect(() => {
@@ -72,7 +76,13 @@ export function useAppBootstrap({
         setSelectedTrackId(fallbackProject.tracks[0]?.id);
         setRecentProjects([]);
         setRuntimeError(
-          `Failed to load the saved project. Loaded the default project instead. ${(error as Error).message}`
+          createSproutError({
+            source: "project_bootstrap",
+            severity: "error",
+            message: `Failed to load the saved project. Loaded the default project instead. ${(error as Error).message}`,
+            error: (error as Error).message,
+            phase: "load_saved_project"
+          })
         );
         setReady(true);
       }
@@ -83,7 +93,7 @@ export function useAppBootstrap({
     return () => {
       cancelled = true;
     };
-  }, [setRecentProjects]);
+  }, [setRecentProjects, setRuntimeError]);
 
   useEffect(() => {
     if (!ready) return;
