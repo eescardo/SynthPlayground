@@ -35,7 +35,6 @@ describe("patch diff", () => {
         keyframeCount: 2,
         bindings: [
           {
-            id: "binding_pitch",
             nodeId: "sample1",
             paramId: "pitchSemis",
             map: "linear",
@@ -50,7 +49,6 @@ describe("patch diff", () => {
         keyframeCount: 2,
         bindings: [
           {
-            id: "binding_gain",
             nodeId: "sample1",
             paramId: "gain",
             map: "linear",
@@ -161,7 +159,6 @@ describe("patch diff", () => {
         keyframeCount: 2,
         bindings: [
           {
-            id: "binding_gain",
             nodeId: "output",
             paramId: "gain",
             map: "linear",
@@ -204,7 +201,6 @@ describe("patch diff", () => {
         keyframeCount: 2,
         bindings: [
           {
-            id: "macro_cutoff:vcf1:cutoffHz",
             nodeId: "vcf1",
             paramId: "cutoffHz",
             map: "linear",
@@ -217,7 +213,6 @@ describe("patch diff", () => {
     const current = structuredClone(baseline);
     current.ui.macros[0].bindings = [
       {
-        id: "some_new_bind_id",
         nodeId: "vcf1",
         paramId: "cutoffHz",
         map: "linear",
@@ -243,7 +238,6 @@ describe("patch diff", () => {
         keyframeCount: 2,
         bindings: [
           {
-            id: "old_random_binding",
             nodeId: PATCH_OUTPUT_PORT_ID,
             paramId: "gainDb",
             map: "linear",
@@ -256,7 +250,6 @@ describe("patch diff", () => {
     const current = structuredClone(baseline);
     current.ui.macros[0].bindings = [
       {
-        id: "new_random_binding",
         nodeId: PATCH_OUTPUT_PORT_ID,
         paramId: "gainDb",
         map: "linear",
@@ -292,7 +285,6 @@ describe("patch diff", () => {
         keyframeCount: 3,
         bindings: [
           {
-            id: "macro_decay:vcf1:resonance",
             nodeId: "vcf1",
             paramId: "resonance",
             map: "linear",

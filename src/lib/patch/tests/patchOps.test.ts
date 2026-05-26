@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { applyMacroValue, applyPatchOp } from "@/lib/patch/ops";
-import { createDefaultParamsForType } from "@/lib/patch/moduleRegistry";
 import { getMacroBindingKeyframeCount, resolveMacroBindingValue } from "@/lib/patch/macroKeyframes";
 import { createClearPatch, guitarStringPatch } from "@/lib/patch/presets";
 import { ensurePatchLayout } from "@/lib/patch/autoLayout";
@@ -68,10 +67,7 @@ describe("patch ops", () => {
     expect(nextPatch.ui.paramRanges?.["vcf1:cutoffHz"]).toBeUndefined();
     expect(
       nextPatch.ui.macros.some((macro) =>
-        macro.bindings.some(
-          (binding) =>
-            binding.nodeId === "soft_beater_halo" && binding.id === `${macro.id}:soft_beater_halo:${binding.paramId}`
-        )
+        macro.bindings.some((binding) => binding.nodeId === "soft_beater_halo" && binding.paramId === "cutoffHz")
       )
     ).toBe(true);
   });
@@ -101,7 +97,6 @@ describe("patch ops", () => {
         ...macro,
         bindings: [
           {
-            id: "binding_removed_param",
             nodeId: "karplus1",
             paramId: "oldParam",
             map: "linear",
@@ -162,7 +157,6 @@ describe("patch ops", () => {
     const nextPatch = applyPatchOp(patch, {
       type: "bindMacro",
       macroId: macro.id,
-      bindingId: "binding_keyframed_test",
       nodeId: "output",
       paramId: "gainDb",
       map: "piecewise",
@@ -175,79 +169,8 @@ describe("patch ops", () => {
 
     const binding = nextPatch.ui.macros
       .find((entry) => entry.id === macro.id)
-      ?.bindings.find((entry) => entry.id === `${macro.id}:output:gainDb`);
+      ?.bindings.find((entry) => entry.nodeId === "output" && entry.paramId === "gainDb");
     expect(binding?.points).toHaveLength(3);
-  });
-
-  it("does not bind compressor internal auto gain to a macro", () => {
-    const patch = createClearPatch({ id: "compressor_auto_gain_bind", name: "Compressor" });
-    patch.nodes.push({
-      id: "comp1",
-      typeId: "Compressor",
-      params: createDefaultParamsForType("Compressor")
-    });
-    patch.ui.macros.push({ id: "macro1", name: "Macro", keyframeCount: 2, bindings: [] });
-
-    const nextPatch = applyPatchOp(patch, {
-      type: "bindMacro",
-      macroId: "macro1",
-      bindingId: "macro1:comp1:makeupDb",
-      nodeId: "comp1",
-      paramId: "makeupDb",
-      map: "linear",
-      min: 0,
-      max: 12
-    });
-
-    expect(nextPatch.ui.macros[0].bindings).toHaveLength(0);
-  });
-
-  it("ignores legacy compressor auto gain parameter edits", () => {
-    const patch = createClearPatch({ id: "compressor_auto_gain_legacy", name: "Compressor" });
-    patch.nodes.push({
-      id: "comp1",
-      typeId: "Compressor",
-      params: createDefaultParamsForType("Compressor")
-    });
-
-    const nextPatch = applyPatchOp(patch, {
-      type: "setParam",
-      nodeId: "comp1",
-      paramId: "makeupDb",
-      value: 12
-    });
-
-    const node = nextPatch.nodes.find((entry) => entry.id === "comp1");
-    expect(node?.params.makeupDb).toBeUndefined();
-  });
-
-  it("ignores legacy compressor makeup macro bindings", () => {
-    const patch = createClearPatch({ id: "compressor_auto_gain_apply", name: "Compressor" });
-    patch.nodes.push({
-      id: "comp1",
-      typeId: "Compressor",
-      params: createDefaultParamsForType("Compressor")
-    });
-    patch.ui.macros.push({
-      id: "macro1",
-      name: "Macro",
-      keyframeCount: 2,
-      bindings: [
-        {
-          id: "macro1:comp1:makeupDb",
-          nodeId: "comp1",
-          paramId: "makeupDb",
-          map: "linear",
-          min: 0,
-          max: 12
-        }
-      ]
-    });
-
-    const nextPatch = applyMacroValue(patch, "macro1", 0.5);
-    const node = nextPatch.nodes.find((entry) => entry.id === "comp1");
-
-    expect(node?.params.makeupDb).toBeUndefined();
   });
 
   it("updates the macro binding interpolation map without changing its range", () => {
@@ -259,7 +182,6 @@ describe("patch ops", () => {
         keyframeCount: 2,
         bindings: [
           {
-            id: "macro_filter:vcf1:cutoffHz",
             nodeId: "vcf1",
             paramId: "cutoffHz",
             map: "linear",
@@ -275,13 +197,14 @@ describe("patch ops", () => {
     const nextPatch = applyPatchOp(patch, {
       type: "setMacroBindingMap",
       macroId: macro.id,
-      bindingId: binding.id,
+      nodeId: binding.nodeId,
+      paramId: binding.paramId,
       map: "exp"
     });
 
     const nextBinding = nextPatch.ui.macros
       .find((entry) => entry.id === macro.id)
-      ?.bindings.find((entry) => entry.id === binding.id);
+      ?.bindings.find((entry) => entry.nodeId === binding.nodeId && entry.paramId === binding.paramId);
     expect(nextBinding?.map).toBe("exp");
     expect(nextBinding?.min).toBe(binding.min);
     expect(nextBinding?.max).toBe(binding.max);
@@ -295,13 +218,14 @@ describe("patch ops", () => {
     const nextPatch = applyPatchOp(patch, {
       type: "setMacroBindingMap",
       macroId: macro.id,
-      bindingId: binding.id,
+      nodeId: binding.nodeId,
+      paramId: binding.paramId,
       map: "exp"
     });
 
     const nextBinding = nextPatch.ui.macros
       .find((entry) => entry.id === macro.id)
-      ?.bindings.find((entry) => entry.id === binding.id);
+      ?.bindings.find((entry) => entry.nodeId === binding.nodeId && entry.paramId === binding.paramId);
     expect(nextBinding?.map).toBe("exp");
     expect(nextBinding?.points).toEqual(binding.points);
     expect(getMacroBindingKeyframeCount(nextBinding!)).toBe(3);
@@ -309,12 +233,13 @@ describe("patch ops", () => {
     const roundTrippedPatch = applyPatchOp(nextPatch, {
       type: "setMacroBindingMap",
       macroId: macro.id,
-      bindingId: binding.id,
+      nodeId: binding.nodeId,
+      paramId: binding.paramId,
       map: "linear"
     });
     const roundTrippedBinding = roundTrippedPatch.ui.macros
       .find((entry) => entry.id === macro.id)
-      ?.bindings.find((entry) => entry.id === binding.id);
+      ?.bindings.find((entry) => entry.nodeId === binding.nodeId && entry.paramId === binding.paramId);
     expect(roundTrippedBinding?.map).toBe("linear");
     expect(roundTrippedBinding?.points).toEqual(binding.points);
   });
@@ -322,7 +247,6 @@ describe("patch ops", () => {
   it("resolves exponential interpolation between keyframed macro points", () => {
     const linearValue = resolveMacroBindingValue(
       {
-        id: "binding_linear_points",
         nodeId: "vcf1",
         paramId: "cutoffHz",
         map: "linear",
@@ -336,7 +260,6 @@ describe("patch ops", () => {
     );
     const expValue = resolveMacroBindingValue(
       {
-        id: "binding_exp_points",
         nodeId: "vcf1",
         paramId: "cutoffHz",
         map: "exp",
@@ -353,15 +276,14 @@ describe("patch ops", () => {
     expect(expValue).toBeCloseTo(Math.sqrt(100 * 1000));
   });
 
-  it("treats legacy piecewise and linear keyframed bindings identically", () => {
+  it("treats piecewise and linear keyframed bindings identically", () => {
     const points = [
       { x: 0, y: 100 },
       { x: 0.5, y: 1000 },
       { x: 1, y: 10000 }
     ];
-    const legacyPiecewiseValue = resolveMacroBindingValue(
+    const piecewiseValue = resolveMacroBindingValue(
       {
-        id: "binding_piecewise_points",
         nodeId: "vcf1",
         paramId: "cutoffHz",
         map: "piecewise",
@@ -371,7 +293,6 @@ describe("patch ops", () => {
     );
     const linearValue = resolveMacroBindingValue(
       {
-        id: "binding_linear_points",
         nodeId: "vcf1",
         paramId: "cutoffHz",
         map: "linear",
@@ -380,7 +301,7 @@ describe("patch ops", () => {
       0.25
     );
 
-    expect(linearValue).toBeCloseTo(legacyPiecewiseValue);
+    expect(linearValue).toBeCloseTo(piecewiseValue);
     expect(linearValue).toBeCloseTo(550);
   });
 
@@ -393,7 +314,6 @@ describe("patch ops", () => {
         keyframeCount: 2,
         bindings: [
           {
-            id: "binding_linear_two_point",
             nodeId: "vcf1",
             paramId: "cutoffHz",
             map: "linear",
@@ -431,7 +351,6 @@ describe("patch ops", () => {
         ...macro,
         bindings: [
           {
-            id: "binding_slider_focus",
             nodeId: "vcf1",
             paramId: "cutoffHz",
             map: "piecewise",
@@ -470,7 +389,6 @@ describe("patch ops", () => {
         ...macro,
         bindings: [
           {
-            id: "binding_slider_focus_clamp",
             nodeId: "vcf1",
             paramId: "cutoffHz",
             map: "piecewise",

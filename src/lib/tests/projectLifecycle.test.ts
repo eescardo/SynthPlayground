@@ -166,7 +166,7 @@ describe("projectLifecycle", () => {
               end: 1,
               gain: 1,
               pitchSemis: 0,
-              sampleData: '{"version":1,"name":"tone.wav","sampleRate":48000,"samples":[0,0.1,-0.1]}'
+              sampleAssetId: "valid_asset"
             }
           }
         ]
@@ -189,9 +189,7 @@ describe("projectLifecycle", () => {
     });
 
     const sampleParams = hydrated.project.patches[0].nodes[1].params;
-    const migratedAssetId = String(sampleParams.sampleAssetId);
-    expect(sampleParams.sampleData).toBeUndefined();
-    expect(hydrated.assets.samplePlayerById[migratedAssetId]).toContain('"tone.wav"');
+    expect(sampleParams.sampleAssetId).toBe("valid_asset");
     expect(hydrated.assets.samplePlayerById.valid_asset).toContain('"kept.wav"');
     expect(hydrated.assets.samplePlayerById.invalid_asset).toBeUndefined();
   });

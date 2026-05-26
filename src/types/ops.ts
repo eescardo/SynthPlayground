@@ -83,7 +83,6 @@ export type PatchOp =
   | {
       type: "bindMacro";
       macroId: string;
-      bindingId: string;
       nodeId: string;
       paramId: string;
       map: "linear" | "exp" | "piecewise";
@@ -94,7 +93,8 @@ export type PatchOp =
   | {
       type: "unbindMacro";
       macroId: string;
-      bindingId: string;
+      nodeId: string;
+      paramId: string;
     }
   | {
       type: "renameMacro";
@@ -109,7 +109,8 @@ export type PatchOp =
   | {
       type: "setMacroBindingMap";
       macroId: string;
-      bindingId: string;
+      nodeId: string;
+      paramId: string;
       map: "linear" | "exp";
     }
   | {

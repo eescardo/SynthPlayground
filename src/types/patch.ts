@@ -89,7 +89,6 @@ export interface MacroCurvePoint {
 }
 
 export interface MacroBinding {
-  id: string;
   nodeId: string;
   paramId: string;
   map: "linear" | "exp" | "piecewise";
@@ -157,7 +156,6 @@ export type PatchValidationIssueCode =
   | "connection-target-occupied"
   | "connection-unknown-schema"
   | "duplicate-connection-id"
-  | "duplicate-macro-binding-id"
   | "duplicate-macro-binding-target"
   | "duplicate-macro-id"
   | "duplicate-node-id"

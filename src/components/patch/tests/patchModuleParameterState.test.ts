@@ -52,17 +52,13 @@ describe("PatchModuleParameter macro-bound controls", () => {
             id: "macro_tightness",
             name: "Tightness",
             keyframeCount: 2,
-            bindings: [
-              { id: "tightness_damping", nodeId: node.id, paramId: "damping", map: "linear", min: 0.2, max: 0.8 }
-            ]
+            bindings: [{ nodeId: node.id, paramId: "damping", map: "linear", min: 0.2, max: 0.8 }]
           },
           {
             id: "macro_material",
             name: "Material",
             keyframeCount: 2,
-            bindings: [
-              { id: "material_brightness", nodeId: node.id, paramId: "brightness", map: "linear", min: 0.1, max: 0.9 }
-            ]
+            bindings: [{ nodeId: node.id, paramId: "brightness", map: "linear", min: 0.1, max: 0.9 }]
           }
         ]
       },

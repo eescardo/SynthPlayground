@@ -65,8 +65,6 @@ const assertPresent = (condition, message) => {
 const getPatchCompileNodes = (patch) => {
   const nodes = patch.nodes || [];
   const ports = patch.ports || [];
-  // TODO(output-port-legacy): Remove this transition guard once legacy Output
-  // nodes cannot reach the WASM compiler from saved projects or tests.
   assertPresent(
     nodes.every((node) => node.typeId !== "Output"),
     `Output must be declared as a patch port in patch ${patch.id}.`
@@ -76,7 +74,7 @@ const getPatchCompileNodes = (patch) => {
 
 const getPatchOutputPort = (patch) => {
   const ports = patch.ports || [];
-  return ports.find((port) => port.id === "output") || ports.find((port) => port.typeId === "Output");
+  return ports.find((port) => port.id === "output");
 };
 
 const compareNodeIdsTopologically = (patch) => {

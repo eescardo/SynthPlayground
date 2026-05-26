@@ -7,7 +7,6 @@ import {
   getPatchPorts,
   RESERVED_PATCH_MODULE_IDS
 } from "@/lib/patch/ports";
-import { normalizePatchOutputPort } from "@/lib/patch/normalize";
 import {
   CompiledNode,
   CompiledOp,
@@ -190,9 +189,7 @@ export const validatePatchConnectionCandidate = (
   toNodeId: string,
   toPortId: string
 ): PatchValidationIssue[] => {
-  // TODO(output-port-legacy): Drop this defensive normalization when callers only
-  // pass patches that have already gone through normalizePatch.
-  const patch = normalizePatchOutputPort(inputPatch);
+  const patch = inputPatch;
   const issues: PatchValidationIssue[] = [];
   const allNodeTypes = resolveAllNodeTypes(patch);
   const resolved = resolveConnectionValidation(issues, allNodeTypes, fromNodeId, fromPortId, toNodeId, toPortId);
@@ -224,12 +221,9 @@ export const validatePatchConnectionCandidate = (
 };
 
 export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
-  // TODO(output-port-legacy): Drop this defensive normalization when callers only
-  // pass patches that have already gone through normalizePatch.
-  const patch = normalizePatchOutputPort(inputPatch);
+  const patch = inputPatch;
   const issues: PatchValidationIssue[] = [];
   const macroIds = new Set<string>();
-  const macroBindingIds = new Set<string>();
   const macroBindingTargetKeys = new Set<string>();
   const macroTargetToMacroId = new Map<string, string>();
 
@@ -397,15 +391,6 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
     }
 
     for (const binding of macro.bindings) {
-      if (macroBindingIds.has(binding.id)) {
-        pushError(
-          issues,
-          `Duplicate macro binding id: ${binding.id}`,
-          { bindingId: binding.id, macroId: macro.id },
-          "duplicate-macro-binding-id"
-        );
-      }
-      macroBindingIds.add(binding.id);
       const bindingIdentityKey = createPatchMacroBindingKey(patch, macro.id, binding);
       if (macroBindingTargetKeys.has(bindingIdentityKey)) {
         pushError(
@@ -428,7 +413,6 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
           `Macro "${macro.name}" binding targets missing node ${binding.nodeId}.${binding.paramId}`,
           {
             macroId: macro.id,
-            bindingId: binding.id,
             nodeId: binding.nodeId,
             paramId: binding.paramId
           },
@@ -445,7 +429,6 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
           `Macro "${macro.name}" binding targets missing parameter ${binding.nodeId}.${binding.paramId}`,
           {
             macroId: macro.id,
-            bindingId: binding.id,
             nodeId: binding.nodeId,
             paramId: binding.paramId,
             typeId: node.typeId
@@ -460,7 +443,6 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
           `Macro "${macro.name}" binding targets non-numeric parameter ${binding.nodeId}.${binding.paramId}`,
           {
             macroId: macro.id,
-            bindingId: binding.id,
             nodeId: binding.nodeId,
             paramId: binding.paramId,
             typeId: node.typeId
@@ -476,7 +458,6 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
           `Macro binding keyframe count does not match macro`,
           {
             macroId: macro.id,
-            bindingId: binding.id,
             keyframeCount: String(macro.keyframeCount),
             bindingKeyframeCount: String(getMacroBindingKeyframeCount(binding))
           },
@@ -526,7 +507,6 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
           `Macro "${macro.name}" binding range for ${binding.nodeId}.${binding.paramId} is outside ${paramSchema.range.min}..${paramSchema.range.max}`,
           {
             macroId: macro.id,
-            bindingId: binding.id,
             nodeId: binding.nodeId,
             paramId: binding.paramId,
             typeId: node.typeId
@@ -543,7 +523,6 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
           `Macro "${macro.name}" binding point for ${binding.nodeId}.${binding.paramId} is outside ${paramSchema.range.min}..${paramSchema.range.max}`,
           {
             macroId: macro.id,
-            bindingId: binding.id,
             nodeId: binding.nodeId,
             paramId: binding.paramId,
             typeId: node.typeId,
@@ -768,9 +747,7 @@ const topologicalSort = (nodes: string[], edges: Array<{ from: string; to: strin
 };
 
 export const compilePatchPlan = (inputPatch: Patch, sampleRate = 48000, blockSize = 128): CompiledPlan => {
-  // TODO(output-port-legacy): Drop this defensive normalization when callers only
-  // pass patches that have already gone through normalizePatch.
-  const patch = normalizePatchOutputPort(inputPatch);
+  const patch = inputPatch;
   const validation = validatePatch(patch);
   if (!validation.ok) {
     throw new Error(`Patch validation failed: ${validation.issues.map((issue) => issue.message).join("; ")}`);

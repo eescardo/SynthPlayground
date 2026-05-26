@@ -1,7 +1,6 @@
 import { createDefaultParamsForType } from "@/lib/patch/moduleRegistry";
 import { createDefaultProjectFromTemplate, createEmptyProjectFromPresets } from "@/lib/defaultProjectTemplate";
 import { createId } from "@/lib/ids";
-import { normalizeMacroBindingIds } from "@/lib/patch/macroBindings";
 import { createPatchOutputPort } from "@/lib/patch/ports";
 import { CURRENT_PATCH_SCHEMA_VERSION } from "@/lib/patch/schemaVersion";
 import { Project } from "@/types/music";
@@ -350,7 +349,6 @@ export const bassPatch = (): Patch => {
           defaultNormalized: 0.28,
           bindings: [
             {
-              id: "macro_cutoff:vcf1:cutoffHz",
               nodeId: "vcf1",
               paramId: "cutoffHz",
               map: "exp",
@@ -365,7 +363,6 @@ export const bassPatch = (): Patch => {
           keyframeCount: 3,
           bindings: [
             {
-              id: "macro_decay:env1:attack",
               nodeId: "env1",
               paramId: "attack",
               map: "linear",
@@ -387,7 +384,6 @@ export const bassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_decay:env1:decay",
               nodeId: "env1",
               paramId: "decay",
               map: "linear",
@@ -409,7 +405,6 @@ export const bassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_decay:env1:sustain",
               nodeId: "env1",
               paramId: "sustain",
               map: "linear",
@@ -431,7 +426,6 @@ export const bassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_decay:env1:release",
               nodeId: "env1",
               paramId: "release",
               map: "linear",
@@ -453,7 +447,6 @@ export const bassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_decay:mix1:gain1",
               nodeId: "mix1",
               paramId: "gain1",
               map: "linear",
@@ -475,7 +468,6 @@ export const bassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_decay:mix1:gain2",
               nodeId: "mix1",
               paramId: "gain2",
               map: "linear",
@@ -497,7 +489,6 @@ export const bassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_decay:env2:attack",
               nodeId: "env2",
               paramId: "attack",
               map: "linear",
@@ -519,7 +510,6 @@ export const bassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_decay:env2:decay",
               nodeId: "env2",
               paramId: "decay",
               map: "linear",
@@ -541,7 +531,6 @@ export const bassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_decay:cvmix1:gain2",
               nodeId: "cvmix1",
               paramId: "gain2",
               map: "linear",
@@ -563,7 +552,6 @@ export const bassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_decay:vcf1:cutoffModAmountOct",
               nodeId: "vcf1",
               paramId: "cutoffModAmountOct",
               map: "linear",
@@ -585,7 +573,6 @@ export const bassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_decay:vcf1:resonance",
               nodeId: "vcf1",
               paramId: "resonance",
               map: "linear",
@@ -607,7 +594,6 @@ export const bassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_decay:sat:driveDb",
               nodeId: "sat",
               paramId: "driveDb",
               map: "linear",
@@ -629,7 +615,6 @@ export const bassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_decay:sat:mix",
               nodeId: "sat",
               paramId: "mix",
               map: "linear",
@@ -1101,7 +1086,6 @@ export const padPatch = (): Patch => {
           defaultNormalized: 0.32,
           bindings: [
             {
-              id: "macro_release:env1:release",
               nodeId: "env1",
               paramId: "release",
               map: "linear",
@@ -1116,7 +1100,6 @@ export const padPatch = (): Patch => {
           keyframeCount: 3,
           bindings: [
             {
-              id: "macro_attack:env1:attack",
               nodeId: "env1",
               paramId: "attack",
               map: "linear",
@@ -1138,7 +1121,6 @@ export const padPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_attack:env1:curve",
               nodeId: "env1",
               paramId: "curve",
               map: "linear",
@@ -1160,7 +1142,6 @@ export const padPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_attack:mix1:gain1",
               nodeId: "mix1",
               paramId: "gain1",
               map: "linear",
@@ -1182,7 +1163,6 @@ export const padPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_attack:mix1:gain2",
               nodeId: "mix1",
               paramId: "gain2",
               map: "linear",
@@ -1204,7 +1184,6 @@ export const padPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_attack:sat1:driveDb",
               nodeId: "sat1",
               paramId: "driveDb",
               map: "linear",
@@ -1226,7 +1205,6 @@ export const padPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_attack:sat1:mix",
               nodeId: "sat1",
               paramId: "mix",
               map: "linear",
@@ -1255,7 +1233,6 @@ export const padPatch = (): Patch => {
           keyframeCount: 3,
           bindings: [
             {
-              id: "macro_motion:lfo1:freqHz",
               nodeId: "lfo1",
               paramId: "freqHz",
               map: "linear",
@@ -1277,7 +1254,6 @@ export const padPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_motion:vco2:pwmAmount",
               nodeId: "vco2",
               paramId: "pwmAmount",
               map: "linear",
@@ -1299,7 +1275,6 @@ export const padPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_motion:vcf1:cutoffModAmountOct",
               nodeId: "vcf1",
               paramId: "cutoffModAmountOct",
               map: "linear",
@@ -1321,7 +1296,6 @@ export const padPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_motion:vcf1:cutoffHz",
               nodeId: "vcf1",
               paramId: "cutoffHz",
               map: "linear",
@@ -1343,7 +1317,6 @@ export const padPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_motion:motionDampEnv:decay",
               nodeId: "motionDampEnv",
               paramId: "decay",
               map: "linear",
@@ -1365,7 +1338,6 @@ export const padPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_motion:motionDampEnv:sustain",
               nodeId: "motionDampEnv",
               paramId: "sustain",
               map: "linear",
@@ -1387,7 +1359,6 @@ export const padPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_motion:pwmDampEnv:decay",
               nodeId: "pwmDampEnv",
               paramId: "decay",
               map: "linear",
@@ -1409,7 +1380,6 @@ export const padPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_motion:pwmDampEnv:sustain",
               nodeId: "pwmDampEnv",
               paramId: "sustain",
               map: "linear",
@@ -1431,7 +1401,6 @@ export const padPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_motion:detunePitchMix1:gain2",
               nodeId: "detunePitchMix1",
               paramId: "gain2",
               map: "linear",
@@ -1453,7 +1422,6 @@ export const padPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_motion:detunePitchMix2:gain2",
               nodeId: "detunePitchMix2",
               paramId: "gain2",
               map: "linear",
@@ -1475,7 +1443,6 @@ export const padPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_motion:detuneSettleEnv:decay",
               nodeId: "detuneSettleEnv",
               paramId: "decay",
               map: "linear",
@@ -2137,7 +2104,6 @@ export const guitarStringPatch = (): Patch => {
           keyframeCount: 3,
           bindings: [
             {
-              id: "macro_drive:drive_mix:gain1",
               nodeId: "drive_mix",
               paramId: "gain1",
               map: "linear",
@@ -2159,7 +2125,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_drive:drive_mix:gain2",
               nodeId: "drive_mix",
               paramId: "gain2",
               map: "linear",
@@ -2181,7 +2146,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_drive:drive_overdrive:driveDb",
               nodeId: "drive_overdrive",
               paramId: "driveDb",
               map: "linear",
@@ -2203,7 +2167,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_drive:drive_overdrive:tone",
               nodeId: "drive_overdrive",
               paramId: "tone",
               map: "linear",
@@ -2225,7 +2188,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_drive:drive_noise_vca:gain",
               nodeId: "drive_noise_vca",
               paramId: "gain",
               map: "linear",
@@ -2247,7 +2209,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_drive:drive_mix:gain3",
               nodeId: "drive_mix",
               paramId: "gain3",
               map: "linear",
@@ -2269,7 +2230,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_drive:drive_noise_filter:cutoffHz",
               nodeId: "drive_noise_filter",
               paramId: "cutoffHz",
               map: "linear",
@@ -2291,7 +2251,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_drive:drive_noise_filter:resonance",
               nodeId: "drive_noise_filter",
               paramId: "resonance",
               map: "linear",
@@ -2313,7 +2272,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_drive:drive_noise_env:decay",
               nodeId: "drive_noise_env",
               paramId: "decay",
               map: "linear",
@@ -2335,7 +2293,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_drive:drive_noise_env:release",
               nodeId: "drive_noise_env",
               paramId: "release",
               map: "linear",
@@ -2357,7 +2314,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_drive:drive_noise_env:sustain",
               nodeId: "drive_noise_env",
               paramId: "sustain",
               map: "linear",
@@ -2386,7 +2342,6 @@ export const guitarStringPatch = (): Patch => {
           keyframeCount: 3,
           bindings: [
             {
-              id: "macro_tone:vcf1:cutoffHz",
               nodeId: "vcf1",
               paramId: "cutoffHz",
               map: "linear",
@@ -2408,7 +2363,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:karplus1:damping",
               nodeId: "karplus1",
               paramId: "damping",
               map: "linear",
@@ -2430,7 +2384,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:karplus2:damping",
               nodeId: "karplus2",
               paramId: "damping",
               map: "linear",
@@ -2452,7 +2405,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:karplus3:damping",
               nodeId: "karplus3",
               paramId: "damping",
               map: "linear",
@@ -2474,7 +2426,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:karplus4:damping",
               nodeId: "karplus4",
               paramId: "damping",
               map: "linear",
@@ -2496,7 +2447,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:karplus1:decay",
               nodeId: "karplus1",
               paramId: "decay",
               map: "linear",
@@ -2518,7 +2468,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:karplus2:decay",
               nodeId: "karplus2",
               paramId: "decay",
               map: "linear",
@@ -2540,7 +2489,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:karplus3:decay",
               nodeId: "karplus3",
               paramId: "decay",
               map: "linear",
@@ -2562,7 +2510,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:karplus4:decay",
               nodeId: "karplus4",
               paramId: "decay",
               map: "linear",
@@ -2584,7 +2531,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:cvtranspose1:cents",
               nodeId: "cvtranspose1",
               paramId: "cents",
               map: "linear",
@@ -2606,7 +2552,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:vcf1:cutoffModAmountOct",
               nodeId: "vcf1",
               paramId: "cutoffModAmountOct",
               map: "linear",
@@ -2628,7 +2573,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:vca2:gain",
               nodeId: "vca2",
               paramId: "gain",
               map: "linear",
@@ -2650,7 +2594,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:env1:release",
               nodeId: "env1",
               paramId: "release",
               map: "linear",
@@ -2679,7 +2622,6 @@ export const guitarStringPatch = (): Patch => {
           keyframeCount: 3,
           bindings: [
             {
-              id: "macro_material:karplus1:brightness",
               nodeId: "karplus1",
               paramId: "brightness",
               map: "linear",
@@ -2701,7 +2643,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_material:karplus2:brightness",
               nodeId: "karplus2",
               paramId: "brightness",
               map: "linear",
@@ -2723,7 +2664,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_material:karplus3:brightness",
               nodeId: "karplus3",
               paramId: "brightness",
               map: "linear",
@@ -2745,7 +2685,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_material:karplus4:brightness",
               nodeId: "karplus4",
               paramId: "brightness",
               map: "linear",
@@ -2767,7 +2706,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_material:vcf1:resonance",
               nodeId: "vcf1",
               paramId: "resonance",
               map: "linear",
@@ -2789,7 +2727,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_material:mix1:gain1",
               nodeId: "mix1",
               paramId: "gain1",
               map: "linear",
@@ -2811,7 +2748,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_material:mix1:gain2",
               nodeId: "mix1",
               paramId: "gain2",
               map: "linear",
@@ -2833,7 +2769,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_material:mix1:gain3",
               nodeId: "mix1",
               paramId: "gain3",
               map: "linear",
@@ -2855,7 +2790,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_material:mix1:gain4",
               nodeId: "mix1",
               paramId: "gain4",
               map: "linear",
@@ -2877,7 +2811,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_material:env1:decay",
               nodeId: "env1",
               paramId: "decay",
               map: "linear",
@@ -2899,7 +2832,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_material:env1:sustain",
               nodeId: "env1",
               paramId: "sustain",
               map: "linear",
@@ -2921,7 +2853,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_material:sat_body:driveDb",
               nodeId: "sat_body",
               paramId: "driveDb",
               map: "linear",
@@ -2943,7 +2874,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_material:sat_body:mix",
               nodeId: "sat_body",
               paramId: "mix",
               map: "linear",
@@ -2965,7 +2895,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_material:body_room:decay",
               nodeId: "body_room",
               paramId: "decay",
               map: "linear",
@@ -2987,7 +2916,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_material:body_room:tone",
               nodeId: "body_room",
               paramId: "tone",
               map: "linear",
@@ -3009,7 +2937,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_material:body_room:mix",
               nodeId: "body_room",
               paramId: "mix",
               map: "linear",
@@ -3031,7 +2958,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_material:metal_ping_vca:gain",
               nodeId: "metal_ping_vca",
               paramId: "gain",
               map: "linear",
@@ -3053,7 +2979,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_material:metal_ping_vco:pulseWidth",
               nodeId: "metal_ping_vco",
               paramId: "pulseWidth",
               map: "linear",
@@ -3075,7 +3000,6 @@ export const guitarStringPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_material:post_mix_metal:gain2",
               nodeId: "post_mix_metal",
               paramId: "gain2",
               map: "linear",
@@ -3672,7 +3596,6 @@ export const keysPatch = (): Patch => {
           defaultNormalized: 0.33,
           bindings: [
             {
-              id: "macro_brightness:sat:driveDb",
               nodeId: "sat",
               paramId: "driveDb",
               map: "linear",
@@ -3680,7 +3603,6 @@ export const keysPatch = (): Patch => {
               max: 18
             },
             {
-              id: "macro_brightness:node_mp3sby4v_xwpen4:squash",
               nodeId: "node_mp3sby4v_xwpen4",
               paramId: "squash",
               map: "linear",
@@ -3688,7 +3610,6 @@ export const keysPatch = (): Patch => {
               max: 0.378
             },
             {
-              id: "macro_brightness:node_mp3sby4v_xwpen4:mix",
               nodeId: "node_mp3sby4v_xwpen4",
               paramId: "mix",
               map: "linear",
@@ -3704,7 +3625,6 @@ export const keysPatch = (): Patch => {
           defaultNormalized: 0.5,
           bindings: [
             {
-              id: "macro_decay:string1:decay",
               nodeId: "string1",
               paramId: "decay",
               map: "linear",
@@ -3712,7 +3632,6 @@ export const keysPatch = (): Patch => {
               max: 0.999
             },
             {
-              id: "macro_decay:string2:decay",
               nodeId: "string2",
               paramId: "decay",
               map: "linear",
@@ -3720,7 +3639,6 @@ export const keysPatch = (): Patch => {
               max: 0.9982
             },
             {
-              id: "macro_decay:string3:decay",
               nodeId: "string3",
               paramId: "decay",
               map: "linear",
@@ -3728,7 +3646,6 @@ export const keysPatch = (): Patch => {
               max: 0.9972
             },
             {
-              id: "macro_decay:env1:decay",
               nodeId: "env1",
               paramId: "decay",
               map: "linear",
@@ -3736,7 +3653,6 @@ export const keysPatch = (): Patch => {
               max: 2200
             },
             {
-              id: "macro_decay:env1:release",
               nodeId: "env1",
               paramId: "release",
               map: "linear",
@@ -3752,7 +3668,6 @@ export const keysPatch = (): Patch => {
           defaultNormalized: 0.5,
           bindings: [
             {
-              id: "macro_tone:body_filter:cutoffHz",
               nodeId: "body_filter",
               paramId: "cutoffHz",
               map: "exp",
@@ -3774,7 +3689,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:body_filter:resonance",
               nodeId: "body_filter",
               paramId: "resonance",
               map: "linear",
@@ -3796,7 +3710,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:string1:brightness",
               nodeId: "string1",
               paramId: "brightness",
               map: "linear",
@@ -3818,7 +3731,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:string2:brightness",
               nodeId: "string2",
               paramId: "brightness",
               map: "linear",
@@ -3840,7 +3752,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:string3:brightness",
               nodeId: "string3",
               paramId: "brightness",
               map: "linear",
@@ -3862,7 +3773,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:body_blend:gain1",
               nodeId: "body_blend",
               paramId: "gain1",
               map: "linear",
@@ -3884,7 +3794,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:body_blend:gain2",
               nodeId: "body_blend",
               paramId: "gain2",
               map: "linear",
@@ -3906,7 +3815,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:piano_mix:gain4",
               nodeId: "piano_mix",
               paramId: "gain4",
               map: "linear",
@@ -3928,7 +3836,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:room:mix",
               nodeId: "room",
               paramId: "mix",
               map: "linear",
@@ -3950,7 +3857,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:room:decay",
               nodeId: "room",
               paramId: "decay",
               map: "linear",
@@ -3972,7 +3878,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:room:tone",
               nodeId: "room",
               paramId: "tone",
               map: "linear",
@@ -3994,7 +3899,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:string1:damping",
               nodeId: "string1",
               paramId: "damping",
               map: "linear",
@@ -4016,7 +3920,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:string2:damping",
               nodeId: "string2",
               paramId: "damping",
               map: "linear",
@@ -4038,7 +3941,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:string3:damping",
               nodeId: "string3",
               paramId: "damping",
               map: "linear",
@@ -4060,7 +3962,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_tone:body_blend:gain3",
               nodeId: "body_blend",
               paramId: "gain3",
               map: "linear",
@@ -4088,7 +3989,6 @@ export const keysPatch = (): Patch => {
           defaultNormalized: 0.5,
           bindings: [
             {
-              id: "macro_hammer:env1:attack",
               nodeId: "env1",
               paramId: "attack",
               map: "linear",
@@ -4110,7 +4010,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_hammer:hammer_vca:gain",
               nodeId: "hammer_vca",
               paramId: "gain",
               map: "linear",
@@ -4132,7 +4031,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_hammer:hammer_filter:cutoffHz",
               nodeId: "hammer_filter",
               paramId: "cutoffHz",
               map: "exp",
@@ -4154,7 +4052,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_hammer:hammer_filter:resonance",
               nodeId: "hammer_filter",
               paramId: "resonance",
               map: "linear",
@@ -4176,7 +4073,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_hammer:hammer_env:decay",
               nodeId: "hammer_env",
               paramId: "decay",
               map: "linear",
@@ -4198,7 +4094,6 @@ export const keysPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_hammer:hammer_env:release",
               nodeId: "hammer_env",
               paramId: "release",
               map: "linear",
@@ -4606,7 +4501,6 @@ export const brassPatch = (): Patch => {
           defaultNormalized: 0.5,
           bindings: [
             {
-              id: "macro_vibrato_depth:node_mp2tokon_qd6rm6:scale",
               nodeId: "node_mp2tokon_qd6rm6",
               paramId: "scale",
               map: "linear",
@@ -4621,7 +4515,6 @@ export const brassPatch = (): Patch => {
           keyframeCount: 3,
           bindings: [
             {
-              id: "macro_bite:vcf1:cutoffHz",
               nodeId: "vcf1",
               paramId: "cutoffHz",
               map: "linear",
@@ -4643,7 +4536,6 @@ export const brassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_bite:vcf1:cutoffModAmountOct",
               nodeId: "vcf1",
               paramId: "cutoffModAmountOct",
               map: "linear",
@@ -4665,7 +4557,6 @@ export const brassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_bite:vcf1:resonance",
               nodeId: "vcf1",
               paramId: "resonance",
               map: "linear",
@@ -4687,7 +4578,6 @@ export const brassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_bite:sat1:driveDb",
               nodeId: "sat1",
               paramId: "driveDb",
               map: "linear",
@@ -4709,7 +4599,6 @@ export const brassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_bite:sat1:mix",
               nodeId: "sat1",
               paramId: "mix",
               map: "linear",
@@ -4731,7 +4620,6 @@ export const brassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_bite:mix1:gain3",
               nodeId: "mix1",
               paramId: "gain3",
               map: "linear",
@@ -4753,7 +4641,6 @@ export const brassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_bite:env_filter:attack",
               nodeId: "env_filter",
               paramId: "attack",
               map: "linear",
@@ -4775,7 +4662,6 @@ export const brassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_bite:env_filter:decay",
               nodeId: "env_filter",
               paramId: "decay",
               map: "linear",
@@ -4804,7 +4690,6 @@ export const brassPatch = (): Patch => {
           keyframeCount: 3,
           bindings: [
             {
-              id: "macro_square_pwm:vco2:pwmAmount",
               nodeId: "vco2",
               paramId: "pwmAmount",
               map: "linear",
@@ -4826,7 +4711,6 @@ export const brassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_square_pwm:node_mp31mwi7_wzy0gy:scale",
               nodeId: "node_mp31mwi7_wzy0gy",
               paramId: "scale",
               map: "linear",
@@ -4848,7 +4732,6 @@ export const brassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_square_pwm:mix1:gain2",
               nodeId: "mix1",
               paramId: "gain2",
               map: "linear",
@@ -4870,7 +4753,6 @@ export const brassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_square_pwm:vco2:pulseWidth",
               nodeId: "vco2",
               paramId: "pulseWidth",
               map: "linear",
@@ -4892,7 +4774,6 @@ export const brassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_square_pwm:vco2:fineTuneCents",
               nodeId: "vco2",
               paramId: "fineTuneCents",
               map: "linear",
@@ -4914,7 +4795,6 @@ export const brassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_square_pwm:node_mp3hnqig_8x3z7h:gain",
               nodeId: "node_mp3hnqig_8x3z7h",
               paramId: "gain",
               map: "linear",
@@ -4936,7 +4816,6 @@ export const brassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_square_pwm:env_filter:sustain",
               nodeId: "env_filter",
               paramId: "sustain",
               map: "linear",
@@ -4958,7 +4837,6 @@ export const brassPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_square_pwm:env_filter:release",
               nodeId: "env_filter",
               paramId: "release",
               map: "linear",
@@ -5457,7 +5335,6 @@ export const drumPatch = (): Patch => {
           keyframeCount: 3,
           bindings: [
             {
-              id: "macro_shell:env1:decay",
               nodeId: "env1",
               paramId: "decay",
               map: "linear",
@@ -5479,7 +5356,6 @@ export const drumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_shell:env1:release",
               nodeId: "env1",
               paramId: "release",
               map: "linear",
@@ -5501,7 +5377,6 @@ export const drumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_shell:vca1:gain",
               nodeId: "vca1",
               paramId: "gain",
               map: "linear",
@@ -5523,7 +5398,6 @@ export const drumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_shell:pitchSnapEnv:decay",
               nodeId: "pitchSnapEnv",
               paramId: "decay",
               map: "linear",
@@ -5545,7 +5419,6 @@ export const drumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_shell:shellPitchMix:gain2",
               nodeId: "shellPitchMix",
               paramId: "gain2",
               map: "linear",
@@ -5567,7 +5440,6 @@ export const drumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_shell:vco1:baseTuneCents",
               nodeId: "vco1",
               paramId: "baseTuneCents",
               map: "linear",
@@ -5589,7 +5461,6 @@ export const drumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_shell:shellPlate:mix",
               nodeId: "shellPlate",
               paramId: "mix",
               map: "linear",
@@ -5611,7 +5482,6 @@ export const drumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_shell:shellPlate:decay",
               nodeId: "shellPlate",
               paramId: "decay",
               map: "linear",
@@ -5633,7 +5503,6 @@ export const drumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_shell:shellPlate:tone",
               nodeId: "shellPlate",
               paramId: "tone",
               map: "linear",
@@ -5662,7 +5531,6 @@ export const drumPatch = (): Patch => {
           keyframeCount: 2,
           bindings: [
             {
-              id: "macro_shell_level:mix1:gain1",
               nodeId: "mix1",
               paramId: "gain1",
               map: "linear",
@@ -5677,7 +5545,6 @@ export const drumPatch = (): Patch => {
           keyframeCount: 3,
           bindings: [
             {
-              id: "macro_rattle:vca2:gain",
               nodeId: "vca2",
               paramId: "gain",
               map: "linear",
@@ -5699,7 +5566,6 @@ export const drumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_rattle:env2:decay",
               nodeId: "env2",
               paramId: "decay",
               map: "linear",
@@ -5721,7 +5587,6 @@ export const drumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_rattle:env2:release",
               nodeId: "env2",
               paramId: "release",
               map: "linear",
@@ -5743,7 +5608,6 @@ export const drumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_rattle:vcf1:cutoffHz",
               nodeId: "vcf1",
               paramId: "cutoffHz",
               map: "exp",
@@ -5765,7 +5629,6 @@ export const drumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_rattle:vcf1:resonance",
               nodeId: "vcf1",
               paramId: "resonance",
               map: "linear",
@@ -5787,7 +5650,6 @@ export const drumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_rattle:snareComb:feedback",
               nodeId: "snareComb",
               paramId: "feedback",
               map: "linear",
@@ -5809,7 +5671,6 @@ export const drumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_rattle:snareComb:mix",
               nodeId: "snareComb",
               paramId: "mix",
               map: "linear",
@@ -5831,7 +5692,6 @@ export const drumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_rattle:drive:driveDb",
               nodeId: "drive",
               paramId: "driveDb",
               map: "linear",
@@ -5853,7 +5713,6 @@ export const drumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_rattle:rattleComp:squash",
               nodeId: "rattleComp",
               paramId: "squash",
               map: "linear",
@@ -5875,7 +5734,6 @@ export const drumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_rattle:rattleComp:attackMs",
               nodeId: "rattleComp",
               paramId: "attackMs",
               map: "linear",
@@ -5897,7 +5755,6 @@ export const drumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_rattle:rattleComp:mix",
               nodeId: "rattleComp",
               paramId: "mix",
               map: "linear",
@@ -5926,7 +5783,6 @@ export const drumPatch = (): Patch => {
           keyframeCount: 2,
           bindings: [
             {
-              id: "macro_rattle_level:mix1:gain2",
               nodeId: "mix1",
               paramId: "gain2",
               map: "linear",
@@ -5934,7 +5790,6 @@ export const drumPatch = (): Patch => {
               max: 0.82
             },
             {
-              id: "macro_rattle_level:mix1:gain3",
               nodeId: "mix1",
               paramId: "gain3",
               map: "linear",
@@ -6397,7 +6252,6 @@ export const bassDrumPatch = (): Patch => {
           defaultNormalized: 0.5,
           bindings: [
             {
-              id: "macro_drive:drive:driveDb",
               nodeId: "drive",
               paramId: "driveDb",
               map: "linear",
@@ -6419,7 +6273,6 @@ export const bassDrumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_drive:drive:tone",
               nodeId: "drive",
               paramId: "tone",
               map: "linear",
@@ -6441,7 +6294,6 @@ export const bassDrumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_drive:pitch_snap_amt:scale",
               nodeId: "pitch_snap_amt",
               paramId: "scale",
               map: "linear",
@@ -6463,7 +6315,6 @@ export const bassDrumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_drive:env_pitch:decay",
               nodeId: "env_pitch",
               paramId: "decay",
               map: "linear",
@@ -6485,7 +6336,6 @@ export const bassDrumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_drive:mix0:gain1",
               nodeId: "mix0",
               paramId: "gain1",
               map: "linear",
@@ -6507,7 +6357,6 @@ export const bassDrumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_drive:vca1:gain",
               nodeId: "vca1",
               paramId: "gain",
               map: "linear",
@@ -6537,7 +6386,6 @@ export const bassDrumPatch = (): Patch => {
           defaultNormalized: 0.5,
           bindings: [
             {
-              id: "macro_body:env1:decay",
               nodeId: "env1",
               paramId: "decay",
               map: "linear",
@@ -6559,7 +6407,6 @@ export const bassDrumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_body:env1:release",
               nodeId: "env1",
               paramId: "release",
               map: "linear",
@@ -6581,7 +6428,6 @@ export const bassDrumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_body:mix0:gain2",
               nodeId: "mix0",
               paramId: "gain2",
               map: "linear",
@@ -6603,7 +6449,6 @@ export const bassDrumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_body:mix1:gain2",
               nodeId: "mix1",
               paramId: "gain2",
               map: "linear",
@@ -6632,7 +6477,6 @@ export const bassDrumPatch = (): Patch => {
           keyframeCount: 3,
           bindings: [
             {
-              id: "macro_click:vca2:gain",
               nodeId: "vca2",
               paramId: "gain",
               map: "linear",
@@ -6654,7 +6498,6 @@ export const bassDrumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_click:env2:decay",
               nodeId: "env2",
               paramId: "decay",
               map: "linear",
@@ -6676,7 +6519,6 @@ export const bassDrumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_click:env2:release",
               nodeId: "env2",
               paramId: "release",
               map: "linear",
@@ -6698,7 +6540,6 @@ export const bassDrumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_click:vcf1:cutoffHz",
               nodeId: "vcf1",
               paramId: "cutoffHz",
               map: "exp",
@@ -6720,7 +6561,6 @@ export const bassDrumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_click:vcf1:cutoffModAmountOct",
               nodeId: "vcf1",
               paramId: "cutoffModAmountOct",
               map: "linear",
@@ -6742,7 +6582,6 @@ export const bassDrumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_click:vcf1:resonance",
               nodeId: "vcf1",
               paramId: "resonance",
               map: "linear",
@@ -6764,7 +6603,6 @@ export const bassDrumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_click:beater_room:decay",
               nodeId: "beater_room",
               paramId: "decay",
               map: "linear",
@@ -6786,7 +6624,6 @@ export const bassDrumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_click:beater_room:tone",
               nodeId: "beater_room",
               paramId: "tone",
               map: "linear",
@@ -6808,7 +6645,6 @@ export const bassDrumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_click:beater_room:mix",
               nodeId: "beater_room",
               paramId: "mix",
               map: "linear",
@@ -6830,7 +6666,6 @@ export const bassDrumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_click:beater_soften_hall:decay",
               nodeId: "beater_soften_hall",
               paramId: "decay",
               map: "linear",
@@ -6852,7 +6687,6 @@ export const bassDrumPatch = (): Patch => {
               ]
             },
             {
-              id: "macro_click:beater_soften_hall:mix",
               nodeId: "beater_soften_hall",
               paramId: "mix",
               map: "linear",
@@ -6891,7 +6725,7 @@ export const presetPatches = [
   guitarStringPatch(),
   drumPatch(),
   bassDrumPatch()
-].map(normalizeMacroBindingIds);
+];
 
 // Build a fresh default project from the checked-in song template while always
 // sourcing preset patches from the latest bundled definitions. Preset layouts

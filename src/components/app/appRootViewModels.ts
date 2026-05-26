@@ -10,7 +10,7 @@ import type { useHardwareNavigation } from "@/hooks/useHardwareNavigation";
 import type { usePlaybackController } from "@/hooks/usePlaybackController";
 import type { useRecordingController } from "@/hooks/useRecordingController";
 import type { RecentProjectSnapshot } from "@/lib/persistence";
-import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
+import { isPatchRemovable } from "@/lib/patch/source";
 import type { ProjectAssetLibrary } from "@/types/assets";
 import type { Project } from "@/types/music";
 import type { Patch } from "@/types/patch";
@@ -188,11 +188,7 @@ export function createTrackCanvasActionGroups(options: CreateTrackCanvasActionGr
     onToggleTrackMacroPanel: options.toggleTrackMacroPanel
   };
   const patchActions: ComposerViewProps["patchActions"] = {
-    canRemoveSelectedPatch: Boolean(
-      options.selectedTrackPatch &&
-      (resolvePatchSource(options.selectedTrackPatch) === "custom" ||
-        resolvePatchPresetStatus(options.selectedTrackPatch) === "legacy_preset")
-    ),
+    canRemoveSelectedPatch: Boolean(options.selectedTrackPatch && isPatchRemovable(options.selectedTrackPatch)),
     onDuplicateSelectedPatch: options.duplicatePatchForSelectedTrack,
     onRequestRemoveSelectedPatch: options.requestRemoveSelectedTrackPatch,
     onOpenSelectedPatchWorkspace: () =>

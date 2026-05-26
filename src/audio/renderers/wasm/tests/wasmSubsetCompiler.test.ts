@@ -31,7 +31,6 @@ describe("compileAudioProjectToWasmSubset", () => {
             defaultNormalized: 0.25,
             bindings: [
               {
-                id: "binding_cutoff",
                 nodeId: "vcf",
                 paramId: "cutoffHz",
                 map: "linear",
@@ -42,7 +41,6 @@ describe("compileAudioProjectToWasmSubset", () => {
                 ]
               },
               {
-                id: "binding_resonance",
                 nodeId: "vcf",
                 paramId: "resonance",
                 map: "exp",
@@ -210,11 +208,11 @@ describe("compileAudioProjectToWasmSubset", () => {
     expect(outputPort?.params.limiter).toBe(true);
   });
 
-  it("rejects legacy Output nodes in the compiler", () => {
+  it("rejects Output nodes in the compiler", () => {
     const patch: Patch = {
       schemaVersion: 1,
-      id: "legacy-output-node",
-      name: "Legacy Output Node",
+      id: "invalid-output-node",
+      name: "Invalid Output Node",
       meta: { source: "custom" },
       nodes: [{ id: "output", typeId: "Output", params: { gainDb: -3, limiter: true } }],
       ports: [],

@@ -5,7 +5,7 @@ import {
   resolveDiffHighlightClass
 } from "@/components/patch/patchDiffPresentation";
 import { PatchBindingDiff } from "@/lib/patch/diff";
-import { createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
+import { isMacroBindingTarget, createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
 import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { useRenameActivation } from "@/hooks/useRenameActivation";
 import { clamp } from "@/lib/numeric";
@@ -86,26 +86,26 @@ export function MacroBindingDetails(props: {
   nodeId: string;
   paramId: string;
   boundMacroIds: string[];
-  previewBindingById?: Map<string, MacroBinding>;
+  previewBindingByKey?: Map<string, MacroBinding>;
   currentBindingDiffByKey: Map<string, PatchBindingDiff>;
   removedBindingDiffs: PatchBindingDiff[];
 }) {
   const boundMacros = props.patch.ui.macros.filter((macro) => props.boundMacroIds.includes(macro.id));
+  const bindingTarget = { nodeId: props.nodeId, paramId: props.paramId };
 
   return (
     <div className="macro-binding-details">
       {boundMacros.map((macro) =>
         macro.bindings
-          .filter((binding) => binding.nodeId === props.nodeId && binding.paramId === props.paramId)
+          .filter((binding) => isMacroBindingTarget(binding, bindingTarget))
           .map((binding) => {
-            const renderedBinding = props.previewBindingById?.get(binding.id) ?? binding;
-            const bindingDiff = props.currentBindingDiffByKey.get(
-              createPatchMacroBindingKey(props.patch, macro.id, binding)
-            );
+            const bindingKey = createPatchMacroBindingKey(props.patch, macro.id, binding);
+            const renderedBinding = props.previewBindingByKey?.get(bindingKey) ?? binding;
+            const bindingDiff = props.currentBindingDiffByKey.get(bindingKey);
             const diffHighlightClass = resolveDiffHighlightClass(bindingDiff?.status);
             return (
               <div
-                key={binding.id}
+                key={bindingKey}
                 className={`macro-binding-detail-card${diffHighlightClass ? ` diff-${diffHighlightClass}` : ""}`}
               >
                 <div className="macro-binding-detail-mode">

@@ -29,7 +29,7 @@ export const resolvePatchSource = (
   if (patch.meta?.source === "preset" || patch.meta?.source === "custom") {
     return patch.meta.source;
   }
-  return patch.id.startsWith("preset_") ? "preset" : "custom";
+  return "custom";
 };
 
 export const getBundledPresetLineage = (presetId: string | undefined): BundledPresetLineage | undefined =>
@@ -53,6 +53,9 @@ export const resolvePatchPresetStatus = (patch: Pick<Patch, "id"> & { meta?: Pat
   const storedVersion = patch.meta?.source === "preset" ? patch.meta.presetVersion : bundled.presetVersion;
   return bundled.presetVersion > storedVersion ? "preset_update_available" : "preset";
 };
+
+export const isPatchRemovable = (patch: Pick<Patch, "id"> & { meta?: PatchMeta | null }): boolean =>
+  resolvePatchSource(patch) === "custom" || resolvePatchPresetStatus(patch) === "legacy_preset";
 
 export interface ProjectPresetUpdateSummary {
   updates: Array<{

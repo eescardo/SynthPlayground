@@ -29,7 +29,7 @@ for (const patch of presetPatches) {
       const bindingCount = getMacroBindingKeyframeCount(binding);
       if (bindingCount !== macro.keyframeCount) {
         errors.push(
-          `Preset ${patch.id} macro ${macro.id} binding ${binding.id} has ${bindingCount} keyframes but macro declares ${macro.keyframeCount}.`
+          `Preset ${patch.id} macro ${macro.id} binding ${binding.nodeId}.${binding.paramId} has ${bindingCount} keyframes but macro declares ${macro.keyframeCount}.`
         );
       }
     }

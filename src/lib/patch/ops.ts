@@ -2,7 +2,7 @@ import { createDefaultParamsForType, getModuleSchema } from "@/lib/patch/moduleR
 import { createId } from "@/lib/ids";
 import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch/patchCanvasConstants";
 import { clamp, clampRange } from "@/lib/numeric";
-import { createMacroBindingId } from "@/lib/patch/macroBindings";
+import { createMacroBindingId, isMacroBindingTarget } from "@/lib/patch/macroBindings";
 import {
   clampNormalizedMacroValue,
   convertBindingToKeyframeCount,
@@ -23,17 +23,6 @@ const buildParamRangeKey = (nodeId: string, paramId: string) => `${nodeId}:${par
 
 const findParameterTarget = (patch: Patch, nodeId: string) =>
   getPatchParameterTargets(patch).find((entry) => entry.id === nodeId);
-
-function isCompressorDerivedLegacyParam(nodeTypeId: string | undefined, paramId: string) {
-  return (
-    nodeTypeId === "Compressor" &&
-    (paramId === "thresholdDb" ||
-      paramId === "ratio" ||
-      paramId === "releaseMs" ||
-      paramId === "makeupDb" ||
-      paramId === "autoMakeup")
-  );
-}
 
 function clampMacroBindingValues(binding: MacroBinding, min: number, max: number) {
   if (binding.points) {
@@ -57,7 +46,7 @@ function applyMacroValueToPatch(patch: Patch, macroId: string, normalized: numbe
       continue;
     }
     const paramSchema = getModuleSchema(node.typeId)?.params.find((param) => param.id === binding.paramId);
-    if (!paramSchema || isCompressorDerivedLegacyParam(node.typeId, binding.paramId)) {
+    if (!paramSchema) {
       continue;
     }
     node.params[binding.paramId] = resolveMacroBindingValue(binding, norm);
@@ -154,7 +143,6 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
           }
           return {
             ...binding,
-            id: createMacroBindingId(macro.id, op.newNodeId, binding.paramId),
             nodeId: op.newNodeId
           };
         });
@@ -201,9 +189,6 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       const node = findParameterTarget(next, op.nodeId);
       if (!node) {
         throw new Error(`Unknown node in setParam: ${op.nodeId}`);
-      }
-      if (isCompressorDerivedLegacyParam(node.typeId, op.paramId)) {
-        return next;
       }
       node.params[op.paramId] = op.value;
       return next;
@@ -254,9 +239,6 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       // This is the multi-param atomic update affordance used when several
       // params form one logical state change and should land together.
       for (const [paramId, value] of Object.entries(op.values)) {
-        if (isCompressorDerivedLegacyParam(node.typeId, paramId)) {
-          continue;
-        }
         node.params[paramId] = value;
       }
       return next;
@@ -315,20 +297,12 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       if (!macro) {
         throw new Error(`Unknown macro: ${op.macroId}`);
       }
-      const node = findParameterTarget(next, op.nodeId);
-      if (isCompressorDerivedLegacyParam(node?.typeId, op.paramId)) {
-        return next;
-      }
+      const bindingTarget = { nodeId: op.nodeId, paramId: op.paramId };
       const bindingId = createMacroBindingId(op.macroId, op.nodeId, op.paramId);
-      if (
-        macro.bindings.some(
-          (binding) => binding.id === bindingId || (binding.nodeId === op.nodeId && binding.paramId === op.paramId)
-        )
-      ) {
+      if (macro.bindings.some((binding) => isMacroBindingTarget(binding, bindingTarget))) {
         throw new Error(`Binding already exists: ${bindingId}`);
       }
       macro.bindings.push({
-        id: bindingId,
         nodeId: op.nodeId,
         paramId: op.paramId,
         map: op.map,
@@ -344,7 +318,8 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       if (!macro) {
         throw new Error(`Unknown macro: ${op.macroId}`);
       }
-      macro.bindings = macro.bindings.filter((binding) => binding.id !== op.bindingId);
+      const bindingTarget = { nodeId: op.nodeId, paramId: op.paramId };
+      macro.bindings = macro.bindings.filter((binding) => !isMacroBindingTarget(binding, bindingTarget));
       return next;
     }
 
@@ -373,9 +348,10 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       if (!macro) {
         throw new Error(`Unknown macro: ${op.macroId}`);
       }
-      const bindingIndex = macro.bindings.findIndex((binding) => binding.id === op.bindingId);
+      const bindingTarget = { nodeId: op.nodeId, paramId: op.paramId };
+      const bindingIndex = macro.bindings.findIndex((binding) => isMacroBindingTarget(binding, bindingTarget));
       if (bindingIndex === -1) {
-        throw new Error(`Unknown macro binding: ${op.bindingId}`);
+        throw new Error(`Unknown macro binding: ${createMacroBindingId(op.macroId, op.nodeId, op.paramId)}`);
       }
       const binding = macro.bindings[bindingIndex];
       macro.bindings[bindingIndex] = {
@@ -395,9 +371,8 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       if (typeof op.value !== "number") {
         throw new Error("Macro keyframe values must be numeric.");
       }
-      const bindingIndex = macro.bindings.findIndex(
-        (binding) => binding.nodeId === op.nodeId && binding.paramId === op.paramId
-      );
+      const bindingTarget = { nodeId: op.nodeId, paramId: op.paramId };
+      const bindingIndex = macro.bindings.findIndex((binding) => isMacroBindingTarget(binding, bindingTarget));
       if (bindingIndex === -1) {
         throw new Error(`Unknown macro binding target: ${op.nodeId}.${op.paramId}`);
       }

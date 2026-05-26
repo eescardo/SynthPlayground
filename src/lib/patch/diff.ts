@@ -18,7 +18,6 @@ export interface PatchBindingDiff {
   key: string;
   macroId: string;
   macroName: string;
-  bindingId: string;
   nodeId: string;
   paramId: string;
   status: Exclude<PatchDiffStatus, "unchanged">;
@@ -532,7 +531,6 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
         key,
         macroId: entry.macro.id,
         macroName: entry.macro.name,
-        bindingId: entry.binding.id,
         nodeId: entry.binding.nodeId,
         paramId: entry.binding.paramId,
         status: "added",
@@ -546,7 +544,6 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
         key,
         macroId: entry.macro.id,
         macroName: entry.macro.name,
-        bindingId: entry.binding.id,
         nodeId: entry.binding.nodeId,
         paramId: entry.binding.paramId,
         status: "modified",
@@ -564,7 +561,6 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
       key,
       macroId: entry.macro.id,
       macroName: entry.macro.name,
-      bindingId: entry.binding.id,
       nodeId: entry.binding.nodeId,
       paramId: entry.binding.paramId,
       status: "removed",

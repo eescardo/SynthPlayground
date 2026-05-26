@@ -21,7 +21,6 @@ describe("patch validation", () => {
       keyframeCount: 2,
       bindings: [
         {
-          id: "conflict_binding",
           nodeId: "karplus1",
           paramId: "brightness",
           map: "linear",
@@ -43,7 +42,6 @@ describe("patch validation", () => {
     const patch = guitarStringPatch();
     const duplicateTarget = patch.ui.macros[0].bindings[0];
     patch.ui.macros[0].bindings.push({
-      id: "dup_binding",
       nodeId: duplicateTarget.nodeId,
       paramId: duplicateTarget.paramId,
       map: "linear",
@@ -66,7 +64,6 @@ describe("patch validation", () => {
       name: "Drive",
       bindings: [
         {
-          id: "stale_binding",
           nodeId: "karplus1",
           paramId: "mix",
           map: "linear",
@@ -84,7 +81,7 @@ describe("patch validation", () => {
         expect.objectContaining({
           code: "macro-binding-invalid-param",
           message: 'Macro "Drive" binding targets missing parameter karplus1.mix',
-          context: expect.objectContaining({ macroId: patch.ui.macros[0].id, bindingId: "stale_binding" })
+          context: expect.objectContaining({ macroId: patch.ui.macros[0].id, nodeId: "karplus1", paramId: "mix" })
         })
       ])
     );
@@ -168,8 +165,8 @@ describe("patch validation", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("warns on legacy reverb node params while still rejecting stale ranges and bindings", () => {
-    const patch = createClearPatch({ id: "legacy_reverb", name: "Legacy Reverb" });
+  it("warns on stale reverb node params while still rejecting stale ranges and bindings", () => {
+    const patch = createClearPatch({ id: "stale_reverb", name: "Stale Reverb" });
     patch.nodes.push(
       { id: "noise1", typeId: "Noise", params: { color: "white", gain: 0.3 } },
       { id: "verb1", typeId: "Reverb", params: { size: 0.8, decay: 1.5, damping: 0.4, mix: 0.5 } }
@@ -188,7 +185,6 @@ describe("patch validation", () => {
       keyframeCount: 2,
       bindings: [
         {
-          id: "legacy_size",
           nodeId: "verb1",
           paramId: "size",
           map: "linear",
@@ -196,7 +192,6 @@ describe("patch validation", () => {
           max: 1
         },
         {
-          id: "legacy_decay",
           nodeId: "verb1",
           paramId: "decay",
           map: "linear",

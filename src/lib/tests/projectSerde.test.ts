@@ -13,13 +13,13 @@ import { getBundledPresetLineage } from "@/lib/patch/source";
 import { validatePatch } from "@/lib/patch/validation";
 
 describe("projectSerde", () => {
-  it("normalizeProject upgrades legacy preset metadata and defaults macro panel to collapsed", () => {
+  it("normalizeProject does not infer preset metadata and defaults macro panel to collapsed", () => {
     const project = createDefaultProject();
-    const legacy = structuredClone(project) as unknown as {
+    const missingMetadata = structuredClone(project) as unknown as {
       patches: Array<Record<string, unknown>>;
       tracks: Array<Record<string, unknown>>;
     };
-    legacy.patches = legacy.patches.map((patch) =>
+    missingMetadata.patches = missingMetadata.patches.map((patch) =>
       patch.meta &&
       typeof patch.meta === "object" &&
       patch.meta !== null &&
@@ -31,21 +31,15 @@ describe("projectSerde", () => {
           }
         : patch
     );
-    legacy.tracks = legacy.tracks.map((track) => {
+    missingMetadata.tracks = missingMetadata.tracks.map((track) => {
       const nextTrack = { ...track };
       delete nextTrack.macroValues;
       delete nextTrack.macroPanelExpanded;
       return nextTrack;
     });
 
-    const normalized = normalizeProject(legacy);
-    for (const patch of normalized.patches) {
-      if (patch.meta.source === "preset") {
-        const bundledLineage = getBundledPresetLineage(patch.id);
-        expect(patch.meta.presetId).toBe(patch.id);
-        expect(patch.meta.presetVersion).toBe(bundledLineage?.presetVersion ?? 1);
-      }
-    }
+    const normalized = normalizeProject(missingMetadata);
+    expect(normalized.patches.some((patch) => patch.id === "preset_bass" && patch.meta.source === "custom")).toBe(true);
     for (const track of normalized.tracks) {
       expect(track.macroValues).toEqual({});
       expect(track.macroPanelExpanded).toBe(false);
@@ -168,6 +162,14 @@ describe("projectSerde", () => {
     expect(imported.assets.samplePlayerById.unused_asset).toBeUndefined();
   });
 
+  it("rejects raw project objects without a versioned bundle wrapper", () => {
+    const project = createDefaultProject();
+
+    expect(() => importProjectBundleFromJson(JSON.stringify(project))).toThrow(
+      "Project JSON must be a versioned Synth Playground project bundle"
+    );
+  });
+
   it("import/export roundtrip preserves patch workspace tabs separately from patch names", () => {
     const project = createDefaultProject();
     project.ui.patchWorkspace.tabs = [
@@ -284,7 +286,6 @@ describe("projectSerde", () => {
 
     const duplicateTarget = guitarString.ui.macros[0].bindings[0];
     guitarString.ui.macros[0].bindings.push({
-      id: "invalid_conflict_binding",
       nodeId: duplicateTarget.nodeId,
       paramId: duplicateTarget.paramId,
       map: "linear",
@@ -305,15 +306,15 @@ describe("projectSerde", () => {
     ).toBe(true);
   });
 
-  it("treats legacy three-keyframe macros without macro keyframe count as invalid snapshots", () => {
+  it("treats three-keyframe macros without macro keyframe count as invalid snapshots", () => {
     const project = createDefaultProject();
     const bass = project.patches.find((patch) => patch.id === "preset_bass");
     if (!bass) {
       throw new Error("Expected preset_bass patch");
     }
 
-    const legacy = structuredClone(project) as unknown as { patches: Array<Record<string, unknown>> };
-    legacy.patches = legacy.patches.map((patch) => {
+    const missingKeyframeCounts = structuredClone(project) as unknown as { patches: Array<Record<string, unknown>> };
+    missingKeyframeCounts.patches = missingKeyframeCounts.patches.map((patch) => {
       if (patch.id !== "preset_bass") {
         return patch;
       }
@@ -331,7 +332,7 @@ describe("projectSerde", () => {
       };
     });
 
-    const normalized = normalizeProject(legacy);
+    const normalized = normalizeProject(missingKeyframeCounts);
     const normalizedBass = normalized.patches.find((patch) => patch.id === bass.id);
     const validation = normalizedBass ? validatePatch(normalizedBass) : { ok: true, issues: [] };
 

@@ -4,8 +4,8 @@ import { Dispatch, SetStateAction, useCallback } from "react";
 import { LocalPatchWorkspaceTab } from "@/hooks/patch/patchWorkspaceStateUtils";
 import { resolvePatchWorkspaceMacroValues } from "@/hooks/patch/usePatchWorkspaceMacroValues";
 import { createId } from "@/lib/ids";
-import { createMacroBindingId } from "@/lib/patch/macroBindings";
 import { clampNormalizedMacroValue } from "@/lib/patch/macroKeyframes";
+import { isMacroBindingTarget } from "@/lib/patch/macroBindings";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { applyPatchOp as applyPatchGraphOp } from "@/lib/patch/ops";
 import { getPatchParameterTargets } from "@/lib/patch/ports";
@@ -62,8 +62,9 @@ export function usePatchWorkspaceMacroActions({
           }
 
           let nextPatch = currentPatch;
+          const bindingTarget = { nodeId, paramId };
           const existingMacro = currentPatch.ui.macros.find((macro) =>
-            macro.bindings.some((binding) => binding.nodeId === nodeId && binding.paramId === paramId)
+            macro.bindings.some((binding) => isMacroBindingTarget(binding, bindingTarget))
           );
           if (existingMacro) {
             return current;
@@ -83,7 +84,6 @@ export function usePatchWorkspaceMacroActions({
           nextPatch = applyPatchGraphOp(nextPatch, {
             type: "bindMacro",
             macroId,
-            bindingId: createMacroBindingId(macroId, nodeId, paramId),
             nodeId,
             paramId,
             map: "linear",

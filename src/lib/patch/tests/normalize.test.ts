@@ -4,7 +4,7 @@ import { PATCH_CANVAS_MAX_ZOOM, PATCH_CANVAS_MIN_ZOOM } from "@/components/patch
 import { normalizePatch } from "@/lib/patch/normalize";
 
 describe("normalizePatch", () => {
-  it("migrates legacy CVMixer2 nodes to CVMixer4", () => {
+  it("leaves unknown module types unchanged", () => {
     const patch = normalizePatch(
       {
         id: "patch_raw",
@@ -12,7 +12,7 @@ describe("normalizePatch", () => {
         nodes: [
           {
             id: "cvmix1",
-            typeId: "CVMixer2",
+            typeId: "ExperimentalMixer",
             params: { gain1: 0.5, gain2: -0.25 }
           }
         ],
@@ -25,8 +25,8 @@ describe("normalizePatch", () => {
     );
 
     expect(patch.nodes.find((node) => node.id === "cvmix1")).toMatchObject({
-      typeId: "CVMixer4",
-      params: { gain1: 0.5, gain2: -0.25, gain3: 1, gain4: 1 }
+      typeId: "ExperimentalMixer",
+      params: { gain1: 0.5, gain2: -0.25 }
     });
   });
 
@@ -55,7 +55,7 @@ describe("normalizePatch", () => {
     });
   });
 
-  it("preserves legacy piecewise macro maps only when keyframe points are usable", () => {
+  it("preserves piecewise macro maps only when keyframe points are usable", () => {
     const patch = normalizePatch(
       {
         id: "patch_raw",
@@ -70,7 +70,6 @@ describe("normalizePatch", () => {
               keyframeCount: 3,
               bindings: [
                 {
-                  id: "binding_piecewise",
                   nodeId: "vcf1",
                   paramId: "cutoffHz",
                   map: "piecewise",
@@ -81,7 +80,6 @@ describe("normalizePatch", () => {
                   ]
                 },
                 {
-                  id: "binding_too_short",
                   nodeId: "vcf1",
                   paramId: "resonance",
                   map: "piecewise",
@@ -98,7 +96,6 @@ describe("normalizePatch", () => {
     );
 
     expect(patch.ui.macros[0].bindings[0]).toMatchObject({
-      id: "macro_1:vcf1:cutoffHz",
       map: "piecewise",
       points: [
         { x: 0, y: 120 },
@@ -107,7 +104,6 @@ describe("normalizePatch", () => {
       ]
     });
     expect(patch.ui.macros[0].bindings[1]).toMatchObject({
-      id: "macro_1:vcf1:resonance",
       map: "linear",
       points: undefined
     });
@@ -225,8 +221,8 @@ describe("normalizePatch", () => {
               name: "Verb",
               keyframeCount: 2,
               bindings: [
-                { id: "legacy_size", nodeId: "verb1", paramId: "size", map: "linear", min: 0, max: 1 },
-                { id: "legacy_decay", nodeId: "verb1", paramId: "decay", map: "linear", min: 1, max: 5 }
+                { nodeId: "verb1", paramId: "size", map: "linear", min: 0, max: 1 },
+                { nodeId: "verb1", paramId: "decay", map: "linear", min: 1, max: 5 }
               ]
             }
           ]
@@ -242,7 +238,6 @@ describe("normalizePatch", () => {
     });
     expect(patch.ui.macros[0].bindings).toEqual([
       expect.objectContaining({
-        id: "macro_verb:verb1:decay",
         nodeId: "verb1",
         paramId: "decay",
         min: 1,

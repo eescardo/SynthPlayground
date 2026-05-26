@@ -390,7 +390,7 @@ impl RuntimeNode {
                 _ => {}
             },
             Self::Overdrive(node) => match param_id {
-                "driveDb" | "gainDb" => node
+                "driveDb" => node
                     .drive_db
                     .set_target(value_to_f32(Some(value), node.drive_db.target)),
                 "tone" => node
