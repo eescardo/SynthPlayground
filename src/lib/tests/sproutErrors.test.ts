@@ -3,23 +3,27 @@ import { createSproutError, normalizeSproutError, reportSproutErrorToConsole } f
 
 describe("sproutErrors", () => {
   it("normalizes legacy string messages into structured errors", () => {
-    expect(normalizeSproutError("Something failed", "legacy_ui")).toEqual({
+    const normalized = normalizeSproutError("Something failed", "legacy_ui");
+
+    expect(normalized).toEqual({
       source: "legacy_ui",
+      code: "runtime_error",
       severity: "error",
       message: "Something failed",
-      error: "Something failed",
-      phase: undefined,
+      error: expect.any(Error),
       details: undefined
     });
+    expect(normalized?.error?.message).toBe("Something failed");
   });
 
   it("keeps structured errors intact", () => {
     const error = createSproutError({
       source: "audio_worklet",
+      code: "runtime_error",
       severity: "error",
       message: "Audio worklet process_block failed: boom",
-      error: "boom",
-      phase: "process_block"
+      error: new Error("boom"),
+      details: { phase: "process_block" }
     });
 
     expect(normalizeSproutError(error)).toBe(error);
@@ -33,28 +37,30 @@ describe("sproutErrors", () => {
       reportSproutErrorToConsole(
         createSproutError({
           source: "audio_worklet",
+          code: "runtime_error",
           severity: "error",
           message: "Audio failed",
-          error: "boom",
-          phase: "process_block"
+          error: new Error("boom"),
+          details: { phase: "process_block" }
         })
       );
       reportSproutErrorToConsole(
         createSproutError({
           source: "autosave",
+          code: "save_failed",
           severity: "warning",
           message: "Autosave skipped",
-          error: "quota",
-          phase: "save"
+          error: new Error("quota"),
+          details: { phase: "save" }
         })
       );
 
       expect(consoleError).toHaveBeenCalledWith(
         "Audio failed",
+        expect.any(Error),
         expect.objectContaining({
           source: "audio_worklet",
-          phase: "process_block",
-          error: "boom",
+          code: "runtime_error",
           severity: "error"
         })
       );
@@ -62,8 +68,7 @@ describe("sproutErrors", () => {
         "Autosave skipped",
         expect.objectContaining({
           source: "autosave",
-          phase: "save",
-          error: "quota",
+          code: "save_failed",
           severity: "warning"
         })
       );

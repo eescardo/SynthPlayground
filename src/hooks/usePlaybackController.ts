@@ -113,10 +113,11 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
       setRuntimeError(
         createSproutError({
           source: "audio_playback",
+          code: "renderer_not_ready",
           severity: "error",
           message: "The default WASM renderer is not ready.",
-          error: "The default WASM renderer is not ready.",
-          phase: "start"
+          error: new Error("The default WASM renderer is not ready."),
+          details: { phase: "start" }
         })
       );
       return;

@@ -92,10 +92,11 @@ export function useProjectAudioActions(options: UseProjectAudioActionsOptions) {
       setRuntimeError(
         createSproutError({
           source: "audio_export",
+          code: "render_failed",
           severity: "error",
           message: (error as Error).message,
-          error: (error as Error).message,
-          phase: "render"
+          error: error instanceof Error ? error : new Error(String(error)),
+          details: { phase: "render" }
         })
       );
     } finally {

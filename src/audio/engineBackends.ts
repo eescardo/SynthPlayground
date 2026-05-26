@@ -14,7 +14,7 @@ import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
 import { pitchToVoct } from "@/lib/pitch";
 import { createId } from "@/lib/ids";
 import { isUiCaptureFakeAudioEnabled } from "@/lib/uiCaptureMode";
-import { createSproutError, SproutError } from "@/lib/sproutErrors";
+import { createSproutError, hydrateSerializableSproutError, SproutError } from "@/lib/sproutErrors";
 import { AudioProject, SchedulerEvent, TransportCommand, WorkletOutboundMessage } from "@/types/audio";
 import type { Track } from "@/types/music";
 import { PreviewProbeCapture, PreviewProbeRequest, PreviewProbeSharedBuffer } from "@/types/probes";
@@ -109,13 +109,16 @@ export const formatWorkletRuntimeError = (message: Extract<WorkletOutboundMessag
 export const createWorkletRuntimeSproutError = (
   message: Extract<WorkletOutboundMessage, { type: "RUNTIME_ERROR" }>
 ): SproutError =>
-  createSproutError({
-    source: "audio_worklet",
-    phase: message.phase,
-    error: message.error,
-    severity: "error",
-    message: formatWorkletRuntimeError(message)
-  });
+  message.sproutError
+    ? hydrateSerializableSproutError(message.sproutError)
+    : createSproutError({
+        source: "audio_worklet",
+        code: "runtime_error",
+        severity: "error",
+        message: formatWorkletRuntimeError(message),
+        error: new Error(message.error),
+        details: { phase: message.phase }
+      });
 
 const getWorkletUrl = () => {
   const basePath = "/worklets/synth-worklet.js";

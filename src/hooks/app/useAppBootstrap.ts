@@ -78,10 +78,11 @@ export function useAppBootstrap({
         setRuntimeError(
           createSproutError({
             source: "project_bootstrap",
+            code: "load_saved_project_failed",
             severity: "error",
             message: `Failed to load the saved project. Loaded the default project instead. ${(error as Error).message}`,
-            error: (error as Error).message,
-            phase: "load_saved_project"
+            error: error instanceof Error ? error : new Error(String(error)),
+            details: { phase: "load_saved_project" }
           })
         );
         setReady(true);

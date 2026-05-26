@@ -539,10 +539,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
           setRuntimeError(
             createSproutError({
               source: "audio_playback",
+              code: "preview_failed",
               severity: "error",
               message: (error as Error).message,
-              error: (error as Error).message,
-              phase: "pitch_picker_preview"
+              error: error instanceof Error ? error : new Error(String(error)),
+              details: { phase: "pitch_picker_preview" }
             })
           )
         );
@@ -561,10 +562,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
           setRuntimeError(
             createSproutError({
               source: "audio_playback",
+              code: "seek_failed",
               severity: "error",
               message: (error as Error).message,
-              error: (error as Error).message,
-              phase: "seek"
+              error: error instanceof Error ? error : new Error(String(error)),
+              details: { phase: "seek" }
             })
           )
         );
@@ -1022,10 +1024,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
       setRuntimeError(
         createSproutError({
           source: "patch_workspace",
+          code: "remove_patch_last_track",
           severity: "error",
           message: "At least one track must remain in the project.",
-          error: "At least one track must remain in the project.",
-          phase: "remove_patch"
+          error: new Error("At least one track must remain in the project."),
+          details: { phase: "remove_patch" }
         })
       );
       return;
@@ -1095,10 +1098,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
           setRuntimeError(
             createSproutError({
               source: "patch_workspace",
+              code: "preview_failed",
               severity: "error",
               message: (error as Error).message,
-              error: (error as Error).message,
-              phase: "preview"
+              error: error instanceof Error ? error : new Error(String(error)),
+              details: { phase: "preview" }
             })
           )
         );

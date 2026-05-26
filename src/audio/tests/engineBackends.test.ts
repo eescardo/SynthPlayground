@@ -77,13 +77,17 @@ describe("audio engine live mute transitions", () => {
     };
 
     expect(formatWorkletRuntimeError(message)).toBe("Audio worklet process_block failed: sample playback failed");
-    expect(createWorkletRuntimeSproutError(message)).toEqual({
+    const sproutError = createWorkletRuntimeSproutError(message);
+
+    expect(sproutError).toEqual({
       source: "audio_worklet",
+      code: "runtime_error",
       severity: "error",
-      phase: "process_block",
-      error: "sample playback failed",
-      message: "Audio worklet process_block failed: sample playback failed"
+      error: expect.any(Error),
+      message: "Audio worklet process_block failed: sample playback failed",
+      details: { phase: "process_block" }
     });
+    expect(sproutError.error?.message).toBe("sample playback failed");
   });
 
   it("updates the backend mute snapshot so project sync does not replay an immediate transition", () => {

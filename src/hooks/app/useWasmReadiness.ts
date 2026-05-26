@@ -28,10 +28,11 @@ export function useWasmReadiness({ ready, setRuntimeError }: { ready: boolean; s
       setRuntimeError(
         createSproutError({
           source: "wasm_readiness",
+          code: "browser_unsupported",
           severity: "error",
           message: "The default WASM renderer requires WebAssembly SIMD support in this browser.",
-          error: "Missing WebAssembly SIMD support",
-          phase: "browser_compatibility"
+          error: new Error("Missing WebAssembly SIMD support"),
+          details: { phase: "browser_compatibility" }
         })
       );
       setWasmReady(false);
@@ -48,10 +49,11 @@ export function useWasmReadiness({ ready, setRuntimeError }: { ready: boolean; s
         setRuntimeError(
           createSproutError({
             source: "wasm_readiness",
+            code: "load_failed",
             severity: "error",
             message: (error as Error).message,
-            error: (error as Error).message,
-            phase: "load_wasm"
+            error: error instanceof Error ? error : new Error(String(error)),
+            details: { phase: "load_wasm" }
           })
         );
         setWasmReady(false);

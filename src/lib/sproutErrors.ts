@@ -1,12 +1,28 @@
 export type SproutErrorSeverity = "error" | "warning" | "info";
 
+export type SproutErrorDetails = Record<string, string | number | boolean | null | undefined>;
+
 export interface SproutError {
   source: string;
+  code: string;
   severity: SproutErrorSeverity;
   message: string;
-  error?: string;
-  phase?: string;
-  details?: Record<string, string | number | boolean | null | undefined>;
+  error?: Error;
+  details?: SproutErrorDetails;
+}
+
+export interface SerializableSproutErrorDetails extends SproutErrorDetails {
+  remoteStack?: string;
+}
+
+export interface SerializableSproutError {
+  source: string;
+  code: string;
+  severity: SproutErrorSeverity;
+  message: string;
+  errorMessage?: string;
+  errorName?: string;
+  details?: SerializableSproutErrorDetails;
 }
 
 export type SproutErrorInput = SproutError | string | null;
@@ -21,33 +37,54 @@ export const isSproutError = (value: unknown): value is SproutError => {
   const candidate = value as Partial<SproutError>;
   return (
     typeof candidate.source === "string" &&
+    typeof candidate.code === "string" &&
     typeof candidate.message === "string" &&
     (candidate.severity === "error" || candidate.severity === "warning" || candidate.severity === "info")
   );
 };
 
+export const toError = (value: unknown): Error => {
+  if (value instanceof Error) {
+    return value;
+  }
+  return new Error(String(value));
+};
+
 export const createSproutError = ({
   source,
+  code,
   severity = "error",
   message,
   error,
-  phase,
   details
 }: {
   source: string;
+  code: string;
   severity?: SproutErrorSeverity;
   message: string;
-  error?: string;
-  phase?: string;
+  error?: Error;
   details?: SproutError["details"];
 }): SproutError => ({
   source,
+  code,
   severity,
   message,
   error,
-  phase,
   details
 });
+
+export const hydrateSerializableSproutError = (input: SerializableSproutError): SproutError => {
+  const error = new Error(input.errorMessage ?? input.message);
+  error.name = input.errorName ?? "RemoteError";
+  return createSproutError({
+    source: input.source,
+    code: input.code,
+    severity: input.severity,
+    message: input.message,
+    error,
+    details: input.details
+  });
+};
 
 export const normalizeSproutError = (value: SproutErrorInput, fallbackSource = "app"): SproutError | null => {
   if (value === null) {
@@ -58,17 +95,17 @@ export const normalizeSproutError = (value: SproutErrorInput, fallbackSource = "
   }
   return createSproutError({
     source: fallbackSource,
+    code: "runtime_error",
     severity: "error",
     message: value,
-    error: value
+    error: new Error(value)
   });
 };
 
 export const reportSproutErrorToConsole = (error: SproutError): void => {
   const payload = {
     source: error.source,
-    phase: error.phase,
-    error: error.error,
+    code: error.code,
     severity: error.severity,
     details: error.details
   };
@@ -80,5 +117,5 @@ export const reportSproutErrorToConsole = (error: SproutError): void => {
     console.info(error.message, payload);
     return;
   }
-  console.error(error.message, payload);
+  console.error(error.message, error.error, payload);
 };

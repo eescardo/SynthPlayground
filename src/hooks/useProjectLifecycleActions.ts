@@ -121,10 +121,11 @@ export const useProjectLifecycleActions = ({
         setRuntimeError(
           createSproutError({
             source: "project_lifecycle",
+            code: "open_recent_failed",
             severity: "error",
             message: `Failed to open recent project. ${(error as Error).message}`,
-            error: (error as Error).message,
-            phase: "open_recent_project"
+            error: error instanceof Error ? error : new Error(String(error)),
+            details: { phase: "open_recent_project" }
           })
         );
       }
@@ -147,11 +148,11 @@ export const useProjectLifecycleActions = ({
         setRuntimeError(
           createSproutError({
             source: "project_lifecycle",
+            code: "import_failed",
             severity: "error",
             message: `Failed to import project "${file.name}". ${message || "Unknown error."}`,
-            error: message || "Unknown error.",
-            phase: "import_project",
-            details: { fileName: file.name }
+            error: error instanceof Error ? error : new Error(message || "Unknown error."),
+            details: { fileName: file.name, phase: "import_project" }
           })
         );
       }

@@ -138,10 +138,11 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
         setRuntimeError(
           createSproutError({
             source: "patch_workspace",
+            code: "import_patch_failed",
             severity: "error",
             message: (error as Error).message,
-            error: (error as Error).message,
-            phase: "import_patch"
+            error: error instanceof Error ? error : new Error(String(error)),
+            details: { phase: "import_patch" }
           })
         );
       }

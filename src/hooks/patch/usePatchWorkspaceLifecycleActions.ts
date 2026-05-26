@@ -274,10 +274,11 @@ export function usePatchWorkspaceLifecycleActions({
         setRuntimeError(
           createSproutError({
             source: "patch_workspace",
+            code: "missing_fallback_instrument",
             severity: "error",
             message: "No fallback instrument is available for this tab.",
-            error: "No fallback instrument is available for this tab.",
-            phase: "remove_patch"
+            error: new Error("No fallback instrument is available for this tab."),
+            details: { phase: "remove_patch" }
           })
         );
         return;
