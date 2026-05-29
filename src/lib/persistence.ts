@@ -60,12 +60,18 @@ const loadRecentProjectSummaries = async (db: Awaited<ReturnType<typeof getDb>>)
   return (await db.get(PROJECT_META_STORE, RECENT_PROJECT_META_KEY)) ?? [];
 };
 
-export const saveProjectState = async (project: Project, assets: ProjectAssetLibrary): Promise<void> => {
+export const saveActiveProject = async (project: Project): Promise<void> => {
   const db = await getDb();
-  await Promise.all([
-    db.put(PROJECT_STORE, project, ACTIVE_PROJECT_KEY),
-    db.put(ASSET_STORE, assets, ACTIVE_PROJECT_ASSETS_KEY)
-  ]);
+  await db.put(PROJECT_STORE, project, ACTIVE_PROJECT_KEY);
+};
+
+export const saveActiveProjectAssets = async (assets: ProjectAssetLibrary): Promise<void> => {
+  const db = await getDb();
+  await db.put(ASSET_STORE, assets, ACTIVE_PROJECT_ASSETS_KEY);
+};
+
+export const saveProjectState = async (project: Project, assets: ProjectAssetLibrary): Promise<void> => {
+  await Promise.all([saveActiveProject(project), saveActiveProjectAssets(assets)]);
 };
 
 export const loadProjectState = async (): Promise<{ project: Project; assets: ProjectAssetLibrary } | null> => {
