@@ -260,11 +260,7 @@ impl RuntimeNode {
             "Overdrive" => Self::Overdrive(OverdriveNode {
                 out_index: raw.out_index,
                 input: input_index(&raw.inputs, "in"),
-                drive_db: SmoothParam::new(
-                    value_to_f32(p.get("driveDb").or_else(|| p.get("gainDb")), 12.0),
-                    20.0,
-                    sample_rate,
-                ),
+                drive_db: SmoothParam::new(value_to_f32(p.get("driveDb"), 12.0), 20.0, sample_rate),
                 tone: SmoothParam::new(value_to_f32(p.get("tone"), 0.5), 20.0, sample_rate),
                 mode: serde_json::from_value::<OverdriveMode>(Value::String(value_to_string(
                     p.get("mode"),

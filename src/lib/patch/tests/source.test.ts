@@ -4,6 +4,9 @@ import { createDefaultProject } from "@/lib/patch/presets";
 import {
   getBundledPresetPatch,
   getProjectPresetUpdateSummary,
+  isPatchRemovable,
+  resolvePatchPresetStatus,
+  resolvePatchSource,
   updatePresetPatchToLatest,
   updateProjectPresetsToLatest
 } from "@/lib/patch/source";
@@ -19,6 +22,7 @@ describe("patch source helpers", () => {
 
     expect(getProjectPresetUpdateSummary(project)).toBeNull();
     expect(bass.meta.presetVersion).toBe(latestBass.meta.presetVersion);
+    expect(isPatchRemovable(bass)).toBe(false);
     expect(bass.nodes.map((node) => node.id)).toEqual(latestBass.nodes.map((node) => node.id));
     expect(bass.connections.map((connection) => connection.id)).toEqual(
       latestBass.connections.map((connection) => connection.id)
@@ -63,6 +67,32 @@ describe("patch source helpers", () => {
     };
 
     expect(getProjectPresetUpdateSummary(project)).toBeNull();
+  });
+
+  it("marks explicit preset patches with missing bundled lineage as legacy presets", () => {
+    const project = createDefaultProject();
+    const bass = project.patches.find((patch) => patch.id === "preset_bass");
+    if (!bass || bass.meta.source !== "preset") {
+      throw new Error("Expected preset_bass to be available");
+    }
+    bass.meta.presetId = "preset_removed_from_bundle";
+
+    expect(resolvePatchSource(bass)).toBe("preset");
+    expect(resolvePatchPresetStatus(bass)).toBe("legacy_preset");
+    expect(isPatchRemovable(bass)).toBe(true);
+    expect(getProjectPresetUpdateSummary(project)).toBeNull();
+  });
+
+  it("marks custom patches as removable", () => {
+    const project = createDefaultProject();
+    const customPatch = {
+      ...structuredClone(project.patches[0]),
+      id: "patch_custom",
+      meta: { source: "custom" as const }
+    };
+
+    expect(resolvePatchPresetStatus(customPatch)).toBe("custom");
+    expect(isPatchRemovable(customPatch)).toBe(true);
   });
 
   it("updates stale preset patches while preserving the patch identity and saved layout", () => {

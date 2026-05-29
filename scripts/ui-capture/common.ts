@@ -254,7 +254,6 @@ export const createSamplePlayerCaptureProject = (): Project => {
           defaultNormalized: 0,
           bindings: [
             {
-              id: "binding_level_gain",
               nodeId: sampleNodeId,
               paramId: "gain",
               map: "linear",
@@ -571,7 +570,6 @@ export const createBaselineDiffCaptureProject = (): Project => {
           keyframeCount: 2,
           bindings: [
             {
-              id: "binding_shape_attack",
               nodeId: "env1",
               paramId: "attack",
               map: "linear",
@@ -611,7 +609,6 @@ export const createBaselineDiffCaptureProject = (): Project => {
       keyframeCount: 3,
       bindings: [
         {
-          id: "binding_drive_amount",
           nodeId: "sat1",
           paramId: "driveDb",
           map: "linear",

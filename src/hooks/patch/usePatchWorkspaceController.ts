@@ -13,7 +13,7 @@ import { NoteClipboardPayload } from "@/lib/clipboard";
 import { createId } from "@/lib/ids";
 import { RecentProjectSnapshot } from "@/lib/persistence";
 import { exportPatchToJson, importPatchBundleFromJson } from "@/lib/patch/serde";
-import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
+import { isPatchRemovable } from "@/lib/patch/source";
 import { createImportedWorkspacePatch } from "@/hooks/patch/patchWorkspacePatchHelpers";
 import { mergeImportedPatchAssets } from "@/lib/sampleAssetLibrary";
 import { MAX_PATCH_WORKSPACE_TABS } from "@/hooks/patch/patchWorkspaceStateUtils";
@@ -153,8 +153,7 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
     [commitProjectChange, patchWorkspace, project.patches, projectAssets, setProjectAssets, setRuntimeError]
   );
 
-  const canRemovePatch =
-    resolvePatchSource(selectedPatch) === "custom" || resolvePatchPresetStatus(selectedPatch) === "legacy_preset";
+  const canRemovePatch = isPatchRemovable(selectedPatch);
 
   const transport = useMemo<ProjectWorkspaceTransportContextValue>(
     () => ({

@@ -55,48 +55,6 @@ export function upsertSamplePlayerAssetData(
   };
 }
 
-export function extractInlineSamplePlayerAssets(
-  project: Project,
-  assets: ProjectAssetLibrary
-): { project: Project; assets: ProjectAssetLibrary; migrated: boolean } {
-  let nextAssets = assets;
-  let migrated = false;
-  const nextPatches = project.patches.map((patch) => {
-    let patchChanged = false;
-    const nextNodes = patch.nodes.map((node) => {
-      if (node.typeId !== SAMPLE_PLAYER_NODE_TYPE) {
-        return node;
-      }
-      const inlineSampleData = typeof node.params.sampleData === "string" ? node.params.sampleData : "";
-      if (!inlineSampleData) {
-        return node;
-      }
-      const existingAssetId = typeof node.params.sampleAssetId === "string" ? node.params.sampleAssetId : undefined;
-      const { assetId, assets: updatedAssets } = upsertSamplePlayerAssetData(
-        nextAssets,
-        inlineSampleData,
-        existingAssetId
-      );
-      nextAssets = updatedAssets;
-      patchChanged = true;
-      migrated = true;
-      const nextParams: Record<string, number | string | boolean> = { ...node.params, sampleAssetId: assetId };
-      delete nextParams.sampleData;
-      return {
-        ...node,
-        params: nextParams
-      };
-    });
-    return patchChanged ? { ...patch, nodes: nextNodes } : patch;
-  });
-
-  return {
-    project: migrated ? { ...project, patches: nextPatches } : project,
-    assets: nextAssets,
-    migrated
-  };
-}
-
 export function collectReferencedSamplePlayerAssetIds(project: Project) {
   const ids = new Set<string>();
   for (const patch of project.patches) {

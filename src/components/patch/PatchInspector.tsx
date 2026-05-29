@@ -258,16 +258,19 @@ export function PatchInspector(props: PatchInspectorProps) {
         <>
           <h4>Broken Macro Bindings</h4>
           {selectedMacroBindingIssues.map((issue) => {
-            const bindingId = issue.context?.bindingId;
-            const targetLabel = `${issue.context?.nodeId ?? "missing"}.${issue.context?.paramId ?? "param"}`;
+            const nodeId = issue.context?.nodeId;
+            const paramId = issue.context?.paramId;
+            const targetLabel = `${nodeId ?? "missing"}.${paramId ?? "param"}`;
             return (
-              <div key={`${selectedMacro.id}_${bindingId ?? targetLabel}`} className="patch-macro-binding-issue">
+              <div key={`${selectedMacro.id}_${targetLabel}`} className="patch-macro-binding-issue">
                 <p className="error">{issue.message}</p>
-                {bindingId && (
+                {nodeId && paramId && (
                   <button
                     type="button"
                     disabled={model.structureLocked}
-                    onClick={() => actions.onApplyOp({ type: "unbindMacro", macroId: selectedMacro.id, bindingId })}
+                    onClick={() =>
+                      actions.onApplyOp({ type: "unbindMacro", macroId: selectedMacro.id, nodeId, paramId })
+                    }
                   >
                     Remove {targetLabel}
                   </button>

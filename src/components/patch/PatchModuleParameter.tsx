@@ -5,7 +5,11 @@ import { EditableNumberLabel, MacroBindingDetails } from "@/components/patch/Pat
 import { PatchParameterAuthoringStrip } from "@/components/patch/PatchParameterAuthoringStrip";
 import { resolveParamBindingState, resolveParamControlValue } from "@/components/patch/patchModuleParameterState";
 import { applyMagneticSliderSnap, MagneticSliderPoint } from "@/components/patch/patchModuleParameterControls";
-import { createMacroBindingId, createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
+import {
+  createMacroBindingTargetKey,
+  createPatchMacroBindingKey,
+  isMacroBindingTarget
+} from "@/lib/patch/macroBindings";
 import { clamp, clampRange } from "@/lib/numeric";
 import {
   MacroBinding,
@@ -310,11 +314,12 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
     props.selectedMacroKeyframeIndex,
     props.structureLocked
   );
-  const removedBindingDiffs =
-    props.patchDiff.removedBindingDiffsByNodeParamKey.get(`${props.selectedNode.id}:${props.param.id}`) ?? [];
+  const bindingTarget = { nodeId: props.selectedNode.id, paramId: props.param.id };
+  const bindingTargetKey = createMacroBindingTargetKey(bindingTarget);
+  const removedBindingDiffs = props.patchDiff.removedBindingDiffsByNodeParamKey.get(bindingTargetKey) ?? [];
   const currentBindingDiffs = bindingState.boundMacros.flatMap((macro) =>
     macro.bindings
-      .filter((binding) => binding.nodeId === props.selectedNode.id && binding.paramId === props.param.id)
+      .filter((binding) => isMacroBindingTarget(binding, bindingTarget))
       .flatMap((binding) => {
         const diff = props.patchDiff.currentBindingDiffByKey.get(
           createPatchMacroBindingKey(props.patch, macro.id, binding)
@@ -329,12 +334,16 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
       : removedBindingDiffs.length > 0
         ? "negative"
         : null;
-  const activeBinding = bindingState.activeBindingMacro?.bindings.find(
-    (binding) => binding.nodeId === props.selectedNode.id && binding.paramId === props.param.id
+  const activeBinding = bindingState.activeBindingMacro?.bindings.find((binding) =>
+    isMacroBindingTarget(binding, bindingTarget)
   );
+  const activeBindingKey =
+    activeBinding && bindingState.activeBindingMacro
+      ? createPatchMacroBindingKey(props.patch, bindingState.activeBindingMacro.id, activeBinding)
+      : undefined;
   useEffect(() => {
     setDraftKeyframeValue(null);
-  }, [activeBinding?.id, props.param.id, props.selectedMacroValue, props.selectedNode.id]);
+  }, [activeBindingKey, bindingTargetKey, props.selectedMacroValue]);
   const sliderRange = resolveParamSliderRange(props.patch, props.selectedNode.id, props.param);
   const controlValue = resolveParamControlValue({
     activeBinding,
@@ -392,7 +401,12 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
           draftKeyframeValue
         )
       : undefined;
-  const previewBindingById = previewBinding ? new Map([[previewBinding.id, previewBinding]]) : undefined;
+  const previewBindingByKey =
+    previewBinding && bindingState.activeBindingMacro
+      ? new Map([
+          [createPatchMacroBindingKey(props.patch, bindingState.activeBindingMacro.id, previewBinding), previewBinding]
+        ])
+      : undefined;
   const canBindToMacro = props.param.type === "float";
   const shouldRenderMacroControl = canBindToMacro || bindingState.isExposed;
 
@@ -408,7 +422,6 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
     props.onApplyOp({
       type: "bindMacro",
       macroId,
-      bindingId: createMacroBindingId(macroId, props.selectedNode.id, props.param.id),
       nodeId: props.selectedNode.id,
       paramId: props.param.id,
       map: binding.map,
@@ -494,7 +507,8 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
             props.onApplyOp({
               type: "setMacroBindingMap",
               macroId: bindingState.activeBindingMacro.id,
-              bindingId: activeBinding.id,
+              nodeId: activeBinding.nodeId,
+              paramId: activeBinding.paramId,
               map
             });
           }
@@ -504,7 +518,8 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
             props.onApplyOp({
               type: "unbindMacro",
               macroId: bindingState.activeBindingMacro.id,
-              bindingId: activeBinding.id
+              nodeId: activeBinding.nodeId,
+              paramId: activeBinding.paramId
             });
           }
         }}
@@ -583,7 +598,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
             nodeId={props.selectedNode.id}
             paramId={props.param.id}
             boundMacroIds={bindingState.boundMacros.map((macro) => macro.id)}
-            previewBindingById={previewBindingById}
+            previewBindingByKey={previewBindingByKey}
             currentBindingDiffByKey={props.patchDiff.currentBindingDiffByKey}
             removedBindingDiffs={removedBindingDiffs}
           />

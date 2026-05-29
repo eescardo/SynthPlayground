@@ -106,13 +106,10 @@ const sanitizePatchWorkspaceProbes = (raw: unknown): PatchWorkspaceProbeState[] 
     const kind = entry.kind === "spectrum" ? "spectrum" : entry.kind === "pitch_tracker" ? "pitch_tracker" : "scope";
     const spectrumWindowSize = asFiniteNumber(entry.spectrumWindowSize, 0);
     const rawFrequencyView = isObject(entry.frequencyView) ? entry.frequencyView : {};
-    const legacySpectrumMaxFrequencyHz = asOptionalFiniteNumber(entry.spectrumMaxFrequencyHz);
     const frequencyView =
       kind === "spectrum"
         ? {
-            maxHz: clampProbeMaxFrequencyHz(
-              asFiniteNumber(rawFrequencyView.maxHz, legacySpectrumMaxFrequencyHz ?? DEFAULT_PROBE_MAX_FREQUENCY_HZ)
-            )
+            maxHz: clampProbeMaxFrequencyHz(asFiniteNumber(rawFrequencyView.maxHz, DEFAULT_PROBE_MAX_FREQUENCY_HZ))
           }
         : undefined;
     return {
@@ -316,34 +313,7 @@ export const normalizeProject = (raw: unknown): Project => {
           ];
         }
 
-        const startBeatRaw = asOptionalFiniteNumber(marker.startBeat);
-        if (startBeatRaw === undefined) {
-          return [];
-        }
-        const endBeatRaw = asOptionalFiniteNumber(marker.endBeat);
-        const repeatCount = Math.max(
-          DEFAULT_LOOP_REPEAT_COUNT,
-          Math.min(MAX_LOOP_REPEAT_COUNT, Math.round(asFiniteNumber(marker.repeatCount, DEFAULT_LOOP_REPEAT_COUNT)))
-        );
-        const markerIdBase = asString(marker.id, createId(`loop_region_${index}`));
-        return [
-          {
-            id: `${markerIdBase}_start`,
-            kind: "start" as const,
-            beat: Math.max(0, startBeatRaw),
-            repeatCount: undefined
-          },
-          ...(endBeatRaw === undefined
-            ? []
-            : [
-                {
-                  id: `${markerIdBase}_end`,
-                  kind: "end" as const,
-                  beat: Math.max(0, endBeatRaw),
-                  repeatCount
-                }
-              ])
-        ];
+        return [];
       })
     },
     tracks,
@@ -388,8 +358,5 @@ export const importProjectBundleFromJson = (json: string): { project: Project; a
       assets: normalizeProjectAssetLibrary(parsed.assets)
     };
   }
-  return {
-    project: normalizeProject(parsed),
-    assets: createEmptyProjectAssetLibrary()
-  };
+  throw new Error("Project JSON must be a versioned Synth Playground project bundle");
 };

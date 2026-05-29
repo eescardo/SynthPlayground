@@ -1,3 +1,4 @@
+import { isMacroBindingTarget } from "@/lib/patch/macroBindings";
 import { resolveMacroBindingValue } from "@/lib/patch/macroKeyframes";
 import { MacroBinding, Patch, PatchNode, ParamSchema, ParamValue } from "@/types/patch";
 
@@ -9,8 +10,9 @@ export function resolveParamBindingState(
   selectedMacroKeyframeIndex: number | null,
   structureLocked: boolean | undefined
 ) {
+  const bindingTarget = { nodeId: selectedNode.id, paramId: param.id };
   const boundMacros = patch.ui.macros.filter((macro) =>
-    macro.bindings.some((binding) => binding.nodeId === selectedNode.id && binding.paramId === param.id)
+    macro.bindings.some((binding) => isMacroBindingTarget(binding, bindingTarget))
   );
   const activeBindingMacro = boundMacros.find((macro) => macro.id === selectedMacroId) ?? boundMacros[0];
   const isExposed = boundMacros.length > 0;

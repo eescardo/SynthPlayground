@@ -61,8 +61,5 @@ export const importPatchBundleFromJson = (json: string): { patch: Patch; assets:
     };
   }
 
-  return {
-    patch: normalizePatch(parsed, { fallbackId: "imported_patch", fallbackName: "Imported Patch" }),
-    assets: createEmptyProjectAssetLibrary()
-  };
+  throw new Error("Patch JSON must be a versioned Synth Playground patch bundle");
 };

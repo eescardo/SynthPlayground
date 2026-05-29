@@ -46,12 +46,7 @@ import { pushHistory, redoHistory, undoHistory } from "@/lib/history";
 import { freezeProjectSnapshot } from "@/lib/projectImmutability";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { renameProjectInProject } from "@/lib/projectManagement";
-import {
-  getProjectPresetUpdateSummary,
-  resolvePatchPresetStatus,
-  resolvePatchSource,
-  updateProjectPresetsToLatest
-} from "@/lib/patch/source";
+import { getProjectPresetUpdateSummary, isPatchRemovable, updateProjectPresetsToLatest } from "@/lib/patch/source";
 import { exportProjectToJson } from "@/lib/projectSerde";
 import { pitchToVoct } from "@/lib/pitch";
 import { createSproutError, reportSproutErrorToConsole, toError } from "@/lib/sproutErrors";
@@ -988,11 +983,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   };
 
   const requestRemoveSelectedTrackPatch = useCallback(() => {
-    const patchStatus = selectedTrackPatch ? resolvePatchPresetStatus(selectedTrackPatch) : "custom";
-    if (
-      !selectedTrackPatch ||
-      (resolvePatchSource(selectedTrackPatch) !== "custom" && patchStatus !== "legacy_preset")
-    ) {
+    if (!selectedTrackPatch || !isPatchRemovable(selectedTrackPatch)) {
       return;
     }
     const removalRequest = buildPatchRemovalRequest(project, selectedTrackPatch);

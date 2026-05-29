@@ -9,6 +9,17 @@ export function createMacroBindingKey(macroId: string, binding: Pick<MacroBindin
   return createMacroBindingId(macroId, binding.nodeId, binding.paramId);
 }
 
+export function createMacroBindingTargetKey(target: Pick<MacroBinding, "nodeId" | "paramId">) {
+  return `${target.nodeId}:${target.paramId}`;
+}
+
+export function isMacroBindingTarget(
+  binding: Pick<MacroBinding, "nodeId" | "paramId">,
+  target: Pick<MacroBinding, "nodeId" | "paramId">
+) {
+  return createMacroBindingTargetKey(binding) === createMacroBindingTargetKey(target);
+}
+
 export function createPatchMacroBindingKey(
   patch: Pick<Patch, "ports">,
   macroId: string,
@@ -16,20 +27,4 @@ export function createPatchMacroBindingKey(
 ) {
   const nodeId = isPatchOutputPortId(patch, binding.nodeId) ? PATCH_OUTPUT_PORT_ID : binding.nodeId;
   return createMacroBindingId(macroId, nodeId, binding.paramId);
-}
-
-export function normalizeMacroBindingIds<T extends Pick<Patch, "ui">>(patch: T): T {
-  return {
-    ...patch,
-    ui: {
-      ...patch.ui,
-      macros: patch.ui.macros.map((macro) => ({
-        ...macro,
-        bindings: macro.bindings.map((binding) => ({
-          ...binding,
-          id: createMacroBindingId(macro.id, binding.nodeId, binding.paramId)
-        }))
-      }))
-    }
-  };
 }

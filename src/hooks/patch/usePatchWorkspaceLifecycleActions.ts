@@ -11,7 +11,7 @@ import { createClearedWorkspacePatch, createCustomDuplicatePatch } from "@/hooks
 import { createId } from "@/lib/ids";
 import {
   getBundledPresetPatch,
-  resolvePatchPresetStatus,
+  isPatchRemovable,
   resolvePatchSource,
   updatePresetPatchToLatest
 } from "@/lib/patch/source";
@@ -260,8 +260,7 @@ export function usePatchWorkspaceLifecycleActions({
   ]);
 
   const requestRemoveSelectedPatch = useCallback(() => {
-    const patchStatus = selectedPatch ? resolvePatchPresetStatus(selectedPatch) : "custom";
-    if (!selectedPatch || (resolvePatchSource(selectedPatch) !== "custom" && patchStatus !== "legacy_preset")) {
+    if (!selectedPatch || !isPatchRemovable(selectedPatch)) {
       return;
     }
     const fallbackPatchId = resolveRemovedPatchFallbackId(project.patches, selectedPatch.id) ?? "";
