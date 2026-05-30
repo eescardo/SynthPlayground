@@ -57,7 +57,7 @@ export function getSamplePlayerAssetData(assets: ProjectAssetLibrary, assetId: s
 
 export function upsertSamplePlayerAssetData(
   assets: ProjectAssetLibrary,
-  sampleData: SamplePlayerAssetData,
+  assetData: SamplePlayerAssetData,
   existingAssetId?: string | null
 ) {
   const assetId = existingAssetId || createId("sampleAsset");
@@ -67,7 +67,7 @@ export function upsertSamplePlayerAssetData(
       ...assets,
       samplePlayerById: {
         ...assets.samplePlayerById,
-        [assetId]: sampleData
+        [assetId]: assetData
       }
     }
   };

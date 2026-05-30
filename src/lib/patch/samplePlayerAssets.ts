@@ -72,8 +72,6 @@ export function normalizeSamplePlayerAssetData(raw: unknown): SamplePlayerAssetD
     let samples: Float32Array | null = null;
     if (raw.samples instanceof Float32Array) {
       samples = cloneSamples(raw.samples);
-    } else if (raw.samples instanceof ArrayBuffer) {
-      samples = new Float32Array(raw.samples.slice(0));
     } else if (raw.encoding === "f32le-base64" && typeof raw.samples === "string" && raw.samples.length > 0) {
       const bytes = base64ToBytes(raw.samples);
       const alignedBytes = bytes.byteOffset % Float32Array.BYTES_PER_ELEMENT === 0 ? bytes : new Uint8Array(bytes);
