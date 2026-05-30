@@ -6,7 +6,7 @@ import { Patch } from "@/types/patch";
 
 export interface PatchWorkspaceSampleAssetsContextValue {
   assets: ProjectAssetLibrary;
-  upsertSamplePlayerAssetData: (sampleData: SamplePlayerAssetData, existingAssetId?: string | null) => string;
+  upsertSamplePlayerAssetData: (sampleData: SamplePlayerAssetData, existingAssetId?: string | null) => Promise<string>;
 }
 
 export interface PatchWorkspaceInstrumentContextValue {
@@ -30,7 +30,7 @@ export interface PatchWorkspaceProviderProps {
 
 const PatchWorkspaceSampleAssetsContext = createContext<PatchWorkspaceSampleAssetsContextValue>({
   assets: { samplePlayerById: {} },
-  upsertSamplePlayerAssetData: () => ""
+  upsertSamplePlayerAssetData: async () => ""
 });
 const PatchWorkspaceInstrumentContext = createContext<PatchWorkspaceInstrumentContextValue>({
   patches: [],

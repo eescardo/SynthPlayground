@@ -7,10 +7,11 @@ use crate::probe_capture::{
 };
 use crate::{
     clamp, now_ms, EngineProfileStats, HostSignalIndices, PreviewProbeCaptureSnapshot,
-    PreviewProbeCaptureSpec, TrackFxSpec, TrackSpec, MAX_VOICES,
+    PreviewProbeCaptureSpec, SampleAsset, TrackFxSpec, TrackSpec, MAX_VOICES,
 };
 use serde_json::Value;
 use std::collections::HashMap;
+use std::sync::Arc;
 use wasm_bindgen::JsValue;
 
 #[derive(Clone)]
@@ -450,9 +451,17 @@ impl TrackRuntime {
 
     pub(crate) fn set_sample_asset(&mut self, node_id: &str, sample_rate: f32, samples: &[f32]) {
         if let Some(index) = self.node_index_by_id.get(node_id).copied() {
+            let asset = if sample_rate > 0.0 && !samples.is_empty() {
+                Some(SampleAsset {
+                    sample_rate,
+                    samples: Arc::<[f32]>::from(samples),
+                })
+            } else {
+                None
+            };
             for voice in self.voices.iter_mut() {
                 if let Some(node) = voice.nodes.get_mut(index) {
-                    node.set_sample_asset(sample_rate, samples);
+                    node.set_sample_asset(asset.clone());
                 }
             }
         }

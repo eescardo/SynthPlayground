@@ -175,7 +175,23 @@ const createRuntimeNodeParams = (node, params) => {
   return runtimeParams;
 };
 
-const compileTrackPatch = (patch, track, trackIndex) => {
+const collectTrackSampleAssets = (project, patch, nodeOrder) => {
+  const sampleAssets = project.sampleAssets?.samplePlayerById || {};
+  return nodeOrder.flatMap((nodeId) => {
+    const node = (patch.nodes || []).find((entry) => entry.id === nodeId);
+    if (node?.typeId !== "SamplePlayer") {
+      return [];
+    }
+    const assetId = typeof node.params?.sampleAssetId === "string" ? node.params.sampleAssetId : "";
+    const asset = assetId ? sampleAssets[assetId] : null;
+    if (!asset?.samples?.length || !Number.isFinite(asset.sampleRate) || asset.sampleRate <= 0) {
+      return [];
+    }
+    return [{ nodeId: node.id, sampleRate: asset.sampleRate, samples: asset.samples }];
+  });
+};
+
+const compileTrackPatch = (project, patch, track, trackIndex) => {
   const patchNodes = getPatchCompileNodes(patch);
   const nodeById = new Map(patchNodes.map((node) => [node.id, node]));
   const nodeOrder = compareNodeIdsTopologically(patch);
@@ -240,7 +256,7 @@ const compileTrackPatch = (patch, track, trackIndex) => {
     };
   });
 
-  return {
+  const trackSpec = {
     trackIndex,
     trackId: track.id,
     volume: Number(track.volume ?? 1),
@@ -263,27 +279,37 @@ const compileTrackPatch = (patch, track, trackIndex) => {
       inputSourceByDestKey: Object.fromEntries(inputSourceByDestKey.entries())
     }
   };
+  return {
+    trackSpec,
+    sampleAssets: collectTrackSampleAssets(project, patch, nodeOrder)
+  };
 };
 
-export const compileAudioProjectToWasmSubsetCore = (project, options) => {
+export const compileAudioProjectPlanToWasmSubsetCore = (project, options) => {
   const patchById = new Map((project.patches || []).map((patch) => [patch.id, patch]));
-  const tracks = (project.tracks || []).map((track, trackIndex) => {
+  const compiledTracks = (project.tracks || []).map((track, trackIndex) => {
     const patch = patchById.get(track.instrumentPatchId);
     assertPresent(patch, `Missing patch ${track.instrumentPatchId} for track ${track.id}.`);
-    return compileTrackPatch(patch, track, trackIndex);
+    return compileTrackPatch(project, patch, track, trackIndex);
   });
 
   return {
-    sampleRate: project.global.sampleRate,
-    blockSize: options.blockSize,
-    tracks,
-    masterFx: {
-      compressorEnabled: Boolean(project.masterFx?.compressorEnabled),
-      limiterEnabled: project.masterFx?.limiterEnabled !== false,
-      makeupGain: Number(project.masterFx?.makeupGain ?? 0)
-    }
+    projectSpec: {
+      sampleRate: project.global.sampleRate,
+      blockSize: options.blockSize,
+      tracks: compiledTracks.map((entry) => entry.trackSpec),
+      masterFx: {
+        compressorEnabled: Boolean(project.masterFx?.compressorEnabled),
+        limiterEnabled: project.masterFx?.limiterEnabled !== false,
+        makeupGain: Number(project.masterFx?.makeupGain ?? 0)
+      }
+    },
+    sampleAssetsByTrack: compiledTracks.map((entry) => entry.sampleAssets)
   };
 };
+
+export const compileAudioProjectToWasmSubsetCore = (project, options) =>
+  compileAudioProjectPlanToWasmSubsetCore(project, options).projectSpec;
 
 const EVENT_PRIORITY = {
   NoteOff: 0,

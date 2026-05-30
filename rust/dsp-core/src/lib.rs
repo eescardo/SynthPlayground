@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 
 mod nodes;
@@ -184,7 +185,7 @@ enum SamplePlayerMode {
 #[derive(Clone)]
 struct SampleAsset {
     sample_rate: f32,
-    samples: Vec<f32>,
+    samples: Arc<[f32]>,
 }
 
 #[derive(Clone, Deserialize)]

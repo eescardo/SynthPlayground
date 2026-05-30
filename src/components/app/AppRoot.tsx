@@ -47,6 +47,7 @@ import { freezeProjectSnapshot } from "@/lib/projectImmutability";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { renameProjectInProject } from "@/lib/projectManagement";
 import { getProjectPresetUpdateSummary, isPatchRemovable, updateProjectPresetsToLatest } from "@/lib/patch/source";
+import { saveActiveProjectAssets } from "@/lib/persistence";
 import { exportProjectToJson } from "@/lib/projectSerde";
 import { pitchToVoct } from "@/lib/pitch";
 import { createSproutError, reportSproutErrorToConsole, toError } from "@/lib/sproutErrors";
@@ -311,9 +312,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
   }, [commitProjectChange]);
 
   const upsertWorkspaceSamplePlayerAssetData = useCallback(
-    (sampleData: SamplePlayerAssetData, existingAssetId?: string | null) => {
+    async (sampleData: SamplePlayerAssetData, existingAssetId?: string | null) => {
       const nextState = upsertSamplePlayerAssetData(projectAssets, sampleData, existingAssetId);
       setProjectAssets(nextState.assets);
+      await saveActiveProjectAssets(nextState.assets);
       return nextState.assetId;
     },
     [projectAssets, setProjectAssets]

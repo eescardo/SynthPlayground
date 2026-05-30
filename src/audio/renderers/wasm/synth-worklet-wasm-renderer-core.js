@@ -1,7 +1,7 @@
 import { compareScheduledEvents } from "../shared/synth-renderer-events.js";
 import { TRACK_VOLUME_AUTOMATION_ID } from "../shared/synth-renderer-constants.js";
 import {
-  compileAudioProjectToWasmSubsetCore,
+  compileAudioProjectPlanToWasmSubsetCore,
   compileSchedulerEventsToWasmSubsetCore
 } from "./synth-worklet-wasm-compiler-core.js";
 
@@ -19,37 +19,6 @@ export class NullPort {
 }
 
 export const resolveRandomSeed = (value) => (Number.isFinite(value) ? Number(value) >>> 0 : DEFAULT_RANDOM_SEED);
-
-const collectWasmSampleAssets = (project, projectSpec) => {
-  const sampleAssets = project.sampleAssets?.samplePlayerById || {};
-  const patchById = new Map((project.patches || []).map((patch) => [patch.id, patch]));
-  const trackById = new Map((project.tracks || []).map((track) => [track.id, track]));
-  const byTrack = [];
-  for (const trackSpec of projectSpec.tracks || []) {
-    const assets = [];
-    const track = trackById.get(trackSpec.trackId);
-    const patch = track ? patchById.get(track.instrumentPatchId) : null;
-    const sourceNodeById = new Map((patch?.nodes || []).map((node) => [node.id, node]));
-    for (const node of trackSpec.nodes || []) {
-      if (node.typeId !== "SamplePlayer") {
-        continue;
-      }
-      const sourceNode = sourceNodeById.get(node.id);
-      const assetId = typeof sourceNode?.params?.sampleAssetId === "string" ? sourceNode.params.sampleAssetId : "";
-      const asset = assetId ? sampleAssets[assetId] : null;
-      if (!asset?.samples?.length || !Number.isFinite(asset.sampleRate) || asset.sampleRate <= 0) {
-        continue;
-      }
-      assets.push({
-        nodeId: node.id,
-        sampleRate: asset.sampleRate,
-        samples: asset.samples
-      });
-    }
-    byTrack[trackSpec.trackIndex] = assets;
-  }
-  return byTrack;
-};
 
 const installWasmSampleAssets = (engine, sampleAssetsByTrack) => {
   if (typeof engine.set_sample_asset !== "function") {
@@ -516,13 +485,14 @@ export class SharedWasmRenderer {
     if (cached && cached.project === project && cached.blockSize === this.blockSize) {
       return cached;
     }
-    const projectSpec = this.implementation.compileProject(project, { blockSize: this.blockSize });
+    const compiledProject = this.implementation.compileProject(project, { blockSize: this.blockSize });
+    const projectSpec = compiledProject.projectSpec || compiledProject;
     const next = {
       project,
       blockSize: this.blockSize,
       projectSpec,
       projectSpecJson: JSON.stringify(projectSpec),
-      sampleAssetsByTrack: collectWasmSampleAssets(project, projectSpec)
+      sampleAssetsByTrack: compiledProject.sampleAssetsByTrack || []
     };
     this.projectPlanCache = next;
     return next;
@@ -546,6 +516,6 @@ export class SharedWasmRenderer {
   }
 }
 
-export const defaultCompileProject = (project, options) => compileAudioProjectToWasmSubsetCore(project, options);
+export const defaultCompileProject = (project, options) => compileAudioProjectPlanToWasmSubsetCore(project, options);
 export const defaultCompileEvents = (project, projectSpec, events) =>
   compileSchedulerEventsToWasmSubsetCore(project, projectSpec, events);

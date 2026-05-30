@@ -75,8 +75,8 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
   const pitchSemis = typeof props.node.params.pitchSemis === "number" ? props.node.params.pitchSemis : 0;
   const rootPitch = samplePlayerPitchSemisToRootPitch(pitchSemis);
 
-  const storeSample = (sampleData: ReturnType<typeof createSamplePlayerAssetData>) => {
-    const nextAssetId = upsertSamplePlayerAssetData(sampleData);
+  const storeSample = async (sampleData: ReturnType<typeof createSamplePlayerAssetData>) => {
+    const nextAssetId = await upsertSamplePlayerAssetData(sampleData);
     props.onApplyOp({
       type: "setParams",
       nodeId: props.node.id,
@@ -93,7 +93,7 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
     setStatus({ tone: "info", message: "Importing sample..." });
     try {
       const decoded = await decodeSamplePlayerFile(file);
-      storeSample(createSamplePlayerAssetData(decoded));
+      await storeSample(createSamplePlayerAssetData(decoded));
       setStatus({ tone: "success", message: `Loaded ${decoded.name}` });
     } catch (error) {
       setStatus({ tone: "error", message: formatSamplePlayerError(error, file.name) });
@@ -112,7 +112,7 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
     setStatus({ tone: "info", message: "Fetching sample..." });
     try {
       const decoded = await decodeSamplePlayerUrl(nextUrl);
-      storeSample(createSamplePlayerAssetData(decoded));
+      await storeSample(createSamplePlayerAssetData(decoded));
       setStatus({ tone: "success", message: `Loaded ${decoded.name}` });
     } catch (error) {
       setStatus({ tone: "error", message: formatSamplePlayerError(error, nextUrl) });

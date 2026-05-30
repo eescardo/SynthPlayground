@@ -1,5 +1,6 @@
 import { AudioProject, SchedulerEvent } from "@/types/audio";
 import {
+  compileAudioProjectPlanToWasmSubsetCore,
   compileAudioProjectToWasmSubsetCore,
   compileSchedulerEventsToWasmSubsetCore
 } from "@/audio/renderers/wasm/synth-worklet-wasm-compiler-core.js";
@@ -85,6 +86,17 @@ export interface WasmProjectSpec {
   masterFx: WasmMasterFxSpec;
 }
 
+export interface WasmSampleAssetRef {
+  nodeId: string;
+  sampleRate: number;
+  samples: Float32Array;
+}
+
+export interface WasmProjectPlan {
+  projectSpec: WasmProjectSpec;
+  sampleAssetsByTrack: WasmSampleAssetRef[][];
+}
+
 export interface WasmNoteOnEvent {
   type: "NoteOn";
   sampleTime: number;
@@ -127,6 +139,11 @@ export const compileAudioProjectToWasmSubset = (
   project: AudioProject,
   options: { blockSize: number }
 ): WasmProjectSpec => compileAudioProjectToWasmSubsetCore(project, options) as WasmProjectSpec;
+
+export const compileAudioProjectPlanToWasmSubset = (
+  project: AudioProject,
+  options: { blockSize: number }
+): WasmProjectPlan => compileAudioProjectPlanToWasmSubsetCore(project, options) as WasmProjectPlan;
 
 export const compileSchedulerEventsToWasmSubset = (
   project: AudioProject,

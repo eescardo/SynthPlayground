@@ -58,7 +58,7 @@ const createMockDb = () => {
     project_meta: new Map()
   };
 
-  return {
+  const db = {
     stores,
     put: vi.fn(async (store: StoreName, value: unknown, key: string) => {
       stores[store].set(key, value);
@@ -67,8 +67,16 @@ const createMockDb = () => {
     get: vi.fn(async (store: StoreName, key: string) => stores[store].get(key)),
     delete: vi.fn(async (store: StoreName, key: string) => {
       stores[store].delete(key);
-    })
+    }),
+    transaction: vi.fn((storeNames: StoreName[]) => ({
+      objectStore: (store: StoreName) => ({
+        put: (value: unknown, key: string) => db.put(store, value, key)
+      }),
+      done: Promise.resolve(),
+      storeNames
+    }))
   };
+  return db;
 };
 
 describe("persistence", () => {
@@ -114,6 +122,7 @@ describe("persistence", () => {
 
     await saveProjectState(project, assets);
 
+    expect(db.transaction).toHaveBeenCalledWith(["projects", "project_assets"], "readwrite");
     expect(db.put).toHaveBeenCalledWith("projects", project, "active");
     expect(db.put).toHaveBeenCalledWith("project_assets", assets, "active_assets");
     await expect(loadProjectState()).resolves.toEqual({ project, assets });

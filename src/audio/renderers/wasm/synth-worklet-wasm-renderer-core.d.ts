@@ -7,7 +7,7 @@ import type {
   TransportCommand
 } from "@/types/audio";
 import type { PreviewProbeCapture, PreviewProbeRequest, PreviewProbeSharedBuffer } from "@/types/probes";
-import type { WasmEvent, WasmProjectSpec } from "@/audio/renderers/wasm/wasmSubsetCompiler";
+import type { WasmEvent, WasmProjectPlan, WasmProjectSpec } from "@/audio/renderers/wasm/wasmSubsetCompiler";
 import type { WorkletPortLike } from "@/audio/renderers/shared/synth-renderer";
 import type { WasmPreviewProbeCaptureRequest } from "@/audio/renderers/wasm/synth-worklet-wasm-compiler-core.js";
 
@@ -107,7 +107,7 @@ export interface SharedWasmRendererLike {
 }
 
 export interface SharedWasmImplementation {
-  compileProject: (project: AudioProject, options: { blockSize: number }) => WasmProjectSpec;
+  compileProject: (project: AudioProject, options: { blockSize: number }) => WasmProjectSpec | WasmProjectPlan;
   compileEvents: (project: AudioProject, projectSpec: WasmProjectSpec, events: SchedulerEvent[]) => WasmEvent[];
   createEngine: (
     renderer: SharedWasmRendererLike & Record<string, unknown>,

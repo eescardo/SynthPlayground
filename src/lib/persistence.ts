@@ -71,7 +71,13 @@ export const saveActiveProjectAssets = async (assets: ProjectAssetLibrary): Prom
 };
 
 export const saveProjectState = async (project: Project, assets: ProjectAssetLibrary): Promise<void> => {
-  await Promise.all([saveActiveProject(project), saveActiveProjectAssets(assets)]);
+  const db = await getDb();
+  const tx = db.transaction([PROJECT_STORE, ASSET_STORE], "readwrite");
+  await Promise.all([
+    tx.objectStore(PROJECT_STORE).put(project, ACTIVE_PROJECT_KEY),
+    tx.objectStore(ASSET_STORE).put(assets, ACTIVE_PROJECT_ASSETS_KEY),
+    tx.done
+  ]);
 };
 
 export const loadProjectState = async (): Promise<{ project: Project; assets: ProjectAssetLibrary } | null> => {

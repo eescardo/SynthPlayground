@@ -4,7 +4,7 @@ This repo uses the Rust/WASM renderer as the only synthesis backend.
 
 For the current audio pipeline notes, see:
 
-- [src/audio/AUDIO_PIPELINE.md](/Users/eddy/code/SynthPlayground/src/audio/AUDIO_PIPELINE.md)
+- [src/audio/AUDIO_PIPELINE.md](src/audio/AUDIO_PIPELINE.md)
 
 Short version:
 

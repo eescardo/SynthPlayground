@@ -8,7 +8,7 @@ import {
 } from "@/types/audio";
 import type { Track } from "@/types/music";
 import {
-  compileAudioProjectToWasmSubset,
+  compileAudioProjectPlanToWasmSubset,
   compileSchedulerEventsToWasmSubset
 } from "@/audio/renderers/wasm/wasmSubsetCompiler";
 import { loadNodeDspWasmModule } from "@/audio/renderers/wasm/loadNodeDspWasm";
@@ -62,7 +62,7 @@ export class NodeWasmSynthRenderer extends SharedWasmRenderer implements SynthRe
     profilingEnabled = false
   ) {
     const implementation: SharedWasmImplementation = {
-      compileProject: compileAudioProjectToWasmSubset,
+      compileProject: compileAudioProjectPlanToWasmSubset,
       compileEvents: compileSchedulerEventsToWasmSubset,
       createEngine: (renderer, _project, projectSpec) => {
         const nodeRenderer = renderer as unknown as SharedWasmRendererLike & NodeWasmSynthRenderer;
