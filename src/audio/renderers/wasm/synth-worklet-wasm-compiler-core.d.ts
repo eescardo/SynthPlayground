@@ -9,11 +9,6 @@ export interface WasmPreviewProbeCaptureRequest {
   durationSamples: number;
 }
 
-export const compileAudioProjectToWasmSubsetCore: (
-  project: AudioProject,
-  options: { blockSize: number }
-) => WasmProjectSpec;
-
 export const compileAudioProjectPlanToWasmSubsetCore: (
   project: AudioProject,
   options: { blockSize: number }

@@ -308,9 +308,6 @@ export const compileAudioProjectPlanToWasmSubsetCore = (project, options) => {
   };
 };
 
-export const compileAudioProjectToWasmSubsetCore = (project, options) =>
-  compileAudioProjectPlanToWasmSubsetCore(project, options).projectSpec;
-
 const EVENT_PRIORITY = {
   NoteOff: 0,
   ParamChange: 1,

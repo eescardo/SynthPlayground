@@ -1,7 +1,6 @@
 import { AudioProject, SchedulerEvent } from "@/types/audio";
 import {
   compileAudioProjectPlanToWasmSubsetCore,
-  compileAudioProjectToWasmSubsetCore,
   compileSchedulerEventsToWasmSubsetCore
 } from "@/audio/renderers/wasm/synth-worklet-wasm-compiler-core.js";
 
@@ -138,7 +137,7 @@ export type WasmEvent = WasmNoteOnEvent | WasmNoteOffEvent | WasmParamChangeEven
 export const compileAudioProjectToWasmSubset = (
   project: AudioProject,
   options: { blockSize: number }
-): WasmProjectSpec => compileAudioProjectToWasmSubsetCore(project, options) as WasmProjectSpec;
+): WasmProjectSpec => compileAudioProjectPlanToWasmSubset(project, options).projectSpec;
 
 export const compileAudioProjectPlanToWasmSubset = (
   project: AudioProject,
