@@ -9,7 +9,12 @@ import {
   hydrateProjectSnapshot,
   prepareImportedProject
 } from "@/lib/projectLifecycle";
-import { RecentProjectSnapshot, removeRecentProjectSnapshot, saveRecentProjectSnapshot } from "@/lib/persistence";
+import {
+  RecentProjectSnapshot,
+  removeRecentProjectSnapshot,
+  saveProjectState,
+  saveRecentProjectSnapshot
+} from "@/lib/persistence";
 import { importProjectBundleFromJson } from "@/lib/projectSerde";
 import { createEmptyProjectAssetLibrary } from "@/lib/sampleAssetLibrary";
 import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
@@ -73,8 +78,10 @@ export const useProjectLifecycleActions = ({
       if (options?.removeRecentProjectId) {
         await removeRecentProjectSnapshot(options.removeRecentProjectId);
       }
-      activateProjectSnapshot(nextProject, nextAssets);
-      await refreshRecentProjects(nextProject.id);
+      const activeProject = createProjectSnapshot(nextProject);
+      await saveProjectState(activeProject, nextAssets);
+      activateProjectSnapshot(activeProject, nextAssets);
+      await refreshRecentProjects(activeProject.id);
     },
     [activateProjectSnapshot, playback, project, projectAssets, refreshRecentProjects]
   );
