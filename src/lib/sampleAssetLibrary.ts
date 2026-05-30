@@ -185,6 +185,64 @@ export function mergeImportedPatchAssets(
   };
 }
 
+export function extractInlineSamplePlayerAssets(project: Project, assets: ProjectAssetLibrary) {
+  let nextAssets = assets;
+  let projectChanged = false;
+
+  const patches = project.patches.map((patch) => {
+    let patchChanged = false;
+    const nodes = patch.nodes.map((node) => {
+      if (node.typeId !== SAMPLE_PLAYER_NODE_TYPE) {
+        return node;
+      }
+
+      const inlineAsset = normalizeSamplePlayerAssetData(node.params.sampleData);
+      const existingAssetId = typeof node.params.sampleAssetId === "string" ? node.params.sampleAssetId : "";
+      if (!inlineAsset) {
+        if (!("sampleData" in node.params)) {
+          return node;
+        }
+        patchChanged = true;
+        projectChanged = true;
+        const params = { ...node.params };
+        delete params.sampleData;
+        return { ...node, params };
+      }
+
+      const assetId = existingAssetId || createId("sampleAsset");
+      const currentAsset = nextAssets.samplePlayerById[assetId];
+      if (!currentAsset || !areSamplePlayerAssetsEqual(currentAsset, inlineAsset)) {
+        nextAssets = {
+          ...nextAssets,
+          samplePlayerById: {
+            ...nextAssets.samplePlayerById,
+            [assetId]: inlineAsset
+          }
+        };
+      }
+
+      patchChanged = true;
+      projectChanged = true;
+      const params = { ...node.params };
+      delete params.sampleData;
+      return {
+        ...node,
+        params: {
+          ...params,
+          sampleAssetId: assetId
+        }
+      };
+    });
+
+    return patchChanged ? { ...patch, nodes } : patch;
+  });
+
+  return {
+    project: projectChanged ? { ...project, patches } : project,
+    assets: nextAssets
+  };
+}
+
 export function hydratePatchSamplePlayerAssetsForRuntime(patch: Patch, assets: ProjectAssetLibrary): Patch {
   void assets;
   return patch;

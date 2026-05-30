@@ -2,7 +2,11 @@ import { createId } from "@/lib/ids";
 import { createDefaultProject, createEmptyProject } from "@/lib/patch/presets";
 import { createAvailableProjectName } from "@/lib/projectManagement";
 import { normalizeProject } from "@/lib/projectSerde";
-import { createEmptyProjectAssetLibrary, normalizeProjectAssetLibrary } from "@/lib/sampleAssetLibrary";
+import {
+  createEmptyProjectAssetLibrary,
+  extractInlineSamplePlayerAssets,
+  normalizeProjectAssetLibrary
+} from "@/lib/sampleAssetLibrary";
 import { ProjectAssetLibrary } from "@/types/assets";
 import { Project } from "@/types/music";
 
@@ -49,5 +53,5 @@ export const hydrateProjectSnapshot = (
 ): { project: Project; assets: ProjectAssetLibrary } => {
   const normalizedProject = normalizeProject(project);
   const normalizedAssets = normalizeProjectAssetLibrary(assets);
-  return { project: normalizedProject, assets: normalizedAssets };
+  return extractInlineSamplePlayerAssets(normalizedProject, normalizedAssets);
 };
