@@ -28,7 +28,7 @@ Keep `pnpm run clean` aligned with the repo's generated/build outputs. When addi
 - Patch definitions, registry, presets, and validation: `src/lib/patch/`
 - Shared music/project utilities: `src/lib/`
 - Type contracts: `src/types/`
-- Active JS AudioWorklet runtime: `public/worklets/synth-worklet.js`
+- WASM-backed AudioWorklet runtime: `public/worklets/synth-worklet.js`
 - Rust/WASM DSP crate: `rust/dsp-core/`
 
 ## Delivery Contract
@@ -122,7 +122,7 @@ Parallelization works best when tasks have mostly independent write scopes.
 ## Audio Notes
 
 - Sample rate is fixed at 48kHz in the app model.
-- The active synthesis path today is still the JS AudioWorklet runtime in `public/worklets/synth-worklet.js`.
+- The active synthesis path is the Rust/WASM renderer hosted by the AudioWorklet runtime in `public/worklets/synth-worklet.js`.
 - Be careful with scheduler, transport, and worklet timing changes. Regressions often show up at beat 0, at track end, or when multiple tracks interact.
 
 ## Patch Notes
