@@ -206,12 +206,19 @@ export class SharedWasmRenderer {
     blockSize: number;
     projectSpec: WasmProjectSpec;
     projectSpecJson: string;
+    sampleAssetsByTrack?: Array<
+      Array<{
+        nodeId: string;
+        sampleRate: number;
+        samples: Float32Array;
+      }>
+    >;
   };
   startStream(options: SynthStreamStartOptions): SharedWasmRenderStream | null;
   readonly project: AudioProject | null;
 }
 
-export const defaultCompileProject: (project: AudioProject, options: { blockSize: number }) => WasmProjectSpec;
+export const defaultCompileProject: (project: AudioProject, options: { blockSize: number }) => WasmProjectPlan;
 
 export const defaultCompileEvents: (
   project: AudioProject,

@@ -314,8 +314,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const upsertWorkspaceSamplePlayerAssetData = useCallback(
     async (sampleData: SamplePlayerAssetData, existingAssetId?: string | null) => {
       const nextState = upsertSamplePlayerAssetData(projectAssets, sampleData, existingAssetId);
-      setProjectAssets(nextState.assets);
       await saveActiveProjectAssets(nextState.assets);
+      setProjectAssets(nextState.assets);
       return nextState.assetId;
     },
     [projectAssets, setProjectAssets]
