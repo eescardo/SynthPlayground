@@ -89,22 +89,4 @@ describe("module registry", () => {
     expect(schema?.params.some((param) => param.id === "size")).toBe(false);
     expect(schema?.params.some((param) => param.id === "damping")).toBe(false);
   });
-
-  it("exposes SamplePlayer pitch mode choices", () => {
-    const schema = getModuleSchema("SamplePlayer");
-
-    expect(schema?.params.map((param) => param.id)).toEqual([
-      "mode",
-      "pitchMode",
-      "start",
-      "end",
-      "gain",
-      "pitchSemis"
-    ]);
-    expect(schema?.params.find((param) => param.id === "pitchMode")).toMatchObject({
-      type: "enum",
-      options: ["resample", "preserve_duration"],
-      default: "resample"
-    });
-  });
 });

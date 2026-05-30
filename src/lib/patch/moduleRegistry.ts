@@ -339,17 +339,10 @@ export const moduleRegistry: ModuleTypeSchema[] = [
   {
     typeId: "SamplePlayer",
     categories: categories("source"),
-    doc: { summary: "Plays a loaded sample with resampled or duration-preserving pitch." },
+    doc: { summary: "Plays a loaded sample. Pitch shifts by resampling." },
     requiredPortIds: { in: ["gate"], out: ["out"] },
     params: [
       enumParam("mode", "Mode", ["oneshot", "loop"], "oneshot", "Playback mode"),
-      enumParam(
-        "pitchMode",
-        "Pitch Mode",
-        ["resample", "preserve_duration"],
-        "resample",
-        "Choose whether pitch changes also change playback duration"
-      ),
       floatParam("start", "Start", 0, 1, "ratio", "Start point", { default: 0 }),
       floatParam("end", "End", 0, 1, "ratio", "End point", { default: 1 }),
       floatParam("gain", "Gain", 0, 1, "linear", "Output gain", { default: 1, smoothingMs: 10 }),

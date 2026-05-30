@@ -205,10 +205,6 @@ impl RuntimeNode {
                     "oneshot",
                 )))
                 .map_err(|e| js_error(format!("Invalid SamplePlayer mode: {e}")))?,
-                pitch_mode: serde_json::from_value::<SamplePlayerPitchMode>(Value::String(
-                    value_to_string(p.get("pitchMode"), "resample"),
-                ))
-                .map_err(|e| js_error(format!("Invalid SamplePlayer pitch mode: {e}")))?,
                 start_ratio: clamp(value_to_f32(p.get("start"), 0.0), 0.0, 1.0),
                 end_ratio: clamp(value_to_f32(p.get("end"), 1.0), 0.0, 1.0),
                 gain: SmoothParam::new(value_to_f32(p.get("gain"), 1.0), 10.0, sample_rate),
@@ -221,8 +217,6 @@ impl RuntimeNode {
                 position: 0.0,
                 active: false,
                 last_gate: 0.0,
-                wsola_grain_ids: [i32::MIN; 8],
-                wsola_grain_offsets: [0.0; 8],
             }),
             "Delay" => Self::Delay(DelayNode {
                 out_index: raw.out_index,

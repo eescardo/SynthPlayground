@@ -13,7 +13,7 @@ Browser-based music synthesis + composition MVP built with Next.js, TypeScript, 
 - Patch transform ops with undo/redo history
 - Preset instrument patches (Bass, Brass-ish, Piano-ish, Pad, Guitar String, Drum, Bass Drum)
 - Lookahead scheduler feeding WASM-backed AudioWorklet events
-- Rust/WASM synth renderer hosted in an AudioWorklet, with monophonic tracks and track/master FX
+- Rust/WASM synth renderer hosted in an AudioWorklet, with per-track polyphony/voice stealing and track/master FX
 - IndexedDB persistence (`idb`) + Export/Import project JSON
 - Rust WASM DSP crate (`rust/dsp-core`) used by the live and offline renderers
 
