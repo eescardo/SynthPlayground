@@ -19,6 +19,7 @@ export interface DecodedSampleAsset {
 }
 
 const SAMPLE_DATA_VERSION = 1;
+export const SAMPLE_PLAYER_PITCH_ANALYSIS_MAX_SECONDS = 0.75;
 
 export function samplePlayerPitchSemisToRootPitch(pitchSemis: number) {
   return midiToPitch(Math.round(60 - clamp(pitchSemis, -48, 48)));
@@ -44,9 +45,10 @@ export function parseSamplePlayerData(raw: string | null | undefined): DecodedSa
     ) {
       return null;
     }
-    const samples = Float32Array.from(
-      parsed.samples.map((sample) => (typeof sample === "number" && Number.isFinite(sample) ? clampBipolar(sample) : 0))
-    );
+    const samples = new Float32Array(parsed.samples.length);
+    parsed.samples.forEach((sample, index) => {
+      samples[index] = typeof sample === "number" && Number.isFinite(sample) ? clampBipolar(sample) : 0;
+    });
     if (samples.length === 0) {
       return null;
     }
@@ -145,6 +147,17 @@ export function resolveSampleTrimRange(sample: DecodedSampleAsset, startRatio: n
     endSample,
     durationSamples: Math.max(1, endSample - startSample)
   };
+}
+
+export function resolveSamplePitchAnalysisSamples(
+  sample: DecodedSampleAsset,
+  startRatio: number,
+  endRatio: number,
+  maxDurationSeconds = SAMPLE_PLAYER_PITCH_ANALYSIS_MAX_SECONDS
+) {
+  const trim = resolveSampleTrimRange(sample, startRatio, endRatio);
+  const maxAnalysisSamples = Math.max(1, Math.floor(sample.sampleRate * Math.max(0.01, maxDurationSeconds)));
+  return sample.samples.subarray(trim.startSample, Math.min(trim.endSample, trim.startSample + maxAnalysisSamples));
 }
 
 export function formatSampleDuration(seconds: number) {

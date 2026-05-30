@@ -241,6 +241,39 @@ describe("patch validation", () => {
     );
   });
 
+  it("accepts SamplePlayer asset metadata as patch-owned auxiliary params", () => {
+    const patch = createClearPatch({ id: "sample_patch", name: "Sample Patch" });
+    patch.nodes.push({
+      id: "sample1",
+      typeId: "SamplePlayer",
+      params: {
+        mode: "oneshot",
+        start: 0,
+        end: 1,
+        gain: 1,
+        pitchSemis: 0,
+        sampleAssetId: "asset_1",
+        sampleData: ""
+      }
+    });
+    patch.layout.nodes.push({ nodeId: "sample1", x: 4, y: 4 });
+
+    const result = validatePatch(patch);
+
+    expect(result.issues).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "node-param-unknown",
+          context: expect.objectContaining({ nodeId: "sample1", paramId: "sampleAssetId" })
+        }),
+        expect.objectContaining({
+          code: "node-param-unknown",
+          context: expect.objectContaining({ nodeId: "sample1", paramId: "sampleData" })
+        })
+      ])
+    );
+  });
+
   it("warns when modules are missing current schema params", () => {
     const patch = createClearPatch({ id: "missing_reverb_params", name: "Missing Reverb Params" });
     patch.nodes.push(

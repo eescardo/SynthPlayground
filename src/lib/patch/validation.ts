@@ -37,6 +37,13 @@ const pushWarning = (
   issues.push({ level: "warning", message, context, code });
 };
 
+const AUXILIARY_NODE_PARAM_IDS = {
+  SamplePlayer: new Set(["sampleAssetId", "sampleData"])
+} as Partial<Record<string, Set<string>>>;
+
+const isAuxiliaryNodeParam = (typeId: string, paramId: string) =>
+  AUXILIARY_NODE_PARAM_IDS[typeId]?.has(paramId) ?? false;
+
 export const patchHasNode = (patch: Patch, nodeId: string): boolean => patch.nodes.some((node) => node.id === nodeId);
 const patchHasEndpointNode = (patch: Patch, nodeId: string): boolean =>
   patch.nodes.some((node) => node.id === nodeId) || getPatchBoundaryPorts(patch).some((port) => port.id === nodeId);
@@ -280,6 +287,9 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
     for (const [paramId, value] of Object.entries(node.params)) {
       const paramSchema = paramsById.get(paramId);
       if (!paramSchema) {
+        if (isAuxiliaryNodeParam(node.typeId, paramId)) {
+          continue;
+        }
         pushWarning(
           issues,
           `Module ${node.id} has stale parameter ${paramId}; it is ignored by the current ${node.typeId} module`,

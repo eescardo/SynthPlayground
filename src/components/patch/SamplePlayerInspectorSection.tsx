@@ -8,6 +8,7 @@ import {
   formatSampleDuration,
   parseSamplePlayerData,
   previewSampleAsset,
+  resolveSamplePitchAnalysisSamples,
   resolveSampleTrimRange,
   samplePlayerPitchSemisToRootPitch,
   samplePlayerRootPitchToPitchSemis,
@@ -63,16 +64,15 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
     () => (sampleAsset ? buildSampleWaveformPeaks(sampleAsset.samples) : []),
     [sampleAsset]
   );
-  const trimmedSamples = useMemo(() => {
-    if (!sampleAsset || !visualTrim) {
+  const pitchAnalysisSamples = useMemo(() => {
+    if (!sampleAsset) {
       return undefined;
     }
-    const { startSample, endSample } = visualTrim;
-    return sampleAsset.samples.slice(startSample, endSample);
-  }, [sampleAsset, visualTrim]);
+    return resolveSamplePitchAnalysisSamples(sampleAsset, startRatio, endRatio);
+  }, [sampleAsset, startRatio, endRatio]);
   const dominantPitches = useMemo(
-    () => detectDominantSamplePitches(trimmedSamples, sampleAsset?.sampleRate),
-    [trimmedSamples, sampleAsset?.sampleRate]
+    () => detectDominantSamplePitches(pitchAnalysisSamples, sampleAsset?.sampleRate),
+    [pitchAnalysisSamples, sampleAsset?.sampleRate]
   );
   const pitchSemis = typeof props.node.params.pitchSemis === "number" ? props.node.params.pitchSemis : 0;
   const rootPitch = samplePlayerPitchSemisToRootPitch(pitchSemis);
