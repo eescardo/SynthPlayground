@@ -263,8 +263,7 @@ describe("WASM worklet renderer", () => {
             end: 1,
             gain: 1,
             pitchSemis: 0,
-            sampleAssetId: "asset_1",
-            sampleData: '{"version":1,"name":"legacy.wav","sampleRate":48000,"samples":[0,1]}'
+            sampleAssetId: "asset_1"
           }
         }
       ],

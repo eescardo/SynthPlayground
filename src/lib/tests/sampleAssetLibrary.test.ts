@@ -53,12 +53,22 @@ describe("sampleAssetLibrary", () => {
       patch,
       normalizeProjectAssetLibrary({
         samplePlayerById: {
-          asset_1: '{"version":1,"name":"imported.wav","sampleRate":48000,"samples":[0,0.2]}'
+          asset_1: {
+            version: 2,
+            name: "imported.wav",
+            sampleRate: 48000,
+            samples: new Float32Array([0, 0.2])
+          }
         }
       }),
       normalizeProjectAssetLibrary({
         samplePlayerById: {
-          asset_1: '{"version":1,"name":"existing.wav","sampleRate":48000,"samples":[0,0.1]}'
+          asset_1: {
+            version: 2,
+            name: "existing.wav",
+            sampleRate: 48000,
+            samples: new Float32Array([0, 0.1])
+          }
         }
       })
     );

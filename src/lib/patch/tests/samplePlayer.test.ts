@@ -41,4 +41,12 @@ describe("sample player helpers", () => {
     expect(typeof serialized.samples).toBe("string");
     expect(normalized?.samples).toEqual(new Float32Array([0, 0.25, -0.5]));
   });
+
+  it("does not import legacy inline JSON sample payloads", () => {
+    const normalized = normalizeSamplePlayerAssetData(
+      '{"version":1,"name":"legacy.wav","sampleRate":48000,"samples":[0,0.25]}'
+    );
+
+    expect(normalized).toBeNull();
+  });
 });

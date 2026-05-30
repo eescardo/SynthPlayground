@@ -4,14 +4,6 @@ import { clamp, clampBipolar } from "@/lib/numeric";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
 import { SamplePlayerAssetData } from "@/types/assets";
 
-export interface SerializedSamplePlayerData {
-  version: 1;
-  name: string;
-  sourceUrl?: string;
-  sampleRate: number;
-  samples: number[];
-}
-
 export interface DecodedSampleAsset {
   name: string;
   sourceUrl?: string;
@@ -28,7 +20,6 @@ interface SerializedSamplePlayerBinaryData {
   samples: string;
 }
 
-const SAMPLE_DATA_VERSION = 1;
 const SAMPLE_BINARY_DATA_VERSION = 2;
 export const SAMPLE_PLAYER_PITCH_ANALYSIS_MAX_SECONDS = 0.75;
 
@@ -130,47 +121,10 @@ export function normalizeSamplePlayerAssetData(raw: unknown): SamplePlayerAssetD
     };
   }
 
-  return parseLegacySamplePlayerData(raw);
+  return null;
 }
 
-function parseLegacySamplePlayerData(raw: unknown): SamplePlayerAssetData | null {
-  if (typeof raw !== "string" || !raw) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(raw) as Partial<SerializedSamplePlayerData>;
-    if (
-      parsed.version !== SAMPLE_DATA_VERSION ||
-      typeof parsed.name !== "string" ||
-      typeof parsed.sampleRate !== "number" ||
-      !Number.isFinite(parsed.sampleRate) ||
-      parsed.sampleRate <= 0 ||
-      !Array.isArray(parsed.samples)
-    ) {
-      return null;
-    }
-    const samples = new Float32Array(parsed.samples.length);
-    parsed.samples.forEach((sample, index) => {
-      samples[index] = typeof sample === "number" && Number.isFinite(sample) ? clampBipolar(sample) : 0;
-    });
-    if (samples.length === 0) {
-      return null;
-    }
-    return {
-      version: SAMPLE_BINARY_DATA_VERSION,
-      name: parsed.name,
-      sourceUrl: typeof parsed.sourceUrl === "string" ? parsed.sourceUrl : undefined,
-      sampleRate: parsed.sampleRate,
-      samples
-    };
-  } catch {
-    return null;
-  }
-}
-
-export function parseSamplePlayerData(
-  raw: SamplePlayerAssetData | string | null | undefined
-): DecodedSampleAsset | null {
+export function parseSamplePlayerData(raw: SamplePlayerAssetData | null | undefined): DecodedSampleAsset | null {
   const asset = normalizeSamplePlayerAssetData(raw);
   if (!asset) {
     return null;

@@ -1,4 +1,3 @@
-use super::sample_asset::parse_sample_asset;
 use super::*;
 use crate::nodes::reverb::reverb_mode_wet_gain;
 use crate::{js_error, NodeSpecRaw};
@@ -214,7 +213,7 @@ impl RuntimeNode {
                     10.0,
                     sample_rate,
                 ),
-                asset: parse_sample_asset(p.get("sampleData")),
+                asset: None,
                 position: 0.0,
                 active: false,
                 last_gate: 0.0,

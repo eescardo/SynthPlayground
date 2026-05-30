@@ -29,8 +29,18 @@ describe("patch serde", () => {
         patch,
         normalizeProjectAssetLibrary({
           samplePlayerById: {
-            asset_used: '{"version":1,"name":"used.wav","sampleRate":48000,"samples":[0,0.2]}',
-            asset_unused: '{"version":1,"name":"unused.wav","sampleRate":48000,"samples":[0]}'
+            asset_used: {
+              version: 2,
+              name: "used.wav",
+              sampleRate: 48000,
+              samples: new Float32Array([0, 0.2])
+            },
+            asset_unused: {
+              version: 2,
+              name: "unused.wav",
+              sampleRate: 48000,
+              samples: new Float32Array([0])
+            }
           }
         })
       )

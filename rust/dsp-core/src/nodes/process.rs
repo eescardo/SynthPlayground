@@ -1,4 +1,4 @@
-use super::{formulas::*, reverb::*, sample_asset::next_noise, *};
+use super::{formulas::*, noise::next_noise, reverb::*, *};
 
 #[inline(always)]
 fn advance_adsr_stage_pos(node: &mut AdsrNode, duration_seconds: f32, sample_rate: f32) -> f32 {

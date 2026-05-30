@@ -154,8 +154,18 @@ describe("projectSerde", () => {
       project,
       normalizeProjectAssetLibrary({
         samplePlayerById: {
-          asset_1: '{"version":1,"name":"tone.wav","sampleRate":48000,"samples":[0,0.25,-0.25]}',
-          unused_asset: '{"version":1,"name":"unused.wav","sampleRate":48000,"samples":[0]}'
+          asset_1: {
+            version: 2,
+            name: "tone.wav",
+            sampleRate: 48000,
+            samples: new Float32Array([0, 0.25, -0.25])
+          },
+          unused_asset: {
+            version: 2,
+            name: "unused.wav",
+            sampleRate: 48000,
+            samples: new Float32Array([0])
+          }
         }
       })
     );

@@ -38,7 +38,7 @@ const pushWarning = (
 };
 
 const AUXILIARY_NODE_PARAM_IDS = {
-  SamplePlayer: new Set(["sampleAssetId", "sampleData"])
+  SamplePlayer: new Set(["sampleAssetId"])
 } as Partial<Record<string, Set<string>>>;
 
 const isAuxiliaryNodeParam = (typeId: string, paramId: string) =>

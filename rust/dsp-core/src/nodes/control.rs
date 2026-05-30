@@ -1,4 +1,3 @@
-use super::sample_asset::parse_sample_asset;
 use super::*;
 use serde_json::Value;
 
@@ -355,7 +354,6 @@ impl RuntimeNode {
                 "pitchSemis" => node
                     .pitch_semis
                     .set_target(value_to_f32(Some(value), node.pitch_semis.target)),
-                "sampleData" => node.asset = parse_sample_asset(Some(value)),
                 _ => {}
             },
             Self::Delay(node) => match param_id {

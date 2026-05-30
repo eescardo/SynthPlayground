@@ -53,7 +53,12 @@ describe("audioProject", () => {
 
     const assets = normalizeProjectAssetLibrary({
       samplePlayerById: {
-        asset_1: '{"version":1,"name":"kick.wav","sampleRate":48000,"samples":[0,0.5,-0.5]}'
+        asset_1: {
+          version: 2,
+          name: "kick.wav",
+          sampleRate: 48000,
+          samples: new Float32Array([0, 0.5, -0.5])
+        }
       }
     });
     const audioProject = toAudioProject(project, assets);

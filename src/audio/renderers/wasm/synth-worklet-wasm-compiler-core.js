@@ -166,15 +166,6 @@ const applyInitialMacrosToNodeParams = (patch, track, nodeParamTargets) => {
   }
 };
 
-const createRuntimeNodeParams = (node, params) => {
-  if (node.typeId !== "SamplePlayer") {
-    return params;
-  }
-  const runtimeParams = { ...params };
-  delete runtimeParams.sampleData;
-  return runtimeParams;
-};
-
 const compileTrackPatch = (patch, track, trackIndex) => {
   const patchNodes = getPatchCompileNodes(patch);
   const nodeById = new Map(patchNodes.map((node) => [node.id, node]));
@@ -236,7 +227,7 @@ const compileTrackPatch = (patch, track, trackIndex) => {
       typeId,
       outIndex: outputIndexByKey.get(`${node.id}:out`) ?? -1,
       inputs,
-      params: createRuntimeNodeParams(node, nodeParamTargets.get(node.id) || {})
+      params: nodeParamTargets.get(node.id) || {}
     };
   });
 

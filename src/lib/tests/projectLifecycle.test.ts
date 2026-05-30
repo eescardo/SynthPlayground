@@ -175,7 +175,12 @@ describe("projectLifecycle", () => {
 
     const hydrated = hydrateProjectSnapshot(project, {
       samplePlayerById: {
-        valid_asset: '{"version":1,"name":"kept.wav","sampleRate":48000,"samples":[0]}',
+        valid_asset: {
+          version: 2,
+          name: "kept.wav",
+          sampleRate: 48000,
+          samples: new Float32Array([0])
+        },
         invalid_asset: 123
       }
     });
@@ -192,37 +197,5 @@ describe("projectLifecycle", () => {
     expect(sampleParams.sampleAssetId).toBe("valid_asset");
     expect(hydrated.assets.samplePlayerById.valid_asset?.name).toBe("kept.wav");
     expect(hydrated.assets.samplePlayerById.invalid_asset).toBeUndefined();
-  });
-
-  it("migrates legacy inline sample data into the asset library on hydrate", () => {
-    const project = createDefaultProject();
-    project.patches = [
-      {
-        ...project.patches[0],
-        nodes: [
-          {
-            id: "sample1",
-            typeId: "SamplePlayer",
-            params: {
-              mode: "oneshot",
-              start: 0,
-              end: 1,
-              gain: 1,
-              pitchSemis: 0,
-              sampleAssetId: "legacy_asset",
-              sampleData: '{"version":1,"name":"legacy.wav","sampleRate":48000,"samples":[0,0.5,-0.5]}'
-            }
-          }
-        ]
-      }
-    ];
-
-    const hydrated = hydrateProjectSnapshot(project);
-    const sampleParams = hydrated.project.patches[0].nodes[0].params;
-
-    expect(sampleParams.sampleAssetId).toBe("legacy_asset");
-    expect(sampleParams.sampleData).toBeUndefined();
-    expect(hydrated.assets.samplePlayerById.legacy_asset?.name).toBe("legacy.wav");
-    expect(hydrated.assets.samplePlayerById.legacy_asset?.samples).toEqual(new Float32Array([0, 0.5, -0.5]));
   });
 });

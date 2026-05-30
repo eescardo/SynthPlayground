@@ -241,7 +241,7 @@ describe("patch validation", () => {
     );
   });
 
-  it("accepts SamplePlayer asset metadata as patch-owned auxiliary params", () => {
+  it("accepts SamplePlayer asset ids as patch-owned auxiliary params", () => {
     const patch = createClearPatch({ id: "sample_patch", name: "Sample Patch" });
     patch.nodes.push({
       id: "sample1",
@@ -252,8 +252,7 @@ describe("patch validation", () => {
         end: 1,
         gain: 1,
         pitchSemis: 0,
-        sampleAssetId: "asset_1",
-        sampleData: ""
+        sampleAssetId: "asset_1"
       }
     });
     patch.layout.nodes.push({ nodeId: "sample1", x: 4, y: 4 });
@@ -265,10 +264,6 @@ describe("patch validation", () => {
         expect.objectContaining({
           code: "node-param-unknown",
           context: expect.objectContaining({ nodeId: "sample1", paramId: "sampleAssetId" })
-        }),
-        expect.objectContaining({
-          code: "node-param-unknown",
-          context: expect.objectContaining({ nodeId: "sample1", paramId: "sampleData" })
         })
       ])
     );

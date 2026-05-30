@@ -9,9 +9,9 @@ use std::collections::HashMap;
 mod control;
 mod factory;
 mod formulas;
+mod noise;
 mod process;
 mod reverb;
-mod sample_asset;
 
 use reverb::ReverbDelayLineBank;
 
