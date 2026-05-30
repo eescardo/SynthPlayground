@@ -7,7 +7,6 @@ import { AudioEngine } from "@/audio/engine";
 import { resolvePatchWorkspaceMacroValues } from "@/hooks/patch/usePatchWorkspaceMacroValues";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import { pitchToVoct } from "@/lib/pitch";
-import { hydratePatchSamplePlayerAssetsForRuntime } from "@/lib/sampleAssetLibrary";
 import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { HOST_PORT_IDS } from "@/lib/patch/constants";
 import { mergeSpectrumGrid } from "@/lib/patch/spectrumCaptureMerge";
@@ -173,9 +172,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
         return null;
       }
       const engine = audioEngineRef.current;
-      const patch = patchOverride
-        ? hydratePatchSamplePlayerAssetsForRuntime(patchOverride, projectAssets)
-        : audioProject.patches.find((entry) => entry.id === patchId);
+      const patch = patchOverride ?? audioProject.patches.find((entry) => entry.id === patchId);
       if (!engine || !patch) {
         return null;
       }
@@ -233,16 +230,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
         forceStopOnRelease: Boolean(options?.holdUntilReleased && !hasHostGateConnection(patch))
       };
     },
-    [
-      audioEngineRef,
-      audioProject,
-      captureRequests,
-      playing,
-      previewPitch,
-      projectAssets,
-      selectedTrack,
-      setRuntimeError
-    ]
+    [audioEngineRef, audioProject, captureRequests, playing, previewPitch, selectedTrack, setRuntimeError]
   );
 
   useEffect(() => {

@@ -2,22 +2,13 @@
 
 import { clamp, clampBipolar } from "@/lib/numeric";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
-import { SamplePlayerAssetData } from "@/types/assets";
+import { SamplePlayerAssetData, SerializedSamplePlayerAssetData } from "@/types/assets";
 
 export interface DecodedSampleAsset {
   name: string;
   sourceUrl?: string;
   sampleRate: number;
   samples: Float32Array;
-}
-
-interface SerializedSamplePlayerBinaryData {
-  version: 2;
-  name: string;
-  sourceUrl?: string;
-  sampleRate: number;
-  encoding: "f32le-base64";
-  samples: string;
 }
 
 const SAMPLE_BINARY_DATA_VERSION = 2;
@@ -71,7 +62,7 @@ export function createSamplePlayerAssetData(asset: DecodedSampleAsset): SamplePl
   };
 }
 
-export function serializeSamplePlayerAssetForJson(asset: SamplePlayerAssetData): SerializedSamplePlayerBinaryData {
+export function serializeSamplePlayerAssetForJson(asset: SamplePlayerAssetData): SerializedSamplePlayerAssetData {
   return {
     version: SAMPLE_BINARY_DATA_VERSION,
     name: asset.name,
@@ -122,19 +113,6 @@ export function normalizeSamplePlayerAssetData(raw: unknown): SamplePlayerAssetD
   }
 
   return null;
-}
-
-export function parseSamplePlayerData(raw: SamplePlayerAssetData | null | undefined): DecodedSampleAsset | null {
-  const asset = normalizeSamplePlayerAssetData(raw);
-  if (!asset) {
-    return null;
-  }
-  return {
-    name: asset.name,
-    sourceUrl: asset.sourceUrl,
-    sampleRate: asset.sampleRate,
-    samples: asset.samples
-  };
 }
 
 export function areSamplePlayerAssetsEqual(left: SamplePlayerAssetData, right: SamplePlayerAssetData) {

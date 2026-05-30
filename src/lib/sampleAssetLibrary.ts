@@ -6,7 +6,7 @@ import {
 } from "@/lib/patch/samplePlayer";
 import { Project } from "@/types/music";
 import { Patch, PatchValidationIssue } from "@/types/patch";
-import { ProjectAssetLibrary, SamplePlayerAssetData } from "@/types/assets";
+import { ProjectAssetLibrary, SamplePlayerAssetData, SerializedProjectAssetLibrary } from "@/types/assets";
 
 const SAMPLE_PLAYER_NODE_TYPE = "SamplePlayer";
 
@@ -37,7 +37,7 @@ export function normalizeProjectAssetLibrary(raw: unknown): ProjectAssetLibrary 
   return { samplePlayerById };
 }
 
-export function serializeProjectAssetLibraryForJson(assets: ProjectAssetLibrary): unknown {
+export function serializeProjectAssetLibraryForJson(assets: ProjectAssetLibrary): SerializedProjectAssetLibrary {
   return {
     samplePlayerById: Object.fromEntries(
       Object.entries(assets.samplePlayerById).map(([assetId, asset]) => [
@@ -183,11 +183,6 @@ export function mergeImportedPatchAssets(
     },
     assets: nextAssets
   };
-}
-
-export function hydratePatchSamplePlayerAssetsForRuntime(patch: Patch, assets: ProjectAssetLibrary): Patch {
-  void assets;
-  return patch;
 }
 
 export function buildMissingSampleAssetIssues(patch: Patch, assets: ProjectAssetLibrary): PatchValidationIssue[] {

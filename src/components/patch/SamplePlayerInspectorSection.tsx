@@ -7,7 +7,6 @@ import {
   decodeSamplePlayerFile,
   decodeSamplePlayerUrl,
   formatSampleDuration,
-  parseSamplePlayerData,
   previewSampleAsset,
   resolveSamplePitchAnalysisSamples,
   resolveSampleTrimRange,
@@ -34,8 +33,7 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { assets, upsertSamplePlayerAssetData } = usePatchWorkspaceSampleAssets();
   const sampleAssetId = typeof props.node.params.sampleAssetId === "string" ? props.node.params.sampleAssetId : "";
-  const rawSampleData = sampleAssetId ? assets.samplePlayerById[sampleAssetId] : undefined;
-  const sampleAsset = useMemo(() => parseSamplePlayerData(rawSampleData), [rawSampleData]);
+  const sampleAsset = sampleAssetId ? assets.samplePlayerById[sampleAssetId] : undefined;
   const sampleAssetMissing = Boolean(sampleAssetId) && !sampleAsset;
   const [sourceUrl, setSourceUrl] = useState(sampleAsset?.sourceUrl ?? "");
   const [status, setStatus] = useState<SamplePlayerStatus>(null);
