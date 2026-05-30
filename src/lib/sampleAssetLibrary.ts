@@ -1,7 +1,12 @@
 import { createId } from "@/lib/ids";
+import {
+  areSamplePlayerAssetsEqual,
+  normalizeSamplePlayerAssetData,
+  serializeSamplePlayerAssetForJson
+} from "@/lib/patch/samplePlayer";
 import { Project } from "@/types/music";
 import { Patch, PatchValidationIssue } from "@/types/patch";
-import { ProjectAssetLibrary } from "@/types/assets";
+import { ProjectAssetLibrary, SamplePlayerAssetData } from "@/types/assets";
 
 const SAMPLE_PLAYER_NODE_TYPE = "SamplePlayer";
 
@@ -15,19 +20,32 @@ export function normalizeProjectAssetLibrary(raw: unknown): ProjectAssetLibrary 
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     return createEmptyProjectAssetLibrary();
   }
-  const samplePlayerById =
+  const rawSamplePlayerById =
     "samplePlayerById" in raw &&
     typeof raw.samplePlayerById === "object" &&
     raw.samplePlayerById !== null &&
     !Array.isArray(raw.samplePlayerById)
-      ? Object.fromEntries(
-          Object.entries(raw.samplePlayerById).filter(
-            (entry): entry is [string, string] => typeof entry[1] === "string"
-          )
-        )
+      ? raw.samplePlayerById
       : {};
+  const samplePlayerById = Object.fromEntries(
+    Object.entries(rawSamplePlayerById).flatMap(([assetId, value]) => {
+      const normalized = normalizeSamplePlayerAssetData(value);
+      return normalized ? [[assetId, normalized] as const] : [];
+    })
+  );
 
   return { samplePlayerById };
+}
+
+export function serializeProjectAssetLibraryForJson(assets: ProjectAssetLibrary): unknown {
+  return {
+    samplePlayerById: Object.fromEntries(
+      Object.entries(assets.samplePlayerById).map(([assetId, asset]) => [
+        assetId,
+        serializeSamplePlayerAssetForJson(asset)
+      ])
+    )
+  };
 }
 
 export function getSamplePlayerAssetData(assets: ProjectAssetLibrary, assetId: string | null | undefined) {
@@ -39,7 +57,7 @@ export function getSamplePlayerAssetData(assets: ProjectAssetLibrary, assetId: s
 
 export function upsertSamplePlayerAssetData(
   assets: ProjectAssetLibrary,
-  serializedSampleData: string,
+  sampleData: SamplePlayerAssetData,
   existingAssetId?: string | null
 ) {
   const assetId = existingAssetId || createId("sampleAsset");
@@ -49,7 +67,7 @@ export function upsertSamplePlayerAssetData(
       ...assets,
       samplePlayerById: {
         ...assets.samplePlayerById,
-        [assetId]: serializedSampleData
+        [assetId]: sampleData
       }
     }
   };
@@ -84,7 +102,7 @@ export function pickReferencedProjectAssets(project: Project, assets: ProjectAss
   const samplePlayerById = Object.fromEntries(
     Array.from(referencedIds)
       .map((assetId) => [assetId, assets.samplePlayerById[assetId]] as const)
-      .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+      .filter((entry): entry is [string, SamplePlayerAssetData] => Boolean(entry[1]))
   );
   return { samplePlayerById };
 }
@@ -94,7 +112,7 @@ export function pickReferencedPatchAssets(patch: Patch, assets: ProjectAssetLibr
   const samplePlayerById = Object.fromEntries(
     Array.from(referencedIds)
       .map((assetId) => [assetId, assets.samplePlayerById[assetId]] as const)
-      .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+      .filter((entry): entry is [string, SamplePlayerAssetData] => Boolean(entry[1]))
   );
   return { samplePlayerById };
 }
@@ -114,13 +132,13 @@ export function mergeImportedPatchAssets(
     }
 
     const currentData = currentAssets.samplePlayerById[importedAssetId];
-    if (currentData === importedData) {
+    if (currentData && areSamplePlayerAssetsEqual(currentData, importedData)) {
       remappedAssetIds.set(importedAssetId, importedAssetId);
       continue;
     }
 
-    const matchingExistingAssetId = Object.entries(nextAssets.samplePlayerById).find(
-      ([, data]) => data === importedData
+    const matchingExistingAssetId = Object.entries(nextAssets.samplePlayerById).find(([, data]) =>
+      areSamplePlayerAssetsEqual(data, importedData)
     )?.[0];
     if (matchingExistingAssetId) {
       remappedAssetIds.set(importedAssetId, matchingExistingAssetId);
@@ -168,27 +186,8 @@ export function mergeImportedPatchAssets(
 }
 
 export function hydratePatchSamplePlayerAssetsForRuntime(patch: Patch, assets: ProjectAssetLibrary): Patch {
-  let patchChanged = false;
-  const nextNodes = patch.nodes.map((node) => {
-    if (node.typeId !== SAMPLE_PLAYER_NODE_TYPE) {
-      return node;
-    }
-    const assetId = typeof node.params.sampleAssetId === "string" ? node.params.sampleAssetId : "";
-    const resolvedSampleData = getSamplePlayerAssetData(assets, assetId) ?? "";
-    const currentSampleData = typeof node.params.sampleData === "string" ? node.params.sampleData : "";
-    if (currentSampleData === resolvedSampleData) {
-      return node;
-    }
-    patchChanged = true;
-    return {
-      ...node,
-      params: {
-        ...node.params,
-        sampleData: resolvedSampleData
-      }
-    };
-  });
-  return patchChanged ? { ...patch, nodes: nextNodes } : patch;
+  void assets;
+  return patch;
 }
 
 export function buildMissingSampleAssetIssues(patch: Patch, assets: ProjectAssetLibrary): PatchValidationIssue[] {

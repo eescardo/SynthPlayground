@@ -1,5 +1,6 @@
 import { MasterFxSettings, ProjectGlobalSettings, Track } from "@/types/music";
 import { Patch } from "@/types/patch";
+import { ProjectAssetLibrary } from "@/types/assets";
 import type { SerializableSproutError } from "@/lib/sproutErrors";
 import { PreviewProbeCapture, PreviewProbeRequest, PreviewProbeSharedBuffer } from "@/types/probes";
 
@@ -8,6 +9,7 @@ export interface AudioProject {
   tracks: Track[];
   patches: Patch[];
   masterFx: MasterFxSettings;
+  sampleAssets?: ProjectAssetLibrary;
 }
 
 export interface SynthRendererConfig {

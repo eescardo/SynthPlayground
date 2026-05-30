@@ -6,6 +6,7 @@ import {
   PATCH_BUNDLE_VERSION
 } from "@/lib/patch/serde";
 import { createClearPatch } from "@/lib/patch/presets";
+import { normalizeProjectAssetLibrary } from "@/lib/sampleAssetLibrary";
 
 describe("patch serde", () => {
   it("exports a versioned patch bundle with referenced sample assets only", () => {
@@ -24,21 +25,25 @@ describe("patch serde", () => {
     });
 
     const parsed = JSON.parse(
-      exportPatchToJson(patch, {
-        samplePlayerById: {
-          asset_used: '{"version":1,"name":"used.wav","sampleRate":48000,"samples":[0,0.2]}',
-          asset_unused: '{"version":1,"name":"unused.wav","sampleRate":48000,"samples":[0]}'
-        }
-      })
+      exportPatchToJson(
+        patch,
+        normalizeProjectAssetLibrary({
+          samplePlayerById: {
+            asset_used: '{"version":1,"name":"used.wav","sampleRate":48000,"samples":[0,0.2]}',
+            asset_unused: '{"version":1,"name":"unused.wav","sampleRate":48000,"samples":[0]}'
+          }
+        })
+      )
     ) as {
       kind: string;
       version: number;
-      assets: { samplePlayerById: Record<string, string> };
+      assets: { samplePlayerById: Record<string, { version: number; name: string }> };
     };
 
     expect(parsed.kind).toBe(PATCH_BUNDLE_KIND);
     expect(parsed.version).toBe(PATCH_BUNDLE_VERSION);
-    expect(parsed.assets.samplePlayerById.asset_used).toContain('"used.wav"');
+    expect(parsed.assets.samplePlayerById.asset_used?.version).toBe(2);
+    expect(parsed.assets.samplePlayerById.asset_used?.name).toBe("used.wav");
     expect(parsed.assets.samplePlayerById.asset_unused).toBeUndefined();
   });
 

@@ -3,6 +3,22 @@ use super::*;
 use serde_json::Value;
 
 impl RuntimeNode {
+    pub(crate) fn set_sample_asset(&mut self, sample_rate: f32, samples: &[f32]) {
+        if let Self::SamplePlayer(node) = self {
+            node.asset = if sample_rate > 0.0 && !samples.is_empty() {
+                Some(crate::SampleAsset {
+                    sample_rate,
+                    samples: samples.to_vec(),
+                })
+            } else {
+                None
+            };
+            node.position = 0.0;
+            node.active = false;
+            node.last_gate = 0.0;
+        }
+    }
+
     /// Adds elapsed processing time into the profiling bucket for this node family.
     /// Params:
     /// - `profile`: aggregate profiling structure updated in place.

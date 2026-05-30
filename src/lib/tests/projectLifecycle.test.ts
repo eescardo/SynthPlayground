@@ -190,7 +190,7 @@ describe("projectLifecycle", () => {
 
     const sampleParams = hydrated.project.patches[0].nodes[1].params;
     expect(sampleParams.sampleAssetId).toBe("valid_asset");
-    expect(hydrated.assets.samplePlayerById.valid_asset).toContain('"kept.wav"');
+    expect(hydrated.assets.samplePlayerById.valid_asset?.name).toBe("kept.wav");
     expect(hydrated.assets.samplePlayerById.invalid_asset).toBeUndefined();
   });
 });

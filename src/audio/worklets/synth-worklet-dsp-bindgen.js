@@ -1,5 +1,6 @@
 let wasm;
 let cachedUint8ArrayMemory0 = null;
+let cachedFloat32ArrayMemory0 = null;
 let WASM_VECTOR_LEN = 0;
 
 const cachedTextDecoder =
@@ -34,6 +35,13 @@ const getUint8ArrayMemory0 = () => {
     cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
   }
   return cachedUint8ArrayMemory0;
+};
+
+const getFloat32ArrayMemory0 = () => {
+  if (cachedFloat32ArrayMemory0 === null || cachedFloat32ArrayMemory0.byteLength === 0) {
+    cachedFloat32ArrayMemory0 = new Float32Array(wasm.memory.buffer);
+  }
+  return cachedFloat32ArrayMemory0;
 };
 
 const getStringFromWasm0 = (ptr, len) => {
@@ -83,6 +91,13 @@ const passStringToWasm0 = (arg, malloc, realloc) => {
   }
 
   WASM_VECTOR_LEN = offset;
+  return ptr;
+};
+
+const passArrayF32ToWasm0 = (arg, malloc) => {
+  const ptr = malloc(arg.length * 4, 4) >>> 0;
+  getFloat32ArrayMemory0().set(arg, ptr / 4);
+  WASM_VECTOR_LEN = arg.length;
   return ptr;
 };
 
@@ -229,6 +244,17 @@ export class WasmSubsetEngine {
     wasm.wasmsubsetengine_set_profiling_enabled(this.__wbg_ptr, enabled);
   }
 
+  set_sample_asset(trackIndex, nodeId, sampleRate, samples) {
+    const ptr0 = passStringToWasm0(nodeId, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArrayF32ToWasm0(samples, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.wasmsubsetengine_set_sample_asset(this.__wbg_ptr, trackIndex, ptr0, len0, sampleRate, ptr1, len1);
+    if (ret[1]) {
+      throw takeFromExternrefTable0(ret[0]);
+    }
+  }
+
   start_stream(projectJson, songStartSample, eventsJson, sessionId, randomSeed) {
     const ptr0 = passStringToWasm0(projectJson, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
@@ -267,6 +293,7 @@ export const initSync = ({ module }) => {
   const instance = new WebAssembly.Instance(compiledModule, imports);
   wasm = instance.exports;
   cachedUint8ArrayMemory0 = null;
+  cachedFloat32ArrayMemory0 = null;
   wasm.__wbindgen_start();
   return wasm;
 };

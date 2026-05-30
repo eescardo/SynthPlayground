@@ -87,7 +87,7 @@ import {
 } from "@/lib/patch/patchRemoval";
 import { useTrackMacroAutomationActions } from "@/hooks/tracks/useTrackMacroAutomationActions";
 import { useTrackVolumeAutomationActions } from "@/hooks/tracks/useTrackVolumeAutomationActions";
-import { ProjectAssetLibrary } from "@/types/assets";
+import { ProjectAssetLibrary, SamplePlayerAssetData } from "@/types/assets";
 import { Project } from "@/types/music";
 import { PatchValidationIssue } from "@/types/patch";
 
@@ -311,8 +311,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
   }, [commitProjectChange]);
 
   const upsertWorkspaceSamplePlayerAssetData = useCallback(
-    (serializedSampleData: string, existingAssetId?: string | null) => {
-      const nextState = upsertSamplePlayerAssetData(projectAssets, serializedSampleData, existingAssetId);
+    (sampleData: SamplePlayerAssetData, existingAssetId?: string | null) => {
+      const nextState = upsertSamplePlayerAssetData(projectAssets, sampleData, existingAssetId);
       setProjectAssets(nextState.assets);
       return nextState.assetId;
     },

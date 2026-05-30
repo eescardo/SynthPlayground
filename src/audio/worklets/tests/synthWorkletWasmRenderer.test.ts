@@ -14,6 +14,12 @@ let previewCaptureSampleCount = 0;
 let writeInvalidPreviewCaptureJson = false;
 let hasActiveVoices = false;
 let configuredPreviewCaptureJson = "";
+const installedSampleAssets: Array<{
+  trackIndex: number;
+  nodeId: string;
+  sampleRate: number;
+  samples: Float32Array;
+}> = [];
 const engineStop = vi.fn();
 const engineStopTrack = vi.fn();
 
@@ -26,6 +32,9 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
 
     start_stream() {}
     enqueue_events() {}
+    set_sample_asset(trackIndex: number, nodeId: string, sampleRate: number, samples: Float32Array) {
+      installedSampleAssets.push({ trackIndex, nodeId, sampleRate, samples });
+    }
     configure_preview_probe_capture(captureJson: string) {
       configuredPreviewCaptureJson = captureJson;
     }
@@ -235,11 +244,82 @@ beforeEach(() => {
   captureSampleView.fill(0);
   writeInvalidPreviewCaptureJson = false;
   hasActiveVoices = false;
+  installedSampleAssets.length = 0;
   previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
   configuredPreviewCaptureJson = "";
 });
 
 describe("WASM worklet renderer", () => {
+  it("installs SamplePlayer PCM assets through the binary WASM handoff", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+    const patch = createPatch({
+      nodes: [
+        {
+          id: "sample1",
+          typeId: "SamplePlayer",
+          params: {
+            mode: "oneshot",
+            start: 0,
+            end: 1,
+            gain: 1,
+            pitchSemis: 0,
+            sampleAssetId: "asset_1",
+            sampleData: '{"version":1,"name":"legacy.wav","sampleRate":48000,"samples":[0,1]}'
+          }
+        }
+      ],
+      connections: [
+        {
+          id: "conn_sample",
+          from: { nodeId: "sample1", portId: "out" },
+          to: { nodeId: PATCH_OUTPUT_PORT_ID, portId: "in" }
+        }
+      ]
+    });
+    const project = {
+      ...createProject({ patch }),
+      sampleAssets: {
+        samplePlayerById: {
+          asset_1: {
+            version: 2 as const,
+            name: "sample.wav",
+            sampleRate: 44100,
+            samples: new Float32Array([0, 0.25, -0.25])
+          }
+        }
+      }
+    };
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        project,
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+
+    renderer.startStream({
+      project,
+      songStartSample: 0,
+      mode: "transport",
+      events: []
+    });
+
+    expect(installedSampleAssets).toEqual([
+      {
+        trackIndex: 0,
+        nodeId: "sample1",
+        sampleRate: 44100,
+        samples: new Float32Array([0, 0.25, -0.25])
+      }
+    ]);
+    expect(
+      (
+        renderer as unknown as { getProjectPlan: (value: typeof project) => { projectSpecJson: string } }
+      ).getProjectPlan(project).projectSpecJson
+    ).not.toContain("legacy.wav");
+  });
+
   it("hard-stops muted tracks and accepts track events after unmute", async () => {
     const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
 

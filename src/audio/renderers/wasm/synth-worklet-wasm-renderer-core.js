@@ -20,6 +20,42 @@ export class NullPort {
 
 export const resolveRandomSeed = (value) => (Number.isFinite(value) ? Number(value) >>> 0 : DEFAULT_RANDOM_SEED);
 
+const collectWasmSampleAssets = (project, projectSpec) => {
+  const sampleAssets = project.sampleAssets?.samplePlayerById || {};
+  const byTrack = [];
+  for (const trackSpec of projectSpec.tracks || []) {
+    const assets = [];
+    for (const node of trackSpec.nodes || []) {
+      if (node.typeId !== "SamplePlayer") {
+        continue;
+      }
+      const assetId = typeof node.params?.sampleAssetId === "string" ? node.params.sampleAssetId : "";
+      const asset = assetId ? sampleAssets[assetId] : null;
+      if (!asset?.samples?.length || !Number.isFinite(asset.sampleRate) || asset.sampleRate <= 0) {
+        continue;
+      }
+      assets.push({
+        nodeId: node.id,
+        sampleRate: asset.sampleRate,
+        samples: asset.samples
+      });
+    }
+    byTrack[trackSpec.trackIndex] = assets;
+  }
+  return byTrack;
+};
+
+const installWasmSampleAssets = (engine, sampleAssetsByTrack) => {
+  if (typeof engine.set_sample_asset !== "function") {
+    return;
+  }
+  (sampleAssetsByTrack || []).forEach((assets, trackIndex) => {
+    for (const asset of assets || []) {
+      engine.set_sample_asset(trackIndex, asset.nodeId, asset.sampleRate, asset.samples);
+    }
+  });
+};
+
 const areEventsSorted = (events) => {
   for (let index = 1; index < events.length; index += 1) {
     if (compareScheduledEvents(events[index - 1], events[index]) > 0) {
@@ -129,6 +165,7 @@ export class SharedWasmRenderStream {
     const projectPlan = renderer.getProjectPlan(this.project);
     this.projectSpec = projectPlan.projectSpec;
     this.projectSpecJson = projectPlan.projectSpecJson;
+    this.sampleAssetsByTrack = projectPlan.sampleAssetsByTrack;
     this.trackRuntimes = this.project.tracks.map((track) => ({ track }));
     this.transportSessionId = Number.isFinite(options.sessionId) ? options.sessionId : 1;
     this.songSampleCounter = options.songStartSample || 0;
@@ -156,6 +193,7 @@ export class SharedWasmRenderStream {
       this.transportSessionId,
       resolveRandomSeed(options.randomSeed)
     );
+    installWasmSampleAssets(this.engine, this.sampleAssetsByTrack);
     if (this.previewing && this.captureProbes.length > 0) {
       this.previewCaptureState =
         implementation.preparePreviewCapture?.(renderer, this.project, this.projectSpec, options, this.engine) ?? null;
@@ -477,7 +515,8 @@ export class SharedWasmRenderer {
       project,
       blockSize: this.blockSize,
       projectSpec,
-      projectSpecJson: JSON.stringify(projectSpec)
+      projectSpecJson: JSON.stringify(projectSpec),
+      sampleAssetsByTrack: collectWasmSampleAssets(project, projectSpec)
     };
     this.projectPlanCache = next;
     return next;

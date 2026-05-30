@@ -448,6 +448,16 @@ impl TrackRuntime {
         }
     }
 
+    pub(crate) fn set_sample_asset(&mut self, node_id: &str, sample_rate: f32, samples: &[f32]) {
+        if let Some(index) = self.node_index_by_id.get(node_id).copied() {
+            for voice in self.voices.iter_mut() {
+                if let Some(node) = voice.nodes.get_mut(index) {
+                    node.set_sample_asset(sample_rate, samples);
+                }
+            }
+        }
+    }
+
     fn fill_host_signal_buffers(
         voice: &mut VoiceRuntime,
         host_indices: &HostSignalIndices,

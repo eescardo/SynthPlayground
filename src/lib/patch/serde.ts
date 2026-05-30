@@ -2,7 +2,8 @@ import { normalizePatch } from "@/lib/patch/normalize";
 import {
   createEmptyProjectAssetLibrary,
   normalizeProjectAssetLibrary,
-  pickReferencedPatchAssets
+  pickReferencedPatchAssets,
+  serializeProjectAssetLibraryForJson
 } from "@/lib/sampleAssetLibrary";
 import { ProjectAssetLibrary } from "@/types/assets";
 import { Patch } from "@/types/patch";
@@ -36,8 +37,8 @@ export const exportPatchToJson = (
       kind: PATCH_BUNDLE_KIND,
       version: PATCH_BUNDLE_VERSION,
       patch,
-      assets: pickReferencedPatchAssets(patch, assets)
-    } satisfies SerializedPatchBundleV1,
+      assets: serializeProjectAssetLibraryForJson(pickReferencedPatchAssets(patch, assets))
+    },
     null,
     2
   );

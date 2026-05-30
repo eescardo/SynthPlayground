@@ -1,12 +1,12 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import { ProjectAssetLibrary } from "@/types/assets";
+import { ProjectAssetLibrary, SamplePlayerAssetData } from "@/types/assets";
 import { Patch } from "@/types/patch";
 
 export interface PatchWorkspaceSampleAssetsContextValue {
   assets: ProjectAssetLibrary;
-  upsertSamplePlayerAssetData: (serializedSampleData: string, existingAssetId?: string | null) => string;
+  upsertSamplePlayerAssetData: (sampleData: SamplePlayerAssetData, existingAssetId?: string | null) => string;
 }
 
 export interface PatchWorkspaceInstrumentContextValue {

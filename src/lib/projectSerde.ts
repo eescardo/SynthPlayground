@@ -12,7 +12,8 @@ import { ProjectAssetLibrary } from "@/types/assets";
 import {
   createEmptyProjectAssetLibrary,
   normalizeProjectAssetLibrary,
-  pickReferencedProjectAssets
+  pickReferencedProjectAssets,
+  serializeProjectAssetLibraryForJson
 } from "@/lib/sampleAssetLibrary";
 import type { Patch } from "@/types/patch";
 
@@ -175,8 +176,8 @@ export const exportProjectToJson = (
     {
       version: 2,
       project,
-      assets: pickReferencedProjectAssets(project, assets)
-    } satisfies SerializedProjectBundleV2,
+      assets: serializeProjectAssetLibraryForJson(pickReferencedProjectAssets(project, assets))
+    },
     null,
     2
   );

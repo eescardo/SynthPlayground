@@ -41,7 +41,12 @@ const createProject = (overrides: Partial<Project> = {}): Project => ({
 
 const createAssets = (overrides: Partial<ProjectAssetLibrary> = {}): ProjectAssetLibrary => ({
   samplePlayerById: {
-    sampleAsset_1: "serialized sample data",
+    sampleAsset_1: {
+      version: 2,
+      name: "sample.wav",
+      sampleRate: 48000,
+      samples: new Float32Array([0, 0.5])
+    },
     ...overrides.samplePlayerById
   }
 });

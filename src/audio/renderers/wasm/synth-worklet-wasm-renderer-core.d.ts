@@ -31,6 +31,7 @@ export interface SharedWasmEngine {
     randomSeed: number
   ): void;
   enqueue_events(eventsJson: string): void;
+  set_sample_asset?(trackIndex: number, nodeId: string, sampleRate: number, samples: Float32Array): void;
   process_block(): boolean;
   has_active_voices?(): boolean;
   stop_track?(trackIndex: number): void;
@@ -92,6 +93,13 @@ export interface SharedWasmRendererLike {
     blockSize: number;
     projectSpec: WasmProjectSpec;
     projectSpecJson: string;
+    sampleAssetsByTrack?: Array<
+      Array<{
+        nodeId: string;
+        sampleRate: number;
+        samples: Float32Array;
+      }>
+    >;
   };
   resolveSharedCaptureBufferMap?(
     captureSharedBuffers?: PreviewProbeSharedBuffer[]

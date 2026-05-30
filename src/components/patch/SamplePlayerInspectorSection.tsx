@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildSampleWaveformPeaks,
+  createSamplePlayerAssetData,
   decodeSamplePlayerFile,
   decodeSamplePlayerUrl,
   formatSampleDuration,
@@ -11,8 +12,7 @@ import {
   resolveSamplePitchAnalysisSamples,
   resolveSampleTrimRange,
   samplePlayerPitchSemisToRootPitch,
-  samplePlayerRootPitchToPitchSemis,
-  serializeSamplePlayerData
+  samplePlayerRootPitchToPitchSemis
 } from "@/lib/patch/samplePlayer";
 import { usePatchWorkspaceSampleAssets } from "@/components/patch/PatchWorkspaceContext";
 import { detectDominantSamplePitches } from "@/lib/patch/pitchTracker";
@@ -77,7 +77,7 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
   const pitchSemis = typeof props.node.params.pitchSemis === "number" ? props.node.params.pitchSemis : 0;
   const rootPitch = samplePlayerPitchSemisToRootPitch(pitchSemis);
 
-  const storeSample = (sampleData: string) => {
+  const storeSample = (sampleData: ReturnType<typeof createSamplePlayerAssetData>) => {
     const nextAssetId = upsertSamplePlayerAssetData(sampleData);
     props.onApplyOp({
       type: "setParams",
@@ -95,7 +95,7 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
     setStatus({ tone: "info", message: "Importing sample..." });
     try {
       const decoded = await decodeSamplePlayerFile(file);
-      storeSample(serializeSamplePlayerData(decoded));
+      storeSample(createSamplePlayerAssetData(decoded));
       setStatus({ tone: "success", message: `Loaded ${decoded.name}` });
     } catch (error) {
       setStatus({ tone: "error", message: formatSamplePlayerError(error, file.name) });
@@ -114,7 +114,7 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
     setStatus({ tone: "info", message: "Fetching sample..." });
     try {
       const decoded = await decodeSamplePlayerUrl(nextUrl);
-      storeSample(serializeSamplePlayerData(decoded));
+      storeSample(createSamplePlayerAssetData(decoded));
       setStatus({ tone: "success", message: `Loaded ${decoded.name}` });
     } catch (error) {
       setStatus({ tone: "error", message: formatSamplePlayerError(error, nextUrl) });

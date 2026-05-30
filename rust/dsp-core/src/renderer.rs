@@ -109,6 +109,22 @@ impl WasmSubsetEngine {
         Ok(())
     }
 
+    pub fn set_sample_asset(
+        &mut self,
+        track_index: usize,
+        node_id: &str,
+        sample_rate: f32,
+        samples: &[f32],
+    ) -> Result<(), JsValue> {
+        let track = self.tracks.get_mut(track_index).ok_or_else(|| {
+            js_error(format!(
+                "Unknown track index for sample asset: {track_index}"
+            ))
+        })?;
+        track.set_sample_asset(node_id, sample_rate, samples);
+        Ok(())
+    }
+
     /// Installs preview probe capture requests on the currently loaded tracks.
     /// Params:
     /// - `capture_json`: serialized probe specs with resolved track indices and signal indices.

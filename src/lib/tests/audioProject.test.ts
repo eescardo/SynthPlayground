@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { toAudioProject } from "@/audio/audioProject";
 import { createDefaultProject } from "@/lib/patch/presets";
-import { createEmptyProjectAssetLibrary } from "@/lib/sampleAssetLibrary";
+import { createEmptyProjectAssetLibrary, normalizeProjectAssetLibrary } from "@/lib/sampleAssetLibrary";
 
 describe("audioProject", () => {
   it("drops UI-only project state while preserving audio-facing data", () => {
@@ -22,7 +22,8 @@ describe("audioProject", () => {
       global: project.global,
       tracks: project.tracks,
       patches: project.patches,
-      masterFx: project.masterFx
+      masterFx: project.masterFx,
+      sampleAssets: createEmptyProjectAssetLibrary()
     });
     expect("ui" in (audioProject as unknown as Record<string, unknown>)).toBe(false);
   });
@@ -50,13 +51,15 @@ describe("audioProject", () => {
       }
     ];
 
-    const audioProject = toAudioProject(project, {
+    const assets = normalizeProjectAssetLibrary({
       samplePlayerById: {
         asset_1: '{"version":1,"name":"kick.wav","sampleRate":48000,"samples":[0,0.5,-0.5]}'
       }
     });
+    const audioProject = toAudioProject(project, assets);
 
-    expect(audioProject.patches[0].nodes[0].params.sampleData).toContain('"kick.wav"');
+    expect(audioProject.sampleAssets?.samplePlayerById.asset_1?.name).toBe("kick.wav");
+    expect(audioProject.patches[0].nodes[0].params.sampleData).toBeUndefined();
     expect(audioProject.patches[0].nodes[0].params.sampleAssetId).toBe("asset_1");
   });
 });

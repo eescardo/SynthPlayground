@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildMissingSampleAssetIssues,
   createEmptyProjectAssetLibrary,
-  mergeImportedPatchAssets
+  mergeImportedPatchAssets,
+  normalizeProjectAssetLibrary
 } from "@/lib/sampleAssetLibrary";
 import { createClearPatch, createDefaultProject } from "@/lib/patch/presets";
 
@@ -50,22 +51,22 @@ describe("sampleAssetLibrary", () => {
 
     const merged = mergeImportedPatchAssets(
       patch,
-      {
+      normalizeProjectAssetLibrary({
         samplePlayerById: {
           asset_1: '{"version":1,"name":"imported.wav","sampleRate":48000,"samples":[0,0.2]}'
         }
-      },
-      {
+      }),
+      normalizeProjectAssetLibrary({
         samplePlayerById: {
           asset_1: '{"version":1,"name":"existing.wav","sampleRate":48000,"samples":[0,0.1]}'
         }
-      }
+      })
     );
 
     const remappedAssetId = String(merged.patch.nodes[0]?.params.sampleAssetId);
 
     expect(remappedAssetId).not.toBe("asset_1");
-    expect(merged.assets.samplePlayerById.asset_1).toContain('"existing.wav"');
-    expect(merged.assets.samplePlayerById[remappedAssetId]).toContain('"imported.wav"');
+    expect(merged.assets.samplePlayerById.asset_1?.name).toBe("existing.wav");
+    expect(merged.assets.samplePlayerById[remappedAssetId]?.name).toBe("imported.wav");
   });
 });

@@ -20,7 +20,7 @@ import { MAX_PATCH_WORKSPACE_TABS } from "@/hooks/patch/patchWorkspaceStateUtils
 import { buildPatchDiff } from "@/lib/patch/diff";
 import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
-import { ProjectAssetLibrary } from "@/types/assets";
+import { ProjectAssetLibrary, SamplePlayerAssetData } from "@/types/assets";
 import { Project } from "@/types/music";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 
@@ -41,7 +41,7 @@ export interface UsePatchWorkspaceControllerOptions {
   selectedPatchHasErrors: boolean;
   patchWorkspace: ReturnType<typeof usePatchWorkspaceState>;
   onWriteClipboardPayload?: (payload: NoteClipboardPayload) => Promise<void>;
-  onUpsertSamplePlayerAssetData: (serializedSampleData: string, existingAssetId?: string | null) => string;
+  onUpsertSamplePlayerAssetData: (sampleData: SamplePlayerAssetData, existingAssetId?: string | null) => string;
   commitProjectChange: CommitProjectChange;
   setProjectAssets: Dispatch<SetStateAction<ProjectAssetLibrary>>;
   setRuntimeError: SproutErrorSetter;
