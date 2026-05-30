@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   createSamplePlayerAssetData,
   normalizeSamplePlayerAssetData,
-  resolveSamplePitchAnalysisSamples,
   serializeSamplePlayerAssetForJson
-} from "@/lib/patch/samplePlayer";
+} from "@/lib/patch/samplePlayerAssets";
+import { resolveSamplePitchAnalysisSamples } from "@/lib/patch/samplePlayer";
 
 describe("sample player helpers", () => {
   it("caps pitch analysis samples to a short view over the committed trim", () => {

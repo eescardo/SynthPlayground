@@ -22,14 +22,20 @@ export const resolveRandomSeed = (value) => (Number.isFinite(value) ? Number(val
 
 const collectWasmSampleAssets = (project, projectSpec) => {
   const sampleAssets = project.sampleAssets?.samplePlayerById || {};
+  const patchById = new Map((project.patches || []).map((patch) => [patch.id, patch]));
+  const trackById = new Map((project.tracks || []).map((track) => [track.id, track]));
   const byTrack = [];
   for (const trackSpec of projectSpec.tracks || []) {
     const assets = [];
+    const track = trackById.get(trackSpec.trackId);
+    const patch = track ? patchById.get(track.instrumentPatchId) : null;
+    const sourceNodeById = new Map((patch?.nodes || []).map((node) => [node.id, node]));
     for (const node of trackSpec.nodes || []) {
       if (node.typeId !== "SamplePlayer") {
         continue;
       }
-      const assetId = typeof node.params?.sampleAssetId === "string" ? node.params.sampleAssetId : "";
+      const sourceNode = sourceNodeById.get(node.id);
+      const assetId = typeof sourceNode?.params?.sampleAssetId === "string" ? sourceNode.params.sampleAssetId : "";
       const asset = assetId ? sampleAssets[assetId] : null;
       if (!asset?.samples?.length || !Number.isFinite(asset.sampleRate) || asset.sampleRate <= 0) {
         continue;

@@ -3,7 +3,7 @@ import {
   areSamplePlayerAssetsEqual,
   normalizeSamplePlayerAssetData,
   serializeSamplePlayerAssetForJson
-} from "@/lib/patch/samplePlayer";
+} from "@/lib/patch/samplePlayerAssets";
 import { Project } from "@/types/music";
 import { Patch, PatchValidationIssue } from "@/types/patch";
 import { ProjectAssetLibrary, SamplePlayerAssetData, SerializedProjectAssetLibrary } from "@/types/assets";
