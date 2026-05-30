@@ -600,6 +600,8 @@ impl RuntimeNode {
                 if rising_edge {
                     node.position = start_sample as f32;
                     node.active = true;
+                    node.wsola_grain_ids = [i32::MIN; 8];
+                    node.wsola_grain_offsets = [0.0; 8];
                 }
                 node.last_gate = gate;
                 if matches!(node.mode, SamplePlayerMode::Loop) && gate < 0.5 {
@@ -620,17 +622,28 @@ impl RuntimeNode {
                         return;
                     }
                 }
-                let sample_index =
-                    clamp(node.position, start_sample as f32, (end_sample - 1) as f32);
-                let base_index = sample_index.floor() as usize;
-                let next_index = (base_index + 1).min(end_sample - 1);
-                let frac = sample_index - base_index as f32;
-                let current_sample = *asset.samples.get(base_index).unwrap_or(&0.0);
-                let next_sample = *asset.samples.get(next_index).unwrap_or(&current_sample);
-                signal_buffers[out] =
-                    (current_sample + (next_sample - current_sample) * frac) * node.gain.next();
                 let pitch_factor = 2.0_f32.powf(pitch + node.pitch_semis.next() / 12.0);
-                node.position += pitch_factor * asset.sample_rate / sample_rate;
+                let base_step = asset.sample_rate / sample_rate;
+                let sample = match node.pitch_mode {
+                    SamplePlayerPitchMode::Resample => {
+                        read_sample_player_asset(asset, node.position, start_sample, end_sample)
+                    }
+                    SamplePlayerPitchMode::PreserveDuration => render_pitch_preserved_sample(
+                        asset,
+                        node.position,
+                        pitch_factor,
+                        start_sample,
+                        end_sample,
+                        matches!(node.mode, SamplePlayerMode::Loop),
+                        &mut node.wsola_grain_ids,
+                        &mut node.wsola_grain_offsets,
+                    ),
+                };
+                signal_buffers[out] = sample * node.gain.next();
+                node.position += match node.pitch_mode {
+                    SamplePlayerPitchMode::Resample => pitch_factor * base_step,
+                    SamplePlayerPitchMode::PreserveDuration => base_step,
+                };
             }
             Self::Delay(node) => {
                 let input = read_input_frame(signal_buffers, block_size, frame, node.input, 0.0);
@@ -867,5 +880,251 @@ fn read_input_frame(
             .unwrap_or(&fallback)
     } else {
         fallback
+    }
+}
+
+const SAMPLE_PLAYER_PITCH_GRAIN_SAMPLES: f32 = 2048.0;
+const SAMPLE_PLAYER_PITCH_HOP_SAMPLES: f32 = 512.0;
+
+#[inline(always)]
+fn read_sample_player_asset(
+    asset: &crate::SampleAsset,
+    position: f32,
+    start_sample: usize,
+    end_sample: usize,
+) -> f32 {
+    let sample_index = clamp(position, start_sample as f32, (end_sample - 1) as f32);
+    let base_index = sample_index.floor() as usize;
+    let next_index = (base_index + 1).min(end_sample - 1);
+    let frac = sample_index - base_index as f32;
+    let current_sample = *asset.samples.get(base_index).unwrap_or(&0.0);
+    let next_sample = *asset.samples.get(next_index).unwrap_or(&current_sample);
+    current_sample + (next_sample - current_sample) * frac
+}
+
+#[inline(always)]
+fn wrap_sample_player_position(position: f32, start_sample: usize, end_sample: usize) -> f32 {
+    let length = (end_sample - start_sample).max(1) as f32;
+    start_sample as f32 + (position - start_sample as f32).rem_euclid(length)
+}
+
+fn render_pitch_preserved_sample(
+    asset: &crate::SampleAsset,
+    timeline_position: f32,
+    pitch_factor: f32,
+    start_sample: usize,
+    end_sample: usize,
+    looping: bool,
+    wsola_grain_ids: &mut [i32; 8],
+    wsola_grain_offsets: &mut [f32; 8],
+) -> f32 {
+    let trim_len = (end_sample - start_sample).max(1) as f32;
+    if trim_len < SAMPLE_PLAYER_PITCH_HOP_SAMPLES {
+        return read_sample_player_asset(asset, timeline_position, start_sample, end_sample);
+    }
+
+    let hop = SAMPLE_PLAYER_PITCH_HOP_SAMPLES.min((trim_len * 0.5).max(1.0));
+    let grain_len = SAMPLE_PLAYER_PITCH_GRAIN_SAMPLES
+        .min(trim_len)
+        .max(hop * 2.0);
+    let grain_index = ((timeline_position - start_sample as f32) / hop).floor() as i32;
+    let mut sum = 0.0;
+    let mut weight_sum = 0.0;
+
+    for offset in -3..=3 {
+        let grain_start = start_sample as f32 + (grain_index + offset) as f32 * hop;
+        let local = timeline_position - grain_start;
+        if local < 0.0 || local >= grain_len {
+            continue;
+        }
+
+        let read_position = grain_start + local * pitch_factor;
+        let resolved_read_position = if looping {
+            wrap_sample_player_position(read_position, start_sample, end_sample)
+        } else if read_position < start_sample as f32 || read_position >= end_sample as f32 {
+            continue;
+        } else {
+            read_position
+        };
+        let alignment_offset = resolve_wsola_grain_offset(
+            asset,
+            grain_index + offset,
+            grain_start,
+            pitch_factor,
+            start_sample,
+            end_sample,
+            looping,
+            wsola_grain_ids,
+            wsola_grain_offsets,
+        );
+        let resolved_read_position = if looping {
+            wrap_sample_player_position(
+                resolved_read_position + alignment_offset,
+                start_sample,
+                end_sample,
+            )
+        } else {
+            clamp(
+                resolved_read_position + alignment_offset,
+                start_sample as f32,
+                (end_sample - 1) as f32,
+            )
+        };
+        let phase = local / grain_len;
+        let window = 0.5 - 0.5 * (std::f32::consts::TAU * phase).cos();
+        sum += read_sample_player_asset(asset, resolved_read_position, start_sample, end_sample)
+            * window;
+        weight_sum += window;
+    }
+
+    if weight_sum > 0.000001 {
+        sum / weight_sum
+    } else {
+        read_sample_player_asset(asset, timeline_position, start_sample, end_sample)
+    }
+}
+
+fn resolve_wsola_grain_offset(
+    asset: &crate::SampleAsset,
+    grain_id: i32,
+    grain_start: f32,
+    pitch_factor: f32,
+    start_sample: usize,
+    end_sample: usize,
+    looping: bool,
+    wsola_grain_ids: &mut [i32; 8],
+    wsola_grain_offsets: &mut [f32; 8],
+) -> f32 {
+    if (pitch_factor - 1.0).abs() < 0.001 {
+        return 0.0;
+    }
+
+    let slot = grain_id.rem_euclid(wsola_grain_ids.len() as i32) as usize;
+    if wsola_grain_ids[slot] == grain_id {
+        return wsola_grain_offsets[slot];
+    }
+
+    let search_radius = 256;
+    let search_step = 32;
+    let compare_len = 96;
+    let mut best_offset = 0.0;
+    let mut best_score = f32::NEG_INFINITY;
+
+    for offset in (-search_radius..=search_radius).step_by(search_step) {
+        let mut dot = 0.0;
+        let mut ref_energy = 0.0;
+        let mut candidate_energy = 0.0;
+
+        for index in 0..compare_len {
+            let reference_position = grain_start + index as f32;
+            let candidate_position = grain_start + offset as f32 + index as f32 * pitch_factor;
+
+            let reference = if looping {
+                read_sample_player_asset(
+                    asset,
+                    wrap_sample_player_position(reference_position, start_sample, end_sample),
+                    start_sample,
+                    end_sample,
+                )
+            } else if reference_position < start_sample as f32
+                || reference_position >= end_sample as f32
+            {
+                0.0
+            } else {
+                read_sample_player_asset(asset, reference_position, start_sample, end_sample)
+            };
+            let candidate = if looping {
+                read_sample_player_asset(
+                    asset,
+                    wrap_sample_player_position(candidate_position, start_sample, end_sample),
+                    start_sample,
+                    end_sample,
+                )
+            } else if candidate_position < start_sample as f32
+                || candidate_position >= end_sample as f32
+            {
+                0.0
+            } else {
+                read_sample_player_asset(asset, candidate_position, start_sample, end_sample)
+            };
+
+            dot += reference * candidate;
+            ref_energy += reference * reference;
+            candidate_energy += candidate * candidate;
+        }
+
+        let score = if ref_energy > 0.000001 && candidate_energy > 0.000001 {
+            dot / (ref_energy.sqrt() * candidate_energy.sqrt())
+        } else {
+            f32::NEG_INFINITY
+        };
+        if score > best_score {
+            best_score = score;
+            best_offset = offset as f32;
+        }
+    }
+
+    wsola_grain_ids[slot] = grain_id;
+    wsola_grain_offsets[slot] = best_offset;
+    best_offset
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sine_asset(sample_count: usize) -> crate::SampleAsset {
+        let samples = (0..sample_count)
+            .map(|index| ((index as f32 / 32.0) * std::f32::consts::TAU).sin())
+            .collect();
+        crate::SampleAsset {
+            sample_rate: 48_000.0,
+            samples,
+        }
+    }
+
+    #[test]
+    fn pitch_preserved_sample_stays_finite_across_trim() {
+        let asset = sine_asset(4096);
+        let mut grain_ids = [i32::MIN; 8];
+        let mut grain_offsets = [0.0; 8];
+
+        for position in [0.0, 128.0, 512.0, 1536.0, 3072.0] {
+            let sample = render_pitch_preserved_sample(
+                &asset,
+                position,
+                0.5,
+                0,
+                asset.samples.len(),
+                false,
+                &mut grain_ids,
+                &mut grain_offsets,
+            );
+
+            assert!(sample.is_finite());
+            assert!(sample.abs() <= 1.0);
+        }
+    }
+
+    #[test]
+    fn pitch_preserved_sample_wraps_loop_reads() {
+        let asset = sine_asset(4096);
+        let near_end = asset.samples.len() as f32 - 8.0;
+        let mut grain_ids = [i32::MIN; 8];
+        let mut grain_offsets = [0.0; 8];
+
+        let sample = render_pitch_preserved_sample(
+            &asset,
+            near_end,
+            2.0,
+            0,
+            asset.samples.len(),
+            true,
+            &mut grain_ids,
+            &mut grain_offsets,
+        );
+
+        assert!(sample.is_finite());
+        assert!(sample.abs() <= 1.0);
     }
 }

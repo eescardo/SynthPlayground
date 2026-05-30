@@ -342,6 +342,13 @@ impl RuntimeNode {
                         node.mode = parsed;
                     }
                 }
+                "pitchMode" => {
+                    if let Ok(parsed) = serde_json::from_value::<SamplePlayerPitchMode>(
+                        Value::String(value_to_string(Some(value), "resample")),
+                    ) {
+                        node.pitch_mode = parsed;
+                    }
+                }
                 "start" => {
                     node.start_ratio = clamp(value_to_f32(Some(value), node.start_ratio), 0.0, 1.0)
                 }

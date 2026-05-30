@@ -1,7 +1,7 @@
 use crate::{
     clamp, db_to_gain, one_pole_step, voct_to_hz, waveform_sample, AdsrMode, EngineProfileStats,
     FilterType, HostSignalIndices, NoiseColor, OverdriveMode, ReverbMode, SampleAsset,
-    SamplePlayerMode, SaturationType, SmoothParam, Wave,
+    SamplePlayerMode, SamplePlayerPitchMode, SaturationType, SmoothParam, Wave,
 };
 use serde_json::Value;
 use std::collections::HashMap;
@@ -211,6 +211,7 @@ pub(crate) struct SamplePlayerNode {
     gate: i32,
     pitch: i32,
     mode: SamplePlayerMode,
+    pitch_mode: SamplePlayerPitchMode,
     start_ratio: f32,
     end_ratio: f32,
     gain: SmoothParam,
@@ -219,6 +220,8 @@ pub(crate) struct SamplePlayerNode {
     position: f32,
     active: bool,
     last_gate: f32,
+    wsola_grain_ids: [i32; 8],
+    wsola_grain_offsets: [f32; 8],
 }
 
 #[derive(Clone)]

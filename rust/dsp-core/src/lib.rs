@@ -181,6 +181,13 @@ enum SamplePlayerMode {
     Loop,
 }
 
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum SamplePlayerPitchMode {
+    Resample,
+    PreserveDuration,
+}
+
 #[derive(Clone)]
 struct SampleAsset {
     sample_rate: f32,
