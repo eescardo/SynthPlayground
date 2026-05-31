@@ -160,6 +160,7 @@ export class SharedWasmRenderStream {
     this.previewCaptureState = null;
     this.engine = implementation.createEngine(renderer, this.project, this.projectSpec, options);
 
+    installWasmSampleAssets(this.engine, this.sampleAssetsByTrack);
     const compiledEvents = implementation.compileEvents(this.project, this.projectSpec, this.eventQueue);
     this.engine.start_stream(
       this.projectSpecJson,
@@ -168,7 +169,6 @@ export class SharedWasmRenderStream {
       this.transportSessionId,
       resolveRandomSeed(options.randomSeed)
     );
-    installWasmSampleAssets(this.engine, this.sampleAssetsByTrack);
     if (this.previewing && this.captureProbes.length > 0) {
       this.previewCaptureState =
         implementation.preparePreviewCapture?.(renderer, this.project, this.projectSpec, options, this.engine) ?? null;

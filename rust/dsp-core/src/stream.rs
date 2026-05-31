@@ -133,11 +133,18 @@ impl TrackRuntime {
         sample_rate: f32,
         block_size: usize,
         random_seed: u32,
+        sample_assets_by_node_id: Option<&HashMap<String, SampleAsset>>,
     ) -> Result<Self, JsValue> {
         let node_templates = spec
             .nodes
             .iter()
-            .map(|node| RuntimeNode::from_raw(node, sample_rate))
+            .map(|node| {
+                RuntimeNode::from_raw(
+                    node,
+                    sample_rate,
+                    sample_assets_by_node_id.and_then(|assets| assets.get(&node.id).cloned()),
+                )
+            })
             .collect::<Result<Vec<_>, _>>()?;
         let node_index_by_id = spec
             .nodes
