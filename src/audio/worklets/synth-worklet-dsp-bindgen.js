@@ -255,6 +255,25 @@ export class WasmSubsetEngine {
     }
   }
 
+  stage_sample_asset(trackIndex, nodeId, sampleRate, samples) {
+    const ptr0 = passStringToWasm0(nodeId, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArrayF32ToWasm0(samples, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.wasmsubsetengine_stage_sample_asset(
+      this.__wbg_ptr,
+      trackIndex,
+      ptr0,
+      len0,
+      sampleRate,
+      ptr1,
+      len1
+    );
+    if (ret[1]) {
+      throw takeFromExternrefTable0(ret[0]);
+    }
+  }
+
   start_stream(projectJson, songStartSample, eventsJson, sessionId, randomSeed) {
     const ptr0 = passStringToWasm0(projectJson, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;

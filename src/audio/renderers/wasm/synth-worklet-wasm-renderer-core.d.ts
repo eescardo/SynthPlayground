@@ -30,6 +30,7 @@ export interface SharedWasmEngine {
     sessionId: number,
     randomSeed: number
   ): void;
+  stage_sample_asset?(trackIndex: number, nodeId: string, sampleRate: number, samples: Float32Array): void;
   enqueue_events(eventsJson: string): void;
   set_sample_asset?(trackIndex: number, nodeId: string, sampleRate: number, samples: Float32Array): void;
   process_block(): boolean;

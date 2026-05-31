@@ -21,12 +21,12 @@ export class NullPort {
 export const resolveRandomSeed = (value) => (Number.isFinite(value) ? Number(value) >>> 0 : DEFAULT_RANDOM_SEED);
 
 const installWasmSampleAssets = (engine, sampleAssetsByTrack) => {
-  if (typeof engine.set_sample_asset !== "function") {
+  if (typeof engine.stage_sample_asset !== "function") {
     return;
   }
   (sampleAssetsByTrack || []).forEach((assets, trackIndex) => {
     for (const asset of assets || []) {
-      engine.set_sample_asset(trackIndex, asset.nodeId, asset.sampleRate, asset.samples);
+      engine.stage_sample_asset(trackIndex, asset.nodeId, asset.sampleRate, asset.samples);
     }
   });
 };

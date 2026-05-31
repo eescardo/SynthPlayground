@@ -1,22 +1,11 @@
 use crate::stream::TrackRuntime;
 use crate::{
-    clamp, db_to_gain, js_error, now_ms, sort_events, EngineProfileStats, EventSpec, MasterFxSpec,
-    PreviewProbeCaptureSpec, PreviewProbeCaptureStateSnapshot, ProjectSpec, SampleAsset,
+    build_sample_asset, clamp, db_to_gain, js_error, now_ms, sort_events, EngineProfileStats,
+    EventSpec, MasterFxSpec, PreviewProbeCaptureSpec, PreviewProbeCaptureStateSnapshot,
+    ProjectSpec, SampleAsset,
 };
 use std::collections::HashMap;
-use std::sync::Arc;
 use wasm_bindgen::prelude::*;
-
-fn build_sample_asset(sample_rate: f32, samples: &[f32]) -> Option<SampleAsset> {
-    if sample_rate > 0.0 && !samples.is_empty() {
-        Some(SampleAsset {
-            sample_rate,
-            samples: Arc::<[f32]>::from(samples),
-        })
-    } else {
-        None
-    }
-}
 
 fn pending_track_sample_assets(
     assets_by_track: &mut Vec<HashMap<String, SampleAsset>>,
@@ -105,9 +94,7 @@ impl WasmSubsetEngine {
         self.right.resize(self.block_size, 0.0);
         self.left.fill(0.0);
         self.right.fill(0.0);
-        let pending_sample_assets_by_track =
-            std::mem::take(&mut self.pending_sample_assets_by_track);
-        self.tracks = project
+        let tracks = project
             .tracks
             .into_iter()
             .enumerate()
@@ -118,10 +105,12 @@ impl WasmSubsetEngine {
                     self.sample_rate,
                     self.block_size,
                     random_seed,
-                    pending_sample_assets_by_track.get(track_index),
+                    self.pending_sample_assets_by_track.get(track_index),
                 )
             })
             .collect::<Result<Vec<_>, _>>()?;
+        self.tracks = tracks;
+        self.pending_sample_assets_by_track.clear();
         self.master_fx = project.master_fx;
         self.master_compressor_env = 0.0;
         self.event_queue = events;
@@ -151,23 +140,29 @@ impl WasmSubsetEngine {
         sample_rate: f32,
         samples: &[f32],
     ) -> Result<(), JsValue> {
-        if self.tracks.is_empty() {
-            let track_assets =
-                pending_track_sample_assets(&mut self.pending_sample_assets_by_track, track_index);
-            if let Some(asset) = build_sample_asset(sample_rate, samples) {
-                track_assets.insert(node_id.to_string(), asset);
-            } else {
-                track_assets.remove(node_id);
-            }
-            return Ok(());
-        }
-
         let track = self.tracks.get_mut(track_index).ok_or_else(|| {
             js_error(format!(
                 "Unknown track index for sample asset: {track_index}"
             ))
         })?;
         track.set_sample_asset(node_id, sample_rate, samples);
+        Ok(())
+    }
+
+    pub fn stage_sample_asset(
+        &mut self,
+        track_index: usize,
+        node_id: &str,
+        sample_rate: f32,
+        samples: &[f32],
+    ) -> Result<(), JsValue> {
+        let track_assets =
+            pending_track_sample_assets(&mut self.pending_sample_assets_by_track, track_index);
+        if let Some(asset) = build_sample_asset(sample_rate, samples) {
+            track_assets.insert(node_id.to_string(), asset);
+        } else {
+            track_assets.remove(node_id);
+        }
         Ok(())
     }
 

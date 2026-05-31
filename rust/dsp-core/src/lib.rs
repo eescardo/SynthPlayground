@@ -32,6 +32,17 @@ fn now_ms() -> f64 {
     js_sys::Date::now()
 }
 
+pub(crate) fn build_sample_asset(sample_rate: f32, samples: &[f32]) -> Option<SampleAsset> {
+    if sample_rate > 0.0 && !samples.is_empty() {
+        Some(SampleAsset {
+            sample_rate,
+            samples: Arc::<[f32]>::from(samples),
+        })
+    } else {
+        None
+    }
+}
+
 const MAX_VOICES: usize = 8;
 
 #[inline(always)]

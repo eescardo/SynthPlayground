@@ -27,10 +27,11 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
       engineLifecycleCalls.push("start_stream");
     }
     enqueue_events() {}
-    set_sample_asset(trackIndex: number, nodeId: string, sampleRate: number, samples: Float32Array) {
-      engineLifecycleCalls.push("set_sample_asset");
+    stage_sample_asset(trackIndex: number, nodeId: string, sampleRate: number, samples: Float32Array) {
+      engineLifecycleCalls.push("stage_sample_asset");
       installedSampleAssets.push({ trackIndex, nodeId, sampleRate, samples });
     }
+    set_sample_asset() {}
     configure_preview_probe_capture() {}
     process_block() {
       return true;
@@ -141,7 +142,7 @@ describe("WASM worklet renderer sample assets", () => {
         samples: new Float32Array([0, 0.25, -0.25])
       }
     ]);
-    expect(engineLifecycleCalls).toEqual(["set_sample_asset", "start_stream"]);
+    expect(engineLifecycleCalls).toEqual(["stage_sample_asset", "start_stream"]);
     const projectSpecJson = (
       renderer as unknown as { getProjectPlan: (value: typeof project) => { projectSpecJson: string } }
     ).getProjectPlan(project).projectSpecJson;
