@@ -1,4 +1,11 @@
-import { ModuleTypeSchema, ParamSchema, PatchModuleCategory, PortSchema, Unit } from "@/types/patch";
+import {
+  IntrinsicParamSchema,
+  ModuleTypeSchema,
+  ParamSchema,
+  PatchModuleCategory,
+  PortSchema,
+  Unit
+} from "@/types/patch";
 
 const floatParam = (
   id: string,
@@ -42,6 +49,19 @@ const boolParam = (id: string, label: string, defaultValue: boolean, doc: string
   label,
   type: "bool",
   default: defaultValue,
+  doc
+});
+
+const assetRefParam = (
+  id: string,
+  label: string,
+  assetKind: IntrinsicParamSchema["assetKind"],
+  doc: string
+): IntrinsicParamSchema => ({
+  id,
+  label,
+  kind: "assetRef",
+  assetKind,
   doc
 });
 
@@ -350,6 +370,9 @@ export const moduleRegistry: ModuleTypeSchema[] = [
         default: 0,
         smoothingMs: 10
       })
+    ],
+    intrinsicParams: [
+      assetRefParam("sampleAssetId", "Sample asset", "samplePlayer", "References the loaded sample asset")
     ],
     portsIn: [port("gate", "Gate", ["GATE"], "Playback gate"), port("pitch", "Pitch", ["CV"], "Pitch CV")],
     portsOut: [port("out", "Out", ["AUDIO"], "Sample output")]

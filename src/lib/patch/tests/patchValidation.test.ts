@@ -241,7 +241,7 @@ describe("patch validation", () => {
     );
   });
 
-  it("accepts SamplePlayer asset ids as patch-owned auxiliary params", () => {
+  it("accepts SamplePlayer asset ids as declared intrinsic params", () => {
     const patch = createClearPatch({ id: "sample_patch", name: "Sample Patch" });
     patch.nodes.push({
       id: "sample1",

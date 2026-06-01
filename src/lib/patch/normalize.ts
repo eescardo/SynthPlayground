@@ -92,8 +92,10 @@ const normalizePatchNodeParamsToCurrentSchema = <T extends PatchNode>(node: T): 
   const policy = getPatchSchemaNormalizationPolicy(node.typeId);
   const params: PatchNode["params"] = { ...node.params };
   if (policy.pruneUnknownParams) {
+    const paramIds = new Set(schema.params.map((param) => param.id));
+    const intrinsicParamIds = new Set((schema.intrinsicParams ?? []).map((param) => param.id));
     for (const paramId of Object.keys(params)) {
-      if (!schema.params.some((param) => param.id === paramId)) {
+      if (!paramIds.has(paramId) && !intrinsicParamIds.has(paramId)) {
         delete params[paramId];
       }
     }

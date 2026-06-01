@@ -41,6 +41,14 @@ export interface BoolParamSchema extends ParamSchemaBase {
 
 export type ParamSchema = FloatParamSchema | EnumParamSchema | BoolParamSchema;
 
+export interface IntrinsicParamSchema {
+  id: string;
+  label: string;
+  kind: "assetRef";
+  assetKind: "samplePlayer";
+  doc: string;
+}
+
 export interface PortSchema {
   id: string;
   label: string;
@@ -60,6 +68,7 @@ export interface ModuleTypeSchema {
     out?: string[];
   };
   params: ParamSchema[];
+  intrinsicParams?: IntrinsicParamSchema[];
   portsIn: PortSchema[];
   portsOut: PortSchema[];
 }

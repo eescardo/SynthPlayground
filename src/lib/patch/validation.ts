@@ -37,13 +37,6 @@ const pushWarning = (
   issues.push({ level: "warning", message, context, code });
 };
 
-const AUXILIARY_NODE_PARAM_IDS = {
-  SamplePlayer: new Set(["sampleAssetId"])
-} as Partial<Record<string, Set<string>>>;
-
-const isAuxiliaryNodeParam = (typeId: string, paramId: string) =>
-  AUXILIARY_NODE_PARAM_IDS[typeId]?.has(paramId) ?? false;
-
 export const patchHasNode = (patch: Patch, nodeId: string): boolean => patch.nodes.some((node) => node.id === nodeId);
 const patchHasEndpointNode = (patch: Patch, nodeId: string): boolean =>
   patch.nodes.some((node) => node.id === nodeId) || getPatchBoundaryPorts(patch).some((port) => port.id === nodeId);
@@ -272,6 +265,7 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
       continue;
     }
     const paramsById = new Map(schema.params.map((param) => [param.id, param] as const));
+    const intrinsicParamsById = new Map((schema.intrinsicParams ?? []).map((param) => [param.id, param] as const));
 
     for (const param of schema.params) {
       if (!(param.id in node.params)) {
@@ -287,7 +281,16 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
     for (const [paramId, value] of Object.entries(node.params)) {
       const paramSchema = paramsById.get(paramId);
       if (!paramSchema) {
-        if (isAuxiliaryNodeParam(node.typeId, paramId)) {
+        const intrinsicParamSchema = intrinsicParamsById.get(paramId);
+        if (intrinsicParamSchema) {
+          if (intrinsicParamSchema.kind === "assetRef" && typeof value !== "string") {
+            pushError(
+              issues,
+              `Module ${node.id} intrinsic parameter ${paramId} must be an asset id string`,
+              { nodeId: node.id, typeId: node.typeId, paramId },
+              "node-param-type-mismatch"
+            );
+          }
           continue;
         }
         pushWarning(
