@@ -7,6 +7,7 @@ import type {
   TransportCommand
 } from "@/types/audio";
 import type { PreviewProbeCapture, PreviewProbeRequest, PreviewProbeSharedBuffer } from "@/types/probes";
+import type { ProjectAssetLibrary } from "@/types/assets";
 import type { WasmEvent, WasmProjectPlan, WasmProjectSpec } from "@/audio/renderers/wasm/wasmSubsetCompiler";
 import type { WorkletPortLike } from "@/audio/renderers/shared/synth-renderer";
 import type { WasmPreviewProbeCaptureRequest } from "@/audio/renderers/wasm/synth-worklet-wasm-compiler-core.js";
@@ -88,9 +89,14 @@ export interface SharedWasmRendererLike {
   sampleRateInternal: number;
   blockSize: number;
   defaultProject: AudioProject | null;
+  defaultRuntimeAssets?: ProjectAssetLibrary;
   implementation: SharedWasmImplementation;
-  getProjectPlan(project: AudioProject): {
+  getProjectPlan(
+    project: AudioProject,
+    runtimeAssets?: ProjectAssetLibrary
+  ): {
     project: AudioProject;
+    runtimeAssets?: ProjectAssetLibrary;
     blockSize: number;
     projectSpec: WasmProjectSpec;
     projectSpecJson: string;
@@ -108,7 +114,10 @@ export interface SharedWasmRendererLike {
 }
 
 export interface SharedWasmImplementation {
-  compileProject: (project: AudioProject, options: { blockSize: number }) => WasmProjectPlan;
+  compileProject: (
+    project: AudioProject,
+    options: { blockSize: number; runtimeAssets?: ProjectAssetLibrary }
+  ) => WasmProjectPlan;
   compileEvents: (project: AudioProject, projectSpec: WasmProjectSpec, events: SchedulerEvent[]) => WasmEvent[];
   createEngine: (
     renderer: SharedWasmRendererLike & Record<string, unknown>,
@@ -199,11 +208,16 @@ export class SharedWasmRenderer {
   sampleRateInternal: number;
   blockSize: number;
   defaultProject: AudioProject | null;
+  defaultRuntimeAssets?: ProjectAssetLibrary;
   implementation: SharedWasmImplementation;
   configure(config: Partial<SynthRendererConfig> & { wasmBytes?: ArrayBuffer | Uint8Array | null }): void;
-  setDefaultProject(project: AudioProject): void;
-  getProjectPlan(project: AudioProject): {
+  setDefaultProject(project: AudioProject, runtimeAssets?: ProjectAssetLibrary): void;
+  getProjectPlan(
+    project: AudioProject,
+    runtimeAssets?: ProjectAssetLibrary
+  ): {
     project: AudioProject;
+    runtimeAssets?: ProjectAssetLibrary;
     blockSize: number;
     projectSpec: WasmProjectSpec;
     projectSpecJson: string;
@@ -219,7 +233,10 @@ export class SharedWasmRenderer {
   readonly project: AudioProject | null;
 }
 
-export const defaultCompileProject: (project: AudioProject, options: { blockSize: number }) => WasmProjectPlan;
+export const defaultCompileProject: (
+  project: AudioProject,
+  options: { blockSize: number; runtimeAssets?: ProjectAssetLibrary }
+) => WasmProjectPlan;
 
 export const defaultCompileEvents: (
   project: AudioProject,

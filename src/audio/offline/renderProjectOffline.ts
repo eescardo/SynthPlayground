@@ -22,7 +22,8 @@ export const renderProjectOffline = async (
     processorOptions: {
       sampleRate: options.sampleRate,
       blockSize: options.blockSize,
-      project
+      project,
+      runtimeAssets: options.runtimeAssets
     }
   });
   return renderOfflineWithRenderer<WasmSynthRenderStream, { profileStats?: Record<string, unknown> | null }>(

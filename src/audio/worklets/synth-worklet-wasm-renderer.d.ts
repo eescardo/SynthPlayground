@@ -13,7 +13,7 @@ export class WasmWorkletRenderer implements SynthRenderer {
   wasmBytes: ArrayBuffer | Uint8Array | null;
   memory: WebAssembly.Memory | null;
   configure(config: Partial<SynthRendererConfig> & { wasmBytes?: ArrayBuffer }): void;
-  setDefaultProject(project: AudioProject): void;
+  setDefaultProject(project: AudioProject, runtimeAssets?: SynthRendererConfig["runtimeAssets"]): void;
   startStream(options: SynthStreamStartOptions): SynthRenderStream | null;
   readonly project: SynthRenderer["project"];
 }

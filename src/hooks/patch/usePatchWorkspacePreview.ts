@@ -86,7 +86,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
     playing,
     setRuntimeError
   } = options;
-  const audioProject = toAudioProject(project, projectAssets);
+  const audioProject = toAudioProject(project);
   const [previewPitch, setPreviewPitch] = useState(DEFAULT_NOTE_PITCH);
   const [previewPitchPickerOpen, setPreviewPitchPickerOpen] = useState(false);
   const [pendingPreview, setPendingPreview] = useState<{
@@ -202,6 +202,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
           0.9,
           {
             projectOverride: previewProject,
+            runtimeAssets: projectAssets,
             captureProbes: captureRequests,
             captureDurationBeats: resolvePatchPreviewCaptureDurationBeats(
               options?.holdUntilReleased,
@@ -230,7 +231,16 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
         forceStopOnRelease: Boolean(options?.holdUntilReleased && !hasHostGateConnection(patch))
       };
     },
-    [audioEngineRef, audioProject, captureRequests, playing, previewPitch, selectedTrack, setRuntimeError]
+    [
+      audioEngineRef,
+      audioProject,
+      captureRequests,
+      playing,
+      previewPitch,
+      projectAssets,
+      selectedTrack,
+      setRuntimeError
+    ]
   );
 
   useEffect(() => {

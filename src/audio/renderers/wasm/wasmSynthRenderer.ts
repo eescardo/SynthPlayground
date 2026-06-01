@@ -82,8 +82,8 @@ export class NodeWasmSynthRenderer extends SharedWasmRenderer implements SynthRe
     this.sharedImplementation = implementation;
   }
 
-  setDefaultProject(project: AudioProject): void {
-    this.defaultProject = project;
+  setDefaultProject(project: AudioProject, runtimeAssets?: SynthRendererConfig["runtimeAssets"]): void {
+    super.setDefaultProject(project, runtimeAssets);
   }
 
   startStream(options: SynthStreamStartOptions): WasmSynthRenderStream | null {

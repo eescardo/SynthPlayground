@@ -1,11 +1,9 @@
 import { AudioProject } from "@/types/audio";
 import { Project } from "@/types/music";
-import { ProjectAssetLibrary } from "@/types/assets";
 
-export const toAudioProject = (project: Project, assets: ProjectAssetLibrary): AudioProject => ({
+export const toAudioProject = (project: Project): AudioProject => ({
   global: project.global,
   tracks: project.tracks,
   patches: project.patches,
-  masterFx: project.masterFx,
-  sampleAssets: assets
+  masterFx: project.masterFx
 });

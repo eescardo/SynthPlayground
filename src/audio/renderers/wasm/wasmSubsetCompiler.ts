@@ -1,4 +1,5 @@
 import { AudioProject, SchedulerEvent } from "@/types/audio";
+import type { ProjectAssetLibrary } from "@/types/assets";
 import {
   compileAudioProjectPlanToWasmSubsetCore,
   compileSchedulerEventsToWasmSubsetCore
@@ -136,12 +137,12 @@ export type WasmEvent = WasmNoteOnEvent | WasmNoteOffEvent | WasmParamChangeEven
 // metadata are all resolved here so the runtime can stay cheap.
 export const compileAudioProjectToWasmSubset = (
   project: AudioProject,
-  options: { blockSize: number }
+  options: { blockSize: number; runtimeAssets?: ProjectAssetLibrary }
 ): WasmProjectSpec => compileAudioProjectPlanToWasmSubset(project, options).projectSpec;
 
 export const compileAudioProjectPlanToWasmSubset = (
   project: AudioProject,
-  options: { blockSize: number }
+  options: { blockSize: number; runtimeAssets?: ProjectAssetLibrary }
 ): WasmProjectPlan => compileAudioProjectPlanToWasmSubsetCore(project, options) as WasmProjectPlan;
 
 export const compileSchedulerEventsToWasmSubset = (

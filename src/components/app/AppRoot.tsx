@@ -159,7 +159,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const recordingHandleBeatRef = useRef<(beat: number) => void>(() => {});
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const keepSelectionPopoverCollapsedRef = useRef(false);
-  const audioProject = useMemo(() => toAudioProject(project, projectAssets), [project, projectAssets]);
+  const audioProject = useMemo(() => toAudioProject(project), [project]);
   const {
     noteClipboardPayload,
     setNoteClipboardPayload,
@@ -399,8 +399,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
       audioEngineRef.current = new AudioEngine();
     }
     audioEngineRef.current.setRuntimeErrorListener(setRuntimeError);
-    audioEngineRef.current.syncProjectSnapshot(audioProject, { syncToWorklet: !playing });
-  }, [audioProject, playing, ready, setRuntimeError]);
+    audioEngineRef.current.syncProjectSnapshot(audioProject, { syncToWorklet: !playing, runtimeAssets: projectAssets });
+  }, [audioProject, playing, projectAssets, ready, setRuntimeError]);
 
   useEffect(() => {
     setEditorSelection((current) => filterEditorSelectionToProject(project, current));
@@ -458,6 +458,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const playback = usePlaybackController({
     project,
+    projectAssets,
     audioProject,
     playbackEndBeat,
     userCueBeat,

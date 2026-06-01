@@ -14,6 +14,7 @@ import {
 } from "@/audio/engineBackends";
 import { SproutError } from "@/lib/sproutErrors";
 import { AudioProject } from "@/types/audio";
+import { ProjectAssetLibrary } from "@/types/assets";
 import { PreviewProbeCapture, PreviewProbeRequest } from "@/types/probes";
 
 const EXPORT_TAIL_BEATS = 8;
@@ -37,11 +38,14 @@ export class AudioEngine {
     this.backend.setRuntimeErrorListener(listener);
   }
 
-  replaceProject(project: AudioProject): void {
-    this.backend.replaceProject(project);
+  replaceProject(project: AudioProject, runtimeAssets?: ProjectAssetLibrary): void {
+    this.backend.replaceProject(project, runtimeAssets);
   }
 
-  syncProjectSnapshot(project: AudioProject, options?: { syncToWorklet?: boolean }): void {
+  syncProjectSnapshot(
+    project: AudioProject,
+    options?: { syncToWorklet?: boolean; runtimeAssets?: ProjectAssetLibrary }
+  ): void {
     this.backend.syncProjectSnapshot(project, options);
   }
 
@@ -101,6 +105,7 @@ export class AudioEngine {
     options?: {
       ignoreVolume?: boolean;
       projectOverride?: AudioProject;
+      runtimeAssets?: ProjectAssetLibrary;
       captureProbes?: PreviewProbeRequest[];
       captureDurationBeats?: number;
       previewId?: string;
@@ -120,7 +125,7 @@ export class AudioEngine {
     this.backend.setPreviewCaptureListener(listener);
   }
 
-  async exportProjectAudio(project: AudioProject): Promise<Blob> {
+  async exportProjectAudio(project: AudioProject, runtimeAssets?: ProjectAssetLibrary): Promise<Blob> {
     const maxNoteEndBeat = project.tracks
       .flatMap((track) => track.notes)
       .reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);
@@ -134,6 +139,7 @@ export class AudioEngine {
     const rendered = await renderProjectOfflineBrowserWasm(project, {
       sampleRate: FIXED_SAMPLE_RATE,
       blockSize: BLOCK_SIZE,
+      runtimeAssets,
       durationSamples: totalSamples,
       events: initialEvents,
       sessionId: 1

@@ -105,16 +105,14 @@ describe("WASM worklet renderer sample assets", () => {
         }
       ]
     });
-    const project = {
-      ...createWasmRendererTestProject({ patch }),
-      sampleAssets: {
-        samplePlayerById: {
-          asset_1: {
-            version: 2 as const,
-            name: "sample.wav",
-            sampleRate: 44100,
-            samples: new Float32Array([0, 0.25, -0.25])
-          }
+    const project = createWasmRendererTestProject({ patch });
+    const runtimeAssets = {
+      samplePlayerById: {
+        asset_1: {
+          version: 2 as const,
+          name: "sample.wav",
+          sampleRate: 44100,
+          samples: new Float32Array([0, 0.25, -0.25])
         }
       }
     };
@@ -123,12 +121,14 @@ describe("WASM worklet renderer sample assets", () => {
         sampleRate: 48000,
         blockSize,
         project,
+        runtimeAssets,
         wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
       }
     });
 
     renderer.startStream({
       project,
+      runtimeAssets,
       songStartSample: 0,
       mode: "transport",
       events: []

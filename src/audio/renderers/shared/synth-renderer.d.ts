@@ -32,7 +32,7 @@ export interface SynthRenderer {
   blockSize: number;
   project: AudioProject | null;
   configure(config: Partial<SynthRendererConfig> & { wasmBytes?: ArrayBuffer }): void;
-  setDefaultProject(project: AudioProject): void;
+  setDefaultProject(project: AudioProject, runtimeAssets?: SynthRendererConfig["runtimeAssets"]): void;
   startStream(options: SynthStreamStartOptions): SynthRenderStream | null;
 }
 

@@ -1,11 +1,13 @@
 import type { SynthRenderer, SynthRenderStream } from "@/audio/renderers/shared/synth-renderer";
 import { AudioProject, SchedulerEvent } from "@/types/audio";
+import type { ProjectAssetLibrary } from "@/types/assets";
 
 export interface BaseOfflineRenderOptions {
   sampleRate: number;
   blockSize: number;
   durationSamples: number;
   events?: SchedulerEvent[];
+  runtimeAssets?: ProjectAssetLibrary;
   sessionId?: number;
   randomSeed?: number;
 }
@@ -40,6 +42,7 @@ export const renderOfflineWithRenderer = <
   const { blockSize, durationSamples } = options;
   const stream = renderer.startStream({
     project,
+    runtimeAssets: options.runtimeAssets,
     songStartSample: 0,
     events: options.events ?? [],
     sessionId: options.sessionId ?? 1,

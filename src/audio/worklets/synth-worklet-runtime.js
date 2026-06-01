@@ -41,6 +41,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     if (processorOptions?.transport?.isPlaying && this.renderer.project) {
       this.currentStream = this.startStreamSafely("start_stream", {
         project: this.renderer.project,
+        runtimeAssets: processorOptions.runtimeAssets,
         songStartSample: processorOptions.transport.songStartSample,
         events: processorOptions.transport.events || [],
         sessionId: processorOptions.transport.sessionId,
@@ -119,7 +120,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         }
         break;
       case "SET_PROJECT":
-        this.renderer.setDefaultProject(message.project);
+        this.renderer.setDefaultProject(message.project, message.runtimeAssets);
         break;
       case "TRANSPORT":
         this.transportSessionId = Number.isFinite(message.sessionId) ? message.sessionId : this.transportSessionId + 1;
@@ -131,6 +132,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         this.replaceCurrentStream(
           this.startStreamSafely("start_stream", {
             project: this.renderer.project,
+            runtimeAssets: message.runtimeAssets,
             songStartSample: message.songStartSample || 0,
             events: message.events || [],
             sessionId: this.transportSessionId,
@@ -144,6 +146,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         this.replaceCurrentStream(
           this.startStreamSafely("start_stream", {
             project: message.project || this.renderer.project,
+            runtimeAssets: message.runtimeAssets,
             songStartSample: 0,
             events: message.events || [],
             mode: "preview",

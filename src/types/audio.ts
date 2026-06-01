@@ -9,19 +9,20 @@ export interface AudioProject {
   tracks: Track[];
   patches: Patch[];
   masterFx: MasterFxSettings;
-  sampleAssets?: ProjectAssetLibrary;
 }
 
 export interface SynthRendererConfig {
   sampleRate: number;
   blockSize: number;
   project?: AudioProject;
+  runtimeAssets?: ProjectAssetLibrary;
 }
 
 export type SynthRenderMode = "transport" | "preview";
 
 export interface BaseSynthStreamStartOptions {
   project: AudioProject;
+  runtimeAssets?: ProjectAssetLibrary;
   songStartSample: number;
   events: SchedulerEvent[];
   mode: SynthRenderMode;
@@ -110,6 +111,7 @@ export interface WorkletInitMessage {
 export interface WorkletSetProjectMessage {
   type: "SET_PROJECT";
   project: AudioProject;
+  runtimeAssets?: ProjectAssetLibrary;
 }
 
 export interface WorkletEventsMessage {
@@ -138,6 +140,7 @@ export interface WorkletPreviewMessage {
   captureDurationSamples?: number;
   trackId: string;
   project?: AudioProject;
+  runtimeAssets?: ProjectAssetLibrary;
   ignoreVolume?: boolean;
   previewId?: string;
   captureProbes?: PreviewProbeRequest[];
@@ -181,6 +184,7 @@ export interface WorkletTransportMessage {
   events?: SchedulerEvent[];
   sessionId?: number;
   randomSeed?: number;
+  runtimeAssets?: ProjectAssetLibrary;
 }
 
 export interface WorkletRecordingMessage {

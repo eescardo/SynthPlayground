@@ -180,8 +180,8 @@ const createRuntimeNodeParams = (node, params) => {
   return runtimeParams;
 };
 
-const collectTrackSampleAssets = (project, nodeById, nodeOrder) => {
-  const sampleAssets = project.sampleAssets?.samplePlayerById || {};
+const collectTrackSampleAssets = (runtimeAssets, nodeById, nodeOrder) => {
+  const sampleAssets = runtimeAssets?.samplePlayerById || {};
   return nodeOrder.flatMap((nodeId) => {
     const node = nodeById.get(nodeId);
     if (!node) {
@@ -201,7 +201,7 @@ const collectTrackSampleAssets = (project, nodeById, nodeOrder) => {
   });
 };
 
-const compileTrackPatch = (project, patch, track, trackIndex) => {
+const compileTrackPatch = (project, patch, track, trackIndex, runtimeAssets) => {
   const patchNodes = getPatchCompileNodes(patch);
   const nodeById = new Map(patchNodes.map((node) => [node.id, node]));
   const nodeOrder = compareNodeIdsTopologically(patch);
@@ -291,7 +291,7 @@ const compileTrackPatch = (project, patch, track, trackIndex) => {
   };
   return {
     trackSpec,
-    sampleAssets: collectTrackSampleAssets(project, nodeById, nodeOrder)
+    sampleAssets: collectTrackSampleAssets(runtimeAssets, nodeById, nodeOrder)
   };
 };
 
@@ -300,7 +300,7 @@ export const compileAudioProjectPlanToWasmSubsetCore = (project, options) => {
   const compiledTracks = (project.tracks || []).map((track, trackIndex) => {
     const patch = patchById.get(track.instrumentPatchId);
     assertPresent(patch, `Missing patch ${track.instrumentPatchId} for track ${track.id}.`);
-    return compileTrackPatch(project, patch, track, trackIndex);
+    return compileTrackPatch(project, patch, track, trackIndex, options?.runtimeAssets);
   });
 
   return {

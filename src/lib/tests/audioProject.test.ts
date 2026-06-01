@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toAudioProject } from "@/audio/audioProject";
 import { createDefaultProject } from "@/lib/patch/presets";
-import { createEmptyProjectAssetLibrary, normalizeProjectAssetLibrary } from "@/lib/sampleAssetLibrary";
 
 describe("audioProject", () => {
   it("drops UI-only project state while preserving audio-facing data", () => {
@@ -16,19 +15,19 @@ describe("audioProject", () => {
       }
     ];
 
-    const audioProject = toAudioProject(project, createEmptyProjectAssetLibrary());
+    const audioProject = toAudioProject(project);
 
     expect(audioProject).toEqual({
       global: project.global,
       tracks: project.tracks,
       patches: project.patches,
-      masterFx: project.masterFx,
-      sampleAssets: createEmptyProjectAssetLibrary()
+      masterFx: project.masterFx
     });
     expect("ui" in (audioProject as unknown as Record<string, unknown>)).toBe(false);
+    expect("sampleAssets" in (audioProject as unknown as Record<string, unknown>)).toBe(false);
   });
 
-  it("hydrates sample player runtime data from external sample assets", () => {
+  it("preserves sample asset references without embedding runtime assets", () => {
     const project = createDefaultProject();
     project.patches = [
       {
@@ -51,19 +50,9 @@ describe("audioProject", () => {
       }
     ];
 
-    const assets = normalizeProjectAssetLibrary({
-      samplePlayerById: {
-        asset_1: {
-          version: 2,
-          name: "kick.wav",
-          sampleRate: 48000,
-          samples: new Float32Array([0, 0.5, -0.5])
-        }
-      }
-    });
-    const audioProject = toAudioProject(project, assets);
+    const audioProject = toAudioProject(project);
 
-    expect(audioProject.sampleAssets?.samplePlayerById.asset_1?.name).toBe("kick.wav");
+    expect("sampleAssets" in (audioProject as unknown as Record<string, unknown>)).toBe(false);
     expect(audioProject.patches[0].nodes[0].params.sampleData).toBeUndefined();
     expect(audioProject.patches[0].nodes[0].params.sampleAssetId).toBe("asset_1");
   });
