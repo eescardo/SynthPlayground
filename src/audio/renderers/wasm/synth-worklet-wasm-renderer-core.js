@@ -486,13 +486,12 @@ export class SharedWasmRenderer {
       return cached;
     }
     const compiledProject = this.implementation.compileProject(project, { blockSize: this.blockSize });
-    const projectSpec = compiledProject.projectSpec || compiledProject;
     const next = {
       project,
       blockSize: this.blockSize,
-      projectSpec,
-      projectSpecJson: JSON.stringify(projectSpec),
-      sampleAssetsByTrack: compiledProject.sampleAssetsByTrack || []
+      projectSpec: compiledProject.projectSpec,
+      projectSpecJson: JSON.stringify(compiledProject.projectSpec),
+      sampleAssetsByTrack: compiledProject.sampleAssetsByTrack
     };
     this.projectPlanCache = next;
     return next;

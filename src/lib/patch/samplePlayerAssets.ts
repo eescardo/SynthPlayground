@@ -26,7 +26,12 @@ const bytesToBase64 = (bytes: Uint8Array) => {
   return btoa(binary);
 };
 
+const BASE64_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+
 const base64ToBytes = (base64: string) => {
+  if (!BASE64_RE.test(base64)) {
+    throw new Error("Invalid base64 sample payload.");
+  }
   if (typeof Buffer !== "undefined") {
     return new Uint8Array(Buffer.from(base64, "base64"));
   }

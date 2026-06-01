@@ -85,7 +85,6 @@ describe("sampleAssetLibrary", () => {
   });
 
   it("drops malformed base64 sample assets without failing the whole library", () => {
-    vi.stubGlobal("Buffer", undefined);
     vi.stubGlobal("atob", () => {
       throw new Error("Malformed base64");
     });
