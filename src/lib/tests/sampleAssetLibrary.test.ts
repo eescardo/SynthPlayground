@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildMissingSampleAssetIssues,
   createEmptyProjectAssetLibrary,
@@ -8,6 +8,10 @@ import {
 import { createClearPatch, createDefaultProject } from "@/lib/patch/presets";
 
 describe("sampleAssetLibrary", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("reports missing referenced sample assets", () => {
     const project = createDefaultProject();
     const patch = {
@@ -78,5 +82,33 @@ describe("sampleAssetLibrary", () => {
     expect(remappedAssetId).not.toBe("asset_1");
     expect(merged.assets.samplePlayerById.asset_1?.name).toBe("existing.wav");
     expect(merged.assets.samplePlayerById[remappedAssetId]?.name).toBe("imported.wav");
+  });
+
+  it("drops malformed base64 sample assets without failing the whole library", () => {
+    vi.stubGlobal("Buffer", undefined);
+    vi.stubGlobal("atob", () => {
+      throw new Error("Malformed base64");
+    });
+
+    const assets = normalizeProjectAssetLibrary({
+      samplePlayerById: {
+        bad_asset: {
+          version: 2,
+          name: "bad.wav",
+          sampleRate: 48000,
+          encoding: "f32le-base64",
+          samples: "%%%not-base64%%%"
+        },
+        good_asset: {
+          version: 2,
+          name: "good.wav",
+          sampleRate: 48000,
+          samples: new Float32Array([0, 0.2])
+        }
+      }
+    });
+
+    expect(Object.keys(assets.samplePlayerById)).toEqual(["good_asset"]);
+    expect(assets.samplePlayerById.good_asset?.samples).toEqual(new Float32Array([0, 0.2]));
   });
 });

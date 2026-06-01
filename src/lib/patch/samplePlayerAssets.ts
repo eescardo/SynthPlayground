@@ -73,14 +73,18 @@ export function normalizeSamplePlayerAssetData(raw: unknown): SamplePlayerAssetD
     if (raw.samples instanceof Float32Array) {
       samples = cloneSamples(raw.samples);
     } else if (raw.encoding === "f32le-base64" && typeof raw.samples === "string" && raw.samples.length > 0) {
-      const bytes = base64ToBytes(raw.samples);
-      const alignedBytes = bytes.byteOffset % Float32Array.BYTES_PER_ELEMENT === 0 ? bytes : new Uint8Array(bytes);
-      samples = new Float32Array(
-        alignedBytes.buffer,
-        alignedBytes.byteOffset,
-        Math.floor(alignedBytes.byteLength / Float32Array.BYTES_PER_ELEMENT)
-      );
-      samples = cloneSamples(samples);
+      try {
+        const bytes = base64ToBytes(raw.samples);
+        const alignedBytes = bytes.byteOffset % Float32Array.BYTES_PER_ELEMENT === 0 ? bytes : new Uint8Array(bytes);
+        samples = new Float32Array(
+          alignedBytes.buffer,
+          alignedBytes.byteOffset,
+          Math.floor(alignedBytes.byteLength / Float32Array.BYTES_PER_ELEMENT)
+        );
+        samples = cloneSamples(samples);
+      } catch {
+        return null;
+      }
     }
 
     if (!samples || samples.length === 0) {

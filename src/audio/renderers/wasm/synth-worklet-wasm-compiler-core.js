@@ -175,10 +175,10 @@ const createRuntimeNodeParams = (node, params) => {
   return runtimeParams;
 };
 
-const collectTrackSampleAssets = (project, patch, nodeOrder) => {
+const collectTrackSampleAssets = (project, nodeById, nodeOrder) => {
   const sampleAssets = project.sampleAssets?.samplePlayerById || {};
   return nodeOrder.flatMap((nodeId) => {
-    const node = (patch.nodes || []).find((entry) => entry.id === nodeId);
+    const node = nodeById.get(nodeId);
     if (node?.typeId !== "SamplePlayer") {
       return [];
     }
@@ -281,7 +281,7 @@ const compileTrackPatch = (project, patch, track, trackIndex) => {
   };
   return {
     trackSpec,
-    sampleAssets: collectTrackSampleAssets(project, patch, nodeOrder)
+    sampleAssets: collectTrackSampleAssets(project, nodeById, nodeOrder)
   };
 };
 
