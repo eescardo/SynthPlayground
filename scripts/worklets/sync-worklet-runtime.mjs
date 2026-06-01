@@ -6,10 +6,12 @@ const repoRoot = process.cwd();
 const sourceDirs = [
   path.join(repoRoot, "src", "audio", "worklets"),
   path.join(repoRoot, "src", "audio", "renderers", "shared"),
-  path.join(repoRoot, "src", "audio", "renderers", "wasm")
+  path.join(repoRoot, "src", "audio", "renderers", "wasm"),
+  path.join(repoRoot, "src", "lib", "patch")
 ];
 const publicDir = path.join(repoRoot, "public", "worklets");
-const generatedFilePattern = /^(synth-worklet\.js|synth-(worklet|renderer)-.*\.(js|d\.ts))$/;
+const generatedFilePattern =
+  /^(synth-worklet\.js|synth-(worklet|renderer)-.*\.(js|d\.ts)|module-runtime-metadata\.js)$/;
 
 const walkFiles = (dir) => {
   const entries = fs.readdirSync(dir, { withFileTypes: true });

@@ -1,4 +1,5 @@
 import { TRACK_VOLUME_AUTOMATION_ID } from "../shared/synth-renderer-constants.js";
+import { getIntrinsicParamsForType } from "../../../lib/patch/module-runtime-metadata.js";
 
 // TODO(host-boundary-ports): Host source ports are still compiled as implicit
 // renderer-fed signal indices. Once patch input ports become serialized peers
@@ -167,11 +168,14 @@ const applyInitialMacrosToNodeParams = (patch, track, nodeParamTargets) => {
 };
 
 const createRuntimeNodeParams = (node, params) => {
-  if (node.typeId !== "SamplePlayer") {
+  const intrinsicParams = getIntrinsicParamsForType(node.typeId);
+  if (intrinsicParams.length === 0) {
     return params;
   }
   const runtimeParams = { ...params };
-  delete runtimeParams.sampleAssetId;
+  for (const param of intrinsicParams) {
+    delete runtimeParams[param.id];
+  }
   return runtimeParams;
 };
 
@@ -179,15 +183,20 @@ const collectTrackSampleAssets = (project, nodeById, nodeOrder) => {
   const sampleAssets = project.sampleAssets?.samplePlayerById || {};
   return nodeOrder.flatMap((nodeId) => {
     const node = nodeById.get(nodeId);
-    if (node?.typeId !== "SamplePlayer") {
+    if (!node) {
       return [];
     }
-    const assetId = typeof node.params?.sampleAssetId === "string" ? node.params.sampleAssetId : "";
-    const asset = assetId ? sampleAssets[assetId] : null;
-    if (!asset?.samples?.length || !Number.isFinite(asset.sampleRate) || asset.sampleRate <= 0) {
-      return [];
-    }
-    return [{ nodeId: node.id, sampleRate: asset.sampleRate, samples: asset.samples }];
+    return getIntrinsicParamsForType(node.typeId).flatMap((param) => {
+      if (param.kind !== "assetRef" || param.assetKind !== "samplePlayer") {
+        return [];
+      }
+      const assetId = typeof node.params?.[param.id] === "string" ? node.params[param.id] : "";
+      const asset = assetId ? sampleAssets[assetId] : null;
+      if (!asset?.samples?.length || !Number.isFinite(asset.sampleRate) || asset.sampleRate <= 0) {
+        return [];
+      }
+      return [{ nodeId: node.id, sampleRate: asset.sampleRate, samples: asset.samples }];
+    });
   });
 };
 

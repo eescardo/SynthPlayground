@@ -269,6 +269,33 @@ describe("patch validation", () => {
     );
   });
 
+  it("rejects non-string SamplePlayer intrinsic asset ids", () => {
+    const patch = createClearPatch({ id: "sample_patch", name: "Sample Patch" });
+    patch.nodes.push({
+      id: "sample1",
+      typeId: "SamplePlayer",
+      params: {
+        mode: "oneshot",
+        start: 0,
+        end: 1,
+        gain: 1,
+        pitchSemis: 0,
+        sampleAssetId: 123
+      }
+    });
+
+    const result = validatePatch(patch);
+
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "node-param-type-mismatch",
+          context: expect.objectContaining({ nodeId: "sample1", paramId: "sampleAssetId" })
+        })
+      ])
+    );
+  });
+
   it("warns when modules are missing current schema params", () => {
     const patch = createClearPatch({ id: "missing_reverb_params", name: "Missing Reverb Params" });
     patch.nodes.push(
