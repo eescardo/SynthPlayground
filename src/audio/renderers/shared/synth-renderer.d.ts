@@ -1,6 +1,7 @@
 import type { Track } from "@/types/music";
 import type {
   AudioProject,
+  AudioRenderProject,
   SchedulerEvent,
   SynthRendererConfig,
   SynthStreamStartOptions,
@@ -32,7 +33,7 @@ export interface SynthRenderer {
   blockSize: number;
   project: AudioProject | null;
   configure(config: Partial<SynthRendererConfig> & { wasmBytes?: ArrayBuffer }): void;
-  setDefaultProject(project: AudioProject, runtimeAssets?: SynthRendererConfig["runtimeAssets"]): void;
+  setDefaultProject(renderProject: AudioRenderProject): void;
   startStream(options: SynthStreamStartOptions): SynthRenderStream | null;
 }
 

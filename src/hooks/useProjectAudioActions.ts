@@ -86,7 +86,10 @@ export function useProjectAudioActions(options: UseProjectAudioActionsOptions) {
     }
     setExportingAudio(true);
     try {
-      const blob = await audioEngineRef.current.exportProjectAudio(toAudioProject(project), projectAssets);
+      const blob = await audioEngineRef.current.exportProjectAudio({
+        project: toAudioProject(project),
+        runtimeAssets: projectAssets
+      });
       downloadBlob(blob, `${project.name.replace(/\s+/g, "_").toLowerCase()}.wav`);
     } catch (error) {
       const cause = toError(error);

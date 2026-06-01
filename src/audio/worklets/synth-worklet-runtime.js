@@ -38,10 +38,9 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
     this.renderer.port = this.port;
 
     const processorOptions = options && options.processorOptions ? options.processorOptions : null;
-    if (processorOptions?.transport?.isPlaying && this.renderer.project) {
+    if (processorOptions?.transport?.isPlaying && this.renderer.renderProject) {
       this.currentStream = this.startStreamSafely("start_stream", {
-        project: this.renderer.project,
-        runtimeAssets: processorOptions.runtimeAssets,
+        renderProject: this.renderer.renderProject,
         songStartSample: processorOptions.transport.songStartSample,
         events: processorOptions.transport.events || [],
         sessionId: processorOptions.transport.sessionId,
@@ -120,7 +119,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         }
         break;
       case "SET_PROJECT":
-        this.renderer.setDefaultProject(message.project, message.runtimeAssets);
+        this.renderer.setDefaultProject(message.renderProject);
         break;
       case "TRANSPORT":
         this.transportSessionId = Number.isFinite(message.sessionId) ? message.sessionId : this.transportSessionId + 1;
@@ -131,8 +130,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         this.stopCurrentStream();
         this.replaceCurrentStream(
           this.startStreamSafely("start_stream", {
-            project: this.renderer.project,
-            runtimeAssets: message.runtimeAssets,
+            renderProject: this.renderer.renderProject,
             songStartSample: message.songStartSample || 0,
             events: message.events || [],
             sessionId: this.transportSessionId,
@@ -145,8 +143,7 @@ export class SynthWorkletProcessor extends BaseAudioWorkletProcessor {
         this.stopCurrentStream();
         this.replaceCurrentStream(
           this.startStreamSafely("start_stream", {
-            project: message.project || this.renderer.project,
-            runtimeAssets: message.runtimeAssets,
+            renderProject: message.renderProject || this.renderer.renderProject,
             songStartSample: 0,
             events: message.events || [],
             mode: "preview",

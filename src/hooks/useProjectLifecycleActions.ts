@@ -60,7 +60,7 @@ export const useProjectLifecycleActions = ({
       clearTransientComposerUi();
       resetProjectState(nextProject, nextAssets);
       setSelectedTrackId(nextProject.tracks[0]?.id);
-      audioEngineRef.current?.replaceProject(toAudioProject(nextProject), nextAssets);
+      audioEngineRef.current?.replaceProject({ project: toAudioProject(nextProject), runtimeAssets: nextAssets });
     },
     [audioEngineRef, clearTransientComposerUi, resetProjectState, setSelectedTrackId]
   );

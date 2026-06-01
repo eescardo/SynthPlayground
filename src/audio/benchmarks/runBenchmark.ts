@@ -65,6 +65,7 @@ const summarizeRuns = (runs: AudioBenchmarkRunResult[]): AudioBenchmarkMetricSum
 
 const runSingleBenchmark = async (scenario: AudioBenchmarkScenario): Promise<AudioBenchmarkRunMetrics> => {
   const { project, config } = scenario;
+  const renderProject = { project };
   const totalSamples = Math.max(1, beatToSample(config.durationBeats, config.sampleRate, config.tempo));
 
   globalThis.gc?.();
@@ -73,7 +74,7 @@ const runSingleBenchmark = async (scenario: AudioBenchmarkScenario): Promise<Aud
     processorOptions: {
       sampleRate: config.sampleRate,
       blockSize: config.blockSize,
-      project
+      renderProject
     }
   });
   const compileProjectMs = performance.now() - compileStart;
@@ -88,7 +89,7 @@ const runSingleBenchmark = async (scenario: AudioBenchmarkScenario): Promise<Aud
   const primedToSample = transportMsToSamples(TRANSPORT_INITIAL_PRIME_MS, config.sampleRate);
   const primedEvents = collectEventsInWindow(project, { fromSample: 0, toSample: primedToSample }, { cueBeat: 0 });
   const transportStream = transportRenderer.startStream({
-    project,
+    renderProject,
     songStartSample: 0,
     events: primedEvents,
     sessionId: 1,
@@ -101,7 +102,7 @@ const runSingleBenchmark = async (scenario: AudioBenchmarkScenario): Promise<Aud
   const memoryBefore = process.memoryUsage();
   const cpuBefore = process.cpuUsage();
   const renderStart = performance.now();
-  const renderResult = await renderProjectOffline(project, {
+  const renderResult = await renderProjectOffline(renderProject, {
     sampleRate: config.sampleRate,
     blockSize: config.blockSize,
     durationSamples: totalSamples,

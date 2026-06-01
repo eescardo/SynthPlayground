@@ -108,12 +108,12 @@ export class WasmWorkletRenderer extends SharedWasmRenderer {
   }
 
   startStream(options) {
-    const project = options.project || this.defaultProject;
-    if (!project) {
+    const renderProject = options.renderProject || this.defaultRenderProject;
+    if (!renderProject) {
       return null;
     }
     this.implementation.prepare?.(this, options);
-    return new WasmWorkletRenderStream(this, { ...options, project }, this.implementation);
+    return new WasmWorkletRenderStream(this, { ...options, renderProject }, this.implementation);
   }
 }
 

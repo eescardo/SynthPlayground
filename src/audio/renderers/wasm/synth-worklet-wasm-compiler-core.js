@@ -294,12 +294,13 @@ const compileTrackPatch = (project, patch, track, trackIndex, runtimeAssets) => 
   };
 };
 
-export const compileAudioProjectPlanToWasmSubsetCore = (project, options) => {
+export const compileAudioProjectPlanToWasmSubsetCore = (renderProject, options) => {
+  const { project, runtimeAssets } = renderProject;
   const patchById = new Map((project.patches || []).map((patch) => [patch.id, patch]));
   const compiledTracks = (project.tracks || []).map((track, trackIndex) => {
     const patch = patchById.get(track.instrumentPatchId);
     assertPresent(patch, `Missing patch ${track.instrumentPatchId} for track ${track.id}.`);
-    return compileTrackPatch(project, patch, track, trackIndex, options?.runtimeAssets);
+    return compileTrackPatch(project, patch, track, trackIndex, runtimeAssets);
   });
 
   return {

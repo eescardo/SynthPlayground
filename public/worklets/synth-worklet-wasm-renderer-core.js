@@ -137,9 +137,9 @@ export class SharedWasmRenderStream {
   constructor(renderer, options, implementation) {
     this.port = renderer.port;
     this.renderer = renderer;
-    this.project = options.project;
-    this.runtimeAssets = options.runtimeAssets;
-    const projectPlan = renderer.getProjectPlan(this.project, this.runtimeAssets);
+    this.renderProject = options.renderProject;
+    this.project = this.renderProject.project;
+    const projectPlan = renderer.getProjectPlan(this.renderProject);
     this.projectSpec = projectPlan.projectSpec;
     this.projectSpecJson = projectPlan.projectSpecJson;
     this.sampleAssetsByTrack = projectPlan.sampleAssetsByTrack;
@@ -447,8 +447,7 @@ export class SharedWasmRenderer {
     this.port = new NullPort();
     this.sampleRateInternal = options?.processorOptions?.sampleRate ?? 48000;
     this.blockSize = options?.processorOptions?.blockSize ?? 128;
-    this.defaultProject = options?.processorOptions?.project ?? null;
-    this.defaultRuntimeAssets = options?.processorOptions?.runtimeAssets;
+    this.defaultRenderProject = options?.processorOptions?.renderProject ?? null;
     this.implementation = implementation;
     this.projectPlanCache = null;
     if (options?.processorOptions) {
@@ -463,48 +462,37 @@ export class SharedWasmRenderer {
     }
     this.sampleRateInternal = config.sampleRate || this.sampleRateInternal;
     this.blockSize = nextBlockSize;
-    if (config.project) {
-      this.defaultProject = config.project;
-      this.projectPlanCache = null;
-    }
-    if ("runtimeAssets" in config) {
-      this.defaultRuntimeAssets = config.runtimeAssets;
+    if (config.renderProject) {
+      this.defaultRenderProject = config.renderProject;
       this.projectPlanCache = null;
     }
     this.implementation.configure?.(this, config);
-    if (config.project) {
-      this.getProjectPlan(config.project);
+    if (config.renderProject) {
+      this.getProjectPlan(config.renderProject);
     }
   }
 
-  setDefaultProject(project, runtimeAssets = this.defaultRuntimeAssets) {
-    if (project !== this.defaultProject || runtimeAssets !== this.defaultRuntimeAssets) {
+  setDefaultProject(renderProject) {
+    if (renderProject !== this.defaultRenderProject) {
       this.projectPlanCache = null;
     }
-    this.defaultProject = project;
-    this.defaultRuntimeAssets = runtimeAssets;
-    this.getProjectPlan(project, runtimeAssets);
+    this.defaultRenderProject = renderProject;
+    this.getProjectPlan(renderProject);
   }
 
-  getProjectPlan(project, runtimeAssets = this.defaultRuntimeAssets) {
+  getProjectPlan(renderProject) {
     const cached = this.projectPlanCache;
     // Project snapshots are immutable once configured. Object identity is
     // therefore a valid cache key for the planned WASM project layout.
-    if (
-      cached &&
-      cached.project === project &&
-      cached.runtimeAssets === runtimeAssets &&
-      cached.blockSize === this.blockSize
-    ) {
+    if (cached && cached.renderProject === renderProject && cached.blockSize === this.blockSize) {
       return cached;
     }
-    const compiledProject = this.implementation.compileProject(project, {
-      blockSize: this.blockSize,
-      runtimeAssets
+    const compiledProject = this.implementation.compileProject(renderProject, {
+      blockSize: this.blockSize
     });
     const next = {
-      project,
-      runtimeAssets,
+      renderProject,
+      project: renderProject.project,
       blockSize: this.blockSize,
       projectSpec: compiledProject.projectSpec,
       projectSpecJson: JSON.stringify(compiledProject.projectSpec),
@@ -515,16 +503,12 @@ export class SharedWasmRenderer {
   }
 
   startStream(options) {
-    const project = options.project || this.defaultProject;
-    if (!project) {
+    const renderProject = options.renderProject || this.defaultRenderProject;
+    if (!renderProject) {
       return null;
     }
     this.implementation.prepare?.(this, options);
-    return new SharedWasmRenderStream(
-      this,
-      { ...options, project, runtimeAssets: options.runtimeAssets ?? this.defaultRuntimeAssets },
-      this.implementation
-    );
+    return new SharedWasmRenderStream(this, { ...options, renderProject }, this.implementation);
   }
 
   resolveSharedCaptureBufferMap(captureSharedBuffers) {
@@ -532,7 +516,11 @@ export class SharedWasmRenderer {
   }
 
   get project() {
-    return this.defaultProject;
+    return this.defaultRenderProject?.project ?? null;
+  }
+
+  get renderProject() {
+    return this.defaultRenderProject;
   }
 }
 

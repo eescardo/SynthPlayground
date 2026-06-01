@@ -19,6 +19,8 @@ import {
 import { createDefaultProject } from "@/lib/patch/presets";
 import { samplesPerBeat } from "@/lib/musicTiming";
 
+const toRenderProject = <T extends ReturnType<typeof createDefaultProject>>(project: T) => ({ project });
+
 describe("audio engine live mute transitions", () => {
   it("coalesces concurrent initialization so cold record startup does not leak connected worklets", async () => {
     const contexts: Array<{
@@ -134,7 +136,7 @@ describe("audio engine live mute transitions", () => {
 
     const backend = new RealAudioEngineBackend();
     const postMessage = vi.fn();
-    backend.syncProjectSnapshot(project, { syncToWorklet: false });
+    backend.syncProjectSnapshot(toRenderProject(project), { syncToWorklet: false });
     const testBackend = backend as unknown as {
       context: { currentTime: number };
       worklet: { port: { postMessage: typeof postMessage } };
@@ -158,7 +160,7 @@ describe("audio engine live mute transitions", () => {
       ...project,
       tracks: project.tracks.map((entry) => (entry.id === track.id ? { ...entry, mute: false } : entry))
     };
-    backend.syncProjectSnapshot(syncedProject, { syncToWorklet: false });
+    backend.syncProjectSnapshot(toRenderProject(syncedProject), { syncToWorklet: false });
 
     expect(postMessage.mock.calls).toHaveLength(immediateCalls);
     expect(
@@ -176,7 +178,7 @@ describe("audio engine live mute transitions", () => {
 
     const backend = new RealAudioEngineBackend();
     const postMessage = vi.fn();
-    backend.syncProjectSnapshot(project, { syncToWorklet: false });
+    backend.syncProjectSnapshot(toRenderProject(project), { syncToWorklet: false });
     const testBackend = backend as unknown as {
       worklet: { port: { postMessage: typeof postMessage } };
       isPlaying: boolean;
@@ -186,7 +188,7 @@ describe("audio engine live mute transitions", () => {
     testBackend.isPlaying = true;
     testBackend.scheduler = null;
 
-    backend.replaceProject(nextProject);
+    backend.replaceProject(toRenderProject(nextProject));
 
     expect(postMessage.mock.calls.map(([message]) => message.type)).toEqual(["RECORDING", "TRANSPORT", "SET_PROJECT"]);
     expect(postMessage.mock.calls[1]?.[0]).toEqual(
@@ -197,7 +199,7 @@ describe("audio engine live mute transitions", () => {
     );
     expect(postMessage.mock.calls[2]?.[0]).toEqual({
       type: "SET_PROJECT",
-      project: nextProject
+      renderProject: toRenderProject(nextProject)
     });
   });
 
@@ -216,7 +218,7 @@ describe("audio engine live mute transitions", () => {
 
     const backend = new RealAudioEngineBackend();
     const postMessage = vi.fn();
-    backend.syncProjectSnapshot(project, { syncToWorklet: false });
+    backend.syncProjectSnapshot(toRenderProject(project), { syncToWorklet: false });
     const testBackend = backend as unknown as {
       context: { currentTime: number; state: string; resume: () => Promise<void> };
       worklet: { port: { postMessage: typeof postMessage } };

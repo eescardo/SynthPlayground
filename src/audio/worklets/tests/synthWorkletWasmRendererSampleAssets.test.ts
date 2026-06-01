@@ -120,15 +120,13 @@ describe("WASM worklet renderer sample assets", () => {
       processorOptions: {
         sampleRate: 48000,
         blockSize,
-        project,
-        runtimeAssets,
+        renderProject: { project, runtimeAssets },
         wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
       }
     });
 
     renderer.startStream({
-      project,
-      runtimeAssets,
+      renderProject: { project, runtimeAssets },
       songStartSample: 0,
       mode: "transport",
       events: []
@@ -144,8 +142,12 @@ describe("WASM worklet renderer sample assets", () => {
     ]);
     expect(engineLifecycleCalls).toEqual(["stage_sample_asset", "start_stream"]);
     const projectSpecJson = (
-      renderer as unknown as { getProjectPlan: (value: typeof project) => { projectSpecJson: string } }
-    ).getProjectPlan(project).projectSpecJson;
+      renderer as unknown as {
+        getProjectPlan: (value: { project: typeof project; runtimeAssets: typeof runtimeAssets }) => {
+          projectSpecJson: string;
+        };
+      }
+    ).getProjectPlan({ project, runtimeAssets }).projectSpecJson;
     expect(projectSpecJson).not.toContain("legacy.wav");
     expect(projectSpecJson).not.toContain("asset_1");
   });

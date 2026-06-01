@@ -83,13 +83,13 @@ describe("WASM worklet renderer transport behavior", () => {
       processorOptions: {
         sampleRate: 48000,
         blockSize,
-        project,
+        renderProject: { project },
         wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
       }
     });
 
     const stream = renderer.startStream({
-      project,
+      renderProject: { project },
       songStartSample: 0,
       mode: "transport",
       events: [

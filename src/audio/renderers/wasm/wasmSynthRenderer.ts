@@ -1,6 +1,7 @@
 import type { SynthRenderer, SynthRenderStream, WorkletPortLike } from "@/audio/renderers/shared/synth-renderer";
 import {
   AudioProject,
+  AudioRenderProject,
   SchedulerEvent,
   SynthRendererConfig,
   SynthStreamStartOptions,
@@ -47,7 +48,7 @@ export class NodeWasmSynthRenderer extends SharedWasmRenderer implements SynthRe
   declare readonly port: WorkletPortLike;
   declare sampleRateInternal: number;
   declare blockSize: number;
-  declare defaultProject: AudioProject | null;
+  declare defaultRenderProject: AudioRenderProject | null;
   declare readonly project: AudioProject | null;
 
   readonly profilingEnabled: boolean;
@@ -82,16 +83,16 @@ export class NodeWasmSynthRenderer extends SharedWasmRenderer implements SynthRe
     this.sharedImplementation = implementation;
   }
 
-  setDefaultProject(project: AudioProject, runtimeAssets?: SynthRendererConfig["runtimeAssets"]): void {
-    super.setDefaultProject(project, runtimeAssets);
+  setDefaultProject(renderProject: AudioRenderProject): void {
+    super.setDefaultProject(renderProject);
   }
 
   startStream(options: SynthStreamStartOptions): WasmSynthRenderStream | null {
-    const project = options.project || this.defaultProject;
-    if (!project) {
+    const renderProject = options.renderProject || this.defaultRenderProject;
+    if (!renderProject) {
       return null;
     }
-    return new WasmSynthRenderStream(this, { ...options, project });
+    return new WasmSynthRenderStream(this, { ...options, renderProject });
   }
 }
 

@@ -1,13 +1,11 @@
 import type { SynthRenderer, SynthRenderStream } from "@/audio/renderers/shared/synth-renderer";
-import { AudioProject, SchedulerEvent } from "@/types/audio";
-import type { ProjectAssetLibrary } from "@/types/assets";
+import { AudioRenderProject, SchedulerEvent } from "@/types/audio";
 
 export interface BaseOfflineRenderOptions {
   sampleRate: number;
   blockSize: number;
   durationSamples: number;
   events?: SchedulerEvent[];
-  runtimeAssets?: ProjectAssetLibrary;
   sessionId?: number;
   randomSeed?: number;
 }
@@ -35,14 +33,13 @@ export const renderOfflineWithRenderer = <
   TExtra extends object = object
 >(
   renderer: SynthRenderer,
-  project: AudioProject,
+  renderProject: AudioRenderProject,
   options: BaseOfflineRenderOptions,
   getExtraResult?: (stream: TStream | null) => TExtra
 ): OfflineRenderResult & TExtra => {
   const { blockSize, durationSamples } = options;
   const stream = renderer.startStream({
-    project,
-    runtimeAssets: options.runtimeAssets,
+    renderProject,
     songStartSample: 0,
     events: options.events ?? [],
     sessionId: options.sessionId ?? 1,

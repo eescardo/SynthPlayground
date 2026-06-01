@@ -92,7 +92,7 @@ describe("compileAudioProjectToWasmSubset", () => {
       }
     };
 
-    const compiled = compileAudioProjectToWasmSubset(project, { blockSize: 128 });
+    const compiled = compileAudioProjectToWasmSubset({ project }, { blockSize: 128 });
     const vcfNode = compiled.tracks[0]?.nodes.find((node) => node.id === "vcf");
 
     expect(vcfNode?.params.cutoffHz).toBeCloseTo(550);
@@ -194,7 +194,7 @@ describe("compileAudioProjectToWasmSubset", () => {
       }
     };
 
-    const compiled = compileAudioProjectToWasmSubset(project, { blockSize: 128 });
+    const compiled = compileAudioProjectToWasmSubset({ project }, { blockSize: 128 });
     const track = compiled.tracks[0]!;
     const transposeNode = track.nodes.find((node) => node.id === "transpose");
     const oscNode = track.nodes.find((node) => node.id === "osc");
@@ -274,7 +274,7 @@ describe("compileAudioProjectToWasmSubset", () => {
       }
     };
 
-    const plan = compileAudioProjectPlanToWasmSubset(project, { blockSize: 128, runtimeAssets });
+    const plan = compileAudioProjectPlanToWasmSubset({ project, runtimeAssets }, { blockSize: 128 });
 
     expect(
       plan.projectSpec.tracks[0]?.nodes.find((node) => node.id === "sample")?.params.sampleAssetId
@@ -288,7 +288,10 @@ describe("compileAudioProjectToWasmSubset", () => {
     ]);
 
     const projectWithLegacyEmbeddedAssets = { ...project, sampleAssets: runtimeAssets };
-    const planWithoutSidecar = compileAudioProjectPlanToWasmSubset(projectWithLegacyEmbeddedAssets, { blockSize: 128 });
+    const planWithoutSidecar = compileAudioProjectPlanToWasmSubset(
+      { project: projectWithLegacyEmbeddedAssets },
+      { blockSize: 128 }
+    );
     expect(planWithoutSidecar.sampleAssetsByTrack[0]).toEqual([]);
   });
 
@@ -339,7 +342,7 @@ describe("compileAudioProjectToWasmSubset", () => {
       }
     };
 
-    expect(() => compileAudioProjectToWasmSubset(project, { blockSize: 128 })).toThrow(
+    expect(() => compileAudioProjectToWasmSubset({ project }, { blockSize: 128 })).toThrow(
       "Output must be declared as a patch port"
     );
   });

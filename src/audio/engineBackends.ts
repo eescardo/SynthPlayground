@@ -15,10 +15,15 @@ import { pitchToVoct } from "@/lib/pitch";
 import { createId } from "@/lib/ids";
 import { isUiCaptureFakeAudioEnabled } from "@/lib/uiCaptureMode";
 import { hydrateSerializableSproutError, SproutError } from "@/lib/sproutErrors";
-import { AudioProject, SchedulerEvent, TransportCommand, WorkletOutboundMessage } from "@/types/audio";
+import {
+  AudioProject,
+  AudioRenderProject,
+  SchedulerEvent,
+  TransportCommand,
+  WorkletOutboundMessage
+} from "@/types/audio";
 import type { Track } from "@/types/music";
 import { PreviewProbeCapture, PreviewProbeRequest, PreviewProbeSharedBuffer } from "@/types/probes";
-import { ProjectAssetLibrary } from "@/types/assets";
 
 export const BLOCK_SIZE = 128;
 export const FIXED_SAMPLE_RATE = 48000;
@@ -66,11 +71,8 @@ export interface AudioEngineBackend {
   init(): Promise<void>;
   ensureRunning(): Promise<void>;
   setRuntimeErrorListener(listener: ((error: SproutError) => void) | null): void;
-  replaceProject(project: AudioProject, runtimeAssets?: ProjectAssetLibrary): void;
-  syncProjectSnapshot(
-    project: AudioProject,
-    options?: { syncToWorklet?: boolean; runtimeAssets?: ProjectAssetLibrary }
-  ): void;
+  replaceProject(renderProject: AudioRenderProject): void;
+  syncProjectSnapshot(renderProject: AudioRenderProject, options?: { syncToWorklet?: boolean }): void;
   setTrackMuted(trackId: string, muted: boolean, options?: { restoreVolume?: boolean }): void;
   play(startBeat?: number, options?: AudioEnginePlayOptions): Promise<void>;
   stop(): void;
@@ -90,8 +92,7 @@ export interface AudioEngineBackend {
     velocity?: number,
     options?: {
       ignoreVolume?: boolean;
-      projectOverride?: AudioProject;
-      runtimeAssets?: ProjectAssetLibrary;
+      renderProjectOverride?: AudioRenderProject;
       captureProbes?: PreviewProbeRequest[];
       captureDurationBeats?: number;
       previewId?: string;
@@ -210,8 +211,8 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
   private songStartContextTime = 0;
   private scheduledUntilSample = 0;
   private isPlaying = false;
+  private renderProject: AudioRenderProject | null = null;
   private project: AudioProject | null = null;
-  private runtimeAssets: ProjectAssetLibrary | undefined;
   private playSessionId = 0;
   private recordingTrackId: string | null = null;
   private initPromise: Promise<void> | null = null;
@@ -382,7 +383,7 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
       if (this.project) {
         worklet.port.postMessage({
           type: "SET_PROJECT",
-          project: this.project
+          renderProject: this.renderProject
         });
       }
 
@@ -412,27 +413,23 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
     this.runtimeErrorListener = listener;
   }
 
-  replaceProject(project: AudioProject, runtimeAssets?: ProjectAssetLibrary): void {
+  replaceProject(renderProject: AudioRenderProject): void {
     this.stop();
-    this.project = project;
-    this.runtimeAssets = runtimeAssets;
+    this.renderProject = renderProject;
+    this.project = renderProject.project;
     this.worklet?.port.postMessage({
       type: "SET_PROJECT",
-      project,
-      runtimeAssets
+      renderProject
     });
   }
 
-  syncProjectSnapshot(
-    project: AudioProject,
-    options?: { syncToWorklet?: boolean; runtimeAssets?: ProjectAssetLibrary }
-  ): void {
+  syncProjectSnapshot(renderProject: AudioRenderProject, options?: { syncToWorklet?: boolean }): void {
     const previousProject = this.project;
-    this.project = project;
-    this.runtimeAssets = options?.runtimeAssets ?? this.runtimeAssets;
+    this.renderProject = renderProject;
+    this.project = renderProject.project;
     if (this.isPlaying && this.worklet) {
       const previousTracksById = new Map(previousProject?.tracks.map((track) => [track.id, track]));
-      for (const nextTrack of project.tracks) {
+      for (const nextTrack of renderProject.project.tracks) {
         const previousTrack = previousTracksById.get(nextTrack.id);
         if (!previousTrack || previousTrack.mute === nextTrack.mute) {
           continue;
@@ -445,8 +442,7 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
     }
     this.worklet?.port.postMessage({
       type: "SET_PROJECT",
-      project,
-      runtimeAssets: this.runtimeAssets
+      renderProject
     });
   }
 
@@ -482,8 +478,7 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
 
     this.worklet.port.postMessage({
       type: "SET_PROJECT",
-      project: this.project,
-      runtimeAssets: this.runtimeAssets
+      renderProject: this.renderProject
     });
 
     this.worklet.port.postMessage({
@@ -491,8 +486,7 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
       isPlaying: true,
       songStartSample: 0,
       events: primedEvents,
-      sessionId,
-      runtimeAssets: this.runtimeAssets
+      sessionId
     });
     this.postRecordingTrack();
 
@@ -637,8 +631,7 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
     velocity = 0.9,
     options?: {
       ignoreVolume?: boolean;
-      projectOverride?: AudioProject;
-      runtimeAssets?: ProjectAssetLibrary;
+      renderProjectOverride?: AudioRenderProject;
       captureProbes?: PreviewProbeRequest[];
       captureDurationBeats?: number;
       previewId?: string;
@@ -654,8 +647,11 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
       return;
     }
 
-    const previewProject = options?.projectOverride ?? this.project;
-    const previewRuntimeAssets = options?.runtimeAssets ?? this.runtimeAssets;
+    const previewRenderProject = options?.renderProjectOverride ?? this.renderProject;
+    if (!previewRenderProject) {
+      return;
+    }
+    const previewProject = previewRenderProject.project;
     const durationSamples = Math.max(1, beatToSample(durationBeats, FIXED_SAMPLE_RATE, previewProject.global.tempo));
     const captureDurationBeats = options?.captureDurationBeats ?? durationBeats;
     const captureDurationSamples =
@@ -693,8 +689,7 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
       durationSamples: durationSamples + BLOCK_SIZE,
       captureDurationSamples,
       ignoreVolume: options?.ignoreVolume !== false,
-      project: options?.projectOverride,
-      runtimeAssets: previewRuntimeAssets,
+      renderProject: options?.renderProjectOverride,
       captureProbes: options?.captureProbes,
       captureSharedBuffers
     });
@@ -713,8 +708,8 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
 class FakeAudioEngineBackend implements AudioEngineBackend {
   private fakeSongStartTimeMs = 0;
   private isPlaying = false;
+  private renderProject: AudioRenderProject | null = null;
   private project: AudioProject | null = null;
-  private runtimeAssets: ProjectAssetLibrary | undefined;
   private cueBeat = 0;
   private recordingTrackId: string | null = null;
 
@@ -730,15 +725,15 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
 
   setRuntimeErrorListener(): void {}
 
-  replaceProject(project: AudioProject, runtimeAssets?: ProjectAssetLibrary): void {
+  replaceProject(renderProject: AudioRenderProject): void {
     this.stop();
-    this.project = project;
-    this.runtimeAssets = runtimeAssets;
+    this.renderProject = renderProject;
+    this.project = renderProject.project;
   }
 
-  syncProjectSnapshot(project: AudioProject, options?: { runtimeAssets?: ProjectAssetLibrary }): void {
-    this.project = project;
-    this.runtimeAssets = options?.runtimeAssets ?? this.runtimeAssets;
+  syncProjectSnapshot(renderProject: AudioRenderProject): void {
+    this.renderProject = renderProject;
+    this.project = renderProject.project;
   }
 
   setTrackMuted(trackId: string, muted: boolean): void {
@@ -826,8 +821,7 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
     velocity = 0.9,
     options?: {
       ignoreVolume?: boolean;
-      projectOverride?: AudioProject;
-      runtimeAssets?: ProjectAssetLibrary;
+      renderProjectOverride?: AudioRenderProject;
       captureProbes?: PreviewProbeRequest[];
       captureDurationBeats?: number;
       previewId?: string;

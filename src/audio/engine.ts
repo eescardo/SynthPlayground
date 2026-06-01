@@ -13,8 +13,7 @@ import {
   FIXED_SAMPLE_RATE
 } from "@/audio/engineBackends";
 import { SproutError } from "@/lib/sproutErrors";
-import { AudioProject } from "@/types/audio";
-import { ProjectAssetLibrary } from "@/types/assets";
+import { AudioRenderProject } from "@/types/audio";
 import { PreviewProbeCapture, PreviewProbeRequest } from "@/types/probes";
 
 const EXPORT_TAIL_BEATS = 8;
@@ -38,15 +37,12 @@ export class AudioEngine {
     this.backend.setRuntimeErrorListener(listener);
   }
 
-  replaceProject(project: AudioProject, runtimeAssets?: ProjectAssetLibrary): void {
-    this.backend.replaceProject(project, runtimeAssets);
+  replaceProject(renderProject: AudioRenderProject): void {
+    this.backend.replaceProject(renderProject);
   }
 
-  syncProjectSnapshot(
-    project: AudioProject,
-    options?: { syncToWorklet?: boolean; runtimeAssets?: ProjectAssetLibrary }
-  ): void {
-    this.backend.syncProjectSnapshot(project, options);
+  syncProjectSnapshot(renderProject: AudioRenderProject, options?: { syncToWorklet?: boolean }): void {
+    this.backend.syncProjectSnapshot(renderProject, options);
   }
 
   setTrackMuted(trackId: string, muted: boolean, options?: { restoreVolume?: boolean }): void {
@@ -104,8 +100,7 @@ export class AudioEngine {
     velocity = 0.9,
     options?: {
       ignoreVolume?: boolean;
-      projectOverride?: AudioProject;
-      runtimeAssets?: ProjectAssetLibrary;
+      renderProjectOverride?: AudioRenderProject;
       captureProbes?: PreviewProbeRequest[];
       captureDurationBeats?: number;
       previewId?: string;
@@ -125,7 +120,8 @@ export class AudioEngine {
     this.backend.setPreviewCaptureListener(listener);
   }
 
-  async exportProjectAudio(project: AudioProject, runtimeAssets?: ProjectAssetLibrary): Promise<Blob> {
+  async exportProjectAudio(renderProject: AudioRenderProject): Promise<Blob> {
+    const { project } = renderProject;
     const maxNoteEndBeat = project.tracks
       .flatMap((track) => track.notes)
       .reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);
@@ -136,10 +132,9 @@ export class AudioEngine {
       beatToSample(playbackEndBeat, FIXED_SAMPLE_RATE, project.global.tempo) + BLOCK_SIZE
     );
     const initialEvents = collectEventsInWindow(project, { fromSample: 0, toSample: totalSamples }, { cueBeat: 0 });
-    const rendered = await renderProjectOfflineBrowserWasm(project, {
+    const rendered = await renderProjectOfflineBrowserWasm(renderProject, {
       sampleRate: FIXED_SAMPLE_RATE,
       blockSize: BLOCK_SIZE,
-      runtimeAssets,
       durationSamples: totalSamples,
       events: initialEvents,
       sessionId: 1

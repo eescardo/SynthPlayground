@@ -190,6 +190,9 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
       const previewProject = needsTemporaryProject
         ? buildPatchedPreviewProject(audioProject, previewTrack, patch, resolvedMacroValues)
         : undefined;
+      const previewRenderProject = previewProject
+        ? { project: previewProject, runtimeAssets: projectAssets }
+        : { project: audioProject, runtimeAssets: projectAssets };
       const previewId = `preview_${Date.now()}`;
       setActivePreviewId(previewId);
       setPreviewProgress(0);
@@ -201,8 +204,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
           options?.holdUntilReleased ? HELD_PREVIEW_DURATION_BEATS : PREVIEW_DURATION_BEATS,
           0.9,
           {
-            projectOverride: previewProject,
-            runtimeAssets: projectAssets,
+            renderProjectOverride: previewRenderProject,
             captureProbes: captureRequests,
             captureDurationBeats: resolvePatchPreviewCaptureDurationBeats(
               options?.holdUntilReleased,

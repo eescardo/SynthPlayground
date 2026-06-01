@@ -1,5 +1,4 @@
-import { AudioProject, SchedulerEvent } from "@/types/audio";
-import type { ProjectAssetLibrary } from "@/types/assets";
+import { AudioProject, AudioRenderProject, SchedulerEvent } from "@/types/audio";
 import {
   compileAudioProjectPlanToWasmSubsetCore,
   compileSchedulerEventsToWasmSubsetCore
@@ -136,14 +135,14 @@ export type WasmEvent = WasmNoteOnEvent | WasmNoteOffEvent | WasmParamChangeEven
 // audio output: node order, signal addressing, parameter layout, and per-track
 // metadata are all resolved here so the runtime can stay cheap.
 export const compileAudioProjectToWasmSubset = (
-  project: AudioProject,
-  options: { blockSize: number; runtimeAssets?: ProjectAssetLibrary }
-): WasmProjectSpec => compileAudioProjectPlanToWasmSubset(project, options).projectSpec;
+  renderProject: AudioRenderProject,
+  options: { blockSize: number }
+): WasmProjectSpec => compileAudioProjectPlanToWasmSubset(renderProject, options).projectSpec;
 
 export const compileAudioProjectPlanToWasmSubset = (
-  project: AudioProject,
-  options: { blockSize: number; runtimeAssets?: ProjectAssetLibrary }
-): WasmProjectPlan => compileAudioProjectPlanToWasmSubsetCore(project, options) as WasmProjectPlan;
+  renderProject: AudioRenderProject,
+  options: { blockSize: number }
+): WasmProjectPlan => compileAudioProjectPlanToWasmSubsetCore(renderProject, options) as WasmProjectPlan;
 
 export const compileSchedulerEventsToWasmSubset = (
   project: AudioProject,

@@ -1,5 +1,4 @@
-import type { AudioProject, SchedulerEvent } from "@/types/audio";
-import type { ProjectAssetLibrary } from "@/types/assets";
+import type { AudioProject, AudioRenderProject, SchedulerEvent } from "@/types/audio";
 import type { PreviewProbeRequest } from "@/types/probes";
 import type { WasmEvent, WasmProjectPlan, WasmProjectSpec } from "@/audio/renderers/wasm/wasmSubsetCompiler";
 
@@ -11,8 +10,8 @@ export interface WasmPreviewProbeCaptureRequest {
 }
 
 export const compileAudioProjectPlanToWasmSubsetCore: (
-  project: AudioProject,
-  options: { blockSize: number; runtimeAssets?: ProjectAssetLibrary }
+  renderProject: AudioRenderProject,
+  options: { blockSize: number }
 ) => WasmProjectPlan;
 
 export const compileSchedulerEventsToWasmSubsetCore: (
