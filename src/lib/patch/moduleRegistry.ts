@@ -1,3 +1,4 @@
+import { getIntrinsicParamsForType } from "@/lib/patch/module-runtime-metadata.js";
 import { ModuleTypeSchema, ParamSchema, PatchModuleCategory, PortSchema, Unit } from "@/types/patch";
 
 const floatParam = (
@@ -351,6 +352,7 @@ export const moduleRegistry: ModuleTypeSchema[] = [
         smoothingMs: 10
       })
     ],
+    intrinsicParams: getIntrinsicParamsForType("SamplePlayer"),
     portsIn: [port("gate", "Gate", ["GATE"], "Playback gate"), port("pitch", "Pitch", ["CV"], "Pitch CV")],
     portsOut: [port("out", "Out", ["AUDIO"], "Sample output")]
   },

@@ -8,11 +8,12 @@ import { normalizePatch } from "@/lib/patch/normalize";
 import { TRACK_VOLUME_DEFAULT, TRACK_VOLUME_MAX, TRACK_VOLUME_MIN } from "@/lib/trackVolume";
 import { Project, TrackFxSettings, PatchWorkspaceTabState } from "@/types/music";
 import { PatchProbeTarget, PatchWorkspaceProbeState } from "@/types/probes";
-import { ProjectAssetLibrary } from "@/types/assets";
+import { ProjectAssetLibrary, SerializedProjectAssetLibrary } from "@/types/assets";
 import {
   createEmptyProjectAssetLibrary,
   normalizeProjectAssetLibrary,
-  pickReferencedProjectAssets
+  pickReferencedProjectAssets,
+  serializeProjectAssetLibraryForJson
 } from "@/lib/sampleAssetLibrary";
 import type { Patch } from "@/types/patch";
 
@@ -161,7 +162,7 @@ const sanitizePatchWorkspaceTab = (
 interface SerializedProjectBundleV2 {
   version: 2;
   project: Project;
-  assets: ProjectAssetLibrary;
+  assets: SerializedProjectAssetLibrary;
 }
 
 const isSerializedProjectBundleV2 = (value: unknown): value is SerializedProjectBundleV2 =>
@@ -175,8 +176,8 @@ export const exportProjectToJson = (
     {
       version: 2,
       project,
-      assets: pickReferencedProjectAssets(project, assets)
-    } satisfies SerializedProjectBundleV2,
+      assets: serializeProjectAssetLibraryForJson(pickReferencedProjectAssets(project, assets))
+    },
     null,
     2
   );

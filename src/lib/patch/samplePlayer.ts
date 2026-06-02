@@ -1,24 +1,11 @@
 "use client";
 
-import { clamp, clampBipolar } from "@/lib/numeric";
+import { clamp } from "@/lib/numeric";
+import { DecodedSampleAsset } from "@/lib/patch/samplePlayerAssets";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
+export { createSamplePlayerAssetData } from "@/lib/patch/samplePlayerAssets";
 
-export interface SerializedSamplePlayerData {
-  version: 1;
-  name: string;
-  sourceUrl?: string;
-  sampleRate: number;
-  samples: number[];
-}
-
-export interface DecodedSampleAsset {
-  name: string;
-  sourceUrl?: string;
-  sampleRate: number;
-  samples: Float32Array;
-}
-
-const SAMPLE_DATA_VERSION = 1;
+export const SAMPLE_PLAYER_PITCH_ANALYSIS_MAX_SECONDS = 0.75;
 
 export function samplePlayerPitchSemisToRootPitch(pitchSemis: number) {
   return midiToPitch(Math.round(60 - clamp(pitchSemis, -48, 48)));
@@ -26,50 +13,6 @@ export function samplePlayerPitchSemisToRootPitch(pitchSemis: number) {
 
 export function samplePlayerRootPitchToPitchSemis(pitchStr: string) {
   return clamp(60 - pitchToMidi(pitchStr), -48, 48);
-}
-
-export function parseSamplePlayerData(raw: string | null | undefined): DecodedSampleAsset | null {
-  if (!raw) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(raw) as Partial<SerializedSamplePlayerData>;
-    if (
-      parsed.version !== SAMPLE_DATA_VERSION ||
-      typeof parsed.name !== "string" ||
-      typeof parsed.sampleRate !== "number" ||
-      !Number.isFinite(parsed.sampleRate) ||
-      parsed.sampleRate <= 0 ||
-      !Array.isArray(parsed.samples)
-    ) {
-      return null;
-    }
-    const samples = Float32Array.from(
-      parsed.samples.map((sample) => (typeof sample === "number" && Number.isFinite(sample) ? clampBipolar(sample) : 0))
-    );
-    if (samples.length === 0) {
-      return null;
-    }
-    return {
-      name: parsed.name,
-      sourceUrl: typeof parsed.sourceUrl === "string" ? parsed.sourceUrl : undefined,
-      sampleRate: parsed.sampleRate,
-      samples
-    };
-  } catch {
-    return null;
-  }
-}
-
-export function serializeSamplePlayerData(asset: DecodedSampleAsset): string {
-  const payload: SerializedSamplePlayerData = {
-    version: SAMPLE_DATA_VERSION,
-    name: asset.name,
-    sourceUrl: asset.sourceUrl,
-    sampleRate: asset.sampleRate,
-    samples: Array.from(asset.samples, (sample) => Number(sample.toFixed(6)))
-  };
-  return JSON.stringify(payload);
 }
 
 function downmixAudioBuffer(buffer: AudioBuffer) {
@@ -145,6 +88,17 @@ export function resolveSampleTrimRange(sample: DecodedSampleAsset, startRatio: n
     endSample,
     durationSamples: Math.max(1, endSample - startSample)
   };
+}
+
+export function resolveSamplePitchAnalysisSamples(
+  sample: DecodedSampleAsset,
+  startRatio: number,
+  endRatio: number,
+  maxDurationSeconds = SAMPLE_PLAYER_PITCH_ANALYSIS_MAX_SECONDS
+) {
+  const trim = resolveSampleTrimRange(sample, startRatio, endRatio);
+  const maxAnalysisSamples = Math.max(1, Math.floor(sample.sampleRate * Math.max(0.01, maxDurationSeconds)));
+  return sample.samples.subarray(trim.startSample, Math.min(trim.endSample, trim.startSample + maxAnalysisSamples));
 }
 
 export function formatSampleDuration(seconds: number) {

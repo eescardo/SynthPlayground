@@ -1,6 +1,6 @@
 import { renderOfflineWithRenderer } from "@/audio/offline/renderOfflineWithRenderer";
 import { createWasmRenderer } from "@/audio/worklets/synth-worklet-wasm-renderer.js";
-import type { AudioProject, SchedulerEvent } from "@/types/audio";
+import type { AudioRenderProject, SchedulerEvent } from "@/types/audio";
 
 interface OfflineBrowserWasmRenderOptions {
   sampleRate: number;
@@ -30,7 +30,7 @@ const loadBrowserWasmBytes = async (): Promise<ArrayBuffer> => {
 };
 
 export const renderProjectOfflineBrowserWasm = async (
-  project: AudioProject,
+  renderProject: AudioRenderProject,
   options: OfflineBrowserWasmRenderOptions
 ) => {
   const wasmBytes = await loadBrowserWasmBytes();
@@ -38,10 +38,10 @@ export const renderProjectOfflineBrowserWasm = async (
     processorOptions: {
       sampleRate: options.sampleRate,
       blockSize: options.blockSize,
-      project,
+      renderProject,
       wasmBytes
     }
   });
 
-  return renderOfflineWithRenderer(renderer, project, options);
+  return renderOfflineWithRenderer(renderer, renderProject, options);
 };

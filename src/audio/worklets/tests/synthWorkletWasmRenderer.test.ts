@@ -15,7 +15,6 @@ let writeInvalidPreviewCaptureJson = false;
 let hasActiveVoices = false;
 let configuredPreviewCaptureJson = "";
 const engineStop = vi.fn();
-const engineStopTrack = vi.fn();
 
 vi.mock("../synth-worklet-dsp-bindgen.js", () => {
   class MockWasmSubsetEngine {
@@ -26,6 +25,7 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
 
     start_stream() {}
     enqueue_events() {}
+    set_sample_asset() {}
     configure_preview_probe_capture(captureJson: string) {
       configuredPreviewCaptureJson = captureJson;
     }
@@ -121,9 +121,7 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
     stop() {
       engineStop();
     }
-    stop_track(trackIndex: number) {
-      engineStopTrack(trackIndex);
-    }
+    stop_track() {}
     left_ptr() {
       return 0;
     }
@@ -228,7 +226,6 @@ function createProject(options: { patch?: Patch; track?: Track } = {}): Project 
 beforeEach(() => {
   vi.resetModules();
   engineStop.mockReset();
-  engineStopTrack.mockReset();
   leftView.fill(0);
   rightView.fill(0);
   previewCaptureSampleCount = 0;
@@ -240,96 +237,6 @@ beforeEach(() => {
 });
 
 describe("WASM worklet renderer", () => {
-  it("hard-stops muted tracks and accepts track events after unmute", async () => {
-    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
-
-    const project = createProject({
-      track: createTrack({
-        id: "track_1",
-        notes: [
-          {
-            id: "note_1",
-            pitchStr: "C3",
-            startBeat: 0,
-            durationBeats: 8,
-            velocity: 1
-          }
-        ]
-      })
-    });
-    project.tracks.push(createTrack({ id: "track_2", name: "Track 2" }));
-    const renderer = createWasmRenderer({
-      processorOptions: {
-        sampleRate: 48000,
-        blockSize,
-        project,
-        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
-      }
-    });
-
-    const stream = renderer.startStream({
-      project,
-      songStartSample: 0,
-      mode: "transport",
-      events: [
-        {
-          id: "track_1_on",
-          type: "NoteOn",
-          sampleTime: 0,
-          source: "timeline",
-          trackId: "track_1",
-          noteId: "note_1",
-          pitchVoct: 0,
-          velocity: 1
-        },
-        {
-          id: "track_2_on",
-          type: "NoteOn",
-          sampleTime: 0,
-          source: "timeline",
-          trackId: "track_2",
-          noteId: "note_2",
-          pitchVoct: 0,
-          velocity: 1
-        }
-      ],
-      sessionId: 1
-    });
-
-    expect(stream).not.toBeNull();
-    const mutableStream = stream as typeof stream & {
-      dispatchTransportCommand(command: { type: "SetTrackMute"; trackId: string; muted: boolean }): void;
-      enqueueEvents(events: NonNullable<typeof stream>["eventQueue"]): void;
-    };
-    mutableStream!.dispatchTransportCommand({ type: "SetTrackMute", trackId: "track_1", muted: true });
-    mutableStream!.dispatchTransportCommand({ type: "SetTrackMute", trackId: "track_1", muted: false });
-    mutableStream!.enqueueEvents([
-      {
-        id: "track_1_late_on",
-        type: "NoteOn",
-        sampleTime: 128,
-        source: "timeline",
-        trackId: "track_1",
-        noteId: "note_1_late",
-        pitchVoct: 0,
-        velocity: 1
-      },
-      {
-        id: "track_2_late_on",
-        type: "NoteOn",
-        sampleTime: 128,
-        source: "timeline",
-        trackId: "track_2",
-        noteId: "note_2_late",
-        pitchVoct: 0,
-        velocity: 1
-      }
-    ]);
-
-    expect(engineStopTrack).toHaveBeenCalledWith(0);
-    expect(stream!.eventQueue.map((event) => event.id)).toEqual(["track_2_on", "track_1_late_on", "track_2_late_on"]);
-  });
-
   it("filters initial transport events for tracks muted in the project", async () => {
     const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
 
@@ -344,13 +251,13 @@ describe("WASM worklet renderer", () => {
       processorOptions: {
         sampleRate: 48000,
         blockSize,
-        project,
+        renderProject: { project },
         wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
       }
     });
 
     const stream = renderer.startStream({
-      project,
+      renderProject: { project },
       songStartSample: 0,
       mode: "transport",
       events: [
@@ -391,7 +298,7 @@ describe("WASM worklet renderer", () => {
       processorOptions: {
         sampleRate: 48000,
         blockSize,
-        project,
+        renderProject: { project },
         wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
       }
     });
@@ -399,7 +306,7 @@ describe("WASM worklet renderer", () => {
     renderer.port.postMessage = postMessage;
 
     const stream = renderer.startStream({
-      project,
+      renderProject: { project },
       songStartSample: 0,
       mode: "preview",
       durationSamples: blockSize,
@@ -461,7 +368,7 @@ describe("WASM worklet renderer", () => {
       processorOptions: {
         sampleRate: 48000,
         blockSize,
-        project,
+        renderProject: { project },
         wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
       }
     });
@@ -470,7 +377,7 @@ describe("WASM worklet renderer", () => {
     const sampleBuffer = new SharedArrayBuffer(blockSize * Float32Array.BYTES_PER_ELEMENT);
 
     const stream = renderer.startStream({
-      project,
+      renderProject: { project },
       songStartSample: 0,
       mode: "preview",
       durationSamples: blockSize,
@@ -528,7 +435,7 @@ describe("WASM worklet renderer", () => {
       processorOptions: {
         sampleRate: 48000,
         blockSize,
-        project,
+        renderProject: { project },
         wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
       }
     });
@@ -539,7 +446,7 @@ describe("WASM worklet renderer", () => {
     const sharedSamples = new Float32Array(sampleBuffer);
 
     const stream = renderer.startStream({
-      project,
+      renderProject: { project },
       songStartSample: 0,
       mode: "preview",
       durationSamples: blockSize * 160,
@@ -598,7 +505,7 @@ describe("WASM worklet renderer", () => {
       processorOptions: {
         sampleRate: 48000,
         blockSize,
-        project,
+        renderProject: { project },
         wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
       }
     });
@@ -607,7 +514,7 @@ describe("WASM worklet renderer", () => {
     const unrelatedSampleBuffer = new SharedArrayBuffer(blockSize * Float32Array.BYTES_PER_ELEMENT);
 
     const stream = renderer.startStream({
-      project,
+      renderProject: { project },
       songStartSample: 0,
       mode: "preview",
       durationSamples: blockSize,
@@ -669,7 +576,7 @@ describe("WASM worklet renderer", () => {
       processorOptions: {
         sampleRate: 48000,
         blockSize,
-        project,
+        renderProject: { project },
         wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
       }
     });
@@ -677,7 +584,7 @@ describe("WASM worklet renderer", () => {
     renderer.port.postMessage = postMessage;
 
     const stream = renderer.startStream({
-      project,
+      renderProject: { project },
       songStartSample: 0,
       mode: "preview",
       durationSamples: blockSize,
@@ -740,7 +647,7 @@ describe("WASM worklet renderer", () => {
       processorOptions: {
         sampleRate: 48000,
         blockSize,
-        project,
+        renderProject: { project },
         wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
       }
     });
@@ -749,7 +656,7 @@ describe("WASM worklet renderer", () => {
     hasActiveVoices = true;
 
     const stream = renderer.startStream({
-      project,
+      renderProject: { project },
       songStartSample: 0,
       mode: "preview",
       durationSamples: blockSize * 128,
@@ -802,13 +709,13 @@ describe("WASM worklet renderer", () => {
       processorOptions: {
         sampleRate: 48000,
         blockSize,
-        project,
+        renderProject: { project },
         wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
       }
     });
 
     const stream = renderer.startStream({
-      project,
+      renderProject: { project },
       songStartSample: 0,
       mode: "preview",
       durationSamples: blockSize * 64,
@@ -857,7 +764,7 @@ describe("WASM worklet renderer", () => {
       processorOptions: {
         sampleRate: 48000,
         blockSize,
-        project,
+        renderProject: { project },
         wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
       }
     });
@@ -865,7 +772,7 @@ describe("WASM worklet renderer", () => {
     renderer.port.postMessage = postMessage;
 
     const stream = renderer.startStream({
-      project,
+      renderProject: { project },
       songStartSample: 0,
       mode: "preview",
       durationSamples: blockSize * 16,
@@ -907,7 +814,7 @@ describe("WASM worklet renderer", () => {
       processorOptions: {
         sampleRate: 48000,
         blockSize,
-        project,
+        renderProject: { project },
         wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
       }
     });
@@ -917,7 +824,7 @@ describe("WASM worklet renderer", () => {
     hasActiveVoices = true;
 
     const stream = renderer.startStream({
-      project,
+      renderProject: { project },
       songStartSample: 0,
       mode: "preview",
       durationSamples: blockSize * 128,
@@ -962,7 +869,7 @@ describe("WASM worklet renderer", () => {
       processorOptions: {
         sampleRate: 48000,
         blockSize,
-        project,
+        renderProject: { project },
         wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
       }
     });
@@ -971,7 +878,7 @@ describe("WASM worklet renderer", () => {
     writeInvalidPreviewCaptureJson = true;
 
     const stream = renderer.startStream({
-      project,
+      renderProject: { project },
       songStartSample: 0,
       mode: "preview",
       durationSamples: blockSize,
@@ -1020,13 +927,13 @@ describe("WASM worklet renderer", () => {
       processorOptions: {
         sampleRate: 48000,
         blockSize,
-        project,
+        renderProject: { project },
         wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
       }
     });
 
     const stream = renderer.startStream({
-      project,
+      renderProject: { project },
       songStartSample: 0,
       mode: "preview",
       durationSamples: blockSize * 16,

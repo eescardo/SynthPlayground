@@ -3,15 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildSampleWaveformPeaks,
+  createSamplePlayerAssetData,
   decodeSamplePlayerFile,
   decodeSamplePlayerUrl,
   formatSampleDuration,
-  parseSamplePlayerData,
   previewSampleAsset,
+  resolveSamplePitchAnalysisSamples,
   resolveSampleTrimRange,
   samplePlayerPitchSemisToRootPitch,
-  samplePlayerRootPitchToPitchSemis,
-  serializeSamplePlayerData
+  samplePlayerRootPitchToPitchSemis
 } from "@/lib/patch/samplePlayer";
 import { usePatchWorkspaceSampleAssets } from "@/components/patch/PatchWorkspaceContext";
 import { detectDominantSamplePitches } from "@/lib/patch/pitchTracker";
@@ -33,8 +33,7 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { assets, upsertSamplePlayerAssetData } = usePatchWorkspaceSampleAssets();
   const sampleAssetId = typeof props.node.params.sampleAssetId === "string" ? props.node.params.sampleAssetId : "";
-  const rawSampleData = sampleAssetId ? assets.samplePlayerById[sampleAssetId] : undefined;
-  const sampleAsset = useMemo(() => parseSamplePlayerData(rawSampleData), [rawSampleData]);
+  const sampleAsset = sampleAssetId ? assets.samplePlayerById[sampleAssetId] : undefined;
   const sampleAssetMissing = Boolean(sampleAssetId) && !sampleAsset;
   const [sourceUrl, setSourceUrl] = useState(sampleAsset?.sourceUrl ?? "");
   const [status, setStatus] = useState<SamplePlayerStatus>(null);
@@ -63,22 +62,21 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
     () => (sampleAsset ? buildSampleWaveformPeaks(sampleAsset.samples) : []),
     [sampleAsset]
   );
-  const trimmedSamples = useMemo(() => {
-    if (!sampleAsset || !visualTrim) {
+  const pitchAnalysisSamples = useMemo(() => {
+    if (!sampleAsset) {
       return undefined;
     }
-    const { startSample, endSample } = visualTrim;
-    return sampleAsset.samples.slice(startSample, endSample);
-  }, [sampleAsset, visualTrim]);
+    return resolveSamplePitchAnalysisSamples(sampleAsset, startRatio, endRatio);
+  }, [sampleAsset, startRatio, endRatio]);
   const dominantPitches = useMemo(
-    () => detectDominantSamplePitches(trimmedSamples, sampleAsset?.sampleRate),
-    [trimmedSamples, sampleAsset?.sampleRate]
+    () => detectDominantSamplePitches(pitchAnalysisSamples, sampleAsset?.sampleRate),
+    [pitchAnalysisSamples, sampleAsset?.sampleRate]
   );
   const pitchSemis = typeof props.node.params.pitchSemis === "number" ? props.node.params.pitchSemis : 0;
   const rootPitch = samplePlayerPitchSemisToRootPitch(pitchSemis);
 
-  const storeSample = (sampleData: string) => {
-    const nextAssetId = upsertSamplePlayerAssetData(sampleData);
+  const storeSample = async (sampleData: ReturnType<typeof createSamplePlayerAssetData>) => {
+    const nextAssetId = await upsertSamplePlayerAssetData(sampleData);
     props.onApplyOp({
       type: "setParams",
       nodeId: props.node.id,
@@ -95,7 +93,7 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
     setStatus({ tone: "info", message: "Importing sample..." });
     try {
       const decoded = await decodeSamplePlayerFile(file);
-      storeSample(serializeSamplePlayerData(decoded));
+      await storeSample(createSamplePlayerAssetData(decoded));
       setStatus({ tone: "success", message: `Loaded ${decoded.name}` });
     } catch (error) {
       setStatus({ tone: "error", message: formatSamplePlayerError(error, file.name) });
@@ -114,7 +112,7 @@ export function SamplePlayerInspectorSection(props: SamplePlayerInspectorSection
     setStatus({ tone: "info", message: "Fetching sample..." });
     try {
       const decoded = await decodeSamplePlayerUrl(nextUrl);
-      storeSample(serializeSamplePlayerData(decoded));
+      await storeSample(createSamplePlayerAssetData(decoded));
       setStatus({ tone: "success", message: `Loaded ${decoded.name}` });
     } catch (error) {
       setStatus({ tone: "error", message: formatSamplePlayerError(error, nextUrl) });

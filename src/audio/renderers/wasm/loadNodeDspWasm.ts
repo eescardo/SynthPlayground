@@ -11,6 +11,8 @@ interface WasmSubsetEngineInstance {
     randomSeed: number
   ): void;
   enqueue_events(eventsJson: string): void;
+  stage_sample_asset(trackIndex: number, nodeId: string, sampleRate: number, samples: Float32Array): void;
+  set_sample_asset(trackIndex: number, nodeId: string, sampleRate: number, samples: Float32Array): void;
   configure_preview_probe_capture(captureJson: string): void;
   process_block(): boolean;
   has_active_voices(): boolean;

@@ -6,8 +6,9 @@ use crate::probe_capture::{
     update_and_build_preview_capture_spectrum_frames, TrackProbeCaptureState,
 };
 use crate::{
-    clamp, now_ms, EngineProfileStats, HostSignalIndices, PreviewProbeCaptureSnapshot,
-    PreviewProbeCaptureSpec, TrackFxSpec, TrackSpec, MAX_VOICES,
+    build_sample_asset, clamp, now_ms, EngineProfileStats, HostSignalIndices,
+    PreviewProbeCaptureSnapshot, PreviewProbeCaptureSpec, SampleAsset, TrackFxSpec, TrackSpec,
+    MAX_VOICES,
 };
 use serde_json::Value;
 use std::collections::HashMap;
@@ -132,11 +133,18 @@ impl TrackRuntime {
         sample_rate: f32,
         block_size: usize,
         random_seed: u32,
+        sample_assets_by_node_id: Option<&HashMap<String, SampleAsset>>,
     ) -> Result<Self, JsValue> {
         let node_templates = spec
             .nodes
             .iter()
-            .map(|node| RuntimeNode::from_raw(node, sample_rate))
+            .map(|node| {
+                RuntimeNode::from_raw(
+                    node,
+                    sample_rate,
+                    sample_assets_by_node_id.and_then(|assets| assets.get(&node.id).cloned()),
+                )
+            })
             .collect::<Result<Vec<_>, _>>()?;
         let node_index_by_id = spec
             .nodes
@@ -443,6 +451,17 @@ impl TrackRuntime {
             for voice in self.voices.iter_mut() {
                 if let Some(node) = voice.nodes.get_mut(index) {
                     node.set_param(param_id, value);
+                }
+            }
+        }
+    }
+
+    pub(crate) fn set_sample_asset(&mut self, node_id: &str, sample_rate: f32, samples: &[f32]) {
+        if let Some(index) = self.node_index_by_id.get(node_id).copied() {
+            let asset = build_sample_asset(sample_rate, samples);
+            for voice in self.voices.iter_mut() {
+                if let Some(node) = voice.nodes.get_mut(index) {
+                    node.set_sample_asset(asset.clone());
                 }
             }
         }

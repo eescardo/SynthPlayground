@@ -11,6 +11,7 @@ import { normalizePatch } from "@/lib/patch/normalize";
 import { createDefaultProject } from "@/lib/patch/presets";
 import { getBundledPresetLineage } from "@/lib/patch/source";
 import { validatePatch } from "@/lib/patch/validation";
+import { normalizeProjectAssetLibrary } from "@/lib/sampleAssetLibrary";
 
 describe("projectSerde", () => {
   it("normalizeProject does not infer preset metadata and defaults macro panel to collapsed", () => {
@@ -149,16 +150,29 @@ describe("projectSerde", () => {
       }
     ];
 
-    const json = exportProjectToJson(project, {
-      samplePlayerById: {
-        asset_1: '{"version":1,"name":"tone.wav","sampleRate":48000,"samples":[0,0.25,-0.25]}',
-        unused_asset: '{"version":1,"name":"unused.wav","sampleRate":48000,"samples":[0]}'
-      }
-    });
+    const json = exportProjectToJson(
+      project,
+      normalizeProjectAssetLibrary({
+        samplePlayerById: {
+          asset_1: {
+            version: 2,
+            name: "tone.wav",
+            sampleRate: 48000,
+            samples: new Float32Array([0, 0.25, -0.25])
+          },
+          unused_asset: {
+            version: 2,
+            name: "unused.wav",
+            sampleRate: 48000,
+            samples: new Float32Array([0])
+          }
+        }
+      })
+    );
     const imported = importProjectBundleFromJson(json);
 
     expect(imported.project.patches[0].nodes[0].params.sampleAssetId).toBe("asset_1");
-    expect(imported.assets.samplePlayerById.asset_1).toContain('"tone.wav"');
+    expect(imported.assets.samplePlayerById.asset_1?.name).toBe("tone.wav");
     expect(imported.assets.samplePlayerById.unused_asset).toBeUndefined();
   });
 

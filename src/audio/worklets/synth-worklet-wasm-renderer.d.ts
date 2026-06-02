@@ -1,6 +1,6 @@
 import type { SynthRenderer, SynthRenderStream } from "@/audio/renderers/shared/synth-renderer";
 import type {
-  AudioProject,
+  AudioRenderProject,
   SynthRendererConfig,
   SynthStreamStartOptions,
   TransportSynthStreamStartOptions
@@ -13,7 +13,7 @@ export class WasmWorkletRenderer implements SynthRenderer {
   wasmBytes: ArrayBuffer | Uint8Array | null;
   memory: WebAssembly.Memory | null;
   configure(config: Partial<SynthRendererConfig> & { wasmBytes?: ArrayBuffer }): void;
-  setDefaultProject(project: AudioProject): void;
+  setDefaultProject(renderProject: AudioRenderProject): void;
   startStream(options: SynthStreamStartOptions): SynthRenderStream | null;
   readonly project: SynthRenderer["project"];
 }

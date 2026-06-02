@@ -1,4 +1,3 @@
-use super::sample_asset::parse_sample_asset;
 use super::*;
 use crate::nodes::reverb::reverb_mode_wet_gain;
 use crate::{js_error, NodeSpecRaw};
@@ -10,7 +9,11 @@ impl RuntimeNode {
     /// Params:
     /// - `raw`: compiled node spec with resolved port indices and serialized parameter values.
     /// - `sample_rate`: global sample rate used to size buffers and smoothing state.
-    pub(crate) fn from_raw(raw: &NodeSpecRaw, sample_rate: f32) -> Result<Self, JsValue> {
+    pub(crate) fn from_raw(
+        raw: &NodeSpecRaw,
+        sample_rate: f32,
+        sample_asset: Option<crate::SampleAsset>,
+    ) -> Result<Self, JsValue> {
         let p = &raw.params;
         Ok(match raw.type_id.as_str() {
             "CVTranspose" => Self::CVTranspose(CVTransposeNode {
@@ -214,7 +217,7 @@ impl RuntimeNode {
                     10.0,
                     sample_rate,
                 ),
-                asset: parse_sample_asset(p.get("sampleData")),
+                asset: sample_asset,
                 position: 0.0,
                 active: false,
                 last_gate: 0.0,

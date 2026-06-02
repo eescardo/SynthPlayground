@@ -2,9 +2,10 @@ import { normalizePatch } from "@/lib/patch/normalize";
 import {
   createEmptyProjectAssetLibrary,
   normalizeProjectAssetLibrary,
-  pickReferencedPatchAssets
+  pickReferencedPatchAssets,
+  serializeProjectAssetLibraryForJson
 } from "@/lib/sampleAssetLibrary";
-import { ProjectAssetLibrary } from "@/types/assets";
+import { ProjectAssetLibrary, SerializedProjectAssetLibrary } from "@/types/assets";
 import { Patch } from "@/types/patch";
 
 export const PATCH_BUNDLE_KIND = "synth-playground-patch";
@@ -14,7 +15,7 @@ interface SerializedPatchBundleV1 {
   kind: typeof PATCH_BUNDLE_KIND;
   version: typeof PATCH_BUNDLE_VERSION;
   patch: Patch;
-  assets: ProjectAssetLibrary;
+  assets: SerializedProjectAssetLibrary;
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -36,8 +37,8 @@ export const exportPatchToJson = (
       kind: PATCH_BUNDLE_KIND,
       version: PATCH_BUNDLE_VERSION,
       patch,
-      assets: pickReferencedPatchAssets(patch, assets)
-    } satisfies SerializedPatchBundleV1,
+      assets: serializeProjectAssetLibraryForJson(pickReferencedPatchAssets(patch, assets))
+    },
     null,
     2
   );

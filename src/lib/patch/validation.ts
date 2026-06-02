@@ -265,6 +265,7 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
       continue;
     }
     const paramsById = new Map(schema.params.map((param) => [param.id, param] as const));
+    const intrinsicParamsById = new Map((schema.intrinsicParams ?? []).map((param) => [param.id, param] as const));
 
     for (const param of schema.params) {
       if (!(param.id in node.params)) {
@@ -280,6 +281,18 @@ export const validatePatch = (inputPatch: Patch): PatchValidationResult => {
     for (const [paramId, value] of Object.entries(node.params)) {
       const paramSchema = paramsById.get(paramId);
       if (!paramSchema) {
+        const intrinsicParamSchema = intrinsicParamsById.get(paramId);
+        if (intrinsicParamSchema) {
+          if (intrinsicParamSchema.kind === "assetRef" && typeof value !== "string") {
+            pushError(
+              issues,
+              `Module ${node.id} intrinsic parameter ${paramId} must be an asset id string`,
+              { nodeId: node.id, typeId: node.typeId, paramId },
+              "node-param-type-mismatch"
+            );
+          }
+          continue;
+        }
         pushWarning(
           issues,
           `Module ${node.id} has stale parameter ${paramId}; it is ignored by the current ${node.typeId} module`,

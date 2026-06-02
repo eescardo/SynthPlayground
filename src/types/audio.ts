@@ -1,5 +1,6 @@
 import { MasterFxSettings, ProjectGlobalSettings, Track } from "@/types/music";
 import { Patch } from "@/types/patch";
+import { ProjectAssetLibrary } from "@/types/assets";
 import type { SerializableSproutError } from "@/lib/sproutErrors";
 import { PreviewProbeCapture, PreviewProbeRequest, PreviewProbeSharedBuffer } from "@/types/probes";
 
@@ -10,16 +11,21 @@ export interface AudioProject {
   masterFx: MasterFxSettings;
 }
 
+export interface AudioRenderProject {
+  project: AudioProject;
+  runtimeAssets?: ProjectAssetLibrary;
+}
+
 export interface SynthRendererConfig {
   sampleRate: number;
   blockSize: number;
-  project?: AudioProject;
+  renderProject?: AudioRenderProject;
 }
 
 export type SynthRenderMode = "transport" | "preview";
 
 export interface BaseSynthStreamStartOptions {
-  project: AudioProject;
+  renderProject: AudioRenderProject;
   songStartSample: number;
   events: SchedulerEvent[];
   mode: SynthRenderMode;
@@ -107,7 +113,7 @@ export interface WorkletInitMessage {
 
 export interface WorkletSetProjectMessage {
   type: "SET_PROJECT";
-  project: AudioProject;
+  renderProject: AudioRenderProject;
 }
 
 export interface WorkletEventsMessage {
@@ -135,7 +141,7 @@ export interface WorkletPreviewMessage {
   durationSamples: number;
   captureDurationSamples?: number;
   trackId: string;
-  project?: AudioProject;
+  renderProject?: AudioRenderProject;
   ignoreVolume?: boolean;
   previewId?: string;
   captureProbes?: PreviewProbeRequest[];

@@ -52,8 +52,7 @@ describe("patchWorkspacePatchHelpers", () => {
         start: 0,
         end: 1,
         gain: 1,
-        pitchSemis: 0,
-        sampleData: ""
+        pitchSemis: 0
       }
     });
     source.layout.nodes.unshift({ nodeId: "sample1", x: 8, y: 6 });

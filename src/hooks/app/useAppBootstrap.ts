@@ -9,6 +9,8 @@ import {
   loadProjectState,
   loadRecentProjectSnapshots,
   RecentProjectSnapshot,
+  saveActiveProject,
+  saveActiveProjectAssets,
   saveProjectState
 } from "@/lib/persistence";
 import { createEmptyProjectAssetLibrary } from "@/lib/sampleAssetLibrary";
@@ -100,12 +102,22 @@ export function useAppBootstrap({
   useEffect(() => {
     if (!ready) return;
     const timer = window.setTimeout(() => {
-      saveProjectState(createProjectSnapshot(project), projectAssets).catch(() => {
+      saveActiveProject(createProjectSnapshot(project)).catch(() => {
         // ignore autosave errors
       });
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [project, projectAssets, ready]);
+  }, [project, ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const timer = window.setTimeout(() => {
+      saveActiveProjectAssets(projectAssets).catch(() => {
+        // ignore autosave errors
+      });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [projectAssets, ready]);
 
   return {
     project,

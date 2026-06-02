@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  compileAudioProjectPlanToWasmSubset,
   compileAudioProjectToWasmSubset,
   compileSchedulerEventsToWasmSubset
 } from "@/audio/renderers/wasm/wasmSubsetCompiler";
@@ -91,7 +92,7 @@ describe("compileAudioProjectToWasmSubset", () => {
       }
     };
 
-    const compiled = compileAudioProjectToWasmSubset(project, { blockSize: 128 });
+    const compiled = compileAudioProjectToWasmSubset({ project }, { blockSize: 128 });
     const vcfNode = compiled.tracks[0]?.nodes.find((node) => node.id === "vcf");
 
     expect(vcfNode?.params.cutoffHz).toBeCloseTo(550);
@@ -193,7 +194,7 @@ describe("compileAudioProjectToWasmSubset", () => {
       }
     };
 
-    const compiled = compileAudioProjectToWasmSubset(project, { blockSize: 128 });
+    const compiled = compileAudioProjectToWasmSubset({ project }, { blockSize: 128 });
     const track = compiled.tracks[0]!;
     const transposeNode = track.nodes.find((node) => node.id === "transpose");
     const oscNode = track.nodes.find((node) => node.id === "osc");
@@ -206,6 +207,92 @@ describe("compileAudioProjectToWasmSubset", () => {
     expect(outputPort?.typeId).toBe("Output");
     expect(outputPort?.params.gainDb).toBe(-3);
     expect(outputPort?.params.limiter).toBe(true);
+  });
+
+  it("collects sample player assets from runtime sidecar without embedding intrinsic params", () => {
+    const patch: Patch = {
+      schemaVersion: 1,
+      id: "sample-sidecar",
+      name: "Sample Sidecar",
+      meta: { source: "custom" },
+      nodes: [
+        {
+          id: "sample",
+          typeId: "SamplePlayer",
+          params: { sampleAssetId: "asset_1", rootPitch: "C5", start: 0, end: 1 }
+        }
+      ],
+      ports: [createPatchOutputPort({ gainDb: 0, limiter: false })],
+      connections: [
+        { id: "c1", from: { nodeId: "sample", portId: "out" }, to: { nodeId: PATCH_OUTPUT_PORT_ID, portId: "in" } }
+      ],
+      ui: { macros: [] },
+      layout: { nodes: [] }
+    };
+
+    const project: AudioProject = {
+      global: { sampleRate: 48000, tempo: 120, meter: "4/4", gridBeats: 0.25, loop: [] },
+      tracks: [
+        {
+          id: "track1",
+          name: "Track 1",
+          instrumentPatchId: patch.id,
+          notes: [],
+          macroValues: {},
+          macroAutomations: {},
+          macroPanelExpanded: false,
+          volume: 1,
+          mute: false,
+          solo: false,
+          fx: {
+            delayEnabled: false,
+            reverbEnabled: false,
+            saturationEnabled: false,
+            compressorEnabled: false,
+            delayMix: 0,
+            reverbMix: 0,
+            drive: 0,
+            compression: 0
+          }
+        }
+      ],
+      patches: [patch],
+      masterFx: {
+        compressorEnabled: false,
+        limiterEnabled: false,
+        makeupGain: 0
+      }
+    };
+    const runtimeAssets = {
+      samplePlayerById: {
+        asset_1: {
+          version: 2 as const,
+          name: "sample.wav",
+          sampleRate: 44100,
+          samples: new Float32Array([0, 0.25, -0.25])
+        }
+      }
+    };
+
+    const plan = compileAudioProjectPlanToWasmSubset({ project, runtimeAssets }, { blockSize: 128 });
+
+    expect(
+      plan.projectSpec.tracks[0]?.nodes.find((node) => node.id === "sample")?.params.sampleAssetId
+    ).toBeUndefined();
+    expect(plan.sampleAssetsByTrack[0]).toEqual([
+      {
+        nodeId: "sample",
+        sampleRate: 44100,
+        samples: runtimeAssets.samplePlayerById.asset_1.samples
+      }
+    ]);
+
+    const projectWithLegacyEmbeddedAssets = { ...project, sampleAssets: runtimeAssets };
+    const planWithoutSidecar = compileAudioProjectPlanToWasmSubset(
+      { project: projectWithLegacyEmbeddedAssets },
+      { blockSize: 128 }
+    );
+    expect(planWithoutSidecar.sampleAssetsByTrack[0]).toEqual([]);
   });
 
   it("rejects Output nodes in the compiler", () => {
@@ -255,7 +342,7 @@ describe("compileAudioProjectToWasmSubset", () => {
       }
     };
 
-    expect(() => compileAudioProjectToWasmSubset(project, { blockSize: 128 })).toThrow(
+    expect(() => compileAudioProjectToWasmSubset({ project }, { blockSize: 128 })).toThrow(
       "Output must be declared as a patch port"
     );
   });

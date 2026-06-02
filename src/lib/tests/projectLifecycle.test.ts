@@ -175,7 +175,12 @@ describe("projectLifecycle", () => {
 
     const hydrated = hydrateProjectSnapshot(project, {
       samplePlayerById: {
-        valid_asset: '{"version":1,"name":"kept.wav","sampleRate":48000,"samples":[0]}',
+        valid_asset: {
+          version: 2,
+          name: "kept.wav",
+          sampleRate: 48000,
+          samples: new Float32Array([0])
+        },
         invalid_asset: 123
       }
     });
@@ -190,7 +195,7 @@ describe("projectLifecycle", () => {
 
     const sampleParams = hydrated.project.patches[0].nodes[1].params;
     expect(sampleParams.sampleAssetId).toBe("valid_asset");
-    expect(hydrated.assets.samplePlayerById.valid_asset).toContain('"kept.wav"');
+    expect(hydrated.assets.samplePlayerById.valid_asset?.name).toBe("kept.wav");
     expect(hydrated.assets.samplePlayerById.invalid_asset).toBeUndefined();
   });
 });

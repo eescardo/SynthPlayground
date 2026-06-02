@@ -1,5 +1,6 @@
-import { compareScheduledEvents } from "../shared/synth-renderer-events.js";
-import { TRACK_VOLUME_AUTOMATION_ID } from "../shared/synth-renderer-constants.js";
+// Generated from src/audio/renderers/wasm/synth-worklet-wasm-renderer-core.js by scripts/worklets/sync-worklet-runtime.mjs.
+import { compareScheduledEvents } from "./synth-renderer-events.js";
+import { TRACK_VOLUME_AUTOMATION_ID } from "./synth-renderer-constants.js";
 import {
   compileAudioProjectPlanToWasmSubsetCore,
   compileSchedulerEventsToWasmSubsetCore

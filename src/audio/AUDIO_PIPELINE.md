@@ -17,7 +17,7 @@ The main split is:
 
 The renderer abstraction is defined in:
 
-- [renderers/shared/synth-renderer.d.ts](/Users/eddy/code/SynthPlayground/src/audio/renderers/shared/synth-renderer.d.ts)
+- [renderers/shared/synth-renderer.d.ts](renderers/shared/synth-renderer.d.ts)
 
 Important pieces:
 
@@ -30,8 +30,8 @@ Important pieces:
 
 The planner for the WASM backend lives in:
 
-- [renderers/wasm/wasmSubsetCompiler.ts](/Users/eddy/code/SynthPlayground/src/audio/renderers/wasm/wasmSubsetCompiler.ts)
-- [renderers/wasm/synth-worklet-wasm-compiler-core.js](/Users/eddy/code/SynthPlayground/src/audio/renderers/wasm/synth-worklet-wasm-compiler-core.js)
+- [renderers/wasm/wasmSubsetCompiler.ts](renderers/wasm/wasmSubsetCompiler.ts)
+- [renderers/wasm/synth-worklet-wasm-compiler-core.js](renderers/wasm/synth-worklet-wasm-compiler-core.js)
 
 What the planner does:
 
@@ -55,7 +55,7 @@ This is part of the audio correctness contract, not just a React style preferenc
 - same-reference mutation could reuse stale planning data for a changed patch or track
 
 The app enforces this in non-production builds by deep-freezing committed project snapshots from
-[projectImmutability.ts](/Users/eddy/code/SynthPlayground/src/lib/projectImmutability.ts). If a future editor path
+[projectImmutability.ts](../lib/projectImmutability.ts). If a future editor path
 tries to mutate the current project snapshot in place, it should throw during local development/tests instead of
 silently poisoning renderer caches.
 
@@ -63,11 +63,11 @@ silently poisoning renderer caches.
 
 Live playback runs through:
 
-- [engineBackends.ts](/Users/eddy/code/SynthPlayground/src/audio/engineBackends.ts)
-- [worklets/createInitializedWorkletNode.ts](/Users/eddy/code/SynthPlayground/src/audio/worklets/createInitializedWorkletNode.ts)
-- [worklets/synth-worklet.js](/Users/eddy/code/SynthPlayground/src/audio/worklets/synth-worklet.js)
-- [worklets/synth-worklet-runtime.js](/Users/eddy/code/SynthPlayground/src/audio/worklets/synth-worklet-runtime.js)
-- [worklets/synth-worklet-wasm-renderer.js](/Users/eddy/code/SynthPlayground/src/audio/worklets/synth-worklet-wasm-renderer.js)
+- [engineBackends.ts](engineBackends.ts)
+- [worklets/createInitializedWorkletNode.ts](worklets/createInitializedWorkletNode.ts)
+- [worklets/synth-worklet.js](worklets/synth-worklet.js)
+- [worklets/synth-worklet-runtime.js](worklets/synth-worklet-runtime.js)
+- [worklets/synth-worklet-wasm-renderer.js](worklets/synth-worklet-wasm-renderer.js)
 
 Flow:
 
@@ -91,9 +91,9 @@ Offline rendering reuses the same renderer abstraction, but drives it from norma
 
 Files:
 
-- [offline/renderOfflineWithRenderer.ts](/Users/eddy/code/SynthPlayground/src/audio/offline/renderOfflineWithRenderer.ts)
-- [offline/renderProjectOffline.ts](/Users/eddy/code/SynthPlayground/src/audio/offline/renderProjectOffline.ts)
-- [offline/renderProjectOfflineBrowserWasm.ts](/Users/eddy/code/SynthPlayground/src/audio/offline/renderProjectOfflineBrowserWasm.ts)
+- [offline/renderOfflineWithRenderer.ts](offline/renderOfflineWithRenderer.ts)
+- [offline/renderProjectOffline.ts](offline/renderProjectOffline.ts)
+- [offline/renderProjectOfflineBrowserWasm.ts](offline/renderProjectOfflineBrowserWasm.ts)
 
 Usage:
 
@@ -109,7 +109,7 @@ Current split:
 Both are WASM-backed. The difference is just the host-specific loader:
 
 - browser path loads the wasm binary through `fetch(...)`
-- Node path loads the wasm module through the Node-side loader in [renderers/wasm/loadNodeDspWasm.ts](/Users/eddy/code/SynthPlayground/src/audio/renderers/wasm/loadNodeDspWasm.ts)
+- Node path loads the wasm module through the Node-side loader in [renderers/wasm/loadNodeDspWasm.ts](renderers/wasm/loadNodeDspWasm.ts)
 
 ## Worklet Publishing
 
@@ -119,7 +119,7 @@ Worklet/runtime files are copied into:
 
 The publishing step is:
 
-- [scripts/worklets/sync-worklet-runtime.mjs](/Users/eddy/code/SynthPlayground/scripts/worklets/sync-worklet-runtime.mjs)
+- [scripts/worklets/sync-worklet-runtime.mjs](../../scripts/worklets/sync-worklet-runtime.mjs)
 
 It scans:
 
@@ -137,9 +137,9 @@ The benchmark suite is now WASM-only and compares:
 
 Main files:
 
-- [benchmarks/runBenchmark.ts](/Users/eddy/code/SynthPlayground/src/audio/benchmarks/runBenchmark.ts)
-- [scripts/audio-benchmarks/run.ts](/Users/eddy/code/SynthPlayground/scripts/audio-benchmarks/run.ts)
-- [scripts/audio-benchmarks/profile-audio.ts](/Users/eddy/code/SynthPlayground/scripts/audio-benchmarks/profile-audio.ts)
+- [benchmarks/runBenchmark.ts](benchmarks/runBenchmark.ts)
+- [scripts/audio-benchmarks/run.ts](../../scripts/audio-benchmarks/run.ts)
+- [scripts/audio-benchmarks/profile-audio.ts](../../scripts/audio-benchmarks/profile-audio.ts)
 
 Local commands:
 
@@ -154,7 +154,7 @@ Local commands:
 
 Workflow:
 
-- [pr-audio-benchmarks.yml](/Users/eddy/code/SynthPlayground/.github/workflows/pr-audio-benchmarks.yml)
+- [pr-audio-benchmarks.yml](../../.github/workflows/pr-audio-benchmarks.yml)
 
 Trigger labels:
 
@@ -176,4 +176,4 @@ When something sounds wrong or seems slow:
 2. inspect the planned project/event shape if the problem looks structural
 3. run `benchmark:audio` on a representative scenario
 4. run `profile:audio` if it looks performance-related
-5. if needed, inspect the Rust engine in [rust/dsp-core/src/](/Users/eddy/code/SynthPlayground/rust/dsp-core/src/)
+5. if needed, inspect the Rust engine in [rust/dsp-core/src/](../../rust/dsp-core/src/)

@@ -1,5 +1,6 @@
-import { TRACK_VOLUME_AUTOMATION_ID } from "../shared/synth-renderer-constants.js";
-import { getIntrinsicParamsForType } from "../../../lib/patch/module-runtime-metadata.js";
+// Generated from src/audio/renderers/wasm/synth-worklet-wasm-compiler-core.js by scripts/worklets/sync-worklet-runtime.mjs.
+import { TRACK_VOLUME_AUTOMATION_ID } from "./synth-renderer-constants.js";
+import { getIntrinsicParamsForType } from "./module-runtime-metadata.js";
 
 // TODO(host-boundary-ports): Host source ports are still compiled as implicit
 // renderer-fed signal indices. Once patch input ports become serialized peers

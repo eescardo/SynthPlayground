@@ -11,7 +11,7 @@ import { PatchWorkspaceView } from "@/components/app/PatchWorkspaceView";
 import { downloadJsonFile } from "@/lib/browserDownloads";
 import { NoteClipboardPayload } from "@/lib/clipboard";
 import { createId } from "@/lib/ids";
-import { RecentProjectSnapshot } from "@/lib/persistence";
+import { RecentProjectSnapshot, saveActiveProjectAssets } from "@/lib/persistence";
 import { exportPatchToJson, importPatchBundleFromJson } from "@/lib/patch/serde";
 import { isPatchRemovable } from "@/lib/patch/source";
 import { createImportedWorkspacePatch } from "@/hooks/patch/patchWorkspacePatchHelpers";
@@ -20,7 +20,7 @@ import { MAX_PATCH_WORKSPACE_TABS } from "@/hooks/patch/patchWorkspaceStateUtils
 import { buildPatchDiff } from "@/lib/patch/diff";
 import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
-import { ProjectAssetLibrary } from "@/types/assets";
+import { ProjectAssetLibrary, SamplePlayerAssetData } from "@/types/assets";
 import { Project } from "@/types/music";
 import { PatchValidationIssue, Patch } from "@/types/patch";
 
@@ -41,7 +41,10 @@ export interface UsePatchWorkspaceControllerOptions {
   selectedPatchHasErrors: boolean;
   patchWorkspace: ReturnType<typeof usePatchWorkspaceState>;
   onWriteClipboardPayload?: (payload: NoteClipboardPayload) => Promise<void>;
-  onUpsertSamplePlayerAssetData: (serializedSampleData: string, existingAssetId?: string | null) => string;
+  onUpsertSamplePlayerAssetData: (
+    sampleData: SamplePlayerAssetData,
+    existingAssetId?: string | null
+  ) => Promise<string>;
   commitProjectChange: CommitProjectChange;
   setProjectAssets: Dispatch<SetStateAction<ProjectAssetLibrary>>;
   setRuntimeError: SproutErrorSetter;
@@ -126,6 +129,7 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
           name: nextPatchName
         };
 
+        await saveActiveProjectAssets(merged.assets);
         setProjectAssets(merged.assets);
         commitProjectChange(
           (current) => ({

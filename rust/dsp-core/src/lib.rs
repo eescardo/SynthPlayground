@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 
 mod nodes;
@@ -29,6 +30,17 @@ fn js_error(message: impl Into<String>) -> JsValue {
 
 fn now_ms() -> f64 {
     js_sys::Date::now()
+}
+
+pub(crate) fn build_sample_asset(sample_rate: f32, samples: &[f32]) -> Option<SampleAsset> {
+    if sample_rate > 0.0 && !samples.is_empty() {
+        Some(SampleAsset {
+            sample_rate,
+            samples: Arc::<[f32]>::from(samples),
+        })
+    } else {
+        None
+    }
 }
 
 const MAX_VOICES: usize = 8;
@@ -184,7 +196,7 @@ enum SamplePlayerMode {
 #[derive(Clone)]
 struct SampleAsset {
     sample_rate: f32,
-    samples: Vec<f32>,
+    samples: Arc<[f32]>,
 }
 
 #[derive(Clone, Deserialize)]

@@ -47,6 +47,7 @@ import { freezeProjectSnapshot } from "@/lib/projectImmutability";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { renameProjectInProject } from "@/lib/projectManagement";
 import { getProjectPresetUpdateSummary, isPatchRemovable, updateProjectPresetsToLatest } from "@/lib/patch/source";
+import { saveActiveProjectAssets } from "@/lib/persistence";
 import { exportProjectToJson } from "@/lib/projectSerde";
 import { pitchToVoct } from "@/lib/pitch";
 import { createSproutError, reportSproutErrorToConsole, toError } from "@/lib/sproutErrors";
@@ -87,7 +88,7 @@ import {
 } from "@/lib/patch/patchRemoval";
 import { useTrackMacroAutomationActions } from "@/hooks/tracks/useTrackMacroAutomationActions";
 import { useTrackVolumeAutomationActions } from "@/hooks/tracks/useTrackVolumeAutomationActions";
-import { ProjectAssetLibrary } from "@/types/assets";
+import { ProjectAssetLibrary, SamplePlayerAssetData } from "@/types/assets";
 import { Project } from "@/types/music";
 import { PatchValidationIssue } from "@/types/patch";
 
@@ -158,7 +159,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const recordingHandleBeatRef = useRef<(beat: number) => void>(() => {});
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const keepSelectionPopoverCollapsedRef = useRef(false);
-  const audioProject = useMemo(() => toAudioProject(project, projectAssets), [project, projectAssets]);
+  const audioProject = useMemo(() => toAudioProject(project), [project]);
+  const renderProject = useMemo(
+    () => ({ project: audioProject, runtimeAssets: projectAssets }),
+    [audioProject, projectAssets]
+  );
   const {
     noteClipboardPayload,
     setNoteClipboardPayload,
@@ -311,8 +316,9 @@ export function AppRoot({ children }: { children: ReactNode }) {
   }, [commitProjectChange]);
 
   const upsertWorkspaceSamplePlayerAssetData = useCallback(
-    (serializedSampleData: string, existingAssetId?: string | null) => {
-      const nextState = upsertSamplePlayerAssetData(projectAssets, serializedSampleData, existingAssetId);
+    async (sampleData: SamplePlayerAssetData, existingAssetId?: string | null) => {
+      const nextState = upsertSamplePlayerAssetData(projectAssets, sampleData, existingAssetId);
+      await saveActiveProjectAssets(nextState.assets);
       setProjectAssets(nextState.assets);
       return nextState.assetId;
     },
@@ -397,8 +403,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
       audioEngineRef.current = new AudioEngine();
     }
     audioEngineRef.current.setRuntimeErrorListener(setRuntimeError);
-    audioEngineRef.current.syncProjectSnapshot(audioProject, { syncToWorklet: !playing });
-  }, [audioProject, playing, ready, setRuntimeError]);
+    audioEngineRef.current.syncProjectSnapshot(renderProject, { syncToWorklet: !playing });
+  }, [playing, ready, renderProject, setRuntimeError]);
 
   useEffect(() => {
     setEditorSelection((current) => filterEditorSelectionToProject(project, current));
@@ -456,7 +462,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const playback = usePlaybackController({
     project,
-    audioProject,
+    renderProject,
     playbackEndBeat,
     userCueBeat,
     playheadBeat,

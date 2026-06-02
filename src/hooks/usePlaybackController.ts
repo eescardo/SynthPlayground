@@ -6,11 +6,11 @@ import { AudioEnginePlayOptions } from "@/audio/engineBackends";
 import { getLoopPlaybackEndBeat } from "@/lib/looping";
 import { createSproutError, SproutErrorSetter } from "@/lib/sproutErrors";
 import { Project } from "@/types/music";
-import { AudioProject } from "@/types/audio";
+import { AudioRenderProject } from "@/types/audio";
 
 interface UsePlaybackControllerArgs {
   project: Project;
-  audioProject: AudioProject;
+  renderProject: AudioRenderProject;
   playbackEndBeat: number;
   userCueBeat: number;
   playheadBeat: number;
@@ -26,7 +26,7 @@ interface UsePlaybackControllerArgs {
 export function usePlaybackController(args: UsePlaybackControllerArgs) {
   const {
     project,
-    audioProject,
+    renderProject,
     playbackEndBeat,
     userCueBeat,
     playheadBeat,
@@ -90,14 +90,14 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
         audioEngineRef.current = new AudioEngine();
       }
       audioEngineRef.current.setRuntimeErrorListener(setRuntimeError);
-      audioEngineRef.current.syncProjectSnapshot(audioProject, { syncToWorklet: true });
+      audioEngineRef.current.syncProjectSnapshot(renderProject, { syncToWorklet: true });
       await audioEngineRef.current.play(cueBeat, { recordingTrackId: options?.recordingTrackId ?? null });
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
       }
       rafRef.current = requestAnimationFrame(tickPlayhead);
     },
-    [audioEngineRef, audioProject, setRuntimeError, tickPlayhead]
+    [audioEngineRef, renderProject, setRuntimeError, tickPlayhead]
   );
 
   const seekPlaybackToBeat = useCallback(

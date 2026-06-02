@@ -1,6 +1,7 @@
 import type { SynthRenderer, SynthRenderStream, WorkletPortLike } from "@/audio/renderers/shared/synth-renderer";
 import {
   AudioProject,
+  AudioRenderProject,
   SchedulerEvent,
   SynthRendererConfig,
   SynthStreamStartOptions,
@@ -8,7 +9,7 @@ import {
 } from "@/types/audio";
 import type { Track } from "@/types/music";
 import {
-  compileAudioProjectToWasmSubset,
+  compileAudioProjectPlanToWasmSubset,
   compileSchedulerEventsToWasmSubset
 } from "@/audio/renderers/wasm/wasmSubsetCompiler";
 import { loadNodeDspWasmModule } from "@/audio/renderers/wasm/loadNodeDspWasm";
@@ -47,7 +48,7 @@ export class NodeWasmSynthRenderer extends SharedWasmRenderer implements SynthRe
   declare readonly port: WorkletPortLike;
   declare sampleRateInternal: number;
   declare blockSize: number;
-  declare defaultProject: AudioProject | null;
+  declare defaultRenderProject: AudioRenderProject | null;
   declare readonly project: AudioProject | null;
 
   readonly profilingEnabled: boolean;
@@ -62,7 +63,7 @@ export class NodeWasmSynthRenderer extends SharedWasmRenderer implements SynthRe
     profilingEnabled = false
   ) {
     const implementation: SharedWasmImplementation = {
-      compileProject: compileAudioProjectToWasmSubset,
+      compileProject: compileAudioProjectPlanToWasmSubset,
       compileEvents: compileSchedulerEventsToWasmSubset,
       createEngine: (renderer, _project, projectSpec) => {
         const nodeRenderer = renderer as unknown as SharedWasmRendererLike & NodeWasmSynthRenderer;
@@ -82,16 +83,16 @@ export class NodeWasmSynthRenderer extends SharedWasmRenderer implements SynthRe
     this.sharedImplementation = implementation;
   }
 
-  setDefaultProject(project: AudioProject): void {
-    this.defaultProject = project;
+  setDefaultProject(renderProject: AudioRenderProject): void {
+    super.setDefaultProject(renderProject);
   }
 
   startStream(options: SynthStreamStartOptions): WasmSynthRenderStream | null {
-    const project = options.project || this.defaultProject;
-    if (!project) {
+    const renderProject = options.renderProject || this.defaultRenderProject;
+    if (!renderProject) {
       return null;
     }
-    return new WasmSynthRenderStream(this, { ...options, project });
+    return new WasmSynthRenderStream(this, { ...options, renderProject });
   }
 }
 

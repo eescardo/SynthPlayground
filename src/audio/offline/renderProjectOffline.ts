@@ -1,5 +1,5 @@
 import { createWasmRenderer, WasmSynthRenderStream } from "@/audio/renderers/wasm/wasmSynthRenderer";
-import { AudioProject, SchedulerEvent } from "@/types/audio";
+import { AudioRenderProject, SchedulerEvent } from "@/types/audio";
 import { BaseOfflineRenderOptions, OfflineRenderResult, renderOfflineWithRenderer } from "./renderOfflineWithRenderer";
 
 export interface OfflineRenderOptions extends BaseOfflineRenderOptions {
@@ -14,7 +14,7 @@ export interface OfflineRenderWasmResult extends OfflineRenderResult {
 }
 
 export const renderProjectOffline = async (
-  project: AudioProject,
+  renderProject: AudioRenderProject,
   options: OfflineRenderOptions
 ): Promise<OfflineRenderWasmResult> => {
   const renderer = await createWasmRenderer({
@@ -22,12 +22,12 @@ export const renderProjectOffline = async (
     processorOptions: {
       sampleRate: options.sampleRate,
       blockSize: options.blockSize,
-      project
+      renderProject
     }
   });
   return renderOfflineWithRenderer<WasmSynthRenderStream, { profileStats?: Record<string, unknown> | null }>(
     renderer,
-    project,
+    renderProject,
     options,
     (stream) => ({ profileStats: stream?.getProfileStats() ?? null })
   );

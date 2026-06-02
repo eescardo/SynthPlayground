@@ -1,9 +1,21 @@
 use crate::stream::TrackRuntime;
 use crate::{
-    clamp, db_to_gain, js_error, now_ms, sort_events, EngineProfileStats, EventSpec, MasterFxSpec,
-    PreviewProbeCaptureSpec, PreviewProbeCaptureStateSnapshot, ProjectSpec,
+    build_sample_asset, clamp, db_to_gain, js_error, now_ms, sort_events, EngineProfileStats,
+    EventSpec, MasterFxSpec, PreviewProbeCaptureSpec, PreviewProbeCaptureStateSnapshot,
+    ProjectSpec, SampleAsset,
 };
+use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
+
+fn pending_track_sample_assets(
+    assets_by_track: &mut Vec<HashMap<String, SampleAsset>>,
+    track_index: usize,
+) -> &mut HashMap<String, SampleAsset> {
+    if assets_by_track.len() <= track_index {
+        assets_by_track.resize_with(track_index + 1, HashMap::new);
+    }
+    &mut assets_by_track[track_index]
+}
 
 #[wasm_bindgen]
 pub struct WasmSubsetEngine {
@@ -21,6 +33,7 @@ pub struct WasmSubsetEngine {
     preview_capture_sample_count: usize,
     profiling_enabled: bool,
     profile_stats: EngineProfileStats,
+    pending_sample_assets_by_track: Vec<HashMap<String, SampleAsset>>,
 }
 
 #[wasm_bindgen]
@@ -50,6 +63,7 @@ impl WasmSubsetEngine {
             preview_capture_sample_count: 0,
             profiling_enabled: false,
             profile_stats: EngineProfileStats::default(),
+            pending_sample_assets_by_track: Vec::new(),
         }
     }
 
@@ -80,13 +94,23 @@ impl WasmSubsetEngine {
         self.right.resize(self.block_size, 0.0);
         self.left.fill(0.0);
         self.right.fill(0.0);
-        self.tracks = project
+        let tracks = project
             .tracks
             .into_iter()
+            .enumerate()
             .map(|track| {
-                TrackRuntime::from_spec(track, self.sample_rate, self.block_size, random_seed)
+                let (track_index, track) = track;
+                TrackRuntime::from_spec(
+                    track,
+                    self.sample_rate,
+                    self.block_size,
+                    random_seed,
+                    self.pending_sample_assets_by_track.get(track_index),
+                )
             })
             .collect::<Result<Vec<_>, _>>()?;
+        self.tracks = tracks;
+        self.pending_sample_assets_by_track.clear();
         self.master_fx = project.master_fx;
         self.master_compressor_env = 0.0;
         self.event_queue = events;
@@ -106,6 +130,39 @@ impl WasmSubsetEngine {
             .map_err(|error| js_error(format!("Failed to parse appended WASM events: {error}")))?;
         self.event_queue.append(&mut events);
         sort_events(&mut self.event_queue);
+        Ok(())
+    }
+
+    pub fn set_sample_asset(
+        &mut self,
+        track_index: usize,
+        node_id: &str,
+        sample_rate: f32,
+        samples: &[f32],
+    ) -> Result<(), JsValue> {
+        let track = self.tracks.get_mut(track_index).ok_or_else(|| {
+            js_error(format!(
+                "Unknown track index for sample asset: {track_index}"
+            ))
+        })?;
+        track.set_sample_asset(node_id, sample_rate, samples);
+        Ok(())
+    }
+
+    pub fn stage_sample_asset(
+        &mut self,
+        track_index: usize,
+        node_id: &str,
+        sample_rate: f32,
+        samples: &[f32],
+    ) -> Result<(), JsValue> {
+        let track_assets =
+            pending_track_sample_assets(&mut self.pending_sample_assets_by_track, track_index);
+        if let Some(asset) = build_sample_asset(sample_rate, samples) {
+            track_assets.insert(node_id.to_string(), asset);
+        } else {
+            track_assets.remove(node_id);
+        }
         Ok(())
     }
 

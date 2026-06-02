@@ -8,6 +8,7 @@ import { createWasmParityScenario } from "@/audio/benchmarks/wasmParityScenario"
 import { renderProjectOffline } from "@/audio/offline/renderProjectOffline";
 import { collectEventsInWindow } from "@/audio/scheduler";
 import { beatToSample } from "@/lib/musicTiming";
+import type { AudioProject } from "@/types/audio";
 
 type ProfileTree = Record<string, unknown>;
 
@@ -48,7 +49,7 @@ interface RenderableScenario {
     tempo: number;
     blockSize: number;
   };
-  project: Parameters<typeof renderProjectOffline>[0];
+  project: AudioProject;
 }
 
 const makeScenario = (): RenderableScenario => {
@@ -99,15 +100,18 @@ const renderScenario = async (scenario: RenderableScenario) => {
   const scheduleEventsMs = performance.now() - scheduleStart;
 
   const renderStart = performance.now();
-  const renderResult = await renderProjectOffline(scenario.project, {
-    sampleRate: scenario.config.sampleRate,
-    blockSize: scenario.config.blockSize,
-    durationSamples,
-    events,
-    sessionId: 1,
-    randomSeed,
-    profilingEnabled: true
-  });
+  const renderResult = await renderProjectOffline(
+    { project: scenario.project },
+    {
+      sampleRate: scenario.config.sampleRate,
+      blockSize: scenario.config.blockSize,
+      durationSamples,
+      events,
+      sessionId: 1,
+      randomSeed,
+      profilingEnabled: true
+    }
+  );
   const renderSongMs = performance.now() - renderStart;
 
   return {
