@@ -94,6 +94,14 @@ export const findTrackNoteByMeasureOffset = (
   );
 };
 
+export const findTrackBoundaryNote = (track: Track | undefined, boundary: "start" | "end"): Note | null => {
+  if (!track) {
+    return null;
+  }
+  const sortedNotes = sortNotes(track.notes);
+  return boundary === "start" ? (sortedNotes[0] ?? null) : (sortedNotes[sortedNotes.length - 1] ?? null);
+};
+
 type SelectionShiftBlock = { reason: "boundary" } | { reason: "note"; blockingSelectionKey: string };
 
 export type ShiftContentSelectionResult =

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findAdjacentTrackNote,
+  findTrackBoundaryNote,
   findTrackBackspaceTargetNote,
   findTrackNoteByMeasureOffset,
   shiftContentSelectionByBeats,
@@ -130,6 +131,16 @@ describe("hardware navigation note placement", () => {
 
     expect(findTrackNoteByMeasureOffset(track, "near_start", -1, 4)?.id).toBe("first");
     expect(findTrackNoteByMeasureOffset(track, "near_end", 1, 4)?.id).toBe("last");
+  });
+
+  it("finds boundary notes in track order", () => {
+    const track = createTrack([
+      { id: "last", pitchStr: "F4", startBeat: 10, durationBeats: 1, velocity: 0.8 },
+      { id: "first", pitchStr: "C4", startBeat: 0, durationBeats: 1, velocity: 0.8 }
+    ]);
+
+    expect(findTrackBoundaryNote(track, "start")?.id).toBe("first");
+    expect(findTrackBoundaryNote(track, "end")?.id).toBe("last");
   });
 
   it("moves selected notes and automation keyframes together when the destination is clear", () => {

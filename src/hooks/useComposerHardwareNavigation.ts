@@ -15,6 +15,7 @@ import {
 } from "@/hooks/useHardwareNavigationTypes";
 import {
   findAdjacentTrackNote,
+  findTrackBoundaryNote,
   findTrackBackspaceTargetNote,
   findTrackNoteAtBeat,
   findTrackNoteByMeasureOffset,
@@ -22,9 +23,14 @@ import {
   trackHasNoteAtBeat,
   upsertKeyboardPlacedNote
 } from "@/lib/hardwareNavigation";
-import { getNoteSelectionKey, parseNoteSelectionKey } from "@/lib/clipboard";
+import { getNoteSelectionKey } from "@/lib/clipboard";
+import {
+  getMeasureBeatsForMeter,
+  getSingleSelectedTrackNote,
+  resolveComposerBoundaryNavigationIntent,
+  resolveComposerHorizontalArrowIntent
+} from "@/lib/composerKeyboardNavigation";
 import { createId } from "@/lib/ids";
-import { sortNotes } from "@/lib/noteEditing";
 import { DEFAULT_NOTE_VELOCITY } from "@/lib/noteDefaults";
 import { beatToSample, snapToGrid, snapUpToGrid } from "@/lib/musicTiming";
 import { keyToPitch, normalizePhysicalPitchKey, pitchToVoct } from "@/lib/pitch";
@@ -84,7 +90,7 @@ export function useComposerHardwareNavigation({
   const hasActivePlacement = activePlacement !== null;
   const hasSelectedTrack = Boolean(selectedTrack);
   const hasNoSelection = selectionKind === "none";
-  const measureBeats = projectMeter === "4/4" ? 4 : 3;
+  const measureBeats = getMeasureBeatsForMeter(projectMeter);
 
   const [ghostPreviewNote, setGhostPreviewNote] = useState<GhostPreviewNote | null>(null);
   const [tabSelectionPreviewNote, setTabSelectionPreviewNote] = useState<{ trackId: string; noteId: string } | null>(
@@ -489,16 +495,6 @@ export function useComposerHardwareNavigation({
       });
     };
 
-    const nudgePlayhead = (direction: -1 | 1) => {
-      const nextBeat =
-        direction < 0
-          ? Math.max(0, snapToGrid(playheadBeat - projectGridBeats, projectGridBeats))
-          : Math.min(playbackEndBeat, snapToGrid(playheadBeat + projectGridBeats, projectGridBeats));
-      setPlayheadBeatPreservingSelection(nextBeat);
-      base.setPlayheadNavigationFocused(true);
-      clearBlockedSelectionTransfer();
-    };
-
     const nudgePlayheadByBeats = (direction: -1 | 1, beatSpan: number) => {
       const nextBeat =
         direction < 0
@@ -515,50 +511,13 @@ export function useComposerHardwareNavigation({
       clearBlockedSelectionTransfer();
     };
 
-    const getSingleSelectedNote = () => {
-      if (contentSelection.noteKeys.length !== 1 || contentSelection.automationKeyframeSelectionKeys.length > 0) {
-        return null;
-      }
-      const parsed = parseNoteSelectionKey(contentSelection.noteKeys[0]!);
-      if (!parsed) {
-        return null;
-      }
-      const track = tracks.find((entry) => entry.id === parsed.trackId);
-      const note = track?.notes.find((entry) => entry.id === parsed.noteId);
-      return track && note ? { track, note } : null;
-    };
+    const getSingleSelectedNote = () => getSingleSelectedTrackNote(tracks, contentSelection);
 
     const selectSingleNote = (trackId: string, noteId: string) => {
       base.setSingleNoteSelection(getNoteSelectionKey(trackId, noteId), { keepCollapsed: true });
       base.setPlayheadNavigationFocused(false);
       base.focusSelectedContentTabStop();
       clearBlockedSelectionTransfer();
-    };
-
-    const selectAdjacentNote = (direction: -1 | 1) => {
-      const selected = getSingleSelectedNote();
-      if (!selected) {
-        return false;
-      }
-      const targetNote = findAdjacentTrackNote(selected.track, selected.note.id, direction);
-      if (!targetNote) {
-        return true;
-      }
-      selectSingleNote(selected.track.id, targetNote.id);
-      return true;
-    };
-
-    const selectMeasureRelativeNote = (direction: -1 | 1) => {
-      const selected = getSingleSelectedNote();
-      if (!selected) {
-        return false;
-      }
-      const targetNote = findTrackNoteByMeasureOffset(selected.track, selected.note.id, direction, measureBeats);
-      if (!targetNote) {
-        return true;
-      }
-      selectSingleNote(selected.track.id, targetNote.id);
-      return true;
     };
 
     const nudgeContentSelection = (direction: -1 | 1, beatSpan = projectGridBeats) => {
@@ -623,45 +582,49 @@ export function useComposerHardwareNavigation({
         selectionCaptureFocused: boolean;
       }
     ) => {
-      const { playheadNavigationActive, hasContentSelection, hasTimelineSelection, selectionCaptureFocused } = options;
-      const measureNavigationModifierPressed = !event.metaKey && (event.ctrlKey || event.altKey);
+      const selected = getSingleSelectedNote();
+      const intent = resolveComposerHorizontalArrowIntent({
+        ctrlKey: event.ctrlKey,
+        altKey: event.altKey,
+        metaKey: event.metaKey,
+        shiftKey: event.shiftKey,
+        playheadNavigationActive: options.playheadNavigationActive,
+        hasContentSelection: options.hasContentSelection,
+        hasTimelineSelection: options.hasTimelineSelection,
+        selectionCaptureFocused: options.selectionCaptureFocused,
+        hasSingleNoteSelection: Boolean(selected)
+      });
+
       event.preventDefault();
-      if (playheadNavigationActive) {
-        if (measureNavigationModifierPressed) {
-          nudgePlayheadByBeats(direction, measureBeats);
-          return true;
-        }
-        nudgePlayhead(direction);
+
+      if (intent.kind === "nudge-playhead") {
+        nudgePlayheadByBeats(direction, intent.beatSpan === "measure" ? measureBeats : projectGridBeats);
         return true;
       }
-      if (hasContentSelection) {
-        if (measureNavigationModifierPressed && event.shiftKey) {
-          return selectMeasureRelativeNote(direction);
-        }
-        if (event.shiftKey) {
-          return selectAdjacentNote(direction);
-        }
-        if (measureNavigationModifierPressed) {
-          const selected = getSingleSelectedNote();
-          if (!selected) {
-            return false;
-          }
-          nudgeContentSelection(direction, measureBeats);
-          return true;
-        }
-        nudgeContentSelection(direction);
+      if (intent.kind === "nudge-content") {
+        nudgeContentSelection(direction, intent.beatSpan === "measure" ? measureBeats : projectGridBeats);
         return true;
       }
-      if (hasTimelineSelection) {
-        if (!selectionCaptureFocused) {
-          nudgePlayhead(direction);
-          return true;
+      if (intent.kind === "select-adjacent-note" && selected) {
+        const targetNote = findAdjacentTrackNote(selected.track, selected.note.id, direction);
+        if (targetNote) {
+          selectSingleNote(selected.track.id, targetNote.id);
         }
+        return true;
+      }
+      if (intent.kind === "select-measure-relative-note" && selected) {
+        const targetNote = findTrackNoteByMeasureOffset(selected.track, selected.note.id, direction, measureBeats);
+        if (targetNote) {
+          selectSingleNote(selected.track.id, targetNote.id);
+        }
+        return true;
+      }
+      if (intent.kind === "clear-timeline-focus") {
         base.setPlayheadNavigationFocused(false);
         clearBlockedSelectionTransfer();
         return true;
       }
-      nudgePlayhead(direction);
+
       return true;
     };
 
@@ -672,34 +635,31 @@ export function useComposerHardwareNavigation({
         hasContentSelection: boolean;
       }
     ) => {
-      const { playheadNavigationActive, hasContentSelection } = options;
-      const startRequested = event.key === "Home" || (event.metaKey && event.key === "ArrowLeft");
-      const endRequested = event.key === "End" || (event.metaKey && event.key === "ArrowRight");
-      if (!startRequested && !endRequested) {
+      const selected = getSingleSelectedNote();
+      const intent = resolveComposerBoundaryNavigationIntent({
+        key: event.key,
+        metaKey: event.metaKey,
+        playheadNavigationActive: options.playheadNavigationActive,
+        hasContentSelection: options.hasContentSelection,
+        hasSingleNoteSelection: Boolean(selected)
+      });
+      if (!intent) {
         return false;
       }
 
-      if (playheadNavigationActive) {
-        event.preventDefault();
-        jumpPlayheadToBoundary(startRequested ? "start" : "end");
+      event.preventDefault();
+      if (intent.kind === "jump-playhead") {
+        jumpPlayheadToBoundary(intent.boundary);
         return true;
       }
-
-      if (hasContentSelection) {
-        const selected = getSingleSelectedNote();
-        if (!selected) {
-          return false;
-        }
-        event.preventDefault();
-        const targetNote = startRequested ? sortNotes(selected.track.notes)[0] : sortNotes(selected.track.notes).at(-1);
+      if (intent.kind === "select-boundary-note" && selected) {
+        const targetNote = findTrackBoundaryNote(selected.track, intent.boundary);
         if (targetNote) {
           selectSingleNote(selected.track.id, targetNote.id);
         }
         return true;
       }
 
-      event.preventDefault();
-      jumpPlayheadToBoundary(startRequested ? "start" : "end");
       return true;
     };
 
