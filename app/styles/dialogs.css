@@ -38,12 +38,20 @@
   position: absolute;
   top: 0.58rem;
   left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 0.24rem;
   transform: translateX(-50%);
   margin: 0;
   color: rgba(216, 232, 250, 0.42);
   font-size: 0.92rem;
   font-weight: 700;
   pointer-events: none;
+  white-space: nowrap;
+}
+
+.quick-help-modal > h3 kbd {
+  opacity: 0.78;
 }
 
 .quick-help-grid {
@@ -69,7 +77,7 @@
 .quick-help-section h4 {
   display: inline-flex;
   align-items: center;
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.52rem;
   padding: 0.1rem 0.52rem 0.12rem;
   border: 1px solid rgba(159, 202, 235, 0.36);
   border-radius: 999px;
@@ -81,16 +89,20 @@
 }
 
 .quick-help-mouse-items {
-  display: grid;
-  gap: 0.3rem 1rem;
+  column-gap: 1rem;
 }
 
 .quick-help-grid-keyboard-first .quick-help-mouse-items {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  columns: 2;
 }
 
 .quick-help-mouse-items p {
   margin: 0;
+  break-inside: avoid;
+}
+
+.quick-help-mouse-items p + p {
+  margin-top: 0.32rem;
 }
 
 .quick-help-shortcuts {
@@ -178,7 +190,7 @@
   }
 
   .quick-help-grid-keyboard-first .quick-help-mouse-items {
-    grid-template-columns: 1fr;
+    columns: 1;
   }
 }
 
