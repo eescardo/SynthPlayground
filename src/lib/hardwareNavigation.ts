@@ -77,7 +77,7 @@ export const findTrackNoteByMeasureOffset = (
   }
 
   const targetBeat = selectedNote.startBeat + direction * measureBeats;
-  const sortedNotes = sortNotes(track.notes.filter((note) => note.id !== selectedNoteId));
+  const sortedNotes = sortNotes(track.notes);
   if (direction < 0) {
     for (let index = sortedNotes.length - 1; index >= 0; index -= 1) {
       const note = sortedNotes[index]!;
@@ -85,9 +85,13 @@ export const findTrackNoteByMeasureOffset = (
         return note;
       }
     }
-    return null;
+    return sortedNotes[0] ?? null;
   }
-  return sortedNotes.find((note) => note.startBeat >= targetBeat - NOTE_AT_BEAT_EPSILON) ?? null;
+  return (
+    sortedNotes.find((note) => note.startBeat >= targetBeat - NOTE_AT_BEAT_EPSILON) ??
+    sortedNotes[sortedNotes.length - 1] ??
+    null
+  );
 };
 
 type SelectionShiftBlock = { reason: "boundary" } | { reason: "note"; blockingSelectionKey: string };

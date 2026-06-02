@@ -120,6 +120,18 @@ describe("hardware navigation note placement", () => {
     expect(findTrackNoteByMeasureOffset(track, "selected", 1, 4)?.id).toBe("right_target");
   });
 
+  it("clamps measure-offset note targets to track edges", () => {
+    const track = createTrack([
+      { id: "first", pitchStr: "C4", startBeat: 0, durationBeats: 1, velocity: 0.8 },
+      { id: "near_start", pitchStr: "D4", startBeat: 2, durationBeats: 1, velocity: 0.8 },
+      { id: "near_end", pitchStr: "E4", startBeat: 8, durationBeats: 1, velocity: 0.8 },
+      { id: "last", pitchStr: "F4", startBeat: 10, durationBeats: 1, velocity: 0.8 }
+    ]);
+
+    expect(findTrackNoteByMeasureOffset(track, "near_start", -1, 4)?.id).toBe("first");
+    expect(findTrackNoteByMeasureOffset(track, "near_end", 1, 4)?.id).toBe("last");
+  });
+
   it("moves selected notes and automation keyframes together when the destination is clear", () => {
     const track = {
       ...createTrack([

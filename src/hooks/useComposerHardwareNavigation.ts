@@ -624,9 +624,10 @@ export function useComposerHardwareNavigation({
       }
     ) => {
       const { playheadNavigationActive, hasContentSelection, hasTimelineSelection, selectionCaptureFocused } = options;
+      const measureNavigationModifierPressed = !event.metaKey && (event.ctrlKey || event.altKey);
       event.preventDefault();
       if (playheadNavigationActive) {
-        if (event.ctrlKey) {
+        if (measureNavigationModifierPressed) {
           nudgePlayheadByBeats(direction, measureBeats);
           return true;
         }
@@ -634,13 +635,13 @@ export function useComposerHardwareNavigation({
         return true;
       }
       if (hasContentSelection) {
-        if (event.ctrlKey && event.shiftKey) {
+        if (measureNavigationModifierPressed && event.shiftKey) {
           return selectMeasureRelativeNote(direction);
         }
         if (event.shiftKey) {
           return selectAdjacentNote(direction);
         }
-        if (event.ctrlKey) {
+        if (measureNavigationModifierPressed) {
           const selected = getSingleSelectedNote();
           if (!selected) {
             return false;
