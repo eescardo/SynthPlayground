@@ -642,7 +642,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       ctx.strokeStyle = TRACK_CANVAS_COLORS.selectionBoundary;
       ctx.lineWidth = 2;
       ctx.lineCap = "round";
-      ctx.setLineDash([1, 7]);
+      ctx.setLineDash([5, 7]);
       ctx.beginPath();
       ctx.moveTo(startX, 0);
       ctx.lineTo(startX, height);
