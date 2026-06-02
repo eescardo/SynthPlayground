@@ -54,11 +54,13 @@ function MouseHelpSection({ mouseHelpItems }: Pick<QuickHelpDialogProps, "mouseH
   return (
     <div className="quick-help-section quick-help-mouse-section">
       <h4>Mouse</h4>
-      {mouseHelpItems.map((entry) => (
-        <p key={entry.action}>
-          <strong>{entry.action}:</strong> {entry.description}
-        </p>
-      ))}
+      <div className="quick-help-mouse-items">
+        {mouseHelpItems.map((entry) => (
+          <p key={entry.action}>
+            <strong>{entry.action}:</strong> {entry.description}
+          </p>
+        ))}
+      </div>
     </div>
   );
 }
