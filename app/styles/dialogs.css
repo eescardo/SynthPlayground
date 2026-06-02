@@ -30,7 +30,20 @@
 }
 
 .quick-help-modal {
+  position: relative;
   width: min(860px, 100%);
+}
+
+.quick-help-modal > h3 {
+  position: absolute;
+  top: 0.58rem;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  color: rgba(216, 232, 250, 0.42);
+  font-size: 0.92rem;
+  font-weight: 700;
+  pointer-events: none;
 }
 
 .quick-help-grid {
@@ -46,12 +59,25 @@
 }
 
 .quick-help-section {
-  margin-top: 0.65rem;
+  margin-top: 0.55rem;
+}
+
+.quick-help-grid-keyboard-first .quick-help-section {
+  margin-top: 0;
 }
 
 .quick-help-section h4 {
+  display: inline-flex;
+  align-items: center;
   margin: 0 0 0.35rem;
-  font-size: 0.92rem;
+  padding: 0.1rem 0.52rem 0.12rem;
+  border: 1px solid rgba(159, 202, 235, 0.36);
+  border-radius: 999px;
+  background: rgba(65, 104, 143, 0.22);
+  color: #e7f2ff;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .quick-help-mouse-items {
@@ -59,8 +85,12 @@
   gap: 0.3rem 1rem;
 }
 
-.quick-help-keyboard-first .quick-help-mouse-items {
+.quick-help-grid-keyboard-first .quick-help-mouse-items {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.quick-help-mouse-items p {
+  margin: 0;
 }
 
 .quick-help-shortcuts {
@@ -147,7 +177,7 @@
     grid-template-columns: 1fr;
   }
 
-  .quick-help-keyboard-first .quick-help-mouse-items {
+  .quick-help-grid-keyboard-first .quick-help-mouse-items {
     grid-template-columns: 1fr;
   }
 }
