@@ -111,10 +111,11 @@ export interface ComposerTimelineActions {
 }
 
 export function ComposerView(props: ComposerViewProps) {
-  const { allTracksModifierLabel, deleteKeyLabel, primaryModifierLabel } = usePlatformShortcuts();
+  const { allTracksModifierLabel, deleteKeyLabel, isMacPlatform, primaryModifierLabel } = usePlatformShortcuts();
   const { closeHelp, helpOpen, keyboardShortcutSections, mouseHelpItems, openHelp } = useComposerQuickHelpDialog({
     allTracksModifierLabel,
     deleteKeyLabel,
+    isMacPlatform,
     primaryModifierLabel
   });
 

@@ -87,13 +87,17 @@
 
 .quick-help-shortcut-action {
   color: #d8e8fa;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .quick-help-shortcut-keys {
   display: flex;
   gap: 0.22rem;
   justify-content: flex-end;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .quick-help-color-glossary {
