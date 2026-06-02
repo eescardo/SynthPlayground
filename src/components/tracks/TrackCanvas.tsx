@@ -182,6 +182,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     playheadBeat,
     selectedContentTabStopFocusToken,
     selectedTrackId,
+    selectionMarqueeActive,
     timelineActionsPopoverOpen
   } = props;
   const { onRequestTimelineActionsPopover, onReturnSelectedNoteFocusToPlayhead, onSetPlayheadBeat } = props;
@@ -629,28 +630,51 @@ export function TrackCanvas(props: TrackCanvasProps) {
     if (selectionBeatRange) {
       const startX = HEADER_WIDTH + selectionBeatRange.startBeat * BEAT_WIDTH;
       const endX = HEADER_WIDTH + selectionBeatRange.endBeat * BEAT_WIDTH;
+      if (selection.kind === "timeline" && !selectionRect) {
+        ctx.save();
+        ctx.globalAlpha = selectionMarqueeActive ? 1 : 0.5;
+        ctx.fillStyle = TRACK_CANVAS_COLORS.selectionFill;
+        ctx.fillRect(startX, 0, Math.max(0, endX - startX), height);
+        ctx.restore();
+      }
+
+      ctx.save();
       ctx.strokeStyle = TRACK_CANVAS_COLORS.selectionBoundary;
       ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.setLineDash([1, 7]);
       ctx.beginPath();
       ctx.moveTo(startX, 0);
       ctx.lineTo(startX, height);
       ctx.moveTo(endX, 0);
       ctx.lineTo(endX, height);
       ctx.stroke();
+      ctx.restore();
     }
 
-    if (selectionBeatRange && !selectionRect && !hideSelectionActionPopover && selectionMarkerTrackId) {
+    if (
+      selectionBeatRange &&
+      selection.kind === "note" &&
+      !selectionRect &&
+      !hideSelectionActionPopover &&
+      selectionMarkerTrackId
+    ) {
       const indicatorTrackLayout = trackLayouts.find((track) => track.trackId === selectionMarkerTrackId);
       if (indicatorTrackLayout) {
+        const startX = HEADER_WIDTH + selectionBeatRange.startBeat * BEAT_WIDTH;
+        const endX = HEADER_WIDTH + selectionBeatRange.endBeat * BEAT_WIDTH;
         const indicatorY = indicatorTrackLayout.y;
+        const tickY = Math.min(indicatorY + 8, indicatorTrackLayout.y + indicatorTrackLayout.height);
         ctx.strokeStyle = TRACK_CANVAS_COLORS.selectionSourceIndicator;
         ctx.lineWidth = 2;
-        ctx.setLineDash([6, 4]);
         ctx.beginPath();
-        ctx.moveTo(0, indicatorY + 0.5);
-        ctx.lineTo(width, indicatorY + 0.5);
+        ctx.moveTo(startX, indicatorY + 0.5);
+        ctx.lineTo(endX, indicatorY + 0.5);
+        ctx.moveTo(startX, indicatorY + 0.5);
+        ctx.lineTo(startX, tickY + 0.5);
+        ctx.moveTo(endX, indicatorY + 0.5);
+        ctx.lineTo(endX, tickY + 0.5);
         ctx.stroke();
-        ctx.setLineDash([]);
       }
     }
 
@@ -697,6 +721,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
     selectionBeatRange,
     selectionMarkerTrackId,
     selectedTrackId,
+    selection,
+    selectionMarqueeActive,
     selectionRect,
     totalBeats,
     trackLayouts,

@@ -49,6 +49,15 @@ describe("resolveScreenshotScenariosFromLabelsJson", () => {
     });
   });
 
+  it("parses the timeline selection label", () => {
+    expect(resolveScreenshotScenariosFromLabels(["screenshots:timeline-selection"])).toMatchObject({
+      enabled: true,
+      value: "timeline-selection",
+      grep: "@timeline-selection",
+      error: ""
+    });
+  });
+
   it("parses the patch baseline diff label", () => {
     expect(resolveScreenshotScenariosFromLabels(["screenshots:patch-baseline-diff"])).toMatchObject({
       enabled: true,

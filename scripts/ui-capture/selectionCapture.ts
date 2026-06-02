@@ -50,3 +50,12 @@ export const showSelectionActionsPopover = async (page: Page, canvas: Locator) =
 
   throw new Error("Selection actions popover did not appear after marquee selection attempts.");
 };
+
+export const showTimelineSelectionActionsPopover = async (page: Page, canvas: Locator) => {
+  await expect(page.locator('[data-testid="track-name-button"]').first()).toBeVisible();
+  await page.waitForTimeout(500);
+
+  await dragCanvasRegion(page, canvas, { x: 220, y: 14 }, { x: 760, y: 14 }, 24);
+  await expect(page.locator(".selection-actions-popover")).toBeVisible();
+  await expect(page.locator(".selection-actions-popover")).toContainText("All Tracks");
+};

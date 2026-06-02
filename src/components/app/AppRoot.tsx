@@ -1265,6 +1265,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     timelineState: {
       timelineActionsPopover,
       selectionActionPopoverVisible,
+      selectionMarqueeActive: editorSelection.marqueeActive,
       noteClipboardPayload,
       startMarkerAtTimelineBeat,
       endMarkerAtTimelineBeat,

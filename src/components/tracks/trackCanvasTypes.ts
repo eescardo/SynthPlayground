@@ -132,6 +132,7 @@ export interface TrackCanvasProps {
   ghostPlayheadBeat?: number;
   countInLabel?: string;
   timelineActionsPopoverOpen?: boolean;
+  selectionMarqueeActive?: boolean;
   selection: TrackCanvasSelection;
   hideSelectionActionPopover?: boolean;
   onSetPlayheadBeat: (beat: number) => void;

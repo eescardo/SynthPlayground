@@ -98,6 +98,7 @@ interface ComposerRuntimeState {
 interface ComposerTimelineState {
   timelineActionsPopover: ComposerViewProps["timeline"]["timelineActionsPopover"];
   selectionActionPopoverVisible: boolean;
+  selectionMarqueeActive: boolean;
   noteClipboardPayload: unknown;
   startMarkerAtTimelineBeat: ComposerViewProps["timeline"]["startMarkerAtTimelineBeat"];
   endMarkerAtTimelineBeat: ComposerViewProps["timeline"]["endMarkerAtTimelineBeat"];
@@ -293,6 +294,7 @@ export function createComposerControllerProps(options: UseComposerControllerProp
     expandableLoopRegion,
     noteClipboardPayload,
     selectionActionPopoverVisible,
+    selectionMarqueeActive,
     startMarkerAtTimelineBeat,
     timelineActionsPopover
   } = timelineState;
@@ -329,6 +331,7 @@ export function createComposerControllerProps(options: UseComposerControllerProp
       tabSelectionPreviewNote: hardwareNavigation.tabSelectionPreviewNote,
       playheadFocused: hardwareNavigation.playheadNavigationFocused,
       selectedContentTabStopFocusToken: hardwareNavigation.selectedContentTabStopFocusToken,
+      selectionMarqueeActive,
       selectionActionPopoverVisible
     },
     timeline: {
