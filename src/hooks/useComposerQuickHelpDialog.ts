@@ -25,7 +25,8 @@ export function useComposerQuickHelpDialog({
 
   const mouseHelpItems = useMemo(
     () => [
-      { action: "Add note", description: "Click an empty track lane when nothing is selected." },
+      { action: "Move playhead", description: "Click the beat header or an empty track lane." },
+      { action: "Add note", description: "Double-click an empty track lane." },
       { action: "Select notes", description: "Drag a marquee across notes, or click an existing note." },
       {
         action: "Rename things",

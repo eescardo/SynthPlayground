@@ -372,16 +372,6 @@ export function useTrackCanvasPointerInteractions({
         return;
       }
 
-      if (targets.hoverTarget === "playhead") {
-        onRequestTimelineActionsPopover({
-          beat: playheadBeat,
-          clientX: event.clientX,
-          clientY: event.clientY
-        });
-        setCanvasCursor("pointer");
-        return;
-      }
-
       if (targets.hoverTarget === "pitch" && targets.pitchRect && event.button === PRIMARY_POINTER_BUTTON) {
         selectionActions.onSetContentSelection({
           noteKeys: [getNoteSelectionKey(targets.pitchRect.trackId, targets.pitchRect.noteId)],
@@ -476,8 +466,7 @@ export function useTrackCanvasPointerInteractions({
       }
 
       if (hasActiveSelection) {
-        selectionActions.onSetContentSelection(EMPTY_CONTENT_SELECTION);
-        selectionActions.onPreviewSelectionActionScopeChange("source");
+        onSetPlayheadBeat(Math.max(0, snapToGrid(beatFromX(x), gridBeats)));
         setSelectionRect(null);
         selectionActions.onSetSelectionMarqueeActive(false);
         pendingCanvasActionRef.current = null;
@@ -787,11 +776,7 @@ export function useTrackCanvasPointerInteractions({
       const hadSelectionRect = Boolean(selectionRect);
       if (pendingAction?.kind === "track" && !hadSelectionRect) {
         trackActions.onSelectTrack(pendingAction.trackId);
-        const newNote = createDefaultPlacedNote(pendingAction.beat, gridBeats, defaultPitch);
-        noteActions.onUpsertNote(pendingAction.trackId, newNote, {
-          actionKey: `track:${pendingAction.trackId}:note:${newNote.id}:create`
-        });
-        noteActions.onPreviewPlacedNote(pendingAction.trackId, newNote);
+        onSetPlayheadBeat(pendingAction.beat);
       }
 
       if (pendingLaneAction?.kind === "automation-keyframe") {
@@ -891,11 +876,9 @@ export function useTrackCanvasPointerInteractions({
       automationKeyframeRectsRef,
       beatFromX,
       canvasRef,
-      defaultPitch,
       fixedLaneValueFromX,
       getCanvasPoint,
       gridBeats,
-      noteActions,
       noteResizeHandleWidth,
       onSetPlayheadBeat,
       resolvePointerTargets,
@@ -926,16 +909,53 @@ export function useTrackCanvasPointerInteractions({
       }
       const { x, y } = getCanvasPoint(event.clientX, event.clientY);
       const automationKeyframe = findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y);
-      if (!automationKeyframe || automationKeyframe.boundary !== null || automationKeyframe.side !== "single") {
+      if (automationKeyframe) {
+        if (automationKeyframe.boundary !== null || automationKeyframe.side !== "single") {
+          return;
+        }
+        automationActions.onSplitTrackMacroAutomationKeyframe(
+          automationKeyframe.trackId,
+          automationKeyframe.macroId,
+          automationKeyframe.keyframeId
+        );
         return;
       }
-      automationActions.onSplitTrackMacroAutomationKeyframe(
-        automationKeyframe.trackId,
-        automationKeyframe.macroId,
-        automationKeyframe.keyframeId
-      );
+
+      if (y <= RULER_HEIGHT || x < headerWidth) {
+        return;
+      }
+
+      const targets = resolvePointerTargets(x, y);
+      if (targets.noteRect || targets.pitchRect || targets.loopMarkerRect || targets.laneHit) {
+        return;
+      }
+
+      const track = getTrackAtY(y);
+      if (!track) {
+        return;
+      }
+
+      const beat = Math.max(0, snapToGrid(beatFromX(x), gridBeats));
+      const newNote = createDefaultPlacedNote(beat, gridBeats, defaultPitch);
+      trackActions.onSelectTrack(track.id);
+      noteActions.onUpsertNote(track.id, newNote, {
+        actionKey: `track:${track.id}:note:${newNote.id}:create`
+      });
+      noteActions.onPreviewPlacedNote(track.id, newNote);
     },
-    [automationActions, automationKeyframeRectsRef, getCanvasPoint]
+    [
+      automationActions,
+      automationKeyframeRectsRef,
+      beatFromX,
+      defaultPitch,
+      getCanvasPoint,
+      getTrackAtY,
+      gridBeats,
+      headerWidth,
+      noteActions,
+      resolvePointerTargets,
+      trackActions
+    ]
   );
 
   return {
