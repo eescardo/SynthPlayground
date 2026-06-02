@@ -30,6 +30,7 @@ export interface GhostPreviewNote {
 export interface UseHardwareNavigationArgs {
   view: WorkspaceView;
   projectGridBeats: number;
+  projectMeter: Project["global"]["meter"];
   projectTempo: number;
   tracks: Track[];
   selectedTrack?: Track;

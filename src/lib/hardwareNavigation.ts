@@ -46,6 +46,50 @@ export const findTrackBackspaceTargetNote = (track: Track | undefined, beat: num
   return findTrackNoteAtBeat(track, beat);
 };
 
+export const findAdjacentTrackNote = (
+  track: Track | undefined,
+  selectedNoteId: string | undefined,
+  direction: -1 | 1
+): Note | null => {
+  if (!track || !selectedNoteId) {
+    return null;
+  }
+  const sortedNotes = sortNotes(track.notes);
+  const selectedIndex = sortedNotes.findIndex((note) => note.id === selectedNoteId);
+  if (selectedIndex === -1) {
+    return null;
+  }
+  return sortedNotes[selectedIndex + direction] ?? null;
+};
+
+export const findTrackNoteByMeasureOffset = (
+  track: Track | undefined,
+  selectedNoteId: string | undefined,
+  direction: -1 | 1,
+  measureBeats: number
+): Note | null => {
+  if (!track || !selectedNoteId || measureBeats <= 0) {
+    return null;
+  }
+  const selectedNote = track.notes.find((note) => note.id === selectedNoteId);
+  if (!selectedNote) {
+    return null;
+  }
+
+  const targetBeat = selectedNote.startBeat + direction * measureBeats;
+  const sortedNotes = sortNotes(track.notes.filter((note) => note.id !== selectedNoteId));
+  if (direction < 0) {
+    for (let index = sortedNotes.length - 1; index >= 0; index -= 1) {
+      const note = sortedNotes[index]!;
+      if (note.startBeat <= targetBeat + NOTE_AT_BEAT_EPSILON) {
+        return note;
+      }
+    }
+    return null;
+  }
+  return sortedNotes.find((note) => note.startBeat >= targetBeat - NOTE_AT_BEAT_EPSILON) ?? null;
+};
+
 type SelectionShiftBlock = { reason: "boundary" } | { reason: "note"; blockingSelectionKey: string };
 
 export type ShiftContentSelectionResult =
