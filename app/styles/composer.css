@@ -328,8 +328,8 @@
   max-width: 240px;
   padding: 0.7rem;
   border-radius: 10px;
-  border: 1px solid rgba(255, 145, 171, 0.42);
-  background: rgba(27, 11, 18, 0.95);
+  border: 1px solid rgba(246, 232, 199, 0.38);
+  background: rgba(23, 19, 14, 0.95);
   box-shadow: 0 16px 30px rgba(0, 0, 0, 0.28);
   z-index: 6;
 }
@@ -382,6 +382,10 @@
   height: 1px;
   margin: 0.1rem 0;
   background: rgba(125, 220, 173, 0.3);
+}
+
+.selection-actions-popover .timeline-actions-popover-divider {
+  background: rgba(246, 232, 199, 0.2);
 }
 
 .loop-conflict-list {
