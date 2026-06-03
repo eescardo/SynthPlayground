@@ -49,6 +49,8 @@ describe.sequential("composer pointer interactions", () => {
 
           await canvas.dblclick({ position: trackLanePointForBeat(4) });
           await expect.poll(() => readFirstTrackNoteCount(page)).toBe(1);
+          await canvas.dblclick({ position: trackLanePointForBeat(6) });
+          await expect.poll(() => readFirstTrackNoteCount(page)).toBe(2);
 
           const notes = await readFirstTrackNotes(page);
           expect(notes[0]).toMatchObject({
@@ -56,13 +58,20 @@ describe.sequential("composer pointer interactions", () => {
             startBeat: 4,
             durationBeats: 0.5
           });
+          expect(notes[1]).toMatchObject({
+            pitchStr: "C4",
+            startBeat: 6,
+            durationBeats: 0.5
+          });
 
           await canvas.click({ position: trackLanePointForBeat(4.25) });
+          await expect(page.locator(".selection-actions-popover")).toBeVisible();
           await dragOnCanvas(page, trackLanePointForBeat(3.75), {
-            x: HEADER_WIDTH + 5 * BEAT_WIDTH,
+            x: HEADER_WIDTH + 7 * BEAT_WIDTH,
             y: RULER_HEIGHT + TRACK_HEIGHT * 1.5
           });
-          await expect(page.locator(".selection-actions-popover")).toBeVisible();
+          await page.locator(".selection-actions-popover").getByRole("button", { name: "Delete", exact: true }).click();
+          await expect.poll(() => readFirstTrackNoteCount(page)).toBe(0);
         } finally {
           await page.close();
         }
