@@ -1264,14 +1264,17 @@ export function AppRoot({ children }: { children: ReactNode }) {
     },
     runtimeErrorMessage: runtimeErrorDisplayMessage,
     timelineState: {
-      timelineActionsPopover,
-      selectionActionPopoverVisible,
-      selectionMarqueeActive: editorSelection.marqueeActive,
-      noteClipboardPayload,
-      startMarkerAtTimelineBeat,
-      endMarkerAtTimelineBeat,
-      expandableLoopRegion: Boolean(expandableLoopRegion),
-      selectionActionPopoverCollapsed
+      timeline: {
+        timelineActionsPopover,
+        noteClipboardPayload,
+        startMarkerAtTimelineBeat,
+        endMarkerAtTimelineBeat,
+        expandableLoopRegion: Boolean(expandableLoopRegion)
+      },
+      canvasPreview: {
+        selectionActionPopoverVisible,
+        selectionMarqueeActive: editorSelection.marqueeActive
+      }
     },
     exportingAudio,
     primaryActions: createComposerPrimaryActions({
