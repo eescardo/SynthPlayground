@@ -42,7 +42,6 @@ interface DragState {
   noteId: string;
   mode: "move" | "resize";
   offsetBeats: number;
-  noteStartBeats: number;
 }
 
 export interface NoteRect {
@@ -457,8 +456,7 @@ export function useTrackCanvasPointerInteractions({
           trackId: targets.noteRect.trackId,
           noteId: targets.noteRect.noteId,
           mode: nearRightEdge ? "resize" : "move",
-          offsetBeats: beat - note.startBeat,
-          noteStartBeats: note.startBeat
+          offsetBeats: beat - note.startBeat
         };
         setCanvasCursor(nearRightEdge ? "resize" : "move-active");
         canvas.setPointerCapture(event.pointerId);
