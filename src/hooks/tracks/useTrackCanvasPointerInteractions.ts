@@ -167,7 +167,7 @@ export function useTrackCanvasPointerInteractions({
     canvas;
   const { beatFromX, fixedLaneValueFromX, getCanvasPoint, getTrackLayoutAtY, headerWidth, noteResizeHandleWidth } =
     geometry;
-  const { contentSelection, defaultPitch, gridBeats, playheadBeat, project, selection, trackLayouts } = model;
+  const { defaultPitch, gridBeats, playheadBeat, project, trackLayouts } = model;
   const dragRef = useRef<DragState | null>(null);
   const pendingCanvasActionRef = useRef<PendingCanvasAction | null>(null);
   const automationDragRef = useRef<AutomationDragState | null>(null);
@@ -302,11 +302,6 @@ export function useTrackCanvasPointerInteractions({
       const targets = resolvePointerTargets(x, y);
       const automationKeyframe = findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y);
       const automationLaneHit = targets.automationLaneHit;
-      const hasActiveSelection =
-        Boolean(contentSelection?.noteKeys.size) ||
-        Boolean(contentSelection?.automationKeyframeSelectionKeys.size) ||
-        selection.kind === "timeline";
-
       if (y <= RULER_HEIGHT && x >= headerWidth) {
         if (targets.hoverTarget === "loop-marker" && targets.loopMarkerRect) {
           onSetPlayheadBeat(targets.loopMarkerRect.beat);
@@ -463,15 +458,6 @@ export function useTrackCanvasPointerInteractions({
         return;
       }
 
-      if (hasActiveSelection) {
-        onSetPlayheadBeat(Math.max(0, snapToGrid(beatFromX(x), gridBeats)));
-        setSelectionRect(null);
-        selectionActions.onSetSelectionMarqueeActive(false);
-        pendingCanvasActionRef.current = null;
-        setCanvasCursor("default");
-        return;
-      }
-
       pendingCanvasActionRef.current = {
         kind: "track",
         trackId: track.id,
@@ -500,8 +486,6 @@ export function useTrackCanvasPointerInteractions({
       onSetPlayheadBeat,
       playheadBeat,
       resolvePointerTargets,
-      contentSelection,
-      selection,
       selectionActions,
       trackActions,
       trackLayouts

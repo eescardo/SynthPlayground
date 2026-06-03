@@ -24,7 +24,7 @@ afterEach(async () => {
 });
 
 describe.sequential("composer pointer interactions", () => {
-  test("moves the playhead on single empty-lane click and creates one note on double-click", async () => {
+  test("separates empty-lane clicks, double-click note creation, and marquee drags", async () => {
     const devServer = startDevServer(PORT);
     cleanupProcesses.add(devServer);
 
@@ -56,6 +56,13 @@ describe.sequential("composer pointer interactions", () => {
             startBeat: 4,
             durationBeats: 0.5
           });
+
+          await canvas.click({ position: trackLanePointForBeat(4.25) });
+          await dragOnCanvas(page, trackLanePointForBeat(3.75), {
+            x: HEADER_WIDTH + 5 * BEAT_WIDTH,
+            y: RULER_HEIGHT + TRACK_HEIGHT * 1.5
+          });
+          await expect(page.locator(".selection-actions-popover")).toBeVisible();
         } finally {
           await page.close();
         }
@@ -80,6 +87,18 @@ const trackLanePointForBeat = (beat: number) => ({
   x: HEADER_WIDTH + beat * BEAT_WIDTH,
   y: RULER_HEIGHT + TRACK_HEIGHT / 2
 });
+
+const dragOnCanvas = async (page: Page, start: { x: number; y: number }, end: { x: number; y: number }) => {
+  const canvas = page.locator(".track-canvas-shell > canvas");
+  const box = await canvas.boundingBox();
+  if (!box) {
+    throw new Error("Could not determine track canvas bounds for drag.");
+  }
+  await page.mouse.move(box.x + start.x, box.y + start.y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + end.x, box.y + end.y, { steps: 8 });
+  await page.mouse.up();
+};
 
 const readFirstTrackNoteCount = async (page: Page): Promise<number> => (await readFirstTrackNotes(page)).length;
 
