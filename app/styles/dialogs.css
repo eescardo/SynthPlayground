@@ -30,6 +30,7 @@
 }
 
 .quick-help-modal {
+  padding-top: 0.42rem;
   width: min(860px, 100%);
 }
 
