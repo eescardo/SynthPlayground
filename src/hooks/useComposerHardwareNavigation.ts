@@ -25,14 +25,13 @@ import {
 } from "@/lib/hardwareNavigation";
 import { getNoteSelectionKey } from "@/lib/clipboard";
 import {
-  getMeasureBeatsForMeter,
   getSingleSelectedTrackNote,
   resolveComposerBoundaryNavigationIntent,
   resolveComposerHorizontalArrowIntent
 } from "@/lib/composerKeyboardNavigation";
 import { createId } from "@/lib/ids";
 import { DEFAULT_NOTE_VELOCITY } from "@/lib/noteDefaults";
-import { beatToSample, snapToGrid, snapUpToGrid } from "@/lib/musicTiming";
+import { beatToSample, getMeasureBeatsForMeter, snapToGrid, snapUpToGrid } from "@/lib/musicTiming";
 import { keyToPitch, normalizePhysicalPitchKey, pitchToVoct } from "@/lib/pitch";
 import { createSproutError, toError } from "@/lib/sproutErrors";
 

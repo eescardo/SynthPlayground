@@ -19,8 +19,6 @@ export interface SelectedTrackNote {
   note: Note;
 }
 
-export const getMeasureBeatsForMeter = (meter: "4/4" | "3/4") => (meter === "4/4" ? 4 : 3);
-
 export const getSingleSelectedTrackNote = (
   tracks: Track[],
   contentSelection: ContentSelection
