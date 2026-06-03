@@ -30,23 +30,21 @@
 }
 
 .quick-help-modal {
-  position: relative;
   width: min(860px, 100%);
 }
 
 .quick-help-modal > h3 {
-  position: absolute;
-  top: 0.58rem;
-  left: 50%;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.24rem;
-  transform: translateX(-50%);
-  margin: 0;
+  min-height: 1.65rem;
+  margin: 0 0 0.72rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(51, 81, 113, 0.24);
   color: rgba(216, 232, 250, 0.42);
   font-size: 0.92rem;
   font-weight: 700;
-  pointer-events: none;
   white-space: nowrap;
 }
 
