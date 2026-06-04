@@ -98,9 +98,9 @@ describe("hardware navigation note placement", () => {
 
   it("finds adjacent notes around a selected note in track order", () => {
     const track = createTrack([
-      { id: "left", pitchStr: "C4", startBeat: 0, durationBeats: 1, velocity: 0.8 },
+      { id: "right", pitchStr: "E4", startBeat: 4, durationBeats: 1, velocity: 0.8 },
       { id: "selected", pitchStr: "D4", startBeat: 2, durationBeats: 1, velocity: 0.8 },
-      { id: "right", pitchStr: "E4", startBeat: 4, durationBeats: 1, velocity: 0.8 }
+      { id: "left", pitchStr: "C4", startBeat: 0, durationBeats: 1, velocity: 0.8 }
     ]);
 
     expect(findAdjacentTrackNote(track, "selected", -1)?.id).toBe("left");
@@ -110,11 +110,11 @@ describe("hardware navigation note placement", () => {
 
   it("finds measure-offset note targets by rounding toward previous or next notes", () => {
     const track = createTrack([
-      { id: "early", pitchStr: "C4", startBeat: 1, durationBeats: 1, velocity: 0.8 },
-      { id: "left_target", pitchStr: "D4", startBeat: 5, durationBeats: 1, velocity: 0.8 },
-      { id: "selected", pitchStr: "E4", startBeat: 10, durationBeats: 1, velocity: 0.8 },
+      { id: "late", pitchStr: "G4", startBeat: 18, durationBeats: 1, velocity: 0.8 },
       { id: "right_target", pitchStr: "F4", startBeat: 15, durationBeats: 1, velocity: 0.8 },
-      { id: "late", pitchStr: "G4", startBeat: 18, durationBeats: 1, velocity: 0.8 }
+      { id: "selected", pitchStr: "E4", startBeat: 10, durationBeats: 1, velocity: 0.8 },
+      { id: "left_target", pitchStr: "D4", startBeat: 5, durationBeats: 1, velocity: 0.8 },
+      { id: "early", pitchStr: "C4", startBeat: 1, durationBeats: 1, velocity: 0.8 }
     ]);
 
     expect(findTrackNoteByMeasureOffset(track, "selected", -1, 4)?.id).toBe("left_target");
