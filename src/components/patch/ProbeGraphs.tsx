@@ -17,7 +17,83 @@ import {
 } from "@/components/patch/patchCanvasConstants";
 import { detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
 import { buildScopeRenderData, resolveScopeGraphLayout, resolveScopeTimeMarkers } from "@/lib/patch/probeViewMath";
+import { formatDb, resolveQualityMeterStatus } from "@/lib/patch/qualityMeter";
 import { PreviewProbeCapture } from "@/types/probes";
+
+const QUALITY_STATUS_LABELS = {
+  blank: "No signal",
+  clean: "Clean",
+  hot: "Hot",
+  clip: "Clipping",
+  dc: "DC",
+  rough: "Rough"
+} as const;
+
+export function QualityMeterProbeGraph(props: { capture?: PreviewProbeCapture; compact?: boolean }) {
+  const stats = props.capture?.qualityStats;
+  const status = resolveQualityMeterStatus(stats);
+  const peakRatio = Math.min(1, Math.max(0, stats?.peak ?? 0));
+  const rmsRatio = Math.min(1, Math.max(0, stats?.rms ?? 0));
+  const roughRatio = Math.min(1, Math.max(0, Math.max(stats?.roughness ?? 0, stats?.zeroCrossingRate ?? 0)));
+  const dcRatio = Math.min(1, Math.abs(stats?.dcOffset ?? 0) / 0.25);
+  const crestRatio = Math.min(1, Math.max(0, (stats?.crestFactorDb ?? 0) / 24));
+  const railTicks = Math.min(
+    18,
+    Math.ceil((stats?.nearClipCount ?? 0) / Math.max(1, (stats?.capturedSamples ?? 1) / 18))
+  );
+  const railTickIndexes = Array.from({ length: railTicks }, (_, index) => index);
+  const meterFillY = 54 - peakRatio * 42;
+  const rmsY = 54 - rmsRatio * 42;
+  const dcX = 48 + Math.max(-1, Math.min(1, (stats?.dcOffset ?? 0) / 0.18)) * 14;
+  const statusClass = `quality-meter-probe ${props.compact ? "compact" : ""} ${status}`;
+
+  return (
+    <svg viewBox="0 0 100 60" preserveAspectRatio="none" className={statusClass}>
+      <rect x="0" y="0" width="100" height="60" rx="6" className="quality-meter-bg" />
+      <rect x="7" y="10" width="13" height="44" rx="3" className="quality-meter-rail" />
+      <rect x="8.5" y={meterFillY} width="10" height={54 - meterFillY} rx="2.5" className="quality-meter-peak-fill" />
+      <line x1="7" y1="18" x2="20" y2="18" className="quality-meter-hot-line" />
+      <line x1="7" y1="12" x2="20" y2="12" className="quality-meter-clip-line" />
+      <line x1="6.5" y1={rmsY} x2="20.5" y2={rmsY} className="quality-meter-rms-marker" />
+
+      <polyline
+        points={`27,48 34,${48 - roughRatio * 28} 41,${46 - crestRatio * 23} 48,${48 - peakRatio * 30} 55,${46 - rmsRatio * 24} 62,${48 - roughRatio * 26} 69,48`}
+        fill="none"
+        className="quality-meter-spark"
+      />
+      <rect x="27" y="10" width="42" height="38" rx="4" className="quality-meter-spark-frame" />
+      {railTickIndexes.map((index) => (
+        <rect
+          key={index}
+          x={28 + index * 2.1}
+          y="8"
+          width="1.2"
+          height="4"
+          rx="0.6"
+          className="quality-meter-clip-tick"
+        />
+      ))}
+
+      <g className="quality-meter-glyphs">
+        <circle cx="80" cy="16" r="6" className={crestRatio < 0.28 && status !== "blank" ? "warn" : ""} />
+        <path d="M76 16h8M80 12v8" />
+        <circle cx="80" cy="31" r="6" className={roughRatio > 0.55 ? "warn" : ""} />
+        <path d="M76 34l2-7 3 6 3-7" />
+        <circle cx="80" cy="46" r="6" className={dcRatio > 0.2 ? "warn" : ""} />
+        <path d={`M75 46h10M${dcX.toFixed(1)} 42v8`} />
+      </g>
+
+      <text x="25" y="56" className="quality-meter-status">
+        {QUALITY_STATUS_LABELS[status]}
+      </text>
+      {!props.compact && stats && (
+        <text x="97" y="56" textAnchor="end" className="quality-meter-readout">
+          {formatDb(stats.peakDb)}
+        </text>
+      )}
+    </svg>
+  );
+}
 
 export function PitchTrackerProbeGraph(props: { capture?: PreviewProbeCapture; compact?: boolean }) {
   const notes = useMemo(() => detectMonophonicPitchNotes(props.capture, 120), [props.capture]);

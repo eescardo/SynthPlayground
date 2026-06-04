@@ -10,6 +10,7 @@ import { pitchToVoct } from "@/lib/pitch";
 import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { HOST_PORT_IDS } from "@/lib/patch/constants";
 import { mergeSpectrumGrid } from "@/lib/patch/spectrumCaptureMerge";
+import { buildOutputQualityCaptureRequests } from "@/lib/patch/qualityMeter";
 import { Patch } from "@/types/patch";
 import { Project, Track } from "@/types/music";
 import { AudioProject } from "@/types/audio";
@@ -194,6 +195,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
         ? { project: previewProject, runtimeAssets: projectAssets }
         : { project: audioProject, runtimeAssets: projectAssets };
       const previewId = `preview_${Date.now()}`;
+      const previewCaptureRequests = [...buildOutputQualityCaptureRequests(patch), ...captureRequests];
       setActivePreviewId(previewId);
       setPreviewProgress(0);
 
@@ -205,7 +207,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
           0.9,
           {
             renderProjectOverride: previewRenderProject,
-            captureProbes: captureRequests,
+            captureProbes: previewCaptureRequests,
             captureDurationBeats: resolvePatchPreviewCaptureDurationBeats(
               options?.holdUntilReleased,
               previewProject?.global.tempo ?? audioProject.global.tempo

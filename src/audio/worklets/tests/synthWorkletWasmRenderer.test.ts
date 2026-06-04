@@ -105,6 +105,21 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
             sustainRatio: 0.38,
             releaseSeconds: 0.024,
             label: "A: 10ms|D:50ms|S:38%|R:24ms"
+          },
+          qualityStats: {
+            peak: 0.98,
+            peakDb: -0.17,
+            rms: 0.42,
+            rmsDb: -7.1,
+            dcOffset: 0.01,
+            crestFactorDb: 7.0,
+            nearClipCount: 3,
+            clippedCount: 0,
+            maxConsecutiveNearClip: 3,
+            maxDelta: 0.2,
+            zeroCrossingRate: 0.1,
+            roughness: 0.2,
+            capturedSamples: previewCaptureSampleCount
           }
         }))
       });
@@ -632,6 +647,10 @@ describe("WASM worklet renderer", () => {
             }),
             adsrEstimate: expect.objectContaining({
               label: "A: 10ms|D:50ms|S:38%|R:24ms"
+            }),
+            qualityStats: expect.objectContaining({
+              peak: 0.98,
+              nearClipCount: 3
             })
           })
         ]

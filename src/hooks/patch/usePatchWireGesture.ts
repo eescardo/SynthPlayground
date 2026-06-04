@@ -356,7 +356,7 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
         );
         return;
       }
-      if (structureLocked) {
+      if (structureLocked && pendingFromPort) {
         setLockedPortTooltip(
           hoverPort && pointer
             ? {
@@ -368,6 +368,9 @@ export function usePatchWireGesture(args: UsePatchWireGestureArgs) {
         );
         setHoveredAttachTarget(null);
         return;
+      }
+      if (structureLocked) {
+        setLockedPortTooltip(null);
       }
       if (pendingFromPort && pointer) {
         setPendingConnection((current) => (current ? { ...current, pointer } : current));

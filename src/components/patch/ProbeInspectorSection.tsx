@@ -6,6 +6,7 @@ import {
 } from "@/lib/patch/probes";
 import { formatPatchEndpointLabel } from "@/components/patch/patchInspectablePorts";
 import { buildPitchTrackerClipboardPayload, detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
+import { formatDb, resolveQualityMeterStatus } from "@/lib/patch/qualityMeter";
 import { Patch } from "@/types/patch";
 import { PatchProbeTarget, PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
 import { useProjectWorkspaceClipboard, useProjectWorkspaceTransport } from "@/components/ProjectWorkspaceContext";
@@ -138,6 +139,26 @@ export function ProbeInspectorSection(props: ProbeInspectorSectionProps) {
           <p className="muted">Scope view normalizes the captured signal so quiet patches still render visibly.</p>
         </>
       )}
+      {selectedProbe.kind === "quality_meter" && (
+        <>
+          <div className="param-row">
+            <span>Quality</span>
+            <div className="param-control-stack">
+              <QualityMeterReadout capture={props.previewCapture} />
+            </div>
+            <button
+              type="button"
+              disabled={!selectedProbe.target}
+              onClick={() => props.onClearProbeTarget(selectedProbe.id)}
+            >
+              Clear Target
+            </button>
+          </div>
+          <p className="muted">
+            Quality Meter uses absolute level statistics, so unlike Scope it does not normalize quiet signals upward.
+          </p>
+        </>
+      )}
       {selectedProbe.kind === "pitch_tracker" && (
         <>
           <div className="param-row">
@@ -192,6 +213,32 @@ export function ProbeInspectorSection(props: ProbeInspectorSectionProps) {
         </>
       )}
     </>
+  );
+}
+
+function QualityMeterReadout(props: { capture?: PreviewProbeCapture }) {
+  const stats = props.capture?.qualityStats;
+  if (!stats) {
+    return <div className="macro-binding-edit-summary">Preview the patch to populate quality statistics.</div>;
+  }
+  const status = resolveQualityMeterStatus(stats);
+  return (
+    <div className="quality-meter-inspector-grid">
+      <span>Status</span>
+      <strong>{status}</strong>
+      <span>Peak</span>
+      <strong>{formatDb(stats.peakDb)}</strong>
+      <span>RMS</span>
+      <strong>{formatDb(stats.rmsDb)}</strong>
+      <span>Crest</span>
+      <strong>{stats.crestFactorDb.toFixed(1)} dB</strong>
+      <span>Near Clip</span>
+      <strong>{stats.nearClipCount}</strong>
+      <span>DC</span>
+      <strong>{stats.dcOffset.toFixed(3)}</strong>
+      <span>Roughness</span>
+      <strong>{Math.round(stats.roughness * 100)}%</strong>
+    </div>
   );
 }
 

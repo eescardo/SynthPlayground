@@ -13,6 +13,7 @@ import {
 } from "@/components/patch/patchInspectablePorts";
 import { isPatchOutputPortId } from "@/lib/patch/ports";
 import { compressorDerivedParamsForSquash } from "@/lib/patch/compressor";
+import { formatDb, OutputLimiterPreview } from "@/lib/patch/qualityMeter";
 import { PatchInspectorActions, PatchInspectorModel } from "@/components/patch/patchEditorSession";
 import { Patch, PatchNode, PatchPort, PatchValidationIssue } from "@/types/patch";
 
@@ -53,6 +54,61 @@ function CompressorDerivedReadouts({ node }: { node: PatchNode }) {
         <strong>{derived.ratio.toFixed(1)}:1</strong>
         <span>Auto Gain Max</span>
         <strong>{derived.autoGainDb.toFixed(1)} dB</strong>
+      </div>
+    </div>
+  );
+}
+
+function OutputLimiterReadout({ preview }: { preview?: OutputLimiterPreview | null }) {
+  if (!preview?.populated) {
+    return (
+      <div className="param-row output-limiter-readout empty">
+        <div className="param-row-header">
+          <span className="param-name">Limiter Activity</span>
+        </div>
+        <div className="output-limiter-empty">Preview a note to populate output limiter metering.</div>
+      </div>
+    );
+  }
+
+  const reductionRatio = Math.min(1, Math.max(0, Math.abs(preview.reductionDb) / 18));
+  const drivenRatio = Math.min(1, Math.max(0, preview.drivenPeak));
+  const postRatio = Math.min(1, Math.max(0, preview.post?.peak ?? 0));
+  return (
+    <div className={`param-row output-limiter-readout${preview.nearClipActive ? " active" : ""}`}>
+      <div className="param-row-header">
+        <span className="param-name">Limiter Activity</span>
+        <span className="output-limiter-pill">{preview.limiterEnabled ? "Limiter on" : "Limiter off"}</span>
+      </div>
+      <div className="output-limiter-visual" aria-hidden="true">
+        <div className="output-limiter-meter">
+          <span style={{ height: `${drivenRatio * 100}%` }} />
+          <strong>drive</strong>
+        </div>
+        <div className="output-limiter-curve">
+          <svg viewBox="0 0 100 44" preserveAspectRatio="none">
+            <path d="M7 37 C 34 35, 60 24, 93 7" className="output-limiter-curve-raw" />
+            <path d="M7 37 C 28 34, 54 14, 93 8" className="output-limiter-curve-shaped" />
+            <circle cx={14 + drivenRatio * 72} cy={37 - postRatio * 29} r="3.5" />
+          </svg>
+          <div className="output-limiter-reduction" style={{ width: `${reductionRatio * 100}%` }} />
+        </div>
+        <div className="output-limiter-meter post">
+          <span style={{ height: `${postRatio * 100}%` }} />
+          <strong>post</strong>
+        </div>
+      </div>
+      <div className="output-limiter-grid">
+        <span>Output gain</span>
+        <strong>{preview.gainDb.toFixed(1)} dB</strong>
+        <span>Driven peak</span>
+        <strong>{formatDb(preview.drivenPeakDb)}</strong>
+        <span>Post peak</span>
+        <strong>{formatDb(preview.postPeakDb)}</strong>
+        <span>Reduction</span>
+        <strong>{preview.limiterEnabled ? `${preview.reductionDb.toFixed(1)} dB` : "0.0 dB"}</strong>
+        <span>Near clip</span>
+        <strong>{preview.post?.nearClipCount ?? 0}</strong>
       </div>
     </div>
   );
@@ -229,6 +285,7 @@ export function PatchInspector(props: PatchInspectorProps) {
                 onChangeMacroValue={actions.onChangeMacroValue}
               />
             ))}
+          {selectedPort && <OutputLimiterReadout preview={model.outputLimiterPreview} />}
           {selectedNode.typeId === "Compressor" && <CompressorDerivedReadouts node={selectedNode} />}
           {selectedNode.typeId === "SamplePlayer" && (
             <SamplePlayerInspectorSection

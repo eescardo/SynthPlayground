@@ -87,6 +87,15 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
             >
               Pitch Tracker
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                props.onAddProbe("quality_meter");
+                close();
+              }}
+            >
+              Quality Meter
+            </button>
           </>
         )}
       </PatchToolbarPicker>

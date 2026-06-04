@@ -1,6 +1,6 @@
 "use client";
 
-import { CSSProperties, useMemo } from "react";
+import { CSSProperties, useMemo, useRef } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { PATCH_HOST_STRIP_X } from "@/components/patch/patchCanvasConstants";
 import {
@@ -13,7 +13,9 @@ import {
 import { HOST_PORT_IDS, HostPatchPortId, SOURCE_HOST_PORT_IDS } from "@/lib/patch/constants";
 import { getPatchOutputInputPortId, getPatchOutputPort } from "@/lib/patch/ports";
 import { PatchCanvasFocusable } from "@/lib/patch/hardwareNavigation";
+import { isQualityNearClipping } from "@/lib/patch/qualityMeter";
 import { Patch } from "@/types/patch";
+import { PreviewProbeQualityStats } from "@/types/probes";
 
 interface HostOverlayPort {
   nodeId: HostPatchPortId;
@@ -32,6 +34,7 @@ interface PatchHostPortOverlayProps {
   scrollLeft: number;
   scrollTop: number;
   structureLocked?: boolean;
+  outputQualityStats?: PreviewProbeQualityStats;
   zoom: number;
   onPortSelection: (hitPort: HitPort, pointer: { x: number; y: number }) => void;
   onPortHover: (hitPort: HitPort | null, pointer: { x: number; y: number } | null) => void;
@@ -120,6 +123,7 @@ function resolveOverlayPorts(
 }
 
 export function PatchHostPortOverlay(props: PatchHostPortOverlayProps) {
+  const suppressNextClickRef = useRef(false);
   const ports = useMemo(
     () =>
       resolveOverlayPorts(
@@ -141,21 +145,22 @@ export function PatchHostPortOverlay(props: PatchHostPortOverlayProps) {
           type="button"
           className={`patch-host-port${props.pendingFromPort?.nodeId === port.nodeId ? " pending" : ""}${
             props.structureLocked ? " locked" : ""
-          }`}
+          }${port.nodeId === HOST_PORT_IDS.output && isQualityNearClipping(props.outputQualityStats) ? " clipping" : ""}`}
           data-patch-canvas-key-nav="true"
           style={port.style}
           onPointerDown={(event) => {
             event.preventDefault();
             event.stopPropagation();
             if (props.pendingProbeId) {
+              suppressNextClickRef.current = true;
               props.onPortSelection(port.hitPort, port.pointer);
               return;
             }
-            if (props.structureLocked) {
+            if (port.hitPort.kind === "in" && !props.pendingFromPort) {
+              props.onSelectOutput();
               return;
             }
-            if (port.hitPort.kind === "in" && !props.pendingFromPort && !props.pendingProbeId) {
-              props.onSelectOutput();
+            if (props.structureLocked) {
               return;
             }
             props.onPortSelection(port.hitPort, port.pointer);
@@ -174,15 +179,19 @@ export function PatchHostPortOverlay(props: PatchHostPortOverlayProps) {
           onKeyDown={props.onKeyboardKeyDown}
           onClick={(event) => {
             event.preventDefault();
+            if (suppressNextClickRef.current) {
+              suppressNextClickRef.current = false;
+              return;
+            }
             if (props.pendingProbeId) {
               props.onPortSelection(port.hitPort, port.pointer);
               return;
             }
-            if (props.structureLocked) {
+            if (port.hitPort.kind === "in" && !props.pendingFromPort) {
+              props.onSelectOutput();
               return;
             }
-            if (port.hitPort.kind === "in" && !props.pendingFromPort && !props.pendingProbeId) {
-              props.onSelectOutput();
+            if (props.structureLocked) {
               return;
             }
             props.onPortSelection(port.hitPort, port.pointer);

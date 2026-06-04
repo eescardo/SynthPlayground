@@ -346,6 +346,8 @@ struct PreviewProbeCaptureSnapshot {
     final_scope: Option<PreviewProbeFinalScope>,
     #[serde(rename = "adsrEstimate", skip_serializing_if = "Option::is_none")]
     adsr_estimate: Option<PreviewProbeAdsrEstimate>,
+    #[serde(rename = "qualityStats", skip_serializing_if = "Option::is_none")]
+    quality_stats: Option<PreviewProbeQualityStats>,
 }
 
 #[derive(Clone, Serialize)]
@@ -379,6 +381,34 @@ struct PreviewProbeAdsrEstimate {
     #[serde(rename = "releaseSeconds")]
     release_seconds: f32,
     label: String,
+}
+
+#[derive(Clone, Serialize)]
+struct PreviewProbeQualityStats {
+    peak: f32,
+    #[serde(rename = "peakDb")]
+    peak_db: f32,
+    rms: f32,
+    #[serde(rename = "rmsDb")]
+    rms_db: f32,
+    #[serde(rename = "dcOffset")]
+    dc_offset: f32,
+    #[serde(rename = "crestFactorDb")]
+    crest_factor_db: f32,
+    #[serde(rename = "nearClipCount")]
+    near_clip_count: usize,
+    #[serde(rename = "clippedCount")]
+    clipped_count: usize,
+    #[serde(rename = "maxConsecutiveNearClip")]
+    max_consecutive_near_clip: usize,
+    #[serde(rename = "maxDelta")]
+    max_delta: f32,
+    #[serde(rename = "zeroCrossingRate")]
+    zero_crossing_rate: f32,
+    #[serde(rename = "roughness")]
+    roughness: f32,
+    #[serde(rename = "capturedSamples")]
+    captured_samples: usize,
 }
 
 #[derive(Clone, Serialize)]

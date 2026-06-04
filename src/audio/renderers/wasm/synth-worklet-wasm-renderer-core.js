@@ -268,7 +268,8 @@ export class SharedWasmRenderStream {
                 spectrumFrames: capture.spectrumFrames,
                 finalSpectrum: capture.finalSpectrum,
                 finalScope: capture.finalScope,
-                adsrEstimate: capture.adsrEstimate
+                adsrEstimate: capture.adsrEstimate,
+                qualityStats: capture.qualityStats
               }
             : null;
         })

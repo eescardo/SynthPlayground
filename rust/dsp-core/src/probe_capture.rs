@@ -1,6 +1,6 @@
 use crate::{
     clamp, PreviewProbeAdsrEstimate, PreviewProbeFinalScope, PreviewProbeFinalSpectrum,
-    PreviewProbeScopeBucket, PreviewProbeSpectrumFrames,
+    PreviewProbeQualityStats, PreviewProbeScopeBucket, PreviewProbeSpectrumFrames,
 };
 
 const PREVIEW_CAPTURE_SNAPSHOT_MAX_SAMPLES: usize = 4_096;
@@ -115,6 +115,96 @@ pub(crate) fn build_preview_capture_final_scope(
         sample_rate,
         captured_samples: captured_end,
     })
+}
+
+pub(crate) fn build_preview_capture_quality_stats(
+    capture: &TrackProbeCaptureState,
+    captured_samples: usize,
+) -> Option<PreviewProbeQualityStats> {
+    let captured_end = captured_samples
+        .min(capture.duration_samples)
+        .min(capture.samples.len());
+    if captured_end == 0 {
+        return None;
+    }
+
+    let samples = &capture.samples[..captured_end];
+    let mut peak = 0.0_f32;
+    let mut sum = 0.0_f64;
+    let mut sum_squares = 0.0_f64;
+    let mut near_clip_count = 0_usize;
+    let mut clipped_count = 0_usize;
+    let mut current_near_clip_run = 0_usize;
+    let mut max_consecutive_near_clip = 0_usize;
+    let mut max_delta = 0.0_f32;
+    let mut delta_sum = 0.0_f64;
+    let mut zero_crossings = 0_usize;
+    let mut previous = 0.0_f32;
+
+    for (index, sample) in samples.iter().copied().enumerate() {
+        if !sample.is_finite() {
+            continue;
+        }
+        let abs = sample.abs();
+        peak = peak.max(abs);
+        sum += sample as f64;
+        sum_squares += (sample as f64) * (sample as f64);
+        if abs >= 0.98 {
+            near_clip_count = near_clip_count.saturating_add(1);
+            current_near_clip_run = current_near_clip_run.saturating_add(1);
+            max_consecutive_near_clip = max_consecutive_near_clip.max(current_near_clip_run);
+        } else {
+            current_near_clip_run = 0;
+        }
+        if abs >= 0.999 {
+            clipped_count = clipped_count.saturating_add(1);
+        }
+        if index > 0 {
+            let delta = (sample - previous).abs();
+            max_delta = max_delta.max(delta);
+            delta_sum += delta as f64;
+            if (sample > 0.0 && previous < 0.0) || (sample < 0.0 && previous > 0.0) {
+                zero_crossings = zero_crossings.saturating_add(1);
+            }
+        }
+        previous = sample;
+    }
+
+    let sample_count = captured_end.max(1) as f64;
+    let rms = (sum_squares / sample_count).sqrt() as f32;
+    let dc_offset = (sum / sample_count) as f32;
+    let peak_db = amplitude_to_db(peak);
+    let rms_db = amplitude_to_db(rms);
+    let crest_factor_db = if rms > 0.000001 {
+        20.0 * (peak / rms).max(0.000001).log10()
+    } else {
+        0.0
+    };
+    let mean_delta = if captured_end > 1 {
+        (delta_sum / (captured_end - 1) as f64) as f32
+    } else {
+        0.0
+    };
+
+    Some(PreviewProbeQualityStats {
+        peak,
+        peak_db,
+        rms,
+        rms_db,
+        dc_offset,
+        crest_factor_db,
+        near_clip_count,
+        clipped_count,
+        max_consecutive_near_clip,
+        max_delta,
+        zero_crossing_rate: zero_crossings as f32 / captured_end.max(1) as f32,
+        roughness: clamp(mean_delta / peak.max(0.000001), 0.0, 1.0),
+        captured_samples: captured_end,
+    })
+}
+
+fn amplitude_to_db(amplitude: f32) -> f32 {
+    20.0 * amplitude.max(0.000001).log10()
 }
 
 pub(crate) fn build_preview_capture_adsr_estimate(

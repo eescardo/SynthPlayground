@@ -594,6 +594,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
           scrollLeft={scrollViewport.left}
           scrollTop={scrollViewport.top}
           structureLocked={structureLocked}
+          outputQualityStats={props.model.outputLimiterPreview?.post}
           zoom={zoom}
           onPortSelection={handlePortSelection}
           onPortHover={handlePortHover}

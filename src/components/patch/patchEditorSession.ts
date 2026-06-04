@@ -10,6 +10,7 @@ import {
   PreviewProbeCapture
 } from "@/types/probes";
 import { PatchWireCommitFeedback } from "@/components/patch/patchWireFeedback";
+import { OutputLimiterPreview } from "@/lib/patch/qualityMeter";
 
 export interface PatchEditorSessionModel {
   patch: Patch;
@@ -55,6 +56,7 @@ export interface PatchEditorStageModel {
   selectedNodeId?: string;
   selectedConnectionId?: string;
   selectedMacroNodeIds: Set<string>;
+  outputLimiterPreview?: OutputLimiterPreview | null;
   structureLocked?: boolean;
 }
 
@@ -97,6 +99,7 @@ export interface PatchInspectorModel {
   selectedMacroId?: string;
   selectedSchema?: NonNullable<ReturnType<typeof getModuleSchema>>;
   previewCapture?: PreviewProbeCapture;
+  outputLimiterPreview?: OutputLimiterPreview | null;
   previewProgress: number;
   attachingProbeId?: string | null;
   wireCommitFeedback?: PatchWireCommitFeedback | null;

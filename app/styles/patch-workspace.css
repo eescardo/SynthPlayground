@@ -484,6 +484,11 @@
   letter-spacing: 0.01em;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.16);
   white-space: nowrap;
+  transition:
+    border-color 0.5s ease,
+    background 0.5s ease,
+    box-shadow 0.5s ease,
+    opacity 0.18s ease;
 }
 
 .patch-host-port.pending {
@@ -494,8 +499,18 @@
 }
 
 .patch-host-port.locked {
-  cursor: not-allowed;
+  cursor: pointer;
   opacity: 0.72;
+}
+
+.patch-host-port.clipping {
+  border-color: #ff4c5f;
+  background: #3b1218;
+  color: #ffe4e7;
+  box-shadow:
+    0 0 0 1px rgba(255, 76, 95, 0.52),
+    0 0 20px rgba(255, 76, 95, 0.66),
+    0 6px 16px rgba(0, 0, 0, 0.28);
 }
 
 .patch-keyboard-focus-ring {
@@ -640,6 +655,16 @@
   font-size: 0.58rem;
 }
 
+.patch-probe-card.quality_meter:not(.expanded) .patch-probe-card-header {
+  gap: 0.18rem;
+  font-size: 0.58rem;
+}
+
+.patch-probe-card.quality_meter:not(.expanded) .patch-probe-attach-button {
+  padding: 0.06rem 0.2rem;
+  font-size: 0.52rem;
+}
+
 .patch-probe-card.spectrum:not(.expanded) .patch-probe-header-actions {
   gap: 0.18rem;
 }
@@ -698,6 +723,93 @@
 .patch-probe-adsr-label {
   fill: rgba(255, 220, 142, 0.82);
   font-size: 3.7px;
+}
+
+.quality-meter-probe {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: hidden;
+}
+
+.quality-meter-bg {
+  fill: #071018;
+}
+
+.quality-meter-rail,
+.quality-meter-spark-frame {
+  fill: rgba(131, 173, 216, 0.08);
+  stroke: rgba(131, 173, 216, 0.2);
+  stroke-width: 0.7;
+}
+
+.quality-meter-peak-fill {
+  fill: #7be49b;
+}
+
+.quality-meter-probe.hot .quality-meter-peak-fill {
+  fill: #f6c85f;
+}
+
+.quality-meter-probe.clip .quality-meter-peak-fill,
+.quality-meter-probe.clip .quality-meter-clip-tick {
+  fill: #ff4c5f;
+}
+
+.quality-meter-hot-line {
+  stroke: rgba(246, 200, 95, 0.72);
+  stroke-width: 0.7;
+}
+
+.quality-meter-clip-line {
+  stroke: rgba(255, 76, 95, 0.85);
+  stroke-width: 0.9;
+}
+
+.quality-meter-rms-marker {
+  stroke: #e7f3ff;
+  stroke-width: 0.9;
+}
+
+.quality-meter-spark {
+  stroke: #97d6ff;
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.quality-meter-clip-tick {
+  fill: rgba(255, 76, 95, 0.86);
+}
+
+.quality-meter-glyphs circle {
+  fill: rgba(131, 173, 216, 0.08);
+  stroke: rgba(131, 173, 216, 0.24);
+  stroke-width: 0.8;
+}
+
+.quality-meter-glyphs circle.warn {
+  fill: rgba(255, 76, 95, 0.16);
+  stroke: rgba(255, 76, 95, 0.78);
+}
+
+.quality-meter-glyphs path {
+  fill: none;
+  stroke: rgba(231, 243, 255, 0.74);
+  stroke-width: 0.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.quality-meter-status,
+.quality-meter-readout {
+  fill: rgba(231, 243, 255, 0.84);
+  font-size: 5px;
+  font-weight: 750;
+}
+
+.quality-meter-probe.compact .quality-meter-readout {
+  display: none;
 }
 
 .patch-probe-spectrum-shell {
@@ -1141,6 +1253,137 @@
   font-size: 0.82rem;
   font-weight: 650;
   line-height: 1.2;
+}
+
+.output-limiter-readout {
+  border-color: rgba(151, 214, 255, 0.16);
+  background: rgba(8, 17, 27, 0.36);
+}
+
+.output-limiter-readout.active {
+  border-color: rgba(255, 76, 95, 0.42);
+  background: rgba(48, 14, 21, 0.3);
+}
+
+.output-limiter-empty {
+  min-height: 4rem;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(131, 173, 216, 0.22);
+  border-radius: 0.45rem;
+  color: rgba(215, 235, 255, 0.58);
+  font-size: 0.72rem;
+}
+
+.output-limiter-pill {
+  justify-self: start;
+  padding: 0.12rem 0.34rem;
+  border: 1px solid rgba(151, 214, 255, 0.24);
+  border-radius: 999px;
+  color: rgba(215, 235, 255, 0.72);
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.output-limiter-visual {
+  display: grid;
+  grid-template-columns: 1.1rem minmax(0, 1fr) 1.1rem;
+  gap: 0.45rem;
+  min-height: 4.6rem;
+  align-items: stretch;
+}
+
+.output-limiter-meter {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid rgba(131, 173, 216, 0.18);
+  border-radius: 0.35rem;
+  background: rgba(131, 173, 216, 0.07);
+}
+
+.output-limiter-meter span {
+  width: 100%;
+  min-height: 2px;
+  background: linear-gradient(180deg, #ff4c5f 0%, #f6c85f 38%, #7be49b 100%);
+}
+
+.output-limiter-meter strong {
+  position: absolute;
+  bottom: 0.16rem;
+  transform: rotate(-90deg);
+  color: rgba(7, 13, 19, 0.7);
+  font-size: 0.48rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.output-limiter-curve {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(131, 173, 216, 0.14);
+  border-radius: 0.45rem;
+  background:
+    linear-gradient(90deg, rgba(131, 173, 216, 0.06) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(131, 173, 216, 0.05) 1px, transparent 1px), rgba(7, 13, 19, 0.5);
+  background-size:
+    25% 100%,
+    100% 50%,
+    auto;
+}
+
+.output-limiter-curve svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.output-limiter-curve-raw {
+  fill: none;
+  stroke: rgba(131, 173, 216, 0.38);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 3;
+}
+
+.output-limiter-curve-shaped {
+  fill: none;
+  stroke: rgba(255, 220, 142, 0.86);
+  stroke-width: 1.7;
+}
+
+.output-limiter-curve circle {
+  fill: #ff4c5f;
+  stroke: #ffe4e7;
+  stroke-width: 1;
+}
+
+.output-limiter-reduction {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 0.26rem;
+  background: rgba(255, 76, 95, 0.62);
+}
+
+.output-limiter-grid,
+.quality-meter-inspector-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.16rem 0.5rem;
+  color: rgba(215, 235, 255, 0.68);
+  font-size: 0.68rem;
+}
+
+.output-limiter-grid strong,
+.quality-meter-inspector-grid strong {
+  color: #e7f3ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.68rem;
+  font-weight: 750;
 }
 
 .param-authoring-mode {
