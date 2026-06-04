@@ -175,58 +175,14 @@ function drawLoopMarker(
   ctx.restore();
 }
 
-export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
-  const {
-    activeRecordedNotes,
-    automationKeyframeRectsRef,
-    canvasRef,
-    countInLabel,
-    ghostPlayheadBeat,
-    ghostPreviewNote,
-    hideSelectionActionPopover,
-    hoveredAutomationKeyframe,
-    hoveredLoopMarker,
-    hoveredNote,
-    hoveredPitch,
-    hoveredPlayhead,
-    invalidPatchIds,
-    isTrackSilenced,
-    keyboardPlacementNote,
-    loopMarkerRectsRef,
-    muteRectsRef,
-    noteRectsRef,
-    pitchRectsRef,
-    playheadBeat,
-    playheadTabStopFocused,
-    project,
-    renderModel,
-    selectedContentTabStopFocused,
-    selectedTrackId,
-    selection,
-    selectionMarqueeActive,
-    selectionRect,
-    tabSelectionPreviewNote,
-    timelineActionsPopoverOpen
-  } = options;
-  const {
-    automationKeyframeSelectionKeys,
-    gridBeats,
-    height,
-    meterBeats,
-    selectedNoteKeys,
-    selectionBeatRange,
-    selectionMarkerTrackId,
-    totalBeats,
-    trackLayouts,
-    width
-  } = renderModel;
-  const canvas = canvasRef.current;
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-
-  canvas.width = width;
-  canvas.height = height;
+function drawCanvasFrame(
+  ctx: CanvasRenderingContext2D,
+  options: Pick<
+    TrackCanvasDrawingOptions["renderModel"],
+    "gridBeats" | "height" | "meterBeats" | "totalBeats" | "trackLayouts" | "width"
+  >
+) {
+  const { gridBeats, height, meterBeats, totalBeats, trackLayouts, width } = options;
 
   ctx.fillStyle = TRACK_CANVAS_COLORS.canvasBg;
   ctx.fillRect(0, 0, width, height);
@@ -272,12 +228,125 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     ctx.lineTo(width, y);
     ctx.stroke();
   }
+}
 
-  noteRectsRef.current = [];
-  automationKeyframeRectsRef.current = [];
-  muteRectsRef.current = [];
-  pitchRectsRef.current = [];
-  loopMarkerRectsRef.current = [];
+function clearHitTargetRects(
+  options: Pick<
+    TrackCanvasDrawingOptions,
+    "automationKeyframeRectsRef" | "loopMarkerRectsRef" | "muteRectsRef" | "noteRectsRef" | "pitchRectsRef"
+  >
+) {
+  options.noteRectsRef.current = [];
+  options.automationKeyframeRectsRef.current = [];
+  options.muteRectsRef.current = [];
+  options.pitchRectsRef.current = [];
+  options.loopMarkerRectsRef.current = [];
+}
+
+function drawAutomationLanes(
+  ctx: CanvasRenderingContext2D,
+  options: Pick<TrackCanvasDrawingOptions, "automationKeyframeRectsRef" | "hoveredAutomationKeyframe"> & {
+    automationKeyframeSelectionKeys: TrackCanvasRenderModel["automationKeyframeSelectionKeys"];
+    projectPatches: Project["patches"];
+    registerHitTargets: boolean;
+    totalBeats: number;
+    track: Track;
+    trackLayout: TrackLayout;
+    veilTimeline?: boolean;
+    width: number;
+  }
+) {
+  const {
+    automationKeyframeRectsRef,
+    automationKeyframeSelectionKeys,
+    hoveredAutomationKeyframe,
+    projectPatches,
+    registerHitTargets,
+    totalBeats,
+    track,
+    trackLayout,
+    veilTimeline,
+    width
+  } = options;
+
+  const trackPatch = projectPatches.find((entry) => entry.id === track.instrumentPatchId);
+  for (const automationLayout of trackLayout.automationLanes) {
+    const spec = resolveLaneRenderSpec(track, trackPatch, automationLayout, totalBeats);
+    if (!spec) {
+      continue;
+    }
+    renderLaneSpec(
+      ctx,
+      spec,
+      {
+        hoveredAutomationKeyframe,
+        registerHitTargets,
+        automationKeyframeSelectionKeys,
+        trackId: track.id,
+        veilTimeline,
+        width
+      },
+      automationKeyframeRectsRef.current
+    );
+  }
+}
+
+function drawTrackContent(
+  ctx: CanvasRenderingContext2D,
+  options: Pick<
+    TrackCanvasDrawingOptions,
+    | "activeRecordedNotes"
+    | "automationKeyframeRectsRef"
+    | "ghostPreviewNote"
+    | "hoveredAutomationKeyframe"
+    | "hoveredNote"
+    | "hoveredPitch"
+    | "invalidPatchIds"
+    | "isTrackSilenced"
+    | "keyboardPlacementNote"
+    | "muteRectsRef"
+    | "noteRectsRef"
+    | "pitchRectsRef"
+    | "playheadBeat"
+    | "project"
+    | "selectedContentTabStopFocused"
+    | "selectedTrackId"
+    | "tabSelectionPreviewNote"
+  > & {
+    automationKeyframeSelectionKeys: TrackCanvasRenderModel["automationKeyframeSelectionKeys"];
+    gridBeats: number;
+    selectedNoteKeys: TrackCanvasRenderModel["selectedNoteKeys"];
+    totalBeats: number;
+    trackLayouts: TrackLayout[];
+    width: number;
+  }
+) {
+  const {
+    activeRecordedNotes,
+    automationKeyframeRectsRef,
+    automationKeyframeSelectionKeys,
+    ghostPreviewNote,
+    gridBeats,
+    hoveredAutomationKeyframe,
+    hoveredNote,
+    hoveredPitch,
+    invalidPatchIds,
+    isTrackSilenced,
+    keyboardPlacementNote,
+    muteRectsRef,
+    noteRectsRef,
+    pitchRectsRef,
+    playheadBeat,
+    project,
+    selectedContentTabStopFocused,
+    selectedNoteKeys,
+    selectedTrackId,
+    tabSelectionPreviewNote,
+    totalBeats,
+    trackLayouts,
+    width
+  } = options;
+
   const activeRecordedNoteById = new Map(
     (activeRecordedNotes ?? []).map((entry) => [`${entry.trackId}:${entry.noteId}`, entry] as const)
   );
@@ -290,7 +359,6 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     const isSelected = track.id === selectedTrackId;
     const trackPatchInvalid = invalidPatchIds?.has(track.instrumentPatchId) ?? false;
     const { overlapNoteIds, overlapRanges } = findTrackOverlaps(track.notes);
-    const trackPatch = project.patches.find((entry) => entry.id === track.instrumentPatchId);
 
     if (isSelected) {
       ctx.fillStyle = TRACK_CANVAS_COLORS.selectedTrackOverlay;
@@ -437,26 +505,69 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
       drawGhostPreviewNote(ctx, ghostPreviewNote, y);
     }
 
-    for (const automationLayout of layout.automationLanes) {
-      const spec = resolveLaneRenderSpec(track, trackPatch, automationLayout, totalBeats);
-      if (!spec) {
-        continue;
-      }
-      renderLaneSpec(
-        ctx,
-        spec,
-        {
-          hoveredAutomationKeyframe,
-          registerHitTargets: true,
-          automationKeyframeSelectionKeys,
-          trackId: track.id,
-          width
-        },
-        automationKeyframeRectsRef.current
-      );
-    }
+    drawAutomationLanes(ctx, {
+      automationKeyframeRectsRef,
+      automationKeyframeSelectionKeys,
+      hoveredAutomationKeyframe,
+      projectPatches: project.patches,
+      registerHitTargets: true,
+      totalBeats,
+      track,
+      trackLayout: layout,
+      width
+    });
   });
+}
 
+function drawAutomationVeilPass(
+  ctx: CanvasRenderingContext2D,
+  options: Pick<TrackCanvasDrawingOptions, "automationKeyframeRectsRef" | "hoveredAutomationKeyframe" | "project"> & {
+    automationKeyframeSelectionKeys: TrackCanvasRenderModel["automationKeyframeSelectionKeys"];
+    totalBeats: number;
+    trackLayouts: TrackLayout[];
+    width: number;
+  }
+) {
+  const {
+    automationKeyframeRectsRef,
+    automationKeyframeSelectionKeys,
+    hoveredAutomationKeyframe,
+    project,
+    totalBeats,
+    trackLayouts,
+    width
+  } = options;
+
+  project.tracks.forEach((track) => {
+    const layout = trackLayouts.find((entry) => entry.trackId === track.id);
+    if (!layout) {
+      return;
+    }
+    drawAutomationLanes(ctx, {
+      automationKeyframeRectsRef,
+      automationKeyframeSelectionKeys,
+      hoveredAutomationKeyframe,
+      projectPatches: project.patches,
+      registerHitTargets: false,
+      totalBeats,
+      track,
+      trackLayout: layout,
+      veilTimeline: true,
+      width
+    });
+  });
+}
+
+function drawPlayhead(
+  ctx: CanvasRenderingContext2D,
+  options: Pick<
+    TrackCanvasDrawingOptions,
+    "hoveredPlayhead" | "playheadBeat" | "playheadTabStopFocused" | "timelineActionsPopoverOpen"
+  > & {
+    height: number;
+  }
+) {
+  const { height, hoveredPlayhead, playheadBeat, playheadTabStopFocused, timelineActionsPopoverOpen } = options;
   const playheadX = HEADER_WIDTH + playheadBeat * BEAT_WIDTH;
   if (hoveredPlayhead && !timelineActionsPopoverOpen) {
     ctx.strokeStyle = TRACK_CANVAS_COLORS.playheadHoverGlow;
@@ -480,7 +591,15 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
   ctx.moveTo(playheadX, 0);
   ctx.lineTo(playheadX, height);
   ctx.stroke();
+}
 
+function drawLoopMarkers(
+  ctx: CanvasRenderingContext2D,
+  options: Pick<TrackCanvasDrawingOptions, "hoveredLoopMarker" | "loopMarkerRectsRef" | "project"> & {
+    height: number;
+  }
+) {
+  const { height, hoveredLoopMarker, loopMarkerRectsRef, project } = options;
   const loopMarkers = getLoopMarkerStates(project.global.loop);
   for (const marker of loopMarkers) {
     const color =
@@ -507,34 +626,30 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
       h: height
     });
   }
-  drawGhostPlayhead(ctx, ghostPlayheadBeat, countInLabel, height);
+}
 
-  project.tracks.forEach((track) => {
-    const layout = trackLayouts.find((entry) => entry.trackId === track.id);
-    const trackPatch = project.patches.find((entry) => entry.id === track.instrumentPatchId);
-    if (!layout) {
-      return;
-    }
-    for (const automationLayout of layout.automationLanes) {
-      const spec = resolveLaneRenderSpec(track, trackPatch, automationLayout, totalBeats);
-      if (!spec) {
-        continue;
-      }
-      renderLaneSpec(
-        ctx,
-        spec,
-        {
-          hoveredAutomationKeyframe,
-          registerHitTargets: false,
-          automationKeyframeSelectionKeys,
-          trackId: track.id,
-          veilTimeline: true,
-          width
-        },
-        automationKeyframeRectsRef.current
-      );
-    }
-  });
+function drawSelectionOverlays(
+  ctx: CanvasRenderingContext2D,
+  options: Pick<
+    TrackCanvasDrawingOptions,
+    "hideSelectionActionPopover" | "selection" | "selectionMarqueeActive" | "selectionRect"
+  > & {
+    height: number;
+    selectionBeatRange: TrackCanvasRenderModel["selectionBeatRange"];
+    selectionMarkerTrackId: TrackCanvasRenderModel["selectionMarkerTrackId"];
+    trackLayouts: TrackLayout[];
+  }
+) {
+  const {
+    height,
+    hideSelectionActionPopover,
+    selection,
+    selectionBeatRange,
+    selectionMarkerTrackId,
+    selectionMarqueeActive,
+    selectionRect,
+    trackLayouts
+  } = options;
 
   if (selectionBeatRange) {
     const startX = HEADER_WIDTH + selectionBeatRange.startBeat * BEAT_WIDTH;
@@ -568,7 +683,7 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     !hideSelectionActionPopover &&
     selectionMarkerTrackId
   ) {
-    const indicatorTrackLayout = trackLayouts.find((track: TrackLayout) => track.trackId === selectionMarkerTrackId);
+    const indicatorTrackLayout = trackLayouts.find((track) => track.trackId === selectionMarkerTrackId);
     if (indicatorTrackLayout) {
       const startX = HEADER_WIDTH + selectionBeatRange.startBeat * BEAT_WIDTH;
       const endX = HEADER_WIDTH + selectionBeatRange.endBeat * BEAT_WIDTH;
@@ -600,4 +715,108 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     ctx.strokeRect(left + 0.5, top + 0.5, Math.max(0, rectWidth - 1), Math.max(0, rectHeight - 1));
     ctx.setLineDash([]);
   }
+}
+
+export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
+  const {
+    activeRecordedNotes,
+    automationKeyframeRectsRef,
+    canvasRef,
+    countInLabel,
+    ghostPlayheadBeat,
+    ghostPreviewNote,
+    hideSelectionActionPopover,
+    hoveredAutomationKeyframe,
+    hoveredLoopMarker,
+    hoveredNote,
+    hoveredPitch,
+    hoveredPlayhead,
+    invalidPatchIds,
+    isTrackSilenced,
+    keyboardPlacementNote,
+    loopMarkerRectsRef,
+    muteRectsRef,
+    noteRectsRef,
+    pitchRectsRef,
+    playheadBeat,
+    playheadTabStopFocused,
+    project,
+    renderModel,
+    selectedContentTabStopFocused,
+    selectedTrackId,
+    selection,
+    selectionMarqueeActive,
+    selectionRect,
+    tabSelectionPreviewNote,
+    timelineActionsPopoverOpen
+  } = options;
+  const {
+    automationKeyframeSelectionKeys,
+    gridBeats,
+    height,
+    meterBeats,
+    selectedNoteKeys,
+    selectionBeatRange,
+    selectionMarkerTrackId,
+    totalBeats,
+    trackLayouts,
+    width
+  } = renderModel;
+  const canvas = canvasRef.current;
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  canvas.width = width;
+  canvas.height = height;
+
+  drawCanvasFrame(ctx, { gridBeats, height, meterBeats, totalBeats, trackLayouts, width });
+  clearHitTargetRects({ automationKeyframeRectsRef, loopMarkerRectsRef, muteRectsRef, noteRectsRef, pitchRectsRef });
+  drawTrackContent(ctx, {
+    activeRecordedNotes,
+    automationKeyframeRectsRef,
+    automationKeyframeSelectionKeys,
+    ghostPreviewNote,
+    gridBeats,
+    hoveredAutomationKeyframe,
+    hoveredNote,
+    hoveredPitch,
+    invalidPatchIds,
+    isTrackSilenced,
+    keyboardPlacementNote,
+    muteRectsRef,
+    noteRectsRef,
+    pitchRectsRef,
+    playheadBeat,
+    project,
+    selectedContentTabStopFocused,
+    selectedNoteKeys,
+    selectedTrackId,
+    tabSelectionPreviewNote,
+    totalBeats,
+    trackLayouts,
+    width
+  });
+  drawPlayhead(ctx, { height, hoveredPlayhead, playheadBeat, playheadTabStopFocused, timelineActionsPopoverOpen });
+  drawLoopMarkers(ctx, { height, hoveredLoopMarker, loopMarkerRectsRef, project });
+  drawGhostPlayhead(ctx, ghostPlayheadBeat, countInLabel, height);
+  drawAutomationVeilPass(ctx, {
+    automationKeyframeRectsRef,
+    automationKeyframeSelectionKeys,
+    hoveredAutomationKeyframe,
+    project,
+    totalBeats,
+    trackLayouts,
+    width
+  });
+  drawSelectionOverlays(ctx, {
+    height,
+    hideSelectionActionPopover,
+    selection,
+    selectionBeatRange,
+    selectionMarkerTrackId,
+    selectionMarqueeActive,
+    selectionRect,
+    trackLayouts
+  });
 }
