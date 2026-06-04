@@ -13,19 +13,22 @@ const isTextEditingTarget = (target: EventTarget | null) => {
 interface UseComposerQuickHelpDialogParams {
   allTracksModifierLabel: string;
   deleteKeyLabel: string;
+  isMacPlatform: boolean;
   primaryModifierLabel: string;
 }
 
 export function useComposerQuickHelpDialog({
   allTracksModifierLabel,
   deleteKeyLabel,
+  isMacPlatform,
   primaryModifierLabel
 }: UseComposerQuickHelpDialogParams) {
   const [helpOpen, setHelpOpen] = useState(false);
 
   const mouseHelpItems = useMemo(
     () => [
-      { action: "Add note", description: "Click an empty track lane when nothing is selected." },
+      { action: "Move playhead", description: "Click the beat header or an empty track lane." },
+      { action: "Add note", description: "Double-click an empty track lane." },
       { action: "Select notes", description: "Drag a marquee across notes, or click an existing note." },
       {
         action: "Rename things",
@@ -40,31 +43,41 @@ export function useComposerQuickHelpDialog({
     []
   );
 
-  const keyboardShortcutSections = useMemo<QuickHelpShortcutSection[]>(
-    () => [
+  const keyboardShortcutSections = useMemo<QuickHelpShortcutSection[]>(() => {
+    const measureArrowShortcut = isMacPlatform ? "Opt+Arrows" : "Ctrl+Arrows";
+    const measureShiftArrowShortcut = isMacPlatform ? "Opt+Shift+Arrows" : "Ctrl+Shift+Arrows";
+    const boundaryShortcut = isMacPlatform ? "Cmd+Arrows" : "Home/End";
+
+    return [
       {
         title: "General",
         entries: [
           { action: "Help", shortcut: "?" },
           { action: "Play / Stop", shortcut: "Space" },
-          { action: "Move Playhead / Reclaim Playhead Focus", shortcut: "Left / Right" },
-          { action: "Select Track", shortcut: "Up / Down" },
+          { action: "Move Playhead", shortcut: "Arrows" },
+          { action: "Playhead By Measure", shortcut: measureArrowShortcut },
+          { action: "Composition Start / End", shortcut: boundaryShortcut },
+          { action: "Select Track", shortcut: "Vertical Arrows" },
           { action: "Backspace Note / Rewind", shortcut: "Backspace" },
           { action: "Default Pitch (semitone)", shortcut: "- / =" },
           { action: "Default Pitch (eighth-tone)", shortcut: "_ / +" },
           { action: "Macro Lanes", shortcut: "[ / ]" },
           { action: "Place Note", shortcut: "Enter" },
-          { action: "Place Pitched Note", shortcut: "QWERTY piano keys" },
+          { action: "Place Pitched Note", shortcut: "QWERTY keys" },
           { action: "Playhead / Note Tab Stops", shortcut: "Tab / Shift+Tab" },
-          { action: "Close Dialogs / Collapse Selection", shortcut: "Esc" }
+          { action: "Close Dialogs / Selection", shortcut: "Esc" }
         ]
       },
       {
         title: "Selection",
         entries: [
-          { action: "Collapsed Selection Nudge", shortcut: "Left / Right" },
+          { action: "Nudge Selection", shortcut: "Arrows" },
+          { action: "Selected Note By Measure", shortcut: measureArrowShortcut },
+          { action: "Previous / Next Note", shortcut: "Shift+Arrows" },
+          { action: "Measure-Relative Note", shortcut: measureShiftArrowShortcut },
+          { action: "First / Last Note", shortcut: boundaryShortcut },
           { action: "Select Note At Playhead", shortcut: "Tab" },
-          { action: "Expand Collapsed Selection", shortcut: "Enter" },
+          { action: "Expand Selection", shortcut: "Enter" },
           { action: "Cut Selection", shortcut: `${primaryModifierLabel}+X` },
           { action: "Copy Selection", shortcut: `${primaryModifierLabel}+C` },
           { action: "Paste Selected Track(s)", shortcut: `${primaryModifierLabel}+V` },
@@ -78,9 +91,8 @@ export function useComposerQuickHelpDialog({
           { action: "Clear Selection", shortcut: "Esc again" }
         ]
       }
-    ],
-    [allTracksModifierLabel, deleteKeyLabel, primaryModifierLabel]
-  );
+    ];
+  }, [allTracksModifierLabel, deleteKeyLabel, isMacPlatform, primaryModifierLabel]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

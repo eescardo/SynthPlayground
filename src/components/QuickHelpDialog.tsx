@@ -54,11 +54,13 @@ function MouseHelpSection({ mouseHelpItems }: Pick<QuickHelpDialogProps, "mouseH
   return (
     <div className="quick-help-section quick-help-mouse-section">
       <h4>Mouse</h4>
-      {mouseHelpItems.map((entry) => (
-        <p key={entry.action}>
-          <strong>{entry.action}:</strong> {entry.description}
-        </p>
-      ))}
+      <div className="quick-help-mouse-items">
+        {mouseHelpItems.map((entry) => (
+          <p key={entry.action}>
+            <strong>{entry.action}:</strong> {entry.description}
+          </p>
+        ))}
+      </div>
     </div>
   );
 }
@@ -80,7 +82,9 @@ export function QuickHelpDialog({
   return (
     <div className="help-modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="help-modal quick-help-modal" onClick={(event) => event.stopPropagation()}>
-        <h3>Quick Help</h3>
+        <h3>
+          Quick Help (<kbd>Esc</kbd> to close)
+        </h3>
         <div className={keyboardFirst ? "quick-help-grid quick-help-grid-keyboard-first" : "quick-help-grid"}>
           {keyboardFirst ? (
             <>
@@ -101,9 +105,6 @@ export function QuickHelpDialog({
           )}
         </div>
         {children}
-        <p className="muted">
-          Press <kbd>Esc</kbd> to close this help panel.
-        </p>
       </div>
     </div>
   );

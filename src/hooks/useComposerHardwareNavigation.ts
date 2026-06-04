@@ -14,16 +14,24 @@ import {
   UseHardwareNavigationArgs
 } from "@/hooks/useHardwareNavigationTypes";
 import {
+  findAdjacentTrackNote,
+  findTrackBoundaryNote,
   findTrackBackspaceTargetNote,
   findTrackNoteAtBeat,
+  findTrackNoteByMeasureOffset,
   shiftContentSelectionByBeats,
   trackHasNoteAtBeat,
   upsertKeyboardPlacedNote
 } from "@/lib/hardwareNavigation";
 import { getNoteSelectionKey } from "@/lib/clipboard";
+import {
+  getSingleSelectedTrackNote,
+  resolveComposerBoundaryNavigationIntent,
+  resolveComposerHorizontalArrowIntent
+} from "@/lib/composerKeyboardNavigation";
 import { createId } from "@/lib/ids";
 import { DEFAULT_NOTE_VELOCITY } from "@/lib/noteDefaults";
-import { beatToSample, snapToGrid, snapUpToGrid } from "@/lib/musicTiming";
+import { beatToSample, getMeasureBeatsForMeter, snapToGrid, snapUpToGrid } from "@/lib/musicTiming";
 import { keyToPitch, normalizePhysicalPitchKey, pitchToVoct } from "@/lib/pitch";
 import { createSproutError, toError } from "@/lib/sproutErrors";
 
@@ -46,6 +54,7 @@ interface ComposerHardwareNavigationResult {
 export function useComposerHardwareNavigation({
   view,
   projectGridBeats,
+  projectMeter,
   projectTempo,
   selectedTrack,
   playheadBeat,
@@ -80,6 +89,7 @@ export function useComposerHardwareNavigation({
   const hasActivePlacement = activePlacement !== null;
   const hasSelectedTrack = Boolean(selectedTrack);
   const hasNoSelection = selectionKind === "none";
+  const measureBeats = getMeasureBeatsForMeter(projectMeter);
 
   const [ghostPreviewNote, setGhostPreviewNote] = useState<GhostPreviewNote | null>(null);
   const [tabSelectionPreviewNote, setTabSelectionPreviewNote] = useState<{ trackId: string; noteId: string } | null>(
@@ -484,26 +494,41 @@ export function useComposerHardwareNavigation({
       });
     };
 
-    const nudgePlayhead = (direction: -1 | 1) => {
+    const nudgePlayheadByBeats = (direction: -1 | 1, beatSpan: number) => {
       const nextBeat =
         direction < 0
-          ? Math.max(0, snapToGrid(playheadBeat - projectGridBeats, projectGridBeats))
-          : Math.min(playbackEndBeat, snapToGrid(playheadBeat + projectGridBeats, projectGridBeats));
+          ? Math.max(0, snapToGrid(playheadBeat - beatSpan, projectGridBeats))
+          : Math.min(playbackEndBeat, snapToGrid(playheadBeat + beatSpan, projectGridBeats));
       setPlayheadBeatPreservingSelection(nextBeat);
       base.setPlayheadNavigationFocused(true);
       clearBlockedSelectionTransfer();
     };
 
-    const nudgeContentSelection = (direction: -1 | 1) => {
+    const jumpPlayheadToBoundary = (boundary: "start" | "end") => {
+      setPlayheadBeatPreservingSelection(boundary === "start" ? 0 : playbackEndBeat);
+      base.setPlayheadNavigationFocused(true);
+      clearBlockedSelectionTransfer();
+    };
+
+    const getSingleSelectedNote = () => getSingleSelectedTrackNote(tracks, contentSelection);
+
+    const selectSingleNote = (trackId: string, noteId: string) => {
+      base.setSingleNoteSelection(getNoteSelectionKey(trackId, noteId), { keepCollapsed: true });
+      base.setPlayheadNavigationFocused(false);
+      base.focusSelectedContentTabStop();
+      clearBlockedSelectionTransfer();
+    };
+
+    const nudgeContentSelection = (direction: -1 | 1, beatSpan = projectGridBeats) => {
       let moveResult!: ReturnType<typeof shiftContentSelectionByBeats>;
       commitProjectChange(
         (current) => {
-          const nextMoveResult = shiftContentSelectionByBeats(current, contentSelection, direction * projectGridBeats);
+          const nextMoveResult = shiftContentSelectionByBeats(current, contentSelection, direction * beatSpan);
           moveResult = nextMoveResult;
           return nextMoveResult.status === "moved" ? nextMoveResult.project : current;
         },
         {
-          actionKey: `selection:nudge:${direction < 0 ? "left" : "right"}`,
+          actionKey: `selection:nudge:${direction < 0 ? "left" : "right"}:${beatSpan}`,
           coalesce: true
         }
       );
@@ -556,26 +581,84 @@ export function useComposerHardwareNavigation({
         selectionCaptureFocused: boolean;
       }
     ) => {
-      const { playheadNavigationActive, hasContentSelection, hasTimelineSelection, selectionCaptureFocused } = options;
+      const selected = getSingleSelectedNote();
+      const intent = resolveComposerHorizontalArrowIntent({
+        ctrlKey: event.ctrlKey,
+        altKey: event.altKey,
+        metaKey: event.metaKey,
+        shiftKey: event.shiftKey,
+        playheadNavigationActive: options.playheadNavigationActive,
+        hasContentSelection: options.hasContentSelection,
+        hasTimelineSelection: options.hasTimelineSelection,
+        selectionCaptureFocused: options.selectionCaptureFocused,
+        hasSingleNoteSelection: Boolean(selected)
+      });
+
       event.preventDefault();
-      if (playheadNavigationActive) {
-        nudgePlayhead(direction);
+
+      if (intent.kind === "nudge-playhead") {
+        nudgePlayheadByBeats(direction, intent.beatSpan === "measure" ? measureBeats : projectGridBeats);
         return true;
       }
-      if (hasContentSelection) {
-        nudgeContentSelection(direction);
+      if (intent.kind === "nudge-content") {
+        nudgeContentSelection(direction, intent.beatSpan === "measure" ? measureBeats : projectGridBeats);
         return true;
       }
-      if (hasTimelineSelection) {
-        if (!selectionCaptureFocused) {
-          nudgePlayhead(direction);
-          return true;
+      if (intent.kind === "select-adjacent-note" && selected) {
+        const targetNote = findAdjacentTrackNote(selected.track, selected.note.id, direction);
+        if (targetNote) {
+          selectSingleNote(selected.track.id, targetNote.id);
         }
+        return true;
+      }
+      if (intent.kind === "select-measure-relative-note" && selected) {
+        const targetNote = findTrackNoteByMeasureOffset(selected.track, selected.note.id, direction, measureBeats);
+        if (targetNote) {
+          selectSingleNote(selected.track.id, targetNote.id);
+        }
+        return true;
+      }
+      if (intent.kind === "clear-timeline-focus") {
         base.setPlayheadNavigationFocused(false);
         clearBlockedSelectionTransfer();
         return true;
       }
-      nudgePlayhead(direction);
+
+      return true;
+    };
+
+    const handleBoundaryNavigation = (
+      event: KeyboardEvent,
+      options: {
+        playheadNavigationActive: boolean;
+        hasContentSelection: boolean;
+      }
+    ) => {
+      const selected = getSingleSelectedNote();
+      const intent = resolveComposerBoundaryNavigationIntent({
+        key: event.key,
+        metaKey: event.metaKey,
+        playheadNavigationActive: options.playheadNavigationActive,
+        hasContentSelection: options.hasContentSelection,
+        hasSingleNoteSelection: Boolean(selected)
+      });
+      if (!intent) {
+        return false;
+      }
+
+      event.preventDefault();
+      if (intent.kind === "jump-playhead") {
+        jumpPlayheadToBoundary(intent.boundary);
+        return true;
+      }
+      if (intent.kind === "select-boundary-note" && selected) {
+        const targetNote = findTrackBoundaryNote(selected.track, intent.boundary);
+        if (targetNote) {
+          selectSingleNote(selected.track.id, targetNote.id);
+        }
+        return true;
+      }
+
       return true;
     };
 
@@ -763,9 +846,6 @@ export function useComposerHardwareNavigation({
       if (isTextEditingTarget(event.target) || !canHandleComposerKeyboardShortcut) {
         return;
       }
-      if (isModifierChord(event)) {
-        return;
-      }
       if (trackChromeKeyboardFocused && !arrowKeyPressed) {
         return;
       }
@@ -779,6 +859,15 @@ export function useComposerHardwareNavigation({
         return;
       }
       if (!isComposerView) {
+        return;
+      }
+
+      if (
+        handleBoundaryNavigation(event, {
+          playheadNavigationActive: arrowNavigationActive,
+          hasContentSelection
+        })
+      ) {
         return;
       }
 
@@ -799,6 +888,10 @@ export function useComposerHardwareNavigation({
           hasTimelineSelection,
           selectionCaptureFocused
         });
+        return;
+      }
+
+      if (isModifierChord(event)) {
         return;
       }
 
@@ -874,6 +967,7 @@ export function useComposerHardwareNavigation({
     isComposerView,
     isPlaying,
     isTransportIdle,
+    measureBeats,
     onComposerPlay,
     onComposerStop,
     playbackEndBeat,

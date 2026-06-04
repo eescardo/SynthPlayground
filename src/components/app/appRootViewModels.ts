@@ -96,13 +96,8 @@ interface ComposerRuntimeState {
 }
 
 interface ComposerTimelineState {
-  timelineActionsPopover: ComposerViewProps["timeline"]["timelineActionsPopover"];
-  selectionActionPopoverVisible: boolean;
-  noteClipboardPayload: unknown;
-  startMarkerAtTimelineBeat: ComposerViewProps["timeline"]["startMarkerAtTimelineBeat"];
-  endMarkerAtTimelineBeat: ComposerViewProps["timeline"]["endMarkerAtTimelineBeat"];
-  expandableLoopRegion: boolean;
-  selectionActionPopoverCollapsed: boolean;
+  timeline: ComposerViewProps["timeline"];
+  canvasPreview: Pick<ComposerViewProps["canvasPreview"], "selectionActionPopoverVisible" | "selectionMarqueeActive">;
 }
 
 interface ComposerPrimaryActions {
@@ -288,14 +283,6 @@ export function createComposerControllerProps(options: UseComposerControllerProp
   } = options;
   const { canvasSelection, invalidPatchIds, project, selectedTrackId } = projectState;
   const { hardwareNavigation, patchWorkspace, playback, playheadBeat, playing, recording } = runtimeState;
-  const {
-    endMarkerAtTimelineBeat,
-    expandableLoopRegion,
-    noteClipboardPayload,
-    selectionActionPopoverVisible,
-    startMarkerAtTimelineBeat,
-    timelineActionsPopover
-  } = timelineState;
 
   const viewProps: ComposerViewProps = {
     project,
@@ -329,15 +316,9 @@ export function createComposerControllerProps(options: UseComposerControllerProp
       tabSelectionPreviewNote: hardwareNavigation.tabSelectionPreviewNote,
       playheadFocused: hardwareNavigation.playheadNavigationFocused,
       selectedContentTabStopFocusToken: hardwareNavigation.selectedContentTabStopFocusToken,
-      selectionActionPopoverVisible
+      ...timelineState.canvasPreview
     },
-    timeline: {
-      timelineActionsPopover,
-      noteClipboardPayload,
-      startMarkerAtTimelineBeat,
-      endMarkerAtTimelineBeat,
-      expandableLoopRegion
-    },
+    timeline: timelineState.timeline,
     projectActions: {
       onOpenDefaultPitchPicker: () => patchWorkspace.setPreviewPitchPickerOpen(true),
       onClearCurrentProject: primaryActions.clearCurrentProject,
@@ -373,18 +354,18 @@ export function createComposerControllerProps(options: UseComposerControllerProp
       onAddLoopBoundary: timelineActions.addLoopBoundary,
       onExpandLoopToNotes: timelineActions.expandSelectedLoopToNotes,
       onUpdateLoopRepeatCount: (repeatCount) => {
-        if (endMarkerAtTimelineBeat) {
+        if (timelineState.timeline.endMarkerAtTimelineBeat) {
           timelineActions.updateLoopRepeatCount(repeatCount);
         }
       },
       onRemoveStartLoopBoundary: () => {
-        if (startMarkerAtTimelineBeat) {
-          timelineActions.removeLoopBoundary(startMarkerAtTimelineBeat.id);
+        if (timelineState.timeline.startMarkerAtTimelineBeat) {
+          timelineActions.removeLoopBoundary(timelineState.timeline.startMarkerAtTimelineBeat.id);
         }
       },
       onRemoveEndLoopBoundary: () => {
-        if (endMarkerAtTimelineBeat) {
-          timelineActions.removeLoopBoundary(endMarkerAtTimelineBeat.id);
+        if (timelineState.timeline.endMarkerAtTimelineBeat) {
+          timelineActions.removeLoopBoundary(timelineState.timeline.endMarkerAtTimelineBeat.id);
         }
       }
     },

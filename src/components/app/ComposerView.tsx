@@ -66,6 +66,7 @@ export interface ComposerCanvasPreviewProps {
   tabSelectionPreviewNote?: { trackId: string; noteId: string } | null;
   playheadFocused?: boolean;
   selectedContentTabStopFocusToken?: number;
+  selectionMarqueeActive: boolean;
   selectionActionPopoverVisible: boolean;
 }
 
@@ -110,10 +111,11 @@ export interface ComposerTimelineActions {
 }
 
 export function ComposerView(props: ComposerViewProps) {
-  const { allTracksModifierLabel, deleteKeyLabel, primaryModifierLabel } = usePlatformShortcuts();
+  const { allTracksModifierLabel, deleteKeyLabel, isMacPlatform, primaryModifierLabel } = usePlatformShortcuts();
   const { closeHelp, helpOpen, keyboardShortcutSections, mouseHelpItems, openHelp } = useComposerQuickHelpDialog({
     allTracksModifierLabel,
     deleteKeyLabel,
+    isMacPlatform,
     primaryModifierLabel
   });
 
@@ -178,6 +180,7 @@ export function ComposerView(props: ComposerViewProps) {
         ghostPlayheadBeat={props.recording.ghostPlayheadBeat}
         countInLabel={props.recording.countInLabel}
         timelineActionsPopoverOpen={Boolean(props.timeline.timelineActionsPopover)}
+        selectionMarqueeActive={props.canvasPreview.selectionMarqueeActive}
         hideSelectionActionPopover={!props.canvasPreview.selectionActionPopoverVisible}
         onSetPlayheadBeat={props.projectActions.onSetPlayheadBeat}
         onReturnSelectedNoteFocusToPlayhead={props.projectActions.onReturnSelectedNoteFocusToPlayhead}

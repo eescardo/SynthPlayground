@@ -10,7 +10,11 @@ import {
   setupPatchWorkspaceProbes,
   setupSamplePlayerWorkspace
 } from "../ui-capture/common";
-import { applySelectionReviewFraming, showSelectionActionsPopover } from "../ui-capture/selectionCapture";
+import {
+  applySelectionReviewFraming,
+  showSelectionActionsPopover,
+  showTimelineSelectionActionsPopover
+} from "../ui-capture/selectionCapture";
 import { SCREENSHOT_SCENARIO, SCREENSHOT_SCENARIOS, ScreenshotScenario } from "./scenarios";
 import {
   PATCH_CANVAS_GRID,
@@ -84,6 +88,16 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
       await applySelectionReviewFraming(page);
       await showSelectionActionsPopover(page, page.locator(".track-canvas-shell > canvas"));
       await expect(page.locator(".selection-actions-popover")).toBeVisible();
+      await savePageScreenshot(page, outputPath);
+    }
+  },
+  [SCREENSHOT_SCENARIO.TIMELINE_SELECTION]: {
+    name: SCREENSHOT_SCENARIO.TIMELINE_SELECTION,
+    description: "Main view with an all-tracks timeline selection and the selection actions popover visible",
+    capture: async (page, outputPath) => {
+      await openApp(page);
+      await applySelectionReviewFraming(page);
+      await showTimelineSelectionActionsPopover(page, page.locator(".track-canvas-shell > canvas"));
       await savePageScreenshot(page, outputPath);
     }
   },

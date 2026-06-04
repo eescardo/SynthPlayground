@@ -1,4 +1,5 @@
 import { createId } from "@/lib/ids";
+import { getMeasureBeatsForMeter } from "@/lib/musicTiming";
 import { clamp01 } from "@/lib/numeric";
 import {
   ProjectGlobalCarrier,
@@ -239,7 +240,7 @@ export const getTrackAutomationPoints = (lane: TrackMacroAutomationLane, endBeat
 };
 
 export const getProjectTimelineEndBeat = (project: ProjectGlobalCarrier & Pick<Project, "tracks">): number => {
-  const meterBeats = project.global.meter === "4/4" ? 4 : 3;
+  const meterBeats = getMeasureBeatsForMeter(project.global.meter);
   const maxNoteEnd = project.tracks
     .flatMap((track) => track.notes)
     .reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);

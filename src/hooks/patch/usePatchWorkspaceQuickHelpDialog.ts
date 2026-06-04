@@ -25,7 +25,7 @@ export function usePatchWorkspaceQuickHelpDialog() {
           { action: "Next tab", shortcut: "Ctrl+`" },
           { action: "Previous tab", shortcut: "Ctrl+Shift+`" },
           { action: "Enter/leave patch canvas focus", shortcut: "Tab" },
-          { action: "Navigate focused modules, probes, ports, and compatible wiring targets", shortcut: "Arrow keys" }
+          { action: "Move between modules, probes, ports and wires", shortcut: "Arrow keys" }
         ]
       }
     ],

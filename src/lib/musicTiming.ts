@@ -1,3 +1,7 @@
+import type { Project } from "@/types/music";
+
+export const getMeasureBeatsForMeter = (meter: Project["global"]["meter"]): number => (meter === "4/4" ? 4 : 3);
+
 export const samplesPerBeat = (sampleRate: number, tempoBpm: number): number => (sampleRate * 60) / tempoBpm;
 
 export const beatToSample = (beat: number, sampleRate: number, tempoBpm: number): number =>

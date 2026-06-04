@@ -26,6 +26,26 @@ const notesOverlap = (
   return left.startBeat < rightEndBeat - NOTE_AT_BEAT_EPSILON && leftEndBeat > right.startBeat + NOTE_AT_BEAT_EPSILON;
 };
 
+const findEarliestTrackNote = (notes: Note[]): Note | null => {
+  let earliest: Note | null = null;
+  for (const note of notes) {
+    if (!earliest || note.startBeat < earliest.startBeat) {
+      earliest = note;
+    }
+  }
+  return earliest;
+};
+
+const findLatestTrackNote = (notes: Note[]): Note | null => {
+  let latest: Note | null = null;
+  for (const note of notes) {
+    if (!latest || note.startBeat >= latest.startBeat) {
+      latest = note;
+    }
+  }
+  return latest;
+};
+
 export const trackHasNoteAtBeat = (track: Track | undefined, beat: number): boolean =>
   Boolean(track?.notes.some((note) => noteContainsBeat(note, beat)));
 
@@ -44,6 +64,88 @@ export const findTrackBackspaceTargetNote = (track: Track | undefined, beat: num
   }
 
   return findTrackNoteAtBeat(track, beat);
+};
+
+export const findAdjacentTrackNote = (
+  track: Track | undefined,
+  selectedNoteId: string | undefined,
+  direction: -1 | 1
+): Note | null => {
+  if (!track || !selectedNoteId) {
+    return null;
+  }
+  const selectedNote = track.notes.find((note) => note.id === selectedNoteId);
+  if (!selectedNote) {
+    return null;
+  }
+
+  let adjacentNote: Note | null = null;
+  for (const note of track.notes) {
+    if (note.id === selectedNoteId) {
+      continue;
+    }
+    if (direction < 0) {
+      if (
+        note.startBeat < selectedNote.startBeat - NOTE_AT_BEAT_EPSILON &&
+        (!adjacentNote || note.startBeat >= adjacentNote.startBeat)
+      ) {
+        adjacentNote = note;
+      }
+      continue;
+    }
+    if (
+      note.startBeat > selectedNote.startBeat + NOTE_AT_BEAT_EPSILON &&
+      (!adjacentNote || note.startBeat < adjacentNote.startBeat)
+    ) {
+      adjacentNote = note;
+    }
+  }
+  return adjacentNote;
+};
+
+export const findTrackNoteByMeasureOffset = (
+  track: Track | undefined,
+  selectedNoteId: string | undefined,
+  direction: -1 | 1,
+  measureBeats: number
+): Note | null => {
+  if (!track || !selectedNoteId || measureBeats <= 0) {
+    return null;
+  }
+  const selectedNote = track.notes.find((note) => note.id === selectedNoteId);
+  if (!selectedNote) {
+    return null;
+  }
+
+  const targetBeat = selectedNote.startBeat + direction * measureBeats;
+  if (direction < 0) {
+    let targetNote: Note | null = null;
+    for (const note of track.notes) {
+      if (note.startBeat <= targetBeat + NOTE_AT_BEAT_EPSILON) {
+        if (!targetNote || note.startBeat >= targetNote.startBeat) {
+          targetNote = note;
+        }
+      }
+    }
+    return targetNote ?? findEarliestTrackNote(track.notes);
+  }
+
+  let targetNote: Note | null = null;
+  for (const note of track.notes) {
+    if (note.startBeat >= targetBeat - NOTE_AT_BEAT_EPSILON) {
+      if (!targetNote || note.startBeat < targetNote.startBeat) {
+        targetNote = note;
+      }
+    }
+  }
+  return targetNote ?? findLatestTrackNote(track.notes);
+};
+
+export const findTrackBoundaryNote = (track: Track | undefined, boundary: "start" | "end"): Note | null => {
+  if (!track) {
+    return null;
+  }
+  return boundary === "start" ? findEarliestTrackNote(track.notes) : findLatestTrackNote(track.notes);
 };
 
 type SelectionShiftBlock = { reason: "boundary" } | { reason: "note"; blockingSelectionKey: string };

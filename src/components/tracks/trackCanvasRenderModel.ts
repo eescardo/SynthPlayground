@@ -4,6 +4,7 @@ import { resolveSelectedContentTabStopRect } from "@/components/tracks/trackCanv
 import { TrackCanvasProps, TrackCanvasSelection, TrackLayout } from "@/components/tracks/trackCanvasTypes";
 import { useTrackCanvasLayout } from "@/hooks/tracks/useTrackCanvasLayout";
 import { getProjectTimelineEndBeat } from "@/lib/macroAutomation";
+import { getMeasureBeatsForMeter } from "@/lib/musicTiming";
 import { Note } from "@/types/music";
 
 export interface TrackOverlapModel {
@@ -79,7 +80,7 @@ export function useTrackCanvasRenderModel({
   const totalBeats = useMemo(() => getProjectTimelineEndBeat(project), [project]);
   const width = HEADER_WIDTH + totalBeats * BEAT_WIDTH;
   const { trackLayouts, height } = useTrackCanvasLayout(project);
-  const meterBeats = project.global.meter === "4/4" ? 4 : 3;
+  const meterBeats = getMeasureBeatsForMeter(project.global.meter);
   const gridBeats = project.global.gridBeats;
   const selectedContentTabStopRect = useMemo(
     () => resolveSelectedContentTabStopRect(project.tracks, selection, trackLayouts),

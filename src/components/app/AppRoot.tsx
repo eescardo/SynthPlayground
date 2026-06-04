@@ -1146,6 +1146,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const hardwareNavigation = useHardwareNavigation({
     view: workspaceView,
     projectGridBeats: project.global.gridBeats,
+    projectMeter: project.global.meter,
     projectTempo: project.global.tempo,
     tracks: project.tracks,
     selectedTrack,
@@ -1263,13 +1264,17 @@ export function AppRoot({ children }: { children: ReactNode }) {
     },
     runtimeErrorMessage: runtimeErrorDisplayMessage,
     timelineState: {
-      timelineActionsPopover,
-      selectionActionPopoverVisible,
-      noteClipboardPayload,
-      startMarkerAtTimelineBeat,
-      endMarkerAtTimelineBeat,
-      expandableLoopRegion: Boolean(expandableLoopRegion),
-      selectionActionPopoverCollapsed
+      timeline: {
+        timelineActionsPopover,
+        noteClipboardPayload,
+        startMarkerAtTimelineBeat,
+        endMarkerAtTimelineBeat,
+        expandableLoopRegion: Boolean(expandableLoopRegion)
+      },
+      canvasPreview: {
+        selectionActionPopoverVisible,
+        selectionMarqueeActive: editorSelection.marqueeActive
+      }
     },
     exportingAudio,
     primaryActions: createComposerPrimaryActions({

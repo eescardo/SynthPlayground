@@ -42,7 +42,6 @@ interface DragState {
   noteId: string;
   mode: "move" | "resize";
   offsetBeats: number;
-  noteStartBeats: number;
 }
 
 export interface NoteRect {
@@ -168,11 +167,12 @@ export function useTrackCanvasPointerInteractions({
     canvas;
   const { beatFromX, fixedLaneValueFromX, getCanvasPoint, getTrackLayoutAtY, headerWidth, noteResizeHandleWidth } =
     geometry;
-  const { contentSelection, defaultPitch, gridBeats, playheadBeat, project, selection, trackLayouts } = model;
+  const { defaultPitch, gridBeats, playheadBeat, project, trackLayouts } = model;
   const dragRef = useRef<DragState | null>(null);
   const pendingCanvasActionRef = useRef<PendingCanvasAction | null>(null);
   const automationDragRef = useRef<AutomationDragState | null>(null);
   const pendingLaneActionRef = useRef<PendingLaneAction | null>(null);
+  const timelineSelectionDragActiveRef = useRef(false);
 
   const [hoveredPitch, setHoveredPitch] = useState<{ trackId: string; noteId: string } | null>(null);
   const [hoveredNote, setHoveredNote] = useState<{ trackId: string; noteId: string } | null>(null);
@@ -285,6 +285,7 @@ export function useTrackCanvasPointerInteractions({
       const orderedStartBeat = Math.min(startBeat, endBeat);
       const orderedEndBeat = Math.max(startBeat, endBeat);
       const beatSpan = orderedEndBeat - orderedStartBeat;
+      timelineSelectionDragActiveRef.current = beatSpan > 0;
       selectionActions.onSetSelectionMarqueeActive(beatSpan > 0);
       selectionActions.onSetTimelineSelectionBeatRange(
         beatSpan > 0 ? { startBeat: orderedStartBeat, endBeat: orderedEndBeat, beatSpan } : null
@@ -301,11 +302,6 @@ export function useTrackCanvasPointerInteractions({
       const targets = resolvePointerTargets(x, y);
       const automationKeyframe = findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y);
       const automationLaneHit = targets.automationLaneHit;
-      const hasActiveSelection =
-        Boolean(contentSelection?.noteKeys.size) ||
-        Boolean(contentSelection?.automationKeyframeSelectionKeys.size) ||
-        selection.kind === "timeline";
-
       if (y <= RULER_HEIGHT && x >= headerWidth) {
         if (targets.hoverTarget === "loop-marker" && targets.loopMarkerRect) {
           onSetPlayheadBeat(targets.loopMarkerRect.beat);
@@ -336,6 +332,7 @@ export function useTrackCanvasPointerInteractions({
             startBeat: Math.max(0, snapToGrid(beatFromX(x), gridBeats)),
             pointerId: event.pointerId
           };
+          timelineSelectionDragActiveRef.current = false;
           selectionActions.onSetSelectionMarqueeActive(false);
           canvas.setPointerCapture(event.pointerId);
           return;
@@ -362,16 +359,6 @@ export function useTrackCanvasPointerInteractions({
         onSetPlayheadBeat(targets.loopMarkerRect.beat);
         onRequestTimelineActionsPopover({
           beat: targets.loopMarkerRect.beat,
-          clientX: event.clientX,
-          clientY: event.clientY
-        });
-        setCanvasCursor("pointer");
-        return;
-      }
-
-      if (targets.hoverTarget === "playhead") {
-        onRequestTimelineActionsPopover({
-          beat: playheadBeat,
           clientX: event.clientX,
           clientY: event.clientY
         });
@@ -464,21 +451,10 @@ export function useTrackCanvasPointerInteractions({
           trackId: targets.noteRect.trackId,
           noteId: targets.noteRect.noteId,
           mode: nearRightEdge ? "resize" : "move",
-          offsetBeats: beat - note.startBeat,
-          noteStartBeats: note.startBeat
+          offsetBeats: beat - note.startBeat
         };
         setCanvasCursor(nearRightEdge ? "resize" : "move-active");
         canvas.setPointerCapture(event.pointerId);
-        return;
-      }
-
-      if (hasActiveSelection) {
-        selectionActions.onSetContentSelection(EMPTY_CONTENT_SELECTION);
-        selectionActions.onPreviewSelectionActionScopeChange("source");
-        setSelectionRect(null);
-        selectionActions.onSetSelectionMarqueeActive(false);
-        pendingCanvasActionRef.current = null;
-        setCanvasCursor("default");
         return;
       }
 
@@ -510,8 +486,6 @@ export function useTrackCanvasPointerInteractions({
       onSetPlayheadBeat,
       playheadBeat,
       resolvePointerTargets,
-      contentSelection,
-      selection,
       selectionActions,
       trackActions,
       trackLayouts
@@ -765,6 +739,7 @@ export function useTrackCanvasPointerInteractions({
       const hadAutomationDrag = Boolean(automationDrag);
       const pendingAction = pendingCanvasActionRef.current;
       const pendingLaneAction = pendingLaneActionRef.current;
+      const hadTimelineSelectionDrag = timelineSelectionDragActiveRef.current;
       const { x, y } = getCanvasPoint(event.clientX, event.clientY);
       if (canvasRef.current && (dragRef.current || pendingAction || automationDragRef.current || pendingLaneAction)) {
         try {
@@ -783,11 +758,7 @@ export function useTrackCanvasPointerInteractions({
       const hadSelectionRect = Boolean(selectionRect);
       if (pendingAction?.kind === "track" && !hadSelectionRect) {
         trackActions.onSelectTrack(pendingAction.trackId);
-        const newNote = createDefaultPlacedNote(pendingAction.beat, gridBeats, defaultPitch);
-        noteActions.onUpsertNote(pendingAction.trackId, newNote, {
-          actionKey: `track:${pendingAction.trackId}:note:${newNote.id}:create`
-        });
-        noteActions.onPreviewPlacedNote(pendingAction.trackId, newNote);
+        onSetPlayheadBeat(pendingAction.beat);
       }
 
       if (pendingLaneAction?.kind === "automation-keyframe") {
@@ -848,7 +819,7 @@ export function useTrackCanvasPointerInteractions({
 
       if (pendingAction?.kind === "ruler") {
         const beat = Math.max(0, snapToGrid(beatFromX(x), gridBeats));
-        if (!hadSelectionRect) {
+        if (!hadTimelineSelectionDrag) {
           onSetPlayheadBeat(beat);
         } else {
           selectionActions.onPreviewSelectionActionScopeChange("all-tracks");
@@ -857,6 +828,7 @@ export function useTrackCanvasPointerInteractions({
 
       pendingCanvasActionRef.current = null;
       pendingLaneActionRef.current = null;
+      timelineSelectionDragActiveRef.current = false;
       setSelectionRect(null);
       selectionActions.onSetSelectionMarqueeActive(false);
       const targets = resolvePointerTargets(x, y);
@@ -886,11 +858,9 @@ export function useTrackCanvasPointerInteractions({
       automationKeyframeRectsRef,
       beatFromX,
       canvasRef,
-      defaultPitch,
       fixedLaneValueFromX,
       getCanvasPoint,
       gridBeats,
-      noteActions,
       noteResizeHandleWidth,
       onSetPlayheadBeat,
       resolvePointerTargets,
@@ -921,16 +891,53 @@ export function useTrackCanvasPointerInteractions({
       }
       const { x, y } = getCanvasPoint(event.clientX, event.clientY);
       const automationKeyframe = findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y);
-      if (!automationKeyframe || automationKeyframe.boundary !== null || automationKeyframe.side !== "single") {
+      if (automationKeyframe) {
+        if (automationKeyframe.boundary !== null || automationKeyframe.side !== "single") {
+          return;
+        }
+        automationActions.onSplitTrackMacroAutomationKeyframe(
+          automationKeyframe.trackId,
+          automationKeyframe.macroId,
+          automationKeyframe.keyframeId
+        );
         return;
       }
-      automationActions.onSplitTrackMacroAutomationKeyframe(
-        automationKeyframe.trackId,
-        automationKeyframe.macroId,
-        automationKeyframe.keyframeId
-      );
+
+      if (y <= RULER_HEIGHT || x < headerWidth) {
+        return;
+      }
+
+      const targets = resolvePointerTargets(x, y);
+      if (targets.noteRect || targets.pitchRect || targets.loopMarkerRect || targets.laneHit) {
+        return;
+      }
+
+      const track = getTrackAtY(y);
+      if (!track) {
+        return;
+      }
+
+      const beat = Math.max(0, snapToGrid(beatFromX(x), gridBeats));
+      const newNote = createDefaultPlacedNote(beat, gridBeats, defaultPitch);
+      trackActions.onSelectTrack(track.id);
+      noteActions.onUpsertNote(track.id, newNote, {
+        actionKey: `track:${track.id}:note:${newNote.id}:create`
+      });
+      noteActions.onPreviewPlacedNote(track.id, newNote);
     },
-    [automationActions, automationKeyframeRectsRef, getCanvasPoint]
+    [
+      automationActions,
+      automationKeyframeRectsRef,
+      beatFromX,
+      defaultPitch,
+      getCanvasPoint,
+      getTrackAtY,
+      gridBeats,
+      headerWidth,
+      noteActions,
+      resolvePointerTargets,
+      trackActions
+    ]
   );
 
   return {
