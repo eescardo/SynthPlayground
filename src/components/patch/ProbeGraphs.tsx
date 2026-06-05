@@ -239,7 +239,7 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
 
       <g className="signal-health-risk-bars">
         <title>
-          Risk graphs show crest/flatness, rough high-frequency movement, and DC offset over the captured preview.
+          Risk graphs show peak/RMS spread, rough high-frequency movement, and DC offset over the captured preview.
         </title>
         <rect
           x={riskFrame.x}
@@ -255,8 +255,8 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
           </text>
         )}
         <RiskGraph
-          label="crest"
-          title="Crest shows whether the signal has enough transient headroom. High risk means peaks are too close to the average level, which can sound flattened or over-compressed."
+          label="peak/rms"
+          title="Peak/RMS shows the gap between peak level and RMS level. High risk means peaks are not much higher than average energy, so the signal may sound dense, flattened, clipped, or over-limited."
           values={riskSeries.crest}
           aggregate={crestRiskRatio}
           y={riskRows[0]}
@@ -272,7 +272,7 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
         />
         <RiskGraph
           label="dc"
-          title="DC shows sustained offset away from zero. High risk can steal headroom and make downstream processors clip sooner."
+          title="DC shows sustained offset away from zero. High risk means the signal is biased positive or negative, reducing available level range and making downstream processors clip sooner."
           values={riskSeries.dc}
           aggregate={dcRatio}
           y={riskRows[2]}

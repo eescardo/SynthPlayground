@@ -230,7 +230,7 @@ function SignalHealthReadout(props: { capture?: PreviewProbeCapture }) {
       <strong>{formatDb(stats.peakDb)}</strong>
       <span>RMS</span>
       <strong>{formatDb(stats.rmsDb)}</strong>
-      <span>Crest</span>
+      <span>Peak/RMS</span>
       <strong>{stats.crestFactorDb.toFixed(1)} dB</strong>
       <span>Near Clip</span>
       <strong>{stats.nearClipCount}</strong>
