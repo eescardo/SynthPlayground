@@ -94,9 +94,9 @@ function RiskGraph(props: {
   y: number;
   compact?: boolean;
 }) {
-  const graphX = props.compact ? 33 : 51;
-  const graphWidth = props.compact ? 58 : 38;
-  const rowHeight = props.compact ? 12 : 12;
+  const graphX = props.compact ? 30 : 51;
+  const graphWidth = props.compact ? 62 : 38;
+  const rowHeight = props.compact ? 15 : 12;
   const trackY = props.y + 0.5;
   const trackHeight = rowHeight - 1;
   const thresholdRatio = 0.55;
@@ -172,15 +172,13 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
   const rmsY = meterBottom - rmsRatio * meterHeight;
   const hotY = meterTop + meterHeight * 0.24;
   const clipY = meterTop + meterHeight * 0.1;
-  const riskFrame = compact ? { x: 28, y: 6, width: 66, height: 48 } : { x: 29, y: 9, width: 66, height: 50 };
-  const riskRows = compact ? [10, 25, 40] : [14, 30, 46];
+  const riskFrame = compact ? { x: 25, y: 4, width: 70, height: 55 } : { x: 29, y: 9, width: 66, height: 50 };
+  const riskRows = compact ? [7, 25, 43] : [14, 30, 46];
   const statusClass = `signal-health-probe ${props.compact ? "compact" : ""} ${status}`;
 
   return (
     <svg viewBox="0 0 100 60" preserveAspectRatio="none" className={statusClass}>
-      <title>
-        Peak/RMS level, near-clipping ticks, roughness, crest factor, and DC offset for the captured preview.
-      </title>
+      <title>Signal level and quality-risk summary for the captured preview.</title>
       <defs>
         <linearGradient
           id="signal-health-level-gradient"
@@ -240,6 +238,9 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
       </text>
 
       <g className="signal-health-risk-bars">
+        <title>
+          Risk graphs show crest/flatness, rough high-frequency movement, and DC offset over the captured preview.
+        </title>
         <rect
           x={riskFrame.x}
           y={riskFrame.y}
