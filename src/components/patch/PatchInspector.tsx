@@ -88,7 +88,7 @@ function OutputLimiterReadout({ preview }: { preview?: OutputLimiterPreview | nu
       <div className="output-limiter-visual">
         <div
           className="output-limiter-meter"
-          title="Driven level: output input after the configured output gain, before limiting."
+          title="Driven level: limiter input after the configured output gain, before limiting."
         >
           <span style={{ height: `${drivenRatio * 100}%` }} />
           <strong>DRV</strong>
@@ -115,18 +115,21 @@ function OutputLimiterReadout({ preview }: { preview?: OutputLimiterPreview | nu
               out
             </text>
           </svg>
-          <div
-            className="output-limiter-reduction"
-            style={{ width: `${reductionRatio * 100}%` }}
-            title="Gain reduction amount: wider means the limiter pulled the preview peak down more."
-          >
-            <span>GR</span>
-          </div>
         </div>
-        <div className="output-limiter-meter post" title="Post level: final output after output gain and limiter.">
+        <div className="output-limiter-meter post" title="Post level: final output after gain and limiter.">
           <span style={{ height: `${postRatio * 100}%` }} />
           <strong>OUT</strong>
         </div>
+      </div>
+      <div
+        className="output-limiter-reduction-row"
+        title="Gain reduction amount: wider means the limiter pulled the preview peak down more."
+      >
+        <span>Gain reduction</span>
+        <div className="output-limiter-reduction-track">
+          <div className="output-limiter-reduction" style={{ width: `${reductionRatio * 100}%` }} />
+        </div>
+        <strong>{preview.limiterEnabled ? `${preview.reductionDb.toFixed(1)} dB` : "0.0 dB"}</strong>
       </div>
       <div className="output-limiter-grid">
         <span>Output gain</span>

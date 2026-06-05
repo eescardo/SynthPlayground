@@ -1357,7 +1357,7 @@
 
 .output-limiter-meter strong {
   position: absolute;
-  bottom: 0.16rem;
+  bottom: 0.44rem;
   transform: rotate(-90deg);
   color: rgba(7, 13, 19, 0.7);
   font-size: 0.46rem;
@@ -1428,23 +1428,41 @@
   fill: rgba(131, 173, 216, 0.62);
 }
 
+.output-limiter-reduction-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.42rem;
+  align-items: center;
+  min-height: 1rem;
+  color: rgba(215, 235, 255, 0.62);
+  font-size: 0.58rem;
+  font-weight: 720;
+}
+
+.output-limiter-reduction-row strong {
+  color: #e7f3ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.62rem;
+  font-weight: 760;
+}
+
+.output-limiter-reduction-track {
+  position: relative;
+  height: 0.48rem;
+  overflow: hidden;
+  border: 1px solid rgba(131, 173, 216, 0.14);
+  border-radius: 999px;
+  background: rgba(131, 173, 216, 0.07);
+}
+
 .output-limiter-reduction {
   position: absolute;
   left: 0;
   bottom: 0;
-  height: 0.34rem;
+  height: 100%;
   background: rgba(255, 76, 95, 0.62);
   min-width: 0;
-  overflow: hidden;
-}
-
-.output-limiter-reduction span {
-  display: block;
-  padding-left: 0.18rem;
-  color: rgba(255, 228, 231, 0.82);
-  font-size: 0.46rem;
-  font-weight: 850;
-  line-height: 0.34rem;
+  border-radius: inherit;
 }
 
 .output-limiter-grid,

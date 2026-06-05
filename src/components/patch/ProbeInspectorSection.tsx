@@ -155,7 +155,7 @@ export function ProbeInspectorSection(props: ProbeInspectorSectionProps) {
             </button>
           </div>
           <p className="muted">
-            Quality Meter uses absolute level statistics, so unlike Scope it does not normalize quiet signals upward.
+            Signal Health uses absolute level statistics, so unlike Scope it does not normalize quiet signals upward.
           </p>
         </>
       )}

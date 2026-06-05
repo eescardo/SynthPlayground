@@ -94,7 +94,7 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
                 close();
               }}
             >
-              Quality Meter
+              Signal Health
             </button>
           </>
         )}

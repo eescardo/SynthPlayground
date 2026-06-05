@@ -48,7 +48,7 @@ export const createPatchWorkspaceProbe = (
       : kind === "pitch_tracker"
         ? "Pitch Tracker"
         : kind === "quality_meter"
-          ? "Quality Meter"
+          ? "Signal Health"
           : "Scope Probe",
   x,
   y,

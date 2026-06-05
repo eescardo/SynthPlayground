@@ -50,7 +50,7 @@ export function QualityMeterProbeGraph(props: { capture?: PreviewProbeCapture; c
   return (
     <svg viewBox="0 0 100 60" preserveAspectRatio="none" className={statusClass}>
       <title>
-        Quality Meter: peak/RMS level, near-clipping ticks, roughness, crest factor, and DC offset for the captured
+        Signal Health: peak/RMS level, near-clipping ticks, roughness, crest factor, and DC offset for the captured
         preview signal.
       </title>
       <rect x="0" y="0" width="100" height="60" rx="6" className="quality-meter-bg" />
