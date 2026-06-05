@@ -96,7 +96,7 @@ function RiskGraph(props: {
 }) {
   const graphX = props.compact ? 33 : 51;
   const graphWidth = props.compact ? 58 : 38;
-  const rowHeight = props.compact ? 12 : 11;
+  const rowHeight = props.compact ? 12 : 12;
   const trackY = props.y + 0.5;
   const trackHeight = rowHeight - 1;
   const thresholdRatio = 0.55;
@@ -107,7 +107,7 @@ function RiskGraph(props: {
     <g className={`signal-health-risk-row ${tone}`}>
       <title>{props.title}</title>
       {!props.compact && (
-        <text x="34" y={props.y + 7} className="signal-health-risk-label">
+        <text x="34" y={props.y + 7.5} className="signal-health-risk-label">
           {props.label}
         </text>
       )}
@@ -172,8 +172,8 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
   const rmsY = meterBottom - rmsRatio * meterHeight;
   const hotY = meterTop + meterHeight * 0.24;
   const clipY = meterTop + meterHeight * 0.1;
-  const riskFrame = compact ? { x: 28, y: 6, width: 66, height: 48 } : { x: 29, y: 9, width: 66, height: 44 };
-  const riskRows = compact ? [10, 25, 40] : [14, 28, 42];
+  const riskFrame = compact ? { x: 28, y: 6, width: 66, height: 48 } : { x: 29, y: 9, width: 66, height: 50 };
+  const riskRows = compact ? [10, 25, 40] : [14, 30, 46];
   const statusClass = `signal-health-probe ${props.compact ? "compact" : ""} ${status}`;
 
   return (
