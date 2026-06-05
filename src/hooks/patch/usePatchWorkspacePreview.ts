@@ -99,6 +99,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
   const [previewProgress, setPreviewProgress] = useState(0);
   const [previewCaptureByProbeId, setPreviewCaptureByProbeId] = useState<Record<string, PreviewProbeCapture>>({});
   const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
+  const latestPreviewIdRef = useRef<string | null>(null);
   const heldPreviewRef = useRef<{ trackId: string; previewId: string; forceStopOnRelease: boolean } | null>(null);
   const captureRequests = useMemo<PreviewProbeRequest[]>(
     () =>
@@ -130,7 +131,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
       return;
     }
     engine.setPreviewCaptureListener((previewId, captures) => {
-      if (previewId && activePreviewId && previewId !== activePreviewId) {
+      if (previewId && latestPreviewIdRef.current && previewId !== latestPreviewIdRef.current) {
         return;
       }
       setPreviewCaptureByProbeId((current) =>
@@ -140,7 +141,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
       );
     });
     return () => engine.setPreviewCaptureListener(null);
-  }, [activePreviewId, audioEngineRef]);
+  }, [audioEngineRef]);
 
   useEffect(() => {
     if (!activePreviewId) {
@@ -196,6 +197,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
         : { project: audioProject, runtimeAssets: projectAssets };
       const previewId = `preview_${Date.now()}`;
       const previewCaptureRequests = [...buildOutputSignalHealthCaptureRequests(patch), ...captureRequests];
+      latestPreviewIdRef.current = previewId;
       setActivePreviewId(previewId);
       setPreviewProgress(0);
       setPreviewCaptureByProbeId({});

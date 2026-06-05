@@ -787,22 +787,30 @@
   fill: rgba(131, 173, 216, 0.09);
 }
 
+.signal-health-risk-ok-zone {
+  fill: rgba(123, 228, 155, 0.12);
+}
+
+.signal-health-risk-bad-zone {
+  fill: rgba(255, 76, 95, 0.13);
+}
+
 .signal-health-risk-threshold {
-  stroke: rgba(246, 200, 95, 0.28);
+  stroke: rgba(246, 200, 95, 0.34);
   stroke-width: 0.45;
   stroke-dasharray: 1.2 1.2;
   vector-effect: non-scaling-stroke;
 }
 
 .signal-health-risk-fill {
-  fill: rgba(123, 228, 155, 0.86);
+  fill: rgba(123, 228, 155, 0.82);
 }
 
-.signal-health-risk-row.hot .signal-health-risk-fill {
+.signal-health-risk-fill.hot {
   fill: rgba(246, 200, 95, 0.88);
 }
 
-.signal-health-risk-row.clip .signal-health-risk-fill {
+.signal-health-risk-fill.clip {
   fill: rgba(255, 76, 95, 0.88);
 }
 
@@ -838,9 +846,14 @@
 .signal-health-status,
 .signal-health-readout {
   fill: rgba(231, 243, 255, 0.84);
-  font-size: 3.6px;
+  font-size: 3.25px;
   font-weight: 750;
   text-transform: uppercase;
+}
+
+.signal-health-readout {
+  fill: rgba(231, 243, 255, 0.88);
+  font-size: 2.95px;
 }
 
 .signal-health-probe.compact .signal-health-readout {

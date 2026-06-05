@@ -86,25 +86,47 @@ function buildSignalHealthRiskSeries(samples?: ArrayLike<number>) {
   return { crest, rough, dc };
 }
 
-function RiskGraph(props: { label: string; values: number[]; aggregate: number; y: number }) {
-  const graphX = 52;
-  const graphWidth = 34;
-  const rowHeight = 8;
-  const thresholdY = props.y + rowHeight - 0.5 - 0.55 * (rowHeight - 2);
+function RiskGraph(props: {
+  label: string;
+  title: string;
+  values: number[];
+  aggregate: number;
+  y: number;
+  compact?: boolean;
+}) {
+  const graphX = props.compact ? 33 : 51;
+  const graphWidth = props.compact ? 58 : 38;
+  const rowHeight = props.compact ? 12 : 11;
+  const trackY = props.y + 0.5;
+  const trackHeight = rowHeight - 1;
+  const thresholdRatio = 0.55;
+  const thresholdY = trackY + trackHeight - thresholdRatio * trackHeight;
   const barWidth = graphWidth / Math.max(1, props.values.length);
   const tone = resolveRiskTone(props.aggregate);
   return (
     <g className={`signal-health-risk-row ${tone}`}>
-      <text x="36" y={props.y + 5.5} className="signal-health-risk-label">
-        {props.label}
-      </text>
+      <title>{props.title}</title>
+      {!props.compact && (
+        <text x="34" y={props.y + 7} className="signal-health-risk-label">
+          {props.label}
+        </text>
+      )}
+      <rect x={graphX} y={trackY} width={graphWidth} height={trackHeight} rx="2" className="signal-health-risk-track" />
       <rect
         x={graphX}
-        y={props.y + 0.5}
+        y={trackY}
         width={graphWidth}
-        height={rowHeight - 1}
+        height={Math.max(0, thresholdY - trackY)}
         rx="2"
-        className="signal-health-risk-track"
+        className="signal-health-risk-bad-zone"
+      />
+      <rect
+        x={graphX}
+        y={thresholdY}
+        width={graphWidth}
+        height={Math.max(0, trackY + trackHeight - thresholdY)}
+        rx="2"
+        className="signal-health-risk-ok-zone"
       />
       <line
         x1={graphX}
@@ -114,16 +136,18 @@ function RiskGraph(props: { label: string; values: number[]; aggregate: number; 
         className="signal-health-risk-threshold"
       />
       {props.values.map((value, index) => {
-        const height = Math.max(0.35, Math.min(1, value) * (rowHeight - 2));
+        const normalizedValue = Math.min(1, Math.max(0, value));
+        const height = Math.max(0.35, normalizedValue * trackHeight);
+        const barTone = resolveRiskTone(normalizedValue);
         return (
           <rect
             key={`${props.label}_${index}`}
             x={graphX + index * barWidth + 0.25}
-            y={props.y + rowHeight - 0.5 - height}
+            y={trackY + trackHeight - height}
             width={Math.max(0.35, barWidth - 0.5)}
             height={height}
             rx="0.45"
-            className="signal-health-risk-fill"
+            className={`signal-health-risk-fill ${barTone}`}
           />
         );
       })}
@@ -140,18 +164,32 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
   const dcRatio = Math.min(1, Math.abs(stats?.dcOffset ?? 0) / 0.25);
   const crestRiskRatio = stats && status !== "blank" ? Math.min(1, Math.max(0, (10 - stats.crestFactorDb) / 10)) : 0;
   const riskSeries = buildSignalHealthRiskSeries(props.capture?.samples);
-  const meterFillY = 54 - peakRatio * 42;
-  const rmsY = 54 - rmsRatio * 42;
+  const compact = Boolean(props.compact);
+  const meterTop = compact ? 7 : 13;
+  const meterBottom = compact ? 53 : 54;
+  const meterHeight = meterBottom - meterTop;
+  const meterFillY = meterBottom - peakRatio * meterHeight;
+  const rmsY = meterBottom - rmsRatio * meterHeight;
+  const hotY = meterTop + meterHeight * 0.24;
+  const clipY = meterTop + meterHeight * 0.1;
+  const riskFrame = compact ? { x: 28, y: 6, width: 66, height: 48 } : { x: 29, y: 9, width: 66, height: 44 };
+  const riskRows = compact ? [10, 25, 40] : [14, 28, 42];
   const statusClass = `signal-health-probe ${props.compact ? "compact" : ""} ${status}`;
 
   return (
     <svg viewBox="0 0 100 60" preserveAspectRatio="none" className={statusClass}>
       <title>
-        Signal Health: peak/RMS level, near-clipping ticks, roughness, crest factor, and DC offset for the captured
-        preview signal.
+        Peak/RMS level, near-clipping ticks, roughness, crest factor, and DC offset for the captured preview.
       </title>
       <defs>
-        <linearGradient id="signal-health-level-gradient" x1="0" y1="54" x2="0" y2="10" gradientUnits="userSpaceOnUse">
+        <linearGradient
+          id="signal-health-level-gradient"
+          x1="0"
+          y1={meterBottom}
+          x2="0"
+          y2={meterTop}
+          gradientUnits="userSpaceOnUse"
+        >
           <stop offset="0%" stopColor="#7be49b" />
           <stop offset="72%" stopColor="#7be49b" />
           <stop offset="90%" stopColor="#f6c85f" />
@@ -163,46 +201,83 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
         <title>
           Peak meter: soft fill is peak amplitude; white line is RMS; yellow/red marks are hot and clip zones.
         </title>
-        <rect x="7" y="10" width="13" height="44" rx="3" className="signal-health-rail" />
-        <rect x="8.5" y={meterFillY} width="10" height={54 - meterFillY} rx="2.5" className="signal-health-peak-fill" />
-        <line x1="7" y1="18" x2="20" y2="18" className="signal-health-hot-line" />
-        <line x1="7" y1="12" x2="20" y2="12" className="signal-health-clip-line" />
+        <rect x="7" y={meterTop} width="13" height={meterHeight} rx="3" className="signal-health-rail" />
+        <rect
+          x="8.5"
+          y={meterFillY}
+          width="10"
+          height={meterBottom - meterFillY}
+          rx="2.5"
+          className="signal-health-peak-fill"
+        />
+        <line x1="7" y1={hotY} x2="20" y2={hotY} className="signal-health-hot-line" />
+        <line x1="7" y1={clipY} x2="20" y2={clipY} className="signal-health-clip-line" />
         <line x1="6.5" y1={rmsY} x2="20.5" y2={rmsY} className="signal-health-rms-marker" />
       </g>
-      <text x="7" y="8" className="signal-health-label">
-        peak
-      </text>
-      <text x="21.5" y="13.5" className="signal-health-threshold-label clip">
-        clip
-      </text>
-      <text x="21.5" y="19.5" className="signal-health-threshold-label">
-        hot
-      </text>
-      <text x="21.5" y={Math.max(29, Math.min(53, rmsY + 1.5))} className="signal-health-threshold-label rms">
-        rms
-      </text>
+      {!compact && (
+        <>
+          <text x="7" y="11" className="signal-health-label">
+            peak
+          </text>
+          {stats && (
+            <text x="13.5" y="7" textAnchor="middle" className="signal-health-readout">
+              {formatDb(stats.peakDb)}
+            </text>
+          )}
+          <text x="21.5" y={clipY + 1.4} className="signal-health-threshold-label clip">
+            clip
+          </text>
+          <text x="21.5" y={hotY + 1.4} className="signal-health-threshold-label">
+            hot
+          </text>
+          <text x="21.5" y={Math.max(29, Math.min(53, rmsY + 1.5))} className="signal-health-threshold-label rms">
+            rms
+          </text>
+        </>
+      )}
       <text x="13.5" y="59" textAnchor="middle" className="signal-health-status">
         {SIGNAL_HEALTH_STATUS_LABELS[status]}
       </text>
 
       <g className="signal-health-risk-bars">
-        <title>
-          Risk graphs: each row shows how much crest, roughness, or DC offset was detected over the preview.
-        </title>
-        <rect x="32" y="10" width="61" height="38" rx="4" className="signal-health-risk-frame" />
-        <text x="36" y="17" className="signal-health-label">
-          risks
-        </text>
-        <RiskGraph label="crest" values={riskSeries.crest} aggregate={crestRiskRatio} y={20} />
-        <RiskGraph label="rough" values={riskSeries.rough} aggregate={roughRatio} y={30} />
-        <RiskGraph label="dc" values={riskSeries.dc} aggregate={dcRatio} y={40} />
+        <rect
+          x={riskFrame.x}
+          y={riskFrame.y}
+          width={riskFrame.width}
+          height={riskFrame.height}
+          rx="4"
+          className="signal-health-risk-frame"
+        />
+        {!compact && (
+          <text x={riskFrame.x + 1} y="7" className="signal-health-label">
+            risks
+          </text>
+        )}
+        <RiskGraph
+          label="crest"
+          title="Crest shows whether the signal has enough transient headroom. High risk means peaks are too close to the average level, which can sound flattened or over-compressed."
+          values={riskSeries.crest}
+          aggregate={crestRiskRatio}
+          y={riskRows[0]}
+          compact={compact}
+        />
+        <RiskGraph
+          label="rough"
+          title="Rough tracks fast sample-to-sample movement. High risk can point to harsh distortion, zippering, or alias-like crunch."
+          values={riskSeries.rough}
+          aggregate={roughRatio}
+          y={riskRows[1]}
+          compact={compact}
+        />
+        <RiskGraph
+          label="dc"
+          title="DC shows sustained offset away from zero. High risk can steal headroom and make downstream processors clip sooner."
+          values={riskSeries.dc}
+          aggregate={dcRatio}
+          y={riskRows[2]}
+          compact={compact}
+        />
       </g>
-
-      {!props.compact && stats && (
-        <text x="97" y="56" textAnchor="end" className="signal-health-readout">
-          {formatDb(stats.peakDb)}
-        </text>
-      )}
     </svg>
   );
 }
