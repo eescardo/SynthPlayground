@@ -141,7 +141,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
       );
     });
     return () => engine.setPreviewCaptureListener(null);
-  }, [audioEngineRef]);
+  }, [activePreviewId, audioEngineRef]);
 
   useEffect(() => {
     if (!activePreviewId) {
