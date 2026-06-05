@@ -740,7 +740,8 @@
 .quality-meter-spark-frame {
   fill: rgba(131, 173, 216, 0.08);
   stroke: rgba(131, 173, 216, 0.2);
-  stroke-width: 0.7;
+  stroke-width: 0.45;
+  vector-effect: non-scaling-stroke;
 }
 
 .quality-meter-peak-fill {
@@ -758,24 +759,28 @@
 
 .quality-meter-hot-line {
   stroke: rgba(246, 200, 95, 0.72);
-  stroke-width: 0.7;
+  stroke-width: 0.45;
+  vector-effect: non-scaling-stroke;
 }
 
 .quality-meter-clip-line {
   stroke: rgba(255, 76, 95, 0.85);
-  stroke-width: 0.9;
+  stroke-width: 0.55;
+  vector-effect: non-scaling-stroke;
 }
 
 .quality-meter-rms-marker {
   stroke: #e7f3ff;
-  stroke-width: 0.9;
+  stroke-width: 0.55;
+  vector-effect: non-scaling-stroke;
 }
 
 .quality-meter-spark {
   stroke: #97d6ff;
-  stroke-width: 1.2;
+  stroke-width: 0.65;
   stroke-linecap: round;
   stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 
 .quality-meter-clip-tick {
@@ -785,7 +790,8 @@
 .quality-meter-glyphs circle {
   fill: rgba(131, 173, 216, 0.08);
   stroke: rgba(131, 173, 216, 0.24);
-  stroke-width: 0.8;
+  stroke-width: 0.45;
+  vector-effect: non-scaling-stroke;
 }
 
 .quality-meter-glyphs circle.warn {
@@ -796,9 +802,36 @@
 .quality-meter-glyphs path {
   fill: none;
   stroke: rgba(231, 243, 255, 0.74);
-  stroke-width: 0.9;
+  stroke-width: 0.5;
   stroke-linecap: round;
   stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.quality-meter-glyphs text,
+.quality-meter-label,
+.quality-meter-threshold-label {
+  fill: rgba(231, 243, 255, 0.58);
+  font-size: 2.45px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.quality-meter-glyphs text {
+  font-size: 2.35px;
+}
+
+.quality-meter-threshold-label {
+  fill: rgba(246, 200, 95, 0.72);
+}
+
+.quality-meter-threshold-label.clip {
+  fill: rgba(255, 76, 95, 0.82);
+}
+
+.quality-meter-threshold-label.rms {
+  fill: rgba(231, 243, 255, 0.76);
 }
 
 .quality-meter-status,
@@ -1265,6 +1298,17 @@
   background: rgba(48, 14, 21, 0.3);
 }
 
+.output-limiter-readout.disabled {
+  border-color: rgba(131, 173, 216, 0.1);
+  background: rgba(8, 17, 27, 0.2);
+  opacity: 0.58;
+}
+
+.output-limiter-readout.disabled .output-limiter-visual,
+.output-limiter-readout.disabled .output-limiter-grid {
+  filter: grayscale(0.6);
+}
+
 .output-limiter-empty {
   min-height: 4rem;
   display: grid;
@@ -1288,7 +1332,7 @@
 
 .output-limiter-visual {
   display: grid;
-  grid-template-columns: 1.1rem minmax(0, 1fr) 1.1rem;
+  grid-template-columns: 1.45rem minmax(0, 1fr) 1.45rem;
   gap: 0.45rem;
   min-height: 4.6rem;
   align-items: stretch;
@@ -1316,9 +1360,12 @@
   bottom: 0.16rem;
   transform: rotate(-90deg);
   color: rgba(7, 13, 19, 0.7);
-  font-size: 0.48rem;
+  font-size: 0.46rem;
   font-weight: 900;
   text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .output-limiter-curve {
@@ -1347,26 +1394,57 @@
   stroke: rgba(131, 173, 216, 0.38);
   stroke-width: 1.2;
   stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
 }
 
 .output-limiter-curve-shaped {
   fill: none;
   stroke: rgba(255, 220, 142, 0.86);
   stroke-width: 1.7;
+  vector-effect: non-scaling-stroke;
 }
 
 .output-limiter-curve circle {
   fill: #ff4c5f;
   stroke: #ffe4e7;
   stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.output-limiter-legend,
+.output-limiter-axis-label {
+  fill: rgba(215, 235, 255, 0.54);
+  font-size: 3px;
+  font-weight: 760;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.output-limiter-legend.shaped {
+  fill: rgba(255, 220, 142, 0.78);
+}
+
+.output-limiter-legend.raw {
+  fill: rgba(131, 173, 216, 0.62);
 }
 
 .output-limiter-reduction {
   position: absolute;
   left: 0;
   bottom: 0;
-  height: 0.26rem;
+  height: 0.34rem;
   background: rgba(255, 76, 95, 0.62);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.output-limiter-reduction span {
+  display: block;
+  padding-left: 0.18rem;
+  color: rgba(255, 228, 231, 0.82);
+  font-size: 0.46rem;
+  font-weight: 850;
+  line-height: 0.34rem;
 }
 
 .output-limiter-grid,
@@ -1384,6 +1462,21 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.68rem;
   font-weight: 750;
+}
+
+.output-limiter-grid strong {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.28rem;
+}
+
+.output-limiter-grid em {
+  color: rgba(215, 235, 255, 0.45);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 650;
 }
 
 .param-authoring-mode {
