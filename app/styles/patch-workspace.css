@@ -767,34 +767,6 @@
   vector-effect: non-scaling-stroke;
 }
 
-.signal-health-glyphs circle {
-  fill: rgba(131, 173, 216, 0.08);
-  stroke: rgba(131, 173, 216, 0.24);
-  stroke-width: 0.45;
-  vector-effect: non-scaling-stroke;
-}
-
-.signal-health-glyphs circle.warn {
-  fill: rgba(246, 200, 95, 0.18);
-  stroke: rgba(246, 200, 95, 0.86);
-}
-
-.signal-health-glyphs circle.ghost {
-  fill: none;
-  stroke: rgba(255, 76, 95, 0.78);
-  stroke-width: 1.2;
-}
-
-.signal-health-glyphs path {
-  fill: none;
-  stroke: rgba(231, 243, 255, 0.74);
-  stroke-width: 0.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-
-.signal-health-glyphs text,
 .signal-health-label,
 .signal-health-threshold-label {
   fill: rgba(231, 243, 255, 0.58);
@@ -802,10 +774,6 @@
   font-weight: 750;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-}
-
-.signal-health-glyphs text {
-  font-size: 2.35px;
 }
 
 .signal-health-risk-bars text {
@@ -816,21 +784,43 @@
 }
 
 .signal-health-risk-track {
-  fill: rgba(131, 173, 216, 0.12);
+  fill: rgba(131, 173, 216, 0.09);
+}
+
+.signal-health-risk-threshold {
+  stroke: rgba(246, 200, 95, 0.28);
+  stroke-width: 0.45;
+  stroke-dasharray: 1.2 1.2;
+  vector-effect: non-scaling-stroke;
 }
 
 .signal-health-risk-fill {
-  fill: #7be49b;
+  fill: rgba(123, 228, 155, 0.86);
 }
 
-.signal-health-probe.hot .signal-health-risk-fill,
-.signal-health-probe.rough .signal-health-risk-fill,
-.signal-health-probe.dc .signal-health-risk-fill {
-  fill: #f6c85f;
+.signal-health-risk-row.hot .signal-health-risk-fill {
+  fill: rgba(246, 200, 95, 0.88);
 }
 
-.signal-health-probe.clip .signal-health-risk-fill {
-  fill: #ff4c5f;
+.signal-health-risk-row.clip .signal-health-risk-fill {
+  fill: rgba(255, 76, 95, 0.88);
+}
+
+.signal-health-risk-label {
+  paint-order: stroke fill;
+  stroke: rgba(123, 228, 155, 0.18);
+  stroke-width: 1.8px;
+  vector-effect: non-scaling-stroke;
+}
+
+.signal-health-risk-row.hot .signal-health-risk-label {
+  fill: rgba(255, 225, 156, 0.9);
+  stroke: rgba(246, 200, 95, 0.4);
+}
+
+.signal-health-risk-row.clip .signal-health-risk-label {
+  fill: rgba(255, 213, 218, 0.94);
+  stroke: rgba(255, 76, 95, 0.52);
 }
 
 .signal-health-threshold-label {
@@ -848,8 +838,9 @@
 .signal-health-status,
 .signal-health-readout {
   fill: rgba(231, 243, 255, 0.84);
-  font-size: 5px;
+  font-size: 3.6px;
   font-weight: 750;
+  text-transform: uppercase;
 }
 
 .signal-health-probe.compact .signal-health-readout {
