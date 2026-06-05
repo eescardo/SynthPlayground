@@ -36,12 +36,7 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
   const rmsRatio = Math.min(1, Math.max(0, stats?.rms ?? 0));
   const roughRatio = Math.min(1, Math.max(0, Math.max(stats?.roughness ?? 0, stats?.zeroCrossingRate ?? 0)));
   const dcRatio = Math.min(1, Math.abs(stats?.dcOffset ?? 0) / 0.25);
-  const crestRatio = Math.min(1, Math.max(0, (stats?.crestFactorDb ?? 0) / 24));
-  const railTicks = Math.min(
-    18,
-    Math.ceil((stats?.nearClipCount ?? 0) / Math.max(1, (stats?.capturedSamples ?? 1) / 18))
-  );
-  const railTickIndexes = Array.from({ length: railTicks }, (_, index) => index);
+  const crestRiskRatio = stats && status !== "blank" ? Math.min(1, Math.max(0, (10 - stats.crestFactorDb) / 10)) : 0;
   const meterFillY = 54 - peakRatio * 42;
   const rmsY = 54 - rmsRatio * 42;
   const dcX = 48 + Math.max(-1, Math.min(1, (stats?.dcOffset ?? 0) / 0.18)) * 14;
@@ -53,10 +48,18 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
         Signal Health: peak/RMS level, near-clipping ticks, roughness, crest factor, and DC offset for the captured
         preview signal.
       </title>
+      <defs>
+        <linearGradient id="signal-health-level-gradient" x1="0" y1="54" x2="0" y2="10" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#7be49b" />
+          <stop offset="72%" stopColor="#7be49b" />
+          <stop offset="90%" stopColor="#f6c85f" />
+          <stop offset="100%" stopColor="#ff4c5f" />
+        </linearGradient>
+      </defs>
       <rect x="0" y="0" width="100" height="60" rx="6" className="signal-health-bg" />
       <g>
         <title>
-          Peak meter: filled height is peak amplitude; white line is RMS; yellow/red marks are hot and clip zones.
+          Peak meter: soft fill is peak amplitude; white line is RMS; yellow/red marks are hot and clip zones.
         </title>
         <rect x="7" y="10" width="13" height="44" rx="3" className="signal-health-rail" />
         <rect x="8.5" y={meterFillY} width="10" height={54 - meterFillY} rx="2.5" className="signal-health-peak-fill" />
@@ -77,36 +80,34 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
         rms
       </text>
 
-      <g>
-        <title>
-          Signal shape summary: higher/rougher line means sharper changes, more level, or lower crest-factor headroom.
-        </title>
-        <polyline
-          points={`27,48 34,${48 - roughRatio * 28} 41,${46 - crestRatio * 23} 48,${48 - peakRatio * 30} 55,${46 - rmsRatio * 24} 62,${48 - roughRatio * 26} 69,48`}
-          fill="none"
-          className="signal-health-spark"
-        />
-        <rect x="27" y="10" width="42" height="38" rx="4" className="signal-health-spark-frame" />
+      <g className="signal-health-risk-bars">
+        <title>Risk bars: each row shows the current aggregate risk for crest factor, roughness, and DC offset.</title>
+        <rect x="27" y="10" width="42" height="38" rx="4" className="signal-health-risk-frame" />
+        <text x="30" y="17" className="signal-health-label">
+          risks
+        </text>
+        <text x="31" y="27">
+          crest
+        </text>
+        <rect x="44" y="23" width="20" height="3" rx="1.5" className="signal-health-risk-track" />
+        <rect x="44" y="23" width={crestRiskRatio * 20} height="3" rx="1.5" className="signal-health-risk-fill" />
+        <text x="31" y="36">
+          rough
+        </text>
+        <rect x="44" y="32" width="20" height="3" rx="1.5" className="signal-health-risk-track" />
+        <rect x="44" y="32" width={roughRatio * 20} height="3" rx="1.5" className="signal-health-risk-fill" />
+        <text x="31" y="45">
+          dc
+        </text>
+        <rect x="44" y="41" width="20" height="3" rx="1.5" className="signal-health-risk-track" />
+        <rect x="44" y="41" width={dcRatio * 20} height="3" rx="1.5" className="signal-health-risk-fill" />
       </g>
-      <text x="30" y="16" className="signal-health-label">
-        shape
-      </text>
-      {railTickIndexes.map((index) => (
-        <rect
-          key={index}
-          x={28 + index * 2.1}
-          y="8"
-          width="1.2"
-          height="4"
-          rx="0.6"
-          className="signal-health-clip-tick"
-        />
-      ))}
 
       <g className="signal-health-glyphs">
         <g>
           <title>Crest factor: warns when RMS is too close to peak, which can sound flattened or crushed.</title>
-          <circle cx="80" cy="16" r="6" className={crestRatio < 0.28 && status !== "blank" ? "warn" : ""} />
+          <circle cx="80" cy="16" r="7" className="ghost" opacity={crestRiskRatio * 0.7} />
+          <circle cx="80" cy="16" r="5.2" className={crestRiskRatio > 0.5 ? "warn" : ""} />
           <path d="M76 16h8M80 12v8" />
           <text x="88" y="18">
             crest
@@ -114,7 +115,8 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
         </g>
         <g>
           <title>Roughness: warns when sample-to-sample motion or zero-crossing rate is unusually high.</title>
-          <circle cx="80" cy="31" r="6" className={roughRatio > 0.55 ? "warn" : ""} />
+          <circle cx="80" cy="31" r="7" className="ghost" opacity={roughRatio * 0.7} />
+          <circle cx="80" cy="31" r="5.2" className={roughRatio > 0.55 ? "warn" : ""} />
           <path d="M76 34l2-7 3 6 3-7" />
           <text x="88" y="33">
             rough
@@ -122,7 +124,8 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
         </g>
         <g>
           <title>DC offset: warns when the waveform is biased away from zero.</title>
-          <circle cx="80" cy="46" r="6" className={dcRatio > 0.2 ? "warn" : ""} />
+          <circle cx="80" cy="46" r="7" className="ghost" opacity={dcRatio * 0.7} />
+          <circle cx="80" cy="46" r="5.2" className={dcRatio > 0.2 ? "warn" : ""} />
           <path d={`M75 46h10M${dcX.toFixed(1)} 42v8`} />
           <text x="88" y="48">
             dc

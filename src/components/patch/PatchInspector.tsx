@@ -72,9 +72,12 @@ function OutputLimiterReadout({ preview }: { preview?: OutputLimiterPreview | nu
     );
   }
 
-  const reductionRatio = Math.min(1, Math.max(0, Math.abs(preview.reductionDb) / 18));
+  const reductionAverageRatio = Math.min(1, Math.max(0, Math.abs(preview.reductionAverageDb) / 18));
+  const reductionPeakRatio = Math.min(1, Math.max(0, Math.abs(preview.reductionDb) / 18));
   const drivenRatio = Math.min(1, Math.max(0, preview.drivenPeak));
-  const postRatio = Math.min(1, Math.max(0, preview.post?.peak ?? 0));
+  const drivenRmsRatio = Math.min(1, Math.max(0, preview.drivenRms));
+  const postRatio = Math.min(1, Math.max(0, preview.postPeak));
+  const postRmsRatio = Math.min(1, Math.max(0, preview.postRms));
   return (
     <div
       className={`param-row output-limiter-readout${preview.nearClipActive ? " active" : ""}${
@@ -88,10 +91,11 @@ function OutputLimiterReadout({ preview }: { preview?: OutputLimiterPreview | nu
       <div className="output-limiter-visual">
         <div
           className="output-limiter-meter"
-          title="Driven level: limiter input after the configured output gain, before limiting."
+          title="Pre level: limiter input after the configured output gain, before limiting. The soft fill is peak; the solid line is RMS."
         >
           <span style={{ height: `${drivenRatio * 100}%` }} />
-          <strong>DRV</strong>
+          <i style={{ bottom: `${drivenRmsRatio * 100}%` }} />
+          <strong>PRE</strong>
         </div>
         <div
           className="output-limiter-curve"
@@ -116,9 +120,13 @@ function OutputLimiterReadout({ preview }: { preview?: OutputLimiterPreview | nu
             </text>
           </svg>
         </div>
-        <div className="output-limiter-meter post" title="Post level: final output after gain and limiter.">
+        <div
+          className="output-limiter-meter post"
+          title="Post level: final output after gain and limiter. The soft fill is peak; the solid line is RMS."
+        >
           <span style={{ height: `${postRatio * 100}%` }} />
-          <strong>OUT</strong>
+          <i style={{ bottom: `${postRmsRatio * 100}%` }} />
+          <strong>POST</strong>
         </div>
       </div>
       <div
@@ -127,7 +135,8 @@ function OutputLimiterReadout({ preview }: { preview?: OutputLimiterPreview | nu
       >
         <span>Gain reduction</span>
         <div className="output-limiter-reduction-track">
-          <div className="output-limiter-reduction" style={{ width: `${reductionRatio * 100}%` }} />
+          <div className="output-limiter-reduction ghost" style={{ width: `${reductionPeakRatio * 100}%` }} />
+          <div className="output-limiter-reduction" style={{ width: `${reductionAverageRatio * 100}%` }} />
         </div>
         <strong>{preview.limiterEnabled ? `${preview.reductionDb.toFixed(1)} dB` : "0.0 dB"}</strong>
       </div>
@@ -136,7 +145,7 @@ function OutputLimiterReadout({ preview }: { preview?: OutputLimiterPreview | nu
         <strong>
           {preview.gainDb.toFixed(1)} dB <em>target: taste</em>
         </strong>
-        <span>Driven peak</span>
+        <span>Pre peak</span>
         <strong>
           {formatDb(preview.drivenPeakDb)} <em>max: 0.0 dB</em>
         </strong>

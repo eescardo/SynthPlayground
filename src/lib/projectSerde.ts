@@ -104,7 +104,14 @@ const sanitizePatchWorkspaceProbes = (raw: unknown): PatchWorkspaceProbeState[] 
   const probes = Array.isArray(raw) ? raw : [];
   return probes.map((probe, index) => {
     const entry = isObject(probe) ? probe : {};
-    const kind = entry.kind === "spectrum" ? "spectrum" : entry.kind === "pitch_tracker" ? "pitch_tracker" : "scope";
+    const kind =
+      entry.kind === "spectrum"
+        ? "spectrum"
+        : entry.kind === "pitch_tracker"
+          ? "pitch_tracker"
+          : entry.kind === "signal_health" || entry.kind === "quality_meter"
+            ? "signal_health"
+            : "scope";
     const spectrumWindowSize = asFiniteNumber(entry.spectrumWindowSize, 0);
     const rawFrequencyView = isObject(entry.frequencyView) ? entry.frequencyView : {};
     const frequencyView =
@@ -118,7 +125,13 @@ const sanitizePatchWorkspaceProbes = (raw: unknown): PatchWorkspaceProbeState[] 
       kind,
       name: asString(
         entry.name,
-        kind === "spectrum" ? "Spectrum Probe" : kind === "pitch_tracker" ? "Pitch Tracker" : "Scope Probe"
+        kind === "spectrum"
+          ? "Spectrum Probe"
+          : kind === "pitch_tracker"
+            ? "Pitch Tracker"
+            : kind === "signal_health"
+              ? "Signal Health"
+              : "Scope Probe"
       ),
       x: Math.max(0, Math.floor(asFiniteNumber(entry.x, 4))),
       y: Math.max(0, Math.floor(asFiniteNumber(entry.y, 4))),

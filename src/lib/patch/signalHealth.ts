@@ -14,8 +14,14 @@ export interface OutputLimiterPreview {
   limiterEnabled: boolean;
   drivenPeak: number;
   drivenPeakDb: number;
+  drivenRms: number;
+  drivenRmsDb: number;
+  postPeak: number;
   postPeakDb: number;
+  postRms: number;
+  postRmsDb: number;
   reductionDb: number;
+  reductionAverageDb: number;
   nearClipActive: boolean;
   populated: boolean;
 }
@@ -62,9 +68,13 @@ export function resolveOutputLimiterPreview(
   const limiterEnabled = outputPort.params?.limiter !== false;
   const pre = captures[OUTPUT_PRE_LIMITER_CAPTURE_ID]?.qualityStats;
   const post = captures[OUTPUT_POST_LIMITER_CAPTURE_ID]?.qualityStats;
-  const drivenPeak = Math.max(0, (pre?.peak ?? 0) * dbToGain(gainDb));
+  const gain = dbToGain(gainDb);
+  const drivenPeak = Math.max(0, (pre?.peak ?? 0) * gain);
+  const drivenRms = Math.max(0, (pre?.rms ?? 0) * gain);
   const postPeak = Math.max(0, post?.peak ?? 0);
+  const postRms = Math.max(0, post?.rms ?? 0);
   const reductionDb = drivenPeak > 0.000001 && postPeak > 0.000001 ? amplitudeToDb(postPeak / drivenPeak) : 0;
+  const reductionAverageDb = drivenRms > 0.000001 && postRms > 0.000001 ? amplitudeToDb(postRms / drivenRms) : 0;
 
   return {
     pre,
@@ -73,10 +83,16 @@ export function resolveOutputLimiterPreview(
     limiterEnabled,
     drivenPeak,
     drivenPeakDb: amplitudeToDb(drivenPeak),
+    drivenRms,
+    drivenRmsDb: amplitudeToDb(drivenRms),
+    postPeak,
     postPeakDb: post?.peakDb ?? SILENCE_DB,
+    postRms,
+    postRmsDb: amplitudeToDb(postRms),
     reductionDb: Math.min(0, reductionDb),
+    reductionAverageDb: Math.min(0, reductionAverageDb),
     nearClipActive: isSignalHealthNearClipping(post),
-    populated: Boolean(pre || post)
+    populated: Boolean(pre && post)
   };
 }
 

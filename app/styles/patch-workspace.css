@@ -737,7 +737,7 @@
 }
 
 .signal-health-rail,
-.signal-health-spark-frame {
+.signal-health-risk-frame {
   fill: rgba(131, 173, 216, 0.08);
   stroke: rgba(131, 173, 216, 0.2);
   stroke-width: 0.45;
@@ -745,16 +745,8 @@
 }
 
 .signal-health-peak-fill {
-  fill: #7be49b;
-}
-
-.signal-health-probe.hot .signal-health-peak-fill {
-  fill: #f6c85f;
-}
-
-.signal-health-probe.clip .signal-health-peak-fill,
-.signal-health-probe.clip .signal-health-clip-tick {
-  fill: #ff4c5f;
+  opacity: 0.62;
+  fill: url("#signal-health-level-gradient");
 }
 
 .signal-health-hot-line {
@@ -775,18 +767,6 @@
   vector-effect: non-scaling-stroke;
 }
 
-.signal-health-spark {
-  stroke: #97d6ff;
-  stroke-width: 0.65;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-
-.signal-health-clip-tick {
-  fill: rgba(255, 76, 95, 0.86);
-}
-
 .signal-health-glyphs circle {
   fill: rgba(131, 173, 216, 0.08);
   stroke: rgba(131, 173, 216, 0.24);
@@ -795,8 +775,14 @@
 }
 
 .signal-health-glyphs circle.warn {
-  fill: rgba(255, 76, 95, 0.16);
+  fill: rgba(246, 200, 95, 0.18);
+  stroke: rgba(246, 200, 95, 0.86);
+}
+
+.signal-health-glyphs circle.ghost {
+  fill: none;
   stroke: rgba(255, 76, 95, 0.78);
+  stroke-width: 1.2;
 }
 
 .signal-health-glyphs path {
@@ -820,6 +806,31 @@
 
 .signal-health-glyphs text {
   font-size: 2.35px;
+}
+
+.signal-health-risk-bars text {
+  fill: rgba(231, 243, 255, 0.62);
+  font-size: 2.7px;
+  font-weight: 720;
+  text-transform: uppercase;
+}
+
+.signal-health-risk-track {
+  fill: rgba(131, 173, 216, 0.12);
+}
+
+.signal-health-risk-fill {
+  fill: #7be49b;
+}
+
+.signal-health-probe.hot .signal-health-risk-fill,
+.signal-health-probe.rough .signal-health-risk-fill,
+.signal-health-probe.dc .signal-health-risk-fill {
+  fill: #f6c85f;
+}
+
+.signal-health-probe.clip .signal-health-risk-fill {
+  fill: #ff4c5f;
 }
 
 .signal-health-threshold-label {
@@ -1344,6 +1355,7 @@
   align-items: flex-end;
   justify-content: center;
   overflow: hidden;
+  --meter-height: 4.6rem;
   border: 1px solid rgba(131, 173, 216, 0.18);
   border-radius: 0.35rem;
   background: rgba(131, 173, 216, 0.07);
@@ -1352,7 +1364,21 @@
 .output-limiter-meter span {
   width: 100%;
   min-height: 2px;
-  background: linear-gradient(180deg, #ff4c5f 0%, #f6c85f 38%, #7be49b 100%);
+  opacity: 0.6;
+  background: linear-gradient(0deg, #7be49b 0%, #7be49b 72%, #f6c85f 90%, #ff4c5f 100%);
+  background-size: 100% var(--meter-height);
+  background-position: bottom;
+}
+
+.output-limiter-meter i {
+  position: absolute;
+  left: 0.15rem;
+  right: 0.15rem;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(231, 243, 255, 0.9);
+  box-shadow: 0 0 5px rgba(231, 243, 255, 0.36);
+  transform: translateY(1px);
 }
 
 .output-limiter-meter strong {
@@ -1460,9 +1486,13 @@
   left: 0;
   bottom: 0;
   height: 100%;
-  background: rgba(255, 76, 95, 0.62);
+  background: rgba(255, 76, 95, 0.82);
   min-width: 0;
   border-radius: inherit;
+}
+
+.output-limiter-reduction.ghost {
+  background: rgba(255, 76, 95, 0.24);
 }
 
 .output-limiter-grid,

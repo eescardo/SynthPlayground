@@ -198,6 +198,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
       const previewCaptureRequests = [...buildOutputSignalHealthCaptureRequests(patch), ...captureRequests];
       setActivePreviewId(previewId);
       setPreviewProgress(0);
+      setPreviewCaptureByProbeId({});
 
       engine
         .previewNote(
