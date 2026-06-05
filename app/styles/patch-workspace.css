@@ -1304,8 +1304,15 @@
 }
 
 .output-limiter-readout {
+  position: relative;
   border-color: rgba(151, 214, 255, 0.16);
   background: rgba(8, 17, 27, 0.36);
+}
+
+.output-limiter-readout.empty .output-limiter-visual,
+.output-limiter-readout.empty .output-limiter-reduction-row,
+.output-limiter-readout.empty .output-limiter-grid {
+  opacity: 0.3;
 }
 
 .output-limiter-readout.active {
@@ -1325,13 +1332,17 @@
 }
 
 .output-limiter-empty {
+  position: absolute;
+  inset: 2.25rem 0.55rem auto;
   min-height: 4rem;
   display: grid;
   place-items: center;
   border: 1px dashed rgba(131, 173, 216, 0.22);
   border-radius: 0.45rem;
+  background: rgba(7, 13, 19, 0.64);
   color: rgba(215, 235, 255, 0.58);
   font-size: 0.72rem;
+  pointer-events: none;
 }
 
 .output-limiter-pill {

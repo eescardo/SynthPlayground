@@ -60,33 +60,26 @@ function CompressorDerivedReadouts({ node }: { node: PatchNode }) {
 }
 
 function OutputLimiterReadout({ preview }: { preview?: OutputLimiterPreview | null }) {
-  if (!preview?.populated) {
-    return (
-      <div className={`param-row output-limiter-readout empty${preview?.limiterEnabled === false ? " disabled" : ""}`}>
-        <div className="param-row-header">
-          <span className="param-name">Limiter Activity</span>
-          {preview?.limiterEnabled === false && <span className="output-limiter-pill">Limiter off</span>}
-        </div>
-        <div className="output-limiter-empty">Preview a note to populate output limiter metering.</div>
-      </div>
-    );
-  }
-
-  const reductionAverageRatio = Math.min(1, Math.max(0, Math.abs(preview.reductionAverageDb) / 18));
-  const reductionPeakRatio = Math.min(1, Math.max(0, Math.abs(preview.reductionDb) / 18));
-  const drivenRatio = Math.min(1, Math.max(0, preview.drivenPeak));
-  const drivenRmsRatio = Math.min(1, Math.max(0, preview.drivenRms));
-  const postRatio = Math.min(1, Math.max(0, preview.postPeak));
-  const postRmsRatio = Math.min(1, Math.max(0, preview.postRms));
+  const populated = Boolean(preview?.populated);
+  const limiterEnabled = preview?.limiterEnabled !== false;
+  const reductionAverageRatio = populated
+    ? Math.min(1, Math.max(0, Math.abs(preview?.reductionAverageDb ?? 0) / 18))
+    : 0;
+  const reductionPeakRatio = populated ? Math.min(1, Math.max(0, Math.abs(preview?.reductionDb ?? 0) / 18)) : 0;
+  const drivenRatio = populated ? Math.min(1, Math.max(0, preview?.drivenPeak ?? 0)) : 0;
+  const drivenRmsRatio = populated ? Math.min(1, Math.max(0, preview?.drivenRms ?? 0)) : 0;
+  const postRatio = populated ? Math.min(1, Math.max(0, preview?.postPeak ?? 0)) : 0;
+  const postRmsRatio = populated ? Math.min(1, Math.max(0, preview?.postRms ?? 0)) : 0;
+  const reductionDb = populated && limiterEnabled ? `${(preview?.reductionDb ?? 0).toFixed(1)} dB` : "0.0 dB";
   return (
     <div
-      className={`param-row output-limiter-readout${preview.nearClipActive ? " active" : ""}${
-        !preview.limiterEnabled ? " disabled" : ""
-      }`}
+      className={`param-row output-limiter-readout${preview?.nearClipActive ? " active" : ""}${
+        !limiterEnabled ? " disabled" : ""
+      }${!populated ? " empty" : ""}`}
     >
       <div className="param-row-header">
         <span className="param-name">Limiter Activity</span>
-        <span className="output-limiter-pill">{preview.limiterEnabled ? "Limiter on" : "Limiter off"}</span>
+        <span className="output-limiter-pill">{limiterEnabled ? "Limiter on" : "Limiter off"}</span>
       </div>
       <div className="output-limiter-visual">
         <div
@@ -99,13 +92,17 @@ function OutputLimiterReadout({ preview }: { preview?: OutputLimiterPreview | nu
         </div>
         <div
           className="output-limiter-curve"
-          title="Limiter transfer curve. Dashed line is unprocessed level; gold line is the limited output curve; the dot is this preview's current peak."
+          title={
+            populated
+              ? "Limiter transfer curve. Dashed line is unprocessed level; gold line is the limited output curve; the dot is this preview's current peak."
+              : "Preview a note to populate the limiter transfer curve."
+          }
         >
           <svg viewBox="0 0 100 44" preserveAspectRatio="none">
             <title>Limiter curve with raw, limited, and current peak indicators</title>
             <path d="M7 37 C 34 35, 60 24, 93 7" className="output-limiter-curve-raw" />
             <path d="M7 37 C 28 34, 54 14, 93 8" className="output-limiter-curve-shaped" />
-            <circle cx={14 + drivenRatio * 72} cy={37 - postRatio * 29} r="3.5" />
+            {populated && <circle cx={14 + drivenRatio * 72} cy={37 - postRatio * 29} r="3.5" />}
             <text x="10" y="12" className="output-limiter-legend raw">
               raw
             </text>
@@ -138,30 +135,31 @@ function OutputLimiterReadout({ preview }: { preview?: OutputLimiterPreview | nu
           <div className="output-limiter-reduction ghost" style={{ width: `${reductionPeakRatio * 100}%` }} />
           <div className="output-limiter-reduction" style={{ width: `${reductionAverageRatio * 100}%` }} />
         </div>
-        <strong>{preview.limiterEnabled ? `${preview.reductionDb.toFixed(1)} dB` : "0.0 dB"}</strong>
+        <strong>{reductionDb}</strong>
       </div>
       <div className="output-limiter-grid">
         <span>Output gain</span>
         <strong>
-          {preview.gainDb.toFixed(1)} dB <em>target: taste</em>
+          {preview ? `${preview.gainDb.toFixed(1)} dB` : "--"} <em>target: taste</em>
         </strong>
         <span>Pre peak</span>
         <strong>
-          {formatDb(preview.drivenPeakDb)} <em>max: 0.0 dB</em>
+          {populated ? formatDb(preview?.drivenPeakDb ?? 0) : "--"} <em>max: 0.0 dB</em>
         </strong>
         <span>Post peak</span>
         <strong>
-          {formatDb(preview.postPeakDb)} <em>ideal: -1 to -3 dB</em>
+          {populated ? formatDb(preview?.postPeakDb ?? 0) : "--"} <em>ideal: -1 to -3 dB</em>
         </strong>
         <span>Reduction</span>
         <strong>
-          {preview.limiterEnabled ? `${preview.reductionDb.toFixed(1)} dB` : "0.0 dB"} <em>ideal: 0 to -3 dB</em>
+          {reductionDb} <em>ideal: 0 to -3 dB</em>
         </strong>
         <span>Near clip</span>
         <strong>
-          {preview.post?.nearClipCount ?? 0} <em>ideal: 0</em>
+          {populated ? (preview?.post?.nearClipCount ?? 0) : "--"} <em>ideal: 0</em>
         </strong>
       </div>
+      {!populated && <div className="output-limiter-empty">Preview a note to populate output limiter metering.</div>}
     </div>
   );
 }
