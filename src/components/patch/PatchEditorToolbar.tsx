@@ -90,7 +90,7 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
             <button
               type="button"
               onClick={() => {
-                props.onAddProbe("quality_meter");
+                props.onAddProbe("signal_health");
                 close();
               }}
             >

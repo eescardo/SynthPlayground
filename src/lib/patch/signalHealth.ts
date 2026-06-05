@@ -20,7 +20,7 @@ export interface OutputLimiterPreview {
   populated: boolean;
 }
 
-export function buildOutputQualityCaptureRequests(patch: Patch): PreviewProbeRequest[] {
+export function buildOutputSignalHealthCaptureRequests(patch: Patch): PreviewProbeRequest[] {
   const outputPort = getPatchOutputPort(patch);
   if (!outputPort) {
     return [];
@@ -28,7 +28,7 @@ export function buildOutputQualityCaptureRequests(patch: Patch): PreviewProbeReq
   return [
     {
       probeId: OUTPUT_PRE_LIMITER_CAPTURE_ID,
-      kind: "quality_meter",
+      kind: "signal_health",
       target: {
         kind: "port",
         nodeId: outputPort.id,
@@ -38,7 +38,7 @@ export function buildOutputQualityCaptureRequests(patch: Patch): PreviewProbeReq
     },
     {
       probeId: OUTPUT_POST_LIMITER_CAPTURE_ID,
-      kind: "quality_meter",
+      kind: "signal_health",
       target: {
         kind: "port",
         nodeId: outputPort.id,
@@ -75,20 +75,20 @@ export function resolveOutputLimiterPreview(
     drivenPeakDb: amplitudeToDb(drivenPeak),
     postPeakDb: post?.peakDb ?? SILENCE_DB,
     reductionDb: Math.min(0, reductionDb),
-    nearClipActive: isQualityNearClipping(post),
+    nearClipActive: isSignalHealthNearClipping(post),
     populated: Boolean(pre || post)
   };
 }
 
-export function isHiddenOutputQualityCaptureId(probeId: string) {
+export function isHiddenOutputSignalHealthCaptureId(probeId: string) {
   return probeId === OUTPUT_PRE_LIMITER_CAPTURE_ID || probeId === OUTPUT_POST_LIMITER_CAPTURE_ID;
 }
 
-export function isQualityNearClipping(stats?: PreviewProbeQualityStats) {
+export function isSignalHealthNearClipping(stats?: PreviewProbeQualityStats) {
   return Boolean(stats && (stats.clippedCount > 0 || stats.nearClipCount > 0 || stats.peak >= 0.98));
 }
 
-export function resolveQualityMeterStatus(
+export function resolveSignalHealthStatus(
   stats?: PreviewProbeQualityStats
 ): "blank" | "clean" | "hot" | "clip" | "dc" | "rough" {
   if (!stats || stats.capturedSamples <= 0 || stats.peak <= 0.0001) {

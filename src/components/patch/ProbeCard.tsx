@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { PATCH_CANVAS_GRID } from "@/components/patch/patchCanvasConstants";
-import { PitchTrackerProbeGraph, QualityMeterProbeGraph, ScopeProbeGraph } from "@/components/patch/ProbeGraphs";
+import { PitchTrackerProbeGraph, SignalHealthProbeGraph, ScopeProbeGraph } from "@/components/patch/ProbeGraphs";
 import { SpectrumProbeGraph } from "@/components/patch/SpectrumProbeGraph";
 import { resolveRenderedProbeHeight, resolveRenderedProbeWidth } from "@/components/patch/patchProbeLayout";
 import { resolveProbeFrequencyView } from "@/lib/patch/probes";
@@ -160,8 +160,8 @@ function ProbeGraphBody(props: {
   if (props.probe.kind === "pitch_tracker") {
     return <PitchTrackerProbeGraph capture={props.capture} compact={props.compact} />;
   }
-  if (props.probe.kind === "quality_meter") {
-    return <QualityMeterProbeGraph capture={props.capture} compact={props.compact} />;
+  if (props.probe.kind === "signal_health") {
+    return <SignalHealthProbeGraph capture={props.capture} compact={props.compact} />;
   }
   return (
     <SpectrumProbeGraph

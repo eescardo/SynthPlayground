@@ -13,7 +13,7 @@ import {
 } from "@/components/patch/patchInspectablePorts";
 import { isPatchOutputPortId } from "@/lib/patch/ports";
 import { compressorDerivedParamsForSquash } from "@/lib/patch/compressor";
-import { formatDb, OutputLimiterPreview } from "@/lib/patch/qualityMeter";
+import { formatDb, OutputLimiterPreview } from "@/lib/patch/signalHealth";
 import { PatchInspectorActions, PatchInspectorModel } from "@/components/patch/patchEditorSession";
 import { Patch, PatchNode, PatchPort, PatchValidationIssue } from "@/types/patch";
 

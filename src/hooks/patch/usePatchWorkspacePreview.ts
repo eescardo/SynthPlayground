@@ -10,7 +10,7 @@ import { pitchToVoct } from "@/lib/pitch";
 import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { HOST_PORT_IDS } from "@/lib/patch/constants";
 import { mergeSpectrumGrid } from "@/lib/patch/spectrumCaptureMerge";
-import { buildOutputQualityCaptureRequests } from "@/lib/patch/qualityMeter";
+import { buildOutputSignalHealthCaptureRequests } from "@/lib/patch/signalHealth";
 import { Patch } from "@/types/patch";
 import { Project, Track } from "@/types/music";
 import { AudioProject } from "@/types/audio";
@@ -195,7 +195,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
         ? { project: previewProject, runtimeAssets: projectAssets }
         : { project: audioProject, runtimeAssets: projectAssets };
       const previewId = `preview_${Date.now()}`;
-      const previewCaptureRequests = [...buildOutputQualityCaptureRequests(patch), ...captureRequests];
+      const previewCaptureRequests = [...buildOutputSignalHealthCaptureRequests(patch), ...captureRequests];
       setActivePreviewId(previewId);
       setPreviewProgress(0);
 

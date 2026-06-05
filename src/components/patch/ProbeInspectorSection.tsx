@@ -6,7 +6,7 @@ import {
 } from "@/lib/patch/probes";
 import { formatPatchEndpointLabel } from "@/components/patch/patchInspectablePorts";
 import { buildPitchTrackerClipboardPayload, detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
-import { formatDb, resolveQualityMeterStatus } from "@/lib/patch/qualityMeter";
+import { formatDb, resolveSignalHealthStatus } from "@/lib/patch/signalHealth";
 import { Patch } from "@/types/patch";
 import { PatchProbeTarget, PatchWorkspaceProbeState, PreviewProbeCapture } from "@/types/probes";
 import { useProjectWorkspaceClipboard, useProjectWorkspaceTransport } from "@/components/ProjectWorkspaceContext";
@@ -139,12 +139,12 @@ export function ProbeInspectorSection(props: ProbeInspectorSectionProps) {
           <p className="muted">Scope view normalizes the captured signal so quiet patches still render visibly.</p>
         </>
       )}
-      {selectedProbe.kind === "quality_meter" && (
+      {selectedProbe.kind === "signal_health" && (
         <>
           <div className="param-row">
-            <span>Quality</span>
+            <span>Signal Health</span>
             <div className="param-control-stack">
-              <QualityMeterReadout capture={props.previewCapture} />
+              <SignalHealthReadout capture={props.previewCapture} />
             </div>
             <button
               type="button"
@@ -216,14 +216,14 @@ export function ProbeInspectorSection(props: ProbeInspectorSectionProps) {
   );
 }
 
-function QualityMeterReadout(props: { capture?: PreviewProbeCapture }) {
+function SignalHealthReadout(props: { capture?: PreviewProbeCapture }) {
   const stats = props.capture?.qualityStats;
   if (!stats) {
-    return <div className="macro-binding-edit-summary">Preview the patch to populate quality statistics.</div>;
+    return <div className="macro-binding-edit-summary">Preview the patch to populate signal health statistics.</div>;
   }
-  const status = resolveQualityMeterStatus(stats);
+  const status = resolveSignalHealthStatus(stats);
   return (
-    <div className="quality-meter-inspector-grid">
+    <div className="signal-health-inspector-grid">
       <span>Status</span>
       <strong>{status}</strong>
       <span>Peak</span>

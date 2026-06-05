@@ -13,7 +13,7 @@ import {
 import { HOST_PORT_IDS, HostPatchPortId, SOURCE_HOST_PORT_IDS } from "@/lib/patch/constants";
 import { getPatchOutputInputPortId, getPatchOutputPort } from "@/lib/patch/ports";
 import { PatchCanvasFocusable } from "@/lib/patch/hardwareNavigation";
-import { isQualityNearClipping } from "@/lib/patch/qualityMeter";
+import { isSignalHealthNearClipping } from "@/lib/patch/signalHealth";
 import { Patch } from "@/types/patch";
 import { PreviewProbeQualityStats } from "@/types/probes";
 
@@ -145,7 +145,7 @@ export function PatchHostPortOverlay(props: PatchHostPortOverlayProps) {
           type="button"
           className={`patch-host-port${props.pendingFromPort?.nodeId === port.nodeId ? " pending" : ""}${
             props.structureLocked ? " locked" : ""
-          }${port.nodeId === HOST_PORT_IDS.output && isQualityNearClipping(props.outputQualityStats) ? " clipping" : ""}`}
+          }${port.nodeId === HOST_PORT_IDS.output && isSignalHealthNearClipping(props.outputQualityStats) ? " clipping" : ""}`}
           data-patch-canvas-key-nav="true"
           style={port.style}
           onPointerDown={(event) => {

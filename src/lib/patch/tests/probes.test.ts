@@ -8,10 +8,10 @@ import {
   resolveProbeSpectrumMagnitudeColor
 } from "@/lib/patch/probes";
 import {
-  buildOutputQualityCaptureRequests,
+  buildOutputSignalHealthCaptureRequests,
   resolveOutputLimiterPreview,
-  resolveQualityMeterStatus
-} from "@/lib/patch/qualityMeter";
+  resolveSignalHealthStatus
+} from "@/lib/patch/signalHealth";
 import { createPatchOutputPort } from "@/lib/patch/ports";
 import { Patch } from "@/types/patch";
 import {
@@ -48,7 +48,7 @@ describe("probe helpers", () => {
   it("builds hidden output quality captures around the Output stage", () => {
     const patch = createOutputProbeTestPatch();
 
-    expect(buildOutputQualityCaptureRequests(patch).map((request) => request.target)).toEqual([
+    expect(buildOutputSignalHealthCaptureRequests(patch).map((request) => request.target)).toEqual([
       { kind: "port", nodeId: "output", portId: "in", portKind: "in" },
       { kind: "port", nodeId: "output", portId: "out", portKind: "out" }
     ]);
@@ -60,7 +60,7 @@ describe("probe helpers", () => {
     const preview = resolveOutputLimiterPreview(patch, {
       __output_pre_limiter: {
         probeId: "__output_pre_limiter",
-        kind: "quality_meter",
+        kind: "signal_health",
         target: { kind: "port", nodeId: "output", portId: "in", portKind: "in" },
         sampleRate: 48000,
         durationSamples: 64,
@@ -84,7 +84,7 @@ describe("probe helpers", () => {
       },
       __output_post_limiter: {
         probeId: "__output_post_limiter",
-        kind: "quality_meter",
+        kind: "signal_health",
         target: { kind: "port", nodeId: "output", portId: "out", portKind: "out" },
         sampleRate: 48000,
         durationSamples: 64,
@@ -113,7 +113,7 @@ describe("probe helpers", () => {
     expect(preview?.nearClipActive).toBe(true);
   });
 
-  it("classifies quality meter captures by highest-risk visible symptom", () => {
+  it("classifies signal health captures by highest-risk visible symptom", () => {
     const base = {
       peak: 0.5,
       peakDb: -6,
@@ -130,11 +130,11 @@ describe("probe helpers", () => {
       capturedSamples: 128
     };
 
-    expect(resolveQualityMeterStatus(base)).toBe("clean");
-    expect(resolveQualityMeterStatus({ ...base, nearClipCount: 1 })).toBe("hot");
-    expect(resolveQualityMeterStatus({ ...base, peak: 1, clippedCount: 1 })).toBe("clip");
-    expect(resolveQualityMeterStatus({ ...base, dcOffset: 0.08 })).toBe("dc");
-    expect(resolveQualityMeterStatus({ ...base, roughness: 0.5 })).toBe("rough");
+    expect(resolveSignalHealthStatus(base)).toBe("clean");
+    expect(resolveSignalHealthStatus({ ...base, nearClipCount: 1 })).toBe("hot");
+    expect(resolveSignalHealthStatus({ ...base, peak: 1, clippedCount: 1 })).toBe("clip");
+    expect(resolveSignalHealthStatus({ ...base, dcOffset: 0.08 })).toBe("dc");
+    expect(resolveSignalHealthStatus({ ...base, roughness: 0.5 })).toBe("rough");
   });
 
   it("normalizes quiet sample streams so they remain visible", () => {

@@ -4,7 +4,7 @@ import { PatchProbeFrequencyView, PatchWorkspaceProbeState } from "@/types/probe
 
 export const DEFAULT_SCOPE_PROBE_SIZE = { width: 10, height: 6 } as const;
 export const DEFAULT_SPECTRUM_PROBE_SIZE = { width: 10, height: 6 } as const;
-export const DEFAULT_QUALITY_METER_PROBE_SIZE = { width: 10, height: 6 } as const;
+export const DEFAULT_SIGNAL_HEALTH_PROBE_SIZE = { width: 10, height: 6 } as const;
 export const EXPANDED_PROBE_SIZE = { width: 340, height: 228 } as const;
 export const PROBE_MIN_MAX_FREQUENCY_HZ = 500;
 export const PROBE_MAX_MAX_FREQUENCY_HZ = 24000;
@@ -47,7 +47,7 @@ export const createPatchWorkspaceProbe = (
       ? "Spectrum Probe"
       : kind === "pitch_tracker"
         ? "Pitch Tracker"
-        : kind === "quality_meter"
+        : kind === "signal_health"
           ? "Signal Health"
           : "Scope Probe",
   x,
@@ -55,14 +55,14 @@ export const createPatchWorkspaceProbe = (
   width:
     kind === "spectrum"
       ? DEFAULT_SPECTRUM_PROBE_SIZE.width
-      : kind === "quality_meter"
-        ? DEFAULT_QUALITY_METER_PROBE_SIZE.width
+      : kind === "signal_health"
+        ? DEFAULT_SIGNAL_HEALTH_PROBE_SIZE.width
         : DEFAULT_SCOPE_PROBE_SIZE.width,
   height:
     kind === "spectrum"
       ? DEFAULT_SPECTRUM_PROBE_SIZE.height
-      : kind === "quality_meter"
-        ? DEFAULT_QUALITY_METER_PROBE_SIZE.height
+      : kind === "signal_health"
+        ? DEFAULT_SIGNAL_HEALTH_PROBE_SIZE.height
         : DEFAULT_SCOPE_PROBE_SIZE.height,
   expanded: false,
   spectrumWindowSize: kind === "spectrum" ? 1024 : undefined,

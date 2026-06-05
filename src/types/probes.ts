@@ -1,4 +1,4 @@
-export type PatchProbeKind = "scope" | "spectrum" | "pitch_tracker" | "quality_meter";
+export type PatchProbeKind = "scope" | "spectrum" | "pitch_tracker" | "signal_health";
 
 export type PatchProbePortKind = "in" | "out";
 

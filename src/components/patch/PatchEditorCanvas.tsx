@@ -11,7 +11,7 @@ import { usePatchCanvasSelection } from "@/hooks/patch/usePatchCanvasSelection";
 import { usePatchProbeEditorState } from "@/hooks/patch/usePatchProbeEditorState";
 import { clamp } from "@/lib/numeric";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
-import { resolveOutputLimiterPreview } from "@/lib/patch/qualityMeter";
+import { resolveOutputLimiterPreview } from "@/lib/patch/signalHealth";
 import { ParamValue } from "@/types/patch";
 import { PatchWireCommitFeedback } from "@/components/patch/patchWireFeedback";
 

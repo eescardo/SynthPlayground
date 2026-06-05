@@ -10,7 +10,7 @@ import {
   PreviewProbeCapture
 } from "@/types/probes";
 import { PatchWireCommitFeedback } from "@/components/patch/patchWireFeedback";
-import { OutputLimiterPreview } from "@/lib/patch/qualityMeter";
+import { OutputLimiterPreview } from "@/lib/patch/signalHealth";
 
 export interface PatchEditorSessionModel {
   patch: Patch;

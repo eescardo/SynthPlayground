@@ -17,10 +17,10 @@ import {
 } from "@/components/patch/patchCanvasConstants";
 import { detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
 import { buildScopeRenderData, resolveScopeGraphLayout, resolveScopeTimeMarkers } from "@/lib/patch/probeViewMath";
-import { formatDb, resolveQualityMeterStatus } from "@/lib/patch/qualityMeter";
+import { formatDb, resolveSignalHealthStatus } from "@/lib/patch/signalHealth";
 import { PreviewProbeCapture } from "@/types/probes";
 
-const QUALITY_STATUS_LABELS = {
+const SIGNAL_HEALTH_STATUS_LABELS = {
   blank: "No signal",
   clean: "Clean",
   hot: "Hot",
@@ -29,9 +29,9 @@ const QUALITY_STATUS_LABELS = {
   rough: "Rough"
 } as const;
 
-export function QualityMeterProbeGraph(props: { capture?: PreviewProbeCapture; compact?: boolean }) {
+export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; compact?: boolean }) {
   const stats = props.capture?.qualityStats;
-  const status = resolveQualityMeterStatus(stats);
+  const status = resolveSignalHealthStatus(stats);
   const peakRatio = Math.min(1, Math.max(0, stats?.peak ?? 0));
   const rmsRatio = Math.min(1, Math.max(0, stats?.rms ?? 0));
   const roughRatio = Math.min(1, Math.max(0, Math.max(stats?.roughness ?? 0, stats?.zeroCrossingRate ?? 0)));
@@ -45,7 +45,7 @@ export function QualityMeterProbeGraph(props: { capture?: PreviewProbeCapture; c
   const meterFillY = 54 - peakRatio * 42;
   const rmsY = 54 - rmsRatio * 42;
   const dcX = 48 + Math.max(-1, Math.min(1, (stats?.dcOffset ?? 0) / 0.18)) * 14;
-  const statusClass = `quality-meter-probe ${props.compact ? "compact" : ""} ${status}`;
+  const statusClass = `signal-health-probe ${props.compact ? "compact" : ""} ${status}`;
 
   return (
     <svg viewBox="0 0 100 60" preserveAspectRatio="none" className={statusClass}>
@@ -53,27 +53,27 @@ export function QualityMeterProbeGraph(props: { capture?: PreviewProbeCapture; c
         Signal Health: peak/RMS level, near-clipping ticks, roughness, crest factor, and DC offset for the captured
         preview signal.
       </title>
-      <rect x="0" y="0" width="100" height="60" rx="6" className="quality-meter-bg" />
+      <rect x="0" y="0" width="100" height="60" rx="6" className="signal-health-bg" />
       <g>
         <title>
           Peak meter: filled height is peak amplitude; white line is RMS; yellow/red marks are hot and clip zones.
         </title>
-        <rect x="7" y="10" width="13" height="44" rx="3" className="quality-meter-rail" />
-        <rect x="8.5" y={meterFillY} width="10" height={54 - meterFillY} rx="2.5" className="quality-meter-peak-fill" />
-        <line x1="7" y1="18" x2="20" y2="18" className="quality-meter-hot-line" />
-        <line x1="7" y1="12" x2="20" y2="12" className="quality-meter-clip-line" />
-        <line x1="6.5" y1={rmsY} x2="20.5" y2={rmsY} className="quality-meter-rms-marker" />
+        <rect x="7" y="10" width="13" height="44" rx="3" className="signal-health-rail" />
+        <rect x="8.5" y={meterFillY} width="10" height={54 - meterFillY} rx="2.5" className="signal-health-peak-fill" />
+        <line x1="7" y1="18" x2="20" y2="18" className="signal-health-hot-line" />
+        <line x1="7" y1="12" x2="20" y2="12" className="signal-health-clip-line" />
+        <line x1="6.5" y1={rmsY} x2="20.5" y2={rmsY} className="signal-health-rms-marker" />
       </g>
-      <text x="7" y="8" className="quality-meter-label">
+      <text x="7" y="8" className="signal-health-label">
         peak
       </text>
-      <text x="21.5" y="13.5" className="quality-meter-threshold-label clip">
+      <text x="21.5" y="13.5" className="signal-health-threshold-label clip">
         clip
       </text>
-      <text x="21.5" y="19.5" className="quality-meter-threshold-label">
+      <text x="21.5" y="19.5" className="signal-health-threshold-label">
         hot
       </text>
-      <text x="21.5" y={Math.max(29, Math.min(53, rmsY + 1.5))} className="quality-meter-threshold-label rms">
+      <text x="21.5" y={Math.max(29, Math.min(53, rmsY + 1.5))} className="signal-health-threshold-label rms">
         rms
       </text>
 
@@ -84,11 +84,11 @@ export function QualityMeterProbeGraph(props: { capture?: PreviewProbeCapture; c
         <polyline
           points={`27,48 34,${48 - roughRatio * 28} 41,${46 - crestRatio * 23} 48,${48 - peakRatio * 30} 55,${46 - rmsRatio * 24} 62,${48 - roughRatio * 26} 69,48`}
           fill="none"
-          className="quality-meter-spark"
+          className="signal-health-spark"
         />
-        <rect x="27" y="10" width="42" height="38" rx="4" className="quality-meter-spark-frame" />
+        <rect x="27" y="10" width="42" height="38" rx="4" className="signal-health-spark-frame" />
       </g>
-      <text x="30" y="16" className="quality-meter-label">
+      <text x="30" y="16" className="signal-health-label">
         shape
       </text>
       {railTickIndexes.map((index) => (
@@ -99,11 +99,11 @@ export function QualityMeterProbeGraph(props: { capture?: PreviewProbeCapture; c
           width="1.2"
           height="4"
           rx="0.6"
-          className="quality-meter-clip-tick"
+          className="signal-health-clip-tick"
         />
       ))}
 
-      <g className="quality-meter-glyphs">
+      <g className="signal-health-glyphs">
         <g>
           <title>Crest factor: warns when RMS is too close to peak, which can sound flattened or crushed.</title>
           <circle cx="80" cy="16" r="6" className={crestRatio < 0.28 && status !== "blank" ? "warn" : ""} />
@@ -130,11 +130,11 @@ export function QualityMeterProbeGraph(props: { capture?: PreviewProbeCapture; c
         </g>
       </g>
 
-      <text x="25" y="56" className="quality-meter-status">
-        {QUALITY_STATUS_LABELS[status]}
+      <text x="25" y="56" className="signal-health-status">
+        {SIGNAL_HEALTH_STATUS_LABELS[status]}
       </text>
       {!props.compact && stats && (
-        <text x="97" y="56" textAnchor="end" className="quality-meter-readout">
+        <text x="97" y="56" textAnchor="end" className="signal-health-readout">
           {formatDb(stats.peakDb)}
         </text>
       )}

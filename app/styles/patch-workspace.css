@@ -655,12 +655,12 @@
   font-size: 0.58rem;
 }
 
-.patch-probe-card.quality_meter:not(.expanded) .patch-probe-card-header {
+.patch-probe-card.signal_health:not(.expanded) .patch-probe-card-header {
   gap: 0.18rem;
   font-size: 0.58rem;
 }
 
-.patch-probe-card.quality_meter:not(.expanded) .patch-probe-attach-button {
+.patch-probe-card.signal_health:not(.expanded) .patch-probe-attach-button {
   padding: 0.06rem 0.2rem;
   font-size: 0.52rem;
 }
@@ -725,57 +725,57 @@
   font-size: 3.7px;
 }
 
-.quality-meter-probe {
+.signal-health-probe {
   width: 100%;
   height: 100%;
   display: block;
   overflow: hidden;
 }
 
-.quality-meter-bg {
+.signal-health-bg {
   fill: #071018;
 }
 
-.quality-meter-rail,
-.quality-meter-spark-frame {
+.signal-health-rail,
+.signal-health-spark-frame {
   fill: rgba(131, 173, 216, 0.08);
   stroke: rgba(131, 173, 216, 0.2);
   stroke-width: 0.45;
   vector-effect: non-scaling-stroke;
 }
 
-.quality-meter-peak-fill {
+.signal-health-peak-fill {
   fill: #7be49b;
 }
 
-.quality-meter-probe.hot .quality-meter-peak-fill {
+.signal-health-probe.hot .signal-health-peak-fill {
   fill: #f6c85f;
 }
 
-.quality-meter-probe.clip .quality-meter-peak-fill,
-.quality-meter-probe.clip .quality-meter-clip-tick {
+.signal-health-probe.clip .signal-health-peak-fill,
+.signal-health-probe.clip .signal-health-clip-tick {
   fill: #ff4c5f;
 }
 
-.quality-meter-hot-line {
+.signal-health-hot-line {
   stroke: rgba(246, 200, 95, 0.72);
   stroke-width: 0.45;
   vector-effect: non-scaling-stroke;
 }
 
-.quality-meter-clip-line {
+.signal-health-clip-line {
   stroke: rgba(255, 76, 95, 0.85);
   stroke-width: 0.55;
   vector-effect: non-scaling-stroke;
 }
 
-.quality-meter-rms-marker {
+.signal-health-rms-marker {
   stroke: #e7f3ff;
   stroke-width: 0.55;
   vector-effect: non-scaling-stroke;
 }
 
-.quality-meter-spark {
+.signal-health-spark {
   stroke: #97d6ff;
   stroke-width: 0.65;
   stroke-linecap: round;
@@ -783,23 +783,23 @@
   vector-effect: non-scaling-stroke;
 }
 
-.quality-meter-clip-tick {
+.signal-health-clip-tick {
   fill: rgba(255, 76, 95, 0.86);
 }
 
-.quality-meter-glyphs circle {
+.signal-health-glyphs circle {
   fill: rgba(131, 173, 216, 0.08);
   stroke: rgba(131, 173, 216, 0.24);
   stroke-width: 0.45;
   vector-effect: non-scaling-stroke;
 }
 
-.quality-meter-glyphs circle.warn {
+.signal-health-glyphs circle.warn {
   fill: rgba(255, 76, 95, 0.16);
   stroke: rgba(255, 76, 95, 0.78);
 }
 
-.quality-meter-glyphs path {
+.signal-health-glyphs path {
   fill: none;
   stroke: rgba(231, 243, 255, 0.74);
   stroke-width: 0.5;
@@ -808,9 +808,9 @@
   vector-effect: non-scaling-stroke;
 }
 
-.quality-meter-glyphs text,
-.quality-meter-label,
-.quality-meter-threshold-label {
+.signal-health-glyphs text,
+.signal-health-label,
+.signal-health-threshold-label {
   fill: rgba(231, 243, 255, 0.58);
   font-size: 2.45px;
   font-weight: 750;
@@ -818,30 +818,30 @@
   text-transform: uppercase;
 }
 
-.quality-meter-glyphs text {
+.signal-health-glyphs text {
   font-size: 2.35px;
 }
 
-.quality-meter-threshold-label {
+.signal-health-threshold-label {
   fill: rgba(246, 200, 95, 0.72);
 }
 
-.quality-meter-threshold-label.clip {
+.signal-health-threshold-label.clip {
   fill: rgba(255, 76, 95, 0.82);
 }
 
-.quality-meter-threshold-label.rms {
+.signal-health-threshold-label.rms {
   fill: rgba(231, 243, 255, 0.76);
 }
 
-.quality-meter-status,
-.quality-meter-readout {
+.signal-health-status,
+.signal-health-readout {
   fill: rgba(231, 243, 255, 0.84);
   font-size: 5px;
   font-weight: 750;
 }
 
-.quality-meter-probe.compact .quality-meter-readout {
+.signal-health-probe.compact .signal-health-readout {
   display: none;
 }
 
@@ -1466,7 +1466,7 @@
 }
 
 .output-limiter-grid,
-.quality-meter-inspector-grid {
+.signal-health-inspector-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.16rem 0.5rem;
@@ -1475,7 +1475,7 @@
 }
 
 .output-limiter-grid strong,
-.quality-meter-inspector-grid strong {
+.signal-health-inspector-grid strong {
   color: #e7f3ff;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.68rem;
