@@ -24,6 +24,10 @@ interface TrackVolumePopoverProps {
 }
 
 export function TrackVolumePopover(props: TrackVolumePopoverProps) {
+  const automationTitle = props.automated
+    ? "Automated in timeline. Click to revert to fixed value"
+    : "Click to automate in timeline";
+
   return (
     <div
       className="track-volume-popover"
@@ -51,10 +55,12 @@ export function TrackVolumePopover(props: TrackVolumePopoverProps) {
       </div>
       <button
         type="button"
-        className="track-volume-automation-button"
+        className="track-volume-automation-pill"
+        title={automationTitle}
+        aria-label={automationTitle}
         onClick={props.automated ? props.onUnbindFromAutomation : props.onBindToAutomation}
       >
-        {props.automated ? "◉ Use fixed value" : "◎ Automate"}
+        {props.automated ? "auto" : "fixed"}
       </button>
     </div>
   );
