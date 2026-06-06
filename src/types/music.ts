@@ -87,7 +87,6 @@ export interface PatchWorkspaceTabState {
   selectedNodeId?: string;
   selectedMacroId?: string;
   selectedProbeId?: string;
-  expandedNodeId?: string;
   probes: PatchWorkspaceProbeState[];
 }
 

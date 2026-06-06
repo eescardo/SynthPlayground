@@ -4,6 +4,7 @@ import { PatchWorkspaceTabState } from "@/types/music";
 import { PatchOp } from "@/types/ops";
 
 export interface LocalPatchWorkspaceTab extends PatchWorkspaceTabState {
+  expandedNodeId?: string;
   migrationNotice: string | null;
 }
 
@@ -60,7 +61,6 @@ export const toPersistedTab = (tab: LocalPatchWorkspaceTab): PatchWorkspaceTabSt
   selectedNodeId: tab.selectedNodeId,
   selectedMacroId: tab.selectedMacroId,
   selectedProbeId: tab.selectedProbeId,
-  expandedNodeId: tab.expandedNodeId,
   probes: tab.probes
 });
 
