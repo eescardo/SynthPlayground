@@ -108,6 +108,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
               validationIssues: model.validationIssues,
               probeState: canvasProbeState,
               selectedNodeId: model.selectedNodeId,
+              expandedNodeId: model.expandedNodeId,
               selectedConnectionId,
               selectedMacroNodeIds,
               outputLimiterPreview:
@@ -121,6 +122,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
               onApplyOp: actions.onApplyOp,
               probeActions,
               onSelectNode: handleSelectNode,
+              onSetExpandedNode: actions.onSetExpandedNode,
               onSelectConnection: handleSelectConnection,
               onToggleAttachProbe: toggleAttachProbe,
               onCancelAttachProbe: cancelAttachProbe,

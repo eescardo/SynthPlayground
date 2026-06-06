@@ -60,6 +60,7 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
     probeState,
     selectedMacroNodeIds,
     selectedConnectionId,
+    expandedNodeId,
     selectedNodeId,
     structureLocked,
     validationIssues
@@ -185,8 +186,10 @@ export function PatchEditorStage(props: PatchEditorStageProps) {
   );
   const nodeExists = useCallback((nodeId: string) => nodeById.has(nodeId), [nodeById]);
   const { closePopover, handleCanvasPointerDown, popoverNodeId, togglePopoverForNode } = usePatchModuleFacePopover({
+    expandedNodeId,
     getPopoverRect: getFacePopoverRect,
-    nodeExists
+    nodeExists,
+    onSetExpandedNode: props.actions.onSetExpandedNode
   });
   const togglePopoverForNodeFromPointer = useCallback(
     (nodeId: string) => {

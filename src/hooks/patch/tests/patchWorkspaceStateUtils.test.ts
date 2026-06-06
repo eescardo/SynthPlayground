@@ -91,6 +91,7 @@ describe("patchWorkspaceStateUtils", () => {
             selectedNodeId: "osc1",
             selectedMacroId: "macro_cutoff",
             selectedProbeId: "probe_1",
+            expandedNodeId: "osc1",
             probes: [{ id: "probe_1", kind: "scope", name: "Scope Probe", x: 0, y: 0, width: 10, height: 8 }],
             migrationNotice: "Old notice"
           },
@@ -113,6 +114,7 @@ describe("patchWorkspaceStateUtils", () => {
         selectedNodeId: undefined,
         selectedMacroId: undefined,
         selectedProbeId: undefined,
+        expandedNodeId: undefined,
         probes: [],
         migrationNotice: null
       },
@@ -137,6 +139,7 @@ describe("patchWorkspaceStateUtils", () => {
           selectedNodeId: "osc1",
           selectedMacroId: "macro_cutoff",
           selectedProbeId: "probe_1",
+          expandedNodeId: "osc1",
           probes: [{ id: "probe_1", kind: "scope", name: "Scope Probe", x: 0, y: 0, width: 10, height: 8 }],
           migrationNotice: "Old notice"
         },
@@ -150,6 +153,7 @@ describe("patchWorkspaceStateUtils", () => {
       selectedNodeId: undefined,
       selectedMacroId: undefined,
       selectedProbeId: undefined,
+      expandedNodeId: undefined,
       probes: [],
       migrationNotice: null
     });
@@ -190,7 +194,9 @@ describe("patchWorkspaceStateUtils", () => {
           name: "",
           patchId: "patch_a",
           selectedMacroId: "missing_macro",
+          selectedNodeId: "sample1",
           selectedProbeId: "probe_keep",
+          expandedNodeId: "missing_node",
           probes: [
             {
               id: "probe_keep",
@@ -241,7 +247,9 @@ describe("patchWorkspaceStateUtils", () => {
         name: "Lead",
         patchId: "patch_a",
         selectedMacroId: undefined,
+        selectedNodeId: "sample1",
         selectedProbeId: "probe_keep",
+        expandedNodeId: undefined,
         probes: [
           {
             id: "probe_keep",

@@ -198,6 +198,7 @@ describe("projectSerde", () => {
         selectedNodeId: "vcf1",
         selectedMacroId: "macro_decay",
         selectedProbeId: undefined,
+        expandedNodeId: "vcf1",
         probes: [
           {
             id: "probe_scope",
@@ -259,6 +260,7 @@ describe("projectSerde", () => {
         selectedNodeId: undefined,
         selectedMacroId: undefined,
         selectedProbeId: undefined,
+        expandedNodeId: undefined,
         probes: []
       }
     ];

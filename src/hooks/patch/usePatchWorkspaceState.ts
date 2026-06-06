@@ -107,6 +107,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
   });
   const selectedNodeId = activeTab?.selectedNodeId;
   const selectedMacroId = activeTab?.selectedMacroId;
+  const expandedNodeId = activeTab?.expandedNodeId;
   const migrationNotice = activeTab?.migrationNotice ?? null;
   const {
     probes,
@@ -439,6 +440,8 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     selectedMacroId,
     setSelectedMacroId: (macroId?: string) =>
       updateActiveTab((tab) => ({ ...tab, selectedMacroId: macroId, selectedProbeId: undefined })),
+    expandedNodeId,
+    setExpandedNodeId: (nodeId?: string) => updateActiveTab((tab) => ({ ...tab, expandedNodeId: nodeId })),
     previewPitch,
     setPreviewPitch,
     previewPitchPickerOpen,

@@ -168,6 +168,7 @@ const sanitizePatchWorkspaceTab = (
     selectedNodeId: typeof tab.selectedNodeId === "string" ? tab.selectedNodeId : undefined,
     selectedMacroId: typeof tab.selectedMacroId === "string" ? tab.selectedMacroId : undefined,
     selectedProbeId: typeof tab.selectedProbeId === "string" ? tab.selectedProbeId : undefined,
+    expandedNodeId: typeof tab.expandedNodeId === "string" ? tab.expandedNodeId : undefined,
     probes: sanitizePatchWorkspaceProbes(tab.probes)
   };
 };

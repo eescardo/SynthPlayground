@@ -19,6 +19,7 @@ export interface PatchEditorSessionModel {
   macroValues: Record<string, number>;
   selectedNodeId?: string;
   selectedMacroId?: string;
+  expandedNodeId?: string;
   validationIssues: PatchValidationIssue[];
   invalid?: boolean;
   migrationNotice?: string | null;
@@ -30,6 +31,7 @@ export interface PatchEditorSessionActions {
   onReady?: (macroValues: Record<string, number>) => void;
   onSelectNode: (nodeId?: string) => void;
   onSelectMacro: (macroId?: string) => void;
+  onSetExpandedNode: (nodeId?: string) => void;
   onClearSelectedMacro: () => void;
   onClearPatch: () => void;
   onApplyOp: (op: PatchOp) => void;
@@ -54,6 +56,7 @@ export interface PatchEditorStageModel {
   validationIssues: PatchValidationIssue[];
   probeState: PatchProbeEditorState;
   selectedNodeId?: string;
+  expandedNodeId?: string;
   selectedConnectionId?: string;
   selectedMacroNodeIds: Set<string>;
   outputLimiterPreview?: OutputLimiterPreview | null;
@@ -65,6 +68,7 @@ export interface PatchEditorStageActions {
   onApplyOp: (op: PatchOp) => void;
   probeActions: PatchProbeEditorActions;
   onSelectNode: (nodeId?: string) => void;
+  onSetExpandedNode: (nodeId?: string) => void;
   onSelectConnection: (connectionId?: string) => void;
   onToggleAttachProbe: (probeId: string) => void;
   onCancelAttachProbe: () => void;
