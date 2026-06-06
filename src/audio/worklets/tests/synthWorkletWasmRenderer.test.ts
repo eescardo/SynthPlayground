@@ -394,6 +394,51 @@ describe("WASM worklet renderer", () => {
     );
   });
 
+  it("drops pooled preview engines when renderer engine configuration changes", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        renderProject: { project },
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+
+    const stream = renderer.startStream({
+      renderProject: { project },
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize,
+      trackId: "track_1",
+      previewId: "preview_pool",
+      events: [
+        {
+          id: "note_on",
+          type: "NoteOn",
+          sampleTime: 0,
+          source: "preview",
+          trackId: "track_1",
+          noteId: "note_1",
+          pitchVoct: 0,
+          velocity: 1
+        }
+      ]
+    });
+
+    expect(stream).not.toBeNull();
+    stream!.stop();
+    expect(renderer.previewEnginePool).toHaveLength(1);
+    expect(engineFree).not.toHaveBeenCalled();
+
+    renderer.configure({ sampleRate: 44100, blockSize });
+
+    expect(renderer.previewEnginePool).toHaveLength(0);
+    expect(engineFree).toHaveBeenCalledTimes(1);
+  });
+
   it("writes preview probe captures into provided shared buffers", async () => {
     const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
 

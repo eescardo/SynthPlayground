@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 import {
   PATCH_COLOR_PROBE_ENVELOPE_TRACE,
   PATCH_COLOR_PROBE_GRAPH_AXIS,
@@ -19,15 +19,11 @@ import { detectMonophonicPitchNotes } from "@/lib/patch/pitchTracker";
 import { buildScopeRenderData, resolveScopeGraphLayout, resolveScopeTimeMarkers } from "@/lib/patch/probeViewMath";
 import { formatDb, resolveSignalHealthStatus } from "@/lib/patch/signalHealth";
 import { PreviewProbeCapture } from "@/types/probes";
-
-const SIGNAL_HEALTH_STATUS_LABELS = {
-  blank: "no signal",
-  clean: "ok",
-  hot: "hot",
-  clip: "clipping",
-  dc: "ok",
-  rough: "ok"
-} as const;
+import {
+  buildSignalHealthGradientId,
+  createSignalHealthGraphStatusClass,
+  formatSignalHealthStatusLabel
+} from "@/components/patch/probeGraphDisplay";
 
 const SIGNAL_HEALTH_RISK_BINS = 18;
 
@@ -156,6 +152,7 @@ function RiskGraph(props: {
 }
 
 export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; compact?: boolean }) {
+  const gradientId = buildSignalHealthGradientId(useId());
   const stats = props.capture?.qualityStats;
   const status = resolveSignalHealthStatus(stats);
   const peakRatio = Math.min(1, Math.max(0, stats?.peak ?? 0));
@@ -174,20 +171,13 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
   const clipY = meterTop + meterHeight * 0.1;
   const riskFrame = compact ? { x: 25, y: 4, width: 70, height: 55 } : { x: 29, y: 9, width: 66, height: 50 };
   const riskRows = compact ? [7, 25, 43] : [14, 30, 46];
-  const statusClass = `signal-health-probe ${props.compact ? "compact" : ""} ${status}`;
+  const statusClass = createSignalHealthGraphStatusClass({ compact: props.compact, status });
 
   return (
     <svg viewBox="0 0 100 60" preserveAspectRatio="none" className={statusClass}>
       <title>Signal level and quality-risk summary for the captured preview.</title>
       <defs>
-        <linearGradient
-          id="signal-health-level-gradient"
-          x1="0"
-          y1={meterBottom}
-          x2="0"
-          y2={meterTop}
-          gradientUnits="userSpaceOnUse"
-        >
+        <linearGradient id={gradientId} x1="0" y1={meterBottom} x2="0" y2={meterTop} gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#7be49b" />
           <stop offset="72%" stopColor="#7be49b" />
           <stop offset="90%" stopColor="#f6c85f" />
@@ -207,6 +197,7 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
           height={meterBottom - meterFillY}
           rx="2.5"
           className="signal-health-peak-fill"
+          style={{ fill: `url(#${gradientId})` }}
         />
         <line x1="7" y1={hotY} x2="20" y2={hotY} className="signal-health-hot-line" />
         <line x1="7" y1={clipY} x2="20" y2={clipY} className="signal-health-clip-line" />
@@ -234,7 +225,7 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
         </>
       )}
       <text x="13.5" y="59" textAnchor="middle" className="signal-health-status">
-        {SIGNAL_HEALTH_STATUS_LABELS[status]}
+        {formatSignalHealthStatusLabel(status)}
       </text>
 
       <g className="signal-health-risk-bars">

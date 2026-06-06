@@ -746,7 +746,6 @@
 
 .signal-health-peak-fill {
   opacity: 0.62;
-  fill: url("#signal-health-level-gradient");
 }
 
 .signal-health-hot-line {
@@ -849,6 +848,14 @@
   font-size: 3.25px;
   font-weight: 750;
   text-transform: uppercase;
+}
+
+.signal-health-probe.dc .signal-health-status {
+  fill: rgba(255, 213, 218, 0.92);
+}
+
+.signal-health-probe.rough .signal-health-status {
+  fill: rgba(255, 225, 156, 0.92);
 }
 
 .signal-health-readout {

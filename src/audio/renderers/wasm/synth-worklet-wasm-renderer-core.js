@@ -504,10 +504,15 @@ export class SharedWasmRenderer {
 
   configure(config) {
     const nextBlockSize = config.blockSize || this.blockSize;
+    const nextSampleRate = config.sampleRate || this.sampleRateInternal;
+    const engineConfigChanged = nextBlockSize !== this.blockSize || nextSampleRate !== this.sampleRateInternal;
+    if (engineConfigChanged) {
+      this.disposePreviewEnginePool();
+    }
     if (nextBlockSize !== this.blockSize) {
       this.projectPlanCache = null;
     }
-    this.sampleRateInternal = config.sampleRate || this.sampleRateInternal;
+    this.sampleRateInternal = nextSampleRate;
     this.blockSize = nextBlockSize;
     if (config.renderProject) {
       this.defaultRenderProject = config.renderProject;
