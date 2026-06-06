@@ -173,6 +173,52 @@ describe("patch ops", () => {
     expect(binding?.points).toHaveLength(3);
   });
 
+  it("replaces a macro binding atomically for baseline restores", () => {
+    const patch = guitarStringPatch();
+    patch.ui.macros = [
+      {
+        id: "macro_filter",
+        name: "Filter",
+        keyframeCount: 3,
+        bindings: [
+          {
+            nodeId: "vcf1",
+            paramId: "cutoffHz",
+            map: "piecewise",
+            points: [
+              { x: 0, y: 100 },
+              { x: 0.5, y: 1200 },
+              { x: 1, y: 5000 }
+            ]
+          }
+        ]
+      }
+    ];
+
+    const nextPatch = applyPatchOp(patch, {
+      type: "setMacroBinding",
+      macroId: "macro_filter",
+      nodeId: "vcf1",
+      paramId: "cutoffHz",
+      map: "linear",
+      min: 220,
+      max: 2400
+    });
+
+    const bindings = nextPatch.ui.macros[0].bindings;
+    expect(bindings).toEqual([
+      {
+        nodeId: "vcf1",
+        paramId: "cutoffHz",
+        map: "linear",
+        min: 220,
+        max: 2400,
+        points: undefined
+      }
+    ]);
+    expect(patch.ui.macros[0].bindings[0].map).toBe("piecewise");
+  });
+
   it("updates the macro binding interpolation map without changing its range", () => {
     const patch = guitarStringPatch();
     patch.ui.macros = [

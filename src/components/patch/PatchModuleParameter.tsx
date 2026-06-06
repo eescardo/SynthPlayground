@@ -3,8 +3,13 @@ import { getMacroKeyframePositions, setMacroBindingValueAtKeyframe } from "@/lib
 import { PatchDiff } from "@/lib/patch/diff";
 import { EditableNumberLabel, MacroBindingDetails } from "@/components/patch/PatchInspectorControls";
 import { PatchParameterAuthoringStrip } from "@/components/patch/PatchParameterAuthoringStrip";
-import { resolveParamBindingState, resolveParamControlValue } from "@/components/patch/patchModuleParameterState";
+import {
+  createRestoreParamValueOp,
+  resolveParamBindingState,
+  resolveParamControlValue
+} from "@/components/patch/patchModuleParameterState";
 import { applyMagneticSliderSnap, MagneticSliderPoint } from "@/components/patch/patchModuleParameterControls";
+import { formatBindingValue } from "@/components/patch/patchDiffPresentation";
 import {
   createMacroBindingTargetKey,
   createPatchMacroBindingKey,
@@ -236,6 +241,16 @@ function renderParamInlineSummary(node: PatchNode, param: ParamSchema, value: Pa
   return null;
 }
 
+function formatParamOriginalValue(param: ParamSchema, value: ParamValue, displayScale = 1) {
+  if (param.type === "float" && typeof value === "number") {
+    return formatBindingValue(value * displayScale);
+  }
+  if (param.type === "bool") {
+    return value ? "on" : "off";
+  }
+  return String(value);
+}
+
 function shouldRenderCurveScaleLabels(node: PatchNode, param: ParamSchema) {
   return node.typeId === "ADSR" && param.id === "curve" && param.type === "float";
 }
@@ -306,6 +321,9 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
   const rawValue = props.selectedNode.params[props.param.id] ?? props.param.default;
   const value = rawValue;
   const nodeDiff = props.patchDiff.nodeDiffById.get(props.selectedNode.id);
+  const paramDiff = props.patchDiff.changedParamDiffByNodeParamKey.get(
+    buildParamRangeKey(props.selectedNode.id, props.param.id)
+  );
   const bindingState = resolveParamBindingState(
     props.patch,
     props.selectedNode,
@@ -409,6 +427,7 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
       : undefined;
   const canBindToMacro = props.param.type === "float";
   const shouldRenderMacroControl = canBindToMacro || bindingState.isExposed;
+  const shouldRenderParamRestore = Boolean(paramDiff && !bindingState.isExposed);
 
   const bindParamToMacro = (macroId: string) => {
     if (props.structureLocked || !canBindToMacro) {
@@ -601,7 +620,26 @@ export function PatchModuleParameter(props: PatchModuleParameterProps) {
             previewBindingByKey={previewBindingByKey}
             currentBindingDiffByKey={props.patchDiff.currentBindingDiffByKey}
             removedBindingDiffs={removedBindingDiffs}
+            disabled={props.structureLocked}
+            onApplyOp={props.onApplyOp}
           />
+        )}
+        {shouldRenderParamRestore && paramDiff && (
+          <div className="param-baseline-restore-row">
+            <span className="param-baseline-original">
+              Original {formatParamOriginalValue(props.param, paramDiff.baselineValue, unitDisplay?.scale)}
+              {unitDisplay ? ` ${unitDisplay.label}` : ""}
+            </span>
+            <button
+              type="button"
+              className="patch-diff-restore-button"
+              disabled={props.structureLocked}
+              aria-label={`Restore ${props.param.label} to baseline value`}
+              onClick={() => props.onApplyOp(createRestoreParamValueOp(paramDiff))}
+            >
+              restore
+            </button>
+          </div>
         )}
       </div>
     </div>

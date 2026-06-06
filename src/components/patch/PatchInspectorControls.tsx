@@ -4,11 +4,13 @@ import {
   formatBindingValue,
   resolveDiffHighlightClass
 } from "@/components/patch/patchDiffPresentation";
+import { createRestoreMacroBindingOp } from "@/components/patch/patchModuleParameterState";
 import { PatchBindingDiff } from "@/lib/patch/diff";
 import { isMacroBindingTarget, createPatchMacroBindingKey } from "@/lib/patch/macroBindings";
 import { useDismissiblePopover } from "@/hooks/useDismissiblePopover";
 import { useRenameActivation } from "@/hooks/useRenameActivation";
 import { clamp } from "@/lib/numeric";
+import { PatchOp } from "@/types/ops";
 import { MacroBinding, Patch, PatchMacro } from "@/types/patch";
 
 function formatInlineBindingValues(binding: MacroBinding) {
@@ -89,6 +91,8 @@ export function MacroBindingDetails(props: {
   previewBindingByKey?: Map<string, MacroBinding>;
   currentBindingDiffByKey: Map<string, PatchBindingDiff>;
   removedBindingDiffs: PatchBindingDiff[];
+  disabled?: boolean;
+  onApplyOp: (op: PatchOp) => void;
 }) {
   const boundMacros = props.patch.ui.macros.filter((macro) => props.boundMacroIds.includes(macro.id));
   const bindingTarget = { nodeId: props.nodeId, paramId: props.paramId };
@@ -103,14 +107,27 @@ export function MacroBindingDetails(props: {
             const renderedBinding = props.previewBindingByKey?.get(bindingKey) ?? binding;
             const bindingDiff = props.currentBindingDiffByKey.get(bindingKey);
             const diffHighlightClass = resolveDiffHighlightClass(bindingDiff?.status);
+            const restoreBindingOp =
+              bindingDiff?.status === "modified" ? createRestoreMacroBindingOp(bindingDiff) : null;
             return (
               <div
                 key={bindingKey}
                 className={`macro-binding-detail-card${diffHighlightClass ? ` diff-${diffHighlightClass}` : ""}`}
               >
                 <div className="macro-binding-detail-mode">
-                  {formatInlineBindingValues(renderedBinding)}
-                  {bindingDiff && (
+                  <span>{formatInlineBindingValues(renderedBinding)}</span>
+                  {restoreBindingOp && (
+                    <button
+                      type="button"
+                      className="patch-diff-restore-button"
+                      disabled={props.disabled}
+                      aria-label={`Restore ${macro.name} binding on ${props.paramId} to baseline`}
+                      onClick={() => props.onApplyOp(restoreBindingOp)}
+                    >
+                      restore
+                    </button>
+                  )}
+                  {bindingDiff && !restoreBindingOp && (
                     <span className="patch-diff-inline-badge">
                       {bindingDiff.status === "added" ? "New" : "Changed"}
                     </span>

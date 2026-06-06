@@ -1662,6 +1662,26 @@
   min-width: 0;
 }
 
+.param-baseline-restore-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 0.12rem 0 0;
+  color: rgba(210, 255, 222, 0.82);
+  font-size: 0.62rem;
+  font-weight: 650;
+  line-height: 1.15;
+}
+
+.param-baseline-original {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .param-value-editor {
   width: 100%;
 }
@@ -2176,10 +2196,22 @@
 }
 
 .macro-binding-detail-mode {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  min-width: 0;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: #d7e5f4;
+}
+
+.macro-binding-detail-mode > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .macro-binding-points {
@@ -2304,6 +2336,33 @@
   border: 1px solid rgba(255, 143, 153, 0.22);
   background: rgba(123, 45, 53, 0.2);
   color: #ffd7dc;
+}
+
+.patch-diff-restore-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 0.06rem 0.34rem;
+  border-radius: 999px;
+  border: 1px solid rgba(103, 224, 153, 0.34);
+  background: rgba(68, 135, 99, 0.22);
+  color: #d9f9e7;
+  font-size: 0.52rem;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.patch-diff-restore-button:not(:disabled):hover {
+  border-color: rgba(151, 255, 190, 0.62);
+  background: rgba(87, 176, 124, 0.34);
+}
+
+.patch-diff-restore-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .patch-diff-section {
