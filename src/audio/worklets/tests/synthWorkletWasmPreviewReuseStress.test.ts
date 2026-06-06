@@ -11,6 +11,8 @@ import type { PreviewProbeCapture } from "@/types/probes";
 const blockSize = 128;
 const durationSamples = 48_000;
 const randomSeed = 0x5eed_1234;
+const wasmPath = path.join(process.cwd(), "public", "wasm", "pkg", "dsp_core_bg.wasm");
+const runIfWasmBuilt = fs.existsSync(wasmPath) ? it : it.skip;
 
 const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
@@ -123,8 +125,8 @@ const renderPreview = (
 };
 
 describe("WASM preview engine reuse", () => {
-  it("reuses one preview engine without changing repeated Bass Drum output or health capture", () => {
-    const wasmBytes = fs.readFileSync(path.join(process.cwd(), "public", "wasm", "pkg", "dsp_core_bg.wasm"));
+  runIfWasmBuilt("reuses one preview engine without changing repeated Bass Drum output or health capture", () => {
+    const wasmBytes = fs.readFileSync(wasmPath);
     const project = createBassDrumProject();
     const renderer = createWasmRenderer({
       processorOptions: {
