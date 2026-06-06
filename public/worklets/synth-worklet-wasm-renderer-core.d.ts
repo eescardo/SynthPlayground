@@ -177,6 +177,7 @@ export class SharedWasmRenderStream {
   captureProbes: PreviewProbeRequest[];
   stopped: boolean;
   engineFreed: boolean;
+  engineReleased: boolean;
   finalizingPreviewCapture: boolean;
   implementation: SharedWasmImplementation;
   previewCaptureState: SharedWasmPreviewCaptureState | null;
@@ -193,6 +194,8 @@ export class SharedWasmRenderStream {
   setMacroValue(trackId: string, macroId: string, normalized: number): void;
   setRecordingTrack(trackId?: string | null): void;
   freeEngine(): void;
+  discardEngine(): void;
+  releaseEngine(): void;
   stop(options?: { emitPreviewCapture?: boolean }): void;
 }
 
@@ -206,7 +209,16 @@ export class SharedWasmRenderer {
   blockSize: number;
   defaultRenderProject: AudioRenderProject | null;
   implementation: SharedWasmImplementation;
+  previewEnginePool: SharedWasmEngine[];
   configure(config: Partial<SynthRendererConfig> & { wasmBytes?: ArrayBuffer | Uint8Array | null }): void;
+  acquirePreviewEngine(
+    project: AudioProject,
+    projectSpec: WasmProjectSpec,
+    options: SynthStreamStartOptions
+  ): SharedWasmEngine;
+  releasePreviewEngine(engine: SharedWasmEngine): void;
+  disposePreviewEnginePool(): void;
+  dispose(): void;
   setDefaultProject(renderProject: AudioRenderProject): void;
   getProjectPlan(renderProject: AudioRenderProject): {
     renderProject: AudioRenderProject;

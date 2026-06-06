@@ -156,24 +156,33 @@ export class SharedWasmRenderStream {
     this.captureProbes = options.captureProbes || [];
     this.stopped = false;
     this.engineFreed = false;
+    this.engineReleased = false;
     this.finalizingPreviewCapture = false;
     this.finalPreviewCaptureReadFailures = 0;
     this.implementation = implementation;
     this.previewCaptureState = null;
-    this.engine = implementation.createEngine(renderer, this.project, this.projectSpec, options);
+    this.engine = this.previewing
+      ? renderer.acquirePreviewEngine(this.project, this.projectSpec, options)
+      : implementation.createEngine(renderer, this.project, this.projectSpec, options);
 
-    installWasmSampleAssets(this.engine, this.sampleAssetsByTrack);
-    const compiledEvents = implementation.compileEvents(this.project, this.projectSpec, this.eventQueue);
-    this.engine.start_stream(
-      this.projectSpecJson,
-      this.songSampleCounter,
-      JSON.stringify(compiledEvents),
-      this.transportSessionId,
-      resolveRandomSeed(options.randomSeed)
-    );
-    if (this.previewing && this.captureProbes.length > 0) {
-      this.previewCaptureState =
-        implementation.preparePreviewCapture?.(renderer, this.project, this.projectSpec, options, this.engine) ?? null;
+    try {
+      installWasmSampleAssets(this.engine, this.sampleAssetsByTrack);
+      const compiledEvents = implementation.compileEvents(this.project, this.projectSpec, this.eventQueue);
+      this.engine.start_stream(
+        this.projectSpecJson,
+        this.songSampleCounter,
+        JSON.stringify(compiledEvents),
+        this.transportSessionId,
+        resolveRandomSeed(options.randomSeed)
+      );
+      if (this.previewing && this.captureProbes.length > 0) {
+        this.previewCaptureState =
+          implementation.preparePreviewCapture?.(renderer, this.project, this.projectSpec, options, this.engine) ??
+          null;
+      }
+    } catch (error) {
+      this.discardEngine();
+      throw error;
     }
   }
 
@@ -434,7 +443,32 @@ export class SharedWasmRenderStream {
       return;
     }
     this.engineFreed = true;
+    this.engineReleased = true;
     this.engine.free?.();
+  }
+
+  discardEngine() {
+    if (!this.engineFreed && !this.engineReleased) {
+      try {
+        this.engine.stop();
+      } finally {
+        this.freeEngine();
+      }
+      return;
+    }
+    this.freeEngine();
+  }
+
+  releaseEngine() {
+    if (this.engineFreed || this.engineReleased) {
+      return;
+    }
+    this.engineReleased = true;
+    if (this.previewing) {
+      this.renderer.releasePreviewEngine(this.engine);
+      return;
+    }
+    this.freeEngine();
   }
 
   stop(options = {}) {
@@ -443,9 +477,9 @@ export class SharedWasmRenderStream {
     if (emitPreviewCapture) {
       this.maybeEmitPreviewCapture(true);
     }
-    if (!this.engineFreed) {
+    if (!this.engineFreed && !this.engineReleased) {
       this.engine.stop();
-      this.freeEngine();
+      this.releaseEngine();
     }
     this.eventQueue.length = 0;
     if (!emitPreviewCapture) {
@@ -462,6 +496,7 @@ export class SharedWasmRenderer {
     this.defaultRenderProject = options?.processorOptions?.renderProject ?? null;
     this.implementation = implementation;
     this.projectPlanCache = null;
+    this.previewEnginePool = [];
     if (options?.processorOptions) {
       this.configure(options.processorOptions);
     }
@@ -482,6 +517,29 @@ export class SharedWasmRenderer {
     if (config.renderProject) {
       this.getProjectPlan(config.renderProject);
     }
+  }
+
+  acquirePreviewEngine(project, projectSpec, options) {
+    return this.previewEnginePool.pop() ?? this.implementation.createEngine(this, project, projectSpec, options);
+  }
+
+  releasePreviewEngine(engine) {
+    if (!engine || this.previewEnginePool.length > 0) {
+      engine?.free?.();
+      return;
+    }
+    this.previewEnginePool.push(engine);
+  }
+
+  disposePreviewEnginePool() {
+    const engines = this.previewEnginePool.splice(0);
+    for (const engine of engines) {
+      engine.free?.();
+    }
+  }
+
+  dispose() {
+    this.disposePreviewEnginePool();
   }
 
   setDefaultProject(renderProject) {

@@ -12,19 +12,33 @@ const captureSampleView = new Float32Array(sharedMemory.buffer, captureSamplesPt
 let previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
 let previewCaptureSampleCount = 0;
 let writeInvalidPreviewCaptureJson = false;
+let throwOnStartStream = false;
 let hasActiveVoices = false;
 let configuredPreviewCaptureJson = "";
 const engineStop = vi.fn();
 const engineFree = vi.fn();
+const engineCreate = vi.fn();
+
+function resetMockPreviewCaptureState() {
+  previewCaptureSampleCount = 0;
+  captureSampleView.fill(0);
+  previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
+}
 
 vi.mock("../synth-worklet-dsp-bindgen.js", () => {
   class MockWasmSubsetEngine {
     constructor() {
+      engineCreate();
       leftView.fill(0.25);
       rightView.fill(0.25);
     }
 
-    start_stream() {}
+    start_stream() {
+      if (throwOnStartStream) {
+        throw new Error("start_stream failed");
+      }
+      resetMockPreviewCaptureState();
+    }
     enqueue_events() {}
     set_sample_asset() {}
     configure_preview_probe_capture(captureJson: string) {
@@ -246,13 +260,13 @@ beforeEach(() => {
   vi.resetModules();
   engineStop.mockReset();
   engineFree.mockReset();
+  engineCreate.mockReset();
   leftView.fill(0);
   rightView.fill(0);
-  previewCaptureSampleCount = 0;
-  captureSampleView.fill(0);
+  resetMockPreviewCaptureState();
   writeInvalidPreviewCaptureJson = false;
+  throwOnStartStream = false;
   hasActiveVoices = false;
-  previewCaptureStateJson = JSON.stringify({ capturedSamples: 0, captures: [] });
   configuredPreviewCaptureJson = "";
 });
 
@@ -828,8 +842,100 @@ describe("WASM worklet renderer", () => {
     stream!.stop();
 
     expect(engineStop).toHaveBeenCalledTimes(1);
-    expect(engineFree).toHaveBeenCalledTimes(1);
+    expect(engineFree).not.toHaveBeenCalled();
     expect(postMessage).not.toHaveBeenCalled();
+  });
+
+  it("reuses one stopped preview engine and frees it when the renderer is disposed", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        renderProject: { project },
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+
+    for (let index = 0; index < 2; index += 1) {
+      const stream = renderer.startStream({
+        renderProject: { project },
+        songStartSample: 0,
+        mode: "preview",
+        durationSamples: blockSize,
+        trackId: "track_1",
+        previewId: `preview_${index}`,
+        events: [
+          {
+            id: `note_on_${index}`,
+            type: "NoteOn",
+            sampleTime: 0,
+            source: "preview",
+            trackId: "track_1",
+            noteId: `note_${index}`,
+            pitchVoct: 0,
+            velocity: 1
+          }
+        ],
+        randomSeed: 123
+      });
+      stream!.stop();
+    }
+
+    expect(engineCreate).toHaveBeenCalledTimes(1);
+    expect(engineStop).toHaveBeenCalledTimes(2);
+    expect(engineFree).not.toHaveBeenCalled();
+
+    renderer.dispose();
+
+    expect(engineFree).toHaveBeenCalledTimes(1);
+  });
+
+  it("discards a pooled preview engine when restarting the stream fails", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createProject();
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        renderProject: { project },
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+
+    const stream = renderer.startStream({
+      renderProject: { project },
+      songStartSample: 0,
+      mode: "preview",
+      durationSamples: blockSize,
+      trackId: "track_1",
+      previewId: "preview_success",
+      events: [],
+      randomSeed: 123
+    });
+    stream!.stop();
+
+    throwOnStartStream = true;
+
+    expect(() =>
+      renderer.startStream({
+        renderProject: { project },
+        songStartSample: 0,
+        mode: "preview",
+        durationSamples: blockSize,
+        trackId: "track_1",
+        previewId: "preview_fail",
+        events: [],
+        randomSeed: 123
+      })
+    ).toThrow("start_stream failed");
+
+    expect(engineCreate).toHaveBeenCalledTimes(1);
+    expect(engineStop).toHaveBeenCalledTimes(2);
+    expect(engineFree).toHaveBeenCalledTimes(1);
   });
 
   it("ignores invalid preview capture JSON without stopping audio processing", async () => {
