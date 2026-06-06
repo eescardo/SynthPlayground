@@ -3,6 +3,21 @@ import { describe, expect, it } from "vitest";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 
 describe("module registry", () => {
+  it("allows VCA bias and CV gain to amplify up to 200 percent", () => {
+    const schema = getModuleSchema("VCA");
+
+    expect(schema?.params.find((param) => param.id === "bias")).toMatchObject({
+      type: "float",
+      range: { min: 0, max: 2 },
+      default: 0
+    });
+    expect(schema?.params.find((param) => param.id === "gain")).toMatchObject({
+      type: "float",
+      range: { min: 0, max: 2 },
+      default: 1
+    });
+  });
+
   it("defines CVMixer4 as a four-input CV-only mixer", () => {
     const schema = getModuleSchema("CVMixer4");
 

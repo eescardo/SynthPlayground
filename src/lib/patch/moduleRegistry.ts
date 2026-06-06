@@ -288,8 +288,8 @@ export const moduleRegistry: ModuleTypeSchema[] = [
     doc: { summary: "Multiplies input by gain controlled by CV. Use for audio or modulation depth." },
     requiredPortIds: { in: ["in"], out: ["out"] },
     params: [
-      floatParam("bias", "Bias", 0, 1, "linear", "Bias gain", { default: 0, smoothingMs: 10 }),
-      floatParam("gain", "Gain", 0, 1, "linear", "CV gain amount", { default: 1, smoothingMs: 10 })
+      floatParam("bias", "Bias", 0, 2, "linear", "Bias gain", { default: 0, smoothingMs: 10 }),
+      floatParam("gain", "Gain", 0, 2, "linear", "CV gain amount", { default: 1, smoothingMs: 10 })
     ],
     portsIn: [
       port("in", "In", ["AUDIO", "CV"], "Input signal"),

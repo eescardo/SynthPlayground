@@ -187,7 +187,7 @@ impl RuntimeNode {
                         gain_cv * 0.5 + 0.5
                     };
                     let gain_eff =
-                        clamp(node.bias.next() + node.gain.next() * gain_cv_norm, 0.0, 1.0);
+                        clamp(node.bias.next() + node.gain.next() * gain_cv_norm, 0.0, 2.0);
                     signal_buffers[out_start + frame] = input * gain_eff;
                 }
             }
@@ -523,7 +523,7 @@ impl RuntimeNode {
                 } else {
                     gain_cv * 0.5 + 0.5
                 };
-                let gain_eff = clamp(node.bias.next() + node.gain.next() * gain_cv_norm, 0.0, 1.0);
+                let gain_eff = clamp(node.bias.next() + node.gain.next() * gain_cv_norm, 0.0, 2.0);
                 let out = frame_signal_offset(node.out_index, block_size, frame);
                 signal_buffers[out] = input * gain_eff;
             }
