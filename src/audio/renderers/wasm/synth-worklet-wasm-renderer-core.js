@@ -155,6 +155,7 @@ export class SharedWasmRenderStream {
     this.previewId = options.previewId;
     this.captureProbes = options.captureProbes || [];
     this.stopped = false;
+    this.engineFreed = false;
     this.finalizingPreviewCapture = false;
     this.finalPreviewCaptureReadFailures = 0;
     this.implementation = implementation;
@@ -428,13 +429,24 @@ export class SharedWasmRenderStream {
 
   setRecordingTrack() {}
 
+  freeEngine() {
+    if (this.engineFreed) {
+      return;
+    }
+    this.engineFreed = true;
+    this.engine.free?.();
+  }
+
   stop(options = {}) {
     const emitPreviewCapture = Boolean(options.emitPreviewCapture);
     this.stopped = true;
     if (emitPreviewCapture) {
       this.maybeEmitPreviewCapture(true);
     }
-    this.engine.stop();
+    if (!this.engineFreed) {
+      this.engine.stop();
+      this.freeEngine();
+    }
     this.eventQueue.length = 0;
     if (!emitPreviewCapture) {
       this.previewCaptureState = null;

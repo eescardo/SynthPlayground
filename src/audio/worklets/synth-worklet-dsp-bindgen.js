@@ -132,10 +132,30 @@ const getImports = () => ({
   }
 });
 
+const WasmSubsetEngineFinalization =
+  typeof FinalizationRegistry === "undefined"
+    ? { register() {}, unregister() {} }
+    : new FinalizationRegistry((ptr) => wasm.__wbg_wasmsubsetengine_free(ptr >>> 0, 1));
+
 export class WasmSubsetEngine {
+  __destroy_into_raw() {
+    const ptr = this.__wbg_ptr;
+    this.__wbg_ptr = 0;
+    WasmSubsetEngineFinalization.unregister(this);
+    return ptr;
+  }
+
+  free() {
+    const ptr = this.__destroy_into_raw();
+    if (ptr !== 0) {
+      wasm.__wbg_wasmsubsetengine_free(ptr, 0);
+    }
+  }
+
   constructor(sampleRate, blockSize) {
     const ret = wasm.wasmsubsetengine_new(sampleRate, blockSize);
     this.__wbg_ptr = ret >>> 0;
+    WasmSubsetEngineFinalization.register(this, this.__wbg_ptr, this);
   }
 
   block_size() {
@@ -301,6 +321,10 @@ export class WasmSubsetEngine {
   stop_track(trackIndex) {
     wasm.wasmsubsetengine_stop_track(this.__wbg_ptr, trackIndex);
   }
+}
+
+if (typeof Symbol !== "undefined" && Symbol.dispose) {
+  WasmSubsetEngine.prototype[Symbol.dispose] = WasmSubsetEngine.prototype.free;
 }
 
 export const initSync = ({ module }) => {

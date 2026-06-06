@@ -15,6 +15,7 @@ let writeInvalidPreviewCaptureJson = false;
 let hasActiveVoices = false;
 let configuredPreviewCaptureJson = "";
 const engineStop = vi.fn();
+const engineFree = vi.fn();
 
 vi.mock("../synth-worklet-dsp-bindgen.js", () => {
   class MockWasmSubsetEngine {
@@ -136,6 +137,9 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
     stop() {
       engineStop();
     }
+    free() {
+      engineFree();
+    }
     stop_track() {}
     left_ptr() {
       return 0;
@@ -241,6 +245,7 @@ function createProject(options: { patch?: Patch; track?: Track } = {}): Project 
 beforeEach(() => {
   vi.resetModules();
   engineStop.mockReset();
+  engineFree.mockReset();
   leftView.fill(0);
   rightView.fill(0);
   previewCaptureSampleCount = 0;
@@ -820,8 +825,10 @@ describe("WASM worklet renderer", () => {
     });
 
     stream!.stop();
+    stream!.stop();
 
     expect(engineStop).toHaveBeenCalledTimes(1);
+    expect(engineFree).toHaveBeenCalledTimes(1);
     expect(postMessage).not.toHaveBeenCalled();
   });
 
