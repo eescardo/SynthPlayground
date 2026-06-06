@@ -152,7 +152,8 @@ function RiskGraph(props: {
 }
 
 export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; compact?: boolean }) {
-  const gradientId = buildSignalHealthGradientId(useId());
+  const reactId = useId();
+  const gradientId = buildSignalHealthGradientId(reactId);
   const stats = props.capture?.qualityStats;
   const status = resolveSignalHealthStatus(stats);
   const peakRatio = Math.min(1, Math.max(0, stats?.peak ?? 0));

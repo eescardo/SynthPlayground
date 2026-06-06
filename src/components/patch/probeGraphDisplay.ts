@@ -18,5 +18,5 @@ export function buildSignalHealthGradientId(reactId: string) {
 }
 
 export function createSignalHealthGraphStatusClass(options: { compact?: boolean; status: SignalHealthStatus }) {
-  return `signal-health-probe ${options.compact ? "compact" : ""} ${options.status}`;
+  return ["signal-health-probe", options.compact ? "compact" : null, options.status].filter(Boolean).join(" ");
 }

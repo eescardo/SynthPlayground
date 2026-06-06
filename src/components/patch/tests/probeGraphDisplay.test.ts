@@ -11,8 +11,10 @@ describe("probe graph display helpers", () => {
     expect(formatSignalHealthStatusLabel("clean")).toBe("ok");
     expect(formatSignalHealthStatusLabel("dc")).toBe("dc");
     expect(formatSignalHealthStatusLabel("rough")).toBe("rough");
-    expect(createSignalHealthGraphStatusClass({ status: "dc" })).toContain(" dc");
-    expect(createSignalHealthGraphStatusClass({ status: "rough" })).toContain(" rough");
+    expect(createSignalHealthGraphStatusClass({ status: "dc" })).toBe("signal-health-probe dc");
+    expect(createSignalHealthGraphStatusClass({ compact: true, status: "rough" })).toBe(
+      "signal-health-probe compact rough"
+    );
   });
 
   it("sanitizes React ids before using them as SVG gradient ids", () => {
