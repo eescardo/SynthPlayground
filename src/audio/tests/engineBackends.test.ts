@@ -71,6 +71,55 @@ describe("audio engine live mute transitions", () => {
     }
   });
 
+  it("disconnects and closes the live audio context on dispose", async () => {
+    const contexts: Array<{
+      state: string;
+      close: ReturnType<typeof vi.fn>;
+      resume: ReturnType<typeof vi.fn>;
+    }> = [];
+    class MockAudioContext {
+      currentTime = 0;
+      state = "running";
+      audioWorklet = {};
+      destination = {};
+      close = vi.fn(async () => {});
+      resume = vi.fn(async () => {});
+
+      constructor() {
+        contexts.push(this);
+      }
+    }
+
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(1)
+    }));
+    const connect = vi.fn();
+    const disconnect = vi.fn();
+    const postMessage = vi.fn();
+    createInitializedWorkletNodeMock.mockImplementation(async () => ({
+      connect,
+      disconnect,
+      port: { postMessage }
+    }));
+
+    vi.stubGlobal("AudioContext", MockAudioContext);
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const backend = new RealAudioEngineBackend();
+
+      await backend.init();
+      backend.dispose();
+      await Promise.resolve();
+
+      expect(disconnect).toHaveBeenCalledTimes(1);
+      expect(contexts[0]?.close).toHaveBeenCalledTimes(1);
+    } finally {
+      createInitializedWorkletNodeMock.mockReset();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("formats worklet runtime errors for app-level reporting", () => {
     const message = {
       type: "RUNTIME_ERROR" as const,

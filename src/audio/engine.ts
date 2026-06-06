@@ -29,6 +29,10 @@ export class AudioEngine {
     return this.backend.init();
   }
 
+  dispose(): void {
+    this.backend.dispose();
+  }
+
   ensureRunning(): Promise<void> {
     return this.backend.ensureRunning();
   }
