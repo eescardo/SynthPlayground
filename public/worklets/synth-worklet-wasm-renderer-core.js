@@ -491,6 +491,37 @@ export class SharedWasmRenderStream {
   }
 }
 
+export class PreviewEnginePool {
+  constructor(createEngine, options = {}) {
+    this.createEngine = createEngine;
+    this.maxSize = options.maxSize ?? 1;
+    this.engines = [];
+  }
+
+  get length() {
+    return this.engines.length;
+  }
+
+  acquire(project, projectSpec, options) {
+    return this.engines.pop() ?? this.createEngine(project, projectSpec, options);
+  }
+
+  release(engine) {
+    if (!engine || this.engines.length >= this.maxSize) {
+      engine?.free?.();
+      return;
+    }
+    this.engines.push(engine);
+  }
+
+  dispose() {
+    const engines = this.engines.splice(0);
+    for (const engine of engines) {
+      engine.free?.();
+    }
+  }
+}
+
 export class SharedWasmRenderer {
   constructor(options = {}, implementation) {
     this.port = new NullPort();
@@ -499,7 +530,9 @@ export class SharedWasmRenderer {
     this.defaultRenderProject = options?.processorOptions?.renderProject ?? null;
     this.implementation = implementation;
     this.projectPlanCache = null;
-    this.previewEnginePool = [];
+    this.previewEnginePool = new PreviewEnginePool((project, projectSpec, engineOptions) =>
+      this.implementation.createEngine(this, project, projectSpec, engineOptions)
+    );
     if (options?.processorOptions) {
       this.configure(options.processorOptions);
     }
@@ -528,22 +561,15 @@ export class SharedWasmRenderer {
   }
 
   acquirePreviewEngine(project, projectSpec, options) {
-    return this.previewEnginePool.pop() ?? this.implementation.createEngine(this, project, projectSpec, options);
+    return this.previewEnginePool.acquire(project, projectSpec, options);
   }
 
   releasePreviewEngine(engine) {
-    if (!engine || this.previewEnginePool.length > 0) {
-      engine?.free?.();
-      return;
-    }
-    this.previewEnginePool.push(engine);
+    this.previewEnginePool.release(engine);
   }
 
   disposePreviewEnginePool() {
-    const engines = this.previewEnginePool.splice(0);
-    for (const engine of engines) {
-      engine.free?.();
-    }
+    this.previewEnginePool.dispose();
   }
 
   dispose() {

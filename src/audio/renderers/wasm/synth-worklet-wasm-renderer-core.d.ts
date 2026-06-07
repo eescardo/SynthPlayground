@@ -196,6 +196,23 @@ export class SharedWasmRenderStream {
   stop(options?: { emitPreviewCapture?: boolean }): void;
 }
 
+export class PreviewEnginePool {
+  constructor(
+    createEngine: (
+      project: AudioProject,
+      projectSpec: WasmProjectSpec,
+      options: SynthStreamStartOptions
+    ) => SharedWasmEngine,
+    options?: { maxSize?: number }
+  );
+  readonly length: number;
+  maxSize: number;
+  engines: SharedWasmEngine[];
+  acquire(project: AudioProject, projectSpec: WasmProjectSpec, options: SynthStreamStartOptions): SharedWasmEngine;
+  release(engine: SharedWasmEngine | null | undefined): void;
+  dispose(): void;
+}
+
 export class SharedWasmRenderer {
   constructor(
     options?: { processorOptions?: Partial<SynthRendererConfig> & { wasmBytes?: ArrayBuffer | Uint8Array | null } },
@@ -206,7 +223,7 @@ export class SharedWasmRenderer {
   blockSize: number;
   defaultRenderProject: AudioRenderProject | null;
   implementation: SharedWasmImplementation;
-  previewEnginePool: SharedWasmEngine[];
+  previewEnginePool: PreviewEnginePool;
   configure(config: Partial<SynthRendererConfig> & { wasmBytes?: ArrayBuffer | Uint8Array | null }): void;
   acquirePreviewEngine(
     project: AudioProject,
