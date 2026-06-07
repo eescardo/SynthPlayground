@@ -110,6 +110,12 @@ export interface SharedWasmRendererLike {
   ): Map<string, SharedWasmPreviewCaptureBuffer>;
 }
 
+export interface WasmEngineStartContext {
+  project: AudioProject;
+  projectSpec: WasmProjectSpec;
+  options: SynthStreamStartOptions;
+}
+
 export interface SharedWasmImplementation {
   compileProject: (renderProject: AudioRenderProject, options: { blockSize: number }) => WasmProjectPlan;
   compileEvents: (project: AudioProject, projectSpec: WasmProjectSpec, events: SchedulerEvent[]) => WasmEvent[];
@@ -180,6 +186,7 @@ export class SharedWasmRenderStream {
   implementation: SharedWasmImplementation;
   previewCaptureState: SharedWasmPreviewCaptureState | null;
   engineLifecycle: SharedWasmEngineLifecycle;
+  engineStartContext: WasmEngineStartContext;
   engine: SharedWasmEngine | null;
   mutedTrackIds: Set<string>;
   hasActiveVoices(): boolean;
@@ -198,43 +205,30 @@ export class SharedWasmRenderStream {
 }
 
 export class PreviewEnginePool {
-  constructor(
-    createEngine: (
-      project: AudioProject,
-      projectSpec: WasmProjectSpec,
-      options: SynthStreamStartOptions
-    ) => SharedWasmEngine,
-    options?: { maxSize?: number }
-  );
+  constructor(createEngine: (context: WasmEngineStartContext) => SharedWasmEngine, options?: { maxSize?: number });
   readonly length: number;
   maxSize: number;
   engines: SharedWasmEngine[];
-  acquire(project: AudioProject, projectSpec: WasmProjectSpec, options: SynthStreamStartOptions): SharedWasmEngine;
+  acquire(context: WasmEngineStartContext): SharedWasmEngine;
   release(engine: SharedWasmEngine | null | undefined): void;
   clear(): void;
 }
 
 export interface SharedWasmEngineLifecycle {
-  acquire(project: AudioProject, projectSpec: WasmProjectSpec, options: SynthStreamStartOptions): SharedWasmEngine;
+  acquire(context: WasmEngineStartContext): SharedWasmEngine;
   release(engine: SharedWasmEngine): void;
 }
 
 export class PreviewEngineLifecycle implements SharedWasmEngineLifecycle {
   constructor(pool: PreviewEnginePool);
   pool: PreviewEnginePool;
-  acquire(project: AudioProject, projectSpec: WasmProjectSpec, options: SynthStreamStartOptions): SharedWasmEngine;
+  acquire(context: WasmEngineStartContext): SharedWasmEngine;
   release(engine: SharedWasmEngine): void;
 }
 
 export class OneShotEngineLifecycle implements SharedWasmEngineLifecycle {
-  constructor(
-    createEngine: (
-      project: AudioProject,
-      projectSpec: WasmProjectSpec,
-      options: SynthStreamStartOptions
-    ) => SharedWasmEngine
-  );
-  acquire(project: AudioProject, projectSpec: WasmProjectSpec, options: SynthStreamStartOptions): SharedWasmEngine;
+  constructor(createEngine: (context: WasmEngineStartContext) => SharedWasmEngine);
+  acquire(context: WasmEngineStartContext): SharedWasmEngine;
   release(engine: SharedWasmEngine): void;
 }
 

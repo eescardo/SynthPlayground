@@ -161,7 +161,8 @@ export class SharedWasmRenderStream {
     this.implementation = implementation;
     this.previewCaptureState = null;
     this.engineLifecycle = this.previewing ? renderer.previewEngineLifecycle : renderer.oneShotEngineLifecycle;
-    this.engine = this.engineLifecycle.acquire(this.project, this.projectSpec, options);
+    this.engineStartContext = { project: this.project, projectSpec: this.projectSpec, options };
+    this.engine = this.engineLifecycle.acquire(this.engineStartContext);
 
     try {
       installWasmSampleAssets(this.engine, this.sampleAssetsByTrack);
@@ -497,8 +498,8 @@ export class PreviewEnginePool {
     return this.engines.length;
   }
 
-  acquire(project, projectSpec, options) {
-    return this.engines.pop() ?? this.createEngine(project, projectSpec, options);
+  acquire(context) {
+    return this.engines.pop() ?? this.createEngine(context);
   }
 
   release(engine) {
@@ -522,8 +523,8 @@ export class PreviewEngineLifecycle {
     this.pool = pool;
   }
 
-  acquire(project, projectSpec, options) {
-    return this.pool.acquire(project, projectSpec, options);
+  acquire(context) {
+    return this.pool.acquire(context);
   }
 
   release(engine) {
@@ -536,8 +537,8 @@ export class OneShotEngineLifecycle {
     this.createEngine = createEngine;
   }
 
-  acquire(project, projectSpec, options) {
-    return this.createEngine(project, projectSpec, options);
+  acquire(context) {
+    return this.createEngine(context);
   }
 
   release(engine) {
@@ -553,12 +554,12 @@ export class SharedWasmRenderer {
     this.defaultRenderProject = options?.processorOptions?.renderProject ?? null;
     this.implementation = implementation;
     this.projectPlanCache = null;
-    this.previewEnginePool = new PreviewEnginePool((project, projectSpec, engineOptions) =>
-      this.implementation.createEngine(this, project, projectSpec, engineOptions)
+    this.previewEnginePool = new PreviewEnginePool((context) =>
+      this.implementation.createEngine(this, context.project, context.projectSpec, context.options)
     );
     this.previewEngineLifecycle = new PreviewEngineLifecycle(this.previewEnginePool);
-    this.oneShotEngineLifecycle = new OneShotEngineLifecycle((project, projectSpec, engineOptions) =>
-      this.implementation.createEngine(this, project, projectSpec, engineOptions)
+    this.oneShotEngineLifecycle = new OneShotEngineLifecycle((context) =>
+      this.implementation.createEngine(this, context.project, context.projectSpec, context.options)
     );
     if (options?.processorOptions) {
       this.configure(options.processorOptions);
@@ -588,7 +589,7 @@ export class SharedWasmRenderer {
   }
 
   acquirePreviewEngine(project, projectSpec, options) {
-    return this.previewEnginePool.acquire(project, projectSpec, options);
+    return this.previewEnginePool.acquire({ project, projectSpec, options });
   }
 
   releasePreviewEngine(engine) {
