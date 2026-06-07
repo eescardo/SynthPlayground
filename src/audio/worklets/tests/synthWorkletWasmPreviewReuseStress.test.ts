@@ -12,7 +12,13 @@ const blockSize = 128;
 const durationSamples = 48_000;
 const randomSeed = 0x5eed_1234;
 const wasmPath = path.join(process.cwd(), "public", "wasm", "pkg", "dsp_core_bg.wasm");
-const runIfWasmBuilt = fs.existsSync(wasmPath) ? it : it.skip;
+
+const readWasmBytes = () => {
+  if (!fs.existsSync(wasmPath)) {
+    throw new Error("Expected WASM DSP artifact to exist. Run `pnpm run build:wasm` before this test.");
+  }
+  return fs.readFileSync(wasmPath);
+};
 
 const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
@@ -125,8 +131,8 @@ const renderPreview = (
 };
 
 describe("WASM preview engine reuse", () => {
-  runIfWasmBuilt("reuses one preview engine without changing repeated Bass Drum output or health capture", () => {
-    const wasmBytes = fs.readFileSync(wasmPath);
+  it("reuses one preview engine without changing repeated Bass Drum output or health capture", () => {
+    const wasmBytes = readWasmBytes();
     const project = createBassDrumProject();
     const renderer = createWasmRenderer({
       processorOptions: {
