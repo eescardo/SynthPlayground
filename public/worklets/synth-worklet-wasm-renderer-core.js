@@ -156,8 +156,6 @@ export class SharedWasmRenderStream {
     this.previewId = options.previewId;
     this.captureProbes = options.captureProbes || [];
     this.stopped = false;
-    this.engineFreed = false;
-    this.engineReleased = false;
     this.finalizingPreviewCapture = false;
     this.finalPreviewCaptureReadFailures = 0;
     this.implementation = implementation;
@@ -182,7 +180,7 @@ export class SharedWasmRenderStream {
           null;
       }
     } catch (error) {
-      this.discardEngine();
+      this.dispose();
       throw error;
     }
   }
@@ -196,11 +194,12 @@ export class SharedWasmRenderStream {
   }
 
   maybeEmitPreviewCapture(force = false) {
-    if (!this.previewCaptureState) {
+    const engine = this.engine;
+    if (!engine || !this.previewCaptureState) {
       return true;
     }
     const capturedSamples =
-      this.implementation.getPreviewCaptureSampleCount?.(this.renderer, this.engine, this.previewCaptureState) ?? null;
+      this.implementation.getPreviewCaptureSampleCount?.(this.renderer, engine, this.previewCaptureState) ?? null;
     if (!Number.isFinite(capturedSamples)) {
       if (force) {
         this.recordFinalPreviewCaptureReadFailure();
@@ -215,7 +214,7 @@ export class SharedWasmRenderStream {
     }
     let snapshot = null;
     try {
-      snapshot = this.implementation.readPreviewCapture?.(this.renderer, this.engine, this.previewCaptureState, force);
+      snapshot = this.implementation.readPreviewCapture?.(this.renderer, engine, this.previewCaptureState, force);
     } catch {
       if (force) {
         this.recordFinalPreviewCaptureReadFailure();
@@ -256,7 +255,7 @@ export class SharedWasmRenderStream {
             : (writeWasmCaptureSamplesToSharedBuffer(
                 this.implementation,
                 this.renderer,
-                this.engine,
+                engine,
                 capture,
                 sharedBuffer,
                 this.previewCaptureState.copiedSampleCountByProbeId
@@ -315,7 +314,7 @@ export class SharedWasmRenderStream {
   hasActiveVoices() {
     // Preview mode can outlive the audible note duration; this lets us stop as soon as
     // every released voice has fully decayed instead of waiting for the full preview timeout.
-    return Boolean(this.engine.has_active_voices?.());
+    return Boolean(this.engine?.has_active_voices?.());
   }
 
   processBlock(output) {
@@ -342,11 +341,20 @@ export class SharedWasmRenderStream {
       return true;
     }
 
-    const keepAlive = this.engine.process_block();
+    const engine = this.engine;
+    if (!engine) {
+      leftOut.fill(0);
+      if (rightOut !== leftOut) {
+        rightOut.fill(0);
+      }
+      return true;
+    }
+
+    const keepAlive = engine.process_block();
     const memory = this.implementation.getMemory(this.renderer);
-    const blockSize = this.engine.block_size();
-    const leftView = new Float32Array(memory.buffer, this.engine.left_ptr(), blockSize);
-    const rightView = new Float32Array(memory.buffer, this.engine.right_ptr(), blockSize);
+    const blockSize = engine.block_size();
+    const leftView = new Float32Array(memory.buffer, engine.left_ptr(), blockSize);
+    const rightView = new Float32Array(memory.buffer, engine.right_ptr(), blockSize);
     leftOut.set(leftView.subarray(0, leftOut.length));
     if (rightOut !== leftOut) {
       rightOut.set(rightView.subarray(0, rightOut.length));
@@ -370,7 +378,8 @@ export class SharedWasmRenderStream {
   }
 
   enqueueEvents(events) {
-    if (!events || events.length === 0 || !this.project) {
+    const engine = this.engine;
+    if (!engine || !events || events.length === 0 || !this.project) {
       return;
     }
     const activeEvents = this.filterMutedTrackEvents(events);
@@ -379,7 +388,7 @@ export class SharedWasmRenderStream {
     }
     this.eventQueue.push(...activeEvents);
     this.eventQueue.sort(compareScheduledEvents);
-    this.engine.enqueue_events(
+    engine.enqueue_events(
       JSON.stringify(this.implementation.compileEvents(this.project, this.projectSpec, activeEvents))
     );
   }
@@ -420,7 +429,7 @@ export class SharedWasmRenderStream {
       }
       return true;
     });
-    this.engine.stop_track?.(trackIndex);
+    this.engine?.stop_track?.(trackIndex);
   }
 
   setMacroValue(trackId, macroId, normalized) {
@@ -439,37 +448,25 @@ export class SharedWasmRenderStream {
 
   setRecordingTrack() {}
 
-  freeEngine() {
-    if (this.engineFreed) {
-      return;
-    }
-    this.engineFreed = true;
-    this.engineReleased = true;
-    this.engine.free?.();
+  detachEngine() {
+    const engine = this.engine;
+    this.engine = null;
+    return engine;
   }
 
-  discardEngine() {
-    if (!this.engineFreed && !this.engineReleased) {
-      try {
-        this.engine.stop();
-      } finally {
-        this.freeEngine();
-      }
+  dispose() {
+    this.stopped = true;
+    this.eventQueue.length = 0;
+    this.previewCaptureState = null;
+    const engine = this.detachEngine();
+    if (!engine) {
       return;
     }
-    this.freeEngine();
-  }
-
-  releaseEngine() {
-    if (this.engineFreed || this.engineReleased) {
-      return;
+    try {
+      engine.stop();
+    } finally {
+      engine.free?.();
     }
-    this.engineReleased = true;
-    if (this.previewing) {
-      this.renderer.releasePreviewEngine(this.engine);
-      return;
-    }
-    this.freeEngine();
   }
 
   stop(options = {}) {
@@ -478,9 +475,14 @@ export class SharedWasmRenderStream {
     if (emitPreviewCapture) {
       this.maybeEmitPreviewCapture(true);
     }
-    if (!this.engineFreed && !this.engineReleased) {
-      this.engine.stop();
-      this.releaseEngine();
+    const engine = this.detachEngine();
+    if (engine) {
+      engine.stop();
+      if (this.previewing) {
+        this.renderer.releasePreviewEngine(engine);
+      } else {
+        engine.free?.();
+      }
     }
     this.eventQueue.length = 0;
     if (!emitPreviewCapture) {

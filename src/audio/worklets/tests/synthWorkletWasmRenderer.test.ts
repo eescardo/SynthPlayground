@@ -19,6 +19,10 @@ const engineStop = vi.fn();
 const engineFree = vi.fn();
 const engineCreate = vi.fn();
 
+const expectStreamEngineDetached = (stream: unknown) => {
+  expect((stream as { engine?: unknown }).engine).toBeNull();
+};
+
 function resetMockPreviewCaptureState() {
   previewCaptureSampleCount = 0;
   captureSampleView.fill(0);
@@ -430,6 +434,7 @@ describe("WASM worklet renderer", () => {
 
     expect(stream).not.toBeNull();
     stream!.stop();
+    expectStreamEngineDetached(stream);
     expect(renderer.previewEnginePool).toHaveLength(1);
     expect(engineFree).not.toHaveBeenCalled();
 
@@ -886,6 +891,7 @@ describe("WASM worklet renderer", () => {
     stream!.stop();
     stream!.stop();
 
+    expectStreamEngineDetached(stream);
     expect(engineStop).toHaveBeenCalledTimes(1);
     expect(engineFree).not.toHaveBeenCalled();
     expect(postMessage).not.toHaveBeenCalled();
@@ -927,6 +933,7 @@ describe("WASM worklet renderer", () => {
         randomSeed: 123
       });
       stream!.stop();
+      expectStreamEngineDetached(stream);
     }
 
     expect(engineCreate).toHaveBeenCalledTimes(1);
@@ -938,7 +945,7 @@ describe("WASM worklet renderer", () => {
     expect(engineFree).toHaveBeenCalledTimes(1);
   });
 
-  it("discards a pooled preview engine when restarting the stream fails", async () => {
+  it("disposes a pooled preview engine when restarting the stream fails", async () => {
     const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
 
     const project = createProject();

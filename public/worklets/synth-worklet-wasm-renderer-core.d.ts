@@ -176,12 +176,10 @@ export class SharedWasmRenderStream {
   previewId: string | undefined;
   captureProbes: PreviewProbeRequest[];
   stopped: boolean;
-  engineFreed: boolean;
-  engineReleased: boolean;
   finalizingPreviewCapture: boolean;
   implementation: SharedWasmImplementation;
   previewCaptureState: SharedWasmPreviewCaptureState | null;
-  engine: SharedWasmEngine;
+  engine: SharedWasmEngine | null;
   mutedTrackIds: Set<string>;
   hasActiveVoices(): boolean;
   maybeEmitPreviewCapture(force?: boolean): boolean;
@@ -193,9 +191,8 @@ export class SharedWasmRenderStream {
   stopTrack(trackId: string): void;
   setMacroValue(trackId: string, macroId: string, normalized: number): void;
   setRecordingTrack(trackId?: string | null): void;
-  freeEngine(): void;
-  discardEngine(): void;
-  releaseEngine(): void;
+  detachEngine(): SharedWasmEngine | null;
+  dispose(): void;
   stop(options?: { emitPreviewCapture?: boolean }): void;
 }
 
