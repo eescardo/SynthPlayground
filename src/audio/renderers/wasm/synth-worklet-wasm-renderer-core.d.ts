@@ -179,6 +179,7 @@ export class SharedWasmRenderStream {
   finalizingPreviewCapture: boolean;
   implementation: SharedWasmImplementation;
   previewCaptureState: SharedWasmPreviewCaptureState | null;
+  engineLifecycle: SharedWasmEngineLifecycle;
   engine: SharedWasmEngine | null;
   mutedTrackIds: Set<string>;
   hasActiveVoices(): boolean;
@@ -213,6 +214,30 @@ export class PreviewEnginePool {
   dispose(): void;
 }
 
+export interface SharedWasmEngineLifecycle {
+  acquire(project: AudioProject, projectSpec: WasmProjectSpec, options: SynthStreamStartOptions): SharedWasmEngine;
+  release(engine: SharedWasmEngine): void;
+}
+
+export class PreviewEngineLifecycle implements SharedWasmEngineLifecycle {
+  constructor(pool: PreviewEnginePool);
+  pool: PreviewEnginePool;
+  acquire(project: AudioProject, projectSpec: WasmProjectSpec, options: SynthStreamStartOptions): SharedWasmEngine;
+  release(engine: SharedWasmEngine): void;
+}
+
+export class OneShotEngineLifecycle implements SharedWasmEngineLifecycle {
+  constructor(
+    createEngine: (
+      project: AudioProject,
+      projectSpec: WasmProjectSpec,
+      options: SynthStreamStartOptions
+    ) => SharedWasmEngine
+  );
+  acquire(project: AudioProject, projectSpec: WasmProjectSpec, options: SynthStreamStartOptions): SharedWasmEngine;
+  release(engine: SharedWasmEngine): void;
+}
+
 export class SharedWasmRenderer {
   constructor(
     options?: { processorOptions?: Partial<SynthRendererConfig> & { wasmBytes?: ArrayBuffer | Uint8Array | null } },
@@ -224,6 +249,8 @@ export class SharedWasmRenderer {
   defaultRenderProject: AudioRenderProject | null;
   implementation: SharedWasmImplementation;
   previewEnginePool: PreviewEnginePool;
+  previewEngineLifecycle: PreviewEngineLifecycle;
+  oneShotEngineLifecycle: OneShotEngineLifecycle;
   configure(config: Partial<SynthRendererConfig> & { wasmBytes?: ArrayBuffer | Uint8Array | null }): void;
   acquirePreviewEngine(
     project: AudioProject,

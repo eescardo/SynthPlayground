@@ -160,9 +160,8 @@ export class SharedWasmRenderStream {
     this.finalPreviewCaptureReadFailures = 0;
     this.implementation = implementation;
     this.previewCaptureState = null;
-    this.engine = this.previewing
-      ? renderer.acquirePreviewEngine(this.project, this.projectSpec, options)
-      : implementation.createEngine(renderer, this.project, this.projectSpec, options);
+    this.engineLifecycle = this.previewing ? renderer.previewEngineLifecycle : renderer.oneShotEngineLifecycle;
+    this.engine = this.engineLifecycle.acquire(this.project, this.projectSpec, options);
 
     try {
       installWasmSampleAssets(this.engine, this.sampleAssetsByTrack);
@@ -478,11 +477,7 @@ export class SharedWasmRenderStream {
     const engine = this.detachEngine();
     if (engine) {
       engine.stop();
-      if (this.previewing) {
-        this.renderer.releasePreviewEngine(engine);
-      } else {
-        engine.free?.();
-      }
+      this.engineLifecycle.release(engine);
     }
     this.eventQueue.length = 0;
     if (!emitPreviewCapture) {
@@ -522,6 +517,34 @@ export class PreviewEnginePool {
   }
 }
 
+export class PreviewEngineLifecycle {
+  constructor(pool) {
+    this.pool = pool;
+  }
+
+  acquire(project, projectSpec, options) {
+    return this.pool.acquire(project, projectSpec, options);
+  }
+
+  release(engine) {
+    this.pool.release(engine);
+  }
+}
+
+export class OneShotEngineLifecycle {
+  constructor(createEngine) {
+    this.createEngine = createEngine;
+  }
+
+  acquire(project, projectSpec, options) {
+    return this.createEngine(project, projectSpec, options);
+  }
+
+  release(engine) {
+    engine?.free?.();
+  }
+}
+
 export class SharedWasmRenderer {
   constructor(options = {}, implementation) {
     this.port = new NullPort();
@@ -531,6 +554,10 @@ export class SharedWasmRenderer {
     this.implementation = implementation;
     this.projectPlanCache = null;
     this.previewEnginePool = new PreviewEnginePool((project, projectSpec, engineOptions) =>
+      this.implementation.createEngine(this, project, projectSpec, engineOptions)
+    );
+    this.previewEngineLifecycle = new PreviewEngineLifecycle(this.previewEnginePool);
+    this.oneShotEngineLifecycle = new OneShotEngineLifecycle((project, projectSpec, engineOptions) =>
       this.implementation.createEngine(this, project, projectSpec, engineOptions)
     );
     if (options?.processorOptions) {
