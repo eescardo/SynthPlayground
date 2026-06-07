@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 
+mod generated_node_params;
 mod nodes;
 mod probe_capture;
 mod renderer;

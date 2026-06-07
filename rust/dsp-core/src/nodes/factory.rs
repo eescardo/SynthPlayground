@@ -1,4 +1,5 @@
 use super::*;
+use crate::generated_node_params;
 use crate::nodes::reverb::reverb_mode_wet_gain;
 use crate::{js_error, NodeSpecRaw};
 use serde_json::Value;
@@ -148,8 +149,16 @@ impl RuntimeNode {
                 out_index: raw.out_index,
                 input: input_index(&raw.inputs, "in"),
                 gain_cv: input_index(&raw.inputs, "gainCV"),
-                bias: SmoothParam::new(value_to_f32(p.get("bias"), 0.0), 10.0, sample_rate),
-                gain: SmoothParam::new(value_to_f32(p.get("gain"), 1.0), 10.0, sample_rate),
+                bias: SmoothParam::new(
+                    value_to_f32(p.get("bias"), generated_node_params::vca::BIAS_DEFAULT),
+                    generated_node_params::vca::BIAS_SMOOTHING_MS,
+                    sample_rate,
+                ),
+                gain: SmoothParam::new(
+                    value_to_f32(p.get("gain"), generated_node_params::vca::GAIN_DEFAULT),
+                    generated_node_params::vca::GAIN_SMOOTHING_MS,
+                    sample_rate,
+                ),
             }),
             "VCF" => Self::VCF(VcfNode {
                 out_index: raw.out_index,
