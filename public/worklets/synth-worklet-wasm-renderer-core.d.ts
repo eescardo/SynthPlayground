@@ -211,7 +211,7 @@ export class PreviewEnginePool {
   engines: SharedWasmEngine[];
   acquire(project: AudioProject, projectSpec: WasmProjectSpec, options: SynthStreamStartOptions): SharedWasmEngine;
   release(engine: SharedWasmEngine | null | undefined): void;
-  releaseAll(): void;
+  clear(): void;
 }
 
 export interface SharedWasmEngineLifecycle {
@@ -258,7 +258,7 @@ export class SharedWasmRenderer {
     options: SynthStreamStartOptions
   ): SharedWasmEngine;
   releasePreviewEngine(engine: SharedWasmEngine): void;
-  disposePreviewEnginePool(): void;
+  clearPreviewEnginePool(): void;
   dispose(): void;
   setDefaultProject(renderProject: AudioRenderProject): void;
   getProjectPlan(renderProject: AudioRenderProject): {

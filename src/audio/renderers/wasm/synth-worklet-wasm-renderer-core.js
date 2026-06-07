@@ -508,7 +508,7 @@ export class PreviewEnginePool {
     this.engines.push(engine);
   }
 
-  releaseAll() {
+  clear() {
     const engines = this.engines.splice(0);
     for (const engine of engines) {
       engine.free?.();
@@ -569,7 +569,7 @@ export class SharedWasmRenderer {
     const nextSampleRate = config.sampleRate || this.sampleRateInternal;
     const engineConfigChanged = nextBlockSize !== this.blockSize || nextSampleRate !== this.sampleRateInternal;
     if (engineConfigChanged) {
-      this.disposePreviewEnginePool();
+      this.clearPreviewEnginePool();
     }
     if (nextBlockSize !== this.blockSize) {
       this.projectPlanCache = null;
@@ -594,12 +594,12 @@ export class SharedWasmRenderer {
     this.previewEnginePool.release(engine);
   }
 
-  disposePreviewEnginePool() {
-    this.previewEnginePool.releaseAll();
+  clearPreviewEnginePool() {
+    this.previewEnginePool.clear();
   }
 
   dispose() {
-    this.disposePreviewEnginePool();
+    this.clearPreviewEnginePool();
   }
 
   setDefaultProject(renderProject) {
