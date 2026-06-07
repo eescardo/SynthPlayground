@@ -509,7 +509,7 @@ export class PreviewEnginePool {
     this.engines.push(engine);
   }
 
-  dispose() {
+  releaseAll() {
     const engines = this.engines.splice(0);
     for (const engine of engines) {
       engine.free?.();
@@ -596,7 +596,7 @@ export class SharedWasmRenderer {
   }
 
   disposePreviewEnginePool() {
-    this.previewEnginePool.dispose();
+    this.previewEnginePool.releaseAll();
   }
 
   dispose() {
