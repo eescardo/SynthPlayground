@@ -1,5 +1,7 @@
 import { formatDb, OutputLimiterPreview } from "@/lib/patch/signalHealth";
 
+const OUTPUT_LIMITER_REDUCTION_METER_FULL_SCALE_DB = 18;
+
 function clampRatio(value: number) {
   return Math.min(1, Math.max(0, value));
 }
@@ -15,8 +17,12 @@ function formatReductionDb(
 export function OutputLimiterReadout({ preview }: { preview?: OutputLimiterPreview | null }) {
   const populated = Boolean(preview?.populated);
   const limiterEnabled = preview?.limiterEnabled !== false;
-  const reductionAverageRatio = populated ? clampRatio(Math.abs(preview?.reductionAverageDb ?? 0) / 18) : 0;
-  const reductionPeakRatio = populated ? clampRatio(Math.abs(preview?.reductionDb ?? 0) / 18) : 0;
+  const reductionAverageRatio = populated
+    ? clampRatio(Math.abs(preview?.reductionAverageDb ?? 0) / OUTPUT_LIMITER_REDUCTION_METER_FULL_SCALE_DB)
+    : 0;
+  const reductionPeakRatio = populated
+    ? clampRatio(Math.abs(preview?.reductionDb ?? 0) / OUTPUT_LIMITER_REDUCTION_METER_FULL_SCALE_DB)
+    : 0;
   const drivenRatio = populated ? clampRatio(preview?.drivenPeak ?? 0) : 0;
   const drivenRmsRatio = populated ? clampRatio(preview?.drivenRms ?? 0) : 0;
   const postRatio = populated ? clampRatio(preview?.postPeak ?? 0) : 0;
