@@ -12,9 +12,19 @@ import {
   PATCH_NODE_WIDTH,
   setFaceLineWidth
 } from "@/components/patch/moduleFaces/shared";
+import { ParamSchema } from "@/types/patch";
+
+function getFloatParamMax(schema: ParamSchema[], paramId: string, fallback: number) {
+  const param = schema.find((entry) => entry.id === paramId);
+  return param?.type === "float" ? param.range.max : fallback;
+}
+
+function formatGainAxisLabel(value: number) {
+  return Number.isInteger(value) ? value.toFixed(1) : value.toFixed(2);
+}
 
 export const drawVcaModuleFace: ModuleFaceRenderer = (ctx, _patch, node, schema, x, y, accentColor) => {
-  const maxGain = 2;
+  const maxGain = Math.max(1, getFloatParamMax(schema, "gain", 1));
   const toGraphUnit = (value: number) => clamp(value / maxGain, 0, 1);
   const graphLeftInset = PATCH_MODULE_FACE_INSET_X + 12;
   const graph = {
@@ -85,7 +95,7 @@ export const drawVcaModuleFace: ModuleFaceRenderer = (ctx, _patch, node, schema,
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
   ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textAlign = "right";
-  ctx.fillText("2.0", graph.x - 2, graph.y + 7);
+  ctx.fillText(formatGainAxisLabel(maxGain), graph.x - 2, graph.y + 7);
   ctx.fillText("1.0", graph.x - 2, unityY + 3);
   ctx.fillText("0", graph.x - 2, graph.y + graph.height);
   if (effectiveGain >= 0.1) {
