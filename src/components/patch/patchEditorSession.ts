@@ -10,6 +10,7 @@ import {
   PreviewProbeCapture
 } from "@/types/probes";
 import { PatchWireCommitFeedback } from "@/components/patch/patchWireFeedback";
+import { OutputLimiterPreview } from "@/lib/patch/signalHealth";
 
 export interface PatchEditorSessionModel {
   patch: Patch;
@@ -18,6 +19,7 @@ export interface PatchEditorSessionModel {
   macroValues: Record<string, number>;
   selectedNodeId?: string;
   selectedMacroId?: string;
+  expandedNodeId?: string;
   validationIssues: PatchValidationIssue[];
   invalid?: boolean;
   migrationNotice?: string | null;
@@ -29,6 +31,7 @@ export interface PatchEditorSessionActions {
   onReady?: (macroValues: Record<string, number>) => void;
   onSelectNode: (nodeId?: string) => void;
   onSelectMacro: (macroId?: string) => void;
+  onSetExpandedNode: (nodeId?: string) => void;
   onClearSelectedMacro: () => void;
   onClearPatch: () => void;
   onApplyOp: (op: PatchOp) => void;
@@ -53,8 +56,10 @@ export interface PatchEditorStageModel {
   validationIssues: PatchValidationIssue[];
   probeState: PatchProbeEditorState;
   selectedNodeId?: string;
+  expandedNodeId?: string;
   selectedConnectionId?: string;
   selectedMacroNodeIds: Set<string>;
+  outputLimiterPreview?: OutputLimiterPreview | null;
   structureLocked?: boolean;
 }
 
@@ -63,6 +68,7 @@ export interface PatchEditorStageActions {
   onApplyOp: (op: PatchOp) => void;
   probeActions: PatchProbeEditorActions;
   onSelectNode: (nodeId?: string) => void;
+  onSetExpandedNode: (nodeId?: string) => void;
   onSelectConnection: (connectionId?: string) => void;
   onToggleAttachProbe: (probeId: string) => void;
   onCancelAttachProbe: () => void;
@@ -97,6 +103,7 @@ export interface PatchInspectorModel {
   selectedMacroId?: string;
   selectedSchema?: NonNullable<ReturnType<typeof getModuleSchema>>;
   previewCapture?: PreviewProbeCapture;
+  outputLimiterPreview?: OutputLimiterPreview | null;
   previewProgress: number;
   attachingProbeId?: string | null;
   wireCommitFeedback?: PatchWireCommitFeedback | null;

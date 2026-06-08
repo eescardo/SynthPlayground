@@ -5,6 +5,7 @@ import { resolveMacroKeyframeIndexAtValue } from "@/lib/patch/macroKeyframes";
 import { PatchModuleParameter, shouldRenderParamInGenericInspector } from "@/components/patch/PatchModuleParameter";
 import { SamplePlayerInspectorSection } from "@/components/patch/SamplePlayerInspectorSection";
 import { ProbeInspectorSection } from "@/components/patch/ProbeInspectorSection";
+import { OutputLimiterReadout } from "@/components/patch/OutputLimiterReadout";
 import {
   formatPatchEndpointLabel,
   formatPatchPortLabel,
@@ -229,6 +230,7 @@ export function PatchInspector(props: PatchInspectorProps) {
                 onChangeMacroValue={actions.onChangeMacroValue}
               />
             ))}
+          {selectedPort && <OutputLimiterReadout preview={model.outputLimiterPreview} />}
           {selectedNode.typeId === "Compressor" && <CompressorDerivedReadouts node={selectedNode} />}
           {selectedNode.typeId === "SamplePlayer" && (
             <SamplePlayerInspectorSection

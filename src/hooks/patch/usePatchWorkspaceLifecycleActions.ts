@@ -62,6 +62,7 @@ export function createDuplicatePatchWorkspaceTab({
     selectedNodeId: activeTab.selectedNodeId,
     selectedMacroId: activeTab.selectedMacroId,
     selectedProbeId: undefined,
+    expandedNodeId: undefined,
     probes: activeTab.probes.map((probe) => ({
       ...structuredClone(probe),
       id: createId("probe")
@@ -121,6 +122,7 @@ export function usePatchWorkspaceLifecycleActions({
         selectedNodeId: undefined,
         selectedMacroId: undefined,
         selectedProbeId: undefined,
+        expandedNodeId: undefined,
         probes: [],
         migrationNotice: null
       }));
@@ -158,6 +160,7 @@ export function usePatchWorkspaceLifecycleActions({
     updateActiveTab((tab) => ({
       ...tab,
       selectedNodeId: tab.selectedNodeId && nextNodeIds.has(tab.selectedNodeId) ? tab.selectedNodeId : undefined,
+      expandedNodeId: tab.expandedNodeId && nextNodeIds.has(tab.expandedNodeId) ? tab.expandedNodeId : undefined,
       migrationNotice:
         droppedLayoutCount > 0
           ? `Preset updated. ${droppedLayoutCount} saved layout position${droppedLayoutCount === 1 ? "" : "s"} were discarded because those nodes changed in the new preset.`
@@ -185,6 +188,7 @@ export function usePatchWorkspaceLifecycleActions({
       selectedNodeId: undefined,
       selectedMacroId: undefined,
       selectedProbeId: undefined,
+      expandedNodeId: undefined,
       probes: [],
       migrationNotice: null
     }));
@@ -213,6 +217,7 @@ export function usePatchWorkspaceLifecycleActions({
       patchId: duplicate.id,
       selectedNodeId: undefined,
       selectedMacroId: undefined,
+      expandedNodeId: undefined,
       migrationNotice: null
     }));
     schedulePatchPreview(duplicate.id, undefined, activeTab ? tabMacroValuesById[activeTab.id] : undefined);

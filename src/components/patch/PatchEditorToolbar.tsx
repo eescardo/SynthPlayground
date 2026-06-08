@@ -87,6 +87,15 @@ export function PatchEditorToolbar(props: PatchEditorToolbarProps) {
             >
               Pitch Tracker
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                props.onAddProbe("signal_health");
+                close();
+              }}
+            >
+              Signal Health
+            </button>
           </>
         )}
       </PatchToolbarPicker>

@@ -10,7 +10,7 @@
   },
   {
     "presetId": "preset_bass_drum",
-    "presetVersion": 1,
+    "presetVersion": 2,
     "name": "Bass Drum",
     "macroIds": [
       "macro_drive",

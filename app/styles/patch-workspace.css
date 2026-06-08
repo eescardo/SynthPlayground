@@ -484,6 +484,11 @@
   letter-spacing: 0.01em;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.16);
   white-space: nowrap;
+  transition:
+    border-color 0.5s ease,
+    background 0.5s ease,
+    box-shadow 0.5s ease,
+    opacity 0.18s ease;
 }
 
 .patch-host-port.pending {
@@ -494,8 +499,18 @@
 }
 
 .patch-host-port.locked {
-  cursor: not-allowed;
+  cursor: pointer;
   opacity: 0.72;
+}
+
+.patch-host-port.clipping {
+  border-color: #ff4c5f;
+  background: #3b1218;
+  color: #ffe4e7;
+  box-shadow:
+    0 0 0 1px rgba(255, 76, 95, 0.52),
+    0 0 20px rgba(255, 76, 95, 0.66),
+    0 6px 16px rgba(0, 0, 0, 0.28);
 }
 
 .patch-keyboard-focus-ring {
@@ -640,6 +655,16 @@
   font-size: 0.58rem;
 }
 
+.patch-probe-card.signal_health:not(.expanded) .patch-probe-card-header {
+  gap: 0.18rem;
+  font-size: 0.58rem;
+}
+
+.patch-probe-card.signal_health:not(.expanded) .patch-probe-attach-button {
+  padding: 0.06rem 0.2rem;
+  font-size: 0.52rem;
+}
+
 .patch-probe-card.spectrum:not(.expanded) .patch-probe-header-actions {
   gap: 0.18rem;
 }
@@ -698,6 +723,148 @@
 .patch-probe-adsr-label {
   fill: rgba(255, 220, 142, 0.82);
   font-size: 3.7px;
+}
+
+.signal-health-probe {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: hidden;
+}
+
+.signal-health-bg {
+  fill: #071018;
+}
+
+.signal-health-rail,
+.signal-health-risk-frame {
+  fill: rgba(131, 173, 216, 0.08);
+  stroke: rgba(131, 173, 216, 0.2);
+  stroke-width: 0.45;
+  vector-effect: non-scaling-stroke;
+}
+
+.signal-health-peak-fill {
+  opacity: 0.62;
+}
+
+.signal-health-hot-line {
+  stroke: rgba(246, 200, 95, 0.72);
+  stroke-width: 0.45;
+  vector-effect: non-scaling-stroke;
+}
+
+.signal-health-clip-line {
+  stroke: rgba(255, 76, 95, 0.85);
+  stroke-width: 0.55;
+  vector-effect: non-scaling-stroke;
+}
+
+.signal-health-rms-marker {
+  stroke: #e7f3ff;
+  stroke-width: 0.55;
+  vector-effect: non-scaling-stroke;
+}
+
+.signal-health-label,
+.signal-health-threshold-label {
+  fill: rgba(231, 243, 255, 0.58);
+  font-size: 2.45px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.signal-health-risk-bars text {
+  fill: rgba(231, 243, 255, 0.62);
+  font-size: 2.7px;
+  font-weight: 720;
+  text-transform: uppercase;
+}
+
+.signal-health-risk-track {
+  fill: rgba(131, 173, 216, 0.09);
+}
+
+.signal-health-risk-ok-zone {
+  fill: rgba(123, 228, 155, 0.12);
+}
+
+.signal-health-risk-bad-zone {
+  fill: rgba(255, 76, 95, 0.13);
+}
+
+.signal-health-risk-threshold {
+  stroke: rgba(246, 200, 95, 0.34);
+  stroke-width: 0.45;
+  stroke-dasharray: 1.2 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.signal-health-risk-fill {
+  fill: rgba(123, 228, 155, 0.82);
+}
+
+.signal-health-risk-fill.hot {
+  fill: rgba(246, 200, 95, 0.88);
+}
+
+.signal-health-risk-fill.clip {
+  fill: rgba(255, 76, 95, 0.88);
+}
+
+.signal-health-risk-label {
+  paint-order: stroke fill;
+  stroke: rgba(123, 228, 155, 0.18);
+  stroke-width: 1.8px;
+  vector-effect: non-scaling-stroke;
+}
+
+.signal-health-risk-row.hot .signal-health-risk-label {
+  fill: rgba(255, 225, 156, 0.9);
+  stroke: rgba(246, 200, 95, 0.4);
+}
+
+.signal-health-risk-row.clip .signal-health-risk-label {
+  fill: rgba(255, 213, 218, 0.94);
+  stroke: rgba(255, 76, 95, 0.52);
+}
+
+.signal-health-threshold-label {
+  fill: rgba(246, 200, 95, 0.72);
+}
+
+.signal-health-threshold-label.clip {
+  fill: rgba(255, 76, 95, 0.82);
+}
+
+.signal-health-threshold-label.rms {
+  fill: rgba(231, 243, 255, 0.76);
+}
+
+.signal-health-status,
+.signal-health-readout {
+  fill: rgba(231, 243, 255, 0.84);
+  font-size: 3.25px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.signal-health-probe.dc .signal-health-status {
+  fill: rgba(255, 213, 218, 0.92);
+}
+
+.signal-health-probe.rough .signal-health-status {
+  fill: rgba(255, 225, 156, 0.92);
+}
+
+.signal-health-readout {
+  fill: rgba(231, 243, 255, 0.88);
+  font-size: 2.95px;
+}
+
+.signal-health-probe.compact .signal-health-readout {
+  display: none;
 }
 
 .patch-probe-spectrum-shell {
@@ -1143,6 +1310,245 @@
   line-height: 1.2;
 }
 
+.output-limiter-readout {
+  position: relative;
+  border-color: rgba(151, 214, 255, 0.16);
+  background: rgba(8, 17, 27, 0.36);
+}
+
+.output-limiter-readout.empty .output-limiter-visual,
+.output-limiter-readout.empty .output-limiter-reduction-row,
+.output-limiter-readout.empty .output-limiter-grid {
+  opacity: 0.3;
+}
+
+.output-limiter-readout.active {
+  border-color: rgba(255, 76, 95, 0.42);
+  background: rgba(48, 14, 21, 0.3);
+}
+
+.output-limiter-readout.disabled {
+  border-color: rgba(131, 173, 216, 0.1);
+  background: rgba(8, 17, 27, 0.2);
+  opacity: 0.58;
+}
+
+.output-limiter-readout.disabled .output-limiter-visual,
+.output-limiter-readout.disabled .output-limiter-grid {
+  filter: grayscale(0.6);
+}
+
+.output-limiter-empty {
+  position: absolute;
+  inset: 2.25rem 0.55rem auto;
+  min-height: 4rem;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(131, 173, 216, 0.22);
+  border-radius: 0.45rem;
+  background: rgba(7, 13, 19, 0.64);
+  color: rgba(215, 235, 255, 0.58);
+  font-size: 0.72rem;
+  pointer-events: none;
+}
+
+.output-limiter-pill {
+  justify-self: start;
+  padding: 0.12rem 0.34rem;
+  border: 1px solid rgba(151, 214, 255, 0.24);
+  border-radius: 999px;
+  color: rgba(215, 235, 255, 0.72);
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.output-limiter-visual {
+  display: grid;
+  grid-template-columns: 1.45rem minmax(0, 1fr) 1.45rem;
+  gap: 0.45rem;
+  min-height: 4.6rem;
+  align-items: stretch;
+}
+
+.output-limiter-meter {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  --meter-height: 4.6rem;
+  border: 1px solid rgba(131, 173, 216, 0.18);
+  border-radius: 0.35rem;
+  background: rgba(131, 173, 216, 0.07);
+}
+
+.output-limiter-meter span {
+  width: 100%;
+  min-height: 2px;
+  opacity: 0.6;
+  background: linear-gradient(0deg, #7be49b 0%, #7be49b 72%, #f6c85f 90%, #ff4c5f 100%);
+  background-size: 100% var(--meter-height);
+  background-position: bottom;
+}
+
+.output-limiter-meter i {
+  position: absolute;
+  left: 0.15rem;
+  right: 0.15rem;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(231, 243, 255, 0.9);
+  box-shadow: 0 0 5px rgba(231, 243, 255, 0.36);
+  transform: translateY(1px);
+}
+
+.output-limiter-meter strong {
+  position: absolute;
+  bottom: 0.44rem;
+  transform: rotate(-90deg);
+  color: rgba(7, 13, 19, 0.7);
+  font-size: 0.46rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.output-limiter-curve {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(131, 173, 216, 0.14);
+  border-radius: 0.45rem;
+  background:
+    linear-gradient(90deg, rgba(131, 173, 216, 0.06) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(131, 173, 216, 0.05) 1px, transparent 1px), rgba(7, 13, 19, 0.5);
+  background-size:
+    25% 100%,
+    100% 50%,
+    auto;
+}
+
+.output-limiter-curve svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.output-limiter-curve-raw {
+  fill: none;
+  stroke: rgba(131, 173, 216, 0.38);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.output-limiter-curve-shaped {
+  fill: none;
+  stroke: rgba(255, 220, 142, 0.86);
+  stroke-width: 1.7;
+  vector-effect: non-scaling-stroke;
+}
+
+.output-limiter-curve circle {
+  fill: #ff4c5f;
+  stroke: #ffe4e7;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.output-limiter-legend,
+.output-limiter-axis-label {
+  fill: rgba(215, 235, 255, 0.54);
+  font-size: 3px;
+  font-weight: 760;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.output-limiter-legend.shaped {
+  fill: rgba(255, 220, 142, 0.78);
+}
+
+.output-limiter-legend.raw {
+  fill: rgba(131, 173, 216, 0.62);
+}
+
+.output-limiter-reduction-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.42rem;
+  align-items: center;
+  min-height: 1rem;
+  color: rgba(215, 235, 255, 0.62);
+  font-size: 0.58rem;
+  font-weight: 720;
+}
+
+.output-limiter-reduction-row strong {
+  color: #e7f3ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.62rem;
+  font-weight: 760;
+}
+
+.output-limiter-reduction-track {
+  position: relative;
+  height: 0.48rem;
+  overflow: hidden;
+  border: 1px solid rgba(131, 173, 216, 0.14);
+  border-radius: 999px;
+  background: rgba(131, 173, 216, 0.07);
+}
+
+.output-limiter-reduction {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 100%;
+  background: rgba(255, 76, 95, 0.82);
+  min-width: 0;
+  border-radius: inherit;
+}
+
+.output-limiter-reduction.ghost {
+  background: rgba(255, 76, 95, 0.24);
+}
+
+.output-limiter-grid,
+.signal-health-inspector-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.16rem 0.5rem;
+  color: rgba(215, 235, 255, 0.68);
+  font-size: 0.68rem;
+}
+
+.output-limiter-grid strong,
+.signal-health-inspector-grid strong {
+  color: #e7f3ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.68rem;
+  font-weight: 750;
+}
+
+.output-limiter-grid strong {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.28rem;
+}
+
+.output-limiter-grid em {
+  color: rgba(215, 235, 255, 0.45);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 650;
+}
+
 .param-authoring-mode {
   flex: 0 0 auto;
   display: inline-flex;
@@ -1261,6 +1667,26 @@
   flex-direction: column;
   gap: 0.18rem;
   min-width: 0;
+}
+
+.param-baseline-restore-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 0.12rem 0 0;
+  color: rgba(210, 255, 222, 0.82);
+  font-size: 0.62rem;
+  font-weight: 650;
+  line-height: 1.15;
+}
+
+.param-baseline-original {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .param-value-editor {
@@ -1777,10 +2203,22 @@
 }
 
 .macro-binding-detail-mode {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  min-width: 0;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: #d7e5f4;
+}
+
+.macro-binding-detail-mode > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .macro-binding-points {
@@ -1905,6 +2343,33 @@
   border: 1px solid rgba(255, 143, 153, 0.22);
   background: rgba(123, 45, 53, 0.2);
   color: #ffd7dc;
+}
+
+.patch-diff-restore-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 0.06rem 0.34rem;
+  border-radius: 999px;
+  border: 1px solid rgba(103, 224, 153, 0.34);
+  background: rgba(68, 135, 99, 0.22);
+  color: #d9f9e7;
+  font-size: 0.52rem;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.patch-diff-restore-button:not(:disabled):hover {
+  border-color: rgba(151, 255, 190, 0.62);
+  background: rgba(87, 176, 124, 0.34);
+}
+
+.patch-diff-restore-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .patch-diff-section {

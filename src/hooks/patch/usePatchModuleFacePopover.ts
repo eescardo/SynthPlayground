@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { CanvasRect } from "@/components/patch/patchCanvasGeometry";
 
 interface UsePatchModuleFacePopoverParams {
+  expandedNodeId?: string;
   getPopoverRect: (nodeId: string) => CanvasRect | null;
   nodeExists: (nodeId: string) => boolean;
+  onSetExpandedNode: (nodeId?: string) => void;
 }
 
 export type PatchModuleFacePopoverPointerResult =
@@ -13,25 +15,30 @@ export type PatchModuleFacePopoverPointerResult =
   | { kind: "dismissed" }
   | { kind: "inside-popover"; nodeId: string };
 
-export function usePatchModuleFacePopover({ getPopoverRect, nodeExists }: UsePatchModuleFacePopoverParams) {
-  const [popoverNodeId, setPopoverNodeId] = useState<string | null>(null);
+export function usePatchModuleFacePopover({
+  expandedNodeId,
+  getPopoverRect,
+  nodeExists,
+  onSetExpandedNode
+}: UsePatchModuleFacePopoverParams) {
+  const popoverNodeId = expandedNodeId ?? null;
 
   useEffect(() => {
     if (!popoverNodeId || nodeExists(popoverNodeId)) {
       return;
     }
-    setPopoverNodeId(null);
-  }, [nodeExists, popoverNodeId]);
+    onSetExpandedNode(undefined);
+  }, [nodeExists, onSetExpandedNode, popoverNodeId]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setPopoverNodeId(null);
+        onSetExpandedNode(undefined);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [onSetExpandedNode]);
 
   const handleCanvasPointerDown = useCallback(
     (rawX: number, rawY: number) => {
@@ -45,17 +52,17 @@ export function usePatchModuleFacePopover({ getPopoverRect, nodeExists }: UsePat
       if (insidePopover) {
         return { kind: "inside-popover", nodeId } as const;
       }
-      setPopoverNodeId(null);
+      onSetExpandedNode(undefined);
       return { kind: "dismissed" } as const;
     },
-    [getPopoverRect, popoverNodeId]
+    [getPopoverRect, onSetExpandedNode, popoverNodeId]
   );
 
   return {
-    closePopover: () => setPopoverNodeId(null),
+    closePopover: () => onSetExpandedNode(undefined),
     handleCanvasPointerDown,
-    openPopoverForNode: setPopoverNodeId,
-    togglePopoverForNode: (nodeId: string) => setPopoverNodeId((current) => (current === nodeId ? null : nodeId)),
+    openPopoverForNode: onSetExpandedNode,
+    togglePopoverForNode: (nodeId: string) => onSetExpandedNode(popoverNodeId === nodeId ? undefined : nodeId),
     popoverNodeId
   };
 }

@@ -1,6 +1,5 @@
 import {
   clamp,
-  clamp01,
   getNumericParam,
   ModuleFaceRenderer,
   PATCH_COLOR_ADSR_GRAPH_BORDER,
@@ -13,8 +12,15 @@ import {
   PATCH_NODE_WIDTH,
   setFaceLineWidth
 } from "@/components/patch/moduleFaces/shared";
+import { NODE_PARAMS } from "@/lib/patch/generatedNodeParams";
+
+function formatGainAxisLabel(value: number) {
+  return Number.isInteger(value) ? value.toFixed(1) : value.toFixed(2);
+}
 
 export const drawVcaModuleFace: ModuleFaceRenderer = (ctx, _patch, node, schema, x, y, accentColor) => {
+  const maxGain = Math.max(1, NODE_PARAMS.vca.gain.max);
+  const toGraphUnit = (value: number) => clamp(value / maxGain, 0, 1);
   const graphLeftInset = PATCH_MODULE_FACE_INSET_X + 12;
   const graph = {
     x: x + graphLeftInset,
@@ -22,13 +28,14 @@ export const drawVcaModuleFace: ModuleFaceRenderer = (ctx, _patch, node, schema,
     width: PATCH_NODE_WIDTH - graphLeftInset - PATCH_MODULE_FACE_INSET_X,
     height: PATCH_NODE_HEIGHT - PATCH_MODULE_FACE_TOP - PATCH_MODULE_FACE_BOTTOM_INSET - 10
   };
-  const bias = clamp01(getNumericParam(node, schema, "bias"));
-  const gain = clamp01(getNumericParam(node, schema, "gain"));
-  const top = clamp01(bias + gain);
+  const bias = clamp(getNumericParam(node, schema, "bias"), 0, maxGain);
+  const gain = clamp(getNumericParam(node, schema, "gain"), 0, maxGain);
+  const top = clamp(bias + gain, 0, maxGain);
   const effectiveGain = top - bias;
   const baseY = graph.y + graph.height;
-  const biasY = graph.y + graph.height * (1 - bias);
-  const topY = graph.y + graph.height * (1 - top);
+  const unityY = graph.y + graph.height * (1 - toGraphUnit(1));
+  const biasY = graph.y + graph.height * (1 - toGraphUnit(bias));
+  const topY = graph.y + graph.height * (1 - toGraphUnit(top));
   const startX = graph.x + 8;
   const biasX = graph.x + graph.width * 0.25;
   const topX = graph.x + graph.width * 0.75;
@@ -46,9 +53,17 @@ export const drawVcaModuleFace: ModuleFaceRenderer = (ctx, _patch, node, schema,
   ctx.strokeStyle = PATCH_COLOR_MODULE_FACE_ROW_BG;
   setFaceLineWidth(ctx, 1);
   ctx.beginPath();
+  ctx.moveTo(graph.x + 5, unityY);
+  ctx.lineTo(graph.x + graph.width - 5, unityY);
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(158, 192, 223, 0.42)";
+  ctx.setLineDash([2, 3]);
+  ctx.beginPath();
   ctx.moveTo(graph.x + 5, biasY);
   ctx.lineTo(graph.x + graph.width - 5, biasY);
   ctx.stroke();
+  ctx.setLineDash([]);
 
   ctx.strokeStyle = accentColor;
   setFaceLineWidth(ctx, 2);
@@ -61,7 +76,7 @@ export const drawVcaModuleFace: ModuleFaceRenderer = (ctx, _patch, node, schema,
   ctx.lineTo(endX, topY);
   ctx.stroke();
 
-  if (bias + gain > 1) {
+  if (bias + gain > maxGain) {
     ctx.strokeStyle = "rgba(255, 214, 145, 0.82)";
     setFaceLineWidth(ctx, 1);
     ctx.setLineDash([3, 3]);
@@ -75,7 +90,8 @@ export const drawVcaModuleFace: ModuleFaceRenderer = (ctx, _patch, node, schema,
   ctx.fillStyle = PATCH_COLOR_NODE_SUBTITLE;
   ctx.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textAlign = "right";
-  ctx.fillText("1.0", graph.x - 2, graph.y + 7);
+  ctx.fillText(formatGainAxisLabel(maxGain), graph.x - 2, graph.y + 7);
+  ctx.fillText("1.0", graph.x - 2, unityY + 3);
   ctx.fillText("0", graph.x - 2, graph.y + graph.height);
   if (effectiveGain >= 0.1) {
     ctx.textAlign = "right";

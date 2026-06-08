@@ -313,6 +313,29 @@ export const applyPatchOp = (patch: Patch, op: PatchOp): Patch => {
       return next;
     }
 
+    case "setMacroBinding": {
+      const macro = next.ui.macros.find((entry) => entry.id === op.macroId);
+      if (!macro) {
+        throw new Error(`Unknown macro: ${op.macroId}`);
+      }
+      const bindingTarget = { nodeId: op.nodeId, paramId: op.paramId };
+      const nextBinding: MacroBinding = {
+        nodeId: op.nodeId,
+        paramId: op.paramId,
+        map: op.map,
+        min: op.min,
+        max: op.max,
+        points: op.points?.map((point) => ({ ...point }))
+      };
+      const bindingIndex = macro.bindings.findIndex((binding) => isMacroBindingTarget(binding, bindingTarget));
+      if (bindingIndex === -1) {
+        macro.bindings.push(nextBinding);
+        return next;
+      }
+      macro.bindings[bindingIndex] = nextBinding;
+      return next;
+    }
+
     case "unbindMacro": {
       const macro = next.ui.macros.find((entry) => entry.id === op.macroId);
       if (!macro) {

@@ -2,8 +2,9 @@ use crate::nodes::RuntimeNode;
 use crate::probe_capture::{
     advance_preview_capture_spectrum_analysis, build_preview_capture_adsr_estimate,
     build_preview_capture_final_scope, build_preview_capture_final_spectrum,
-    build_preview_capture_snapshot_samples, resolve_preview_capture_snapshot_stride,
-    update_and_build_preview_capture_spectrum_frames, TrackProbeCaptureState,
+    build_preview_capture_quality_stats, build_preview_capture_snapshot_samples,
+    resolve_preview_capture_snapshot_stride, update_and_build_preview_capture_spectrum_frames,
+    TrackProbeCaptureState,
 };
 use crate::{
     build_sample_asset, clamp, now_ms, EngineProfileStats, HostSignalIndices,
@@ -322,6 +323,7 @@ impl TrackRuntime {
                     final_spectrum,
                     final_scope,
                     adsr_estimate,
+                    quality_stats: build_preview_capture_quality_stats(capture, captured_samples),
                 }
             })
             .collect()

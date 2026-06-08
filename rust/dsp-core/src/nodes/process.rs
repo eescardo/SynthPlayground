@@ -1,4 +1,5 @@
 use super::{formulas::*, noise::next_noise, reverb::*, *};
+use crate::generated_node_params;
 
 #[inline(always)]
 fn advance_adsr_stage_pos(node: &mut AdsrNode, duration_seconds: f32, sample_rate: f32) -> f32 {
@@ -186,8 +187,11 @@ impl RuntimeNode {
                     } else {
                         gain_cv * 0.5 + 0.5
                     };
-                    let gain_eff =
-                        clamp(node.bias.next() + node.gain.next() * gain_cv_norm, 0.0, 1.0);
+                    let gain_eff = clamp(
+                        node.bias.next() + node.gain.next() * gain_cv_norm,
+                        generated_node_params::vca::GAIN_MIN,
+                        generated_node_params::vca::GAIN_MAX,
+                    );
                     signal_buffers[out_start + frame] = input * gain_eff;
                 }
             }
@@ -523,7 +527,11 @@ impl RuntimeNode {
                 } else {
                     gain_cv * 0.5 + 0.5
                 };
-                let gain_eff = clamp(node.bias.next() + node.gain.next() * gain_cv_norm, 0.0, 1.0);
+                let gain_eff = clamp(
+                    node.bias.next() + node.gain.next() * gain_cv_norm,
+                    generated_node_params::vca::GAIN_MIN,
+                    generated_node_params::vca::GAIN_MAX,
+                );
                 let out = frame_signal_offset(node.out_index, block_size, frame);
                 signal_buffers[out] = input * gain_eff;
             }

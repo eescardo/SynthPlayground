@@ -5811,7 +5811,7 @@ export const bassDrumPatch = (): Patch => {
     schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: "preset_bass_drum",
     name: "Bass Drum",
-    meta: { source: "preset", presetId: "preset_bass_drum", presetVersion: 1 },
+    meta: { source: "preset", presetId: "preset_bass_drum", presetVersion: 2 },
     nodes: [
       {
         id: "vco1",
@@ -5927,7 +5927,7 @@ export const bassDrumPatch = (): Patch => {
         typeId: "Mixer4",
         params: {
           ...createDefaultParamsForType("Mixer4"),
-          gain1: 1,
+          gain1: 0.8,
           gain2: 0.255,
           gain3: 0,
           gain4: 1
@@ -5987,7 +5987,7 @@ export const bassDrumPatch = (): Patch => {
         }
       }
     ],
-    ports: [createPatchOutputPort({ gainDb: 6, limiter: true })],
+    ports: [createPatchOutputPort({ gainDb: -2, limiter: true })],
     connections: [
       {
         id: "c1",

@@ -34,6 +34,7 @@ interface PatchWorkspaceViewProps {
   patchEditError?: string | null;
   selectedNodeId?: string;
   selectedMacroId?: string;
+  expandedNodeId?: string;
   validationIssues: PatchValidationIssue[];
   invalid?: boolean;
   onBackToComposer: () => void;
@@ -53,6 +54,7 @@ interface PatchWorkspaceViewProps {
   onInstrumentEditorReady: (macroValues: Record<string, number>) => void;
   onSelectNode: (nodeId?: string) => void;
   onSelectMacro: (macroId?: string) => void;
+  onSetExpandedNode: (nodeId?: string) => void;
   onClearSelectedMacro: () => void;
   onClearPatch: () => void;
   onApplyOp: (op: PatchOp) => void;
@@ -77,6 +79,7 @@ function createPatchEditorSession(props: PatchWorkspaceViewProps): PatchEditorSe
       patchEditError: props.patchEditError,
       selectedNodeId: props.selectedNodeId,
       selectedMacroId: props.selectedMacroId,
+      expandedNodeId: props.expandedNodeId,
       validationIssues: props.validationIssues,
       invalid: props.invalid
     },
@@ -84,6 +87,7 @@ function createPatchEditorSession(props: PatchWorkspaceViewProps): PatchEditorSe
       onReady: props.onInstrumentEditorReady,
       onSelectNode: props.onSelectNode,
       onSelectMacro: props.onSelectMacro,
+      onSetExpandedNode: props.onSetExpandedNode,
       onClearSelectedMacro: props.onClearSelectedMacro,
       onClearPatch: props.onClearPatch,
       onApplyOp: props.onApplyOp,

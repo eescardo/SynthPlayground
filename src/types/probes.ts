@@ -1,4 +1,4 @@
-export type PatchProbeKind = "scope" | "spectrum" | "pitch_tracker";
+export type PatchProbeKind = "scope" | "spectrum" | "pitch_tracker" | "signal_health";
 
 export type PatchProbePortKind = "in" | "out";
 
@@ -58,6 +58,7 @@ export interface PreviewProbeCapture {
   finalSpectrum?: PreviewProbeFinalSpectrum;
   finalScope?: PreviewProbeFinalScope;
   adsrEstimate?: PreviewProbeAdsrEstimate;
+  qualityStats?: PreviewProbeQualityStats;
 }
 
 export interface PreviewProbeScopeBucket {
@@ -80,6 +81,22 @@ export interface PreviewProbeAdsrEstimate {
   sustainRatio: number;
   releaseSeconds: number;
   label: string;
+}
+
+export interface PreviewProbeQualityStats {
+  peak: number;
+  peakDb: number;
+  rms: number;
+  rmsDb: number;
+  dcOffset: number;
+  crestFactorDb: number;
+  nearClipCount: number;
+  clippedCount: number;
+  maxConsecutiveNearClip: number;
+  maxDelta: number;
+  zeroCrossingRate: number;
+  roughness: number;
+  capturedSamples: number;
 }
 
 export interface PreviewProbeSpectrumFrames {

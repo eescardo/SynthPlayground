@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { resolveParamBindingState, resolveParamControlValue } from "@/components/patch/patchModuleParameterState";
+import {
+  createRestoreMacroBindingOp,
+  createRestoreParamValueOp,
+  resolveParamBindingState,
+  resolveParamControlValue
+} from "@/components/patch/patchModuleParameterState";
 import { applyMagneticSliderSnap } from "@/components/patch/patchModuleParameterControls";
 import { createDefaultParamsForType, getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { Patch } from "@/types/patch";
@@ -99,5 +104,44 @@ describe("PatchModuleParameter macro-bound controls", () => {
       node.params.decay
     );
     expect(decayParam.id).toBe("decay");
+  });
+
+  it("creates undoable restore ops for baseline parameter and binding diffs", () => {
+    expect(
+      createRestoreParamValueOp({
+        key: "output:gain",
+        nodeId: "output",
+        paramId: "gain",
+        currentValue: 0.7,
+        baselineValue: 1
+      })
+    ).toEqual({
+      type: "setParam",
+      nodeId: "output",
+      paramId: "gain",
+      value: 1
+    });
+
+    expect(
+      createRestoreMacroBindingOp({
+        key: "macro_gain:output:gain",
+        macroId: "macro_gain",
+        macroName: "Gain",
+        nodeId: "output",
+        paramId: "gain",
+        status: "modified",
+        currentBinding: { nodeId: "output", paramId: "gain", map: "linear", min: 0.2, max: 1.4 },
+        baselineBinding: { nodeId: "output", paramId: "gain", map: "linear", min: 0.2, max: 1 }
+      })
+    ).toEqual({
+      type: "setMacroBinding",
+      macroId: "macro_gain",
+      nodeId: "output",
+      paramId: "gain",
+      map: "linear",
+      min: 0.2,
+      max: 1,
+      points: undefined
+    });
   });
 });

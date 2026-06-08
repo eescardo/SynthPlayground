@@ -69,6 +69,7 @@ const hydrateSharedPreviewCaptureSamples = (capture: PreviewProbeCapture): Previ
 
 export interface AudioEngineBackend {
   init(): Promise<void>;
+  dispose(): void;
   ensureRunning(): Promise<void>;
   setRuntimeErrorListener(listener: ((error: SproutError) => void) | null): void;
   replaceProject(renderProject: AudioRenderProject): void;
@@ -233,6 +234,13 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
         // ignore close failures during recovery
       }
     }
+  }
+
+  dispose(): void {
+    this.stop();
+    this.previewCaptureListener = null;
+    this.runtimeErrorListener = null;
+    void this.disposeContext();
   }
 
   private tickSchedule(): void {
@@ -718,6 +726,10 @@ class FakeAudioEngineBackend implements AudioEngineBackend {
   }
 
   async init(): Promise<void> {}
+
+  dispose(): void {
+    this.stop();
+  }
 
   async ensureRunning(): Promise<void> {
     await this.init();

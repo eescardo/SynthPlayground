@@ -91,6 +91,16 @@ export type PatchOp =
       points?: Array<{ x: number; y: number }>;
     }
   | {
+      type: "setMacroBinding";
+      macroId: string;
+      nodeId: string;
+      paramId: string;
+      map: "linear" | "exp" | "piecewise";
+      min?: number;
+      max?: number;
+      points?: Array<{ x: number; y: number }>;
+    }
+  | {
       type: "unbindMacro";
       macroId: string;
       nodeId: string;

@@ -232,6 +232,22 @@ describe("projectSerde", () => {
               kind: "connection",
               connectionId: "conn_2"
             }
+          },
+          {
+            id: "probe_signal_health",
+            kind: "signal_health",
+            name: "Signal Health",
+            x: 38,
+            y: 10,
+            width: 10,
+            height: 6,
+            expanded: false,
+            spectrumWindowSize: undefined,
+            frequencyView: undefined,
+            target: {
+              kind: "connection",
+              connectionId: "conn_3"
+            }
           }
         ]
       },
@@ -252,6 +268,39 @@ describe("projectSerde", () => {
 
     expect(roundTrip.ui.patchWorkspace.activeTabId).toBe("tab_b");
     expect(roundTrip.ui.patchWorkspace.tabs).toEqual(project.ui.patchWorkspace.tabs);
+  });
+
+  it("normalizes legacy quality meter probes to signal health probes", () => {
+    const project = createDefaultProject();
+    project.ui.patchWorkspace.tabs = [
+      {
+        id: "tab_a",
+        name: "Bass Ideas",
+        patchId: "preset_bass",
+        selectedNodeId: undefined,
+        selectedMacroId: undefined,
+        selectedProbeId: "probe_health",
+        probes: [
+          {
+            id: "probe_health",
+            kind: "quality_meter",
+            name: "Signal Health",
+            x: 14,
+            y: 5,
+            width: 10,
+            height: 6,
+            target: {
+              kind: "connection",
+              connectionId: "conn_1"
+            }
+          }
+        ]
+      }
+    ] as unknown as typeof project.ui.patchWorkspace.tabs;
+
+    const normalized = importProjectFromJson(exportProjectToJson(project));
+
+    expect(normalized.ui.patchWorkspace.tabs[0].probes[0].kind).toBe("signal_health");
   });
 
   it("normalizes baseline patch snapshots stored on patch workspace tabs", () => {

@@ -407,6 +407,13 @@ export function AppRoot({ children }: { children: ReactNode }) {
   }, [playing, ready, renderProject, setRuntimeError]);
 
   useEffect(() => {
+    return () => {
+      audioEngineRef.current?.dispose();
+      audioEngineRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     setEditorSelection((current) => filterEditorSelectionToProject(project, current));
   }, [project]);
 

@@ -107,6 +107,12 @@ describe("patch diff", () => {
     expect(diff.hasChanges).toBe(true);
     expect(diff.nodeDiffById.get("sample1")?.status).toBe("modified");
     expect(diff.nodeDiffById.get("sample1")?.changedParamIds.has("gain")).toBe(true);
+    expect(diff.changedParamDiffByNodeParamKey.get("sample1:gain")).toMatchObject({
+      nodeId: "sample1",
+      paramId: "gain",
+      currentValue: 0.7,
+      baselineValue: 1
+    });
     expect(diff.nodeDiffById.get("sample1")?.changedBindingKeys.has("macro_pitch:sample1:pitchSemis")).toBe(true);
     expect(diff.nodeDiffById.get("sample1")?.removedBindingKeys.has("macro_gain:sample1:gain")).toBe(true);
     expect(diff.nodeDiffById.get("sample1")?.hasConnectionChanges).toBe(true);

@@ -1,10 +1,35 @@
 import { createId } from "@/lib/ids";
 import { clamp } from "@/lib/numeric";
-import { PatchProbeFrequencyView, PatchWorkspaceProbeState } from "@/types/probes";
+import { PatchProbeFrequencyView, PatchProbeKind, PatchWorkspaceProbeState } from "@/types/probes";
 
-export const DEFAULT_SCOPE_PROBE_SIZE = { width: 10, height: 6 } as const;
-export const DEFAULT_SPECTRUM_PROBE_SIZE = { width: 10, height: 6 } as const;
-export const EXPANDED_PROBE_SIZE = { width: 340, height: 228 } as const;
+interface ProbeSize {
+  width: number;
+  height: number;
+}
+
+type BaseProbeKindConfig = {
+  kind: Exclude<PatchProbeKind, "spectrum">;
+  name: string;
+  size: ProbeSize;
+};
+
+type SpectrumProbeKindConfig = {
+  kind: "spectrum";
+  name: string;
+  size: ProbeSize;
+  spectrumDefaults: {
+    windowSize: number;
+    frequencyView: PatchProbeFrequencyView;
+  };
+};
+
+type ProbeKindConfig = BaseProbeKindConfig | SpectrumProbeKindConfig;
+
+export const DEFAULT_SCOPE_PROBE_SIZE: ProbeSize = { width: 10, height: 6 };
+export const DEFAULT_SPECTRUM_PROBE_SIZE: ProbeSize = { width: 10, height: 6 };
+export const DEFAULT_SIGNAL_HEALTH_PROBE_SIZE: ProbeSize = { width: 10, height: 6 };
+const DEFAULT_SPECTRUM_WINDOW_SIZE = 1024;
+export const EXPANDED_PROBE_SIZE: ProbeSize = { width: 340, height: 228 };
 export const PROBE_MIN_MAX_FREQUENCY_HZ = 500;
 export const PROBE_MAX_MAX_FREQUENCY_HZ = 24000;
 export const DEFAULT_PROBE_MAX_FREQUENCY_HZ = PROBE_MAX_MAX_FREQUENCY_HZ;
@@ -34,22 +59,69 @@ const PROBE_SPECTRUM_ALPHA_STOPS = [
   { value: 0.1, alpha: 1 }
 ] as const;
 
-export const createPatchWorkspaceProbe = (
-  kind: PatchWorkspaceProbeState["kind"],
-  x: number,
-  y: number
-): PatchWorkspaceProbeState => ({
-  id: createId("probe"),
-  kind,
-  name: kind === "spectrum" ? "Spectrum Probe" : kind === "pitch_tracker" ? "Pitch Tracker" : "Scope Probe",
-  x,
-  y,
-  width: kind === "spectrum" ? DEFAULT_SPECTRUM_PROBE_SIZE.width : DEFAULT_SCOPE_PROBE_SIZE.width,
-  height: kind === "spectrum" ? DEFAULT_SPECTRUM_PROBE_SIZE.height : DEFAULT_SCOPE_PROBE_SIZE.height,
-  expanded: false,
-  spectrumWindowSize: kind === "spectrum" ? 1024 : undefined,
-  frequencyView: kind === "spectrum" ? { ...DEFAULT_PROBE_FREQUENCY_VIEW } : undefined
-});
+const PROBE_KIND_CONFIG = {
+  scope: {
+    kind: "scope",
+    name: "Scope Probe",
+    size: DEFAULT_SCOPE_PROBE_SIZE
+  },
+  spectrum: {
+    kind: "spectrum",
+    name: "Spectrum Probe",
+    size: DEFAULT_SPECTRUM_PROBE_SIZE,
+    spectrumDefaults: {
+      windowSize: DEFAULT_SPECTRUM_WINDOW_SIZE,
+      frequencyView: DEFAULT_PROBE_FREQUENCY_VIEW
+    }
+  },
+  pitch_tracker: {
+    kind: "pitch_tracker",
+    name: "Pitch Tracker",
+    size: DEFAULT_SCOPE_PROBE_SIZE
+  },
+  signal_health: {
+    kind: "signal_health",
+    name: "Signal Health",
+    size: DEFAULT_SIGNAL_HEALTH_PROBE_SIZE
+  }
+} satisfies Record<PatchProbeKind, ProbeKindConfig>;
+
+function resolveProbeSpecificState(config: ProbeKindConfig): Partial<PatchWorkspaceProbeState> {
+  if (config.kind !== "spectrum") {
+    return {};
+  }
+  return {
+    spectrumWindowSize: config.spectrumDefaults.windowSize,
+    frequencyView: { ...config.spectrumDefaults.frequencyView }
+  };
+}
+
+export function resolveProbeKindDefaults(
+  kind: PatchProbeKind
+): Pick<PatchWorkspaceProbeState, "name" | "width" | "height"> {
+  const config = PROBE_KIND_CONFIG[kind];
+  return {
+    name: config.name,
+    width: config.size.width,
+    height: config.size.height
+  };
+}
+
+export const createPatchWorkspaceProbe = (kind: PatchProbeKind, x: number, y: number): PatchWorkspaceProbeState => {
+  const config = PROBE_KIND_CONFIG[kind];
+  const defaults = resolveProbeKindDefaults(kind);
+  return {
+    id: createId("probe"),
+    kind,
+    name: defaults.name,
+    x,
+    y,
+    width: defaults.width,
+    height: defaults.height,
+    expanded: false,
+    ...resolveProbeSpecificState(config)
+  };
+};
 
 export const clampProbeMaxFrequencyHz = (frequency: number) =>
   clamp(Math.round(frequency), PROBE_MIN_MAX_FREQUENCY_HZ, PROBE_MAX_MAX_FREQUENCY_HZ);

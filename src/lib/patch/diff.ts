@@ -25,6 +25,14 @@ export interface PatchBindingDiff {
   baselineBinding?: MacroBinding;
 }
 
+export interface PatchParamDiff {
+  key: string;
+  nodeId: string;
+  paramId: string;
+  currentValue: ParamValue;
+  baselineValue: ParamValue;
+}
+
 export interface PatchNodeDiff {
   nodeId: string;
   typeId: string;
@@ -69,6 +77,7 @@ export interface PatchDiff {
   removedNodes: PatchNode[];
   macroDiffById: Map<string, PatchMacroDiff>;
   removedMacros: PatchMacro[];
+  changedParamDiffByNodeParamKey: Map<string, PatchParamDiff>;
   currentBindingDiffByKey: Map<string, PatchBindingDiff>;
   removedBindingDiffs: PatchBindingDiff[];
   removedBindingDiffsByNodeParamKey: Map<string, PatchBindingDiff[]>;
@@ -102,6 +111,7 @@ function createEmptyDiff(): PatchDiff {
     removedNodes: [],
     macroDiffById: new Map(),
     removedMacros: [],
+    changedParamDiffByNodeParamKey: new Map(),
     currentBindingDiffByKey: new Map(),
     removedBindingDiffs: [],
     removedBindingDiffsByNodeParamKey: new Map(),
@@ -296,6 +306,7 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
   const removedNodes: PatchNode[] = [];
   const macroDiffById = new Map<string, PatchMacroDiff>();
   const removedMacros: PatchMacro[] = [];
+  const changedParamDiffByNodeParamKey = new Map<string, PatchParamDiff>();
   const currentBindingDiffByKey = new Map<string, PatchBindingDiff>();
   const removedBindingDiffs: PatchBindingDiff[] = [];
   const removedBindingDiffsByNodeParamKey = new Map<string, PatchBindingDiff[]>();
@@ -363,7 +374,9 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
         changedParamIds.add(paramId);
         return;
       }
-      if (!isSameParamValue(getParamValue(node, currentSchema), getParamValue(baselineNode, baselineSchema))) {
+      const currentValue = getParamValue(node, currentSchema);
+      const baselineValue = getParamValue(baselineNode, baselineSchema);
+      if (!isSameParamValue(currentValue, baselineValue)) {
         const currentBindingKeys = currentBindingIndexes.keysByNodeParamKey.get(paramRangeKey);
         const baselineBindingKeys = baselineBindingIndexes.keysByNodeParamKey.get(paramRangeKey);
         if (
@@ -389,6 +402,13 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
           return;
         }
         changedParamIds.add(paramId);
+        changedParamDiffByNodeParamKey.set(paramRangeKey, {
+          key: paramRangeKey,
+          nodeId: node.id,
+          paramId,
+          currentValue,
+          baselineValue
+        });
       }
     });
 
@@ -601,6 +621,7 @@ export function buildPatchDiff(currentPatch?: Patch, baselinePatch?: Patch): Pat
     removedNodes,
     macroDiffById,
     removedMacros,
+    changedParamDiffByNodeParamKey,
     currentBindingDiffByKey,
     removedBindingDiffs,
     removedBindingDiffsByNodeParamKey,

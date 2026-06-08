@@ -8,6 +8,13 @@ import {
   resolveProbeSpectrumMagnitudeColor
 } from "@/lib/patch/probes";
 import {
+  buildOutputSignalHealthCaptureRequests,
+  resolveOutputLimiterPreview,
+  resolveSignalHealthStatus
+} from "@/lib/patch/signalHealth";
+import { createPatchOutputPort } from "@/lib/patch/ports";
+import { Patch } from "@/types/patch";
+import {
   buildScopeRenderData,
   resolveScopeGraphLayout,
   resolveScopeTimeMarkers,
@@ -26,6 +33,110 @@ import {
 } from "@/lib/patch/spectrumDisplayMath";
 
 describe("probe helpers", () => {
+  const createOutputProbeTestPatch = (): Patch => ({
+    id: "patch",
+    name: "Patch",
+    meta: { source: "custom" },
+    schemaVersion: 1,
+    nodes: [],
+    ports: [createPatchOutputPort({ gainDb: 6, limiter: true })],
+    connections: [],
+    ui: { macros: [] },
+    layout: { nodes: [] }
+  });
+
+  it("builds hidden output quality captures around the Output stage", () => {
+    const patch = createOutputProbeTestPatch();
+
+    expect(buildOutputSignalHealthCaptureRequests(patch).map((request) => request.target)).toEqual([
+      { kind: "port", nodeId: "output", portId: "in", portKind: "in" },
+      { kind: "port", nodeId: "output", portId: "out", portKind: "out" }
+    ]);
+  });
+
+  it("summarizes output limiter drive from hidden quality captures", () => {
+    const patch = createOutputProbeTestPatch();
+
+    const preview = resolveOutputLimiterPreview(patch, {
+      __output_pre_limiter: {
+        probeId: "__output_pre_limiter",
+        kind: "signal_health",
+        target: { kind: "port", nodeId: "output", portId: "in", portKind: "in" },
+        sampleRate: 48000,
+        durationSamples: 64,
+        capturedSamples: 64,
+        samples: [],
+        qualityStats: {
+          peak: 0.75,
+          peakDb: -3.0103,
+          rms: 0.25,
+          rmsDb: -12.041,
+          dcOffset: 0,
+          crestFactorDb: 9,
+          nearClipCount: 0,
+          clippedCount: 0,
+          maxConsecutiveNearClip: 0,
+          maxDelta: 0.1,
+          zeroCrossingRate: 0.1,
+          roughness: 0.1,
+          capturedSamples: 64
+        }
+      },
+      __output_post_limiter: {
+        probeId: "__output_post_limiter",
+        kind: "signal_health",
+        target: { kind: "port", nodeId: "output", portId: "out", portKind: "out" },
+        sampleRate: 48000,
+        durationSamples: 64,
+        capturedSamples: 64,
+        samples: [],
+        qualityStats: {
+          peak: 0.98,
+          peakDb: -0.175,
+          rms: 0.4,
+          rmsDb: -7,
+          dcOffset: 0,
+          crestFactorDb: 7,
+          nearClipCount: 4,
+          clippedCount: 0,
+          maxConsecutiveNearClip: 4,
+          maxDelta: 0.2,
+          zeroCrossingRate: 0.1,
+          roughness: 0.1,
+          capturedSamples: 64
+        }
+      }
+    });
+
+    expect(preview?.drivenPeak).toBeGreaterThan(1.4);
+    expect(preview?.reductionDb).toBeLessThan(0);
+    expect(preview?.nearClipActive).toBe(true);
+  });
+
+  it("classifies signal health captures by highest-risk visible symptom", () => {
+    const base = {
+      peak: 0.5,
+      peakDb: -6,
+      rms: 0.25,
+      rmsDb: -12,
+      dcOffset: 0,
+      crestFactorDb: 6,
+      nearClipCount: 0,
+      clippedCount: 0,
+      maxConsecutiveNearClip: 0,
+      maxDelta: 0.1,
+      zeroCrossingRate: 0.1,
+      roughness: 0.1,
+      capturedSamples: 128
+    };
+
+    expect(resolveSignalHealthStatus(base)).toBe("clean");
+    expect(resolveSignalHealthStatus({ ...base, nearClipCount: 1 })).toBe("hot");
+    expect(resolveSignalHealthStatus({ ...base, peak: 1, clippedCount: 1 })).toBe("clip");
+    expect(resolveSignalHealthStatus({ ...base, dcOffset: 0.08 })).toBe("dc");
+    expect(resolveSignalHealthStatus({ ...base, roughness: 0.5 })).toBe("rough");
+  });
+
   it("normalizes quiet sample streams so they remain visible", () => {
     expect(normalizeProbeSamples([0, 0.002, -0.001, 0.0015])).toEqual([0, 1, -0.5, 0.75]);
   });

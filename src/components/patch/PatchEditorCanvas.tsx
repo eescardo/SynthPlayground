@@ -11,6 +11,7 @@ import { usePatchCanvasSelection } from "@/hooks/patch/usePatchCanvasSelection";
 import { usePatchProbeEditorState } from "@/hooks/patch/usePatchProbeEditorState";
 import { clamp } from "@/lib/numeric";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
+import { resolveOutputLimiterPreview } from "@/lib/patch/signalHealth";
 import { ParamValue } from "@/types/patch";
 import { PatchWireCommitFeedback } from "@/components/patch/patchWireFeedback";
 
@@ -65,6 +66,10 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
   );
   const selectedNode = model.selectedNodeId ? nodeById.get(model.selectedNodeId) : undefined;
   const selectedSchema = selectedNode ? getModuleSchema(selectedNode.typeId) : undefined;
+  const outputLimiterPreview = useMemo(
+    () => resolveOutputLimiterPreview(previewPatch, model.probeState.previewCaptureByProbeId),
+    [model.probeState.previewCaptureByProbeId, previewPatch]
+  );
   const {
     selectedConnectionId,
     probeActions,
@@ -103,8 +108,13 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
               validationIssues: model.validationIssues,
               probeState: canvasProbeState,
               selectedNodeId: model.selectedNodeId,
+              expandedNodeId: model.expandedNodeId,
               selectedConnectionId,
               selectedMacroNodeIds,
+              outputLimiterPreview:
+                model.probeState.previewProgress > 0 && model.probeState.previewProgress < 1
+                  ? outputLimiterPreview
+                  : null,
               structureLocked: model.structureLocked
             }}
             actions={{
@@ -112,6 +122,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
               onApplyOp: actions.onApplyOp,
               probeActions,
               onSelectNode: handleSelectNode,
+              onSetExpandedNode: actions.onSetExpandedNode,
               onSelectConnection: handleSelectConnection,
               onToggleAttachProbe: toggleAttachProbe,
               onCancelAttachProbe: cancelAttachProbe,
@@ -150,6 +161,7 @@ export function PatchEditorCanvas(props: PatchEditorCanvasProps) {
             selectedMacroId: model.selectedMacroId,
             selectedSchema,
             previewCapture: selectedProbe ? model.probeState.previewCaptureByProbeId[selectedProbe.id] : undefined,
+            outputLimiterPreview,
             previewProgress: model.probeState.previewProgress,
             attachingProbeId,
             wireCommitFeedback: lastWireCommitFeedback,

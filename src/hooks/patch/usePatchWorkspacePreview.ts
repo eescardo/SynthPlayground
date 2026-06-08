@@ -10,6 +10,7 @@ import { pitchToVoct } from "@/lib/pitch";
 import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { HOST_PORT_IDS } from "@/lib/patch/constants";
 import { mergeSpectrumGrid } from "@/lib/patch/spectrumCaptureMerge";
+import { buildOutputSignalHealthCaptureRequests } from "@/lib/patch/signalHealth";
 import { Patch } from "@/types/patch";
 import { Project, Track } from "@/types/music";
 import { AudioProject } from "@/types/audio";
@@ -98,6 +99,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
   const [previewProgress, setPreviewProgress] = useState(0);
   const [previewCaptureByProbeId, setPreviewCaptureByProbeId] = useState<Record<string, PreviewProbeCapture>>({});
   const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
+  const latestPreviewIdRef = useRef<string | null>(null);
   const heldPreviewRef = useRef<{ trackId: string; previewId: string; forceStopOnRelease: boolean } | null>(null);
   const captureRequests = useMemo<PreviewProbeRequest[]>(
     () =>
@@ -129,7 +131,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
       return;
     }
     engine.setPreviewCaptureListener((previewId, captures) => {
-      if (previewId && activePreviewId && previewId !== activePreviewId) {
+      if (previewId && latestPreviewIdRef.current && previewId !== latestPreviewIdRef.current) {
         return;
       }
       setPreviewCaptureByProbeId((current) =>
@@ -194,8 +196,11 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
         ? { project: previewProject, runtimeAssets: projectAssets }
         : { project: audioProject, runtimeAssets: projectAssets };
       const previewId = `preview_${Date.now()}`;
+      const previewCaptureRequests = [...buildOutputSignalHealthCaptureRequests(patch), ...captureRequests];
+      latestPreviewIdRef.current = previewId;
       setActivePreviewId(previewId);
       setPreviewProgress(0);
+      setPreviewCaptureByProbeId({});
 
       engine
         .previewNote(
@@ -205,7 +210,7 @@ export function usePatchWorkspacePreview(options: UsePatchWorkspacePreviewOption
           0.9,
           {
             renderProjectOverride: previewRenderProject,
-            captureProbes: captureRequests,
+            captureProbes: previewCaptureRequests,
             captureDurationBeats: resolvePatchPreviewCaptureDurationBeats(
               options?.holdUntilReleased,
               previewProject?.global.tempo ?? audioProject.global.tempo

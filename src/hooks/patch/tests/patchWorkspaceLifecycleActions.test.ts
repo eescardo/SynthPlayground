@@ -17,6 +17,7 @@ describe("patch workspace lifecycle action helpers", () => {
       selectedNodeId: "output",
       selectedMacroId: "macro_cutoff",
       selectedProbeId: "probe_scope",
+      expandedNodeId: "output",
       probes: [
         {
           id: "probe_scope",
@@ -51,6 +52,7 @@ describe("patch workspace lifecycle action helpers", () => {
         selectedNodeId: undefined,
         selectedMacroId: undefined,
         selectedProbeId: undefined,
+        expandedNodeId: undefined,
         probes: [],
         migrationNotice: null
       }),
@@ -70,6 +72,7 @@ describe("patch workspace lifecycle action helpers", () => {
     expect(nextTab.selectedNodeId).toBe(activeTab.selectedNodeId);
     expect(nextTab.selectedMacroId).toBe(activeTab.selectedMacroId);
     expect(nextTab.selectedProbeId).toBeUndefined();
+    expect(nextTab.expandedNodeId).toBeUndefined();
     expect(nextTab.probes).toHaveLength(activeTab.probes.length);
     expect(nextTab.probes.map((probe) => probe.id)).not.toEqual(activeTab.probes.map((probe) => probe.id));
     expect(nextTab.probes.map((probe) => ({ ...probe, id: undefined }))).toEqual(

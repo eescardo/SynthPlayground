@@ -2,12 +2,12 @@ import { createId } from "@/lib/ids";
 import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping";
 import { sanitizeMacroAutomationMap } from "@/lib/macroAutomation";
 import { clamp, clamp01 } from "@/lib/numeric";
-import { clampProbeMaxFrequencyHz, DEFAULT_PROBE_MAX_FREQUENCY_HZ } from "@/lib/patch/probes";
+import { clampProbeMaxFrequencyHz, DEFAULT_PROBE_MAX_FREQUENCY_HZ, resolveProbeKindDefaults } from "@/lib/patch/probes";
 import { presetPatches } from "@/lib/patch/presets";
 import { normalizePatch } from "@/lib/patch/normalize";
 import { TRACK_VOLUME_DEFAULT, TRACK_VOLUME_MAX, TRACK_VOLUME_MIN } from "@/lib/trackVolume";
 import { Project, TrackFxSettings, PatchWorkspaceTabState } from "@/types/music";
-import { PatchProbeTarget, PatchWorkspaceProbeState } from "@/types/probes";
+import { PatchProbeKind, PatchProbeTarget, PatchWorkspaceProbeState } from "@/types/probes";
 import { ProjectAssetLibrary, SerializedProjectAssetLibrary } from "@/types/assets";
 import {
   createEmptyProjectAssetLibrary,
@@ -100,34 +100,48 @@ const sanitizeProbeTarget = (raw: unknown): PatchProbeTarget | undefined => {
   return undefined;
 };
 
+const SERIALIZED_PROBE_KIND_ALIASES: Record<string, PatchProbeKind> = {
+  scope: "scope",
+  spectrum: "spectrum",
+  pitch_tracker: "pitch_tracker",
+  signal_health: "signal_health",
+  quality_meter: "signal_health"
+};
+
+const resolveSerializedProbeKind = (raw: unknown): PatchProbeKind =>
+  typeof raw === "string" ? (SERIALIZED_PROBE_KIND_ALIASES[raw] ?? "scope") : "scope";
+
+const sanitizeSpectrumProbeState = (entry: Record<string, unknown>, kind: PatchProbeKind) => {
+  if (kind !== "spectrum") {
+    return {};
+  }
+  const spectrumWindowSize = asFiniteNumber(entry.spectrumWindowSize, 0);
+  const rawFrequencyView = isObject(entry.frequencyView) ? entry.frequencyView : {};
+  return {
+    spectrumWindowSize: [256, 512, 1024, 2048].includes(spectrumWindowSize) ? spectrumWindowSize : undefined,
+    frequencyView: {
+      maxHz: clampProbeMaxFrequencyHz(asFiniteNumber(rawFrequencyView.maxHz, DEFAULT_PROBE_MAX_FREQUENCY_HZ))
+    }
+  };
+};
+
 const sanitizePatchWorkspaceProbes = (raw: unknown): PatchWorkspaceProbeState[] => {
   const probes = Array.isArray(raw) ? raw : [];
   return probes.map((probe, index) => {
     const entry = isObject(probe) ? probe : {};
-    const kind = entry.kind === "spectrum" ? "spectrum" : entry.kind === "pitch_tracker" ? "pitch_tracker" : "scope";
-    const spectrumWindowSize = asFiniteNumber(entry.spectrumWindowSize, 0);
-    const rawFrequencyView = isObject(entry.frequencyView) ? entry.frequencyView : {};
-    const frequencyView =
-      kind === "spectrum"
-        ? {
-            maxHz: clampProbeMaxFrequencyHz(asFiniteNumber(rawFrequencyView.maxHz, DEFAULT_PROBE_MAX_FREQUENCY_HZ))
-          }
-        : undefined;
+    const kind = resolveSerializedProbeKind(entry.kind);
+    const defaults = resolveProbeKindDefaults(kind);
     return {
       id: asString(entry.id, createId(`probe_${index}`)),
       kind,
-      name: asString(
-        entry.name,
-        kind === "spectrum" ? "Spectrum Probe" : kind === "pitch_tracker" ? "Pitch Tracker" : "Scope Probe"
-      ),
+      name: asString(entry.name, defaults.name),
       x: Math.max(0, Math.floor(asFiniteNumber(entry.x, 4))),
       y: Math.max(0, Math.floor(asFiniteNumber(entry.y, 4))),
-      width: Math.max(6, Math.floor(asFiniteNumber(entry.width, 10))),
-      height: Math.max(4, Math.floor(asFiniteNumber(entry.height, 6))),
+      width: Math.max(6, Math.floor(asFiniteNumber(entry.width, defaults.width))),
+      height: Math.max(4, Math.floor(asFiniteNumber(entry.height, defaults.height))),
       expanded: entry.expanded === true,
       target: sanitizeProbeTarget(entry.target),
-      spectrumWindowSize: [256, 512, 1024, 2048].includes(spectrumWindowSize) ? spectrumWindowSize : undefined,
-      frequencyView
+      ...sanitizeSpectrumProbeState(entry, kind)
     };
   });
 };

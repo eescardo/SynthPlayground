@@ -4,6 +4,7 @@ import { PatchWorkspaceTabState } from "@/types/music";
 import { PatchOp } from "@/types/ops";
 
 export interface LocalPatchWorkspaceTab extends PatchWorkspaceTabState {
+  expandedNodeId?: string;
   migrationNotice: string | null;
 }
 
@@ -127,6 +128,7 @@ export const resetWorkspaceTabForPatch = (tab: LocalPatchWorkspaceTab, patchId: 
   selectedNodeId: undefined,
   selectedMacroId: undefined,
   selectedProbeId: undefined,
+  expandedNodeId: undefined,
   probes: [],
   migrationNotice: null
 });
@@ -186,6 +188,10 @@ export const sanitizeWorkspaceTabs = (
         selectedProbeId:
           tab.selectedProbeId && probes.some((probe) => probe.id === tab.selectedProbeId)
             ? tab.selectedProbeId
+            : undefined,
+        expandedNodeId:
+          tab.expandedNodeId && patch?.nodes.some((node) => node.id === tab.expandedNodeId)
+            ? tab.expandedNodeId
             : undefined
       };
     });
