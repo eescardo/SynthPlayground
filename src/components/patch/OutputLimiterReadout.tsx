@@ -22,6 +22,10 @@ function formatReductionDb(
   return populated && limiterEnabled ? `${(preview?.reductionDb ?? 0).toFixed(1)} dB` : "0.0 dB";
 }
 
+function resolveUnityReferencePath() {
+  return `M${OUTPUT_LIMITER_TRANSFER_GRAPH.left} ${OUTPUT_LIMITER_TRANSFER_GRAPH.bottom} L${OUTPUT_LIMITER_TRANSFER_GRAPH.right} ${OUTPUT_LIMITER_TRANSFER_GRAPH.top}`;
+}
+
 function resolveLimiterTransferPath(limiterEnabled: boolean, transfer: (input: number) => number) {
   const points = Array.from({ length: 32 }, (_, index) => {
     const ratio = index / 31;
@@ -67,7 +71,7 @@ export function OutputLimiterReadout({ preview }: { preview?: OutputLimiterPrevi
   const postRmsRatio = populated ? clampRatio(preview?.postRms ?? 0) : 0;
   const reductionDb = formatReductionDb(preview, populated, limiterEnabled);
   const previewPoint = resolvePreviewPoint(preview?.drivenPeak ?? 0, preview?.postPeak ?? 0);
-  const rawTransferPath = resolveLimiterTransferPath(false, (input) => input);
+  const unityReferencePath = resolveUnityReferencePath();
   const limitedTransferPath = resolveLimiterTransferPath(limiterEnabled, Math.tanh);
   const previewPointTitle = populated
     ? `Preview peak: PRE ${formatDb(preview?.drivenPeakDb ?? 0)} -> POST ${formatDb(
@@ -103,8 +107,8 @@ export function OutputLimiterReadout({ preview }: { preview?: OutputLimiterPrevi
         >
           <svg viewBox="0 0 100 44" preserveAspectRatio="none">
             <title>Limiter curve with no-limiter reference, actual transfer function, and measured peak point</title>
-            <path d={rawTransferPath} className="output-limiter-curve-raw">
-              <title>No-limiter reference: output follows input until the display reaches full scale.</title>
+            <path d={unityReferencePath} className="output-limiter-curve-raw">
+              <title>Unity reference: a straight trend where output rises with input.</title>
             </path>
             <path d={limitedTransferPath} className="output-limiter-curve-shaped">
               <title>
