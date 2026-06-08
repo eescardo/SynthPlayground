@@ -96,16 +96,28 @@ function resolveProbeSpecificState(config: ProbeKindConfig): Partial<PatchWorksp
   };
 }
 
+export function resolveProbeKindDefaults(
+  kind: PatchProbeKind
+): Pick<PatchWorkspaceProbeState, "name" | "width" | "height"> {
+  const config = PROBE_KIND_CONFIG[kind];
+  return {
+    name: config.name,
+    width: config.size.width,
+    height: config.size.height
+  };
+}
+
 export const createPatchWorkspaceProbe = (kind: PatchProbeKind, x: number, y: number): PatchWorkspaceProbeState => {
   const config = PROBE_KIND_CONFIG[kind];
+  const defaults = resolveProbeKindDefaults(kind);
   return {
     id: createId("probe"),
     kind,
-    name: config.name,
+    name: defaults.name,
     x,
     y,
-    width: config.size.width,
-    height: config.size.height,
+    width: defaults.width,
+    height: defaults.height,
     expanded: false,
     ...resolveProbeSpecificState(config)
   };
