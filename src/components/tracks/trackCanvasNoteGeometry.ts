@@ -1,7 +1,6 @@
 import { clamp } from "@/lib/numeric";
 
 export const NOTE_CORNER_RADIUS = 8;
-export const NOTE_EDGE_GRADIENT_WIDTH = 3;
 
 function roundedRectPath(
   ctx: CanvasRenderingContext2D,
@@ -79,8 +78,8 @@ export function drawNoteBody(
   fillColor: string
 ) {
   const radius = Math.min(NOTE_CORNER_RADIUS, width * 0.5, height * 0.5);
-  const edgeShade = darkenHexColor(fillColor, 0.32);
-  const gradientWidth = clamp(NOTE_EDGE_GRADIENT_WIDTH, 2, Math.min(width * 0.35, height * 0.35));
+  const edgeShade = darkenHexColor(fillColor, 0.24);
+  const highlightHeight = Math.min(2, height * 0.16);
 
   fillRoundedRect(ctx, x, y, width, height, radius, fillColor);
 
@@ -88,29 +87,14 @@ export function drawNoteBody(
   roundedRectPath(ctx, x, y, width, height, radius);
   ctx.clip();
 
-  const topGradient = ctx.createLinearGradient(x, y, x, y + gradientWidth);
-  topGradient.addColorStop(0, edgeShade);
-  topGradient.addColorStop(1, fillColor);
-  ctx.fillStyle = topGradient;
-  ctx.fillRect(x, y, width, gradientWidth);
-
-  const leftGradient = ctx.createLinearGradient(x, y, x + gradientWidth, y);
-  leftGradient.addColorStop(0, edgeShade);
-  leftGradient.addColorStop(1, fillColor);
-  ctx.fillStyle = leftGradient;
-  ctx.fillRect(x, y, gradientWidth, height);
-
-  const rightGradient = ctx.createLinearGradient(x + width - gradientWidth, y, x + width, y);
-  rightGradient.addColorStop(0, fillColor);
-  rightGradient.addColorStop(1, edgeShade);
-  ctx.fillStyle = rightGradient;
-  ctx.fillRect(x + width - gradientWidth, y, gradientWidth, height);
-
-  const bottomGradient = ctx.createLinearGradient(x, y + height - gradientWidth, x, y + height);
-  bottomGradient.addColorStop(0, fillColor);
-  bottomGradient.addColorStop(1, edgeShade);
-  ctx.fillStyle = bottomGradient;
-  ctx.fillRect(x, y + height - gradientWidth, width, gradientWidth);
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(x, y, width, highlightHeight);
+  ctx.globalAlpha = 0.28;
+  ctx.strokeStyle = edgeShade;
+  ctx.lineWidth = 1;
+  roundedRectPath(ctx, x + 0.5, y + 0.5, Math.max(0, width - 1), Math.max(0, height - 1), Math.max(0, radius - 0.5));
+  ctx.stroke();
 
   ctx.restore();
 }

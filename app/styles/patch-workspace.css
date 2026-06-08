@@ -201,80 +201,6 @@
   opacity: 0.5;
 }
 
-.patch-workspace-shell {
-  --patch-editor-surface: var(--color-workspace-panel);
-
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-workspace-gap);
-  min-height: 0;
-  height: calc(100vh - 1.6rem);
-}
-
-.patch-workspace-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.8rem;
-  padding: 0.75rem 0.9rem;
-  border-radius: 14px;
-  border: 1px solid rgba(131, 173, 216, 0.24);
-  background:
-    linear-gradient(180deg, rgba(13, 23, 34, 0.94), rgba(9, 17, 26, 0.96)),
-    radial-gradient(circle at 0% 0%, rgba(96, 158, 224, 0.12), transparent 28%);
-}
-
-.patch-workspace-heading {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  min-width: 0;
-}
-
-.patch-workspace-title {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-
-.patch-workspace-header-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
-}
-
-.patch-workspace-heading h2 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.patch-workspace-back-button {
-  white-space: nowrap;
-}
-
-.patch-workspace-title h2 {
-  white-space: nowrap;
-}
-
-@media (max-width: 720px) {
-  .patch-workspace-title {
-    display: none;
-  }
-}
-
-.patch-workspace-editor-shell {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  gap: 0;
-}
-
-.patch-workspace-runtime-status {
-  margin: 0.45rem 0 0;
-}
-
 .patch-editor {
   background: rgba(9, 17, 26, 0.9);
   border: 1px solid var(--border);
@@ -1120,38 +1046,6 @@
   height: 100%;
   max-height: 640px;
   overflow: auto;
-}
-
-.patch-workspace-shell .instrument-editor {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  padding: 0.9rem;
-  border-radius: 0 16px 16px 16px;
-  overflow: visible;
-}
-
-.patch-workspace-shell .patch-editor {
-  flex: 1;
-  min-height: 0;
-  height: 100%;
-  overflow: visible;
-}
-
-.patch-workspace-shell .patch-layout {
-  grid-template-columns: minmax(0, 1fr) 340px;
-  flex: 1;
-  height: 100%;
-}
-
-.patch-workspace-shell .patch-editor-main-column {
-  overflow: visible;
-}
-
-.patch-workspace-shell .patch-inspector {
-  height: 100%;
-  max-height: none;
 }
 
 .patch-macro-keyframe-shell {

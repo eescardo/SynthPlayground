@@ -136,13 +136,46 @@ function drawLoopMarker(
   repeatCount?: number
 ) {
   ctx.save();
-  ctx.globalAlpha = 0.5;
-  ctx.fillStyle = color;
-  ctx.fillRect(x - LOOP_MARKER_BAR_WIDTH * 0.5, 0, LOOP_MARKER_BAR_WIDTH, height);
+  const stemWidth = Math.max(3, LOOP_MARKER_BAR_WIDTH * 0.42);
+  const stemX = x - stemWidth * 0.5;
+  const flagWidth = kind === "end" && repeatCount !== undefined ? 38 : 26;
+  const flagHeight = 18;
+  const flagX = kind === "start" ? x - 1 : x - flagWidth + 1;
+  const flagY = 5;
+  const notchX = kind === "start" ? flagX + flagWidth : flagX;
+  const notchDirection = kind === "start" ? 1 : -1;
+  const dotX = kind === "start" ? x + 8 : x - 8;
+  const topDotY = flagY + flagHeight * 0.5 - LOOP_MARKER_DOT_OFFSET_Y * 0.55;
+  const bottomDotY = flagY + flagHeight * 0.5 + LOOP_MARKER_DOT_OFFSET_Y * 0.55;
 
-  const dotX = kind === "start" ? x + 10 : x - 10;
-  const topDotY = RULER_HEIGHT * 0.5 - LOOP_MARKER_DOT_OFFSET_Y;
-  const bottomDotY = RULER_HEIGHT * 0.5 + LOOP_MARKER_DOT_OFFSET_Y;
+  ctx.globalAlpha = hovered ? 0.34 : 0.24;
+  ctx.fillStyle = color;
+  ctx.fillRect(stemX, RULER_HEIGHT, stemWidth, Math.max(0, height - RULER_HEIGHT));
+
+  ctx.globalAlpha = hovered ? 0.28 : 0.18;
+  ctx.fillRect(stemX - 2, RULER_HEIGHT, stemWidth + 4, Math.max(0, height - RULER_HEIGHT));
+
+  ctx.globalAlpha = 0.94;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.roundRect(flagX, flagY, flagWidth, flagHeight, 5);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(notchX, flagY + 5);
+  ctx.lineTo(notchX + notchDirection * 6, flagY + flagHeight * 0.5);
+  ctx.lineTo(notchX, flagY + flagHeight - 5);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.globalAlpha = 0.48;
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(flagX + 0.5, flagY + 0.5, Math.max(0, flagWidth - 1), Math.max(0, flagHeight - 1), 4);
+  ctx.stroke();
+
+  ctx.globalAlpha = 0.95;
+  ctx.fillStyle = TRACK_CANVAS_COLORS.rulerBg;
   ctx.beginPath();
   ctx.arc(dotX, topDotY, LOOP_MARKER_DOT_RADIUS, 0, Math.PI * 2);
   ctx.fill();
@@ -151,10 +184,12 @@ function drawLoopMarker(
   ctx.fill();
 
   if (hovered) {
-    ctx.globalAlpha = 0.3;
+    ctx.globalAlpha = 0.52;
     ctx.strokeStyle = color;
     ctx.lineWidth = 2;
-    ctx.strokeRect(x - LOOP_MARKER_BAR_WIDTH * 0.5 - 1, 0, LOOP_MARKER_BAR_WIDTH + 2, height);
+    ctx.beginPath();
+    ctx.roundRect(flagX - 3, flagY - 3, flagWidth + 6, flagHeight + 6, 8);
+    ctx.stroke();
     ctx.beginPath();
     ctx.arc(dotX, topDotY, LOOP_MARKER_HOVER_RING_RADIUS, 0, Math.PI * 2);
     ctx.stroke();
@@ -166,10 +201,12 @@ function drawLoopMarker(
   if (kind === "end" && repeatCount !== undefined) {
     ctx.globalAlpha = 1;
     ctx.fillStyle = TRACK_CANVAS_COLORS.loopMarkerText;
-    ctx.font = "bold 11px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.font = "bold 10px ui-monospace, SFMono-Regular, Menlo, monospace";
     ctx.textAlign = "center";
-    ctx.fillText(String(repeatCount), x, 16);
+    ctx.textBaseline = "middle";
+    ctx.fillText(`x${repeatCount}`, flagX + flagWidth * 0.5, flagY + flagHeight * 0.5 + 0.5);
     ctx.textAlign = "start";
+    ctx.textBaseline = "alphabetic";
   }
 
   ctx.restore();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
 import { useFixedPopoverPosition } from "@/hooks/useFixedPopoverPosition";
 import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping";
 
@@ -29,6 +29,8 @@ interface TimelineActionsPopoverProps {
 
 export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
   const repeatCount = props.endRepeatCount ?? DEFAULT_LOOP_REPEAT_COUNT;
+  const { onUpdateRepeatCount } = props;
+  const [repeatCountText, setRepeatCountText] = useState(String(repeatCount));
   const hasPasteActions = Boolean(props.showPasteActions);
   const hasPlayheadActions = props.showAddStart || props.showAddEnd || props.showExpandLoopToNotes;
   const hasLoopMarkerActions = Boolean(props.startMarkerId || props.endMarkerId);
@@ -39,6 +41,32 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
     active: true,
     getAnchorPosition
   });
+  const handleRepeatCountChange = useCallback(
+    (nextText: string) => {
+      setRepeatCountText(nextText);
+      const parsed = Number(nextText);
+      if (!Number.isFinite(parsed) || nextText.trim() === "") {
+        return;
+      }
+      onUpdateRepeatCount(Math.round(parsed));
+    },
+    [onUpdateRepeatCount]
+  );
+  const handleRepeatCountKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") {
+      return;
+    }
+    event.stopPropagation();
+  }, []);
+  const handleRepeatCountBlur = useCallback(() => {
+    if (repeatCountText.trim() === "") {
+      setRepeatCountText(String(repeatCount));
+    }
+  }, [repeatCount, repeatCountText]);
+
+  useEffect(() => {
+    setRepeatCountText(String(repeatCount));
+  }, [repeatCount, props.endMarkerId]);
 
   return (
     <div
@@ -109,8 +137,10 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
               type="number"
               min={DEFAULT_LOOP_REPEAT_COUNT}
               max={MAX_LOOP_REPEAT_COUNT}
-              value={repeatCount}
-              onChange={(event) => props.onUpdateRepeatCount(Number(event.target.value))}
+              value={repeatCountText}
+              onBlur={handleRepeatCountBlur}
+              onChange={(event) => handleRepeatCountChange(event.target.value)}
+              onKeyDown={handleRepeatCountKeyDown}
             />
           </label>
           <button type="button" onClick={props.onRemoveEnd}>

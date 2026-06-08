@@ -93,9 +93,19 @@ export function useLoopSettings(options: UseLoopSettingsOptions) {
       const nextLoop = getSanitizedLoopMarkers(project.global.loop).map((marker) =>
         marker.id === markerId && marker.kind === "end" ? { ...marker, repeatCount } : marker
       );
-      applyLoopSettings(nextLoop);
+      const sanitizedLoop = sanitizeLoopSettings(nextLoop);
+      commitProjectChange(
+        (current) => ({
+          ...current,
+          global: {
+            ...current.global,
+            loop: sanitizedLoop
+          }
+        }),
+        { actionKey: `global:loop:repeat:${markerId}`, coalesce: true }
+      );
     },
-    [applyLoopSettings, project.global.loop]
+    [commitProjectChange, project.global.loop]
   );
 
   return {
