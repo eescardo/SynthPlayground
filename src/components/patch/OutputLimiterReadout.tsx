@@ -1,8 +1,7 @@
 import { formatDb, OutputLimiterPreview } from "@/lib/patch/signalHealth";
 
 const OUTPUT_LIMITER_REDUCTION_METER_FULL_SCALE_DB = 18;
-const OUTPUT_LIMITER_TRANSFER_INPUT_FULL_SCALE = 2;
-const OUTPUT_LIMITER_TRANSFER_OUTPUT_FULL_SCALE = 1;
+const OUTPUT_LIMITER_TRANSFER_FULL_SCALE = 2;
 const OUTPUT_LIMITER_TRANSFER_GRAPH = {
   left: 7,
   right: 93,
@@ -29,14 +28,14 @@ function resolveUnityReferencePath() {
 function resolveLimiterTransferPath(limiterEnabled: boolean, transfer: (input: number) => number) {
   const points = Array.from({ length: 32 }, (_, index) => {
     const ratio = index / 31;
-    const input = ratio * OUTPUT_LIMITER_TRANSFER_INPUT_FULL_SCALE;
+    const input = ratio * OUTPUT_LIMITER_TRANSFER_FULL_SCALE;
     const output = limiterEnabled ? transfer(input) : input;
     const x =
       OUTPUT_LIMITER_TRANSFER_GRAPH.left +
       ratio * (OUTPUT_LIMITER_TRANSFER_GRAPH.right - OUTPUT_LIMITER_TRANSFER_GRAPH.left);
     const y =
       OUTPUT_LIMITER_TRANSFER_GRAPH.bottom -
-      clampRatio(output / OUTPUT_LIMITER_TRANSFER_OUTPUT_FULL_SCALE) *
+      clampRatio(output / OUTPUT_LIMITER_TRANSFER_FULL_SCALE) *
         (OUTPUT_LIMITER_TRANSFER_GRAPH.bottom - OUTPUT_LIMITER_TRANSFER_GRAPH.top);
     return `${index === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
   });
@@ -44,8 +43,8 @@ function resolveLimiterTransferPath(limiterEnabled: boolean, transfer: (input: n
 }
 
 function resolvePreviewPoint(prePeak: number, postPeak: number) {
-  const inputRatio = clampRatio(prePeak / OUTPUT_LIMITER_TRANSFER_INPUT_FULL_SCALE);
-  const outputRatio = clampRatio(postPeak / OUTPUT_LIMITER_TRANSFER_OUTPUT_FULL_SCALE);
+  const inputRatio = clampRatio(prePeak / OUTPUT_LIMITER_TRANSFER_FULL_SCALE);
+  const outputRatio = clampRatio(postPeak / OUTPUT_LIMITER_TRANSFER_FULL_SCALE);
   return {
     x:
       OUTPUT_LIMITER_TRANSFER_GRAPH.left +
@@ -101,14 +100,14 @@ export function OutputLimiterReadout({ preview }: { preview?: OutputLimiterPrevi
           className="output-limiter-curve"
           title={
             populated
-              ? "Limiter transfer curve. Dashed line is the no-limiter reference; gold line is the output node transfer function."
+              ? "Limiter transfer curve on a shared input/output scale. Dashed line is the unity reference; gold line is the output node transfer function."
               : "Preview a note to populate the limiter transfer curve."
           }
         >
           <svg viewBox="0 0 100 44" preserveAspectRatio="none">
             <title>Limiter curve with no-limiter reference, actual transfer function, and measured peak point</title>
             <path d={unityReferencePath} className="output-limiter-curve-raw">
-              <title>Unity reference: a straight trend where output rises with input.</title>
+              <title>Unity reference: output equals input on the shared transfer scale.</title>
             </path>
             <path d={limitedTransferPath} className="output-limiter-curve-shaped">
               <title>
