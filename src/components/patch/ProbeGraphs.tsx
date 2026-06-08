@@ -26,6 +26,31 @@ import {
 } from "@/components/patch/probeGraphDisplay";
 
 const SIGNAL_HEALTH_RISK_BINS = 18;
+const SIGNAL_HEALTH_SILENCE_EPSILON = 0.000001;
+const SIGNAL_HEALTH_DC_RISK_FULL_SCALE = 0.25;
+const SIGNAL_HEALTH_AMPLITUDE_TO_DB_FACTOR = 20;
+const SIGNAL_HEALTH_PEAK_RMS_RISK_REFERENCE_DB = 10;
+const SIGNAL_HEALTH_PEAK_RMS_NO_SIGNAL_DB = 24;
+const SIGNAL_HEALTH_HOT_LEVEL_RATIO = 0.76;
+const SIGNAL_HEALTH_CLIP_LEVEL_RATIO = 0.9;
+const SIGNAL_HEALTH_METER_RAIL_X = 7;
+const SIGNAL_HEALTH_METER_RAIL_WIDTH = 13;
+const SIGNAL_HEALTH_METER_FILL_X = 8.5;
+const SIGNAL_HEALTH_METER_FILL_WIDTH = 10;
+const SIGNAL_HEALTH_METER_THRESHOLD_LABEL_X = 21.5;
+const SIGNAL_HEALTH_METER_THRESHOLD_LINE_START_X = 7;
+const SIGNAL_HEALTH_METER_THRESHOLD_LINE_END_X = 20;
+const SIGNAL_HEALTH_METER_RMS_LINE_START_X = 6.5;
+const SIGNAL_HEALTH_METER_RMS_LINE_END_X = 20.5;
+const SIGNAL_HEALTH_RISK_BADNESS_THRESHOLD = 0.55;
+const SIGNAL_HEALTH_RISK_BAR_X_INSET = 0.25;
+const SIGNAL_HEALTH_RISK_BAR_GAP = 0.5;
+const SIGNAL_HEALTH_RISK_MIN_BAR_SIZE = 0.35;
+const SIGNAL_HEALTH_RISK_BAR_RADIUS = 0.45;
+
+function clamp01(value: number) {
+  return Math.min(1, Math.max(0, value));
+}
 
 function resolveRiskTone(value: number): "ok" | "hot" | "clip" {
   if (value >= 0.85) {
@@ -74,10 +99,15 @@ function buildSignalHealthRiskSeries(samples?: ArrayLike<number>) {
     }
     const count = Math.max(1, end - start);
     const rms = Math.sqrt(sumSquares / count);
-    const crestFactorDb = rms > 0.000001 ? 20 * Math.log10(Math.max(0.000001, peak / rms)) : 24;
-    crest.push(Math.min(1, Math.max(0, (10 - crestFactorDb) / 10)));
-    rough.push(Math.min(1, Math.max(0, deltaSum / Math.max(1, count - 1) / Math.max(0.000001, peak))));
-    dc.push(Math.min(1, Math.abs(sum / count) / 0.25));
+    const crestFactorDb =
+      rms > SIGNAL_HEALTH_SILENCE_EPSILON
+        ? SIGNAL_HEALTH_AMPLITUDE_TO_DB_FACTOR * Math.log10(Math.max(SIGNAL_HEALTH_SILENCE_EPSILON, peak / rms))
+        : SIGNAL_HEALTH_PEAK_RMS_NO_SIGNAL_DB;
+    crest.push(
+      clamp01((SIGNAL_HEALTH_PEAK_RMS_RISK_REFERENCE_DB - crestFactorDb) / SIGNAL_HEALTH_PEAK_RMS_RISK_REFERENCE_DB)
+    );
+    rough.push(clamp01(deltaSum / Math.max(1, count - 1) / Math.max(SIGNAL_HEALTH_SILENCE_EPSILON, peak)));
+    dc.push(clamp01(Math.abs(sum / count) / SIGNAL_HEALTH_DC_RISK_FULL_SCALE));
   }
   return { crest, rough, dc };
 }
@@ -95,8 +125,7 @@ function RiskGraph(props: {
   const rowHeight = props.compact ? 15 : 12;
   const trackY = props.y + 0.5;
   const trackHeight = rowHeight - 1;
-  const thresholdRatio = 0.55;
-  const thresholdY = trackY + trackHeight - thresholdRatio * trackHeight;
+  const thresholdY = trackY + trackHeight - SIGNAL_HEALTH_RISK_BADNESS_THRESHOLD * trackHeight;
   const barWidth = graphWidth / Math.max(1, props.values.length);
   const tone = resolveRiskTone(props.aggregate);
   return (
@@ -132,17 +161,17 @@ function RiskGraph(props: {
         className="signal-health-risk-threshold"
       />
       {props.values.map((value, index) => {
-        const normalizedValue = Math.min(1, Math.max(0, value));
-        const height = Math.max(0.35, normalizedValue * trackHeight);
+        const normalizedValue = clamp01(value);
+        const height = Math.max(SIGNAL_HEALTH_RISK_MIN_BAR_SIZE, normalizedValue * trackHeight);
         const barTone = resolveRiskTone(normalizedValue);
         return (
           <rect
             key={`${props.label}_${index}`}
-            x={graphX + index * barWidth + 0.25}
+            x={graphX + index * barWidth + SIGNAL_HEALTH_RISK_BAR_X_INSET}
             y={trackY + trackHeight - height}
-            width={Math.max(0.35, barWidth - 0.5)}
+            width={Math.max(SIGNAL_HEALTH_RISK_MIN_BAR_SIZE, barWidth - SIGNAL_HEALTH_RISK_BAR_GAP)}
             height={height}
-            rx="0.45"
+            rx={SIGNAL_HEALTH_RISK_BAR_RADIUS}
             className={`signal-health-risk-fill ${barTone}`}
           />
         );
@@ -156,11 +185,16 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
   const gradientId = buildSignalHealthGradientId(reactId);
   const stats = props.capture?.qualityStats;
   const status = resolveSignalHealthStatus(stats);
-  const peakRatio = Math.min(1, Math.max(0, stats?.peak ?? 0));
-  const rmsRatio = Math.min(1, Math.max(0, stats?.rms ?? 0));
-  const roughRatio = Math.min(1, Math.max(0, Math.max(stats?.roughness ?? 0, stats?.zeroCrossingRate ?? 0)));
-  const dcRatio = Math.min(1, Math.abs(stats?.dcOffset ?? 0) / 0.25);
-  const crestRiskRatio = stats && status !== "blank" ? Math.min(1, Math.max(0, (10 - stats.crestFactorDb) / 10)) : 0;
+  const peakRatio = clamp01(stats?.peak ?? 0);
+  const rmsRatio = clamp01(stats?.rms ?? 0);
+  const roughRatio = clamp01(Math.max(stats?.roughness ?? 0, stats?.zeroCrossingRate ?? 0));
+  const dcRatio = clamp01(Math.abs(stats?.dcOffset ?? 0) / SIGNAL_HEALTH_DC_RISK_FULL_SCALE);
+  const crestRiskRatio =
+    stats && status !== "blank"
+      ? clamp01(
+          (SIGNAL_HEALTH_PEAK_RMS_RISK_REFERENCE_DB - stats.crestFactorDb) / SIGNAL_HEALTH_PEAK_RMS_RISK_REFERENCE_DB
+        )
+      : 0;
   const riskSeries = buildSignalHealthRiskSeries(props.capture?.samples);
   const compact = Boolean(props.compact);
   const meterTop = compact ? 7 : 13;
@@ -168,8 +202,8 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
   const meterHeight = meterBottom - meterTop;
   const meterFillY = meterBottom - peakRatio * meterHeight;
   const rmsY = meterBottom - rmsRatio * meterHeight;
-  const hotY = meterTop + meterHeight * 0.24;
-  const clipY = meterTop + meterHeight * 0.1;
+  const hotY = meterBottom - meterHeight * SIGNAL_HEALTH_HOT_LEVEL_RATIO;
+  const clipY = meterBottom - meterHeight * SIGNAL_HEALTH_CLIP_LEVEL_RATIO;
   const riskFrame = compact ? { x: 25, y: 4, width: 70, height: 55 } : { x: 29, y: 9, width: 66, height: 50 };
   const riskRows = compact ? [7, 25, 43] : [14, 30, 46];
   const statusClass = createSignalHealthGraphStatusClass({ compact: props.compact, status });
@@ -190,19 +224,44 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
         <title>
           Peak meter: soft fill is peak amplitude; white line is RMS; yellow/red marks are hot and clip zones.
         </title>
-        <rect x="7" y={meterTop} width="13" height={meterHeight} rx="3" className="signal-health-rail" />
         <rect
-          x="8.5"
+          x={SIGNAL_HEALTH_METER_RAIL_X}
+          y={meterTop}
+          width={SIGNAL_HEALTH_METER_RAIL_WIDTH}
+          height={meterHeight}
+          rx="3"
+          className="signal-health-rail"
+        />
+        <rect
+          x={SIGNAL_HEALTH_METER_FILL_X}
           y={meterFillY}
-          width="10"
+          width={SIGNAL_HEALTH_METER_FILL_WIDTH}
           height={meterBottom - meterFillY}
           rx="2.5"
           className="signal-health-peak-fill"
           style={{ fill: `url(#${gradientId})` }}
         />
-        <line x1="7" y1={hotY} x2="20" y2={hotY} className="signal-health-hot-line" />
-        <line x1="7" y1={clipY} x2="20" y2={clipY} className="signal-health-clip-line" />
-        <line x1="6.5" y1={rmsY} x2="20.5" y2={rmsY} className="signal-health-rms-marker" />
+        <line
+          x1={SIGNAL_HEALTH_METER_THRESHOLD_LINE_START_X}
+          y1={hotY}
+          x2={SIGNAL_HEALTH_METER_THRESHOLD_LINE_END_X}
+          y2={hotY}
+          className="signal-health-hot-line"
+        />
+        <line
+          x1={SIGNAL_HEALTH_METER_THRESHOLD_LINE_START_X}
+          y1={clipY}
+          x2={SIGNAL_HEALTH_METER_THRESHOLD_LINE_END_X}
+          y2={clipY}
+          className="signal-health-clip-line"
+        />
+        <line
+          x1={SIGNAL_HEALTH_METER_RMS_LINE_START_X}
+          y1={rmsY}
+          x2={SIGNAL_HEALTH_METER_RMS_LINE_END_X}
+          y2={rmsY}
+          className="signal-health-rms-marker"
+        />
       </g>
       {!compact && (
         <>
@@ -214,13 +273,21 @@ export function SignalHealthProbeGraph(props: { capture?: PreviewProbeCapture; c
               {formatDb(stats.peakDb)}
             </text>
           )}
-          <text x="21.5" y={clipY + 1.4} className="signal-health-threshold-label clip">
+          <text
+            x={SIGNAL_HEALTH_METER_THRESHOLD_LABEL_X}
+            y={clipY + 1.4}
+            className="signal-health-threshold-label clip"
+          >
             clip
           </text>
-          <text x="21.5" y={hotY + 1.4} className="signal-health-threshold-label">
+          <text x={SIGNAL_HEALTH_METER_THRESHOLD_LABEL_X} y={hotY + 1.4} className="signal-health-threshold-label">
             hot
           </text>
-          <text x="21.5" y={Math.max(29, Math.min(53, rmsY + 1.5))} className="signal-health-threshold-label rms">
+          <text
+            x={SIGNAL_HEALTH_METER_THRESHOLD_LABEL_X}
+            y={Math.max(29, Math.min(53, rmsY + 1.5))}
+            className="signal-health-threshold-label rms"
+          >
             rms
           </text>
         </>
