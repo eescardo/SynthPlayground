@@ -6,6 +6,7 @@ import { clamp, clamp01 } from "@/lib/numeric";
 import { clampProbeMaxFrequencyHz, DEFAULT_PROBE_MAX_FREQUENCY_HZ, resolveProbeKindDefaults } from "@/lib/patch/probes";
 import { presetPatches } from "@/lib/patch/presets";
 import { normalizePatch } from "@/lib/patch/normalize";
+import { clampTrackPan, TRACK_PAN_CENTER } from "@/lib/trackPan";
 import { TRACK_VOLUME_DEFAULT, TRACK_VOLUME_MAX, TRACK_VOLUME_MIN } from "@/lib/trackVolume";
 import { Project, TrackFxSettings, PatchWorkspaceTabState } from "@/types/music";
 import { PatchProbeKind, PatchProbeTarget, PatchWorkspaceProbeState } from "@/types/probes";
@@ -269,6 +270,7 @@ export const normalizeProject = (raw: unknown): Project => {
         macroAutomations: sanitizeMacroAutomationMap(track.macroAutomations),
         macroPanelExpanded: track.macroPanelExpanded === true,
         volume: clamp(asFiniteNumber(track.volume, TRACK_VOLUME_DEFAULT), TRACK_VOLUME_MIN, TRACK_VOLUME_MAX),
+        pan: clampTrackPan(asFiniteNumber(track.pan, TRACK_PAN_CENTER)),
         mute: Boolean(track.mute),
         solo: Boolean(track.solo),
         fx: {

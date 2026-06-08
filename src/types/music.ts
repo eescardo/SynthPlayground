@@ -55,6 +55,7 @@ export interface Track {
   macroAutomations: Record<string, TrackMacroAutomationLane>;
   macroPanelExpanded: boolean;
   volume: number;
+  pan: number;
   mute?: boolean;
   solo?: boolean;
   fx: TrackFxSettings;

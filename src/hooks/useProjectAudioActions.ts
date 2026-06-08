@@ -3,9 +3,10 @@
 import { RefObject, useCallback, useState } from "react";
 import { AudioEngine } from "@/audio/engine";
 import { toAudioProject } from "@/audio/audioProject";
-import { TRACK_VOLUME_AUTOMATION_ID } from "@/lib/macroAutomation";
+import { TRACK_PAN_AUTOMATION_ID, TRACK_VOLUME_AUTOMATION_ID } from "@/lib/macroAutomation";
 import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { clampTrackVolume, isTrackVolumeMuted } from "@/lib/trackVolume";
+import { clampTrackPan } from "@/lib/trackPan";
 import { ProjectAssetLibrary } from "@/types/assets";
 import { Project } from "@/types/music";
 
@@ -66,6 +67,7 @@ export function useProjectAudioActions(options: UseProjectAudioActionsOptions) {
               ? {
                   ...track,
                   volume: clampedVolume,
+                  pan: 0.5,
                   mute: muteChange?.muted ?? track.mute
                 }
               : track
@@ -108,9 +110,28 @@ export function useProjectAudioActions(options: UseProjectAudioActionsOptions) {
     }
   }, [audioEngineRef, exportingAudio, project, projectAssets, setRuntimeError]);
 
+  const setTrackPan = useCallback(
+    (trackId: string, pan: number, actionOptions?: { commit?: boolean }) => {
+      const clampedPan = clampTrackPan(pan);
+      audioEngineRef.current?.setMacroValue(trackId, TRACK_PAN_AUTOMATION_ID, clampedPan);
+      commitProjectChange(
+        (current) => ({
+          ...current,
+          tracks: current.tracks.map((track) => (track.id === trackId ? { ...track, pan: clampedPan } : track))
+        }),
+        {
+          actionKey: `track:${trackId}:pan`,
+          coalesce: actionOptions?.commit === false
+        }
+      );
+    },
+    [audioEngineRef, commitProjectChange]
+  );
+
   return {
     exportingAudio,
     exportAudio,
-    setTrackVolume
+    setTrackVolume,
+    setTrackPan
   };
 }

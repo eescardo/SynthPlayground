@@ -71,8 +71,8 @@
 
 .volumeButton {
   position: absolute;
-  left: 140px;
-  width: 20px;
+  left: 134px;
+  width: 17px;
   height: 20px;
   pointer-events: auto;
   z-index: 2;
@@ -82,6 +82,49 @@
   border: 0;
   padding: 0;
   cursor: pointer;
+}
+
+.panButton {
+  position: absolute;
+  left: 151px;
+  width: 19px;
+  height: 20px;
+  pointer-events: auto;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(148, 179, 213, 0.38);
+  border-radius: 999px;
+  background: rgba(10, 18, 27, 0.74);
+  color: #d8ecff;
+  padding: 0;
+  font:
+    9px "Courier New",
+    monospace;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.panButton:hover,
+.panButton:focus-visible {
+  border-color: rgba(206, 232, 255, 0.62);
+  background: rgba(42, 69, 94, 0.86);
+}
+
+.panButton_left,
+.panButton_right {
+  color: #f2fbff;
+  background: rgba(55, 88, 117, 0.92);
+}
+
+.panButton_soft-left,
+.panButton_soft-right {
+  color: rgba(216, 236, 255, 0.64);
+}
+
+.panButton_center {
+  color: #d8ecff;
 }
 
 .macroToggleButton {

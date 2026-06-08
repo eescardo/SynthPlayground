@@ -41,6 +41,11 @@ export interface TrackCanvasTrackActions {
   onBindTrackVolumeToAutomation: (trackId: string, initialValue: number) => void;
   onUnbindTrackVolumeFromAutomation: (trackId: string) => void;
   onToggleTrackVolumeAutomationLane: (trackId: string) => void;
+  onSetTrackPan: (trackId: string, pan: number, options?: { commit?: boolean }) => void;
+  onPreviewTrackPan: (trackId: string, pan: number) => void;
+  onBindTrackPanToAutomation: (trackId: string, initialValue: number) => void;
+  onUnbindTrackPanFromAutomation: (trackId: string) => void;
+  onToggleTrackPanAutomationLane: (trackId: string) => void;
   onUpdateTrackPatch: (trackId: string, patchId: string) => void;
   onToggleTrackMacroPanel: (trackId: string) => void;
 }
@@ -149,7 +154,7 @@ export interface TrackCanvasProps {
 
 export interface AutomationLaneLayout {
   laneId: string;
-  laneType: "macro" | "volume";
+  laneType: "macro" | "volume" | "pan";
   macroId: string | null;
   name: string;
   y: number;

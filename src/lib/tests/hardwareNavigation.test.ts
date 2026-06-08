@@ -20,6 +20,7 @@ const createTrack = (notes: Track["notes"]): Track => ({
   macroAutomations: {},
   macroPanelExpanded: false,
   volume: 1,
+  pan: 0.5,
   fx: {
     delayEnabled: false,
     reverbEnabled: false,

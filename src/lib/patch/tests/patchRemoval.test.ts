@@ -42,6 +42,7 @@ function track(id: string, instrumentPatchId: string): Track {
     macroAutomations: {},
     macroPanelExpanded: false,
     volume: 1,
+    pan: 0.5,
     mute: false,
     solo: false,
     fx

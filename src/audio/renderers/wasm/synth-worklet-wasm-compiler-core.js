@@ -1,4 +1,4 @@
-import { TRACK_VOLUME_AUTOMATION_ID } from "../shared/synth-renderer-constants.js";
+import { TRACK_PAN_AUTOMATION_ID, TRACK_VOLUME_AUTOMATION_ID } from "../shared/synth-renderer-constants.js";
 import { getIntrinsicParamsForType } from "../../../lib/patch/module-runtime-metadata.js";
 
 // TODO(host-boundary-ports): Host source ports are still compiled as implicit
@@ -269,6 +269,7 @@ const compileTrackPatch = (project, patch, track, trackIndex, runtimeAssets) => 
     trackIndex,
     trackId: track.id,
     volume: Number(track.volume ?? 1),
+    pan: Number(track.pan ?? 0.5),
     fx: {
       delayEnabled: Boolean(track.fx?.delayEnabled),
       reverbEnabled: Boolean(track.fx?.reverbEnabled),
@@ -322,13 +323,16 @@ const EVENT_PRIORITY = {
   NoteOff: 0,
   ParamChange: 1,
   TrackVolumeChange: 1,
+  TrackPanChange: 1,
   NoteOn: 3
 };
 
 const compiledEventSortId = (event) =>
   event.type === "TrackVolumeChange"
     ? `${event.trackIndex}:volume`
-    : `${event.trackIndex}:${event.type === "ParamChange" ? `${event.nodeId}:${event.paramId}` : event.noteId}`;
+    : event.type === "TrackPanChange"
+      ? `${event.trackIndex}:pan`
+      : `${event.trackIndex}:${event.type === "ParamChange" ? `${event.nodeId}:${event.paramId}` : event.noteId}`;
 
 const compareCompiledEvents = (left, right) => {
   if (left.sampleTime !== right.sampleTime) {
@@ -461,6 +465,16 @@ export const compileSchedulerEventsToWasmSubsetCore = (project, projectSpec, eve
         sampleTime: event.sampleTime,
         trackIndex: trackEntry.trackIndex,
         value: clamp01(event.normalized) * 2
+      });
+      continue;
+    }
+
+    if (event.macroId === TRACK_PAN_AUTOMATION_ID) {
+      compiled.push({
+        type: "TrackPanChange",
+        sampleTime: event.sampleTime,
+        trackIndex: trackEntry.trackIndex,
+        value: clamp01(event.normalized)
       });
       continue;
     }

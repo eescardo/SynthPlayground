@@ -7,7 +7,7 @@ import {
   TRACK_MACRO_PANEL_EXPANDED_BOTTOM_GAP
 } from "@/components/tracks/trackCanvasConstants";
 import { AutomationLaneLayout, TrackLayout } from "@/components/tracks/trackCanvasTypes";
-import { getTrackMacroLane, getTrackVolumeLane } from "@/lib/macroAutomation";
+import { getTrackMacroLane, getTrackPanLane, getTrackVolumeLane } from "@/lib/macroAutomation";
 import { Project } from "@/types/music";
 
 export function useTrackCanvasLayout(project: Project): { trackLayouts: TrackLayout[]; height: number } {
@@ -21,6 +21,7 @@ export function useTrackCanvasLayout(project: Project): { trackLayouts: TrackLay
 
       if (track.macroPanelExpanded) {
         const volumeLane = getTrackVolumeLane(track);
+        const panLane = getTrackPanLane(track);
         const patchMacros = patch?.ui.macros ?? [];
         if (volumeLane) {
           const volumeLayout = {
@@ -35,6 +36,21 @@ export function useTrackCanvasLayout(project: Project): { trackLayouts: TrackLay
           };
           laneY += volumeLayout.height;
           automationLanes.push(volumeLayout);
+        }
+
+        if (panLane) {
+          const panLayout = {
+            laneId: panLane.macroId,
+            laneType: "pan" as const,
+            macroId: null,
+            name: "Pan",
+            y: laneY,
+            height: panLane.expanded ? AUTOMATION_LANE_HEIGHT : AUTOMATION_LANE_COLLAPSED_HEIGHT,
+            expanded: panLane.expanded,
+            automated: true
+          };
+          laneY += panLayout.height;
+          automationLanes.push(panLayout);
         }
 
         for (const macro of patchMacros) {
@@ -58,7 +74,7 @@ export function useTrackCanvasLayout(project: Project): { trackLayouts: TrackLay
           automationLanes.push(macroLayout);
         }
 
-        if (!volumeLane && patchMacros.length === 0) {
+        if (!volumeLane && !panLane && patchMacros.length === 0) {
           // Reserve one collapsed lane so zero-macro patches still expose a stable
           // macro-panel surface for hover/double-click patch-summary interactions.
           automationLanes.push({

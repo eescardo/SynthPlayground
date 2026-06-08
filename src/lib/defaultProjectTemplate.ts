@@ -15,6 +15,7 @@ type RawTemplateTrack = {
   macroAutomations?: unknown;
   macroPanelExpanded?: unknown;
   volume?: unknown;
+  pan?: unknown;
   mute?: unknown;
   solo?: unknown;
   fx?: unknown;
@@ -86,6 +87,7 @@ const sanitizeTemplateTrack = (track: RawTemplateTrack, index: number): Track =>
     macroAutomations: sanitizeMacroAutomationMap(track.macroAutomations),
     macroPanelExpanded: track.macroPanelExpanded === true,
     volume: clamp(asFiniteNumber(track.volume, 1), 0, 2),
+    pan: clamp01(asFiniteNumber(track.pan, 0.5)),
     mute: Boolean(track.mute),
     solo: Boolean(track.solo),
     fx: {
@@ -260,6 +262,7 @@ export const createEmptyProjectFromPresets = (bundledPresetPatches: Patch[]): Pr
         macroAutomations: {},
         macroPanelExpanded: false,
         volume: 1,
+        pan: 0.5,
         mute: false,
         solo: false,
         fx: {

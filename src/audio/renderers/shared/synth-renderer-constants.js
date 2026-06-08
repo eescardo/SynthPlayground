@@ -1,4 +1,5 @@
 export const TRACK_VOLUME_AUTOMATION_ID = "__track_volume__";
+export const TRACK_PAN_AUTOMATION_ID = "__track_pan__";
 
 export const EVENT_SORT_PRIORITY = {
   NoteOff: 0,

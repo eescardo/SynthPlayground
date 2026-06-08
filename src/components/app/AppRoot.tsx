@@ -393,6 +393,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
     bindTrackVolumeToAutomation,
     unbindTrackVolumeFromAutomation,
     toggleTrackVolumeAutomationLane,
+    bindTrackPanToAutomation,
+    unbindTrackPanFromAutomation,
+    toggleTrackPanAutomationLane,
+    previewTrackPan,
     previewTrackVolume
   } = useTrackVolumeAutomationActions({
     audioEngineRef,
@@ -534,7 +538,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     },
     [audioEngineRef, commitProjectChange, project.tracks]
   );
-  const { exportingAudio, exportAudio, setTrackVolume } = useProjectAudioActions({
+  const { exportingAudio, exportAudio, setTrackVolume, setTrackPan } = useProjectAudioActions({
     project,
     projectAssets,
     audioEngineRef,
@@ -929,6 +933,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
             macroAutomations: {},
             macroPanelExpanded: false,
             volume: 1,
+            pan: 0.5,
             fx: {
               delayEnabled: false,
               reverbEnabled: false,
@@ -1210,10 +1215,15 @@ export function AppRoot({ children }: { children: ReactNode }) {
     renameTrack,
     toggleTrackMute,
     setTrackVolume,
+    setTrackPan,
     previewTrackVolume,
+    previewTrackPan,
     bindTrackVolumeToAutomation,
     unbindTrackVolumeFromAutomation,
     toggleTrackVolumeAutomationLane,
+    bindTrackPanToAutomation,
+    unbindTrackPanFromAutomation,
+    toggleTrackPanAutomationLane,
     updateTrackPatch,
     toggleTrackMacroPanel,
     duplicatePatchForSelectedTrack,

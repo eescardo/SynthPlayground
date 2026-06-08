@@ -9,7 +9,12 @@ import {
 import { BEAT_WIDTH, HEADER_WIDTH, TRACK_CANVAS_COLORS } from "@/components/tracks/trackCanvasConstants";
 import { TrackCanvasViewport } from "@/components/tracks/trackCanvasRenderModel";
 import { AutomationLaneLayout } from "@/components/tracks/trackCanvasTypes";
-import { getTrackAutomationPoints, getTrackMacroLane, getTrackVolumeLane } from "@/lib/macroAutomation";
+import {
+  getTrackAutomationPoints,
+  getTrackMacroLane,
+  getTrackPanLane,
+  getTrackVolumeLane
+} from "@/lib/macroAutomation";
 import { Project, Track } from "@/types/music";
 
 export interface AutomatedLaneRenderSpec {
@@ -37,9 +42,11 @@ export type LaneRenderSpec = AutomatedLaneRenderSpec | FixedLaneRenderSpec;
 export const resolveAutomatedTrackLane = (track: Track, automationLayout: AutomationLaneLayout) =>
   automationLayout.laneType === "volume"
     ? getTrackVolumeLane(track)
-    : automationLayout.macroId
-      ? getTrackMacroLane(track, automationLayout.macroId)
-      : null;
+    : automationLayout.laneType === "pan"
+      ? getTrackPanLane(track)
+      : automationLayout.macroId
+        ? getTrackMacroLane(track, automationLayout.macroId)
+        : null;
 
 export const resolveLaneRenderSpec = (
   track: Track,

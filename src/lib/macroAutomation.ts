@@ -16,6 +16,7 @@ const EPSILON = 1e-9;
 const SPLIT_OFFSET = 0.1;
 export const TRACK_VOLUME_AUTOMATION_ID = "__track_volume__";
 export const DEFAULT_EMPTY_COMPOSITION_BEATS = 16;
+export const TRACK_PAN_AUTOMATION_ID = "__track_pan__";
 
 export type AutomationKeyframeSide = "single" | "incoming" | "outgoing";
 
@@ -185,10 +186,13 @@ export const getTrackMacroLane = (track: Track, macroId: string): TrackMacroAuto
   track.macroAutomations[macroId] ?? null;
 export const getTrackVolumeLane = (track: Track): TrackMacroAutomationLane | null =>
   track.macroAutomations[TRACK_VOLUME_AUTOMATION_ID] ?? null;
+export const getTrackPanLane = (track: Track): TrackMacroAutomationLane | null =>
+  track.macroAutomations[TRACK_PAN_AUTOMATION_ID] ?? null;
 
 export const isTrackMacroAutomated = (track: Track, macroId: string): boolean =>
   Boolean(getTrackMacroLane(track, macroId));
 export const isTrackVolumeAutomated = (track: Track): boolean => Boolean(getTrackVolumeLane(track));
+export const isTrackPanAutomated = (track: Track): boolean => Boolean(getTrackPanLane(track));
 
 export const createTrackMacroAutomationLane = (macroId: string, initialValue: number): TrackMacroAutomationLane => ({
   macroId,
@@ -200,6 +204,8 @@ export const createTrackMacroAutomationLane = (macroId: string, initialValue: nu
 
 export const createTrackVolumeAutomationLane = (initialValue: number): TrackMacroAutomationLane =>
   createTrackMacroAutomationLane(TRACK_VOLUME_AUTOMATION_ID, initialValue);
+export const createTrackPanAutomationLane = (initialValue: number): TrackMacroAutomationLane =>
+  createTrackMacroAutomationLane(TRACK_PAN_AUTOMATION_ID, initialValue);
 
 export const getTrackAutomationPoints = (lane: TrackMacroAutomationLane, endBeat: number): AutomationPoint[] => {
   const points: AutomationPoint[] = [
@@ -299,6 +305,7 @@ export const getTrackMacroValueAtBeat = (
 export interface TrackPreviewStateAtBeat {
   macroValues: Record<string, number>;
   volumeNormalized: number;
+  panNormalized: number;
 }
 
 export const getTrackPreviewStateAtBeat = (
@@ -322,8 +329,12 @@ export const getTrackPreviewStateAtBeat = (
     override?.macroId === TRACK_VOLUME_AUTOMATION_ID
       ? clampNormalized(override.normalized)
       : getTrackMacroValueAtBeat(track, TRACK_VOLUME_AUTOMATION_ID, track.volume / 2, beat, timelineEndBeat);
+  const panNormalized =
+    override?.macroId === TRACK_PAN_AUTOMATION_ID
+      ? clampNormalized(override.normalized)
+      : getTrackMacroValueAtBeat(track, TRACK_PAN_AUTOMATION_ID, track.pan ?? 0.5, beat, timelineEndBeat);
 
-  return { macroValues, volumeNormalized };
+  return { macroValues, volumeNormalized, panNormalized };
 };
 
 const replaceKeyframe = (

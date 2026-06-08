@@ -1,6 +1,7 @@
 import { CSSProperties, Dispatch, RefObject, SetStateAction, useEffect, useState } from "react";
 import { MacroPanel, MacroPanelRow } from "@/components/tracks/MacroPanel";
 import { PatchSummaryPopover } from "@/components/PatchSummaryPopover";
+import { TrackPanPopover } from "@/components/TrackPanPopover";
 import { TrackVolumePopover } from "@/components/TrackVolumePopover";
 import { TriangleGlyph } from "@/components/icons/TriangleGlyph";
 import { useRenameActivation } from "@/hooks/useRenameActivation";
@@ -23,9 +24,10 @@ import {
   TrackCanvasTrackActions
 } from "@/components/tracks/trackCanvasTypes";
 import { usePatchSummaryPopover } from "@/hooks/tracks/usePatchSummaryPopover";
-import { getTrackMacroLane, getTrackVolumeLane } from "@/lib/macroAutomation";
+import { getTrackMacroLane, getTrackPanLane, getTrackVolumeLane } from "@/lib/macroAutomation";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
+import { trackPanToLabel, trackPanToTone } from "@/lib/trackPan";
 import { VerticalDirection } from "@/types/direction";
 import { Project } from "@/types/music";
 import styles from "./TrackCanvas.module.css";
@@ -43,7 +45,10 @@ interface TrackHeaderChromeProps {
   setEditingTrackName: Dispatch<SetStateAction<string>>;
   volumePopoverTrackId: string | null;
   volumePopoverPosition: { left: number; top: number } | null;
+  panPopoverTrackId: string | null;
+  panPopoverPosition: { left: number; top: number } | null;
   openVolumePopover: (trackId: string, anchor?: HTMLElement | null) => void;
+  openPanPopover: (trackId: string, anchor?: HTMLElement | null) => void;
   scheduleVolumePopoverOpen: (trackId: string, anchor?: HTMLElement | null) => void;
   scheduleVolumePopoverDismiss: () => void;
   cancelScheduledVolumePopoverDismiss: () => void;
@@ -91,22 +96,29 @@ const resolveMacroPanelGeometry = (
   layout: TrackLayout,
   volumeLane: ReturnType<typeof getTrackVolumeLane>,
   volumeLaneLayout: AutomationLaneLayout | null,
+  panLane: ReturnType<typeof getTrackPanLane>,
+  panLaneLayout: AutomationLaneLayout | null,
   macroLaneLayouts: AutomationLaneLayout[]
 ): MacroPanelGeometry => {
-  const volumeLaneTop = volumeLaneLayout?.y ?? null;
-  const panelTop = volumeLaneTop ?? macroLaneLayouts[0]?.y ?? null;
+  const systemLaneLayouts = [volumeLaneLayout, panLaneLayout].filter((entry): entry is AutomationLaneLayout =>
+    Boolean(entry)
+  );
+  const firstSystemLaneTop = systemLaneLayouts[0]?.y ?? null;
+  const panelTop = firstSystemLaneTop ?? macroLaneLayouts[0]?.y ?? null;
+  const systemLaneBottoms = [
+    volumeLane
+      ? (volumeLaneLayout?.y ?? layout.y + TRACK_HEIGHT) +
+        (volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT)
+      : 0,
+    panLane
+      ? (panLaneLayout?.y ?? layout.y + TRACK_HEIGHT) + (panLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT)
+      : 0
+  ];
   const panelBottom =
     macroLaneLayouts.length > 0
-      ? Math.max(
-          ...macroLaneLayouts.map((entry) => entry.y + entry.height),
-          volumeLane
-            ? (volumeLaneLayout?.y ?? layout.y + TRACK_HEIGHT) +
-                (volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT)
-            : 0
-        )
-      : volumeLane
-        ? (volumeLaneLayout?.y ?? layout.y + TRACK_HEIGHT) +
-          (volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT)
+      ? Math.max(...macroLaneLayouts.map((entry) => entry.y + entry.height), ...systemLaneBottoms)
+      : systemLaneBottoms.some((bottom) => bottom > 0)
+        ? Math.max(...systemLaneBottoms)
         : null;
   const panelHeight = panelTop !== null && panelBottom !== null ? Math.max(20, panelBottom - panelTop - 2) : 0;
   const shellTop =
@@ -184,7 +196,9 @@ const buildMacroPanelRows = (args: {
   trackPatch?: Project["patches"][number];
   layout: TrackLayout;
   volumeLane: ReturnType<typeof getTrackVolumeLane>;
+  panLane: ReturnType<typeof getTrackPanLane>;
   volumeLaneLayout: AutomationLaneLayout | null;
+  panLaneLayout: AutomationLaneLayout | null;
   trackActions: TrackCanvasTrackActions;
   automationActions: TrackCanvasAutomationActions;
 }): MacroPanelRow[] => {
@@ -207,6 +221,28 @@ const buildMacroPanelRows = (args: {
         expandAriaLabel: expandTitle,
         expandDirection: args.volumeLane.expanded ? "up" : "down",
         onExpandToggle: () => args.trackActions.onToggleTrackVolumeAutomationLane(args.track.id)
+      })
+    );
+  }
+
+  if (args.panLane) {
+    const expandTitle = args.panLane.expanded ? "Collapse lane" : "Expand lane";
+    rows.push(
+      buildMacroPanelRow({
+        id: `${args.track.id}:pan`,
+        label: "Pan",
+        stateLabel: "auto",
+        laneLayout: args.panLaneLayout,
+        fallbackY: args.layout.y + TRACK_HEIGHT,
+        fallbackHeight: AUTOMATION_LANE_COLLAPSED_HEIGHT,
+        expanded: Boolean(args.panLaneLayout?.expanded),
+        bindTitle: MACRO_PILL_AUTO_TITLE,
+        bindAriaLabel: MACRO_PILL_AUTO_TITLE,
+        onBindToggle: () => args.trackActions.onUnbindTrackPanFromAutomation(args.track.id),
+        expandTitle,
+        expandAriaLabel: expandTitle,
+        expandDirection: args.panLane.expanded ? "up" : "down",
+        onExpandToggle: () => args.trackActions.onToggleTrackPanAutomationLane(args.track.id)
       })
     );
   }
@@ -263,7 +299,10 @@ export function TrackHeaderChrome({
   setEditingTrackName,
   volumePopoverTrackId,
   volumePopoverPosition,
+  panPopoverTrackId,
+  panPopoverPosition,
   openVolumePopover,
+  openPanPopover,
   scheduleVolumePopoverOpen,
   scheduleVolumePopoverDismiss,
   cancelScheduledVolumePopoverDismiss,
@@ -329,13 +368,22 @@ export function TrackHeaderChrome({
         }
         const trackPatch = project.patches.find((entry) => entry.id === track.instrumentPatchId);
         const volumeLane = getTrackVolumeLane(track);
+        const panLane = getTrackPanLane(track);
         const selected = selectedTrackId === track.id;
         const effectiveVolume = track.mute ? 0 : track.volume;
         const trackSilenced = track.mute || isTrackVolumeMuted(track.volume);
         const rememberedVolume = track.volume;
         const volumeLaneLayout = layout.automationLanes.find((entry) => entry.laneType === "volume") ?? null;
+        const panLaneLayout = layout.automationLanes.find((entry) => entry.laneType === "pan") ?? null;
         const macroLaneLayouts = layout.automationLanes.filter((entry) => entry.laneType === "macro");
-        const macroPanelGeometry = resolveMacroPanelGeometry(layout, volumeLane, volumeLaneLayout, macroLaneLayouts);
+        const macroPanelGeometry = resolveMacroPanelGeometry(
+          layout,
+          volumeLane,
+          volumeLaneLayout,
+          panLane,
+          panLaneLayout,
+          macroLaneLayouts
+        );
         const hasPatchSummaryPopover = patchSummaryPopover?.trackId === track.id;
         const patchSummaryAnchor = resolvePatchSummaryAnchor({
           layout,
@@ -350,7 +398,9 @@ export function TrackHeaderChrome({
           trackPatch,
           layout,
           volumeLane,
+          panLane,
           volumeLaneLayout,
+          panLaneLayout,
           trackActions,
           automationActions
         });
@@ -426,6 +476,22 @@ export function TrackHeaderChrome({
                 openVolumePopover(track.id, event.currentTarget);
               }}
             />
+            <button
+              type="button"
+              className={`${styles.panButton} ${styles[`panButton_${trackPanToTone(track.pan ?? 0.5)}`]}`}
+              data-track-chrome="pan-button"
+              aria-label={`Track pan for ${track.name}`}
+              aria-expanded={panPopoverTrackId === track.id}
+              style={{
+                top: `${layout.y + SPEAKER_Y_OFFSET}px`
+              }}
+              onClick={(event) => {
+                event.stopPropagation();
+                openPanPopover(track.id, event.currentTarget);
+              }}
+            >
+              {trackPanToLabel(track.pan ?? 0.5)}
+            </button>
             {selected && (
               <button
                 type="button"
@@ -467,6 +533,23 @@ export function TrackHeaderChrome({
                 }}
                 onBindToAutomation={() => trackActions.onBindTrackVolumeToAutomation(track.id, track.volume / 2)}
                 onUnbindFromAutomation={() => trackActions.onUnbindTrackVolumeFromAutomation(track.id)}
+              />
+            )}
+            {panPopoverTrackId === track.id && (
+              <TrackPanPopover
+                trackName={track.name}
+                pan={track.pan ?? 0.5}
+                automated={Boolean(panLane)}
+                top={`${panPopoverPosition?.top ?? layout.y + 6}px`}
+                left={`${panPopoverPosition?.left ?? 164}px`}
+                onPanChange={(pan, options) => {
+                  trackActions.onSetTrackPan(track.id, pan, options);
+                  if (options?.commit) {
+                    trackActions.onPreviewTrackPan(track.id, pan);
+                  }
+                }}
+                onBindToAutomation={() => trackActions.onBindTrackPanToAutomation(track.id, track.pan ?? 0.5)}
+                onUnbindFromAutomation={() => trackActions.onUnbindTrackPanFromAutomation(track.id)}
               />
             )}
             {editingTrackId === track.id && (

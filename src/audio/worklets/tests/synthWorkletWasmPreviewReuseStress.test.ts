@@ -39,6 +39,7 @@ const createBassDrumProject = (): AudioProject => {
         macroAutomations: {},
         macroPanelExpanded: true,
         volume: 1,
+        pan: 0.5,
         mute: false,
         solo: false,
         fx: {

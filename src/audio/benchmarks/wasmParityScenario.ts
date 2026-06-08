@@ -70,6 +70,7 @@ const createTrack = (trackIndex: number, config: WasmParityScenarioConfig): Trac
     macroAutomations: {},
     macroPanelExpanded: false,
     volume: 0.125,
+    pan: 0.5,
     mute: false,
     solo: false,
     fx: {

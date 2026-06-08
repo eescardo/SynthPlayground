@@ -109,6 +109,7 @@ impl VoiceRuntime {
 #[derive(Clone)]
 pub(crate) struct TrackRuntime {
     volume: f32,
+    pan: f32,
     block_size: usize,
     fx: TrackFxSpec,
     host_signal_indices: HostSignalIndices,
@@ -167,6 +168,7 @@ impl TrackRuntime {
             .collect();
         Ok(Self {
             volume: spec.volume,
+            pan: clamp(spec.pan, 0.0, 1.0),
             block_size,
             fx: spec.fx,
             host_signal_indices: spec.host_signal_indices,
@@ -493,7 +495,8 @@ impl TrackRuntime {
 
     /// Renders one track frame range from its voices and optional insert FX.
     /// Params:
-    /// - `target_buffer`: shared mix buffer that receives this track's processed output.
+    /// - `target_left`: shared left mix buffer that receives this track's processed output.
+    /// - `target_right`: shared right mix buffer that receives this track's processed output.
     /// - `start_frame`: inclusive frame index inside the current render block.
     /// - `end_frame`: exclusive frame index inside the current render block.
     /// - `sample_rate`: global sample rate for time-based DSP calculations.
@@ -502,7 +505,8 @@ impl TrackRuntime {
     /// - `capture_offset`: absolute preview sample index for the start of this render range.
     pub(crate) fn process_track_frames(
         &mut self,
-        target_buffer: &mut [f32],
+        target_left: &mut [f32],
+        target_right: &mut [f32],
         start_frame: usize,
         end_frame: usize,
         sample_rate: f32,
@@ -546,8 +550,16 @@ impl TrackRuntime {
             .track_samples_rendered
             .saturating_add((end_frame.saturating_sub(start_frame)) as u64);
 
+        let left_gain = if self.pan <= 0.5 {
+            1.0
+        } else {
+            (1.0 - self.pan) * 2.0
+        };
+        let right_gain = if self.pan >= 0.5 { 1.0 } else { self.pan * 2.0 };
         for frame in start_frame..end_frame {
-            target_buffer[frame] += self.track_buffer[frame] * self.volume;
+            let sample = self.track_buffer[frame] * self.volume;
+            target_left[frame] += sample * left_gain;
+            target_right[frame] += sample * right_gain;
         }
     }
 
@@ -742,5 +754,9 @@ impl TrackRuntime {
 
     pub(crate) fn set_volume(&mut self, value: f32) {
         self.volume = clamp(value, 0.0, 2.0);
+    }
+
+    pub(crate) fn set_pan(&mut self, value: f32) {
+        self.pan = clamp(value, 0.0, 1.0);
     }
 }

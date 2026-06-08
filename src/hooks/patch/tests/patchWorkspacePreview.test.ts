@@ -61,6 +61,7 @@ describe("patch workspace preview", () => {
       instrumentPatchId: patch.id,
       notes: [],
       volume: 1,
+      pan: 0.5,
       mute: false,
       solo: false,
       macroValues: {
@@ -118,6 +119,7 @@ describe("patch workspace preview", () => {
       instrumentPatchId: patch.id,
       notes: [],
       volume: 1,
+      pan: 0.5,
       mute: false,
       solo: false,
       macroValues: {

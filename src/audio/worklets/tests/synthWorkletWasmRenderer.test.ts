@@ -208,6 +208,7 @@ function createTrack(overrides: Partial<Track> = {}): Track {
     macroAutomations: {},
     macroPanelExpanded: true,
     volume: 1,
+    pan: 0.5,
     mute: false,
     fx: {
       delayEnabled: false,

@@ -134,10 +134,15 @@ interface CreateTrackCanvasActionGroupsOptions {
   renameTrack: ComposerViewProps["trackActions"]["onRenameTrack"];
   toggleTrackMute: ComposerViewProps["trackActions"]["onToggleTrackMute"];
   setTrackVolume: ComposerViewProps["trackActions"]["onSetTrackVolume"];
+  setTrackPan: ComposerViewProps["trackActions"]["onSetTrackPan"];
   previewTrackVolume: ComposerViewProps["trackActions"]["onPreviewTrackVolume"];
+  previewTrackPan: ComposerViewProps["trackActions"]["onPreviewTrackPan"];
   bindTrackVolumeToAutomation: ComposerViewProps["trackActions"]["onBindTrackVolumeToAutomation"];
   unbindTrackVolumeFromAutomation: ComposerViewProps["trackActions"]["onUnbindTrackVolumeFromAutomation"];
   toggleTrackVolumeAutomationLane: ComposerViewProps["trackActions"]["onToggleTrackVolumeAutomationLane"];
+  bindTrackPanToAutomation: ComposerViewProps["trackActions"]["onBindTrackPanToAutomation"];
+  unbindTrackPanFromAutomation: ComposerViewProps["trackActions"]["onUnbindTrackPanFromAutomation"];
+  toggleTrackPanAutomationLane: ComposerViewProps["trackActions"]["onToggleTrackPanAutomationLane"];
   updateTrackPatch: ComposerViewProps["trackActions"]["onUpdateTrackPatch"];
   toggleTrackMacroPanel: ComposerViewProps["trackActions"]["onToggleTrackMacroPanel"];
   duplicatePatchForSelectedTrack: ComposerViewProps["patchActions"]["onDuplicateSelectedPatch"];
@@ -178,10 +183,15 @@ export function createTrackCanvasActionGroups(options: CreateTrackCanvasActionGr
     onRenameTrack: options.renameTrack,
     onToggleTrackMute: options.toggleTrackMute,
     onSetTrackVolume: options.setTrackVolume,
+    onSetTrackPan: options.setTrackPan,
     onPreviewTrackVolume: options.previewTrackVolume,
+    onPreviewTrackPan: options.previewTrackPan,
     onBindTrackVolumeToAutomation: options.bindTrackVolumeToAutomation,
     onUnbindTrackVolumeFromAutomation: options.unbindTrackVolumeFromAutomation,
     onToggleTrackVolumeAutomationLane: options.toggleTrackVolumeAutomationLane,
+    onBindTrackPanToAutomation: options.bindTrackPanToAutomation,
+    onUnbindTrackPanFromAutomation: options.unbindTrackPanFromAutomation,
+    onToggleTrackPanAutomationLane: options.toggleTrackPanAutomationLane,
     onUpdateTrackPatch: options.updateTrackPatch,
     onToggleTrackMacroPanel: options.toggleTrackMacroPanel
   };

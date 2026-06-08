@@ -8,6 +8,7 @@ import {
   getProjectTimelineEndBeat,
   getTrackMacroLane,
   TrackPreviewStateAtBeat,
+  TRACK_PAN_AUTOMATION_ID,
   TRACK_VOLUME_AUTOMATION_ID,
   removeAutomationLaneKeyframeSide,
   splitAutomationLaneKeyframe,
@@ -105,6 +106,7 @@ export function useTrackMacroAutomationActions({
         engine.setMacroValue(trackId, previewMacroId, previewNormalized);
       }
       engine.setMacroValue(trackId, TRACK_VOLUME_AUTOMATION_ID, previewState.volumeNormalized);
+      engine.setMacroValue(trackId, TRACK_PAN_AUTOMATION_ID, previewState.panNormalized);
     },
     [audioEngineRef, resolveTrackPreviewStateAtBeat]
   );

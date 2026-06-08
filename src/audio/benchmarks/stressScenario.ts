@@ -171,6 +171,7 @@ const createTrack = (patchId: string, trackIndex: number, config: AudioBenchmark
     macroAutomations,
     macroPanelExpanded: trackIndex < 4,
     volume: 0.75 + (trackIndex % 5) * 0.12,
+    pan: 0.5,
     mute: false,
     solo: false,
     fx: createTrackFx(trackIndex, config.includeTrackFx)

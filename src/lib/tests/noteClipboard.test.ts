@@ -79,6 +79,7 @@ const createProject = (): Project => ({
       },
       macroPanelExpanded: true,
       volume: 1,
+      pan: 0.5,
       fx: {
         delayEnabled: false,
         reverbEnabled: false,
@@ -110,6 +111,7 @@ const createProject = (): Project => ({
       },
       macroPanelExpanded: true,
       volume: 1,
+      pan: 0.5,
       fx: {
         delayEnabled: false,
         reverbEnabled: false,
@@ -133,6 +135,7 @@ const createProject = (): Project => ({
       macroAutomations: {},
       macroPanelExpanded: true,
       volume: 1,
+      pan: 0.5,
       fx: {
         delayEnabled: false,
         reverbEnabled: false,

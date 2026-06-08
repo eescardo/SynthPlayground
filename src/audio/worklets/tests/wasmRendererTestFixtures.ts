@@ -33,6 +33,7 @@ export function createWasmRendererTestTrack(overrides: Partial<Track> = {}): Tra
     macroAutomations: {},
     macroPanelExpanded: true,
     volume: 1,
+    pan: 0.5,
     mute: false,
     fx: {
       delayEnabled: false,

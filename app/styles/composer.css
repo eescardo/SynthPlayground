@@ -280,6 +280,64 @@
   background: rgba(54, 85, 116, 0.82);
 }
 
+.track-pan-popover {
+  position: fixed;
+  width: 168px;
+  padding: 0.55rem 0.65rem 0.62rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: auto;
+  z-index: 4;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(10, 18, 27, 0.97);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+}
+
+.track-pan-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.track-pan-popover-header strong {
+  color: var(--ink);
+  font-family: "Courier New", monospace;
+  font-size: 0.68rem;
+}
+
+.track-pan-slider-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted);
+  font:
+    0.68rem "Courier New",
+    monospace;
+}
+
+.track-pan-slider-row input[type="range"] {
+  width: 100%;
+  accent-color: #9fd4ff;
+}
+
+.track-pan-automation-check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--ink);
+}
+
+.track-pan-automation-check input {
+  accent-color: #9fd4ff;
+}
+
 .timeline-actions-popover {
   position: fixed;
   display: flex;
