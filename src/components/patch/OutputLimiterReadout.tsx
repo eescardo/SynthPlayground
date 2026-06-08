@@ -1,6 +1,14 @@
 import { formatDb, OutputLimiterPreview } from "@/lib/patch/signalHealth";
 
 const OUTPUT_LIMITER_REDUCTION_METER_FULL_SCALE_DB = 18;
+const OUTPUT_LIMITER_TRANSFER_INPUT_FULL_SCALE = 2;
+const OUTPUT_LIMITER_TRANSFER_OUTPUT_FULL_SCALE = 1;
+const OUTPUT_LIMITER_TRANSFER_GRAPH = {
+  left: 7,
+  right: 93,
+  top: 7,
+  bottom: 37
+};
 
 function clampRatio(value: number) {
   return Math.min(1, Math.max(0, value));
@@ -12,6 +20,36 @@ function formatReductionDb(
   limiterEnabled: boolean
 ) {
   return populated && limiterEnabled ? `${(preview?.reductionDb ?? 0).toFixed(1)} dB` : "0.0 dB";
+}
+
+function resolveLimiterTransferPath(limiterEnabled: boolean, transfer: (input: number) => number) {
+  const points = Array.from({ length: 32 }, (_, index) => {
+    const ratio = index / 31;
+    const input = ratio * OUTPUT_LIMITER_TRANSFER_INPUT_FULL_SCALE;
+    const output = limiterEnabled ? transfer(input) : input;
+    const x =
+      OUTPUT_LIMITER_TRANSFER_GRAPH.left +
+      ratio * (OUTPUT_LIMITER_TRANSFER_GRAPH.right - OUTPUT_LIMITER_TRANSFER_GRAPH.left);
+    const y =
+      OUTPUT_LIMITER_TRANSFER_GRAPH.bottom -
+      clampRatio(output / OUTPUT_LIMITER_TRANSFER_OUTPUT_FULL_SCALE) *
+        (OUTPUT_LIMITER_TRANSFER_GRAPH.bottom - OUTPUT_LIMITER_TRANSFER_GRAPH.top);
+    return `${index === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
+  });
+  return points.join(" ");
+}
+
+function resolvePreviewPoint(prePeak: number, postPeak: number) {
+  const inputRatio = clampRatio(prePeak / OUTPUT_LIMITER_TRANSFER_INPUT_FULL_SCALE);
+  const outputRatio = clampRatio(postPeak / OUTPUT_LIMITER_TRANSFER_OUTPUT_FULL_SCALE);
+  return {
+    x:
+      OUTPUT_LIMITER_TRANSFER_GRAPH.left +
+      inputRatio * (OUTPUT_LIMITER_TRANSFER_GRAPH.right - OUTPUT_LIMITER_TRANSFER_GRAPH.left),
+    y:
+      OUTPUT_LIMITER_TRANSFER_GRAPH.bottom -
+      outputRatio * (OUTPUT_LIMITER_TRANSFER_GRAPH.bottom - OUTPUT_LIMITER_TRANSFER_GRAPH.top)
+  };
 }
 
 export function OutputLimiterReadout({ preview }: { preview?: OutputLimiterPreview | null }) {
@@ -28,6 +66,14 @@ export function OutputLimiterReadout({ preview }: { preview?: OutputLimiterPrevi
   const postRatio = populated ? clampRatio(preview?.postPeak ?? 0) : 0;
   const postRmsRatio = populated ? clampRatio(preview?.postRms ?? 0) : 0;
   const reductionDb = formatReductionDb(preview, populated, limiterEnabled);
+  const previewPoint = resolvePreviewPoint(preview?.drivenPeak ?? 0, preview?.postPeak ?? 0);
+  const rawTransferPath = resolveLimiterTransferPath(false, (input) => input);
+  const limitedTransferPath = resolveLimiterTransferPath(limiterEnabled, Math.tanh);
+  const previewPointTitle = populated
+    ? `Preview peak: PRE ${formatDb(preview?.drivenPeakDb ?? 0)} -> POST ${formatDb(
+        preview?.postPeakDb ?? 0
+      )}. This point plots the measured peak before and after the output limiter.`
+    : "Preview a note to place the measured peak point.";
   return (
     <div
       className={`param-row output-limiter-readout${preview?.nearClipActive ? " active" : ""}${
@@ -51,20 +97,32 @@ export function OutputLimiterReadout({ preview }: { preview?: OutputLimiterPrevi
           className="output-limiter-curve"
           title={
             populated
-              ? "Limiter transfer curve. Dashed line is unprocessed level; gold line is the limited output curve; the dot is this preview's current peak."
+              ? "Limiter transfer curve. Dashed line is the no-limiter reference; gold line is the output node transfer function."
               : "Preview a note to populate the limiter transfer curve."
           }
         >
           <svg viewBox="0 0 100 44" preserveAspectRatio="none">
-            <title>Limiter curve with raw, limited, and current peak indicators</title>
-            <path d="M7 37 C 34 35, 60 24, 93 7" className="output-limiter-curve-raw" />
-            <path d="M7 37 C 28 34, 54 14, 93 8" className="output-limiter-curve-shaped" />
-            {populated && <circle cx={14 + drivenRatio * 72} cy={37 - postRatio * 29} r="3.5" />}
+            <title>Limiter curve with no-limiter reference, actual transfer function, and measured peak point</title>
+            <path d={rawTransferPath} className="output-limiter-curve-raw">
+              <title>No-limiter reference: output follows input until the display reaches full scale.</title>
+            </path>
+            <path d={limitedTransferPath} className="output-limiter-curve-shaped">
+              <title>
+                {limiterEnabled
+                  ? "Actual limiter transfer: output = tanh(pre-limiter input)."
+                  : "Limiter is off, so the transfer follows the no-limiter reference."}
+              </title>
+            </path>
+            {populated && (
+              <circle cx={previewPoint.x} cy={previewPoint.y} r="3.5">
+                <title>{previewPointTitle}</title>
+              </circle>
+            )}
             <text x="10" y="12" className="output-limiter-legend raw">
-              raw
+              no limit
             </text>
             <text x="75" y="18" className="output-limiter-legend shaped">
-              limited
+              tanh
             </text>
             <text x="5" y="41" className="output-limiter-axis-label">
               in
