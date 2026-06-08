@@ -129,8 +129,8 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
           name: nextPatchName
         };
 
-        await saveActiveProjectAssets(merged.assets);
         setProjectAssets(merged.assets);
+        await saveActiveProjectAssets(merged.assets);
         commitProjectChange(
           (current) => ({
             ...current,
