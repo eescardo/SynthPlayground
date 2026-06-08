@@ -96,10 +96,6 @@ export function resolveOutputLimiterPreview(
   };
 }
 
-export function isHiddenOutputSignalHealthCaptureId(probeId: string) {
-  return probeId === OUTPUT_PRE_LIMITER_CAPTURE_ID || probeId === OUTPUT_POST_LIMITER_CAPTURE_ID;
-}
-
 export function isSignalHealthNearClipping(stats?: PreviewProbeQualityStats) {
   return Boolean(stats && (stats.clippedCount > 0 || stats.nearClipCount > 0 || stats.peak >= 0.98));
 }
