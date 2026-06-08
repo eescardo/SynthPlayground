@@ -12,19 +12,14 @@ import {
   PATCH_NODE_WIDTH,
   setFaceLineWidth
 } from "@/components/patch/moduleFaces/shared";
-import { ParamSchema } from "@/types/patch";
-
-function getFloatParamMax(schema: ParamSchema[], paramId: string, fallback: number) {
-  const param = schema.find((entry) => entry.id === paramId);
-  return param?.type === "float" ? param.range.max : fallback;
-}
+import { NODE_PARAMS } from "@/lib/patch/generatedNodeParams";
 
 function formatGainAxisLabel(value: number) {
   return Number.isInteger(value) ? value.toFixed(1) : value.toFixed(2);
 }
 
 export const drawVcaModuleFace: ModuleFaceRenderer = (ctx, _patch, node, schema, x, y, accentColor) => {
-  const maxGain = Math.max(1, getFloatParamMax(schema, "gain", 1));
+  const maxGain = Math.max(1, NODE_PARAMS.vca.gain.max);
   const toGraphUnit = (value: number) => clamp(value / maxGain, 0, 1);
   const graphLeftInset = PATCH_MODULE_FACE_INSET_X + 12;
   const graph = {

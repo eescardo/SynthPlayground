@@ -1,4 +1,4 @@
-// Generated from src/lib/patch/moduleRegistry.ts by scripts/generate-rust-node-params.ts.
+// Generated from src/lib/patch/moduleRegistry.ts by scripts/generate-node-params.ts.
 // Do not edit by hand.
 
 #![allow(dead_code)]
