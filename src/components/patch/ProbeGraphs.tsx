@@ -47,6 +47,22 @@ const SIGNAL_HEALTH_RISK_BAR_X_INSET = 0.25;
 const SIGNAL_HEALTH_RISK_BAR_GAP = 0.5;
 const SIGNAL_HEALTH_RISK_MIN_BAR_SIZE = 0.35;
 const SIGNAL_HEALTH_RISK_BAR_RADIUS = 0.45;
+const SIGNAL_HEALTH_RISK_TRACK_Y_OFFSET = 0.5;
+const SIGNAL_HEALTH_RISK_TRACK_HEIGHT_INSET = 1;
+const SIGNAL_HEALTH_RISK_GRAPH_LAYOUT = {
+  compact: {
+    graphX: 30,
+    graphWidth: 62,
+    rowHeight: 15
+  },
+  expanded: {
+    graphX: 51,
+    graphWidth: 38,
+    rowHeight: 12,
+    labelX: 34,
+    labelYOffset: 7.5
+  }
+};
 
 function clamp01(value: number) {
   return Math.min(1, Math.max(0, value));
@@ -120,11 +136,11 @@ function RiskGraph(props: {
   y: number;
   compact?: boolean;
 }) {
-  const graphX = props.compact ? 30 : 51;
-  const graphWidth = props.compact ? 62 : 38;
-  const rowHeight = props.compact ? 15 : 12;
-  const trackY = props.y + 0.5;
-  const trackHeight = rowHeight - 1;
+  const layout = props.compact ? SIGNAL_HEALTH_RISK_GRAPH_LAYOUT.compact : SIGNAL_HEALTH_RISK_GRAPH_LAYOUT.expanded;
+  const graphX = layout.graphX;
+  const graphWidth = layout.graphWidth;
+  const trackY = props.y + SIGNAL_HEALTH_RISK_TRACK_Y_OFFSET;
+  const trackHeight = layout.rowHeight - SIGNAL_HEALTH_RISK_TRACK_HEIGHT_INSET;
   const thresholdY = trackY + trackHeight - SIGNAL_HEALTH_RISK_BADNESS_THRESHOLD * trackHeight;
   const barWidth = graphWidth / Math.max(1, props.values.length);
   const tone = resolveRiskTone(props.aggregate);
@@ -132,7 +148,11 @@ function RiskGraph(props: {
     <g className={`signal-health-risk-row ${tone}`}>
       <title>{props.title}</title>
       {!props.compact && (
-        <text x="34" y={props.y + 7.5} className="signal-health-risk-label">
+        <text
+          x={SIGNAL_HEALTH_RISK_GRAPH_LAYOUT.expanded.labelX}
+          y={props.y + SIGNAL_HEALTH_RISK_GRAPH_LAYOUT.expanded.labelYOffset}
+          className="signal-health-risk-label"
+        >
           {props.label}
         </text>
       )}
