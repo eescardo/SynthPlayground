@@ -1,10 +1,11 @@
 import { createId } from "@/lib/ids";
 import { clamp } from "@/lib/numeric";
-import { PatchProbeFrequencyView, PatchWorkspaceProbeState } from "@/types/probes";
+import { PatchProbeFrequencyView, PatchProbeKind, PatchWorkspaceProbeState } from "@/types/probes";
 
 export const DEFAULT_SCOPE_PROBE_SIZE = { width: 10, height: 6 } as const;
 export const DEFAULT_SPECTRUM_PROBE_SIZE = { width: 10, height: 6 } as const;
 export const DEFAULT_SIGNAL_HEALTH_PROBE_SIZE = { width: 10, height: 6 } as const;
+const DEFAULT_SPECTRUM_WINDOW_SIZE = 1024;
 export const EXPANDED_PROBE_SIZE = { width: 340, height: 228 } as const;
 export const PROBE_MIN_MAX_FREQUENCY_HZ = 500;
 export const PROBE_MAX_MAX_FREQUENCY_HZ = 24000;
@@ -35,39 +36,50 @@ const PROBE_SPECTRUM_ALPHA_STOPS = [
   { value: 0.1, alpha: 1 }
 ] as const;
 
-export const createPatchWorkspaceProbe = (
-  kind: PatchWorkspaceProbeState["kind"],
-  x: number,
-  y: number
-): PatchWorkspaceProbeState => ({
-  id: createId("probe"),
-  kind,
-  name:
-    kind === "spectrum"
-      ? "Spectrum Probe"
-      : kind === "pitch_tracker"
-        ? "Pitch Tracker"
-        : kind === "signal_health"
-          ? "Signal Health"
-          : "Scope Probe",
-  x,
-  y,
-  width:
-    kind === "spectrum"
-      ? DEFAULT_SPECTRUM_PROBE_SIZE.width
-      : kind === "signal_health"
-        ? DEFAULT_SIGNAL_HEALTH_PROBE_SIZE.width
-        : DEFAULT_SCOPE_PROBE_SIZE.width,
-  height:
-    kind === "spectrum"
-      ? DEFAULT_SPECTRUM_PROBE_SIZE.height
-      : kind === "signal_health"
-        ? DEFAULT_SIGNAL_HEALTH_PROBE_SIZE.height
-        : DEFAULT_SCOPE_PROBE_SIZE.height,
-  expanded: false,
-  spectrumWindowSize: kind === "spectrum" ? 1024 : undefined,
-  frequencyView: kind === "spectrum" ? { ...DEFAULT_PROBE_FREQUENCY_VIEW } : undefined
-});
+const PROBE_KIND_CONFIG: Record<
+  PatchProbeKind,
+  {
+    name: string;
+    size: typeof DEFAULT_SCOPE_PROBE_SIZE;
+    spectrumWindowSize?: number;
+    frequencyView?: PatchProbeFrequencyView;
+  }
+> = {
+  scope: {
+    name: "Scope Probe",
+    size: DEFAULT_SCOPE_PROBE_SIZE
+  },
+  spectrum: {
+    name: "Spectrum Probe",
+    size: DEFAULT_SPECTRUM_PROBE_SIZE,
+    spectrumWindowSize: DEFAULT_SPECTRUM_WINDOW_SIZE,
+    frequencyView: DEFAULT_PROBE_FREQUENCY_VIEW
+  },
+  pitch_tracker: {
+    name: "Pitch Tracker",
+    size: DEFAULT_SCOPE_PROBE_SIZE
+  },
+  signal_health: {
+    name: "Signal Health",
+    size: DEFAULT_SIGNAL_HEALTH_PROBE_SIZE
+  }
+} as const;
+
+export const createPatchWorkspaceProbe = (kind: PatchProbeKind, x: number, y: number): PatchWorkspaceProbeState => {
+  const config = PROBE_KIND_CONFIG[kind];
+  return {
+    id: createId("probe"),
+    kind,
+    name: config.name,
+    x,
+    y,
+    width: config.size.width,
+    height: config.size.height,
+    expanded: false,
+    spectrumWindowSize: config.spectrumWindowSize,
+    frequencyView: config.frequencyView ? { ...config.frequencyView } : undefined
+  };
+};
 
 export const clampProbeMaxFrequencyHz = (frequency: number) =>
   clamp(Math.round(frequency), PROBE_MIN_MAX_FREQUENCY_HZ, PROBE_MAX_MAX_FREQUENCY_HZ);
