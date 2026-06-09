@@ -77,9 +77,15 @@ export function useTrackCanvasRenderModel({
   beatWidth = BEAT_WIDTH,
   playheadBeat,
   project,
-  selection
-}: Pick<TrackCanvasProps, "playheadBeat" | "project" | "selection"> & { beatWidth?: number }): TrackCanvasRenderModel {
-  const totalBeats = useMemo(() => getProjectTimelineEndBeat(project), [project]);
+  selection,
+  viewportWidth = 0
+}: Pick<TrackCanvasProps, "playheadBeat" | "project" | "selection"> & {
+  beatWidth?: number;
+  viewportWidth?: number;
+}): TrackCanvasRenderModel {
+  const projectEndBeat = useMemo(() => getProjectTimelineEndBeat(project), [project]);
+  const viewportPaddingBeats = Math.max(0, (viewportWidth - HEADER_WIDTH) / beatWidth);
+  const totalBeats = projectEndBeat + viewportPaddingBeats;
   const width = HEADER_WIDTH + totalBeats * beatWidth;
   const { trackLayouts, height } = useTrackCanvasLayout(project);
   const meterBeats = getMeasureBeatsForMeter(project.global.meter);

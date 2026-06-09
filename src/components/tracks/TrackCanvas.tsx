@@ -51,6 +51,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
   const [editingTrackName, setEditingTrackName] = useState("");
   const [selectedContentTabStopFocused, setSelectedContentTabStopFocused] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(0);
   const [beatWidth, setBeatWidth] = useState(BEAT_WIDTH);
   beatWidthRef.current = beatWidth;
   const {
@@ -99,7 +100,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
     beatWidth,
     playheadBeat,
     project,
-    selection
+    selection,
+    viewportWidth
   });
   totalBeatsRef.current = totalBeats;
 
@@ -225,6 +227,20 @@ export function TrackCanvas(props: TrackCanvasProps) {
       }
     };
   }, [onWheelZoom]);
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) {
+      return;
+    }
+    const updateViewportWidth = () => setViewportWidth(wrapper.clientWidth);
+    updateViewportWidth();
+    const observer = new ResizeObserver(updateViewportWidth);
+    observer.observe(wrapper);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   const getCanvasPoint = useCallback((clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
