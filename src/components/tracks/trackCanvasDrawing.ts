@@ -209,20 +209,23 @@ function drawLoopMarkerStem(
   ctx: CanvasRenderingContext2D,
   geometry: LoopMarkerVisualGeometry,
   height: number,
-  color: string
+  color: string,
+  active: boolean
 ) {
   const { stemWidth, stemX } = geometry;
   const diffusion = LOOP_MARKER_DIFFUSION_WIDTH;
-  const gradient = ctx.createLinearGradient(stemX - diffusion, 0, stemX + stemWidth + diffusion, 0);
-  gradient.addColorStop(0, withAlpha(color, 0));
-  gradient.addColorStop(0.42, color);
-  gradient.addColorStop(0.58, color);
-  gradient.addColorStop(1, withAlpha(color, 0));
 
   ctx.save();
-  ctx.globalAlpha = 0.26;
-  ctx.fillStyle = gradient;
-  ctx.fillRect(stemX - diffusion, 0, stemWidth + diffusion * 2, height);
+  if (active) {
+    const gradient = ctx.createLinearGradient(stemX - diffusion, 0, stemX + stemWidth + diffusion, 0);
+    gradient.addColorStop(0, withAlpha(color, 0));
+    gradient.addColorStop(0.42, color);
+    gradient.addColorStop(0.58, color);
+    gradient.addColorStop(1, withAlpha(color, 0));
+    ctx.globalAlpha = 0.26;
+    ctx.fillStyle = gradient;
+    ctx.fillRect(stemX - diffusion, 0, stemWidth + diffusion * 2, height);
+  }
   ctx.globalAlpha = 0.94;
   ctx.fillStyle = color;
   ctx.fillRect(stemX, 0, stemWidth, height);
@@ -264,7 +267,7 @@ function drawLoopMarker(
   ctx.font = "bold 9px ui-monospace, SFMono-Regular, Menlo, monospace";
   const geometry = getLoopMarkerVisualGeometry(ctx, x, kind, repeatCount);
 
-  drawLoopMarkerStem(ctx, geometry, height, color);
+  drawLoopMarkerStem(ctx, geometry, height, color, hovered);
 
   ctx.globalAlpha = hovered ? 1 : 0.94;
   ctx.fillStyle = color;

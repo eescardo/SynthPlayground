@@ -35,6 +35,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const { onUpdateNote } = noteActions;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const beatWidthRef = useRef(BEAT_WIDTH);
   const playheadTabStopRef = useRef<HTMLButtonElement | null>(null);
   const selectedContentTabStopRef = useRef<HTMLButtonElement | null>(null);
   const noteRectsRef = useRef<NoteRect[]>([]);
@@ -47,6 +48,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const [editingTrackName, setEditingTrackName] = useState("");
   const [selectedContentTabStopFocused, setSelectedContentTabStopFocused] = useState(false);
   const [beatWidth, setBeatWidth] = useState(BEAT_WIDTH);
+  beatWidthRef.current = beatWidth;
   const {
     volumePopoverTrackId,
     volumePopoverPosition,
@@ -114,50 +116,52 @@ export function TrackCanvas(props: TrackCanvasProps) {
     };
   }, [beatWidth, selectionBeatRange]);
 
-  const onWheelZoom = useCallback(
-    (event: WheelEvent) => {
-      if (!event.ctrlKey && !event.metaKey) {
-        return;
-      }
-      const wrapper = wrapperRef.current;
-      if (!wrapper) {
-        return;
-      }
+  const onWheelZoom = useCallback((event: WheelEvent) => {
+    if (!event.ctrlKey && !event.metaKey) {
+      return;
+    }
+    const wrapper = wrapperRef.current;
+    if (!wrapper) {
+      return;
+    }
 
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-      const wrapperRect = wrapper.getBoundingClientRect();
-      const anchorOffsetX = event.clientX - wrapperRect.left;
-      const anchorContentX = wrapper.scrollLeft + anchorOffsetX;
-      const anchorBeat = Math.max(0, beatFromX(anchorContentX));
-      const zoomFactor = event.deltaY < 0 ? BEAT_ZOOM_STEP : 1 / BEAT_ZOOM_STEP;
-      const proposedBeatWidth = Math.min(MAX_BEAT_WIDTH, Math.max(MIN_BEAT_WIDTH, beatWidth * zoomFactor));
-      let nextBeatWidth = proposedBeatWidth;
-      const proposedScrollLeft = HEADER_WIDTH + anchorBeat * proposedBeatWidth - anchorOffsetX;
-      if (proposedBeatWidth < beatWidth && proposedScrollLeft < 0) {
-        const resistance = 1 / (1 + Math.abs(proposedScrollLeft) / 180);
-        const currentScrollLeft = HEADER_WIDTH + anchorBeat * beatWidth - anchorOffsetX;
-        if (currentScrollLeft < 0 || anchorBeat <= 0) {
-          nextBeatWidth = beatWidth - (beatWidth - proposedBeatWidth) * resistance;
-        } else {
-          const boundaryBeatWidth = (anchorOffsetX - HEADER_WIDTH) / anchorBeat;
-          nextBeatWidth = boundaryBeatWidth - (boundaryBeatWidth - proposedBeatWidth) * resistance;
-        }
-        nextBeatWidth = Math.min(beatWidth, Math.max(MIN_BEAT_WIDTH, nextBeatWidth));
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    const currentBeatWidth = beatWidthRef.current;
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const anchorOffsetX = event.clientX - wrapperRect.left;
+    const anchorContentX = wrapper.scrollLeft + anchorOffsetX;
+    const anchorBeat = Math.max(0, (anchorContentX - HEADER_WIDTH) / currentBeatWidth);
+    const zoomFactor = event.deltaY < 0 ? BEAT_ZOOM_STEP : 1 / BEAT_ZOOM_STEP;
+    const proposedBeatWidth = Math.min(MAX_BEAT_WIDTH, Math.max(MIN_BEAT_WIDTH, currentBeatWidth * zoomFactor));
+    let nextBeatWidth = proposedBeatWidth;
+    const proposedScrollLeft = HEADER_WIDTH + anchorBeat * proposedBeatWidth - anchorOffsetX;
+    if (proposedBeatWidth < currentBeatWidth && proposedScrollLeft < 0) {
+      const resistance = 1 / (1 + Math.abs(proposedScrollLeft) / 180);
+      const currentScrollLeft = HEADER_WIDTH + anchorBeat * currentBeatWidth - anchorOffsetX;
+      if (currentScrollLeft < 0 || anchorBeat <= 0) {
+        nextBeatWidth = currentBeatWidth - (currentBeatWidth - proposedBeatWidth) * resistance;
+      } else {
+        const boundaryBeatWidth = (anchorOffsetX - HEADER_WIDTH) / anchorBeat;
+        nextBeatWidth = boundaryBeatWidth - (boundaryBeatWidth - proposedBeatWidth) * resistance;
       }
-      if (Math.abs(nextBeatWidth - beatWidth) < 0.1) {
-        return;
-      }
+      nextBeatWidth = Math.min(currentBeatWidth, Math.max(MIN_BEAT_WIDTH, nextBeatWidth));
+    }
+    if (Math.abs(nextBeatWidth - currentBeatWidth) < 0.1) {
+      return;
+    }
 
-      const nextScrollLeft = Math.max(0, HEADER_WIDTH + anchorBeat * nextBeatWidth - anchorOffsetX);
-      flushSync(() => {
-        setBeatWidth(nextBeatWidth);
-      });
+    const nextScrollLeft = Math.max(0, HEADER_WIDTH + anchorBeat * nextBeatWidth - anchorOffsetX);
+    flushSync(() => {
+      setBeatWidth(nextBeatWidth);
+    });
+    beatWidthRef.current = nextBeatWidth;
+    wrapper.scrollLeft = nextScrollLeft;
+    window.requestAnimationFrame(() => {
       wrapper.scrollLeft = nextScrollLeft;
-    },
-    [beatFromX, beatWidth]
-  );
+    });
+  }, []);
 
   useEffect(() => {
     const wrapper = wrapperRef.current;
