@@ -135,12 +135,21 @@ export function TrackCanvas(props: TrackCanvasProps) {
       const wrapperRect = wrapper.getBoundingClientRect();
       const anchorOffsetX = event.clientX - wrapperRect.left;
       const zoomFactor = event.deltaY < 0 ? BEAT_ZOOM_STEP : 1 / BEAT_ZOOM_STEP;
-      const nextBeatWidth = Math.min(MAX_BEAT_WIDTH, Math.max(MIN_BEAT_WIDTH, beatWidth * zoomFactor));
-      if (Math.abs(nextBeatWidth - beatWidth) < 0.1) {
-        return;
+      const proposedBeatWidth = Math.min(MAX_BEAT_WIDTH, Math.max(MIN_BEAT_WIDTH, beatWidth * zoomFactor));
+      let nextBeatWidth = proposedBeatWidth;
+      const proposedScrollLeft = HEADER_WIDTH + anchorBeat * proposedBeatWidth - anchorOffsetX;
+      if (proposedBeatWidth < beatWidth && proposedScrollLeft < 0) {
+        const resistance = 1 / (1 + Math.abs(proposedScrollLeft) / 180);
+        const currentScrollLeft = HEADER_WIDTH + anchorBeat * beatWidth - anchorOffsetX;
+        if (currentScrollLeft < 0 || anchorBeat <= 0) {
+          nextBeatWidth = beatWidth - (beatWidth - proposedBeatWidth) * resistance;
+        } else {
+          const boundaryBeatWidth = (anchorOffsetX - HEADER_WIDTH) / anchorBeat;
+          nextBeatWidth = boundaryBeatWidth - (boundaryBeatWidth - proposedBeatWidth) * resistance;
+        }
+        nextBeatWidth = Math.min(beatWidth, Math.max(MIN_BEAT_WIDTH, nextBeatWidth));
       }
-      const nextScrollLeft = HEADER_WIDTH + anchorBeat * nextBeatWidth - anchorOffsetX;
-      if (nextBeatWidth < beatWidth && nextScrollLeft < 0) {
+      if (Math.abs(nextBeatWidth - beatWidth) < 0.1) {
         return;
       }
 
