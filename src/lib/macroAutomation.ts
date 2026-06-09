@@ -239,12 +239,24 @@ export const getTrackAutomationPoints = (lane: TrackMacroAutomationLane, endBeat
   return points;
 };
 
-export const getProjectTimelineEndBeat = (project: ProjectGlobalCarrier & Pick<Project, "tracks">): number => {
-  const meterBeats = getMeasureBeatsForMeter(project.global.meter);
-  const maxNoteEnd = project.tracks
+export const getProjectLastNoteEndBeat = (project: Pick<Project, "tracks">): number =>
+  project.tracks
     .flatMap((track) => track.notes)
     .reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);
+
+export const getFollowProjectTimelineEndBeat = (project: ProjectGlobalCarrier & Pick<Project, "tracks">): number => {
+  const meterBeats = getMeasureBeatsForMeter(project.global.meter);
+  const maxNoteEnd = getProjectLastNoteEndBeat(project);
   return Math.max(16, Math.ceil(maxNoteEnd + meterBeats));
+};
+
+export const getProjectTimelineEndBeat = (project: ProjectGlobalCarrier & Pick<Project, "tracks">): number => {
+  const followEndBeat = getFollowProjectTimelineEndBeat(project);
+  const compositionEnd = project.global.compositionEnd;
+  if (compositionEnd?.mode !== "fixed") {
+    return followEndBeat;
+  }
+  return Math.max(getProjectLastNoteEndBeat(project), compositionEnd.beat);
 };
 
 export const getTrackMacroValueAtBeat = (

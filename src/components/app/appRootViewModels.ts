@@ -120,6 +120,8 @@ interface ComposerTimelineActions {
   expandSelectedLoopToNotes: () => void;
   updateLoopRepeatCount: ComposerViewProps["timelineActions"]["onUpdateLoopRepeatCount"];
   removeLoopBoundary: (markerId: string) => void;
+  toggleCompositionEndFollow: ComposerViewProps["timelineActions"]["onToggleCompositionEndFollow"];
+  updateCompositionEndBeat: ComposerViewProps["timelineActions"]["onUpdateCompositionEndBeat"];
 }
 
 interface CreateTrackCanvasActionGroupsOptions {
@@ -166,6 +168,7 @@ interface CreateTrackCanvasActionGroupsOptions {
   cutSelectedNotes: () => Promise<void>;
   deleteAllTracksInSelection: ComposerViewProps["selectionActions"]["onDeleteAllTracksInSelection"];
   deleteSelectedNoteSelection: () => void;
+  insertTimeInSelection: NonNullable<ComposerViewProps["selectionActions"]["onInsertTimeInSelection"]>;
   openExplodeSelectionDialog: NonNullable<ComposerViewProps["selectionActions"]["onOpenExplodeSelectionDialog"]>;
 }
 
@@ -228,6 +231,7 @@ export function createTrackCanvasActionGroups(options: CreateTrackCanvasActionGr
       }
       options.deleteSelectedNoteSelection();
     },
+    onInsertTimeInSelection: options.hasTimelineRangeSelection ? options.insertTimeInSelection : undefined,
     onOpenExplodeSelectionDialog: options.openExplodeSelectionDialog,
     onCopyAllTracksInSelection: () => {
       void options.copyAllTracksInSelection();
@@ -367,7 +371,9 @@ export function createComposerControllerProps(options: UseComposerControllerProp
         if (timelineState.timeline.endMarkerAtTimelineBeat) {
           timelineActions.removeLoopBoundary(timelineState.timeline.endMarkerAtTimelineBeat.id);
         }
-      }
+      },
+      onToggleCompositionEndFollow: timelineActions.toggleCompositionEndFollow,
+      onUpdateCompositionEndBeat: timelineActions.updateCompositionEndBeat
     },
     trackActions,
     patchActions,
@@ -479,6 +485,8 @@ interface CreateComposerTimelineActionsOptions {
   endMarkerAtTimelineBeat: ComposerViewProps["timeline"]["endMarkerAtTimelineBeat"];
   updateLoopRepeatCount: (markerId: string, repeatCount: number) => void;
   removeLoopBoundary: (markerId: string) => void;
+  toggleCompositionEndFollow: ComposerViewProps["timelineActions"]["onToggleCompositionEndFollow"];
+  updateCompositionEndBeat: ComposerViewProps["timelineActions"]["onUpdateCompositionEndBeat"];
 }
 
 export function createComposerTimelineActions({
@@ -489,6 +497,8 @@ export function createComposerTimelineActions({
   removeLoopBoundary,
   requestTimelineActionsPopover,
   setTimelineActionsPopover,
+  toggleCompositionEndFollow,
+  updateCompositionEndBeat,
   updateLoopRepeatCount
 }: CreateComposerTimelineActionsOptions): ComposerTimelineActions {
   return {
@@ -502,7 +512,9 @@ export function createComposerTimelineActions({
         updateLoopRepeatCount(endMarkerAtTimelineBeat.id, repeatCount);
       }
     },
-    removeLoopBoundary
+    removeLoopBoundary,
+    toggleCompositionEndFollow,
+    updateCompositionEndBeat
   };
 }
 

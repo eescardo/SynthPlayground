@@ -15,6 +15,7 @@ import {
   eraseAutomationInRangeForTracks,
   explodeNoteClipboardPayload,
   getSelectionSourceTrackId,
+  insertEmptyBeatRangeAcrossAllTracks,
   NoteClipboardPayload,
   parseNoteSelectionKey
 } from "@/lib/clipboard";
@@ -182,6 +183,17 @@ export function useSelectionClipboardActions({
     setContentSelection(EMPTY_CONTENT_SELECTION);
   }, [clearNoteClipboard, commitProjectChange, selectionBeatRange, setContentSelection]);
 
+  const insertTimeInSelection = useCallback(() => {
+    if (!selectionBeatRange) {
+      return;
+    }
+    commitProjectChange((current) => insertEmptyBeatRangeAcrossAllTracks(current, selectionBeatRange), {
+      actionKey: "timeline:insert-time"
+    });
+    setPlayheadFromUser(selectionBeatRange.startBeat);
+    setContentSelection(EMPTY_CONTENT_SELECTION);
+  }, [commitProjectChange, selectionBeatRange, setContentSelection, setPlayheadFromUser]);
+
   const applyNoteClipboardPaste = useCallback(
     (pasteAction: NoteClipboardPasteAction, beat: number) => {
       if (!noteClipboardPayload || !selectedTrackId) {
@@ -317,6 +329,7 @@ export function useSelectionClipboardActions({
     deleteAllTracksInSelection,
     deleteSelectedNoteSelection,
     deleteSelectedNotes,
-    explodeSelection
+    explodeSelection,
+    insertTimeInSelection
   };
 }

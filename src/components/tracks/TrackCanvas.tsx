@@ -306,6 +306,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       project,
       trackLayouts,
       playheadBeat,
+      projectEndBeat,
       gridBeats,
       defaultPitch,
       selection,

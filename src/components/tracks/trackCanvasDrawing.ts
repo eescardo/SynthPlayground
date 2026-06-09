@@ -313,7 +313,6 @@ function drawCanvasFrame(
   >
 ) {
   const { beatWidth, gridBeats, height, meterBeats, projectEndBeat, totalBeats, trackLayouts, width } = options;
-  const projectEndX = HEADER_WIDTH + projectEndBeat * beatWidth;
 
   ctx.fillStyle = TRACK_CANVAS_COLORS.canvasBg;
   ctx.fillRect(0, 0, width, height);
@@ -343,24 +342,11 @@ function drawCanvasFrame(
     ctx.stroke();
 
     if (isBeat) {
-      ctx.fillStyle = TRACK_CANVAS_COLORS.rulerText;
+      ctx.fillStyle = afterProjectEnd ? withAlpha(TRACK_CANVAS_COLORS.rulerText, 0.5) : TRACK_CANVAS_COLORS.rulerText;
       ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
       ctx.fillText(formatBeatName(beat, gridBeats), x + 4, 18);
     }
   }
-
-  ctx.strokeStyle = TRACK_CANVAS_COLORS.barGrid;
-  ctx.lineCap = "butt";
-  ctx.beginPath();
-  ctx.lineWidth = 2;
-  ctx.moveTo(projectEndX - 3, 0);
-  ctx.lineTo(projectEndX - 3, height);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.lineWidth = 4;
-  ctx.moveTo(projectEndX + 2, 0);
-  ctx.lineTo(projectEndX + 2, height);
-  ctx.stroke();
 
   ctx.strokeStyle = TRACK_CANVAS_COLORS.rowSeparator;
   ctx.lineWidth = 1;
@@ -374,6 +360,29 @@ function drawCanvasFrame(
     ctx.lineTo(width, y);
     ctx.stroke();
   }
+}
+
+function drawCompositionEndMarker(
+  ctx: CanvasRenderingContext2D,
+  projectEndBeat: number,
+  beatWidth: number,
+  height: number
+) {
+  const projectEndX = HEADER_WIDTH + projectEndBeat * beatWidth;
+  ctx.save();
+  ctx.strokeStyle = TRACK_CANVAS_COLORS.barGrid;
+  ctx.lineCap = "butt";
+  ctx.beginPath();
+  ctx.lineWidth = 2;
+  ctx.moveTo(projectEndX, 0);
+  ctx.lineTo(projectEndX, height);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.lineWidth = 4;
+  ctx.moveTo(projectEndX + 3, 0);
+  ctx.lineTo(projectEndX + 3, height);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function clearHitTargetRects(
@@ -396,7 +405,7 @@ function drawAutomationLanes(
     beatWidth: number;
     projectPatches: Project["patches"];
     registerHitTargets: boolean;
-    totalBeats: number;
+    projectEndBeat: number;
     track: Track;
     trackLayout: TrackLayout;
     veilTimeline?: boolean;
@@ -410,7 +419,7 @@ function drawAutomationLanes(
     hoveredAutomationKeyframe,
     projectPatches,
     registerHitTargets,
-    totalBeats,
+    projectEndBeat,
     track,
     trackLayout,
     veilTimeline,
@@ -419,7 +428,7 @@ function drawAutomationLanes(
 
   const trackPatch = projectPatches.find((entry) => entry.id === track.instrumentPatchId);
   for (const automationLayout of trackLayout.automationLanes) {
-    const spec = resolveLaneRenderSpec(track, trackPatch, automationLayout, totalBeats);
+    const spec = resolveLaneRenderSpec(track, trackPatch, automationLayout, projectEndBeat);
     if (!spec) {
       continue;
     }
@@ -465,8 +474,8 @@ function drawTrackContent(
     automationKeyframeSelectionKeys: TrackCanvasRenderModel["automationKeyframeSelectionKeys"];
     beatWidth: number;
     gridBeats: number;
+    projectEndBeat: number;
     selectedNoteKeys: TrackCanvasRenderModel["selectedNoteKeys"];
-    totalBeats: number;
     trackLayouts: TrackLayout[];
     width: number;
   }
@@ -489,11 +498,11 @@ function drawTrackContent(
     pitchRectsRef,
     playheadBeat,
     project,
+    projectEndBeat,
     selectedContentTabStopFocused,
     selectedNoteKeys,
     selectedTrackId,
     tabSelectionPreviewNote,
-    totalBeats,
     trackLayouts,
     width
   } = options;
@@ -513,7 +522,14 @@ function drawTrackContent(
 
     if (isSelected) {
       ctx.fillStyle = TRACK_CANVAS_COLORS.selectedTrackOverlay;
-      ctx.fillRect(0, y, width, layout.height);
+      const projectEndX = HEADER_WIDTH + projectEndBeat * beatWidth;
+      ctx.fillRect(0, y, Math.min(width, projectEndX), layout.height);
+      if (projectEndX < width) {
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        ctx.fillRect(projectEndX, y, width - projectEndX, layout.height);
+        ctx.restore();
+      }
     }
     if (trackPatchInvalid) {
       ctx.fillStyle = TRACK_CANVAS_COLORS.trackInvalidOverlay;
@@ -663,7 +679,7 @@ function drawTrackContent(
       hoveredAutomationKeyframe,
       projectPatches: project.patches,
       registerHitTargets: true,
-      totalBeats,
+      projectEndBeat,
       track,
       trackLayout: layout,
       width
@@ -676,7 +692,7 @@ function drawAutomationVeilPass(
   options: Pick<TrackCanvasDrawingOptions, "automationKeyframeRectsRef" | "hoveredAutomationKeyframe" | "project"> & {
     automationKeyframeSelectionKeys: TrackCanvasRenderModel["automationKeyframeSelectionKeys"];
     beatWidth: number;
-    totalBeats: number;
+    projectEndBeat: number;
     trackLayouts: TrackLayout[];
     width: number;
   }
@@ -687,7 +703,7 @@ function drawAutomationVeilPass(
     beatWidth,
     hoveredAutomationKeyframe,
     project,
-    totalBeats,
+    projectEndBeat,
     trackLayouts,
     width
   } = options;
@@ -704,7 +720,7 @@ function drawAutomationVeilPass(
       hoveredAutomationKeyframe,
       projectPatches: project.patches,
       registerHitTargets: false,
-      totalBeats,
+      projectEndBeat,
       track,
       trackLayout: layout,
       veilTimeline: true,
@@ -1061,14 +1077,15 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     pitchRectsRef,
     playheadBeat,
     project,
+    projectEndBeat,
     selectedContentTabStopFocused,
     selectedNoteKeys,
     selectedTrackId,
     tabSelectionPreviewNote,
-    totalBeats,
     trackLayouts,
     width
   });
+  drawCompositionEndMarker(ctx, projectEndBeat, beatWidth, height);
   drawPlayhead(ctx, {
     beatWidth,
     height,
@@ -1085,7 +1102,7 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     beatWidth,
     hoveredAutomationKeyframe,
     project,
-    totalBeats,
+    projectEndBeat,
     trackLayouts,
     width
   });

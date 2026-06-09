@@ -16,6 +16,9 @@ interface TimelineActionsPopoverProps {
   startMarkerId?: string;
   endMarkerId?: string;
   endRepeatCount?: number;
+  showCompositionEndActions?: boolean;
+  compositionEndFollowsLastNote?: boolean;
+  compositionEndBeat?: number;
   onPaste?: () => void;
   onPasteAllTracks?: () => void;
   onInsert?: () => void;
@@ -26,6 +29,8 @@ interface TimelineActionsPopoverProps {
   onUpdateRepeatCount: (repeatCount: number) => void;
   onRemoveStart: () => void;
   onRemoveEnd: () => void;
+  onToggleCompositionEndFollow?: (follow: boolean) => void;
+  onUpdateCompositionEndBeat?: (beat: number) => void;
   onClose: () => void;
 }
 
@@ -34,8 +39,10 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
   const hasPasteActions = Boolean(props.showPasteActions);
   const hasPlayheadActions = props.showAddStart || props.showAddEnd || props.showExpandLoopToNotes;
   const hasLoopMarkerActions = Boolean(props.startMarkerId || props.endMarkerId);
-  const showFirstDivider = hasPasteActions && (hasPlayheadActions || hasLoopMarkerActions);
-  const showSecondDivider = !showFirstDivider && hasPlayheadActions && hasLoopMarkerActions;
+  const hasCompositionEndActions = Boolean(props.showCompositionEndActions);
+  const showFirstDivider = hasPasteActions && (hasPlayheadActions || hasLoopMarkerActions || hasCompositionEndActions);
+  const showSecondDivider =
+    !showFirstDivider && hasPlayheadActions && (hasLoopMarkerActions || hasCompositionEndActions);
   const getAnchorPosition = useCallback(() => ({ left: props.left, top: props.top }), [props.left, props.top]);
   const { popoverRef, left, top } = useFixedPopoverPosition<HTMLDivElement>({
     active: true,
@@ -108,6 +115,25 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
           <button type="button" onClick={props.onRemoveEnd}>
             Remove Loop End
           </button>
+        </>
+      )}
+
+      {props.showCompositionEndActions && (
+        <>
+          {(props.startMarkerId || props.endMarkerId) && (
+            <div className="timeline-actions-popover-divider" aria-hidden="true" />
+          )}
+          <label className="timeline-composition-end-follow">
+            <input
+              type="checkbox"
+              checked={props.compositionEndFollowsLastNote !== false}
+              onChange={(event) => props.onToggleCompositionEndFollow?.(event.target.checked)}
+            />
+            Follow last note
+          </label>
+          {props.compositionEndFollowsLastNote === false && props.compositionEndBeat !== undefined && (
+            <BeatValueControl beat={props.compositionEndBeat} onUpdateBeat={props.onUpdateCompositionEndBeat} />
+          )}
         </>
       )}
 
@@ -268,6 +294,129 @@ function LoopRepeatControl({ repeatCount, onUpdateRepeatCount }: LoopRepeatContr
           className="timeline-repeat-step timeline-repeat-step-down"
           aria-label="Decrease loop repeats"
           onClick={() => setRepeatCount(-1)}
+        />
+      </div>
+    </div>
+  );
+}
+
+interface BeatValueControlProps {
+  beat: number;
+  onUpdateBeat?: (beat: number) => void;
+}
+
+function BeatValueControl({ beat, onUpdateBeat }: BeatValueControlProps) {
+  const value = Number.isInteger(beat) ? String(beat) : beat.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+  const controlRef = useRef<HTMLDivElement | null>(null);
+  const wheelDeltaRef = useRef(0);
+  const rename = useInlineRename({
+    value,
+    onCommit: (nextValue) => {
+      const parsed = Number(nextValue);
+      if (Number.isFinite(parsed)) {
+        onUpdateBeat?.(parsed);
+      }
+    }
+  });
+  const { cancel, commit, draft, editing, setDraft, setEditing } = rename;
+  const renameActivation = useRenameActivation<"composition-end-beat">();
+  const setBeat = useCallback(
+    (delta: number) => {
+      onUpdateBeat?.(beat + delta);
+    },
+    [beat, onUpdateBeat]
+  );
+  const startRename = useCallback(() => setEditing(true), [setEditing]);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [setDraft, value]);
+
+  const handleWheelDelta = useCallback(
+    (deltaY: number, deltaMode: number) => {
+      const pixelDeltaY = getWheelPixelDelta(deltaY, deltaMode);
+      if (pixelDeltaY === 0) {
+        return;
+      }
+      if (wheelDeltaRef.current !== 0 && Math.sign(wheelDeltaRef.current) !== Math.sign(pixelDeltaY)) {
+        wheelDeltaRef.current = 0;
+      }
+      wheelDeltaRef.current += pixelDeltaY;
+      if (Math.abs(wheelDeltaRef.current) < REPEAT_WHEEL_STEP_DELTA) {
+        return;
+      }
+      const steps = Math.trunc(wheelDeltaRef.current / REPEAT_WHEEL_STEP_DELTA);
+      wheelDeltaRef.current -= steps * REPEAT_WHEEL_STEP_DELTA;
+      setBeat(-steps);
+    },
+    [setBeat]
+  );
+
+  useEffect(() => {
+    const control = controlRef.current;
+    if (!control) {
+      return;
+    }
+    const onWheel = (event: WheelEvent) => {
+      consumeNativeWheelEvent(event);
+      handleWheelDelta(event.deltaY, event.deltaMode);
+    };
+    control.addEventListener("wheel", onWheel, { passive: false, capture: true });
+    return () => control.removeEventListener("wheel", onWheel, true);
+  }, [handleWheelDelta]);
+
+  return (
+    <div ref={controlRef} className="timeline-repeat-control" aria-label="Composition end beat">
+      <span className="timeline-actions-popover-label">End Beat</span>
+      <div className="timeline-repeat-wheel">
+        <button
+          type="button"
+          className="timeline-repeat-step timeline-repeat-step-up"
+          aria-label="Increase composition end beat"
+          onClick={() => setBeat(1)}
+        />
+        {editing ? (
+          <input
+            className="timeline-repeat-input"
+            aria-label="Composition end beat"
+            autoFocus
+            inputMode="decimal"
+            value={draft}
+            onBlur={commit}
+            onChange={(event) => setDraft(event.target.value)}
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commit();
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                cancel();
+              }
+              event.stopPropagation();
+            }}
+            onWheel={consumeReactWheelEvent}
+            onWheelCapture={consumeReactWheelEvent}
+          />
+        ) : (
+          <span
+            className={`timeline-repeat-value${renameActivation.isArmed("composition-end-beat") ? " rename-armed" : ""}`}
+            role="button"
+            tabIndex={0}
+            title="Edit composition end beat"
+            {...renameActivation.getRenameTriggerProps({
+              id: "composition-end-beat",
+              onStartRename: startRename
+            })}
+          >
+            {value}
+          </span>
+        )}
+        <button
+          type="button"
+          className="timeline-repeat-step timeline-repeat-step-down"
+          aria-label="Decrease composition end beat"
+          onClick={() => setBeat(-1)}
         />
       </div>
     </div>

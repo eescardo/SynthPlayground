@@ -121,6 +121,7 @@ interface UseTrackCanvasPointerInteractionsParams {
     project: Project;
     trackLayouts: TrackLayout[];
     playheadBeat: number;
+    projectEndBeat: number;
     gridBeats: number;
     defaultPitch: string;
     selection: TrackCanvasSelection;
@@ -175,7 +176,7 @@ export function useTrackCanvasPointerInteractions({
     headerWidth,
     noteResizeHandleWidth
   } = geometry;
-  const { defaultPitch, gridBeats, playheadBeat, project, trackLayouts } = model;
+  const { defaultPitch, gridBeats, playheadBeat, project, projectEndBeat, trackLayouts } = model;
   const dragRef = useRef<DragState | null>(null);
   const pendingCanvasActionRef = useRef<PendingCanvasAction | null>(null);
   const automationDragRef = useRef<AutomationDragState | null>(null);
@@ -300,8 +301,10 @@ export function useTrackCanvasPointerInteractions({
 
   const updateTimelineSelectionFromRuler = useCallback(
     (startBeat: number, endBeat: number) => {
-      const orderedStartBeat = Math.min(startBeat, endBeat);
-      const orderedEndBeat = Math.max(startBeat, endBeat);
+      const clampedStartBeat = Math.min(projectEndBeat, Math.max(0, startBeat));
+      const clampedEndBeat = Math.min(projectEndBeat, Math.max(0, endBeat));
+      const orderedStartBeat = Math.min(clampedStartBeat, clampedEndBeat);
+      const orderedEndBeat = Math.max(clampedStartBeat, clampedEndBeat);
       const beatSpan = orderedEndBeat - orderedStartBeat;
       timelineSelectionDragActiveRef.current = beatSpan > 0;
       selectionActions.onSetSelectionMarqueeActive(beatSpan > 0);
@@ -309,7 +312,7 @@ export function useTrackCanvasPointerInteractions({
         beatSpan > 0 ? { startBeat: orderedStartBeat, endBeat: orderedEndBeat, beatSpan } : null
       );
     },
-    [selectionActions]
+    [projectEndBeat, selectionActions]
   );
 
   const onPointerDown = useCallback(
@@ -330,6 +333,18 @@ export function useTrackCanvasPointerInteractions({
       const automationKeyframe = findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y);
       const automationLaneHit = targets.automationLaneHit;
       if (y <= RULER_HEIGHT && x >= headerWidth) {
+        const pointerBeat = Math.max(0, snapToGrid(beatFromX(x), gridBeats));
+        const compositionEndX = headerWidth + projectEndBeat * beatWidth;
+        if (Math.abs(x - compositionEndX) <= 9) {
+          onSetPlayheadBeat(projectEndBeat);
+          onRequestTimelineActionsPopover({
+            beat: projectEndBeat,
+            clientX: event.clientX,
+            clientY: event.clientY
+          });
+          setCanvasCursor("pointer");
+          return;
+        }
         if (targets.hoverTarget === "loop-marker" && targets.loopMarkerRect) {
           onSetPlayheadBeat(targets.loopMarkerRect.beat);
           onRequestTimelineActionsPopover({
@@ -352,11 +367,14 @@ export function useTrackCanvasPointerInteractions({
         }
 
         if (event.button === PRIMARY_POINTER_BUTTON) {
+          if (pointerBeat > projectEndBeat) {
+            return;
+          }
           selectionActions.onSetContentSelection(EMPTY_CONTENT_SELECTION);
           selectionActions.onSetTimelineSelectionBeatRange(null);
           pendingCanvasActionRef.current = {
             kind: "ruler",
-            startBeat: Math.max(0, snapToGrid(beatFromX(x), gridBeats)),
+            startBeat: Math.min(projectEndBeat, pointerBeat),
             pointerId: event.pointerId
           };
           timelineSelectionDragActiveRef.current = false;
@@ -365,7 +383,9 @@ export function useTrackCanvasPointerInteractions({
           return;
         }
 
-        onSetPlayheadBeat(Math.max(0, snapToGrid(beatFromX(x), gridBeats)));
+        if (pointerBeat <= projectEndBeat) {
+          onSetPlayheadBeat(pointerBeat);
+        }
         return;
       }
 
@@ -501,6 +521,7 @@ export function useTrackCanvasPointerInteractions({
       automationActions,
       automationKeyframeRectsRef,
       beatFromX,
+      beatWidth,
       canvasRef,
       fixedLaneValueFromX,
       getCanvasPoint,
@@ -512,6 +533,7 @@ export function useTrackCanvasPointerInteractions({
       onRequestTimelineActionsPopover,
       onSetPlayheadBeat,
       playheadBeat,
+      projectEndBeat,
       resolvePointerTargets,
       selectionActions,
       trackActions,
@@ -692,6 +714,10 @@ export function useTrackCanvasPointerInteractions({
           setCanvasCursor("resize");
           return;
         }
+        if (y <= RULER_HEIGHT && Math.abs(x - (headerWidth + projectEndBeat * beatWidth)) <= 9) {
+          setCanvasCursor("pointer");
+          return;
+        }
         setCanvasCursor(
           getCursorForPosition({
             hasMuteHit: Boolean(targets.muteRect),
@@ -751,6 +777,7 @@ export function useTrackCanvasPointerInteractions({
       headerWidth,
       noteActions,
       noteResizeHandleWidth,
+      projectEndBeat,
       project.tracks,
       resolvePointerTargets,
       trackLayouts,
@@ -846,7 +873,7 @@ export function useTrackCanvasPointerInteractions({
       }
 
       if (pendingAction?.kind === "ruler") {
-        const beat = Math.max(0, snapToGrid(beatFromX(x), gridBeats));
+        const beat = Math.min(projectEndBeat, Math.max(0, snapToGrid(beatFromX(x), gridBeats)));
         if (!hadTimelineSelectionDrag) {
           onSetPlayheadBeat(beat);
         } else {
@@ -891,6 +918,7 @@ export function useTrackCanvasPointerInteractions({
       gridBeats,
       noteResizeHandleWidth,
       onSetPlayheadBeat,
+      projectEndBeat,
       resolvePointerTargets,
       selectionActions,
       selectionRect,

@@ -25,7 +25,11 @@ import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import { TimelineActionsPopoverRequest, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { createId } from "@/lib/ids";
 import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
-import { getProjectTimelineEndBeat, getTrackPreviewStateAtBeat } from "@/lib/macroAutomation";
+import {
+  getProjectLastNoteEndBeat,
+  getProjectTimelineEndBeat,
+  getTrackPreviewStateAtBeat
+} from "@/lib/macroAutomation";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import {
   BeatRange,
@@ -611,6 +615,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     deleteAllTracksInSelection,
     deleteSelectedNoteSelection,
     explodeSelection,
+    insertTimeInSelection,
     deleteSelectedNotes
   } = useSelectionClipboardActions({
     clearNoteClipboard,
@@ -702,6 +707,46 @@ export function AppRoot({ children }: { children: ReactNode }) {
     });
     setTimelineActionsPopover(null);
   }, [commitProjectChange, expandableLoopRegion, setTimelineActionsPopover]);
+
+  const toggleCompositionEndFollow = useCallback(
+    (follow: boolean) => {
+      commitProjectChange(
+        (current) => ({
+          ...current,
+          global: {
+            ...current.global,
+            compositionEnd: follow
+              ? undefined
+              : {
+                  mode: "fixed",
+                  beat: getProjectTimelineEndBeat(current)
+                }
+          }
+        }),
+        { actionKey: "composition-end:follow-toggle" }
+      );
+    },
+    [commitProjectChange]
+  );
+
+  const updateCompositionEndBeat = useCallback(
+    (beat: number) => {
+      commitProjectChange(
+        (current) => ({
+          ...current,
+          global: {
+            ...current.global,
+            compositionEnd: {
+              mode: "fixed",
+              beat: Math.max(getProjectLastNoteEndBeat(current), beat)
+            }
+          }
+        }),
+        { actionKey: "composition-end:beat", coalesce: true }
+      );
+    },
+    [commitProjectChange]
+  );
 
   const requestTimelineActionsPopover = useCallback(
     (request: TimelineActionsPopoverRequest) => {
@@ -1246,6 +1291,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     cutSelectedNotes,
     deleteAllTracksInSelection,
     deleteSelectedNoteSelection,
+    insertTimeInSelection,
     openExplodeSelectionDialog
   });
   const runtimeErrorDisplayMessage = runtimeError?.severity === "error" ? runtimeError.message : null;
@@ -1276,6 +1322,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
         noteClipboardPayload,
         startMarkerAtTimelineBeat,
         endMarkerAtTimelineBeat,
+        compositionEndAtTimelineBeat:
+          timelineActionsPopover !== null && Math.abs(timelineActionsPopover.beat - playbackEndBeat) < 1e-9,
+        compositionEndFollowsLastNote: project.global.compositionEnd?.mode !== "fixed",
+        compositionEndBeat: playbackEndBeat,
         expandableLoopRegion: Boolean(expandableLoopRegion)
       },
       canvasPreview: {
@@ -1301,7 +1351,9 @@ export function AppRoot({ children }: { children: ReactNode }) {
       expandSelectedLoopToNotes,
       endMarkerAtTimelineBeat,
       updateLoopRepeatCount,
-      removeLoopBoundary
+      removeLoopBoundary,
+      toggleCompositionEndFollow,
+      updateCompositionEndBeat
     }),
     ...trackCanvasActionGroups
   });

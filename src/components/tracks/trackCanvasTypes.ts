@@ -110,6 +110,7 @@ export interface TrackCanvasSelectionActions {
   onCopySelection: () => void;
   onCutSelection: () => void;
   onDeleteSelection: () => void;
+  onInsertTimeInSelection?: () => void;
   onOpenExplodeSelectionDialog?: () => void;
   onCopyAllTracksInSelection: () => void;
   onCutAllTracksInSelection: () => void;

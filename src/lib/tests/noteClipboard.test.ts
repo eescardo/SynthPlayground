@@ -12,6 +12,7 @@ import {
   getNoteSelectionKey,
   getSelectionSourceTrackId,
   getSelectionBeatRange,
+  insertEmptyBeatRangeAcrossAllTracks,
   parseNoteClipboardPayload,
   serializeNoteClipboardPayload
 } from "@/lib/clipboard";
@@ -352,6 +353,45 @@ describe("noteClipboard", () => {
       expect.objectContaining({ beat: 1, type: "split", incomingValue: 0.5, outgoingValue: 0.5333333333333333 }),
       expect.objectContaining({ beat: 3, type: "whole", value: 0.2 })
     ]);
+  });
+
+  it("pins composition end when deleting empty timeline tail", () => {
+    const baseProject = createProject();
+    const project = {
+      ...baseProject,
+      global: {
+        ...baseProject.global,
+        compositionEnd: { mode: "fixed" as const, beat: 12 }
+      }
+    };
+
+    const next = cutBeatRangeAcrossAllTracks(project, {
+      startBeat: 9,
+      endBeat: 12,
+      beatSpan: 3
+    });
+
+    expect(next.global.compositionEnd).toEqual({ mode: "fixed", beat: 9 });
+  });
+
+  it("inserts empty time across all tracks and extends composition end", () => {
+    const baseProject = createProject();
+    const project = {
+      ...baseProject,
+      global: {
+        ...baseProject.global,
+        compositionEnd: { mode: "fixed" as const, beat: 12 }
+      }
+    };
+
+    const next = insertEmptyBeatRangeAcrossAllTracks(project, {
+      startBeat: 4,
+      endBeat: 6,
+      beatSpan: 2
+    });
+
+    expect(next.global.compositionEnd).toEqual({ mode: "fixed", beat: 14 });
+    expect(next.tracks[0].notes.find((note) => note.id === "note_b")).toMatchObject({ startBeat: 7 });
   });
 
   it("erases automation in-place for selected note tracks without closing the timeline gap", () => {

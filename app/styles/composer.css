@@ -500,6 +500,19 @@
   padding: 0 0.18rem;
 }
 
+.timeline-composition-end-follow {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.timeline-composition-end-follow input {
+  accent-color: #7ddcad;
+}
+
 .timeline-actions-popover-divider {
   height: 1px;
   margin: 0.1rem 0;

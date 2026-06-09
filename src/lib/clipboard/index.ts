@@ -23,7 +23,8 @@ export {
   applyNoteClipboardPaste,
   cutBeatRangeAcrossAllTracks,
   deleteSelectedAutomationKeyframes,
-  eraseAutomationInRangeForTracks
+  eraseAutomationInRangeForTracks,
+  insertEmptyBeatRangeAcrossAllTracks
 } from "@/lib/clipboard/apply";
 export type { AppliedNoteClipboardPaste } from "@/lib/clipboard/apply";
 export type { NoteClipboardPayload, SerializedNoteClipboardPayload } from "@/lib/clipboard/payload";

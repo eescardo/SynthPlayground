@@ -218,6 +218,16 @@ export const normalizeProject = (raw: unknown): Project => {
   const meter = globalRaw.meter === "3/4" ? "3/4" : "4/4";
   const gridBeats = asFiniteNumber(globalRaw.gridBeats, 0.25);
   const loopRaw = Array.isArray(globalRaw.loop) ? globalRaw.loop : isObject(globalRaw.loop) ? [globalRaw.loop] : [];
+  const compositionEndRaw = isObject(globalRaw.compositionEnd) ? globalRaw.compositionEnd : null;
+  const compositionEndBeat = asOptionalFiniteNumber(compositionEndRaw?.beat);
+  const compositionEndMode: "follow" | "fixed" | undefined =
+    compositionEndRaw?.mode === "follow" || compositionEndRaw?.mode === "fixed" ? compositionEndRaw.mode : undefined;
+  const compositionEnd = compositionEndMode
+    ? {
+        mode: compositionEndMode,
+        beat: Math.max(0, compositionEndBeat ?? 0)
+      }
+    : undefined;
 
   const patchIds = new Set(patches.map((patch) => patch.id));
   const fallbackPatchId = patches[0].id;
@@ -304,6 +314,7 @@ export const normalizeProject = (raw: unknown): Project => {
       tempo: clamp(asFiniteNumber(globalRaw.tempo, 120), 20, 400),
       meter,
       gridBeats: gridBeats > 0 ? gridBeats : 0.25,
+      compositionEnd,
       loop: loopRaw.flatMap((entry, index) => {
         const marker = isObject(entry) ? entry : {};
         const kind = marker.kind === "start" || marker.kind === "end" ? marker.kind : null;
