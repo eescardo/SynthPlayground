@@ -14,6 +14,7 @@ export interface TrackOverlapModel {
 
 export interface TrackCanvasRenderModel {
   beatWidth: number;
+  projectEndBeat: number;
   totalBeats: number;
   width: number;
   height: number;
@@ -97,6 +98,7 @@ export function useTrackCanvasRenderModel({
 
   return {
     beatWidth,
+    projectEndBeat,
     totalBeats,
     width,
     height,

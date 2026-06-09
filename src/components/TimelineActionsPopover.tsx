@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, type WheelEvent } from "react";
+import { useCallback, useEffect, useRef, type WheelEvent as ReactWheelEvent } from "react";
 import { useFixedPopoverPosition } from "@/hooks/useFixedPopoverPosition";
 import { useInlineRename } from "@/hooks/useInlineRename";
 import { useRenameActivation } from "@/hooks/useRenameActivation";
@@ -129,24 +129,31 @@ function clampRepeatCount(value: number): number {
 
 const REPEAT_WHEEL_STEP_DELTA = 96;
 
-function consumeWheelEvent(event: WheelEvent<HTMLElement>) {
+function consumeReactWheelEvent(event: ReactWheelEvent<HTMLElement>) {
   event.preventDefault();
   event.stopPropagation();
   event.nativeEvent.stopImmediatePropagation();
 }
 
-function getWheelPixelDelta(event: WheelEvent<HTMLElement>): number {
-  if (event.deltaMode === 1) {
-    return event.deltaY * 16;
+function consumeNativeWheelEvent(event: WheelEvent) {
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation();
+}
+
+function getWheelPixelDelta(deltaY: number, deltaMode: number): number {
+  if (deltaMode === 1) {
+    return deltaY * 16;
   }
-  if (event.deltaMode === 2) {
-    return event.deltaY * 240;
+  if (deltaMode === 2) {
+    return deltaY * 240;
   }
-  return event.deltaY;
+  return deltaY;
 }
 
 function LoopRepeatControl({ repeatCount, onUpdateRepeatCount }: LoopRepeatControlProps) {
   const value = String(repeatCount);
+  const controlRef = useRef<HTMLDivElement | null>(null);
   const wheelDeltaRef = useRef(0);
   const rename = useInlineRename({
     value,
@@ -174,17 +181,16 @@ function LoopRepeatControl({ repeatCount, onUpdateRepeatCount }: LoopRepeatContr
     setDraft(value);
   }, [setDraft, value]);
 
-  const handleWheel = useCallback(
-    (event: WheelEvent<HTMLDivElement>) => {
-      consumeWheelEvent(event);
-      const deltaY = getWheelPixelDelta(event);
-      if (deltaY === 0) {
+  const handleWheelDelta = useCallback(
+    (deltaY: number, deltaMode: number) => {
+      const pixelDeltaY = getWheelPixelDelta(deltaY, deltaMode);
+      if (pixelDeltaY === 0) {
         return;
       }
-      if (wheelDeltaRef.current !== 0 && Math.sign(wheelDeltaRef.current) !== Math.sign(deltaY)) {
+      if (wheelDeltaRef.current !== 0 && Math.sign(wheelDeltaRef.current) !== Math.sign(pixelDeltaY)) {
         wheelDeltaRef.current = 0;
       }
-      wheelDeltaRef.current += deltaY;
+      wheelDeltaRef.current += pixelDeltaY;
       if (Math.abs(wheelDeltaRef.current) < REPEAT_WHEEL_STEP_DELTA) {
         return;
       }
@@ -195,10 +201,23 @@ function LoopRepeatControl({ repeatCount, onUpdateRepeatCount }: LoopRepeatContr
     [onUpdateRepeatCount, repeatCount]
   );
 
+  useEffect(() => {
+    const control = controlRef.current;
+    if (!control) {
+      return;
+    }
+    const onWheel = (event: WheelEvent) => {
+      consumeNativeWheelEvent(event);
+      handleWheelDelta(event.deltaY, event.deltaMode);
+    };
+    control.addEventListener("wheel", onWheel, { passive: false, capture: true });
+    return () => control.removeEventListener("wheel", onWheel, true);
+  }, [handleWheelDelta]);
+
   return (
-    <div className="timeline-repeat-control" aria-label="Loop repeats">
+    <div ref={controlRef} className="timeline-repeat-control" aria-label="Loop repeats">
       <span className="timeline-actions-popover-label">Loop Repeats</span>
-      <div className="timeline-repeat-wheel" onWheelCapture={handleWheel}>
+      <div className="timeline-repeat-wheel">
         <button
           type="button"
           className="timeline-repeat-step timeline-repeat-step-up"
@@ -227,8 +246,8 @@ function LoopRepeatControl({ repeatCount, onUpdateRepeatCount }: LoopRepeatContr
               }
               event.stopPropagation();
             }}
-            onWheel={consumeWheelEvent}
-            onWheelCapture={consumeWheelEvent}
+            onWheel={consumeReactWheelEvent}
+            onWheelCapture={consumeReactWheelEvent}
           />
         ) : (
           <span

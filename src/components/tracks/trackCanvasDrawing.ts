@@ -69,6 +69,7 @@ interface TrackCanvasDrawingOptions extends Pick<
     | "gridBeats"
     | "height"
     | "meterBeats"
+    | "projectEndBeat"
     | "selectedNoteKeys"
     | "selectionBeatRange"
     | "selectionMarkerTrackId"
@@ -295,7 +296,7 @@ function drawLoopMarker(
     ctx.fillStyle = TRACK_CANVAS_COLORS.loopMarkerText;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("x", geometry.labelX - geometry.notchWidth * 0.28, geometry.centerY + 0.5);
+    ctx.fillText("x", geometry.labelX - geometry.notchWidth * 0.2, geometry.centerY + 0.5);
     ctx.fillText(String(repeatCount), geometry.labelX + geometry.labelWidth * 0.5, geometry.centerY + 0.5);
     ctx.textAlign = "start";
     ctx.textBaseline = "alphabetic";
@@ -308,10 +309,11 @@ function drawCanvasFrame(
   ctx: CanvasRenderingContext2D,
   options: Pick<
     TrackCanvasDrawingOptions["renderModel"],
-    "beatWidth" | "gridBeats" | "height" | "meterBeats" | "totalBeats" | "trackLayouts" | "width"
+    "beatWidth" | "gridBeats" | "height" | "meterBeats" | "totalBeats" | "trackLayouts" | "width" | "projectEndBeat"
   >
 ) {
-  const { beatWidth, gridBeats, height, meterBeats, totalBeats, trackLayouts, width } = options;
+  const { beatWidth, gridBeats, height, meterBeats, projectEndBeat, totalBeats, trackLayouts, width } = options;
+  const projectEndX = HEADER_WIDTH + projectEndBeat * beatWidth;
 
   ctx.fillStyle = TRACK_CANVAS_COLORS.canvasBg;
   ctx.fillRect(0, 0, width, height);
@@ -326,12 +328,14 @@ function drawCanvasFrame(
     const x = HEADER_WIDTH + beat * beatWidth;
     const isBar = beat % meterBeats === 0;
     const isBeat = Number.isInteger(beat);
-
-    ctx.strokeStyle = isBar
+    const afterProjectEnd = beat > projectEndBeat + 1e-6;
+    const gridColor = isBar
       ? TRACK_CANVAS_COLORS.barGrid
       : isBeat
         ? TRACK_CANVAS_COLORS.beatGrid
         : TRACK_CANVAS_COLORS.subGrid;
+
+    ctx.strokeStyle = afterProjectEnd ? withAlpha(gridColor, 0.5) : gridColor;
     ctx.lineWidth = isBar ? 2 : 1;
     ctx.beginPath();
     ctx.moveTo(x, 0);
@@ -344,6 +348,19 @@ function drawCanvasFrame(
       ctx.fillText(formatBeatName(beat, gridBeats), x + 4, 18);
     }
   }
+
+  ctx.strokeStyle = TRACK_CANVAS_COLORS.barGrid;
+  ctx.lineCap = "butt";
+  ctx.beginPath();
+  ctx.lineWidth = 2;
+  ctx.moveTo(projectEndX - 3, 0);
+  ctx.lineTo(projectEndX - 3, height);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.lineWidth = 4;
+  ctx.moveTo(projectEndX + 2, 0);
+  ctx.lineTo(projectEndX + 2, height);
+  ctx.stroke();
 
   ctx.strokeStyle = TRACK_CANVAS_COLORS.rowSeparator;
   ctx.lineWidth = 1;
@@ -1008,6 +1025,7 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     gridBeats,
     height,
     meterBeats,
+    projectEndBeat,
     selectedNoteKeys,
     selectionBeatRange,
     selectionMarkerTrackId,
@@ -1023,7 +1041,7 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
   canvas.width = width;
   canvas.height = height;
 
-  drawCanvasFrame(ctx, { beatWidth, gridBeats, height, meterBeats, totalBeats, trackLayouts, width });
+  drawCanvasFrame(ctx, { beatWidth, gridBeats, height, meterBeats, projectEndBeat, totalBeats, trackLayouts, width });
   clearHitTargetRects({ automationKeyframeRectsRef, loopMarkerRectsRef, muteRectsRef, noteRectsRef, pitchRectsRef });
   drawTrackContent(ctx, {
     activeRecordedNotes,
