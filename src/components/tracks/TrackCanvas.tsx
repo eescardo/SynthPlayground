@@ -15,6 +15,7 @@ import {
 } from "@/components/tracks/trackCanvasConstants";
 import { LoopMarkerRect, MuteRect, PitchRect } from "@/components/tracks/trackCanvasGeometry";
 import { renderTrackCanvas } from "@/components/tracks/trackCanvasDrawing";
+import { consumeTimelinePopoverWheelEvent } from "@/components/tracks/trackCanvasWheelGuards";
 import { NoteRect, useTrackCanvasPointerInteractions } from "@/hooks/tracks/useTrackCanvasPointerInteractions";
 import { TrackCanvasProps, TrackLayout } from "@/components/tracks/trackCanvasTypes";
 import { useTrackCanvasRenderModel } from "@/components/tracks/trackCanvasRenderModel";
@@ -146,6 +147,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
   const onWheelZoom = useCallback(
     (event: WheelEvent) => {
+      if (consumeTimelinePopoverWheelEvent(event)) {
+        return;
+      }
       if (!event.ctrlKey && !event.metaKey) {
         return;
       }
