@@ -7,6 +7,9 @@ export const AUTOMATION_LANE_HEIGHT = 56;
 export const AUTOMATION_LANE_COLLAPSED_HEIGHT = 22;
 export const TRACK_MACRO_PANEL_EXPANDED_BOTTOM_GAP = 6;
 export const BEAT_WIDTH = 72;
+export const MIN_BEAT_WIDTH = 36;
+export const MAX_BEAT_WIDTH = 168;
+export const BEAT_ZOOM_STEP = 1.12;
 export const POINTER_DRAG_THRESHOLD_PX = 4;
 export const MUTE_ICON_SIZE = 16;
 export const NOTE_RESIZE_HANDLE_WIDTH = 8;
@@ -67,7 +70,13 @@ export const TRACK_CANVAS_COLORS = {
   muteIconFallback: "#ff8092",
   unmuteIconFallback: "#a7c8eb",
   loopStart: "#6ddb84",
-  loopEnd: "#6edec6",
+  loopEnd: "#6ddb84",
+  loopIntensity1: "#356f47",
+  loopIntensity2: "#4da963",
+  loopIntensity3: "#6ddb84",
+  loopIntensity4: "#82f0a0",
+  loopIntensity5: "#a1ffc0",
+  loopBracket: "rgba(109, 219, 132, 0.72)",
   loopUnmatched: "#e27a7a",
   loopGhost: "rgba(255, 90, 123, 0.35)",
   loopMarkerText: "#07281e",

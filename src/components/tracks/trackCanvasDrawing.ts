@@ -2,7 +2,6 @@ import type { MutableRefObject } from "react";
 import type { AutomationKeyframeRect, HoveredAutomationKeyframe } from "@/components/tracks/trackCanvasAutomationLane";
 import { renderLaneSpec, resolveLaneRenderSpec } from "@/components/tracks/trackCanvasLaneRendering";
 import {
-  BEAT_WIDTH,
   HEADER_WIDTH,
   MUTE_ICON_SIZE,
   RULER_HEIGHT,
@@ -13,9 +12,12 @@ import {
 } from "@/components/tracks/trackCanvasConstants";
 import {
   LOOP_MARKER_BAR_WIDTH,
-  LOOP_MARKER_DOT_OFFSET_Y,
-  LOOP_MARKER_DOT_RADIUS,
-  LOOP_MARKER_HOVER_RING_RADIUS,
+  LOOP_MARKER_DIFFUSION_WIDTH,
+  LOOP_MARKER_HIT_BUFFER,
+  LOOP_MARKER_LABEL_HEIGHT,
+  LOOP_MARKER_LABEL_PADDING_X,
+  LOOP_MARKER_NOTCH_HEIGHT,
+  LOOP_MARKER_NOTCH_WIDTH,
   type LoopMarkerRect,
   type MuteRect,
   type PitchRect
@@ -33,7 +35,7 @@ import { findTrackOverlaps, type TrackCanvasRenderModel } from "@/components/tra
 import type { TrackCanvasProps, TrackLayout } from "@/components/tracks/trackCanvasTypes";
 import type { NoteRect, SelectionRect } from "@/hooks/tracks/useTrackCanvasPointerInteractions";
 import { getNoteSelectionKey } from "@/lib/clipboard";
-import { getLoopMarkerStates } from "@/lib/looping";
+import { getLoopMarkerStates, getMatchedLoopRegions, type MatchedLoopRegion } from "@/lib/looping";
 import { formatBeatName } from "@/lib/musicTiming";
 import type { Project, Track } from "@/types/music";
 
@@ -63,6 +65,7 @@ interface TrackCanvasDrawingOptions extends Pick<
   renderModel: Pick<
     TrackCanvasRenderModel,
     | "automationKeyframeSelectionKeys"
+    | "beatWidth"
     | "gridBeats"
     | "height"
     | "meterBeats"
@@ -88,13 +91,14 @@ function drawGhostPlayhead(
   ctx: CanvasRenderingContext2D,
   ghostPlayheadBeat: number | undefined,
   countInLabel: string | undefined,
-  height: number
+  height: number,
+  beatWidth: number
 ) {
   if (typeof ghostPlayheadBeat !== "number" || !Number.isFinite(ghostPlayheadBeat)) {
     return;
   }
 
-  const ghostX = HEADER_WIDTH + ghostPlayheadBeat * BEAT_WIDTH;
+  const ghostX = HEADER_WIDTH + ghostPlayheadBeat * beatWidth;
   ctx.strokeStyle = TRACK_CANVAS_COLORS.ghostPlayhead;
   ctx.lineWidth = 2;
   ctx.setLineDash([7, 6]);
@@ -126,6 +130,126 @@ function drawGhostPlayhead(
   ctx.textAlign = "start";
 }
 
+const LOOP_INTENSITY_COLORS = [
+  TRACK_CANVAS_COLORS.loopIntensity1,
+  TRACK_CANVAS_COLORS.loopIntensity2,
+  TRACK_CANVAS_COLORS.loopIntensity3,
+  TRACK_CANVAS_COLORS.loopIntensity4,
+  TRACK_CANVAS_COLORS.loopIntensity5
+] as const;
+
+function withAlpha(hexColor: string, alpha: number): string {
+  const match = /^#([0-9a-f]{6})$/i.exec(hexColor);
+  if (!match) {
+    return hexColor;
+  }
+  const value = match[1];
+  const red = Number.parseInt(value.slice(0, 2), 16);
+  const green = Number.parseInt(value.slice(2, 4), 16);
+  const blue = Number.parseInt(value.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
+interface LoopMarkerVisualGeometry {
+  stemX: number;
+  stemWidth: number;
+  centerY: number;
+  labelX: number;
+  labelWidth: number;
+  labelHeight: number;
+  labelRadius: number;
+  notchWidth: number;
+  notchHeight: number;
+  hitX: number;
+  hitW: number;
+}
+
+function getLoopMarkerVisualGeometry(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  kind: "start" | "end",
+  repeatCount?: number
+): LoopMarkerVisualGeometry {
+  const stemWidth = Math.max(3, LOOP_MARKER_BAR_WIDTH * 0.5);
+  const stemX = x - stemWidth * 0.5;
+  const centerY = RULER_HEIGHT * 0.5;
+  const labelText = repeatCount === undefined ? "" : `x${repeatCount}`;
+  const labelWidth =
+    kind === "end" && labelText
+      ? Math.max(24, Math.ceil(ctx.measureText(labelText).width) + LOOP_MARKER_LABEL_PADDING_X * 2)
+      : 0;
+  const labelHeight = LOOP_MARKER_LABEL_HEIGHT;
+  const labelRadius = 5;
+  const notchWidth = LOOP_MARKER_NOTCH_WIDTH;
+  const notchHeight = LOOP_MARKER_NOTCH_HEIGHT;
+  const labelX = stemX - notchWidth - labelWidth + 1;
+  const hitLeft = kind === "start" ? stemX - LOOP_MARKER_DIFFUSION_WIDTH : labelX - LOOP_MARKER_HIT_BUFFER;
+  const hitRight =
+    kind === "start"
+      ? stemX + stemWidth + notchWidth + LOOP_MARKER_HIT_BUFFER
+      : stemX + stemWidth + LOOP_MARKER_DIFFUSION_WIDTH;
+
+  return {
+    stemX,
+    stemWidth,
+    centerY,
+    labelX,
+    labelWidth,
+    labelHeight,
+    labelRadius,
+    notchWidth,
+    notchHeight,
+    hitX: hitLeft,
+    hitW: Math.max(1, hitRight - hitLeft)
+  };
+}
+
+function drawLoopMarkerStem(
+  ctx: CanvasRenderingContext2D,
+  geometry: LoopMarkerVisualGeometry,
+  height: number,
+  color: string
+) {
+  const { stemWidth, stemX } = geometry;
+  const diffusion = LOOP_MARKER_DIFFUSION_WIDTH;
+  const gradient = ctx.createLinearGradient(stemX - diffusion, 0, stemX + stemWidth + diffusion, 0);
+  gradient.addColorStop(0, withAlpha(color, 0));
+  gradient.addColorStop(0.42, color);
+  gradient.addColorStop(0.58, color);
+  gradient.addColorStop(1, withAlpha(color, 0));
+
+  ctx.save();
+  ctx.globalAlpha = 0.26;
+  ctx.fillStyle = gradient;
+  ctx.fillRect(stemX - diffusion, 0, stemWidth + diffusion * 2, height);
+  ctx.globalAlpha = 0.56;
+  ctx.fillStyle = color;
+  ctx.fillRect(stemX, 0, stemWidth, height);
+  ctx.restore();
+}
+
+function drawStartLoopMarkerShape(ctx: CanvasRenderingContext2D, geometry: LoopMarkerVisualGeometry) {
+  const { centerY, notchHeight, notchWidth, stemWidth, stemX } = geometry;
+  const baseX = stemX + stemWidth;
+  ctx.beginPath();
+  ctx.moveTo(baseX, centerY - notchHeight * 0.5);
+  ctx.lineTo(baseX + notchWidth, centerY);
+  ctx.lineTo(baseX, centerY + notchHeight * 0.5);
+  ctx.closePath();
+}
+
+function drawEndLoopMarkerShape(ctx: CanvasRenderingContext2D, geometry: LoopMarkerVisualGeometry) {
+  const { centerY, labelHeight, labelRadius, labelWidth, labelX, notchHeight, notchWidth, stemX } = geometry;
+  const labelY = centerY - labelHeight * 0.5;
+  if (labelWidth > 0) {
+    ctx.roundRect(labelX, labelY, labelWidth, labelHeight, labelRadius);
+  }
+  ctx.moveTo(stemX, centerY - notchHeight * 0.5);
+  ctx.lineTo(stemX - notchWidth, centerY);
+  ctx.lineTo(stemX, centerY + notchHeight * 0.5);
+  ctx.closePath();
+}
+
 function drawLoopMarker(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -136,75 +260,41 @@ function drawLoopMarker(
   repeatCount?: number
 ) {
   ctx.save();
-  const stemWidth = Math.max(3, LOOP_MARKER_BAR_WIDTH * 0.42);
-  const stemX = x - stemWidth * 0.5;
-  const flagWidth = kind === "end" && repeatCount !== undefined ? 38 : 26;
-  const flagHeight = 18;
-  const flagX = kind === "start" ? x - 1 : x - flagWidth + 1;
-  const flagY = 5;
-  const notchX = kind === "start" ? flagX + flagWidth : flagX;
-  const notchDirection = kind === "start" ? 1 : -1;
-  const dotX = kind === "start" ? x + 8 : x - 8;
-  const topDotY = flagY + flagHeight * 0.5 - LOOP_MARKER_DOT_OFFSET_Y * 0.55;
-  const bottomDotY = flagY + flagHeight * 0.5 + LOOP_MARKER_DOT_OFFSET_Y * 0.55;
+  ctx.font = "bold 9px ui-monospace, SFMono-Regular, Menlo, monospace";
+  const geometry = getLoopMarkerVisualGeometry(ctx, x, kind, repeatCount);
 
-  ctx.globalAlpha = hovered ? 0.34 : 0.24;
-  ctx.fillStyle = color;
-  ctx.fillRect(stemX, RULER_HEIGHT, stemWidth, Math.max(0, height - RULER_HEIGHT));
+  drawLoopMarkerStem(ctx, geometry, height, color);
 
-  ctx.globalAlpha = hovered ? 0.28 : 0.18;
-  ctx.fillRect(stemX - 2, RULER_HEIGHT, stemWidth + 4, Math.max(0, height - RULER_HEIGHT));
-
-  ctx.globalAlpha = 0.94;
+  ctx.globalAlpha = hovered ? 1 : 0.94;
   ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.roundRect(flagX, flagY, flagWidth, flagHeight, 5);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(notchX, flagY + 5);
-  ctx.lineTo(notchX + notchDirection * 6, flagY + flagHeight * 0.5);
-  ctx.lineTo(notchX, flagY + flagHeight - 5);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.globalAlpha = 0.48;
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.roundRect(flagX + 0.5, flagY + 0.5, Math.max(0, flagWidth - 1), Math.max(0, flagHeight - 1), 4);
-  ctx.stroke();
-
-  ctx.globalAlpha = 0.95;
-  ctx.fillStyle = TRACK_CANVAS_COLORS.rulerBg;
-  ctx.beginPath();
-  ctx.arc(dotX, topDotY, LOOP_MARKER_DOT_RADIUS, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(dotX, bottomDotY, LOOP_MARKER_DOT_RADIUS, 0, Math.PI * 2);
+  if (kind === "start") {
+    drawStartLoopMarkerShape(ctx, geometry);
+  } else {
+    drawEndLoopMarkerShape(ctx, geometry);
+  }
   ctx.fill();
 
   if (hovered) {
-    ctx.globalAlpha = 0.52;
+    ctx.globalAlpha = 0.82;
     ctx.strokeStyle = color;
     ctx.lineWidth = 2;
+    ctx.lineJoin = "round";
     ctx.beginPath();
-    ctx.roundRect(flagX - 3, flagY - 3, flagWidth + 6, flagHeight + 6, 8);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(dotX, topDotY, LOOP_MARKER_HOVER_RING_RADIUS, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(dotX, bottomDotY, LOOP_MARKER_HOVER_RING_RADIUS, 0, Math.PI * 2);
+    if (kind === "start") {
+      drawStartLoopMarkerShape(ctx, geometry);
+    } else {
+      drawEndLoopMarkerShape(ctx, geometry);
+    }
     ctx.stroke();
   }
 
   if (kind === "end" && repeatCount !== undefined) {
     ctx.globalAlpha = 1;
     ctx.fillStyle = TRACK_CANVAS_COLORS.loopMarkerText;
-    ctx.font = "bold 10px ui-monospace, SFMono-Regular, Menlo, monospace";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`x${repeatCount}`, flagX + flagWidth * 0.5, flagY + flagHeight * 0.5 + 0.5);
+    ctx.fillText(`x${repeatCount}`, geometry.labelX + geometry.labelWidth * 0.5, geometry.centerY + 0.5);
     ctx.textAlign = "start";
     ctx.textBaseline = "alphabetic";
   }
@@ -216,10 +306,10 @@ function drawCanvasFrame(
   ctx: CanvasRenderingContext2D,
   options: Pick<
     TrackCanvasDrawingOptions["renderModel"],
-    "gridBeats" | "height" | "meterBeats" | "totalBeats" | "trackLayouts" | "width"
+    "beatWidth" | "gridBeats" | "height" | "meterBeats" | "totalBeats" | "trackLayouts" | "width"
   >
 ) {
-  const { gridBeats, height, meterBeats, totalBeats, trackLayouts, width } = options;
+  const { beatWidth, gridBeats, height, meterBeats, totalBeats, trackLayouts, width } = options;
 
   ctx.fillStyle = TRACK_CANVAS_COLORS.canvasBg;
   ctx.fillRect(0, 0, width, height);
@@ -231,7 +321,7 @@ function drawCanvasFrame(
   ctx.fillRect(HEADER_WIDTH, 0, width - HEADER_WIDTH, RULER_HEIGHT);
 
   for (let beat = 0; beat <= totalBeats; beat += gridBeats) {
-    const x = HEADER_WIDTH + beat * BEAT_WIDTH;
+    const x = HEADER_WIDTH + beat * beatWidth;
     const isBar = beat % meterBeats === 0;
     const isBeat = Number.isInteger(beat);
 
@@ -284,6 +374,7 @@ function drawAutomationLanes(
   ctx: CanvasRenderingContext2D,
   options: Pick<TrackCanvasDrawingOptions, "automationKeyframeRectsRef" | "hoveredAutomationKeyframe"> & {
     automationKeyframeSelectionKeys: TrackCanvasRenderModel["automationKeyframeSelectionKeys"];
+    beatWidth: number;
     projectPatches: Project["patches"];
     registerHitTargets: boolean;
     totalBeats: number;
@@ -296,6 +387,7 @@ function drawAutomationLanes(
   const {
     automationKeyframeRectsRef,
     automationKeyframeSelectionKeys,
+    beatWidth,
     hoveredAutomationKeyframe,
     projectPatches,
     registerHitTargets,
@@ -316,6 +408,7 @@ function drawAutomationLanes(
       ctx,
       spec,
       {
+        beatWidth,
         hoveredAutomationKeyframe,
         registerHitTargets,
         automationKeyframeSelectionKeys,
@@ -351,6 +444,7 @@ function drawTrackContent(
     | "tabSelectionPreviewNote"
   > & {
     automationKeyframeSelectionKeys: TrackCanvasRenderModel["automationKeyframeSelectionKeys"];
+    beatWidth: number;
     gridBeats: number;
     selectedNoteKeys: TrackCanvasRenderModel["selectedNoteKeys"];
     totalBeats: number;
@@ -362,6 +456,7 @@ function drawTrackContent(
     activeRecordedNotes,
     automationKeyframeRectsRef,
     automationKeyframeSelectionKeys,
+    beatWidth,
     ghostPreviewNote,
     gridBeats,
     hoveredAutomationKeyframe,
@@ -415,8 +510,8 @@ function drawTrackContent(
       const visualDurationBeats = activeRecord
         ? Math.max(note.durationBeats, playheadBeat - activeRecord.startBeat, gridBeats)
         : note.durationBeats;
-      const noteX = HEADER_WIDTH + note.startBeat * BEAT_WIDTH;
-      const noteW = Math.max(8, visualDurationBeats * BEAT_WIDTH);
+      const noteX = HEADER_WIDTH + note.startBeat * beatWidth;
+      const noteW = Math.max(8, visualDurationBeats * beatWidth);
       const noteY = y + 14;
       const noteH = TRACK_HEIGHT - 28;
       const overlaps = overlapNoteIds.has(note.id);
@@ -532,19 +627,20 @@ function drawTrackContent(
     }
 
     for (const overlap of overlapRanges) {
-      const overlapX = HEADER_WIDTH + overlap.startBeat * BEAT_WIDTH;
-      const overlapW = Math.max(2, (overlap.endBeat - overlap.startBeat) * BEAT_WIDTH);
+      const overlapX = HEADER_WIDTH + overlap.startBeat * beatWidth;
+      const overlapW = Math.max(2, (overlap.endBeat - overlap.startBeat) * beatWidth);
       ctx.fillStyle = TRACK_CANVAS_COLORS.overlapRange;
       ctx.fillRect(overlapX, y + 14, overlapW, TRACK_HEIGHT - 28);
     }
 
     if (ghostPreviewNote?.trackId === track.id) {
-      drawGhostPreviewNote(ctx, ghostPreviewNote, y);
+      drawGhostPreviewNote(ctx, ghostPreviewNote, y, beatWidth);
     }
 
     drawAutomationLanes(ctx, {
       automationKeyframeRectsRef,
       automationKeyframeSelectionKeys,
+      beatWidth,
       hoveredAutomationKeyframe,
       projectPatches: project.patches,
       registerHitTargets: true,
@@ -560,6 +656,7 @@ function drawAutomationVeilPass(
   ctx: CanvasRenderingContext2D,
   options: Pick<TrackCanvasDrawingOptions, "automationKeyframeRectsRef" | "hoveredAutomationKeyframe" | "project"> & {
     automationKeyframeSelectionKeys: TrackCanvasRenderModel["automationKeyframeSelectionKeys"];
+    beatWidth: number;
     totalBeats: number;
     trackLayouts: TrackLayout[];
     width: number;
@@ -568,6 +665,7 @@ function drawAutomationVeilPass(
   const {
     automationKeyframeRectsRef,
     automationKeyframeSelectionKeys,
+    beatWidth,
     hoveredAutomationKeyframe,
     project,
     totalBeats,
@@ -583,6 +681,7 @@ function drawAutomationVeilPass(
     drawAutomationLanes(ctx, {
       automationKeyframeRectsRef,
       automationKeyframeSelectionKeys,
+      beatWidth,
       hoveredAutomationKeyframe,
       projectPatches: project.patches,
       registerHitTargets: false,
@@ -601,11 +700,13 @@ function drawPlayhead(
     TrackCanvasDrawingOptions,
     "hoveredPlayhead" | "playheadBeat" | "playheadTabStopFocused" | "timelineActionsPopoverOpen"
   > & {
+    beatWidth: number;
     height: number;
   }
 ) {
-  const { height, hoveredPlayhead, playheadBeat, playheadTabStopFocused, timelineActionsPopoverOpen } = options;
-  const playheadX = HEADER_WIDTH + playheadBeat * BEAT_WIDTH;
+  const { beatWidth, height, hoveredPlayhead, playheadBeat, playheadTabStopFocused, timelineActionsPopoverOpen } =
+    options;
+  const playheadX = HEADER_WIDTH + playheadBeat * beatWidth;
   if (hoveredPlayhead && !timelineActionsPopoverOpen) {
     ctx.strokeStyle = TRACK_CANVAS_COLORS.playheadHoverGlow;
     ctx.lineWidth = 12;
@@ -630,36 +731,126 @@ function drawPlayhead(
   ctx.stroke();
 }
 
+function getLoopIntensityLevel(region: MatchedLoopRegion, regions: MatchedLoopRegion[]): number {
+  const depth = regions.filter(
+    (candidate) => candidate.startBeat < region.startBeat && candidate.endBeat > region.endBeat
+  ).length;
+  const maxDepth = regions.reduce(
+    (max, candidate) =>
+      Math.max(
+        max,
+        regions.filter(
+          (possibleParent) =>
+            possibleParent.startBeat < candidate.startBeat && possibleParent.endBeat > candidate.endBeat
+        ).length
+      ),
+    0
+  );
+
+  if (maxDepth === 0) {
+    return 3;
+  }
+  if (maxDepth === 1) {
+    return 3 + depth;
+  }
+  if (maxDepth <= 3) {
+    return 2 + depth;
+  }
+  return Math.max(1, 5 - (maxDepth - depth));
+}
+
+function buildLoopIntensityByMarkerId(regions: MatchedLoopRegion[]): Map<string, number> {
+  const intensityByMarkerId = new Map<string, number>();
+  for (const region of regions) {
+    const level = getLoopIntensityLevel(region, regions);
+    intensityByMarkerId.set(region.startMarkerId, level);
+    intensityByMarkerId.set(region.endMarkerId, level);
+  }
+  return intensityByMarkerId;
+}
+
+function getLoopMarkerColor(markerId: string, matched: boolean, intensityByMarkerId: Map<string, number>): string {
+  if (!matched) {
+    return TRACK_CANVAS_COLORS.loopUnmatched;
+  }
+  const intensity = intensityByMarkerId.get(markerId) ?? 3;
+  return LOOP_INTENSITY_COLORS[Math.min(5, Math.max(1, intensity)) - 1];
+}
+
+function getHoveredLoopRegion(
+  hoveredLoopMarker: TrackCanvasDrawingOptions["hoveredLoopMarker"],
+  regions: MatchedLoopRegion[]
+): MatchedLoopRegion | null {
+  if (!hoveredLoopMarker) {
+    return null;
+  }
+  return (
+    regions.find(
+      (region) =>
+        region.startMarkerId === hoveredLoopMarker.markerId || region.endMarkerId === hoveredLoopMarker.markerId
+    ) ?? null
+  );
+}
+
+function drawLoopBracket(ctx: CanvasRenderingContext2D, region: MatchedLoopRegion, color: string, beatWidth: number) {
+  const startX =
+    HEADER_WIDTH + region.startBeat * beatWidth + LOOP_MARKER_BAR_WIDTH * 0.5 + LOOP_MARKER_NOTCH_WIDTH + 6;
+  const endX = HEADER_WIDTH + region.endBeat * beatWidth - LOOP_MARKER_BAR_WIDTH * 0.5 - LOOP_MARKER_NOTCH_WIDTH - 6;
+  if (endX - startX < Math.max(44, beatWidth * 0.55)) {
+    return;
+  }
+
+  const y = RULER_HEIGHT - 5.5;
+  const tickY = RULER_HEIGHT - 14;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(startX, y);
+  ctx.lineTo(endX, y);
+  ctx.moveTo(startX, y);
+  ctx.lineTo(startX, tickY);
+  ctx.moveTo(endX, y);
+  ctx.lineTo(endX, tickY);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawLoopMarkers(
   ctx: CanvasRenderingContext2D,
   options: Pick<TrackCanvasDrawingOptions, "hoveredLoopMarker" | "loopMarkerRectsRef" | "project"> & {
+    beatWidth: number;
     height: number;
   }
 ) {
-  const { height, hoveredLoopMarker, loopMarkerRectsRef, project } = options;
+  const { beatWidth, height, hoveredLoopMarker, loopMarkerRectsRef, project } = options;
   const loopMarkers = getLoopMarkerStates(project.global.loop);
+  const regions = getMatchedLoopRegions(project.global.loop);
+  const intensityByMarkerId = buildLoopIntensityByMarkerId(regions);
+  const hoveredRegion = getHoveredLoopRegion(hoveredLoopMarker, regions);
+  if (hoveredRegion) {
+    const intensity = intensityByMarkerId.get(hoveredRegion.startMarkerId) ?? 3;
+    drawLoopBracket(ctx, hoveredRegion, LOOP_INTENSITY_COLORS[Math.min(5, Math.max(1, intensity)) - 1], beatWidth);
+  }
+
   for (const marker of loopMarkers) {
-    const color =
-      marker.kind === "start"
-        ? marker.matched
-          ? TRACK_CANVAS_COLORS.loopStart
-          : TRACK_CANVAS_COLORS.loopUnmatched
-        : marker.matched
-          ? TRACK_CANVAS_COLORS.loopEnd
-          : TRACK_CANVAS_COLORS.loopUnmatched;
-    const markerX = HEADER_WIDTH + marker.beat * BEAT_WIDTH;
+    const color = getLoopMarkerColor(marker.markerId, marker.matched, intensityByMarkerId);
+    const markerX = HEADER_WIDTH + marker.beat * beatWidth;
     const isHovered =
       hoveredLoopMarker?.markerId === marker.markerId &&
       hoveredLoopMarker.kind === marker.kind &&
       hoveredLoopMarker.beat === marker.beat;
+    ctx.font = "bold 9px ui-monospace, SFMono-Regular, Menlo, monospace";
+    const markerGeometry = getLoopMarkerVisualGeometry(ctx, markerX, marker.kind, marker.repeatCount);
     drawLoopMarker(ctx, markerX, height, marker.kind, color, isHovered, marker.repeatCount);
     loopMarkerRectsRef.current.push({
       markerId: marker.markerId,
       kind: marker.kind,
       beat: marker.beat,
-      x: markerX - 18,
+      x: markerGeometry.hitX,
       y: 0,
-      w: 30,
+      w: markerGeometry.hitW,
       h: height
     });
   }
@@ -671,6 +862,7 @@ function drawSelectionOverlays(
     TrackCanvasDrawingOptions,
     "hideSelectionActionPopover" | "selection" | "selectionMarqueeActive" | "selectionRect"
   > & {
+    beatWidth: number;
     height: number;
     selectionBeatRange: TrackCanvasRenderModel["selectionBeatRange"];
     selectionMarkerTrackId: TrackCanvasRenderModel["selectionMarkerTrackId"];
@@ -678,6 +870,7 @@ function drawSelectionOverlays(
   }
 ) {
   const {
+    beatWidth,
     height,
     hideSelectionActionPopover,
     selection,
@@ -689,8 +882,8 @@ function drawSelectionOverlays(
   } = options;
 
   if (selectionBeatRange) {
-    const startX = HEADER_WIDTH + selectionBeatRange.startBeat * BEAT_WIDTH;
-    const endX = HEADER_WIDTH + selectionBeatRange.endBeat * BEAT_WIDTH;
+    const startX = HEADER_WIDTH + selectionBeatRange.startBeat * beatWidth;
+    const endX = HEADER_WIDTH + selectionBeatRange.endBeat * beatWidth;
     if (selection.kind === "timeline" && !selectionRect) {
       ctx.save();
       ctx.globalAlpha = selectionMarqueeActive ? 1 : 0.5;
@@ -722,8 +915,8 @@ function drawSelectionOverlays(
   ) {
     const indicatorTrackLayout = trackLayouts.find((track) => track.trackId === selectionMarkerTrackId);
     if (indicatorTrackLayout) {
-      const startX = HEADER_WIDTH + selectionBeatRange.startBeat * BEAT_WIDTH;
-      const endX = HEADER_WIDTH + selectionBeatRange.endBeat * BEAT_WIDTH;
+      const startX = HEADER_WIDTH + selectionBeatRange.startBeat * beatWidth;
+      const endX = HEADER_WIDTH + selectionBeatRange.endBeat * beatWidth;
       const indicatorY = indicatorTrackLayout.y;
       const tickY = Math.min(indicatorY + 8, indicatorTrackLayout.y + indicatorTrackLayout.height);
       ctx.strokeStyle = TRACK_CANVAS_COLORS.selectionSourceIndicator;
@@ -789,6 +982,7 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
   } = options;
   const {
     automationKeyframeSelectionKeys,
+    beatWidth,
     gridBeats,
     height,
     meterBeats,
@@ -807,12 +1001,13 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
   canvas.width = width;
   canvas.height = height;
 
-  drawCanvasFrame(ctx, { gridBeats, height, meterBeats, totalBeats, trackLayouts, width });
+  drawCanvasFrame(ctx, { beatWidth, gridBeats, height, meterBeats, totalBeats, trackLayouts, width });
   clearHitTargetRects({ automationKeyframeRectsRef, loopMarkerRectsRef, muteRectsRef, noteRectsRef, pitchRectsRef });
   drawTrackContent(ctx, {
     activeRecordedNotes,
     automationKeyframeRectsRef,
     automationKeyframeSelectionKeys,
+    beatWidth,
     ghostPreviewNote,
     gridBeats,
     hoveredAutomationKeyframe,
@@ -834,12 +1029,20 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     trackLayouts,
     width
   });
-  drawPlayhead(ctx, { height, hoveredPlayhead, playheadBeat, playheadTabStopFocused, timelineActionsPopoverOpen });
-  drawLoopMarkers(ctx, { height, hoveredLoopMarker, loopMarkerRectsRef, project });
-  drawGhostPlayhead(ctx, ghostPlayheadBeat, countInLabel, height);
+  drawPlayhead(ctx, {
+    beatWidth,
+    height,
+    hoveredPlayhead,
+    playheadBeat,
+    playheadTabStopFocused,
+    timelineActionsPopoverOpen
+  });
+  drawLoopMarkers(ctx, { beatWidth, height, hoveredLoopMarker, loopMarkerRectsRef, project });
+  drawGhostPlayhead(ctx, ghostPlayheadBeat, countInLabel, height, beatWidth);
   drawAutomationVeilPass(ctx, {
     automationKeyframeRectsRef,
     automationKeyframeSelectionKeys,
+    beatWidth,
     hoveredAutomationKeyframe,
     project,
     totalBeats,
@@ -847,6 +1050,7 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     width
   });
   drawSelectionOverlays(ctx, {
+    beatWidth,
     height,
     hideSelectionActionPopover,
     selection,

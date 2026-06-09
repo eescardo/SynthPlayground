@@ -5,7 +5,8 @@ import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
   RefObject,
-  SetStateAction
+  SetStateAction,
+  WheelEvent as ReactWheelEvent
 } from "react";
 import { SelectionActionPopover } from "@/components/SelectionActionPopover";
 import { TrackCanvasTabStops } from "@/components/tracks/TrackCanvasTabStops";
@@ -70,6 +71,7 @@ interface TrackCanvasOverlaysProps {
   onPointerUp: (event: ReactPointerEvent<HTMLCanvasElement>) => void;
   onPointerLeave: (event: ReactPointerEvent<HTMLCanvasElement>) => void;
   onDoubleClick: (event: ReactMouseEvent<HTMLCanvasElement>) => void;
+  onWheel: (event: ReactWheelEvent<HTMLCanvasElement>) => void;
 }
 
 export function TrackCanvasOverlays(props: TrackCanvasOverlaysProps) {
@@ -109,6 +111,7 @@ export function TrackCanvasOverlays(props: TrackCanvasOverlaysProps) {
         onPointerUp={props.onPointerUp}
         onPointerLeave={props.onPointerLeave}
         onDoubleClick={props.onDoubleClick}
+        onWheel={props.onWheel}
         onContextMenu={(event) => event.preventDefault()}
       />
       <TrackCanvasTabStops

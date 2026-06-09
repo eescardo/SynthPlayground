@@ -13,6 +13,7 @@ export interface TrackOverlapModel {
 }
 
 export interface TrackCanvasRenderModel {
+  beatWidth: number;
   totalBeats: number;
   width: number;
   height: number;
@@ -73,28 +74,30 @@ export function findTrackOverlaps(notes: Note[]): TrackOverlapModel {
 }
 
 export function useTrackCanvasRenderModel({
+  beatWidth = BEAT_WIDTH,
   playheadBeat,
   project,
   selection
-}: Pick<TrackCanvasProps, "playheadBeat" | "project" | "selection">): TrackCanvasRenderModel {
+}: Pick<TrackCanvasProps, "playheadBeat" | "project" | "selection"> & { beatWidth?: number }): TrackCanvasRenderModel {
   const totalBeats = useMemo(() => getProjectTimelineEndBeat(project), [project]);
-  const width = HEADER_WIDTH + totalBeats * BEAT_WIDTH;
+  const width = HEADER_WIDTH + totalBeats * beatWidth;
   const { trackLayouts, height } = useTrackCanvasLayout(project);
   const meterBeats = getMeasureBeatsForMeter(project.global.meter);
   const gridBeats = project.global.gridBeats;
   const selectedContentTabStopRect = useMemo(
-    () => resolveSelectedContentTabStopRect(project.tracks, selection, trackLayouts),
-    [project.tracks, selection, trackLayouts]
+    () => resolveSelectedContentTabStopRect(project.tracks, selection, trackLayouts, beatWidth),
+    [beatWidth, project.tracks, selection, trackLayouts]
   );
 
   return {
+    beatWidth,
     totalBeats,
     width,
     height,
     meterBeats,
     gridBeats,
     trackLayouts,
-    playheadTabStopLeft: HEADER_WIDTH + playheadBeat * BEAT_WIDTH - 1,
+    playheadTabStopLeft: HEADER_WIDTH + playheadBeat * beatWidth - 1,
     selectedContentTabStopRect,
     selectionBeatRange: selection.kind === "none" ? null : selection.beatRange,
     selectionLabel: selection.kind === "none" ? null : selection.label,

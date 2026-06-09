@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type WheelEvent as ReactWheelEvent } from "react";
 import { TrackCanvasOverlays } from "@/components/tracks/TrackCanvasOverlays";
 import { AutomationKeyframeRect } from "@/components/tracks/trackCanvasAutomationLane";
 import {
+  BEAT_ZOOM_STEP,
   BEAT_WIDTH,
   HEADER_WIDTH,
+  MAX_BEAT_WIDTH,
+  MIN_BEAT_WIDTH,
   NOTE_RESIZE_HANDLE_WIDTH,
   RULER_HEIGHT
 } from "@/components/tracks/trackCanvasConstants";
@@ -42,6 +45,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
   const [editingTrackName, setEditingTrackName] = useState("");
   const [selectedContentTabStopFocused, setSelectedContentTabStopFocused] = useState(false);
+  const [beatWidth, setBeatWidth] = useState(BEAT_WIDTH);
   const {
     volumePopoverTrackId,
     volumePopoverPosition,
@@ -85,14 +89,15 @@ export function TrackCanvas(props: TrackCanvasProps) {
     trackLayouts,
     width
   } = useTrackCanvasRenderModel({
+    beatWidth,
     playheadBeat,
     project,
     selection
   });
 
-  const beatFromX = (x: number) => (x - HEADER_WIDTH) / BEAT_WIDTH;
-  const fixedLaneSliderStartX = HEADER_WIDTH + Math.min(BEAT_WIDTH * 0.25, 18);
-  const fixedLaneSliderEndX = Math.min(width - 10, fixedLaneSliderStartX + BEAT_WIDTH * 3.8);
+  const beatFromX = useCallback((x: number) => (x - HEADER_WIDTH) / beatWidth, [beatWidth]);
+  const fixedLaneSliderStartX = HEADER_WIDTH + Math.min(beatWidth * 0.25, 18);
+  const fixedLaneSliderEndX = Math.min(width - 10, fixedLaneSliderStartX + beatWidth * 3.8);
   const fixedLaneValueFromX = (x: number) =>
     clamp01((x - fixedLaneSliderStartX) / Math.max(1, fixedLaneSliderEndX - fixedLaneSliderStartX));
   const isTrackSilenced = useCallback((track: Track) => track.mute || isTrackVolumeMuted(track.volume), []);
@@ -103,10 +108,42 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
     const rect = wrapper.getBoundingClientRect();
     return {
-      left: rect.left + HEADER_WIDTH + selectionBeatRange.endBeat * BEAT_WIDTH + 14 - wrapper.scrollLeft,
+      left: rect.left + HEADER_WIDTH + selectionBeatRange.endBeat * beatWidth + 14 - wrapper.scrollLeft,
       top: rect.top + 10
     };
-  }, [selectionBeatRange]);
+  }, [beatWidth, selectionBeatRange]);
+
+  const onWheelZoom = useCallback(
+    (event: ReactWheelEvent<HTMLCanvasElement>) => {
+      if (!event.ctrlKey && !event.metaKey) {
+        return;
+      }
+      const wrapper = wrapperRef.current;
+      const canvas = canvasRef.current;
+      if (!wrapper || !canvas) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+      const canvasX = (event.clientX - rect.left) * scaleX;
+      const anchorBeat = Math.max(0, beatFromX(canvasX));
+      const anchorOffsetX = canvasX - wrapper.scrollLeft;
+      const zoomFactor = event.deltaY < 0 ? BEAT_ZOOM_STEP : 1 / BEAT_ZOOM_STEP;
+      const nextBeatWidth = Math.min(MAX_BEAT_WIDTH, Math.max(MIN_BEAT_WIDTH, beatWidth * zoomFactor));
+      if (Math.abs(nextBeatWidth - beatWidth) < 0.1) {
+        return;
+      }
+
+      setBeatWidth(nextBeatWidth);
+      window.requestAnimationFrame(() => {
+        wrapper.scrollLeft = Math.max(0, HEADER_WIDTH + anchorBeat * nextBeatWidth - anchorOffsetX);
+      });
+    },
+    [beatFromX, beatWidth]
+  );
 
   const getCanvasPoint = useCallback((clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
@@ -189,6 +226,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       getCanvasPoint,
       getTrackLayoutAtY,
       beatFromX,
+      beatWidth,
       fixedLaneValueFromX,
       headerWidth: HEADER_WIDTH,
       noteResizeHandleWidth: NOTE_RESIZE_HANDLE_WIDTH
@@ -221,6 +259,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       project,
       renderModel: {
         automationKeyframeSelectionKeys,
+        beatWidth,
         gridBeats,
         height,
         meterBeats,
@@ -241,6 +280,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     });
   }, [
     countInLabel,
+    beatWidth,
     ghostPlayheadBeat,
     ghostPreviewNote,
     hideSelectionActionPopover,
@@ -280,6 +320,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   }, [draw]);
 
   useTrackCanvasPlayheadAutoScroll({
+    beatWidth,
     wrapperRef,
     playheadBeat,
     playheadFocused: Boolean(playheadFocused),
@@ -391,6 +432,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerLeave}
       onDoubleClick={onDoubleClick}
+      onWheel={onWheelZoom}
     />
   );
 }

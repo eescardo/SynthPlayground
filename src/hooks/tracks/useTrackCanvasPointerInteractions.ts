@@ -29,7 +29,7 @@ import {
   PitchRect,
   PLAYHEAD_HIT_HALF_WIDTH
 } from "@/components/tracks/trackCanvasGeometry";
-import { BEAT_WIDTH, POINTER_DRAG_THRESHOLD_PX, RULER_HEIGHT } from "@/components/tracks/trackCanvasConstants";
+import { POINTER_DRAG_THRESHOLD_PX, RULER_HEIGHT } from "@/components/tracks/trackCanvasConstants";
 import { PRIMARY_POINTER_BUTTON, SECONDARY_POINTER_BUTTON } from "@/lib/inputConstants";
 import { createDefaultPlacedNote } from "@/lib/noteDefaults";
 import { EMPTY_CONTENT_SELECTION, getNoteSelectionKey } from "@/lib/clipboard";
@@ -143,6 +143,7 @@ interface UseTrackCanvasPointerInteractionsParams {
     getCanvasPoint: (clientX: number, clientY: number) => { x: number; y: number };
     getTrackLayoutAtY: (y: number) => TrackLayout | null;
     beatFromX: (x: number) => number;
+    beatWidth: number;
     fixedLaneValueFromX: (x: number) => number;
     headerWidth: number;
     noteResizeHandleWidth: number;
@@ -165,8 +166,15 @@ export function useTrackCanvasPointerInteractions({
   } = actions;
   const { automationKeyframeRectsRef, canvasRef, loopMarkerRectsRef, muteRectsRef, noteRectsRef, pitchRectsRef } =
     canvas;
-  const { beatFromX, fixedLaneValueFromX, getCanvasPoint, getTrackLayoutAtY, headerWidth, noteResizeHandleWidth } =
-    geometry;
+  const {
+    beatFromX,
+    beatWidth,
+    fixedLaneValueFromX,
+    getCanvasPoint,
+    getTrackLayoutAtY,
+    headerWidth,
+    noteResizeHandleWidth
+  } = geometry;
   const { defaultPitch, gridBeats, playheadBeat, project, trackLayouts } = model;
   const dragRef = useRef<DragState | null>(null);
   const pendingCanvasActionRef = useRef<PendingCanvasAction | null>(null);
@@ -239,7 +247,7 @@ export function useTrackCanvasPointerInteractions({
       const loopMarkerRect = laneHit ? null : findLoopMarkerRect(loopMarkerRectsRef.current, x, y);
       const playheadHit = laneHit
         ? false
-        : isOverPlayhead(x, playheadBeat, headerWidth, BEAT_WIDTH, PLAYHEAD_HIT_HALF_WIDTH);
+        : isOverPlayhead(x, playheadBeat, headerWidth, beatWidth, PLAYHEAD_HIT_HALF_WIDTH);
       const hoverTarget = getHoverTarget({
         hasMuteHit: Boolean(muteRect),
         hasPitchHit: Boolean(pitchRect),
@@ -258,7 +266,16 @@ export function useTrackCanvasPointerInteractions({
         hoverTarget
       };
     },
-    [findNoteRect, getLaneAtPoint, headerWidth, loopMarkerRectsRef, muteRectsRef, pitchRectsRef, playheadBeat]
+    [
+      beatWidth,
+      findNoteRect,
+      getLaneAtPoint,
+      headerWidth,
+      loopMarkerRectsRef,
+      muteRectsRef,
+      pitchRectsRef,
+      playheadBeat
+    ]
   );
 
   const updateSelectionFromRect = useCallback(
@@ -606,7 +623,7 @@ export function useTrackCanvasPointerInteractions({
             setCanvasCursor("default");
           }
         } else {
-          const startX = headerWidth + pendingAction.startBeat * BEAT_WIDTH;
+          const startX = headerWidth + pendingAction.startBeat * beatWidth;
           if (Math.abs(x - startX) >= POINTER_DRAG_THRESHOLD_PX) {
             updateTimelineSelectionFromRuler(pendingAction.startBeat, Math.max(0, snapToGrid(beatFromX(x), gridBeats)));
             setCanvasCursor("default");
@@ -715,6 +732,7 @@ export function useTrackCanvasPointerInteractions({
       automationActions,
       automationKeyframeRectsRef,
       beatFromX,
+      beatWidth,
       canvasRef,
       fixedLaneValueFromX,
       getCanvasPoint,

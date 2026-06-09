@@ -86,6 +86,7 @@ export function renderLaneSpec(
   ctx: CanvasRenderingContext2D,
   spec: LaneRenderSpec,
   options: {
+    beatWidth?: number;
     hoveredAutomationKeyframe: HoveredAutomationKeyframe | null;
     registerHitTargets: boolean;
     automationKeyframeSelectionKeys?: ReadonlySet<string>;
@@ -98,7 +99,7 @@ export function renderLaneSpec(
   if (spec.kind === "automated") {
     renderAutomationLane({
       automationKeyframeRects,
-      beatWidth: BEAT_WIDTH,
+      beatWidth: options.beatWidth ?? BEAT_WIDTH,
       colors: TRACK_CANVAS_COLORS,
       ctx,
       expanded: spec.expanded,
@@ -119,7 +120,7 @@ export function renderLaneSpec(
   }
 
   renderFixedLane({
-    beatWidth: BEAT_WIDTH,
+    beatWidth: options.beatWidth ?? BEAT_WIDTH,
     colors: TRACK_CANVAS_COLORS,
     ctx,
     headerWidth: HEADER_WIDTH,

@@ -16,10 +16,11 @@ export interface TrackCanvasPreviewNoteRect {
 export function drawGhostPreviewNote(
   ctx: CanvasRenderingContext2D,
   note: { startBeat: number; durationBeats: number; pitchStr: string },
-  trackY: number
+  trackY: number,
+  beatWidth = BEAT_WIDTH
 ) {
-  const noteX = HEADER_WIDTH + note.startBeat * BEAT_WIDTH;
-  const noteW = Math.max(8, note.durationBeats * BEAT_WIDTH);
+  const noteX = HEADER_WIDTH + note.startBeat * beatWidth;
+  const noteW = Math.max(8, note.durationBeats * beatWidth);
   const noteY = trackY + 14;
   const noteH = TRACK_HEIGHT - 28;
 

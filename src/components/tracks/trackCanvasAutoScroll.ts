@@ -6,6 +6,7 @@ export const PLAYHEAD_VISIBLE_MARGIN_PX = 48;
 export type PlayheadScrollStrategy = "follow" | "reveal";
 
 interface TrackCanvasPlayheadScrollArgs {
+  beatWidth?: number;
   playheadBeat: number;
   scrollLeft: number;
   clientWidth: number;
@@ -15,13 +16,14 @@ interface TrackCanvasPlayheadScrollArgs {
 
 export const getPlayheadScrollLeft = ({
   playheadBeat,
+  beatWidth = BEAT_WIDTH,
   scrollLeft,
   clientWidth,
   scrollWidth,
   strategy
 }: TrackCanvasPlayheadScrollArgs): number => {
   const maxScrollLeft = Math.max(0, scrollWidth - clientWidth);
-  const playheadX = HEADER_WIDTH + playheadBeat * BEAT_WIDTH;
+  const playheadX = HEADER_WIDTH + playheadBeat * beatWidth;
 
   // Follow mode pins playback near 80% of the viewport after it reaches that point.
   // Reveal mode uses the minimum scroll needed to make navigation jumps visible.

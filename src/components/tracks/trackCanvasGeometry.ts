@@ -1,8 +1,11 @@
 export const PLAYHEAD_HIT_HALF_WIDTH = 5;
 export const LOOP_MARKER_BAR_WIDTH = 8;
-export const LOOP_MARKER_DOT_RADIUS = 3;
-export const LOOP_MARKER_DOT_OFFSET_Y = 6;
-export const LOOP_MARKER_HOVER_RING_RADIUS = 4.5;
+export const LOOP_MARKER_DIFFUSION_WIDTH = 10;
+export const LOOP_MARKER_NOTCH_WIDTH = 10;
+export const LOOP_MARKER_NOTCH_HEIGHT = 14;
+export const LOOP_MARKER_LABEL_HEIGHT = 16;
+export const LOOP_MARKER_LABEL_PADDING_X = 6;
+export const LOOP_MARKER_HIT_BUFFER = 6;
 
 export type CanvasCursor = "default" | "pointer" | "move" | "move-active" | "resize" | "crosshair" | "ns-resize";
 export type TrackCanvasHoverTarget = "mute" | "pitch" | "note" | "loop-marker" | "playhead" | "empty";

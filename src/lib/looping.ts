@@ -183,10 +183,13 @@ const toMatchedLoopRegion = (pair: LoopPair): MatchedLoopRegion => ({
 const flattenLoopPairs = (pairs: LoopPair[]): LoopPair[] =>
   pairs.flatMap((pair) => [pair, ...flattenLoopPairs(pair.children)]);
 
+export const getMatchedLoopRegions = (loop: ProjectGlobalSettings["loop"]): MatchedLoopRegion[] =>
+  flattenLoopPairs(buildLoopPairs(loop).pairs).map(toMatchedLoopRegion);
+
 export const getMatchedLoopRegionsAtBeat = (loop: ProjectGlobalSettings["loop"], beat: number): MatchedLoopRegion[] =>
-  flattenLoopPairs(buildLoopPairs(loop).pairs)
-    .filter((pair) => Math.abs(pair.startBeat - beat) < EPSILON || Math.abs(pair.endBeat - beat) < EPSILON)
-    .map(toMatchedLoopRegion);
+  getMatchedLoopRegions(loop).filter(
+    (region) => Math.abs(region.startBeat - beat) < EPSILON || Math.abs(region.endBeat - beat) < EPSILON
+  );
 
 export const getUniqueMatchedLoopRegionAtBeat = (
   loop: ProjectGlobalSettings["loop"],

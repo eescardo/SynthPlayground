@@ -2,6 +2,7 @@ import { RefObject, useEffect, useRef } from "react";
 import { getPlayheadScrollLeft } from "@/components/tracks/trackCanvasAutoScroll";
 
 interface UseTrackCanvasPlayheadAutoScrollArgs {
+  beatWidth?: number;
   wrapperRef: RefObject<HTMLDivElement | null>;
   playheadBeat: number;
   playheadFocused: boolean;
@@ -9,6 +10,7 @@ interface UseTrackCanvasPlayheadAutoScrollArgs {
 }
 
 export function useTrackCanvasPlayheadAutoScroll({
+  beatWidth,
   wrapperRef,
   playheadBeat,
   playheadFocused,
@@ -30,6 +32,7 @@ export function useTrackCanvasPlayheadAutoScroll({
     const nextScrollLeft = isPlaying
       ? getPlayheadScrollLeft({
           playheadBeat,
+          beatWidth,
           scrollLeft: wrapper.scrollLeft,
           clientWidth: wrapper.clientWidth,
           scrollWidth: wrapper.scrollWidth,
@@ -38,6 +41,7 @@ export function useTrackCanvasPlayheadAutoScroll({
       : playheadFocused
         ? getPlayheadScrollLeft({
             playheadBeat,
+            beatWidth,
             scrollLeft: wrapper.scrollLeft,
             clientWidth: wrapper.clientWidth,
             scrollWidth: wrapper.scrollWidth,
@@ -47,5 +51,5 @@ export function useTrackCanvasPlayheadAutoScroll({
     if (Math.abs(nextScrollLeft - wrapper.scrollLeft) > 0.5) {
       wrapper.scrollLeft = nextScrollLeft;
     }
-  }, [isPlaying, playheadBeat, playheadFocused, wrapperRef]);
+  }, [beatWidth, isPlaying, playheadBeat, playheadFocused, wrapperRef]);
 }

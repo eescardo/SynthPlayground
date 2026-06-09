@@ -97,7 +97,8 @@ export function resolveSelectedContentTabStopRect(
     markerTrackId?: string;
     content?: { noteKeys: ReadonlySet<string>; automationKeyframeSelectionKeys: ReadonlySet<string> };
   },
-  trackLayouts: TrackLayout[]
+  trackLayouts: TrackLayout[],
+  beatWidth = BEAT_WIDTH
 ): TrackCanvasSelectedContentTabStopRect | null {
   if (selection.kind !== "note" || !selection.content) {
     return null;
@@ -114,9 +115,9 @@ export function resolveSelectedContentTabStopRect(
 
     return {
       ariaLabel: "Selected content",
-      x: HEADER_WIDTH + selection.beatRange.startBeat * BEAT_WIDTH,
+      x: HEADER_WIDTH + selection.beatRange.startBeat * beatWidth,
       y: layout.y + 14,
-      w: Math.max(8, (selection.beatRange.endBeat - selection.beatRange.startBeat) * BEAT_WIDTH),
+      w: Math.max(8, (selection.beatRange.endBeat - selection.beatRange.startBeat) * beatWidth),
       h: TRACK_HEIGHT - 28
     };
   }
@@ -140,9 +141,9 @@ export function resolveSelectedContentTabStopRect(
 
   return {
     ariaLabel: `Selected note ${note.pitchStr}`,
-    x: HEADER_WIDTH + note.startBeat * BEAT_WIDTH,
+    x: HEADER_WIDTH + note.startBeat * beatWidth,
     y: layout.y + 14,
-    w: Math.max(8, note.durationBeats * BEAT_WIDTH),
+    w: Math.max(8, note.durationBeats * beatWidth),
     h: TRACK_HEIGHT - 28
   };
 }
