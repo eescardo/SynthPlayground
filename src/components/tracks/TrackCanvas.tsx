@@ -36,6 +36,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const beatWidthRef = useRef(BEAT_WIDTH);
+  const zoomGestureRef = useRef<{ beat: number; clientX: number } | null>(null);
+  const zoomGestureTimerRef = useRef<number | null>(null);
+  const zoomScrollCorrectionTokenRef = useRef(0);
   const playheadTabStopRef = useRef<HTMLButtonElement | null>(null);
   const selectedContentTabStopRef = useRef<HTMLButtonElement | null>(null);
   const noteRectsRef = useRef<NoteRect[]>([]);
@@ -131,8 +134,21 @@ export function TrackCanvas(props: TrackCanvasProps) {
     const currentBeatWidth = beatWidthRef.current;
     const wrapperRect = wrapper.getBoundingClientRect();
     const anchorOffsetX = event.clientX - wrapperRect.left;
-    const anchorContentX = wrapper.scrollLeft + anchorOffsetX;
-    const anchorBeat = Math.max(0, (anchorContentX - HEADER_WIDTH) / currentBeatWidth);
+    const existingGesture = zoomGestureRef.current;
+    const pointerMoved = existingGesture ? Math.abs(event.clientX - existingGesture.clientX) > 6 : false;
+    const anchorBeat =
+      existingGesture && !pointerMoved
+        ? existingGesture.beat
+        : Math.max(0, (wrapper.scrollLeft + anchorOffsetX - HEADER_WIDTH) / currentBeatWidth);
+    zoomGestureRef.current = { beat: anchorBeat, clientX: event.clientX };
+    if (zoomGestureTimerRef.current !== null) {
+      window.clearTimeout(zoomGestureTimerRef.current);
+    }
+    zoomGestureTimerRef.current = window.setTimeout(() => {
+      zoomGestureRef.current = null;
+      zoomGestureTimerRef.current = null;
+    }, 180);
+
     const zoomFactor = event.deltaY < 0 ? BEAT_ZOOM_STEP : 1 / BEAT_ZOOM_STEP;
     const proposedBeatWidth = Math.min(MAX_BEAT_WIDTH, Math.max(MIN_BEAT_WIDTH, currentBeatWidth * zoomFactor));
     let nextBeatWidth = proposedBeatWidth;
@@ -158,8 +174,12 @@ export function TrackCanvas(props: TrackCanvasProps) {
     });
     beatWidthRef.current = nextBeatWidth;
     wrapper.scrollLeft = nextScrollLeft;
+    zoomScrollCorrectionTokenRef.current += 1;
+    const correctionToken = zoomScrollCorrectionTokenRef.current;
     window.requestAnimationFrame(() => {
-      wrapper.scrollLeft = nextScrollLeft;
+      if (correctionToken === zoomScrollCorrectionTokenRef.current) {
+        wrapper.scrollLeft = nextScrollLeft;
+      }
     });
   }, []);
 
@@ -171,6 +191,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
     wrapper.addEventListener("wheel", onWheelZoom, { passive: false, capture: true });
     return () => {
       wrapper.removeEventListener("wheel", onWheelZoom, true);
+      if (zoomGestureTimerRef.current !== null) {
+        window.clearTimeout(zoomGestureTimerRef.current);
+        zoomGestureTimerRef.current = null;
+      }
     };
   }, [onWheelZoom]);
 
