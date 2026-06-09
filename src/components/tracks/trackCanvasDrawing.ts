@@ -240,14 +240,14 @@ function drawStartLoopMarkerShape(ctx: CanvasRenderingContext2D, geometry: LoopM
 }
 
 function drawEndLoopMarkerShape(ctx: CanvasRenderingContext2D, geometry: LoopMarkerVisualGeometry) {
-  const { centerY, labelHeight, labelWidth, labelX, notchHeight, notchWidth } = geometry;
+  const { centerY, labelHeight, labelX, notchWidth, stemWidth, stemX } = geometry;
   const labelY = centerY - labelHeight * 0.5;
-  if (labelWidth > 0) {
-    ctx.rect(labelX, labelY, labelWidth, labelHeight);
-  }
-  ctx.moveTo(labelX + 1, centerY - notchHeight * 0.5);
+  const labelRightX = stemX + stemWidth;
+  ctx.moveTo(labelRightX, labelY);
+  ctx.lineTo(labelX, labelY);
   ctx.lineTo(labelX - notchWidth, centerY);
-  ctx.lineTo(labelX + 1, centerY + notchHeight * 0.5);
+  ctx.lineTo(labelX, labelY + labelHeight);
+  ctx.lineTo(labelRightX, labelY + labelHeight);
   ctx.closePath();
 }
 
