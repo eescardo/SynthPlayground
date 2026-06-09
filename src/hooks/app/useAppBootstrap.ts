@@ -1,6 +1,6 @@
 "use client";
 
-import { Dispatch, SetStateAction, useCallback, useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import { createProjectSnapshot, hydrateProjectSnapshot } from "@/lib/projectLifecycle";
 import { createHistory, HistoryState } from "@/lib/history";
 import { freezeProjectSnapshot } from "@/lib/projectImmutability";
@@ -9,8 +9,6 @@ import {
   loadProjectState,
   loadRecentProjectSnapshots,
   RecentProjectSnapshot,
-  saveActiveProject,
-  saveActiveProjectAssets,
   saveProjectState
 } from "@/lib/persistence";
 import { createEmptyProjectAssetLibrary } from "@/lib/sampleAssetLibrary";
@@ -38,10 +36,16 @@ export function useAppBootstrap({
   const [ready, setReady] = useState(false);
   const [selectedTrackId, setSelectedTrackId] = useState<string | undefined>(undefined);
   const [runtimeError, setRuntimeErrorState] = useState<SproutError | null>(null);
+  const project = projectHistory.current;
+  const latestAutosaveStateRef = useRef<{ project: Project; assets: ProjectAssetLibrary }>({
+    project,
+    assets: projectAssets
+  });
   const setRuntimeError = useCallback<SproutErrorSetter>((value) => {
     setRuntimeErrorState((previous) => (typeof value === "function" ? value(previous) : value));
   }, []);
-  const project = projectHistory.current;
+
+  latestAutosaveStateRef.current = { project, assets: projectAssets };
 
   useEffect(() => {
     let cancelled = false;
@@ -102,22 +106,13 @@ export function useAppBootstrap({
   useEffect(() => {
     if (!ready) return;
     const timer = window.setTimeout(() => {
-      saveActiveProject(createProjectSnapshot(project)).catch(() => {
+      const latest = latestAutosaveStateRef.current;
+      saveProjectState(createProjectSnapshot(latest.project), latest.assets).catch(() => {
         // ignore autosave errors
       });
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [project, ready]);
-
-  useEffect(() => {
-    if (!ready) return;
-    const timer = window.setTimeout(() => {
-      saveActiveProjectAssets(projectAssets).catch(() => {
-        // ignore autosave errors
-      });
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [projectAssets, ready]);
+  }, [project, projectAssets, ready]);
 
   return {
     project,
