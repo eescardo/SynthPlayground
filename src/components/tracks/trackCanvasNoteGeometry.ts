@@ -1,6 +1,6 @@
 import { clamp } from "@/lib/numeric";
 
-export const NOTE_CORNER_RADIUS = 8;
+export const NOTE_CORNER_RADIUS = 5;
 
 function roundedRectPath(
   ctx: CanvasRenderingContext2D,
