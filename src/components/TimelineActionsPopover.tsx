@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect } from "react";
 import { useFixedPopoverPosition } from "@/hooks/useFixedPopoverPosition";
+import { useInlineRename } from "@/hooks/useInlineRename";
+import { useRenameActivation } from "@/hooks/useRenameActivation";
 import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping";
 
 interface TimelineActionsPopoverProps {
@@ -29,8 +31,6 @@ interface TimelineActionsPopoverProps {
 
 export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
   const repeatCount = props.endRepeatCount ?? DEFAULT_LOOP_REPEAT_COUNT;
-  const { onUpdateRepeatCount } = props;
-  const [repeatCountText, setRepeatCountText] = useState(String(repeatCount));
   const hasPasteActions = Boolean(props.showPasteActions);
   const hasPlayheadActions = props.showAddStart || props.showAddEnd || props.showExpandLoopToNotes;
   const hasLoopMarkerActions = Boolean(props.startMarkerId || props.endMarkerId);
@@ -41,33 +41,6 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
     active: true,
     getAnchorPosition
   });
-  const handleRepeatCountChange = useCallback(
-    (nextText: string) => {
-      setRepeatCountText(nextText);
-      const parsed = Number(nextText);
-      if (!Number.isFinite(parsed) || nextText.trim() === "") {
-        return;
-      }
-      onUpdateRepeatCount(Math.round(parsed));
-    },
-    [onUpdateRepeatCount]
-  );
-  const handleRepeatCountKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Escape") {
-      return;
-    }
-    event.stopPropagation();
-  }, []);
-  const handleRepeatCountBlur = useCallback(() => {
-    if (repeatCountText.trim() === "") {
-      setRepeatCountText(String(repeatCount));
-    }
-  }, [repeatCount, repeatCountText]);
-
-  useEffect(() => {
-    setRepeatCountText(String(repeatCount));
-  }, [repeatCount, props.endMarkerId]);
-
   return (
     <div
       ref={popoverRef}
@@ -131,18 +104,7 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
 
       {props.endMarkerId && (
         <>
-          <label className="timeline-actions-popover-label">
-            Loop Repeats
-            <input
-              type="number"
-              min={DEFAULT_LOOP_REPEAT_COUNT}
-              max={MAX_LOOP_REPEAT_COUNT}
-              value={repeatCountText}
-              onBlur={handleRepeatCountBlur}
-              onChange={(event) => handleRepeatCountChange(event.target.value)}
-              onKeyDown={handleRepeatCountKeyDown}
-            />
-          </label>
+          <LoopRepeatControl repeatCount={repeatCount} onUpdateRepeatCount={props.onUpdateRepeatCount} />
           <button type="button" onClick={props.onRemoveEnd}>
             Remove Loop End
           </button>
@@ -152,6 +114,112 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
       <button type="button" onClick={props.onClose}>
         Close
       </button>
+    </div>
+  );
+}
+
+interface LoopRepeatControlProps {
+  repeatCount: number;
+  onUpdateRepeatCount: (repeatCount: number) => void;
+}
+
+function clampRepeatCount(value: number): number {
+  return Math.min(MAX_LOOP_REPEAT_COUNT, Math.max(DEFAULT_LOOP_REPEAT_COUNT, value));
+}
+
+function LoopRepeatControl({ repeatCount, onUpdateRepeatCount }: LoopRepeatControlProps) {
+  const value = String(repeatCount);
+  const rename = useInlineRename({
+    value,
+    onCommit: (nextValue) => {
+      const parsed = Number(nextValue);
+      if (!Number.isFinite(parsed)) {
+        return;
+      }
+      onUpdateRepeatCount(clampRepeatCount(Math.round(parsed)));
+    }
+  });
+  const { cancel, commit, draft, editing, setDraft, setEditing } = rename;
+  const renameActivation = useRenameActivation<"loop-repeats">();
+  const setRepeatCount = useCallback(
+    (delta: number) => {
+      onUpdateRepeatCount(clampRepeatCount(repeatCount + delta));
+    },
+    [onUpdateRepeatCount, repeatCount]
+  );
+  const startRename = useCallback(() => {
+    setEditing(true);
+  }, [setEditing]);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [setDraft, value]);
+
+  return (
+    <div className="timeline-repeat-control" aria-label="Loop repeats">
+      <span className="timeline-actions-popover-label">Loop Repeats</span>
+      <div
+        className="timeline-repeat-wheel"
+        onWheel={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (event.deltaY === 0) {
+            return;
+          }
+          setRepeatCount(event.deltaY < 0 ? 1 : -1);
+        }}
+      >
+        <button
+          type="button"
+          className="timeline-repeat-step timeline-repeat-step-up"
+          aria-label="Increase loop repeats"
+          onClick={() => setRepeatCount(1)}
+        />
+        {editing ? (
+          <input
+            className="timeline-repeat-input"
+            aria-label="Loop repeat count"
+            autoFocus
+            inputMode="numeric"
+            pattern="[0-9]*"
+            size={Math.max(1, draft.length)}
+            value={draft}
+            onBlur={commit}
+            onChange={(event) => setDraft(event.target.value)}
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commit();
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                cancel();
+              }
+              event.stopPropagation();
+            }}
+            onWheel={(event) => event.stopPropagation()}
+          />
+        ) : (
+          <span
+            className={`timeline-repeat-value${renameActivation.isArmed("loop-repeats") ? " rename-armed" : ""}`}
+            role="button"
+            tabIndex={0}
+            title="Edit loop repeat count"
+            {...renameActivation.getRenameTriggerProps({
+              id: "loop-repeats",
+              onStartRename: startRename
+            })}
+          >
+            {repeatCount}
+          </span>
+        )}
+        <button
+          type="button"
+          className="timeline-repeat-step timeline-repeat-step-down"
+          aria-label="Decrease loop repeats"
+          onClick={() => setRepeatCount(-1)}
+        />
+      </div>
     </div>
   );
 }

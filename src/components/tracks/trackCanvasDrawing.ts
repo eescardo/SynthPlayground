@@ -173,10 +173,10 @@ function getLoopMarkerVisualGeometry(
   const stemWidth = Math.max(3, LOOP_MARKER_BAR_WIDTH * 0.5);
   const stemX = x - stemWidth * 0.5;
   const centerY = RULER_HEIGHT * 0.5;
-  const labelText = repeatCount === undefined ? "" : `x${repeatCount}`;
+  const labelText = repeatCount === undefined ? "" : String(repeatCount);
   const labelWidth =
     kind === "end" && labelText
-      ? Math.max(24, Math.ceil(ctx.measureText(labelText).width) + LOOP_MARKER_LABEL_PADDING_X * 2)
+      ? Math.max(18, Math.ceil(ctx.measureText(labelText).width) + LOOP_MARKER_LABEL_PADDING_X * 2)
       : 0;
   const labelHeight = LOOP_MARKER_LABEL_HEIGHT;
   const notchWidth = LOOP_MARKER_NOTCH_WIDTH;
@@ -295,7 +295,8 @@ function drawLoopMarker(
     ctx.fillStyle = TRACK_CANVAS_COLORS.loopMarkerText;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`x${repeatCount}`, geometry.labelX + geometry.labelWidth * 0.5, geometry.centerY + 0.5);
+    ctx.fillText("x", geometry.labelX - geometry.notchWidth * 0.48, geometry.centerY + 0.5);
+    ctx.fillText(String(repeatCount), geometry.labelX + geometry.labelWidth * 0.5, geometry.centerY + 0.5);
     ctx.textAlign = "start";
     ctx.textBaseline = "alphabetic";
   }
@@ -796,8 +797,8 @@ function getHoveredLoopRegion(
 function drawLoopBracket(ctx: CanvasRenderingContext2D, region: MatchedLoopRegion, color: string, beatWidth: number) {
   ctx.font = "bold 9px ui-monospace, SFMono-Regular, Menlo, monospace";
   const endLabelWidth = Math.max(
-    24,
-    Math.ceil(ctx.measureText(`x${region.repeatCount}`).width) + LOOP_MARKER_LABEL_PADDING_X * 2
+    18,
+    Math.ceil(ctx.measureText(String(region.repeatCount)).width) + LOOP_MARKER_LABEL_PADDING_X * 2
   );
   const startX =
     HEADER_WIDTH + region.startBeat * beatWidth + LOOP_MARKER_BAR_WIDTH * 0.5 + LOOP_MARKER_NOTCH_WIDTH + 6;
