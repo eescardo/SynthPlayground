@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef, type WheelEvent } from "react";
 import { useFixedPopoverPosition } from "@/hooks/useFixedPopoverPosition";
 import { useInlineRename } from "@/hooks/useInlineRename";
 import { useRenameActivation } from "@/hooks/useRenameActivation";
@@ -127,8 +127,27 @@ function clampRepeatCount(value: number): number {
   return Math.min(MAX_LOOP_REPEAT_COUNT, Math.max(DEFAULT_LOOP_REPEAT_COUNT, value));
 }
 
+const REPEAT_WHEEL_STEP_DELTA = 96;
+
+function consumeWheelEvent(event: WheelEvent<HTMLElement>) {
+  event.preventDefault();
+  event.stopPropagation();
+  event.nativeEvent.stopImmediatePropagation();
+}
+
+function getWheelPixelDelta(event: WheelEvent<HTMLElement>): number {
+  if (event.deltaMode === 1) {
+    return event.deltaY * 16;
+  }
+  if (event.deltaMode === 2) {
+    return event.deltaY * 240;
+  }
+  return event.deltaY;
+}
+
 function LoopRepeatControl({ repeatCount, onUpdateRepeatCount }: LoopRepeatControlProps) {
   const value = String(repeatCount);
+  const wheelDeltaRef = useRef(0);
   const rename = useInlineRename({
     value,
     onCommit: (nextValue) => {
@@ -155,20 +174,31 @@ function LoopRepeatControl({ repeatCount, onUpdateRepeatCount }: LoopRepeatContr
     setDraft(value);
   }, [setDraft, value]);
 
+  const handleWheel = useCallback(
+    (event: WheelEvent<HTMLDivElement>) => {
+      consumeWheelEvent(event);
+      const deltaY = getWheelPixelDelta(event);
+      if (deltaY === 0) {
+        return;
+      }
+      if (wheelDeltaRef.current !== 0 && Math.sign(wheelDeltaRef.current) !== Math.sign(deltaY)) {
+        wheelDeltaRef.current = 0;
+      }
+      wheelDeltaRef.current += deltaY;
+      if (Math.abs(wheelDeltaRef.current) < REPEAT_WHEEL_STEP_DELTA) {
+        return;
+      }
+      const steps = Math.trunc(wheelDeltaRef.current / REPEAT_WHEEL_STEP_DELTA);
+      wheelDeltaRef.current -= steps * REPEAT_WHEEL_STEP_DELTA;
+      onUpdateRepeatCount(clampRepeatCount(repeatCount - steps));
+    },
+    [onUpdateRepeatCount, repeatCount]
+  );
+
   return (
     <div className="timeline-repeat-control" aria-label="Loop repeats">
       <span className="timeline-actions-popover-label">Loop Repeats</span>
-      <div
-        className="timeline-repeat-wheel"
-        onWheel={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          if (event.deltaY === 0) {
-            return;
-          }
-          setRepeatCount(event.deltaY < 0 ? 1 : -1);
-        }}
-      >
+      <div className="timeline-repeat-wheel" onWheelCapture={handleWheel}>
         <button
           type="button"
           className="timeline-repeat-step timeline-repeat-step-up"
@@ -197,7 +227,8 @@ function LoopRepeatControl({ repeatCount, onUpdateRepeatCount }: LoopRepeatContr
               }
               event.stopPropagation();
             }}
-            onWheel={(event) => event.stopPropagation()}
+            onWheel={consumeWheelEvent}
+            onWheelCapture={consumeWheelEvent}
           />
         ) : (
           <span
