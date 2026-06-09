@@ -158,7 +158,6 @@ interface LoopMarkerVisualGeometry {
   labelX: number;
   labelWidth: number;
   labelHeight: number;
-  labelRadius: number;
   notchWidth: number;
   notchHeight: number;
   hitX: number;
@@ -180,7 +179,6 @@ function getLoopMarkerVisualGeometry(
       ? Math.max(24, Math.ceil(ctx.measureText(labelText).width) + LOOP_MARKER_LABEL_PADDING_X * 2)
       : 0;
   const labelHeight = LOOP_MARKER_LABEL_HEIGHT;
-  const labelRadius = 5;
   const notchWidth = LOOP_MARKER_NOTCH_WIDTH;
   const notchHeight = LOOP_MARKER_NOTCH_HEIGHT;
   const labelX = stemX - labelWidth + 1;
@@ -197,7 +195,6 @@ function getLoopMarkerVisualGeometry(
     labelX,
     labelWidth,
     labelHeight,
-    labelRadius,
     notchWidth,
     notchHeight,
     hitX: hitLeft,
@@ -243,10 +240,10 @@ function drawStartLoopMarkerShape(ctx: CanvasRenderingContext2D, geometry: LoopM
 }
 
 function drawEndLoopMarkerShape(ctx: CanvasRenderingContext2D, geometry: LoopMarkerVisualGeometry) {
-  const { centerY, labelHeight, labelRadius, labelWidth, labelX, notchHeight, notchWidth } = geometry;
+  const { centerY, labelHeight, labelWidth, labelX, notchHeight, notchWidth } = geometry;
   const labelY = centerY - labelHeight * 0.5;
   if (labelWidth > 0) {
-    ctx.roundRect(labelX, labelY, labelWidth, labelHeight, labelRadius);
+    ctx.rect(labelX, labelY, labelWidth, labelHeight);
   }
   ctx.moveTo(labelX + 1, centerY - notchHeight * 0.5);
   ctx.lineTo(labelX - notchWidth, centerY);
