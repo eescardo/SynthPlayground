@@ -80,6 +80,7 @@ interface TrackCanvasDrawingOptions extends Pick<
   hoveredNote: { trackId: string; noteId: string } | null;
   hoveredAutomationKeyframe: HoveredAutomationKeyframe | null;
   hoveredLoopMarker: { markerId: string; kind: "start" | "end"; beat: number } | null;
+  selectedLoopMarker: { markerId: string; kind: "start" | "end"; beat: number } | null;
   hoveredPlayhead: boolean;
   isTrackSilenced: (track: Track) => boolean;
   playheadTabStopFocused: boolean;
@@ -819,19 +820,23 @@ function drawLoopBracket(ctx: CanvasRenderingContext2D, region: MatchedLoopRegio
 
 function drawLoopMarkers(
   ctx: CanvasRenderingContext2D,
-  options: Pick<TrackCanvasDrawingOptions, "hoveredLoopMarker" | "loopMarkerRectsRef" | "project"> & {
+  options: Pick<
+    TrackCanvasDrawingOptions,
+    "hoveredLoopMarker" | "loopMarkerRectsRef" | "project" | "selectedLoopMarker"
+  > & {
     beatWidth: number;
     height: number;
   }
 ) {
-  const { beatWidth, height, hoveredLoopMarker, loopMarkerRectsRef, project } = options;
+  const { beatWidth, height, hoveredLoopMarker, loopMarkerRectsRef, project, selectedLoopMarker } = options;
   const loopMarkers = getLoopMarkerStates(project.global.loop);
   const regions = getMatchedLoopRegions(project.global.loop);
   const intensityByMarkerId = buildLoopIntensityByMarkerId(regions);
-  const hoveredRegion = getHoveredLoopRegion(hoveredLoopMarker, regions);
-  if (hoveredRegion) {
-    const intensity = intensityByMarkerId.get(hoveredRegion.startMarkerId) ?? 3;
-    drawLoopBracket(ctx, hoveredRegion, LOOP_INTENSITY_COLORS[Math.min(5, Math.max(1, intensity)) - 1], beatWidth);
+  const activeLoopMarker = selectedLoopMarker ?? hoveredLoopMarker;
+  const activeRegion = getHoveredLoopRegion(activeLoopMarker, regions);
+  if (activeRegion) {
+    const intensity = intensityByMarkerId.get(activeRegion.startMarkerId) ?? 3;
+    drawLoopBracket(ctx, activeRegion, LOOP_INTENSITY_COLORS[Math.min(5, Math.max(1, intensity)) - 1], beatWidth);
   }
 
   for (const marker of loopMarkers) {
@@ -841,9 +846,13 @@ function drawLoopMarkers(
       hoveredLoopMarker?.markerId === marker.markerId &&
       hoveredLoopMarker.kind === marker.kind &&
       hoveredLoopMarker.beat === marker.beat;
+    const isSelected =
+      selectedLoopMarker?.markerId === marker.markerId &&
+      selectedLoopMarker.kind === marker.kind &&
+      selectedLoopMarker.beat === marker.beat;
     ctx.font = "bold 9px ui-monospace, SFMono-Regular, Menlo, monospace";
     const markerGeometry = getLoopMarkerVisualGeometry(ctx, markerX, marker.kind, marker.repeatCount);
-    drawLoopMarker(ctx, markerX, height, marker.kind, color, isHovered, marker.repeatCount);
+    drawLoopMarker(ctx, markerX, height, marker.kind, color, isHovered || isSelected, marker.repeatCount);
     loopMarkerRectsRef.current.push({
       markerId: marker.markerId,
       kind: marker.kind,
@@ -973,6 +982,7 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     project,
     renderModel,
     selectedContentTabStopFocused,
+    selectedLoopMarker,
     selectedTrackId,
     selection,
     selectionMarqueeActive,
@@ -1037,7 +1047,7 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     playheadTabStopFocused,
     timelineActionsPopoverOpen
   });
-  drawLoopMarkers(ctx, { beatWidth, height, hoveredLoopMarker, loopMarkerRectsRef, project });
+  drawLoopMarkers(ctx, { beatWidth, height, hoveredLoopMarker, loopMarkerRectsRef, project, selectedLoopMarker });
   drawGhostPlayhead(ctx, ghostPlayheadBeat, countInLabel, height, beatWidth);
   drawAutomationVeilPass(ctx, {
     automationKeyframeRectsRef,

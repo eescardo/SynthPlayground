@@ -191,6 +191,7 @@ export function useTrackCanvasPointerInteractions({
     side: "single" | "incoming" | "outgoing";
   } | null>(null);
   const [hoveredLoopMarker, setHoveredLoopMarker] = useState<HoveredLoopMarker | null>(null);
+  const [selectedLoopMarker, setSelectedLoopMarker] = useState<HoveredLoopMarker | null>(null);
   const [hoveredPlayhead, setHoveredPlayhead] = useState(false);
   const [canvasCursor, setCanvasCursor] = useState<CanvasCursor>("default");
   const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
@@ -317,6 +318,15 @@ export function useTrackCanvasPointerInteractions({
       if (!canvas) return;
       const { x, y } = getCanvasPoint(event.clientX, event.clientY);
       const targets = resolvePointerTargets(x, y);
+      setSelectedLoopMarker(
+        targets.hoverTarget === "loop-marker" && targets.loopMarkerRect
+          ? {
+              markerId: targets.loopMarkerRect.markerId,
+              kind: targets.loopMarkerRect.kind,
+              beat: targets.loopMarkerRect.beat
+            }
+          : null
+      );
       const automationKeyframe = findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y);
       const automationLaneHit = targets.automationLaneHit;
       if (y <= RULER_HEIGHT && x >= headerWidth) {
@@ -963,6 +973,7 @@ export function useTrackCanvasPointerInteractions({
     hoveredNote,
     hoveredAutomationKeyframe,
     hoveredLoopMarker,
+    selectedLoopMarker,
     hoveredPlayhead,
     canvasCursor,
     selectionRect,
