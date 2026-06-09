@@ -295,7 +295,7 @@ function drawLoopMarker(
     ctx.fillStyle = TRACK_CANVAS_COLORS.loopMarkerText;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("x", geometry.labelX - geometry.notchWidth * 0.48, geometry.centerY + 0.5);
+    ctx.fillText("x", geometry.labelX - geometry.notchWidth * 0.36, geometry.centerY + 0.5);
     ctx.fillText(String(repeatCount), geometry.labelX + geometry.labelWidth * 0.5, geometry.centerY + 0.5);
     ctx.textAlign = "start";
     ctx.textBaseline = "alphabetic";
