@@ -369,19 +369,30 @@ function drawCompositionEndMarker(
   height: number
 ) {
   const projectEndX = HEADER_WIDTH + projectEndBeat * beatWidth;
+  const thinWidth = 2;
+  const thickWidth = 4;
+  const markerGap = thickWidth * 0.5;
   ctx.save();
-  ctx.strokeStyle = TRACK_CANVAS_COLORS.barGrid;
-  ctx.lineCap = "butt";
-  ctx.beginPath();
-  ctx.lineWidth = 2;
-  ctx.moveTo(projectEndX, 0);
-  ctx.lineTo(projectEndX, height);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.lineWidth = 4;
-  ctx.moveTo(projectEndX + 3, 0);
-  ctx.lineTo(projectEndX + 3, height);
-  ctx.stroke();
+  ctx.fillStyle = TRACK_CANVAS_COLORS.barGrid;
+  ctx.fillRect(projectEndX, 0, thinWidth, height);
+  ctx.fillRect(projectEndX + thinWidth + markerGap, 0, thickWidth, height);
+  ctx.restore();
+}
+
+function drawPostCompositionFade(
+  ctx: CanvasRenderingContext2D,
+  projectEndBeat: number,
+  beatWidth: number,
+  height: number,
+  width: number
+) {
+  const projectEndX = HEADER_WIDTH + projectEndBeat * beatWidth;
+  if (projectEndX >= width) {
+    return;
+  }
+  ctx.save();
+  ctx.fillStyle = "rgba(4, 11, 16, 0.52)";
+  ctx.fillRect(projectEndX, RULER_HEIGHT, width - projectEndX, height - RULER_HEIGHT);
   ctx.restore();
 }
 
@@ -1085,6 +1096,7 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     trackLayouts,
     width
   });
+  drawPostCompositionFade(ctx, projectEndBeat, beatWidth, height, width);
   drawCompositionEndMarker(ctx, projectEndBeat, beatWidth, height);
   drawPlayhead(ctx, {
     beatWidth,
@@ -1106,6 +1118,8 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     trackLayouts,
     width
   });
+  drawPostCompositionFade(ctx, projectEndBeat, beatWidth, height, width);
+  drawCompositionEndMarker(ctx, projectEndBeat, beatWidth, height);
   drawSelectionOverlays(ctx, {
     beatWidth,
     height,
@@ -1117,4 +1131,5 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     selectionRect,
     trackLayouts
   });
+  drawCompositionEndMarker(ctx, projectEndBeat, beatWidth, height);
 }

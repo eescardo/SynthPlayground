@@ -321,6 +321,8 @@ export function useTrackCanvasPointerInteractions({
       if (!canvas) return;
       const { x, y } = getCanvasPoint(event.clientX, event.clientY);
       const targets = resolvePointerTargets(x, y);
+      const compositionEndX = headerWidth + projectEndBeat * beatWidth;
+      const compositionEndHit = x >= headerWidth && Math.abs(x - compositionEndX) <= 9;
       setSelectedLoopMarker(
         targets.hoverTarget === "loop-marker" && targets.loopMarkerRect
           ? {
@@ -332,19 +334,18 @@ export function useTrackCanvasPointerInteractions({
       );
       const automationKeyframe = findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y);
       const automationLaneHit = targets.automationLaneHit;
+      if (compositionEndHit) {
+        onSetPlayheadBeat(projectEndBeat);
+        onRequestTimelineActionsPopover({
+          beat: projectEndBeat,
+          clientX: event.clientX,
+          clientY: event.clientY
+        });
+        setCanvasCursor("pointer");
+        return;
+      }
       if (y <= RULER_HEIGHT && x >= headerWidth) {
         const pointerBeat = Math.max(0, snapToGrid(beatFromX(x), gridBeats));
-        const compositionEndX = headerWidth + projectEndBeat * beatWidth;
-        if (Math.abs(x - compositionEndX) <= 9) {
-          onSetPlayheadBeat(projectEndBeat);
-          onRequestTimelineActionsPopover({
-            beat: projectEndBeat,
-            clientX: event.clientX,
-            clientY: event.clientY
-          });
-          setCanvasCursor("pointer");
-          return;
-        }
         if (targets.hoverTarget === "loop-marker" && targets.loopMarkerRect) {
           onSetPlayheadBeat(targets.loopMarkerRect.beat);
           onRequestTimelineActionsPopover({
@@ -700,6 +701,11 @@ export function useTrackCanvasPointerInteractions({
       }
 
       if (!drag) {
+        const compositionEndHit = x >= headerWidth && Math.abs(x - (headerWidth + projectEndBeat * beatWidth)) <= 9;
+        if (compositionEndHit) {
+          setCanvasCursor("pointer");
+          return;
+        }
         const fixedLaneHit =
           x >= headerWidth
             ? getTrackLayoutAtY(y)?.automationLanes.find(
@@ -712,10 +718,6 @@ export function useTrackCanvasPointerInteractions({
         }
         if (fixedLaneHit) {
           setCanvasCursor("resize");
-          return;
-        }
-        if (y <= RULER_HEIGHT && Math.abs(x - (headerWidth + projectEndBeat * beatWidth)) <= 9) {
-          setCanvasCursor("pointer");
           return;
         }
         setCanvasCursor(
