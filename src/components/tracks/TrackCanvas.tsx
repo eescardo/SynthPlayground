@@ -36,6 +36,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const beatWidthRef = useRef(BEAT_WIDTH);
+  const totalBeatsRef = useRef(0);
   const zoomGestureRef = useRef<{ beat: number; clientX: number } | null>(null);
   const zoomGestureTimerRef = useRef<number | null>(null);
   const zoomScrollCorrectionTokenRef = useRef(0);
@@ -100,6 +101,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     project,
     selection
   });
+  totalBeatsRef.current = totalBeats;
 
   const beatFromX = useCallback((x: number) => (x - HEADER_WIDTH) / beatWidth, [beatWidth]);
   const fixedLaneSliderStartX = HEADER_WIDTH + Math.min(beatWidth * 0.25, 18);
@@ -119,69 +121,95 @@ export function TrackCanvas(props: TrackCanvasProps) {
     };
   }, [beatWidth, selectionBeatRange]);
 
-  const onWheelZoom = useCallback((event: WheelEvent) => {
-    if (!event.ctrlKey && !event.metaKey) {
-      return;
-    }
+  const correctZoomScroll = useCallback((anchorBeat: number, clientX: number) => {
     const wrapper = wrapperRef.current;
-    if (!wrapper) {
+    const canvas = canvasRef.current;
+    if (!wrapper || !canvas) {
       return;
     }
-
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-    const currentBeatWidth = beatWidthRef.current;
     const wrapperRect = wrapper.getBoundingClientRect();
-    const anchorOffsetX = event.clientX - wrapperRect.left;
-    const existingGesture = zoomGestureRef.current;
-    const pointerMoved = existingGesture ? Math.abs(event.clientX - existingGesture.clientX) > 6 : false;
-    const anchorBeat =
-      existingGesture && !pointerMoved
-        ? existingGesture.beat
-        : Math.max(0, (wrapper.scrollLeft + anchorOffsetX - HEADER_WIDTH) / currentBeatWidth);
-    zoomGestureRef.current = { beat: anchorBeat, clientX: event.clientX };
-    if (zoomGestureTimerRef.current !== null) {
-      window.clearTimeout(zoomGestureTimerRef.current);
-    }
-    zoomGestureTimerRef.current = window.setTimeout(() => {
-      zoomGestureRef.current = null;
-      zoomGestureTimerRef.current = null;
-    }, 180);
-
-    const zoomFactor = event.deltaY < 0 ? BEAT_ZOOM_STEP : 1 / BEAT_ZOOM_STEP;
-    const proposedBeatWidth = Math.min(MAX_BEAT_WIDTH, Math.max(MIN_BEAT_WIDTH, currentBeatWidth * zoomFactor));
-    let nextBeatWidth = proposedBeatWidth;
-    const proposedScrollLeft = HEADER_WIDTH + anchorBeat * proposedBeatWidth - anchorOffsetX;
-    if (proposedBeatWidth < currentBeatWidth && proposedScrollLeft < 0) {
-      const resistance = 1 / (1 + Math.abs(proposedScrollLeft) / 180);
-      const currentScrollLeft = HEADER_WIDTH + anchorBeat * currentBeatWidth - anchorOffsetX;
-      if (currentScrollLeft < 0 || anchorBeat <= 0) {
-        nextBeatWidth = currentBeatWidth - (currentBeatWidth - proposedBeatWidth) * resistance;
-      } else {
-        const boundaryBeatWidth = (anchorOffsetX - HEADER_WIDTH) / anchorBeat;
-        nextBeatWidth = boundaryBeatWidth - (boundaryBeatWidth - proposedBeatWidth) * resistance;
-      }
-      nextBeatWidth = Math.min(currentBeatWidth, Math.max(MIN_BEAT_WIDTH, nextBeatWidth));
-    }
-    if (Math.abs(nextBeatWidth - currentBeatWidth) < 0.1) {
+    const anchorOffsetX = clientX - wrapperRect.left;
+    const measuredBeatWidth =
+      totalBeatsRef.current > 0
+        ? Math.max(1, (canvas.width - HEADER_WIDTH) / totalBeatsRef.current)
+        : beatWidthRef.current;
+    const measuredBeat = (wrapper.scrollLeft + anchorOffsetX - HEADER_WIDTH) / measuredBeatWidth;
+    const correctionPx = (anchorBeat - measuredBeat) * measuredBeatWidth;
+    if (Math.abs(correctionPx) < 0.5) {
       return;
     }
-
-    const nextScrollLeft = Math.max(0, HEADER_WIDTH + anchorBeat * nextBeatWidth - anchorOffsetX);
-    flushSync(() => {
-      setBeatWidth(nextBeatWidth);
-    });
-    beatWidthRef.current = nextBeatWidth;
-    wrapper.scrollLeft = nextScrollLeft;
-    zoomScrollCorrectionTokenRef.current += 1;
-    const correctionToken = zoomScrollCorrectionTokenRef.current;
-    window.requestAnimationFrame(() => {
-      if (correctionToken === zoomScrollCorrectionTokenRef.current) {
-        wrapper.scrollLeft = nextScrollLeft;
-      }
-    });
+    const maxScrollLeft = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
+    wrapper.scrollLeft = Math.min(maxScrollLeft, Math.max(0, wrapper.scrollLeft + correctionPx));
   }, []);
+
+  const onWheelZoom = useCallback(
+    (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) {
+        return;
+      }
+      const wrapper = wrapperRef.current;
+      if (!wrapper) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      const clientX = event.clientX;
+      const currentBeatWidth = beatWidthRef.current;
+      const wrapperRect = wrapper.getBoundingClientRect();
+      const anchorOffsetX = clientX - wrapperRect.left;
+      const existingGesture = zoomGestureRef.current;
+      const pointerMoved = existingGesture ? Math.abs(clientX - existingGesture.clientX) > 6 : false;
+      const anchorBeat =
+        existingGesture && !pointerMoved
+          ? existingGesture.beat
+          : Math.max(0, (wrapper.scrollLeft + anchorOffsetX - HEADER_WIDTH) / currentBeatWidth);
+      zoomGestureRef.current = { beat: anchorBeat, clientX };
+      if (zoomGestureTimerRef.current !== null) {
+        window.clearTimeout(zoomGestureTimerRef.current);
+      }
+      zoomGestureTimerRef.current = window.setTimeout(() => {
+        zoomGestureRef.current = null;
+        zoomGestureTimerRef.current = null;
+      }, 180);
+
+      const zoomFactor = event.deltaY < 0 ? BEAT_ZOOM_STEP : 1 / BEAT_ZOOM_STEP;
+      const proposedBeatWidth = Math.min(MAX_BEAT_WIDTH, Math.max(MIN_BEAT_WIDTH, currentBeatWidth * zoomFactor));
+      let nextBeatWidth = proposedBeatWidth;
+      const proposedScrollLeft = HEADER_WIDTH + anchorBeat * proposedBeatWidth - anchorOffsetX;
+      if (proposedBeatWidth < currentBeatWidth && proposedScrollLeft < 0) {
+        const resistance = 1 / (1 + Math.abs(proposedScrollLeft) / 180);
+        const currentScrollLeft = HEADER_WIDTH + anchorBeat * currentBeatWidth - anchorOffsetX;
+        if (currentScrollLeft < 0 || anchorBeat <= 0) {
+          nextBeatWidth = currentBeatWidth - (currentBeatWidth - proposedBeatWidth) * resistance;
+        } else {
+          const boundaryBeatWidth = (anchorOffsetX - HEADER_WIDTH) / anchorBeat;
+          nextBeatWidth = boundaryBeatWidth - (boundaryBeatWidth - proposedBeatWidth) * resistance;
+        }
+        nextBeatWidth = Math.min(currentBeatWidth, Math.max(MIN_BEAT_WIDTH, nextBeatWidth));
+      }
+      if (Math.abs(nextBeatWidth - currentBeatWidth) < 0.1) {
+        return;
+      }
+
+      const nextScrollLeft = Math.max(0, HEADER_WIDTH + anchorBeat * nextBeatWidth - anchorOffsetX);
+      flushSync(() => {
+        setBeatWidth(nextBeatWidth);
+      });
+      beatWidthRef.current = nextBeatWidth;
+      wrapper.scrollLeft = nextScrollLeft;
+      correctZoomScroll(anchorBeat, clientX);
+      zoomScrollCorrectionTokenRef.current += 1;
+      const correctionToken = zoomScrollCorrectionTokenRef.current;
+      window.requestAnimationFrame(() => {
+        if (correctionToken === zoomScrollCorrectionTokenRef.current) {
+          correctZoomScroll(anchorBeat, clientX);
+        }
+      });
+    },
+    [correctZoomScroll]
+  );
 
   useEffect(() => {
     const wrapper = wrapperRef.current;
