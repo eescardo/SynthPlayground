@@ -183,8 +183,8 @@ function getLoopMarkerVisualGeometry(
   const labelRadius = 5;
   const notchWidth = LOOP_MARKER_NOTCH_WIDTH;
   const notchHeight = LOOP_MARKER_NOTCH_HEIGHT;
-  const labelX = stemX - notchWidth - labelWidth + 1;
-  const hitLeft = kind === "start" ? stemX - LOOP_MARKER_DIFFUSION_WIDTH : labelX - LOOP_MARKER_HIT_BUFFER;
+  const labelX = stemX - labelWidth + 1;
+  const hitLeft = kind === "start" ? stemX - LOOP_MARKER_DIFFUSION_WIDTH : labelX - notchWidth - LOOP_MARKER_HIT_BUFFER;
   const hitRight =
     kind === "start"
       ? stemX + stemWidth + notchWidth + LOOP_MARKER_HIT_BUFFER
@@ -223,7 +223,7 @@ function drawLoopMarkerStem(
   ctx.globalAlpha = 0.26;
   ctx.fillStyle = gradient;
   ctx.fillRect(stemX - diffusion, 0, stemWidth + diffusion * 2, height);
-  ctx.globalAlpha = 0.56;
+  ctx.globalAlpha = 0.94;
   ctx.fillStyle = color;
   ctx.fillRect(stemX, 0, stemWidth, height);
   ctx.restore();
@@ -240,14 +240,14 @@ function drawStartLoopMarkerShape(ctx: CanvasRenderingContext2D, geometry: LoopM
 }
 
 function drawEndLoopMarkerShape(ctx: CanvasRenderingContext2D, geometry: LoopMarkerVisualGeometry) {
-  const { centerY, labelHeight, labelRadius, labelWidth, labelX, notchHeight, notchWidth, stemX } = geometry;
+  const { centerY, labelHeight, labelRadius, labelWidth, labelX, notchHeight, notchWidth } = geometry;
   const labelY = centerY - labelHeight * 0.5;
   if (labelWidth > 0) {
     ctx.roundRect(labelX, labelY, labelWidth, labelHeight, labelRadius);
   }
-  ctx.moveTo(stemX, centerY - notchHeight * 0.5);
-  ctx.lineTo(stemX - notchWidth, centerY);
-  ctx.lineTo(stemX, centerY + notchHeight * 0.5);
+  ctx.moveTo(labelX + 1, centerY - notchHeight * 0.5);
+  ctx.lineTo(labelX - notchWidth, centerY);
+  ctx.lineTo(labelX + 1, centerY + notchHeight * 0.5);
   ctx.closePath();
 }
 
@@ -794,15 +794,26 @@ function getHoveredLoopRegion(
 }
 
 function drawLoopBracket(ctx: CanvasRenderingContext2D, region: MatchedLoopRegion, color: string, beatWidth: number) {
+  ctx.font = "bold 9px ui-monospace, SFMono-Regular, Menlo, monospace";
+  const endLabelWidth = Math.max(
+    24,
+    Math.ceil(ctx.measureText(`x${region.repeatCount}`).width) + LOOP_MARKER_LABEL_PADDING_X * 2
+  );
   const startX =
     HEADER_WIDTH + region.startBeat * beatWidth + LOOP_MARKER_BAR_WIDTH * 0.5 + LOOP_MARKER_NOTCH_WIDTH + 6;
-  const endX = HEADER_WIDTH + region.endBeat * beatWidth - LOOP_MARKER_BAR_WIDTH * 0.5 - LOOP_MARKER_NOTCH_WIDTH - 6;
+  const endX =
+    HEADER_WIDTH +
+    region.endBeat * beatWidth -
+    LOOP_MARKER_BAR_WIDTH * 0.5 -
+    endLabelWidth -
+    LOOP_MARKER_NOTCH_WIDTH -
+    6;
   if (endX - startX < Math.max(44, beatWidth * 0.55)) {
     return;
   }
 
-  const y = RULER_HEIGHT - 5.5;
-  const tickY = RULER_HEIGHT - 14;
+  const y = 5.5;
+  const tickY = RULER_HEIGHT - 8;
   ctx.save();
   ctx.strokeStyle = color;
   ctx.lineWidth = 2;

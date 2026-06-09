@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type WheelEvent as ReactWheelEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { TrackCanvasOverlays } from "@/components/tracks/TrackCanvasOverlays";
 import { AutomationKeyframeRect } from "@/components/tracks/trackCanvasAutomationLane";
 import {
@@ -36,6 +36,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const playheadTabStopRef = useRef<HTMLButtonElement | null>(null);
   const selectedContentTabStopRef = useRef<HTMLButtonElement | null>(null);
+  const pendingZoomAnchorRef = useRef<{ beat: number; offsetX: number } | null>(null);
   const noteRectsRef = useRef<NoteRect[]>([]);
   const automationKeyframeRectsRef = useRef<AutomationKeyframeRect[]>([]);
   const muteRectsRef = useRef<MuteRect[]>([]);
@@ -114,7 +115,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   }, [beatWidth, selectionBeatRange]);
 
   const onWheelZoom = useCallback(
-    (event: ReactWheelEvent<HTMLCanvasElement>) => {
+    (event: WheelEvent) => {
       if (!event.ctrlKey && !event.metaKey) {
         return;
       }
@@ -126,24 +127,45 @@ export function TrackCanvas(props: TrackCanvasProps) {
 
       event.preventDefault();
       event.stopPropagation();
+      event.stopImmediatePropagation();
       const rect = canvas.getBoundingClientRect();
       const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
       const canvasX = (event.clientX - rect.left) * scaleX;
       const anchorBeat = Math.max(0, beatFromX(canvasX));
-      const anchorOffsetX = canvasX - wrapper.scrollLeft;
+      const wrapperRect = wrapper.getBoundingClientRect();
+      const anchorOffsetX = event.clientX - wrapperRect.left;
       const zoomFactor = event.deltaY < 0 ? BEAT_ZOOM_STEP : 1 / BEAT_ZOOM_STEP;
       const nextBeatWidth = Math.min(MAX_BEAT_WIDTH, Math.max(MIN_BEAT_WIDTH, beatWidth * zoomFactor));
       if (Math.abs(nextBeatWidth - beatWidth) < 0.1) {
         return;
       }
 
+      pendingZoomAnchorRef.current = { beat: anchorBeat, offsetX: anchorOffsetX };
       setBeatWidth(nextBeatWidth);
-      window.requestAnimationFrame(() => {
-        wrapper.scrollLeft = Math.max(0, HEADER_WIDTH + anchorBeat * nextBeatWidth - anchorOffsetX);
-      });
     },
     [beatFromX, beatWidth]
   );
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) {
+      return;
+    }
+    wrapper.addEventListener("wheel", onWheelZoom, { passive: false, capture: true });
+    return () => {
+      wrapper.removeEventListener("wheel", onWheelZoom, true);
+    };
+  }, [onWheelZoom]);
+
+  useLayoutEffect(() => {
+    const anchor = pendingZoomAnchorRef.current;
+    const wrapper = wrapperRef.current;
+    if (!anchor || !wrapper) {
+      return;
+    }
+    pendingZoomAnchorRef.current = null;
+    wrapper.scrollLeft = Math.max(0, HEADER_WIDTH + anchor.beat * beatWidth - anchor.offsetX);
+  }, [beatWidth]);
 
   const getCanvasPoint = useCallback((clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
@@ -435,7 +457,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerLeave}
       onDoubleClick={onDoubleClick}
-      onWheel={onWheelZoom}
     />
   );
 }
