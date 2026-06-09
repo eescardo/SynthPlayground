@@ -139,6 +139,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
       if (Math.abs(nextBeatWidth - beatWidth) < 0.1) {
         return;
       }
+      const nextScrollLeft = HEADER_WIDTH + anchorBeat * nextBeatWidth - anchorOffsetX;
+      if (nextBeatWidth < beatWidth && nextScrollLeft < 0) {
+        return;
+      }
 
       pendingZoomAnchorRef.current = { beat: anchorBeat, offsetX: anchorOffsetX };
       setBeatWidth(nextBeatWidth);
