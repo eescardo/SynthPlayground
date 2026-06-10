@@ -71,12 +71,16 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
   const tickPlayhead = useCallback(() => {
     if (!audioEngineRef.current) return;
     const beat = audioEngineRef.current.getPlayheadBeat();
-    setPlayheadBeat(beat);
-    handleRecordingBeatRef.current(beat);
+    const clampedBeat = Math.min(beat, playbackEndBeatRef.current);
+    setPlayheadBeat(clampedBeat);
+    handleRecordingBeatRef.current(clampedBeat);
 
     const cueBeat = userCueBeatRef.current;
     const playbackStopBeat = getLoopPlaybackEndBeat(projectRef.current, cueBeat, playbackEndBeatRef.current) - cueBeat;
-    if (playbackStopBeat > 0 && audioEngineRef.current.getElapsedPlaybackBeat() >= playbackStopBeat - 0.0001) {
+    if (
+      clampedBeat >= playbackEndBeatRef.current - 0.0001 ||
+      (playbackStopBeat > 0 && audioEngineRef.current.getElapsedPlaybackBeat() >= playbackStopBeat - 0.0001)
+    ) {
       stopPlayback(true);
       return;
     }
@@ -86,18 +90,25 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
 
   const beginPlaybackAtBeat = useCallback(
     async (cueBeat: number, options?: AudioEnginePlayOptions) => {
+      const clampedCueBeat = Math.min(Math.max(0, cueBeat), playbackEndBeatRef.current);
+      userCueBeatRef.current = clampedCueBeat;
+      setPlayheadBeat(clampedCueBeat);
+      if (clampedCueBeat >= playbackEndBeatRef.current - 0.0001) {
+        setPlaying(false);
+        return;
+      }
       if (!audioEngineRef.current) {
         audioEngineRef.current = new AudioEngine();
       }
       audioEngineRef.current.setRuntimeErrorListener(setRuntimeError);
       audioEngineRef.current.syncProjectSnapshot(renderProject, { syncToWorklet: true });
-      await audioEngineRef.current.play(cueBeat, { recordingTrackId: options?.recordingTrackId ?? null });
+      await audioEngineRef.current.play(clampedCueBeat, { recordingTrackId: options?.recordingTrackId ?? null });
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
       }
       rafRef.current = requestAnimationFrame(tickPlayhead);
     },
-    [audioEngineRef, renderProject, setRuntimeError, tickPlayhead]
+    [audioEngineRef, renderProject, setPlaying, setPlayheadBeat, setRuntimeError, tickPlayhead]
   );
 
   const seekPlaybackToBeat = useCallback(
@@ -122,9 +133,15 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
       );
       return;
     }
+    const clampedPlayheadBeat = Math.min(Math.max(0, playheadBeat), playbackEndBeat);
+    if (clampedPlayheadBeat >= playbackEndBeat - 0.0001) {
+      setPlayheadBeat(clampedPlayheadBeat);
+      setPlaying(false);
+      return;
+    }
     setPlaying(true);
-    await beginPlaybackAtBeat(playheadBeat);
-  }, [beginPlaybackAtBeat, playheadBeat, setPlaying, setRuntimeError, wasmReady]);
+    await beginPlaybackAtBeat(clampedPlayheadBeat);
+  }, [beginPlaybackAtBeat, playheadBeat, playbackEndBeat, setPlaying, setPlayheadBeat, setRuntimeError, wasmReady]);
 
   useEffect(() => {
     return () => {

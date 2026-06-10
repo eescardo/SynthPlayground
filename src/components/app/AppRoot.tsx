@@ -374,6 +374,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const playbackEndBeat = useMemo(() => {
     return getProjectTimelineEndBeat(project);
   }, [project]);
+  const clampTimelineBeat = useCallback(
+    (beat: number) => Math.min(playbackEndBeat, Math.max(0, beat)),
+    [playbackEndBeat]
+  );
 
   const resolveTrackPreviewStateAtBeat = useCallback(
     (trackId: string, beat: number, override: { macroId: string; normalized: number }) => {
@@ -592,12 +596,13 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const setPlayheadFromUser = useCallback(
     (beat: number) => {
-      setUserCueBeat(beat);
-      setPlayheadBeat(beat);
+      const clampedBeat = clampTimelineBeat(beat);
+      setUserCueBeat(clampedBeat);
+      setPlayheadBeat(clampedBeat);
       setEditorSelection(clearEditorSelection());
       setPitchPicker(null);
       if (playing) {
-        void playback.seekPlaybackToBeat(beat).catch((error) => {
+        void playback.seekPlaybackToBeat(clampedBeat).catch((error) => {
           const cause = toError(error);
           setRuntimeError(
             createSproutError({
@@ -612,16 +617,22 @@ export function AppRoot({ children }: { children: ReactNode }) {
         });
       }
     },
-    [playback, playing, setPitchPicker, setRuntimeError]
+    [clampTimelineBeat, playback, playing, setPitchPicker, setRuntimeError]
   );
   const setPlayheadPreservingSelection = useCallback(
     (beat: number) => {
-      setUserCueBeat(beat);
-      setPlayheadBeat(beat);
+      const clampedBeat = clampTimelineBeat(beat);
+      setUserCueBeat(clampedBeat);
+      setPlayheadBeat(clampedBeat);
       setPitchPicker(null);
     },
-    [setPitchPicker]
+    [clampTimelineBeat, setPitchPicker]
   );
+  useEffect(() => {
+    setPlayheadBeat((current) => Math.min(current, playbackEndBeat));
+    setUserCueBeat((current) => Math.min(current, playbackEndBeat));
+  }, [playbackEndBeat]);
+
   const setContentSelectionWithPopoverBehavior = useCallback(
     (selection: ContentSelection, options?: { keepCollapsed?: boolean }) => {
       keepSelectionPopoverCollapsedRef.current = Boolean(options?.keepCollapsed);
@@ -1246,6 +1257,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     setSelectedTrackId,
     setPlayheadBeatFromUser: setPlayheadFromUser,
     setPlayheadBeatPreservingSelection: setPlayheadPreservingSelection,
+    requestTimelineActionsPopover,
     setContentSelection: setContentSelectionWithPopoverBehavior,
     expandSelectionActionPopover: () => setSelectionActionPopoverMode("expanded"),
     toggleTrackMacroPanel: setTrackMacroPanelExpanded,

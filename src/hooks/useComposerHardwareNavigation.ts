@@ -70,6 +70,7 @@ export function useComposerHardwareNavigation({
   setSelectedTrackId,
   setPlayheadBeatFromUser,
   setPlayheadBeatPreservingSelection,
+  requestTimelineActionsPopover,
   expandSelectionActionPopover,
   toggleTrackMacroPanel,
   deleteNote,
@@ -495,6 +496,20 @@ export function useComposerHardwareNavigation({
     };
 
     const nudgePlayheadByBeats = (direction: -1 | 1, beatSpan: number) => {
+      if (direction > 0 && playheadBeat >= playbackEndBeat) {
+        const playheadTabStop = document.querySelector<HTMLElement>('[data-track-control="playhead-tabstop"]');
+        const rect = playheadTabStop?.getBoundingClientRect();
+        requestTimelineActionsPopover({
+          beat: playbackEndBeat,
+          clientX: rect ? rect.left + rect.width / 2 : window.innerWidth / 2,
+          clientY: rect ? rect.top : window.innerHeight / 2,
+          anchor: "playhead"
+        });
+        base.setPlayheadNavigationFocused(true);
+        clearBlockedSelectionTransfer();
+        return;
+      }
+
       const nextBeat =
         direction < 0
           ? Math.max(0, snapToGrid(playheadBeat - beatSpan, projectGridBeats))
@@ -975,6 +990,7 @@ export function useComposerHardwareNavigation({
     projectGridBeats,
     recordPhase,
     releasePlacementPreview,
+    requestTimelineActionsPopover,
     selectionActionPopoverCollapsed,
     selectionKind,
     selectedTrack,
