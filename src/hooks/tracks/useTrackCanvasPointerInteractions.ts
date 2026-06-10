@@ -192,6 +192,7 @@ export function useTrackCanvasPointerInteractions({
     side: "single" | "incoming" | "outgoing";
   } | null>(null);
   const [hoveredLoopMarker, setHoveredLoopMarker] = useState<HoveredLoopMarker | null>(null);
+  const [hoveredCompositionEnd, setHoveredCompositionEnd] = useState(false);
   const [selectedLoopMarker, setSelectedLoopMarker] = useState<HoveredLoopMarker | null>(null);
   const [hoveredPlayhead, setHoveredPlayhead] = useState(false);
   const [canvasCursor, setCanvasCursor] = useState<CanvasCursor>("default");
@@ -323,6 +324,7 @@ export function useTrackCanvasPointerInteractions({
       const targets = resolvePointerTargets(x, y);
       const compositionEndX = headerWidth + projectEndBeat * beatWidth;
       const compositionEndHit = x >= headerWidth && Math.abs(x - compositionEndX) <= 9;
+      const rulerPlayheadHit = y <= RULER_HEIGHT && targets.hoverTarget === "playhead";
       setSelectedLoopMarker(
         targets.hoverTarget === "loop-marker" && targets.loopMarkerRect
           ? {
@@ -334,12 +336,13 @@ export function useTrackCanvasPointerInteractions({
       );
       const automationKeyframe = findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y);
       const automationLaneHit = targets.automationLaneHit;
-      if (compositionEndHit) {
+      if (compositionEndHit && !rulerPlayheadHit) {
         onSetPlayheadBeat(projectEndBeat);
         onRequestTimelineActionsPopover({
           beat: projectEndBeat,
           clientX: event.clientX,
-          clientY: event.clientY
+          clientY: event.clientY,
+          anchor: "composition-end"
         });
         setCanvasCursor("pointer");
         return;
@@ -361,7 +364,8 @@ export function useTrackCanvasPointerInteractions({
           onRequestTimelineActionsPopover({
             beat: playheadBeat,
             clientX: event.clientX,
-            clientY: event.clientY
+            clientY: event.clientY,
+            anchor: "playhead"
           });
           setCanvasCursor("pointer");
           return;
@@ -550,7 +554,9 @@ export function useTrackCanvasPointerInteractions({
       const targets = resolvePointerTargets(x, y);
       const automationKeyframe = findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y);
       const automationLaneHit = targets.automationLaneHit;
+      const compositionEndHit = x >= headerWidth && Math.abs(x - (headerWidth + projectEndBeat * beatWidth)) <= 9;
       setHoveredPlayhead(targets.laneHit ? false : targets.hoverTarget === "playhead");
+      setHoveredCompositionEnd(compositionEndHit);
       setHoveredLoopMarker((prev) => {
         const next =
           !targets.laneHit && targets.hoverTarget === "loop-marker" && targets.loopMarkerRect
@@ -936,6 +942,7 @@ export function useTrackCanvasPointerInteractions({
       setHoveredNote(null);
       setHoveredAutomationKeyframe(null);
       setHoveredLoopMarker(null);
+      setHoveredCompositionEnd(false);
       setHoveredPlayhead(false);
       setCanvasCursor("default");
     },
@@ -1003,6 +1010,7 @@ export function useTrackCanvasPointerInteractions({
     hoveredNote,
     hoveredAutomationKeyframe,
     hoveredLoopMarker,
+    hoveredCompositionEnd,
     selectedLoopMarker,
     hoveredPlayhead,
     canvasCursor,

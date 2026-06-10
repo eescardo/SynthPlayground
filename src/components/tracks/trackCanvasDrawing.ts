@@ -81,6 +81,7 @@ interface TrackCanvasDrawingOptions extends Pick<
   hoveredNote: { trackId: string; noteId: string } | null;
   hoveredAutomationKeyframe: HoveredAutomationKeyframe | null;
   hoveredLoopMarker: { markerId: string; kind: "start" | "end"; beat: number } | null;
+  hoveredCompositionEnd: boolean;
   selectedLoopMarker: { markerId: string; kind: "start" | "end"; beat: number } | null;
   hoveredPlayhead: boolean;
   isTrackSilenced: (track: Track) => boolean;
@@ -224,7 +225,7 @@ function drawLoopMarkerStem(
     ctx.fillStyle = gradient;
     ctx.fillRect(stemX - diffusion, 0, stemWidth + diffusion * 2, height);
   }
-  ctx.globalAlpha = 0.94;
+  ctx.globalAlpha = active ? 0.94 : 0.6;
   ctx.fillStyle = color;
   ctx.fillRect(stemX, 0, stemWidth, height);
   ctx.restore();
@@ -267,7 +268,7 @@ function drawLoopMarker(
 
   drawLoopMarkerStem(ctx, geometry, height, color, hovered);
 
-  ctx.globalAlpha = hovered ? 1 : 0.94;
+  ctx.globalAlpha = hovered ? 0.94 : 0.6;
   ctx.fillStyle = color;
   ctx.beginPath();
   if (kind === "start") {
@@ -292,7 +293,7 @@ function drawLoopMarker(
   }
 
   if (kind === "end" && repeatCount !== undefined) {
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = hovered ? 1 : 0.78;
     ctx.fillStyle = TRACK_CANVAS_COLORS.loopMarkerText;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -366,16 +367,32 @@ function drawCompositionEndMarker(
   ctx: CanvasRenderingContext2D,
   projectEndBeat: number,
   beatWidth: number,
-  height: number
+  height: number,
+  active = false
 ) {
   const projectEndX = HEADER_WIDTH + projectEndBeat * beatWidth;
   const thinWidth = 2;
   const thickWidth = 4;
   const markerGap = thickWidth * 0.5;
+  const markerWidth = thinWidth + markerGap + thickWidth;
   ctx.save();
+  if (active) {
+    const gradient = ctx.createLinearGradient(projectEndX - 7, 0, projectEndX + markerWidth + 8, 0);
+    gradient.addColorStop(0, "rgba(47, 79, 127, 0)");
+    gradient.addColorStop(0.45, "rgba(93, 139, 201, 0.38)");
+    gradient.addColorStop(0.62, "rgba(93, 139, 201, 0.38)");
+    gradient.addColorStop(1, "rgba(47, 79, 127, 0)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(projectEndX - 7, 0, markerWidth + 15, height);
+  }
   ctx.fillStyle = TRACK_CANVAS_COLORS.barGrid;
   ctx.fillRect(projectEndX, 0, thinWidth, height);
   ctx.fillRect(projectEndX + thinWidth + markerGap, 0, thickWidth, height);
+  if (active) {
+    ctx.strokeStyle = "rgba(151, 190, 246, 0.72)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(projectEndX - 1.5, 0.5, markerWidth + 3, height - 1);
+  }
   ctx.restore();
 }
 
@@ -1022,6 +1039,7 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     ghostPreviewNote,
     hideSelectionActionPopover,
     hoveredAutomationKeyframe,
+    hoveredCompositionEnd,
     hoveredLoopMarker,
     hoveredNote,
     hoveredPitch,
@@ -1097,7 +1115,7 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     width
   });
   drawPostCompositionFade(ctx, projectEndBeat, beatWidth, height, width);
-  drawCompositionEndMarker(ctx, projectEndBeat, beatWidth, height);
+  drawCompositionEndMarker(ctx, projectEndBeat, beatWidth, height, hoveredCompositionEnd);
   drawPlayhead(ctx, {
     beatWidth,
     height,
@@ -1119,7 +1137,7 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     width
   });
   drawPostCompositionFade(ctx, projectEndBeat, beatWidth, height, width);
-  drawCompositionEndMarker(ctx, projectEndBeat, beatWidth, height);
+  drawCompositionEndMarker(ctx, projectEndBeat, beatWidth, height, hoveredCompositionEnd);
   drawSelectionOverlays(ctx, {
     beatWidth,
     height,
@@ -1131,5 +1149,5 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     selectionRect,
     trackLayouts
   });
-  drawCompositionEndMarker(ctx, projectEndBeat, beatWidth, height);
+  drawCompositionEndMarker(ctx, projectEndBeat, beatWidth, height, hoveredCompositionEnd);
 }

@@ -29,6 +29,7 @@ export interface TimelineActionsPopoverRequest {
   beat: number;
   clientX: number;
   clientY: number;
+  anchor?: "playhead" | "composition-end";
 }
 
 export interface TrackCanvasTrackActions {

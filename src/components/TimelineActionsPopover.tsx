@@ -243,7 +243,7 @@ function LoopRepeatControl({ repeatCount, onUpdateRepeatCount }: LoopRepeatContr
   return (
     <div ref={controlRef} className="timeline-repeat-control" aria-label="Loop repeats">
       <span className="timeline-actions-popover-label">Loop Repeats</span>
-      <div className="timeline-repeat-wheel">
+      <div className="timeline-repeat-wheel timeline-repeat-wheel-loop-repeats">
         <button
           type="button"
           className="timeline-repeat-step timeline-repeat-step-up"
@@ -368,7 +368,7 @@ function BeatValueControl({ beat, onUpdateBeat }: BeatValueControlProps) {
   return (
     <div ref={controlRef} className="timeline-repeat-control" aria-label="Composition end beat">
       <span className="timeline-actions-popover-label">End Beat</span>
-      <div className="timeline-repeat-wheel">
+      <div className="timeline-repeat-wheel timeline-repeat-wheel-end-beat">
         <button
           type="button"
           className="timeline-repeat-step timeline-repeat-step-up"

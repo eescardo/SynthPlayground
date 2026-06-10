@@ -731,6 +731,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const updateCompositionEndBeat = useCallback(
     (beat: number) => {
+      const nextPopoverBeat = Math.max(getProjectLastNoteEndBeat(project), beat);
       commitProjectChange(
         (current) => ({
           ...current,
@@ -744,8 +745,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
         }),
         { actionKey: "composition-end:beat", coalesce: true }
       );
+      setTimelineActionsPopover((current) =>
+        current?.anchor === "composition-end" ? { ...current, beat: nextPopoverBeat } : current
+      );
     },
-    [commitProjectChange]
+    [commitProjectChange, project, setTimelineActionsPopover]
   );
 
   const requestTimelineActionsPopover = useCallback(
@@ -1323,7 +1327,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
         startMarkerAtTimelineBeat,
         endMarkerAtTimelineBeat,
         compositionEndAtTimelineBeat:
-          timelineActionsPopover !== null && Math.abs(timelineActionsPopover.beat - playbackEndBeat) < 1e-9,
+          timelineActionsPopover?.anchor === "composition-end" ||
+          (timelineActionsPopover !== null && Math.abs(timelineActionsPopover.beat - playbackEndBeat) < 1e-9),
         compositionEndFollowsLastNote: project.global.compositionEnd?.mode !== "fixed",
         compositionEndBeat: playbackEndBeat,
         expandableLoopRegion: Boolean(expandableLoopRegion)

@@ -426,6 +426,14 @@
   box-shadow: inset 0 0 0 1px rgba(125, 220, 173, 0.12);
 }
 
+.timeline-repeat-wheel-loop-repeats {
+  width: 3.84rem;
+}
+
+.timeline-repeat-wheel-end-beat {
+  width: 5.76rem;
+}
+
 .timeline-repeat-step {
   width: 100%;
   height: 100%;
@@ -498,6 +506,18 @@
 
 .timeline-repeat-input {
   padding: 0 0.18rem;
+}
+
+.timeline-repeat-wheel-loop-repeats .timeline-repeat-value,
+.timeline-repeat-wheel-loop-repeats .timeline-repeat-input {
+  width: 2.82rem;
+  min-width: 2.82rem;
+}
+
+.timeline-repeat-wheel-end-beat .timeline-repeat-value,
+.timeline-repeat-wheel-end-beat .timeline-repeat-input {
+  width: 4.32rem;
+  min-width: 4.32rem;
 }
 
 .timeline-composition-end-follow {
