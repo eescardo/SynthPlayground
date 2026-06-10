@@ -1,4 +1,5 @@
 export const PLAYHEAD_HIT_HALF_WIDTH = 5;
+export const COMPOSITION_END_HIT_HALF_WIDTH = 9;
 export const LOOP_MARKER_BAR_WIDTH = 8;
 export const LOOP_MARKER_DIFFUSION_WIDTH = 10;
 export const LOOP_MARKER_NOTCH_WIDTH = 10;
@@ -73,6 +74,22 @@ export const isOverPlayhead = (
 ): boolean => {
   const playheadX = headerWidth + playheadBeat * beatWidth;
   return x >= playheadX - hitHalfWidth && x <= playheadX + hitHalfWidth;
+};
+
+export const getCompositionEndX = (projectEndBeat: number, headerWidth: number, beatWidth: number): number =>
+  headerWidth + projectEndBeat * beatWidth;
+
+export const isOverCompositionEnd = (
+  x: number,
+  projectEndBeat: number,
+  headerWidth: number,
+  beatWidth: number,
+  hitHalfWidth = COMPOSITION_END_HIT_HALF_WIDTH
+): boolean => {
+  if (x < headerWidth) {
+    return false;
+  }
+  return Math.abs(x - getCompositionEndX(projectEndBeat, headerWidth, beatWidth)) <= hitHalfWidth;
 };
 
 export const getCursorForPosition = ({

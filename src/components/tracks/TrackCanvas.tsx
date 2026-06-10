@@ -16,7 +16,8 @@ import {
 import { LoopMarkerRect, MuteRect, PitchRect } from "@/components/tracks/trackCanvasGeometry";
 import { renderTrackCanvas } from "@/components/tracks/trackCanvasDrawing";
 import { consumeTimelinePopoverWheelEvent } from "@/components/tracks/trackCanvasWheelGuards";
-import { NoteRect, useTrackCanvasPointerInteractions } from "@/hooks/tracks/useTrackCanvasPointerInteractions";
+import { useTrackCanvasPointerInteractions } from "@/hooks/tracks/useTrackCanvasPointerInteractions";
+import type { NoteRect } from "@/hooks/tracks/trackCanvasPointerTypes";
 import { TrackCanvasProps, TrackLayout } from "@/components/tracks/trackCanvasTypes";
 import { useTrackCanvasRenderModel } from "@/components/tracks/trackCanvasRenderModel";
 import { useTrackCanvasPlayheadAutoScroll } from "@/hooks/tracks/useTrackCanvasPlayheadAutoScroll";

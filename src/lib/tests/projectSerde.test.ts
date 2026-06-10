@@ -80,6 +80,15 @@ describe("projectSerde", () => {
     expect("ignored" in normalized.tracks[0].macroValues).toBe(false);
   });
 
+  it("normalizeProject treats legacy follow composition end as implicit follow", () => {
+    const project = structuredClone(createDefaultProject()) as unknown as { global: Record<string, unknown> };
+    project.global.compositionEnd = { mode: "follow", beat: 12 };
+
+    const normalized = normalizeProject(project);
+
+    expect(normalized.global.compositionEnd).toBeUndefined();
+  });
+
   it("import/export roundtrip preserves track macro values and preset lineage", () => {
     const project = createDefaultProject();
     project.tracks[0].macroValues = {

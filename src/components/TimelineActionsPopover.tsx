@@ -177,35 +177,52 @@ function getWheelPixelDelta(deltaY: number, deltaMode: number): number {
   return deltaY;
 }
 
-function LoopRepeatControl({ repeatCount, onUpdateRepeatCount }: LoopRepeatControlProps) {
-  const value = String(repeatCount);
+interface TimelineNumberWheelControlProps<ControlId extends string> {
+  ariaLabel: string;
+  className: string;
+  decreaseAriaLabel: string;
+  displayValue: string;
+  increaseAriaLabel: string;
+  inputAriaLabel: string;
+  inputMode: "numeric" | "decimal";
+  label: string;
+  renameId: ControlId;
+  title: string;
+  onCommitValue: (nextValue: string) => void;
+  onStep: (delta: number) => void;
+  pattern?: string;
+}
+
+function TimelineNumberWheelControl<ControlId extends string>({
+  ariaLabel,
+  className,
+  decreaseAriaLabel,
+  displayValue,
+  increaseAriaLabel,
+  inputAriaLabel,
+  inputMode,
+  label,
+  onCommitValue,
+  onStep,
+  pattern,
+  renameId,
+  title
+}: TimelineNumberWheelControlProps<ControlId>) {
   const controlRef = useRef<HTMLDivElement | null>(null);
   const wheelDeltaRef = useRef(0);
   const rename = useInlineRename({
-    value,
-    onCommit: (nextValue) => {
-      const parsed = Number(nextValue);
-      if (!Number.isFinite(parsed)) {
-        return;
-      }
-      onUpdateRepeatCount(clampRepeatCount(Math.round(parsed)));
-    }
+    value: displayValue,
+    onCommit: onCommitValue
   });
   const { cancel, commit, draft, editing, setDraft, setEditing } = rename;
-  const renameActivation = useRenameActivation<"loop-repeats">();
-  const setRepeatCount = useCallback(
-    (delta: number) => {
-      onUpdateRepeatCount(clampRepeatCount(repeatCount + delta));
-    },
-    [onUpdateRepeatCount, repeatCount]
-  );
+  const renameActivation = useRenameActivation<ControlId>();
   const startRename = useCallback(() => {
     setEditing(true);
   }, [setEditing]);
 
   useEffect(() => {
-    setDraft(value);
-  }, [setDraft, value]);
+    setDraft(displayValue);
+  }, [displayValue, setDraft]);
 
   const handleWheelDelta = useCallback(
     (deltaY: number, deltaMode: number) => {
@@ -222,9 +239,9 @@ function LoopRepeatControl({ repeatCount, onUpdateRepeatCount }: LoopRepeatContr
       }
       const steps = Math.trunc(wheelDeltaRef.current / REPEAT_WHEEL_STEP_DELTA);
       wheelDeltaRef.current -= steps * REPEAT_WHEEL_STEP_DELTA;
-      onUpdateRepeatCount(clampRepeatCount(repeatCount - steps));
+      onStep(-steps);
     },
-    [onUpdateRepeatCount, repeatCount]
+    [onStep]
   );
 
   useEffect(() => {
@@ -241,22 +258,22 @@ function LoopRepeatControl({ repeatCount, onUpdateRepeatCount }: LoopRepeatContr
   }, [handleWheelDelta]);
 
   return (
-    <div ref={controlRef} className="timeline-repeat-control" aria-label="Loop repeats">
-      <span className="timeline-actions-popover-label">Loop Repeats</span>
-      <div className="timeline-repeat-wheel timeline-repeat-wheel-loop-repeats">
+    <div ref={controlRef} className="timeline-repeat-control" aria-label={ariaLabel}>
+      <span className="timeline-actions-popover-label">{label}</span>
+      <div className={`timeline-repeat-wheel ${className}`}>
         <button
           type="button"
           className="timeline-repeat-step timeline-repeat-step-up"
-          aria-label="Increase loop repeats"
-          onClick={() => setRepeatCount(1)}
+          aria-label={increaseAriaLabel}
+          onClick={() => onStep(1)}
         />
         {editing ? (
           <input
             className="timeline-repeat-input"
-            aria-label="Loop repeat count"
+            aria-label={inputAriaLabel}
             autoFocus
-            inputMode="numeric"
-            pattern="[0-9]*"
+            inputMode={inputMode}
+            pattern={pattern}
             size={Math.max(1, draft.length)}
             value={draft}
             onBlur={commit}
@@ -277,26 +294,63 @@ function LoopRepeatControl({ repeatCount, onUpdateRepeatCount }: LoopRepeatContr
           />
         ) : (
           <span
-            className={`timeline-repeat-value${renameActivation.isArmed("loop-repeats") ? " rename-armed" : ""}`}
+            className={`timeline-repeat-value${renameActivation.isArmed(renameId) ? " rename-armed" : ""}`}
             role="button"
             tabIndex={0}
-            title="Edit loop repeat count"
+            title={title}
             {...renameActivation.getRenameTriggerProps({
-              id: "loop-repeats",
+              id: renameId,
               onStartRename: startRename
             })}
           >
-            {repeatCount}
+            {displayValue}
           </span>
         )}
         <button
           type="button"
           className="timeline-repeat-step timeline-repeat-step-down"
-          aria-label="Decrease loop repeats"
-          onClick={() => setRepeatCount(-1)}
+          aria-label={decreaseAriaLabel}
+          onClick={() => onStep(-1)}
         />
       </div>
     </div>
+  );
+}
+
+function LoopRepeatControl({ repeatCount, onUpdateRepeatCount }: LoopRepeatControlProps) {
+  const commitRepeatCount = useCallback(
+    (nextValue: string) => {
+      const parsed = Number(nextValue);
+      if (!Number.isFinite(parsed)) {
+        return;
+      }
+      onUpdateRepeatCount(clampRepeatCount(Math.round(parsed)));
+    },
+    [onUpdateRepeatCount]
+  );
+  const setRepeatCount = useCallback(
+    (delta: number) => {
+      onUpdateRepeatCount(clampRepeatCount(repeatCount + delta));
+    },
+    [onUpdateRepeatCount, repeatCount]
+  );
+
+  return (
+    <TimelineNumberWheelControl
+      ariaLabel="Loop repeats"
+      className="timeline-repeat-wheel-loop-repeats"
+      decreaseAriaLabel="Decrease loop repeats"
+      displayValue={String(repeatCount)}
+      increaseAriaLabel="Increase loop repeats"
+      inputAriaLabel="Loop repeat count"
+      inputMode="numeric"
+      label="Loop Repeats"
+      pattern="[0-9]*"
+      renameId="loop-repeats"
+      title="Edit loop repeat count"
+      onCommitValue={commitRepeatCount}
+      onStep={setRepeatCount}
+    />
   );
 }
 
@@ -307,118 +361,36 @@ interface BeatValueControlProps {
 
 function BeatValueControl({ beat, onUpdateBeat }: BeatValueControlProps) {
   const value = Number.isInteger(beat) ? String(beat) : beat.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
-  const controlRef = useRef<HTMLDivElement | null>(null);
-  const wheelDeltaRef = useRef(0);
-  const rename = useInlineRename({
-    value,
-    onCommit: (nextValue) => {
+  const commitBeat = useCallback(
+    (nextValue: string) => {
       const parsed = Number(nextValue);
       if (Number.isFinite(parsed)) {
         onUpdateBeat?.(parsed);
       }
-    }
-  });
-  const { cancel, commit, draft, editing, setDraft, setEditing } = rename;
-  const renameActivation = useRenameActivation<"composition-end-beat">();
+    },
+    [onUpdateBeat]
+  );
   const setBeat = useCallback(
     (delta: number) => {
       onUpdateBeat?.(beat + delta);
     },
     [beat, onUpdateBeat]
   );
-  const startRename = useCallback(() => setEditing(true), [setEditing]);
-
-  useEffect(() => {
-    setDraft(value);
-  }, [setDraft, value]);
-
-  const handleWheelDelta = useCallback(
-    (deltaY: number, deltaMode: number) => {
-      const pixelDeltaY = getWheelPixelDelta(deltaY, deltaMode);
-      if (pixelDeltaY === 0) {
-        return;
-      }
-      if (wheelDeltaRef.current !== 0 && Math.sign(wheelDeltaRef.current) !== Math.sign(pixelDeltaY)) {
-        wheelDeltaRef.current = 0;
-      }
-      wheelDeltaRef.current += pixelDeltaY;
-      if (Math.abs(wheelDeltaRef.current) < REPEAT_WHEEL_STEP_DELTA) {
-        return;
-      }
-      const steps = Math.trunc(wheelDeltaRef.current / REPEAT_WHEEL_STEP_DELTA);
-      wheelDeltaRef.current -= steps * REPEAT_WHEEL_STEP_DELTA;
-      setBeat(-steps);
-    },
-    [setBeat]
-  );
-
-  useEffect(() => {
-    const control = controlRef.current;
-    if (!control) {
-      return;
-    }
-    const onWheel = (event: WheelEvent) => {
-      consumeNativeWheelEvent(event);
-      handleWheelDelta(event.deltaY, event.deltaMode);
-    };
-    control.addEventListener("wheel", onWheel, { passive: false, capture: true });
-    return () => control.removeEventListener("wheel", onWheel, true);
-  }, [handleWheelDelta]);
 
   return (
-    <div ref={controlRef} className="timeline-repeat-control" aria-label="Composition end beat">
-      <span className="timeline-actions-popover-label">End Beat</span>
-      <div className="timeline-repeat-wheel timeline-repeat-wheel-end-beat">
-        <button
-          type="button"
-          className="timeline-repeat-step timeline-repeat-step-up"
-          aria-label="Increase composition end beat"
-          onClick={() => setBeat(1)}
-        />
-        {editing ? (
-          <input
-            className="timeline-repeat-input"
-            aria-label="Composition end beat"
-            autoFocus
-            inputMode="decimal"
-            value={draft}
-            onBlur={commit}
-            onChange={(event) => setDraft(event.target.value)}
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                commit();
-              } else if (event.key === "Escape") {
-                event.preventDefault();
-                cancel();
-              }
-              event.stopPropagation();
-            }}
-            onWheel={consumeReactWheelEvent}
-            onWheelCapture={consumeReactWheelEvent}
-          />
-        ) : (
-          <span
-            className={`timeline-repeat-value${renameActivation.isArmed("composition-end-beat") ? " rename-armed" : ""}`}
-            role="button"
-            tabIndex={0}
-            title="Edit composition end beat"
-            {...renameActivation.getRenameTriggerProps({
-              id: "composition-end-beat",
-              onStartRename: startRename
-            })}
-          >
-            {value}
-          </span>
-        )}
-        <button
-          type="button"
-          className="timeline-repeat-step timeline-repeat-step-down"
-          aria-label="Decrease composition end beat"
-          onClick={() => setBeat(-1)}
-        />
-      </div>
-    </div>
+    <TimelineNumberWheelControl
+      ariaLabel="Composition end beat"
+      className="timeline-repeat-wheel-end-beat"
+      decreaseAriaLabel="Decrease composition end beat"
+      displayValue={value}
+      increaseAriaLabel="Increase composition end beat"
+      inputAriaLabel="Composition end beat"
+      inputMode="decimal"
+      label="End Beat"
+      renameId="composition-end-beat"
+      title="Edit composition end beat"
+      onCommitValue={commitBeat}
+      onStep={setBeat}
+    />
   );
 }
