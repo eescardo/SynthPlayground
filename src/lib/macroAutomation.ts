@@ -253,7 +253,7 @@ export const getFollowProjectTimelineEndBeat = (project: ProjectGlobalCarrier & 
 export const getProjectTimelineEndBeat = (project: ProjectGlobalCarrier & Pick<Project, "tracks">): number => {
   const followEndBeat = getFollowProjectTimelineEndBeat(project);
   const compositionEnd = project.global.compositionEnd;
-  if (compositionEnd?.mode !== "fixed") {
+  if (!compositionEnd) {
     return followEndBeat;
   }
   return Math.max(getProjectLastNoteEndBeat(project), compositionEnd.beat);

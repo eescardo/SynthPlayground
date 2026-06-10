@@ -377,22 +377,18 @@ function drawCompositionEndMarker(
   const markerWidth = thinWidth + markerGap + thickWidth;
   ctx.save();
   if (active) {
-    const gradient = ctx.createLinearGradient(projectEndX - 7, 0, projectEndX + markerWidth + 8, 0);
+    const diffusion = 14;
+    const gradient = ctx.createLinearGradient(projectEndX - diffusion, 0, projectEndX + markerWidth + diffusion, 0);
     gradient.addColorStop(0, "rgba(47, 79, 127, 0)");
-    gradient.addColorStop(0.45, "rgba(93, 139, 201, 0.38)");
-    gradient.addColorStop(0.62, "rgba(93, 139, 201, 0.38)");
+    gradient.addColorStop(0.42, "rgba(93, 139, 201, 0.34)");
+    gradient.addColorStop(0.6, "rgba(93, 139, 201, 0.34)");
     gradient.addColorStop(1, "rgba(47, 79, 127, 0)");
     ctx.fillStyle = gradient;
-    ctx.fillRect(projectEndX - 7, 0, markerWidth + 15, height);
+    ctx.fillRect(projectEndX - diffusion, 0, markerWidth + diffusion * 2, height);
   }
   ctx.fillStyle = TRACK_CANVAS_COLORS.barGrid;
   ctx.fillRect(projectEndX, 0, thinWidth, height);
   ctx.fillRect(projectEndX + thinWidth + markerGap, 0, thickWidth, height);
-  if (active) {
-    ctx.strokeStyle = "rgba(151, 190, 246, 0.72)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(projectEndX - 1.5, 0.5, markerWidth + 3, height - 1);
-  }
   ctx.restore();
 }
 

@@ -324,7 +324,7 @@ export function useTrackCanvasPointerInteractions({
       const targets = resolvePointerTargets(x, y);
       const compositionEndX = headerWidth + projectEndBeat * beatWidth;
       const compositionEndHit = x >= headerWidth && Math.abs(x - compositionEndX) <= 9;
-      const rulerPlayheadHit = y <= RULER_HEIGHT && targets.hoverTarget === "playhead";
+      const rulerPlayheadHit = y <= RULER_HEIGHT && targets.playheadHit;
       setSelectedLoopMarker(
         targets.hoverTarget === "loop-marker" && targets.loopMarkerRect
           ? {
@@ -349,23 +349,23 @@ export function useTrackCanvasPointerInteractions({
       }
       if (y <= RULER_HEIGHT && x >= headerWidth) {
         const pointerBeat = Math.max(0, snapToGrid(beatFromX(x), gridBeats));
+        if (targets.playheadHit) {
+          onRequestTimelineActionsPopover({
+            beat: playheadBeat,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            anchor: "playhead"
+          });
+          setCanvasCursor("pointer");
+          return;
+        }
+
         if (targets.hoverTarget === "loop-marker" && targets.loopMarkerRect) {
           onSetPlayheadBeat(targets.loopMarkerRect.beat);
           onRequestTimelineActionsPopover({
             beat: targets.loopMarkerRect.beat,
             clientX: event.clientX,
             clientY: event.clientY
-          });
-          setCanvasCursor("pointer");
-          return;
-        }
-
-        if (targets.hoverTarget === "playhead") {
-          onRequestTimelineActionsPopover({
-            beat: playheadBeat,
-            clientX: event.clientX,
-            clientY: event.clientY,
-            anchor: "playhead"
           });
           setCanvasCursor("pointer");
           return;
@@ -555,8 +555,9 @@ export function useTrackCanvasPointerInteractions({
       const automationKeyframe = findAutomationKeyframeRect(automationKeyframeRectsRef.current, x, y);
       const automationLaneHit = targets.automationLaneHit;
       const compositionEndHit = x >= headerWidth && Math.abs(x - (headerWidth + projectEndBeat * beatWidth)) <= 9;
-      setHoveredPlayhead(targets.laneHit ? false : targets.hoverTarget === "playhead");
-      setHoveredCompositionEnd(compositionEndHit);
+      const rulerPlayheadHit = y <= RULER_HEIGHT && targets.playheadHit;
+      setHoveredPlayhead(rulerPlayheadHit || (!targets.laneHit && targets.hoverTarget === "playhead"));
+      setHoveredCompositionEnd(compositionEndHit && !rulerPlayheadHit);
       setHoveredLoopMarker((prev) => {
         const next =
           !targets.laneHit && targets.hoverTarget === "loop-marker" && targets.loopMarkerRect
@@ -707,6 +708,11 @@ export function useTrackCanvasPointerInteractions({
       }
 
       if (!drag) {
+        const rulerPlayheadHit = y <= RULER_HEIGHT && targets.playheadHit;
+        if (rulerPlayheadHit) {
+          setCanvasCursor("pointer");
+          return;
+        }
         const compositionEndHit = x >= headerWidth && Math.abs(x - (headerWidth + projectEndBeat * beatWidth)) <= 9;
         if (compositionEndHit) {
           setCanvasCursor("pointer");

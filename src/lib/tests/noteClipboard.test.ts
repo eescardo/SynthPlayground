@@ -374,6 +374,25 @@ describe("noteClipboard", () => {
     expect(next.global.compositionEnd).toEqual({ mode: "fixed", beat: 9 });
   });
 
+  it("preserves follow mode when deleting empty timeline tail", () => {
+    const baseProject = createProject();
+    const project = {
+      ...baseProject,
+      global: {
+        ...baseProject.global,
+        compositionEnd: { mode: "follow" as const, beat: 12 }
+      }
+    };
+
+    const next = cutBeatRangeAcrossAllTracks(project, {
+      startBeat: 9,
+      endBeat: 12,
+      beatSpan: 3
+    });
+
+    expect(next.global.compositionEnd).toEqual({ mode: "follow", beat: 9 });
+  });
+
   it("inserts empty time across all tracks and extends composition end", () => {
     const baseProject = createProject();
     const project = {

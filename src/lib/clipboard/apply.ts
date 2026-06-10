@@ -92,7 +92,7 @@ const pinCompositionEndBeat = (project: Project, beat: number): Project => ({
   global: {
     ...project.global,
     compositionEnd: {
-      mode: "fixed",
+      mode: project.global.compositionEnd?.mode ?? "follow",
       beat: Math.max(getProjectLastNoteEndBeat(project), beat)
     }
   }
