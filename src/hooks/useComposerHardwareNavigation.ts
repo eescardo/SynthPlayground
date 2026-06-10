@@ -503,7 +503,7 @@ export function useComposerHardwareNavigation({
           beat: playbackEndBeat,
           clientX: rect ? rect.left + rect.width / 2 : window.innerWidth / 2,
           clientY: rect ? rect.top : window.innerHeight / 2,
-          anchor: "playhead"
+          anchor: "composition-end"
         });
         base.setPlayheadNavigationFocused(true);
         clearBlockedSelectionTransfer();

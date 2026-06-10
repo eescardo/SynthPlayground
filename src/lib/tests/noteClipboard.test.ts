@@ -477,14 +477,14 @@ describe("noteClipboard", () => {
     expect(next.global.compositionEnd).toEqual({ mode: "fixed", beat: 9 });
   });
 
-  it("leaves follow composition end implicit when deleting empty timeline tail", () => {
+  it("keeps a follow composition end override when deleting empty timeline tail", () => {
     const next = cutBeatRangeAcrossAllTracks(createProject(), {
       startBeat: 9,
-      endBeat: 12,
-      beatSpan: 3
+      endBeat: 16,
+      beatSpan: 7
     });
 
-    expect(next.global.compositionEnd).toBeUndefined();
+    expect(next.global.compositionEnd).toEqual({ mode: "follow", beat: 9 });
   });
 
   it("inserts empty time across all tracks and extends composition end", () => {
@@ -504,6 +504,17 @@ describe("noteClipboard", () => {
     });
 
     expect(next.global.compositionEnd).toEqual({ mode: "fixed", beat: 14 });
+    expect(next.tracks[0].notes.find((note) => note.id === "note_b")).toMatchObject({ startBeat: 7 });
+  });
+
+  it("keeps a follow composition end override when inserting empty time before the implicit end", () => {
+    const next = insertEmptyBeatRangeAcrossAllTracks(createProject(), {
+      startBeat: 4,
+      endBeat: 6,
+      beatSpan: 2
+    });
+
+    expect(next.global.compositionEnd).toEqual({ mode: "follow", beat: 18 });
     expect(next.tracks[0].notes.find((note) => note.id === "note_b")).toMatchObject({ startBeat: 7 });
   });
 

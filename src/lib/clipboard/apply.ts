@@ -4,10 +4,7 @@ import {
   removeAutomationLaneBeatRangeAndCloseGap,
   replaceAutomationLaneBeatRange
 } from "@/lib/automationTimelineEditing";
-import {
-  shiftFixedCompositionEndForInsertedRange,
-  shiftFixedCompositionEndForRemovedRange
-} from "@/lib/compositionEnd";
+import { shiftCompositionEndForInsertedRange, shiftCompositionEndForRemovedRange } from "@/lib/compositionEnd";
 import { createId } from "@/lib/ids";
 import { sanitizeLoopSettings } from "@/lib/looping";
 import { getProjectTimelineEndBeat as getProjectTimelineEndBeatFromProject } from "@/lib/macroAutomation";
@@ -247,7 +244,7 @@ export function applyNoteClipboardInsertAllTracks(
     playheadBeat,
     payload.beatSpan
   );
-  const shiftedProject = shiftFixedCompositionEndForInsertedRange(
+  const shiftedProject = shiftCompositionEndForInsertedRange(
     shiftedProjectWithSongStructure,
     playheadBeat,
     payload.beatSpan,
@@ -276,7 +273,7 @@ export function cutBeatRangeAcrossAllTracks(project: Project, range: BeatRange):
     range.startBeat,
     range.endBeat
   );
-  return shiftFixedCompositionEndForRemovedRange(nextProject, range.startBeat, range.endBeat, explicitTimelineEndBeat);
+  return shiftCompositionEndForRemovedRange(nextProject, range.startBeat, range.endBeat, explicitTimelineEndBeat);
 }
 
 export function insertEmptyBeatRangeAcrossAllTracks(project: Project, range: BeatRange): Project {
@@ -303,7 +300,7 @@ export function insertEmptyBeatRangeAcrossAllTracks(project: Project, range: Bea
     range.startBeat,
     gap
   );
-  return shiftFixedCompositionEndForInsertedRange(nextProject, range.startBeat, gap, explicitTimelineEndBeat);
+  return shiftCompositionEndForInsertedRange(nextProject, range.startBeat, gap, explicitTimelineEndBeat);
 }
 
 export function eraseAutomationInRangeForTracks(
