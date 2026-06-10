@@ -123,11 +123,12 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
           {(props.startMarkerId || props.endMarkerId) && (
             <div className="timeline-actions-popover-divider" aria-hidden="true" />
           )}
-          <label className="timeline-composition-end-follow">
+          <label className="timeline-composition-end-follow" title={COMPOSITION_END_FOLLOW_TOOLTIP}>
             <input
               type="checkbox"
               checked={props.compositionEndFollowsLastNote !== false}
               onChange={(event) => props.onToggleCompositionEndFollow?.(event.target.checked)}
+              aria-label={`Follow last note. ${COMPOSITION_END_FOLLOW_TOOLTIP}`}
             />
             Follow last note
           </label>
@@ -154,6 +155,8 @@ function clampRepeatCount(value: number): number {
 }
 
 const REPEAT_WHEEL_STEP_DELTA = 96;
+const COMPOSITION_END_FOLLOW_TOOLTIP =
+  "When enabled, the end marker follows only the note with the latest end time. Timeline insert/delete can make a one-time end position override until that latest note changes.";
 
 function consumeReactWheelEvent(event: ReactWheelEvent<HTMLElement>) {
   event.preventDefault();

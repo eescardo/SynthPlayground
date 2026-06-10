@@ -7,6 +7,8 @@ import { AutomationKeyframeRect } from "@/components/tracks/trackCanvasAutomatio
 import {
   BEAT_ZOOM_STEP,
   BEAT_WIDTH,
+  FIXED_MACRO_SLIDER_START_OFFSET,
+  FIXED_MACRO_SLIDER_WIDTH,
   HEADER_WIDTH,
   MAX_BEAT_WIDTH,
   MIN_BEAT_WIDTH,
@@ -109,8 +111,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
   totalBeatsRef.current = totalBeats;
 
   const beatFromX = useCallback((x: number) => (x - HEADER_WIDTH) / beatWidth, [beatWidth]);
-  const fixedLaneSliderStartX = HEADER_WIDTH + Math.min(beatWidth * 0.25, 18);
-  const fixedLaneSliderEndX = Math.min(width - 10, fixedLaneSliderStartX + beatWidth * 3.8);
+  const fixedLaneSliderStartX = HEADER_WIDTH + FIXED_MACRO_SLIDER_START_OFFSET;
+  const fixedLaneSliderEndX = Math.min(width - 10, fixedLaneSliderStartX + FIXED_MACRO_SLIDER_WIDTH);
   const fixedLaneValueFromX = (x: number) =>
     clamp01((x - fixedLaneSliderStartX) / Math.max(1, fixedLaneSliderEndX - fixedLaneSliderStartX));
   const isTrackSilenced = useCallback((track: Track) => track.mute || isTrackVolumeMuted(track.volume), []);

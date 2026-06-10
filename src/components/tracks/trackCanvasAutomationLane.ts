@@ -1,3 +1,4 @@
+import { FIXED_MACRO_SLIDER_START_OFFSET, FIXED_MACRO_SLIDER_WIDTH } from "@/components/tracks/trackCanvasConstants";
 import { AutomationKeyframeSide, AutomationPoint } from "@/lib/macroAutomation";
 import { clamp01 } from "@/lib/numeric";
 
@@ -298,7 +299,6 @@ export function renderAutomationLane({
 }
 
 export function renderFixedLane({
-  beatWidth,
   colors,
   ctx,
   headerWidth,
@@ -311,8 +311,8 @@ export function renderFixedLane({
   width
 }: RenderFixedLaneParams) {
   const laneBottom = laneY + height;
-  const sliderStartX = headerWidth + Math.min(beatWidth * 0.25, 18);
-  const sliderEndX = Math.min(width - 10, sliderStartX + beatWidth * 3.8);
+  const sliderStartX = headerWidth + FIXED_MACRO_SLIDER_START_OFFSET;
+  const sliderEndX = Math.min(width - 10, sliderStartX + FIXED_MACRO_SLIDER_WIDTH);
   const sliderCenterY = laneY + height * 0.5;
   const normalized = clamp01(value);
   const thumbX = sliderStartX + (sliderEndX - sliderStartX) * normalized;
