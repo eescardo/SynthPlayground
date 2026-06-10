@@ -103,6 +103,53 @@ interface AppRootContextValue {
 
 const AppRootContext = createContext<AppRootContextValue | null>(null);
 
+function projectNotesChanged(previous: Project, next: Project): boolean {
+  if (previous.tracks.length !== next.tracks.length) {
+    return true;
+  }
+
+  return previous.tracks.some((track, trackIndex) => {
+    const nextTrack = next.tracks[trackIndex];
+    if (!nextTrack || track.id !== nextTrack.id || track.notes.length !== nextTrack.notes.length) {
+      return true;
+    }
+
+    return track.notes.some((note, noteIndex) => {
+      const nextNote = nextTrack.notes[noteIndex];
+      return (
+        !nextNote ||
+        note.id !== nextNote.id ||
+        note.pitchStr !== nextNote.pitchStr ||
+        note.startBeat !== nextNote.startBeat ||
+        note.durationBeats !== nextNote.durationBeats ||
+        note.velocity !== nextNote.velocity
+      );
+    });
+  });
+}
+
+function clearFollowCompositionEndOverrideAfterNoteEdit(
+  previous: Project,
+  next: Project,
+  actionKey: string | undefined
+): Project {
+  if (
+    actionKey?.startsWith("timeline:") ||
+    previous.global.compositionEnd?.mode !== "follow" ||
+    next.global.compositionEnd?.mode !== "follow" ||
+    !projectNotesChanged(previous, next)
+  ) {
+    return next;
+  }
+
+  const global = { ...next.global };
+  delete global.compositionEnd;
+  return {
+    ...next,
+    global
+  };
+}
+
 export const useAppRoot = () => {
   const context = useContext(AppRootContext);
   if (!context) {
@@ -268,7 +315,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
       options?: { actionKey?: string; coalesce?: boolean; skipHistory?: boolean }
     ) => {
       setProjectHistory((prev) => {
-        const next = updater(prev.current);
+        const next = clearFollowCompositionEndOverrideAfterNoteEdit(
+          prev.current,
+          updater(prev.current),
+          options?.actionKey
+        );
         if (next === prev.current) {
           return prev;
         }

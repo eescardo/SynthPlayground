@@ -418,6 +418,24 @@ export function useTrackCanvasPointerInteractions({
         return;
       }
 
+      if (
+        targets.playheadHit &&
+        !targets.noteRect &&
+        !targets.pitchRect &&
+        !targets.muteRect &&
+        !automationKeyframe &&
+        !automationLaneHit
+      ) {
+        onRequestTimelineActionsPopover({
+          beat: playheadBeat,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          anchor: "playhead"
+        });
+        setCanvasCursor("pointer");
+        return;
+      }
+
       if (targets.hoverTarget === "pitch" && targets.pitchRect && event.button === PRIMARY_POINTER_BUTTON) {
         selectionActions.onSetContentSelection({
           noteKeys: [getNoteSelectionKey(targets.pitchRect.trackId, targets.pitchRect.noteId)],

@@ -377,11 +377,11 @@ function drawCompositionEndMarker(
   const markerWidth = thinWidth + markerGap + thickWidth;
   ctx.save();
   if (active) {
-    const diffusion = 14;
+    const diffusion = 9;
     const gradient = ctx.createLinearGradient(projectEndX - diffusion, 0, projectEndX + markerWidth + diffusion, 0);
     gradient.addColorStop(0, "rgba(47, 79, 127, 0)");
-    gradient.addColorStop(0.42, "rgba(93, 139, 201, 0.34)");
-    gradient.addColorStop(0.6, "rgba(93, 139, 201, 0.34)");
+    gradient.addColorStop(0.42, "rgba(93, 139, 201, 0.2)");
+    gradient.addColorStop(0.6, "rgba(93, 139, 201, 0.2)");
     gradient.addColorStop(1, "rgba(47, 79, 127, 0)");
     ctx.fillStyle = gradient;
     ctx.fillRect(projectEndX - diffusion, 0, markerWidth + diffusion * 2, height);
