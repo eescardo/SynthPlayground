@@ -103,31 +103,6 @@ interface AppRootContextValue {
 
 const AppRootContext = createContext<AppRootContextValue | null>(null);
 
-function projectNotesChanged(previous: Project, next: Project): boolean {
-  if (previous.tracks.length !== next.tracks.length) {
-    return true;
-  }
-
-  return previous.tracks.some((track, trackIndex) => {
-    const nextTrack = next.tracks[trackIndex];
-    if (!nextTrack || track.id !== nextTrack.id || track.notes.length !== nextTrack.notes.length) {
-      return true;
-    }
-
-    return track.notes.some((note, noteIndex) => {
-      const nextNote = nextTrack.notes[noteIndex];
-      return (
-        !nextNote ||
-        note.id !== nextNote.id ||
-        note.pitchStr !== nextNote.pitchStr ||
-        note.startBeat !== nextNote.startBeat ||
-        note.durationBeats !== nextNote.durationBeats ||
-        note.velocity !== nextNote.velocity
-      );
-    });
-  });
-}
-
 function clearFollowCompositionEndOverrideAfterNoteEdit(
   previous: Project,
   next: Project,
@@ -137,7 +112,7 @@ function clearFollowCompositionEndOverrideAfterNoteEdit(
     actionKey?.startsWith("timeline:") ||
     previous.global.compositionEnd?.mode !== "follow" ||
     next.global.compositionEnd?.mode !== "follow" ||
-    !projectNotesChanged(previous, next)
+    getProjectLastNoteEndBeat(previous) === getProjectLastNoteEndBeat(next)
   ) {
     return next;
   }
