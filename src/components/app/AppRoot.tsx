@@ -618,6 +618,13 @@ export function AppRoot({ children }: { children: ReactNode }) {
     setUserCueBeat((current) => Math.min(current, playbackEndBeat));
   }, [playbackEndBeat]);
 
+  useEffect(() => {
+    setProjectHistory((prev) => {
+      const next = extendExplicitCompositionEndToLastNote(prev.current);
+      return next === prev.current ? prev : { ...prev, current: freezeProjectSnapshot(next) };
+    });
+  }, [project, setProjectHistory]);
+
   const setContentSelectionWithPopoverBehavior = useCallback(
     (selection: ContentSelection, options?: { keepCollapsed?: boolean }) => {
       keepSelectionPopoverCollapsedRef.current = Boolean(options?.keepCollapsed);
