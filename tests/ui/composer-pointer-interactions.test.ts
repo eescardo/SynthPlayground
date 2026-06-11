@@ -24,6 +24,84 @@ afterEach(async () => {
 });
 
 describe.sequential("composer pointer interactions", () => {
+  test("shows explicit composition end with the same one-based beat name as the timeline header", async () => {
+    const devServer = startDevServer(PORT);
+    cleanupProcesses.add(devServer);
+
+    await waitForServer(BASE_URL, 120_000);
+
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const context = await browser.newContext({
+        baseURL: BASE_URL,
+        viewport: { width: 1400, height: 900 }
+      });
+
+      try {
+        const page = await context.newPage();
+        try {
+          await openSeededApp(page, createEmptyComposerProject({ compositionEndBeat: 4.75 }));
+
+          await page.locator(".track-canvas-shell > canvas").click({ position: compositionEndPointForBeat(4.75) });
+
+          await expect(page.locator(".timeline-actions-popover")).toBeVisible();
+          await expect(page.locator(".timeline-repeat-wheel-end-beat .timeline-repeat-value")).toHaveText("5.75");
+        } finally {
+          await page.close();
+        }
+      } finally {
+        await context.close();
+      }
+    } finally {
+      await browser.close();
+    }
+  }, 120_000);
+
+  test("keeps an extended explicit composition end after deleting notes beyond the old end", async () => {
+    const devServer = startDevServer(PORT);
+    cleanupProcesses.add(devServer);
+
+    await waitForServer(BASE_URL, 120_000);
+
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const context = await browser.newContext({
+        baseURL: BASE_URL,
+        viewport: { width: 1400, height: 900 }
+      });
+
+      try {
+        const page = await context.newPage();
+        try {
+          await openSeededApp(page, createEmptyComposerProject({ compositionEndBeat: 4 }));
+          const canvas = page.locator(".track-canvas-shell > canvas");
+
+          await canvas.dblclick({ position: trackLanePointForBeat(5) });
+          await canvas.dblclick({ position: trackLanePointForBeat(6) });
+          await expect.poll(() => readFirstTrackNoteCount(page)).toBe(2);
+          const extendedEndBeat = (await readActiveProject(page)).global.compositionEnd?.beat;
+          expect(extendedEndBeat).toBeGreaterThan(4);
+
+          await canvas.click({ position: trackLanePointForBeat(6.1) });
+          await page.keyboard.press("Backspace");
+          await expect.poll(() => readFirstTrackNoteCount(page)).toBe(1);
+
+          await canvas.click({ position: trackLanePointForBeat(5.1) });
+          await page.keyboard.press("Backspace");
+          await expect.poll(() => readFirstTrackNoteCount(page)).toBe(0);
+
+          expect((await readActiveProject(page)).global.compositionEnd?.beat).toBe(extendedEndBeat);
+        } finally {
+          await page.close();
+        }
+      } finally {
+        await context.close();
+      }
+    } finally {
+      await browser.close();
+    }
+  }, 120_000);
+
   test("separates empty-lane clicks, double-click note creation, and marquee drags", async () => {
     const devServer = startDevServer(PORT);
     cleanupProcesses.add(devServer);
@@ -84,10 +162,14 @@ describe.sequential("composer pointer interactions", () => {
   }, 120_000);
 });
 
-const createEmptyComposerProject = (): Project => {
+const createEmptyComposerProject = (options?: { compositionEndBeat?: number }): Project => {
   const project = createDefaultProject();
   return {
     ...project,
+    global: {
+      ...project.global,
+      compositionEnd: options?.compositionEndBeat === undefined ? undefined : { beat: options.compositionEndBeat }
+    },
     tracks: project.tracks.map((track) => ({ ...track, notes: [] }))
   };
 };
@@ -95,6 +177,11 @@ const createEmptyComposerProject = (): Project => {
 const trackLanePointForBeat = (beat: number) => ({
   x: HEADER_WIDTH + beat * BEAT_WIDTH,
   y: RULER_HEIGHT + TRACK_HEIGHT / 2
+});
+
+const compositionEndPointForBeat = (beat: number) => ({
+  x: HEADER_WIDTH + beat * BEAT_WIDTH,
+  y: RULER_HEIGHT + TRACK_HEIGHT + 24
 });
 
 const dragOnCanvas = async (page: Page, start: { x: number; y: number }, end: { x: number; y: number }) => {
@@ -112,6 +199,9 @@ const dragOnCanvas = async (page: Page, start: { x: number; y: number }, end: { 
 const readFirstTrackNoteCount = async (page: Page): Promise<number> => (await readFirstTrackNotes(page)).length;
 
 const readFirstTrackNotes = async (page: Page): Promise<Project["tracks"][number]["notes"]> =>
+  (await readActiveProject(page)).tracks[0]?.notes ?? [];
+
+const readActiveProject = async (page: Page): Promise<Project> =>
   page.evaluate(
     () =>
       new Promise((resolve, reject) => {
@@ -125,7 +215,11 @@ const readFirstTrackNotes = async (page: Page): Promise<Project["tracks"][number
             reject(getRequest.error ?? new Error("Failed to read active project from IndexedDB."));
           getRequest.onsuccess = () => {
             const project = getRequest.result as Project | undefined;
-            resolve(project?.tracks[0]?.notes ?? []);
+            if (!project) {
+              reject(new Error("No active project was found in IndexedDB."));
+              return;
+            }
+            resolve(project);
           };
           tx.oncomplete = () => db.close();
         };
