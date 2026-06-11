@@ -31,3 +31,15 @@ export const formatBeatName = (zeroBasedBeat: number, gridBeats = 0.25): string 
   const decimals = Math.max(0, Math.ceil(-Math.log10(gridBeats)));
   return oneBasedBeat.toFixed(Math.min(3, decimals + 1)).replace(/\.?0+$/, "");
 };
+
+export const parseBeatName = (beatName: string): number | null => {
+  const trimmedBeatName = beatName.trim();
+  if (trimmedBeatName.length === 0) {
+    return null;
+  }
+  const parsed = Number(trimmedBeatName);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+  return parsed - 1;
+};

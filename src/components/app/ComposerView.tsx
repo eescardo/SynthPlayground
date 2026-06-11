@@ -75,6 +75,9 @@ export interface ComposerTimelineProps {
   noteClipboardPayload: unknown;
   startMarkerAtTimelineBeat?: { id: string } | null;
   endMarkerAtTimelineBeat?: { id: string; repeatCount?: number } | null;
+  compositionEndAtTimelineBeat?: boolean;
+  compositionEndFollowsLastNote: boolean;
+  compositionEndBeat: number;
   expandableLoopRegion: boolean;
 }
 
@@ -108,6 +111,8 @@ export interface ComposerTimelineActions {
   onUpdateLoopRepeatCount: (repeatCount: number) => void;
   onRemoveStartLoopBoundary: () => void;
   onRemoveEndLoopBoundary: () => void;
+  onToggleCompositionEndFollow: (follow: boolean) => void;
+  onUpdateCompositionEndBeat: (beat: number) => void;
 }
 
 export function ComposerView(props: ComposerViewProps) {
@@ -203,6 +208,10 @@ export function ComposerView(props: ComposerViewProps) {
           startMarkerId={props.timeline.startMarkerAtTimelineBeat?.id}
           endMarkerId={props.timeline.endMarkerAtTimelineBeat?.id}
           endRepeatCount={props.timeline.endMarkerAtTimelineBeat?.repeatCount}
+          showCompositionEndActions={props.timeline.compositionEndAtTimelineBeat}
+          compositionEndFollowsLastNote={props.timeline.compositionEndFollowsLastNote}
+          compositionEndBeat={props.timeline.compositionEndBeat}
+          compositionEndGridBeats={props.project.global.gridBeats}
           onPaste={() => props.timelineActions.onPasteAtTimeline("paste", props.timeline.timelineActionsPopover!.beat)}
           onPasteAllTracks={() =>
             props.timelineActions.onPasteAtTimeline("paste-all-tracks", props.timeline.timelineActionsPopover!.beat)
@@ -221,6 +230,8 @@ export function ComposerView(props: ComposerViewProps) {
           onUpdateRepeatCount={props.timelineActions.onUpdateLoopRepeatCount}
           onRemoveStart={props.timelineActions.onRemoveStartLoopBoundary}
           onRemoveEnd={props.timelineActions.onRemoveEndLoopBoundary}
+          onToggleCompositionEndFollow={props.timelineActions.onToggleCompositionEndFollow}
+          onUpdateCompositionEndBeat={props.timelineActions.onUpdateCompositionEndBeat}
           onClose={props.timelineActions.onCloseTimelineActionsPopover}
         />
       )}

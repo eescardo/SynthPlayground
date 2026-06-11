@@ -29,6 +29,7 @@ export interface TimelineActionsPopoverRequest {
   beat: number;
   clientX: number;
   clientY: number;
+  anchor?: "playhead" | "composition-end";
 }
 
 export interface TrackCanvasTrackActions {
@@ -110,6 +111,7 @@ export interface TrackCanvasSelectionActions {
   onCopySelection: () => void;
   onCutSelection: () => void;
   onDeleteSelection: () => void;
+  onInsertTimeInSelection?: () => void;
   onOpenExplodeSelectionDialog?: () => void;
   onCopyAllTracksInSelection: () => void;
   onCutAllTracksInSelection: () => void;

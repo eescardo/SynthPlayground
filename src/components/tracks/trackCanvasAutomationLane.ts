@@ -1,3 +1,4 @@
+import { FIXED_MACRO_SLIDER_START_OFFSET, FIXED_MACRO_SLIDER_WIDTH } from "@/components/tracks/trackCanvasConstants";
 import { AutomationKeyframeSide, AutomationPoint } from "@/lib/macroAutomation";
 import { clamp01 } from "@/lib/numeric";
 
@@ -41,13 +42,39 @@ const AUTOMATION_SINGLE_RADIUS = 5;
 const AUTOMATION_SPLIT_HALF_WIDTH = 4;
 const AUTOMATION_SPLIT_HALF_HEIGHT = 4;
 const AUTOMATION_SPLIT_CENTER_OFFSET = 3;
+const AUTOMATION_VALUE_VERTICAL_PADDING = 6;
+const AUTOMATION_BORDER_INSET = 0.5;
+const AUTOMATION_BORDER_WIDTH = 1;
+const AUTOMATION_LINE_WIDTH = 2;
+const AUTOMATION_GUIDE_LINE_WIDTH = 1;
+const AUTOMATION_GUIDE_BOTTOM_OFFSET = 4;
+const AUTOMATION_STATE_LABEL_GAP = 8;
+const AUTOMATION_HANDLE_HIT_PADDING_X = 4;
+const AUTOMATION_HANDLE_HIT_PADDING_Y = 5;
+const AUTOMATION_SINGLE_HIT_RADIUS = 7;
+const FIXED_LANE_RIGHT_PADDING = 10;
+const FIXED_LANE_DEFAULT_TICK_HALF_HEIGHT = 6;
+const FIXED_LANE_FILL_HALF_HEIGHT = 2;
+const FIXED_LANE_FILL_HEIGHT = FIXED_LANE_FILL_HALF_HEIGHT * 2;
+const FIXED_LANE_THUMB_RADIUS = 5;
+const FIXED_LANE_VALUE_LABEL_GAP = 8;
+const FIXED_LANE_VALUE_LABEL_BOTTOM_PADDING = 6;
+const FIXED_LANE_VALUE_LABEL_BASELINE_OFFSET = 4;
+const AUTOMATION_LABEL_FONT = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
+const AUTOMATION_STATE_LABEL_FONT = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
 const LANE_LABEL_X = 18;
 
 export const automationValueFromY = (y: number, laneY: number, laneHeight: number): number =>
-  clamp01(1 - (y - (laneY + 6)) / Math.max(1, laneHeight - 12));
+  clamp01(
+    1 -
+      (y - (laneY + AUTOMATION_VALUE_VERTICAL_PADDING)) /
+        Math.max(1, laneHeight - AUTOMATION_VALUE_VERTICAL_PADDING * 2)
+  );
 
 export const automationYFromValue = (value: number, laneY: number, laneHeight: number): number =>
-  laneY + 6 + (1 - value) * Math.max(1, laneHeight - 12);
+  laneY +
+  AUTOMATION_VALUE_VERTICAL_PADDING +
+  (1 - value) * Math.max(1, laneHeight - AUTOMATION_VALUE_VERTICAL_PADDING * 2);
 
 function drawAutomationTriangle(ctx: CanvasRenderingContext2D, x: number, y: number, side: "incoming" | "outgoing") {
   ctx.beginPath();
@@ -136,17 +163,22 @@ export function renderAutomationLane({
   ctx.fillStyle = veilTimeline ? colors.automationLaneTimelineVeil : colors.automationLaneBg;
   ctx.fillRect(headerWidth, laneY, width - headerWidth, height);
   ctx.strokeStyle = colors.automationLaneBorder;
-  ctx.strokeRect(headerWidth + 0.5, laneY + 0.5, width - headerWidth - 1, height - 1);
+  ctx.strokeRect(
+    headerWidth + AUTOMATION_BORDER_INSET,
+    laneY + AUTOMATION_BORDER_INSET,
+    width - headerWidth - AUTOMATION_BORDER_WIDTH,
+    height - AUTOMATION_BORDER_WIDTH
+  );
   ctx.fillStyle = colors.automationLabel;
-  ctx.font = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
+  ctx.font = AUTOMATION_LABEL_FONT;
   const labelY = laneY + height * 0.5;
   const stateLabel = "auto";
   ctx.textBaseline = "middle";
   ctx.fillText(macroName, LANE_LABEL_X, labelY);
   const macroNameWidth = ctx.measureText(macroName).width;
   ctx.fillStyle = colors.noteHoverBorder;
-  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.fillText(stateLabel, LANE_LABEL_X + macroNameWidth + 8, labelY);
+  ctx.font = AUTOMATION_STATE_LABEL_FONT;
+  ctx.fillText(stateLabel, LANE_LABEL_X + macroNameWidth + AUTOMATION_STATE_LABEL_GAP, labelY);
   ctx.textBaseline = "alphabetic";
 
   if (expanded) {
@@ -181,7 +213,7 @@ export function renderAutomationLane({
       }
     }
     ctx.strokeStyle = colors.automationLine;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = AUTOMATION_LINE_WIDTH;
     ctx.stroke();
   }
 
@@ -191,9 +223,9 @@ export function renderAutomationLane({
     const outgoingY = automationYFromValue(point.rightValue, laneY, height);
     if (expanded) {
       ctx.strokeStyle = colors.automationLine;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = AUTOMATION_GUIDE_LINE_WIDTH;
       ctx.beginPath();
-      ctx.moveTo(pointX, laneBottom - 4);
+      ctx.moveTo(pointX, laneBottom - AUTOMATION_GUIDE_BOTTOM_OFFSET);
       ctx.lineTo(pointX, outgoingY);
       ctx.stroke();
       if (Math.abs(point.leftValue - point.rightValue) > 1e-9) {
@@ -204,7 +236,7 @@ export function renderAutomationLane({
       }
     }
     ctx.strokeStyle = colors.automationHandleBorder;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = AUTOMATION_LINE_WIDTH;
     if (point.kind === "split") {
       const incomingX = pointX - AUTOMATION_SPLIT_CENTER_OFFSET;
       const outgoingX = pointX + AUTOMATION_SPLIT_CENTER_OFFSET;
@@ -239,10 +271,11 @@ export function renderAutomationLane({
           kind: point.kind,
           x: incomingX,
           y: incomingY,
-          hitLeft: pointX - AUTOMATION_SPLIT_HALF_WIDTH - AUTOMATION_SPLIT_CENTER_OFFSET - 4,
-          hitRight: pointX + 1,
-          hitTop: incomingY - AUTOMATION_SPLIT_HALF_HEIGHT - 5,
-          hitBottom: incomingY + AUTOMATION_SPLIT_HALF_HEIGHT + 5,
+          hitLeft:
+            pointX - AUTOMATION_SPLIT_HALF_WIDTH - AUTOMATION_SPLIT_CENTER_OFFSET - AUTOMATION_HANDLE_HIT_PADDING_X,
+          hitRight: pointX + AUTOMATION_BORDER_WIDTH,
+          hitTop: incomingY - AUTOMATION_SPLIT_HALF_HEIGHT - AUTOMATION_HANDLE_HIT_PADDING_Y,
+          hitBottom: incomingY + AUTOMATION_SPLIT_HALF_HEIGHT + AUTOMATION_HANDLE_HIT_PADDING_Y,
           boundary: point.boundary
         });
         automationKeyframeRects.push({
@@ -255,10 +288,11 @@ export function renderAutomationLane({
           kind: point.kind,
           x: outgoingX,
           y: outgoingY,
-          hitLeft: pointX - 1,
-          hitRight: pointX + AUTOMATION_SPLIT_HALF_WIDTH + AUTOMATION_SPLIT_CENTER_OFFSET + 4,
-          hitTop: outgoingY - AUTOMATION_SPLIT_HALF_HEIGHT - 5,
-          hitBottom: outgoingY + AUTOMATION_SPLIT_HALF_HEIGHT + 5,
+          hitLeft: pointX - AUTOMATION_BORDER_WIDTH,
+          hitRight:
+            pointX + AUTOMATION_SPLIT_HALF_WIDTH + AUTOMATION_SPLIT_CENTER_OFFSET + AUTOMATION_HANDLE_HIT_PADDING_X,
+          hitTop: outgoingY - AUTOMATION_SPLIT_HALF_HEIGHT - AUTOMATION_HANDLE_HIT_PADDING_Y,
+          hitBottom: outgoingY + AUTOMATION_SPLIT_HALF_HEIGHT + AUTOMATION_HANDLE_HIT_PADDING_Y,
           boundary: point.boundary
         });
       }
@@ -286,10 +320,10 @@ export function renderAutomationLane({
           kind: point.kind,
           x: pointX,
           y: outgoingY,
-          hitLeft: pointX - 7,
-          hitRight: pointX + 7,
-          hitTop: outgoingY - 7,
-          hitBottom: outgoingY + 7,
+          hitLeft: pointX - AUTOMATION_SINGLE_HIT_RADIUS,
+          hitRight: pointX + AUTOMATION_SINGLE_HIT_RADIUS,
+          hitTop: outgoingY - AUTOMATION_SINGLE_HIT_RADIUS,
+          hitBottom: outgoingY + AUTOMATION_SINGLE_HIT_RADIUS,
           boundary: point.boundary
         });
       }
@@ -298,7 +332,6 @@ export function renderAutomationLane({
 }
 
 export function renderFixedLane({
-  beatWidth,
   colors,
   ctx,
   headerWidth,
@@ -311,8 +344,8 @@ export function renderFixedLane({
   width
 }: RenderFixedLaneParams) {
   const laneBottom = laneY + height;
-  const sliderStartX = headerWidth + Math.min(beatWidth * 0.25, 18);
-  const sliderEndX = Math.min(width - 10, sliderStartX + beatWidth * 3.8);
+  const sliderStartX = headerWidth + FIXED_MACRO_SLIDER_START_OFFSET;
+  const sliderEndX = Math.min(width - FIXED_LANE_RIGHT_PADDING, sliderStartX + FIXED_MACRO_SLIDER_WIDTH);
   const sliderCenterY = laneY + height * 0.5;
   const normalized = clamp01(value);
   const thumbX = sliderStartX + (sliderEndX - sliderStartX) * normalized;
@@ -322,46 +355,55 @@ export function renderFixedLane({
   ctx.fillStyle = veilTimeline ? colors.automationLaneTimelineVeil : colors.automationLaneBg;
   ctx.fillRect(headerWidth, laneY, width - headerWidth, height);
   ctx.strokeStyle = colors.automationLaneBorder;
-  ctx.strokeRect(headerWidth + 0.5, laneY + 0.5, width - headerWidth - 1, height - 1);
+  ctx.strokeRect(
+    headerWidth + AUTOMATION_BORDER_INSET,
+    laneY + AUTOMATION_BORDER_INSET,
+    width - headerWidth - AUTOMATION_BORDER_WIDTH,
+    height - AUTOMATION_BORDER_WIDTH
+  );
   ctx.fillStyle = colors.automationLabel;
-  ctx.font = "11px 'Trebuchet MS', 'Segoe UI', sans-serif";
+  ctx.font = AUTOMATION_LABEL_FONT;
   const labelY = laneY + height * 0.5;
   ctx.textBaseline = "middle";
   ctx.fillText(name, LANE_LABEL_X, labelY);
   const nameWidth = ctx.measureText(name).width;
   ctx.fillStyle = colors.noteHoverBorder;
-  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.fillText("fixed", LANE_LABEL_X + nameWidth + 8, labelY);
+  ctx.font = AUTOMATION_STATE_LABEL_FONT;
+  ctx.fillText("fixed", LANE_LABEL_X + nameWidth + AUTOMATION_STATE_LABEL_GAP, labelY);
   ctx.textBaseline = "alphabetic";
 
   ctx.strokeStyle = colors.automationLaneBorder;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = AUTOMATION_LINE_WIDTH;
   ctx.beginPath();
   ctx.moveTo(sliderStartX, sliderCenterY);
   ctx.lineTo(sliderEndX, sliderCenterY);
   ctx.stroke();
 
   ctx.strokeStyle = colors.noteHoverBorder;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = AUTOMATION_LINE_WIDTH;
   ctx.beginPath();
-  ctx.moveTo(defaultX, sliderCenterY - 6);
-  ctx.lineTo(defaultX, sliderCenterY + 6);
+  ctx.moveTo(defaultX, sliderCenterY - FIXED_LANE_DEFAULT_TICK_HALF_HEIGHT);
+  ctx.lineTo(defaultX, sliderCenterY + FIXED_LANE_DEFAULT_TICK_HALF_HEIGHT);
   ctx.stroke();
 
   const fillWidth = Math.max(0, thumbX - sliderStartX);
   ctx.fillStyle = colors.automationFill;
-  ctx.fillRect(sliderStartX, sliderCenterY - 2, fillWidth, 4);
+  ctx.fillRect(sliderStartX, sliderCenterY - FIXED_LANE_FILL_HALF_HEIGHT, fillWidth, FIXED_LANE_FILL_HEIGHT);
 
   ctx.fillStyle = colors.automationHandle;
   ctx.strokeStyle = colors.automationHandleBorder;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = AUTOMATION_LINE_WIDTH;
   ctx.beginPath();
-  ctx.arc(thumbX, sliderCenterY, 5, 0, Math.PI * 2);
+  ctx.arc(thumbX, sliderCenterY, FIXED_LANE_THUMB_RADIUS, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
   const percent = Math.round(normalized * 100);
   ctx.fillStyle = colors.automationLabel;
-  ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.fillText(`${percent}%`, sliderEndX + 8, Math.min(laneBottom - 6, sliderCenterY + 4));
+  ctx.font = AUTOMATION_STATE_LABEL_FONT;
+  ctx.fillText(
+    `${percent}%`,
+    sliderEndX + FIXED_LANE_VALUE_LABEL_GAP,
+    Math.min(laneBottom - FIXED_LANE_VALUE_LABEL_BOTTOM_PADDING, sliderCenterY + FIXED_LANE_VALUE_LABEL_BASELINE_OFFSET)
+  );
 }

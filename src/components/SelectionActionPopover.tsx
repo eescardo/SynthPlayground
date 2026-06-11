@@ -12,6 +12,7 @@ interface SelectionActionPopoverProps {
   onCut: () => void;
   onCopy: () => void;
   onDelete: () => void;
+  onInsertTime?: () => void;
   onExplode?: () => void;
   onCutAllTracks: () => void;
   onCopyAllTracks: () => void;
@@ -100,6 +101,16 @@ export function SelectionActionPopover(props: SelectionActionPopoverProps) {
       >
         Delete
       </button>
+      {props.onInsertTime && (
+        <button
+          type="button"
+          onPointerEnter={() => props.onPreviewScopeChange?.("all-tracks")}
+          onFocus={() => props.onPreviewScopeChange?.("all-tracks")}
+          onClick={props.onInsertTime}
+        >
+          Insert Time
+        </button>
+      )}
       {props.onExplode && (
         <button
           type="button"

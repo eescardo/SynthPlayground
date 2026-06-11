@@ -15,6 +15,7 @@ const clampNormalized = clamp01;
 const EPSILON = 1e-9;
 const SPLIT_OFFSET = 0.1;
 export const TRACK_VOLUME_AUTOMATION_ID = "__track_volume__";
+export const DEFAULT_EMPTY_COMPOSITION_BEATS = 16;
 
 export type AutomationKeyframeSide = "single" | "incoming" | "outgoing";
 
@@ -239,12 +240,24 @@ export const getTrackAutomationPoints = (lane: TrackMacroAutomationLane, endBeat
   return points;
 };
 
-export const getProjectTimelineEndBeat = (project: ProjectGlobalCarrier & Pick<Project, "tracks">): number => {
-  const meterBeats = getMeasureBeatsForMeter(project.global.meter);
-  const maxNoteEnd = project.tracks
+export const getProjectLastNoteEndBeat = (project: Pick<Project, "tracks">): number =>
+  project.tracks
     .flatMap((track) => track.notes)
     .reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0);
-  return Math.max(16, Math.ceil(maxNoteEnd + meterBeats));
+
+export const getFollowProjectTimelineEndBeat = (project: ProjectGlobalCarrier & Pick<Project, "tracks">): number => {
+  const meterBeats = getMeasureBeatsForMeter(project.global.meter);
+  const maxNoteEnd = getProjectLastNoteEndBeat(project);
+  return Math.max(DEFAULT_EMPTY_COMPOSITION_BEATS, Math.ceil(maxNoteEnd + meterBeats));
+};
+
+export const getProjectTimelineEndBeat = (project: ProjectGlobalCarrier & Pick<Project, "tracks">): number => {
+  const followEndBeat = getFollowProjectTimelineEndBeat(project);
+  const compositionEnd = project.global.compositionEnd;
+  if (!compositionEnd) {
+    return followEndBeat;
+  }
+  return Math.max(getProjectLastNoteEndBeat(project), compositionEnd.beat);
 };
 
 export const getTrackMacroValueAtBeat = (

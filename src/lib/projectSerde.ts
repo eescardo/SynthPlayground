@@ -1,4 +1,5 @@
 import { createId } from "@/lib/ids";
+import { extendExplicitCompositionEndToLastNote } from "@/lib/compositionEnd";
 import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping";
 import { sanitizeMacroAutomationMap } from "@/lib/macroAutomation";
 import { clamp, clamp01 } from "@/lib/numeric";
@@ -189,7 +190,7 @@ export const exportProjectToJson = (
   JSON.stringify(
     {
       version: 2,
-      project,
+      project: extendExplicitCompositionEndToLastNote(project),
       assets: serializeProjectAssetLibraryForJson(pickReferencedProjectAssets(project, assets))
     },
     null,
@@ -218,6 +219,15 @@ export const normalizeProject = (raw: unknown): Project => {
   const meter = globalRaw.meter === "3/4" ? "3/4" : "4/4";
   const gridBeats = asFiniteNumber(globalRaw.gridBeats, 0.25);
   const loopRaw = Array.isArray(globalRaw.loop) ? globalRaw.loop : isObject(globalRaw.loop) ? [globalRaw.loop] : [];
+  const compositionEndRaw = isObject(globalRaw.compositionEnd) ? globalRaw.compositionEnd : null;
+  // PR #97 briefly stored compositionEnd as { mode, beat }; normalize that in-flight shape to the final { beat } model.
+  const compositionEndBeat = asOptionalFiniteNumber(compositionEndRaw?.beat);
+  const compositionEnd =
+    compositionEndBeat !== undefined
+      ? {
+          beat: Math.max(0, compositionEndBeat)
+        }
+      : undefined;
 
   const patchIds = new Set(patches.map((patch) => patch.id));
   const fallbackPatchId = patches[0].id;
@@ -296,7 +306,7 @@ export const normalizeProject = (raw: unknown): Project => {
   const activeTabId = asString(patchWorkspaceRaw.activeTabId, normalizedPatchWorkspaceTabs[0].id);
   const now = Date.now();
 
-  return {
+  return extendExplicitCompositionEndToLastNote({
     id: asString(raw.id, `project_${now}`),
     name: asString(raw.name, "Imported Project"),
     global: {
@@ -304,6 +314,7 @@ export const normalizeProject = (raw: unknown): Project => {
       tempo: clamp(asFiniteNumber(globalRaw.tempo, 120), 20, 400),
       meter,
       gridBeats: gridBeats > 0 ? gridBeats : 0.25,
+      compositionEnd,
       loop: loopRaw.flatMap((entry, index) => {
         const marker = isObject(entry) ? entry : {};
         const kind = marker.kind === "start" || marker.kind === "end" ? marker.kind : null;
@@ -349,7 +360,7 @@ export const normalizeProject = (raw: unknown): Project => {
     },
     createdAt: asFiniteNumber(raw.createdAt, now),
     updatedAt: asFiniteNumber(raw.updatedAt, now)
-  };
+  });
 };
 
 export const importProjectFromJson = (json: string): Project => {

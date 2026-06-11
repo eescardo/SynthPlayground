@@ -18,6 +18,7 @@ import { backArrowIconSrc } from "@/resources/images";
 import { Patch, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
+import styles from "./PatchWorkspaceView.module.css";
 
 interface PatchWorkspaceViewProps {
   patch: Patch;
@@ -114,11 +115,10 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
   } = usePatchWorkspaceQuickHelpDialog();
 
   return (
-    <section className="patch-workspace-shell">
-      <div className="patch-workspace-header">
-        <div className="patch-workspace-heading">
+    <section className={styles.shell}>
+      <div className={styles.header}>
+        <div className={styles.heading}>
           <ProjectsMenu
-            className="patch-workspace-projects-menu"
             iconOnly
             triggerLabel="Projects"
             importInputRef={props.importInputRef}
@@ -132,7 +132,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           />
           <button
             type="button"
-            className="patch-workspace-back-button transport-nav-button"
+            className={`${styles.backButton} transport-nav-button`}
             title="Back to Composer"
             aria-label="Back to Composer"
             onClick={props.onBackToComposer}
@@ -148,11 +148,11 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
             />
             <span>Composer</span>
           </button>
-          <div className="patch-workspace-title">
+          <div className={styles.title}>
             <h2>Patch Workspace</h2>
           </div>
         </div>
-        <div className="patch-workspace-header-actions">
+        <div className={styles.headerActions}>
           <button type="button" onClick={openHelp}>
             Help (?)
           </button>
@@ -174,7 +174,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
         </div>
       </div>
 
-      <div className="patch-workspace-editor-shell">
+      <div className={styles.editorShell}>
         <PatchWorkspaceTabStrip
           tabs={props.tabs}
           activeTabId={props.activeTabId}
@@ -186,7 +186,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
         />
 
         {props.runtimeErrorMessage ? (
-          <p className="patch-workspace-runtime-status error" role="alert">
+          <p className={`${styles.runtimeStatus} error`} role="alert">
             {props.runtimeErrorMessage}
           </p>
         ) : null}

@@ -1,17 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { TrackCanvasOverlays } from "@/components/tracks/TrackCanvasOverlays";
 import { AutomationKeyframeRect } from "@/components/tracks/trackCanvasAutomationLane";
 import {
+  BEAT_ZOOM_STEP,
   BEAT_WIDTH,
+  FIXED_MACRO_SLIDER_START_OFFSET,
+  FIXED_MACRO_SLIDER_WIDTH,
   HEADER_WIDTH,
+  MAX_BEAT_WIDTH,
+  MIN_BEAT_WIDTH,
   NOTE_RESIZE_HANDLE_WIDTH,
   RULER_HEIGHT
 } from "@/components/tracks/trackCanvasConstants";
 import { LoopMarkerRect, MuteRect, PitchRect } from "@/components/tracks/trackCanvasGeometry";
 import { renderTrackCanvas } from "@/components/tracks/trackCanvasDrawing";
-import { NoteRect, useTrackCanvasPointerInteractions } from "@/hooks/tracks/useTrackCanvasPointerInteractions";
+import { consumeTimelinePopoverWheelEvent } from "@/components/tracks/trackCanvasWheelGuards";
+import { useTrackCanvasPointerInteractions } from "@/hooks/tracks/useTrackCanvasPointerInteractions";
+import type { NoteRect } from "@/hooks/tracks/trackCanvasPointerTypes";
 import { TrackCanvasProps, TrackLayout } from "@/components/tracks/trackCanvasTypes";
 import { useTrackCanvasRenderModel } from "@/components/tracks/trackCanvasRenderModel";
 import { useTrackCanvasPlayheadAutoScroll } from "@/hooks/tracks/useTrackCanvasPlayheadAutoScroll";
@@ -31,6 +39,11 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const { onUpdateNote } = noteActions;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const beatWidthRef = useRef(BEAT_WIDTH);
+  const totalBeatsRef = useRef(0);
+  const zoomGestureRef = useRef<{ beat: number; clientX: number } | null>(null);
+  const zoomGestureTimerRef = useRef<number | null>(null);
+  const zoomScrollCorrectionTokenRef = useRef(0);
   const playheadTabStopRef = useRef<HTMLButtonElement | null>(null);
   const selectedContentTabStopRef = useRef<HTMLButtonElement | null>(null);
   const noteRectsRef = useRef<NoteRect[]>([]);
@@ -42,6 +55,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
   const [editingTrackName, setEditingTrackName] = useState("");
   const [selectedContentTabStopFocused, setSelectedContentTabStopFocused] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(0);
+  const [beatWidth, setBeatWidth] = useState(BEAT_WIDTH);
+  beatWidthRef.current = beatWidth;
   const {
     volumePopoverTrackId,
     volumePopoverPosition,
@@ -76,6 +92,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     height,
     meterBeats,
     playheadTabStopLeft,
+    projectEndBeat,
     selectedContentTabStopRect,
     selectedNoteKeys,
     selectionBeatRange,
@@ -85,14 +102,17 @@ export function TrackCanvas(props: TrackCanvasProps) {
     trackLayouts,
     width
   } = useTrackCanvasRenderModel({
+    beatWidth,
     playheadBeat,
     project,
-    selection
+    selection,
+    viewportWidth
   });
+  totalBeatsRef.current = totalBeats;
 
-  const beatFromX = (x: number) => (x - HEADER_WIDTH) / BEAT_WIDTH;
-  const fixedLaneSliderStartX = HEADER_WIDTH + Math.min(BEAT_WIDTH * 0.25, 18);
-  const fixedLaneSliderEndX = Math.min(width - 10, fixedLaneSliderStartX + BEAT_WIDTH * 3.8);
+  const beatFromX = useCallback((x: number) => (x - HEADER_WIDTH) / beatWidth, [beatWidth]);
+  const fixedLaneSliderStartX = HEADER_WIDTH + FIXED_MACRO_SLIDER_START_OFFSET;
+  const fixedLaneSliderEndX = Math.min(width - 10, fixedLaneSliderStartX + FIXED_MACRO_SLIDER_WIDTH);
   const fixedLaneValueFromX = (x: number) =>
     clamp01((x - fixedLaneSliderStartX) / Math.max(1, fixedLaneSliderEndX - fixedLaneSliderStartX));
   const isTrackSilenced = useCallback((track: Track) => track.mute || isTrackVolumeMuted(track.volume), []);
@@ -103,10 +123,132 @@ export function TrackCanvas(props: TrackCanvasProps) {
     }
     const rect = wrapper.getBoundingClientRect();
     return {
-      left: rect.left + HEADER_WIDTH + selectionBeatRange.endBeat * BEAT_WIDTH + 14 - wrapper.scrollLeft,
+      left: rect.left + HEADER_WIDTH + selectionBeatRange.endBeat * beatWidth + 14 - wrapper.scrollLeft,
       top: rect.top + 10
     };
-  }, [selectionBeatRange]);
+  }, [beatWidth, selectionBeatRange]);
+
+  const correctZoomScroll = useCallback((anchorBeat: number, clientX: number) => {
+    const wrapper = wrapperRef.current;
+    const canvas = canvasRef.current;
+    if (!wrapper || !canvas) {
+      return;
+    }
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const anchorOffsetX = clientX - wrapperRect.left;
+    const measuredBeatWidth =
+      totalBeatsRef.current > 0
+        ? Math.max(1, (canvas.width - HEADER_WIDTH) / totalBeatsRef.current)
+        : beatWidthRef.current;
+    const measuredBeat = (wrapper.scrollLeft + anchorOffsetX - HEADER_WIDTH) / measuredBeatWidth;
+    const correctionPx = (anchorBeat - measuredBeat) * measuredBeatWidth;
+    if (Math.abs(correctionPx) < 0.5) {
+      return;
+    }
+    const maxScrollLeft = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
+    wrapper.scrollLeft = Math.min(maxScrollLeft, Math.max(0, wrapper.scrollLeft + correctionPx));
+  }, []);
+
+  const onWheelZoom = useCallback(
+    (event: WheelEvent) => {
+      if (consumeTimelinePopoverWheelEvent(event)) {
+        return;
+      }
+      if (!event.ctrlKey && !event.metaKey) {
+        return;
+      }
+      const wrapper = wrapperRef.current;
+      if (!wrapper) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      const clientX = event.clientX;
+      const currentBeatWidth = beatWidthRef.current;
+      const wrapperRect = wrapper.getBoundingClientRect();
+      const anchorOffsetX = clientX - wrapperRect.left;
+      const existingGesture = zoomGestureRef.current;
+      const pointerMoved = existingGesture ? Math.abs(clientX - existingGesture.clientX) > 6 : false;
+      const anchorBeat =
+        existingGesture && !pointerMoved
+          ? existingGesture.beat
+          : Math.max(0, (wrapper.scrollLeft + anchorOffsetX - HEADER_WIDTH) / currentBeatWidth);
+      zoomGestureRef.current = { beat: anchorBeat, clientX };
+      if (zoomGestureTimerRef.current !== null) {
+        window.clearTimeout(zoomGestureTimerRef.current);
+      }
+      zoomGestureTimerRef.current = window.setTimeout(() => {
+        zoomGestureRef.current = null;
+        zoomGestureTimerRef.current = null;
+      }, 180);
+
+      const zoomFactor = event.deltaY < 0 ? BEAT_ZOOM_STEP : 1 / BEAT_ZOOM_STEP;
+      const proposedBeatWidth = Math.min(MAX_BEAT_WIDTH, Math.max(MIN_BEAT_WIDTH, currentBeatWidth * zoomFactor));
+      let nextBeatWidth = proposedBeatWidth;
+      const proposedScrollLeft = HEADER_WIDTH + anchorBeat * proposedBeatWidth - anchorOffsetX;
+      if (proposedBeatWidth < currentBeatWidth && proposedScrollLeft < 0) {
+        const resistance = 1 / (1 + Math.abs(proposedScrollLeft) / 180);
+        const currentScrollLeft = HEADER_WIDTH + anchorBeat * currentBeatWidth - anchorOffsetX;
+        if (currentScrollLeft < 0 || anchorBeat <= 0) {
+          nextBeatWidth = currentBeatWidth - (currentBeatWidth - proposedBeatWidth) * resistance;
+        } else {
+          const boundaryBeatWidth = (anchorOffsetX - HEADER_WIDTH) / anchorBeat;
+          nextBeatWidth = boundaryBeatWidth - (boundaryBeatWidth - proposedBeatWidth) * resistance;
+        }
+        nextBeatWidth = Math.min(currentBeatWidth, Math.max(MIN_BEAT_WIDTH, nextBeatWidth));
+      }
+      if (Math.abs(nextBeatWidth - currentBeatWidth) < 0.1) {
+        return;
+      }
+
+      const nextScrollLeft = Math.max(0, HEADER_WIDTH + anchorBeat * nextBeatWidth - anchorOffsetX);
+      flushSync(() => {
+        setBeatWidth(nextBeatWidth);
+      });
+      beatWidthRef.current = nextBeatWidth;
+      wrapper.scrollLeft = nextScrollLeft;
+      correctZoomScroll(anchorBeat, clientX);
+      zoomScrollCorrectionTokenRef.current += 1;
+      const correctionToken = zoomScrollCorrectionTokenRef.current;
+      window.requestAnimationFrame(() => {
+        if (correctionToken === zoomScrollCorrectionTokenRef.current) {
+          correctZoomScroll(anchorBeat, clientX);
+        }
+      });
+    },
+    [correctZoomScroll]
+  );
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) {
+      return;
+    }
+    wrapper.addEventListener("wheel", onWheelZoom, { passive: false, capture: true });
+    return () => {
+      wrapper.removeEventListener("wheel", onWheelZoom, true);
+      if (zoomGestureTimerRef.current !== null) {
+        window.clearTimeout(zoomGestureTimerRef.current);
+        zoomGestureTimerRef.current = null;
+      }
+    };
+  }, [onWheelZoom]);
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) {
+      return;
+    }
+    const updateViewportWidth = () => setViewportWidth(wrapper.clientWidth);
+    updateViewportWidth();
+    const observer = new ResizeObserver(updateViewportWidth);
+    observer.observe(wrapper);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   const getCanvasPoint = useCallback((clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
@@ -145,6 +287,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
     hoveredNote,
     hoveredAutomationKeyframe,
     hoveredLoopMarker,
+    hoveredCompositionEnd,
+    selectedLoopMarker,
     hoveredPlayhead,
     canvasCursor,
     selectionRect,
@@ -166,6 +310,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       project,
       trackLayouts,
       playheadBeat,
+      projectEndBeat,
       gridBeats,
       defaultPitch,
       selection,
@@ -189,6 +334,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       getCanvasPoint,
       getTrackLayoutAtY,
       beatFromX,
+      beatWidth,
       fixedLaneValueFromX,
       headerWidth: HEADER_WIDTH,
       noteResizeHandleWidth: NOTE_RESIZE_HANDLE_WIDTH
@@ -206,6 +352,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
       hideSelectionActionPopover,
       hoveredAutomationKeyframe,
       hoveredLoopMarker,
+      hoveredCompositionEnd,
+      selectedLoopMarker,
       hoveredNote,
       hoveredPitch,
       hoveredPlayhead,
@@ -221,9 +369,11 @@ export function TrackCanvas(props: TrackCanvasProps) {
       project,
       renderModel: {
         automationKeyframeSelectionKeys,
+        beatWidth,
         gridBeats,
         height,
         meterBeats,
+        projectEndBeat,
         selectedNoteKeys,
         selectionBeatRange,
         selectionMarkerTrackId,
@@ -241,6 +391,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     });
   }, [
     countInLabel,
+    beatWidth,
     ghostPlayheadBeat,
     ghostPreviewNote,
     hideSelectionActionPopover,
@@ -253,6 +404,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
     hoveredNote,
     hoveredAutomationKeyframe,
     hoveredLoopMarker,
+    hoveredCompositionEnd,
+    selectedLoopMarker,
     isTrackSilenced,
     meterBeats,
     activeRecordedNotes,
@@ -260,6 +413,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     invalidPatchIds,
     playheadBeat,
     gridBeats,
+    projectEndBeat,
     project,
     selectedNoteKeys,
     selectedContentTabStopFocused,
@@ -280,6 +434,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   }, [draw]);
 
   useTrackCanvasPlayheadAutoScroll({
+    beatWidth,
     wrapperRef,
     playheadBeat,
     playheadFocused: Boolean(playheadFocused),

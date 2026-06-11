@@ -21,10 +21,10 @@ import { PitchPickerModal } from "@/components/composer/PitchPickerModal";
 import { RecordingDock } from "@/components/composer/RecordingDock";
 import { ExplodeSelectionDialog } from "@/components/ExplodeSelectionDialog";
 import { downloadJsonFile } from "@/lib/browserDownloads";
+import { extendExplicitCompositionEndToLastNote } from "@/lib/compositionEnd";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
-import { TimelineActionsPopoverRequest, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
+import { TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { createId } from "@/lib/ids";
-import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
 import { getProjectTimelineEndBeat, getTrackPreviewStateAtBeat } from "@/lib/macroAutomation";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import {
@@ -73,6 +73,7 @@ import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
 import { useTrackMacroPanelState } from "@/hooks/useTrackMacroPanelState";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
+import { useComposerTimelineActionsPopover } from "@/hooks/useComposerTimelineActionsPopover";
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
 import { useHardwareNavigation } from "@/hooks/useHardwareNavigation";
 import { useHardwareNavigationPreview } from "@/hooks/useHardwareNavigationPreview";
@@ -261,21 +262,29 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const commitProjectChange = useCallback(
     (
       updater: (current: Project) => Project,
-      options?: { actionKey?: string; coalesce?: boolean; skipHistory?: boolean }
+      options?: {
+        actionKey?: string;
+        coalesce?: boolean;
+        onCommitted?: (project: Project) => void;
+        skipHistory?: boolean;
+      }
     ) => {
       setProjectHistory((prev) => {
-        const next = updater(prev.current);
+        const current = extendExplicitCompositionEndToLastNote(prev.current);
+        const next = extendExplicitCompositionEndToLastNote(updater(current));
         if (next === prev.current) {
           return prev;
         }
+        const history = current === prev.current ? prev : { ...prev, current: freezeProjectSnapshot(current) };
         const frozenNext = freezeProjectSnapshot(next);
+        options?.onCommitted?.(frozenNext);
         if (options?.skipHistory) {
           return {
-            ...prev,
+            ...history,
             current: frozenNext
           };
         }
-        return pushHistory(prev, frozenNext, options);
+        return pushHistory(history, frozenNext, options);
       });
     },
     [setProjectHistory]
@@ -344,6 +353,10 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const playbackEndBeat = useMemo(() => {
     return getProjectTimelineEndBeat(project);
   }, [project]);
+  const clampTimelineBeat = useCallback(
+    (beat: number) => Math.min(playbackEndBeat, Math.max(0, beat)),
+    [playbackEndBeat]
+  );
 
   const resolveTrackPreviewStateAtBeat = useCallback(
     (trackId: string, beat: number, override: { macroId: string; normalized: number }) => {
@@ -562,12 +575,13 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
   const setPlayheadFromUser = useCallback(
     (beat: number) => {
-      setUserCueBeat(beat);
-      setPlayheadBeat(beat);
+      const clampedBeat = clampTimelineBeat(beat);
+      setUserCueBeat(clampedBeat);
+      setPlayheadBeat(clampedBeat);
       setEditorSelection(clearEditorSelection());
       setPitchPicker(null);
       if (playing) {
-        void playback.seekPlaybackToBeat(beat).catch((error) => {
+        void playback.seekPlaybackToBeat(clampedBeat).catch((error) => {
           const cause = toError(error);
           setRuntimeError(
             createSproutError({
@@ -582,16 +596,29 @@ export function AppRoot({ children }: { children: ReactNode }) {
         });
       }
     },
-    [playback, playing, setPitchPicker, setRuntimeError]
+    [clampTimelineBeat, playback, playing, setPitchPicker, setRuntimeError]
   );
   const setPlayheadPreservingSelection = useCallback(
     (beat: number) => {
-      setUserCueBeat(beat);
-      setPlayheadBeat(beat);
+      const clampedBeat = clampTimelineBeat(beat);
+      setUserCueBeat(clampedBeat);
+      setPlayheadBeat(clampedBeat);
       setPitchPicker(null);
     },
-    [setPitchPicker]
+    [clampTimelineBeat, setPitchPicker]
   );
+  useEffect(() => {
+    setPlayheadBeat((current) => Math.min(current, playbackEndBeat));
+    setUserCueBeat((current) => Math.min(current, playbackEndBeat));
+  }, [playbackEndBeat]);
+
+  useEffect(() => {
+    setProjectHistory((prev) => {
+      const next = extendExplicitCompositionEndToLastNote(prev.current);
+      return next === prev.current ? prev : { ...prev, current: freezeProjectSnapshot(next) };
+    });
+  }, [project, setProjectHistory]);
+
   const setContentSelectionWithPopoverBehavior = useCallback(
     (selection: ContentSelection, options?: { keepCollapsed?: boolean }) => {
       keepSelectionPopoverCollapsedRef.current = Boolean(options?.keepCollapsed);
@@ -611,6 +638,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     deleteAllTracksInSelection,
     deleteSelectedNoteSelection,
     explodeSelection,
+    insertTimeInSelection,
     deleteSelectedNotes
   } = useSelectionClipboardActions({
     clearNoteClipboard,
@@ -674,53 +702,26 @@ export function AppRoot({ children }: { children: ReactNode }) {
     onDismiss: collapseSelectionActionPopover
   });
 
-  const timelineMarkersAtBeat = useMemo(
-    () =>
-      timelineActionsPopover
-        ? getSanitizedLoopMarkers(project.global.loop).filter(
-            (marker) => Math.abs(marker.beat - timelineActionsPopover.beat) < 1e-9
-          )
-        : [],
-    [project.global.loop, timelineActionsPopover]
-  );
-  const startMarkerAtTimelineBeat = timelineMarkersAtBeat.find((marker) => marker.kind === "start");
-  const endMarkerAtTimelineBeat = timelineMarkersAtBeat.find((marker) => marker.kind === "end");
-  const expandableLoopRegion = useMemo(
-    () =>
-      timelineActionsPopover
-        ? getUniqueMatchedLoopRegionAtBeat(project.global.loop, timelineActionsPopover.beat)
-        : null,
-    [project.global.loop, timelineActionsPopover]
-  );
-
-  const expandSelectedLoopToNotes = useCallback(() => {
-    if (!expandableLoopRegion) {
-      return;
-    }
-    commitProjectChange((current) => expandLoopRegionToNotes(current, expandableLoopRegion), {
-      actionKey: `global:loop:expand:${expandableLoopRegion.startMarkerId}`
-    });
-    setTimelineActionsPopover(null);
-  }, [commitProjectChange, expandableLoopRegion, setTimelineActionsPopover]);
-
-  const requestTimelineActionsPopover = useCallback(
-    (request: TimelineActionsPopoverRequest) => {
-      setTimelineActionsPopover(request);
-      setPitchPicker(null);
-      closeExplodeSelectionDialog();
-      setEditorSelection(clearEditorSelection());
-      setSelectionActionPopoverMode("expanded");
-      setEditorSelection((current) => setEditorSelectionActionScopePreview(current, "source"));
-      void syncNoteClipboardPayload();
-    },
-    [
-      closeExplodeSelectionDialog,
-      setPitchPicker,
-      setSelectionActionPopoverMode,
-      setTimelineActionsPopover,
-      syncNoteClipboardPayload
-    ]
-  );
+  const {
+    endMarkerAtTimelineBeat,
+    expandableLoopRegion,
+    expandSelectedLoopToNotes,
+    requestTimelineActionsPopover,
+    startMarkerAtTimelineBeat,
+    toggleCompositionEndFollow,
+    updateCompositionEndBeat
+  } = useComposerTimelineActionsPopover({
+    closeExplodeSelectionDialog,
+    commitProjectChange,
+    playbackEndBeat,
+    project,
+    setEditorSelection,
+    setPitchPicker,
+    setSelectionActionPopoverMode,
+    setTimelineActionsPopover,
+    syncNoteClipboardPayload,
+    timelineActionsPopover
+  });
 
   const openPitchPicker = useCallback(
     (trackId: string, noteId: string) => {
@@ -1171,6 +1172,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     setSelectedTrackId,
     setPlayheadBeatFromUser: setPlayheadFromUser,
     setPlayheadBeatPreservingSelection: setPlayheadPreservingSelection,
+    requestTimelineActionsPopover,
     setContentSelection: setContentSelectionWithPopoverBehavior,
     expandSelectionActionPopover: () => setSelectionActionPopoverMode("expanded"),
     toggleTrackMacroPanel: setTrackMacroPanelExpanded,
@@ -1246,6 +1248,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     cutSelectedNotes,
     deleteAllTracksInSelection,
     deleteSelectedNoteSelection,
+    insertTimeInSelection,
     openExplodeSelectionDialog
   });
   const runtimeErrorDisplayMessage = runtimeError?.severity === "error" ? runtimeError.message : null;
@@ -1276,6 +1279,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
         noteClipboardPayload,
         startMarkerAtTimelineBeat,
         endMarkerAtTimelineBeat,
+        compositionEndAtTimelineBeat:
+          timelineActionsPopover?.anchor === "composition-end" ||
+          (timelineActionsPopover !== null && Math.abs(timelineActionsPopover.beat - playbackEndBeat) < 1e-9),
+        compositionEndFollowsLastNote: !project.global.compositionEnd,
+        compositionEndBeat: playbackEndBeat,
         expandableLoopRegion: Boolean(expandableLoopRegion)
       },
       canvasPreview: {
@@ -1301,7 +1309,9 @@ export function AppRoot({ children }: { children: ReactNode }) {
       expandSelectedLoopToNotes,
       endMarkerAtTimelineBeat,
       updateLoopRepeatCount,
-      removeLoopBoundary
+      removeLoopBoundary,
+      toggleCompositionEndFollow,
+      updateCompositionEndBeat
     }),
     ...trackCanvasActionGroups
   });

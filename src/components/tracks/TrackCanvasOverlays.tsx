@@ -135,6 +135,9 @@ export function TrackCanvasOverlays(props: TrackCanvasOverlaysProps) {
           onCut={props.selectionActions.onCutSelection}
           onCopy={props.selectionActions.onCopySelection}
           onDelete={props.selectionActions.onDeleteSelection}
+          onInsertTime={
+            props.selection.kind === "timeline" ? props.selectionActions.onInsertTimeInSelection : undefined
+          }
           onExplode={props.selectionActions.onOpenExplodeSelectionDialog}
           onCutAllTracks={props.selectionActions.onCutAllTracksInSelection}
           onCopyAllTracks={props.selectionActions.onCopyAllTracksInSelection}

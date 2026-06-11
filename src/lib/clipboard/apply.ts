@@ -4,8 +4,10 @@ import {
   removeAutomationLaneBeatRangeAndCloseGap,
   replaceAutomationLaneBeatRange
 } from "@/lib/automationTimelineEditing";
+import { shiftCompositionEndForInsertedRange, shiftCompositionEndForRemovedRange } from "@/lib/compositionEnd";
 import { createId } from "@/lib/ids";
 import { sanitizeLoopSettings } from "@/lib/looping";
+import { getProjectTimelineEndBeat as getProjectTimelineEndBeatFromProject } from "@/lib/macroAutomation";
 import { eraseNotesInBeatRange, insertBeatGap, removeBeatRangeAndCloseGap, sortNotes } from "@/lib/noteEditing";
 import { BeatRange, getNoteSelectionKey, getSelectedAutomationIdsByTrackId } from "@/lib/clipboard/selection";
 import { NoteClipboardPayload } from "@/lib/clipboard/payload";
@@ -83,13 +85,8 @@ const shiftBeatBoundSongStructureForRemovedRange = (project: Project, startBeat:
   };
 };
 
-const getProjectTimelineEndBeat = (project: Project, fallbackEndBeat = 0) =>
-  Math.max(
-    project.tracks
-      .flatMap((track) => track.notes)
-      .reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0),
-    fallbackEndBeat
-  );
+const getClipboardTimelineEndBeat = (project: Project, fallbackEndBeat = 0) =>
+  Math.max(getProjectTimelineEndBeatFromProject(project), fallbackEndBeat);
 
 const getDestinationTracks = (project: Project, selectedTrackId: string, trackCount: number) => {
   const startTrackIndex = project.tracks.findIndex((track) => track.id === selectedTrackId);
@@ -124,7 +121,7 @@ export function applyNoteClipboardPaste(
     noteKeys: [] as string[],
     automationKeyframeSelectionKeys: [] as string[]
   };
-  const timelineEndBeat = getProjectTimelineEndBeat(project, pasteEndBeat);
+  const timelineEndBeat = getClipboardTimelineEndBeat(project, pasteEndBeat);
 
   const tracks = project.tracks.map((track) => {
     const inserted = insertedByTrackId.get(track.id);
@@ -192,7 +189,7 @@ export function applyNoteClipboardInsert(
   selectedTrackId: string,
   playheadBeat: number
 ): AppliedNoteClipboardPaste {
-  const timelineEndBeat = getProjectTimelineEndBeat(project);
+  const timelineEndBeat = getClipboardTimelineEndBeat(project);
   const destinationTrackIds = new Set(
     getDestinationTracks(project, selectedTrackId, payload.tracks.length).map((track) => track.id)
   );
@@ -229,8 +226,8 @@ export function applyNoteClipboardInsertAllTracks(
   if (!firstTrackId) {
     return { project, selection: { noteKeys: [], automationKeyframeSelectionKeys: [] } };
   }
-  const timelineEndBeat = getProjectTimelineEndBeat(project);
-  const shiftedProject = shiftBeatBoundSongStructureForInsertedGap(
+  const timelineEndBeat = getClipboardTimelineEndBeat(project);
+  const shiftedProjectWithSongStructure = shiftBeatBoundSongStructureForInsertedGap(
     {
       ...project,
       tracks: project.tracks.map((track) => ({
@@ -247,12 +244,19 @@ export function applyNoteClipboardInsertAllTracks(
     playheadBeat,
     payload.beatSpan
   );
+  const shiftedProject = shiftCompositionEndForInsertedRange(
+    shiftedProjectWithSongStructure,
+    playheadBeat,
+    payload.beatSpan,
+    timelineEndBeat
+  );
   return applyNoteClipboardPaste(shiftedProject, payload, firstTrackId, playheadBeat);
 }
 
 export function cutBeatRangeAcrossAllTracks(project: Project, range: BeatRange): Project {
-  const timelineEndBeat = getProjectTimelineEndBeat(project, range.endBeat);
-  return shiftBeatBoundSongStructureForRemovedRange(
+  const timelineEndBeat = getClipboardTimelineEndBeat(project, range.endBeat);
+  const explicitTimelineEndBeat = getProjectTimelineEndBeatFromProject(project);
+  const nextProject = shiftBeatBoundSongStructureForRemovedRange(
     {
       ...project,
       tracks: project.tracks.map((track) => ({
@@ -269,6 +273,34 @@ export function cutBeatRangeAcrossAllTracks(project: Project, range: BeatRange):
     range.startBeat,
     range.endBeat
   );
+  return shiftCompositionEndForRemovedRange(nextProject, range.startBeat, range.endBeat, explicitTimelineEndBeat);
+}
+
+export function insertEmptyBeatRangeAcrossAllTracks(project: Project, range: BeatRange): Project {
+  const gap = range.endBeat - range.startBeat;
+  if (gap <= 0) {
+    return project;
+  }
+  const timelineEndBeat = getClipboardTimelineEndBeat(project, range.endBeat);
+  const explicitTimelineEndBeat = getProjectTimelineEndBeatFromProject(project);
+  const nextProject = shiftBeatBoundSongStructureForInsertedGap(
+    {
+      ...project,
+      tracks: project.tracks.map((track) => ({
+        ...track,
+        notes: insertBeatGap(track.notes, range.startBeat, gap),
+        macroAutomations: Object.fromEntries(
+          Object.entries(track.macroAutomations).map(([macroId, lane]) => [
+            macroId,
+            insertAutomationLaneGap(lane, range.startBeat, gap, timelineEndBeat)
+          ])
+        )
+      }))
+    },
+    range.startBeat,
+    gap
+  );
+  return shiftCompositionEndForInsertedRange(nextProject, range.startBeat, gap, explicitTimelineEndBeat);
 }
 
 export function eraseAutomationInRangeForTracks(
@@ -277,7 +309,7 @@ export function eraseAutomationInRangeForTracks(
   trackIds: Iterable<string>
 ): Project {
   const selectedTrackIds = new Set(trackIds);
-  const timelineEndBeat = getProjectTimelineEndBeat(project, range.endBeat);
+  const timelineEndBeat = getClipboardTimelineEndBeat(project, range.endBeat);
   return {
     ...project,
     tracks: project.tracks.map((track) => {

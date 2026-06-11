@@ -4,6 +4,7 @@ import {
   createTrackMacroAutomationLane,
   getTrackAutomationPoints,
   getTrackMacroValueAtBeat,
+  getProjectTimelineEndBeat,
   getTrackPreviewStateAtBeat,
   isSplitAutomationKeyframe,
   TRACK_VOLUME_AUTOMATION_ID,
@@ -12,7 +13,7 @@ import {
   updateAutomationLaneKeyframeSide,
   upsertAutomationLaneKeyframe
 } from "@/lib/macroAutomation";
-import { Track } from "@/types/music";
+import { Project, Track } from "@/types/music";
 import { Patch } from "@/types/patch";
 
 const createTrack = (): Track => ({
@@ -56,7 +57,48 @@ const createPatch = (): Patch => ({
   layout: { nodes: [] }
 });
 
+const createProject = (track: Track): Project => ({
+  id: "project_macro_test",
+  name: "Macro Automation Test",
+  global: {
+    sampleRate: 48000,
+    tempo: 120,
+    meter: "4/4",
+    gridBeats: 1,
+    compositionEnd: { beat: 16 },
+    loop: []
+  },
+  tracks: [track],
+  patches: [createPatch()],
+  masterFx: {
+    compressorEnabled: false,
+    limiterEnabled: true,
+    makeupGain: 1
+  },
+  ui: {
+    patchWorkspace: {
+      activeTabId: undefined,
+      tabs: []
+    }
+  },
+  createdAt: 0,
+  updatedAt: 0
+});
+
 describe("macroAutomation", () => {
+  it("keeps a fixed composition end after deleting the last note", () => {
+    const track = createTrack();
+    track.notes = [{ id: "last_note", pitchStr: "C4", startBeat: 12, durationBeats: 4, velocity: 0.8 }];
+    const project = createProject(track);
+    const withoutLastNote = {
+      ...project,
+      tracks: [{ ...track, notes: [] }]
+    };
+
+    expect(getProjectTimelineEndBeat(project)).toBe(16);
+    expect(getProjectTimelineEndBeat(withoutLastNote)).toBe(16);
+  });
+
   it("derives start, split interior, and end points", () => {
     let lane = createTrackMacroAutomationLane("macro_cutoff", 0.2);
     lane = upsertAutomationLaneKeyframe(lane, 4, 0.6, 8);

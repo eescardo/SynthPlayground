@@ -2,6 +2,7 @@
 
 import { RefObject } from "react";
 import { AudioEngine } from "@/audio/engine";
+import type { TimelineActionsPopoverRequest } from "@/components/tracks/TrackCanvas";
 import { ContentSelection } from "@/lib/clipboard";
 import { SproutErrorSetter } from "@/lib/sproutErrors";
 import { Project, Track } from "@/types/music";
@@ -48,6 +49,7 @@ export interface UseHardwareNavigationArgs {
   setSelectedTrackId: (trackId: string) => void;
   setPlayheadBeatFromUser: (beat: number) => void;
   setPlayheadBeatPreservingSelection: (beat: number) => void;
+  requestTimelineActionsPopover: (request: TimelineActionsPopoverRequest) => void;
   setContentSelection: (selection: ContentSelection, options?: { keepCollapsed?: boolean }) => void;
   expandSelectionActionPopover: () => void;
   toggleTrackMacroPanel: (trackId: string, expanded: boolean) => void;

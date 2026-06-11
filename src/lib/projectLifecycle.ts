@@ -1,4 +1,5 @@
 import { createId } from "@/lib/ids";
+import { extendExplicitCompositionEndToLastNote } from "@/lib/compositionEnd";
 import { createDefaultProject, createEmptyProject } from "@/lib/patch/presets";
 import { createAvailableProjectName } from "@/lib/projectManagement";
 import { normalizeProject } from "@/lib/projectSerde";
@@ -7,7 +8,7 @@ import { ProjectAssetLibrary } from "@/types/assets";
 import { Project } from "@/types/music";
 
 const withUpdatedTimestamp = (project: Project): Project => ({
-  ...project,
+  ...extendExplicitCompositionEndToLastNote(project),
   updatedAt: Date.now()
 });
 

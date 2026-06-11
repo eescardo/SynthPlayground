@@ -65,6 +65,9 @@ export interface ProjectGlobalSettings {
   tempo: number;
   meter: "4/4" | "3/4";
   gridBeats: number;
+  compositionEnd?: {
+    beat: number;
+  };
   loop: Array<{
     id: string;
     kind: "start" | "end";

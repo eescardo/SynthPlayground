@@ -10,6 +10,7 @@ import {
   ClipboardAutomationKeyframeData,
   ClipboardAutomationLaneData
 } from "@/lib/automationTimelineEditing";
+import { getProjectTimelineEndBeat as getProjectTimelineEndBeatFromProject } from "@/lib/macroAutomation";
 import { Project, Track } from "@/types/music";
 
 const NOTE_CLIPBOARD_TYPE = "synth-playground/note-selection";
@@ -161,13 +162,8 @@ const isNoteClipboardPayload = (value: unknown): value is NoteClipboardPayload =
   );
 };
 
-const getProjectTimelineEndBeat = (project: Project, fallbackEndBeat = 0) =>
-  Math.max(
-    project.tracks
-      .flatMap((track) => track.notes)
-      .reduce((acc, note) => Math.max(acc, note.startBeat + note.durationBeats), 0),
-    fallbackEndBeat
-  );
+const getClipboardTimelineEndBeat = (project: Project, fallbackEndBeat = 0) =>
+  Math.max(getProjectTimelineEndBeatFromProject(project), fallbackEndBeat);
 
 const buildClipboardAutomationLanes = (
   track: Track,
@@ -245,7 +241,7 @@ export function buildNoteClipboardPayload(
     return null;
   }
 
-  const timelineEndBeat = getProjectTimelineEndBeat(project, range.endBeat);
+  const timelineEndBeat = getClipboardTimelineEndBeat(project, range.endBeat);
   const selectedTracks = project.tracks
     .map((track, index) => {
       const noteIds = noteIdsByTrackId.get(track.id);
@@ -297,7 +293,7 @@ export function buildAllTracksClipboardPayload(project: Project, range: BeatRang
     return null;
   }
 
-  const timelineEndBeat = getProjectTimelineEndBeat(project, range.endBeat);
+  const timelineEndBeat = getClipboardTimelineEndBeat(project, range.endBeat);
   return {
     type: NOTE_CLIPBOARD_TYPE,
     version: NOTE_CLIPBOARD_VERSION,

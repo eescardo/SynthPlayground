@@ -12,6 +12,7 @@ import {
   getNoteSelectionKey,
   getSelectionSourceTrackId,
   getSelectionBeatRange,
+  insertEmptyBeatRangeAcrossAllTracks,
   parseNoteClipboardPayload,
   serializeNoteClipboardPayload
 } from "@/lib/clipboard";
@@ -167,6 +168,40 @@ const createProject = (): Project => ({
   updatedAt: 0
 });
 
+const createFixedEndRampProject = (): Project => {
+  const baseProject = createProject();
+  return {
+    ...baseProject,
+    global: {
+      ...baseProject.global,
+      compositionEnd: { beat: 16 }
+    },
+    tracks: baseProject.tracks.map<Project["tracks"][number]>((track, index) =>
+      index === 0
+        ? {
+            ...track,
+            notes: [{ id: "note_tail", pitchStr: "C4", startBeat: 1, durationBeats: 1, velocity: 0.8 }],
+            macroValues: { macro_cutoff: 0 },
+            macroAutomations: {
+              macro_cutoff: {
+                macroId: "macro_cutoff",
+                expanded: true,
+                startValue: 0,
+                endValue: 1,
+                keyframes: []
+              }
+            }
+          }
+        : {
+            ...track,
+            notes: [],
+            macroValues: {} as Record<string, number>,
+            macroAutomations: {} as Project["tracks"][number]["macroAutomations"]
+          }
+    )
+  };
+};
+
 describe("noteClipboard", () => {
   it("serializes selected notes into clipboard-safe text and html", () => {
     const project = createProject();
@@ -238,7 +273,7 @@ describe("noteClipboard", () => {
       expect.objectContaining({ beat: 3, type: "whole", value: 0.7 }),
       expect.objectContaining({ beat: 4, type: "split", incomingValue: 0.5333333333333333, outgoingValue: 0.35 }),
       expect.objectContaining({ beat: 5, type: "whole", value: 0.5 }),
-      expect.objectContaining({ beat: 7, type: "split", incomingValue: 0.7, outgoingValue: 0.3333333333333333 })
+      expect.objectContaining({ beat: 7, type: "split", incomingValue: 0.7, outgoingValue: 0.24000000000000002 })
     ]);
   });
 
@@ -260,6 +295,60 @@ describe("noteClipboard", () => {
       startBeat: 2,
       durationBeats: 1
     });
+  });
+
+  it("copies automation using fixed composition end past the last note", () => {
+    const project = createFixedEndRampProject();
+
+    const payload = buildAllTracksClipboardPayload(project, { startBeat: 4, endBeat: 8, beatSpan: 4 });
+
+    expect(payload?.tracks[0].automationLanes[0]).toEqual({
+      macroId: "macro_cutoff",
+      startValue: 0.25,
+      endValue: 0.5,
+      keyframes: []
+    });
+  });
+
+  it("pastes automation using fixed composition end past the last note", () => {
+    const project = createFixedEndRampProject();
+    const payload = {
+      type: "synth-playground/note-selection" as const,
+      version: 1 as const,
+      beatSpan: 2,
+      tracks: [
+        {
+          sourceTrackIndex: 0,
+          sourcePatchId: "patch_1",
+          notes: [],
+          automationLanes: [
+            {
+              macroId: "macro_cutoff",
+              startValue: 0.75,
+              endValue: 0.875,
+              keyframes: []
+            }
+          ]
+        }
+      ]
+    };
+
+    const applied = applyNoteClipboardPaste(project, payload, "track_1", 4);
+
+    expect(applied.project.tracks[0]!.macroAutomations.macro_cutoff.keyframes).toEqual([
+      expect.objectContaining({
+        beat: 4,
+        type: "split",
+        incomingValue: 0.25,
+        outgoingValue: 0.75
+      }),
+      expect.objectContaining({
+        beat: 6,
+        type: "split",
+        incomingValue: 0.875,
+        outgoingValue: 0.375
+      })
+    ]);
   });
 
   it("explodes a clipboard payload into repeated note and automation segments", () => {
@@ -354,6 +443,81 @@ describe("noteClipboard", () => {
     ]);
   });
 
+  it("cuts automation using fixed composition end past the last note", () => {
+    const project = createFixedEndRampProject();
+
+    const next = cutBeatRangeAcrossAllTracks(project, {
+      startBeat: 4,
+      endBeat: 6,
+      beatSpan: 2
+    });
+
+    expect(next.global.compositionEnd).toEqual({ beat: 14 });
+    expect(next.tracks[0]!.macroAutomations.macro_cutoff.keyframes).toEqual([
+      expect.objectContaining({ beat: 4, type: "split", incomingValue: 0.25, outgoingValue: 0.375 })
+    ]);
+  });
+
+  it("pins composition end when deleting empty timeline tail", () => {
+    const baseProject = createProject();
+    const project = {
+      ...baseProject,
+      global: {
+        ...baseProject.global,
+        compositionEnd: { beat: 12 }
+      }
+    };
+
+    const next = cutBeatRangeAcrossAllTracks(project, {
+      startBeat: 9,
+      endBeat: 12,
+      beatSpan: 3
+    });
+
+    expect(next.global.compositionEnd).toEqual({ beat: 9 });
+  });
+
+  it("sets an explicit composition end when deleting empty timeline tail", () => {
+    const next = cutBeatRangeAcrossAllTracks(createProject(), {
+      startBeat: 9,
+      endBeat: 16,
+      beatSpan: 7
+    });
+
+    expect(next.global.compositionEnd).toEqual({ beat: 9 });
+  });
+
+  it("inserts empty time across all tracks and extends composition end", () => {
+    const baseProject = createProject();
+    const project = {
+      ...baseProject,
+      global: {
+        ...baseProject.global,
+        compositionEnd: { beat: 12 }
+      }
+    };
+
+    const next = insertEmptyBeatRangeAcrossAllTracks(project, {
+      startBeat: 4,
+      endBeat: 6,
+      beatSpan: 2
+    });
+
+    expect(next.global.compositionEnd).toEqual({ beat: 14 });
+    expect(next.tracks[0].notes.find((note) => note.id === "note_b")).toMatchObject({ startBeat: 7 });
+  });
+
+  it("sets an explicit composition end when inserting empty time before the implicit end", () => {
+    const next = insertEmptyBeatRangeAcrossAllTracks(createProject(), {
+      startBeat: 4,
+      endBeat: 6,
+      beatSpan: 2
+    });
+
+    expect(next.global.compositionEnd).toEqual({ beat: 18 });
+    expect(next.tracks[0].notes.find((note) => note.id === "note_b")).toMatchObject({ startBeat: 7 });
+  });
+
   it("erases automation in-place for selected note tracks without closing the timeline gap", () => {
     const project = createProject();
     const next = eraseAutomationInRangeForTracks(
@@ -374,6 +538,24 @@ describe("noteClipboard", () => {
     expect(next.tracks[1]!.macroAutomations.macro_cutoff.keyframes).toEqual(
       project.tracks[1]!.macroAutomations.macro_cutoff.keyframes
     );
+  });
+
+  it("erases automation using fixed composition end past the last note", () => {
+    const project = createFixedEndRampProject();
+    const next = eraseAutomationInRangeForTracks(
+      project,
+      {
+        startBeat: 4,
+        endBeat: 6,
+        beatSpan: 2
+      },
+      ["track_1"]
+    );
+
+    expect(next.tracks[0]!.macroAutomations.macro_cutoff.keyframes).toEqual([
+      expect.objectContaining({ beat: 4, type: "whole", value: 0.25 }),
+      expect.objectContaining({ beat: 6, type: "whole", value: 0.375 })
+    ]);
   });
 
   it("inserts clipboard contents by shifting later notes to the right", () => {
@@ -425,6 +607,61 @@ describe("noteClipboard", () => {
       { id: "loop_start_inside", kind: "start", beat: 2, repeatCount: undefined },
       { id: "loop_end_after", kind: "end", beat: 8, repeatCount: 2 }
     ]);
+  });
+
+  it("inserts automation gaps using fixed composition end past the last note", () => {
+    const project = createFixedEndRampProject();
+    const payload = {
+      type: "synth-playground/note-selection" as const,
+      version: 1 as const,
+      beatSpan: 2,
+      tracks: [
+        {
+          sourceTrackIndex: 0,
+          sourcePatchId: "patch_1",
+          notes: [],
+          automationLanes: []
+        }
+      ]
+    };
+
+    const applied = applyNoteClipboardInsert(project, payload, "track_1", 4);
+
+    expect(applied.project.tracks[0]!.macroAutomations.macro_cutoff.keyframes).toEqual([
+      expect.objectContaining({
+        beat: 4,
+        type: "split",
+        incomingValue: 0.2222222222222222,
+        outgoingValue: 0.25
+      }),
+      expect.objectContaining({
+        beat: 6,
+        type: "split",
+        incomingValue: 0.25,
+        outgoingValue: 0.3333333333333333
+      })
+    ]);
+  });
+
+  it("inserts all-track clipboard gaps and shifts fixed composition end", () => {
+    const project = createFixedEndRampProject();
+    const payload = {
+      type: "synth-playground/note-selection" as const,
+      version: 1 as const,
+      beatSpan: 2,
+      tracks: [
+        {
+          sourceTrackIndex: 0,
+          sourcePatchId: "patch_1",
+          notes: [],
+          automationLanes: []
+        }
+      ]
+    };
+
+    const applied = applyNoteClipboardInsertAllTracks(project, payload, 4);
+
+    expect(applied.project.global.compositionEnd).toEqual({ beat: 18 });
   });
 
   it("inserts clipboard contents across all tracks starting at the first track", () => {

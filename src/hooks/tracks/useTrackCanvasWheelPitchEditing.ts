@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
 import { findPitchRect, PitchRect } from "@/components/tracks/trackCanvasGeometry";
+import { consumeTimelinePopoverWheelEvent } from "@/components/tracks/trackCanvasWheelGuards";
 import { clamp } from "@/lib/numeric";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
 import type { Track } from "@/types/music";
@@ -51,6 +52,9 @@ export function useTrackCanvasWheelPitchEditing({
     };
 
     const onWheelNative = (event: WheelEvent) => {
+      if (consumeTimelinePopoverWheelEvent(event)) {
+        return;
+      }
       const now = performance.now();
       const isMostlyHorizontalScroll = Math.abs(event.deltaX) > Math.abs(event.deltaY);
       const { x, y } = getCanvasPoint(event.clientX, event.clientY);
