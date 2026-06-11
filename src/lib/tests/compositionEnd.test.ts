@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   clearCompositionEndBeat,
+  extendExplicitCompositionEndToLastNote,
   setCompositionEndBeat,
   shiftCompositionEndForInsertedRange,
   shiftCompositionEndForRemovedRange
@@ -99,5 +100,30 @@ describe("compositionEnd", () => {
     const project = createProject(8);
 
     expect(shiftCompositionEndForInsertedRange(project, 12, 2, 8).global.compositionEnd).toEqual({ beat: 8 });
+  });
+
+  it("extends stored explicit end beats when notes grow beyond them", () => {
+    const project = createProject(8);
+    const next = {
+      ...project,
+      tracks: [
+        {
+          ...project.tracks[0]!,
+          notes: [{ ...project.tracks[0]!.notes[0]!, startBeat: 10, durationBeats: 2 }]
+        }
+      ]
+    };
+
+    expect(extendExplicitCompositionEndToLastNote(next).global.compositionEnd).toEqual({ beat: 12 });
+  });
+
+  it("does not shrink stored explicit end beats when notes are removed", () => {
+    const project = createProject(8);
+    const next = {
+      ...project,
+      tracks: [{ ...project.tracks[0]!, notes: [] }]
+    };
+
+    expect(extendExplicitCompositionEndToLastNote(next).global.compositionEnd).toEqual({ beat: 8 });
   });
 });

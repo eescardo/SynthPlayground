@@ -20,6 +20,18 @@ export const setCompositionEndBeat = (project: Project, beat: number): Project =
   }
 });
 
+export const extendExplicitCompositionEndToLastNote = (project: Project): Project => {
+  const compositionEnd = project.global.compositionEnd;
+  if (!compositionEnd) {
+    return project;
+  }
+  const lastNoteEndBeat = getProjectLastNoteEndBeat(project);
+  if (lastNoteEndBeat <= compositionEnd.beat) {
+    return project;
+  }
+  return setCompositionEndBeat(project, lastNoteEndBeat);
+};
+
 export const shiftCompositionEndForInsertedRange = (
   project: Project,
   startBeat: number,

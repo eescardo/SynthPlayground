@@ -21,7 +21,11 @@ import { PitchPickerModal } from "@/components/composer/PitchPickerModal";
 import { RecordingDock } from "@/components/composer/RecordingDock";
 import { ExplodeSelectionDialog } from "@/components/ExplodeSelectionDialog";
 import { downloadJsonFile } from "@/lib/browserDownloads";
-import { clearCompositionEndBeat, setCompositionEndBeat } from "@/lib/compositionEnd";
+import {
+  clearCompositionEndBeat,
+  extendExplicitCompositionEndToLastNote,
+  setCompositionEndBeat
+} from "@/lib/compositionEnd";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import { TimelineActionsPopoverRequest, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { createId } from "@/lib/ids";
@@ -273,7 +277,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
       }
     ) => {
       setProjectHistory((prev) => {
-        const next = updater(prev.current);
+        const next = extendExplicitCompositionEndToLastNote(updater(prev.current));
         if (next === prev.current) {
           return prev;
         }
