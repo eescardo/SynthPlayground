@@ -1,5 +1,6 @@
 import { AutomationKeyframeRect } from "@/components/tracks/trackCanvasAutomationLane";
 import { BEAT_WIDTH, HEADER_WIDTH, TRACK_HEIGHT } from "@/components/tracks/trackCanvasConstants";
+import { NOTE_MIN_WIDTH, NOTE_VERTICAL_INSET } from "@/components/tracks/trackCanvasNoteGeometry";
 import { TrackLayout } from "@/components/tracks/trackCanvasTypes";
 import {
   ContentSelection,
@@ -116,9 +117,9 @@ export function resolveSelectedContentTabStopRect(
     return {
       ariaLabel: "Selected content",
       x: HEADER_WIDTH + selection.beatRange.startBeat * beatWidth,
-      y: layout.y + 14,
-      w: Math.max(8, (selection.beatRange.endBeat - selection.beatRange.startBeat) * beatWidth),
-      h: TRACK_HEIGHT - 28
+      y: layout.y + NOTE_VERTICAL_INSET,
+      w: Math.max(NOTE_MIN_WIDTH, (selection.beatRange.endBeat - selection.beatRange.startBeat) * beatWidth),
+      h: TRACK_HEIGHT - NOTE_VERTICAL_INSET * 2
     };
   }
 
@@ -142,8 +143,8 @@ export function resolveSelectedContentTabStopRect(
   return {
     ariaLabel: `Selected note ${note.pitchStr}`,
     x: HEADER_WIDTH + note.startBeat * beatWidth,
-    y: layout.y + 14,
-    w: Math.max(8, note.durationBeats * beatWidth),
-    h: TRACK_HEIGHT - 28
+    y: layout.y + NOTE_VERTICAL_INSET,
+    w: Math.max(NOTE_MIN_WIDTH, note.durationBeats * beatWidth),
+    h: TRACK_HEIGHT - NOTE_VERTICAL_INSET * 2
   };
 }

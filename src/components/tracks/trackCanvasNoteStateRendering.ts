@@ -1,5 +1,12 @@
 import { TRACK_CANVAS_COLORS } from "@/components/tracks/trackCanvasConstants";
-import { fillRoundedRect, NOTE_CORNER_RADIUS, strokeRoundedRect } from "@/components/tracks/trackCanvasNoteGeometry";
+import {
+  fillRoundedRect,
+  NOTE_BORDER_INSET,
+  NOTE_BORDER_WIDTH,
+  NOTE_CORNER_RADIUS,
+  NOTE_INNER_RADIUS,
+  strokeRoundedRect
+} from "@/components/tracks/trackCanvasNoteGeometry";
 
 interface NoteRenderRect {
   x: number;
@@ -25,13 +32,13 @@ export function drawTrackCanvasNoteState(
   if (state.hovered) {
     strokeRoundedRect(
       ctx,
-      x + 1,
-      y + 1,
-      Math.max(0, w - 2),
-      Math.max(0, h - 2),
-      Math.max(0, NOTE_CORNER_RADIUS - 1),
+      x + NOTE_BORDER_INSET,
+      y + NOTE_BORDER_INSET,
+      Math.max(0, w - NOTE_BORDER_WIDTH),
+      Math.max(0, h - NOTE_BORDER_WIDTH),
+      NOTE_INNER_RADIUS,
       TRACK_CANVAS_COLORS.noteHoverBorder,
-      2
+      NOTE_BORDER_WIDTH
     );
   }
 
@@ -42,13 +49,13 @@ export function drawTrackCanvasNoteState(
     }
     strokeRoundedRect(
       ctx,
-      x + 1,
-      y + 1,
-      Math.max(0, w - 2),
-      Math.max(0, h - 2),
-      Math.max(0, NOTE_CORNER_RADIUS - 1),
+      x + NOTE_BORDER_INSET,
+      y + NOTE_BORDER_INSET,
+      Math.max(0, w - NOTE_BORDER_WIDTH),
+      Math.max(0, h - NOTE_BORDER_WIDTH),
+      NOTE_INNER_RADIUS,
       state.focused ? TRACK_CANVAS_COLORS.noteSelectedFocusBorder : TRACK_CANVAS_COLORS.noteSelectedBorder,
-      2
+      NOTE_BORDER_WIDTH
     );
     if (state.focused) {
       ctx.setLineDash([]);
@@ -59,13 +66,13 @@ export function drawTrackCanvasNoteState(
     fillRoundedRect(ctx, x, y, w, h, NOTE_CORNER_RADIUS, TRACK_CANVAS_COLORS.notePlacementOverlay);
     strokeRoundedRect(
       ctx,
-      x + 1,
-      y + 1,
-      Math.max(0, w - 2),
-      Math.max(0, h - 2),
-      Math.max(0, NOTE_CORNER_RADIUS - 1),
+      x + NOTE_BORDER_INSET,
+      y + NOTE_BORDER_INSET,
+      Math.max(0, w - NOTE_BORDER_WIDTH),
+      Math.max(0, h - NOTE_BORDER_WIDTH),
+      NOTE_INNER_RADIUS,
       TRACK_CANVAS_COLORS.notePlacementBorder,
-      2
+      NOTE_BORDER_WIDTH
     );
   }
 }

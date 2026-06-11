@@ -16,7 +16,13 @@ import {
   TRACK_HEIGHT
 } from "@/components/tracks/trackCanvasConstants";
 import { type LoopMarkerRect, type MuteRect, type PitchRect } from "@/components/tracks/trackCanvasGeometry";
-import { drawNoteBody, fillRoundedRect } from "@/components/tracks/trackCanvasNoteGeometry";
+import {
+  drawNoteBody,
+  fillRoundedRect,
+  NOTE_LABEL_X_OFFSET,
+  NOTE_MIN_WIDTH,
+  NOTE_VERTICAL_INSET
+} from "@/components/tracks/trackCanvasNoteGeometry";
 import {
   resolveTrackCanvasNoteFill,
   resolveTrackCanvasNoteLabelFill,
@@ -356,9 +362,9 @@ function drawTrackContent(
         ? Math.max(note.durationBeats, playheadBeat - activeRecord.startBeat, gridBeats)
         : note.durationBeats;
       const noteX = HEADER_WIDTH + note.startBeat * beatWidth;
-      const noteW = Math.max(8, visualDurationBeats * beatWidth);
-      const noteY = y + 14;
-      const noteH = TRACK_HEIGHT - 28;
+      const noteW = Math.max(NOTE_MIN_WIDTH, visualDurationBeats * beatWidth);
+      const noteY = y + NOTE_VERTICAL_INSET;
+      const noteH = TRACK_HEIGHT - NOTE_VERTICAL_INSET * 2;
       const overlaps = overlapNoteIds.has(note.id);
       const isHovered = hoveredNote?.trackId === track.id && hoveredNote.noteId === note.id;
       const noteSelected = selectedNoteKeys?.has(getNoteSelectionKey(track.id, note.id)) ?? false;
@@ -428,7 +434,7 @@ function drawTrackContent(
         lineHeights.reduce((sum, lineHeight) => sum + lineHeight, 0) + lineGap * (labelLines.length - 1);
       const labelPaddingX = 3;
       const labelPaddingY = 2;
-      const labelX = centerLabel ? noteX + Math.max(0, (noteW - labelWidth) * 0.5) : noteX + 6;
+      const labelX = centerLabel ? noteX + Math.max(0, (noteW - labelWidth) * 0.5) : noteX + NOTE_LABEL_X_OFFSET;
       const labelY = noteY + Math.max(4, (noteH - labelHeight) * 0.5);
       const labelCenterX = labelX + labelWidth * 0.5;
       const labelFill = resolveTrackCanvasNoteLabelFill(noteFill, TRACK_CANVAS_COLORS.noteLabel);
@@ -475,7 +481,7 @@ function drawTrackContent(
       const overlapX = HEADER_WIDTH + overlap.startBeat * beatWidth;
       const overlapW = Math.max(2, (overlap.endBeat - overlap.startBeat) * beatWidth);
       ctx.fillStyle = TRACK_CANVAS_COLORS.overlapRange;
-      ctx.fillRect(overlapX, y + 14, overlapW, TRACK_HEIGHT - 28);
+      ctx.fillRect(overlapX, y + NOTE_VERTICAL_INSET, overlapW, TRACK_HEIGHT - NOTE_VERTICAL_INSET * 2);
     }
 
     if (ghostPreviewNote?.trackId === track.id) {
