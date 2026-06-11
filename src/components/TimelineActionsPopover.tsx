@@ -156,7 +156,7 @@ function clampRepeatCount(value: number): number {
 
 const REPEAT_WHEEL_STEP_DELTA = 96;
 const COMPOSITION_END_FOLLOW_TOOLTIP =
-  "When enabled, the end marker follows only the note with the latest end time. Timeline insert/delete can make a one-time end position override until that latest note changes.";
+  "When enabled, the end of composition follows the note with the latest end time. Timeline insert/delete can override until last note data changes.";
 
 function consumeReactWheelEvent(event: ReactWheelEvent<HTMLElement>) {
   event.preventDefault();
