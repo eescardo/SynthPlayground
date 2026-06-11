@@ -270,13 +270,18 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const commitProjectChange = useCallback(
     (
       updater: (current: Project) => Project,
-      options?: { actionKey?: string; coalesce?: boolean; skipHistory?: boolean }
+      options?: {
+        actionKey?: string;
+        coalesce?: boolean;
+        preserveFollowCompositionEndOverride?: boolean;
+        skipHistory?: boolean;
+      }
     ) => {
       setProjectHistory((prev) => {
         const next = clearFollowCompositionEndOverrideAfterLastNoteEndChange(
           prev.current,
           updater(prev.current),
-          options?.actionKey
+          options?.preserveFollowCompositionEndOverride
         );
         if (next === prev.current) {
           return prev;

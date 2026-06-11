@@ -84,7 +84,7 @@ describe("compositionEnd", () => {
     ).toBeUndefined();
   });
 
-  it("keeps a follow override after explicit timeline edits", () => {
+  it("keeps a follow override when explicitly requested for timeline edits", () => {
     const previous = createProject();
     const next = {
       ...previous,
@@ -94,9 +94,8 @@ describe("compositionEnd", () => {
       }
     };
 
-    expect(
-      clearFollowCompositionEndOverrideAfterLastNoteEndChange(previous, next, "timeline:cut:all-tracks").global
-        .compositionEnd
-    ).toEqual({ mode: "follow", beat: 6 });
+    expect(clearFollowCompositionEndOverrideAfterLastNoteEndChange(previous, next, true).global.compositionEnd).toEqual(
+      { mode: "follow", beat: 6 }
+    );
   });
 });

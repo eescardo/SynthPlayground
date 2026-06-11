@@ -63,10 +63,10 @@ export const shiftCompositionEndForRemovedRange = (
 export const clearFollowCompositionEndOverrideAfterLastNoteEndChange = (
   previousProject: Project,
   nextProject: Project,
-  actionKey?: string
+  preserveFollowOverride = false
 ): Project => {
   if (
-    actionKey?.startsWith("timeline:") ||
+    preserveFollowOverride ||
     previousProject.global.compositionEnd?.mode !== "follow" ||
     nextProject.global.compositionEnd?.mode !== "follow" ||
     getProjectLastNoteEndBeat(previousProject) === getProjectLastNoteEndBeat(nextProject)
