@@ -329,7 +329,11 @@ function NumberWheel<ControlId extends string>({
 function LoopRepeatControl({ repeatCount, onUpdateRepeatCount }: LoopRepeatControlProps) {
   const commitRepeatCount = useCallback(
     (nextValue: string) => {
-      const parsed = Number(nextValue);
+      const trimmedValue = nextValue.trim();
+      if (trimmedValue.length === 0) {
+        return;
+      }
+      const parsed = Number(trimmedValue);
       if (!Number.isFinite(parsed)) {
         return;
       }

@@ -13,6 +13,8 @@ describe("music timing beat names", () => {
   });
 
   it("rejects invalid beat names", () => {
+    expect(parseBeatName("")).toBeNull();
+    expect(parseBeatName("   ")).toBeNull();
     expect(parseBeatName("end")).toBeNull();
   });
 });

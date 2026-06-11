@@ -33,7 +33,11 @@ export const formatBeatName = (zeroBasedBeat: number, gridBeats = 0.25): string 
 };
 
 export const parseBeatName = (beatName: string): number | null => {
-  const parsed = Number(beatName);
+  const trimmedBeatName = beatName.trim();
+  if (trimmedBeatName.length === 0) {
+    return null;
+  }
+  const parsed = Number(trimmedBeatName);
   if (!Number.isFinite(parsed)) {
     return null;
   }
