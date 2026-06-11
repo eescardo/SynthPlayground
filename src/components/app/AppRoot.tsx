@@ -357,6 +357,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const playbackEndBeat = useMemo(() => {
     return getProjectTimelineEndBeat(project);
   }, [project]);
+  const previousPlaybackEndBeatRef = useRef(playbackEndBeat);
   const clampTimelineBeat = useCallback(
     (beat: number) => Math.min(playbackEndBeat, Math.max(0, beat)),
     [playbackEndBeat]
@@ -622,6 +623,22 @@ export function AppRoot({ children }: { children: ReactNode }) {
       return next === prev.current ? prev : { ...prev, current: freezeProjectSnapshot(next) };
     });
   }, [project, setProjectHistory]);
+
+  useEffect(() => {
+    const previousEndBeat = previousPlaybackEndBeatRef.current;
+    previousPlaybackEndBeatRef.current = playbackEndBeat;
+    setTimelineActionsPopover((current) => {
+      if (!current) {
+        return current;
+      }
+      const lockedToCompositionEnd =
+        current.anchor === "composition-end" || Math.abs(current.beat - previousEndBeat) < 1e-9;
+      if (!lockedToCompositionEnd || Math.abs(current.beat - playbackEndBeat) < 1e-9) {
+        return current;
+      }
+      return { ...current, beat: playbackEndBeat, anchor: "composition-end" };
+    });
+  }, [playbackEndBeat, setTimelineActionsPopover]);
 
   const setContentSelectionWithPopoverBehavior = useCallback(
     (selection: ContentSelection, options?: { keepCollapsed?: boolean }) => {
