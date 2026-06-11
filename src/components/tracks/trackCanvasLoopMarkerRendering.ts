@@ -1,5 +1,5 @@
 import type { MutableRefObject } from "react";
-import { HEADER_WIDTH, RULER_HEIGHT, TRACK_CANVAS_COLORS } from "@/components/tracks/trackCanvasConstants";
+import { BEAT_WIDTH, HEADER_WIDTH, RULER_HEIGHT, TRACK_CANVAS_COLORS } from "@/components/tracks/trackCanvasConstants";
 import {
   LOOP_MARKER_BAR_WIDTH,
   LOOP_MARKER_DIFFUSION_WIDTH,
@@ -45,6 +45,9 @@ const LOOP_INTENSITY_COLORS = [
   TRACK_CANVAS_COLORS.loopIntensity5
 ] as const;
 
+const END_LOOP_LABEL_PADDING_X = LOOP_MARKER_LABEL_PADDING_X * 0.45;
+const END_LOOP_MIN_LABEL_WIDTH = 13;
+
 function withAlpha(hexColor: string, alpha: number): string {
   const match = /^#([0-9a-f]{6})$/i.exec(hexColor);
   if (!match) {
@@ -69,12 +72,12 @@ function getLoopMarkerVisualGeometry(
   const labelText = repeatCount === undefined ? "" : String(repeatCount);
   const labelWidth =
     kind === "end" && labelText
-      ? Math.max(18, Math.ceil(ctx.measureText(labelText).width) + LOOP_MARKER_LABEL_PADDING_X * 2)
+      ? Math.max(END_LOOP_MIN_LABEL_WIDTH, Math.ceil(ctx.measureText(labelText).width) + END_LOOP_LABEL_PADDING_X * 2)
       : 0;
   const labelHeight = LOOP_MARKER_LABEL_HEIGHT;
   const notchWidth = LOOP_MARKER_NOTCH_WIDTH;
   const notchHeight = LOOP_MARKER_NOTCH_HEIGHT;
-  const labelX = stemX - labelWidth + 1;
+  const labelX = stemX - labelWidth;
   const hitLeft = kind === "start" ? stemX - LOOP_MARKER_DIFFUSION_WIDTH : labelX - notchWidth - LOOP_MARKER_HIT_BUFFER;
   const hitRight =
     kind === "start"
@@ -133,9 +136,9 @@ function drawStartLoopMarkerShape(ctx: CanvasRenderingContext2D, geometry: LoopM
 }
 
 function drawEndLoopMarkerShape(ctx: CanvasRenderingContext2D, geometry: LoopMarkerVisualGeometry) {
-  const { centerY, labelHeight, labelX, notchWidth, stemWidth, stemX } = geometry;
+  const { centerY, labelHeight, labelX, notchWidth, stemX } = geometry;
   const labelY = centerY - labelHeight * 0.5;
-  const labelRightX = stemX + stemWidth;
+  const labelRightX = stemX;
   ctx.moveTo(labelRightX, labelY);
   ctx.lineTo(labelX, labelY);
   ctx.lineTo(labelX - notchWidth, centerY);
@@ -147,6 +150,7 @@ function drawEndLoopMarkerShape(ctx: CanvasRenderingContext2D, geometry: LoopMar
 function drawLoopMarker(
   ctx: CanvasRenderingContext2D,
   x: number,
+  beatWidth: number,
   height: number,
   kind: "start" | "end",
   color: string,
@@ -188,7 +192,9 @@ function drawLoopMarker(
     ctx.fillStyle = TRACK_CANVAS_COLORS.loopMarkerText;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("x", geometry.labelX - geometry.notchWidth * 0.2, geometry.centerY + 0.5);
+    if (beatWidth > BEAT_WIDTH * 0.5) {
+      ctx.fillText("x", geometry.labelX - geometry.notchWidth * 0.06, geometry.centerY + 0.5);
+    }
     ctx.fillText(String(repeatCount), geometry.labelX + geometry.labelWidth * 0.5, geometry.centerY + 0.5);
     ctx.textAlign = "start";
     ctx.textBaseline = "alphabetic";
@@ -261,8 +267,8 @@ function getHoveredLoopRegion(
 function drawLoopBracket(ctx: CanvasRenderingContext2D, region: MatchedLoopRegion, color: string, beatWidth: number) {
   ctx.font = "bold 9px ui-monospace, SFMono-Regular, Menlo, monospace";
   const endLabelWidth = Math.max(
-    18,
-    Math.ceil(ctx.measureText(String(region.repeatCount)).width) + LOOP_MARKER_LABEL_PADDING_X * 2
+    END_LOOP_MIN_LABEL_WIDTH,
+    Math.ceil(ctx.measureText(String(region.repeatCount)).width) + END_LOOP_LABEL_PADDING_X * 2
   );
   const startX =
     HEADER_WIDTH + region.startBeat * beatWidth + LOOP_MARKER_BAR_WIDTH * 0.5 + LOOP_MARKER_NOTCH_WIDTH + 6;
@@ -319,7 +325,7 @@ export function drawLoopMarkers(ctx: CanvasRenderingContext2D, options: DrawLoop
       selectedLoopMarker.beat === marker.beat;
     ctx.font = "bold 9px ui-monospace, SFMono-Regular, Menlo, monospace";
     const markerGeometry = getLoopMarkerVisualGeometry(ctx, markerX, marker.kind, marker.repeatCount);
-    drawLoopMarker(ctx, markerX, height, marker.kind, color, isHovered || isSelected, marker.repeatCount);
+    drawLoopMarker(ctx, markerX, beatWidth, height, marker.kind, color, isHovered || isSelected, marker.repeatCount);
     loopMarkerRectsRef.current.push({
       markerId: marker.markerId,
       kind: marker.kind,
