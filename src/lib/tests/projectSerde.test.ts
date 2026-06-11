@@ -80,7 +80,7 @@ describe("projectSerde", () => {
     expect("ignored" in normalized.tracks[0].macroValues).toBe(false);
   });
 
-  it("normalizeProject preserves explicit composition end beats from legacy mode payloads", () => {
+  it("normalizeProject maps PR-intermediate composition end mode payloads to explicit beats", () => {
     const project = structuredClone(createDefaultProject()) as unknown as { global: Record<string, unknown> };
     project.global.compositionEnd = { mode: "follow", beat: 12 };
 

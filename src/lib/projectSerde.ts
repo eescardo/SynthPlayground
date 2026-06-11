@@ -219,6 +219,7 @@ export const normalizeProject = (raw: unknown): Project => {
   const gridBeats = asFiniteNumber(globalRaw.gridBeats, 0.25);
   const loopRaw = Array.isArray(globalRaw.loop) ? globalRaw.loop : isObject(globalRaw.loop) ? [globalRaw.loop] : [];
   const compositionEndRaw = isObject(globalRaw.compositionEnd) ? globalRaw.compositionEnd : null;
+  // PR #97 briefly stored compositionEnd as { mode, beat }; normalize that in-flight shape to the final { beat } model.
   const compositionEndBeat = asOptionalFiniteNumber(compositionEndRaw?.beat);
   const compositionEnd =
     compositionEndBeat !== undefined
