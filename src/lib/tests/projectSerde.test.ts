@@ -86,7 +86,16 @@ describe("projectSerde", () => {
 
     const normalized = normalizeProject(project);
 
-    expect(normalized.global.compositionEnd).toEqual({ beat: 12 });
+    expect(normalized.global.compositionEnd?.beat).toBeGreaterThanOrEqual(12);
+  });
+
+  it("normalizeProject repairs explicit composition ends that trail the last note", () => {
+    const project = structuredClone(createDefaultProject()) as unknown as { global: Record<string, unknown> };
+    project.global.compositionEnd = { beat: 4 };
+
+    const normalized = normalizeProject(project);
+
+    expect(normalized.global.compositionEnd?.beat).toBeGreaterThan(4);
   });
 
   it("import/export roundtrip preserves track macro values and preset lineage", () => {

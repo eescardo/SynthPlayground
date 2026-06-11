@@ -69,6 +69,21 @@ describe("projectLifecycle", () => {
     });
   });
 
+  it("snapshots explicit composition ends at least as far as the last note", () => {
+    vi.spyOn(Date, "now").mockReturnValue(1234);
+    const project = createProject({
+      global: { ...createProject().global, compositionEnd: { beat: 4 } },
+      tracks: [
+        {
+          ...createProject().tracks[0]!,
+          notes: [{ id: "tail", pitchStr: "C4", startBeat: 10, durationBeats: 2, velocity: 0.8 }]
+        }
+      ]
+    });
+
+    expect(createProjectSnapshot(project).global.compositionEnd).toEqual({ beat: 12 });
+  });
+
   it("creates a uniquely named empty project from reserved names", () => {
     vi.spyOn(Date, "now").mockReturnValue(1234);
 

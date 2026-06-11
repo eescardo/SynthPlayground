@@ -30,11 +30,7 @@ import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import { TimelineActionsPopoverRequest, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { createId } from "@/lib/ids";
 import { expandLoopRegionToNotes, getSanitizedLoopMarkers, getUniqueMatchedLoopRegionAtBeat } from "@/lib/looping";
-import {
-  getProjectLastNoteEndBeat,
-  getProjectTimelineEndBeat,
-  getTrackPreviewStateAtBeat
-} from "@/lib/macroAutomation";
+import { getProjectTimelineEndBeat, getTrackPreviewStateAtBeat } from "@/lib/macroAutomation";
 import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import {
   BeatRange,
@@ -273,6 +269,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
       options?: {
         actionKey?: string;
         coalesce?: boolean;
+        onCommitted?: (project: Project) => void;
         skipHistory?: boolean;
       }
     ) => {
@@ -284,6 +281,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         }
         const history = current === prev.current ? prev : { ...prev, current: freezeProjectSnapshot(current) };
         const frozenNext = freezeProjectSnapshot(next);
+        options?.onCommitted?.(frozenNext);
         if (options?.skipHistory) {
           return {
             ...history,
@@ -753,10 +751,13 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const updateCompositionEndBeat = useCallback(
     (beat: number) => {
       const previousEndBeat = playbackEndBeat;
-      const nextPopoverBeat = Math.max(getProjectLastNoteEndBeat(project), beat);
+      let nextPopoverBeat = previousEndBeat;
       commitProjectChange((current) => setCompositionEndBeat(current, beat), {
         actionKey: "composition-end:beat",
-        coalesce: true
+        coalesce: true,
+        onCommitted: (nextProject) => {
+          nextPopoverBeat = getProjectTimelineEndBeat(nextProject);
+        }
       });
       setTimelineActionsPopover((current) => {
         if (!current) {
@@ -767,7 +768,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         return lockedToCompositionEnd ? { ...current, beat: nextPopoverBeat, anchor: "composition-end" } : current;
       });
     },
-    [commitProjectChange, playbackEndBeat, project, setTimelineActionsPopover]
+    [commitProjectChange, playbackEndBeat, setTimelineActionsPopover]
   );
 
   const requestTimelineActionsPopover = useCallback(
