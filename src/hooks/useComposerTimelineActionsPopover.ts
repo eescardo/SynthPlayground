@@ -16,7 +16,7 @@ type CommitProjectChange = (
   }
 ) => void;
 
-interface UseComposerTimelinePopoverOptions {
+interface UseComposerTimelineActionsPopoverOptions {
   closeExplodeSelectionDialog: () => void;
   commitProjectChange: CommitProjectChange;
   playbackEndBeat: number;
@@ -29,7 +29,7 @@ interface UseComposerTimelinePopoverOptions {
   timelineActionsPopover: TimelineActionsPopoverRequest | null;
 }
 
-export function useComposerTimelinePopover({
+export function useComposerTimelineActionsPopover({
   closeExplodeSelectionDialog,
   commitProjectChange,
   playbackEndBeat,
@@ -40,7 +40,7 @@ export function useComposerTimelinePopover({
   setTimelineActionsPopover,
   syncNoteClipboardPayload,
   timelineActionsPopover
-}: UseComposerTimelinePopoverOptions) {
+}: UseComposerTimelineActionsPopoverOptions) {
   const timelineMarkersAtBeat = useMemo(
     () =>
       timelineActionsPopover

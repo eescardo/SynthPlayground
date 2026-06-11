@@ -73,7 +73,7 @@ import { useProjectAudioActions } from "@/hooks/useProjectAudioActions";
 import { useTrackMacroPanelState } from "@/hooks/useTrackMacroPanelState";
 import { useRecordingController } from "@/hooks/useRecordingController";
 import { useSelectionClipboardActions } from "@/hooks/useSelectionClipboardActions";
-import { useComposerTimelinePopover } from "@/hooks/useComposerTimelinePopover";
+import { useComposerTimelineActionsPopover } from "@/hooks/useComposerTimelineActionsPopover";
 import { usePitchPickerHotkeys } from "@/hooks/usePitchPickerHotkeys";
 import { useHardwareNavigation } from "@/hooks/useHardwareNavigation";
 import { useHardwareNavigationPreview } from "@/hooks/useHardwareNavigationPreview";
@@ -710,7 +710,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     startMarkerAtTimelineBeat,
     toggleCompositionEndFollow,
     updateCompositionEndBeat
-  } = useComposerTimelinePopover({
+  } = useComposerTimelineActionsPopover({
     closeExplodeSelectionDialog,
     commitProjectChange,
     playbackEndBeat,
