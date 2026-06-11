@@ -126,4 +126,23 @@ describe("compositionEnd", () => {
 
     expect(extendExplicitCompositionEndToLastNote(next).global.compositionEnd).toEqual({ beat: 8 });
   });
+
+  it("can materialize a note-extended end before removing the extending note", () => {
+    const visibleExtendedProject = {
+      ...createProject(8),
+      tracks: [
+        {
+          ...createProject(8).tracks[0]!,
+          notes: [{ id: "tail", pitchStr: "C4", startBeat: 10, durationBeats: 2, velocity: 0.8 }]
+        }
+      ]
+    };
+    const materialized = extendExplicitCompositionEndToLastNote(visibleExtendedProject);
+    const afterDelete = {
+      ...materialized,
+      tracks: [{ ...materialized.tracks[0]!, notes: [] }]
+    };
+
+    expect(extendExplicitCompositionEndToLastNote(afterDelete).global.compositionEnd).toEqual({ beat: 12 });
+  });
 });

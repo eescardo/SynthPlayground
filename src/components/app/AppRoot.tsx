@@ -277,18 +277,20 @@ export function AppRoot({ children }: { children: ReactNode }) {
       }
     ) => {
       setProjectHistory((prev) => {
-        const next = extendExplicitCompositionEndToLastNote(updater(prev.current));
+        const current = extendExplicitCompositionEndToLastNote(prev.current);
+        const next = extendExplicitCompositionEndToLastNote(updater(current));
         if (next === prev.current) {
           return prev;
         }
+        const history = current === prev.current ? prev : { ...prev, current: freezeProjectSnapshot(current) };
         const frozenNext = freezeProjectSnapshot(next);
         if (options?.skipHistory) {
           return {
-            ...prev,
+            ...history,
             current: frozenNext
           };
         }
-        return pushHistory(prev, frozenNext, options);
+        return pushHistory(history, frozenNext, options);
       });
     },
     [setProjectHistory]
