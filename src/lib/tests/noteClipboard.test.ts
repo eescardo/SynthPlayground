@@ -174,7 +174,7 @@ const createFixedEndRampProject = (): Project => {
     ...baseProject,
     global: {
       ...baseProject.global,
-      compositionEnd: { mode: "fixed", beat: 16 }
+      compositionEnd: { beat: 16 }
     },
     tracks: baseProject.tracks.map<Project["tracks"][number]>((track, index) =>
       index === 0
@@ -452,7 +452,7 @@ describe("noteClipboard", () => {
       beatSpan: 2
     });
 
-    expect(next.global.compositionEnd).toEqual({ mode: "fixed", beat: 14 });
+    expect(next.global.compositionEnd).toEqual({ beat: 14 });
     expect(next.tracks[0]!.macroAutomations.macro_cutoff.keyframes).toEqual([
       expect.objectContaining({ beat: 4, type: "split", incomingValue: 0.25, outgoingValue: 0.375 })
     ]);
@@ -464,7 +464,7 @@ describe("noteClipboard", () => {
       ...baseProject,
       global: {
         ...baseProject.global,
-        compositionEnd: { mode: "fixed" as const, beat: 12 }
+        compositionEnd: { beat: 12 }
       }
     };
 
@@ -474,17 +474,17 @@ describe("noteClipboard", () => {
       beatSpan: 3
     });
 
-    expect(next.global.compositionEnd).toEqual({ mode: "fixed", beat: 9 });
+    expect(next.global.compositionEnd).toEqual({ beat: 9 });
   });
 
-  it("keeps a follow composition end override when deleting empty timeline tail", () => {
+  it("sets an explicit composition end when deleting empty timeline tail", () => {
     const next = cutBeatRangeAcrossAllTracks(createProject(), {
       startBeat: 9,
       endBeat: 16,
       beatSpan: 7
     });
 
-    expect(next.global.compositionEnd).toEqual({ mode: "follow", beat: 9 });
+    expect(next.global.compositionEnd).toEqual({ beat: 9 });
   });
 
   it("inserts empty time across all tracks and extends composition end", () => {
@@ -493,7 +493,7 @@ describe("noteClipboard", () => {
       ...baseProject,
       global: {
         ...baseProject.global,
-        compositionEnd: { mode: "fixed" as const, beat: 12 }
+        compositionEnd: { beat: 12 }
       }
     };
 
@@ -503,18 +503,18 @@ describe("noteClipboard", () => {
       beatSpan: 2
     });
 
-    expect(next.global.compositionEnd).toEqual({ mode: "fixed", beat: 14 });
+    expect(next.global.compositionEnd).toEqual({ beat: 14 });
     expect(next.tracks[0].notes.find((note) => note.id === "note_b")).toMatchObject({ startBeat: 7 });
   });
 
-  it("keeps a follow composition end override when inserting empty time before the implicit end", () => {
+  it("sets an explicit composition end when inserting empty time before the implicit end", () => {
     const next = insertEmptyBeatRangeAcrossAllTracks(createProject(), {
       startBeat: 4,
       endBeat: 6,
       beatSpan: 2
     });
 
-    expect(next.global.compositionEnd).toEqual({ mode: "follow", beat: 18 });
+    expect(next.global.compositionEnd).toEqual({ beat: 18 });
     expect(next.tracks[0].notes.find((note) => note.id === "note_b")).toMatchObject({ startBeat: 7 });
   });
 
@@ -661,7 +661,7 @@ describe("noteClipboard", () => {
 
     const applied = applyNoteClipboardInsertAllTracks(project, payload, 4);
 
-    expect(applied.project.global.compositionEnd).toEqual({ mode: "fixed", beat: 18 });
+    expect(applied.project.global.compositionEnd).toEqual({ beat: 18 });
   });
 
   it("inserts clipboard contents across all tracks starting at the first track", () => {

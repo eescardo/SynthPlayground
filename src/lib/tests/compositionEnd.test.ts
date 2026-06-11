@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { clearFollowCompositionEndOverrideAfterLastNoteEndChange } from "@/lib/compositionEnd";
+import {
+  clearCompositionEndBeat,
+  setCompositionEndBeat,
+  shiftCompositionEndForInsertedRange,
+  shiftCompositionEndForRemovedRange
+} from "@/lib/compositionEnd";
 import type { Project, Track } from "@/types/music";
 import type { Patch } from "@/types/patch";
 
@@ -38,7 +43,7 @@ const createPatch = (): Patch => ({
   layout: { nodes: [] }
 });
 
-const createProject = (): Project => ({
+const createProject = (compositionEndBeat?: number): Project => ({
   id: "project_composition_end_test",
   name: "Composition End Test",
   global: {
@@ -46,7 +51,7 @@ const createProject = (): Project => ({
     tempo: 120,
     meter: "4/4",
     gridBeats: 1,
-    compositionEnd: { mode: "follow", beat: 8 },
+    compositionEnd: compositionEndBeat === undefined ? undefined : { beat: compositionEndBeat },
     loop: []
   },
   tracks: [createTrack()],
@@ -67,35 +72,32 @@ const createProject = (): Project => ({
 });
 
 describe("compositionEnd", () => {
-  it("clears a follow override after the last note end is edited", () => {
-    const previous = createProject();
-    const next = {
-      ...previous,
-      tracks: [
-        {
-          ...previous.tracks[0]!,
-          notes: [{ ...previous.tracks[0]!.notes[0]!, durationBeats: 4 }]
-        }
-      ]
-    };
+  it("sets and clears an explicit composition end beat", () => {
+    const withEnd = setCompositionEndBeat(createProject(), 8);
 
-    expect(
-      clearFollowCompositionEndOverrideAfterLastNoteEndChange(previous, next).global.compositionEnd
-    ).toBeUndefined();
+    expect(withEnd.global.compositionEnd).toEqual({ beat: 8 });
+    expect(clearCompositionEndBeat(withEnd).global.compositionEnd).toBeUndefined();
   });
 
-  it("keeps a follow override when explicitly requested for timeline edits", () => {
-    const previous = createProject();
-    const next = {
-      ...previous,
-      global: {
-        ...previous.global,
-        compositionEnd: { mode: "follow" as const, beat: 6 }
-      }
-    };
+  it("does not set the explicit end before the last note end", () => {
+    expect(setCompositionEndBeat(createProject(), 2).global.compositionEnd).toEqual({ beat: 4 });
+  });
 
-    expect(clearFollowCompositionEndOverrideAfterLastNoteEndChange(previous, next, true).global.compositionEnd).toEqual(
-      { mode: "follow", beat: 6 }
-    );
+  it("materializes an explicit end when timeline insertion crosses the implicit end", () => {
+    const next = shiftCompositionEndForInsertedRange(createProject(), 4, 2, 8);
+
+    expect(next.global.compositionEnd).toEqual({ beat: 10 });
+  });
+
+  it("materializes an explicit end when timeline deletion trims the implicit tail", () => {
+    const next = shiftCompositionEndForRemovedRange(createProject(), 6, 8, 8);
+
+    expect(next.global.compositionEnd).toEqual({ beat: 6 });
+  });
+
+  it("preserves explicit end beats when edits happen after the end", () => {
+    const project = createProject(8);
+
+    expect(shiftCompositionEndForInsertedRange(project, 12, 2, 8).global.compositionEnd).toEqual({ beat: 8 });
   });
 });

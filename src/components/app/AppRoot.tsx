@@ -21,11 +21,7 @@ import { PitchPickerModal } from "@/components/composer/PitchPickerModal";
 import { RecordingDock } from "@/components/composer/RecordingDock";
 import { ExplodeSelectionDialog } from "@/components/ExplodeSelectionDialog";
 import { downloadJsonFile } from "@/lib/browserDownloads";
-import {
-  clearCompositionEndOverride,
-  clearFollowCompositionEndOverrideAfterLastNoteEndChange,
-  setFixedCompositionEndBeat
-} from "@/lib/compositionEnd";
+import { clearCompositionEndBeat, setCompositionEndBeat } from "@/lib/compositionEnd";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import { TimelineActionsPopoverRequest, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { createId } from "@/lib/ids";
@@ -273,16 +269,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
       options?: {
         actionKey?: string;
         coalesce?: boolean;
-        preserveFollowCompositionEndOverride?: boolean;
         skipHistory?: boolean;
       }
     ) => {
       setProjectHistory((prev) => {
-        const next = clearFollowCompositionEndOverrideAfterLastNoteEndChange(
-          prev.current,
-          updater(prev.current),
-          options?.preserveFollowCompositionEndOverride
-        );
+        const next = updater(prev.current);
         if (next === prev.current) {
           return prev;
         }
@@ -738,8 +729,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
       commitProjectChange(
         (current) =>
           follow
-            ? clearCompositionEndOverride(current)
-            : setFixedCompositionEndBeat(current, getProjectTimelineEndBeat(current)),
+            ? clearCompositionEndBeat(current)
+            : setCompositionEndBeat(current, getProjectTimelineEndBeat(current)),
         { actionKey: "composition-end:follow-toggle" }
       );
     },
@@ -750,7 +741,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     (beat: number) => {
       const previousEndBeat = playbackEndBeat;
       const nextPopoverBeat = Math.max(getProjectLastNoteEndBeat(project), beat);
-      commitProjectChange((current) => setFixedCompositionEndBeat(current, beat), {
+      commitProjectChange((current) => setCompositionEndBeat(current, beat), {
         actionKey: "composition-end:beat",
         coalesce: true
       });
@@ -1344,7 +1335,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         compositionEndAtTimelineBeat:
           timelineActionsPopover?.anchor === "composition-end" ||
           (timelineActionsPopover !== null && Math.abs(timelineActionsPopover.beat - playbackEndBeat) < 1e-9),
-        compositionEndFollowsLastNote: project.global.compositionEnd?.mode !== "fixed",
+        compositionEndFollowsLastNote: !project.global.compositionEnd,
         compositionEndBeat: playbackEndBeat,
         expandableLoopRegion: Boolean(expandableLoopRegion)
       },

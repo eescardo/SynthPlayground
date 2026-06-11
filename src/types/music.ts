@@ -66,7 +66,6 @@ export interface ProjectGlobalSettings {
   meter: "4/4" | "3/4";
   gridBeats: number;
   compositionEnd?: {
-    mode: "follow" | "fixed";
     beat: number;
   };
   loop: Array<{

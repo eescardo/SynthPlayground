@@ -220,14 +220,12 @@ export const normalizeProject = (raw: unknown): Project => {
   const loopRaw = Array.isArray(globalRaw.loop) ? globalRaw.loop : isObject(globalRaw.loop) ? [globalRaw.loop] : [];
   const compositionEndRaw = isObject(globalRaw.compositionEnd) ? globalRaw.compositionEnd : null;
   const compositionEndBeat = asOptionalFiniteNumber(compositionEndRaw?.beat);
-  const compositionEndMode: "follow" | "fixed" | null =
-    compositionEndRaw?.mode === "follow" || compositionEndRaw?.mode === "fixed" ? compositionEndRaw.mode : null;
-  const compositionEnd = compositionEndMode
-    ? {
-        mode: compositionEndMode,
-        beat: Math.max(0, compositionEndBeat ?? 0)
-      }
-    : undefined;
+  const compositionEnd =
+    compositionEndBeat !== undefined
+      ? {
+          beat: Math.max(0, compositionEndBeat)
+        }
+      : undefined;
 
   const patchIds = new Set(patches.map((patch) => patch.id));
   const fallbackPatchId = patches[0].id;

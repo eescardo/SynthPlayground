@@ -1,9 +1,7 @@
 import { getProjectLastNoteEndBeat, getProjectTimelineEndBeat } from "@/lib/macroAutomation";
 import type { Project } from "@/types/music";
 
-type CompositionEndMode = NonNullable<Project["global"]["compositionEnd"]>["mode"];
-
-export const clearCompositionEndOverride = (project: Project): Project => {
+export const clearCompositionEndBeat = (project: Project): Project => {
   if (!project.global.compositionEnd) {
     return project;
   }
@@ -12,23 +10,15 @@ export const clearCompositionEndOverride = (project: Project): Project => {
   return { ...project, global };
 };
 
-export const setCompositionEndBeat = (
-  project: Project,
-  beat: number,
-  mode: CompositionEndMode = project.global.compositionEnd?.mode ?? "follow"
-): Project => ({
+export const setCompositionEndBeat = (project: Project, beat: number): Project => ({
   ...project,
   global: {
     ...project.global,
     compositionEnd: {
-      mode,
       beat: Math.max(getProjectLastNoteEndBeat(project), beat)
     }
   }
 });
-
-export const setFixedCompositionEndBeat = (project: Project, beat: number): Project =>
-  setCompositionEndBeat(project, beat, "fixed");
 
 export const shiftCompositionEndForInsertedRange = (
   project: Project,
@@ -58,20 +48,4 @@ export const shiftCompositionEndForRemovedRange = (
     return setCompositionEndBeat(project, currentEndBeat - (endBeat - startBeat));
   }
   return project;
-};
-
-export const clearFollowCompositionEndOverrideAfterLastNoteEndChange = (
-  previousProject: Project,
-  nextProject: Project,
-  preserveFollowOverride = false
-): Project => {
-  if (
-    preserveFollowOverride ||
-    previousProject.global.compositionEnd?.mode !== "follow" ||
-    nextProject.global.compositionEnd?.mode !== "follow" ||
-    getProjectLastNoteEndBeat(previousProject) === getProjectLastNoteEndBeat(nextProject)
-  ) {
-    return nextProject;
-  }
-  return clearCompositionEndOverride(nextProject);
 };

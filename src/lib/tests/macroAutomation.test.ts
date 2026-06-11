@@ -65,7 +65,7 @@ const createProject = (track: Track): Project => ({
     tempo: 120,
     meter: "4/4",
     gridBeats: 1,
-    compositionEnd: { mode: "fixed", beat: 16 },
+    compositionEnd: { beat: 16 },
     loop: []
   },
   tracks: [track],

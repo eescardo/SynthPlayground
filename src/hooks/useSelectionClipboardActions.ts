@@ -23,7 +23,7 @@ import { Project } from "@/types/music";
 
 type CommitProjectChange = (
   updater: (current: Project) => Project,
-  options?: { actionKey?: string; coalesce?: boolean; preserveFollowCompositionEndOverride?: boolean }
+  options?: { actionKey?: string; coalesce?: boolean }
 ) => void;
 
 export type NoteClipboardPasteAction = "paste" | "paste-all-tracks" | "insert" | "insert-all-tracks";
@@ -167,8 +167,7 @@ export function useSelectionClipboardActions({
     }
     await writeClipboardPayload(payload);
     commitProjectChange((current) => cutBeatRangeAcrossAllTracks(current, selectionBeatRange), {
-      actionKey: "timeline:cut-all-tracks",
-      preserveFollowCompositionEndOverride: true
+      actionKey: "timeline:cut-all-tracks"
     });
     setContentSelection(EMPTY_CONTENT_SELECTION);
   }, [commitProjectChange, project, selectionBeatRange, setContentSelection, writeClipboardPayload]);
@@ -179,8 +178,7 @@ export function useSelectionClipboardActions({
     }
     void clearNoteClipboard();
     commitProjectChange((current) => cutBeatRangeAcrossAllTracks(current, selectionBeatRange), {
-      actionKey: "timeline:delete-all-tracks",
-      preserveFollowCompositionEndOverride: true
+      actionKey: "timeline:delete-all-tracks"
     });
     setContentSelection(EMPTY_CONTENT_SELECTION);
   }, [clearNoteClipboard, commitProjectChange, selectionBeatRange, setContentSelection]);
@@ -190,8 +188,7 @@ export function useSelectionClipboardActions({
       return;
     }
     commitProjectChange((current) => insertEmptyBeatRangeAcrossAllTracks(current, selectionBeatRange), {
-      actionKey: "timeline:insert-time",
-      preserveFollowCompositionEndOverride: true
+      actionKey: "timeline:insert-time"
     });
     setPlayheadFromUser(selectionBeatRange.startBeat);
     setContentSelection(EMPTY_CONTENT_SELECTION);
@@ -226,9 +223,7 @@ export function useSelectionClipboardActions({
                 ? "timeline:paste-all-tracks"
                 : pasteAction === "insert-all-tracks"
                   ? "timeline:insert-all-tracks"
-                  : `track:${selectedTrackId}:paste-notes`,
-          preserveFollowCompositionEndOverride:
-            pasteAction === "paste-all-tracks" || pasteAction === "insert-all-tracks"
+                  : `track:${selectedTrackId}:paste-notes`
         }
       );
       setPlayheadFromUser(beat);
