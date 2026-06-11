@@ -47,7 +47,7 @@ const LOOP_INTENSITY_COLORS = [
 
 const END_LOOP_LABEL_PADDING_X = LOOP_MARKER_LABEL_PADDING_X * 0.45;
 const END_LOOP_MIN_LABEL_WIDTH = 13;
-const END_LOOP_COMPACT_BEAT_WIDTH = BEAT_WIDTH * 0.75;
+const END_LOOP_COMPACT_BEAT_WIDTH = BEAT_WIDTH * 0.9;
 
 function withAlpha(hexColor: string, alpha: number): string {
   const match = /^#([0-9a-f]{6})$/i.exec(hexColor);
