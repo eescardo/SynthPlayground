@@ -211,6 +211,7 @@ export function ComposerView(props: ComposerViewProps) {
           showCompositionEndActions={props.timeline.compositionEndAtTimelineBeat}
           compositionEndFollowsLastNote={props.timeline.compositionEndFollowsLastNote}
           compositionEndBeat={props.timeline.compositionEndBeat}
+          compositionEndGridBeats={props.project.global.gridBeats}
           onPaste={() => props.timelineActions.onPasteAtTimeline("paste", props.timeline.timelineActionsPopover!.beat)}
           onPasteAllTracks={() =>
             props.timelineActions.onPasteAtTimeline("paste-all-tracks", props.timeline.timelineActionsPopover!.beat)

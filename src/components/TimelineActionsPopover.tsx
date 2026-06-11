@@ -5,6 +5,7 @@ import { useFixedPopoverPosition } from "@/hooks/useFixedPopoverPosition";
 import { useInlineRename } from "@/hooks/useInlineRename";
 import { useRenameActivation } from "@/hooks/useRenameActivation";
 import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping";
+import { formatBeatName, parseBeatName } from "@/lib/musicTiming";
 
 interface TimelineActionsPopoverProps {
   left: number;
@@ -19,6 +20,7 @@ interface TimelineActionsPopoverProps {
   showCompositionEndActions?: boolean;
   compositionEndFollowsLastNote?: boolean;
   compositionEndBeat?: number;
+  compositionEndGridBeats?: number;
   onPaste?: () => void;
   onPasteAllTracks?: () => void;
   onInsert?: () => void;
@@ -133,7 +135,11 @@ export function TimelineActionsPopover(props: TimelineActionsPopoverProps) {
             Follow last note
           </label>
           {props.compositionEndFollowsLastNote === false && props.compositionEndBeat !== undefined && (
-            <BeatValueControl beat={props.compositionEndBeat} onUpdateBeat={props.onUpdateCompositionEndBeat} />
+            <BeatValueControl
+              beat={props.compositionEndBeat}
+              gridBeats={props.compositionEndGridBeats}
+              onUpdateBeat={props.onUpdateCompositionEndBeat}
+            />
           )}
         </>
       )}
@@ -359,15 +365,16 @@ function LoopRepeatControl({ repeatCount, onUpdateRepeatCount }: LoopRepeatContr
 
 interface BeatValueControlProps {
   beat: number;
+  gridBeats?: number;
   onUpdateBeat?: (beat: number) => void;
 }
 
-function BeatValueControl({ beat, onUpdateBeat }: BeatValueControlProps) {
-  const value = Number.isInteger(beat) ? String(beat) : beat.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+function BeatValueControl({ beat, gridBeats, onUpdateBeat }: BeatValueControlProps) {
+  const value = formatBeatName(beat, gridBeats);
   const commitBeat = useCallback(
     (nextValue: string) => {
-      const parsed = Number(nextValue);
-      if (Number.isFinite(parsed)) {
+      const parsed = parseBeatName(nextValue);
+      if (parsed !== null) {
         onUpdateBeat?.(parsed);
       }
     },
