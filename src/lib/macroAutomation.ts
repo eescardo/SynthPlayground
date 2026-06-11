@@ -15,6 +15,7 @@ const clampNormalized = clamp01;
 const EPSILON = 1e-9;
 const SPLIT_OFFSET = 0.1;
 export const TRACK_VOLUME_AUTOMATION_ID = "__track_volume__";
+export const DEFAULT_EMPTY_COMPOSITION_BEATS = 16;
 
 export type AutomationKeyframeSide = "single" | "incoming" | "outgoing";
 
@@ -247,7 +248,7 @@ export const getProjectLastNoteEndBeat = (project: Pick<Project, "tracks">): num
 export const getFollowProjectTimelineEndBeat = (project: ProjectGlobalCarrier & Pick<Project, "tracks">): number => {
   const meterBeats = getMeasureBeatsForMeter(project.global.meter);
   const maxNoteEnd = getProjectLastNoteEndBeat(project);
-  return Math.max(16, Math.ceil(maxNoteEnd + meterBeats));
+  return Math.max(DEFAULT_EMPTY_COMPOSITION_BEATS, Math.ceil(maxNoteEnd + meterBeats));
 };
 
 export const getProjectTimelineEndBeat = (project: ProjectGlobalCarrier & Pick<Project, "tracks">): number => {
