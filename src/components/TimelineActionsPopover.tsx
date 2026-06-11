@@ -186,7 +186,7 @@ function getWheelPixelDelta(deltaY: number, deltaMode: number): number {
   return deltaY;
 }
 
-interface TimelineNumberWheelControlProps<ControlId extends string> {
+interface NumberWheelProps<ControlId extends string> {
   ariaLabel: string;
   className: string;
   decreaseAriaLabel: string;
@@ -202,7 +202,7 @@ interface TimelineNumberWheelControlProps<ControlId extends string> {
   pattern?: string;
 }
 
-function TimelineNumberWheelControl<ControlId extends string>({
+function NumberWheel<ControlId extends string>({
   ariaLabel,
   className,
   decreaseAriaLabel,
@@ -216,7 +216,7 @@ function TimelineNumberWheelControl<ControlId extends string>({
   pattern,
   renameId,
   title
-}: TimelineNumberWheelControlProps<ControlId>) {
+}: NumberWheelProps<ControlId>) {
   const controlRef = useRef<HTMLDivElement | null>(null);
   const wheelDeltaRef = useRef(0);
   const rename = useInlineRename({
@@ -267,18 +267,18 @@ function TimelineNumberWheelControl<ControlId extends string>({
   }, [handleWheelDelta]);
 
   return (
-    <div ref={controlRef} className="timeline-repeat-control" aria-label={ariaLabel}>
+    <div ref={controlRef} className="number-wheel" aria-label={ariaLabel}>
       <span className="timeline-actions-popover-label">{label}</span>
-      <div className={`timeline-repeat-wheel ${className}`}>
+      <div className={`number-wheel-control ${className}`}>
         <button
           type="button"
-          className="timeline-repeat-step timeline-repeat-step-up"
+          className="number-wheel-step number-wheel-step-up"
           aria-label={increaseAriaLabel}
           onClick={() => onStep(1)}
         />
         {editing ? (
           <input
-            className="timeline-repeat-input"
+            className="number-wheel-input"
             aria-label={inputAriaLabel}
             autoFocus
             inputMode={inputMode}
@@ -303,7 +303,7 @@ function TimelineNumberWheelControl<ControlId extends string>({
           />
         ) : (
           <span
-            className={`timeline-repeat-value${renameActivation.isArmed(renameId) ? " rename-armed" : ""}`}
+            className={`number-wheel-value${renameActivation.isArmed(renameId) ? " rename-armed" : ""}`}
             role="button"
             tabIndex={0}
             title={title}
@@ -317,7 +317,7 @@ function TimelineNumberWheelControl<ControlId extends string>({
         )}
         <button
           type="button"
-          className="timeline-repeat-step timeline-repeat-step-down"
+          className="number-wheel-step number-wheel-step-down"
           aria-label={decreaseAriaLabel}
           onClick={() => onStep(-1)}
         />
@@ -345,9 +345,9 @@ function LoopRepeatControl({ repeatCount, onUpdateRepeatCount }: LoopRepeatContr
   );
 
   return (
-    <TimelineNumberWheelControl
+    <NumberWheel
       ariaLabel="Loop repeats"
-      className="timeline-repeat-wheel-loop-repeats"
+      className="number-wheel-loop-repeats"
       decreaseAriaLabel="Decrease loop repeats"
       displayValue={String(repeatCount)}
       increaseAriaLabel="Increase loop repeats"
@@ -388,9 +388,9 @@ function BeatValueControl({ beat, gridBeats, onUpdateBeat }: BeatValueControlPro
   );
 
   return (
-    <TimelineNumberWheelControl
+    <NumberWheel
       ariaLabel="Composition end beat"
-      className="timeline-repeat-wheel-end-beat"
+      className="number-wheel-end-beat"
       decreaseAriaLabel="Decrease composition end beat"
       displayValue={value}
       increaseAriaLabel="Increase composition end beat"

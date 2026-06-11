@@ -45,7 +45,7 @@ describe.sequential("composer pointer interactions", () => {
           await page.locator(".track-canvas-shell > canvas").click({ position: compositionEndPointForBeat(4.75) });
 
           await expect(page.locator(".timeline-actions-popover")).toBeVisible();
-          await expect(page.locator(".timeline-repeat-wheel-end-beat .timeline-repeat-value")).toHaveText("5.75");
+          await expect(page.locator(".number-wheel-end-beat .number-wheel-value")).toHaveText("5.75");
         } finally {
           await page.close();
         }
