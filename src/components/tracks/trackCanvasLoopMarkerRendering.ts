@@ -47,6 +47,7 @@ const LOOP_INTENSITY_COLORS = [
 
 const END_LOOP_LABEL_PADDING_X = LOOP_MARKER_LABEL_PADDING_X * 0.45;
 const END_LOOP_MIN_LABEL_WIDTH = 13;
+const END_LOOP_COMPACT_BEAT_WIDTH = BEAT_WIDTH * 0.75;
 
 function withAlpha(hexColor: string, alpha: number): string {
   const match = /^#([0-9a-f]{6})$/i.exec(hexColor);
@@ -63,6 +64,7 @@ function withAlpha(hexColor: string, alpha: number): string {
 function getLoopMarkerVisualGeometry(
   ctx: CanvasRenderingContext2D,
   x: number,
+  beatWidth: number,
   kind: "start" | "end",
   repeatCount?: number
 ): LoopMarkerVisualGeometry {
@@ -75,7 +77,8 @@ function getLoopMarkerVisualGeometry(
       ? Math.max(END_LOOP_MIN_LABEL_WIDTH, Math.ceil(ctx.measureText(labelText).width) + END_LOOP_LABEL_PADDING_X * 2)
       : 0;
   const labelHeight = LOOP_MARKER_LABEL_HEIGHT;
-  const notchWidth = LOOP_MARKER_NOTCH_WIDTH;
+  const compactEndLabel = kind === "end" && beatWidth <= END_LOOP_COMPACT_BEAT_WIDTH;
+  const notchWidth = compactEndLabel ? 0 : LOOP_MARKER_NOTCH_WIDTH;
   const notchHeight = LOOP_MARKER_NOTCH_HEIGHT;
   const labelX = stemX - labelWidth;
   const hitLeft = kind === "start" ? stemX - LOOP_MARKER_DIFFUSION_WIDTH : labelX - notchWidth - LOOP_MARKER_HIT_BUFFER;
@@ -141,8 +144,12 @@ function drawEndLoopMarkerShape(ctx: CanvasRenderingContext2D, geometry: LoopMar
   const labelRightX = stemX;
   ctx.moveTo(labelRightX, labelY);
   ctx.lineTo(labelX, labelY);
-  ctx.lineTo(labelX - notchWidth, centerY);
-  ctx.lineTo(labelX, labelY + labelHeight);
+  if (notchWidth > 0) {
+    ctx.lineTo(labelX - notchWidth, centerY);
+    ctx.lineTo(labelX, labelY + labelHeight);
+  } else {
+    ctx.lineTo(labelX, labelY + labelHeight);
+  }
   ctx.lineTo(labelRightX, labelY + labelHeight);
   ctx.closePath();
 }
@@ -159,7 +166,7 @@ function drawLoopMarker(
 ) {
   ctx.save();
   ctx.font = "bold 9px ui-monospace, SFMono-Regular, Menlo, monospace";
-  const geometry = getLoopMarkerVisualGeometry(ctx, x, kind, repeatCount);
+  const geometry = getLoopMarkerVisualGeometry(ctx, x, beatWidth, kind, repeatCount);
 
   drawLoopMarkerStem(ctx, geometry, height, color, hovered);
 
@@ -192,7 +199,7 @@ function drawLoopMarker(
     ctx.fillStyle = TRACK_CANVAS_COLORS.loopMarkerText;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    if (beatWidth > BEAT_WIDTH * 0.5) {
+    if (beatWidth > END_LOOP_COMPACT_BEAT_WIDTH) {
       ctx.fillText("x", geometry.labelX - geometry.notchWidth * 0.06, geometry.centerY + 0.5);
     }
     ctx.fillText(String(repeatCount), geometry.labelX + geometry.labelWidth * 0.5, geometry.centerY + 0.5);
@@ -277,7 +284,7 @@ function drawLoopBracket(ctx: CanvasRenderingContext2D, region: MatchedLoopRegio
     region.endBeat * beatWidth -
     LOOP_MARKER_BAR_WIDTH * 0.5 -
     endLabelWidth -
-    LOOP_MARKER_NOTCH_WIDTH -
+    (beatWidth > END_LOOP_COMPACT_BEAT_WIDTH ? LOOP_MARKER_NOTCH_WIDTH : 0) -
     6;
   if (endX - startX < Math.max(44, beatWidth * 0.55)) {
     return;
@@ -324,7 +331,7 @@ export function drawLoopMarkers(ctx: CanvasRenderingContext2D, options: DrawLoop
       selectedLoopMarker.kind === marker.kind &&
       selectedLoopMarker.beat === marker.beat;
     ctx.font = "bold 9px ui-monospace, SFMono-Regular, Menlo, monospace";
-    const markerGeometry = getLoopMarkerVisualGeometry(ctx, markerX, marker.kind, marker.repeatCount);
+    const markerGeometry = getLoopMarkerVisualGeometry(ctx, markerX, beatWidth, marker.kind, marker.repeatCount);
     drawLoopMarker(ctx, markerX, beatWidth, height, marker.kind, color, isHovered || isSelected, marker.repeatCount);
     loopMarkerRectsRef.current.push({
       markerId: marker.markerId,
