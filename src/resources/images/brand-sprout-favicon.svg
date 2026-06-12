@@ -14,17 +14,17 @@
     stroke-linecap="round"
   />
   <path
-    d="M32.25 36.3C31.65 27.45 26.75 20.35 17.1 21.05C16.8 30.75 23.85 36.95 28.55 37.55C29.55 37.7 30.15 38.2 30.55 38.85"
+    d="M32.25 36.3C31.45 27.25 25.9 19.9 15.9 20.8C15.75 31.4 23.45 37.65 28.65 38.1C29.65 38.2 30.2 38.65 30.55 39.1"
     stroke="url(#sproutMarkLime)"
-    stroke-width="2.25"
-    stroke-linecap="butt"
+    stroke-width="1.8"
+    stroke-linecap="round"
     stroke-linejoin="round"
   />
   <path
-    d="M32.25 36.3C34.65 27.35 41.85 24.05 48.05 25.2C47.85 34.2 42.15 38.75 36.25 39.55C35.15 39.7 34.45 40.05 34.05 40.65"
+    d="M32.25 36.3C34.45 28.05 41.1 24.8 46.65 25.85C46.4 34.1 41.25 38.25 36 39.05C35.05 39.2 34.45 39.55 34.1 40.1"
     stroke="url(#sproutMarkLime)"
-    stroke-width="2.25"
-    stroke-linecap="butt"
+    stroke-width="1.8"
+    stroke-linecap="round"
     stroke-linejoin="round"
   />
 </svg>
