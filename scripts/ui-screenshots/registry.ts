@@ -1,5 +1,6 @@
 import { expect, Page } from "@playwright/test";
 import {
+  PATCH_WORKSPACE_CAPTURE_ROOT_SELECTOR,
   createMicrotonalCaptureProject,
   openApp,
   openSeededApp,
@@ -146,7 +147,7 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
     description: "Patch workspace focused on the SamplePlayer inspector with a seeded pitch tracker probe",
     capture: async (page, outputPath) => {
       await setupSamplePlayerWorkspace(page);
-      await savePageScreenshot(page, outputPath, ".patch-workspace-shell");
+      await savePageScreenshot(page, outputPath, PATCH_WORKSPACE_CAPTURE_ROOT_SELECTOR);
     }
   },
   [SCREENSHOT_SCENARIO.PATCH_MODULE_FACES]: {
@@ -155,7 +156,7 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
       "Patch workspace with ADSR, LFO, string, noise, delay, reverb, overdrive, and compressor module faces visible",
     capture: async (page, outputPath) => {
       await setupPatchModuleFacesWorkspace(page);
-      await savePageScreenshot(page, outputPath, ".patch-workspace-shell");
+      await savePageScreenshot(page, outputPath, PATCH_WORKSPACE_CAPTURE_ROOT_SELECTOR);
     }
   },
   [SCREENSHOT_SCENARIO.PATCH_EXPANDED_FACE]: {
@@ -168,7 +169,7 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
         26 * PATCH_CANVAS_GRID + PATCH_NODE_WIDTH / 2,
         19 * PATCH_CANVAS_GRID + PATCH_NODE_HEIGHT / 2
       );
-      await savePageScreenshot(page, outputPath, ".patch-workspace-shell");
+      await savePageScreenshot(page, outputPath, PATCH_WORKSPACE_CAPTURE_ROOT_SELECTOR);
     }
   },
   [SCREENSHOT_SCENARIO.PATCH_BASELINE_DIFF]: {
@@ -177,7 +178,7 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
       "Patch workspace with a duplicated tab showing baseline diff cues in the tab strip, canvas, inspector, and macro panel",
     capture: async (page, outputPath) => {
       await setupBaselineDiffWorkspace(page);
-      await savePageScreenshot(page, outputPath, ".patch-workspace-shell");
+      await savePageScreenshot(page, outputPath, PATCH_WORKSPACE_CAPTURE_ROOT_SELECTOR);
     }
   },
   [SCREENSHOT_SCENARIO.MACRO_AUTOMATION_LANE]: {

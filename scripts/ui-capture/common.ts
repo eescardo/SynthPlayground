@@ -7,6 +7,8 @@ import { createId } from "../../src/lib/ids";
 import { HOST_PORT_IDS } from "../../src/lib/patch/constants";
 import { createDefaultParamsForType, getModuleSchema } from "../../src/lib/patch/moduleRegistry";
 import { createPatchOutputPort } from "../../src/lib/patch/ports";
+import { serializeProjectAssetLibraryForJson } from "../../src/lib/sampleAssetLibrary";
+import { ProjectAssetLibrary, SerializedProjectAssetLibrary } from "../../src/types/assets";
 import { Project } from "../../src/types/music";
 import { Patch } from "../../src/types/patch";
 
@@ -18,6 +20,8 @@ const PATCH_CANVAS_GRID = 24;
 const PATCH_NODE_WIDTH = 204;
 const PATCH_PORT_START_Y = 46;
 const PATCH_PORT_ROW_GAP = 16;
+export const PATCH_WORKSPACE_CAPTURE_ROOT_SELECTOR = "main.app";
+const PATCH_WORKSPACE_READY_SELECTOR = ".instrument-editor";
 
 export const clearPersistedProject = async (page: Page) => {
   await page.addInitScript(() => {
@@ -37,13 +41,13 @@ export const openApp = async (page: Page) => {
 export const openPatchWorkspaceApp = async (page: Page) => {
   await clearPersistedProject(page);
   await page.goto("/patch-workspace");
-  await expect(page.locator(".patch-workspace-shell")).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(PATCH_WORKSPACE_READY_SELECTOR)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("button", { name: "Back to Composer" })).toBeVisible();
 };
 
-export const seedProject = async (page: Page, project: Project) => {
+export const seedProject = async (page: Page, project: Project, assets?: unknown) => {
   await page.addInitScript(
-    async ({ seededProject }: { seededProject: Project }) => {
+    async ({ seededAssets, seededProject }: { seededAssets?: unknown; seededProject: Project }) => {
       window.localStorage.clear();
       window.sessionStorage.clear();
       await new Promise<void>((resolve, reject) => {
@@ -60,12 +64,22 @@ export const seedProject = async (page: Page, project: Project) => {
           if (!db.objectStoreNames.contains("projects")) {
             db.createObjectStore("projects");
           }
+          if (!db.objectStoreNames.contains("project_assets")) {
+            db.createObjectStore("project_assets");
+          }
+          if (!db.objectStoreNames.contains("project_meta")) {
+            db.createObjectStore("project_meta");
+          }
         };
         request.onerror = () => reject(request.error ?? new Error("Failed to open synth-playground database."));
         request.onsuccess = () => {
           const db = request.result;
-          const tx = db.transaction("projects", "readwrite");
+          const storeNames = seededAssets ? ["projects", "project_assets"] : ["projects"];
+          const tx = db.transaction(storeNames, "readwrite");
           tx.objectStore("projects").put(seededProject, "active");
+          if (seededAssets) {
+            tx.objectStore("project_assets").put(seededAssets, "active_assets");
+          }
           tx.oncomplete = () => {
             db.close();
             resolve();
@@ -74,14 +88,14 @@ export const seedProject = async (page: Page, project: Project) => {
         };
       });
     },
-    { seededProject: project }
+    { seededAssets: assets, seededProject: project }
   );
 };
 
-export const openSeededPatchWorkspaceApp = async (page: Page, project: Project) => {
-  await seedProject(page, project);
+export const openSeededPatchWorkspaceApp = async (page: Page, project: Project, assets?: unknown) => {
+  await seedProject(page, project, assets);
   await page.goto("/patch-workspace");
-  await expect(page.locator(".patch-workspace-shell")).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(PATCH_WORKSPACE_READY_SELECTOR)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("button", { name: "Back to Composer" })).toBeVisible();
 };
 
@@ -160,7 +174,7 @@ export const clickPatchConnectionMidpoint = async (
 
 export const setupPatchWorkspaceProbes = async (page: Page) => {
   await openPatchWorkspaceApp(page);
-  await expect(page.locator(".patch-workspace-shell .instrument-editor")).toBeVisible();
+  await expect(page.locator(PATCH_WORKSPACE_READY_SELECTOR)).toBeVisible();
 
   await page.getByRole("button", { name: "Add Probe" }).click();
   await page.getByRole("button", { name: "Scope Probe" }).click();
@@ -191,23 +205,31 @@ export const setupPatchWorkspaceProbes = async (page: Page) => {
   await page.waitForTimeout(650);
 };
 
-const createSerializedCaptureSampleData = () =>
-  JSON.stringify({
-    version: 1,
-    name: "capture-sample.wav",
-    sampleRate: 48_000,
-    samples: Array.from({ length: 12_000 }, (_, index) => {
+const createCaptureSampleData = () =>
+  new Float32Array(
+    Array.from({ length: 12_000 }, (_, index) => {
       const t = index / 48_000;
       const envelope = index < 9_000 ? 1 : Math.max(0, 1 - (index - 9_000) / 3_000);
       const hz = t < 0.12 ? 261.63 : t < 0.24 ? 329.63 : 392;
       return Math.sin(2 * Math.PI * hz * t) * 0.6 * envelope;
     })
-  });
+  );
 
-export const createSamplePlayerCaptureProject = (): Project => {
+export const createSamplePlayerCaptureProject = (): { assets: SerializedProjectAssetLibrary; project: Project } => {
   const project = createDefaultProject();
   const patchId = createId("patch");
   const sampleNodeId = "sample1";
+  const sampleAssetId = "sample_asset_capture";
+  const runtimeAssets: ProjectAssetLibrary = {
+    samplePlayerById: {
+      [sampleAssetId]: {
+        version: 2,
+        name: "capture-sample.wav",
+        sampleRate: 48_000,
+        samples: createCaptureSampleData()
+      }
+    }
+  };
   const patch: Patch = {
     schemaVersion: 1,
     id: patchId,
@@ -223,7 +245,7 @@ export const createSamplePlayerCaptureProject = (): Project => {
           end: 0.82,
           gain: 1,
           pitchSemis: 0,
-          sampleData: createSerializedCaptureSampleData()
+          sampleAssetId
         }
       }
     ],
@@ -301,11 +323,12 @@ export const createSamplePlayerCaptureProject = (): Project => {
       }
     ]
   };
-  return project;
+  return { assets: serializeProjectAssetLibraryForJson(runtimeAssets), project };
 };
 
 export const setupSamplePlayerWorkspace = async (page: Page) => {
-  await openSeededPatchWorkspaceApp(page, createSamplePlayerCaptureProject());
+  const { assets, project } = createSamplePlayerCaptureProject();
+  await openSeededPatchWorkspaceApp(page, project, assets);
   await expect(page.getByRole("heading", { name: "Patch Workspace" })).toBeVisible();
   await expect(page.locator(".sample-waveform-preview")).toBeVisible();
   await expect(page.locator(".patch-probe-card.expanded")).toHaveCount(1);
