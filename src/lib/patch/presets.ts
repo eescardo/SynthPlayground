@@ -5299,7 +5299,7 @@ export const drumPatch = (): Patch => {
     schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: "preset_drumish",
     name: "Drum",
-    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 14 },
+    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 15 },
     nodes: [
       {
         id: "vco1",
@@ -5954,7 +5954,7 @@ export const drumPatch = (): Patch => {
         },
         {
           id: "macro_shell_level",
-          name: "Head Volume",
+          name: "Head Level",
           keyframeCount: 2,
           bindings: [
             {

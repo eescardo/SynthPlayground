@@ -32,7 +32,7 @@
   },
   {
     "presetId": "preset_drumish",
-    "presetVersion": 14,
+    "presetVersion": 15,
     "name": "Drum",
     "macroIds": [
       "macro_shell",
