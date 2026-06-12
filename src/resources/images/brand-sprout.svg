@@ -10,18 +10,18 @@
   <path
     d="M32.25 53V36.3"
     stroke="url(#sproutMarkLime)"
-    stroke-width="2.25"
+    stroke-width="1.8"
     stroke-linecap="round"
   />
   <path
-    d="M32.25 36.3C31.45 27.25 25.9 19.9 15.9 20.8C15.75 31.4 23.45 37.65 28.65 38.1C29.65 38.2 30.2 38.65 30.55 39.1"
+    d="M32.25 36.3C31.25 27.1 25.35 19.6 15.15 20.65C14.75 32.7 23.15 38.35 28.35 38.55C29.25 38.6 29.75 38.75 30.05 39.15"
     stroke="url(#sproutMarkLime)"
     stroke-width="1.8"
     stroke-linecap="round"
     stroke-linejoin="round"
   />
   <path
-    d="M32.25 36.3C34.45 28.05 41.1 24.8 46.65 25.85C46.4 34.1 41.25 38.25 36 39.05C35.05 39.2 34.45 39.55 34.1 40.1"
+    d="M32.25 36.3C34.45 28.05 41.1 24.8 46.65 25.85C46.4 34.1 41.25 38.25 36 39.05C35.1 39.2 34.55 39.45 34.45 39.9"
     stroke="url(#sproutMarkLime)"
     stroke-width="1.8"
     stroke-linecap="round"
