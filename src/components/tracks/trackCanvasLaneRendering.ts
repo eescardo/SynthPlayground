@@ -7,6 +7,7 @@ import {
   renderFixedLane
 } from "@/components/tracks/trackCanvasAutomationLane";
 import { BEAT_WIDTH, HEADER_WIDTH, TRACK_CANVAS_COLORS } from "@/components/tracks/trackCanvasConstants";
+import { TrackCanvasViewport } from "@/components/tracks/trackCanvasRenderModel";
 import { AutomationLaneLayout } from "@/components/tracks/trackCanvasTypes";
 import { getTrackAutomationPoints, getTrackMacroLane, getTrackVolumeLane } from "@/lib/macroAutomation";
 import { Project, Track } from "@/types/music";
@@ -92,6 +93,7 @@ export function renderLaneSpec(
     automationKeyframeSelectionKeys?: ReadonlySet<string>;
     trackId: string;
     veilTimeline?: boolean;
+    viewport?: TrackCanvasViewport;
     width: number;
   },
   automationKeyframeRects: AutomationKeyframeRect[]
@@ -130,6 +132,7 @@ export function renderLaneSpec(
     defaultValue: spec.defaultValue,
     value: spec.value,
     veilTimeline: options.veilTimeline,
+    viewport: options.viewport,
     width: options.width
   });
 }

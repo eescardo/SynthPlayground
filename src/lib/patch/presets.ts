@@ -38,7 +38,7 @@ export const bassPatch = (): Patch => {
     schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: "preset_bass",
     name: "Bass",
-    meta: { source: "preset", presetId: "preset_bass", presetVersion: 16 },
+    meta: { source: "preset", presetId: "preset_bass", presetVersion: 18 },
     nodes: [
       {
         id: "cvscale1",
@@ -64,7 +64,7 @@ export const bassPatch = (): Patch => {
         params: {
           ...createDefaultParamsForType("CVMixer4"),
           gain1: 1,
-          gain2: 1.15,
+          gain2: 0.32,
           gain3: 1,
           gain4: 1
         }
@@ -98,10 +98,10 @@ export const bassPatch = (): Patch => {
         typeId: "ADSR",
         params: {
           ...createDefaultParamsForType("ADSR"),
-          attack: 3.5,
-          decay: 32,
-          sustain: 0.32,
-          release: 12,
+          attack: 5.5,
+          decay: 170,
+          sustain: 0.45,
+          release: 85,
           curve: -0.82,
           mode: "retrigger_from_current"
         }
@@ -111,8 +111,8 @@ export const bassPatch = (): Patch => {
         typeId: "ADSR",
         params: {
           ...createDefaultParamsForType("ADSR"),
-          attack: 2.5,
-          decay: 240,
+          attack: 5,
+          decay: 55,
           sustain: 0,
           release: 20,
           curve: 0,
@@ -124,10 +124,10 @@ export const bassPatch = (): Patch => {
         typeId: "Mixer4",
         params: {
           ...createDefaultParamsForType("Mixer4"),
-          gain1: 0.66,
-          gain2: 0.34,
-          gain3: 1,
-          gain4: 1
+          gain1: 0.24,
+          gain2: 0.42,
+          gain3: 0,
+          gain4: 0
         }
       },
       {
@@ -146,8 +146,8 @@ export const bassPatch = (): Patch => {
           ...createDefaultParamsForType("VCF"),
           type: "lowpass",
           cutoffHz: 324.7284192766965,
-          resonance: 0.72,
-          cutoffModAmountOct: 3.4
+          resonance: 0.64,
+          cutoffModAmountOct: 0.95
         }
       },
       {
@@ -155,13 +155,98 @@ export const bassPatch = (): Patch => {
         typeId: "Saturation",
         params: {
           ...createDefaultParamsForType("Saturation"),
-          driveDb: 10.5,
-          mix: 0.34,
+          driveDb: 3.2,
+          mix: 0.1,
           type: "tanh"
+        }
+      },
+      {
+        id: "ks_string_main",
+        typeId: "KarplusStrong",
+        params: {
+          ...createDefaultParamsForType("KarplusStrong"),
+          decay: 0.945,
+          damping: 0.22,
+          brightness: 0.68,
+          excitation: "noise"
+        }
+      },
+      {
+        id: "ks_string_sub",
+        typeId: "KarplusStrong",
+        params: {
+          ...createDefaultParamsForType("KarplusStrong"),
+          decay: 0.965,
+          damping: 0.26,
+          brightness: 0.6,
+          excitation: "noise"
+        }
+      },
+      {
+        id: "ks_mix",
+        typeId: "Mixer4",
+        params: {
+          ...createDefaultParamsForType("Mixer4"),
+          gain1: 0.78,
+          gain2: 0.82,
+          gain3: 0,
+          gain4: 0
+        }
+      },
+      {
+        id: "ks_body_sat",
+        typeId: "Saturation",
+        params: {
+          ...createDefaultParamsForType("Saturation"),
+          driveDb: 1.2,
+          mix: 0.05,
+          type: "softclip"
+        }
+      },
+      {
+        id: "final_mix",
+        typeId: "Mixer4",
+        params: {
+          ...createDefaultParamsForType("Mixer4"),
+          gain1: 0.78,
+          gain2: 0.494,
+          gain3: 0,
+          gain4: 0
+        }
+      },
+      {
+        id: "ks_env_vca",
+        typeId: "VCA",
+        params: {
+          ...createDefaultParamsForType("VCA"),
+          bias: 0,
+          gain: 1
+        }
+      },
+      {
+        id: "ks_tone_vcf",
+        typeId: "VCF",
+        params: {
+          ...createDefaultParamsForType("VCF"),
+          type: "lowpass",
+          cutoffHz: 1900,
+          resonance: 0.28,
+          cutoffModAmountOct: 0.85
         }
       }
     ],
-    ports: [createPatchOutputPort({ gainDb: -6, limiter: true })],
+    ports: [
+      {
+        id: "output",
+        typeId: "Output",
+        label: "output",
+        direction: "sink",
+        params: {
+          gainDb: -6,
+          limiter: true
+        }
+      }
+    ],
     connections: [
       {
         id: "c1",
@@ -329,13 +414,156 @@ export const bassPatch = (): Patch => {
         }
       },
       {
-        id: "c13",
+        id: "c_ks_main_pitch",
+        from: {
+          nodeId: "$host.pitch",
+          portId: "out"
+        },
+        to: {
+          nodeId: "ks_string_main",
+          portId: "pitch"
+        }
+      },
+      {
+        id: "c_ks_main_gate",
+        from: {
+          nodeId: "$host.gate",
+          portId: "out"
+        },
+        to: {
+          nodeId: "ks_string_main",
+          portId: "gate"
+        }
+      },
+      {
+        id: "c_ks_sub_pitch",
+        from: {
+          nodeId: "cvtranspose1",
+          portId: "out"
+        },
+        to: {
+          nodeId: "ks_string_sub",
+          portId: "pitch"
+        }
+      },
+      {
+        id: "c_ks_sub_gate",
+        from: {
+          nodeId: "$host.gate",
+          portId: "out"
+        },
+        to: {
+          nodeId: "ks_string_sub",
+          portId: "gate"
+        }
+      },
+      {
+        id: "c_ks_main_to_ks_mix",
+        from: {
+          nodeId: "ks_string_main",
+          portId: "out"
+        },
+        to: {
+          nodeId: "ks_mix",
+          portId: "in1"
+        }
+      },
+      {
+        id: "c_ks_sub_to_ks_mix",
+        from: {
+          nodeId: "ks_string_sub",
+          portId: "out"
+        },
+        to: {
+          nodeId: "ks_mix",
+          portId: "in2"
+        }
+      },
+      {
+        id: "c_ks_mix_to_sat",
+        from: {
+          nodeId: "ks_mix",
+          portId: "out"
+        },
+        to: {
+          nodeId: "ks_body_sat",
+          portId: "in"
+        }
+      },
+      {
+        id: "c_bass_sat_to_final_mix",
         from: {
           nodeId: "sat",
           portId: "out"
         },
         to: {
+          nodeId: "final_mix",
+          portId: "in1"
+        }
+      },
+      {
+        id: "c_final_mix_to_output",
+        from: {
+          nodeId: "final_mix",
+          portId: "out"
+        },
+        to: {
           nodeId: "output",
+          portId: "in"
+        }
+      },
+      {
+        id: "c_env1_to_ks_env_vca",
+        from: {
+          nodeId: "env1",
+          portId: "out"
+        },
+        to: {
+          nodeId: "ks_env_vca",
+          portId: "gainCV"
+        }
+      },
+      {
+        id: "c_ks_env_vca_to_final_mix",
+        from: {
+          nodeId: "ks_env_vca",
+          portId: "out"
+        },
+        to: {
+          nodeId: "final_mix",
+          portId: "in2"
+        }
+      },
+      {
+        id: "c_ks_sat_to_tone_vcf",
+        from: {
+          nodeId: "ks_body_sat",
+          portId: "out"
+        },
+        to: {
+          nodeId: "ks_tone_vcf",
+          portId: "in"
+        }
+      },
+      {
+        id: "c_env2_to_ks_tone_vcf",
+        from: {
+          nodeId: "env2",
+          portId: "out"
+        },
+        to: {
+          nodeId: "ks_tone_vcf",
+          portId: "cutoffCV"
+        }
+      },
+      {
+        id: "c_ks_tone_vcf_to_env_vca",
+        from: {
+          nodeId: "ks_tone_vcf",
+          portId: "out"
+        },
+        to: {
+          nodeId: "ks_env_vca",
           portId: "in"
         }
       }
@@ -455,15 +683,15 @@ export const bassPatch = (): Patch => {
               points: [
                 {
                   x: 0,
-                  y: 0.74
+                  y: 0.66
                 },
                 {
                   x: 0.5,
-                  y: 0.28
+                  y: 0.24
                 },
                 {
                   x: 1,
-                  y: 0.66
+                  y: 0.56
                 }
               ]
             },
@@ -476,15 +704,15 @@ export const bassPatch = (): Patch => {
               points: [
                 {
                   x: 0,
-                  y: 0.38
+                  y: 0.34
                 },
                 {
                   x: 0.5,
-                  y: 0.66
+                  y: 0.42
                 },
                 {
                   x: 1,
-                  y: 0.34
+                  y: 0.3
                 }
               ]
             },
@@ -526,7 +754,7 @@ export const bassPatch = (): Patch => {
                 },
                 {
                   x: 1,
-                  y: 240
+                  y: 210
                 }
               ]
             },
@@ -634,6 +862,203 @@ export const bassPatch = (): Patch => {
                   y: 0.34
                 }
               ]
+            },
+            {
+              nodeId: "ks_mix",
+              paramId: "gain1",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 0.28
+                },
+                {
+                  x: 0.5,
+                  y: 0.78
+                },
+                {
+                  x: 1,
+                  y: 0.42
+                }
+              ]
+            },
+            {
+              nodeId: "ks_mix",
+              paramId: "gain2",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 0.28
+                },
+                {
+                  x: 0.5,
+                  y: 0.82
+                },
+                {
+                  x: 1,
+                  y: 0.42
+                }
+              ]
+            },
+            {
+              nodeId: "ks_body_sat",
+              paramId: "driveDb",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 2.6
+                },
+                {
+                  x: 0.5,
+                  y: 1.2
+                },
+                {
+                  x: 1,
+                  y: 8
+                }
+              ]
+            },
+            {
+              nodeId: "ks_body_sat",
+              paramId: "mix",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 0.1
+                },
+                {
+                  x: 0.5,
+                  y: 0.05
+                },
+                {
+                  x: 1,
+                  y: 0.32
+                }
+              ]
+            },
+            {
+              nodeId: "ks_tone_vcf",
+              paramId: "cutoffHz",
+              map: "exp",
+              min: 600,
+              max: 5200,
+              points: [
+                {
+                  x: 0,
+                  y: 1050
+                },
+                {
+                  x: 0.5,
+                  y: 1900
+                },
+                {
+                  x: 1,
+                  y: 3800
+                }
+              ]
+            },
+            {
+              nodeId: "ks_tone_vcf",
+              paramId: "resonance",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 0.42
+                },
+                {
+                  x: 0.5,
+                  y: 0.28
+                },
+                {
+                  x: 1,
+                  y: 0.34
+                }
+              ]
+            },
+            {
+              nodeId: "ks_tone_vcf",
+              paramId: "cutoffModAmountOct",
+              map: "linear",
+              min: 0,
+              max: 1,
+              points: [
+                {
+                  x: 0,
+                  y: 0.55
+                },
+                {
+                  x: 0.5,
+                  y: 0.85
+                },
+                {
+                  x: 1,
+                  y: 1.45
+                }
+              ]
+            }
+          ]
+        },
+        {
+          id: "macro_string_body",
+          name: "String Body",
+          keyframeCount: 2,
+          bindings: [
+            {
+              nodeId: "ks_string_main",
+              paramId: "brightness",
+              map: "linear",
+              min: 0.36,
+              max: 0.68
+            },
+            {
+              nodeId: "ks_string_sub",
+              paramId: "brightness",
+              map: "linear",
+              min: 0.32,
+              max: 0.6
+            },
+            {
+              nodeId: "ks_string_main",
+              paramId: "damping",
+              map: "linear",
+              min: 0.46,
+              max: 0.22
+            },
+            {
+              nodeId: "ks_string_sub",
+              paramId: "damping",
+              map: "linear",
+              min: 0.52,
+              max: 0.26
+            }
+          ]
+        },
+        {
+          id: "macro_string_level",
+          name: "String Level",
+          keyframeCount: 2,
+          defaultNormalized: 0.35,
+          bindings: [
+            {
+              nodeId: "final_mix",
+              paramId: "gain2",
+              map: "linear",
+              min: 0,
+              max: 1
             }
           ]
         }
@@ -4872,7 +5297,7 @@ export const drumPatch = (): Patch => {
     schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: "preset_drumish",
     name: "Drum",
-    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 14 },
+    meta: { source: "preset", presetId: "preset_drumish", presetVersion: 15 },
     nodes: [
       {
         id: "vco1",
@@ -5331,7 +5756,7 @@ export const drumPatch = (): Patch => {
       macros: [
         {
           id: "macro_shell",
-          name: "Shell / Head Tightness",
+          name: "Head Tightness",
           keyframeCount: 3,
           bindings: [
             {
@@ -5527,7 +5952,7 @@ export const drumPatch = (): Patch => {
         },
         {
           id: "macro_shell_level",
-          name: "Shell Level",
+          name: "Head Level",
           keyframeCount: 2,
           bindings: [
             {
@@ -5541,7 +5966,7 @@ export const drumPatch = (): Patch => {
         },
         {
           id: "macro_rattle",
-          name: "Rattle / Snare Wires",
+          name: "Snare",
           keyframeCount: 3,
           bindings: [
             {
@@ -5779,7 +6204,7 @@ export const drumPatch = (): Patch => {
         },
         {
           id: "macro_rattle_level",
-          name: "Rattle Level",
+          name: "Snare Level",
           keyframeCount: 2,
           bindings: [
             {

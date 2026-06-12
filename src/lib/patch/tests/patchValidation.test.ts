@@ -149,6 +149,12 @@ describe("patch validation", () => {
     }
   });
 
+  it("keeps bundled presets free of saved layout nodes", () => {
+    for (const patch of presetPatches) {
+      expect(patch.layout.nodes, patch.name).toEqual([]);
+    }
+  });
+
   it("accepts current reverb params", () => {
     const patch = createClearPatch({ id: "current_reverb", name: "Current Reverb" });
     patch.nodes.push(

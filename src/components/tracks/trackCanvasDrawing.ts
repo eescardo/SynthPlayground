@@ -31,7 +31,11 @@ import {
 } from "@/components/tracks/trackCanvasNoteRendering";
 import { drawTrackCanvasNoteState } from "@/components/tracks/trackCanvasNoteStateRendering";
 import { drawGhostPreviewNote, drawTabSelectionPreview } from "@/components/tracks/trackCanvasPreviewGeometry";
-import { findTrackOverlaps, type TrackCanvasRenderModel } from "@/components/tracks/trackCanvasRenderModel";
+import {
+  findTrackOverlaps,
+  type TrackCanvasRenderModel,
+  type TrackCanvasViewport
+} from "@/components/tracks/trackCanvasRenderModel";
 import type { TrackCanvasProps, TrackLayout } from "@/components/tracks/trackCanvasTypes";
 import type { NoteRect, SelectionRect } from "@/hooks/tracks/trackCanvasPointerTypes";
 import { getNoteSelectionKey } from "@/lib/clipboard";
@@ -74,6 +78,7 @@ interface TrackCanvasDrawingOptions extends Pick<
     | "selectionMarkerTrackId"
     | "totalBeats"
     | "trackLayouts"
+    | "viewport"
     | "width"
   >;
   hoveredPitch: { trackId: string; noteId: string } | null;
@@ -225,6 +230,7 @@ function drawAutomationLanes(
     track: Track;
     trackLayout: TrackLayout;
     veilTimeline?: boolean;
+    viewport: TrackCanvasViewport;
     width: number;
   }
 ) {
@@ -239,6 +245,7 @@ function drawAutomationLanes(
     track,
     trackLayout,
     veilTimeline,
+    viewport,
     width
   } = options;
 
@@ -258,6 +265,7 @@ function drawAutomationLanes(
         automationKeyframeSelectionKeys,
         trackId: track.id,
         veilTimeline,
+        viewport,
         width
       },
       automationKeyframeRectsRef.current
@@ -293,6 +301,7 @@ function drawTrackContent(
     projectEndBeat: number;
     selectedNoteKeys: TrackCanvasRenderModel["selectedNoteKeys"];
     trackLayouts: TrackLayout[];
+    viewport: TrackCanvasViewport;
     width: number;
   }
 ) {
@@ -320,6 +329,7 @@ function drawTrackContent(
     selectedTrackId,
     tabSelectionPreviewNote,
     trackLayouts,
+    viewport,
     width
   } = options;
 
@@ -498,6 +508,7 @@ function drawTrackContent(
       projectEndBeat,
       track,
       trackLayout: layout,
+      viewport,
       width
     });
   });
@@ -510,6 +521,7 @@ function drawAutomationVeilPass(
     beatWidth: number;
     projectEndBeat: number;
     trackLayouts: TrackLayout[];
+    viewport: TrackCanvasViewport;
     width: number;
   }
 ) {
@@ -521,6 +533,7 @@ function drawAutomationVeilPass(
     project,
     projectEndBeat,
     trackLayouts,
+    viewport,
     width
   } = options;
 
@@ -540,6 +553,7 @@ function drawAutomationVeilPass(
       track,
       trackLayout: layout,
       veilTimeline: true,
+      viewport,
       width
     });
   });
@@ -720,6 +734,7 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     selectionMarkerTrackId,
     totalBeats,
     trackLayouts,
+    viewport,
     width
   } = renderModel;
   const canvas = canvasRef.current;
@@ -756,6 +771,7 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     selectedTrackId,
     tabSelectionPreviewNote,
     trackLayouts,
+    viewport,
     width
   });
   drawPlayhead(ctx, {
@@ -776,6 +792,7 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     project,
     projectEndBeat,
     trackLayouts,
+    viewport,
     width
   });
   drawPostCompositionFade(ctx, projectEndBeat, beatWidth, height, width);

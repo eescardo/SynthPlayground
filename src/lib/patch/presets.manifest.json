@@ -1,11 +1,13 @@
 [
   {
     "presetId": "preset_bass",
-    "presetVersion": 16,
+    "presetVersion": 18,
     "name": "Bass",
     "macroIds": [
       "macro_cutoff",
-      "macro_decay"
+      "macro_decay",
+      "macro_string_body",
+      "macro_string_level"
     ]
   },
   {
@@ -30,7 +32,7 @@
   },
   {
     "presetId": "preset_drumish",
-    "presetVersion": 14,
+    "presetVersion": 15,
     "name": "Drum",
     "macroIds": [
       "macro_shell",

@@ -3,12 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { TrackCanvasOverlays } from "@/components/tracks/TrackCanvasOverlays";
-import { AutomationKeyframeRect } from "@/components/tracks/trackCanvasAutomationLane";
+import { AutomationKeyframeRect, resolveFixedLaneSliderBounds } from "@/components/tracks/trackCanvasAutomationLane";
 import {
   BEAT_ZOOM_STEP,
   BEAT_WIDTH,
-  FIXED_MACRO_SLIDER_START_OFFSET,
-  FIXED_MACRO_SLIDER_WIDTH,
   HEADER_WIDTH,
   MAX_BEAT_WIDTH,
   MIN_BEAT_WIDTH,
@@ -56,6 +54,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const [editingTrackName, setEditingTrackName] = useState("");
   const [selectedContentTabStopFocused, setSelectedContentTabStopFocused] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
   const [beatWidth, setBeatWidth] = useState(BEAT_WIDTH);
   beatWidthRef.current = beatWidth;
   const {
@@ -100,21 +99,27 @@ export function TrackCanvas(props: TrackCanvasProps) {
     selectionMarkerTrackId,
     totalBeats,
     trackLayouts,
+    viewport,
     width
   } = useTrackCanvasRenderModel({
     beatWidth,
     playheadBeat,
     project,
+    scrollLeft,
     selection,
     viewportWidth
   });
   totalBeatsRef.current = totalBeats;
 
   const beatFromX = useCallback((x: number) => (x - HEADER_WIDTH) / beatWidth, [beatWidth]);
-  const fixedLaneSliderStartX = HEADER_WIDTH + FIXED_MACRO_SLIDER_START_OFFSET;
-  const fixedLaneSliderEndX = Math.min(width - 10, fixedLaneSliderStartX + FIXED_MACRO_SLIDER_WIDTH);
-  const fixedLaneValueFromX = (x: number) =>
-    clamp01((x - fixedLaneSliderStartX) / Math.max(1, fixedLaneSliderEndX - fixedLaneSliderStartX));
+  const fixedLaneValueFromX = (x: number) => {
+    const { sliderStartX, sliderEndX } = resolveFixedLaneSliderBounds({
+      headerWidth: HEADER_WIDTH,
+      viewport,
+      width
+    });
+    return clamp01((x - sliderStartX) / Math.max(1, sliderEndX - sliderStartX));
+  };
   const isTrackSilenced = useCallback((track: Track) => track.mute || isTrackVolumeMuted(track.volume), []);
   const getSelectionPopoverAnchorPosition = useCallback(() => {
     const wrapper = wrapperRef.current;
@@ -242,11 +247,18 @@ export function TrackCanvas(props: TrackCanvasProps) {
       return;
     }
     const updateViewportWidth = () => setViewportWidth(wrapper.clientWidth);
-    updateViewportWidth();
+    const updateScrollLeft = () => setScrollLeft(wrapper.scrollLeft);
+    const updateViewportMetrics = () => {
+      updateViewportWidth();
+      updateScrollLeft();
+    };
+    updateViewportMetrics();
     const observer = new ResizeObserver(updateViewportWidth);
     observer.observe(wrapper);
+    wrapper.addEventListener("scroll", updateScrollLeft, { passive: true });
     return () => {
       observer.disconnect();
+      wrapper.removeEventListener("scroll", updateScrollLeft);
     };
   }, []);
 
@@ -379,6 +391,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
         selectionMarkerTrackId,
         totalBeats,
         trackLayouts,
+        viewport,
         width
       },
       selectedContentTabStopFocused,
@@ -426,6 +439,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     selectionRect,
     totalBeats,
     trackLayouts,
+    viewport,
     width
   ]);
 

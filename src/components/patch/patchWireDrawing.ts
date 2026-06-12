@@ -77,6 +77,43 @@ export interface ResolvedPortPosition {
   schema: PortSchema;
 }
 
+export interface PatchConnectionWireStyle {
+  strokeStyle: string;
+  dashed: boolean;
+  globalAlpha: number;
+}
+
+export function resolvePatchConnectionWireStyle(
+  patch: Patch,
+  connection: Patch["connections"][number],
+  from: Pick<ResolvedPortPosition, "schema">,
+  to: Pick<ResolvedPortPosition, "schema">
+): PatchConnectionWireStyle {
+  const commonCapability = from.schema.capabilities.find((cap) => to.schema.capabilities.includes(cap)) ?? "AUDIO";
+  const isOutputAudioConnection = isPatchOutputPortId(patch, connection.to.nodeId) && commonCapability === "AUDIO";
+  const hostNodeId = isPatchOutputPortId(patch, connection.to.nodeId)
+    ? HOST_PORT_IDS.output
+    : isHostPatchPortId(connection.from.nodeId)
+      ? connection.from.nodeId
+      : isHostPatchPortId(connection.to.nodeId)
+        ? connection.to.nodeId
+        : null;
+
+  if (hostNodeId && !isOutputAudioConnection) {
+    return {
+      strokeStyle: resolveHostPatchPortTint(hostNodeId).wire,
+      dashed: true,
+      globalAlpha: 0.5
+    };
+  }
+
+  return {
+    strokeStyle: getSignalCapabilityColor(commonCapability) ?? PATCH_COLOR_CONNECTION_FALLBACK,
+    dashed: false,
+    globalAlpha: 1
+  };
+}
+
 function drawRoundedRectPath(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -111,24 +148,12 @@ export function drawPatchConnections(
     const to = portPositions.get(`${connection.to.nodeId}:in:${connection.to.portId}`);
     if (!from || !to) continue;
 
-    const commonCapability = from.schema.capabilities.find((cap) => to.schema.capabilities.includes(cap)) ?? "AUDIO";
-    const isHostConnection =
-      isHostPatchPortId(connection.from.nodeId) ||
-      isHostPatchPortId(connection.to.nodeId) ||
-      isPatchOutputPortId(patch, connection.to.nodeId);
+    const wireStyle = resolvePatchConnectionWireStyle(patch, connection, from, to);
     ctx.save();
-    ctx.strokeStyle = isHostConnection
-      ? resolveHostPatchPortTint(
-          isPatchOutputPortId(patch, connection.to.nodeId)
-            ? HOST_PORT_IDS.output
-            : isHostPatchPortId(connection.from.nodeId)
-              ? connection.from.nodeId
-              : connection.to.nodeId
-        ).wire
-      : (getSignalCapabilityColor(commonCapability) ?? PATCH_COLOR_CONNECTION_FALLBACK);
+    ctx.strokeStyle = wireStyle.strokeStyle;
     ctx.lineWidth = 2;
-    if (isHostConnection) {
-      ctx.globalAlpha = 0.5;
+    ctx.globalAlpha = wireStyle.globalAlpha;
+    if (wireStyle.dashed) {
       ctx.setLineDash([2, 6]);
     }
     ctx.beginPath();
