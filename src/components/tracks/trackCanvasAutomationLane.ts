@@ -1,4 +1,5 @@
 import { FIXED_MACRO_SLIDER_START_OFFSET, FIXED_MACRO_SLIDER_WIDTH } from "@/components/tracks/trackCanvasConstants";
+import { TrackCanvasViewport } from "@/components/tracks/trackCanvasRenderModel";
 import { AutomationKeyframeSide, AutomationPoint } from "@/lib/macroAutomation";
 import { clamp01 } from "@/lib/numeric";
 
@@ -135,28 +136,23 @@ interface RenderFixedLaneParams {
   name: string;
   defaultValue: number;
   value: number;
-  scrollLeft?: number;
+  viewport?: TrackCanvasViewport;
   veilTimeline?: boolean;
-  viewportWidth?: number;
   width: number;
 }
 
 export const resolveFixedLaneSliderBounds = ({
   headerWidth,
-  scrollLeft = 0,
-  viewportWidth,
+  viewport,
   width
 }: {
   headerWidth: number;
-  scrollLeft?: number;
-  viewportWidth?: number;
+  viewport?: TrackCanvasViewport;
   width: number;
 }) => {
+  const scrollLeft = viewport?.scrollLeft ?? 0;
   const sliderStartX = scrollLeft + headerWidth + FIXED_MACRO_SLIDER_START_OFFSET;
-  const viewportRight =
-    typeof viewportWidth === "number" && Number.isFinite(viewportWidth) && viewportWidth > 0
-      ? scrollLeft + viewportWidth
-      : width;
+  const viewportRight = viewport && viewport.width > 0 ? viewport.right : width;
   const sliderEndX = Math.min(
     width - FIXED_LANE_RIGHT_PADDING,
     viewportRight - FIXED_LANE_RIGHT_PADDING,
@@ -369,13 +365,12 @@ export function renderFixedLane({
   name,
   defaultValue,
   value,
-  scrollLeft = 0,
+  viewport,
   veilTimeline = false,
-  viewportWidth,
   width
 }: RenderFixedLaneParams) {
   const laneBottom = laneY + height;
-  const { sliderStartX, sliderEndX } = resolveFixedLaneSliderBounds({ headerWidth, scrollLeft, viewportWidth, width });
+  const { sliderStartX, sliderEndX } = resolveFixedLaneSliderBounds({ headerWidth, viewport, width });
   const sliderCenterY = laneY + height * 0.5;
   const normalized = clamp01(value);
   const thumbX = sliderStartX + (sliderEndX - sliderStartX) * normalized;

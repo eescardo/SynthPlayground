@@ -99,6 +99,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     selectionMarkerTrackId,
     totalBeats,
     trackLayouts,
+    viewport,
     width
   } = useTrackCanvasRenderModel({
     beatWidth,
@@ -114,8 +115,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const fixedLaneValueFromX = (x: number) => {
     const { sliderStartX, sliderEndX } = resolveFixedLaneSliderBounds({
       headerWidth: HEADER_WIDTH,
-      scrollLeft,
-      viewportWidth,
+      viewport,
       width
     });
     return clamp01((x - sliderStartX) / Math.max(1, sliderEndX - sliderStartX));
@@ -389,10 +389,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
         selectedNoteKeys,
         selectionBeatRange,
         selectionMarkerTrackId,
-        scrollLeft,
         totalBeats,
         trackLayouts,
-        viewportWidth,
+        viewport,
         width
       },
       selectedContentTabStopFocused,
@@ -428,7 +427,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
     playheadBeat,
     gridBeats,
     projectEndBeat,
-    scrollLeft,
     project,
     selectedNoteKeys,
     selectedContentTabStopFocused,
@@ -441,7 +439,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     selectionRect,
     totalBeats,
     trackLayouts,
-    viewportWidth,
+    viewport,
     width
   ]);
 

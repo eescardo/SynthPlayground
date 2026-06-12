@@ -12,6 +12,13 @@ export interface TrackOverlapModel {
   overlapRanges: Array<{ startBeat: number; endBeat: number }>;
 }
 
+export interface TrackCanvasViewport {
+  scrollLeft: number;
+  width: number;
+  left: number;
+  right: number;
+}
+
 export interface TrackCanvasRenderModel {
   beatWidth: number;
   projectEndBeat: number;
@@ -28,9 +35,19 @@ export interface TrackCanvasRenderModel {
   selectionMarkerTrackId: string | null;
   selectedNoteKeys: ReadonlySet<string> | undefined;
   automationKeyframeSelectionKeys: ReadonlySet<string> | undefined;
-  scrollLeft: number;
-  viewportWidth: number;
+  viewport: TrackCanvasViewport;
 }
+
+export const createTrackCanvasViewport = (scrollLeft = 0, width = 0): TrackCanvasViewport => {
+  const safeScrollLeft = Number.isFinite(scrollLeft) ? Math.max(0, scrollLeft) : 0;
+  const safeWidth = Number.isFinite(width) ? Math.max(0, width) : 0;
+  return {
+    scrollLeft: safeScrollLeft,
+    width: safeWidth,
+    left: safeScrollLeft,
+    right: safeScrollLeft + safeWidth
+  };
+};
 
 export function findTrackOverlaps(notes: Note[]): TrackOverlapModel {
   const overlapNoteIds = new Set<string>();
@@ -89,7 +106,8 @@ export function useTrackCanvasRenderModel({
   viewportWidth?: number;
 }): TrackCanvasRenderModel {
   const projectEndBeat = useMemo(() => getProjectTimelineEndBeat(project), [project]);
-  const viewportPaddingBeats = Math.max(0, (viewportWidth - HEADER_WIDTH) / beatWidth);
+  const viewport = useMemo(() => createTrackCanvasViewport(scrollLeft, viewportWidth), [scrollLeft, viewportWidth]);
+  const viewportPaddingBeats = Math.max(0, (viewport.width - HEADER_WIDTH) / beatWidth);
   const totalBeats = projectEndBeat + viewportPaddingBeats;
   const width = HEADER_WIDTH + totalBeats * beatWidth;
   const { trackLayouts, height } = useTrackCanvasLayout(project);
@@ -117,7 +135,6 @@ export function useTrackCanvasRenderModel({
     selectedNoteKeys: selection.kind === "note" ? selection.content.noteKeys : undefined,
     automationKeyframeSelectionKeys:
       selection.kind === "note" ? selection.content.automationKeyframeSelectionKeys : undefined,
-    scrollLeft,
-    viewportWidth
+    viewport
   };
 }
