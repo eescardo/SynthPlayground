@@ -8,16 +8,22 @@
   <circle cx="32" cy="32" r="30" fill="#080D16"/>
   <circle cx="32" cy="32" r="27" stroke="url(#sproutMarkLime)" stroke-width="2.7"/>
   <path
-    d="M32.25 53V36.25C32.25 26.25 27.2 20.85 18.05 21.35C17.75 31.05 24.9 37.3 34.15 37.9"
+    d="M32.25 53V36.3"
     stroke="url(#sproutMarkLime)"
-    stroke-width="4.45"
+    stroke-width="2.25"
+    stroke-linecap="round"
+  />
+  <path
+    d="M32.25 36.3C31.8 27.8 27.15 20.95 18.05 21.35C17.7 30.35 24.35 36.35 29.25 37.1C30.05 37.25 30.35 37.9 29.65 38.7"
+    stroke="url(#sproutMarkLime)"
+    stroke-width="2.25"
     stroke-linecap="round"
     stroke-linejoin="round"
   />
   <path
-    d="M32.25 36.25C34.55 26.55 41.95 24 48.05 25.2C47.7 35.05 41 39.75 34.85 40.15"
+    d="M32.25 36.3C34.6 27.35 41.85 24.05 48.05 25.2C47.75 34.45 41.3 39.4 35.25 40.05C34.45 40.15 34.3 40.65 34.95 41.05"
     stroke="url(#sproutMarkLime)"
-    stroke-width="4.45"
+    stroke-width="2.25"
     stroke-linecap="round"
     stroke-linejoin="round"
   />
