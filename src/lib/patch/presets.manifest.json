@@ -1,11 +1,13 @@
 [
   {
     "presetId": "preset_bass",
-    "presetVersion": 16,
+    "presetVersion": 17,
     "name": "Bass",
     "macroIds": [
       "macro_cutoff",
-      "macro_decay"
+      "macro_decay",
+      "macro_string_body",
+      "macro_string_level"
     ]
   },
   {
