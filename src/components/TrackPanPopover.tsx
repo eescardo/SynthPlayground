@@ -14,6 +14,10 @@ interface TrackPanPopoverProps {
 }
 
 export function TrackPanPopover(props: TrackPanPopoverProps) {
+  const automationTitle = props.automated
+    ? "Automated in timeline. Click to revert to fixed value"
+    : "Click to automate in timeline";
+
   return (
     <div
       className="track-pan-popover"
@@ -51,14 +55,15 @@ export function TrackPanPopover(props: TrackPanPopoverProps) {
         />
         <span>R</span>
       </div>
-      <label className="track-pan-automation-check">
-        <input
-          type="checkbox"
-          checked={props.automated}
-          onChange={props.automated ? props.onUnbindFromAutomation : props.onBindToAutomation}
-        />
-        <span>Control as macro</span>
-      </label>
+      <button
+        type="button"
+        className="track-volume-automation-pill"
+        title={automationTitle}
+        aria-label={automationTitle}
+        onClick={props.automated ? props.onUnbindFromAutomation : props.onBindToAutomation}
+      >
+        {props.automated ? "auto" : "fixed"}
+      </button>
     </div>
   );
 }

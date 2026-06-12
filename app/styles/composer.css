@@ -326,18 +326,6 @@
   accent-color: #9fd4ff;
 }
 
-.track-pan-automation-check {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.72rem;
-  color: var(--ink);
-}
-
-.track-pan-automation-check input {
-  accent-color: #9fd4ff;
-}
-
 .timeline-actions-popover {
   position: fixed;
   display: flex;
