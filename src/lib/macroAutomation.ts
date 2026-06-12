@@ -17,6 +17,7 @@ const SPLIT_OFFSET = 0.1;
 export const TRACK_VOLUME_AUTOMATION_ID = "__track_volume__";
 export const DEFAULT_EMPTY_COMPOSITION_BEATS = 16;
 export const TRACK_PAN_AUTOMATION_ID = "__track_pan__";
+const HOST_TRACK_AUTOMATION_IDS = [TRACK_VOLUME_AUTOMATION_ID, TRACK_PAN_AUTOMATION_ID] as const;
 
 export type AutomationKeyframeSide = "single" | "incoming" | "outgoing";
 
@@ -193,6 +194,28 @@ export const isTrackMacroAutomated = (track: Track, macroId: string): boolean =>
   Boolean(getTrackMacroLane(track, macroId));
 export const isTrackVolumeAutomated = (track: Track): boolean => Boolean(getTrackVolumeLane(track));
 export const isTrackPanAutomated = (track: Track): boolean => Boolean(getTrackPanLane(track));
+export const isHostTrackAutomationId = (macroId: string): boolean =>
+  HOST_TRACK_AUTOMATION_IDS.includes(macroId as (typeof HOST_TRACK_AUTOMATION_IDS)[number]);
+
+export const getCompatibleAutomationLaneIds = (project: Project, track: Track, sourcePatchId: string) => {
+  const compatibleIds = new Set<string>(HOST_TRACK_AUTOMATION_IDS);
+  if (track.instrumentPatchId !== sourcePatchId) {
+    return compatibleIds;
+  }
+
+  const patch = project.patches.find((entry) => entry.id === track.instrumentPatchId);
+  for (const macro of patch?.ui.macros ?? []) {
+    compatibleIds.add(macro.id);
+  }
+  if (!patch) {
+    for (const macroId of Object.keys(track.macroAutomations)) {
+      if (!isHostTrackAutomationId(macroId)) {
+        compatibleIds.add(macroId);
+      }
+    }
+  }
+  return compatibleIds;
+};
 
 export const createTrackMacroAutomationLane = (macroId: string, initialValue: number): TrackMacroAutomationLane => ({
   macroId,

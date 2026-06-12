@@ -67,7 +67,6 @@ export function useProjectAudioActions(options: UseProjectAudioActionsOptions) {
               ? {
                   ...track,
                   volume: clampedVolume,
-                  pan: 0.5,
                   mute: muteChange?.muted ?? track.mute
                 }
               : track

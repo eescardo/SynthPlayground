@@ -16,6 +16,7 @@ import {
   parseNoteClipboardPayload,
   serializeNoteClipboardPayload
 } from "@/lib/clipboard";
+import { TRACK_PAN_AUTOMATION_ID, TRACK_VOLUME_AUTOMATION_ID } from "@/lib/macroAutomation";
 import { Project } from "@/types/music";
 import { Patch } from "@/types/patch";
 
@@ -708,6 +709,53 @@ describe("noteClipboard", () => {
       expect.objectContaining({ pitchStr: "C4", startBeat: 4, durationBeats: 2 })
     ]);
     expect(applied.project.tracks[1]!.macroAutomations.macro_cutoff.keyframes).toEqual([
+      { id: "cutoff_c", beat: 3, type: "whole", value: 0.7 },
+      { id: "cutoff_d", beat: 6, type: "whole", value: 0.2 }
+    ]);
+  });
+
+  it("pastes host volume and pan automation onto tracks with different instrument patches", () => {
+    const project = createProject();
+    project.tracks[0] = {
+      ...project.tracks[0]!,
+      macroAutomations: {
+        ...project.tracks[0]!.macroAutomations,
+        [TRACK_VOLUME_AUTOMATION_ID]: {
+          macroId: TRACK_VOLUME_AUTOMATION_ID,
+          expanded: true,
+          startValue: 0.2,
+          endValue: 0.8,
+          keyframes: [{ id: "volume_a", beat: 2, type: "whole", value: 0.6 }]
+        },
+        [TRACK_PAN_AUTOMATION_ID]: {
+          macroId: TRACK_PAN_AUTOMATION_ID,
+          expanded: true,
+          startValue: 0.1,
+          endValue: 0.9,
+          keyframes: [{ id: "pan_a", beat: 2, type: "whole", value: 0.25 }]
+        }
+      }
+    };
+    project.tracks[1] = {
+      ...project.tracks[1]!,
+      instrumentPatchId: "patch_2"
+    };
+
+    const payload = buildNoteClipboardPayload(project, [getNoteSelectionKey("track_1", "note_a")]);
+    expect(payload?.tracks[0]!.automationLanes.map((lane) => lane.macroId)).toEqual(
+      expect.arrayContaining([TRACK_VOLUME_AUTOMATION_ID, TRACK_PAN_AUTOMATION_ID, "macro_cutoff"])
+    );
+
+    const applied = applyNoteClipboardPaste(project, payload!, "track_2", 4);
+    const destinationTrack = applied.project.tracks[1]!;
+
+    expect(destinationTrack.macroAutomations[TRACK_VOLUME_AUTOMATION_ID].keyframes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ beat: 5, type: "whole", value: 0.6 })])
+    );
+    expect(destinationTrack.macroAutomations[TRACK_PAN_AUTOMATION_ID].keyframes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ beat: 5, type: "whole", value: 0.25 })])
+    );
+    expect(destinationTrack.macroAutomations.macro_cutoff.keyframes).toEqual([
       { id: "cutoff_c", beat: 3, type: "whole", value: 0.7 },
       { id: "cutoff_d", beat: 6, type: "whole", value: 0.2 }
     ]);

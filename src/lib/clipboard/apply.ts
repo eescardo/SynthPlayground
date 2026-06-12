@@ -7,7 +7,10 @@ import {
 import { shiftCompositionEndForInsertedRange, shiftCompositionEndForRemovedRange } from "@/lib/compositionEnd";
 import { createId } from "@/lib/ids";
 import { sanitizeLoopSettings } from "@/lib/looping";
-import { getProjectTimelineEndBeat as getProjectTimelineEndBeatFromProject } from "@/lib/macroAutomation";
+import {
+  getCompatibleAutomationLaneIds,
+  getProjectTimelineEndBeat as getProjectTimelineEndBeatFromProject
+} from "@/lib/macroAutomation";
 import { eraseNotesInBeatRange, insertBeatGap, removeBeatRangeAndCloseGap, sortNotes } from "@/lib/noteEditing";
 import { BeatRange, getNoteSelectionKey, getSelectedAutomationIdsByTrackId } from "@/lib/clipboard/selection";
 import { NoteClipboardPayload } from "@/lib/clipboard/payload";
@@ -38,15 +41,6 @@ const buildInsertedNotes = (
     trackId: track.id,
     notes: insertedNotes
   };
-};
-
-const getCompatibleMacroIds = (project: Project, track: Track, sourcePatchId: string) => {
-  if (track.instrumentPatchId !== sourcePatchId) {
-    return new Set<string>();
-  }
-
-  const patch = project.patches.find((entry) => entry.id === track.instrumentPatchId);
-  return new Set(patch?.ui.macros.map((macro) => macro.id) ?? Object.keys(track.macroAutomations));
 };
 
 const shiftBeatBoundSongStructureForInsertedGap = (project: Project, atBeat: number, gapBeats: number) => ({
@@ -141,7 +135,7 @@ export function applyNoteClipboardPaste(
     };
 
     if (copiedTrack.automationLanes.length > 0) {
-      const compatibleMacroIds = getCompatibleMacroIds(project, track, copiedTrack.sourcePatchId);
+      const compatibleMacroIds = getCompatibleAutomationLaneIds(project, track, copiedTrack.sourcePatchId);
       const nextMacroAutomations = { ...nextTrack.macroAutomations };
       const nextMacroValues = { ...nextTrack.macroValues };
       for (const laneSegment of copiedTrack.automationLanes) {
