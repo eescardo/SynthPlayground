@@ -38,7 +38,7 @@ export const bassPatch = (): Patch => {
     schemaVersion: CURRENT_PATCH_SCHEMA_VERSION,
     id: "preset_bass",
     name: "Bass",
-    meta: { source: "preset", presetId: "preset_bass", presetVersion: 17 },
+    meta: { source: "preset", presetId: "preset_bass", presetVersion: 18 },
     nodes: [
       {
         id: "cvscale1",
@@ -165,9 +165,9 @@ export const bassPatch = (): Patch => {
         typeId: "KarplusStrong",
         params: {
           ...createDefaultParamsForType("KarplusStrong"),
-          decay: 0.955,
-          damping: 0.26,
-          brightness: 0.6,
+          decay: 0.945,
+          damping: 0.22,
+          brightness: 0.68,
           excitation: "noise"
         }
       },
@@ -176,9 +176,9 @@ export const bassPatch = (): Patch => {
         typeId: "KarplusStrong",
         params: {
           ...createDefaultParamsForType("KarplusStrong"),
-          decay: 0.975,
-          damping: 0.3,
-          brightness: 0.54,
+          decay: 0.965,
+          damping: 0.26,
+          brightness: 0.6,
           excitation: "noise"
         }
       },
@@ -187,8 +187,8 @@ export const bassPatch = (): Patch => {
         typeId: "Mixer4",
         params: {
           ...createDefaultParamsForType("Mixer4"),
-          gain1: 0.9000000000000001,
-          gain2: 0.72,
+          gain1: 0.78,
+          gain2: 0.82,
           gain3: 0,
           gain4: 0
         }
@@ -198,8 +198,8 @@ export const bassPatch = (): Patch => {
         typeId: "Saturation",
         params: {
           ...createDefaultParamsForType("Saturation"),
-          driveDb: 7.5,
-          mix: 0.28,
+          driveDb: 1.2,
+          mix: 0.05,
           type: "softclip"
         }
       },
@@ -209,7 +209,7 @@ export const bassPatch = (): Patch => {
         params: {
           ...createDefaultParamsForType("Mixer4"),
           gain1: 0.78,
-          gain2: 0.5,
+          gain2: 0.494,
           gain3: 0,
           gain4: 0
         }
@@ -229,9 +229,9 @@ export const bassPatch = (): Patch => {
         params: {
           ...createDefaultParamsForType("VCF"),
           type: "lowpass",
-          cutoffHz: 2600,
-          resonance: 0.38,
-          cutoffModAmountOct: 1.25
+          cutoffHz: 1900,
+          resonance: 0.28,
+          cutoffModAmountOct: 0.85
         }
       }
     ],
@@ -589,7 +589,6 @@ export const bassPatch = (): Patch => {
           id: "macro_decay",
           name: "Pop/Slap",
           keyframeCount: 3,
-          defaultNormalized: 0.5,
           bindings: [
             {
               nodeId: "env1",
@@ -755,7 +754,7 @@ export const bassPatch = (): Patch => {
                 },
                 {
                   x: 1,
-                  y: 240
+                  y: 210
                 }
               ]
             },
@@ -873,15 +872,15 @@ export const bassPatch = (): Patch => {
               points: [
                 {
                   x: 0,
-                  y: 0.32
+                  y: 0.28
                 },
                 {
                   x: 0.5,
-                  y: 0.9
+                  y: 0.78
                 },
                 {
                   x: 1,
-                  y: 0.5
+                  y: 0.42
                 }
               ]
             },
@@ -894,15 +893,15 @@ export const bassPatch = (): Patch => {
               points: [
                 {
                   x: 0,
-                  y: 0.22
+                  y: 0.28
                 },
                 {
                   x: 0.5,
-                  y: 0.72
+                  y: 0.82
                 },
                 {
                   x: 1,
-                  y: 0.32
+                  y: 0.42
                 }
               ]
             },
@@ -915,15 +914,15 @@ export const bassPatch = (): Patch => {
               points: [
                 {
                   x: 0,
-                  y: 4.5
+                  y: 2.6
                 },
                 {
                   x: 0.5,
-                  y: 7.5
+                  y: 1.2
                 },
                 {
                   x: 1,
-                  y: 10.5
+                  y: 8
                 }
               ]
             },
@@ -936,15 +935,15 @@ export const bassPatch = (): Patch => {
               points: [
                 {
                   x: 0,
-                  y: 0.16
+                  y: 0.1
                 },
                 {
                   x: 0.5,
-                  y: 0.28
+                  y: 0.05
                 },
                 {
                   x: 1,
-                  y: 0.38
+                  y: 0.32
                 }
               ]
             },
@@ -952,20 +951,20 @@ export const bassPatch = (): Patch => {
               nodeId: "ks_tone_vcf",
               paramId: "cutoffHz",
               map: "exp",
-              min: 700,
-              max: 6500,
+              min: 600,
+              max: 5200,
               points: [
                 {
                   x: 0,
-                  y: 1350
+                  y: 1050
                 },
                 {
                   x: 0.5,
-                  y: 2600
+                  y: 1900
                 },
                 {
                   x: 1,
-                  y: 5200
+                  y: 3800
                 }
               ]
             },
@@ -978,15 +977,15 @@ export const bassPatch = (): Patch => {
               points: [
                 {
                   x: 0,
-                  y: 0.58
+                  y: 0.42
                 },
                 {
                   x: 0.5,
-                  y: 0.38
+                  y: 0.28
                 },
                 {
                   x: 1,
-                  y: 0.5
+                  y: 0.34
                 }
               ]
             },
@@ -999,15 +998,15 @@ export const bassPatch = (): Patch => {
               points: [
                 {
                   x: 0,
-                  y: 0.75
+                  y: 0.55
                 },
                 {
                   x: 0.5,
-                  y: 1.25
+                  y: 0.85
                 },
                 {
                   x: 1,
-                  y: 2.4
+                  y: 1.45
                 }
               ]
             }
@@ -1017,35 +1016,34 @@ export const bassPatch = (): Patch => {
           id: "macro_string_body",
           name: "String Body",
           keyframeCount: 2,
-          defaultNormalized: 0.5,
           bindings: [
             {
               nodeId: "ks_string_main",
               paramId: "brightness",
               map: "linear",
-              min: 0.42,
-              max: 0.78
+              min: 0.36,
+              max: 0.68
             },
             {
               nodeId: "ks_string_sub",
               paramId: "brightness",
               map: "linear",
-              min: 0.38,
-              max: 0.7
+              min: 0.32,
+              max: 0.6
             },
             {
               nodeId: "ks_string_main",
               paramId: "damping",
               map: "linear",
-              min: 0.36,
-              max: 0.16
+              min: 0.46,
+              max: 0.22
             },
             {
               nodeId: "ks_string_sub",
               paramId: "damping",
               map: "linear",
-              min: 0.42,
-              max: 0.18
+              min: 0.52,
+              max: 0.26
             }
           ]
         },
