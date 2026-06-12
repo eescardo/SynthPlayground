@@ -135,9 +135,38 @@ interface RenderFixedLaneParams {
   name: string;
   defaultValue: number;
   value: number;
+  scrollLeft?: number;
   veilTimeline?: boolean;
+  viewportWidth?: number;
   width: number;
 }
+
+export const resolveFixedLaneSliderBounds = ({
+  headerWidth,
+  scrollLeft = 0,
+  viewportWidth,
+  width
+}: {
+  headerWidth: number;
+  scrollLeft?: number;
+  viewportWidth?: number;
+  width: number;
+}) => {
+  const sliderStartX = scrollLeft + headerWidth + FIXED_MACRO_SLIDER_START_OFFSET;
+  const viewportRight =
+    typeof viewportWidth === "number" && Number.isFinite(viewportWidth) && viewportWidth > 0
+      ? scrollLeft + viewportWidth
+      : width;
+  const sliderEndX = Math.min(
+    width - FIXED_LANE_RIGHT_PADDING,
+    viewportRight - FIXED_LANE_RIGHT_PADDING,
+    sliderStartX + FIXED_MACRO_SLIDER_WIDTH
+  );
+  return {
+    sliderStartX,
+    sliderEndX: Math.max(sliderStartX + 1, sliderEndX)
+  };
+};
 
 export function renderAutomationLane({
   automationKeyframeRects,
@@ -340,12 +369,13 @@ export function renderFixedLane({
   name,
   defaultValue,
   value,
+  scrollLeft = 0,
   veilTimeline = false,
+  viewportWidth,
   width
 }: RenderFixedLaneParams) {
   const laneBottom = laneY + height;
-  const sliderStartX = headerWidth + FIXED_MACRO_SLIDER_START_OFFSET;
-  const sliderEndX = Math.min(width - FIXED_LANE_RIGHT_PADDING, sliderStartX + FIXED_MACRO_SLIDER_WIDTH);
+  const { sliderStartX, sliderEndX } = resolveFixedLaneSliderBounds({ headerWidth, scrollLeft, viewportWidth, width });
   const sliderCenterY = laneY + height * 0.5;
   const normalized = clamp01(value);
   const thumbX = sliderStartX + (sliderEndX - sliderStartX) * normalized;

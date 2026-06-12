@@ -72,8 +72,10 @@ interface TrackCanvasDrawingOptions extends Pick<
     | "selectedNoteKeys"
     | "selectionBeatRange"
     | "selectionMarkerTrackId"
+    | "scrollLeft"
     | "totalBeats"
     | "trackLayouts"
+    | "viewportWidth"
     | "width"
   >;
   hoveredPitch: { trackId: string; noteId: string } | null;
@@ -222,9 +224,11 @@ function drawAutomationLanes(
     projectPatches: Project["patches"];
     registerHitTargets: boolean;
     projectEndBeat: number;
+    scrollLeft: number;
     track: Track;
     trackLayout: TrackLayout;
     veilTimeline?: boolean;
+    viewportWidth: number;
     width: number;
   }
 ) {
@@ -236,9 +240,11 @@ function drawAutomationLanes(
     projectPatches,
     registerHitTargets,
     projectEndBeat,
+    scrollLeft,
     track,
     trackLayout,
     veilTimeline,
+    viewportWidth,
     width
   } = options;
 
@@ -256,8 +262,10 @@ function drawAutomationLanes(
         hoveredAutomationKeyframe,
         registerHitTargets,
         automationKeyframeSelectionKeys,
+        scrollLeft,
         trackId: track.id,
         veilTimeline,
+        viewportWidth,
         width
       },
       automationKeyframeRectsRef.current
@@ -291,8 +299,10 @@ function drawTrackContent(
     beatWidth: number;
     gridBeats: number;
     projectEndBeat: number;
+    scrollLeft: number;
     selectedNoteKeys: TrackCanvasRenderModel["selectedNoteKeys"];
     trackLayouts: TrackLayout[];
+    viewportWidth: number;
     width: number;
   }
 ) {
@@ -315,11 +325,13 @@ function drawTrackContent(
     playheadBeat,
     project,
     projectEndBeat,
+    scrollLeft,
     selectedContentTabStopFocused,
     selectedNoteKeys,
     selectedTrackId,
     tabSelectionPreviewNote,
     trackLayouts,
+    viewportWidth,
     width
   } = options;
 
@@ -496,8 +508,10 @@ function drawTrackContent(
       projectPatches: project.patches,
       registerHitTargets: true,
       projectEndBeat,
+      scrollLeft,
       track,
       trackLayout: layout,
+      viewportWidth,
       width
     });
   });
@@ -509,7 +523,9 @@ function drawAutomationVeilPass(
     automationKeyframeSelectionKeys: TrackCanvasRenderModel["automationKeyframeSelectionKeys"];
     beatWidth: number;
     projectEndBeat: number;
+    scrollLeft: number;
     trackLayouts: TrackLayout[];
+    viewportWidth: number;
     width: number;
   }
 ) {
@@ -520,7 +536,9 @@ function drawAutomationVeilPass(
     hoveredAutomationKeyframe,
     project,
     projectEndBeat,
+    scrollLeft,
     trackLayouts,
+    viewportWidth,
     width
   } = options;
 
@@ -537,9 +555,11 @@ function drawAutomationVeilPass(
       projectPatches: project.patches,
       registerHitTargets: false,
       projectEndBeat,
+      scrollLeft,
       track,
       trackLayout: layout,
       veilTimeline: true,
+      viewportWidth,
       width
     });
   });
@@ -718,8 +738,10 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     selectedNoteKeys,
     selectionBeatRange,
     selectionMarkerTrackId,
+    scrollLeft,
     totalBeats,
     trackLayouts,
+    viewportWidth,
     width
   } = renderModel;
   const canvas = canvasRef.current;
@@ -751,11 +773,13 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     playheadBeat,
     project,
     projectEndBeat,
+    scrollLeft,
     selectedContentTabStopFocused,
     selectedNoteKeys,
     selectedTrackId,
     tabSelectionPreviewNote,
     trackLayouts,
+    viewportWidth,
     width
   });
   drawPlayhead(ctx, {
@@ -775,7 +799,9 @@ export function renderTrackCanvas(options: TrackCanvasDrawingOptions) {
     hoveredAutomationKeyframe,
     project,
     projectEndBeat,
+    scrollLeft,
     trackLayouts,
+    viewportWidth,
     width
   });
   drawPostCompositionFade(ctx, projectEndBeat, beatWidth, height, width);

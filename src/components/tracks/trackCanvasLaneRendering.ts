@@ -90,8 +90,10 @@ export function renderLaneSpec(
     hoveredAutomationKeyframe: HoveredAutomationKeyframe | null;
     registerHitTargets: boolean;
     automationKeyframeSelectionKeys?: ReadonlySet<string>;
+    scrollLeft?: number;
     trackId: string;
     veilTimeline?: boolean;
+    viewportWidth?: number;
     width: number;
   },
   automationKeyframeRects: AutomationKeyframeRect[]
@@ -129,7 +131,9 @@ export function renderLaneSpec(
     name: spec.name,
     defaultValue: spec.defaultValue,
     value: spec.value,
+    scrollLeft: options.scrollLeft,
     veilTimeline: options.veilTimeline,
+    viewportWidth: options.viewportWidth,
     width: options.width
   });
 }

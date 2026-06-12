@@ -28,6 +28,8 @@ export interface TrackCanvasRenderModel {
   selectionMarkerTrackId: string | null;
   selectedNoteKeys: ReadonlySet<string> | undefined;
   automationKeyframeSelectionKeys: ReadonlySet<string> | undefined;
+  scrollLeft: number;
+  viewportWidth: number;
 }
 
 export function findTrackOverlaps(notes: Note[]): TrackOverlapModel {
@@ -78,10 +80,12 @@ export function useTrackCanvasRenderModel({
   beatWidth = BEAT_WIDTH,
   playheadBeat,
   project,
+  scrollLeft = 0,
   selection,
   viewportWidth = 0
 }: Pick<TrackCanvasProps, "playheadBeat" | "project" | "selection"> & {
   beatWidth?: number;
+  scrollLeft?: number;
   viewportWidth?: number;
 }): TrackCanvasRenderModel {
   const projectEndBeat = useMemo(() => getProjectTimelineEndBeat(project), [project]);
@@ -112,6 +116,8 @@ export function useTrackCanvasRenderModel({
     selectionMarkerTrackId: selection.kind === "none" ? null : selection.markerTrackId,
     selectedNoteKeys: selection.kind === "note" ? selection.content.noteKeys : undefined,
     automationKeyframeSelectionKeys:
-      selection.kind === "note" ? selection.content.automationKeyframeSelectionKeys : undefined
+      selection.kind === "note" ? selection.content.automationKeyframeSelectionKeys : undefined,
+    scrollLeft,
+    viewportWidth
   };
 }
