@@ -71,7 +71,7 @@
 
 .volumeButton {
   position: absolute;
-  left: 134px;
+  left: 130px;
   width: 17px;
   height: 20px;
   pointer-events: auto;
@@ -86,7 +86,7 @@
 
 .panButton {
   position: absolute;
-  left: 151px;
+  left: 149px;
   width: 19px;
   height: 20px;
   pointer-events: auto;
