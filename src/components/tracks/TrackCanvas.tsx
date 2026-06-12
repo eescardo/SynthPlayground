@@ -66,30 +66,52 @@ export function TrackCanvas(props: TrackCanvasProps) {
     closeVolumePopover,
     scheduleVolumePopoverOpen,
     scheduleVolumePopoverDismiss,
+    cancelVolumePopoverTimers,
     cancelScheduledVolumePopoverDismiss
   } = useVolumePopover();
-
-  const openPanPopover = useCallback((trackId: string, anchor?: HTMLElement | null) => {
-    setPanPopoverTrackId(trackId);
-    if (!anchor) {
-      return;
-    }
-    const rect = anchor.getBoundingClientRect();
-    const width = 168;
-    const height = 132;
-    const preferredLeft = rect.right + 8;
-    const maxLeft = Math.max(8, window.innerWidth - width - 8);
-    const fallbackLeft = rect.left - width - 8;
-    setPanPopoverPosition({
-      left: preferredLeft <= maxLeft ? preferredLeft : clamp(fallbackLeft, 8, maxLeft),
-      top: clamp(rect.top - 4, 8, Math.max(8, window.innerHeight - height - 8))
-    });
-  }, []);
 
   const closePanPopover = useCallback(() => {
     setPanPopoverTrackId(null);
     setPanPopoverPosition(null);
   }, []);
+
+  const openVolumeOnlyPopover = useCallback(
+    (trackId: string, anchor?: HTMLElement | null) => {
+      closePanPopover();
+      openVolumePopover(trackId, anchor);
+    },
+    [closePanPopover, openVolumePopover]
+  );
+
+  const scheduleVolumeOnlyPopoverOpen = useCallback(
+    (trackId: string, anchor?: HTMLElement | null) => {
+      closePanPopover();
+      scheduleVolumePopoverOpen(trackId, anchor);
+    },
+    [closePanPopover, scheduleVolumePopoverOpen]
+  );
+
+  const openPanPopover = useCallback(
+    (trackId: string, anchor?: HTMLElement | null) => {
+      cancelVolumePopoverTimers();
+      closeVolumePopover();
+      setPanPopoverTrackId(trackId);
+      if (!anchor) {
+        return;
+      }
+      const rect = anchor.getBoundingClientRect();
+      const width = 168;
+      const height = 132;
+      const preferredLeft = rect.right + 8;
+      const maxLeft = Math.max(8, window.innerWidth - width - 8);
+      const fallbackLeft = rect.left - width - 8;
+      setPanPopoverPosition({
+        left: preferredLeft <= maxLeft ? preferredLeft : clamp(fallbackLeft, 8, maxLeft),
+        top: clamp(rect.top - 4, 8, Math.max(8, window.innerHeight - height - 8))
+      });
+    },
+    [cancelVolumePopoverTimers, closeVolumePopover]
+  );
 
   const {
     activeRecordedNotes,
@@ -563,9 +585,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
       volumePopoverPosition={volumePopoverPosition}
       panPopoverTrackId={panPopoverTrackId}
       panPopoverPosition={panPopoverPosition}
-      openVolumePopover={openVolumePopover}
+      openVolumePopover={openVolumeOnlyPopover}
       openPanPopover={openPanPopover}
-      scheduleVolumePopoverOpen={scheduleVolumePopoverOpen}
+      scheduleVolumePopoverOpen={scheduleVolumeOnlyPopoverOpen}
       scheduleVolumePopoverDismiss={scheduleVolumePopoverDismiss}
       cancelScheduledVolumePopoverDismiss={cancelScheduledVolumePopoverDismiss}
       trackActions={trackActions}
