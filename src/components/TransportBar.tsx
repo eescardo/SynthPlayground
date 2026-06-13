@@ -73,8 +73,8 @@ export function TransportBar(props: TransportBarProps) {
             src={patchWorkspaceIconSrc}
             alt=""
             aria-hidden="true"
-            width={20}
-            height={20}
+            width={32}
+            height={32}
             unoptimized
           />
           <span>Workspace</span>

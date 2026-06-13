@@ -160,6 +160,95 @@ describe.sequential("composer pointer interactions", () => {
       await browser.close();
     }
   }, 120_000);
+
+  test("does not open the volume popover after leaving before the hover delay finishes", async () => {
+    const devServer = startDevServer(PORT);
+    cleanupProcesses.add(devServer);
+
+    await waitForServer(BASE_URL, 120_000);
+
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const context = await browser.newContext({
+        baseURL: BASE_URL,
+        viewport: { width: 1400, height: 900 }
+      });
+
+      try {
+        const page = await context.newPage();
+        try {
+          await openSeededApp(page, createEmptyComposerProject());
+
+          const volumeButton = page.locator('[data-track-chrome="volume-button"]').first();
+          await expect(volumeButton).toBeVisible();
+
+          await volumeButton.hover();
+          await page.mouse.move(480, 420);
+          await page.waitForTimeout(1100);
+          await expect(page.locator('[data-track-popover="volume"]')).toHaveCount(0);
+
+          await volumeButton.hover();
+          await page.waitForTimeout(1100);
+          await expect(page.locator('[data-track-popover="volume"]')).toBeVisible();
+        } finally {
+          await page.close();
+        }
+      } finally {
+        await context.close();
+      }
+    } finally {
+      await browser.close();
+    }
+  }, 120_000);
+
+  test("keeps expanded macro panels visible but muted after selecting another track", async () => {
+    const devServer = startDevServer(PORT);
+    cleanupProcesses.add(devServer);
+
+    await waitForServer(BASE_URL, 120_000);
+
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const context = await browser.newContext({
+        baseURL: BASE_URL,
+        viewport: { width: 1400, height: 900 }
+      });
+
+      try {
+        const page = await context.newPage();
+        try {
+          await openSeededApp(page, createEmptyComposerProject());
+
+          await page.locator('[data-testid="track-name-button"]').first().click();
+          await page.getByRole("button", { name: "Expand macro lanes" }).click();
+          await expect(page.locator('[data-track-chrome="macro-panel"]')).toBeVisible();
+
+          await page.locator('[data-testid="track-name-button"]').nth(1).click();
+
+          const macroPanel = page.locator('[data-track-chrome="macro-panel"]').first();
+          await expect(macroPanel).toBeVisible();
+          await expect(macroPanel.locator("button").first()).toBeDisabled();
+          await expect
+            .poll(() =>
+              macroPanel.evaluate((element) => {
+                const panel = element.querySelector('[class*="inspectorPanel"]');
+                return panel ? window.getComputedStyle(panel).borderTopColor : null;
+              })
+            )
+            .toBe("rgba(0, 0, 0, 0)");
+
+          await macroPanel.click({ position: { x: 18, y: 18 } });
+          await expect(page.locator('[data-testid="track-name-button"]').first()).toHaveCSS("cursor", "text");
+        } finally {
+          await page.close();
+        }
+      } finally {
+        await context.close();
+      }
+    } finally {
+      await browser.close();
+    }
+  }, 120_000);
 });
 
 const createEmptyComposerProject = (options?: { compositionEndBeat?: number }): Project => {

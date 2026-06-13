@@ -14,7 +14,7 @@ import { PatchEditorSession } from "@/components/patch/patchEditorSession";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { usePatchWorkspaceQuickHelpDialog } from "@/hooks/patch/usePatchWorkspaceQuickHelpDialog";
 import { RecentProjectSnapshot } from "@/lib/persistence";
-import { backArrowIconSrc } from "@/resources/images";
+import { composerNoteIconSrc } from "@/resources/images";
 import { Patch, PatchValidationIssue } from "@/types/patch";
 import { PatchOp } from "@/types/ops";
 import { PatchProbeEditorActions, PatchProbeEditorState } from "@/types/probes";
@@ -115,7 +115,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
   } = usePatchWorkspaceQuickHelpDialog();
 
   return (
-    <section className={styles.shell}>
+    <section className={`${styles.shell} patch-workspace-shell`}>
       <div className={styles.header}>
         <div className={styles.heading}>
           <ProjectsMenu
@@ -139,7 +139,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
           >
             <Image
               className="transport-nav-button-icon"
-              src={backArrowIconSrc}
+              src={composerNoteIconSrc}
               alt=""
               aria-hidden="true"
               width={20}

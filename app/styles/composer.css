@@ -2,11 +2,26 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.8rem;
-  padding: 0.55rem 0.8rem;
+  gap: 0.55rem;
+  padding: 0.32rem 0.58rem;
   background: rgba(13, 23, 34, 0.92);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
+}
+
+.transport button {
+  min-height: 1.8rem;
+  padding: 0.12rem 0.52rem;
+  font-size: 0.9rem;
+  line-height: 1.1;
+}
+
+.transport input,
+.transport select {
+  min-height: 1.8rem;
+  padding: 0.12rem 0.36rem;
+  font-size: 0.88rem;
+  line-height: 1.1;
 }
 
 .projects-menu-trigger {
@@ -16,24 +31,44 @@
 }
 
 .projects-menu-trigger-icon {
-  padding: 0.22rem;
+  width: 1.8rem;
+  height: 1.8rem;
+  padding: 0;
   border-radius: 999px;
-  background: rgba(13, 23, 34, 0.34);
+  overflow: hidden;
+  background: transparent;
+  border-color: transparent;
+}
+
+.projects-menu-trigger-icon:hover,
+.projects-menu-trigger-icon[aria-expanded="true"] {
+  background: rgba(79, 184, 255, 0.07);
+  border-color: rgba(79, 184, 255, 0.84);
+}
+
+.transport .projects-menu-trigger-icon {
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .projects-menu-brand-mark {
-  width: 1.2rem;
-  height: 1.2rem;
+  width: calc(100% - 2px);
+  height: calc(100% - 2px);
   display: block;
   pointer-events: none;
-  filter: drop-shadow(0 6px 14px rgba(5, 12, 19, 0.28));
+  filter: drop-shadow(0 4px 10px rgba(5, 12, 19, 0.24));
 }
 
 .transport-nav-button {
   display: inline-flex;
   align-items: center;
-  gap: 0.42rem;
+  gap: 0.3rem;
   white-space: nowrap;
+}
+
+.transport .transport-nav-button {
+  padding: 0 0.52rem 0 0.12rem;
 }
 
 .transport-nav-button-icon {
@@ -44,15 +79,15 @@
 }
 
 .transport-nav-button-icon-patch {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: calc(1.8rem - 2px);
+  height: calc(1.8rem - 2px);
 }
 
 .transport-left,
 .transport-right {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.42rem;
   flex-wrap: wrap;
 }
 
@@ -75,8 +110,8 @@
 .toolbar-labeled-control {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  font-size: 0.9rem;
+  gap: 0.25rem;
+  font-size: 0.84rem;
   color: var(--muted);
 }
 
@@ -86,7 +121,7 @@
 
 .playhead {
   font-family: "Courier New", monospace;
-  font-size: 0.9rem;
+  font-size: 0.84rem;
   color: #a5cbef;
 }
 
@@ -99,7 +134,7 @@
 .transport-project-name,
 .transport-project-name-input {
   font-family: "Courier New", monospace;
-  font-size: 0.9rem;
+  font-size: 0.84rem;
   color: #a5cbef;
 }
 
@@ -121,7 +156,7 @@
 
 .transport-project-divider {
   width: 1px;
-  height: 1.15rem;
+  height: 0.95rem;
   background: rgba(167, 204, 240, 0.35);
 }
 
@@ -709,6 +744,23 @@
   padding: 0.28rem 0.58rem;
   font-size: 0.78rem;
   line-height: 1.1;
+}
+
+.track-patch-summary-workspace-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
+  background: linear-gradient(180deg, #2c5d82, #224863);
+  border-color: rgba(117, 184, 236, 0.68);
+  box-shadow: 0 0 0 1px rgba(126, 190, 235, 0.08);
+}
+
+.track-patch-summary-action-icon {
+  width: 1.12rem;
+  height: 1.12rem;
+  display: block;
+  flex: 0 0 auto;
 }
 
 .track-name-input {

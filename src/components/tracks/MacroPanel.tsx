@@ -1,6 +1,10 @@
 "use client";
 
-import { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
+import {
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent
+} from "react";
 import { TriangleGlyph } from "@/components/icons/TriangleGlyph";
 import { VerticalDirection } from "@/types/direction";
 import styles from "./TrackCanvas.module.css";
@@ -25,8 +29,10 @@ interface MacroPanelProps {
   panelTop: number | null;
   panelHeight: number;
   rows: MacroPanelRow[];
+  active?: boolean;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  onPointerDown?: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onDoubleClick?: (event: ReactMouseEvent<HTMLDivElement>) => void;
 }
 
@@ -34,8 +40,10 @@ export function MacroPanel({
   panelTop,
   panelHeight,
   rows,
+  active = true,
   onMouseEnter,
   onMouseLeave,
+  onPointerDown,
   onDoubleClick
 }: MacroPanelProps) {
   if (panelTop === null) {
@@ -55,7 +63,7 @@ export function MacroPanel({
 
   return (
     <div
-      className={styles.macroPanelArea}
+      className={`${styles.macroPanelArea}${active ? "" : ` ${styles.macroPanelAreaInactive}`}`}
       data-track-chrome="macro-panel"
       style={{
         top: `${panelTop}px`,
@@ -63,6 +71,7 @@ export function MacroPanel({
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      onPointerDown={onPointerDown}
       onDoubleClick={onDoubleClick}
     >
       <div className={styles.inspectorPanel} />
@@ -86,6 +95,7 @@ export function MacroPanel({
                 data-testid="track-inspector-action-button"
                 title={row.bindTitle}
                 aria-label={row.bindAriaLabel}
+                disabled={!active}
                 onClick={row.onBindToggle}
                 onKeyDown={handleButtonKeyDown(row.onBindToggle)}
                 onDoubleClick={(event) => event.stopPropagation()}
@@ -99,6 +109,7 @@ export function MacroPanel({
                   data-testid="track-inspector-action-button"
                   title={row.expandTitle ?? "Expand lane"}
                   aria-label={row.expandAriaLabel ?? "Expand lane"}
+                  disabled={!active}
                   onClick={row.onExpandToggle}
                   onKeyDown={handleButtonKeyDown(row.onExpandToggle)}
                   onDoubleClick={(event) => event.stopPropagation()}

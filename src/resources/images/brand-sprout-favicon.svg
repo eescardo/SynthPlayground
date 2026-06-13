@@ -1,11 +1,30 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="32" cy="32" r="29" fill="#05090D"/>
-  <g transform="translate(32 28) scale(1.18) translate(-32 -28)">
-    <path d="M21.5 42C24.5 39 28 37.5 32 37.5C36 37.5 39.5 39 42.5 42" stroke="#73CEFF" stroke-width="3" stroke-linecap="round" />
-    <path d="M32 42V25.25" stroke="#A7F577" stroke-width="3" stroke-linecap="round" />
-    <path d="M32 25.25C23.25 24.75 19.75 17.75 21.25 9.25C28.25 10.25 32.5 14.75 32 25.25Z" fill="#A1F577" />
-    <path d="M32 27.25C39.5 28 44.25 22.75 44.75 14.5C38 13.75 33.25 18.5 32 27.25Z" fill="#5BDA72" />
-    <path d="M24.75 15.75C27.25 16.75 29.5 19 31 22" stroke="#D8FFB3" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.78" />
-    <path d="M39 18C36.75 19 34.75 21 33.25 23.75" stroke="#CFFFAD" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.72" />
-  </g>
+  <defs>
+    <linearGradient id="sproutMarkLime" x1="20" y1="14" x2="45" y2="52" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E7FF76"/>
+      <stop offset="1" stop-color="#7BD75B"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="#080D16"/>
+  <circle cx="32" cy="32" r="27" stroke="url(#sproutMarkLime)" stroke-width="2.7"/>
+  <path
+    d="M32.25 53V36.3"
+    stroke="url(#sproutMarkLime)"
+    stroke-width="1.8"
+    stroke-linecap="round"
+  />
+  <path
+    d="M32.25 36.3C30.95 26.65 24.0 18.85 12.26 22.177C11.29 29.226 16.747 35.617 23.369 35.84C27.983 35.995 29.022 36.323 29.879 38.077"
+    stroke="url(#sproutMarkLime)"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M32.25 36.3C34.45 28.05 41.1 24.8 51.095 26.889C49.484 36.512 43.757 38.287 39.211 38.395C36.278 38.465 35.249 39.234 34.355 41.173"
+    stroke="url(#sproutMarkLime)"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
 </svg>

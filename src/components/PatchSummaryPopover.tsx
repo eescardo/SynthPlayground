@@ -1,9 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import { TriangleGlyph } from "@/components/icons/TriangleGlyph";
 import { getModuleSchema } from "@/lib/patch/moduleRegistry";
 import { getSignalCapabilityColor, resolvePatchModuleCategoryColor } from "@/lib/patch/moduleCategories";
 import { resolvePatchPresetStatus } from "@/lib/patch/source";
+import { patchWorkspaceIconSrc } from "@/resources/images";
 import { Patch } from "@/types/patch";
 
 interface PatchSummaryPopoverProps {
@@ -193,8 +195,21 @@ export function PatchSummaryPopover(props: PatchSummaryPopoverProps) {
           <button type="button" onClick={props.onRemove} disabled={!props.canRemove}>
             Remove Instrument
           </button>
-          <button type="button" className="transport-export-button" onClick={props.onOpenWorkspace}>
-            Open Patch Workspace
+          <button
+            type="button"
+            className="track-patch-summary-workspace-button transport-export-button"
+            onClick={props.onOpenWorkspace}
+          >
+            <Image
+              className="track-patch-summary-action-icon"
+              src={patchWorkspaceIconSrc}
+              alt=""
+              aria-hidden="true"
+              width={24}
+              height={24}
+              unoptimized
+            />
+            <span>Patch Workspace</span>
           </button>
         </div>
       </div>

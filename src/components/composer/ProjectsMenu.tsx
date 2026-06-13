@@ -63,8 +63,8 @@ export function ProjectsMenu({
             src={brandSproutIconSrc}
             alt=""
             aria-hidden="true"
-            width={24}
-            height={24}
+            width={32}
+            height={32}
             unoptimized
           />
         ) : (
