@@ -115,7 +115,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
   } = usePatchWorkspaceQuickHelpDialog();
 
   return (
-    <section className={styles.shell}>
+    <section className={`${styles.shell} patch-workspace-shell`}>
       <div className={styles.header}>
         <div className={styles.heading}>
           <ProjectsMenu
