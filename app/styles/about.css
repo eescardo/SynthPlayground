@@ -4,9 +4,23 @@
 }
 
 .about-shell {
-  width: min(900px, 100%);
+  width: min(1120px, 100%);
   margin: 0 auto;
   display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.about-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.about-column {
+  display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: 1rem;
 }
@@ -47,7 +61,6 @@
 
 .about-back-link {
   display: inline-flex;
-  margin-bottom: 1.2rem;
 }
 
 .about-eyebrow {
@@ -166,6 +179,12 @@
 .about-release-entry ul {
   margin: 0.8rem 0 0;
   padding-left: 1.1rem;
+}
+
+@media (max-width: 860px) {
+  .about-columns {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
