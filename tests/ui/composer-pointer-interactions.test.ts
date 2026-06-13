@@ -236,6 +236,9 @@ describe.sequential("composer pointer interactions", () => {
               })
             )
             .toBe("rgba(0, 0, 0, 0)");
+
+          await macroPanel.click({ position: { x: 18, y: 18 } });
+          await expect(page.locator('[data-testid="track-name-button"]').first()).toHaveCSS("cursor", "text");
         } finally {
           await page.close();
         }

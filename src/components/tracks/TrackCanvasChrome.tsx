@@ -609,6 +609,14 @@ export function TrackHeaderChrome({
                     : undefined
                 }
                 onMouseLeave={selected ? () => schedulePatchSummaryDismiss(track.id) : undefined}
+                onPointerDown={
+                  selected
+                    ? undefined
+                    : (event) => {
+                        event.stopPropagation();
+                        trackActions.onSelectTrack(track.id);
+                      }
+                }
                 onDoubleClick={
                   selected
                     ? (event) => {

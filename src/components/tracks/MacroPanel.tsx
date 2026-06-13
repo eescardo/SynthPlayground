@@ -1,6 +1,10 @@
 "use client";
 
-import { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
+import {
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent
+} from "react";
 import { TriangleGlyph } from "@/components/icons/TriangleGlyph";
 import { VerticalDirection } from "@/types/direction";
 import styles from "./TrackCanvas.module.css";
@@ -28,6 +32,7 @@ interface MacroPanelProps {
   active?: boolean;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  onPointerDown?: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onDoubleClick?: (event: ReactMouseEvent<HTMLDivElement>) => void;
 }
 
@@ -38,6 +43,7 @@ export function MacroPanel({
   active = true,
   onMouseEnter,
   onMouseLeave,
+  onPointerDown,
   onDoubleClick
 }: MacroPanelProps) {
   if (panelTop === null) {
@@ -65,6 +71,7 @@ export function MacroPanel({
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      onPointerDown={onPointerDown}
       onDoubleClick={onDoubleClick}
     >
       <div className={styles.inspectorPanel} />
