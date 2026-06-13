@@ -15,21 +15,23 @@ export default function AboutPage() {
 
         <div className="about-columns">
           <div className="about-column">
-            <header className="about-hero">
-              <p className="about-eyebrow">{UI_TEXT.about.eyebrow}</p>
-              <h1>{APP_NAME}</h1>
-              <p>{UI_TEXT.about.purpose}</p>
-            </header>
+            <section className="about-section about-intro-panel" aria-labelledby="about-title">
+              <header className="about-hero">
+                <p className="about-eyebrow">{UI_TEXT.about.eyebrow}</p>
+                <h1 id="about-title">{APP_NAME}</h1>
+                <p>{UI_TEXT.about.purpose}</p>
+              </header>
 
-            <section className="about-section about-release-summary" aria-labelledby="release-notes-title">
-              <div>
-                <p className="about-eyebrow">Latest release</p>
-                <h2 id="release-notes-title">
-                  {latestRelease.version} · {latestRelease.title}
-                </h2>
-                <p>{latestRelease.summary}</p>
+              <div className="about-release-summary" aria-labelledby="release-notes-title">
+                <div>
+                  <p className="about-eyebrow">Latest release</p>
+                  <h2 id="release-notes-title">
+                    {latestRelease.version} · {latestRelease.title}
+                  </h2>
+                  <p>{latestRelease.summary}</p>
+                </div>
+                <ReleaseNotesDialog />
               </div>
-              <ReleaseNotesDialog />
             </section>
           </div>
 
