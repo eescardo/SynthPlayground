@@ -751,6 +751,9 @@
   align-items: center;
   justify-content: center;
   gap: 0.32rem;
+  background: linear-gradient(180deg, #2c5d82, #224863);
+  border-color: rgba(117, 184, 236, 0.68);
+  box-shadow: 0 0 0 1px rgba(126, 190, 235, 0.08);
 }
 
 .track-patch-summary-action-icon {
