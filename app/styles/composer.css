@@ -746,6 +746,20 @@
   line-height: 1.1;
 }
 
+.track-patch-summary-workspace-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
+}
+
+.track-patch-summary-action-icon {
+  width: 1.12rem;
+  height: 1.12rem;
+  display: block;
+  flex: 0 0 auto;
+}
+
 .track-name-input {
   position: absolute;
   left: 10px;

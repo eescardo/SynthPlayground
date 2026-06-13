@@ -8,6 +8,10 @@ const VOLUME_POPOVER_HEIGHT = 220;
 const VIEWPORT_MARGIN = 8;
 const POPOVER_GAP = 8;
 
+function canOpenScheduledVolumePopover(anchor?: HTMLElement | null) {
+  return !anchor || (anchor.isConnected && anchor.matches(":hover"));
+}
+
 function getVolumePopoverPosition(anchor: HTMLElement) {
   const rect = anchor.getBoundingClientRect();
   const maxLeft = Math.max(VIEWPORT_MARGIN, window.innerWidth - VOLUME_POPOVER_WIDTH - VIEWPORT_MARGIN);
@@ -69,6 +73,10 @@ export function useVolumePopover() {
     (trackId: string, anchor?: HTMLElement | null) => {
       clearOpenTimer();
       volumeOpenTimerRef.current = window.setTimeout(() => {
+        if (!canOpenScheduledVolumePopover(anchor)) {
+          volumeOpenTimerRef.current = null;
+          return;
+        }
         setVolumePopoverTrackId(trackId);
         if (anchor) {
           setVolumePopoverPosition(getVolumePopoverPosition(anchor));
@@ -80,12 +88,13 @@ export function useVolumePopover() {
   );
 
   const scheduleVolumePopoverDismiss = useCallback(() => {
+    clearOpenTimer();
     clearDismissTimer();
     volumeDismissTimerRef.current = window.setTimeout(() => {
       setVolumePopoverTrackId(null);
       volumeDismissTimerRef.current = null;
     }, 2000);
-  }, [clearDismissTimer]);
+  }, [clearDismissTimer, clearOpenTimer]);
 
   const cancelScheduledVolumePopoverDismiss = useCallback(() => {
     clearDismissTimer();
