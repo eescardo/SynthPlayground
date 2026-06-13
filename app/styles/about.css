@@ -42,22 +42,15 @@
   padding: clamp(1rem, 2vw, 1.35rem);
 }
 
-.about-back-link,
-.projects-popover-link {
+.about-back-link {
   color: #a5cbef;
   text-decoration: none;
 }
 
 .about-back-link:hover,
-.about-back-link:focus-visible,
-.projects-popover-link:hover,
-.projects-popover-link:focus-visible {
+.about-back-link:focus-visible {
   color: #d7ebff;
   text-decoration: underline;
-}
-
-.projects-popover-link {
-  padding: 0.1rem 0;
 }
 
 .about-back-link {

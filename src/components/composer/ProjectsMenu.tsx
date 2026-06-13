@@ -11,6 +11,7 @@ interface ProjectsMenuProps {
   importInputRef: RefObject<HTMLInputElement | null>;
   recentProjects: RecentProjectSnapshot[];
   onNewProject: () => void;
+  onDeleteCurrentProject: () => void;
   onExportJson: () => void;
   onImportJson: () => void;
   onOpenRecentProject: (projectId: string) => void;
@@ -25,6 +26,7 @@ export function ProjectsMenu({
   importInputRef,
   recentProjects,
   onNewProject,
+  onDeleteCurrentProject,
   onExportJson,
   onImportJson,
   onOpenRecentProject,
@@ -76,6 +78,7 @@ export function ProjectsMenu({
           importInputRef={importInputRef}
           recentProjects={recentProjects}
           onNewProject={onNewProject}
+          onDeleteCurrentProject={onDeleteCurrentProject}
           onExportJson={onExportJson}
           onImportJson={onImportJson}
           onOpenRecentProject={onOpenRecentProject}

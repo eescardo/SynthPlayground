@@ -71,6 +71,16 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
       await savePageScreenshot(page, outputPath);
     }
   },
+  [SCREENSHOT_SCENARIO.PROJECTS_POPOVER]: {
+    name: SCREENSHOT_SCENARIO.PROJECTS_POPOVER,
+    description: "Main composition view with the Projects menu popover open",
+    capture: async (page, outputPath) => {
+      await openApp(page);
+      await page.getByRole("button", { name: "Projects" }).click();
+      await expect(page.getByRole("dialog", { name: "Project actions" })).toBeVisible();
+      await savePageScreenshot(page, outputPath);
+    }
+  },
   [SCREENSHOT_SCENARIO.MICROTONAL_PITCHES]: {
     name: SCREENSHOT_SCENARIO.MICROTONAL_PITCHES,
     description: "Composer view with microtonal note labels and a 25-cent default pitch nudge visible",
