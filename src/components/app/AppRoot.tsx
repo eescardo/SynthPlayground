@@ -88,7 +88,7 @@ import {
   resolveSurvivingTrackIds
 } from "@/lib/patch/patchRemoval";
 import { useTrackMacroAutomationActions } from "@/hooks/tracks/useTrackMacroAutomationActions";
-import { useTrackVolumeAutomationActions } from "@/hooks/tracks/useTrackVolumeAutomationActions";
+import { useTrackHostAutomationActions } from "@/hooks/tracks/useTrackHostAutomationActions";
 import { ProjectAssetLibrary, SamplePlayerAssetData } from "@/types/assets";
 import { Project } from "@/types/music";
 import { PatchValidationIssue } from "@/types/patch";
@@ -398,7 +398,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     toggleTrackPanAutomationLane,
     previewTrackPan,
     previewTrackVolume
-  } = useTrackVolumeAutomationActions({
+  } = useTrackHostAutomationActions({
     audioEngineRef,
     commitProjectChange,
     previewPitch: patchWorkspace.previewPitch,

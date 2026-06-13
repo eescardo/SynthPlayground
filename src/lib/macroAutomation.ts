@@ -230,6 +230,54 @@ export const createTrackVolumeAutomationLane = (initialValue: number): TrackMacr
 export const createTrackPanAutomationLane = (initialValue: number): TrackMacroAutomationLane =>
   createTrackMacroAutomationLane(TRACK_PAN_AUTOMATION_ID, initialValue);
 
+export interface TrackHostAutomationDescriptor {
+  id: (typeof HOST_TRACK_AUTOMATION_IDS)[number];
+  laneType: "volume" | "pan";
+  label: string;
+  actionKey: "volume" | "pan";
+  resolveLane: (track: Track) => TrackMacroAutomationLane | null;
+  createLane: (initialValue: number) => TrackMacroAutomationLane;
+  fixedValueToNormalized: (value: number) => number;
+  getFixedValue: (track: Track) => number;
+  getSchedulerFallback: (track: Track) => number;
+  applyFixedValue: (track: Track, normalized: number) => Track;
+}
+
+export const TRACK_HOST_AUTOMATION_DESCRIPTORS: readonly TrackHostAutomationDescriptor[] = [
+  {
+    id: TRACK_VOLUME_AUTOMATION_ID,
+    laneType: "volume",
+    label: "Volume",
+    actionKey: "volume",
+    resolveLane: getTrackVolumeLane,
+    createLane: createTrackVolumeAutomationLane,
+    fixedValueToNormalized: (volume) => volume / 2,
+    getFixedValue: (track) => track.volume,
+    getSchedulerFallback: (track) => track.volume / 2,
+    applyFixedValue: (track, normalized) => ({ ...track, volume: normalized * 2 })
+  },
+  {
+    id: TRACK_PAN_AUTOMATION_ID,
+    laneType: "pan",
+    label: "Pan",
+    actionKey: "pan",
+    resolveLane: getTrackPanLane,
+    createLane: createTrackPanAutomationLane,
+    fixedValueToNormalized: (pan) => pan,
+    getFixedValue: (track) => track.pan ?? 0.5,
+    getSchedulerFallback: (track) => track.pan ?? 0.5,
+    applyFixedValue: (track, normalized) => ({ ...track, pan: normalized })
+  }
+];
+
+export const getTrackHostAutomationDescriptor = (macroId: string): TrackHostAutomationDescriptor | null =>
+  TRACK_HOST_AUTOMATION_DESCRIPTORS.find((descriptor) => descriptor.id === macroId) ?? null;
+
+export const getTrackHostAutomationDescriptorByLaneType = (
+  laneType: TrackHostAutomationDescriptor["laneType"]
+): TrackHostAutomationDescriptor | null =>
+  TRACK_HOST_AUTOMATION_DESCRIPTORS.find((descriptor) => descriptor.laneType === laneType) ?? null;
+
 export const getTrackAutomationPoints = (lane: TrackMacroAutomationLane, endBeat: number): AutomationPoint[] => {
   const points: AutomationPoint[] = [
     {

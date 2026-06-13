@@ -7,7 +7,7 @@ import {
   TRACK_MACRO_PANEL_EXPANDED_BOTTOM_GAP
 } from "@/components/tracks/trackCanvasConstants";
 import { AutomationLaneLayout, TrackLayout } from "@/components/tracks/trackCanvasTypes";
-import { getTrackMacroLane, getTrackPanLane, getTrackVolumeLane } from "@/lib/macroAutomation";
+import { getTrackMacroLane, TRACK_HOST_AUTOMATION_DESCRIPTORS } from "@/lib/macroAutomation";
 import { Project } from "@/types/music";
 
 export function useTrackCanvasLayout(project: Project): { trackLayouts: TrackLayout[]; height: number } {
@@ -20,37 +20,27 @@ export function useTrackCanvasLayout(project: Project): { trackLayouts: TrackLay
       const automationLanes: AutomationLaneLayout[] = [];
 
       if (track.macroPanelExpanded) {
-        const volumeLane = getTrackVolumeLane(track);
-        const panLane = getTrackPanLane(track);
+        const hostAutomationLanes = TRACK_HOST_AUTOMATION_DESCRIPTORS.map((descriptor) => ({
+          descriptor,
+          lane: descriptor.resolveLane(track)
+        }));
         const patchMacros = patch?.ui.macros ?? [];
-        if (volumeLane) {
-          const volumeLayout = {
-            laneId: volumeLane.macroId,
-            laneType: "volume" as const,
+        for (const { descriptor, lane } of hostAutomationLanes) {
+          if (!lane) {
+            continue;
+          }
+          const hostLayout = {
+            laneId: lane.macroId,
+            laneType: descriptor.laneType,
             macroId: null,
-            name: "Volume",
+            name: descriptor.label,
             y: laneY,
-            height: volumeLane.expanded ? AUTOMATION_LANE_HEIGHT : AUTOMATION_LANE_COLLAPSED_HEIGHT,
-            expanded: volumeLane.expanded,
+            height: lane.expanded ? AUTOMATION_LANE_HEIGHT : AUTOMATION_LANE_COLLAPSED_HEIGHT,
+            expanded: lane.expanded,
             automated: true
           };
-          laneY += volumeLayout.height;
-          automationLanes.push(volumeLayout);
-        }
-
-        if (panLane) {
-          const panLayout = {
-            laneId: panLane.macroId,
-            laneType: "pan" as const,
-            macroId: null,
-            name: "Pan",
-            y: laneY,
-            height: panLane.expanded ? AUTOMATION_LANE_HEIGHT : AUTOMATION_LANE_COLLAPSED_HEIGHT,
-            expanded: panLane.expanded,
-            automated: true
-          };
-          laneY += panLayout.height;
-          automationLanes.push(panLayout);
+          laneY += hostLayout.height;
+          automationLanes.push(hostLayout);
         }
 
         for (const macro of patchMacros) {
@@ -74,7 +64,7 @@ export function useTrackCanvasLayout(project: Project): { trackLayouts: TrackLay
           automationLanes.push(macroLayout);
         }
 
-        if (!volumeLane && !panLane && patchMacros.length === 0) {
+        if (!hostAutomationLanes.some((entry) => entry.lane) && patchMacros.length === 0) {
           // Reserve one collapsed lane so zero-macro patches still expose a stable
           // macro-panel surface for hover/double-click patch-summary interactions.
           automationLanes.push({

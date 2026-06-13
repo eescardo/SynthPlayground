@@ -24,7 +24,14 @@ import {
   TrackCanvasTrackActions
 } from "@/components/tracks/trackCanvasTypes";
 import { usePatchSummaryPopover } from "@/hooks/tracks/usePatchSummaryPopover";
-import { getTrackMacroLane, getTrackPanLane, getTrackVolumeLane } from "@/lib/macroAutomation";
+import {
+  getTrackMacroLane,
+  getTrackPanLane,
+  getTrackVolumeLane,
+  TRACK_HOST_AUTOMATION_DESCRIPTORS,
+  TRACK_VOLUME_AUTOMATION_ID,
+  TrackHostAutomationDescriptor
+} from "@/lib/macroAutomation";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
 import { trackPanToLabel, trackPanToTone } from "@/lib/trackPan";
@@ -94,26 +101,24 @@ interface PatchSummaryAnchor {
 
 const resolveMacroPanelGeometry = (
   layout: TrackLayout,
-  volumeLane: ReturnType<typeof getTrackVolumeLane>,
-  volumeLaneLayout: AutomationLaneLayout | null,
-  panLane: ReturnType<typeof getTrackPanLane>,
-  panLaneLayout: AutomationLaneLayout | null,
+  hostRows: {
+    lane: ReturnType<TrackHostAutomationDescriptor["resolveLane"]>;
+    laneLayout: AutomationLaneLayout | null;
+  }[],
   macroLaneLayouts: AutomationLaneLayout[]
 ): MacroPanelGeometry => {
-  const systemLaneLayouts = [volumeLaneLayout, panLaneLayout].filter((entry): entry is AutomationLaneLayout =>
-    Boolean(entry)
-  );
+  const systemLaneLayouts = hostRows
+    .filter((entry) => entry.lane)
+    .map((entry) => entry.laneLayout)
+    .filter((entry): entry is AutomationLaneLayout => Boolean(entry));
   const firstSystemLaneTop = systemLaneLayouts[0]?.y ?? null;
   const panelTop = firstSystemLaneTop ?? macroLaneLayouts[0]?.y ?? null;
-  const systemLaneBottoms = [
-    volumeLane
-      ? (volumeLaneLayout?.y ?? layout.y + TRACK_HEIGHT) +
-        (volumeLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT)
-      : 0,
-    panLane
-      ? (panLaneLayout?.y ?? layout.y + TRACK_HEIGHT) + (panLaneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT)
+  const systemLaneBottoms = hostRows.map((entry) =>
+    entry.lane
+      ? (entry.laneLayout?.y ?? layout.y + TRACK_HEIGHT) +
+        (entry.laneLayout?.height ?? AUTOMATION_LANE_COLLAPSED_HEIGHT)
       : 0
-  ];
+  );
   const panelBottom =
     macroLaneLayouts.length > 0
       ? Math.max(...macroLaneLayouts.map((entry) => entry.y + entry.height), ...systemLaneBottoms)
@@ -195,54 +200,41 @@ const buildMacroPanelRows = (args: {
   track: Project["tracks"][number];
   trackPatch?: Project["patches"][number];
   layout: TrackLayout;
-  volumeLane: ReturnType<typeof getTrackVolumeLane>;
-  panLane: ReturnType<typeof getTrackPanLane>;
-  volumeLaneLayout: AutomationLaneLayout | null;
-  panLaneLayout: AutomationLaneLayout | null;
   trackActions: TrackCanvasTrackActions;
   automationActions: TrackCanvasAutomationActions;
 }): MacroPanelRow[] => {
   const rows: MacroPanelRow[] = [];
-  if (args.volumeLane) {
-    const expandTitle = args.volumeLane.expanded ? "Collapse lane" : "Expand lane";
+  for (const descriptor of TRACK_HOST_AUTOMATION_DESCRIPTORS) {
+    const lane = descriptor.resolveLane(args.track);
+    if (!lane) {
+      continue;
+    }
+    const laneLayout = args.layout.automationLanes.find((entry) => entry.laneType === descriptor.laneType) ?? null;
+    const expandTitle = lane.expanded ? "Collapse lane" : "Expand lane";
+    const unbind =
+      descriptor.id === TRACK_VOLUME_AUTOMATION_ID
+        ? args.trackActions.onUnbindTrackVolumeFromAutomation
+        : args.trackActions.onUnbindTrackPanFromAutomation;
+    const toggle =
+      descriptor.id === TRACK_VOLUME_AUTOMATION_ID
+        ? args.trackActions.onToggleTrackVolumeAutomationLane
+        : args.trackActions.onToggleTrackPanAutomationLane;
     rows.push(
       buildMacroPanelRow({
-        id: `${args.track.id}:volume`,
-        label: "Volume",
+        id: `${args.track.id}:${descriptor.actionKey}`,
+        label: descriptor.label,
         stateLabel: "auto",
-        laneLayout: args.volumeLaneLayout,
+        laneLayout,
         fallbackY: args.layout.y + TRACK_HEIGHT,
         fallbackHeight: AUTOMATION_LANE_COLLAPSED_HEIGHT,
-        expanded: Boolean(args.volumeLaneLayout?.expanded),
+        expanded: Boolean(laneLayout?.expanded),
         bindTitle: MACRO_PILL_AUTO_TITLE,
         bindAriaLabel: MACRO_PILL_AUTO_TITLE,
-        onBindToggle: () => args.trackActions.onUnbindTrackVolumeFromAutomation(args.track.id),
+        onBindToggle: () => unbind(args.track.id),
         expandTitle,
         expandAriaLabel: expandTitle,
-        expandDirection: args.volumeLane.expanded ? "up" : "down",
-        onExpandToggle: () => args.trackActions.onToggleTrackVolumeAutomationLane(args.track.id)
-      })
-    );
-  }
-
-  if (args.panLane) {
-    const expandTitle = args.panLane.expanded ? "Collapse lane" : "Expand lane";
-    rows.push(
-      buildMacroPanelRow({
-        id: `${args.track.id}:pan`,
-        label: "Pan",
-        stateLabel: "auto",
-        laneLayout: args.panLaneLayout,
-        fallbackY: args.layout.y + TRACK_HEIGHT,
-        fallbackHeight: AUTOMATION_LANE_COLLAPSED_HEIGHT,
-        expanded: Boolean(args.panLaneLayout?.expanded),
-        bindTitle: MACRO_PILL_AUTO_TITLE,
-        bindAriaLabel: MACRO_PILL_AUTO_TITLE,
-        onBindToggle: () => args.trackActions.onUnbindTrackPanFromAutomation(args.track.id),
-        expandTitle,
-        expandAriaLabel: expandTitle,
-        expandDirection: args.panLane.expanded ? "up" : "down",
-        onExpandToggle: () => args.trackActions.onToggleTrackPanAutomationLane(args.track.id)
+        expandDirection: lane.expanded ? "up" : "down",
+        onExpandToggle: () => toggle(args.track.id)
       })
     );
   }
@@ -373,17 +365,13 @@ export function TrackHeaderChrome({
         const effectiveVolume = track.mute ? 0 : track.volume;
         const trackSilenced = track.mute || isTrackVolumeMuted(track.volume);
         const rememberedVolume = track.volume;
-        const volumeLaneLayout = layout.automationLanes.find((entry) => entry.laneType === "volume") ?? null;
-        const panLaneLayout = layout.automationLanes.find((entry) => entry.laneType === "pan") ?? null;
+        const hostRows = TRACK_HOST_AUTOMATION_DESCRIPTORS.map((descriptor) => ({
+          descriptor,
+          lane: descriptor.resolveLane(track),
+          laneLayout: layout.automationLanes.find((entry) => entry.laneType === descriptor.laneType) ?? null
+        }));
         const macroLaneLayouts = layout.automationLanes.filter((entry) => entry.laneType === "macro");
-        const macroPanelGeometry = resolveMacroPanelGeometry(
-          layout,
-          volumeLane,
-          volumeLaneLayout,
-          panLane,
-          panLaneLayout,
-          macroLaneLayouts
-        );
+        const macroPanelGeometry = resolveMacroPanelGeometry(layout, hostRows, macroLaneLayouts);
         const hasPatchSummaryPopover = patchSummaryPopover?.trackId === track.id;
         const patchSummaryAnchor = resolvePatchSummaryAnchor({
           layout,
@@ -397,10 +385,6 @@ export function TrackHeaderChrome({
           track,
           trackPatch,
           layout,
-          volumeLane,
-          panLane,
-          volumeLaneLayout,
-          panLaneLayout,
           trackActions,
           automationActions
         });

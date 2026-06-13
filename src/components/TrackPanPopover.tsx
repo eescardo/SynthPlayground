@@ -1,6 +1,7 @@
 "use client";
 
-import { trackPanToPercentLabel, TRACK_PAN_CENTER } from "@/lib/trackPan";
+import { trackPanToPercentLabel, TRACK_PAN_CENTER, TRACK_PAN_MAX, TRACK_PAN_MIN } from "@/lib/trackPan";
+import styles from "./TrackPopovers.module.css";
 
 interface TrackPanPopoverProps {
   trackName: string;
@@ -20,21 +21,21 @@ export function TrackPanPopover(props: TrackPanPopoverProps) {
 
   return (
     <div
-      className="track-pan-popover"
+      className={styles.panPopover}
       data-track-popover="pan"
       style={{ top: props.top, left: props.left }}
       onPointerDown={(event) => event.stopPropagation()}
     >
-      <div className="track-pan-popover-header">
+      <div className={styles.panPopoverHeader}>
         <span>Pan</span>
         <strong>{trackPanToPercentLabel(props.pan)}</strong>
       </div>
-      <div className="track-pan-slider-row">
+      <div className={styles.panSliderRow}>
         <span>L</span>
         <input
           type="range"
-          min={0}
-          max={1}
+          min={TRACK_PAN_MIN}
+          max={TRACK_PAN_MAX}
           step={0.01}
           value={props.pan}
           disabled={props.automated}
@@ -44,10 +45,10 @@ export function TrackPanPopover(props: TrackPanPopoverProps) {
           onKeyDown={(event) => {
             if (event.key === "Home") {
               event.preventDefault();
-              props.onPanChange(0, { commit: true });
+              props.onPanChange(TRACK_PAN_MIN, { commit: true });
             } else if (event.key === "End") {
               event.preventDefault();
-              props.onPanChange(1, { commit: true });
+              props.onPanChange(TRACK_PAN_MAX, { commit: true });
             } else if (event.key === "c" || event.key === "C") {
               props.onPanChange(TRACK_PAN_CENTER, { commit: true });
             }
@@ -57,7 +58,7 @@ export function TrackPanPopover(props: TrackPanPopoverProps) {
       </div>
       <button
         type="button"
-        className="track-volume-automation-pill"
+        className={styles.automationPill}
         title={automationTitle}
         aria-label={automationTitle}
         onClick={props.automated ? props.onUnbindFromAutomation : props.onBindToAutomation}

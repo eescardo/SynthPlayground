@@ -7,6 +7,7 @@ import {
   TRACK_VOLUME_MIN_LABEL,
   trackVolumeToPercentLabel
 } from "@/lib/trackVolume";
+import styles from "./TrackPopovers.module.css";
 
 interface TrackVolumePopoverProps {
   trackName: string;
@@ -30,15 +31,15 @@ export function TrackVolumePopover(props: TrackVolumePopoverProps) {
 
   return (
     <div
-      className="track-volume-popover"
+      className={styles.volumePopover}
       data-track-popover="volume"
       style={{ top: props.top, left: props.left }}
       onMouseEnter={props.onMouseEnter}
       onMouseLeave={props.onMouseLeave}
       onPointerDown={(event) => event.stopPropagation()}
     >
-      <span className="track-volume-popover-label">{trackVolumeToPercentLabel(props.effectiveVolume)}</span>
-      <div className="track-volume-body">
+      <span className={styles.volumePopoverLabel}>{trackVolumeToPercentLabel(props.effectiveVolume)}</span>
+      <div className={styles.volumeBody}>
         <TrackVolumeSlider
           trackName={props.trackName}
           effectiveVolume={props.effectiveVolume}
@@ -47,7 +48,7 @@ export function TrackVolumePopover(props: TrackVolumePopoverProps) {
           disabled={props.automated}
           onVolumeChange={props.onVolumeChange}
         />
-        <div className="track-volume-scale">
+        <div className={styles.volumeScale}>
           <span>{TRACK_VOLUME_MAX_LABEL}</span>
           <span>{TRACK_VOLUME_DEFAULT_LABEL}</span>
           <span>{TRACK_VOLUME_MIN_LABEL}</span>
@@ -55,7 +56,7 @@ export function TrackVolumePopover(props: TrackVolumePopoverProps) {
       </div>
       <button
         type="button"
-        className="track-volume-automation-pill"
+        className={styles.automationPill}
         title={automationTitle}
         aria-label={automationTitle}
         onClick={props.automated ? props.onUnbindFromAutomation : props.onBindToAutomation}

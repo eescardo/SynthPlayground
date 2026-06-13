@@ -3,8 +3,7 @@
 import { RefObject, useCallback } from "react";
 import { AudioEngine } from "@/audio/engine";
 import {
-  createTrackPanAutomationLane,
-  createTrackVolumeAutomationLane,
+  getTrackHostAutomationDescriptor,
   TRACK_PAN_AUTOMATION_ID,
   TRACK_VOLUME_AUTOMATION_ID
 } from "@/lib/macroAutomation";
@@ -18,175 +17,134 @@ type CommitProjectChange = (
   options?: { actionKey?: string; coalesce?: boolean }
 ) => void;
 
-interface UseTrackVolumeAutomationActionsParams {
+interface UseTrackHostAutomationActionsParams {
   audioEngineRef: RefObject<AudioEngine | null>;
   commitProjectChange: CommitProjectChange;
   previewPitch: string;
   setRuntimeError: SproutErrorSetter;
 }
 
-export function useTrackVolumeAutomationActions({
+export function useTrackHostAutomationActions({
   audioEngineRef,
   commitProjectChange,
   previewPitch,
   setRuntimeError
-}: UseTrackVolumeAutomationActionsParams) {
+}: UseTrackHostAutomationActionsParams) {
+  const bindTrackHostAutomation = useCallback(
+    (trackId: string, macroId: string, initialValue: number) => {
+      const descriptor = getTrackHostAutomationDescriptor(macroId);
+      if (!descriptor) {
+        return;
+      }
+      commitProjectChange(
+        (current) => ({
+          ...current,
+          tracks: current.tracks.map((track) =>
+            track.id === trackId
+              ? {
+                  ...track,
+                  macroAutomations: {
+                    ...track.macroAutomations,
+                    [descriptor.id]: descriptor.createLane(initialValue)
+                  }
+                }
+              : track
+          )
+        }),
+        { actionKey: `track:${trackId}:${descriptor.actionKey}:bind-automation` }
+      );
+    },
+    [commitProjectChange]
+  );
+
+  const unbindTrackHostAutomation = useCallback(
+    (trackId: string, macroId: string) => {
+      const descriptor = getTrackHostAutomationDescriptor(macroId);
+      if (!descriptor) {
+        return;
+      }
+      commitProjectChange(
+        (current) => ({
+          ...current,
+          tracks: current.tracks.map((track) => {
+            if (track.id !== trackId) {
+              return track;
+            }
+            const nextAutomations = { ...track.macroAutomations };
+            const lane = nextAutomations[descriptor.id];
+            delete nextAutomations[descriptor.id];
+            const nextTrack = {
+              ...track,
+              macroAutomations: nextAutomations
+            };
+            return lane ? descriptor.applyFixedValue(nextTrack, lane.startValue) : nextTrack;
+          })
+        }),
+        { actionKey: `track:${trackId}:${descriptor.actionKey}:unbind-automation` }
+      );
+    },
+    [commitProjectChange]
+  );
+
+  const toggleTrackHostAutomationLane = useCallback(
+    (trackId: string, macroId: string) => {
+      const descriptor = getTrackHostAutomationDescriptor(macroId);
+      if (!descriptor) {
+        return;
+      }
+      commitProjectChange(
+        (current) => ({
+          ...current,
+          tracks: current.tracks.map((track) => {
+            if (track.id !== trackId) {
+              return track;
+            }
+            const lane = track.macroAutomations[descriptor.id];
+            if (!lane) {
+              return track;
+            }
+            return {
+              ...track,
+              macroAutomations: {
+                ...track.macroAutomations,
+                [descriptor.id]: {
+                  ...lane,
+                  expanded: !lane.expanded
+                }
+              }
+            };
+          })
+        }),
+        { actionKey: `track:${trackId}:${descriptor.actionKey}:toggle-lane` }
+      );
+    },
+    [commitProjectChange]
+  );
+
   const bindTrackVolumeToAutomation = useCallback(
-    (trackId: string, initialValue: number) => {
-      commitProjectChange(
-        (current) => ({
-          ...current,
-          tracks: current.tracks.map((track) =>
-            track.id === trackId
-              ? {
-                  ...track,
-                  macroAutomations: {
-                    ...track.macroAutomations,
-                    [TRACK_VOLUME_AUTOMATION_ID]: createTrackVolumeAutomationLane(initialValue)
-                  }
-                }
-              : track
-          )
-        }),
-        { actionKey: `track:${trackId}:volume:bind-automation` }
-      );
-    },
-    [commitProjectChange]
+    (trackId: string, initialValue: number) =>
+      bindTrackHostAutomation(trackId, TRACK_VOLUME_AUTOMATION_ID, initialValue),
+    [bindTrackHostAutomation]
   );
-
   const unbindTrackVolumeFromAutomation = useCallback(
-    (trackId: string) => {
-      commitProjectChange(
-        (current) => ({
-          ...current,
-          tracks: current.tracks.map((track) => {
-            if (track.id !== trackId) {
-              return track;
-            }
-            const nextAutomations = { ...track.macroAutomations };
-            const lane = nextAutomations[TRACK_VOLUME_AUTOMATION_ID];
-            delete nextAutomations[TRACK_VOLUME_AUTOMATION_ID];
-            return {
-              ...track,
-              macroAutomations: nextAutomations,
-              volume: lane ? lane.startValue * 2 : track.volume
-            };
-          })
-        }),
-        { actionKey: `track:${trackId}:volume:unbind-automation` }
-      );
-    },
-    [commitProjectChange]
+    (trackId: string) => unbindTrackHostAutomation(trackId, TRACK_VOLUME_AUTOMATION_ID),
+    [unbindTrackHostAutomation]
   );
-
   const toggleTrackVolumeAutomationLane = useCallback(
-    (trackId: string) => {
-      commitProjectChange(
-        (current) => ({
-          ...current,
-          tracks: current.tracks.map((track) => {
-            if (track.id !== trackId) {
-              return track;
-            }
-            const lane = track.macroAutomations[TRACK_VOLUME_AUTOMATION_ID];
-            if (!lane) {
-              return track;
-            }
-            return {
-              ...track,
-              macroAutomations: {
-                ...track.macroAutomations,
-                [TRACK_VOLUME_AUTOMATION_ID]: {
-                  ...lane,
-                  expanded: !lane.expanded
-                }
-              }
-            };
-          })
-        }),
-        { actionKey: `track:${trackId}:volume:toggle-lane` }
-      );
-    },
-    [commitProjectChange]
+    (trackId: string) => toggleTrackHostAutomationLane(trackId, TRACK_VOLUME_AUTOMATION_ID),
+    [toggleTrackHostAutomationLane]
   );
-
   const bindTrackPanToAutomation = useCallback(
-    (trackId: string, initialValue: number) => {
-      commitProjectChange(
-        (current) => ({
-          ...current,
-          tracks: current.tracks.map((track) =>
-            track.id === trackId
-              ? {
-                  ...track,
-                  macroAutomations: {
-                    ...track.macroAutomations,
-                    [TRACK_PAN_AUTOMATION_ID]: createTrackPanAutomationLane(initialValue)
-                  }
-                }
-              : track
-          )
-        }),
-        { actionKey: `track:${trackId}:pan:bind-automation` }
-      );
-    },
-    [commitProjectChange]
+    (trackId: string, initialValue: number) => bindTrackHostAutomation(trackId, TRACK_PAN_AUTOMATION_ID, initialValue),
+    [bindTrackHostAutomation]
   );
-
   const unbindTrackPanFromAutomation = useCallback(
-    (trackId: string) => {
-      commitProjectChange(
-        (current) => ({
-          ...current,
-          tracks: current.tracks.map((track) => {
-            if (track.id !== trackId) {
-              return track;
-            }
-            const nextAutomations = { ...track.macroAutomations };
-            const lane = nextAutomations[TRACK_PAN_AUTOMATION_ID];
-            delete nextAutomations[TRACK_PAN_AUTOMATION_ID];
-            return {
-              ...track,
-              macroAutomations: nextAutomations,
-              pan: lane ? lane.startValue : track.pan
-            };
-          })
-        }),
-        { actionKey: `track:${trackId}:pan:unbind-automation` }
-      );
-    },
-    [commitProjectChange]
+    (trackId: string) => unbindTrackHostAutomation(trackId, TRACK_PAN_AUTOMATION_ID),
+    [unbindTrackHostAutomation]
   );
-
   const toggleTrackPanAutomationLane = useCallback(
-    (trackId: string) => {
-      commitProjectChange(
-        (current) => ({
-          ...current,
-          tracks: current.tracks.map((track) => {
-            if (track.id !== trackId) {
-              return track;
-            }
-            const lane = track.macroAutomations[TRACK_PAN_AUTOMATION_ID];
-            if (!lane) {
-              return track;
-            }
-            return {
-              ...track,
-              macroAutomations: {
-                ...track.macroAutomations,
-                [TRACK_PAN_AUTOMATION_ID]: {
-                  ...lane,
-                  expanded: !lane.expanded
-                }
-              }
-            };
-          })
-        }),
-        { actionKey: `track:${trackId}:pan:toggle-lane` }
-      );
-    },
-    [commitProjectChange]
+    (trackId: string) => toggleTrackHostAutomationLane(trackId, TRACK_PAN_AUTOMATION_ID),
+    [toggleTrackHostAutomationLane]
   );
 
   const previewTrackPan = useCallback(

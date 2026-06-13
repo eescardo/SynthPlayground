@@ -12,6 +12,7 @@ import {
   trackVolumeToPercent,
   trackVolumeToPercentLabel
 } from "@/lib/trackVolume";
+import styles from "./TrackPopovers.module.css";
 
 interface TrackVolumeSliderProps {
   trackName: string;
@@ -67,22 +68,16 @@ export function TrackVolumeSlider(props: TrackVolumeSliderProps) {
   }, [props]);
 
   return (
-    <div className="track-volume-slider-shell">
-      <div className="track-volume-slider-center-notch" style={{ bottom: "50%" }} />
+    <div className={styles.sliderShell}>
+      <div className={styles.sliderCenterNotch} style={{ bottom: "50%" }} />
       {props.muted && props.rememberedVolume > 0 ? (
         <>
-          <div
-            className="track-volume-slider-ghost-fill"
-            style={{ height: trackVolumePercentToCss(props.rememberedVolume) }}
-          />
-          <div
-            className="track-volume-slider-ghost-mark"
-            style={{ bottom: trackVolumePercentToCss(props.rememberedVolume) }}
-          />
+          <div className={styles.sliderGhostFill} style={{ height: trackVolumePercentToCss(props.rememberedVolume) }} />
+          <div className={styles.sliderGhostMark} style={{ bottom: trackVolumePercentToCss(props.rememberedVolume) }} />
         </>
       ) : null}
       <div
-        className={`track-volume-slider${props.disabled ? " disabled" : ""}`}
+        className={`${styles.slider}${props.disabled ? ` ${styles.sliderDisabled}` : ""}`}
         role="slider"
         aria-label={`Volume for ${props.trackName}`}
         aria-disabled={props.disabled}
@@ -112,12 +107,9 @@ export function TrackVolumeSlider(props: TrackVolumeSliderProps) {
           }
         }}
       >
-        <div className="track-volume-slider-rail" />
-        <div
-          className="track-volume-slider-active-fill"
-          style={{ height: trackVolumePercentToCss(props.effectiveVolume) }}
-        />
-        <div className="track-volume-slider-thumb" style={{ bottom: trackVolumePercentToCss(props.effectiveVolume) }} />
+        <div className={styles.sliderRail} />
+        <div className={styles.sliderActiveFill} style={{ height: trackVolumePercentToCss(props.effectiveVolume) }} />
+        <div className={styles.sliderThumb} style={{ bottom: trackVolumePercentToCss(props.effectiveVolume) }} />
       </div>
     </div>
   );

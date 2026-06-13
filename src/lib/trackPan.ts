@@ -3,7 +3,6 @@ import { clamp01 } from "@/lib/numeric";
 export const TRACK_PAN_MIN = 0;
 export const TRACK_PAN_CENTER = 0.5;
 export const TRACK_PAN_MAX = 1;
-export const TRACK_PAN_KEYBOARD_STEP = 0.05;
 
 export const clampTrackPan = (pan: number): number => clamp01(pan);
 
