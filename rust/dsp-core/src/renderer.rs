@@ -17,6 +17,106 @@ fn pending_track_sample_assets(
     &mut assets_by_track[track_index]
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn stereo_energy(engine: &WasmSubsetEngine) -> (f32, f32) {
+        (
+            engine.left.iter().map(|sample| sample * sample).sum(),
+            engine.right.iter().map(|sample| sample * sample).sum(),
+        )
+    }
+
+    fn test_project_json(pan: f32) -> String {
+        json!({
+            "sampleRate": 48000,
+            "blockSize": 128,
+            "masterFx": {
+                "compressorEnabled": false,
+                "limiterEnabled": false,
+                "makeupGain": 0.0
+            },
+            "tracks": [{
+                "trackIndex": 0,
+                "trackId": "track_1",
+                "volume": 1.0,
+                "pan": pan,
+                "fx": {
+                    "delayEnabled": false,
+                    "reverbEnabled": false,
+                    "saturationEnabled": false,
+                    "compressorEnabled": false,
+                    "delayMix": 0.0,
+                    "reverbMix": 0.0,
+                    "drive": 0.0,
+                    "compression": 0.0
+                },
+                "signalCount": 5,
+                "hostSignalIndices": {
+                    "pitch": 0,
+                    "gate": 1,
+                    "velocity": 2,
+                    "modWheel": 3
+                },
+                "outputSignalIndex": 4,
+                "nodes": [{
+                    "id": "osc",
+                    "typeId": "VCO",
+                    "outIndex": 4,
+                    "inputs": {
+                        "pitch": 0,
+                        "fm": -1,
+                        "pwm": -1
+                    },
+                    "params": {
+                        "wave": "sine"
+                    }
+                }]
+            }]
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn track_pan_controls_left_right_render_energy() {
+        let mut engine = WasmSubsetEngine::new(48_000, 128);
+        let initial_events = json!([{
+            "type": "NoteOn",
+            "sampleTime": 0,
+            "trackIndex": 0,
+            "noteId": "note_1",
+            "pitchVoct": 0.0,
+            "velocity": 1.0
+        }])
+        .to_string();
+
+        engine
+            .start_stream(&test_project_json(0.0), 0, &initial_events, 1, 1234)
+            .expect("test project should start");
+        engine.process_block();
+        let (left_energy, right_energy) = stereo_energy(&engine);
+        assert!(left_energy > 0.01);
+        assert!(right_energy < left_energy * 0.001);
+
+        let pan_right_events = json!([{
+            "type": "TrackPanChange",
+            "sampleTime": 128,
+            "trackIndex": 0,
+            "value": 1.0
+        }])
+        .to_string();
+        engine
+            .enqueue_events(&pan_right_events)
+            .expect("pan event should enqueue");
+        engine.process_block();
+        let (left_energy, right_energy) = stereo_energy(&engine);
+        assert!(right_energy > 0.01);
+        assert!(left_energy < right_energy * 0.001);
+    }
+}
+
 #[wasm_bindgen]
 pub struct WasmSubsetEngine {
     sample_rate: f32,
@@ -265,9 +365,9 @@ impl WasmSubsetEngine {
 
     fn apply_master_fx_range(&mut self, start_frame: usize, end_frame: usize) {
         for frame in start_frame..end_frame {
-            let sample = self.apply_master_fx(self.left[frame]);
-            self.left[frame] = sample;
-            self.right[frame] = sample;
+            let (left, right) = self.apply_master_fx_pair(self.left[frame], self.right[frame]);
+            self.left[frame] = left;
+            self.right[frame] = right;
         }
     }
 
@@ -317,6 +417,7 @@ impl WasmSubsetEngine {
                     let track_started = now_ms();
                     track.process_track_frames(
                         &mut self.left,
+                        &mut self.right,
                         frame,
                         segment_end,
                         sample_rate,
@@ -332,6 +433,7 @@ impl WasmSubsetEngine {
                 for track in self.tracks.iter_mut() {
                     track.process_track_frames(
                         &mut self.left,
+                        &mut self.right,
                         frame,
                         segment_end,
                         self.sample_rate,
@@ -495,6 +597,13 @@ impl WasmSubsetEngine {
                     track.set_volume(value);
                 }
             }
+            EventSpec::TrackPanChange {
+                track_index, value, ..
+            } => {
+                if let Some(track) = self.tracks.get_mut(track_index) {
+                    track.set_pan(value);
+                }
+            }
         }
         if let Some(started) = started {
             self.profile_stats.events_applied = self.profile_stats.events_applied.saturating_add(1);
@@ -504,24 +613,33 @@ impl WasmSubsetEngine {
 
     /// Applies master-bus dynamics and limiting after all tracks have been mixed together.
     /// Params:
-    /// - `input`: mono mix sample produced by summing the per-track outputs for the current frame.
-    fn apply_master_fx(&mut self, input: f32) -> f32 {
-        let mut out = input;
+    /// - `left`: left mix sample produced by summing the per-track outputs for the current frame.
+    /// - `right`: right mix sample produced by summing the per-track outputs for the current frame.
+    fn apply_master_fx_pair(&mut self, left: f32, right: f32) -> (f32, f32) {
+        let mut out_left = left;
+        let mut out_right = right;
         if self.master_fx.compressor_enabled {
-            let abs_in = out.abs();
+            let abs_in = out_left.abs().max(out_right.abs());
             self.master_compressor_env = self.master_compressor_env * 0.996 + abs_in * 0.004;
             let over = (self.master_compressor_env - 0.25).max(0.0);
             let gain = 1.0 / (1.0 + over * 5.0);
-            out *= gain;
+            out_left *= gain;
+            out_right *= gain;
         }
-        out *= db_to_gain(self.master_fx.makeup_gain);
+        let makeup_gain = db_to_gain(self.master_fx.makeup_gain);
+        out_left *= makeup_gain;
+        out_right *= makeup_gain;
         if self.master_fx.limiter_enabled {
-            out = clamp(out, -0.98, 0.98);
+            out_left = clamp(out_left, -0.98, 0.98);
+            out_right = clamp(out_right, -0.98, 0.98);
         }
-        if out.is_finite() {
-            out
-        } else {
-            0.0
-        }
+        (
+            if out_left.is_finite() { out_left } else { 0.0 },
+            if out_right.is_finite() {
+                out_right
+            } else {
+                0.0
+            },
+        )
     }
 }

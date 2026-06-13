@@ -42,7 +42,10 @@ interface TrackCanvasOverlaysProps {
   setEditingTrackName: Dispatch<SetStateAction<string>>;
   volumePopoverTrackId: string | null;
   volumePopoverPosition: { left: number; top: number } | null;
+  panPopoverTrackId: string | null;
+  panPopoverPosition: { left: number; top: number } | null;
   openVolumePopover: (trackId: string, anchor?: HTMLElement | null) => void;
+  openPanPopover: (trackId: string, anchor?: HTMLElement | null) => void;
   scheduleVolumePopoverOpen: (trackId: string, anchor?: HTMLElement | null) => void;
   scheduleVolumePopoverDismiss: () => void;
   cancelScheduledVolumePopoverDismiss: () => void;
@@ -88,7 +91,10 @@ export function TrackCanvasOverlays(props: TrackCanvasOverlaysProps) {
         setEditingTrackName={props.setEditingTrackName}
         volumePopoverTrackId={props.volumePopoverTrackId}
         volumePopoverPosition={props.volumePopoverPosition}
+        panPopoverTrackId={props.panPopoverTrackId}
+        panPopoverPosition={props.panPopoverPosition}
         openVolumePopover={props.openVolumePopover}
+        openPanPopover={props.openPanPopover}
         scheduleVolumePopoverOpen={props.scheduleVolumePopoverOpen}
         scheduleVolumePopoverDismiss={props.scheduleVolumePopoverDismiss}
         cancelScheduledVolumePopoverDismiss={props.cancelScheduledVolumePopoverDismiss}

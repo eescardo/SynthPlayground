@@ -70,6 +70,7 @@ describe("compileAudioProjectToWasmSubset", () => {
           macroAutomations: {},
           macroPanelExpanded: false,
           volume: 1,
+          pan: 0.25,
           mute: false,
           solo: false,
           fx: {
@@ -95,6 +96,7 @@ describe("compileAudioProjectToWasmSubset", () => {
     const compiled = compileAudioProjectToWasmSubset({ project }, { blockSize: 128 });
     const vcfNode = compiled.tracks[0]?.nodes.find((node) => node.id === "vcf");
 
+    expect(compiled.tracks[0]?.pan).toBe(0.25);
     expect(vcfNode?.params.cutoffHz).toBeCloseTo(550);
     expect(vcfNode?.params.resonance).toBeCloseTo(Math.sqrt(0.1 * 0.4));
 
@@ -107,6 +109,26 @@ describe("compileAudioProjectToWasmSubset", () => {
         trackId: "track1",
         macroId: "macro_filter",
         normalized: 0.25
+      }
+    ]);
+    expect(
+      compileSchedulerEventsToWasmSubset(project, compiled, [
+        {
+          id: "pan_change",
+          type: "MacroChange",
+          sampleTime: 96,
+          source: "automation",
+          trackId: "track1",
+          macroId: "__track_pan__",
+          normalized: 0.8
+        }
+      ])
+    ).toEqual([
+      {
+        type: "TrackPanChange",
+        sampleTime: 96,
+        trackIndex: 0,
+        value: 0.8
       }
     ]);
     expect(compiledEvents).toEqual(
@@ -172,6 +194,7 @@ describe("compileAudioProjectToWasmSubset", () => {
           macroAutomations: {},
           macroPanelExpanded: false,
           volume: 1,
+          pan: 0.5,
           mute: false,
           solo: false,
           fx: {
@@ -242,6 +265,7 @@ describe("compileAudioProjectToWasmSubset", () => {
           macroAutomations: {},
           macroPanelExpanded: false,
           volume: 1,
+          pan: 0.5,
           mute: false,
           solo: false,
           fx: {
@@ -320,6 +344,7 @@ describe("compileAudioProjectToWasmSubset", () => {
           macroAutomations: {},
           macroPanelExpanded: false,
           volume: 1,
+          pan: 0.5,
           mute: false,
           solo: false,
           fx: {

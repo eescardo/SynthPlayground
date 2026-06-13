@@ -7,7 +7,10 @@ import {
   createTrackMacroAutomationLane,
   getProjectTimelineEndBeat,
   getTrackMacroLane,
+  isHostTrackAutomationId,
+  omitHostAutomationMacroValues,
   TrackPreviewStateAtBeat,
+  TRACK_PAN_AUTOMATION_ID,
   TRACK_VOLUME_AUTOMATION_ID,
   removeAutomationLaneKeyframeSide,
   splitAutomationLaneKeyframe,
@@ -70,10 +73,12 @@ export function useTrackMacroAutomationActions({
                 ...track.macroAutomations,
                 [macroId]: nextLane
               },
-              macroValues: {
-                ...track.macroValues,
-                [macroId]: nextLane.startValue
-              }
+              macroValues: isHostTrackAutomationId(macroId)
+                ? omitHostAutomationMacroValues(track.macroValues)
+                : {
+                    ...track.macroValues,
+                    [macroId]: nextLane.startValue
+                  }
             };
           })
         }),
@@ -105,6 +110,7 @@ export function useTrackMacroAutomationActions({
         engine.setMacroValue(trackId, previewMacroId, previewNormalized);
       }
       engine.setMacroValue(trackId, TRACK_VOLUME_AUTOMATION_ID, previewState.volumeNormalized);
+      engine.setMacroValue(trackId, TRACK_PAN_AUTOMATION_ID, previewState.panNormalized);
     },
     [audioEngineRef, resolveTrackPreviewStateAtBeat]
   );
@@ -149,7 +155,9 @@ export function useTrackMacroAutomationActions({
             track.id === trackId
               ? {
                   ...track,
-                  macroValues: { ...track.macroValues, [macroId]: initialValue },
+                  macroValues: isHostTrackAutomationId(macroId)
+                    ? omitHostAutomationMacroValues(track.macroValues)
+                    : { ...track.macroValues, [macroId]: initialValue },
                   macroAutomations: {
                     ...track.macroAutomations,
                     [macroId]: createTrackMacroAutomationLane(macroId, initialValue)
@@ -179,7 +187,11 @@ export function useTrackMacroAutomationActions({
             return {
               ...track,
               macroAutomations: nextAutomations,
-              macroValues: currentLane ? { ...track.macroValues, [macroId]: currentLane.startValue } : track.macroValues
+              macroValues: isHostTrackAutomationId(macroId)
+                ? omitHostAutomationMacroValues(track.macroValues)
+                : currentLane
+                  ? { ...track.macroValues, [macroId]: currentLane.startValue }
+                  : track.macroValues
             };
           })
         }),

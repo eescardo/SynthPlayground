@@ -2,6 +2,7 @@ import { AudioProject } from "@/types/audio";
 import { Patch } from "@/types/patch";
 import { Track } from "@/types/music";
 import { createPatchOutputPort } from "@/lib/patch/ports";
+import { TRACK_PAN_CENTER } from "@/lib/trackPan";
 
 export interface WasmParityScenarioConfig {
   id: string;
@@ -70,6 +71,7 @@ const createTrack = (trackIndex: number, config: WasmParityScenarioConfig): Trac
     macroAutomations: {},
     macroPanelExpanded: false,
     volume: 0.125,
+    pan: TRACK_PAN_CENTER,
     mute: false,
     solo: false,
     fx: {

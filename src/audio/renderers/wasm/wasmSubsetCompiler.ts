@@ -66,6 +66,7 @@ export interface WasmTrackSpec {
   trackIndex: number;
   trackId: string;
   volume: number;
+  pan: number;
   fx: WasmTrackFxSpec;
   signalCount: number;
   hostSignalIndices: {
@@ -128,7 +129,19 @@ export interface WasmTrackVolumeChangeEvent {
   value: number;
 }
 
-export type WasmEvent = WasmNoteOnEvent | WasmNoteOffEvent | WasmParamChangeEvent | WasmTrackVolumeChangeEvent;
+export interface WasmTrackPanChangeEvent {
+  type: "TrackPanChange";
+  sampleTime: number;
+  trackIndex: number;
+  value: number;
+}
+
+export type WasmEvent =
+  | WasmNoteOnEvent
+  | WasmNoteOffEvent
+  | WasmParamChangeEvent
+  | WasmTrackVolumeChangeEvent
+  | WasmTrackPanChangeEvent;
 
 // Convert the app-level AudioProject into the planned numeric layout that the
 // WASM backend executes. Think of this as producing the render plan, not the

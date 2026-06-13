@@ -1,6 +1,7 @@
 import { createId } from "@/lib/ids";
 import { getMeasureBeatsForMeter } from "@/lib/musicTiming";
 import { clamp01 } from "@/lib/numeric";
+import { TRACK_PAN_CENTER } from "@/lib/trackPan";
 import {
   ProjectGlobalCarrier,
   Project,
@@ -16,6 +17,8 @@ const EPSILON = 1e-9;
 const SPLIT_OFFSET = 0.1;
 export const TRACK_VOLUME_AUTOMATION_ID = "__track_volume__";
 export const DEFAULT_EMPTY_COMPOSITION_BEATS = 16;
+export const TRACK_PAN_AUTOMATION_ID = "__track_pan__";
+const HOST_TRACK_AUTOMATION_IDS = [TRACK_VOLUME_AUTOMATION_ID, TRACK_PAN_AUTOMATION_ID] as const;
 
 export type AutomationKeyframeSide = "single" | "incoming" | "outgoing";
 
@@ -185,10 +188,46 @@ export const getTrackMacroLane = (track: Track, macroId: string): TrackMacroAuto
   track.macroAutomations[macroId] ?? null;
 export const getTrackVolumeLane = (track: Track): TrackMacroAutomationLane | null =>
   track.macroAutomations[TRACK_VOLUME_AUTOMATION_ID] ?? null;
+export const getTrackPanLane = (track: Track): TrackMacroAutomationLane | null =>
+  track.macroAutomations[TRACK_PAN_AUTOMATION_ID] ?? null;
 
 export const isTrackMacroAutomated = (track: Track, macroId: string): boolean =>
   Boolean(getTrackMacroLane(track, macroId));
 export const isTrackVolumeAutomated = (track: Track): boolean => Boolean(getTrackVolumeLane(track));
+export const isTrackPanAutomated = (track: Track): boolean => Boolean(getTrackPanLane(track));
+export const isHostTrackAutomationId = (macroId: string): boolean =>
+  HOST_TRACK_AUTOMATION_IDS.includes(macroId as (typeof HOST_TRACK_AUTOMATION_IDS)[number]);
+
+export const omitHostAutomationMacroValues = (macroValues: Record<string, number>): Record<string, number> => {
+  let nextValues: Record<string, number> | null = null;
+  for (const macroId of HOST_TRACK_AUTOMATION_IDS) {
+    if (Object.prototype.hasOwnProperty.call(macroValues, macroId)) {
+      nextValues ??= { ...macroValues };
+      delete nextValues[macroId];
+    }
+  }
+  return nextValues ?? macroValues;
+};
+
+export const getCompatibleAutomationLaneIds = (project: Project, track: Track, sourcePatchId: string) => {
+  const compatibleIds = new Set<string>(HOST_TRACK_AUTOMATION_IDS);
+  if (track.instrumentPatchId !== sourcePatchId) {
+    return compatibleIds;
+  }
+
+  const patch = project.patches.find((entry) => entry.id === track.instrumentPatchId);
+  for (const macro of patch?.ui.macros ?? []) {
+    compatibleIds.add(macro.id);
+  }
+  if (!patch) {
+    for (const macroId of Object.keys(track.macroAutomations)) {
+      if (!isHostTrackAutomationId(macroId)) {
+        compatibleIds.add(macroId);
+      }
+    }
+  }
+  return compatibleIds;
+};
 
 export const createTrackMacroAutomationLane = (macroId: string, initialValue: number): TrackMacroAutomationLane => ({
   macroId,
@@ -200,6 +239,56 @@ export const createTrackMacroAutomationLane = (macroId: string, initialValue: nu
 
 export const createTrackVolumeAutomationLane = (initialValue: number): TrackMacroAutomationLane =>
   createTrackMacroAutomationLane(TRACK_VOLUME_AUTOMATION_ID, initialValue);
+export const createTrackPanAutomationLane = (initialValue: number): TrackMacroAutomationLane =>
+  createTrackMacroAutomationLane(TRACK_PAN_AUTOMATION_ID, initialValue);
+
+export interface TrackHostAutomationDescriptor {
+  id: (typeof HOST_TRACK_AUTOMATION_IDS)[number];
+  laneType: "volume" | "pan";
+  label: string;
+  actionKey: "volume" | "pan";
+  resolveLane: (track: Track) => TrackMacroAutomationLane | null;
+  createLane: (initialValue: number) => TrackMacroAutomationLane;
+  fixedValueToNormalized: (value: number) => number;
+  getFixedValue: (track: Track) => number;
+  getSchedulerFallback: (track: Track) => number;
+  applyFixedValue: (track: Track, normalized: number) => Track;
+}
+
+export const TRACK_HOST_AUTOMATION_DESCRIPTORS: readonly TrackHostAutomationDescriptor[] = [
+  {
+    id: TRACK_VOLUME_AUTOMATION_ID,
+    laneType: "volume",
+    label: "Volume",
+    actionKey: "volume",
+    resolveLane: getTrackVolumeLane,
+    createLane: createTrackVolumeAutomationLane,
+    fixedValueToNormalized: (volume) => volume / 2,
+    getFixedValue: (track) => track.volume,
+    getSchedulerFallback: (track) => track.volume / 2,
+    applyFixedValue: (track, normalized) => ({ ...track, volume: normalized * 2 })
+  },
+  {
+    id: TRACK_PAN_AUTOMATION_ID,
+    laneType: "pan",
+    label: "Pan",
+    actionKey: "pan",
+    resolveLane: getTrackPanLane,
+    createLane: createTrackPanAutomationLane,
+    fixedValueToNormalized: (pan) => pan,
+    getFixedValue: (track) => track.pan ?? TRACK_PAN_CENTER,
+    getSchedulerFallback: (track) => track.pan ?? TRACK_PAN_CENTER,
+    applyFixedValue: (track, normalized) => ({ ...track, pan: normalized })
+  }
+];
+
+export const getTrackHostAutomationDescriptor = (macroId: string): TrackHostAutomationDescriptor | null =>
+  TRACK_HOST_AUTOMATION_DESCRIPTORS.find((descriptor) => descriptor.id === macroId) ?? null;
+
+export const getTrackHostAutomationDescriptorByLaneType = (
+  laneType: TrackHostAutomationDescriptor["laneType"]
+): TrackHostAutomationDescriptor | null =>
+  TRACK_HOST_AUTOMATION_DESCRIPTORS.find((descriptor) => descriptor.laneType === laneType) ?? null;
 
 export const getTrackAutomationPoints = (lane: TrackMacroAutomationLane, endBeat: number): AutomationPoint[] => {
   const points: AutomationPoint[] = [
@@ -269,6 +358,9 @@ export const getTrackMacroValueAtBeat = (
 ): number => {
   const lane = getTrackMacroLane(track, macroId);
   if (!lane) {
+    if (isHostTrackAutomationId(macroId)) {
+      return clampNormalized(fallbackValue);
+    }
     return clampNormalized(typeof track.macroValues[macroId] === "number" ? track.macroValues[macroId] : fallbackValue);
   }
 
@@ -299,6 +391,7 @@ export const getTrackMacroValueAtBeat = (
 export interface TrackPreviewStateAtBeat {
   macroValues: Record<string, number>;
   volumeNormalized: number;
+  panNormalized: number;
 }
 
 export const getTrackPreviewStateAtBeat = (
@@ -322,8 +415,12 @@ export const getTrackPreviewStateAtBeat = (
     override?.macroId === TRACK_VOLUME_AUTOMATION_ID
       ? clampNormalized(override.normalized)
       : getTrackMacroValueAtBeat(track, TRACK_VOLUME_AUTOMATION_ID, track.volume / 2, beat, timelineEndBeat);
+  const panNormalized =
+    override?.macroId === TRACK_PAN_AUTOMATION_ID
+      ? clampNormalized(override.normalized)
+      : getTrackMacroValueAtBeat(track, TRACK_PAN_AUTOMATION_ID, track.pan ?? TRACK_PAN_CENTER, beat, timelineEndBeat);
 
-  return { macroValues, volumeNormalized };
+  return { macroValues, volumeNormalized, panNormalized };
 };
 
 const replaceKeyframe = (

@@ -296,6 +296,7 @@ struct TrackSpec {
     #[serde(rename = "trackId")]
     _track_id: String,
     volume: f32,
+    pan: f32,
     fx: TrackFxSpec,
     #[serde(rename = "signalCount")]
     signal_count: usize,
@@ -504,6 +505,13 @@ enum EventSpec {
         track_index: usize,
         value: f32,
     },
+    TrackPanChange {
+        #[serde(rename = "sampleTime")]
+        sample_time: u32,
+        #[serde(rename = "trackIndex")]
+        track_index: usize,
+        value: f32,
+    },
 }
 
 impl EventSpec {
@@ -512,14 +520,17 @@ impl EventSpec {
             EventSpec::NoteOn { sample_time, .. }
             | EventSpec::NoteOff { sample_time, .. }
             | EventSpec::ParamChange { sample_time, .. }
-            | EventSpec::TrackVolumeChange { sample_time, .. } => *sample_time,
+            | EventSpec::TrackVolumeChange { sample_time, .. }
+            | EventSpec::TrackPanChange { sample_time, .. } => *sample_time,
         }
     }
 
     fn type_priority(&self) -> u8 {
         match self {
             EventSpec::NoteOff { .. } => 0,
-            EventSpec::ParamChange { .. } | EventSpec::TrackVolumeChange { .. } => 1,
+            EventSpec::ParamChange { .. }
+            | EventSpec::TrackVolumeChange { .. }
+            | EventSpec::TrackPanChange { .. } => 1,
             EventSpec::NoteOn { .. } => 3,
         }
     }
@@ -529,7 +540,8 @@ impl EventSpec {
             EventSpec::NoteOn { track_index, .. }
             | EventSpec::NoteOff { track_index, .. }
             | EventSpec::ParamChange { track_index, .. }
-            | EventSpec::TrackVolumeChange { track_index, .. } => *track_index,
+            | EventSpec::TrackVolumeChange { track_index, .. }
+            | EventSpec::TrackPanChange { track_index, .. } => *track_index,
         }
     }
 
@@ -557,6 +569,7 @@ impl EventSpec {
                 ..
             } => format!("{}:{}:{}", track_index, node_id, param_id),
             EventSpec::TrackVolumeChange { track_index, .. } => format!("{}:volume", track_index),
+            EventSpec::TrackPanChange { track_index, .. } => format!("{}:pan", track_index),
         }
     }
 }

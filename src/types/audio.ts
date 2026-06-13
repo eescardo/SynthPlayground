@@ -60,6 +60,11 @@ export type TransportCommand =
       type: "SetTrackVolume";
       trackId: string;
       normalized: number;
+    }
+  | {
+      type: "SetTrackPan";
+      trackId: string;
+      normalized: number;
     };
 
 // Scheduler/worklet message contracts and event payload types for audio transport.

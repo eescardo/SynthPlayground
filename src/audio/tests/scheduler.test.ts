@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { collectEventsInWindow } from "@/audio/scheduler";
-import { createTrackMacroAutomationLane, upsertAutomationLaneKeyframe } from "@/lib/macroAutomation";
+import {
+  createTrackMacroAutomationLane,
+  TRACK_PAN_AUTOMATION_ID,
+  upsertAutomationLaneKeyframe
+} from "@/lib/macroAutomation";
 import { beatToSample } from "@/lib/musicTiming";
 import { createDefaultProject } from "@/lib/patch/presets";
 
@@ -120,6 +124,33 @@ describe("audio scheduler macro automation", () => {
     expect(noteOnIndex).toBeGreaterThanOrEqual(0);
     expect(events[macroEventIndex]?.sampleTime).toBe(events[noteOnIndex]?.sampleTime);
     expect(macroEventIndex).toBeLessThan(noteOnIndex);
+  });
+
+  it("emits track pan automation as macro change events", () => {
+    const project = createDefaultProject();
+    const track = project.tracks[0];
+    track.pan = 0.5;
+    track.macroAutomations[TRACK_PAN_AUTOMATION_ID] = upsertAutomationLaneKeyframe(
+      createTrackMacroAutomationLane(TRACK_PAN_AUTOMATION_ID, 0.5),
+      2,
+      0.8,
+      8
+    );
+
+    const events = collectEventsInWindow(project, {
+      fromSample: 0,
+      toSample: Number.MAX_SAFE_INTEGER
+    });
+
+    expect(
+      events.some(
+        (event) =>
+          event.type === "MacroChange" &&
+          event.trackId === track.id &&
+          event.macroId === TRACK_PAN_AUTOMATION_ID &&
+          Math.abs(event.normalized - 0.8) < 1e-6
+      )
+    ).toBe(true);
   });
 
   it("matches full-song scheduling when collecting a small unlooped transport window", () => {

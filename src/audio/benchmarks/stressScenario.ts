@@ -3,6 +3,7 @@ import { AudioBenchmarkScenario, AudioBenchmarkScenarioConfig } from "@/audio/be
 import { clamp01 } from "@/lib/numeric";
 import { TRACK_VOLUME_AUTOMATION_ID, createTrackMacroAutomationLane } from "@/lib/macroAutomation";
 import { presetPatches } from "@/lib/patch/presets";
+import { TRACK_PAN_CENTER } from "@/lib/trackPan";
 import { Project, Track } from "@/types/music";
 
 const DEFAULT_CONFIG: AudioBenchmarkScenarioConfig = {
@@ -171,6 +172,7 @@ const createTrack = (patchId: string, trackIndex: number, config: AudioBenchmark
     macroAutomations,
     macroPanelExpanded: trackIndex < 4,
     volume: 0.75 + (trackIndex % 5) * 0.12,
+    pan: TRACK_PAN_CENTER,
     mute: false,
     solo: false,
     fx: createTrackFx(trackIndex, config.includeTrackFx)

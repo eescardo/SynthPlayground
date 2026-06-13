@@ -4,6 +4,7 @@ import { DEFAULT_LOOP_REPEAT_COUNT, MAX_LOOP_REPEAT_COUNT } from "@/lib/looping"
 import { sanitizeMacroAutomationMap } from "@/lib/macroAutomation";
 import { clamp, clamp01 } from "@/lib/numeric";
 import { ensurePatchLayout } from "@/lib/patch/autoLayout";
+import { TRACK_PAN_CENTER } from "@/lib/trackPan";
 import { Project, Track, PatchWorkspaceTabState } from "@/types/music";
 import { Patch } from "@/types/patch";
 
@@ -15,6 +16,7 @@ type RawTemplateTrack = {
   macroAutomations?: unknown;
   macroPanelExpanded?: unknown;
   volume?: unknown;
+  pan?: unknown;
   mute?: unknown;
   solo?: unknown;
   fx?: unknown;
@@ -86,6 +88,7 @@ const sanitizeTemplateTrack = (track: RawTemplateTrack, index: number): Track =>
     macroAutomations: sanitizeMacroAutomationMap(track.macroAutomations),
     macroPanelExpanded: track.macroPanelExpanded === true,
     volume: clamp(asFiniteNumber(track.volume, 1), 0, 2),
+    pan: clamp01(asFiniteNumber(track.pan, TRACK_PAN_CENTER)),
     mute: Boolean(track.mute),
     solo: Boolean(track.solo),
     fx: {
@@ -260,6 +263,7 @@ export const createEmptyProjectFromPresets = (bundledPresetPatches: Patch[]): Pr
         macroAutomations: {},
         macroPanelExpanded: false,
         volume: 1,
+        pan: TRACK_PAN_CENTER,
         mute: false,
         solo: false,
         fx: {

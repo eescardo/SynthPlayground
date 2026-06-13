@@ -9,6 +9,7 @@ const blockSize = 128;
 const leftView = new Float32Array(sharedMemory.buffer, 0, blockSize);
 const rightView = new Float32Array(sharedMemory.buffer, blockSize * Float32Array.BYTES_PER_ELEMENT, blockSize);
 const engineStopTrack = vi.fn();
+const engineEnqueueEvents = vi.fn();
 
 vi.mock("../synth-worklet-dsp-bindgen.js", () => {
   class MockWasmSubsetEngine {
@@ -18,7 +19,9 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
     }
 
     start_stream() {}
-    enqueue_events() {}
+    enqueue_events(eventsJson: string) {
+      engineEnqueueEvents(eventsJson);
+    }
     set_sample_asset() {}
     configure_preview_probe_capture() {}
     process_block() {
@@ -64,6 +67,7 @@ vi.mock("../synth-worklet-dsp-bindgen.js", () => {
 beforeEach(() => {
   vi.resetModules();
   engineStopTrack.mockReset();
+  engineEnqueueEvents.mockReset();
   leftView.fill(0);
   rightView.fill(0);
 });
@@ -149,5 +153,49 @@ describe("WASM worklet renderer transport behavior", () => {
 
     expect(engineStopTrack).toHaveBeenCalledWith(0);
     expect(stream!.eventQueue.map((event) => event.id)).toEqual(["track_2_on", "track_1_late_on", "track_2_late_on"]);
+  });
+
+  it("applies pan restore transport commands only after a muted track is unmuted", async () => {
+    const { createWasmRenderer } = await import("../synth-worklet-wasm-renderer.js");
+
+    const project = createWasmRendererTestProject({
+      track: createWasmRendererTestTrack({ id: "track_1" })
+    });
+    const renderer = createWasmRenderer({
+      processorOptions: {
+        sampleRate: 48000,
+        blockSize,
+        renderProject: { project },
+        wasmBytes: new Uint8Array([0, 97, 115, 109]).buffer
+      }
+    });
+
+    const stream = renderer.startStream({
+      renderProject: { project },
+      songStartSample: 0,
+      mode: "transport",
+      events: [],
+      sessionId: 1
+    });
+
+    expect(stream).not.toBeNull();
+    const mutableStream = stream as typeof stream & {
+      dispatchTransportCommand(command: { type: string; trackId: string; muted?: boolean; normalized?: number }): void;
+    };
+    mutableStream!.dispatchTransportCommand({ type: "SetTrackMute", trackId: "track_1", muted: true });
+    mutableStream!.dispatchTransportCommand({ type: "SetTrackPan", trackId: "track_1", normalized: 0.1 });
+    expect(engineEnqueueEvents).not.toHaveBeenCalled();
+
+    mutableStream!.dispatchTransportCommand({ type: "SetTrackMute", trackId: "track_1", muted: false });
+    mutableStream!.dispatchTransportCommand({ type: "SetTrackPan", trackId: "track_1", normalized: 0.9 });
+
+    expect(engineEnqueueEvents).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(engineEnqueueEvents.mock.calls[0]![0])).toEqual([
+      expect.objectContaining({
+        type: "TrackPanChange",
+        trackIndex: 0,
+        value: 0.9
+      })
+    ]);
   });
 });

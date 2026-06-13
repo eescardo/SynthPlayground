@@ -21,8 +21,8 @@ import type { NoteRect } from "@/hooks/tracks/trackCanvasPointerTypes";
 import { TrackCanvasProps, TrackLayout } from "@/components/tracks/trackCanvasTypes";
 import { useTrackCanvasRenderModel } from "@/components/tracks/trackCanvasRenderModel";
 import { useTrackCanvasPlayheadAutoScroll } from "@/hooks/tracks/useTrackCanvasPlayheadAutoScroll";
+import { useTrackCanvasPopovers } from "@/hooks/tracks/useTrackCanvasPopovers";
 import { useTrackCanvasWheelPitchEditing } from "@/hooks/tracks/useTrackCanvasWheelPitchEditing";
-import { useVolumePopover } from "@/hooks/useVolumePopover";
 import { clamp01 } from "@/lib/numeric";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
 import { Track } from "@/types/music";
@@ -61,11 +61,13 @@ export function TrackCanvas(props: TrackCanvasProps) {
     volumePopoverTrackId,
     volumePopoverPosition,
     openVolumePopover,
-    closeVolumePopover,
+    openPanPopover,
     scheduleVolumePopoverOpen,
     scheduleVolumePopoverDismiss,
-    cancelScheduledVolumePopoverDismiss
-  } = useVolumePopover();
+    cancelScheduledVolumePopoverDismiss,
+    panPopoverTrackId,
+    panPopoverPosition
+  } = useTrackCanvasPopovers();
 
   const {
     activeRecordedNotes,
@@ -467,29 +469,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
   }, [editingTrackId, project.tracks]);
 
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        closeVolumePopover();
-      }
-    };
-
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target?.closest('[data-track-chrome="volume-button"], [data-track-popover="volume"]')) {
-        return;
-      }
-      closeVolumePopover();
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("pointerdown", onPointerDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("pointerdown", onPointerDown);
-    };
-  }, [closeVolumePopover]);
-
-  useEffect(() => {
     if (!playheadFocused) {
       return;
     }
@@ -532,7 +511,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
       setEditingTrackName={setEditingTrackName}
       volumePopoverTrackId={volumePopoverTrackId}
       volumePopoverPosition={volumePopoverPosition}
+      panPopoverTrackId={panPopoverTrackId}
+      panPopoverPosition={panPopoverPosition}
       openVolumePopover={openVolumePopover}
+      openPanPopover={openPanPopover}
       scheduleVolumePopoverOpen={scheduleVolumePopoverOpen}
       scheduleVolumePopoverDismiss={scheduleVolumePopoverDismiss}
       cancelScheduledVolumePopoverDismiss={cancelScheduledVolumePopoverDismiss}
