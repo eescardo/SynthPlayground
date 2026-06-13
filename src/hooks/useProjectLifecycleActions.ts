@@ -110,6 +110,37 @@ export const useProjectLifecycleActions = ({
     });
   }, [switchToProject]);
 
+  const deleteCurrentProject = useCallback(async () => {
+    const nextRecentProject = recentProjects.find(({ project: candidate }) => candidate.id !== project.id);
+
+    try {
+      await removeRecentProjectSnapshot(project.id);
+
+      if (nextRecentProject) {
+        const migratedState = hydrateProjectSnapshot(nextRecentProject.project, nextRecentProject.assets);
+
+        await switchToProject(migratedState.project, migratedState.assets, {
+          removeRecentProjectId: nextRecentProject.project.id
+        });
+        return;
+      }
+
+      await switchToProject(createNamedEmptyProject([]), createEmptyProjectAssetLibrary());
+    } catch (error) {
+      const cause = toError(error);
+      setRuntimeError(
+        createSproutError({
+          source: "project_lifecycle",
+          code: "delete_current_failed",
+          severity: "error",
+          message: `Failed to delete current project. ${cause.message}`,
+          error: cause,
+          details: { phase: "delete_current_project" }
+        })
+      );
+    }
+  }, [project.id, recentProjects, setRuntimeError, switchToProject]);
+
   const openRecentProject = useCallback(
     async (projectId: string) => {
       const recentProject = recentProjects.find(({ project: candidate }) => candidate.id === projectId);
@@ -172,6 +203,7 @@ export const useProjectLifecycleActions = ({
   return {
     clearCurrentProject,
     createNewProject,
+    deleteCurrentProject,
     importJson,
     openRecentProject,
     resetToDefaultProject: createDefaultTemplateProject

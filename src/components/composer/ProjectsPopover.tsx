@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { RefObject } from "react";
+import { RefObject, useState } from "react";
 
 import { RecentProjectSnapshot } from "@/lib/persistence";
 
@@ -9,6 +9,7 @@ interface ProjectsPopoverProps {
   importInputRef: RefObject<HTMLInputElement | null>;
   recentProjects: RecentProjectSnapshot[];
   onNewProject: () => void;
+  onDeleteCurrentProject: () => void;
   onExportJson: () => void;
   onImportJson: () => void;
   onOpenRecentProject: (projectId: string) => void;
@@ -21,6 +22,7 @@ export function ProjectsPopover({
   importInputRef,
   recentProjects,
   onNewProject,
+  onDeleteCurrentProject,
   onExportJson,
   onImportJson,
   onOpenRecentProject,
@@ -28,6 +30,8 @@ export function ProjectsPopover({
   onImportFile,
   onClose
 }: ProjectsPopoverProps) {
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+
   const runAction = (action: () => void) => {
     action();
     onClose();
@@ -40,27 +44,44 @@ export function ProjectsPopover({
       aria-label="Project actions"
       onPointerDown={(event) => event.stopPropagation()}
     >
-      <button type="button" onClick={() => runAction(onNewProject)}>
-        New Project
-      </button>
-      <button type="button" onClick={() => runAction(onResetToDefaultProject)}>
-        New Project From Template
-      </button>
-      <div className="timeline-actions-popover-divider" aria-hidden="true" />
-      <button type="button" onClick={() => runAction(onExportJson)}>
-        Export Project
-      </button>
-      <button type="button" onClick={onImportJson}>
-        Import Project
-      </button>
-      <div className="timeline-actions-popover-divider" aria-hidden="true" />
-      <Link className="projects-popover-link" href="/about" onClick={onClose}>
-        About SynthSprout
-      </Link>
-      {recentProjects.length > 0 && (
-        <>
-          <div className="timeline-actions-popover-divider" aria-hidden="true" />
+      <section className="projects-popover-section" aria-labelledby="projects-popover-section-title">
+        <h2 id="projects-popover-section-title" className="projects-popover-section-title">
+          Project
+        </h2>
+        <button type="button" onClick={() => runAction(onNewProject)}>
+          New
+        </button>
+        <button type="button" onClick={() => runAction(onResetToDefaultProject)}>
+          New From Template
+        </button>
+        <div className="projects-popover-delete-wrap">
+          <button type="button" onClick={() => setDeleteConfirmationOpen((open) => !open)}>
+            Delete Current
+          </button>
+          {deleteConfirmationOpen && (
+            <div className="projects-popover-confirm" role="alertdialog" aria-label="Delete current project">
+              <p>Delete the current project? If there is no recent project, a new empty project will open.</p>
+              <div className="projects-popover-confirm-actions">
+                <button type="button" className="danger-action" onClick={() => runAction(onDeleteCurrentProject)}>
+                  Delete
+                </button>
+                <button type="button" className="secondary-action" onClick={() => setDeleteConfirmationOpen(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="timeline-actions-popover-divider" aria-hidden="true" />
+        <button type="button" onClick={() => runAction(onExportJson)}>
+          Export
+        </button>
+        <button type="button" onClick={onImportJson}>
+          Import
+        </button>
+        {recentProjects.length > 0 && (
           <div className="projects-popover-recent-list" aria-label="Recent projects">
+            <h3 className="projects-popover-recent-title">Recent</h3>
             {recentProjects.map(({ project }) => (
               <span
                 key={project.id}
@@ -80,8 +101,11 @@ export function ProjectsPopover({
               </span>
             ))}
           </div>
-        </>
-      )}
+        )}
+      </section>
+      <Link className="projects-popover-link" href="/about" onClick={onClose}>
+        About SynthSprout
+      </Link>
       <input
         ref={importInputRef}
         type="file"
