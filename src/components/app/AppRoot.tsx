@@ -1207,60 +1207,74 @@ export function AppRoot({ children }: { children: ReactNode }) {
     importJson
   });
   const trackCanvasActionGroups = createTrackCanvasActionGroups({
-    selectedTrackInstrumentPatchId: selectedTrack.instrumentPatchId,
-    selectedTrackPatch,
+    selectedTrack: {
+      instrumentPatchId: selectedTrack.instrumentPatchId,
+      patch: selectedTrackPatch
+    },
     patchWorkspace,
-    hasTimelineRangeSelection,
-    selectionActionPopoverCollapsed,
-    setSelectedTrackId,
-    renameTrack,
-    toggleTrackMute,
-    setTrackVolume,
-    setTrackPan,
-    previewTrackVolume,
-    previewTrackPan,
-    bindTrackVolumeToAutomation,
-    unbindTrackVolumeFromAutomation,
-    toggleTrackVolumeAutomationLane,
-    bindTrackPanToAutomation,
-    unbindTrackPanFromAutomation,
-    toggleTrackPanAutomationLane,
-    updateTrackPatch,
-    toggleTrackMacroPanel,
-    duplicatePatchForSelectedTrack,
-    requestRemoveSelectedTrackPatch,
-    changeTrackMacro,
-    bindTrackMacroToAutomation,
-    unbindTrackMacroFromAutomation,
-    toggleTrackMacroAutomationLane,
-    upsertTrackMacroAutomationKeyframe,
-    splitTrackMacroAutomationKeyframe,
-    updateTrackMacroAutomationKeyframeSide,
-    deleteTrackMacroAutomationKeyframeSide,
-    previewTrackMacroAutomation,
-    openPitchPicker,
-    previewPlacedNote,
-    upsertNote,
-    updateNote,
-    deleteNote,
-    setContentSelectionFromCanvas,
-    setTimelineSelectionFromCanvas,
-    setSelectionMarqueeActive: (active: boolean) => {
-      setEditorSelection((current) => setEditorSelectionMarqueeActive(current, active));
+    selectionState: {
+      hasTimelineRangeSelection,
+      actionPopoverCollapsed: selectionActionPopoverCollapsed
     },
-    previewSelectionActionScopeChange: (scope: "source" | "all-tracks") => {
-      setEditorSelection((current) => setEditorSelectionActionScopePreview(current, scope));
+    trackActions: {
+      onSelectTrack: setSelectedTrackId,
+      onRenameTrack: renameTrack,
+      onToggleTrackMute: toggleTrackMute,
+      onSetTrackVolume: setTrackVolume,
+      onSetTrackPan: setTrackPan,
+      onPreviewTrackVolume: previewTrackVolume,
+      onPreviewTrackPan: previewTrackPan,
+      onBindTrackVolumeToAutomation: bindTrackVolumeToAutomation,
+      onUnbindTrackVolumeFromAutomation: unbindTrackVolumeFromAutomation,
+      onToggleTrackVolumeAutomationLane: toggleTrackVolumeAutomationLane,
+      onBindTrackPanToAutomation: bindTrackPanToAutomation,
+      onUnbindTrackPanFromAutomation: unbindTrackPanFromAutomation,
+      onToggleTrackPanAutomationLane: toggleTrackPanAutomationLane,
+      onUpdateTrackPatch: updateTrackPatch,
+      onToggleTrackMacroPanel: toggleTrackMacroPanel
     },
-    expandSelectionActionPopover: () => setSelectionActionPopoverMode("expanded"),
-    clearCanvasSelection,
-    copyAllTracksInSelection,
-    copySelectedNotes,
-    cutAllTracksInSelection,
-    cutSelectedNotes,
-    deleteAllTracksInSelection,
-    deleteSelectedNoteSelection,
-    insertTimeInSelection,
-    openExplodeSelectionDialog
+    patchActions: {
+      onDuplicateSelectedPatch: duplicatePatchForSelectedTrack,
+      onRequestRemoveSelectedPatch: requestRemoveSelectedTrackPatch
+    },
+    automationActions: {
+      onChangeTrackMacro: changeTrackMacro,
+      onBindTrackMacroToAutomation: bindTrackMacroToAutomation,
+      onUnbindTrackMacroFromAutomation: unbindTrackMacroFromAutomation,
+      onToggleTrackMacroAutomationLane: toggleTrackMacroAutomationLane,
+      onUpsertTrackMacroAutomationKeyframe: upsertTrackMacroAutomationKeyframe,
+      onSplitTrackMacroAutomationKeyframe: splitTrackMacroAutomationKeyframe,
+      onUpdateTrackMacroAutomationKeyframeSide: updateTrackMacroAutomationKeyframeSide,
+      onDeleteTrackMacroAutomationKeyframeSide: deleteTrackMacroAutomationKeyframeSide,
+      onPreviewTrackMacroAutomation: previewTrackMacroAutomation
+    },
+    noteActions: {
+      onOpenPitchPicker: openPitchPicker,
+      onPreviewPlacedNote: previewPlacedNote,
+      onUpsertNote: upsertNote,
+      onUpdateNote: updateNote,
+      onDeleteNote: deleteNote
+    },
+    selectionActions: {
+      onSetContentSelection: setContentSelectionFromCanvas,
+      onSetTimelineSelectionBeatRange: setTimelineSelectionFromCanvas,
+      onSetSelectionMarqueeActive: (active: boolean) => {
+        setEditorSelection((current) => setEditorSelectionMarqueeActive(current, active));
+      },
+      onPreviewSelectionActionScopeChange: (scope: "source" | "all-tracks") => {
+        setEditorSelection((current) => setEditorSelectionActionScopePreview(current, scope));
+      },
+      onExpandSelectionActionPopover: () => setSelectionActionPopoverMode("expanded"),
+      onDismissSelectionActionPopover: clearCanvasSelection,
+      onInsertTimeInSelection: insertTimeInSelection,
+      onOpenExplodeSelectionDialog: openExplodeSelectionDialog,
+      onDeleteAllTracksInSelection: deleteAllTracksInSelection,
+      copyAllTracksInSelection,
+      copySelectedNotes,
+      cutAllTracksInSelection,
+      cutSelectedNotes,
+      deleteSelectedNoteSelection
+    }
   });
   const runtimeErrorDisplayMessage = runtimeError?.severity === "error" ? runtimeError.message : null;
 
