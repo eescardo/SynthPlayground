@@ -7,6 +7,7 @@ import {
   getProjectTimelineEndBeat,
   getTrackPreviewStateAtBeat,
   isSplitAutomationKeyframe,
+  TRACK_PAN_AUTOMATION_ID,
   TRACK_VOLUME_AUTOMATION_ID,
   removeAutomationLaneKeyframeSide,
   splitAutomationLaneKeyframe,
@@ -201,6 +202,17 @@ describe("macroAutomation", () => {
       macro_resonance: 0.3
     });
     expect(preview.volumeNormalized).toBeCloseTo(0.2);
+  });
+
+  it("ignores stale host macro values when fixed volume and pan are not automated", () => {
+    const track = createTrack();
+    track.volume = 1.4;
+    track.pan = 0.25;
+    track.macroValues[TRACK_VOLUME_AUTOMATION_ID] = 0.1;
+    track.macroValues[TRACK_PAN_AUTOMATION_ID] = 0.9;
+
+    expect(getTrackMacroValueAtBeat(track, TRACK_VOLUME_AUTOMATION_ID, track.volume / 2, 0, 8)).toBeCloseTo(0.7);
+    expect(getTrackMacroValueAtBeat(track, TRACK_PAN_AUTOMATION_ID, track.pan, 0, 8)).toBeCloseTo(0.25);
   });
 
   it("keeps the split variant while editing incoming and outgoing sides independently", () => {

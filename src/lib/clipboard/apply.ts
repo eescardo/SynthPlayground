@@ -9,6 +9,7 @@ import { createId } from "@/lib/ids";
 import { sanitizeLoopSettings } from "@/lib/looping";
 import {
   getCompatibleAutomationLaneIds,
+  getTrackHostAutomationDescriptor,
   getProjectTimelineEndBeat as getProjectTimelineEndBeatFromProject
 } from "@/lib/macroAutomation";
 import { eraseNotesInBeatRange, insertBeatGap, removeBeatRangeAndCloseGap, sortNotes } from "@/lib/noteEditing";
@@ -142,11 +143,15 @@ export function applyNoteClipboardPaste(
         if (!compatibleMacroIds.has(laneSegment.macroId)) {
           continue;
         }
+        const hostDescriptor = getTrackHostAutomationDescriptor(laneSegment.macroId);
+        const fixedHostValue = hostDescriptor
+          ? hostDescriptor.fixedValueToNormalized(hostDescriptor.getFixedValue(track))
+          : null;
         const baseLane = nextMacroAutomations[laneSegment.macroId] ?? {
           macroId: laneSegment.macroId,
           expanded: true,
-          startValue: nextMacroValues[laneSegment.macroId] ?? laneSegment.startValue,
-          endValue: nextMacroValues[laneSegment.macroId] ?? laneSegment.endValue,
+          startValue: fixedHostValue ?? nextMacroValues[laneSegment.macroId] ?? laneSegment.startValue,
+          endValue: fixedHostValue ?? nextMacroValues[laneSegment.macroId] ?? laneSegment.endValue,
           keyframes: []
         };
         nextMacroAutomations[laneSegment.macroId] = replaceAutomationLaneBeatRange(
@@ -156,7 +161,11 @@ export function applyNoteClipboardPaste(
           pasteEndBeat,
           timelineEndBeat
         );
-        nextMacroValues[laneSegment.macroId] = nextMacroAutomations[laneSegment.macroId].startValue;
+        if (hostDescriptor) {
+          delete nextMacroValues[laneSegment.macroId];
+        } else {
+          nextMacroValues[laneSegment.macroId] = nextMacroAutomations[laneSegment.macroId].startValue;
+        }
       }
       nextTrack = {
         ...nextTrack,

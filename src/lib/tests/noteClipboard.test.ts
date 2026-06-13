@@ -698,7 +698,14 @@ describe("noteClipboard", () => {
     const project = createProject();
     project.tracks[1] = {
       ...project.tracks[1]!,
-      instrumentPatchId: "patch_2"
+      instrumentPatchId: "patch_2",
+      volume: 1.4,
+      pan: 0.8,
+      macroValues: {
+        ...project.tracks[1]!.macroValues,
+        [TRACK_VOLUME_AUTOMATION_ID]: 0.1,
+        [TRACK_PAN_AUTOMATION_ID]: 0.2
+      }
     };
 
     const payload = buildNoteClipboardPayload(project, [getNoteSelectionKey("track_1", "note_a")]);
@@ -738,7 +745,14 @@ describe("noteClipboard", () => {
     };
     project.tracks[1] = {
       ...project.tracks[1]!,
-      instrumentPatchId: "patch_2"
+      instrumentPatchId: "patch_2",
+      volume: 1.4,
+      pan: 0.8,
+      macroValues: {
+        ...project.tracks[1]!.macroValues,
+        [TRACK_VOLUME_AUTOMATION_ID]: 0.1,
+        [TRACK_PAN_AUTOMATION_ID]: 0.2
+      }
     };
 
     const payload = buildNoteClipboardPayload(project, [getNoteSelectionKey("track_1", "note_a")]);
@@ -755,6 +769,10 @@ describe("noteClipboard", () => {
     expect(destinationTrack.macroAutomations[TRACK_PAN_AUTOMATION_ID].keyframes).toEqual(
       expect.arrayContaining([expect.objectContaining({ beat: 5, type: "whole", value: 0.25 })])
     );
+    expect(destinationTrack.macroAutomations[TRACK_VOLUME_AUTOMATION_ID].startValue).toBeCloseTo(0.7);
+    expect(destinationTrack.macroAutomations[TRACK_PAN_AUTOMATION_ID].startValue).toBeCloseTo(0.8);
+    expect(destinationTrack.macroValues[TRACK_VOLUME_AUTOMATION_ID]).toBeUndefined();
+    expect(destinationTrack.macroValues[TRACK_PAN_AUTOMATION_ID]).toBeUndefined();
     expect(destinationTrack.macroAutomations.macro_cutoff.keyframes).toEqual([
       { id: "cutoff_c", beat: 3, type: "whole", value: 0.7 },
       { id: "cutoff_d", beat: 6, type: "whole", value: 0.2 }

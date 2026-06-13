@@ -197,6 +197,17 @@ export const isTrackPanAutomated = (track: Track): boolean => Boolean(getTrackPa
 export const isHostTrackAutomationId = (macroId: string): boolean =>
   HOST_TRACK_AUTOMATION_IDS.includes(macroId as (typeof HOST_TRACK_AUTOMATION_IDS)[number]);
 
+export const omitHostAutomationMacroValues = (macroValues: Record<string, number>): Record<string, number> => {
+  let nextValues: Record<string, number> | null = null;
+  for (const macroId of HOST_TRACK_AUTOMATION_IDS) {
+    if (Object.prototype.hasOwnProperty.call(macroValues, macroId)) {
+      nextValues ??= { ...macroValues };
+      delete nextValues[macroId];
+    }
+  }
+  return nextValues ?? macroValues;
+};
+
 export const getCompatibleAutomationLaneIds = (project: Project, track: Track, sourcePatchId: string) => {
   const compatibleIds = new Set<string>(HOST_TRACK_AUTOMATION_IDS);
   if (track.instrumentPatchId !== sourcePatchId) {
@@ -346,6 +357,9 @@ export const getTrackMacroValueAtBeat = (
 ): number => {
   const lane = getTrackMacroLane(track, macroId);
   if (!lane) {
+    if (isHostTrackAutomationId(macroId)) {
+      return clampNormalized(fallbackValue);
+    }
     return clampNormalized(typeof track.macroValues[macroId] === "number" ? track.macroValues[macroId] : fallbackValue);
   }
 
