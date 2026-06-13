@@ -30,6 +30,27 @@ export function useTrackHostAutomationActions({
   previewPitch,
   setRuntimeError
 }: UseTrackHostAutomationActionsParams) {
+  const previewTrackNote = useCallback(
+    (trackId: string, source: "track_volume_automation" | "track_pan_automation", phase: string, label: string) => {
+      audioEngineRef.current
+        ?.previewNote(trackId, pitchToVoct(previewPitch), 1, 0.9, { ignoreVolume: false })
+        .catch((error) => {
+          const previewError = toError(error);
+          setRuntimeError(
+            createSproutError({
+              source,
+              code: "preview_failed",
+              severity: "error",
+              message: `${label} automation preview failed: ${previewError.message}`,
+              error: previewError,
+              details: { phase, trackId }
+            })
+          );
+        });
+    },
+    [audioEngineRef, previewPitch, setRuntimeError]
+  );
+
   const bindTrackHostAutomation = useCallback(
     (trackId: string, macroId: string, initialValue: number) => {
       const descriptor = getTrackHostAutomationDescriptor(macroId);
@@ -150,30 +171,17 @@ export function useTrackHostAutomationActions({
   const previewTrackPan = useCallback(
     (trackId: string, pan: number) => {
       audioEngineRef.current?.setMacroValue(trackId, TRACK_PAN_AUTOMATION_ID, clamp(pan, 0, 1));
+      previewTrackNote(trackId, "track_pan_automation", "preview_pan_change", "Pan");
     },
-    [audioEngineRef]
+    [audioEngineRef, previewTrackNote]
   );
 
   const previewTrackVolume = useCallback(
     (trackId: string, volume: number) => {
       audioEngineRef.current?.setMacroValue(trackId, TRACK_VOLUME_AUTOMATION_ID, clamp(volume, 0, 2) / 2);
-      audioEngineRef.current
-        ?.previewNote(trackId, pitchToVoct(previewPitch), 1, 0.9, { ignoreVolume: false })
-        .catch((error) => {
-          const previewError = toError(error);
-          setRuntimeError(
-            createSproutError({
-              source: "track_volume_automation",
-              code: "preview_failed",
-              severity: "error",
-              message: `Volume automation preview failed: ${previewError.message}`,
-              error: previewError,
-              details: { phase: "preview_volume_change", trackId }
-            })
-          );
-        });
+      previewTrackNote(trackId, "track_volume_automation", "preview_volume_change", "Volume");
     },
-    [audioEngineRef, previewPitch, setRuntimeError]
+    [audioEngineRef, previewTrackNote]
   );
 
   return {

@@ -10,6 +10,7 @@ vi.mock("@/audio/worklets/createInitializedWorkletNode", () => ({
 
 import {
   createActiveTrackNoteEvents,
+  createTrackPanRestoreCommand,
   createTrackVolumeRestoreCommand,
   createWorkletRuntimeSproutError,
   formatWorkletRuntimeError,
@@ -315,6 +316,65 @@ describe("audio engine live mute transitions", () => {
         normalized: 0.75
       })
     );
+  });
+
+  it("builds a live pan restore command for unmuting during playback", () => {
+    const project = createDefaultProject();
+    const track = project.tracks[0];
+    track.pan = 0.2;
+
+    const command = createTrackPanRestoreCommand(project, track, 2);
+
+    expect(command).toEqual(
+      expect.objectContaining({
+        type: "SetTrackPan",
+        trackId: track.id,
+        normalized: 0.2
+      })
+    );
+  });
+
+  it("restores fixed pan when unmuting even if volume restore is suppressed", () => {
+    const project = createDefaultProject();
+    const track = project.tracks[0];
+    track.volume = 1.5;
+    track.pan = 0.25;
+
+    const backend = new RealAudioEngineBackend();
+    const postMessage = vi.fn();
+    backend.syncProjectSnapshot(toRenderProject(project), { syncToWorklet: false });
+    const testBackend = backend as unknown as {
+      context: { currentTime: number };
+      worklet: { port: { postMessage: typeof postMessage } };
+      isPlaying: boolean;
+      playSessionId: number;
+      scheduledUntilSample: number;
+      songStartContextTime: number;
+      cueBeat: number;
+    };
+    testBackend.context = { currentTime: 1 };
+    testBackend.worklet = { port: { postMessage } };
+    testBackend.isPlaying = true;
+    testBackend.playSessionId = 7;
+    testBackend.scheduledUntilSample = 96000;
+    testBackend.songStartContextTime = 0;
+    testBackend.cueBeat = 0;
+
+    backend.setTrackMuted(track.id, false, { restoreVolume: false });
+
+    expect(
+      postMessage.mock.calls.some(
+        ([message]) => message.type === "TRANSPORT_COMMAND" && message.command.type === "SetTrackVolume"
+      )
+    ).toBe(false);
+    expect(
+      postMessage.mock.calls.some(
+        ([message]) =>
+          message.type === "TRANSPORT_COMMAND" &&
+          message.command.type === "SetTrackPan" &&
+          message.command.normalized === 0.25
+      )
+    ).toBe(true);
   });
 
   it("creates note events for notes already active when a track is unmuted", () => {

@@ -1,6 +1,6 @@
 // Generated from src/audio/renderers/wasm/synth-worklet-wasm-renderer-core.js by scripts/worklets/sync-worklet-runtime.mjs.
 import { compareScheduledEvents } from "./synth-renderer-events.js";
-import { TRACK_VOLUME_AUTOMATION_ID } from "./synth-renderer-constants.js";
+import { TRACK_PAN_AUTOMATION_ID, TRACK_VOLUME_AUTOMATION_ID } from "./synth-renderer-constants.js";
 import {
   compileAudioProjectPlanToWasmSubsetCore,
   compileSchedulerEventsToWasmSubsetCore
@@ -415,6 +415,10 @@ export class SharedWasmRenderStream {
     }
     if (command.type === "SetTrackVolume" && !this.mutedTrackIds.has(command.trackId)) {
       this.setMacroValue(command.trackId, TRACK_VOLUME_AUTOMATION_ID, command.normalized);
+      return;
+    }
+    if (command.type === "SetTrackPan" && !this.mutedTrackIds.has(command.trackId)) {
+      this.setMacroValue(command.trackId, TRACK_PAN_AUTOMATION_ID, command.normalized);
     }
   }
 

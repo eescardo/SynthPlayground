@@ -17,6 +17,106 @@ fn pending_track_sample_assets(
     &mut assets_by_track[track_index]
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn stereo_energy(engine: &WasmSubsetEngine) -> (f32, f32) {
+        (
+            engine.left.iter().map(|sample| sample * sample).sum(),
+            engine.right.iter().map(|sample| sample * sample).sum(),
+        )
+    }
+
+    fn test_project_json(pan: f32) -> String {
+        json!({
+            "sampleRate": 48000,
+            "blockSize": 128,
+            "masterFx": {
+                "compressorEnabled": false,
+                "limiterEnabled": false,
+                "makeupGain": 0.0
+            },
+            "tracks": [{
+                "trackIndex": 0,
+                "trackId": "track_1",
+                "volume": 1.0,
+                "pan": pan,
+                "fx": {
+                    "delayEnabled": false,
+                    "reverbEnabled": false,
+                    "saturationEnabled": false,
+                    "compressorEnabled": false,
+                    "delayMix": 0.0,
+                    "reverbMix": 0.0,
+                    "drive": 0.0,
+                    "compression": 0.0
+                },
+                "signalCount": 5,
+                "hostSignalIndices": {
+                    "pitch": 0,
+                    "gate": 1,
+                    "velocity": 2,
+                    "modWheel": 3
+                },
+                "outputSignalIndex": 4,
+                "nodes": [{
+                    "id": "osc",
+                    "typeId": "VCO",
+                    "outIndex": 4,
+                    "inputs": {
+                        "pitch": 0,
+                        "fm": -1,
+                        "pwm": -1
+                    },
+                    "params": {
+                        "wave": "sine"
+                    }
+                }]
+            }]
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn track_pan_controls_left_right_render_energy() {
+        let mut engine = WasmSubsetEngine::new(48_000, 128);
+        let initial_events = json!([{
+            "type": "NoteOn",
+            "sampleTime": 0,
+            "trackIndex": 0,
+            "noteId": "note_1",
+            "pitchVoct": 0.0,
+            "velocity": 1.0
+        }])
+        .to_string();
+
+        engine
+            .start_stream(&test_project_json(0.0), 0, &initial_events, 1, 1234)
+            .expect("test project should start");
+        engine.process_block();
+        let (left_energy, right_energy) = stereo_energy(&engine);
+        assert!(left_energy > 0.01);
+        assert!(right_energy < left_energy * 0.001);
+
+        let pan_right_events = json!([{
+            "type": "TrackPanChange",
+            "sampleTime": 128,
+            "trackIndex": 0,
+            "value": 1.0
+        }])
+        .to_string();
+        engine
+            .enqueue_events(&pan_right_events)
+            .expect("pan event should enqueue");
+        engine.process_block();
+        let (left_energy, right_energy) = stereo_energy(&engine);
+        assert!(right_energy > 0.01);
+        assert!(left_energy < right_energy * 0.001);
+    }
+}
+
 #[wasm_bindgen]
 pub struct WasmSubsetEngine {
     sample_rate: f32,

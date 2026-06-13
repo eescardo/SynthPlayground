@@ -9,7 +9,12 @@ import {
   transportMsToSamples
 } from "@/audio/transportScheduling";
 import { getSongBeatForPlaybackBeat } from "@/lib/looping";
-import { getProjectTimelineEndBeat, getTrackMacroValueAtBeat, TRACK_VOLUME_AUTOMATION_ID } from "@/lib/macroAutomation";
+import {
+  getProjectTimelineEndBeat,
+  getTrackMacroValueAtBeat,
+  TRACK_PAN_AUTOMATION_ID,
+  TRACK_VOLUME_AUTOMATION_ID
+} from "@/lib/macroAutomation";
 import { beatToSample, samplesPerBeat } from "@/lib/musicTiming";
 import { pitchToVoct } from "@/lib/pitch";
 import { createId } from "@/lib/ids";
@@ -143,6 +148,22 @@ export const createTrackVolumeRestoreCommand = (
     track,
     TRACK_VOLUME_AUTOMATION_ID,
     track.volume / 2,
+    songBeat,
+    getProjectTimelineEndBeat(project)
+  )
+});
+
+export const createTrackPanRestoreCommand = (
+  project: AudioProject,
+  track: Track,
+  songBeat: number
+): TransportCommand => ({
+  type: "SetTrackPan",
+  trackId: track.id,
+  normalized: getTrackMacroValueAtBeat(
+    track,
+    TRACK_PAN_AUTOMATION_ID,
+    track.pan ?? 0.5,
     songBeat,
     getProjectTimelineEndBeat(project)
   )
@@ -312,15 +333,19 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
     }
   }
 
-  private getTrackVolumeRestoreCommand(trackId: string): TransportCommand | null {
+  private getTrackRestoreCommands(trackId: string): TransportCommand[] {
     if (!this.project) {
-      return null;
+      return [];
     }
     const track = this.project.tracks.find((entry) => entry.id === trackId);
     if (!track) {
-      return null;
+      return [];
     }
-    return createTrackVolumeRestoreCommand(this.project, track, this.getPlayheadBeat());
+    const songBeat = this.getPlayheadBeat();
+    return [
+      createTrackVolumeRestoreCommand(this.project, track, songBeat),
+      createTrackPanRestoreCommand(this.project, track, songBeat)
+    ];
   }
 
   setTrackMuted(trackId: string, muted: boolean, options?: { restoreVolume?: boolean }): void {
@@ -328,9 +353,11 @@ export class RealAudioEngineBackend implements AudioEngineBackend {
       this.project = updateTrackMuteSnapshot(this.project, trackId, muted);
     }
     this.dispatchTransportCommand({ type: "SetTrackMute", trackId, muted });
-    if (!muted && options?.restoreVolume !== false) {
-      const restoreCommand = this.getTrackVolumeRestoreCommand(trackId);
-      if (restoreCommand) {
+    if (!muted) {
+      for (const restoreCommand of this.getTrackRestoreCommands(trackId)) {
+        if (restoreCommand.type === "SetTrackVolume" && options?.restoreVolume === false) {
+          continue;
+        }
         this.dispatchTransportCommand(restoreCommand);
       }
     }
