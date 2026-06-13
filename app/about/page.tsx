@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { releaseNotes } from "@/content/releaseNotes";
 import { APP_NAME, SUPPORT_EMAIL, UI_TEXT } from "@/lib/uiText";
-import { ReleaseNotesDialog } from "./ReleaseNotesDialog";
-
-const latestRelease = releaseNotes[0];
+import { ReleaseNotesSummary } from "./ReleaseNotesSummary";
 
 export default function AboutPage() {
   return (
@@ -22,16 +20,7 @@ export default function AboutPage() {
                 <p>{UI_TEXT.about.purpose}</p>
               </header>
 
-              <div className="about-release-summary" aria-labelledby="release-notes-title">
-                <div>
-                  <p className="about-eyebrow">Latest release</p>
-                  <h2 id="release-notes-title">
-                    {latestRelease.version} · {latestRelease.title}
-                  </h2>
-                  <p>{latestRelease.summary}</p>
-                </div>
-                <ReleaseNotesDialog />
-              </div>
+              <ReleaseNotesSummary entries={releaseNotes} />
             </section>
           </div>
 

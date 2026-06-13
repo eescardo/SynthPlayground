@@ -75,6 +75,7 @@
 
 .about-hero h1,
 .about-section h2,
+.about-release-summary-entry h3,
 .about-release-entry h3 {
   margin: 0;
 }
@@ -86,6 +87,7 @@
 
 .about-hero p,
 .about-section p,
+.about-release-summary-entry p,
 .about-release-entry li {
   color: #bfd1e4;
   line-height: 1.55;
@@ -108,9 +110,40 @@
 .about-release-summary {
   display: flex;
   flex: 1;
+  min-height: 0;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+  overflow: hidden;
+}
+
+.about-release-summary-copy {
+  min-width: 0;
+}
+
+.about-release-summary-copy > h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.about-release-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.about-release-summary-entry h3 {
+  color: var(--ink);
+  font-size: 1.1rem;
+  line-height: 1.18;
+}
+
+.about-release-summary-entry p {
+  margin: 0.45rem 0 0;
 }
 
 .about-secondary-action {
