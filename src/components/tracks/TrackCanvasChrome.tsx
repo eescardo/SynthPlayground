@@ -592,33 +592,41 @@ export function TrackHeaderChrome({
                 </option>
               ))}
             </select>
-            {selected && track.macroPanelExpanded && (
+            {track.macroPanelExpanded && (
               <MacroPanel
                 panelTop={macroPanelGeometry.shellTop}
                 panelHeight={macroPanelGeometry.shellHeight}
                 rows={macroPanelRows}
-                onMouseEnter={() =>
-                  scheduleTeaserPatchSummary({
-                    trackId: track.id,
-                    selected,
-                    macroPanelExpanded: track.macroPanelExpanded
-                  })
+                active={selected}
+                onMouseEnter={
+                  selected
+                    ? () =>
+                        scheduleTeaserPatchSummary({
+                          trackId: track.id,
+                          selected,
+                          macroPanelExpanded: track.macroPanelExpanded
+                        })
+                    : undefined
                 }
-                onMouseLeave={() => schedulePatchSummaryDismiss(track.id)}
-                onDoubleClick={(event) => {
-                  event.stopPropagation();
-                  if (patchSummaryPopover?.trackId === track.id && patchSummaryPopover.mode === "expanded") {
-                    closePatchSummaryPopover();
-                    return;
-                  }
-                  openExpandedPatchSummary({
-                    trackId: track.id,
-                    selected,
-                    macroPanelExpanded: track.macroPanelExpanded,
-                    onSelectTrack: trackActions.onSelectTrack,
-                    onToggleTrackMacroPanel: trackActions.onToggleTrackMacroPanel
-                  });
-                }}
+                onMouseLeave={selected ? () => schedulePatchSummaryDismiss(track.id) : undefined}
+                onDoubleClick={
+                  selected
+                    ? (event) => {
+                        event.stopPropagation();
+                        if (patchSummaryPopover?.trackId === track.id && patchSummaryPopover.mode === "expanded") {
+                          closePatchSummaryPopover();
+                          return;
+                        }
+                        openExpandedPatchSummary({
+                          trackId: track.id,
+                          selected,
+                          macroPanelExpanded: track.macroPanelExpanded,
+                          onSelectTrack: trackActions.onSelectTrack,
+                          onToggleTrackMacroPanel: trackActions.onToggleTrackMacroPanel
+                        });
+                      }
+                    : undefined
+                }
               />
             )}
             {selected && track.macroPanelExpanded && trackPatch && hasPatchSummaryPopover && (

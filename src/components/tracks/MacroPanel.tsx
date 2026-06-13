@@ -25,6 +25,7 @@ interface MacroPanelProps {
   panelTop: number | null;
   panelHeight: number;
   rows: MacroPanelRow[];
+  active?: boolean;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   onDoubleClick?: (event: ReactMouseEvent<HTMLDivElement>) => void;
@@ -34,6 +35,7 @@ export function MacroPanel({
   panelTop,
   panelHeight,
   rows,
+  active = true,
   onMouseEnter,
   onMouseLeave,
   onDoubleClick
@@ -55,7 +57,7 @@ export function MacroPanel({
 
   return (
     <div
-      className={styles.macroPanelArea}
+      className={`${styles.macroPanelArea}${active ? "" : ` ${styles.macroPanelAreaInactive}`}`}
       data-track-chrome="macro-panel"
       style={{
         top: `${panelTop}px`,
@@ -86,6 +88,7 @@ export function MacroPanel({
                 data-testid="track-inspector-action-button"
                 title={row.bindTitle}
                 aria-label={row.bindAriaLabel}
+                disabled={!active}
                 onClick={row.onBindToggle}
                 onKeyDown={handleButtonKeyDown(row.onBindToggle)}
                 onDoubleClick={(event) => event.stopPropagation()}
@@ -99,6 +102,7 @@ export function MacroPanel({
                   data-testid="track-inspector-action-button"
                   title={row.expandTitle ?? "Expand lane"}
                   aria-label={row.expandAriaLabel ?? "Expand lane"}
+                  disabled={!active}
                   onClick={row.onExpandToggle}
                   onKeyDown={handleButtonKeyDown(row.onExpandToggle)}
                   onDoubleClick={(event) => event.stopPropagation()}

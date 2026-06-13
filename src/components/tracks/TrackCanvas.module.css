@@ -169,6 +169,33 @@
   box-shadow: inset 0 0 0 1px rgba(19, 40, 61, 0.06);
 }
 
+.macroPanelAreaInactive .inspectorPanel {
+  border-color: transparent;
+  background: rgba(159, 181, 202, 0.08);
+  box-shadow: none;
+}
+
+.macroPanelAreaInactive .inspectorRow {
+  opacity: 0.48;
+}
+
+.macroPanelAreaInactive .inspectorRowActions {
+  pointer-events: none;
+}
+
+.macroPanelAreaInactive .inspectorStatusPill {
+  border-color: rgba(151, 172, 191, 0.16);
+  background: rgba(39, 52, 65, 0.42);
+  box-shadow: none;
+}
+
+.macroPanelAreaInactive .inspectorRowLabel,
+.macroPanelAreaInactive .inspectorStatusButton,
+.macroPanelAreaInactive .inspectorExpandButton {
+  color: #a7b5c4;
+  text-shadow: none;
+}
+
 .trackNameButton {
   position: absolute;
   left: 10px;
