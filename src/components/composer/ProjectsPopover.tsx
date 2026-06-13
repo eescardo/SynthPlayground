@@ -4,6 +4,7 @@ import Link from "next/link";
 import { RefObject, useState } from "react";
 
 import { RecentProjectSnapshot } from "@/lib/persistence";
+import { UI_TEXT } from "@/lib/uiText";
 
 interface ProjectsPopoverProps {
   importInputRef: RefObject<HTMLInputElement | null>;
@@ -60,7 +61,7 @@ export function ProjectsPopover({
           </button>
           {deleteConfirmationOpen && (
             <div className="projects-popover-confirm" role="alertdialog" aria-label="Delete current project">
-              <p>Delete the current project? If there is no recent project, a new empty project will open.</p>
+              <p>{UI_TEXT.projectsMenu.deleteCurrentConfirmation}</p>
               <div className="projects-popover-confirm-actions">
                 <button type="button" className="danger-action" onClick={() => runAction(onDeleteCurrentProject)}>
                   Delete
@@ -104,7 +105,7 @@ export function ProjectsPopover({
         )}
       </section>
       <Link className="projects-popover-link" href="/about" onClick={onClose}>
-        About SynthSprout
+        {UI_TEXT.projectsMenu.about}
       </Link>
       <input
         ref={importInputRef}

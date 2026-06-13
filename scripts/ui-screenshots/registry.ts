@@ -23,6 +23,7 @@ import {
   PATCH_NODE_WIDTH
 } from "../../src/components/patch/patchCanvasConstants";
 import { createDefaultProject } from "../../src/lib/patch/presets";
+import { APP_NAME } from "../../src/lib/uiText";
 
 export interface ScreenshotScenarioDefinition {
   name: ScreenshotScenario;
@@ -138,7 +139,7 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
     description: "About page with release notes dialog open",
     capture: async (page, outputPath) => {
       await page.goto("/about");
-      await expect(page.getByRole("heading", { name: "SynthSprout" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: APP_NAME })).toBeVisible();
       await page.getByRole("button", { name: "View full release notes" }).click();
       await expect(page.getByRole("dialog", { name: "Release Notes" })).toBeVisible();
       await savePageScreenshot(page, outputPath);
