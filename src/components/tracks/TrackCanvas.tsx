@@ -21,9 +21,9 @@ import type { NoteRect } from "@/hooks/tracks/trackCanvasPointerTypes";
 import { TrackCanvasProps, TrackLayout } from "@/components/tracks/trackCanvasTypes";
 import { useTrackCanvasRenderModel } from "@/components/tracks/trackCanvasRenderModel";
 import { useTrackCanvasPlayheadAutoScroll } from "@/hooks/tracks/useTrackCanvasPlayheadAutoScroll";
+import { useTrackCanvasPopovers } from "@/hooks/tracks/useTrackCanvasPopovers";
 import { useTrackCanvasWheelPitchEditing } from "@/hooks/tracks/useTrackCanvasWheelPitchEditing";
-import { useVolumePopover } from "@/hooks/useVolumePopover";
-import { clamp, clamp01 } from "@/lib/numeric";
+import { clamp01 } from "@/lib/numeric";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
 import { Track } from "@/types/music";
 export type {
@@ -57,61 +57,17 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const [scrollLeft, setScrollLeft] = useState(0);
   const [beatWidth, setBeatWidth] = useState(BEAT_WIDTH);
   beatWidthRef.current = beatWidth;
-  const [panPopoverTrackId, setPanPopoverTrackId] = useState<string | null>(null);
-  const [panPopoverPosition, setPanPopoverPosition] = useState<{ left: number; top: number } | null>(null);
   const {
     volumePopoverTrackId,
     volumePopoverPosition,
     openVolumePopover,
-    closeVolumePopover,
+    openPanPopover,
     scheduleVolumePopoverOpen,
     scheduleVolumePopoverDismiss,
-    cancelVolumePopoverTimers,
-    cancelScheduledVolumePopoverDismiss
-  } = useVolumePopover();
-
-  const closePanPopover = useCallback(() => {
-    setPanPopoverTrackId(null);
-    setPanPopoverPosition(null);
-  }, []);
-
-  const openVolumeOnlyPopover = useCallback(
-    (trackId: string, anchor?: HTMLElement | null) => {
-      closePanPopover();
-      openVolumePopover(trackId, anchor);
-    },
-    [closePanPopover, openVolumePopover]
-  );
-
-  const scheduleVolumeOnlyPopoverOpen = useCallback(
-    (trackId: string, anchor?: HTMLElement | null) => {
-      closePanPopover();
-      scheduleVolumePopoverOpen(trackId, anchor);
-    },
-    [closePanPopover, scheduleVolumePopoverOpen]
-  );
-
-  const openPanPopover = useCallback(
-    (trackId: string, anchor?: HTMLElement | null) => {
-      cancelVolumePopoverTimers();
-      closeVolumePopover();
-      setPanPopoverTrackId(trackId);
-      if (!anchor) {
-        return;
-      }
-      const rect = anchor.getBoundingClientRect();
-      const width = 168;
-      const height = 132;
-      const preferredLeft = rect.right + 8;
-      const maxLeft = Math.max(8, window.innerWidth - width - 8);
-      const fallbackLeft = rect.left - width - 8;
-      setPanPopoverPosition({
-        left: preferredLeft <= maxLeft ? preferredLeft : clamp(fallbackLeft, 8, maxLeft),
-        top: clamp(rect.top - 4, 8, Math.max(8, window.innerHeight - height - 8))
-      });
-    },
-    [cancelVolumePopoverTimers, closeVolumePopover]
-  );
+    cancelScheduledVolumePopoverDismiss,
+    panPopoverTrackId,
+    panPopoverPosition
+  } = useTrackCanvasPopovers();
 
   const {
     activeRecordedNotes,
@@ -513,34 +469,6 @@ export function TrackCanvas(props: TrackCanvasProps) {
   }, [editingTrackId, project.tracks]);
 
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        closeVolumePopover();
-        closePanPopover();
-      }
-    };
-
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target?.closest('[data-track-chrome="volume-button"], [data-track-popover="volume"]')) {
-        return;
-      }
-      closeVolumePopover();
-      if (target?.closest('[data-track-chrome="pan-button"], [data-track-popover="pan"]')) {
-        return;
-      }
-      closePanPopover();
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("pointerdown", onPointerDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("pointerdown", onPointerDown);
-    };
-  }, [closePanPopover, closeVolumePopover]);
-
-  useEffect(() => {
     if (!playheadFocused) {
       return;
     }
@@ -585,9 +513,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
       volumePopoverPosition={volumePopoverPosition}
       panPopoverTrackId={panPopoverTrackId}
       panPopoverPosition={panPopoverPosition}
-      openVolumePopover={openVolumeOnlyPopover}
+      openVolumePopover={openVolumePopover}
       openPanPopover={openPanPopover}
-      scheduleVolumePopoverOpen={scheduleVolumeOnlyPopoverOpen}
+      scheduleVolumePopoverOpen={scheduleVolumePopoverOpen}
       scheduleVolumePopoverDismiss={scheduleVolumePopoverDismiss}
       cancelScheduledVolumePopoverDismiss={cancelScheduledVolumePopoverDismiss}
       trackActions={trackActions}
