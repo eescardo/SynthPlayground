@@ -1,4 +1,8 @@
-import { TRACK_PAN_AUTOMATION_ID, TRACK_VOLUME_AUTOMATION_ID } from "../shared/synth-renderer-constants.js";
+import {
+  TRACK_PAN_AUTOMATION_ID,
+  TRACK_PAN_CENTER,
+  TRACK_VOLUME_AUTOMATION_ID
+} from "../shared/synth-renderer-constants.js";
 import { getIntrinsicParamsForType } from "../../../lib/patch/module-runtime-metadata.js";
 
 // TODO(host-boundary-ports): Host source ports are still compiled as implicit
@@ -269,7 +273,7 @@ const compileTrackPatch = (project, patch, track, trackIndex, runtimeAssets) => 
     trackIndex,
     trackId: track.id,
     volume: Number(track.volume ?? 1),
-    pan: Number(track.pan ?? 0.5),
+    pan: Number(track.pan ?? TRACK_PAN_CENTER),
     fx: {
       delayEnabled: Boolean(track.fx?.delayEnabled),
       reverbEnabled: Boolean(track.fx?.reverbEnabled),

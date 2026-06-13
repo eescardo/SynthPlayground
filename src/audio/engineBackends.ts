@@ -20,6 +20,7 @@ import { pitchToVoct } from "@/lib/pitch";
 import { createId } from "@/lib/ids";
 import { isUiCaptureFakeAudioEnabled } from "@/lib/uiCaptureMode";
 import { hydrateSerializableSproutError, SproutError } from "@/lib/sproutErrors";
+import { TRACK_PAN_CENTER } from "@/lib/trackPan";
 import {
   AudioProject,
   AudioRenderProject,
@@ -163,7 +164,7 @@ export const createTrackPanRestoreCommand = (
   normalized: getTrackMacroValueAtBeat(
     track,
     TRACK_PAN_AUTOMATION_ID,
-    track.pan ?? 0.5,
+    track.pan ?? TRACK_PAN_CENTER,
     songBeat,
     getProjectTimelineEndBeat(project)
   )

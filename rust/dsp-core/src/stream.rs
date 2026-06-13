@@ -15,6 +15,8 @@ use serde_json::Value;
 use std::collections::HashMap;
 use wasm_bindgen::JsValue;
 
+const PAN_CENTER: f32 = 0.5;
+
 #[derive(Clone)]
 struct TrackFxState {
     delay_buf: Vec<f32>,
@@ -550,12 +552,16 @@ impl TrackRuntime {
             .track_samples_rendered
             .saturating_add((end_frame.saturating_sub(start_frame)) as u64);
 
-        let left_gain = if self.pan <= 0.5 {
+        let left_gain = if self.pan <= PAN_CENTER {
             1.0
         } else {
             (1.0 - self.pan) * 2.0
         };
-        let right_gain = if self.pan >= 0.5 { 1.0 } else { self.pan * 2.0 };
+        let right_gain = if self.pan >= PAN_CENTER {
+            1.0
+        } else {
+            self.pan * 2.0
+        };
         for frame in start_frame..end_frame {
             let sample = self.track_buffer[frame] * self.volume;
             target_left[frame] += sample * left_gain;

@@ -51,6 +51,7 @@ import { saveActiveProjectAssets } from "@/lib/persistence";
 import { exportProjectToJson } from "@/lib/projectSerde";
 import { pitchToVoct } from "@/lib/pitch";
 import { createSproutError, reportSproutErrorToConsole, toError } from "@/lib/sproutErrors";
+import { TRACK_PAN_CENTER } from "@/lib/trackPan";
 import {
   buildMissingSampleAssetIssues,
   createEmptyProjectAssetLibrary,
@@ -933,7 +934,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
             macroAutomations: {},
             macroPanelExpanded: false,
             volume: 1,
-            pan: 0.5,
+            pan: TRACK_PAN_CENTER,
             fx: {
               delayEnabled: false,
               reverbEnabled: false,

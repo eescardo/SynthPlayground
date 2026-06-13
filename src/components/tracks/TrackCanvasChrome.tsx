@@ -34,7 +34,7 @@ import {
 } from "@/lib/macroAutomation";
 import { resolvePatchPresetStatus, resolvePatchSource } from "@/lib/patch/source";
 import { isTrackVolumeMuted } from "@/lib/trackVolume";
-import { trackPanToLabel, trackPanToTone } from "@/lib/trackPan";
+import { trackPanToLabel, trackPanToTone, TRACK_PAN_CENTER } from "@/lib/trackPan";
 import { VerticalDirection } from "@/types/direction";
 import { Project } from "@/types/music";
 import styles from "./TrackCanvas.module.css";
@@ -462,7 +462,7 @@ export function TrackHeaderChrome({
             />
             <button
               type="button"
-              className={`${styles.panButton} ${styles[`panButton_${trackPanToTone(track.pan ?? 0.5)}`]}`}
+              className={`${styles.panButton} ${styles[`panButton_${trackPanToTone(track.pan ?? TRACK_PAN_CENTER)}`]}`}
               data-track-chrome="pan-button"
               aria-label={`Track pan for ${track.name}`}
               aria-expanded={panPopoverTrackId === track.id}
@@ -474,7 +474,7 @@ export function TrackHeaderChrome({
                 openPanPopover(track.id, event.currentTarget);
               }}
             >
-              {trackPanToLabel(track.pan ?? 0.5)}
+              {trackPanToLabel(track.pan ?? TRACK_PAN_CENTER)}
             </button>
             {selected && (
               <button
@@ -522,7 +522,7 @@ export function TrackHeaderChrome({
             {panPopoverTrackId === track.id && (
               <TrackPanPopover
                 trackName={track.name}
-                pan={track.pan ?? 0.5}
+                pan={track.pan ?? TRACK_PAN_CENTER}
                 automated={Boolean(panLane)}
                 top={`${panPopoverPosition?.top ?? layout.y + 6}px`}
                 left={`${panPopoverPosition?.left ?? 164}px`}
@@ -532,7 +532,9 @@ export function TrackHeaderChrome({
                     trackActions.onPreviewTrackPan(track.id, pan);
                   }
                 }}
-                onBindToAutomation={() => trackActions.onBindTrackPanToAutomation(track.id, track.pan ?? 0.5)}
+                onBindToAutomation={() =>
+                  trackActions.onBindTrackPanToAutomation(track.id, track.pan ?? TRACK_PAN_CENTER)
+                }
                 onUnbindFromAutomation={() => trackActions.onUnbindTrackPanFromAutomation(track.id)}
               />
             )}

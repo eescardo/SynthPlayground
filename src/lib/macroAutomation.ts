@@ -1,6 +1,7 @@
 import { createId } from "@/lib/ids";
 import { getMeasureBeatsForMeter } from "@/lib/musicTiming";
 import { clamp01 } from "@/lib/numeric";
+import { TRACK_PAN_CENTER } from "@/lib/trackPan";
 import {
   ProjectGlobalCarrier,
   Project,
@@ -275,8 +276,8 @@ export const TRACK_HOST_AUTOMATION_DESCRIPTORS: readonly TrackHostAutomationDesc
     resolveLane: getTrackPanLane,
     createLane: createTrackPanAutomationLane,
     fixedValueToNormalized: (pan) => pan,
-    getFixedValue: (track) => track.pan ?? 0.5,
-    getSchedulerFallback: (track) => track.pan ?? 0.5,
+    getFixedValue: (track) => track.pan ?? TRACK_PAN_CENTER,
+    getSchedulerFallback: (track) => track.pan ?? TRACK_PAN_CENTER,
     applyFixedValue: (track, normalized) => ({ ...track, pan: normalized })
   }
 ];
@@ -417,7 +418,7 @@ export const getTrackPreviewStateAtBeat = (
   const panNormalized =
     override?.macroId === TRACK_PAN_AUTOMATION_ID
       ? clampNormalized(override.normalized)
-      : getTrackMacroValueAtBeat(track, TRACK_PAN_AUTOMATION_ID, track.pan ?? 0.5, beat, timelineEndBeat);
+      : getTrackMacroValueAtBeat(track, TRACK_PAN_AUTOMATION_ID, track.pan ?? TRACK_PAN_CENTER, beat, timelineEndBeat);
 
   return { macroValues, volumeNormalized, panNormalized };
 };
