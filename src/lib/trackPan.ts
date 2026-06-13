@@ -21,9 +21,15 @@ const TRACK_PAN_DISPLAY_BANDS: ReadonlyArray<{
   { upperBound: TRACK_PAN_MAX, label: "R", tone: "right" }
 ];
 
-const trackPanToDisplayBand = (pan: number) => {
+type TrackPanDisplayBand = (typeof TRACK_PAN_DISPLAY_BANDS)[number];
+
+const trackPanToDisplayBand = (pan: number): TrackPanDisplayBand => {
   const clamped = clampTrackPan(pan);
-  return TRACK_PAN_DISPLAY_BANDS.find(({ upperBound }) => clamped <= upperBound) ?? TRACK_PAN_DISPLAY_BANDS[2];
+  const band = TRACK_PAN_DISPLAY_BANDS.find(({ upperBound }) => clamped <= upperBound);
+  if (!band) {
+    throw new Error(`Track pan display bands do not cover clamped pan value ${clamped}`);
+  }
+  return band;
 };
 
 export const trackPanToLabel = (pan: number): TrackPanLabel => trackPanToDisplayBand(pan).label;
