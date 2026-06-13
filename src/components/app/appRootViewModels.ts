@@ -26,6 +26,7 @@ interface UseProjectMenuPropsOptions {
   importInputRef: RefObject<HTMLInputElement | null>;
   recentProjects: RecentProjectSnapshot[];
   createNewProject: () => Promise<void>;
+  deleteCurrentProject: () => Promise<void>;
   exportJson: () => void;
   openRecentProject: (projectId: string) => Promise<void>;
   resetToDefaultProject: () => Promise<void>;
@@ -35,6 +36,7 @@ interface UseProjectMenuPropsOptions {
 export function createProjectMenuProps(options: UseProjectMenuPropsOptions): ProjectMenuProps {
   const {
     createNewProject,
+    deleteCurrentProject,
     exportJson,
     importInputRef,
     importJson,
@@ -48,6 +50,9 @@ export function createProjectMenuProps(options: UseProjectMenuPropsOptions): Pro
     recentProjects,
     onNewProject: () => {
       void createNewProject();
+    },
+    onDeleteCurrentProject: () => {
+      void deleteCurrentProject();
     },
     onExportJson: exportJson,
     onImportJson: () => importInputRef.current?.click(),

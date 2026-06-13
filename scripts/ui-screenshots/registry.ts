@@ -23,6 +23,7 @@ import {
   PATCH_NODE_WIDTH
 } from "../../src/components/patch/patchCanvasConstants";
 import { createDefaultProject } from "../../src/lib/patch/presets";
+import { APP_NAME } from "../../src/lib/uiText";
 
 export interface ScreenshotScenarioDefinition {
   name: ScreenshotScenario;
@@ -68,6 +69,16 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
     description: "Full main composition view",
     capture: async (page, outputPath) => {
       await openApp(page);
+      await savePageScreenshot(page, outputPath);
+    }
+  },
+  [SCREENSHOT_SCENARIO.PROJECTS_POPOVER]: {
+    name: SCREENSHOT_SCENARIO.PROJECTS_POPOVER,
+    description: "Main composition view with the Projects menu popover open",
+    capture: async (page, outputPath) => {
+      await openApp(page);
+      await page.getByRole("button", { name: "Projects" }).click();
+      await expect(page.getByRole("dialog", { name: "Project actions" })).toBeVisible();
       await savePageScreenshot(page, outputPath);
     }
   },
@@ -120,6 +131,17 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
       await openApp(page);
       await page.getByRole("button", { name: /Help/ }).click();
       await expect(page.getByRole("heading", { name: "Quick Help" })).toBeVisible();
+      await savePageScreenshot(page, outputPath);
+    }
+  },
+  [SCREENSHOT_SCENARIO.ABOUT_PAGE]: {
+    name: SCREENSHOT_SCENARIO.ABOUT_PAGE,
+    description: "About page with release notes dialog open",
+    capture: async (page, outputPath) => {
+      await page.goto("/about");
+      await expect(page.getByRole("heading", { name: APP_NAME })).toBeVisible();
+      await page.getByRole("button", { name: "View full release notes" }).click();
+      await expect(page.getByRole("dialog", { name: "Release Notes" })).toBeVisible();
       await savePageScreenshot(page, outputPath);
     }
   },

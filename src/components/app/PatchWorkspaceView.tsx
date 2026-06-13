@@ -47,6 +47,7 @@ interface PatchWorkspaceViewProps {
   onOpenPreviewPitchPicker: () => void;
   onPreviewNow: () => void;
   onNewProject: () => void;
+  onDeleteCurrentProject: () => void;
   onExportJson: () => void;
   onImportJson: () => void;
   onOpenRecentProject: (projectId: string) => void;
@@ -124,6 +125,7 @@ export function PatchWorkspaceView(props: PatchWorkspaceViewProps) {
             importInputRef={props.importInputRef}
             recentProjects={props.recentProjects}
             onNewProject={props.onNewProject}
+            onDeleteCurrentProject={props.onDeleteCurrentProject}
             onExportJson={props.onExportJson}
             onImportJson={props.onImportJson}
             onOpenRecentProject={props.onOpenRecentProject}
