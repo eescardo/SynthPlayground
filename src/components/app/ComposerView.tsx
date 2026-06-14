@@ -54,9 +54,9 @@ export interface ComposerTransportProps {
 
 export interface ComposerRecordingProps {
   activeRecordedNotes: Array<{ trackId: string; noteId: string; startBeat: number }>;
+  mutationDisabled: boolean;
   recordingActive: boolean;
   isPlaying: boolean;
-  recordEnabled: boolean;
   recordPhase?: ComposerRecordPhase;
   ghostPlayheadBeat?: number;
   countInLabel?: string;
@@ -155,9 +155,9 @@ export function ComposerView(props: ComposerViewProps) {
 
       <ComposerActionsBar
         runtimeErrorMessage={props.runtimeErrorMessage}
+        mutationDisabled={props.recording.mutationDisabled}
         recordingActive={props.recording.recordingActive}
         isPlaying={props.recording.isPlaying}
-        recordEnabled={props.recording.recordEnabled}
         recordPhase={props.recording.recordPhase}
         countInLabel={props.recording.countInLabel}
         defaultPitch={props.defaultPitch}

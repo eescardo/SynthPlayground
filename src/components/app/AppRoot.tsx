@@ -1405,7 +1405,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
         />
 
         <RecordingDock
-          open={recording.recordEnabled}
+          open={recording.recordingActive}
           track={activeRecordingTrack}
           title={recording.recordPhase === "count_in" ? "Record Count-In" : "Recording"}
           statusText={recording.recordStatusText}

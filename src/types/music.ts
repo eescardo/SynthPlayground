@@ -123,6 +123,6 @@ export interface Project {
 export interface TransportState {
   isPlaying: boolean;
   playheadBeat: number;
-  recordEnabled: boolean;
+  recordingActive: boolean;
   selectedTrackId?: string;
 }

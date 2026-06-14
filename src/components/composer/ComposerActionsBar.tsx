@@ -5,10 +5,10 @@ import styles from "./ComposerActionsBar.module.css";
 export type ComposerRecordPhase = "idle" | "count_in" | "recording";
 
 interface ComposerActionsBarProps {
+  mutationDisabled: boolean;
   recordingActive: boolean;
   runtimeErrorMessage?: string | null;
   isPlaying: boolean;
-  recordEnabled: boolean;
   recordPhase?: ComposerRecordPhase;
   countInLabel?: string | null;
   defaultPitch: string;
@@ -25,11 +25,11 @@ interface ComposerActionsBarProps {
 }
 
 function RecordButton({
-  recordEnabled,
+  recordingActive,
   recordPhase,
   countInLabel,
   onToggleRecord
-}: Pick<ComposerActionsBarProps, "recordEnabled" | "recordPhase" | "countInLabel" | "onToggleRecord">) {
+}: Pick<ComposerActionsBarProps, "recordingActive" | "recordPhase" | "countInLabel" | "onToggleRecord">) {
   return (
     <div className="record-button-wrap">
       {recordPhase === "count_in" && countInLabel && (
@@ -39,8 +39,8 @@ function RecordButton({
       )}
       <button
         type="button"
-        className={recordEnabled ? "armed toggle-active" : ""}
-        aria-pressed={recordEnabled}
+        className={recordingActive ? "armed toggle-active" : ""}
+        aria-pressed={recordingActive}
         onClick={onToggleRecord}
       >
         Record
@@ -50,10 +50,10 @@ function RecordButton({
 }
 
 export function ComposerActionsBar({
+  mutationDisabled,
   recordingActive,
   runtimeErrorMessage,
   isPlaying,
-  recordEnabled,
   recordPhase,
   countInLabel,
   defaultPitch,
@@ -68,8 +68,8 @@ export function ComposerActionsBar({
   onAddTrack,
   onRemoveTrack
 }: ComposerActionsBarProps) {
-  const canPlay = !isPlaying && !recordEnabled;
-  const canStop = isPlaying && !recordEnabled;
+  const canPlay = !isPlaying && !recordingActive;
+  const canStop = isPlaying && !recordingActive;
   const playbackStopModeTooltip =
     playbackStopMode === "reset"
       ? "Reset mode returns to the last set playhead when stopping."
@@ -78,13 +78,13 @@ export function ComposerActionsBar({
   return (
     <section className={styles.bar} data-composer-actions-bar="true">
       <div className={styles.group}>
-        <button type="button" disabled={recordingActive} onClick={onAddTrack}>
+        <button type="button" disabled={mutationDisabled} onClick={onAddTrack}>
           Add Track
         </button>
-        <button type="button" disabled={recordingActive || !canRemoveTrack} onClick={onRemoveTrack}>
+        <button type="button" disabled={mutationDisabled || !canRemoveTrack} onClick={onRemoveTrack}>
           Remove Track
         </button>
-        <button type="button" disabled={recordingActive} onClick={onClearProject}>
+        <button type="button" disabled={mutationDisabled} onClick={onClearProject}>
           Clear Composition
         </button>
       </div>
@@ -131,7 +131,7 @@ export function ComposerActionsBar({
           </button>
         </div>
         <RecordButton
-          recordEnabled={recordEnabled}
+          recordingActive={recordingActive}
           recordPhase={recordPhase}
           countInLabel={countInLabel}
           onToggleRecord={onToggleRecord}

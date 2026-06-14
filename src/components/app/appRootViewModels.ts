@@ -77,7 +77,7 @@ interface ComposerRuntimeState {
   playing: boolean;
   recording: Pick<
     RecordingState,
-    "activeRecordedNotes" | "countInLabel" | "ghostPlayheadBeat" | "recordEnabled" | "recordPhase" | "startRecordMode"
+    "activeRecordedNotes" | "countInLabel" | "ghostPlayheadBeat" | "recordingActive" | "recordPhase" | "startRecordMode"
   >;
   playback: Pick<PlaybackState, "playbackStopMode" | "startPlayback" | "stopPlayback" | "togglePlaybackStopMode">;
   hardwareNavigation: Pick<
@@ -268,9 +268,9 @@ export function createComposerControllerProps(options: UseComposerControllerProp
       activeRecordedNotes: recording.activeRecordedNotes,
       ghostPlayheadBeat: recording.ghostPlayheadBeat ?? undefined,
       countInLabel: recording.countInLabel ?? undefined,
-      recordingActive: recording.recordEnabled,
+      mutationDisabled: recording.recordingActive,
       isPlaying: playing || recording.recordPhase === "count_in",
-      recordEnabled: recording.recordEnabled,
+      recordingActive: recording.recordingActive,
       recordPhase: recording.recordPhase
     },
     canvasPreview: {
@@ -308,7 +308,7 @@ export function createComposerControllerProps(options: UseComposerControllerProp
       onStop: () => playback.stopPlayback(),
       onTogglePlaybackStopMode: playback.togglePlaybackStopMode,
       onToggleRecord: () => {
-        if (recording.recordEnabled || recording.recordPhase !== "idle") {
+        if (recording.recordingActive || recording.recordPhase !== "idle") {
           playback.stopPlayback({ resetToCue: true });
           return;
         }
