@@ -1,5 +1,6 @@
 import { PitchButtonLabel } from "@/components/PitchButtonLabel";
 import type { PlaybackStopMode } from "@/hooks/usePlaybackController";
+import styles from "./ComposerActionsBar.module.css";
 
 export type ComposerRecordPhase = "idle" | "count_in" | "recording";
 
@@ -75,8 +76,8 @@ export function ComposerActionsBar({
       : "Continue mode pauses at the current playback beat when stopping.";
 
   return (
-    <section className="composer-actions-bar">
-      <div className="composer-actions-bar-group">
+    <section className={styles.bar}>
+      <div className={styles.group}>
         <button type="button" disabled={recordingDisabled} onClick={onAddTrack}>
           Add Track
         </button>
@@ -88,12 +89,12 @@ export function ComposerActionsBar({
         </button>
       </div>
 
-      <div className="composer-actions-bar-group">
-        <div className="toolbar-labeled-control">
-          <span className="toolbar-labeled-control-label">Pitch</span>
+      <div className={styles.group}>
+        <div className={styles.toolbarLabeledControl}>
+          <span className={styles.toolbarLabeledControlLabel}>Pitch</span>
           <button
             type="button"
-            className="preview-pitch-button"
+            className={styles.previewPitchButton}
             onClick={onOpenDefaultPitchPicker}
             title="Default pitch"
             aria-label={`Default pitch ${defaultPitch}`}
@@ -101,10 +102,10 @@ export function ComposerActionsBar({
             <PitchButtonLabel pitch={defaultPitch} />
           </button>
         </div>
-        <div className="play-control-stack">
+        <div className={styles.playControlStack}>
           <button
             type="button"
-            className={canPlay ? "transport-play-button transport-play-button-enabled" : "transport-play-button"}
+            className={canPlay ? styles.transportPlayButtonEnabled : undefined}
             onClick={onPlay}
             disabled={!canPlay}
           >
@@ -112,7 +113,7 @@ export function ComposerActionsBar({
           </button>
           <button
             type="button"
-            className="play-mode-pill"
+            className={styles.playModePill}
             title={playModeTooltip}
             aria-label={`Play mode: ${playMode}. ${playModeTooltip}`}
             aria-pressed={playMode === "continue"}
@@ -123,7 +124,7 @@ export function ComposerActionsBar({
         </div>
         <button
           type="button"
-          className={canStop ? "transport-stop-button transport-stop-button-enabled" : "transport-stop-button"}
+          className={canStop ? styles.transportStopButtonEnabled : undefined}
           onClick={onStop}
           disabled={!canStop}
         >
@@ -137,7 +138,7 @@ export function ComposerActionsBar({
         />
       </div>
       {runtimeErrorMessage ? (
-        <p className="composer-actions-status error" role="alert">
+        <p className={`${styles.status} error`} role="alert">
           {runtimeErrorMessage}
         </p>
       ) : null}
