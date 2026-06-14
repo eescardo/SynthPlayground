@@ -17,6 +17,8 @@ export interface ComposerViewProps {
   project: Project;
   selectedTrackId: string;
   defaultPitch: string;
+  pitchPreviewMode: "placement" | "selection";
+  pitchPreviewPitch: string;
   invalidPatchIds: Set<string>;
   canvasSelection: TrackCanvasSelection;
   projectMenu: ComposerProjectMenuProps;
@@ -86,7 +88,7 @@ export interface ComposerTimelineProps {
 export interface ComposerProjectActions {
   onClearCurrentProject: () => void;
   onRenameProject: (name: string) => void;
-  onOpenDefaultPitchPicker: () => void;
+  onOpenPitchPreviewPicker: () => void;
   onOpenPatchWorkspace: () => void;
   onExportAudio: () => void;
   onTempoChange: (tempo: number) => void;
@@ -160,10 +162,11 @@ export function ComposerView(props: ComposerViewProps) {
         isPlaying={props.recording.isPlaying}
         recordPhase={props.recording.recordPhase}
         countInLabel={props.recording.countInLabel}
-        defaultPitch={props.defaultPitch}
+        pitchPreviewMode={props.pitchPreviewMode}
+        pitchPreviewPitch={props.pitchPreviewPitch}
         playbackStopMode={props.transport.playbackStopMode}
         canRemoveTrack={props.project.tracks.length > 1}
-        onOpenDefaultPitchPicker={props.projectActions.onOpenDefaultPitchPicker}
+        onOpenPitchPreviewPicker={props.projectActions.onOpenPitchPreviewPicker}
         onPlay={props.transportActions.onPlay}
         onStop={props.transportActions.onStop}
         onTogglePlaybackStopMode={props.transportActions.onTogglePlaybackStopMode}

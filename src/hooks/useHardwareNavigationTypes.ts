@@ -42,10 +42,11 @@ export interface UseHardwareNavigationArgs {
   pitchPickerOpen: boolean;
   previewPitchPickerOpen: boolean;
   defaultPitch: string;
+  pitchPreviewPitch: string;
   selectionKind: "none" | "content" | "timeline";
   contentSelection: ContentSelection;
   selectionActionPopoverCollapsed: boolean;
-  setDefaultPitch: (pitch: string) => void;
+  setPitchPreviewPitch: (pitch: string) => void;
   setSelectedTrackId: (trackId: string) => void;
   setPlayheadBeatFromUser: (beat: number) => void;
   setPlayheadBeatPreservingSelection: (beat: number) => void;
@@ -59,7 +60,6 @@ export interface UseHardwareNavigationArgs {
     options?: { actionKey?: string; coalesce?: boolean }
   ) => void;
   audioEngineRef: RefObject<AudioEngine | null>;
-  previewDefaultPitchNow: (pitch?: string) => void;
   releaseHeldDefaultPitchPreview: () => void;
   startHeldDefaultPitchPreview: (pitch?: string) => void;
   onComposerPlay: () => void;

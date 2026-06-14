@@ -66,6 +66,8 @@ export function createProjectMenuProps(options: UseProjectMenuPropsOptions): Pro
 interface ComposerProjectState {
   project: Project;
   selectedTrackId: string;
+  pitchPreviewMode: ComposerViewProps["pitchPreviewMode"];
+  pitchPreviewPitch: string;
   selectedTrackPatch?: Patch;
   selectedTrackInstrumentPatchId: string;
   invalidPatchIds: ComposerViewProps["invalidPatchIds"];
@@ -103,6 +105,7 @@ interface ComposerTimelineState {
 interface ComposerPrimaryActions {
   clearCurrentProject: () => void;
   renameProject: (name: string) => void;
+  openPitchPreviewPicker: ComposerViewProps["projectActions"]["onOpenPitchPreviewPicker"];
   exportAudio: () => Promise<void>;
   commitGlobalTempo: (tempo: Project["global"]["tempo"]) => void;
   commitGlobalMeter: (meter: Project["global"]["meter"]) => void;
@@ -248,13 +251,16 @@ export function createComposerControllerProps(options: UseComposerControllerProp
     timelineState,
     trackActions
   } = options;
-  const { canvasSelection, invalidPatchIds, project, selectedTrackId } = projectState;
+  const { canvasSelection, invalidPatchIds, pitchPreviewMode, pitchPreviewPitch, project, selectedTrackId } =
+    projectState;
   const { hardwareNavigation, patchWorkspace, playback, playheadBeat, playing, recording } = runtimeState;
 
   const viewProps: ComposerViewProps = {
     project,
     selectedTrackId,
     defaultPitch: patchWorkspace.previewPitch,
+    pitchPreviewMode,
+    pitchPreviewPitch,
     invalidPatchIds,
     canvasSelection,
     projectMenu: projectMenuProps,
@@ -288,7 +294,7 @@ export function createComposerControllerProps(options: UseComposerControllerProp
     },
     timeline: timelineState.timeline,
     projectActions: {
-      onOpenDefaultPitchPicker: () => patchWorkspace.setPreviewPitchPickerOpen(true),
+      onOpenPitchPreviewPicker: primaryActions.openPitchPreviewPicker,
       onClearCurrentProject: primaryActions.clearCurrentProject,
       onRenameProject: primaryActions.renameProject,
       onOpenPatchWorkspace: () => patchWorkspace.openPatchWorkspace(),
@@ -415,6 +421,7 @@ export function createProjectGlobalCommitActions({ commitProjectChange }: Projec
 interface CreateComposerPrimaryActionsOptions extends ProjectCommitActionsOptions {
   clearCurrentProject: () => void;
   renameProject: (name: string) => void;
+  openPitchPreviewPicker: ComposerPrimaryActions["openPitchPreviewPicker"];
   exportAudio: () => Promise<void>;
   addTrack: () => void;
   removeSelectedTrack: () => void;
@@ -426,6 +433,7 @@ export function createComposerPrimaryActions({
   clearCurrentProject,
   commitProjectChange,
   exportAudio,
+  openPitchPreviewPicker,
   removeSelectedTrack,
   renameProject,
   setPlayheadFromUser
@@ -433,6 +441,7 @@ export function createComposerPrimaryActions({
   return {
     clearCurrentProject,
     renameProject,
+    openPitchPreviewPicker,
     exportAudio,
     ...createProjectGlobalCommitActions({ commitProjectChange }),
     addTrack,

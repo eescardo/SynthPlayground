@@ -44,6 +44,7 @@ import {
 } from "@/lib/clipboard";
 import { pushHistory, redoHistory, undoHistory } from "@/lib/history";
 import { freezeProjectSnapshot } from "@/lib/projectImmutability";
+import { getSingleSelectedTrackNote } from "@/lib/composerKeyboardNavigation";
 import { compilePatchPlan, validatePatch } from "@/lib/patch/validation";
 import { renameProjectInProject } from "@/lib/projectManagement";
 import { getProjectPresetUpdateSummary, isPatchRemovable, updateProjectPresetsToLatest } from "@/lib/patch/source";
@@ -1145,6 +1146,12 @@ export function AppRoot({ children }: { children: ReactNode }) {
       clearTransientComposerUi
     });
   const workspaceView = pathname.endsWith("/patch-workspace") ? "patch-workspace" : "composer";
+  const selectedPitchPreviewNote = useMemo(
+    () => (workspaceView === "composer" ? getSingleSelectedTrackNote(project.tracks, selectedContent) : null),
+    [project.tracks, selectedContent, workspaceView]
+  );
+  const pitchPreviewMode = selectedPitchPreviewNote ? "selection" : "placement";
+  const pitchPreviewPitch = selectedPitchPreviewNote?.note.pitchStr ?? patchWorkspace.previewPitch;
   const { previewDefaultPitchNow, releaseHeldPatchPreview, startHeldDefaultPitchPreview } =
     useHardwareNavigationPreview({
       view: workspaceView,
@@ -1157,6 +1164,33 @@ export function AppRoot({ children }: { children: ReactNode }) {
       startHeldPatchPreview: patchWorkspace.startHeldPatchPreview,
       setRuntimeError
     });
+  const setPitchPreviewPitch = useCallback(
+    (pitch: string) => {
+      if (selectedPitchPreviewNote) {
+        updateNote(
+          selectedPitchPreviewNote.track.id,
+          selectedPitchPreviewNote.note.id,
+          { pitchStr: pitch },
+          {
+            actionKey: `track:${selectedPitchPreviewNote.track.id}:pitch:${selectedPitchPreviewNote.note.id}`
+          }
+        );
+        previewNoteForPitchPicker(selectedPitchPreviewNote.track.id, selectedPitchPreviewNote.note.id, pitch);
+        return;
+      }
+
+      patchWorkspace.setPreviewPitch(pitch);
+      previewDefaultPitchNow(pitch);
+    },
+    [patchWorkspace, previewDefaultPitchNow, previewNoteForPitchPicker, selectedPitchPreviewNote, updateNote]
+  );
+  const openPitchPreviewPicker = useCallback(() => {
+    if (selectedPitchPreviewNote) {
+      openPitchPicker(selectedPitchPreviewNote.track.id, selectedPitchPreviewNote.note.id);
+      return;
+    }
+    patchWorkspace.setPreviewPitchPickerOpen(true);
+  }, [openPitchPicker, patchWorkspace, selectedPitchPreviewNote]);
   const hardwareNavigation = useHardwareNavigation({
     view: workspaceView,
     projectGridBeats: project.global.gridBeats,
@@ -1171,10 +1205,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
     pitchPickerOpen: Boolean(pitchPicker),
     previewPitchPickerOpen: patchWorkspace.previewPitchPickerOpen,
     defaultPitch: patchWorkspace.previewPitch,
+    pitchPreviewPitch,
     selectionKind: editorSelection.kind,
     contentSelection: selectedContent,
     selectionActionPopoverCollapsed,
-    setDefaultPitch: patchWorkspace.setPreviewPitch,
+    setPitchPreviewPitch,
     setSelectedTrackId,
     setPlayheadBeatFromUser: setPlayheadFromUser,
     setPlayheadBeatPreservingSelection: setPlayheadPreservingSelection,
@@ -1185,7 +1220,6 @@ export function AppRoot({ children }: { children: ReactNode }) {
     deleteNote,
     commitProjectChange,
     audioEngineRef,
-    previewDefaultPitchNow,
     releaseHeldDefaultPitchPreview: releaseHeldPatchPreview,
     startHeldDefaultPitchPreview,
     onComposerPlay: playback.startPlayback,
@@ -1284,6 +1318,8 @@ export function AppRoot({ children }: { children: ReactNode }) {
     projectState: {
       project,
       selectedTrackId: selectedTrack.id,
+      pitchPreviewMode,
+      pitchPreviewPitch,
       selectedTrackPatch,
       selectedTrackInstrumentPatchId: selectedTrack.instrumentPatchId,
       invalidPatchIds,
@@ -1320,6 +1356,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     primaryActions: createComposerPrimaryActions({
       clearCurrentProject,
       renameProject,
+      openPitchPreviewPicker,
       exportAudio,
       commitProjectChange,
       addTrack,
@@ -1444,8 +1481,12 @@ export function AppRoot({ children }: { children: ReactNode }) {
 
         <PitchPickerModal
           open={patchWorkspace.previewPitchPickerOpen}
-          title="Default Pitch"
-          description="Select the shared default pitch used for patch preview and keyboard note placement."
+          title={workspaceView === "composer" ? "Placement Pitch" : "Default Pitch"}
+          description={
+            workspaceView === "composer"
+              ? "Select the pitch used for keyboard note placement."
+              : "Select the shared default pitch used for patch preview and keyboard note placement."
+          }
           selectedPitch={patchWorkspace.previewPitch}
           onClose={() => patchWorkspace.setPreviewPitchPickerOpen(false)}
           onSelectPitch={(pitch) => {

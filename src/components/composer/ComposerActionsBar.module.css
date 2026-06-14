@@ -22,6 +22,13 @@
   gap: 0.5rem;
 }
 
+.pitchPreviewStack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.06rem;
+}
+
 .status {
   flex: 1 1 100%;
   margin: 0;
@@ -50,6 +57,21 @@
   justify-content: center;
   padding-top: 0.14rem;
   padding-bottom: 0.14rem;
+}
+
+.pitchPreviewModePill {
+  min-height: 0.74rem;
+  height: 0.74rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.32rem;
+  border: 1px solid rgba(145, 163, 184, 0.34);
+  border-radius: 999px;
+  background: rgba(31, 42, 55, 0.48);
+  color: rgba(202, 213, 226, 0.82);
+  font-size: 0.58rem;
+  line-height: 1;
 }
 
 .stopControlStack {

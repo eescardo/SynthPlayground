@@ -11,10 +11,11 @@ interface ComposerActionsBarProps {
   isPlaying: boolean;
   recordPhase?: ComposerRecordPhase;
   countInLabel?: string | null;
-  defaultPitch: string;
+  pitchPreviewMode: "placement" | "selection";
+  pitchPreviewPitch: string;
   playbackStopMode: PlaybackStopMode;
   canRemoveTrack: boolean;
-  onOpenDefaultPitchPicker: () => void;
+  onOpenPitchPreviewPicker: () => void;
   onPlay: () => void;
   onStop: () => void;
   onTogglePlaybackStopMode: () => void;
@@ -56,10 +57,11 @@ export function ComposerActionsBar({
   isPlaying,
   recordPhase,
   countInLabel,
-  defaultPitch,
+  pitchPreviewMode,
+  pitchPreviewPitch,
   playbackStopMode,
   canRemoveTrack,
-  onOpenDefaultPitchPicker,
+  onOpenPitchPreviewPicker,
   onPlay,
   onStop,
   onTogglePlaybackStopMode,
@@ -90,17 +92,22 @@ export function ComposerActionsBar({
       </div>
 
       <div className={styles.group}>
-        <div className={styles.toolbarLabeledControl}>
-          <span className={styles.toolbarLabeledControlLabel}>Pitch</span>
-          <button
-            type="button"
-            className={styles.previewPitchButton}
-            onClick={onOpenDefaultPitchPicker}
-            title="Default pitch"
-            aria-label={`Default pitch ${defaultPitch}`}
-          >
-            <PitchButtonLabel pitch={defaultPitch} />
-          </button>
+        <div className={styles.pitchPreviewStack}>
+          <div className={styles.toolbarLabeledControl}>
+            <span className={styles.toolbarLabeledControlLabel}>Pitch</span>
+            <button
+              type="button"
+              className={styles.previewPitchButton}
+              onClick={onOpenPitchPreviewPicker}
+              title={pitchPreviewMode === "selection" ? "Selected note pitch" : "Placement pitch"}
+              aria-label={`${pitchPreviewMode === "selection" ? "Selected note" : "Placement"} pitch ${pitchPreviewPitch}`}
+            >
+              <PitchButtonLabel pitch={pitchPreviewPitch} />
+            </button>
+          </div>
+          <div className={styles.pitchPreviewModePill} aria-label={`Pitch preview mode: ${pitchPreviewMode}`}>
+            {pitchPreviewMode}
+          </div>
         </div>
         <button
           type="button"
