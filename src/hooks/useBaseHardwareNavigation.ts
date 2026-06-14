@@ -13,6 +13,7 @@ import {
 import { UseHardwareNavigationArgs } from "@/hooks/useHardwareNavigationTypes";
 
 interface UseBaseHardwareNavigationArgs extends UseHardwareNavigationArgs {
+  canShiftPitchPreview: boolean;
   interactionLocked: boolean;
 }
 
@@ -27,6 +28,7 @@ export interface BaseHardwareNavigationResult {
 }
 
 export function useBaseHardwareNavigation({
+  canShiftPitchPreview,
   interactionLocked,
   pitchPickerOpen,
   previewPitchPickerOpen,
@@ -96,6 +98,9 @@ export function useBaseHardwareNavigation({
       if (isModifierChord(event) || interactionLocked) {
         return;
       }
+      if (!canShiftPitchPreview) {
+        return;
+      }
 
       if (event.key === "-" && !event.repeat) {
         event.preventDefault();
@@ -126,7 +131,14 @@ export function useBaseHardwareNavigation({
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [interactionLocked, pitchPickerOpen, pitchPreviewPitch, previewPitchPickerOpen, setPitchPreviewPitch]);
+  }, [
+    canShiftPitchPreview,
+    interactionLocked,
+    pitchPickerOpen,
+    pitchPreviewPitch,
+    previewPitchPickerOpen,
+    setPitchPreviewPitch
+  ]);
 
   return {
     playheadNavigationFocused,
