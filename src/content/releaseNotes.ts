@@ -12,7 +12,7 @@ export const releaseNotes: ReleaseNoteEntry[] = [
   {
     version: "0.1.0",
     title: "Initial playground release",
-    date: "2026-05-26",
+    date: "2026-06-14",
     summary: `Initial version of the ${APP_NAME} playground, with a basic composer and patch workspace for browser-based synth sketching.`,
     changes: [
       "Basic composer UI for arranging ideas in the browser.",
