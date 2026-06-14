@@ -1,4 +1,5 @@
 import { PitchButtonLabel } from "@/components/PitchButtonLabel";
+import type { PlaybackStopMode } from "@/hooks/usePlaybackController";
 
 export type ComposerRecordPhase = "idle" | "count_in" | "recording";
 
@@ -10,10 +11,12 @@ interface ComposerActionsBarProps {
   recordPhase?: ComposerRecordPhase;
   countInLabel?: string | null;
   defaultPitch: string;
+  playMode: PlaybackStopMode;
   canRemoveTrack: boolean;
   onOpenDefaultPitchPicker: () => void;
   onPlay: () => void;
   onStop: () => void;
+  onTogglePlayMode: () => void;
   onToggleRecord: () => void;
   onClearProject: () => void;
   onAddTrack: () => void;
@@ -34,6 +37,7 @@ function RecordButton({
         </div>
       )}
       <button
+        type="button"
         className={recordEnabled ? "armed toggle-active" : ""}
         aria-pressed={recordEnabled}
         onClick={onToggleRecord}
@@ -52,23 +56,35 @@ export function ComposerActionsBar({
   recordPhase,
   countInLabel,
   defaultPitch,
+  playMode,
   canRemoveTrack,
   onOpenDefaultPitchPicker,
   onPlay,
   onStop,
+  onTogglePlayMode,
   onToggleRecord,
   onClearProject,
   onAddTrack,
   onRemoveTrack
 }: ComposerActionsBarProps) {
+  const canPlay = !isPlaying && !recordEnabled;
+  const canStop = isPlaying && !recordEnabled;
+  const playModeTooltip =
+    playMode === "reset"
+      ? "Reset mode returns to the last set playhead when stopping."
+      : "Continue mode pauses at the current playback beat when stopping.";
+
   return (
     <section className="composer-actions-bar">
       <div className="composer-actions-bar-group">
-        <button disabled={recordingDisabled} onClick={onAddTrack}>
+        <button type="button" disabled={recordingDisabled} onClick={onAddTrack}>
           Add Track
         </button>
-        <button disabled={recordingDisabled || !canRemoveTrack} onClick={onRemoveTrack}>
+        <button type="button" disabled={recordingDisabled || !canRemoveTrack} onClick={onRemoveTrack}>
           Remove Track
+        </button>
+        <button type="button" disabled={recordingDisabled} onClick={onClearProject}>
+          Clear Composition
         </button>
       </div>
 
@@ -85,10 +101,32 @@ export function ComposerActionsBar({
             <PitchButtonLabel pitch={defaultPitch} />
           </button>
         </div>
-        <button onClick={onPlay} disabled={isPlaying || recordEnabled}>
-          Play
-        </button>
-        <button onClick={onStop} disabled={!isPlaying || recordEnabled}>
+        <div className="play-control-stack">
+          <button
+            type="button"
+            className={canPlay ? "transport-play-button transport-play-button-enabled" : "transport-play-button"}
+            onClick={onPlay}
+            disabled={!canPlay}
+          >
+            Play
+          </button>
+          <button
+            type="button"
+            className="play-mode-pill"
+            title={playModeTooltip}
+            aria-label={`Play mode: ${playMode}. ${playModeTooltip}`}
+            aria-pressed={playMode === "continue"}
+            onClick={onTogglePlayMode}
+          >
+            {playMode}
+          </button>
+        </div>
+        <button
+          type="button"
+          className={canStop ? "transport-stop-button transport-stop-button-enabled" : "transport-stop-button"}
+          onClick={onStop}
+          disabled={!canStop}
+        >
           Stop
         </button>
         <RecordButton
@@ -97,9 +135,6 @@ export function ComposerActionsBar({
           countInLabel={countInLabel}
           onToggleRecord={onToggleRecord}
         />
-        <button disabled={recordingDisabled} onClick={onClearProject}>
-          Clear
-        </button>
       </div>
       {runtimeErrorMessage ? (
         <p className="composer-actions-status error" role="alert">

@@ -1,6 +1,6 @@
 "use client";
 
-import { RefObject, useCallback, useEffect, useRef } from "react";
+import { RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { AudioEngine } from "@/audio/engine";
 import { AudioEnginePlayOptions } from "@/audio/engineBackends";
 import { getLoopPlaybackEndBeat } from "@/lib/looping";
@@ -23,6 +23,11 @@ interface UsePlaybackControllerArgs {
   onHandleRecordingBeat: (beat: number) => void;
 }
 
+export type PlaybackStopMode = "reset" | "continue";
+
+export const shouldResetPlayheadOnStop = (playMode: PlaybackStopMode, options?: { resetToCue?: boolean }) =>
+  options?.resetToCue ?? playMode === "reset";
+
 export function usePlaybackController(args: UsePlaybackControllerArgs) {
   const {
     project,
@@ -40,12 +45,15 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
   } = args;
 
   const rafRef = useRef<number | null>(null);
+  const [playMode, setPlayMode] = useState<PlaybackStopMode>("reset");
+  const playModeRef = useRef<PlaybackStopMode>("reset");
   const playbackEndBeatRef = useRef(playbackEndBeat);
   const projectRef = useRef(project);
   const userCueBeatRef = useRef(userCueBeat);
   const stopRecordingSessionRef = useRef(onStopRecordingSession);
   const handleRecordingBeatRef = useRef(onHandleRecordingBeat);
 
+  playModeRef.current = playMode;
   playbackEndBeatRef.current = playbackEndBeat;
   projectRef.current = project;
   userCueBeatRef.current = userCueBeat;
@@ -53,7 +61,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
   handleRecordingBeatRef.current = onHandleRecordingBeat;
 
   const stopPlayback = useCallback(
-    (resetToCue = false) => {
+    (options?: { resetToCue?: boolean }) => {
       stopRecordingSessionRef.current();
       audioEngineRef.current?.stop();
       setPlaying(false);
@@ -61,6 +69,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
+      const resetToCue = shouldResetPlayheadOnStop(playModeRef.current, options);
       if (resetToCue) {
         setPlayheadBeat(userCueBeatRef.current);
       }
@@ -81,7 +90,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
       clampedBeat >= playbackEndBeatRef.current - 0.0001 ||
       (playbackStopBeat > 0 && audioEngineRef.current.getElapsedPlaybackBeat() >= playbackStopBeat - 0.0001)
     ) {
-      stopPlayback(true);
+      stopPlayback({ resetToCue: true });
       return;
     }
 
@@ -152,5 +161,9 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
     };
   }, [audioEngineRef]);
 
-  return { stopPlayback, beginPlaybackAtBeat, seekPlaybackToBeat, startPlayback };
+  const togglePlayMode = useCallback(() => {
+    setPlayMode((current) => (current === "reset" ? "continue" : "reset"));
+  }, []);
+
+  return { stopPlayback, beginPlaybackAtBeat, seekPlaybackToBeat, startPlayback, playMode, togglePlayMode };
 }

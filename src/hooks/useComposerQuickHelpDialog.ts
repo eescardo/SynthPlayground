@@ -71,10 +71,10 @@ export function useComposerQuickHelpDialog({
       {
         title: "Selection",
         entries: [
-          { action: "Nudge Selection", shortcut: "Arrows" },
-          { action: "Selected Note By Measure", shortcut: measureArrowShortcut },
-          { action: "Previous / Next Note", shortcut: "Shift+Arrows" },
-          { action: "Measure-Relative Note", shortcut: measureShiftArrowShortcut },
+          { action: "Nudge Selection", shortcut: "Shift+Arrows" },
+          { action: "Selected Note By Measure", shortcut: measureShiftArrowShortcut },
+          { action: "Previous / Next Note", shortcut: "Arrows" },
+          { action: "Measure-Relative Note", shortcut: measureArrowShortcut },
           { action: "First / Last Note", shortcut: boundaryShortcut },
           { action: "Select Note At Playhead", shortcut: "Tab" },
           { action: "Expand Selection", shortcut: "Enter" },

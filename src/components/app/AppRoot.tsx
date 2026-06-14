@@ -1189,7 +1189,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     releaseHeldDefaultPitchPreview: releaseHeldPatchPreview,
     startHeldDefaultPitchPreview,
     onComposerPlay: playback.startPlayback,
-    onComposerStop: playback.stopPlayback,
+    onComposerStop: () => playback.stopPlayback(),
     setRuntimeError
   });
 

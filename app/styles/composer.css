@@ -209,8 +209,15 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
+}
+
+.composer-actions-bar button {
+  min-height: 1.65rem;
+  padding: 0.14rem 0.58rem;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .composer-actions-status {
@@ -223,8 +230,60 @@
 .composer-actions-bar-group {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.5rem;
+}
+
+.composer-actions-bar .toolbar-labeled-control {
+  min-height: 1.65rem;
+}
+
+.composer-actions-bar .preview-pitch-button {
+  min-height: 1.65rem;
+  padding-top: 0.14rem;
+  padding-bottom: 0.14rem;
+}
+
+.play-control-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.16rem;
+}
+
+.transport-play-button-enabled {
+  background: linear-gradient(180deg, #2f9f6a, #1c6849);
+  border-color: #7bdbaa;
+  color: #effff6;
+  box-shadow:
+    0 0 0 1px rgba(125, 219, 170, 0.22),
+    0 8px 18px rgba(17, 91, 62, 0.24);
+}
+
+.transport-stop-button-enabled {
+  background: linear-gradient(180deg, #357ec0, #24598b);
+  border-color: #86c6ff;
+  color: #f3fbff;
+  box-shadow:
+    0 0 0 1px rgba(134, 198, 255, 0.22),
+    0 8px 18px rgba(21, 73, 121, 0.24);
+}
+
+.play-mode-pill {
+  min-height: 1rem;
+  padding: 0.03rem 0.42rem;
+  border-radius: 999px;
+  border-color: rgba(144, 181, 210, 0.52);
+  background: rgba(17, 31, 45, 0.9);
+  color: #b8d6ef;
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+.play-mode-pill:hover,
+.play-mode-pill:focus-visible {
+  border-color: rgba(125, 220, 173, 0.78);
+  color: #e7fff1;
 }
 
 .track-settings {
