@@ -12,7 +12,7 @@ export default function AboutPage() {
         </Link>
 
         <div className="about-columns">
-          <div className="about-column">
+          <div className="about-column about-column--intro">
             <section className="about-section about-intro-panel" aria-labelledby="about-title">
               <header className="about-hero">
                 <p className="about-eyebrow">{UI_TEXT.about.eyebrow}</p>

@@ -2,13 +2,16 @@
 
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { ReleaseNoteEntry } from "@/content/releaseNotes";
-import { ReleaseNotesDialog } from "./ReleaseNotesDialog";
+import { UI_TEXT } from "@/lib/uiText";
 
 interface ReleaseNotesSummaryProps {
   entries: ReleaseNoteEntry[];
 }
 
+const releaseDateFormatter = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
+
 export function ReleaseNotesSummary({ entries }: ReleaseNotesSummaryProps) {
+  const [showDetails, setShowDetails] = useState(false);
   const [visibleCount, setVisibleCount] = useState(0);
   const visibleListRef = useRef<HTMLDivElement | null>(null);
   const measureListRef = useRef<HTMLDivElement | null>(null);
@@ -36,10 +39,13 @@ export function ReleaseNotesSummary({ entries }: ReleaseNotesSummaryProps) {
   }, []);
 
   useLayoutEffect(() => {
+    if (showDetails) return;
     measureVisibleEntries();
-  }, [entries, measureVisibleEntries]);
+  }, [entries, measureVisibleEntries, showDetails]);
 
   useLayoutEffect(() => {
+    if (showDetails) return;
+
     const visibleList = visibleListRef.current;
     const measureList = measureListRef.current;
     if (!visibleList || !measureList) return;
@@ -66,13 +72,40 @@ export function ReleaseNotesSummary({ entries }: ReleaseNotesSummaryProps) {
       }
       resizeObserver.disconnect();
     };
-  }, [measureVisibleEntries]);
+  }, [measureVisibleEntries, showDetails]);
+
+  const eyebrow = showDetails ? UI_TEXT.about.releaseDetails : UI_TEXT.about.latestReleases;
+  const heading = showDetails ? UI_TEXT.about.releaseNotes : UI_TEXT.about.latestReleases;
 
   return (
-    <div className="about-release-summary" aria-labelledby="release-notes-title">
-      <div className="about-release-summary-copy">
-        <p className="about-eyebrow">Latest releases</p>
-        <h2 id="release-notes-title">Latest releases</h2>
+    <div
+      className={`about-release-summary${showDetails ? " about-release-summary--details" : ""}`}
+      aria-labelledby="release-notes-title"
+    >
+      <div className="about-release-summary-header">
+        <div className="about-release-summary-title">
+          <p className="about-eyebrow">{eyebrow}</p>
+          <h2 id="release-notes-title">{heading}</h2>
+        </div>
+        <button
+          type="button"
+          className="about-release-toggle-pill"
+          aria-pressed={showDetails}
+          onClick={() => setShowDetails((current) => !current)}
+        >
+          {showDetails ? UI_TEXT.about.showLatestReleases : UI_TEXT.about.showReleaseDetails}
+        </button>
+      </div>
+
+      {showDetails ? (
+        <div className="about-release-detail-scroll">
+          <div className="about-release-history">
+            {entries.map((entry) => (
+              <ReleaseNotesDetailEntry key={entry.version} entry={entry} />
+            ))}
+          </div>
+        </div>
+      ) : (
         <div className="about-release-summary-list-frame">
           <div ref={visibleListRef} className="about-release-summary-list about-release-summary-list--visible">
             {entries.slice(0, visibleCount).map((entry) => (
@@ -89,8 +122,7 @@ export function ReleaseNotesSummary({ entries }: ReleaseNotesSummaryProps) {
             ))}
           </div>
         </div>
-      </div>
-      <ReleaseNotesDialog />
+      )}
     </div>
   );
 }
@@ -102,6 +134,24 @@ function ReleaseNotesSummaryEntry({ entry }: { entry: ReleaseNoteEntry }) {
         {entry.version} · {entry.title}
       </h3>
       <p>{entry.summary}</p>
+    </article>
+  );
+}
+
+function ReleaseNotesDetailEntry({ entry }: { entry: ReleaseNoteEntry }) {
+  return (
+    <article className="about-release-entry">
+      <div className="about-release-meta">
+        <span>{entry.version}</span>
+        <time dateTime={entry.date}>{releaseDateFormatter.format(new Date(`${entry.date}T00:00:00`))}</time>
+      </div>
+      <h3>{entry.title}</h3>
+      <p>{entry.summary}</p>
+      <ul>
+        {entry.changes.map((change) => (
+          <li key={change}>{change}</li>
+        ))}
+      </ul>
     </article>
   );
 }

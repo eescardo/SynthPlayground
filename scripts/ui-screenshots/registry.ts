@@ -136,12 +136,12 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
   },
   [SCREENSHOT_SCENARIO.ABOUT_PAGE]: {
     name: SCREENSHOT_SCENARIO.ABOUT_PAGE,
-    description: "About page with release notes dialog open",
+    description: "About page with inline release notes details open",
     capture: async (page, outputPath) => {
       await page.goto("/about");
       await expect(page.getByRole("heading", { name: APP_NAME })).toBeVisible();
-      await page.getByRole("button", { name: "View full release notes" }).click();
-      await expect(page.getByRole("dialog", { name: "Release Notes" })).toBeVisible();
+      await page.getByRole("button", { name: "details" }).click();
+      await expect(page.getByRole("heading", { name: "Release Notes" })).toBeVisible();
       await savePageScreenshot(page, outputPath);
     }
   },

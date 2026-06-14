@@ -16,7 +16,12 @@ export const UI_TEXT = {
     termsAvailability:
       `The app may change over time, and features may be revised, removed, or interrupted. ${APP_NAME} does not ` +
       "provide warranties that the app will be error-free or that exported work will be suitable for every purpose.",
-    privacyIntro: `${APP_NAME} currently runs in your browser and does not require accounts.`
+    privacyIntro: `${APP_NAME} currently runs in your browser and does not require accounts.`,
+    latestReleases: "Latest releases",
+    releaseDetails: "Release details",
+    releaseNotes: "Release Notes",
+    showReleaseDetails: "details",
+    showLatestReleases: "latest"
   },
   projectsMenu: {
     about: `About ${APP_NAME}`,
