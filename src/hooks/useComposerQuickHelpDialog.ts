@@ -76,7 +76,7 @@ export function useComposerQuickHelpDialog({
           { action: "Move to Prev/Next Note", shortcut: "Arrows" },
           { action: "Move to Measure-relative Note", shortcut: measureArrowShortcut },
           { action: "First / Last Note", shortcut: boundaryShortcut },
-          { action: "Select closest Note to Playhead", shortcut: "Tab" },
+          { action: "Select Closest Note to Playhead", shortcut: "Tab" },
           { action: "Expand Selection", shortcut: "Enter" },
           { action: "Cut Selection", shortcut: `${primaryModifierLabel}+X` },
           { action: "Copy Selection", shortcut: `${primaryModifierLabel}+C` },
