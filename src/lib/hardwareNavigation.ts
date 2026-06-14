@@ -52,6 +52,58 @@ export const trackHasNoteAtBeat = (track: Track | undefined, beat: number): bool
 export const findTrackNoteAtBeat = (track: Track | undefined, beat: number): Note | null =>
   track?.notes.find((note) => noteContainsBeat(note, beat)) ?? null;
 
+export const findNextVisibleTrackNoteAfterBeat = (
+  track: Track | undefined,
+  beat: number,
+  visibleRange: { startBeat: number; endBeat: number } | null
+): Note | null => {
+  if (!track || !visibleRange) {
+    return null;
+  }
+
+  const rangeStart = Math.max(beat, visibleRange.startBeat);
+  let nextNote: Note | null = null;
+  for (const note of track.notes) {
+    const noteEndBeat = note.startBeat + note.durationBeats;
+    if (
+      note.startBeat < rangeStart - NOTE_AT_BEAT_EPSILON ||
+      note.startBeat > visibleRange.endBeat + NOTE_AT_BEAT_EPSILON
+    ) {
+      continue;
+    }
+    if (noteEndBeat < visibleRange.startBeat - NOTE_AT_BEAT_EPSILON) {
+      continue;
+    }
+    if (!nextNote || note.startBeat < nextNote.startBeat) {
+      nextNote = note;
+    }
+  }
+  return nextNote;
+};
+
+export const findClosestTrackNoteToBeat = (track: Track | undefined, beat: number): Note | null => {
+  if (!track) {
+    return null;
+  }
+
+  let closestNote: Note | null = null;
+  for (const note of track.notes) {
+    if (!closestNote) {
+      closestNote = note;
+      continue;
+    }
+    const distance = Math.abs(note.startBeat - beat);
+    const closestDistance = Math.abs(closestNote.startBeat - beat);
+    if (
+      distance < closestDistance - NOTE_AT_BEAT_EPSILON ||
+      (Math.abs(distance - closestDistance) <= NOTE_AT_BEAT_EPSILON && note.startBeat < closestNote.startBeat)
+    ) {
+      closestNote = note;
+    }
+  }
+  return closestNote;
+};
+
 export const findTrackBackspaceTargetNote = (track: Track | undefined, beat: number): Note | null => {
   if (!track) {
     return null;

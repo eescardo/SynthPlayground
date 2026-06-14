@@ -13,17 +13,19 @@ import {
   GhostPreviewNote,
   UseHardwareNavigationArgs
 } from "@/hooks/useHardwareNavigationTypes";
+import { HEADER_WIDTH } from "@/components/tracks/trackCanvasConstants";
 import {
   findAdjacentTrackNote,
+  findClosestTrackNoteToBeat,
+  findNextVisibleTrackNoteAfterBeat,
   findTrackBoundaryNote,
   findTrackBackspaceTargetNote,
-  findTrackNoteAtBeat,
   findTrackNoteByMeasureOffset,
   shiftContentSelectionByBeats,
   trackHasNoteAtBeat,
   upsertKeyboardPlacedNote
 } from "@/lib/hardwareNavigation";
-import { getNoteSelectionKey } from "@/lib/clipboard";
+import { EMPTY_CONTENT_SELECTION, getNoteSelectionKey } from "@/lib/clipboard";
 import {
   getSingleSelectedTrackNote,
   resolveComposerBoundaryNavigationIntent,
@@ -39,6 +41,23 @@ const GHOST_PREVIEW_DELAY_MS = 2000;
 const TAB_SELECTION_PREVIEW_DELAY_MS = 600;
 const HELD_PLACEMENT_PREVIEW_GRID_SPAN = 128;
 const HELD_PLACEMENT_PREVIEW_RELEASE_TAIL_GRIDS = 8;
+
+const getTrackCanvasVisibleBeatRange = (): { startBeat: number; endBeat: number } | null => {
+  const shell = document.querySelector<HTMLElement>('[data-track-canvas-shell="true"]');
+  const beatWidth = Number(shell?.dataset.beatWidth);
+  const startBeat =
+    shell && Number.isFinite(beatWidth) && beatWidth > 0
+      ? Math.max(0, shell.scrollLeft / beatWidth)
+      : Number(shell?.dataset.visibleBeatStart);
+  const endBeat =
+    shell && Number.isFinite(beatWidth) && beatWidth > 0
+      ? Math.max(startBeat, (shell.scrollLeft + shell.clientWidth - HEADER_WIDTH) / beatWidth)
+      : Number(shell?.dataset.visibleBeatEnd);
+  if (!Number.isFinite(startBeat) || !Number.isFinite(endBeat) || endBeat < startBeat) {
+    return null;
+  }
+  return { startBeat, endBeat };
+};
 
 interface UseComposerHardwareNavigationArgs extends UseHardwareNavigationArgs {
   activePlacement: ActiveKeyboardPlacement | null;
@@ -71,6 +90,7 @@ export function useComposerHardwareNavigation({
   setPlayheadBeatFromUser,
   setPlayheadBeatPreservingSelection,
   requestTimelineActionsPopover,
+  setContentSelection,
   expandSelectionActionPopover,
   toggleTrackMacroPanel,
   deleteNote,
@@ -394,30 +414,52 @@ export function useComposerHardwareNavigation({
       return;
     }
 
-    const noteAtPlayhead = findTrackNoteAtBeat(selectedTrack, playheadBeat);
-    if (!noteAtPlayhead) {
-      setTabSelectionPreviewNote(null);
-      return;
-    }
+    const shell = document.querySelector<HTMLElement>('[data-track-canvas-shell="true"]');
+    let timer: number | null = null;
 
-    const nextPreview = {
-      trackId: selectedTrack.id,
-      noteId: noteAtPlayhead.id
+    const clearTimer = () => {
+      if (timer !== null) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
     };
 
-    if (
-      tabSelectionPreviewNote?.trackId === nextPreview.trackId &&
-      tabSelectionPreviewNote.noteId === nextPreview.noteId
-    ) {
-      return;
-    }
+    const schedulePreview = () => {
+      const tabTargetNote = findNextVisibleTrackNoteAfterBeat(
+        selectedTrack,
+        playheadBeat,
+        getTrackCanvasVisibleBeatRange()
+      );
+      if (!tabTargetNote) {
+        clearTimer();
+        setTabSelectionPreviewNote(null);
+        return;
+      }
 
-    const timer = window.setTimeout(() => {
-      setTabSelectionPreviewNote(nextPreview);
-    }, TAB_SELECTION_PREVIEW_DELAY_MS);
+      const nextPreview = {
+        trackId: selectedTrack.id,
+        noteId: tabTargetNote.id
+      };
+
+      if (
+        tabSelectionPreviewNote?.trackId === nextPreview.trackId &&
+        tabSelectionPreviewNote.noteId === nextPreview.noteId
+      ) {
+        return;
+      }
+
+      clearTimer();
+      timer = window.setTimeout(() => {
+        setTabSelectionPreviewNote(nextPreview);
+      }, TAB_SELECTION_PREVIEW_DELAY_MS);
+    };
+
+    schedulePreview();
+    shell?.addEventListener("scroll", schedulePreview, { passive: true });
 
     return () => {
-      window.clearTimeout(timer);
+      clearTimer();
+      shell?.removeEventListener("scroll", schedulePreview);
     };
   }, [
     arePitchPickersClosed,
@@ -729,23 +771,31 @@ export function useComposerHardwareNavigation({
         return false;
       }
 
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        setSelectedTrackId(tracks[Math.max(0, selectedTrackIndex - 1)]!.id);
-        base.setPlayheadNavigationFocused(playheadNavigationActive);
-        clearBlockedSelectionTransfer();
+      const direction = event.key === "ArrowUp" ? -1 : event.key === "ArrowDown" ? 1 : null;
+      if (!direction) {
+        return false;
+      }
+
+      event.preventDefault();
+      const targetTrack = tracks[Math.min(tracks.length - 1, Math.max(0, selectedTrackIndex + direction))]!;
+      const selected = getSingleSelectedNote();
+      if (selected && !playheadNavigationActive) {
+        const targetNote = findClosestTrackNoteToBeat(targetTrack, selected.note.startBeat);
+        if (targetNote) {
+          selectSingleNote(targetTrack.id, targetNote.id);
+        } else {
+          setSelectedTrackId(targetTrack.id);
+          setContentSelection(EMPTY_CONTENT_SELECTION, { keepCollapsed: true });
+          base.setPlayheadNavigationFocused(false);
+          clearBlockedSelectionTransfer();
+        }
         return true;
       }
 
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        setSelectedTrackId(tracks[Math.min(tracks.length - 1, selectedTrackIndex + 1)]!.id);
-        base.setPlayheadNavigationFocused(playheadNavigationActive);
-        clearBlockedSelectionTransfer();
-        return true;
-      }
-
-      return false;
+      setSelectedTrackId(targetTrack.id);
+      base.setPlayheadNavigationFocused(playheadNavigationActive);
+      clearBlockedSelectionTransfer();
+      return true;
     };
 
     const handlePlacementEnterKey = (event: KeyboardEvent) => {
@@ -825,13 +875,17 @@ export function useComposerHardwareNavigation({
         return true;
       }
 
-      const noteAtPlayhead = findTrackNoteAtBeat(selectedTrack, playheadBeat);
-      if (!noteAtPlayhead) {
+      const tabTargetNote = findNextVisibleTrackNoteAfterBeat(
+        selectedTrack,
+        playheadBeat,
+        getTrackCanvasVisibleBeatRange()
+      );
+      if (!tabTargetNote) {
         return false;
       }
 
       event.preventDefault();
-      base.setSingleNoteSelection(getNoteSelectionKey(selectedTrack.id, noteAtPlayhead.id), { keepCollapsed: true });
+      base.setSingleNoteSelection(getNoteSelectionKey(selectedTrack.id, tabTargetNote.id), { keepCollapsed: true });
       base.setPlayheadNavigationFocused(false);
       base.focusSelectedContentTabStop();
       return true;
@@ -995,6 +1049,7 @@ export function useComposerHardwareNavigation({
     selectionKind,
     selectedTrack,
     setActivePlacement,
+    setContentSelection,
     setPlacedNote,
     setPlayheadBeatPreservingSelection,
     setPlayheadBeatFromUser,

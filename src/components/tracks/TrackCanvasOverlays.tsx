@@ -33,6 +33,8 @@ interface TrackCanvasOverlaysProps {
   trackLayouts: TrackLayout[];
   width: number;
   height: number;
+  beatWidth: number;
+  visibleBeatRange: { startBeat: number; endBeat: number };
   canvasCursor: Parameters<typeof resolveTrackCanvasCursor>[0];
   selectedTrackId?: string;
   invalidPatchIds?: Set<string>;
@@ -77,7 +79,14 @@ interface TrackCanvasOverlaysProps {
 
 export function TrackCanvasOverlays(props: TrackCanvasOverlaysProps) {
   return (
-    <div className={`track-canvas-shell ${styles.shell}`} ref={props.wrapperRef}>
+    <div
+      className={`track-canvas-shell ${styles.shell}`}
+      data-track-canvas-shell="true"
+      data-beat-width={props.beatWidth}
+      data-visible-beat-start={props.visibleBeatRange.startBeat}
+      data-visible-beat-end={props.visibleBeatRange.endBeat}
+      ref={props.wrapperRef}
+    >
       <TrackHeaderChrome
         project={props.project}
         canvasShellRef={props.wrapperRef}
