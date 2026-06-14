@@ -2,6 +2,8 @@
 
 Browser-based music synthesis + composition MVP built with Next.js, TypeScript, WebAudio, AudioWorklet, and Rust->WASM DSP primitives.
 
+Icon and brand asset guidance lives in [src/resources/images/README.md](src/resources/images/README.md).
+
 ## Implemented MVP Surface
 
 - Track editor canvas (insert/move/resize/delete notes)
