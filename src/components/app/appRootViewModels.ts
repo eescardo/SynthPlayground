@@ -268,7 +268,7 @@ export function createComposerControllerProps(options: UseComposerControllerProp
       activeRecordedNotes: recording.activeRecordedNotes,
       ghostPlayheadBeat: recording.ghostPlayheadBeat ?? undefined,
       countInLabel: recording.countInLabel ?? undefined,
-      recordingDisabled: recording.recordEnabled,
+      recordingActive: recording.recordEnabled,
       isPlaying: playing || recording.recordPhase === "count_in",
       recordEnabled: recording.recordEnabled,
       recordPhase: recording.recordPhase

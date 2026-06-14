@@ -5,7 +5,7 @@ import styles from "./ComposerActionsBar.module.css";
 export type ComposerRecordPhase = "idle" | "count_in" | "recording";
 
 interface ComposerActionsBarProps {
-  recordingDisabled: boolean;
+  recordingActive: boolean;
   runtimeErrorMessage?: string | null;
   isPlaying: boolean;
   recordEnabled: boolean;
@@ -50,7 +50,7 @@ function RecordButton({
 }
 
 export function ComposerActionsBar({
-  recordingDisabled,
+  recordingActive,
   runtimeErrorMessage,
   isPlaying,
   recordEnabled,
@@ -78,13 +78,13 @@ export function ComposerActionsBar({
   return (
     <section className={styles.bar} data-composer-actions-bar="true">
       <div className={styles.group}>
-        <button type="button" disabled={recordingDisabled} onClick={onAddTrack}>
+        <button type="button" disabled={recordingActive} onClick={onAddTrack}>
           Add Track
         </button>
-        <button type="button" disabled={recordingDisabled || !canRemoveTrack} onClick={onRemoveTrack}>
+        <button type="button" disabled={recordingActive || !canRemoveTrack} onClick={onRemoveTrack}>
           Remove Track
         </button>
-        <button type="button" disabled={recordingDisabled} onClick={onClearProject}>
+        <button type="button" disabled={recordingActive} onClick={onClearProject}>
           Clear Composition
         </button>
       </div>
