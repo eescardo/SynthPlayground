@@ -51,7 +51,7 @@
   padding-bottom: 0.14rem;
 }
 
-.playControlStack {
+.stopControlStack {
   display: inline-flex;
   flex-direction: column;
   align-items: stretch;
@@ -76,19 +76,19 @@
     0 8px 18px rgba(21, 73, 121, 0.24);
 }
 
-.playModePill {
+.playbackStopModePill {
   min-height: 0.82rem;
   padding: 0 0.34rem;
   border-radius: 999px;
-  border-color: rgba(144, 181, 210, 0.52);
-  background: rgba(17, 31, 45, 0.9);
-  color: #b8d6ef;
+  border-color: rgba(134, 198, 255, 0.58);
+  background: rgba(20, 48, 78, 0.9);
+  color: #d9eeff;
   font-size: 0.58rem;
   line-height: 1;
 }
 
-.playModePill:hover,
-.playModePill:focus-visible {
-  border-color: rgba(125, 220, 173, 0.78);
-  color: #e7fff1;
+.playbackStopModePill:hover,
+.playbackStopModePill:focus-visible {
+  border-color: rgba(155, 212, 255, 0.9);
+  color: #f3fbff;
 }

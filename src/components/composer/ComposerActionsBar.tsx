@@ -12,12 +12,12 @@ interface ComposerActionsBarProps {
   recordPhase?: ComposerRecordPhase;
   countInLabel?: string | null;
   defaultPitch: string;
-  playMode: PlaybackStopMode;
+  playbackStopMode: PlaybackStopMode;
   canRemoveTrack: boolean;
   onOpenDefaultPitchPicker: () => void;
   onPlay: () => void;
   onStop: () => void;
-  onTogglePlayMode: () => void;
+  onTogglePlaybackStopMode: () => void;
   onToggleRecord: () => void;
   onClearProject: () => void;
   onAddTrack: () => void;
@@ -57,12 +57,12 @@ export function ComposerActionsBar({
   recordPhase,
   countInLabel,
   defaultPitch,
-  playMode,
+  playbackStopMode,
   canRemoveTrack,
   onOpenDefaultPitchPicker,
   onPlay,
   onStop,
-  onTogglePlayMode,
+  onTogglePlaybackStopMode,
   onToggleRecord,
   onClearProject,
   onAddTrack,
@@ -70,8 +70,8 @@ export function ComposerActionsBar({
 }: ComposerActionsBarProps) {
   const canPlay = !isPlaying && !recordEnabled;
   const canStop = isPlaying && !recordEnabled;
-  const playModeTooltip =
-    playMode === "reset"
+  const playbackStopModeTooltip =
+    playbackStopMode === "reset"
       ? "Reset mode returns to the last set playhead when stopping."
       : "Continue mode pauses at the current playback beat when stopping.";
 
@@ -102,34 +102,34 @@ export function ComposerActionsBar({
             <PitchButtonLabel pitch={defaultPitch} />
           </button>
         </div>
-        <div className={styles.playControlStack}>
-          <button
-            type="button"
-            className={canPlay ? styles.transportPlayButtonEnabled : undefined}
-            onClick={onPlay}
-            disabled={!canPlay}
-          >
-            Play
-          </button>
-          <button
-            type="button"
-            className={styles.playModePill}
-            title={playModeTooltip}
-            aria-label={`Play mode: ${playMode}. ${playModeTooltip}`}
-            aria-pressed={playMode === "continue"}
-            onClick={onTogglePlayMode}
-          >
-            {playMode}
-          </button>
-        </div>
         <button
           type="button"
-          className={canStop ? styles.transportStopButtonEnabled : undefined}
-          onClick={onStop}
-          disabled={!canStop}
+          className={canPlay ? styles.transportPlayButtonEnabled : undefined}
+          onClick={onPlay}
+          disabled={!canPlay}
         >
-          Stop
+          Play
         </button>
+        <div className={styles.stopControlStack}>
+          <button
+            type="button"
+            className={canStop ? styles.transportStopButtonEnabled : undefined}
+            onClick={onStop}
+            disabled={!canStop}
+          >
+            Stop
+          </button>
+          <button
+            type="button"
+            className={styles.playbackStopModePill}
+            title={playbackStopModeTooltip}
+            aria-label={`Playback stop mode: ${playbackStopMode}. ${playbackStopModeTooltip}`}
+            aria-pressed={playbackStopMode === "continue"}
+            onClick={onTogglePlaybackStopMode}
+          >
+            {playbackStopMode}
+          </button>
+        </div>
         <RecordButton
           recordEnabled={recordEnabled}
           recordPhase={recordPhase}

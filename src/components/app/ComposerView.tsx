@@ -49,7 +49,7 @@ export interface ComposerProjectMenuProps {
 export interface ComposerTransportProps {
   playheadBeat: number;
   exportingAudio: boolean;
-  playMode: PlaybackStopMode;
+  playbackStopMode: PlaybackStopMode;
 }
 
 export interface ComposerRecordingProps {
@@ -101,7 +101,7 @@ export interface ComposerProjectActions {
 export interface ComposerTransportActions {
   onPlay: () => void;
   onStop: () => void;
-  onTogglePlayMode: () => void;
+  onTogglePlaybackStopMode: () => void;
   onToggleRecord: () => void;
 }
 
@@ -161,12 +161,12 @@ export function ComposerView(props: ComposerViewProps) {
         recordPhase={props.recording.recordPhase}
         countInLabel={props.recording.countInLabel}
         defaultPitch={props.defaultPitch}
-        playMode={props.transport.playMode}
+        playbackStopMode={props.transport.playbackStopMode}
         canRemoveTrack={props.project.tracks.length > 1}
         onOpenDefaultPitchPicker={props.projectActions.onOpenDefaultPitchPicker}
         onPlay={props.transportActions.onPlay}
         onStop={props.transportActions.onStop}
-        onTogglePlayMode={props.transportActions.onTogglePlayMode}
+        onTogglePlaybackStopMode={props.transportActions.onTogglePlaybackStopMode}
         onToggleRecord={props.transportActions.onToggleRecord}
         onClearProject={props.projectActions.onClearCurrentProject}
         onAddTrack={props.projectActions.onAddTrack}

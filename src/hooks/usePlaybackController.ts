@@ -25,8 +25,8 @@ interface UsePlaybackControllerArgs {
 
 export type PlaybackStopMode = "reset" | "continue";
 
-export const shouldResetPlayheadOnStop = (playMode: PlaybackStopMode, options?: { resetToCue?: boolean }) =>
-  options?.resetToCue ?? playMode === "reset";
+export const shouldResetPlayheadOnStop = (playbackStopMode: PlaybackStopMode, options?: { resetToCue?: boolean }) =>
+  options?.resetToCue ?? playbackStopMode === "reset";
 
 export function usePlaybackController(args: UsePlaybackControllerArgs) {
   const {
@@ -45,15 +45,15 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
   } = args;
 
   const rafRef = useRef<number | null>(null);
-  const [playMode, setPlayMode] = useState<PlaybackStopMode>("reset");
-  const playModeRef = useRef<PlaybackStopMode>("reset");
+  const [playbackStopMode, setPlaybackStopMode] = useState<PlaybackStopMode>("reset");
+  const playbackStopModeRef = useRef<PlaybackStopMode>("reset");
   const playbackEndBeatRef = useRef(playbackEndBeat);
   const projectRef = useRef(project);
   const userCueBeatRef = useRef(userCueBeat);
   const stopRecordingSessionRef = useRef(onStopRecordingSession);
   const handleRecordingBeatRef = useRef(onHandleRecordingBeat);
 
-  playModeRef.current = playMode;
+  playbackStopModeRef.current = playbackStopMode;
   playbackEndBeatRef.current = playbackEndBeat;
   projectRef.current = project;
   userCueBeatRef.current = userCueBeat;
@@ -69,7 +69,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
-      const resetToCue = shouldResetPlayheadOnStop(playModeRef.current, options);
+      const resetToCue = shouldResetPlayheadOnStop(playbackStopModeRef.current, options);
       if (resetToCue) {
         setPlayheadBeat(userCueBeatRef.current);
       }
@@ -161,9 +161,16 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
     };
   }, [audioEngineRef]);
 
-  const togglePlayMode = useCallback(() => {
-    setPlayMode((current) => (current === "reset" ? "continue" : "reset"));
+  const togglePlaybackStopMode = useCallback(() => {
+    setPlaybackStopMode((current) => (current === "reset" ? "continue" : "reset"));
   }, []);
 
-  return { stopPlayback, beginPlaybackAtBeat, seekPlaybackToBeat, startPlayback, playMode, togglePlayMode };
+  return {
+    stopPlayback,
+    beginPlaybackAtBeat,
+    seekPlaybackToBeat,
+    startPlayback,
+    playbackStopMode,
+    togglePlaybackStopMode
+  };
 }
