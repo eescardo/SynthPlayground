@@ -10,6 +10,7 @@
 .bar button {
   min-height: 1.65rem;
   padding: 0.14rem 0.58rem;
+  font-size: 0.88em;
   line-height: 1;
   white-space: nowrap;
 }
@@ -56,6 +57,11 @@
   flex-direction: column;
   align-items: stretch;
   gap: 0.06rem;
+  width: 3rem;
+}
+
+.stopControlStack > button {
+  width: 100%;
 }
 
 .transportPlayButtonEnabled {
@@ -79,7 +85,6 @@
 .bar .playbackStopModePill {
   min-height: 0.74rem;
   height: 0.74rem;
-  align-self: center;
   padding: 0 0.32rem;
   border-radius: 999px;
   border-color: rgba(134, 198, 255, 0.58);
