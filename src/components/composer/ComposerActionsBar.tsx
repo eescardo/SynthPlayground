@@ -76,7 +76,7 @@ export function ComposerActionsBar({
       : "Continue mode pauses at the current playback beat when stopping.";
 
   return (
-    <section className={styles.bar}>
+    <section className={styles.bar} data-composer-actions-bar="true">
       <div className={styles.group}>
         <button type="button" disabled={recordingDisabled} onClick={onAddTrack}>
           Add Track
