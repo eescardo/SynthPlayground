@@ -76,9 +76,11 @@
     0 8px 18px rgba(21, 73, 121, 0.24);
 }
 
-.playbackStopModePill {
-  min-height: 0.82rem;
-  padding: 0 0.34rem;
+.bar .playbackStopModePill {
+  min-height: 0.74rem;
+  height: 0.74rem;
+  align-self: center;
+  padding: 0 0.32rem;
   border-radius: 999px;
   border-color: rgba(134, 198, 255, 0.58);
   background: rgba(20, 48, 78, 0.9);
@@ -87,8 +89,8 @@
   line-height: 1;
 }
 
-.playbackStopModePill:hover,
-.playbackStopModePill:focus-visible {
+.bar .playbackStopModePill:hover,
+.bar .playbackStopModePill:focus-visible {
   border-color: rgba(155, 212, 255, 0.9);
   color: #f3fbff;
 }
