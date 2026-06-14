@@ -32,7 +32,7 @@ interface UseProjectLifecycleActionsArgs {
   recentProjects: RecentProjectSnapshot[];
   audioEngineRef: MutableRefObject<AudioEngine | null>;
   playback: {
-    stopPlayback: (resetRecordMode?: boolean) => void;
+    stopPlayback: () => void;
   };
   commitProjectChange: CommitProjectChange;
   resetProjectState: (nextProject: Project, nextAssets?: ProjectAssetLibrary) => void;

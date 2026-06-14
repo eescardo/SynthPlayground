@@ -2,6 +2,7 @@
 
 import type { ComponentProps, RefObject } from "react";
 import type { ComposerRecordPhase } from "@/components/composer/ComposerActionsBar";
+import type { PlaybackStopMode } from "@/hooks/usePlaybackController";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { ComposerActionsBar } from "@/components/composer/ComposerActionsBar";
 import { TimelineActionsPopover } from "@/components/TimelineActionsPopover";
@@ -16,6 +17,8 @@ export interface ComposerViewProps {
   project: Project;
   selectedTrackId: string;
   defaultPitch: string;
+  pitchPreviewMode: "placement" | "selection";
+  pitchPreviewPitch: string;
   invalidPatchIds: Set<string>;
   canvasSelection: TrackCanvasSelection;
   projectMenu: ComposerProjectMenuProps;
@@ -48,13 +51,14 @@ export interface ComposerProjectMenuProps {
 export interface ComposerTransportProps {
   playheadBeat: number;
   exportingAudio: boolean;
+  playbackStopMode: PlaybackStopMode;
 }
 
 export interface ComposerRecordingProps {
   activeRecordedNotes: Array<{ trackId: string; noteId: string; startBeat: number }>;
-  recordingDisabled: boolean;
+  mutationDisabled: boolean;
+  recordingActive: boolean;
   isPlaying: boolean;
-  recordEnabled: boolean;
   recordPhase?: ComposerRecordPhase;
   ghostPlayheadBeat?: number;
   countInLabel?: string;
@@ -84,7 +88,7 @@ export interface ComposerTimelineProps {
 export interface ComposerProjectActions {
   onClearCurrentProject: () => void;
   onRenameProject: (name: string) => void;
-  onOpenDefaultPitchPicker: () => void;
+  onOpenPitchPreviewPicker: () => void;
   onOpenPatchWorkspace: () => void;
   onExportAudio: () => void;
   onTempoChange: (tempo: number) => void;
@@ -99,6 +103,7 @@ export interface ComposerProjectActions {
 export interface ComposerTransportActions {
   onPlay: () => void;
   onStop: () => void;
+  onTogglePlaybackStopMode: () => void;
   onToggleRecord: () => void;
 }
 
@@ -152,16 +157,19 @@ export function ComposerView(props: ComposerViewProps) {
 
       <ComposerActionsBar
         runtimeErrorMessage={props.runtimeErrorMessage}
-        recordingDisabled={props.recording.recordingDisabled}
+        mutationDisabled={props.recording.mutationDisabled}
+        recordingActive={props.recording.recordingActive}
         isPlaying={props.recording.isPlaying}
-        recordEnabled={props.recording.recordEnabled}
         recordPhase={props.recording.recordPhase}
         countInLabel={props.recording.countInLabel}
-        defaultPitch={props.defaultPitch}
+        pitchPreviewMode={props.pitchPreviewMode}
+        pitchPreviewPitch={props.pitchPreviewPitch}
+        playbackStopMode={props.transport.playbackStopMode}
         canRemoveTrack={props.project.tracks.length > 1}
-        onOpenDefaultPitchPicker={props.projectActions.onOpenDefaultPitchPicker}
+        onOpenPitchPreviewPicker={props.projectActions.onOpenPitchPreviewPicker}
         onPlay={props.transportActions.onPlay}
         onStop={props.transportActions.onStop}
+        onTogglePlaybackStopMode={props.transportActions.onTogglePlaybackStopMode}
         onToggleRecord={props.transportActions.onToggleRecord}
         onClearProject={props.projectActions.onClearCurrentProject}
         onAddTrack={props.projectActions.onAddTrack}

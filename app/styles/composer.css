@@ -205,28 +205,6 @@
   border-color: transparent transparent rgba(166, 45, 59, 0.88);
 }
 
-.composer-actions-bar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.composer-actions-status {
-  flex: 1 1 100%;
-  margin: 0;
-  min-width: 0;
-  line-height: 1.35;
-}
-
-.composer-actions-bar-group {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
 .track-settings {
   display: flex;
   flex-wrap: wrap;

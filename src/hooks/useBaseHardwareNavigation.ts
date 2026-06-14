@@ -13,6 +13,7 @@ import {
 import { UseHardwareNavigationArgs } from "@/hooks/useHardwareNavigationTypes";
 
 interface UseBaseHardwareNavigationArgs extends UseHardwareNavigationArgs {
+  canShiftPitchPreview: boolean;
   interactionLocked: boolean;
 }
 
@@ -27,15 +28,15 @@ export interface BaseHardwareNavigationResult {
 }
 
 export function useBaseHardwareNavigation({
+  canShiftPitchPreview,
   interactionLocked,
   pitchPickerOpen,
   previewPitchPickerOpen,
-  defaultPitch,
+  pitchPreviewPitch,
   selectionKind,
-  setDefaultPitch,
+  setPitchPreviewPitch,
   setSelectedTrackId,
-  setContentSelection,
-  previewDefaultPitchNow
+  setContentSelection
 }: UseBaseHardwareNavigationArgs): BaseHardwareNavigationResult {
   const [playheadNavigationFocused, setPlayheadNavigationFocused] = useState(false);
   const [selectedContentTabStopFocusToken, setSelectedContentTabStopFocusToken] = useState(0);
@@ -76,16 +77,15 @@ export function useBaseHardwareNavigation({
   }, [selectionKind]);
 
   useEffect(() => {
-    const shiftDefaultPitch = (semitones: number) => {
-      const nextPitch = transposePitch(defaultPitch, semitones, {
+    const shiftPitchPreview = (semitones: number) => {
+      const nextPitch = transposePitch(pitchPreviewPitch, semitones, {
         minPitch: KEYBOARD_NOTE_PREVIEW_MIN_PITCH,
         maxPitch: KEYBOARD_NOTE_PREVIEW_MAX_PITCH
       });
-      if (nextPitch === defaultPitch) {
+      if (nextPitch === pitchPreviewPitch) {
         return;
       }
-      setDefaultPitch(nextPitch);
-      previewDefaultPitchNow(nextPitch);
+      setPitchPreviewPitch(nextPitch);
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -98,28 +98,31 @@ export function useBaseHardwareNavigation({
       if (isModifierChord(event) || interactionLocked) {
         return;
       }
+      if (!canShiftPitchPreview) {
+        return;
+      }
 
       if (event.key === "-" && !event.repeat) {
         event.preventDefault();
-        shiftDefaultPitch(-1);
+        shiftPitchPreview(-1);
         return;
       }
 
       if (event.key === "=" && !event.repeat) {
         event.preventDefault();
-        shiftDefaultPitch(1);
+        shiftPitchPreview(1);
         return;
       }
 
       if (event.key === "_" && !event.repeat) {
         event.preventDefault();
-        shiftDefaultPitch(-0.25);
+        shiftPitchPreview(-0.25);
         return;
       }
 
       if (event.key === "+" && !event.repeat) {
         event.preventDefault();
-        shiftDefaultPitch(0.25);
+        shiftPitchPreview(0.25);
         return;
       }
     };
@@ -129,12 +132,12 @@ export function useBaseHardwareNavigation({
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [
-    defaultPitch,
+    canShiftPitchPreview,
     interactionLocked,
     pitchPickerOpen,
-    previewDefaultPitchNow,
+    pitchPreviewPitch,
     previewPitchPickerOpen,
-    setDefaultPitch
+    setPitchPreviewPitch
   ]);
 
   return {

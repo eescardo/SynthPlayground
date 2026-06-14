@@ -44,7 +44,7 @@ describe("resolveComposerHorizontalArrowIntent", () => {
     ).toEqual({ kind: "nudge-playhead", beatSpan: "grid" });
   });
 
-  it("only enables measure note movement for single-note selections", () => {
+  it("uses measure modifiers to select measure-relative notes for single-note selections", () => {
     expect(
       resolveComposerHorizontalArrowIntent({
         ...baseHorizontalArgs,
@@ -52,7 +52,7 @@ describe("resolveComposerHorizontalArrowIntent", () => {
         hasContentSelection: true,
         hasSingleNoteSelection: true
       })
-    ).toEqual({ kind: "nudge-content", beatSpan: "measure" });
+    ).toEqual({ kind: "select-measure-relative-note" });
     expect(
       resolveComposerHorizontalArrowIntent({
         ...baseHorizontalArgs,
@@ -63,15 +63,32 @@ describe("resolveComposerHorizontalArrowIntent", () => {
     ).toEqual({ kind: "none" });
   });
 
-  it("routes shifted note selection intents only for single-note selections", () => {
+  it("uses plain arrows to select adjacent notes for single-note selections", () => {
+    expect(
+      resolveComposerHorizontalArrowIntent({
+        ...baseHorizontalArgs,
+        hasContentSelection: true,
+        hasSingleNoteSelection: true
+      })
+    ).toEqual({ kind: "select-adjacent-note" });
+    expect(
+      resolveComposerHorizontalArrowIntent({
+        ...baseHorizontalArgs,
+        hasContentSelection: true,
+        hasSingleNoteSelection: false
+      })
+    ).toEqual({ kind: "none" });
+  });
+
+  it("uses shifted arrows to nudge selections by grid or measure", () => {
     expect(
       resolveComposerHorizontalArrowIntent({
         ...baseHorizontalArgs,
         shiftKey: true,
         hasContentSelection: true,
-        hasSingleNoteSelection: true
+        hasSingleNoteSelection: false
       })
-    ).toEqual({ kind: "select-adjacent-note" });
+    ).toEqual({ kind: "nudge-content", beatSpan: "grid" });
     expect(
       resolveComposerHorizontalArrowIntent({
         ...baseHorizontalArgs,
@@ -80,15 +97,7 @@ describe("resolveComposerHorizontalArrowIntent", () => {
         hasContentSelection: true,
         hasSingleNoteSelection: true
       })
-    ).toEqual({ kind: "select-measure-relative-note" });
-    expect(
-      resolveComposerHorizontalArrowIntent({
-        ...baseHorizontalArgs,
-        shiftKey: true,
-        hasContentSelection: true,
-        hasSingleNoteSelection: false
-      })
-    ).toEqual({ kind: "none" });
+    ).toEqual({ kind: "nudge-content", beatSpan: "measure" });
   });
 
   it("nudges playhead through timeline selections unless the selection owns focus", () => {

@@ -1,19 +1,24 @@
 import { PitchButtonLabel } from "@/components/PitchButtonLabel";
+import type { PlaybackStopMode } from "@/hooks/usePlaybackController";
+import styles from "./ComposerActionsBar.module.css";
 
 export type ComposerRecordPhase = "idle" | "count_in" | "recording";
 
 interface ComposerActionsBarProps {
-  recordingDisabled: boolean;
+  mutationDisabled: boolean;
+  recordingActive: boolean;
   runtimeErrorMessage?: string | null;
   isPlaying: boolean;
-  recordEnabled: boolean;
   recordPhase?: ComposerRecordPhase;
   countInLabel?: string | null;
-  defaultPitch: string;
+  pitchPreviewMode: "placement" | "selection";
+  pitchPreviewPitch: string;
+  playbackStopMode: PlaybackStopMode;
   canRemoveTrack: boolean;
-  onOpenDefaultPitchPicker: () => void;
+  onOpenPitchPreviewPicker: () => void;
   onPlay: () => void;
   onStop: () => void;
+  onTogglePlaybackStopMode: () => void;
   onToggleRecord: () => void;
   onClearProject: () => void;
   onAddTrack: () => void;
@@ -21,11 +26,11 @@ interface ComposerActionsBarProps {
 }
 
 function RecordButton({
-  recordEnabled,
+  recordingActive,
   recordPhase,
   countInLabel,
   onToggleRecord
-}: Pick<ComposerActionsBarProps, "recordEnabled" | "recordPhase" | "countInLabel" | "onToggleRecord">) {
+}: Pick<ComposerActionsBarProps, "recordingActive" | "recordPhase" | "countInLabel" | "onToggleRecord">) {
   return (
     <div className="record-button-wrap">
       {recordPhase === "count_in" && countInLabel && (
@@ -34,8 +39,9 @@ function RecordButton({
         </div>
       )}
       <button
-        className={recordEnabled ? "armed toggle-active" : ""}
-        aria-pressed={recordEnabled}
+        type="button"
+        className={recordingActive ? "armed toggle-active" : ""}
+        aria-pressed={recordingActive}
         onClick={onToggleRecord}
       >
         Record
@@ -45,64 +51,101 @@ function RecordButton({
 }
 
 export function ComposerActionsBar({
-  recordingDisabled,
+  mutationDisabled,
+  recordingActive,
   runtimeErrorMessage,
   isPlaying,
-  recordEnabled,
   recordPhase,
   countInLabel,
-  defaultPitch,
+  pitchPreviewMode,
+  pitchPreviewPitch,
+  playbackStopMode,
   canRemoveTrack,
-  onOpenDefaultPitchPicker,
+  onOpenPitchPreviewPicker,
   onPlay,
   onStop,
+  onTogglePlaybackStopMode,
   onToggleRecord,
   onClearProject,
   onAddTrack,
   onRemoveTrack
 }: ComposerActionsBarProps) {
+  const canPlay = !isPlaying && !recordingActive;
+  const canStop = isPlaying && !recordingActive;
+  const playbackStopModeTooltip =
+    playbackStopMode === "reset"
+      ? "Reset mode returns to the last set playhead when stopping."
+      : "Continue mode pauses at the current playback beat when stopping.";
+
   return (
-    <section className="composer-actions-bar">
-      <div className="composer-actions-bar-group">
-        <button disabled={recordingDisabled} onClick={onAddTrack}>
+    <section className={styles.bar} data-composer-actions-bar="true">
+      <div className={styles.group}>
+        <button type="button" disabled={mutationDisabled} onClick={onAddTrack}>
           Add Track
         </button>
-        <button disabled={recordingDisabled || !canRemoveTrack} onClick={onRemoveTrack}>
+        <button type="button" disabled={mutationDisabled || !canRemoveTrack} onClick={onRemoveTrack}>
           Remove Track
+        </button>
+        <button type="button" disabled={mutationDisabled} onClick={onClearProject}>
+          Clear Composition
         </button>
       </div>
 
-      <div className="composer-actions-bar-group">
-        <div className="toolbar-labeled-control">
-          <span className="toolbar-labeled-control-label">Pitch</span>
-          <button
-            type="button"
-            className="preview-pitch-button"
-            onClick={onOpenDefaultPitchPicker}
-            title="Default pitch"
-            aria-label={`Default pitch ${defaultPitch}`}
-          >
-            <PitchButtonLabel pitch={defaultPitch} />
-          </button>
+      <div className={styles.group}>
+        <div className={styles.pitchPreviewStack}>
+          <div className={styles.toolbarLabeledControl}>
+            <span className={styles.toolbarLabeledControlLabel}>Pitch</span>
+            <button
+              type="button"
+              className={styles.previewPitchButton}
+              onClick={onOpenPitchPreviewPicker}
+              title={pitchPreviewMode === "selection" ? "Selected note pitch" : "Placement pitch"}
+              aria-label={`${pitchPreviewMode === "selection" ? "Selected note" : "Placement"} pitch ${pitchPreviewPitch}`}
+            >
+              <PitchButtonLabel pitch={pitchPreviewPitch} />
+            </button>
+          </div>
+          <div className={styles.pitchPreviewModePill} aria-label={`Pitch preview mode: ${pitchPreviewMode}`}>
+            {pitchPreviewMode}
+          </div>
         </div>
-        <button onClick={onPlay} disabled={isPlaying || recordEnabled}>
+        <button
+          type="button"
+          className={canPlay ? styles.transportPlayButtonEnabled : undefined}
+          onClick={onPlay}
+          disabled={!canPlay}
+        >
           Play
         </button>
-        <button onClick={onStop} disabled={!isPlaying || recordEnabled}>
-          Stop
-        </button>
+        <div className={styles.stopControlStack}>
+          <button
+            type="button"
+            className={canStop ? styles.transportStopButtonEnabled : undefined}
+            onClick={onStop}
+            disabled={!canStop}
+          >
+            Stop
+          </button>
+          <button
+            type="button"
+            className={styles.playbackStopModePill}
+            title={playbackStopModeTooltip}
+            aria-label={`Playback stop mode: ${playbackStopMode}. ${playbackStopModeTooltip}`}
+            aria-pressed={playbackStopMode === "continue"}
+            onClick={onTogglePlaybackStopMode}
+          >
+            {playbackStopMode}
+          </button>
+        </div>
         <RecordButton
-          recordEnabled={recordEnabled}
+          recordingActive={recordingActive}
           recordPhase={recordPhase}
           countInLabel={countInLabel}
           onToggleRecord={onToggleRecord}
         />
-        <button disabled={recordingDisabled} onClick={onClearProject}>
-          Clear
-        </button>
       </div>
       {runtimeErrorMessage ? (
-        <p className="composer-actions-status error" role="alert">
+        <p className={`${styles.status} error`} role="alert">
           {runtimeErrorMessage}
         </p>
       ) : null}

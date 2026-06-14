@@ -66,6 +66,8 @@ export function createProjectMenuProps(options: UseProjectMenuPropsOptions): Pro
 interface ComposerProjectState {
   project: Project;
   selectedTrackId: string;
+  pitchPreviewMode: ComposerViewProps["pitchPreviewMode"];
+  pitchPreviewPitch: string;
   selectedTrackPatch?: Patch;
   selectedTrackInstrumentPatchId: string;
   invalidPatchIds: ComposerViewProps["invalidPatchIds"];
@@ -77,9 +79,9 @@ interface ComposerRuntimeState {
   playing: boolean;
   recording: Pick<
     RecordingState,
-    "activeRecordedNotes" | "countInLabel" | "ghostPlayheadBeat" | "recordEnabled" | "recordPhase" | "startRecordMode"
+    "activeRecordedNotes" | "countInLabel" | "ghostPlayheadBeat" | "recordingActive" | "recordPhase" | "startRecordMode"
   >;
-  playback: Pick<PlaybackState, "startPlayback" | "stopPlayback">;
+  playback: Pick<PlaybackState, "playbackStopMode" | "startPlayback" | "stopPlayback" | "togglePlaybackStopMode">;
   hardwareNavigation: Pick<
     HardwareNavigationState,
     | "activePlacement"
@@ -103,6 +105,7 @@ interface ComposerTimelineState {
 interface ComposerPrimaryActions {
   clearCurrentProject: () => void;
   renameProject: (name: string) => void;
+  openPitchPreviewPicker: ComposerViewProps["projectActions"]["onOpenPitchPreviewPicker"];
   exportAudio: () => Promise<void>;
   commitGlobalTempo: (tempo: Project["global"]["tempo"]) => void;
   commitGlobalMeter: (meter: Project["global"]["meter"]) => void;
@@ -248,28 +251,32 @@ export function createComposerControllerProps(options: UseComposerControllerProp
     timelineState,
     trackActions
   } = options;
-  const { canvasSelection, invalidPatchIds, project, selectedTrackId } = projectState;
+  const { canvasSelection, invalidPatchIds, pitchPreviewMode, pitchPreviewPitch, project, selectedTrackId } =
+    projectState;
   const { hardwareNavigation, patchWorkspace, playback, playheadBeat, playing, recording } = runtimeState;
 
   const viewProps: ComposerViewProps = {
     project,
     selectedTrackId,
     defaultPitch: patchWorkspace.previewPitch,
+    pitchPreviewMode,
+    pitchPreviewPitch,
     invalidPatchIds,
     canvasSelection,
     projectMenu: projectMenuProps,
     transport: {
       playheadBeat,
-      exportingAudio
+      exportingAudio,
+      playbackStopMode: playback.playbackStopMode
     },
     runtimeErrorMessage,
     recording: {
       activeRecordedNotes: recording.activeRecordedNotes,
       ghostPlayheadBeat: recording.ghostPlayheadBeat ?? undefined,
       countInLabel: recording.countInLabel ?? undefined,
-      recordingDisabled: recording.recordEnabled,
+      mutationDisabled: recording.recordingActive,
       isPlaying: playing || recording.recordPhase === "count_in",
-      recordEnabled: recording.recordEnabled,
+      recordingActive: recording.recordingActive,
       recordPhase: recording.recordPhase
     },
     canvasPreview: {
@@ -287,7 +294,7 @@ export function createComposerControllerProps(options: UseComposerControllerProp
     },
     timeline: timelineState.timeline,
     projectActions: {
-      onOpenDefaultPitchPicker: () => patchWorkspace.setPreviewPitchPickerOpen(true),
+      onOpenPitchPreviewPicker: primaryActions.openPitchPreviewPicker,
       onClearCurrentProject: primaryActions.clearCurrentProject,
       onRenameProject: primaryActions.renameProject,
       onOpenPatchWorkspace: () => patchWorkspace.openPatchWorkspace(),
@@ -304,13 +311,14 @@ export function createComposerControllerProps(options: UseComposerControllerProp
     },
     transportActions: {
       onPlay: playback.startPlayback,
-      onStop: playback.stopPlayback,
+      onStop: () => playback.stopPlayback(),
+      onTogglePlaybackStopMode: playback.togglePlaybackStopMode,
       onToggleRecord: () => {
-        if (recording.recordEnabled || recording.recordPhase !== "idle") {
-          playback.stopPlayback(true);
+        if (recording.recordingActive || recording.recordPhase !== "idle") {
+          playback.stopPlayback({ resetToCue: true });
           return;
         }
-        playback.stopPlayback(true);
+        playback.stopPlayback({ resetToCue: true });
         void recording.startRecordMode();
       }
     },
@@ -413,6 +421,7 @@ export function createProjectGlobalCommitActions({ commitProjectChange }: Projec
 interface CreateComposerPrimaryActionsOptions extends ProjectCommitActionsOptions {
   clearCurrentProject: () => void;
   renameProject: (name: string) => void;
+  openPitchPreviewPicker: ComposerPrimaryActions["openPitchPreviewPicker"];
   exportAudio: () => Promise<void>;
   addTrack: () => void;
   removeSelectedTrack: () => void;
@@ -424,6 +433,7 @@ export function createComposerPrimaryActions({
   clearCurrentProject,
   commitProjectChange,
   exportAudio,
+  openPitchPreviewPicker,
   removeSelectedTrack,
   renameProject,
   setPlayheadFromUser
@@ -431,6 +441,7 @@ export function createComposerPrimaryActions({
   return {
     clearCurrentProject,
     renameProject,
+    openPitchPreviewPicker,
     exportAudio,
     ...createProjectGlobalCommitActions({ commitProjectChange }),
     addTrack,

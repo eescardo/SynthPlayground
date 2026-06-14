@@ -91,7 +91,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
     onBeginRecordingPlayback
   } = args;
 
-  const [recordEnabled, setRecordEnabled] = useState(false);
+  const [recordingActive, setRecordingActive] = useState(false);
   const [recordPhase, setRecordPhase] = useState<RecordPhase>("idle");
   const [recordCountIn, setRecordCountIn] = useState<RecordCountInState | null>(null);
   const [countInNowMs, setCountInNowMs] = useState(0);
@@ -272,7 +272,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
       audioEngineRef.current?.setRecordingTrack(null);
       recordPassRef.current = null;
       setRecordingTrackId(null);
-      setRecordEnabled(false);
+      setRecordingActive(false);
       setRecordPhase("idle");
       setRecordCountIn(null);
       setRecordingHintText(null);
@@ -348,7 +348,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
     };
     setPlayheadBeat(userCueBeat);
     setRecordingTrackId(selectedTrack.id);
-    setRecordEnabled(true);
+    setRecordingActive(true);
     setRecordCountIn(countIn);
     setCountInNowMs(countIn.startedAtMs);
     setRecordPhase("count_in");
@@ -561,7 +561,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
   }, []);
 
   const activeRecordingTrackId =
-    recordingTrackId ?? recordCountIn?.trackId ?? (recordEnabled ? (selectedTrack?.id ?? null) : null);
+    recordingTrackId ?? recordCountIn?.trackId ?? (recordingActive ? (selectedTrack?.id ?? null) : null);
   const pressedRecordingPitches = Array.from(activeRecordKeys.current.values()).map((entry) => entry.pitchStr);
   const activeRecordedNotes = Array.from(activeRecordKeys.current.values()).map((entry) => ({
     trackId: entry.trackId,
@@ -585,7 +585,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
         : "";
 
   return {
-    recordEnabled,
+    recordingActive,
     recordPhase,
     recordCountIn,
     recordingTrackId,
@@ -596,7 +596,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
     ghostPlayheadBeat,
     countInLabel,
     recordStatusText,
-    setRecordEnabled,
+    setRecordingActive,
     startRecordMode,
     stopRecordSession,
     handlePlayheadBeat,

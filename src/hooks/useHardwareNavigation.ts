@@ -11,6 +11,7 @@ export function useHardwareNavigation(args: UseHardwareNavigationArgs): Hardware
 
   const base = useBaseHardwareNavigation({
     ...args,
+    canShiftPitchPreview: !args.isPlaying && args.recordPhase === "idle",
     interactionLocked: Boolean(activePlacement)
   });
 

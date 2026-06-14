@@ -62,15 +62,15 @@ export const resolveComposerHorizontalArrowIntent = ({
   }
   if (hasContentSelection) {
     if (measureNavigationModifierPressed && shiftKey) {
-      return hasSingleNoteSelection ? { kind: "select-measure-relative-note" } : { kind: "none" };
-    }
-    if (shiftKey) {
-      return hasSingleNoteSelection ? { kind: "select-adjacent-note" } : { kind: "none" };
-    }
-    if (measureNavigationModifierPressed) {
       return hasSingleNoteSelection ? { kind: "nudge-content", beatSpan: "measure" } : { kind: "none" };
     }
-    return { kind: "nudge-content", beatSpan: "grid" };
+    if (shiftKey) {
+      return { kind: "nudge-content", beatSpan: "grid" };
+    }
+    if (measureNavigationModifierPressed) {
+      return hasSingleNoteSelection ? { kind: "select-measure-relative-note" } : { kind: "none" };
+    }
+    return hasSingleNoteSelection ? { kind: "select-adjacent-note" } : { kind: "none" };
   }
   if (hasTimelineSelection) {
     return selectionCaptureFocused ? { kind: "clear-timeline-focus" } : { kind: "nudge-playhead", beatSpan: "grid" };

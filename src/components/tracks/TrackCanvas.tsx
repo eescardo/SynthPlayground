@@ -492,6 +492,12 @@ export function TrackCanvas(props: TrackCanvasProps) {
     setSelectedContentTabStopFocused(false);
   }, [selectedContentTabStopRect]);
 
+  const visibleBeatStart = Math.max(0, viewport.scrollLeft / beatWidth);
+  const visibleBeatRange = {
+    startBeat: visibleBeatStart,
+    endBeat: Math.max(visibleBeatStart, (viewport.scrollLeft + viewport.width - HEADER_WIDTH) / beatWidth)
+  };
+
   return (
     <TrackCanvasOverlays
       project={project}
@@ -502,6 +508,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
       trackLayouts={trackLayouts}
       width={width}
       height={height}
+      beatWidth={beatWidth}
+      visibleBeatRange={visibleBeatRange}
       canvasCursor={canvasCursor}
       selectedTrackId={selectedTrackId}
       invalidPatchIds={invalidPatchIds}

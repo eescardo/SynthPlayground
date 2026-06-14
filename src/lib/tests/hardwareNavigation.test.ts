@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   findAdjacentTrackNote,
+  findClosestTrackNoteToBeat,
+  findNextVisibleTrackNoteAfterBeat,
   findTrackBoundaryNote,
   findTrackBackspaceTargetNote,
   findTrackNoteByMeasureOffset,
@@ -95,6 +97,29 @@ describe("hardware navigation note placement", () => {
     ]);
 
     expect(findTrackBackspaceTargetNote(track, 1)?.id).toBe("left");
+  });
+
+  it("finds the nearest visible note after the playhead for tab targeting", () => {
+    const track = createTrack([
+      { id: "before", pitchStr: "B3", startBeat: 2, durationBeats: 1, velocity: 0.8 },
+      { id: "next", pitchStr: "C4", startBeat: 6, durationBeats: 1, velocity: 0.8 },
+      { id: "later", pitchStr: "D4", startBeat: 9, durationBeats: 1, velocity: 0.8 }
+    ]);
+
+    expect(findNextVisibleTrackNoteAfterBeat(track, 4, { startBeat: 3, endBeat: 8 })?.id).toBe("next");
+    expect(findNextVisibleTrackNoteAfterBeat(track, 4, { startBeat: 3, endBeat: 5 })).toBeNull();
+  });
+
+  it("finds the closest note to a beat when transferring note focus across tracks", () => {
+    const track = createTrack([
+      { id: "early", pitchStr: "C4", startBeat: 1, durationBeats: 1, velocity: 0.8 },
+      { id: "closest", pitchStr: "D4", startBeat: 6, durationBeats: 1, velocity: 0.8 },
+      { id: "late", pitchStr: "E4", startBeat: 10, durationBeats: 1, velocity: 0.8 }
+    ]);
+
+    expect(findClosestTrackNoteToBeat(track, 6.4)?.id).toBe("closest");
+    expect(findClosestTrackNoteToBeat(track, 8)?.id).toBe("closest");
+    expect(findClosestTrackNoteToBeat(createTrack([]), 8)).toBeNull();
   });
 
   it("finds adjacent notes around a selected note in track order", () => {
