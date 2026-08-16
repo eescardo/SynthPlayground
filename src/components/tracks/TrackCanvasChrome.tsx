@@ -319,20 +319,45 @@ export function TrackHeaderChrome({
     position: "before" | "after";
   } | null>(null);
 
-  const updateTrackDropTarget = (event: DragEvent<HTMLElement>, targetTrackId: string, layout: TrackLayout) => {
-    if (!trackDrag || trackDrag.trackId === targetTrackId) {
+  const resolveTrackDropTarget = (clientY: number) => {
+    const shellRect = canvasShellRef.current?.getBoundingClientRect();
+    const pointerCanvasY = shellRect ? clientY - shellRect.top + (canvasShellRef.current?.scrollTop ?? 0) : clientY;
+    const layout = trackLayouts.find(
+      (candidate) => pointerCanvasY >= candidate.y && pointerCanvasY <= candidate.y + candidate.height
+    );
+    if (!layout) {
+      return null;
+    }
+    const position = pointerCanvasY < layout.y + layout.height / 2 ? "before" : "after";
+    return { targetTrackId: layout.trackId, position } as const;
+  };
+
+  const updateTrackDropTarget = (event: DragEvent<HTMLElement>) => {
+    if (!trackDrag) {
+      return;
+    }
+    const dropTarget = resolveTrackDropTarget(event.clientY);
+    if (!dropTarget) {
       return;
     }
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
-    const shellRect = canvasShellRef.current?.getBoundingClientRect();
-    const pointerCanvasY = shellRect
-      ? event.clientY - shellRect.top + (canvasShellRef.current?.scrollTop ?? 0)
-      : layout.y;
-    const position = pointerCanvasY < layout.y + layout.height / 2 ? "before" : "after";
-    if (trackDrag.targetTrackId !== targetTrackId || trackDrag.position !== position) {
-      setTrackDrag({ trackId: trackDrag.trackId, targetTrackId, position });
+    if (trackDrag.targetTrackId !== dropTarget.targetTrackId || trackDrag.position !== dropTarget.position) {
+      setTrackDrag({ trackId: trackDrag.trackId, ...dropTarget });
     }
+  };
+
+  const commitTrackDrop = (event: DragEvent<HTMLElement>) => {
+    if (!trackDrag) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const dropTarget = resolveTrackDropTarget(event.clientY);
+    if (dropTarget && trackDrag.trackId !== dropTarget.targetTrackId) {
+      trackActions.onMoveTrack(trackDrag.trackId, dropTarget.targetTrackId, dropTarget.position);
+    }
+    setTrackDrag(null);
   };
 
   useEffect(() => {
@@ -372,6 +397,8 @@ export function TrackHeaderChrome({
       className={styles.headerOverlays}
       data-track-chrome="header-overlays"
       style={{ "--track-header-width": `${HEADER_WIDTH}px` } as CSSProperties}
+      onDragOver={updateTrackDropTarget}
+      onDrop={commitTrackDrop}
     >
       <div className={styles.headerMask} style={{ height: `${canvasHeight}px` }} />
       {project.tracks.map((track) => {
@@ -429,15 +456,6 @@ export function TrackHeaderChrome({
                 event.dataTransfer.effectAllowed = "move";
                 event.dataTransfer.setData("text/plain", track.id);
                 setTrackDrag({ trackId: track.id, targetTrackId: track.id, position: "before" });
-              }}
-              onDragOver={(event) => updateTrackDropTarget(event, track.id, layout)}
-              onDrop={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (trackDrag && trackDrag.trackId !== track.id) {
-                  trackActions.onMoveTrack(trackDrag.trackId, track.id, trackDrag.position);
-                }
-                setTrackDrag(null);
               }}
               onDragEnd={() => setTrackDrag(null)}
               onPointerDown={(event) => event.stopPropagation()}
