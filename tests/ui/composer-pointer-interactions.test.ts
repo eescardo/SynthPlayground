@@ -289,19 +289,18 @@ describe.sequential("composer pointer interactions", () => {
           await expect(page.locator(".playhead")).toHaveText("Beat 3");
 
           await shell.evaluate((element) => {
-            element.scrollTop = 0;
+            element.scrollTop = 300;
           });
           const trackRows = page.getByTestId("track-header-row");
-          await trackRows.first().dragTo(trackRows.nth(1), {
-            targetPosition: { x: 80, y: TRACK_HEIGHT - 4 }
-          });
+          const trackPatchSelectors = page.locator('[data-track-control="instrument-selection"]');
+          await trackRows.nth(8).dragTo(trackPatchSelectors.nth(9));
 
           await expect
             .poll(async () => (await readActiveProject(page)).tracks.map((track) => track.id))
             .toEqual([
-              seededProject.tracks[1].id,
-              seededProject.tracks[0].id,
-              ...seededProject.tracks.slice(2).map((track) => track.id)
+              ...seededProject.tracks.slice(0, 8).map((track) => track.id),
+              seededProject.tracks[9].id,
+              seededProject.tracks[8].id
             ]);
         } finally {
           await page.close();
