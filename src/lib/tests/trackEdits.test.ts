@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createDefaultProject } from "@/lib/patch/presets";
-import { removeTrackFromProject, renameTrackInProject } from "@/lib/trackEdits";
+import { moveTrackInProject, removeTrackFromProject, renameTrackInProject } from "@/lib/trackEdits";
 
 describe("trackEdits", () => {
   it("renames a matching track and trims whitespace", () => {
@@ -37,5 +37,25 @@ describe("trackEdits", () => {
     };
 
     expect(removeTrackFromProject(singleTrackProject, project.tracks[0].id)).toBe(singleTrackProject);
+  });
+
+  it("moves tracks before or after another track without changing track data", () => {
+    const project = createDefaultProject();
+    const [first, second, ...rest] = project.tracks;
+
+    const movedAfter = moveTrackInProject(project, first.id, second.id, "after");
+    expect(movedAfter.tracks).toEqual([second, first, ...rest]);
+
+    const movedBefore = moveTrackInProject(movedAfter, first.id, second.id, "before");
+    expect(movedBefore.tracks).toEqual(project.tracks);
+  });
+
+  it("ignores invalid and no-op track moves", () => {
+    const project = createDefaultProject();
+    const [first, second] = project.tracks;
+
+    expect(moveTrackInProject(project, "missing", second.id, "before")).toBe(project);
+    expect(moveTrackInProject(project, first.id, first.id, "after")).toBe(project);
+    expect(moveTrackInProject(project, first.id, second.id, "before")).toBe(project);
   });
 });

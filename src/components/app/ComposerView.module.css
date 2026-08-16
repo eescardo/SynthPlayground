@@ -1,0 +1,22 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  height: calc(100dvh - 1.6rem);
+  min-height: 0;
+}
+
+.topChrome {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 0.8rem;
+  z-index: 6;
+}
+
+.canvasRegion {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
