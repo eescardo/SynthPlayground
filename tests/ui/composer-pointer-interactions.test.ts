@@ -249,6 +249,69 @@ describe.sequential("composer pointer interactions", () => {
       await browser.close();
     }
   }, 120_000);
+
+  test("keeps composer chrome and the beat ruler fixed while tracks scroll, and reorders tracks by drag and drop", async () => {
+    const devServer = startDevServer(PORT);
+    cleanupProcesses.add(devServer);
+
+    await waitForServer(BASE_URL, 120_000);
+
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const context = await browser.newContext({
+        baseURL: BASE_URL,
+        viewport: { width: 1400, height: 620 }
+      });
+
+      try {
+        const page = await context.newPage();
+        try {
+          const seededProject = createManyTrackComposerProject(10);
+          await openSeededApp(page, seededProject);
+
+          const shell = page.locator(".track-canvas-shell");
+          const transport = page.locator(".transport");
+          const stickyRuler = shell.locator('[class*="stickyRuler"] canvas');
+          const mainCanvas = shell.locator(":scope > canvas");
+          const transportTop = (await transport.boundingBox())?.y;
+          const shellTop = (await shell.boundingBox())?.y;
+
+          await shell.evaluate((element) => {
+            element.scrollTop = 240;
+          });
+
+          await expect.poll(() => shell.evaluate((element) => element.scrollTop)).toBe(240);
+          expect((await transport.boundingBox())?.y).toBe(transportTop);
+          expect((await stickyRuler.boundingBox())?.y).toBe((shellTop ?? 0) + 1);
+          expect((await mainCanvas.boundingBox())?.y).toBeLessThan(shellTop ?? 0);
+
+          await shell.click({ position: { x: HEADER_WIDTH + 2 * BEAT_WIDTH, y: RULER_HEIGHT / 2 } });
+          await expect(page.locator(".playhead")).toHaveText("Beat 3");
+
+          await shell.evaluate((element) => {
+            element.scrollTop = 300;
+          });
+          const trackRows = page.getByTestId("track-header-row");
+          const trackPatchSelectors = page.locator('[data-track-control="instrument-selection"]');
+          await trackRows.nth(8).dragTo(trackPatchSelectors.nth(9));
+
+          await expect
+            .poll(async () => (await readActiveProject(page)).tracks.map((track) => track.id))
+            .toEqual([
+              ...seededProject.tracks.slice(0, 8).map((track) => track.id),
+              seededProject.tracks[9].id,
+              seededProject.tracks[8].id
+            ]);
+        } finally {
+          await page.close();
+        }
+      } finally {
+        await context.close();
+      }
+    } finally {
+      await browser.close();
+    }
+  }, 120_000);
 });
 
 const createEmptyComposerProject = (options?: { compositionEndBeat?: number }): Project => {
@@ -260,6 +323,22 @@ const createEmptyComposerProject = (options?: { compositionEndBeat?: number }): 
       compositionEnd: options?.compositionEndBeat === undefined ? undefined : { beat: options.compositionEndBeat }
     },
     tracks: project.tracks.map((track) => ({ ...track, notes: [] }))
+  };
+};
+
+const createManyTrackComposerProject = (trackCount: number): Project => {
+  const project = createEmptyComposerProject();
+  const sourceTracks = project.tracks;
+  return {
+    ...project,
+    tracks: Array.from({ length: trackCount }, (_, index) => {
+      const source = sourceTracks[index % sourceTracks.length];
+      return {
+        ...structuredClone(source),
+        id: `scroll-track-${index + 1}`,
+        name: `Scroll Track ${index + 1}`
+      };
+    })
   };
 };
 

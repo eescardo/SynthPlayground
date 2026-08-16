@@ -1,4 +1,4 @@
-import { CSSProperties, Dispatch, RefObject, SetStateAction, useEffect, useState } from "react";
+import { CSSProperties, Dispatch, DragEvent, RefObject, SetStateAction, useEffect, useState } from "react";
 import { MacroPanel, MacroPanelRow } from "@/components/tracks/MacroPanel";
 import { PatchSummaryPopover } from "@/components/PatchSummaryPopover";
 import { TrackPanPopover } from "@/components/TrackPanPopover";
@@ -313,6 +313,52 @@ export function TrackHeaderChrome({
     cancelPatchSummaryDismiss
   } = usePatchSummaryPopover({ selectedTrackId });
   const [canvasViewport, setCanvasViewport] = useState({ left: 0, top: 0, scrollTop: 0 });
+  const [trackDrag, setTrackDrag] = useState<{
+    trackId: string;
+    targetTrackId: string;
+    position: "before" | "after";
+  } | null>(null);
+
+  const resolveTrackDropTarget = (clientY: number) => {
+    const shellRect = canvasShellRef.current?.getBoundingClientRect();
+    const pointerCanvasY = shellRect ? clientY - shellRect.top + (canvasShellRef.current?.scrollTop ?? 0) : clientY;
+    const layout = trackLayouts.find(
+      (candidate) => pointerCanvasY >= candidate.y && pointerCanvasY <= candidate.y + candidate.height
+    );
+    if (!layout) {
+      return null;
+    }
+    const position = pointerCanvasY < layout.y + layout.height / 2 ? "before" : "after";
+    return { targetTrackId: layout.trackId, position } as const;
+  };
+
+  const updateTrackDropTarget = (event: DragEvent<HTMLElement>) => {
+    if (!trackDrag) {
+      return;
+    }
+    const dropTarget = resolveTrackDropTarget(event.clientY);
+    if (!dropTarget) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (trackDrag.targetTrackId !== dropTarget.targetTrackId || trackDrag.position !== dropTarget.position) {
+      setTrackDrag({ trackId: trackDrag.trackId, ...dropTarget });
+    }
+  };
+
+  const commitTrackDrop = (event: DragEvent<HTMLElement>) => {
+    if (!trackDrag) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const dropTarget = resolveTrackDropTarget(event.clientY);
+    if (dropTarget && trackDrag.trackId !== dropTarget.targetTrackId) {
+      trackActions.onMoveTrack(trackDrag.trackId, dropTarget.targetTrackId, dropTarget.position);
+    }
+    setTrackDrag(null);
+  };
 
   useEffect(() => {
     const shell = canvasShellRef.current;
@@ -351,6 +397,8 @@ export function TrackHeaderChrome({
       className={styles.headerOverlays}
       data-track-chrome="header-overlays"
       style={{ "--track-header-width": `${HEADER_WIDTH}px` } as CSSProperties}
+      onDragOver={updateTrackDropTarget}
+      onDrop={commitTrackDrop}
     >
       <div className={styles.headerMask} style={{ height: `${canvasHeight}px` }} />
       {project.tracks.map((track) => {
@@ -395,10 +443,21 @@ export function TrackHeaderChrome({
               className={`${styles.headerRow}${selected ? ` ${styles.headerRowSelected}` : ""}${
                 patchInvalid ? ` ${styles.headerRowInvalid}` : ""
               }`}
+              data-testid="track-header-row"
+              data-track-id={track.id}
               style={{
                 top: `${layout.y}px`,
                 height: `${layout.height}px`
               }}
+              draggable
+              title={`Drag to reorder ${track.name}`}
+              onDragStart={(event) => {
+                event.stopPropagation();
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", track.id);
+                setTrackDrag({ trackId: track.id, targetTrackId: track.id, position: "before" });
+              }}
+              onDragEnd={() => setTrackDrag(null)}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation();
@@ -412,7 +471,17 @@ export function TrackHeaderChrome({
                 trackActions.onToggleTrackMacroPanel(track.id);
               }}
               onContextMenu={(event) => event.preventDefault()}
-            />
+            >
+              <span className={styles.trackDragGrip} aria-hidden="true">
+                ⠿
+              </span>
+            </div>
+            {trackDrag?.targetTrackId === track.id && trackDrag.trackId !== track.id && (
+              <div
+                className={styles.trackDropIndicator}
+                style={{ top: `${trackDrag.position === "before" ? layout.y : layout.y + layout.height}px` }}
+              />
+            )}
             <button
               type="button"
               className={`${styles.trackNameButton}${
