@@ -23,6 +23,7 @@
     "benchmark:audio:compare": "node --import tsx scripts/audio-benchmarks/compare.ts",
     "profile:audio": "node --expose-gc --import tsx scripts/audio-benchmarks/profile-audio.ts",
     "profile:preview-probes": "node --expose-gc --import tsx scripts/audio-benchmarks/profile-preview-probes.ts",
+    "release:tag": "node scripts/release/create-release-tag.mjs",
     "presets:manifest": "node --import tsx scripts/generate-preset-manifest.ts --write",
     "node-params": "node --import tsx scripts/generate-node-params.ts",
     "rust:node-params": "pnpm run node-params",
