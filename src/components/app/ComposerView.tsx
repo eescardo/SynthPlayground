@@ -12,6 +12,7 @@ import { RecentProjectSnapshot } from "@/lib/persistence";
 import { useComposerQuickHelpDialog } from "@/hooks/useComposerQuickHelpDialog";
 import { usePlatformShortcuts } from "@/hooks/usePlatformShortcuts";
 import { Project } from "@/types/music";
+import styles from "./ComposerView.module.css";
 
 export interface ComposerViewProps {
   project: Project;
@@ -131,79 +132,85 @@ export function ComposerView(props: ComposerViewProps) {
 
   return (
     <>
-      <TransportBar
-        projectName={props.project.name}
-        tempo={props.project.global.tempo}
-        meter={props.project.global.meter}
-        gridBeats={props.project.global.gridBeats}
-        playheadBeat={props.transport.playheadBeat}
-        importInputRef={props.projectMenu.importInputRef}
-        recentProjects={props.projectMenu.recentProjects}
-        onRenameProject={props.projectActions.onRenameProject}
-        onNewProject={props.projectMenu.onNewProject}
-        onOpenPatchWorkspace={props.projectActions.onOpenPatchWorkspace}
-        onExportAudio={props.projectActions.onExportAudio}
-        exportAudioDisabled={props.transport.exportingAudio}
-        onTempoChange={props.projectActions.onTempoChange}
-        onMeterChange={props.projectActions.onMeterChange}
-        onGridChange={props.projectActions.onGridChange}
-        onExportJson={props.projectMenu.onExportJson}
-        onImportJson={props.projectMenu.onImportJson}
-        onOpenRecentProject={props.projectMenu.onOpenRecentProject}
-        onResetToDefaultProject={props.projectMenu.onResetToDefaultProject}
-        onImportFile={props.projectMenu.onImportFile}
-        onOpenHelp={openHelp}
-      />
+      <div className={styles.layout}>
+        <div className={styles.topChrome}>
+          <TransportBar
+            projectName={props.project.name}
+            tempo={props.project.global.tempo}
+            meter={props.project.global.meter}
+            gridBeats={props.project.global.gridBeats}
+            playheadBeat={props.transport.playheadBeat}
+            importInputRef={props.projectMenu.importInputRef}
+            recentProjects={props.projectMenu.recentProjects}
+            onRenameProject={props.projectActions.onRenameProject}
+            onNewProject={props.projectMenu.onNewProject}
+            onOpenPatchWorkspace={props.projectActions.onOpenPatchWorkspace}
+            onExportAudio={props.projectActions.onExportAudio}
+            exportAudioDisabled={props.transport.exportingAudio}
+            onTempoChange={props.projectActions.onTempoChange}
+            onMeterChange={props.projectActions.onMeterChange}
+            onGridChange={props.projectActions.onGridChange}
+            onExportJson={props.projectMenu.onExportJson}
+            onImportJson={props.projectMenu.onImportJson}
+            onOpenRecentProject={props.projectMenu.onOpenRecentProject}
+            onResetToDefaultProject={props.projectMenu.onResetToDefaultProject}
+            onImportFile={props.projectMenu.onImportFile}
+            onOpenHelp={openHelp}
+          />
 
-      <ComposerActionsBar
-        runtimeErrorMessage={props.runtimeErrorMessage}
-        mutationDisabled={props.recording.mutationDisabled}
-        recordingActive={props.recording.recordingActive}
-        isPlaying={props.recording.isPlaying}
-        recordPhase={props.recording.recordPhase}
-        countInLabel={props.recording.countInLabel}
-        pitchPreviewMode={props.pitchPreviewMode}
-        pitchPreviewPitch={props.pitchPreviewPitch}
-        playbackStopMode={props.transport.playbackStopMode}
-        canRemoveTrack={props.project.tracks.length > 1}
-        onOpenPitchPreviewPicker={props.projectActions.onOpenPitchPreviewPicker}
-        onPlay={props.transportActions.onPlay}
-        onStop={props.transportActions.onStop}
-        onTogglePlaybackStopMode={props.transportActions.onTogglePlaybackStopMode}
-        onToggleRecord={props.transportActions.onToggleRecord}
-        onClearProject={props.projectActions.onClearCurrentProject}
-        onAddTrack={props.projectActions.onAddTrack}
-        onRemoveTrack={props.projectActions.onRemoveTrack}
-      />
+          <ComposerActionsBar
+            runtimeErrorMessage={props.runtimeErrorMessage}
+            mutationDisabled={props.recording.mutationDisabled}
+            recordingActive={props.recording.recordingActive}
+            isPlaying={props.recording.isPlaying}
+            recordPhase={props.recording.recordPhase}
+            countInLabel={props.recording.countInLabel}
+            pitchPreviewMode={props.pitchPreviewMode}
+            pitchPreviewPitch={props.pitchPreviewPitch}
+            playbackStopMode={props.transport.playbackStopMode}
+            canRemoveTrack={props.project.tracks.length > 1}
+            onOpenPitchPreviewPicker={props.projectActions.onOpenPitchPreviewPicker}
+            onPlay={props.transportActions.onPlay}
+            onStop={props.transportActions.onStop}
+            onTogglePlaybackStopMode={props.transportActions.onTogglePlaybackStopMode}
+            onToggleRecord={props.transportActions.onToggleRecord}
+            onClearProject={props.projectActions.onClearCurrentProject}
+            onAddTrack={props.projectActions.onAddTrack}
+            onRemoveTrack={props.projectActions.onRemoveTrack}
+          />
+        </div>
 
-      <TrackCanvas
-        project={props.project}
-        invalidPatchIds={props.invalidPatchIds}
-        selectedTrackId={props.selectedTrackId}
-        defaultPitch={props.defaultPitch}
-        selection={props.canvasSelection}
-        playheadBeat={props.transport.playheadBeat}
-        isPlaying={props.recording.isPlaying}
-        activeRecordedNotes={props.recording.activeRecordedNotes}
-        keyboardPlacementNote={props.canvasPreview.keyboardPlacementNote}
-        ghostPreviewNote={props.canvasPreview.ghostPreviewNote}
-        tabSelectionPreviewNote={props.canvasPreview.tabSelectionPreviewNote}
-        playheadFocused={props.canvasPreview.playheadFocused}
-        selectedContentTabStopFocusToken={props.canvasPreview.selectedContentTabStopFocusToken}
-        ghostPlayheadBeat={props.recording.ghostPlayheadBeat}
-        countInLabel={props.recording.countInLabel}
-        timelineActionsPopoverOpen={Boolean(props.timeline.timelineActionsPopover)}
-        selectionMarqueeActive={props.canvasPreview.selectionMarqueeActive}
-        hideSelectionActionPopover={!props.canvasPreview.selectionActionPopoverVisible}
-        onSetPlayheadBeat={props.projectActions.onSetPlayheadBeat}
-        onReturnSelectedNoteFocusToPlayhead={props.projectActions.onReturnSelectedNoteFocusToPlayhead}
-        onRequestTimelineActionsPopover={props.timelineActions.onRequestTimelineActionsPopover}
-        trackActions={props.trackActions}
-        patchActions={props.patchActions}
-        automationActions={props.automationActions}
-        noteActions={props.noteActions}
-        selectionActions={props.selectionActions}
-      />
+        <div className={styles.canvasRegion}>
+          <TrackCanvas
+            project={props.project}
+            invalidPatchIds={props.invalidPatchIds}
+            selectedTrackId={props.selectedTrackId}
+            defaultPitch={props.defaultPitch}
+            selection={props.canvasSelection}
+            playheadBeat={props.transport.playheadBeat}
+            isPlaying={props.recording.isPlaying}
+            activeRecordedNotes={props.recording.activeRecordedNotes}
+            keyboardPlacementNote={props.canvasPreview.keyboardPlacementNote}
+            ghostPreviewNote={props.canvasPreview.ghostPreviewNote}
+            tabSelectionPreviewNote={props.canvasPreview.tabSelectionPreviewNote}
+            playheadFocused={props.canvasPreview.playheadFocused}
+            selectedContentTabStopFocusToken={props.canvasPreview.selectedContentTabStopFocusToken}
+            ghostPlayheadBeat={props.recording.ghostPlayheadBeat}
+            countInLabel={props.recording.countInLabel}
+            timelineActionsPopoverOpen={Boolean(props.timeline.timelineActionsPopover)}
+            selectionMarqueeActive={props.canvasPreview.selectionMarqueeActive}
+            hideSelectionActionPopover={!props.canvasPreview.selectionActionPopoverVisible}
+            onSetPlayheadBeat={props.projectActions.onSetPlayheadBeat}
+            onReturnSelectedNoteFocusToPlayhead={props.projectActions.onReturnSelectedNoteFocusToPlayhead}
+            onRequestTimelineActionsPopover={props.timelineActions.onRequestTimelineActionsPopover}
+            trackActions={props.trackActions}
+            patchActions={props.patchActions}
+            automationActions={props.automationActions}
+            noteActions={props.noteActions}
+            selectionActions={props.selectionActions}
+          />
+        </div>
+      </div>
 
       {props.timeline.timelineActionsPopover && (
         <TimelineActionsPopover

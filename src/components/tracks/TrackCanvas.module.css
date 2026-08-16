@@ -1,10 +1,11 @@
 .shell {
   position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
   background: rgba(9, 17, 26, 0.8);
   border: 1px solid var(--border);
   border-radius: 10px;
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: auto;
   overscroll-behavior-x: contain;
   overscroll-behavior-y: auto;
   max-width: 100%;
@@ -14,15 +15,54 @@
   display: block;
 }
 
-.headerOverlays {
+.stickyRuler {
   position: sticky;
   top: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.stickyRuler canvas {
+  display: block;
+}
+
+.headerOverlays {
+  position: sticky;
   left: 0;
   width: var(--track-header-width);
   height: 0;
   overflow: visible;
   pointer-events: none;
   z-index: 3;
+}
+
+.trackDragGrip {
+  position: absolute;
+  top: 8px;
+  left: 118px;
+  color: rgba(167, 204, 240, 0.58);
+  font-size: 15px;
+  line-height: 20px;
+  pointer-events: none;
+}
+
+.headerRow:hover .trackDragGrip {
+  color: rgba(214, 235, 255, 0.92);
+}
+
+.trackDropIndicator {
+  position: absolute;
+  left: 4px;
+  width: calc(var(--track-header-width) - 8px);
+  height: 3px;
+  border-radius: 999px;
+  background: #79c8ff;
+  box-shadow: 0 0 8px rgba(79, 184, 255, 0.8);
+  pointer-events: none;
+  transform: translateY(-1px);
+  z-index: 5;
 }
 
 .headerMask {
@@ -43,6 +83,11 @@
   z-index: 2;
   background: #121b27;
   border-bottom: 1px solid #1a2e42;
+  cursor: grab;
+}
+
+.headerRow:active {
+  cursor: grabbing;
 }
 
 .headerRowSelected {

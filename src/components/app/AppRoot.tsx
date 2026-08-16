@@ -58,7 +58,12 @@ import {
   createEmptyProjectAssetLibrary,
   upsertSamplePlayerAssetData
 } from "@/lib/sampleAssetLibrary";
-import { removeTrackFromProject, renameTrackInProject, switchTrackPatchInProject } from "@/lib/trackEdits";
+import {
+  moveTrackInProject,
+  removeTrackFromProject,
+  renameTrackInProject,
+  switchTrackPatchInProject
+} from "@/lib/trackEdits";
 import { useNoteEditor } from "@/hooks/useNoteEditor";
 import { useLoopSettings } from "@/hooks/useLoopSettings";
 import { useExplodeSelectionDialog } from "@/hooks/useExplodeSelectionDialog";
@@ -1253,6 +1258,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
     trackActions: {
       onSelectTrack: setSelectedTrackId,
       onRenameTrack: renameTrack,
+      onMoveTrack: (trackId, targetTrackId, position) => {
+        commitProjectChange((current) => moveTrackInProject(current, trackId, targetTrackId, position), {
+          actionKey: `track:${trackId}:move`
+        });
+      },
       onToggleTrackMute: toggleTrackMute,
       onSetTrackVolume: setTrackVolume,
       onSetTrackPan: setTrackPan,
