@@ -319,6 +319,31 @@ describe.sequential("composer pointer interactions", () => {
       );
       await expect(reorderStatus).toHaveText("Moved Scroll Track 10 to position 9 of 10.");
 
+      await page.keyboard.press("Control+z");
+      await expect.poll(() => readTrackIds(page)).toEqual(seededProject.tracks.map((track) => track.id));
+      await expect(lastTrackHandle).toBeFocused();
+
+      await reorderStatus.evaluate((element) => {
+        const observedWindow = window as typeof window & { trackReorderAnnouncementMutations?: string[] };
+        observedWindow.trackReorderAnnouncementMutations = [];
+        new MutationObserver(() => {
+          observedWindow.trackReorderAnnouncementMutations?.push(element.textContent ?? "");
+        }).observe(element, { childList: true, characterData: true, subtree: true });
+      });
+
+      await page.keyboard.press("ArrowUp");
+      await expect.poll(() => readTrackIds(page)).toEqual(reorderedLastTrackIds(seededProject));
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () =>
+              (window as typeof window & { trackReorderAnnouncementMutations?: string[] })
+                .trackReorderAnnouncementMutations
+          )
+        )
+        .toEqual(["", "Moved Scroll Track 10 to position 9 of 10."]);
+      await expect(lastTrackHandle).toBeFocused();
+
       await page.keyboard.press("ArrowDown");
       await expect.poll(() => readTrackIds(page)).toEqual(seededProject.tracks.map((track) => track.id));
       await expect(lastTrackHandle).toBeFocused();

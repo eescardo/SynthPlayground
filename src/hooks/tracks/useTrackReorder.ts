@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { DragEvent, KeyboardEvent, RefObject } from "react";
 import { resolveTrackDropTarget, type TrackDropTarget } from "@/components/tracks/trackReorder";
 import type { TrackLayout } from "@/components/tracks/trackCanvasTypes";
@@ -19,6 +19,27 @@ interface UseTrackReorderOptions {
 export function useTrackReorder({ canvasShellRef, tracks, trackLayouts, onMoveTrack }: UseTrackReorderOptions) {
   const [dragState, setDragState] = useState<TrackReorderDragState | null>(null);
   const [keyboardAnnouncement, setKeyboardAnnouncement] = useState("");
+  const keyboardAnnouncementTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (keyboardAnnouncementTimerRef.current !== null) {
+        clearTimeout(keyboardAnnouncementTimerRef.current);
+      }
+    },
+    []
+  );
+
+  const announceKeyboardMove = useCallback((message: string) => {
+    if (keyboardAnnouncementTimerRef.current !== null) {
+      clearTimeout(keyboardAnnouncementTimerRef.current);
+    }
+    setKeyboardAnnouncement("");
+    keyboardAnnouncementTimerRef.current = setTimeout(() => {
+      setKeyboardAnnouncement(message);
+      keyboardAnnouncementTimerRef.current = null;
+    }, 0);
+  }, []);
 
   const resolveDropTarget = useCallback(
     (clientY: number) => {
@@ -94,11 +115,9 @@ export function useTrackReorder({ canvasShellRef, tracks, trackLayouts, onMoveTr
         return;
       }
       onMoveTrack(trackId, targetTrack.id, direction < 0 ? "before" : "after");
-      setKeyboardAnnouncement(
-        `Moved ${sourceTrack.name} to position ${sourceIndex + direction + 1} of ${tracks.length}.`
-      );
+      announceKeyboardMove(`Moved ${sourceTrack.name} to position ${sourceIndex + direction + 1} of ${tracks.length}.`);
     },
-    [onMoveTrack, tracks]
+    [announceKeyboardMove, onMoveTrack, tracks]
   );
 
   return {
