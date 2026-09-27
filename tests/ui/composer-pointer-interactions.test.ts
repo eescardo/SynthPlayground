@@ -291,17 +291,52 @@ describe.sequential("composer pointer interactions", () => {
           await shell.evaluate((element) => {
             element.scrollTop = 300;
           });
-          const trackRows = page.getByTestId("track-header-row");
+          const reorderHandles = page.getByTestId("track-reorder-handle");
           const trackPatchSelectors = page.locator('[data-track-control="instrument-selection"]');
-          await trackRows.nth(8).dragTo(trackPatchSelectors.nth(9));
+          await reorderHandles.nth(8).dragTo(trackPatchSelectors.nth(9));
 
+          const movedTrackIds = [
+            ...seededProject.tracks.slice(0, 8).map((track) => track.id),
+            seededProject.tracks[9].id,
+            seededProject.tracks[8].id
+          ];
           await expect
             .poll(async () => (await readActiveProject(page)).tracks.map((track) => track.id))
-            .toEqual([
-              ...seededProject.tracks.slice(0, 8).map((track) => track.id),
-              seededProject.tracks[9].id,
-              seededProject.tracks[8].id
-            ]);
+            .toEqual(movedTrackIds);
+          expect(await page.getByTestId("track-name-button").allTextContents()).toEqual([
+            ...seededProject.tracks.slice(0, 8).map((track) => track.name),
+            seededProject.tracks[9].name,
+            seededProject.tracks[8].name
+          ]);
+
+          await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+          await page.keyboard.press("Control+z");
+          await expect
+            .poll(async () => (await readActiveProject(page)).tracks.map((track) => track.id))
+            .toEqual(seededProject.tracks.map((track) => track.id));
+          expect(await page.getByTestId("track-name-button").allTextContents()).toEqual(
+            seededProject.tracks.map((track) => track.name)
+          );
+
+          const lastTrackHandle = page.locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-10"]');
+          await expect(lastTrackHandle).toHaveAccessibleName(
+            "Reorder Scroll Track 10, position 10 of 10. Use Arrow Up or Arrow Down to move."
+          );
+          await lastTrackHandle.focus();
+          await page.keyboard.press("ArrowUp");
+          await expect
+            .poll(async () => (await readActiveProject(page)).tracks.map((track) => track.id))
+            .toEqual(movedTrackIds);
+          await expect(lastTrackHandle).toBeFocused();
+          await expect(lastTrackHandle).toHaveAccessibleName(
+            "Reorder Scroll Track 10, position 9 of 10. Use Arrow Up or Arrow Down to move."
+          );
+
+          await page.keyboard.press("ArrowDown");
+          await expect
+            .poll(async () => (await readActiveProject(page)).tracks.map((track) => track.id))
+            .toEqual(seededProject.tracks.map((track) => track.id));
+          await expect(lastTrackHandle).toBeFocused();
         } finally {
           await page.close();
         }
