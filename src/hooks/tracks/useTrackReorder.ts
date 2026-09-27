@@ -11,13 +11,14 @@ export interface TrackReorderDragState extends TrackDropTarget {
 
 interface UseTrackReorderOptions {
   canvasShellRef: RefObject<HTMLDivElement | null>;
-  trackIds: string[];
+  tracks: Array<{ id: string; name: string }>;
   trackLayouts: TrackLayout[];
   onMoveTrack: (trackId: string, targetTrackId: string, position: "before" | "after") => void;
 }
 
-export function useTrackReorder({ canvasShellRef, trackIds, trackLayouts, onMoveTrack }: UseTrackReorderOptions) {
+export function useTrackReorder({ canvasShellRef, tracks, trackLayouts, onMoveTrack }: UseTrackReorderOptions) {
   const [dragState, setDragState] = useState<TrackReorderDragState | null>(null);
+  const [keyboardAnnouncement, setKeyboardAnnouncement] = useState("");
 
   const resolveDropTarget = useCallback(
     (clientY: number) => {
@@ -86,18 +87,23 @@ export function useTrackReorder({ canvasShellRef, trackIds, trackLayouts, onMove
       }
       event.preventDefault();
       event.stopPropagation();
-      const sourceIndex = trackIds.indexOf(trackId);
-      const targetTrackId = trackIds[sourceIndex + direction];
-      if (sourceIndex < 0 || !targetTrackId) {
+      const sourceIndex = tracks.findIndex((track) => track.id === trackId);
+      const targetTrack = tracks[sourceIndex + direction];
+      const sourceTrack = tracks[sourceIndex];
+      if (sourceIndex < 0 || !sourceTrack || !targetTrack) {
         return;
       }
-      onMoveTrack(trackId, targetTrackId, direction < 0 ? "before" : "after");
+      onMoveTrack(trackId, targetTrack.id, direction < 0 ? "before" : "after");
+      setKeyboardAnnouncement(
+        `Moved ${sourceTrack.name} to position ${sourceIndex + direction + 1} of ${tracks.length}.`
+      );
     },
-    [onMoveTrack, trackIds]
+    [onMoveTrack, tracks]
   );
 
   return {
     dragState,
+    keyboardAnnouncement,
     onChromeDragOver,
     onChromeDrop,
     onTrackDragEnd,

@@ -316,6 +316,7 @@ export function TrackHeaderChrome({
   const [canvasViewport, setCanvasViewport] = useState({ left: 0, top: 0, scrollTop: 0 });
   const {
     dragState: trackDrag,
+    keyboardAnnouncement,
     onChromeDragOver,
     onChromeDrop,
     onTrackDragEnd,
@@ -323,7 +324,7 @@ export function TrackHeaderChrome({
     onTrackReorderKeyDown
   } = useTrackReorder({
     canvasShellRef,
-    trackIds: project.tracks.map((track) => track.id),
+    tracks: project.tracks.map(({ id, name }) => ({ id, name })),
     trackLayouts,
     onMoveTrack: trackActions.onMoveTrack
   });
@@ -368,6 +369,9 @@ export function TrackHeaderChrome({
       onDragOver={onChromeDragOver}
       onDrop={onChromeDrop}
     >
+      <div className={styles.visuallyHidden} role="status" aria-live="polite" aria-atomic="true">
+        {keyboardAnnouncement}
+      </div>
       <div className={styles.headerMask} style={{ height: `${canvasHeight}px` }} />
       {project.tracks.map((track) => {
         const layout = trackLayouts.find((entry) => entry.trackId === track.id);
