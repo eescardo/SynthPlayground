@@ -42,14 +42,37 @@
   position: absolute;
   top: 8px;
   left: 118px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
   color: rgba(167, 204, 240, 0.58);
   font-size: 15px;
   line-height: 20px;
-  pointer-events: none;
+  cursor: grab;
 }
 
-.headerRow:hover .trackDragGrip {
+.headerRow:hover .trackDragGrip,
+.trackDragGrip:hover,
+.trackDragGrip:focus-visible {
+  border-color: transparent;
+  background: rgba(79, 184, 255, 0.12);
   color: rgba(214, 235, 255, 0.92);
+}
+
+.trackDragGrip:focus-visible {
+  outline: 1px solid rgba(121, 200, 255, 0.9);
+  outline-offset: 1px;
+}
+
+.trackDragGrip:active {
+  cursor: grabbing;
 }
 
 .trackDropIndicator {
@@ -83,11 +106,6 @@
   z-index: 2;
   background: #121b27;
   border-bottom: 1px solid #1a2e42;
-  cursor: grab;
-}
-
-.headerRow:active {
-  cursor: grabbing;
 }
 
 .headerRowSelected {
