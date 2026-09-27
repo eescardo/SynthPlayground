@@ -1,6 +1,6 @@
 import { ChildProcess } from "node:child_process";
 import { once } from "node:events";
-import { chromium, expect, type Page } from "@playwright/test";
+import { chromium, expect, type Locator, type Page } from "@playwright/test";
 import { afterEach, describe, test } from "vitest";
 import { BEAT_WIDTH, HEADER_WIDTH, RULER_HEIGHT, TRACK_HEIGHT } from "../../src/components/tracks/trackCanvasConstants";
 import { createDefaultProject } from "../../src/lib/patch/presets";
@@ -273,6 +273,26 @@ describe.sequential("composer pointer interactions", () => {
     });
   }, 120_000);
 
+  test("anchors the reorder handle to the left edge and middle 60% as track height changes", async () => {
+    await withSeededComposerPage(createEmptyComposerProject(), async (page) => {
+      const firstTrackRow = page.getByTestId("track-header-row").first();
+      const firstTrackHandle = page.getByTestId("track-reorder-handle").first();
+
+      await expectTrackReorderHandleGeometry(firstTrackRow, firstTrackHandle);
+      const collapsedHeight = (await firstTrackRow.boundingBox())?.height ?? 0;
+
+      await page.getByTestId("track-name-button").first().click();
+      await page.getByRole("button", { name: "Expand macro lanes" }).click();
+      await expect(page.locator('[data-track-chrome="macro-panel"]')).toBeVisible();
+      await expect.poll(async () => (await firstTrackRow.boundingBox())?.height ?? 0).toBeGreaterThan(collapsedHeight);
+      await expectTrackReorderHandleGeometry(firstTrackRow, firstTrackHandle);
+
+      await page.getByRole("button", { name: "Collapse macro lanes" }).click();
+      await expect.poll(async () => (await firstTrackRow.boundingBox())?.height ?? 0).toBe(collapsedHeight);
+      await expectTrackReorderHandleGeometry(firstTrackRow, firstTrackHandle);
+    });
+  }, 120_000);
+
   test("persists a scrolled drag-and-drop reorder and restores it with Undo", async () => {
     const seededProject = createManyTrackComposerProject(10);
     await withSeededComposerPage(seededProject, async (page) => {
@@ -386,6 +406,25 @@ const reorderedLastTrackIds = (project: Project) => [
 ];
 
 const readTrackIds = async (page: Page) => (await readActiveProject(page)).tracks.map((track) => track.id);
+
+const expectTrackReorderHandleGeometry = async (trackRow: Locator, handle: Locator) => {
+  await expect
+    .poll(async () => {
+      const rowBox = await trackRow.boundingBox();
+      const handleBox = await handle.boundingBox();
+      if (!rowBox || !handleBox) {
+        return null;
+      }
+      const topPercent = ((handleBox.y - rowBox.y) / rowBox.height) * 100;
+      const bottomPercent = ((handleBox.y + handleBox.height - rowBox.y) / rowBox.height) * 100;
+      return {
+        leftAnchored: Math.abs(handleBox.x - rowBox.x) <= 0.5,
+        topAnchored: Math.abs(topPercent - 20) <= 1.5,
+        bottomAnchored: Math.abs(bottomPercent - 80) <= 1.5
+      };
+    })
+    .toEqual({ leftAnchored: true, topAnchored: true, bottomAnchored: true });
+};
 
 const createEmptyComposerProject = (options?: { compositionEndBeat?: number }): Project => {
   const project = createDefaultProject();
