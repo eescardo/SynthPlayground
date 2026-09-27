@@ -1,11 +1,11 @@
 ---
-name: code-review-until-convergence
-description: Review and fix a SynthPlayground PR with isolated agents until in-scope findings are resolved; retain larger decisions for the user. User-invoked.
+name: loop-review-fix
+description: Review and fix a SynthPlayground PR until convergence using isolated agents; resolve in-scope findings and retain larger decisions for the user. User-invoked.
 ---
 
-# Review until convergence
+# Loop: Review until convergence
 
-Accept `/code-review-until-convergence [PR] [additional instructions] [model]` or `$code-review-until-convergence`. Follow [PR targeting/model selection](../code-review/references/pr-context.md) and the [code-review workflow](../code-review/SKILL.md). Apply additional instructions to the review/fix scope.
+Accept `/loop-review-fix [PR] [additional instructions] [model]` or `$loop-review-fix`. Follow [PR targeting/model selection](../code-review/references/pr-context.md) and the [code-review workflow](../code-review/SKILL.md). Apply additional instructions to the review/fix scope.
 
 **Use separate fresh reviewer and fixer subagent contexts with `fork_turns="none"`.** The fixer may share the orchestrator's task checkout. Keep orchestration in the main agent. Do not create user-owned tasks or perform either role in the main context if delegation is unavailable.
 

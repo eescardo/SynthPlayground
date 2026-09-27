@@ -1,0 +1,7 @@
+interface:
+  display_name: "Loop: Review until convergence"
+  short_description: "Review and fix a PR until convergence"
+  default_prompt: "Use $loop-review-fix for the PR in this conversation."
+
+policy:
+  allow_implicit_invocation: false

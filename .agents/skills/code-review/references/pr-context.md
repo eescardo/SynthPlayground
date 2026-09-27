@@ -4,16 +4,16 @@ Resolve arguments before reviewing or editing.
 
 ## Invocation
 
-`/code-review [PR] [additional instructions] [model]` and `/code-review-until-convergence [PR] [additional instructions] [model]` accept a PR number (`104` or `#104`), PR URL, exact branch, unique PR title, or clear contextual reference such as “the PR we just opened.” `/pr-digest [PR] [additional instructions] [model]` accepts the same targeting and optional model syntax.
+`/code-review [PR] [additional instructions] [model]` and `/loop-review-fix [PR] [additional instructions] [model]` accept a PR number (`104` or `#104`), PR URL, exact branch, unique PR title, or clear contextual reference such as “the PR we just opened.” `/pr-digest [PR] [additional instructions] [model]` accepts the same targeting and optional model syntax.
 
 Bracketed fields are optional placeholders, not literal syntax. Quoted free text and explicit `PR=`, `instructions=`, and `model=` are useful when positional meaning is unclear. Do not mistake numbers inside instructions for PR numbers or consume arbitrary trailing prose as a model. Examples:
 
 - `/code-review` — PR created in this conversation.
 - `/code-review #104 "Focus on undo and keyboard behavior" model=gpt-5.6-sol`
-- `/code-review-until-convergence "the pan PR" "Preserve clipboard compatibility"`
+- `/loop-review-fix "the pan PR" "Preserve clipboard compatibility"`
 - `/pr-digest https://github.com/eescardo/SynthPlayground/pull/99`
 
-The slash form is a user-message convention routed by this repo's `AGENTS.md`, not a registered built-in slash command. Native skill selection uses `$code-review`, `$code-review-until-convergence`, or `$pr-digest` (or the host skill picker). Prefer the repo-local skill if a personal review skill also exists; do not edit or remove the personal skill.
+The slash form is a user-message convention routed by this repo's `AGENTS.md`, not a registered built-in slash command. Native skill selection uses `$code-review`, `$loop-review-fix`, or `$pr-digest` (or the host skill picker). Prefer the repo-local skill if a personal review skill also exists; do not edit or remove the personal skill.
 
 ## Target resolution
 
