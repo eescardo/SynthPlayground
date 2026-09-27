@@ -1,20 +1,20 @@
 ---
 name: pr-digest
-description: Explain a SynthPlayground PR with progressive disclosure, from TL;DR through architecture to a guided module and function reading path. User-invoked; read-only.
+description: Explain a SynthPlayground PR from TL;DR through architecture, modules, and an ordered function-level reading path. User-invoked; read-only.
 ---
 
 # PR digest
 
-Accept `/pr-digest [PR] [additional instructions] [model]` or `$pr-digest` with the same arguments. Resolve the target using [the shared PR context rules](../code-review/references/pr-context.md), including same-conversation default and ambiguity choices. Additional instructions adjust depth, audience, or emphasis. This is an explanation, not a code review or permission to change the PR.
+Accept `/pr-digest [PR] [additional instructions] [model]` or `$pr-digest`. Follow [PR context rules](../code-review/references/pr-context.md). Use additional instructions to adjust depth, audience, or emphasis.
 
-Pin the base/head and read the complete aggregate diff, affected code, and relevant tests. Use the final implementation as truth; PR prose and commit messages provide intent to verify, not a substitute for code. Explain the resulting change, not every abandoned iteration. Read architecture docs when needed, and flag stale docs rather than repeating their claims.
+Pin the reviewed revision. Read the complete aggregate diff, affected code, relevant tests, and applicable architecture docs. Verify PR-description claims against the final implementation and flag stale documentation.
 
-Use progressive disclosure in this order, scaling length to the PR:
+Present, in order:
 
-1. **TL;DR:** One to three sentences describing the problem, changed behavior, and practical consequence. Identify the PR and reviewed SHA. A concrete before/after example is useful for a behavioral change.
-2. **Architecture:** Explain the relevant entry points, ownership, boundaries, and data/control flow that were added or changed. Distinguish new behavior from extraction/reorganization. For stateful changes, trace who creates, updates, persists, renders, and disposes of the state. Include tradeoffs only when supported by code or explicit intent. A compact diagram is optional when it clarifies a complex flow.
-3. **Modules:** Group changed files by responsibility. For each important module, explain what it owns, its contract and collaborators, and what changed. Avoid an exhaustive file inventory and long lists of renamed files.
-4. **Read this next:** An ordered reading path through the most informative modules/functions, with verified path/line links and one sentence per stop explaining what to learn there. Start from the public entry or orchestration, follow the core transformation/algorithm/state transition, then its runtime/persistence boundary and the test that best demonstrates the invariant. Prefer a handful of meaningful stops; do not impose a fixed count on small PRs.
-5. **Validation and limits:** Summarize verified checks, meaningful tests, migration/compatibility consequences, and any UI/audio inspection needed. Distinguish tests present in code from tests actually run or CI results retrieved. Mention material uncertainty succinctly; do not manufacture review findings or an approval verdict.
+1. **TL;DR:** Identify the PR/SHA and explain the problem, changed behavior, and practical consequence in one to three sentences.
+2. **Architecture:** Explain changed entry points, ownership, boundaries, and data/control flow. Distinguish new behavior from reorganization. Trace state creation, updates, persistence, rendering, and disposal where relevant.
+3. **Modules:** Group important changed files by responsibility. Explain their contracts, collaborators, and changes; omit an exhaustive file inventory.
+4. **Read this next:** Give an ordered path through the most informative modules/functions with verified line links and what to learn at each stop. Follow entry/orchestration → core logic → runtime/persistence boundary → representative test.
+5. **Validation and limits:** Summarize checks, meaningful tests, compatibility consequences, uncertainty, and outstanding UI/audio inspection. Distinguish tests present from checks actually run. Do not add an approval verdict.
 
-Link to the reviewed SHA when using GitHub code permalinks, or verified current PR diff lines when using app review links. Local links must use absolute paths to the inspected checkout. Do not link to today's unrelated local line numbers. If the PR changes during analysis, refresh the digest or explicitly scope it to the older SHA. Return the digest in the main conversation; do not post it to GitHub without an explicit request.
+Scale detail to the PR. Use code permalinks at the reviewed SHA, verified current PR diff links, or absolute paths in the inspected checkout. If the PR changes, refresh the digest or scope it explicitly to the older revision. Return it in the main conversation without editing code or posting to GitHub unless separately requested.

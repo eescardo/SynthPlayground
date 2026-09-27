@@ -1,6 +1,6 @@
 # Resolve invocation, PR, and model
 
-Shared by the three repository skills. Resolve arguments before reviewing or editing.
+Resolve arguments before reviewing or editing.
 
 ## Invocation
 
@@ -29,9 +29,9 @@ Review and digest may inspect closed/merged PRs. Convergence requires an open PR
 
 ## Model selection
 
-The default review model is **`gpt-5.6-sol`**, confirmed by the user when creating these skills. Check the running host's advertised model IDs and aliases before delegation. Do not invent a model ID or silently inherit the orchestrator's model. If the requested/default model is unavailable, offer available choices and wait for a selection before dispatch. Honor a user-confirmed mapping for the rest of that invocation.
+Default to **`gpt-5.6-sol`** for review. Check the running host's advertised model IDs and aliases before delegation. Do not invent a model ID or silently inherit the orchestrator's model. If the requested/default model is unavailable, offer available choices and wait for a selection before dispatch. Honor a user-confirmed mapping for the rest of that invocation.
 
-An explicit `model=` overrides the default. Additional instructions can modify the review focus, not conceal a model substitution. Record the actual model used in the result. The convergence model applies to both reviewer and fixer unless the user names separate models. Digest uses the named model through a fresh subagent when specified; otherwise it may run in the main agent without changing models.
+An explicit `model=` overrides the default. Record the actual model used in the result. The convergence model applies to both reviewer and fixer unless the user names separate models. Digest uses the named model through a fresh subagent when specified; otherwise it may run in the main agent without changing models.
 
 ## Candidate and remote revisions
 
@@ -39,4 +39,4 @@ Ordinary review/digest targets the published head for an open PR and the landed 
 
 ## Snapshot isolation
 
-A no-history agent isolates conversation context; it does **not** isolate files. Use separate temporary worktrees/source snapshots when agents can run tests or write. Pin all reads to the selected revision and do not switch/reset the user's working directory to review another PR. Never discard, stash, or commit unrelated local changes automatically. Clean up only the temporary artifacts/worktrees created by this invocation, after their results or fixes are secured.
+Use separate temporary worktrees/source snapshots in addition to no-history subagents. Pin all reads to the selected revision and do not switch/reset the user's working directory to review another PR. Never discard, stash, or commit unrelated local changes automatically. Clean up only the temporary artifacts/worktrees created by this invocation, after their results or fixes are secured.
