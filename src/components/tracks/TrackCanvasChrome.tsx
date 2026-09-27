@@ -448,9 +448,7 @@ export function TrackHeaderChrome({
                 onDragStart={(event) => onTrackDragStart(event, track.id)}
                 onDragEnd={onTrackDragEnd}
                 onKeyDown={(event) => onTrackReorderKeyDown(event, track.id)}
-              >
-                ⠿
-              </button>
+              />
             </div>
             {trackDrag?.targetTrackId === track.id && trackDrag.trackId !== track.id && (
               <div

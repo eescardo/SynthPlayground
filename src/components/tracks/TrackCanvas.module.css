@@ -52,22 +52,30 @@
 
 .trackDragGrip {
   position: absolute;
-  top: 8px;
-  left: 118px;
+  top: 20%;
+  left: 0;
   z-index: 3;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 12px;
-  height: 20px;
+  width: 14px;
+  height: 60%;
   padding: 0;
   border: 0;
-  border-radius: 3px;
+  border-radius: 0 4px 4px 0;
   background: transparent;
   color: rgba(167, 204, 240, 0.58);
-  font-size: 15px;
-  line-height: 20px;
   cursor: grab;
+}
+
+.trackDragGrip::before {
+  content: "";
+  width: 8px;
+  height: calc(100% - 8px);
+  min-height: 12px;
+  background-image: radial-gradient(circle, currentColor 1px, transparent 1.25px);
+  background-position: center top;
+  background-size: 4px 6px;
 }
 
 .headerRow:hover .trackDragGrip,
