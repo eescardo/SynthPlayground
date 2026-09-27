@@ -250,104 +250,117 @@ describe.sequential("composer pointer interactions", () => {
     }
   }, 120_000);
 
-  test("keeps composer chrome and the beat ruler fixed while tracks scroll, and reorders tracks by drag and drop", async () => {
-    const devServer = startDevServer(PORT);
-    cleanupProcesses.add(devServer);
+  test("keeps composer chrome and the beat ruler fixed while tracks scroll", async () => {
+    await withSeededComposerPage(createManyTrackComposerProject(10), async (page) => {
+      const shell = page.locator(".track-canvas-shell");
+      const transport = page.locator(".transport");
+      const stickyRuler = shell.locator('[class*="stickyRuler"] canvas');
+      const mainCanvas = shell.locator(":scope > canvas");
+      const transportTop = (await transport.boundingBox())?.y;
+      const shellTop = (await shell.boundingBox())?.y;
 
-    await waitForServer(BASE_URL, 120_000);
-
-    const browser = await chromium.launch({ headless: true });
-    try {
-      const context = await browser.newContext({
-        baseURL: BASE_URL,
-        viewport: { width: 1400, height: 620 }
+      await shell.evaluate((element) => {
+        element.scrollTop = 240;
       });
 
-      try {
-        const page = await context.newPage();
-        try {
-          const seededProject = createManyTrackComposerProject(10);
-          await openSeededApp(page, seededProject);
+      await expect.poll(() => shell.evaluate((element) => element.scrollTop)).toBe(240);
+      expect((await transport.boundingBox())?.y).toBe(transportTop);
+      expect((await stickyRuler.boundingBox())?.y).toBe((shellTop ?? 0) + 1);
+      expect((await mainCanvas.boundingBox())?.y).toBeLessThan(shellTop ?? 0);
 
-          const shell = page.locator(".track-canvas-shell");
-          const transport = page.locator(".transport");
-          const stickyRuler = shell.locator('[class*="stickyRuler"] canvas');
-          const mainCanvas = shell.locator(":scope > canvas");
-          const transportTop = (await transport.boundingBox())?.y;
-          const shellTop = (await shell.boundingBox())?.y;
+      await shell.click({ position: { x: HEADER_WIDTH + 2 * BEAT_WIDTH, y: RULER_HEIGHT / 2 } });
+      await expect(page.locator(".playhead")).toHaveText("Beat 3");
+    });
+  }, 120_000);
 
-          await shell.evaluate((element) => {
-            element.scrollTop = 240;
-          });
+  test("persists a scrolled drag-and-drop reorder and restores it with Undo", async () => {
+    const seededProject = createManyTrackComposerProject(10);
+    await withSeededComposerPage(seededProject, async (page) => {
+      const shell = page.locator(".track-canvas-shell");
+      await shell.evaluate((element) => {
+        element.scrollTop = 300;
+      });
+      const reorderHandles = page.getByTestId("track-reorder-handle");
+      const trackPatchSelectors = page.locator('[data-track-control="instrument-selection"]');
+      await reorderHandles.nth(8).dragTo(trackPatchSelectors.nth(9));
 
-          await expect.poll(() => shell.evaluate((element) => element.scrollTop)).toBe(240);
-          expect((await transport.boundingBox())?.y).toBe(transportTop);
-          expect((await stickyRuler.boundingBox())?.y).toBe((shellTop ?? 0) + 1);
-          expect((await mainCanvas.boundingBox())?.y).toBeLessThan(shellTop ?? 0);
+      const movedTrackIds = reorderedLastTrackIds(seededProject);
+      await expect.poll(() => readTrackIds(page)).toEqual(movedTrackIds);
+      expect(await page.getByTestId("track-name-button").allTextContents()).toEqual([
+        ...seededProject.tracks.slice(0, 8).map((track) => track.name),
+        seededProject.tracks[9].name,
+        seededProject.tracks[8].name
+      ]);
 
-          await shell.click({ position: { x: HEADER_WIDTH + 2 * BEAT_WIDTH, y: RULER_HEIGHT / 2 } });
-          await expect(page.locator(".playhead")).toHaveText("Beat 3");
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+      await page.keyboard.press("Control+z");
+      await expect.poll(() => readTrackIds(page)).toEqual(seededProject.tracks.map((track) => track.id));
+      expect(await page.getByTestId("track-name-button").allTextContents()).toEqual(
+        seededProject.tracks.map((track) => track.name)
+      );
+    });
+  }, 120_000);
 
-          await shell.evaluate((element) => {
-            element.scrollTop = 300;
-          });
-          const reorderHandles = page.getByTestId("track-reorder-handle");
-          const trackPatchSelectors = page.locator('[data-track-control="instrument-selection"]');
-          await reorderHandles.nth(8).dragTo(trackPatchSelectors.nth(9));
+  test("supports keyboard reordering with focus retention and live position announcements", async () => {
+    const seededProject = createManyTrackComposerProject(10);
+    await withSeededComposerPage(seededProject, async (page) => {
+      const lastTrackHandle = page.locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-10"]');
+      const reorderStatus = page.getByRole("status");
+      await expect(lastTrackHandle).toHaveAccessibleName(
+        "Reorder Scroll Track 10, position 10 of 10. Use Arrow Up or Arrow Down to move."
+      );
 
-          const movedTrackIds = [
-            ...seededProject.tracks.slice(0, 8).map((track) => track.id),
-            seededProject.tracks[9].id,
-            seededProject.tracks[8].id
-          ];
-          await expect
-            .poll(async () => (await readActiveProject(page)).tracks.map((track) => track.id))
-            .toEqual(movedTrackIds);
-          expect(await page.getByTestId("track-name-button").allTextContents()).toEqual([
-            ...seededProject.tracks.slice(0, 8).map((track) => track.name),
-            seededProject.tracks[9].name,
-            seededProject.tracks[8].name
-          ]);
+      await lastTrackHandle.focus();
+      await page.keyboard.press("ArrowUp");
+      await expect.poll(() => readTrackIds(page)).toEqual(reorderedLastTrackIds(seededProject));
+      await expect(lastTrackHandle).toBeFocused();
+      await expect(lastTrackHandle).toHaveAccessibleName(
+        "Reorder Scroll Track 10, position 9 of 10. Use Arrow Up or Arrow Down to move."
+      );
+      await expect(reorderStatus).toHaveText("Moved Scroll Track 10 to position 9 of 10.");
 
-          await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-          await page.keyboard.press("Control+z");
-          await expect
-            .poll(async () => (await readActiveProject(page)).tracks.map((track) => track.id))
-            .toEqual(seededProject.tracks.map((track) => track.id));
-          expect(await page.getByTestId("track-name-button").allTextContents()).toEqual(
-            seededProject.tracks.map((track) => track.name)
-          );
-
-          const lastTrackHandle = page.locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-10"]');
-          await expect(lastTrackHandle).toHaveAccessibleName(
-            "Reorder Scroll Track 10, position 10 of 10. Use Arrow Up or Arrow Down to move."
-          );
-          await lastTrackHandle.focus();
-          await page.keyboard.press("ArrowUp");
-          await expect
-            .poll(async () => (await readActiveProject(page)).tracks.map((track) => track.id))
-            .toEqual(movedTrackIds);
-          await expect(lastTrackHandle).toBeFocused();
-          await expect(lastTrackHandle).toHaveAccessibleName(
-            "Reorder Scroll Track 10, position 9 of 10. Use Arrow Up or Arrow Down to move."
-          );
-
-          await page.keyboard.press("ArrowDown");
-          await expect
-            .poll(async () => (await readActiveProject(page)).tracks.map((track) => track.id))
-            .toEqual(seededProject.tracks.map((track) => track.id));
-          await expect(lastTrackHandle).toBeFocused();
-        } finally {
-          await page.close();
-        }
-      } finally {
-        await context.close();
-      }
-    } finally {
-      await browser.close();
-    }
+      await page.keyboard.press("ArrowDown");
+      await expect.poll(() => readTrackIds(page)).toEqual(seededProject.tracks.map((track) => track.id));
+      await expect(lastTrackHandle).toBeFocused();
+      await expect(reorderStatus).toHaveText("Moved Scroll Track 10 to position 10 of 10.");
+    });
   }, 120_000);
 });
+
+const withSeededComposerPage = async (project: Project, run: (page: Page) => Promise<void>) => {
+  const devServer = startDevServer(PORT);
+  cleanupProcesses.add(devServer);
+  await waitForServer(BASE_URL, 120_000);
+
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext({
+      baseURL: BASE_URL,
+      viewport: { width: 1400, height: 620 }
+    });
+    try {
+      const page = await context.newPage();
+      try {
+        await openSeededApp(page, project);
+        await run(page);
+      } finally {
+        await page.close();
+      }
+    } finally {
+      await context.close();
+    }
+  } finally {
+    await browser.close();
+  }
+};
+
+const reorderedLastTrackIds = (project: Project) => [
+  ...project.tracks.slice(0, -2).map((track) => track.id),
+  project.tracks.at(-1)!.id,
+  project.tracks.at(-2)!.id
+];
+
+const readTrackIds = async (page: Page) => (await readActiveProject(page)).tracks.map((track) => track.id);
 
 const createEmptyComposerProject = (options?: { compositionEndBeat?: number }): Project => {
   const project = createDefaultProject();
