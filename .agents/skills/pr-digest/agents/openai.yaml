@@ -1,0 +1,7 @@
+interface:
+  display_name: "PR digest"
+  short_description: "Understand a PR from summary to key functions"
+  default_prompt: "Use $pr-digest for the PR in this conversation."
+
+policy:
+  allow_implicit_invocation: false

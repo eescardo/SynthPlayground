@@ -104,6 +104,16 @@ For visual or interaction changes, automated validation is necessary but not suf
 - If a UI change has weak automated coverage, say that explicitly rather than implying the repo is fully protected by tests.
 - After iterating on a complex feature with the user, do a deliberate cleanup pass before handoff: look for dead code introduced during iteration and add targeted unit tests for the trickiest regression-prone behavior.
 
+## User-Invoked PR Skills
+
+When the user requests one of these commands, read the corresponding repo-local skill. The slash forms are prompt conventions, not built-in slash-command registration; native `$skill-name` mentions and the skill picker are also supported. Prefer these repo-local workflows over a similarly named personal review skill for these invocations.
+
+- `/code-review [PR] [additional instructions] [model]`: [independent review](.agents/skills/code-review/SKILL.md), with a fresh reviewer subagent and separate priority/severity for every finding.
+- `/code-review-until-convergence [PR] [additional instructions] [model]`: [review/fix loop](.agents/skills/code-review-until-convergence/SKILL.md), with separate isolated reviewer and fixer subagents; defer scope-expanding decisions to the user.
+- `/pr-digest [PR] [additional instructions] [model]`: [progressive PR explanation](.agents/skills/pr-digest/SKILL.md), from TL;DR to architecture, modules, and an ordered code-reading path.
+
+PR arguments may be numbers, URLs, branches, or clear contextual references. With no argument, use the PR created in this conversation; ask the user to choose when multiple active PRs are plausible. Review and convergence default to `gpt-5.6-sol`; report unavailable models rather than silently substituting. Additional instructions modify or augment the selected workflow. These skills are explicit-only and return results in the current conversation. A review or digest alone does not authorize code changes or GitHub review comments.
+
 ## Refactors
 
 - If a file grows beyond 1000 lines, treat that as a prompt to refactor when doing so is practical and improves readability.

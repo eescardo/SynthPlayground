@@ -1,0 +1,7 @@
+interface:
+  display_name: "Review until convergence"
+  short_description: "Review and fix a PR with isolated agents"
+  default_prompt: "Use $code-review-until-convergence for the PR in this conversation."
+
+policy:
+  allow_implicit_invocation: false
