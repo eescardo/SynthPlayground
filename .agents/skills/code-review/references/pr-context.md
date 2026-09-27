@@ -39,4 +39,4 @@ Ordinary review/digest targets the published head for an open PR and the landed 
 
 ## Snapshot isolation
 
-Use separate temporary worktrees/source snapshots in addition to no-history subagents. Pin all reads to the selected revision and do not switch/reset the user's working directory to review another PR. Never discard, stash, or commit unrelated local changes automatically. Clean up only the temporary artifacts/worktrees created by this invocation, after their results or fixes are secured.
+Give reviewers a detached temporary worktree or immutable source snapshot and a fresh agent context. A fixer may use the orchestrator's existing task checkout in its own fresh agent context; allow only one writer there at a time. Pin all reads to the selected revision and do not switch/reset the user's working directory to review another PR. Never discard, stash, or commit unrelated local changes automatically. Clean up only the temporary artifacts/worktrees created by this invocation, after their results or fixes are secured.
