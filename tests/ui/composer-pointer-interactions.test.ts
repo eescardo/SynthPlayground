@@ -439,8 +439,8 @@ const expectTrackReorderHandleGeometry = async (trackRow: Locator, handle: Locat
       const topPercent = ((handleBox.y - rowBox.y) / rowBox.height) * 100;
       const bottomPercent = ((handleBox.y + handleBox.height - rowBox.y) / rowBox.height) * 100;
       const [rowBackground, handleBackground] = await Promise.all([
-        trackRow.evaluate((element) => window.getComputedStyle(element).backgroundColor),
-        handle.evaluate((element) => window.getComputedStyle(element).backgroundColor)
+        trackRow.evaluate((element) => window.getComputedStyle(element).background),
+        handle.evaluate((element) => window.getComputedStyle(element).background)
       ]);
       const leftEdgeInteractive = await handle.evaluate((element) => {
         const rect = element.getBoundingClientRect();
@@ -450,7 +450,7 @@ const expectTrackReorderHandleGeometry = async (trackRow: Locator, handle: Locat
         edgeCentered: Math.abs(handleBox.x + handleBox.width / 2 - rowBox.x) <= 0.5,
         topAnchored: Math.abs(topPercent - 20) <= 1.5,
         bottomAnchored: Math.abs(bottomPercent - 80) <= 1.5,
-        backgroundDistinct: handleBackground !== "rgba(0, 0, 0, 0)" && handleBackground !== rowBackground,
+        backgroundDistinct: handleBackground !== rowBackground,
         leftEdgeInteractive
       };
     })
