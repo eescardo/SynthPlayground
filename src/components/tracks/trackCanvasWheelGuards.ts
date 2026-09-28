@@ -11,3 +11,13 @@ export function consumeTimelinePopoverWheelEvent(event: WheelEvent): boolean {
   event.stopImmediatePropagation();
   return true;
 }
+
+export const wheelDeltaToPixels = (delta: number, deltaMode: number, pageSize: number): number => {
+  if (deltaMode === 1) {
+    return delta * 16;
+  }
+  if (deltaMode === 2) {
+    return delta * pageSize;
+  }
+  return delta;
+};

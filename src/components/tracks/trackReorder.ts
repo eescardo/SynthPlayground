@@ -33,7 +33,10 @@ export const shouldPropagateTrackReorderKeyDown = (event: TrackReorderKeyboardEv
   if (event.key === "Escape" || event.ctrlKey || event.metaKey) {
     return true;
   }
-  return (event.key === "ArrowUp" || event.key === "ArrowDown") && (event.altKey || event.shiftKey);
+  return (
+    (event.key === "ArrowUp" || event.key === "ArrowRight" || event.key === "ArrowDown" || event.key === "ArrowLeft") &&
+    (event.altKey || event.shiftKey)
+  );
 };
 
 export const resolveFocusedHandleScrollTop = ({

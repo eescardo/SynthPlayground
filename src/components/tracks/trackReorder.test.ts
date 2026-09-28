@@ -126,6 +126,14 @@ describe("resolveTrackReorderKeyDirection", () => {
     expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "v", metaKey: true, altKey: true }))).toBe(true);
     expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "ArrowDown", shiftKey: true }))).toBe(true);
     expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "ArrowUp", altKey: true }))).toBe(true);
+    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "ArrowLeft", shiftKey: true }))).toBe(true);
+    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "ArrowRight", altKey: true }))).toBe(true);
+  });
+
+  it.each(["ArrowUp", "ArrowRight", "ArrowDown", "ArrowLeft"])("propagates every modifier variant of %s", (key) => {
+    for (const modifier of ["altKey", "ctrlKey", "metaKey", "shiftKey"] as const) {
+      expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key, [modifier]: true }))).toBe(true);
+    }
   });
 
   it("contains plain composition keys and unrelated Alt/Shift chords", () => {

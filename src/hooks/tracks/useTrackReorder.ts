@@ -169,14 +169,14 @@ export function useTrackReorder({ canvasShellRef, tracks, trackLayouts, onMoveTr
       if (direction === 0) {
         return false;
       }
+      event.preventDefault();
+      event.stopPropagation();
       const sourceIndex = tracks.findIndex((track) => track.id === trackId);
       const targetTrack = tracks[sourceIndex + direction];
       const sourceTrack = tracks[sourceIndex];
       if (sourceIndex < 0 || !sourceTrack || !targetTrack) {
         return false;
       }
-      event.preventDefault();
-      event.stopPropagation();
       onWillMove?.();
       onMoveTrack(trackId, targetTrack.id, direction < 0 ? "before" : "after");
       announceKeyboardMove(`Moved ${sourceTrack.name} to position ${sourceIndex + direction + 1} of ${tracks.length}.`);
