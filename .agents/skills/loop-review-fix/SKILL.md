@@ -7,7 +7,7 @@ description: Review and fix a SynthPlayground PR until convergence using isolate
 
 Accept `/loop-review-fix [PR] [additional instructions] [model]` or `$loop-review-fix`. Follow [PR targeting/model selection](../code-review/references/pr-context.md) and the [code-review workflow](../code-review/SKILL.md). Apply additional instructions to the review/fix scope.
 
-**Use separate fresh reviewer and fixer subagent contexts with `fork_turns="none"`.** The fixer may share the orchestrator's task checkout. Keep orchestration in the main agent. Do not create user-owned tasks or perform either role in the main context if delegation is unavailable.
+**Use separate fresh reviewer and fixer subagent contexts with `fork_turns="none"`.** Use every reviewer required by the code-review workflow. The fixer may share the orchestrator's task checkout. Keep orchestration in the main agent. Do not create user-owned tasks or perform either role in the main context if delegation is unavailable.
 
 ## Set up
 
@@ -17,7 +17,7 @@ Track findings in the orchestrator context or a temporary file outside tracked s
 
 ## Loop
 
-1. **Review:** Run `/code-review` against the pinned candidate in a detached review worktree. Give a new reviewer the neutral packet and full diff, without earlier verdicts or fixer rationale. After its independent pass, ask it to verify prior findings against the current code.
+1. **Review:** Run `/code-review` against the pinned candidate in a detached review worktree. Give each fresh reviewer its assigned lens, neutral initial packet, and full diff. Withhold earlier verdicts, implementation history, convergence claims, and fixer rationale until each reviewer completes an independent pass. Then ask the reviewers to verify prior findings and added evidence against the current code.
 2. **Triage:** Deduplicate root causes. Select fixes with a clear outcome, bounded implementation/validation, and a maintainability benefit within the original PR scope. Include useful naming, cleanup, extraction, and correctness fixes.
 3. **Defer:** Retain findings requiring product decisions, contract/migration changes beyond the PR's intent, broad architecture work, or significant scope/size expansion. Record options, approximate size/share relative to the original PR, and the decision needed. Use judgment rather than a fixed percentage cutoff. Avoid brittle workarounds and continue independent fixes without asking about every deferred item.
 4. **Fix:** Give a different fresh agent the selected task checkout path and candidate SHA, selected findings, original PR goal, user constraints, target `AGENTS.md`, and validation expectations. Do not create an additional fixer worktree when the existing checkout is suitable. Require independent inspection, scoped fixes, relevant regression tests, and narrow checks. Return broader or ambiguous fixes as deferred. Commit only assigned changes; preserve pre-existing edits. Return commits, changed files, check results, and a status for every assigned finding. The fixer must not push or post reviews.
@@ -35,6 +35,6 @@ Track findings in the orchestrator context or a temporary file outside tracked s
 
 Include PR link, actual reviewer/fixer models, original/final reviewed SHAs, rounds, fixed-findings summary, commands/results, validation status, and outstanding UI/audio checks.
 
-Say **“no review findings left”** only after a complete final review with no unresolved findings. Otherwise list every actionable, unverified, deferred, or blocked finding with priority, severity, evidence, and status. For human decisions, include why deferred, viable options, estimated scope/size, and the decision needed. Summarize verified fixes and evidence-based dismissals; report coverage gaps separately.
+Say **“no review findings left”** only after every required review lens completes and no unresolved findings remain. Otherwise list every actionable, unverified, deferred, or blocked finding with priority, severity, evidence, and status. For human decisions, include why deferred, viable options, estimated scope/size, and the decision needed. Summarize verified fixes and evidence-based dismissals; report coverage gaps separately.
 
 Do not post GitHub review comments unless separately requested.
