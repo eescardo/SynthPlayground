@@ -291,6 +291,21 @@ describe.sequential("composer pointer interactions", () => {
         .toBe(1);
 
       await expectTrackReorderHandleGeometry(firstTrackRow, firstTrackHandle);
+      await expect(firstTrackHandle).toHaveCSS("opacity", "1");
+      const readGripAppearance = () =>
+        firstTrackHandle.evaluate((element) => ({
+          railWidth: parseFloat(getComputedStyle(element, "::before").width),
+          dotsOpacity: getComputedStyle(element, "::after").opacity
+        }));
+      await expect.poll(readGripAppearance).toEqual({ railWidth: 2, dotsOpacity: "0" });
+      const restingBox = await firstTrackHandle.boundingBox();
+      // Hover the invisible outer portion, well away from the resting 2px line.
+      await firstTrackHandle.hover({ position: { x: 2, y: 12 } });
+      await expect.poll(async () => (await readGripAppearance()).railWidth).toBeGreaterThan(11);
+      await expect.poll(async () => (await readGripAppearance()).dotsOpacity).toBe("1");
+      expect(await firstTrackHandle.boundingBox()).toEqual(restingBox);
+      await page.mouse.move(600, 80);
+      await expect.poll(readGripAppearance).toEqual({ railWidth: 2, dotsOpacity: "0" });
       const collapsedHeight = (await firstTrackRow.boundingBox())?.height ?? 0;
 
       await page.getByTestId("track-name-button").first().click();
@@ -440,14 +455,14 @@ const expectTrackReorderHandleGeometry = async (trackRow: Locator, handle: Locat
       const bottomPercent = ((handleBox.y + handleBox.height - rowBox.y) / rowBox.height) * 100;
       const [rowBackground, handleBackground] = await Promise.all([
         trackRow.evaluate((element) => window.getComputedStyle(element).background),
-        handle.evaluate((element) => window.getComputedStyle(element).background)
+        handle.evaluate((element) => window.getComputedStyle(element, "::before").background)
       ]);
       const leftEdgeInteractive = await handle.evaluate((element) => {
         const rect = element.getBoundingClientRect();
         return document.elementFromPoint(rect.left + 1, rect.top + rect.height / 2) === element;
       });
       return {
-        edgeCentered: Math.abs(handleBox.x + handleBox.width / 2 - rowBox.x) <= 0.5,
+        edgeCentered: Math.abs(handleBox.x + handleBox.width - 1 - rowBox.x) <= 0.5,
         topAnchored: Math.abs(topPercent - 20) <= 1.5,
         bottomAnchored: Math.abs(bottomPercent - 80) <= 1.5,
         backgroundDistinct: handleBackground !== rowBackground,
