@@ -2,6 +2,14 @@
 
 Apply the relevant checks to the current diff and its consumers. Report concrete defects or improvements with evidence and a bounded remedy.
 
+## Required analysis
+
+- Identify the independent behavioral dimensions affected by the change, such as state, position, timing, lifecycle phase, input source, empty/non-empty conditions, and boundaries. Review representative combinations and transitions, especially those absent from tests.
+- Trace every crossed abstraction, ownership, subsystem, or execution boundary. Verify identity, state, events, errors, cleanup, and accessibility across it.
+- When an invariant or owner changes, enumerate downstream consumers that relied on the previous behavior. Confirm each consumer remains valid, is updated, or is intentionally detached.
+- When a change uses a newer platform, language, framework, or runtime capability, verify supported environments and require a functional fallback or an explicit compatibility boundary.
+- Derive regression tests from the identified risks and boundary cases, not only from advertised behavior or existing happy paths.
+
 ## Architecture
 
 - Keep AppRoot and top-level views focused on composition and ownership. Extract cohesive interactions into hooks, transformations into domain helpers, and distinct surfaces into components.
