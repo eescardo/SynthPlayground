@@ -52,7 +52,7 @@
 
 .trackDragGrip {
   position: fixed;
-  transform: translateX(calc(-100% + 1px));
+  transform: translateX(-50%);
   z-index: 3;
   display: inline-flex;
   align-items: center;
@@ -71,7 +71,8 @@
 .trackDragGrip::before {
   content: "";
   position: absolute;
-  inset: 0 0 0 auto;
+  inset: 0 auto 0 50%;
+  transform: translateX(-50%);
   width: 2px;
   box-sizing: border-box;
   border-radius: 2px;
