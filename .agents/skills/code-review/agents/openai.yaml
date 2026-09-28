@@ -1,0 +1,7 @@
+interface:
+  display_name: "Code review"
+  short_description: "Independent PR review with priority and severity"
+  default_prompt: "Use $code-review for the PR in this conversation."
+
+policy:
+  allow_implicit_invocation: false
