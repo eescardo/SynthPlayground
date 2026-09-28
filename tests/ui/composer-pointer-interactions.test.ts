@@ -538,6 +538,38 @@ describe.sequential("composer pointer interactions", () => {
 
       await lastTrackHandle.focus();
       await expect(lastTrackHandle).toHaveCSS("opacity", "1");
+      await expect
+        .poll(() =>
+          lastTrackHandle.evaluate((element) =>
+            Array.from(document.styleSheets).some((sheet) =>
+              Array.from(sheet.cssRules).some(
+                (rule) =>
+                  rule instanceof CSSStyleRule &&
+                  rule.style.opacity === "1" &&
+                  !rule.selectorText.includes(":has(") &&
+                  rule.selectorText.split(",").some((selector) => element.matches(selector.trim()))
+              )
+            )
+          )
+        )
+        .toBe(true);
+
+      await page.evaluate(() => {
+        const observedWindow = window as typeof window & { trackReorderLeakedKeys?: string[] };
+        observedWindow.trackReorderLeakedKeys = [];
+        window.addEventListener("keydown", (event) => observedWindow.trackReorderLeakedKeys?.push(event.key));
+      });
+      for (const key of ["Space", "Enter", "q", "Backspace"]) {
+        await page.keyboard.press(key);
+      }
+      expect(
+        await page.evaluate(
+          () => (window as typeof window & { trackReorderLeakedKeys?: string[] }).trackReorderLeakedKeys
+        )
+      ).toEqual([]);
+      await expect(lastTrackHandle).toBeFocused();
+      expect(await readFirstTrackNoteCount(page)).toBe(0);
+
       await page.keyboard.press("ArrowUp");
       await expect.poll(() => readTrackIds(page)).toEqual(reorderedLastTrackIds(seededProject));
       await expect(lastTrackHandle).toBeFocused();

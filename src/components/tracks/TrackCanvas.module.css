@@ -68,10 +68,16 @@
   opacity: 0;
 }
 
+.trackDragGrip:hover,
+.trackDragGrip:focus-visible,
+.trackDragGrip[data-dragging="true"] {
+  opacity: 1;
+}
+
+/* Progressive enhancement: reveal every rail when any track chrome or grip is active. */
 :global(body):has(.headerOverlays:hover) .trackDragGrip,
 :global(body):has(.trackDragGrip:hover) .trackDragGrip,
-:global(body):has(.trackDragGrip[data-dragging="true"]) .trackDragGrip,
-.trackDragGrip:focus-visible {
+:global(body):has(.trackDragGrip[data-dragging="true"]) .trackDragGrip {
   opacity: 1;
 }
 

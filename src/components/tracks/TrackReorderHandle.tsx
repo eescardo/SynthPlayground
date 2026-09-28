@@ -43,6 +43,7 @@ export function TrackReorderHandle({
       type="button"
       className={styles.trackDragGrip}
       data-testid="track-reorder-handle"
+      data-track-chrome="reorder-handle"
       data-track-id={track.id}
       data-dragging={dragging}
       style={{
@@ -66,7 +67,17 @@ export function TrackReorderHandle({
       }}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      onKeyDown={onKeyDown}
+      onKeyDown={(event) => {
+        onKeyDown(event);
+        if (!event.metaKey && !event.ctrlKey && !event.altKey) {
+          event.stopPropagation();
+        }
+      }}
+      onKeyUp={(event) => {
+        if (!event.metaKey && !event.ctrlKey && !event.altKey) {
+          event.stopPropagation();
+        }
+      }}
     />,
     document.body
   );
