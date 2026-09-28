@@ -463,15 +463,7 @@ export function TrackHeaderChrome({
                 }}
                 onDragEnd={onTrackDragEnd}
                 onKeyDown={(event) => {
-                  const direction = event.key === "ArrowUp" ? -1 : event.key === "ArrowDown" ? 1 : 0;
-                  if (
-                    direction !== 0 &&
-                    layout.index + direction >= 0 &&
-                    layout.index + direction < project.tracks.length
-                  ) {
-                    closeMixerPopovers();
-                  }
-                  onTrackReorderKeyDown(event, track.id);
+                  onTrackReorderKeyDown(event, track.id, closeMixerPopovers);
                 }}
               />
             </div>

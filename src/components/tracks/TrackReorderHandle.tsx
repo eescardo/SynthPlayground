@@ -1,3 +1,4 @@
+import { useCallback, useLayoutEffect, useRef } from "react";
 import type { DragEventHandler, KeyboardEventHandler, RefObject } from "react";
 import { createPortal } from "react-dom";
 import { RULER_HEIGHT } from "./trackCanvasConstants";
@@ -27,6 +28,30 @@ export function TrackReorderHandle({
   onDragEnd,
   onKeyDown
 }: TrackReorderHandleProps) {
+  const handleRef = useRef<HTMLButtonElement>(null);
+
+  const keepFocusedHandleVisible = useCallback(() => {
+    const handle = handleRef.current;
+    const shell = shellRef.current;
+    if (dragging || !handle || !shell || document.activeElement !== handle) {
+      return;
+    }
+
+    const shellRect = shell.getBoundingClientRect();
+    const handleRect = handle.getBoundingClientRect();
+    const visibleTop = Math.max(shellRect.top + shell.clientTop + RULER_HEIGHT, 0);
+    const visibleBottom = Math.min(shellRect.top + shell.clientTop + shell.clientHeight, window.innerHeight);
+    if (handleRect.top < visibleTop) {
+      shell.scrollTop -= visibleTop - handleRect.top;
+    } else if (handleRect.bottom > visibleBottom) {
+      shell.scrollTop += handleRect.bottom - visibleBottom;
+    }
+  }, [dragging, shellRef]);
+
+  useLayoutEffect(() => {
+    keepFocusedHandleVisible();
+  }, [keepFocusedHandleVisible, layout.height, layout.y, viewport.height, viewport.scrollTop, viewport.top]);
+
   if (viewport.height === 0) {
     return null;
   }
@@ -40,6 +65,7 @@ export function TrackReorderHandle({
   // Escape the scroll shell's horizontal clipping, but retain its vertical viewport.
   return createPortal(
     <button
+      ref={handleRef}
       type="button"
       className={styles.trackDragGrip}
       data-testid="track-reorder-handle"
@@ -59,22 +85,17 @@ export function TrackReorderHandle({
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
-      onFocus={() => {
-        const shell = shellRef.current;
-        if (shell && (top + height <= visibleTop || top >= visibleBottom)) {
-          shell.scrollTop = Math.max(0, layout.y - RULER_HEIGHT);
-        }
-      }}
+      onFocus={keepFocusedHandleVisible}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onKeyDown={(event) => {
         onKeyDown(event);
-        if (event.key !== "Escape" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        if (event.key !== "Escape" && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey) {
           event.stopPropagation();
         }
       }}
       onKeyUp={(event) => {
-        if (event.key !== "Escape" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        if (event.key !== "Escape" && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey) {
           event.stopPropagation();
         }
       }}

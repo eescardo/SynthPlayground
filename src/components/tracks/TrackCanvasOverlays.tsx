@@ -10,7 +10,7 @@ import type {
 import { SelectionActionPopover } from "@/components/SelectionActionPopover";
 import { TrackCanvasTabStops } from "@/components/tracks/TrackCanvasTabStops";
 import { TrackHeaderChrome } from "@/components/tracks/TrackCanvasChrome";
-import { resolveTrackCanvasCursor, RULER_HEIGHT } from "@/components/tracks/trackCanvasConstants";
+import { HEADER_WIDTH, resolveTrackCanvasCursor, RULER_HEIGHT } from "@/components/tracks/trackCanvasConstants";
 import {
   TrackCanvasAutomationActions,
   TrackCanvasPatchActions,
@@ -91,6 +91,13 @@ export function TrackCanvasOverlays(props: TrackCanvasOverlaysProps) {
     >
       <div className={styles.stickyRuler} style={{ width: `${props.width}px` }} aria-hidden="true">
         <canvas ref={props.rulerCanvasRef} width={props.width} height={RULER_HEIGHT} />
+      </div>
+      <div className={styles.rulerCornerLayer} style={{ width: `${HEADER_WIDTH}px` }}>
+        <div
+          className={styles.rulerCornerMask}
+          data-testid="track-ruler-corner-mask"
+          style={{ height: `${RULER_HEIGHT}px` }}
+        />
       </div>
       <TrackHeaderChrome
         project={props.project}

@@ -28,6 +28,23 @@
   display: block;
 }
 
+.rulerCornerLayer {
+  position: sticky;
+  top: 0;
+  left: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.rulerCornerMask {
+  box-sizing: border-box;
+  pointer-events: auto;
+  background: #121b27;
+  border-bottom: 1px solid #1a2e42;
+}
+
 .headerOverlays {
   position: sticky;
   left: 0;
