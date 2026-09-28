@@ -8,12 +8,20 @@ export interface TrackDropTarget {
 export const resolveTrackDropTarget = (args: {
   clientY: number;
   shellTop: number;
+  shellBottom: number;
   scrollTop: number;
   trackLayouts: TrackLayout[];
 }): TrackDropTarget | null => {
-  const pointerCanvasY = args.clientY - args.shellTop + args.scrollTop;
   const first = args.trackLayouts[0];
   const last = args.trackLayouts.at(-1);
+  // Page-wide drop zones use viewport coordinates, independent of canvas scroll.
+  if (first && args.clientY < args.shellTop) {
+    return { targetTrackId: first.trackId, position: "before" };
+  }
+  if (last && args.clientY > args.shellBottom) {
+    return { targetTrackId: last.trackId, position: "after" };
+  }
+  const pointerCanvasY = args.clientY - args.shellTop + args.scrollTop;
   if (first && pointerCanvasY < first.y) {
     return { targetTrackId: first.trackId, position: "before" };
   }

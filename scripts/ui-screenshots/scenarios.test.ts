@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { resolveScreenshotScenariosFromLabels, resolveScreenshotScenariosFromLabelsJson } from "./scenarios";
 
 describe("resolveScreenshotScenariosFromLabels", () => {
+  it("enables the mixer scroll comparison", () => {
+    expect(resolveScreenshotScenariosFromLabels(["screenshots:mixer-scroll"])).toMatchObject({
+      enabled: true,
+      value: "mixer-scroll",
+      grep: "@mixer-scroll",
+      error: ""
+    });
+  });
   it("enables a specific screenshot scenario label", () => {
     expect(resolveScreenshotScenariosFromLabels(["screenshots:selection-popover"])).toMatchObject({
       enabled: true,

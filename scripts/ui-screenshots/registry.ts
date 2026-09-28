@@ -63,6 +63,44 @@ function createPresetUpdateScreenshotProject() {
 }
 
 export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, ScreenshotScenarioDefinition> = {
+  [SCREENSHOT_SCENARIO.MIXER_SCROLL]: {
+    name: SCREENSHOT_SCENARIO.MIXER_SCROLL,
+    description: "Volume and pan popovers before and after scrolling their track controls",
+    capture: async (page, outputPath) => {
+      const project = createDefaultProject();
+      project.tracks = Array.from({ length: 10 }, (_, index) => ({
+        ...structuredClone(project.tracks[0]),
+        id: `mixer-scroll-${index}`,
+        name: `Mixer Track ${index + 1}`,
+        notes: []
+      }));
+      await openSeededApp(page, project);
+      const shell = page.locator(".track-canvas-shell");
+      // Give base and head the same scrollable capture viewport, even before sticky layout existed.
+      await shell.evaluate((element) => {
+        element.style.maxHeight = "360px";
+        element.style.overflow = "auto";
+      });
+      for (const kind of ["volume", "pan"] as const) {
+        await page.keyboard.press("Escape");
+        await shell.evaluate((element) => {
+          element.scrollTop = 0;
+        });
+        await page.locator(`[data-track-chrome="${kind}-button"]`).first().click();
+        await expect(page.locator(`[data-track-popover="${kind}"]`)).toBeVisible();
+        await savePageScreenshot(page, outputPath.replace(/\.png$/, `-${kind}-open.png`));
+        await shell.evaluate((element) => {
+          element.scrollTop = 180;
+          return new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        });
+        // Do not assert dismissal here: the PR-base image should expose the stale overlay.
+        await savePageScreenshot(
+          page,
+          kind === "volume" ? outputPath : outputPath.replace(/\.png$/, "-pan-after-scroll.png")
+        );
+      }
+    }
+  },
   [SCREENSHOT_SCENARIO.MAIN_VIEW]: {
     name: SCREENSHOT_SCENARIO.MAIN_VIEW,
     description: "Full main composition view",

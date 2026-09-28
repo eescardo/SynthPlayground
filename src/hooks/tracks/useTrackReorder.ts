@@ -55,9 +55,11 @@ export function useTrackReorder({ canvasShellRef, tracks, trackLayouts, onMoveTr
       if (!shell) {
         return null;
       }
+      const bounds = shell.getBoundingClientRect();
       return resolveTrackDropTarget({
         clientY,
-        shellTop: shell.getBoundingClientRect().top,
+        shellTop: bounds.top,
+        shellBottom: Math.min(bounds.bottom, window.innerHeight),
         scrollTop: shell.scrollTop,
         trackLayouts
       });
