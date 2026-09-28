@@ -83,7 +83,7 @@
   width: 2px;
   box-sizing: border-box;
   border-radius: 2px;
-  background: #738ca2;
+  background: var(--border);
   pointer-events: none;
 }
 
