@@ -5,17 +5,63 @@ export interface TrackDropTarget {
   position: "before" | "after";
 }
 
-export const resolveTrackReorderKeyDirection = (event: {
+interface TrackReorderKeyboardEvent {
   key: string;
   altKey: boolean;
   ctrlKey: boolean;
   metaKey: boolean;
   shiftKey: boolean;
-}): -1 | 0 | 1 => {
+}
+
+export interface FocusedHandleScrollGeometry {
+  currentScrollTop: number;
+  maxScrollTop: number;
+  handleTop: number;
+  handleBottom: number;
+  visibleTop: number;
+  visibleBottom: number;
+}
+
+export const resolveTrackReorderKeyDirection = (event: TrackReorderKeyboardEvent): -1 | 0 | 1 => {
   if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
     return 0;
   }
   return event.key === "ArrowUp" ? -1 : event.key === "ArrowDown" ? 1 : 0;
+};
+
+export const shouldPropagateTrackReorderKeyDown = (event: TrackReorderKeyboardEvent): boolean => {
+  if (event.key === "Escape" || event.ctrlKey || event.metaKey) {
+    return true;
+  }
+  return (event.key === "ArrowUp" || event.key === "ArrowDown") && (event.altKey || event.shiftKey);
+};
+
+export const resolveFocusedHandleScrollTop = ({
+  currentScrollTop,
+  maxScrollTop,
+  handleTop,
+  handleBottom,
+  visibleTop,
+  visibleBottom
+}: FocusedHandleScrollGeometry): number => {
+  const availableHeight = Math.max(0, visibleBottom - visibleTop);
+  const handleHeight = Math.max(0, handleBottom - handleTop);
+  let targetScrollTop = currentScrollTop;
+
+  if (availableHeight === 0) {
+    return Math.min(Math.max(0, currentScrollTop), maxScrollTop);
+  }
+  if (handleHeight > availableHeight) {
+    // An oversized grip cannot satisfy both edges. Aligning its top is stable and
+    // keeps the focus ring plus the beginning of the track discoverable.
+    targetScrollTop += handleTop - visibleTop;
+  } else if (handleTop < visibleTop) {
+    targetScrollTop -= visibleTop - handleTop;
+  } else if (handleBottom > visibleBottom) {
+    targetScrollTop += handleBottom - visibleBottom;
+  }
+
+  return Math.min(Math.max(0, targetScrollTop), Math.max(0, maxScrollTop));
 };
 
 export const resolveTrackDropTarget = (args: {

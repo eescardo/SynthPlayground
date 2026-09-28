@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useRef } from "react";
 import type { DragEventHandler, KeyboardEventHandler, RefObject } from "react";
 import { createPortal } from "react-dom";
 import { RULER_HEIGHT } from "./trackCanvasConstants";
+import { resolveFocusedHandleScrollTop, shouldPropagateTrackReorderKeyDown } from "./trackReorder";
 import type { TrackLayout } from "./trackCanvasTypes";
 import styles from "./TrackCanvas.module.css";
 
@@ -9,11 +10,14 @@ interface TrackReorderHandleProps {
   track: { id: string; name: string };
   trackCount: number;
   dragging: boolean;
+  groupActive: boolean;
   layout: TrackLayout;
   shellRef: RefObject<HTMLDivElement | null>;
   viewport: { left: number; top: number; scrollTop: number; height: number; borderLeft: number; borderTop: number };
   onDragStart: DragEventHandler<HTMLButtonElement>;
   onDragEnd: DragEventHandler<HTMLButtonElement>;
+  onFocusChange: (focused: boolean) => void;
+  onHoverChange: (hovered: boolean) => void;
   onKeyDown: KeyboardEventHandler<HTMLButtonElement>;
 }
 
@@ -21,11 +25,14 @@ export function TrackReorderHandle({
   track,
   trackCount,
   dragging,
+  groupActive,
   layout,
   shellRef,
   viewport,
   onDragStart,
   onDragEnd,
+  onFocusChange,
+  onHoverChange,
   onKeyDown
 }: TrackReorderHandleProps) {
   const handleRef = useRef<HTMLButtonElement>(null);
@@ -41,11 +48,15 @@ export function TrackReorderHandle({
     const handleRect = handle.getBoundingClientRect();
     const visibleTop = Math.max(shellRect.top + shell.clientTop + RULER_HEIGHT, 0);
     const visibleBottom = Math.min(shellRect.top + shell.clientTop + shell.clientHeight, window.innerHeight);
-    if (handleRect.top < visibleTop) {
-      shell.scrollTop -= visibleTop - handleRect.top;
-    } else if (handleRect.bottom > visibleBottom) {
-      shell.scrollTop += handleRect.bottom - visibleBottom;
-    }
+    const targetScrollTop = resolveFocusedHandleScrollTop({
+      currentScrollTop: shell.scrollTop,
+      maxScrollTop: shell.scrollHeight - shell.clientHeight,
+      handleTop: handleRect.top,
+      handleBottom: handleRect.bottom,
+      visibleTop,
+      visibleBottom
+    });
+    if (targetScrollTop !== shell.scrollTop) shell.scrollTop = targetScrollTop;
   }, [dragging, shellRef]);
 
   useLayoutEffect(() => {
@@ -72,6 +83,7 @@ export function TrackReorderHandle({
       data-track-chrome="reorder-handle"
       data-track-id={track.id}
       data-dragging={dragging}
+      data-group-active={groupActive}
       style={{
         left: viewport.left + viewport.borderLeft,
         top,
@@ -85,17 +97,18 @@ export function TrackReorderHandle({
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
-      onFocus={keepFocusedHandleVisible}
+      onPointerEnter={() => onHoverChange(true)}
+      onPointerLeave={() => onHoverChange(false)}
+      onFocus={() => {
+        onFocusChange(true);
+        keepFocusedHandleVisible();
+      }}
+      onBlur={() => onFocusChange(false)}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onKeyDown={(event) => {
         onKeyDown(event);
-        if (event.key !== "Escape" && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey) {
-          event.stopPropagation();
-        }
-      }}
-      onKeyUp={(event) => {
-        if (event.key !== "Escape" && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey) {
+        if (!shouldPropagateTrackReorderKeyDown(event)) {
           event.stopPropagation();
         }
       }}

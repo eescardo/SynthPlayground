@@ -919,6 +919,10 @@ export function useComposerHardwareNavigation({
         return;
       }
       const normalizedPhysicalTriggerKey = normalizePhysicalPitchKey(event.key);
+      // Recording owns physical pitch keys; placement must not claim them first.
+      if (recordPhase === "recording" && normalizedPhysicalTriggerKey) {
+        return;
+      }
       const isActivePlacementTriggerKey =
         Boolean(activePlacement) &&
         (event.key === activePlacement?.triggerKey ||

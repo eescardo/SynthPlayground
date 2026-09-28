@@ -307,6 +307,9 @@ export function TrackHeaderChrome({
   automationActions
 }: TrackHeaderChromeProps) {
   const renameActivation = useRenameActivation<string>();
+  const [chromeHovered, setChromeHovered] = useState(false);
+  const [hoveredHandleId, setHoveredHandleId] = useState<string | null>(null);
+  const [focusedHandleId, setFocusedHandleId] = useState<string | null>(null);
   const {
     patchSummaryPopover,
     setPatchSummaryPopover,
@@ -336,6 +339,8 @@ export function TrackHeaderChrome({
     trackLayouts,
     onMoveTrack: trackActions.onMoveTrack
   });
+  const reorderGroupActive =
+    chromeHovered || hoveredHandleId !== null || focusedHandleId !== null || trackDrag !== null;
 
   useEffect(() => {
     const shell = canvasShellRef.current;
@@ -382,7 +387,10 @@ export function TrackHeaderChrome({
     <div
       className={styles.headerOverlays}
       data-track-chrome="header-overlays"
+      data-reorder-group-active={reorderGroupActive}
       style={{ "--track-header-width": `${HEADER_WIDTH}px` } as CSSProperties}
+      onPointerEnter={() => setChromeHovered(true)}
+      onPointerLeave={() => setChromeHovered(false)}
     >
       <div className={styles.visuallyHidden} role="status" aria-live="polite" aria-atomic="true">
         {keyboardAnnouncement}
@@ -454,6 +462,7 @@ export function TrackHeaderChrome({
                 track={track}
                 trackCount={project.tracks.length}
                 dragging={trackDrag?.trackId === track.id}
+                groupActive={reorderGroupActive}
                 layout={layout}
                 shellRef={canvasShellRef}
                 viewport={canvasViewport}
@@ -462,6 +471,12 @@ export function TrackHeaderChrome({
                   onTrackDragStart(event, track.id);
                 }}
                 onDragEnd={onTrackDragEnd}
+                onHoverChange={(hovered) =>
+                  setHoveredHandleId((current) => (hovered ? track.id : current === track.id ? null : current))
+                }
+                onFocusChange={(focused) =>
+                  setFocusedHandleId((current) => (focused ? track.id : current === track.id ? null : current))
+                }
                 onKeyDown={(event) => {
                   onTrackReorderKeyDown(event, track.id, closeMixerPopovers);
                 }}
