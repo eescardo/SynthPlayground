@@ -406,17 +406,40 @@ describe.sequential("composer pointer interactions", () => {
       await shell.evaluate((element) => {
         element.scrollTop = 0;
       });
-      const nextGrip = (await page.getByTestId("track-reorder-handle").first().boundingBox())!;
+      const nextHandle = page.locator(`[data-testid="track-reorder-handle"][data-track-id="${committedOrder[0]}"]`);
+      await expect(nextHandle).toBeInViewport();
+      const nextGrip = (await nextHandle.boundingBox())!;
       await page.mouse.move(nextGrip.x + nextGrip.width / 2, nextGrip.y + nextGrip.height / 2);
       await page.mouse.down();
       await page.mouse.move(bounds.x + 50, bounds.y + bounds.height - 8, { steps: 12 });
       await expect.poll(() => shell.evaluate((element) => element.scrollTop)).toBeGreaterThan(100);
       await page.keyboard.press("Escape");
       await page.mouse.up();
+      // Chromium can keep native edge scrolling active while the pointer remains at the edge after cancelling a drag.
+      await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
       await expect(page.locator('[data-testid="track-reorder-handle"][data-dragging="true"]')).toHaveCount(0);
-      const cancelledAt = await shell.evaluate((element) => element.scrollTop);
-      await page.waitForTimeout(150);
-      expect(await shell.evaluate((element) => element.scrollTop)).toBe(cancelledAt);
+      await waitForScrollStability(shell);
+      const cancellationProbeTop = await shell.evaluate((element) => {
+        // Disable Chromium's native drag-edge scrolling so this probe isolates the app's cancelled animation loop.
+        element.style.overflow = "hidden";
+        const nextScrollTop = Math.min(500, element.scrollHeight - element.clientHeight - 200);
+        element.scrollTop = nextScrollTop;
+        return nextScrollTop;
+      });
+      try {
+        await waitForScrollStability(shell);
+        expect(await shell.evaluate((element) => element.scrollTop)).toBe(cancellationProbeTop);
+        expect(
+          await shell.evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop)
+        ).toBeGreaterThan(100);
+        const cancelledAt = await shell.evaluate((element) => element.scrollTop);
+        await page.waitForTimeout(150);
+        expect(await shell.evaluate((element) => element.scrollTop)).toBe(cancelledAt);
+      } finally {
+        await shell.evaluate((element) => {
+          element.style.overflow = "";
+        });
+      }
       expect(await readTrackIds(page)).toEqual(committedOrder);
     });
   }, 120_000);
@@ -507,6 +530,22 @@ const reorderedLastTrackIds = (project: Project) => [
 ];
 
 const readTrackIds = async (page: Page) => (await readActiveProject(page)).tracks.map((track) => track.id);
+
+const waitForScrollStability = async (shell: Locator) => {
+  await expect
+    .poll(() =>
+      shell.evaluate(
+        (element) =>
+          new Promise<boolean>((resolve) => {
+            const scrollTop = element.scrollTop;
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => resolve(element.scrollTop === scrollTop));
+            });
+          })
+      )
+    )
+    .toBe(true);
+};
 
 const expectTrackReorderHandleGeometry = async (trackRow: Locator, handle: Locator) => {
   await expect
