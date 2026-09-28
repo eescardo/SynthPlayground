@@ -307,6 +307,10 @@ describe.sequential("composer pointer interactions", () => {
       await page.getByTestId("track-name-button").first().hover();
       await expect(firstTrackHandle).toHaveCSS("opacity", "1");
       await expect(page.getByTestId("track-reorder-handle").nth(1)).toHaveCSS("opacity", "1");
+      const chromeEdgeColor = await shell.evaluate((element) => getComputedStyle(element).borderLeftColor);
+      await expect
+        .poll(() => firstTrackHandle.evaluate((element) => getComputedStyle(element, "::before").backgroundColor))
+        .toBe(chromeEdgeColor);
       const readGripAppearance = () =>
         firstTrackHandle.evaluate((element) => ({
           railWidth: parseFloat(getComputedStyle(element, "::before").width),
