@@ -455,6 +455,7 @@ export function TrackHeaderChrome({
               <TrackReorderHandle
                 track={track}
                 trackCount={project.tracks.length}
+                dragging={trackDrag?.trackId === track.id}
                 layout={layout}
                 shellRef={canvasShellRef}
                 viewport={canvasViewport}

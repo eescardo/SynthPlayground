@@ -7,6 +7,7 @@ import styles from "./TrackCanvas.module.css";
 interface TrackReorderHandleProps {
   track: { id: string; name: string };
   trackCount: number;
+  dragging: boolean;
   layout: TrackLayout;
   shellRef: RefObject<HTMLDivElement | null>;
   viewport: { left: number; top: number; scrollTop: number; height: number; borderLeft: number; borderTop: number };
@@ -18,6 +19,7 @@ interface TrackReorderHandleProps {
 export function TrackReorderHandle({
   track,
   trackCount,
+  dragging,
   layout,
   shellRef,
   viewport,
@@ -42,6 +44,7 @@ export function TrackReorderHandle({
       className={styles.trackDragGrip}
       data-testid="track-reorder-handle"
       data-track-id={track.id}
+      data-dragging={dragging}
       style={{
         left: viewport.left + viewport.borderLeft,
         top,

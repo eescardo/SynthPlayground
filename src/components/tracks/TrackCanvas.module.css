@@ -52,7 +52,7 @@
 
 .trackDragGrip {
   position: fixed;
-  transform: translateX(-50%);
+  transform: translateX(calc(-100% + 1px));
   z-index: 3;
   display: inline-flex;
   align-items: center;
@@ -60,33 +60,51 @@
   width: 11.2px;
   box-sizing: border-box;
   padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(214, 235, 255, 0.92);
+  cursor: grab;
+  opacity: 1;
+}
+
+.trackDragGrip::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 2px;
+  box-sizing: border-box;
+  border-radius: 2px;
+  background: #738ca2;
+  pointer-events: none;
+}
+
+.trackDragGrip:is(:hover, :focus-visible, [data-dragging="true"])::before {
+  width: 100%;
   border: 1px solid rgba(148, 179, 213, 0.38);
   border-radius: 4px;
   /* Composite the macro panel over selected chrome, including outside the canvas. */
   background:
     linear-gradient(rgba(214, 232, 248, 0.18), rgba(214, 232, 248, 0.18)),
     linear-gradient(rgba(33, 112, 210, 0.2), rgba(33, 112, 210, 0.2)), #121b27;
-  color: rgba(181, 215, 246, 0.78);
   box-shadow: inset 0 0 0 1px rgba(19, 40, 61, 0.06);
-  cursor: grab;
-  opacity: 0.25;
 }
 
-.trackDragGrip::before {
+.trackDragGrip::after {
   content: "";
+  position: absolute;
   width: 8px;
   height: calc(100% - 8px);
   min-height: 12px;
   background-image: radial-gradient(circle, currentColor 1px, transparent 1.25px);
   background-position: center top;
   background-size: 4px 6px;
+  opacity: 0;
+  pointer-events: none;
 }
 
-.trackDragGrip:hover,
-.trackDragGrip:focus-visible {
+.trackDragGrip:is(:hover, :focus-visible, [data-dragging="true"])::after {
   opacity: 1;
-  border-color: rgba(150, 205, 246, 0.72);
-  color: rgba(214, 235, 255, 0.92);
 }
 
 .trackDragGrip:focus-visible {
