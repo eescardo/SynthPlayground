@@ -304,6 +304,10 @@ describe.sequential("composer pointer interactions", () => {
       await expect.poll(async () => (await readGripAppearance()).railWidth).toBeGreaterThan(11);
       await expect.poll(async () => (await readGripAppearance()).dotsOpacity).toBe("1");
       expect(await firstTrackHandle.boundingBox()).toEqual(restingBox);
+      await expectTrackReorderHandleGeometry(firstTrackRow, firstTrackHandle);
+      // The invisible inner portion must also reveal the centered grip.
+      await firstTrackHandle.hover({ position: { x: 9, y: 12 } });
+      await expect.poll(async () => (await readGripAppearance()).dotsOpacity).toBe("1");
       await page.mouse.move(600, 80);
       await expect.poll(readGripAppearance).toEqual({ railWidth: 2, dotsOpacity: "0" });
       const collapsedHeight = (await firstTrackRow.boundingBox())?.height ?? 0;
@@ -462,7 +466,7 @@ const expectTrackReorderHandleGeometry = async (trackRow: Locator, handle: Locat
         return document.elementFromPoint(rect.left + 1, rect.top + rect.height / 2) === element;
       });
       return {
-        edgeCentered: Math.abs(handleBox.x + handleBox.width - 1 - rowBox.x) <= 0.5,
+        edgeCentered: Math.abs(handleBox.x + handleBox.width / 2 - rowBox.x) <= 0.5,
         topAnchored: Math.abs(topPercent - 20) <= 1.5,
         bottomAnchored: Math.abs(bottomPercent - 80) <= 1.5,
         backgroundDistinct: handleBackground !== rowBackground,
