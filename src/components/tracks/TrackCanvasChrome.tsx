@@ -62,6 +62,7 @@ interface TrackHeaderChromeProps {
   scheduleVolumePopoverOpen: (trackId: string, anchor?: HTMLElement | null) => void;
   scheduleVolumePopoverDismiss: () => void;
   cancelScheduledVolumePopoverDismiss: () => void;
+  onReorderHandleWheel: (event: WheelEvent) => void;
   trackActions: TrackCanvasTrackActions;
   patchActions: TrackCanvasPatchActions;
   automationActions: TrackCanvasAutomationActions;
@@ -302,6 +303,7 @@ export function TrackHeaderChrome({
   scheduleVolumePopoverOpen,
   scheduleVolumePopoverDismiss,
   cancelScheduledVolumePopoverDismiss,
+  onReorderHandleWheel,
   trackActions,
   patchActions,
   automationActions
@@ -474,6 +476,7 @@ export function TrackHeaderChrome({
                 onHoverChange={(hovered) =>
                   setHoveredHandleId((current) => (hovered ? track.id : current === track.id ? null : current))
                 }
+                onWheel={onReorderHandleWheel}
                 onFocusChange={(focused) =>
                   setFocusedHandleId((current) => (focused ? track.id : current === track.id ? null : current))
                 }

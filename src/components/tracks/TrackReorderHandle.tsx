@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import type { DragEventHandler, KeyboardEventHandler, RefObject } from "react";
 import { createPortal } from "react-dom";
 import { RULER_HEIGHT } from "./trackCanvasConstants";
@@ -19,6 +19,7 @@ interface TrackReorderHandleProps {
   onFocusChange: (focused: boolean) => void;
   onHoverChange: (hovered: boolean) => void;
   onKeyDown: KeyboardEventHandler<HTMLButtonElement>;
+  onWheel: (event: WheelEvent) => void;
 }
 
 export function TrackReorderHandle({
@@ -33,7 +34,8 @@ export function TrackReorderHandle({
   onDragEnd,
   onFocusChange,
   onHoverChange,
-  onKeyDown
+  onKeyDown,
+  onWheel
 }: TrackReorderHandleProps) {
   const handleRef = useRef<HTMLButtonElement>(null);
 
@@ -62,6 +64,15 @@ export function TrackReorderHandle({
   useLayoutEffect(() => {
     keepFocusedHandleVisible();
   }, [keepFocusedHandleVisible, layout.height, layout.y, viewport.height, viewport.scrollTop, viewport.top]);
+
+  useEffect(() => {
+    const handle = handleRef.current;
+    if (!handle) {
+      return;
+    }
+    handle.addEventListener("wheel", onWheel, { passive: false, capture: true });
+    return () => handle.removeEventListener("wheel", onWheel, true);
+  }, [onWheel, viewport.height]);
 
   if (viewport.height === 0) {
     return null;

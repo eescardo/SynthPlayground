@@ -164,6 +164,27 @@ describe.sequential("track reorder interactions", () => {
         pageTop: window.scrollY
       }));
 
+      const decoyWheelConsumed = await page.evaluate(() => {
+        const decoy = document.createElement("button");
+        decoy.dataset.trackChrome = "reorder-handle";
+        document.body.append(decoy);
+        const consumed = !decoy.dispatchEvent(
+          new WheelEvent("wheel", {
+            bubbles: true,
+            cancelable: true,
+            deltaMode: WheelEvent.DOM_DELTA_LINE,
+            deltaY: 2
+          })
+        );
+        decoy.remove();
+        return consumed;
+      });
+      expect(decoyWheelConsumed).toBe(false);
+      expect(await shell.evaluate((element) => ({ left: element.scrollLeft, top: element.scrollTop }))).toEqual({
+        left: initial.left,
+        top: initial.top
+      });
+
       const verticalConsumed = await handle.evaluate((element) => {
         const rect = element.getBoundingClientRect();
         return !element.dispatchEvent(
