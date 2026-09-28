@@ -65,6 +65,13 @@
   background: transparent;
   color: rgba(214, 235, 255, 0.92);
   cursor: grab;
+  opacity: 0;
+}
+
+:global(body):has(.headerOverlays:hover) .trackDragGrip,
+:global(body):has(.trackDragGrip:hover) .trackDragGrip,
+:global(body):has(.trackDragGrip[data-dragging="true"]) .trackDragGrip,
+.trackDragGrip:focus-visible {
   opacity: 1;
 }
 

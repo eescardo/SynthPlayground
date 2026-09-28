@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveTrackDropTarget } from "@/components/tracks/trackReorder";
+import { resolveTrackDropTarget, trackReorderScrollSpeed } from "@/components/tracks/trackReorder";
 import type { TrackLayout } from "@/components/tracks/trackCanvasTypes";
 
 const layout = (trackId: string, y: number, height = 72): TrackLayout => ({
@@ -30,8 +30,38 @@ describe("resolveTrackDropTarget", () => {
     });
   });
 
-  it("returns null outside every track layout", () => {
-    expect(resolveTrackDropTarget({ clientY: 110, shellTop: 100, scrollTop: 0, trackLayouts })).toBeNull();
-    expect(resolveTrackDropTarget({ clientY: 500, shellTop: 100, scrollTop: 0, trackLayouts })).toBeNull();
+  it("clamps drops beyond the tracks to the first/last insertion point", () => {
+    expect(resolveTrackDropTarget({ clientY: 20, shellTop: 100, scrollTop: 0, trackLayouts })).toEqual({
+      targetTrackId: "track-1",
+      position: "before"
+    });
+    expect(resolveTrackDropTarget({ clientY: 500, shellTop: 100, scrollTop: 0, trackLayouts })).toEqual({
+      targetTrackId: "track-3",
+      position: "after"
+    });
+  });
+
+  it("returns null for an empty canvas", () => {
+    expect(resolveTrackDropTarget({ clientY: 20, shellTop: 100, scrollTop: 0, trackLayouts: [] })).toBeNull();
+  });
+});
+
+describe("trackReorderScrollSpeed", () => {
+  it.each([
+    [50, -600],
+    [100, -600],
+    [132, -300],
+    [164, 0],
+    [300, 0],
+    [436, 0],
+    [468, 300],
+    [500, 600],
+    [550, 600]
+  ])("scrolls at %s with speed %s", (y, speed) => {
+    expect(trackReorderScrollSpeed(y, 100, 500)).toBe(speed);
+  });
+  it("handles small and empty viewports", () => {
+    expect(trackReorderScrollSpeed(120, 100, 140)).toBe(0);
+    expect(trackReorderScrollSpeed(120, 100, 100)).toBe(0);
   });
 });
