@@ -63,12 +63,22 @@ export function TrackCanvas(props: TrackCanvasProps) {
     volumePopoverPosition,
     openVolumePopover,
     openPanPopover,
+    closeMixerPopovers,
     scheduleVolumePopoverOpen,
     scheduleVolumePopoverDismiss,
     cancelScheduledVolumePopoverDismiss,
     panPopoverTrackId,
     panPopoverPosition
   } = useTrackCanvasPopovers(wrapperRef);
+  const orderedTrackIdsKey = JSON.stringify(project.tracks.map((track) => track.id));
+  const orderedTrackIdsKeyRef = useRef(orderedTrackIdsKey);
+
+  useEffect(() => {
+    if (orderedTrackIdsKeyRef.current !== orderedTrackIdsKey) {
+      orderedTrackIdsKeyRef.current = orderedTrackIdsKey;
+      closeMixerPopovers();
+    }
+  }, [closeMixerPopovers, orderedTrackIdsKey]);
 
   const {
     activeRecordedNotes,
@@ -536,6 +546,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       panPopoverPosition={panPopoverPosition}
       openVolumePopover={openVolumePopover}
       openPanPopover={openPanPopover}
+      closeMixerPopovers={closeMixerPopovers}
       scheduleVolumePopoverOpen={scheduleVolumePopoverOpen}
       scheduleVolumePopoverDismiss={scheduleVolumePopoverDismiss}
       cancelScheduledVolumePopoverDismiss={cancelScheduledVolumePopoverDismiss}

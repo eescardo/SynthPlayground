@@ -44,18 +44,19 @@ export function useTrackCanvasPopovers(canvasShellRef: RefObject<HTMLDivElement 
     setPanPopoverPosition(null);
   }, []);
 
+  const closeMixerPopovers = useCallback(() => {
+    // Closing volume also cancels any pending hover-open timer.
+    closeVolumePopover();
+    closePanPopover();
+  }, [closePanPopover, closeVolumePopover]);
+
   useEffect(() => {
     const shell = canvasShellRef.current;
     if (!shell) return;
-    const closeMixerPopovers = () => {
-      // Fixed-position controls must not remain beside a different track after scrolling.
-      // Closing volume also cancels any pending hover-open timer.
-      closeVolumePopover();
-      closePanPopover();
-    };
+    // Fixed-position controls must not remain beside a different track after scrolling.
     shell.addEventListener("scroll", closeMixerPopovers, { passive: true });
     return () => shell.removeEventListener("scroll", closeMixerPopovers);
-  }, [canvasShellRef, closePanPopover, closeVolumePopover]);
+  }, [canvasShellRef, closeMixerPopovers]);
 
   const openVolumeOnlyPopover = useCallback(
     (trackId: string, anchor?: HTMLElement | null) => {
@@ -88,8 +89,7 @@ export function useTrackCanvasPopovers(canvasShellRef: RefObject<HTMLDivElement 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        closeVolumePopover();
-        closePanPopover();
+        closeMixerPopovers();
       }
     };
 
@@ -111,7 +111,7 @@ export function useTrackCanvasPopovers(canvasShellRef: RefObject<HTMLDivElement 
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("pointerdown", onPointerDown);
     };
-  }, [closePanPopover, closeVolumePopover]);
+  }, [closeMixerPopovers, closePanPopover, closeVolumePopover]);
 
   return {
     volumePopoverTrackId,
@@ -120,6 +120,7 @@ export function useTrackCanvasPopovers(canvasShellRef: RefObject<HTMLDivElement 
     panPopoverPosition,
     openVolumePopover: openVolumeOnlyPopover,
     openPanPopover,
+    closeMixerPopovers,
     scheduleVolumePopoverOpen: scheduleVolumeOnlyPopoverOpen,
     scheduleVolumePopoverDismiss,
     cancelScheduledVolumePopoverDismiss
