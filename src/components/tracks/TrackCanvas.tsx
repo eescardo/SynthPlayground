@@ -254,12 +254,8 @@ export function TrackCanvas(props: TrackCanvasProps) {
     };
   }, [onWheelZoom]);
 
-  useEffect(() => {
-    const onPortaledReorderHandleWheel = (event: WheelEvent) => {
-      const target = event.target instanceof Element ? event.target : null;
-      if (!target?.closest('[data-track-chrome="reorder-handle"]')) {
-        return;
-      }
+  const onReorderHandleWheel = useCallback(
+    (event: WheelEvent) => {
       const wrapper = wrapperRef.current;
       if (!wrapper) {
         return;
@@ -274,11 +270,9 @@ export function TrackCanvas(props: TrackCanvasProps) {
       event.stopImmediatePropagation();
       wrapper.scrollLeft += wheelDeltaToPixels(event.deltaX, event.deltaMode, wrapper.clientWidth);
       wrapper.scrollTop += wheelDeltaToPixels(event.deltaY, event.deltaMode, wrapper.clientHeight);
-    };
-
-    document.addEventListener("wheel", onPortaledReorderHandleWheel, { passive: false, capture: true });
-    return () => document.removeEventListener("wheel", onPortaledReorderHandleWheel, true);
-  }, [onWheelZoom]);
+    },
+    [onWheelZoom]
+  );
 
   useEffect(() => {
     const wrapper = wrapperRef.current;
@@ -576,6 +570,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
       scheduleVolumePopoverOpen={scheduleVolumePopoverOpen}
       scheduleVolumePopoverDismiss={scheduleVolumePopoverDismiss}
       cancelScheduledVolumePopoverDismiss={cancelScheduledVolumePopoverDismiss}
+      onReorderHandleWheel={onReorderHandleWheel}
       trackActions={trackActions}
       patchActions={patchActions}
       automationActions={automationActions}

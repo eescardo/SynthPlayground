@@ -53,6 +53,7 @@ interface TrackCanvasOverlaysProps {
   scheduleVolumePopoverOpen: (trackId: string, anchor?: HTMLElement | null) => void;
   scheduleVolumePopoverDismiss: () => void;
   cancelScheduledVolumePopoverDismiss: () => void;
+  onReorderHandleWheel: (event: WheelEvent) => void;
   trackActions: TrackCanvasTrackActions;
   patchActions: TrackCanvasPatchActions;
   automationActions: TrackCanvasAutomationActions;
@@ -120,6 +121,7 @@ export function TrackCanvasOverlays(props: TrackCanvasOverlaysProps) {
         scheduleVolumePopoverOpen={props.scheduleVolumePopoverOpen}
         scheduleVolumePopoverDismiss={props.scheduleVolumePopoverDismiss}
         cancelScheduledVolumePopoverDismiss={props.cancelScheduledVolumePopoverDismiss}
+        onReorderHandleWheel={props.onReorderHandleWheel}
         trackActions={props.trackActions}
         patchActions={props.patchActions}
         automationActions={props.automationActions}
