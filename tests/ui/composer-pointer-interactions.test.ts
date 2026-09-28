@@ -283,9 +283,17 @@ describe.sequential("composer pointer interactions", () => {
 
       await page.getByTestId("track-name-button").first().click();
       await page.getByRole("button", { name: "Expand macro lanes" }).click();
-      await expect(page.locator('[data-track-chrome="macro-panel"]')).toBeVisible();
+      const macroPanel = page.locator('[data-track-chrome="macro-panel"]');
+      await expect(macroPanel).toBeVisible();
       await expect.poll(async () => (await firstTrackRow.boundingBox())?.height ?? 0).toBeGreaterThan(collapsedHeight);
       await expectTrackReorderHandleGeometry(firstTrackRow, firstTrackHandle);
+      await expect
+        .poll(async () => {
+          const handleBox = await firstTrackHandle.boundingBox();
+          const panelBox = await macroPanel.boundingBox();
+          return handleBox && panelBox ? handleBox.x + handleBox.width <= panelBox.x : false;
+        })
+        .toBe(true);
 
       await page.getByRole("button", { name: "Collapse macro lanes" }).click();
       await expect.poll(async () => (await firstTrackRow.boundingBox())?.height ?? 0).toBe(collapsedHeight);
@@ -417,13 +425,29 @@ const expectTrackReorderHandleGeometry = async (trackRow: Locator, handle: Locat
       }
       const topPercent = ((handleBox.y - rowBox.y) / rowBox.height) * 100;
       const bottomPercent = ((handleBox.y + handleBox.height - rowBox.y) / rowBox.height) * 100;
+      const [rowBackground, handleBackground] = await Promise.all([
+        trackRow.evaluate((element) => window.getComputedStyle(element).backgroundColor),
+        handle.evaluate((element) => window.getComputedStyle(element).backgroundColor)
+      ]);
+      const leftEdgeInteractive = await handle.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return document.elementFromPoint(rect.left + 1, rect.top + rect.height / 2) === element;
+      });
       return {
-        leftAnchored: Math.abs(handleBox.x - rowBox.x) <= 0.5,
+        edgeCentered: Math.abs(handleBox.x + handleBox.width / 2 - rowBox.x) <= 0.5,
         topAnchored: Math.abs(topPercent - 20) <= 1.5,
-        bottomAnchored: Math.abs(bottomPercent - 80) <= 1.5
+        bottomAnchored: Math.abs(bottomPercent - 80) <= 1.5,
+        backgroundDistinct: handleBackground !== "rgba(0, 0, 0, 0)" && handleBackground !== rowBackground,
+        leftEdgeInteractive
       };
     })
-    .toEqual({ leftAnchored: true, topAnchored: true, bottomAnchored: true });
+    .toEqual({
+      edgeCentered: true,
+      topAnchored: true,
+      bottomAnchored: true,
+      backgroundDistinct: true,
+      leftEdgeInteractive: true
+    });
 };
 
 const createEmptyComposerProject = (options?: { compositionEndBeat?: number }): Project => {
