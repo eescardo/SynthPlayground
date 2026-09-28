@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { DragEvent, KeyboardEvent, RefObject } from "react";
 import {
   resolveTrackDropTarget,
+  resolveTrackReorderKeyDirection,
   trackReorderScrollSpeed,
   type TrackDropTarget
 } from "@/components/tracks/trackReorder";
@@ -163,21 +164,23 @@ export function useTrackReorder({ canvasShellRef, tracks, trackLayouts, onMoveTr
   }, []);
 
   const onTrackReorderKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLElement>, trackId: string) => {
-      const direction = event.key === "ArrowUp" ? -1 : event.key === "ArrowDown" ? 1 : 0;
+    (event: KeyboardEvent<HTMLElement>, trackId: string, onWillMove?: () => void) => {
+      const direction = resolveTrackReorderKeyDirection(event);
       if (direction === 0) {
-        return;
+        return false;
       }
-      event.preventDefault();
-      event.stopPropagation();
       const sourceIndex = tracks.findIndex((track) => track.id === trackId);
       const targetTrack = tracks[sourceIndex + direction];
       const sourceTrack = tracks[sourceIndex];
       if (sourceIndex < 0 || !sourceTrack || !targetTrack) {
-        return;
+        return false;
       }
+      event.preventDefault();
+      event.stopPropagation();
+      onWillMove?.();
       onMoveTrack(trackId, targetTrack.id, direction < 0 ? "before" : "after");
       announceKeyboardMove(`Moved ${sourceTrack.name} to position ${sourceIndex + direction + 1} of ${tracks.length}.`);
+      return true;
     },
     [announceKeyboardMove, onMoveTrack, tracks]
   );

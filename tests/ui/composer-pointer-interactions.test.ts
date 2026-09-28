@@ -266,21 +266,48 @@ describe.sequential("composer pointer interactions", () => {
       const shell = page.locator(".track-canvas-shell");
       const transport = page.locator(".transport");
       const stickyRuler = shell.locator('[class*="stickyRuler"] canvas');
+      const rulerCornerMask = page.getByTestId("track-ruler-corner-mask");
       const mainCanvas = shell.locator(":scope > canvas");
       const transportTop = (await transport.boundingBox())?.y;
       const shellTop = (await shell.boundingBox())?.y;
 
-      await shell.evaluate((element) => {
+      await shell.evaluate((element, scrollLeft) => {
         element.scrollTop = 240;
-      });
+        element.scrollLeft = scrollLeft;
+      }, 4 * BEAT_WIDTH);
 
       await expect.poll(() => shell.evaluate((element) => element.scrollTop)).toBe(240);
+      await expect.poll(() => shell.evaluate((element) => element.scrollLeft)).toBe(4 * BEAT_WIDTH);
       expect((await transport.boundingBox())?.y).toBe(transportTop);
       expect((await stickyRuler.boundingBox())?.y).toBe((shellTop ?? 0) + 1);
       expect((await mainCanvas.boundingBox())?.y).toBeLessThan(shellTop ?? 0);
+      await expect
+        .poll(async () => {
+          const shellBox = await shell.boundingBox();
+          const maskBox = await rulerCornerMask.boundingBox();
+          if (!shellBox || !maskBox) return null;
+          return {
+            leftAligned: Math.abs(maskBox.x - shellBox.x - 1) <= 0.5,
+            width: maskBox.width,
+            cornerTarget: await page.evaluate(
+              ({ x, y }) => (document.elementFromPoint(x, y) as HTMLElement | null)?.dataset.testid,
+              { x: shellBox.x + 10, y: shellBox.y + 10 }
+            ),
+            rulerTarget: await page.evaluate(
+              ({ x, y }) => (document.elementFromPoint(x, y) as HTMLElement | null)?.tagName,
+              { x: shellBox.x + HEADER_WIDTH + 10, y: shellBox.y + 10 }
+            )
+          };
+        })
+        .toEqual({
+          leftAligned: true,
+          width: HEADER_WIDTH,
+          cornerTarget: "track-ruler-corner-mask",
+          rulerTarget: "CANVAS"
+        });
 
       await shell.click({ position: { x: HEADER_WIDTH + 2 * BEAT_WIDTH, y: RULER_HEIGHT / 2 } });
-      await expect(page.locator(".playhead")).toHaveText("Beat 3");
+      await expect(page.locator(".playhead")).toHaveText("Beat 7");
     });
   }, 120_000);
 
@@ -674,6 +701,108 @@ describe.sequential("composer pointer interactions", () => {
       await expect.poll(() => readTrackIds(page)).toEqual(seededProject.tracks.map((track) => track.id));
       await expect(lastTrackHandle).toBeFocused();
       await expect(reorderStatus).toHaveText("Moved Scroll Track 10 to position 10 of 10.");
+    });
+  }, 120_000);
+
+  test("keeps a focused keyboard reorder handle visible across viewport edges and unequal track heights", async () => {
+    const project = createManyTrackComposerProject(10);
+    await withSeededComposerPage(project, async (page) => {
+      const shell = page.locator(".track-canvas-shell");
+      await page.getByTestId("track-name-button").nth(6).click();
+      await page.getByRole("button", { name: "Expand macro lanes" }).click();
+
+      await shell.evaluate((element, scrollLeft) => {
+        element.scrollTop = 0;
+        element.scrollLeft = scrollLeft;
+      }, 3 * BEAT_WIDTH);
+      const horizontalScroll = await shell.evaluate((element) => element.scrollLeft);
+      const handle = page.locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-6"]');
+      await handle.focus();
+
+      const readVisibility = () =>
+        handle.evaluate((element, rulerHeight) => {
+          const shell = document.querySelector<HTMLElement>(".track-canvas-shell");
+          if (!shell) return null;
+          const shellRect = shell.getBoundingClientRect();
+          const handleRect = element.getBoundingClientRect();
+          const visibleTop = Math.max(shellRect.top + shell.clientTop + rulerHeight, 0);
+          const visibleBottom = Math.min(shellRect.top + shell.clientTop + shell.clientHeight, window.innerHeight);
+          return {
+            focused: document.activeElement === element,
+            fullyVisible: handleRect.top >= visibleTop - 0.5 && handleRect.bottom <= visibleBottom + 0.5,
+            scrollLeft: shell.scrollLeft,
+            scrollTop: shell.scrollTop
+          };
+        }, RULER_HEIGHT);
+
+      await expect.poll(readVisibility).toMatchObject({
+        focused: true,
+        fullyVisible: true,
+        scrollLeft: horizontalScroll
+      });
+      const initialScrollTop = (await readVisibility())!.scrollTop;
+
+      for (let index = 0; index < 2; index += 1) {
+        await page.keyboard.press("ArrowDown");
+        await expect.poll(readVisibility).toMatchObject({
+          focused: true,
+          fullyVisible: true,
+          scrollLeft: horizontalScroll
+        });
+      }
+      const bottomScrollTop = (await readVisibility())!.scrollTop;
+      expect(bottomScrollTop).toBeGreaterThan(initialScrollTop);
+
+      for (let index = 0; index < 6; index += 1) {
+        await page.keyboard.press("ArrowUp");
+        await expect.poll(readVisibility).toMatchObject({
+          focused: true,
+          fullyVisible: true,
+          scrollLeft: horizontalScroll
+        });
+      }
+      expect((await readVisibility())!.scrollTop).toBeLessThan(bottomScrollTop);
+      await expect(handle).toBeFocused();
+    });
+  }, 120_000);
+
+  test("leaves modified vertical arrows to window handlers without reordering or closing mixer popovers", async () => {
+    const project = createManyTrackComposerProject(6);
+    await withSeededComposerPage(project, async (page) => {
+      const originalOrder = project.tracks.map((track) => track.id);
+      const handle = page.locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-3"]');
+      const popover = page.locator('[data-track-popover="volume"]');
+      await page.locator('[data-track-chrome="volume-button"]').first().click();
+      await expect(popover).toBeVisible();
+      await handle.focus();
+      await page.evaluate(() => {
+        const observedWindow = window as typeof window & { modifiedReorderKeys?: string[] };
+        observedWindow.modifiedReorderKeys = [];
+        window.addEventListener("keydown", (event) => {
+          if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+          observedWindow.modifiedReorderKeys?.push(
+            `${event.altKey ? "A" : ""}${event.ctrlKey ? "C" : ""}${event.metaKey ? "M" : ""}${event.shiftKey ? "S" : ""}:${event.key}`
+          );
+        });
+      });
+
+      for (const key of ["Alt+ArrowUp", "Control+ArrowDown", "Meta+ArrowUp", "Shift+ArrowDown"]) {
+        await handle.focus();
+        await page.keyboard.press(key);
+        expect(await readTrackIds(page)).toEqual(originalOrder);
+        await expect(popover).toBeVisible();
+      }
+      expect(
+        await page.evaluate(() => (window as typeof window & { modifiedReorderKeys?: string[] }).modifiedReorderKeys)
+      ).toEqual(["A:ArrowUp", "C:ArrowDown", "M:ArrowUp", "S:ArrowDown"]);
+
+      await handle.focus();
+      await page.keyboard.press("ArrowDown");
+      await expect.poll(() => readTrackIds(page)).not.toEqual(originalOrder);
+      await expect(popover).toHaveCount(0);
+      await page.keyboard.press("Control+z");
+      await expect.poll(() => readTrackIds(page)).toEqual(originalOrder);
+      await expect(handle).toBeFocused();
     });
   }, 120_000);
 });

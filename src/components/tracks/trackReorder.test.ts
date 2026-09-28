@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveTrackDropTarget, trackReorderScrollSpeed } from "@/components/tracks/trackReorder";
+import {
+  resolveTrackDropTarget,
+  resolveTrackReorderKeyDirection,
+  trackReorderScrollSpeed
+} from "@/components/tracks/trackReorder";
 import type { TrackLayout } from "@/components/tracks/trackCanvasTypes";
 
 const layout = (trackId: string, y: number, height = 72): TrackLayout => ({
@@ -91,5 +95,26 @@ describe("trackReorderScrollSpeed", () => {
   it("handles small and empty viewports", () => {
     expect(trackReorderScrollSpeed(120, 100, 140)).toBe(0);
     expect(trackReorderScrollSpeed(120, 100, 100)).toBe(0);
+  });
+});
+
+describe("resolveTrackReorderKeyDirection", () => {
+  const keyboardEvent = (overrides: Partial<Parameters<typeof resolveTrackReorderKeyDirection>[0]> = {}) => ({
+    key: "ArrowDown",
+    altKey: false,
+    ctrlKey: false,
+    metaKey: false,
+    shiftKey: false,
+    ...overrides
+  });
+
+  it("resolves only unmodified vertical arrows", () => {
+    expect(resolveTrackReorderKeyDirection(keyboardEvent({ key: "ArrowUp" }))).toBe(-1);
+    expect(resolveTrackReorderKeyDirection(keyboardEvent({ key: "ArrowDown" }))).toBe(1);
+    expect(resolveTrackReorderKeyDirection(keyboardEvent({ key: "ArrowLeft" }))).toBe(0);
+  });
+
+  it.each(["altKey", "ctrlKey", "metaKey", "shiftKey"] as const)("ignores arrows with %s", (modifier) => {
+    expect(resolveTrackReorderKeyDirection(keyboardEvent({ [modifier]: true }))).toBe(0);
   });
 });
