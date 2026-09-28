@@ -186,7 +186,8 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
     description: "Track canvas with an automated macro lane and interpolated keyframes visible",
     capture: async (page, outputPath) => {
       await setupMacroAutomationLane(page);
-      await savePageScreenshot(page, outputPath, ".track-canvas-shell");
+      // Include the page margin occupied by the track reorder grips.
+      await savePageScreenshot(page, outputPath);
     }
   }
 };

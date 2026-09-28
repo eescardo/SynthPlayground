@@ -278,6 +278,18 @@ describe.sequential("composer pointer interactions", () => {
       const firstTrackRow = page.getByTestId("track-header-row").first();
       const firstTrackHandle = page.getByTestId("track-reorder-handle").first();
 
+      // The grip escapes the shell; the chrome itself still touches its original border.
+      const shell = page.locator(".track-canvas-shell");
+      await expect(shell).toHaveCSS("padding-left", "0px");
+      await expect(shell).toHaveCSS("margin-left", "0px");
+      await expect
+        .poll(async () => {
+          const shellBox = await shell.boundingBox();
+          const rowBox = await firstTrackRow.boundingBox();
+          return shellBox && rowBox ? Math.round(rowBox.x - shellBox.x) : null;
+        })
+        .toBe(1);
+
       await expectTrackReorderHandleGeometry(firstTrackRow, firstTrackHandle);
       const collapsedHeight = (await firstTrackRow.boundingBox())?.height ?? 0;
 
@@ -310,7 +322,8 @@ describe.sequential("composer pointer interactions", () => {
       });
       const reorderHandles = page.getByTestId("track-reorder-handle");
       const trackPatchSelectors = page.locator('[data-track-control="instrument-selection"]');
-      await reorderHandles.nth(8).dragTo(trackPatchSelectors.nth(9));
+      // Start in the half of the grip that extends outside the scrolling shell.
+      await reorderHandles.nth(8).dragTo(trackPatchSelectors.nth(9), { sourcePosition: { x: 2, y: 12 } });
 
       const movedTrackIds = reorderedLastTrackIds(seededProject);
       await expect.poll(() => readTrackIds(page)).toEqual(movedTrackIds);

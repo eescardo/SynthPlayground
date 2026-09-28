@@ -1,11 +1,7 @@
 .shell {
-  --track-reorder-edge-overhang: 7px;
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
-  box-sizing: border-box;
-  margin-left: calc(-1 * var(--track-reorder-edge-overhang));
-  padding-left: var(--track-reorder-edge-overhang);
   background: rgba(9, 17, 26, 0.8);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -55,16 +51,13 @@
 }
 
 .trackDragGrip {
-  position: absolute;
-  top: 20%;
-  left: 0;
+  position: fixed;
   transform: translateX(-50%);
   z-index: 3;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 14px;
-  height: 60%;
   box-sizing: border-box;
   padding: 0;
   border: 1px solid rgba(116, 164, 205, 0.46);
@@ -85,7 +78,6 @@
   background-size: 4px 6px;
 }
 
-.headerRow:hover .trackDragGrip,
 .trackDragGrip:hover,
 .trackDragGrip:focus-visible {
   border-color: rgba(150, 205, 246, 0.72);

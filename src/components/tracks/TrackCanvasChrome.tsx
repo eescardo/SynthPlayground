@@ -25,6 +25,7 @@ import {
 } from "@/components/tracks/trackCanvasTypes";
 import { usePatchSummaryPopover } from "@/hooks/tracks/usePatchSummaryPopover";
 import { useTrackReorder } from "@/hooks/tracks/useTrackReorder";
+import { TrackReorderHandle } from "./TrackReorderHandle";
 import {
   getTrackMacroLane,
   getTrackPanLane,
@@ -313,7 +314,14 @@ export function TrackHeaderChrome({
     schedulePatchSummaryDismiss,
     cancelPatchSummaryDismiss
   } = usePatchSummaryPopover({ selectedTrackId });
-  const [canvasViewport, setCanvasViewport] = useState({ left: 0, top: 0, scrollTop: 0 });
+  const [canvasViewport, setCanvasViewport] = useState({
+    left: 0,
+    top: 0,
+    scrollTop: 0,
+    height: 0,
+    borderLeft: 0,
+    borderTop: 0
+  });
   const {
     dragState: trackDrag,
     keyboardAnnouncement,
@@ -339,13 +347,19 @@ export function TrackHeaderChrome({
       const nextViewport = {
         left: rect.left,
         top: rect.top,
-        scrollTop: shell.scrollTop
+        scrollTop: shell.scrollTop,
+        height: shell.clientHeight,
+        borderLeft: shell.clientLeft,
+        borderTop: shell.clientTop
       };
       setCanvasViewport((previousViewport) => {
         if (
           previousViewport.left === nextViewport.left &&
           previousViewport.top === nextViewport.top &&
-          previousViewport.scrollTop === nextViewport.scrollTop
+          previousViewport.scrollTop === nextViewport.scrollTop &&
+          previousViewport.height === nextViewport.height &&
+          previousViewport.borderLeft === nextViewport.borderLeft &&
+          previousViewport.borderTop === nextViewport.borderTop
         ) {
           return previousViewport;
         }
@@ -353,10 +367,13 @@ export function TrackHeaderChrome({
       });
     };
     updateCanvasViewport();
-    shell.addEventListener("scroll", updateCanvasViewport, { passive: true });
+    const observer = new ResizeObserver(updateCanvasViewport);
+    observer.observe(shell);
+    window.addEventListener("scroll", updateCanvasViewport, { passive: true, capture: true });
     window.addEventListener("resize", updateCanvasViewport);
     return () => {
-      shell.removeEventListener("scroll", updateCanvasViewport);
+      observer.disconnect();
+      window.removeEventListener("scroll", updateCanvasViewport, true);
       window.removeEventListener("resize", updateCanvasViewport);
     };
   }, [canvasShellRef]);
@@ -435,16 +452,12 @@ export function TrackHeaderChrome({
               }}
               onContextMenu={(event) => event.preventDefault()}
             >
-              <button
-                type="button"
-                className={styles.trackDragGrip}
-                data-testid="track-reorder-handle"
-                data-track-id={track.id}
-                draggable
-                aria-keyshortcuts="ArrowUp ArrowDown"
-                aria-label={`Reorder ${track.name}, position ${layout.index + 1} of ${project.tracks.length}. Use Arrow Up or Arrow Down to move.`}
-                title={`Drag ${track.name} or use Arrow Up/Down to reorder`}
-                onClick={(event) => event.stopPropagation()}
+              <TrackReorderHandle
+                track={track}
+                trackCount={project.tracks.length}
+                layout={layout}
+                shellRef={canvasShellRef}
+                viewport={canvasViewport}
                 onDragStart={(event) => onTrackDragStart(event, track.id)}
                 onDragEnd={onTrackDragEnd}
                 onKeyDown={(event) => onTrackReorderKeyDown(event, track.id)}
