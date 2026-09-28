@@ -1,7 +1,11 @@
 .shell {
+  --track-reorder-edge-overhang: 7px;
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
+  box-sizing: border-box;
+  margin-left: calc(-1 * var(--track-reorder-edge-overhang));
+  padding-left: var(--track-reorder-edge-overhang);
   background: rgba(9, 17, 26, 0.8);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -54,17 +58,20 @@
   position: absolute;
   top: 20%;
   left: 0;
+  transform: translateX(-50%);
   z-index: 3;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 14px;
   height: 60%;
+  box-sizing: border-box;
   padding: 0;
-  border: 0;
-  border-radius: 0 4px 4px 0;
-  background: transparent;
-  color: rgba(167, 204, 240, 0.58);
+  border: 1px solid rgba(116, 164, 205, 0.46);
+  border-radius: 4px;
+  background: rgba(31, 55, 78, 0.94);
+  color: rgba(181, 215, 246, 0.78);
+  box-shadow: 0 0 0 1px rgba(7, 17, 27, 0.5);
   cursor: grab;
 }
 
@@ -81,14 +88,14 @@
 .headerRow:hover .trackDragGrip,
 .trackDragGrip:hover,
 .trackDragGrip:focus-visible {
-  border-color: transparent;
-  background: rgba(79, 184, 255, 0.12);
+  border-color: rgba(150, 205, 246, 0.72);
+  background: rgba(42, 82, 113, 0.98);
   color: rgba(214, 235, 255, 0.92);
 }
 
 .trackDragGrip:focus-visible {
   outline: 1px solid rgba(121, 200, 255, 0.9);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 
 .trackDragGrip:active {
