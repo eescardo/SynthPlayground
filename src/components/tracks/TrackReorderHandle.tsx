@@ -69,12 +69,12 @@ export function TrackReorderHandle({
       onDragEnd={onDragEnd}
       onKeyDown={(event) => {
         onKeyDown(event);
-        if (!event.metaKey && !event.ctrlKey && !event.altKey) {
+        if (event.key !== "Escape" && !event.metaKey && !event.ctrlKey && !event.altKey) {
           event.stopPropagation();
         }
       }}
       onKeyUp={(event) => {
-        if (!event.metaKey && !event.ctrlKey && !event.altKey) {
+        if (event.key !== "Escape" && !event.metaKey && !event.ctrlKey && !event.altKey) {
           event.stopPropagation();
         }
       }}

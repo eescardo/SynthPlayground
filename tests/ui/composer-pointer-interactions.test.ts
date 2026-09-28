@@ -450,6 +450,73 @@ describe.sequential("composer pointer interactions", () => {
     120_000
   );
 
+  test.each(["volume", "pan"] as const)(
+    "closes the %s popover for non-scrolling pointer and keyboard reorders",
+    async (kind) => {
+      const project = createManyTrackComposerProject(4);
+      await withSeededComposerPage(project, async (page) => {
+        const shell = page.locator(".track-canvas-shell");
+        const popover = page.locator(`[data-track-popover="${kind}"]`);
+        const openPopover = async () => {
+          await page.locator(`[data-track-chrome="${kind}-button"]`).first().click();
+          await expect(popover).toBeVisible();
+        };
+
+        await openPopover();
+        await page
+          .locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-1"]')
+          .dragTo(page.locator('[data-track-control="instrument-selection"]').nth(1));
+        await expect(popover).toHaveCount(0);
+        expect(await shell.evaluate((element) => element.scrollTop)).toBe(0);
+        const pointerOrder = await readTrackIds(page);
+
+        await openPopover();
+        const keyboardHandle = page.locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-3"]');
+        await keyboardHandle.focus();
+        await page.keyboard.press("ArrowUp");
+        await expect(popover).toHaveCount(0);
+        expect(await shell.evaluate((element) => element.scrollTop)).toBe(0);
+
+        await openPopover();
+        await page.mouse.move(600, 80);
+        await keyboardHandle.focus();
+        await page.keyboard.press("Control+z");
+        await expect.poll(() => readTrackIds(page)).toEqual(pointerOrder);
+        await expect(popover).toHaveCount(0);
+        expect(await shell.evaluate((element) => element.scrollTop)).toBe(0);
+      });
+    },
+    120_000
+  );
+
+  test("lets Escape dismiss a mixer popover from the focused reorder handle", async () => {
+    const project = createManyTrackComposerProject(4);
+    await withSeededComposerPage(project, async (page) => {
+      const popover = page.locator('[data-track-popover="volume"]');
+      await page.locator('[data-track-chrome="volume-button"]').first().click();
+      await expect(popover).toBeVisible();
+
+      const handle = page.locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-1"]');
+      await handle.focus();
+      await page.evaluate(() => {
+        const observedWindow = window as typeof window & { reorderEscapePhases?: string[] };
+        observedWindow.reorderEscapePhases = [];
+        window.addEventListener("keydown", (event) => observedWindow.reorderEscapePhases?.push(`down:${event.key}`));
+        window.addEventListener("keyup", (event) => observedWindow.reorderEscapePhases?.push(`up:${event.key}`));
+      });
+
+      await page.keyboard.press("Escape");
+
+      await expect(popover).toHaveCount(0);
+      expect(await readTrackIds(page)).toEqual(project.tracks.map((track) => track.id));
+      expect(await readFirstTrackNoteCount(page)).toBe(0);
+      expect(
+        await page.evaluate(() => (window as typeof window & { reorderEscapePhases?: string[] }).reorderEscapePhases)
+      ).toEqual(["down:Escape", "up:Escape"]);
+      await expect(handle).toBeFocused();
+    });
+  }, 120_000);
+
   test("cancels a pending volume hover-open when the track shell scrolls", async () => {
     await withSeededComposerPage(createManyTrackComposerProject(20), async (page) => {
       const button = page.locator('[data-track-chrome="volume-button"]').first();

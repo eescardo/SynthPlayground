@@ -58,6 +58,7 @@ interface TrackHeaderChromeProps {
   panPopoverPosition: { left: number; top: number } | null;
   openVolumePopover: (trackId: string, anchor?: HTMLElement | null) => void;
   openPanPopover: (trackId: string, anchor?: HTMLElement | null) => void;
+  closeMixerPopovers: () => void;
   scheduleVolumePopoverOpen: (trackId: string, anchor?: HTMLElement | null) => void;
   scheduleVolumePopoverDismiss: () => void;
   cancelScheduledVolumePopoverDismiss: () => void;
@@ -297,6 +298,7 @@ export function TrackHeaderChrome({
   panPopoverPosition,
   openVolumePopover,
   openPanPopover,
+  closeMixerPopovers,
   scheduleVolumePopoverOpen,
   scheduleVolumePopoverDismiss,
   cancelScheduledVolumePopoverDismiss,
@@ -455,9 +457,22 @@ export function TrackHeaderChrome({
                 layout={layout}
                 shellRef={canvasShellRef}
                 viewport={canvasViewport}
-                onDragStart={(event) => onTrackDragStart(event, track.id)}
+                onDragStart={(event) => {
+                  closeMixerPopovers();
+                  onTrackDragStart(event, track.id);
+                }}
                 onDragEnd={onTrackDragEnd}
-                onKeyDown={(event) => onTrackReorderKeyDown(event, track.id)}
+                onKeyDown={(event) => {
+                  const direction = event.key === "ArrowUp" ? -1 : event.key === "ArrowDown" ? 1 : 0;
+                  if (
+                    direction !== 0 &&
+                    layout.index + direction >= 0 &&
+                    layout.index + direction < project.tracks.length
+                  ) {
+                    closeMixerPopovers();
+                  }
+                  onTrackReorderKeyDown(event, track.id);
+                }}
               />
             </div>
             {trackDrag?.targetTrackId === track.id && trackDrag.trackId !== track.id && (
