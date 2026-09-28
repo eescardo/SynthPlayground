@@ -68,7 +68,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     cancelScheduledVolumePopoverDismiss,
     panPopoverTrackId,
     panPopoverPosition
-  } = useTrackCanvasPopovers();
+  } = useTrackCanvasPopovers(wrapperRef);
 
   const {
     activeRecordedNotes,

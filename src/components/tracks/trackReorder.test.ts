@@ -20,29 +20,57 @@ describe("resolveTrackDropTarget", () => {
     { clientY: 300, expected: { targetTrackId: "track-3", position: "before" } },
     { clientY: 400, expected: { targetTrackId: "track-3", position: "after" } }
   ])("resolves $expected.position placement from client coordinate $clientY", ({ clientY, expected }) => {
-    expect(resolveTrackDropTarget({ clientY, shellTop: 100, scrollTop: 0, trackLayouts })).toEqual(expected);
+    expect(resolveTrackDropTarget({ clientY, shellTop: 100, shellBottom: 500, scrollTop: 0, trackLayouts })).toEqual(
+      expected
+    );
   });
 
   it("accounts for vertical canvas scrolling", () => {
-    expect(resolveTrackDropTarget({ clientY: 150, shellTop: 100, scrollTop: 240, trackLayouts })).toEqual({
+    expect(
+      resolveTrackDropTarget({ clientY: 150, shellTop: 100, shellBottom: 500, scrollTop: 240, trackLayouts })
+    ).toEqual({
       targetTrackId: "track-3",
       position: "after"
     });
   });
 
   it("clamps drops beyond the tracks to the first/last insertion point", () => {
-    expect(resolveTrackDropTarget({ clientY: 20, shellTop: 100, scrollTop: 0, trackLayouts })).toEqual({
+    expect(
+      resolveTrackDropTarget({ clientY: 20, shellTop: 100, shellBottom: 500, scrollTop: 0, trackLayouts })
+    ).toEqual({
       targetTrackId: "track-1",
       position: "before"
     });
-    expect(resolveTrackDropTarget({ clientY: 500, shellTop: 100, scrollTop: 0, trackLayouts })).toEqual({
+    expect(
+      resolveTrackDropTarget({ clientY: 500, shellTop: 100, shellBottom: 500, scrollTop: 0, trackLayouts })
+    ).toEqual({
       targetTrackId: "track-3",
       position: "after"
     });
   });
 
   it("returns null for an empty canvas", () => {
-    expect(resolveTrackDropTarget({ clientY: 20, shellTop: 100, scrollTop: 0, trackLayouts: [] })).toBeNull();
+    expect(
+      resolveTrackDropTarget({ clientY: 20, shellTop: 100, shellBottom: 500, scrollTop: 0, trackLayouts: [] })
+    ).toBeNull();
+  });
+
+  it.each([
+    [50, "track-1", "before"],
+    [450, "track-10", "after"],
+    [120, "track-3", "after"],
+    [250, "track-5", "before"],
+    [420, "track-6", "after"]
+  ] as const)("resolves scrolled viewport coordinate %s to %s %s", (clientY, targetTrackId, position) => {
+    expect(
+      resolveTrackDropTarget({
+        clientY,
+        shellTop: 120,
+        shellBottom: 420,
+        scrollTop: 300,
+        trackLayouts: Array.from({ length: 10 }, (_, index) => layout(`track-${index + 1}`, 28 + index * 100, 100))
+      })
+    ).toEqual({ targetTrackId, position });
   });
 });
 

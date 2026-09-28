@@ -396,6 +396,74 @@ describe.sequential("composer pointer interactions", () => {
     });
   }, 120_000);
 
+  test.each(["above", "below"] as const)(
+    "clamps a drop %s the shell while scrolled",
+    async (side) => {
+      const project = createManyTrackComposerProject(20);
+      await withSeededComposerPage(project, async (page) => {
+        const shell = page.locator(".track-canvas-shell");
+        await shell.evaluate((element) => {
+          element.scrollTop = 300;
+        });
+        const handle = page.getByTestId("track-reorder-handle").nth(7);
+        await expect(handle).toBeInViewport();
+        const grip = (await handle.boundingBox())!;
+        const bounds = (await shell.boundingBox())!;
+        const dropY = side === "above" ? bounds.y - 30 : bounds.y + bounds.height + 4;
+        expect(dropY).toBeLessThan(page.viewportSize()!.height);
+        await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(bounds.x + 50, dropY, { steps: 3 });
+        // Release before edge auto-scroll reaches either end: page-wide clamping must stand alone.
+        const scroll = await shell.evaluate((element) => ({
+          top: element.scrollTop,
+          max: element.scrollHeight - element.clientHeight
+        }));
+        expect(scroll.top).toBeGreaterThan(0);
+        expect(scroll.top).toBeLessThan(scroll.max);
+        await page.mouse.up();
+        const rest = project.tracks.filter((_, index) => index !== 7).map((track) => track.id);
+        await expect
+          .poll(() => readTrackIds(page))
+          .toEqual(side === "above" ? [project.tracks[7].id, ...rest] : [...rest, project.tracks[7].id]);
+        const names = page.getByTestId("track-name-button");
+        await expect(side === "above" ? names.first() : names.last()).toHaveText(project.tracks[7].name);
+      });
+    },
+    120_000
+  );
+
+  test.each(["volume", "pan"] as const)(
+    "closes the %s popover when the track shell scrolls",
+    async (kind) => {
+      await withSeededComposerPage(createManyTrackComposerProject(20), async (page) => {
+        const button = page.locator(`[data-track-chrome="${kind}-button"]`).first();
+        await button.click();
+        const popover = page.locator(`[data-track-popover="${kind}"]`);
+        await expect(popover).toBeVisible();
+        await page.locator(".track-canvas-shell").evaluate((element) => {
+          element.scrollTop = 150;
+        });
+        await expect(popover).toHaveCount(0);
+      });
+    },
+    120_000
+  );
+
+  test("cancels a pending volume hover-open when the track shell scrolls", async () => {
+    await withSeededComposerPage(createManyTrackComposerProject(20), async (page) => {
+      const button = page.locator('[data-track-chrome="volume-button"]').first();
+      await button.hover();
+      await page.locator(".track-canvas-shell").evaluate((element) => {
+        element.scrollTop = 1;
+      });
+      // Keep the control hovered so only cancelling the pending timer prevents reopening.
+      expect(await button.evaluate((element) => element.matches(":hover"))).toBe(true);
+      await page.waitForTimeout(1100);
+      await expect(page.locator('[data-track-popover="volume"]')).toHaveCount(0);
+    });
+  }, 120_000);
+
   test("auto-scrolls in both directions during a held drag and stops after drop", async () => {
     const project = createManyTrackComposerProject(20);
     await withSeededComposerPage(project, async (page) => {

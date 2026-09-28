@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type RefObject } from "react";
 import { useVolumePopover } from "@/hooks/useVolumePopover";
 import { clamp } from "@/lib/numeric";
 
@@ -25,7 +25,7 @@ function getPanPopoverPosition(anchor: HTMLElement) {
   };
 }
 
-export function useTrackCanvasPopovers() {
+export function useTrackCanvasPopovers(canvasShellRef: RefObject<HTMLDivElement | null>) {
   const [panPopoverTrackId, setPanPopoverTrackId] = useState<string | null>(null);
   const [panPopoverPosition, setPanPopoverPosition] = useState<{ left: number; top: number } | null>(null);
   const {
@@ -43,6 +43,19 @@ export function useTrackCanvasPopovers() {
     setPanPopoverTrackId(null);
     setPanPopoverPosition(null);
   }, []);
+
+  useEffect(() => {
+    const shell = canvasShellRef.current;
+    if (!shell) return;
+    const closeMixerPopovers = () => {
+      // Fixed-position controls must not remain beside a different track after scrolling.
+      // Closing volume also cancels any pending hover-open timer.
+      closeVolumePopover();
+      closePanPopover();
+    };
+    shell.addEventListener("scroll", closeMixerPopovers, { passive: true });
+    return () => shell.removeEventListener("scroll", closeMixerPopovers);
+  }, [canvasShellRef, closePanPopover, closeVolumePopover]);
 
   const openVolumeOnlyPopover = useCallback(
     (trackId: string, anchor?: HTMLElement | null) => {
