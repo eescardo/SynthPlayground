@@ -15,7 +15,7 @@ import {
 } from "@/components/tracks/trackCanvasConstants";
 import { LoopMarkerRect, MuteRect, PitchRect } from "@/components/tracks/trackCanvasGeometry";
 import { renderTrackCanvas } from "@/components/tracks/trackCanvasDrawing";
-import { consumeTimelinePopoverWheelEvent } from "@/components/tracks/trackCanvasWheelGuards";
+import { consumeTimelinePopoverWheelEvent, wheelDeltaToPixels } from "@/components/tracks/trackCanvasWheelGuards";
 import { useTrackCanvasPointerInteractions } from "@/hooks/tracks/useTrackCanvasPointerInteractions";
 import type { NoteRect } from "@/hooks/tracks/trackCanvasPointerTypes";
 import { TrackCanvasProps, TrackLayout } from "@/components/tracks/trackCanvasTypes";
@@ -252,6 +252,32 @@ export function TrackCanvas(props: TrackCanvasProps) {
         zoomGestureTimerRef.current = null;
       }
     };
+  }, [onWheelZoom]);
+
+  useEffect(() => {
+    const onPortaledReorderHandleWheel = (event: WheelEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target?.closest('[data-track-chrome="reorder-handle"]')) {
+        return;
+      }
+      const wrapper = wrapperRef.current;
+      if (!wrapper) {
+        return;
+      }
+      if (event.ctrlKey || event.metaKey) {
+        onWheelZoom(event);
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      wrapper.scrollLeft += wheelDeltaToPixels(event.deltaX, event.deltaMode, wrapper.clientWidth);
+      wrapper.scrollTop += wheelDeltaToPixels(event.deltaY, event.deltaMode, wrapper.clientHeight);
+    };
+
+    document.addEventListener("wheel", onPortaledReorderHandleWheel, { passive: false, capture: true });
+    return () => document.removeEventListener("wheel", onPortaledReorderHandleWheel, true);
   }, [onWheelZoom]);
 
   useEffect(() => {
