@@ -325,8 +325,6 @@ export function TrackHeaderChrome({
   const {
     dragState: trackDrag,
     keyboardAnnouncement,
-    onChromeDragOver,
-    onChromeDrop,
     onTrackDragEnd,
     onTrackDragStart,
     onTrackReorderKeyDown
@@ -383,8 +381,6 @@ export function TrackHeaderChrome({
       className={styles.headerOverlays}
       data-track-chrome="header-overlays"
       style={{ "--track-header-width": `${HEADER_WIDTH}px` } as CSSProperties}
-      onDragOver={onChromeDragOver}
-      onDrop={onChromeDrop}
     >
       <div className={styles.visuallyHidden} role="status" aria-live="polite" aria-atomic="true">
         {keyboardAnnouncement}

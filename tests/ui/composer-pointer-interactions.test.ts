@@ -291,7 +291,11 @@ describe.sequential("composer pointer interactions", () => {
         .toBe(1);
 
       await expectTrackReorderHandleGeometry(firstTrackRow, firstTrackHandle);
+      await page.mouse.move(600, 80);
+      await expect(firstTrackHandle).toHaveCSS("opacity", "0");
+      await page.getByTestId("track-name-button").first().hover();
       await expect(firstTrackHandle).toHaveCSS("opacity", "1");
+      await expect(page.getByTestId("track-reorder-handle").nth(1)).toHaveCSS("opacity", "1");
       const readGripAppearance = () =>
         firstTrackHandle.evaluate((element) => ({
           railWidth: parseFloat(getComputedStyle(element, "::before").width),
@@ -310,6 +314,8 @@ describe.sequential("composer pointer interactions", () => {
       await expect.poll(async () => (await readGripAppearance()).dotsOpacity).toBe("1");
       await page.mouse.move(600, 80);
       await expect.poll(readGripAppearance).toEqual({ railWidth: 2, dotsOpacity: "0" });
+      await expect(firstTrackHandle).toHaveCSS("opacity", "0");
+      await expect(page.getByTestId("track-reorder-handle").nth(1)).toHaveCSS("opacity", "0");
       const collapsedHeight = (await firstTrackRow.boundingBox())?.height ?? 0;
 
       await page.getByTestId("track-name-button").first().click();
@@ -361,6 +367,60 @@ describe.sequential("composer pointer interactions", () => {
     });
   }, 120_000);
 
+  test("commits a drop above the first track onto the toolbar", async () => {
+    const project = createManyTrackComposerProject(10);
+    await withSeededComposerPage(project, async (page) => {
+      await page
+        .getByTestId("track-reorder-handle")
+        .nth(3)
+        .dragTo(page.getByRole("button", { name: "Add Track", exact: true }));
+      await expect
+        .poll(() => readTrackIds(page))
+        .toEqual([project.tracks[3].id, ...project.tracks.filter((_, index) => index !== 3).map((track) => track.id)]);
+      await expect(page.getByTestId("track-name-button").first()).toHaveText(project.tracks[3].name);
+    });
+  }, 120_000);
+
+  test("auto-scrolls in both directions during a held drag and stops after drop", async () => {
+    const project = createManyTrackComposerProject(20);
+    await withSeededComposerPage(project, async (page) => {
+      const shell = page.locator(".track-canvas-shell");
+      const bounds = (await shell.boundingBox())!;
+      const handle = page.getByTestId("track-reorder-handle").first();
+      const grip = (await handle.boundingBox())!;
+      await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(bounds.x + 50, bounds.y + bounds.height - 8, { steps: 12 });
+      // No further pointer movement: the animation loop must keep scrolling.
+      await expect.poll(() => shell.evaluate((element) => element.scrollTop)).toBeGreaterThan(700);
+      await page.mouse.move(bounds.x + 50, bounds.y + RULER_HEIGHT + 4, { steps: 6 });
+      await expect.poll(() => shell.evaluate((element) => element.scrollTop)).toBeLessThan(100);
+      await page.mouse.move(bounds.x + 50, bounds.y + bounds.height - 8, { steps: 6 });
+      await expect.poll(() => shell.evaluate((element) => element.scrollTop)).toBeGreaterThan(800);
+      await page.mouse.up();
+      await expect.poll(async () => (await readTrackIds(page)).indexOf(project.tracks[0].id)).toBeGreaterThan(10);
+      const stoppedAt = await shell.evaluate((element) => element.scrollTop);
+      await page.waitForTimeout(150);
+      expect(await shell.evaluate((element) => element.scrollTop)).toBe(stoppedAt);
+      const committedOrder = await readTrackIds(page);
+      await shell.evaluate((element) => {
+        element.scrollTop = 0;
+      });
+      const nextGrip = (await page.getByTestId("track-reorder-handle").first().boundingBox())!;
+      await page.mouse.move(nextGrip.x + nextGrip.width / 2, nextGrip.y + nextGrip.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(bounds.x + 50, bounds.y + bounds.height - 8, { steps: 12 });
+      await expect.poll(() => shell.evaluate((element) => element.scrollTop)).toBeGreaterThan(100);
+      await page.keyboard.press("Escape");
+      await page.mouse.up();
+      await expect(page.locator('[data-testid="track-reorder-handle"][data-dragging="true"]')).toHaveCount(0);
+      const cancelledAt = await shell.evaluate((element) => element.scrollTop);
+      await page.waitForTimeout(150);
+      expect(await shell.evaluate((element) => element.scrollTop)).toBe(cancelledAt);
+      expect(await readTrackIds(page)).toEqual(committedOrder);
+    });
+  }, 120_000);
+
   test("supports keyboard reordering with focus retention and live position announcements", async () => {
     const seededProject = createManyTrackComposerProject(10);
     await withSeededComposerPage(seededProject, async (page) => {
@@ -371,6 +431,7 @@ describe.sequential("composer pointer interactions", () => {
       );
 
       await lastTrackHandle.focus();
+      await expect(lastTrackHandle).toHaveCSS("opacity", "1");
       await page.keyboard.press("ArrowUp");
       await expect.poll(() => readTrackIds(page)).toEqual(reorderedLastTrackIds(seededProject));
       await expect(lastTrackHandle).toBeFocused();

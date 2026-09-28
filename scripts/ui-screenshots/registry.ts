@@ -187,7 +187,10 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
     capture: async (page, outputPath) => {
       await setupMacroAutomationLane(page);
       // Include the page margin occupied by the track reorder grips.
+      await page.mouse.move(600, 80);
       await savePageScreenshot(page, outputPath);
+      await page.getByTestId("track-name-button").first().hover();
+      await savePageScreenshot(page, outputPath.replace(/\.png$/, "-chrome-hover.png"));
       await page.getByTestId("track-reorder-handle").first().hover();
       await savePageScreenshot(page, outputPath.replace(/\.png$/, "-grip-hover.png"));
     }
