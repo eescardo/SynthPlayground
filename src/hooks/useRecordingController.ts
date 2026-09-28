@@ -23,6 +23,7 @@ import {
   createRecordingStartGate
 } from "@/lib/recordingStartGate";
 import { snapRecordedNoteStartBeat } from "@/lib/recordingTiming";
+import { shouldStartRecordingKeyboardNote } from "@/lib/recordingKeyboard";
 import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { Note, Project, Track } from "@/types/music";
 
@@ -514,6 +515,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
       if (target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA")) {
         return;
       }
+      if (!shouldStartRecordingKeyboardNote(event)) return;
 
       const pitch = keyToPitch(event.key);
       if (!pitch) return;

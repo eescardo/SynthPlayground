@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  resolveFocusedHandleScrollTop,
   resolveTrackDropTarget,
   resolveTrackReorderKeyDirection,
+  shouldPropagateTrackReorderKeyDown,
   trackReorderScrollSpeed
 } from "@/components/tracks/trackReorder";
 import type { TrackLayout } from "@/components/tracks/trackCanvasTypes";
@@ -116,5 +118,90 @@ describe("resolveTrackReorderKeyDirection", () => {
 
   it.each(["altKey", "ctrlKey", "metaKey", "shiftKey"] as const)("ignores arrows with %s", (modifier) => {
     expect(resolveTrackReorderKeyDirection(keyboardEvent({ [modifier]: true }))).toBe(0);
+  });
+
+  it("propagates edit chords, Escape, and modified vertical navigation", () => {
+    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "Escape" }))).toBe(true);
+    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "z", ctrlKey: true }))).toBe(true);
+    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "v", metaKey: true, altKey: true }))).toBe(true);
+    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "ArrowDown", shiftKey: true }))).toBe(true);
+    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "ArrowUp", altKey: true }))).toBe(true);
+  });
+
+  it("contains plain composition keys and unrelated Alt/Shift chords", () => {
+    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "z" }))).toBe(false);
+    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "x", altKey: true }))).toBe(false);
+    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "c", shiftKey: true }))).toBe(false);
+    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "ArrowDown" }))).toBe(false);
+  });
+});
+
+describe("resolveFocusedHandleScrollTop", () => {
+  it("corrects a fitting handle at either viewport edge", () => {
+    expect(
+      resolveFocusedHandleScrollTop({
+        currentScrollTop: 200,
+        maxScrollTop: 800,
+        handleTop: 80,
+        handleBottom: 140,
+        visibleTop: 100,
+        visibleBottom: 300
+      })
+    ).toBe(180);
+    expect(
+      resolveFocusedHandleScrollTop({
+        currentScrollTop: 200,
+        maxScrollTop: 800,
+        handleTop: 260,
+        handleBottom: 340,
+        visibleTop: 100,
+        visibleBottom: 300
+      })
+    ).toBe(240);
+  });
+
+  it("aligns an oversized handle once instead of alternating between edges", () => {
+    const firstTarget = resolveFocusedHandleScrollTop({
+      currentScrollTop: 200,
+      maxScrollTop: 800,
+      handleTop: 180,
+      handleBottom: 500,
+      visibleTop: 100,
+      visibleBottom: 300
+    });
+    expect(firstTarget).toBe(280);
+    expect(
+      resolveFocusedHandleScrollTop({
+        currentScrollTop: firstTarget,
+        maxScrollTop: 800,
+        handleTop: 100,
+        handleBottom: 420,
+        visibleTop: 100,
+        visibleBottom: 300
+      })
+    ).toBe(firstTarget);
+  });
+
+  it("clamps corrections to the shell's vertical scroll range", () => {
+    expect(
+      resolveFocusedHandleScrollTop({
+        currentScrollTop: 10,
+        maxScrollTop: 300,
+        handleTop: 0,
+        handleBottom: 40,
+        visibleTop: 100,
+        visibleBottom: 300
+      })
+    ).toBe(0);
+    expect(
+      resolveFocusedHandleScrollTop({
+        currentScrollTop: 290,
+        maxScrollTop: 300,
+        handleTop: 280,
+        handleBottom: 340,
+        visibleTop: 100,
+        visibleBottom: 300
+      })
+    ).toBe(300);
   });
 });

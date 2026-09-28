@@ -332,6 +332,11 @@ describe.sequential("composer pointer interactions", () => {
       await page.mouse.move(600, 80);
       await expect(firstTrackHandle).toHaveCSS("opacity", "0");
       await page.getByTestId("track-name-button").first().hover();
+      await expect(page.locator('[data-track-chrome="header-overlays"]')).toHaveAttribute(
+        "data-reorder-group-active",
+        "true"
+      );
+      await expect(firstTrackHandle).toHaveAttribute("data-group-active", "true");
       await expect(firstTrackHandle).toHaveCSS("opacity", "1");
       await expect(page.getByTestId("track-reorder-handle").nth(1)).toHaveCSS("opacity", "1");
       const chromeEdgeColor = await shell.evaluate((element) => getComputedStyle(element).borderLeftColor);
@@ -347,6 +352,11 @@ describe.sequential("composer pointer interactions", () => {
       const restingBox = await firstTrackHandle.boundingBox();
       // Hover the invisible outer portion, well away from the resting 2px line.
       await firstTrackHandle.hover({ position: { x: 2, y: 12 } });
+      const secondTrackHandle = page.getByTestId("track-reorder-handle").nth(1);
+      await expect(secondTrackHandle).toHaveCSS("opacity", "1");
+      await expect
+        .poll(() => secondTrackHandle.evaluate((element) => getComputedStyle(element, "::after").opacity))
+        .toBe("0");
       await expect.poll(async () => (await readGripAppearance()).railWidth).toBeGreaterThan(11);
       await expect.poll(async () => (await readGripAppearance()).dotsOpacity).toBe("1");
       expect(await firstTrackHandle.boundingBox()).toEqual(restingBox);
@@ -355,6 +365,10 @@ describe.sequential("composer pointer interactions", () => {
       await firstTrackHandle.hover({ position: { x: 9, y: 12 } });
       await expect.poll(async () => (await readGripAppearance()).dotsOpacity).toBe("1");
       await page.mouse.move(600, 80);
+      await expect(page.locator('[data-track-chrome="header-overlays"]')).toHaveAttribute(
+        "data-reorder-group-active",
+        "false"
+      );
       await expect.poll(readGripAppearance).toEqual({ railWidth: 2, dotsOpacity: "0" });
       await expect(firstTrackHandle).toHaveCSS("opacity", "0");
       await expect(page.getByTestId("track-reorder-handle").nth(1)).toHaveCSS("opacity", "0");
@@ -653,7 +667,7 @@ describe.sequential("composer pointer interactions", () => {
         observedWindow.trackReorderLeakedKeys = [];
         window.addEventListener("keydown", (event) => observedWindow.trackReorderLeakedKeys?.push(event.key));
       });
-      for (const key of ["Space", "Enter", "q", "Backspace"]) {
+      for (const key of ["Space", "Enter", "q", "Backspace", "Shift+q", "Alt+x"]) {
         await page.keyboard.press(key);
       }
       expect(
@@ -766,6 +780,112 @@ describe.sequential("composer pointer interactions", () => {
     });
   }, 120_000);
 
+  test("settles focus scrolling for an oversized reorder handle and moves once per plain arrow", async () => {
+    const project = createManyTrackComposerProject(6);
+    await withSeededComposerPage(project, async (page) => {
+      const shell = page.locator(".track-canvas-shell");
+      await page.getByTestId("track-name-button").first().click();
+      await page.getByRole("button", { name: "Expand macro lanes" }).click();
+      await shell.evaluate((element) => {
+        element.style.flex = "0 0 96px";
+        element.style.height = "96px";
+        element.style.minHeight = "96px";
+        element.style.maxHeight = "96px";
+      });
+
+      const handle = page.locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-1"]');
+      await expect
+        .poll(async () => {
+          const handleBox = await handle.boundingBox();
+          return handleBox ? handleBox.height : 0;
+        })
+        .toBeGreaterThan(96 - RULER_HEIGHT);
+      await handle.focus();
+      await waitForScrollStability(shell);
+      const settledBeforeMove = await readScrollTopAcrossFrames(shell, 5);
+      expect(new Set(settledBeforeMove).size).toBe(1);
+
+      await page.keyboard.press("ArrowDown");
+      await expect
+        .poll(() => readTrackIds(page))
+        .toEqual([
+          "scroll-track-2",
+          "scroll-track-1",
+          "scroll-track-3",
+          "scroll-track-4",
+          "scroll-track-5",
+          "scroll-track-6"
+        ]);
+      await waitForScrollStability(shell);
+      const settledAfterMove = await readScrollTopAcrossFrames(shell, 5);
+      expect(new Set(settledAfterMove).size).toBe(1);
+      expect((await readTrackIds(page)).filter((id) => id === "scroll-track-1")).toHaveLength(1);
+      await expect(handle).toBeFocused();
+    });
+  }, 120_000);
+
+  test("keeps recording note input separate from edit chords on a focused reorder handle", async () => {
+    const project = createManyTrackComposerProject(4);
+    project.global.compositionEnd = { beat: 64 };
+    await withSeededComposerPage(
+      project,
+      async (page) => {
+        const handle = page.locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-1"]');
+        await handle.focus();
+        await page.keyboard.press("ArrowDown");
+        const reorderedIds = ["scroll-track-2", "scroll-track-1", "scroll-track-3", "scroll-track-4"];
+        await expect.poll(() => readTrackIds(page)).toEqual(reorderedIds);
+
+        await page.getByRole("button", { name: "Record", exact: true }).click();
+        await expect(page.locator(".recording-dock").getByText("Recording", { exact: true })).toBeVisible({
+          timeout: 5_000
+        });
+        await handle.focus();
+
+        await page.keyboard.press("Control+z");
+        await expect.poll(() => readTrackIds(page)).toEqual(project.tracks.map((track) => track.id));
+        await page.keyboard.press("Control+y");
+        await expect.poll(() => readTrackIds(page)).toEqual(reorderedIds);
+        await page.keyboard.press("Control+z");
+        await page.keyboard.press("Control+Shift+z");
+        await expect.poll(() => readTrackIds(page)).toEqual(reorderedIds);
+        for (const chord of ["Control+Alt+c", "Control+Alt+v"]) {
+          await page.keyboard.press(chord);
+        }
+        expect(await readTotalNoteCount(page)).toBe(0);
+        await expect(page.locator(".recording-dock .piano-key.selected")).toHaveCount(0);
+      },
+      { NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO: "1" }
+    );
+  }, 120_000);
+
+  test("releases an active recording note after focus and modifier state change", async () => {
+    const project = createManyTrackComposerProject(4);
+    project.global.compositionEnd = { beat: 64 };
+    await withSeededComposerPage(
+      project,
+      async (page) => {
+        const handle = page.locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-1"]');
+        await page.getByRole("button", { name: "Record", exact: true }).click();
+        await expect(page.locator(".recording-dock").getByText("Recording", { exact: true })).toBeVisible({
+          timeout: 5_000
+        });
+
+        await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+        await page.keyboard.down("z");
+        await expect(page.locator(".recording-dock .piano-key.selected")).toHaveCount(1);
+        await handle.focus();
+        await page.keyboard.down("Shift");
+        await page.keyboard.up("z");
+        await expect(page.locator(".recording-dock .piano-key.selected")).toHaveCount(0);
+        await page.keyboard.up("Shift");
+        await page.getByRole("button", { name: "Record", exact: true }).click();
+        await expect.poll(() => readTotalNoteCount(page)).toBe(1);
+      },
+      { NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO: "1" }
+    );
+  }, 120_000);
+
   test("leaves modified vertical arrows to window handlers without reordering or closing mixer popovers", async () => {
     const project = createManyTrackComposerProject(6);
     await withSeededComposerPage(project, async (page) => {
@@ -807,8 +927,12 @@ describe.sequential("composer pointer interactions", () => {
   }, 120_000);
 });
 
-const withSeededComposerPage = async (project: Project, run: (page: Page) => Promise<void>) => {
-  const devServer = startDevServer(PORT);
+const withSeededComposerPage = async (
+  project: Project,
+  run: (page: Page) => Promise<void>,
+  envOverrides?: Record<string, string>
+) => {
+  const devServer = startDevServer(PORT, envOverrides);
   cleanupProcesses.add(devServer);
   await waitForServer(BASE_URL, 120_000);
 
@@ -857,6 +981,24 @@ const waitForScrollStability = async (shell: Locator) => {
     )
     .toBe(true);
 };
+
+const readScrollTopAcrossFrames = (shell: Locator, frameCount: number): Promise<number[]> =>
+  shell.evaluate(
+    (element, count) =>
+      new Promise<number[]>((resolve) => {
+        const values: number[] = [];
+        const readFrame = () => {
+          values.push(element.scrollTop);
+          if (values.length === count) {
+            resolve(values);
+            return;
+          }
+          requestAnimationFrame(readFrame);
+        };
+        requestAnimationFrame(readFrame);
+      }),
+    frameCount
+  );
 
 const expectTrackReorderHandleGeometry = async (trackRow: Locator, handle: Locator) => {
   await expect
@@ -944,6 +1086,9 @@ const dragOnCanvas = async (page: Page, start: { x: number; y: number }, end: { 
 };
 
 const readFirstTrackNoteCount = async (page: Page): Promise<number> => (await readFirstTrackNotes(page)).length;
+
+const readTotalNoteCount = async (page: Page): Promise<number> =>
+  (await readActiveProject(page)).tracks.reduce((count, track) => count + track.notes.length, 0);
 
 const readFirstTrackNotes = async (page: Page): Promise<Project["tracks"][number]["notes"]> =>
   (await readActiveProject(page)).tracks[0]?.notes ?? [];
