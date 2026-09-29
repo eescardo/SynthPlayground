@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import type { DragEventHandler, KeyboardEventHandler, RefObject } from "react";
+import type { DragEventHandler, KeyboardEvent, RefObject } from "react";
 import { createPortal } from "react-dom";
 import { RULER_HEIGHT } from "./trackCanvasConstants";
 import { resolveFocusedHandleScrollTop, shouldPropagateTrackReorderKeyDown } from "./trackReorder";
@@ -18,7 +18,7 @@ interface TrackReorderHandleProps {
   onDragEnd: DragEventHandler<HTMLButtonElement>;
   onFocusChange: (focused: boolean) => void;
   onHoverChange: (hovered: boolean) => void;
-  onKeyDown: KeyboardEventHandler<HTMLButtonElement>;
+  onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => boolean;
   onWheel: (event: WheelEvent) => void;
 }
 
@@ -38,6 +38,7 @@ export function TrackReorderHandle({
   onWheel
 }: TrackReorderHandleProps) {
   const handleRef = useRef<HTMLButtonElement>(null);
+  const revealAfterKeyboardMoveRef = useRef(false);
 
   const keepFocusedHandleVisible = useCallback(() => {
     const handle = handleRef.current;
@@ -47,23 +48,30 @@ export function TrackReorderHandle({
     }
 
     const shellRect = shell.getBoundingClientRect();
-    const handleRect = handle.getBoundingClientRect();
+    // Scroll events can arrive before the portal's viewport state catches up.
+    // Use the live shell offset and current layout rather than its stale DOM top.
+    const handleTop = shellRect.top + shell.clientTop + layout.y + layout.height * 0.2 - shell.scrollTop;
     const visibleTop = Math.max(shellRect.top + shell.clientTop + RULER_HEIGHT, 0);
     const visibleBottom = Math.min(shellRect.top + shell.clientTop + shell.clientHeight, window.innerHeight);
     const targetScrollTop = resolveFocusedHandleScrollTop({
       currentScrollTop: shell.scrollTop,
       maxScrollTop: shell.scrollHeight - shell.clientHeight,
-      handleTop: handleRect.top,
-      handleBottom: handleRect.bottom,
+      handleTop,
+      handleBottom: handleTop + layout.height * 0.6,
       visibleTop,
       visibleBottom
     });
     if (targetScrollTop !== shell.scrollTop) shell.scrollTop = targetScrollTop;
-  }, [dragging, shellRef]);
+  }, [dragging, layout.height, layout.y, shellRef]);
 
   useLayoutEffect(() => {
-    keepFocusedHandleVisible();
-  }, [keepFocusedHandleVisible, layout.height, layout.y, viewport.height, viewport.scrollTop, viewport.top]);
+    // Reveal the newly positioned track once after a keyboard move. A focused
+    // grip must never pull the viewport back during wheel or scrollbar scrolling.
+    if (revealAfterKeyboardMoveRef.current) {
+      revealAfterKeyboardMoveRef.current = false;
+      keepFocusedHandleVisible();
+    }
+  });
 
   useEffect(() => {
     const handle = handleRef.current;
@@ -118,7 +126,7 @@ export function TrackReorderHandle({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onKeyDown={(event) => {
-        onKeyDown(event);
+        revealAfterKeyboardMoveRef.current = onKeyDown(event);
         if (!shouldPropagateTrackReorderKeyDown(event)) {
           event.stopPropagation();
         }

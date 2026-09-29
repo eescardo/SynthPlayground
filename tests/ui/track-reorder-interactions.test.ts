@@ -8,7 +8,9 @@ import {
   createManyTrackComposerProject,
   readFirstTrackNoteCount,
   readTotalNoteCount,
-  readTrackIds
+  readTrackIds,
+  readScrollTopAcrossFrames,
+  waitForScrollStability
 } from "./helpers/composerTestHarness";
 
 const { cleanup, withSeededComposerPage } = createComposerTestHarness(3603);
@@ -894,40 +896,6 @@ const reorderedLastTrackIds = (project: Project) => [
   project.tracks.at(-1)!.id,
   project.tracks.at(-2)!.id
 ];
-
-const waitForScrollStability = async (shell: Locator) => {
-  await expect
-    .poll(() =>
-      shell.evaluate(
-        (element) =>
-          new Promise<boolean>((resolve) => {
-            const scrollTop = element.scrollTop;
-            requestAnimationFrame(() => {
-              requestAnimationFrame(() => resolve(element.scrollTop === scrollTop));
-            });
-          })
-      )
-    )
-    .toBe(true);
-};
-
-const readScrollTopAcrossFrames = (shell: Locator, frameCount: number): Promise<number[]> =>
-  shell.evaluate(
-    (element, count) =>
-      new Promise<number[]>((resolve) => {
-        const values: number[] = [];
-        const readFrame = () => {
-          values.push(element.scrollTop);
-          if (values.length === count) {
-            resolve(values);
-            return;
-          }
-          requestAnimationFrame(readFrame);
-        };
-        requestAnimationFrame(readFrame);
-      }),
-    frameCount
-  );
 
 const expectTrackReorderHandleGeometry = async (trackRow: Locator, handle: Locator) => {
   await expect

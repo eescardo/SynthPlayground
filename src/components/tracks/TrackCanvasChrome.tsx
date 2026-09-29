@@ -481,7 +481,7 @@ export function TrackHeaderChrome({
                   setFocusedHandleId((current) => (focused ? track.id : current === track.id ? null : current))
                 }
                 onKeyDown={(event) => {
-                  onTrackReorderKeyDown(event, track.id, closeMixerPopovers);
+                  return onTrackReorderKeyDown(event, track.id, closeMixerPopovers);
                 }}
               />
             </div>
