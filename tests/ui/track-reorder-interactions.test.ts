@@ -18,6 +18,45 @@ const { cleanup, withSeededComposerPage } = createComposerTestHarness(3603);
 afterEach(cleanup);
 
 describe.sequential("track reorder interactions", () => {
+  test("tabs through each reorder handle alongside its own track chrome, including after a reorder", async () => {
+    const project = createManyTrackComposerProject(4);
+    project.tracks.forEach((track) => {
+      track.macroPanelExpanded = false;
+    });
+    await withSeededComposerPage(project, async (page) => {
+      const firstHandle = page.locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-1"]');
+      const secondHandle = page.locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-2"]');
+      const names = page.getByTestId("track-name-button");
+      const patches = page.locator('[data-track-control="instrument-selection"]');
+
+      await firstHandle.focus();
+      await page.keyboard.press("Tab");
+      await expect(names.nth(0)).toBeFocused();
+      await patches.nth(0).focus();
+      await page.keyboard.press("Tab");
+      await expect(secondHandle).toBeFocused();
+      await page.keyboard.press("Shift+Tab");
+      await expect(patches.nth(0)).toBeFocused();
+      await secondHandle.focus();
+      await page.keyboard.press("Tab");
+      await expect(names.nth(1)).toBeFocused();
+
+      await secondHandle.focus();
+      await page.keyboard.press("ArrowUp");
+      await expect
+        .poll(() => readTrackIds(page))
+        .toEqual([project.tracks[1].id, project.tracks[0].id, ...project.tracks.slice(2).map((track) => track.id)]);
+      await expect(secondHandle).toBeFocused();
+      await page.keyboard.press("Tab");
+      await expect(names.nth(0)).toBeFocused();
+      await patches.nth(0).focus();
+      await page.keyboard.press("Tab");
+      await expect(firstHandle).toBeFocused();
+      await page.keyboard.press("Shift+Tab");
+      await expect(patches.nth(0)).toBeFocused();
+    });
+  }, 120_000);
+
   test("keeps composer chrome and the beat ruler fixed while tracks scroll", async () => {
     await withSeededComposerPage(createManyTrackComposerProject(10), async (page) => {
       const shell = page.locator(".track-canvas-shell");
@@ -151,7 +190,7 @@ describe.sequential("track reorder interactions", () => {
     });
   }, 120_000);
 
-  test("routes vertical, horizontal, and zoom wheels from the portaled grip back to the track shell", async () => {
+  test("routes vertical, horizontal, and zoom wheels from the outside-edge grip to the track shell", async () => {
     await withSeededComposerPage(createManyTrackComposerProject(20), async (page) => {
       const shell = page.locator(".track-canvas-shell");
       const handle = page.locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-4"]');

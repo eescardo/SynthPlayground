@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import type { DragEventHandler, KeyboardEvent, RefObject } from "react";
-import { createPortal } from "react-dom";
 import { RULER_HEIGHT } from "./trackCanvasConstants";
 import { resolveFocusedHandleScrollTop, shouldPropagateTrackReorderKeyDown } from "./trackReorder";
 import type { TrackLayout } from "./trackCanvasTypes";
@@ -48,7 +47,7 @@ export function TrackReorderHandle({
     }
 
     const shellRect = shell.getBoundingClientRect();
-    // Scroll events can arrive before the portal's viewport state catches up.
+    // Scroll events can arrive before the handle's viewport state catches up.
     // Use the live shell offset and current layout rather than its stale DOM top.
     const handleTop = shellRect.top + shell.clientTop + layout.y + layout.height * 0.2 - shell.scrollTop;
     const visibleTop = Math.max(shellRect.top + shell.clientTop + RULER_HEIGHT, 0);
@@ -92,8 +91,9 @@ export function TrackReorderHandle({
   const visibleTop = Math.max(contentTop + RULER_HEIGHT, 0);
   const visibleBottom = Math.min(contentTop + viewport.height, window.innerHeight);
 
-  // Escape the scroll shell's horizontal clipping, but retain its vertical viewport.
-  return createPortal(
+  // Fixed positioning escapes horizontal clipping while DOM order keeps this
+  // control next to its own track's chrome in the native Tab sequence.
+  return (
     <button
       ref={handleRef}
       type="button"
@@ -131,7 +131,6 @@ export function TrackReorderHandle({
           event.stopPropagation();
         }
       }}
-    />,
-    document.body
+    />
   );
 }
