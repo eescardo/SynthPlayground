@@ -31,7 +31,7 @@ describe.sequential("track reorder scrolling", () => {
         await handle.focus();
         await waitForScrollStability(shell);
 
-        // Wheel over the portaled grip, then over the canvas, with focus still on the grip.
+        // Wheel over the outside-edge grip, then over the canvas, while the grip retains focus.
         await handle.hover({ position: { x: 5, y: 5 } });
         const beforeWheel = await shell.evaluate((element) => element.scrollTop);
         await page.mouse.wheel(0, 160);
