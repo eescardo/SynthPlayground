@@ -1,5 +1,5 @@
 import { ChildProcess } from "node:child_process";
-import { once } from "node:events";
+import { stopChildProcess } from "../../scripts/ui-capture/childProcess";
 import { chromium, expect, type Page } from "@playwright/test";
 import { afterEach, describe, test } from "vitest";
 import { openPatchWorkspaceApp, startDevServer, waitForServer } from "../../scripts/ui-capture/common";
@@ -30,11 +30,7 @@ const cleanupProcesses = new Set<ChildProcess>();
 
 afterEach(async () => {
   for (const process of cleanupProcesses) {
-    if (process.exitCode !== null) {
-      continue;
-    }
-    process.kill("SIGTERM");
-    await once(process, "exit");
+    await stopChildProcess(process);
   }
   cleanupProcesses.clear();
 });
