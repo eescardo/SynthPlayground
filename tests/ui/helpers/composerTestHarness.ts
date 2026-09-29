@@ -1,5 +1,5 @@
 import { type ChildProcess } from "node:child_process";
-import { once } from "node:events";
+import { stopChildProcess } from "../../../scripts/ui-capture/childProcess";
 import { chromium, expect, type Locator, type Page } from "@playwright/test";
 import { createDefaultProject } from "../../../src/lib/patch/presets";
 import type { Project } from "../../../src/types/music";
@@ -11,11 +11,7 @@ export const createComposerTestHarness = (port: number) => {
 
   const cleanup = async () => {
     for (const process of cleanupProcesses) {
-      if (process.exitCode !== null) {
-        continue;
-      }
-      process.kill("SIGTERM");
-      await once(process, "exit");
+      await stopChildProcess(process);
     }
     cleanupProcesses.clear();
   };

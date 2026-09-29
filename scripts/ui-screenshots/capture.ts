@@ -3,6 +3,7 @@ import process from "node:process";
 import fs from "node:fs";
 import { chromium } from "@playwright/test";
 import { waitForServer } from "../ui-capture/common";
+import { stopChildProcess } from "../ui-capture/childProcess";
 import { runCaptureScenarios } from "../ui-capture/runCaptureScenarios";
 import { SCREENSHOT_SCENARIOS, ScreenshotScenario, resolveSpecificScreenshotScenarios } from "./scenarios";
 import { assertScenarioRegistryAligned, getScenarioDefinition } from "./registry";
@@ -65,9 +66,12 @@ const run = async () => {
       await browser.close();
     }
   } finally {
-    devServer.kill("SIGTERM");
-    for (const [filePath, contents] of originalFileContents.entries()) {
-      fs.writeFileSync(path.join(process.cwd(), filePath), contents);
+    try {
+      await stopChildProcess(devServer);
+    } finally {
+      for (const [filePath, contents] of originalFileContents.entries()) {
+        fs.writeFileSync(path.join(process.cwd(), filePath), contents);
+      }
     }
   }
 };
