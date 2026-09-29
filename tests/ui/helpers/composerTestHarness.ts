@@ -1,6 +1,6 @@
 import { type ChildProcess } from "node:child_process";
 import { once } from "node:events";
-import { chromium, type Page } from "@playwright/test";
+import { chromium, expect, type Locator, type Page } from "@playwright/test";
 import { createDefaultProject } from "../../../src/lib/patch/presets";
 import type { Project } from "../../../src/types/music";
 import { openSeededApp, startDevServer, waitForServer } from "../../../scripts/ui-capture/common";
@@ -117,3 +117,37 @@ export const readTotalNoteCount = async (page: Page): Promise<number> =>
 
 export const readTrackIds = async (page: Page): Promise<string[]> =>
   (await readActiveProject(page)).tracks.map((track) => track.id);
+
+export const waitForScrollStability = async (shell: Locator) => {
+  await expect
+    .poll(() =>
+      shell.evaluate(
+        (element) =>
+          new Promise<boolean>((resolve) => {
+            const scrollTop = element.scrollTop;
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => resolve(element.scrollTop === scrollTop));
+            });
+          })
+      )
+    )
+    .toBe(true);
+};
+
+export const readScrollTopAcrossFrames = (shell: Locator, frameCount: number): Promise<number[]> =>
+  shell.evaluate(
+    (element, count) =>
+      new Promise<number[]>((resolve) => {
+        const values: number[] = [];
+        const readFrame = () => {
+          values.push(element.scrollTop);
+          if (values.length === count) {
+            resolve(values);
+            return;
+          }
+          requestAnimationFrame(readFrame);
+        };
+        requestAnimationFrame(readFrame);
+      }),
+    frameCount
+  );
