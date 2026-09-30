@@ -63,6 +63,7 @@ import { useTrackHostAutomationActions } from "@/hooks/tracks/useTrackHostAutoma
 import { SamplePlayerAssetData } from "@/types/assets";
 import { PatchValidationIssue } from "@/types/patch";
 import { useAppProjectHistory } from "@/hooks/app/useAppProjectHistory";
+import { useAppProjectChanges } from "@/hooks/app/useAppProjectChanges";
 import { useAppTrackEditing } from "@/hooks/app/useAppTrackEditing";
 import { useAppSelectionModel, useAppSelectionEffects } from "@/hooks/app/useAppSelectionModel";
 import { AppRootOverlays } from "@/components/app/AppRootOverlays";
@@ -184,11 +185,11 @@ export function AppRoot({ children }: { children: ReactNode }) {
     [patchValidationById, project.patches]
   );
 
-  const { commitProjectChange, resetProjectState, undoProject, redoProject } = useAppProjectHistory({
-    project,
+  const { resetProjectState, undoProject, redoProject } = useAppProjectHistory({
     setProjectHistory,
     setProjectAssets
   });
+  const { commitProjectChange } = useAppProjectChanges({ project, setProjectHistory });
 
   const { presetUpdateSummary, showPresetUpdatePrompt, dismissPresetUpdatePrompt, updateAllPresetUpdates } =
     useAppPresetUpdates({ project, ready, commitProjectChange });

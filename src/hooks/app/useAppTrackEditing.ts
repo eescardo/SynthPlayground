@@ -4,7 +4,7 @@ import { useCallback, type Dispatch, type RefObject, type SetStateAction } from 
 import type { AudioEngine } from "@/audio/engine";
 import type { PatchRemovalDialogState } from "@/components/composer/PatchRemovalDialogModal";
 import type { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
-import type { CommitProjectChange } from "./useAppProjectHistory";
+import type { CommitProjectChange } from "./useAppProjectChanges";
 import { createId } from "@/lib/ids";
 import { isPatchRemovable } from "@/lib/patch/source";
 import {
