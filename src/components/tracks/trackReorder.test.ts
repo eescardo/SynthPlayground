@@ -136,11 +136,16 @@ describe("resolveTrackReorderKeyDirection", () => {
     }
   });
 
-  it("contains plain composition keys and unrelated Alt/Shift chords", () => {
-    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "z" }))).toBe(false);
+  it.each(["z", "Z", "q", "1", "!", "`", "~"])("lets recording receive pitch key %s with or without Shift", (key) => {
+    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key }))).toBe(true);
+    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key, shiftKey: true }))).toBe(true);
+  });
+
+  it("contains activation, deletion, plain reorder arrows, and unrelated Alt chords", () => {
+    for (const key of [" ", "Enter", "Backspace", "ArrowDown"]) {
+      expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key }))).toBe(false);
+    }
     expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "x", altKey: true }))).toBe(false);
-    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "c", shiftKey: true }))).toBe(false);
-    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "ArrowDown" }))).toBe(false);
   });
 });
 

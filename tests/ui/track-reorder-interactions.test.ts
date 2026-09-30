@@ -591,7 +591,7 @@ describe.sequential("track reorder interactions", () => {
         observedWindow.trackReorderLeakedKeys = [];
         window.addEventListener("keydown", (event) => observedWindow.trackReorderLeakedKeys?.push(event.key));
       });
-      for (const key of ["Space", "Enter", "q", "Backspace", "Shift+q", "Alt+x"]) {
+      for (const key of ["Space", "Enter", "Backspace", "Alt+x"]) {
         await page.keyboard.press(key);
       }
       expect(
@@ -599,6 +599,9 @@ describe.sequential("track reorder interactions", () => {
           () => (window as typeof window & { trackReorderLeakedKeys?: string[] }).trackReorderLeakedKeys
         )
       ).toEqual([]);
+      // Pitch keys may reach recording, but must not place notes while idle.
+      await page.keyboard.press("q");
+      await page.keyboard.press("Shift+q");
       await expect(lastTrackHandle).toBeFocused();
       expect(await readFirstTrackNoteCount(page)).toBe(0);
 
@@ -804,6 +807,8 @@ describe.sequential("track reorder interactions", () => {
         const reorderedIds = ["scroll-track-2", "scroll-track-1", "scroll-track-3", "scroll-track-4"];
         await expect.poll(() => readTrackIds(page)).toEqual(reorderedIds);
 
+        await page.keyboard.press("z");
+        expect(await readTotalNoteCount(page)).toBe(0);
         await page.getByRole("button", { name: "Record", exact: true }).click();
         await expect(page.locator(".recording-dock").getByText("Recording", { exact: true })).toBeVisible({
           timeout: 5_000
@@ -822,6 +827,15 @@ describe.sequential("track reorder interactions", () => {
         }
         expect(await readTotalNoteCount(page)).toBe(0);
         await expect(page.locator(".recording-dock .piano-key.selected")).toHaveCount(0);
+
+        await page.keyboard.down("z");
+        await expect(page.locator(".recording-dock .piano-key.selected")).toHaveCount(1);
+        await expect(handle).toBeFocused();
+        await page.keyboard.up("z");
+        await expect(page.locator(".recording-dock .piano-key.selected")).toHaveCount(0);
+        await page.getByRole("button", { name: "Record", exact: true }).click();
+        await expect.poll(() => readTotalNoteCount(page)).toBe(1);
+        expect(await readTrackIds(page)).toEqual(reorderedIds);
       },
       { env: { NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO: "1" } }
     );
