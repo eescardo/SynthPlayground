@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import type { DragEventHandler, KeyboardEvent, RefObject } from "react";
 import { RULER_HEIGHT } from "./trackCanvasConstants";
-import { resolveFocusedHandleScrollTop, shouldPropagateTrackReorderKeyDown } from "./trackReorder";
+import { resolveFocusedHandleScrollTop } from "./trackReorder";
+import type { CanvasShellGeometry } from "@/hooks/tracks/useCanvasShellGeometry";
 import type { TrackLayout } from "./trackCanvasTypes";
 import styles from "./TrackCanvas.module.css";
 
@@ -12,7 +13,7 @@ interface TrackReorderHandleProps {
   groupActive: boolean;
   layout: TrackLayout;
   shellRef: RefObject<HTMLDivElement | null>;
-  viewport: { left: number; top: number; scrollTop: number; height: number; borderLeft: number; borderTop: number };
+  shellGeometry: CanvasShellGeometry;
   onDragStart: DragEventHandler<HTMLButtonElement>;
   onDragEnd: DragEventHandler<HTMLButtonElement>;
   onFocusChange: (focused: boolean) => void;
@@ -28,7 +29,7 @@ export function TrackReorderHandle({
   groupActive,
   layout,
   shellRef,
-  viewport,
+  shellGeometry,
   onDragStart,
   onDragEnd,
   onFocusChange,
@@ -79,17 +80,17 @@ export function TrackReorderHandle({
     }
     handle.addEventListener("wheel", onWheel, { passive: false, capture: true });
     return () => handle.removeEventListener("wheel", onWheel, true);
-  }, [onWheel, viewport.height]);
+  }, [onWheel, shellGeometry.height]);
 
-  if (viewport.height === 0) {
+  if (shellGeometry.height === 0) {
     return null;
   }
 
-  const contentTop = viewport.top + viewport.borderTop;
-  const top = contentTop + layout.y + layout.height * 0.2 - viewport.scrollTop;
+  const contentTop = shellGeometry.top + shellGeometry.borderTop;
+  const top = contentTop + layout.y + layout.height * 0.2 - shellGeometry.scrollTop;
   const height = layout.height * 0.6;
   const visibleTop = Math.max(contentTop + RULER_HEIGHT, 0);
-  const visibleBottom = Math.min(contentTop + viewport.height, window.innerHeight);
+  const visibleBottom = Math.min(contentTop + shellGeometry.height, window.innerHeight);
 
   // Fixed positioning escapes horizontal clipping while DOM order keeps this
   // control next to its own track's chrome in the native Tab sequence.
@@ -104,7 +105,7 @@ export function TrackReorderHandle({
       data-dragging={dragging}
       data-group-active={groupActive}
       style={{
-        left: viewport.left + viewport.borderLeft,
+        left: shellGeometry.left + shellGeometry.borderLeft,
         top,
         height,
         clipPath: `inset(${Math.max(0, visibleTop - top)}px -4px ${Math.max(0, top + height - visibleBottom)}px -4px)`
@@ -127,9 +128,6 @@ export function TrackReorderHandle({
       onDragEnd={onDragEnd}
       onKeyDown={(event) => {
         revealAfterKeyboardMoveRef.current = onKeyDown(event);
-        if (!shouldPropagateTrackReorderKeyDown(event)) {
-          event.stopPropagation();
-        }
       }}
     />
   );

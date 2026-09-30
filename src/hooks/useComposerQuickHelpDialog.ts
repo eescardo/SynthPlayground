@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { QuickHelpShortcutSection } from "@/components/QuickHelpDialog";
+import { canHandleTrackControlKeyDown } from "@/hooks/hardwareNavigationUtils";
 
 const isTextEditingTarget = (target: EventTarget | null) => {
   const element = target as HTMLElement | null;
@@ -96,6 +97,9 @@ export function useComposerQuickHelpDialog({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!canHandleTrackControlKeyDown(event, "global-shortcut")) {
+        return;
+      }
       const isHelpKey = event.key === "?" || (event.key === "/" && event.shiftKey);
       if (isHelpKey && !isTextEditingTarget(event.target)) {
         event.preventDefault();

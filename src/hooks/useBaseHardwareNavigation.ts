@@ -5,6 +5,7 @@ import { KEYBOARD_NOTE_PREVIEW_MAX_PITCH, KEYBOARD_NOTE_PREVIEW_MIN_PITCH } from
 import { parseNoteSelectionKey } from "@/lib/clipboard";
 import { transposePitch } from "@/lib/pitch";
 import {
+  canHandleTrackControlKeyDown,
   focusLastTrackChromeTabStop,
   isModifierChord,
   isPlayheadTabStopFocused,
@@ -89,6 +90,9 @@ export function useBaseHardwareNavigation({
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!canHandleTrackControlKeyDown(event, "pitch-preview")) {
+        return;
+      }
       if (event.defaultPrevented) {
         return;
       }

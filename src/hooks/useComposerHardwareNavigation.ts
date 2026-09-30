@@ -3,6 +3,7 @@
 import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import { BaseHardwareNavigationResult } from "@/hooks/useBaseHardwareNavigation";
 import {
+  canHandleTrackControlKeyDown,
   isModifierChord,
   isPlayheadTabStopFocused,
   isTextEditingTarget,
@@ -915,7 +916,7 @@ export function useComposerHardwareNavigation({
       if (isTextEditingTarget(event.target) || !canHandleComposerKeyboardShortcut) {
         return;
       }
-      if (trackChromeKeyboardFocused && !arrowKeyPressed) {
+      if (!canHandleTrackControlKeyDown(event, "navigation")) {
         return;
       }
       const normalizedPhysicalTriggerKey = normalizePhysicalPitchKey(event.key);

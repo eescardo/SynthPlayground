@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { NoteClipboardPasteAction } from "@/hooks/useSelectionClipboardActions";
+import { canHandleTrackControlKeyDown } from "@/hooks/hardwareNavigationUtils";
 
 const isTextEditingTarget = (target: EventTarget | null) => {
   const element = target as HTMLElement | null;
@@ -39,6 +40,9 @@ export function useEditActionKeyboardShortcuts({
 }: UseEditActionKeyboardShortcutsParams) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!canHandleTrackControlKeyDown(event, "global-shortcut")) {
+        return;
+      }
       const editingText = isTextEditingTarget(event.target);
       const primaryModifier = event.metaKey || event.ctrlKey;
       const lowerKey = event.key.toLowerCase();

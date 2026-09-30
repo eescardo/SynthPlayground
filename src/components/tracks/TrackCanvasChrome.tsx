@@ -1,4 +1,4 @@
-import { CSSProperties, Dispatch, RefObject, SetStateAction, useEffect, useState } from "react";
+import { CSSProperties, Dispatch, RefObject, SetStateAction, useState } from "react";
 import { MacroPanel, MacroPanelRow } from "@/components/tracks/MacroPanel";
 import { PatchSummaryPopover } from "@/components/PatchSummaryPopover";
 import { TrackPanPopover } from "@/components/TrackPanPopover";
@@ -25,6 +25,7 @@ import {
 } from "@/components/tracks/trackCanvasTypes";
 import { usePatchSummaryPopover } from "@/hooks/tracks/usePatchSummaryPopover";
 import { useTrackReorder } from "@/hooks/tracks/useTrackReorder";
+import { useCanvasShellGeometry, type CanvasShellGeometry } from "@/hooks/tracks/useCanvasShellGeometry";
 import { TrackReorderHandle } from "./TrackReorderHandle";
 import {
   getTrackMacroLane,
@@ -147,7 +148,7 @@ const resolvePatchSummaryAnchor = (args: {
   macroPanelShellTop: number | null;
   macroPanelShellHeight: number;
   popoverMode?: "teaser" | "expanded";
-  canvasViewport: { left: number; top: number; scrollTop: number };
+  shellGeometry: Pick<CanvasShellGeometry, "left" | "top" | "scrollTop">;
 }): PatchSummaryAnchor => {
   const anchorTop = args.layout.y + 8;
   const anchorBottom =
@@ -159,8 +160,8 @@ const resolvePatchSummaryAnchor = (args: {
   const expandedTop = anchorTop + (anchorHeight - expandedHeight) * 0.5;
   const localTop = args.popoverMode === "expanded" ? expandedTop : anchorTop;
   return {
-    viewportLeft: args.canvasViewport.left + HEADER_WIDTH,
-    viewportTop: args.canvasViewport.top + localTop - args.canvasViewport.scrollTop,
+    viewportLeft: args.shellGeometry.left + HEADER_WIDTH,
+    viewportTop: args.shellGeometry.top + localTop - args.shellGeometry.scrollTop,
     anchorHeight,
     expandedHeight
   };
@@ -321,14 +322,7 @@ export function TrackHeaderChrome({
     schedulePatchSummaryDismiss,
     cancelPatchSummaryDismiss
   } = usePatchSummaryPopover({ selectedTrackId });
-  const [canvasViewport, setCanvasViewport] = useState({
-    left: 0,
-    top: 0,
-    scrollTop: 0,
-    height: 0,
-    borderLeft: 0,
-    borderTop: 0
-  });
+  const shellGeometry = useCanvasShellGeometry(canvasShellRef);
   const {
     dragState: trackDrag,
     keyboardAnnouncement,
@@ -343,47 +337,6 @@ export function TrackHeaderChrome({
   });
   const reorderGroupActive =
     chromeHovered || hoveredHandleId !== null || focusedHandleId !== null || trackDrag !== null;
-
-  useEffect(() => {
-    const shell = canvasShellRef.current;
-    if (!shell) {
-      return;
-    }
-    const updateCanvasViewport = () => {
-      const rect = shell.getBoundingClientRect();
-      const nextViewport = {
-        left: rect.left,
-        top: rect.top,
-        scrollTop: shell.scrollTop,
-        height: shell.clientHeight,
-        borderLeft: shell.clientLeft,
-        borderTop: shell.clientTop
-      };
-      setCanvasViewport((previousViewport) => {
-        if (
-          previousViewport.left === nextViewport.left &&
-          previousViewport.top === nextViewport.top &&
-          previousViewport.scrollTop === nextViewport.scrollTop &&
-          previousViewport.height === nextViewport.height &&
-          previousViewport.borderLeft === nextViewport.borderLeft &&
-          previousViewport.borderTop === nextViewport.borderTop
-        ) {
-          return previousViewport;
-        }
-        return nextViewport;
-      });
-    };
-    updateCanvasViewport();
-    const observer = new ResizeObserver(updateCanvasViewport);
-    observer.observe(shell);
-    window.addEventListener("scroll", updateCanvasViewport, { passive: true, capture: true });
-    window.addEventListener("resize", updateCanvasViewport);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("scroll", updateCanvasViewport, true);
-      window.removeEventListener("resize", updateCanvasViewport);
-    };
-  }, [canvasShellRef]);
 
   return (
     <div
@@ -423,7 +376,7 @@ export function TrackHeaderChrome({
           macroPanelShellTop: macroPanelGeometry.shellTop,
           macroPanelShellHeight: macroPanelGeometry.shellHeight,
           popoverMode: patchSummaryPopover?.mode,
-          canvasViewport
+          shellGeometry
         });
         const patchInvalid = Boolean(invalidPatchIds?.has(track.instrumentPatchId));
         const macroPanelRows = buildMacroPanelRows({
@@ -467,7 +420,7 @@ export function TrackHeaderChrome({
                 groupActive={reorderGroupActive}
                 layout={layout}
                 shellRef={canvasShellRef}
-                viewport={canvasViewport}
+                shellGeometry={shellGeometry}
                 onDragStart={(event) => {
                   closeMixerPopovers();
                   onTrackDragStart(event, track.id);

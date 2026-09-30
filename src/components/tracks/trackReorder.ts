@@ -1,5 +1,4 @@
 import type { TrackLayout } from "@/components/tracks/trackCanvasTypes";
-import { normalizePhysicalPitchKey } from "@/lib/pitch";
 
 export interface TrackDropTarget {
   targetTrackId: string;
@@ -28,21 +27,6 @@ export const resolveTrackReorderKeyDirection = (event: TrackReorderKeyboardEvent
     return 0;
   }
   return event.key === "ArrowUp" ? -1 : event.key === "ArrowDown" ? 1 : 0;
-};
-
-export const shouldPropagateTrackReorderKeyDown = (event: TrackReorderKeyboardEvent): boolean => {
-  if (event.key === "Escape" || event.ctrlKey || event.metaKey) {
-    return true;
-  }
-  // Let recording own pitch input. The composer chrome guard already prevents
-  // idle note placement, so the grip must not swallow recording's keydown.
-  if (!event.altKey && normalizePhysicalPitchKey(event.key) !== undefined) {
-    return true;
-  }
-  return (
-    (event.key === "ArrowUp" || event.key === "ArrowRight" || event.key === "ArrowDown" || event.key === "ArrowLeft") &&
-    (event.altKey || event.shiftKey)
-  );
 };
 
 export const resolveFocusedHandleScrollTop = ({

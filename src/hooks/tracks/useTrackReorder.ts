@@ -85,7 +85,7 @@ export function useTrackReorder({ canvasShellRef, tracks, trackLayouts, onMoveTr
           : previous
       );
     };
-    // Own the entire in-page drag, including toolbar/child controls and the portal handles.
+    // Own the entire in-page drag, including toolbar/child controls and outside-edge handles.
     // These listeners exist only for a reorder started by our handle, never external drags.
     const onDragOver = (event: globalThis.DragEvent) => {
       if (!activeTrackRef.current) return;
