@@ -38,6 +38,10 @@ The `PR Screenshots` workflow can generate before and after screenshot artifacts
 
 The workflow uploads separate `before` and `after` artifacts and leaves a PR comment with inline image previews plus download links.
 
+Screenshot batches attempt every requested scenario and report all failures at the end. A base revision can lack UI introduced by the PR, so missing before images are reported in the comment. Every PR-head scenario must succeed for screenshot validation to pass; partial artifacts remain available for diagnosis.
+
+Screenshot and video workflows cancel superseded runs for the same PR. Publishing is queued across PRs for each shared preview branch to prevent simultaneous pushes from rejecting one another.
+
 Current implementation detail:
 
 - The inline PR comment images are published to a dedicated utility branch named `pr-screenshot-previews`.
@@ -85,6 +89,6 @@ Current implementation detail:
 
 Videos are intended for motion and interaction review. If the change is primarily about audio quality or synthesis behavior, pair the capture with manual listening notes in the PR.
 
-Video capture may use the fake audio backend so headless browser runs do not depend on real WebAudio/WASM readiness. Keep that mode controlled by explicit capture/test environment such as `NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO=1`.
+Both screenshot and video runners explicitly start their dev server with `NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO=1`, so visual captures do not depend on real WebAudio/WASM readiness. These captures validate UI state and motion, not the real audio renderer or WASM initialization.
 
 These artifacts are for review and debugging, not source control history. The directories are ignored by git except for this README.

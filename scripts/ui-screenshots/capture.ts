@@ -2,9 +2,11 @@ import path from "node:path";
 import process from "node:process";
 import fs from "node:fs";
 import { chromium } from "@playwright/test";
-import { startDevServer, waitForServer } from "../ui-capture/common";
+import { waitForServer } from "../ui-capture/common";
+import { runCaptureScenarios } from "../ui-capture/runCaptureScenarios";
 import { SCREENSHOT_SCENARIOS, ScreenshotScenario, resolveSpecificScreenshotScenarios } from "./scenarios";
 import { assertScenarioRegistryAligned, getScenarioDefinition } from "./registry";
+import { startScreenshotServer } from "./runtime";
 
 const screenshotLabel = process.env.SCREENSHOT_LABEL ?? "local";
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 3005);
@@ -32,18 +34,21 @@ const run = async () => {
       (filePath) => [filePath, fs.readFileSync(path.join(process.cwd(), filePath), "utf8")] as const
     )
   );
-  const devServer = startDevServer(port);
+  const devServer = startScreenshotServer(port);
 
   try {
     await waitForServer(baseURL, 120_000);
-    const browser = await chromium.launch({ headless: true });
+    const browser = await chromium.launch({
+      headless: true,
+      args: ["--autoplay-policy=no-user-gesture-required"]
+    });
     try {
       const context = await browser.newContext({
         baseURL,
         viewport: { width: 1440, height: 1400 }
       });
       try {
-        for (const scenario of requestedScenarios) {
+        await runCaptureScenarios(requestedScenarios, async (scenario) => {
           const page = await context.newPage();
           try {
             const definition = getScenarioDefinition(scenario);
@@ -52,7 +57,7 @@ const run = async () => {
           } finally {
             await page.close();
           }
-        }
+        });
       } finally {
         await context.close();
       }

@@ -77,7 +77,7 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
     capture: async (page, outputPath) => {
       await openSeededApp(page, createMicrotonalCaptureProject());
       await page.keyboard.press("+");
-      await expect(page.getByRole("button", { name: /Default pitch C4\+25/i })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Placement pitch C4+25", exact: true })).toBeVisible();
       await savePageScreenshot(page, outputPath);
     }
   },
