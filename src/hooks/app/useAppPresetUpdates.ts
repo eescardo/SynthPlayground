@@ -3,7 +3,7 @@
 import { useCallback, useMemo } from "react";
 import { getProjectPresetUpdateSummary, updateProjectPresetsToLatest } from "@/lib/patch/source";
 import type { Project } from "@/types/music";
-import type { CommitProjectChange } from "./useAppProjectHistory";
+import type { CommitProjectChange } from "./useAppProjectChanges";
 
 export function useAppPresetUpdates({
   project,
