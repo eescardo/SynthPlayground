@@ -31,7 +31,16 @@ type AppRootOverlaysProps = Pick<
     project: Project;
     trackNameById: Map<string, string>;
     confirmExplodeSelection: () => void;
-    recording: ReturnType<typeof useRecordingController>;
+    recording: Pick<
+      ReturnType<typeof useRecordingController>,
+      | "recordingActive"
+      | "recordPhase"
+      | "recordStatusText"
+      | "recordingHintText"
+      | "pressedRecordingPitches"
+      | "startRecordedNote"
+      | "stopRecordedInput"
+    >;
     activeRecordingTrack: Track | undefined;
     pitchPickerNote: Note | undefined;
     patchWorkspace: Pick<
