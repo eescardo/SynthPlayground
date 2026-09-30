@@ -25,6 +25,11 @@ permissions:
   issues: write
   pull-requests: write
 
+# Coalesce pushes and label changes for the same PR before publishing its previews.
+concurrency:
+  group: pr-screenshots-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
 jobs:
   pr-context:
     name: Resolve PR Context
@@ -269,6 +274,11 @@ jobs:
   publish-previews:
     name: Publish Screenshot Previews
     runs-on: ubuntu-latest
+    # Every PR writes to this same branch. Queue publishers across PRs as well.
+    concurrency:
+      group: publish-pr-screenshot-previews
+      cancel-in-progress: false
+      queue: max
     needs:
       - pr-context
       - capture-before
@@ -351,19 +361,19 @@ jobs:
       - capture-after
     if: needs.pr-context.outputs.scenarios != ''
     steps:
-      - name: Require at least one capture side
+      - name: Require complete PR head captures
         shell: bash
         env:
-          BEFORE_AVAILABLE: ${{ needs.capture-before.outputs.has_artifact }}
           AFTER_AVAILABLE: ${{ needs.capture-after.outputs.has_artifact }}
           BEFORE_STATUS: ${{ needs.capture-before.outputs.capture_status }}
           AFTER_STATUS: ${{ needs.capture-after.outputs.capture_status }}
         run: |
-          if [[ "$BEFORE_AVAILABLE" == "true" || "$AFTER_AVAILABLE" == "true" ]]; then
+          # A base revision can lack UI introduced by the PR, but head must capture every scenario.
+          if [[ "$AFTER_STATUS" == "success" && "$AFTER_AVAILABLE" == "true" ]]; then
             exit 0
           fi
 
-          echo "Screenshot capture failed for both before and after revisions."
+          echo "PR head screenshot capture was incomplete or failed. See the capture log for each failed scenario."
           echo "Before capture status: ${BEFORE_STATUS:-unknown}"
           echo "After capture status: ${AFTER_STATUS:-unknown}"
           exit 1
@@ -386,7 +396,7 @@ jobs:
       - capture-after
       - publish-previews
       - validate-capture-results
-    if: needs.pr-context.outputs.scenarios != ''
+    if: ${{ !cancelled() && needs.publish-previews.result == 'success' && needs.pr-context.outputs.scenarios != '' }}
     steps:
       - name: Upsert screenshot comment
         uses: actions/github-script@v7
@@ -402,6 +412,8 @@ jobs:
           AFTER_AVAILABLE: ${{ needs.capture-after.outputs.has_artifact }}
           BEFORE_CAPTURED_SCENARIOS: ${{ needs.capture-before.outputs.captured_scenarios }}
           AFTER_CAPTURED_SCENARIOS: ${{ needs.capture-after.outputs.captured_scenarios }}
+          BEFORE_STATUS: ${{ needs.capture-before.outputs.capture_status }}
+          AFTER_STATUS: ${{ needs.capture-after.outputs.capture_status }}
           PREVIEW_BRANCH: ${{ needs.publish-previews.outputs.preview_branch }}
         with:
           script: |
@@ -430,6 +442,8 @@ jobs:
             ## Screenshots
 
             Generated screenshot artifacts for ${process.env.SCENARIOS}.
+
+            Capture status: before **${process.env.BEFORE_STATUS}**, after **${process.env.AFTER_STATUS}**. Missing scenarios are marked below; any failed PR-head scenario fails validation.
 
             | Scenario | Before (${process.env.BASE_REF}) | After (${process.env.HEAD_REF}) |
             | --- | --- | --- |

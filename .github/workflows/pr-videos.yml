@@ -25,6 +25,10 @@ permissions:
   issues: write
   pull-requests: write
 
+concurrency:
+  group: pr-videos-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
 jobs:
   pr-context:
     name: Resolve PR Context
@@ -144,6 +148,11 @@ jobs:
   publish-previews:
     name: Publish Video Previews
     runs-on: ubuntu-latest
+    # Every PR writes to this same branch. Queue publishers across PRs as well.
+    concurrency:
+      group: publish-pr-video-previews
+      cancel-in-progress: false
+      queue: max
     needs:
       - pr-context
       - capture-after

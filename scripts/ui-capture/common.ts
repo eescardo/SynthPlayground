@@ -492,7 +492,9 @@ export const setupPatchModuleFacesWorkspace = async (page: Page) => {
   await openSeededPatchWorkspaceApp(page, createPatchModuleFacesCaptureProject());
   await expect(page.getByRole("heading", { name: "Patch Workspace" })).toBeVisible();
   await expect(page.locator('[data-ui="patch-workspace-tab-name"]', { hasText: "Module Face Visuals" })).toBeVisible();
-  await expect(page.locator(".patch-inspector")).toContainText("Compressor comp_shape");
+  const moduleHeading = page.locator(".patch-inspector-module-heading");
+  await expect(moduleHeading.locator("span")).toHaveText("Compressor");
+  await expect(moduleHeading.getByRole("button", { name: "Rename module comp_shape", exact: true })).toBeVisible();
   await expect(page.locator(".param-current-value-unit", { hasText: "ms" })).toBeVisible();
   await expect(page.locator(".compressor-derived-readouts")).toContainText("Auto Gain");
 };
