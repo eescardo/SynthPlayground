@@ -41,6 +41,7 @@ export interface ComposerProjectMenuProps {
   importInputRef: RefObject<HTMLInputElement | null>;
   recentProjects: RecentProjectSnapshot[];
   onNewProject: () => void;
+  onDeleteCurrentProject: () => void;
   onExportJson: () => void;
   onImportJson: () => void;
   onOpenRecentProject: (projectId: string) => void;
@@ -141,6 +142,7 @@ export function ComposerView(props: ComposerViewProps) {
         recentProjects={props.projectMenu.recentProjects}
         onRenameProject={props.projectActions.onRenameProject}
         onNewProject={props.projectMenu.onNewProject}
+        onDeleteCurrentProject={props.projectMenu.onDeleteCurrentProject}
         onOpenPatchWorkspace={props.projectActions.onOpenPatchWorkspace}
         onExportAudio={props.projectActions.onExportAudio}
         exportAudioDisabled={props.transport.exportingAudio}

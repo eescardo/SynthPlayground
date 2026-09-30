@@ -49,6 +49,7 @@ export interface UsePatchWorkspaceControllerOptions {
   setProjectAssets: Dispatch<SetStateAction<ProjectAssetLibrary>>;
   setRuntimeError: SproutErrorSetter;
   onNewProject: () => void;
+  onDeleteCurrentProject: () => void;
   onExportJson: () => void;
   onImportJson: () => void;
   onOpenRecentProject: (projectId: string) => void;
@@ -86,6 +87,7 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
     onImportFile,
     onImportJson,
     onNewProject,
+    onDeleteCurrentProject,
     onOpenRecentProject,
     onResetToDefaultProject,
     onUpsertSamplePlayerAssetData,
@@ -258,6 +260,7 @@ export function usePatchWorkspaceController(options: UsePatchWorkspaceController
     onOpenPreviewPitchPicker: () => patchWorkspace.setPreviewPitchPickerOpen(true),
     onPreviewNow: () => patchWorkspace.previewSelectedPatchNow(),
     onNewProject,
+    onDeleteCurrentProject,
     onExportJson,
     onImportJson,
     onOpenRecentProject,

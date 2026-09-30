@@ -76,6 +76,24 @@ describe("resolveScreenshotScenariosFromLabelsJson", () => {
     });
   });
 
+  it("parses the about page label", () => {
+    expect(resolveScreenshotScenariosFromLabels(["screenshots:about-page"])).toMatchObject({
+      enabled: true,
+      value: "about-page",
+      grep: "@about-page",
+      error: ""
+    });
+  });
+
+  it("parses the projects popover label", () => {
+    expect(resolveScreenshotScenariosFromLabels(["screenshots:projects-popover"])).toMatchObject({
+      enabled: true,
+      value: "projects-popover",
+      grep: "@projects-popover",
+      error: ""
+    });
+  });
+
   it("returns a validation error for malformed JSON", () => {
     expect(resolveScreenshotScenariosFromLabelsJson("not-json")).toMatchObject({
       enabled: false,

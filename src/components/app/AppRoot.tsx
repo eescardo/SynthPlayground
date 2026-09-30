@@ -1131,20 +1131,26 @@ export function AppRoot({ children }: { children: ReactNode }) {
   const activeRecordingTrack = activeRecordingTrackId
     ? project.tracks.find((track) => track.id === activeRecordingTrackId)
     : undefined;
-  const { clearCurrentProject, createNewProject, importJson, openRecentProject, resetToDefaultProject } =
-    useProjectLifecycleActions({
-      project,
-      projectAssets,
-      recentProjects,
-      audioEngineRef,
-      playback,
-      commitProjectChange,
-      resetProjectState,
-      refreshRecentProjects,
-      setSelectedTrackId,
-      setRuntimeError,
-      clearTransientComposerUi
-    });
+  const {
+    clearCurrentProject,
+    createNewProject,
+    deleteCurrentProject,
+    importJson,
+    openRecentProject,
+    resetToDefaultProject
+  } = useProjectLifecycleActions({
+    project,
+    projectAssets,
+    recentProjects,
+    audioEngineRef,
+    playback,
+    commitProjectChange,
+    resetProjectState,
+    refreshRecentProjects,
+    setSelectedTrackId,
+    setRuntimeError,
+    clearTransientComposerUi
+  });
   const workspaceView = pathname.endsWith("/patch-workspace") ? "patch-workspace" : "composer";
   const selectedPitchPreviewNote = useMemo(
     () => (workspaceView === "composer" ? getSingleSelectedTrackNote(project.tracks, selectedContent) : null),
@@ -1235,6 +1241,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     importInputRef,
     recentProjects,
     createNewProject,
+    deleteCurrentProject,
     exportJson,
     openRecentProject,
     resetToDefaultProject,

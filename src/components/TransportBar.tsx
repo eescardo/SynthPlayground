@@ -19,6 +19,7 @@ interface TransportBarProps {
   recentProjects: RecentProjectSnapshot[];
   onRenameProject: (name: string) => void;
   onNewProject: () => void;
+  onDeleteCurrentProject: () => void;
   onOpenPatchWorkspace: () => void;
   onExportAudio: () => void;
   exportAudioDisabled?: boolean;
@@ -54,6 +55,7 @@ export function TransportBar(props: TransportBarProps) {
           importInputRef={props.importInputRef}
           recentProjects={props.recentProjects}
           onNewProject={props.onNewProject}
+          onDeleteCurrentProject={props.onDeleteCurrentProject}
           onExportJson={props.onExportJson}
           onImportJson={props.onImportJson}
           onOpenRecentProject={props.onOpenRecentProject}

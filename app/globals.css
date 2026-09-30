@@ -1,5 +1,6 @@
 @import "./styles/base.css";
 @import "./styles/app-shell.css";
+@import "./styles/about.css";
 @import "./styles/feedback.css";
 @import "./styles/composer.css";
 @import "./styles/patch-workspace.css";
