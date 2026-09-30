@@ -13,8 +13,7 @@ interface ExitWaitResult {
   error?: Error;
 }
 
-const hasExited = (child: ChildProcess): boolean =>
-  child.exitCode !== null || child.signalCode !== null;
+const hasExited = (child: ChildProcess): boolean => child.exitCode !== null || child.signalCode !== null;
 
 const waitForExit = (child: ChildProcess, timeoutMs: number): Promise<ExitWaitResult> =>
   new Promise((resolve) => {
@@ -53,10 +52,7 @@ const signal = (child: ChildProcess, name: NodeJS.Signals): Error | undefined =>
 };
 
 /** Stops a child process, escalating to SIGKILL when graceful shutdown times out. */
-export const stopChildProcess = async (
-  child: ChildProcess,
-  options: StopChildProcessOptions = {}
-): Promise<void> => {
+export const stopChildProcess = async (child: ChildProcess, options: StopChildProcessOptions = {}): Promise<void> => {
   if (hasExited(child)) return;
 
   const gracefulExit = waitForExit(child, options.gracefulTimeoutMs ?? DEFAULT_GRACEFUL_TIMEOUT_MS);
