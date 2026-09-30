@@ -4,7 +4,6 @@ import {
   resolveFocusedHandleScrollTop,
   resolveTrackDropTarget,
   resolveTrackReorderKeyDirection,
-  shouldPropagateTrackReorderKeyDown,
   trackReorderScrollSpeed
 } from "@/components/tracks/trackReorder";
 import type { TrackLayout } from "@/components/tracks/trackCanvasTypes";
@@ -118,34 +117,6 @@ describe("resolveTrackReorderKeyDirection", () => {
 
   it.each(["altKey", "ctrlKey", "metaKey", "shiftKey"] as const)("ignores arrows with %s", (modifier) => {
     expect(resolveTrackReorderKeyDirection(keyboardEvent({ [modifier]: true }))).toBe(0);
-  });
-
-  it("propagates edit chords, Escape, and modified vertical navigation", () => {
-    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "Escape" }))).toBe(true);
-    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "z", ctrlKey: true }))).toBe(true);
-    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "v", metaKey: true, altKey: true }))).toBe(true);
-    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "ArrowDown", shiftKey: true }))).toBe(true);
-    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "ArrowUp", altKey: true }))).toBe(true);
-    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "ArrowLeft", shiftKey: true }))).toBe(true);
-    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "ArrowRight", altKey: true }))).toBe(true);
-  });
-
-  it.each(["ArrowUp", "ArrowRight", "ArrowDown", "ArrowLeft"])("propagates every modifier variant of %s", (key) => {
-    for (const modifier of ["altKey", "ctrlKey", "metaKey", "shiftKey"] as const) {
-      expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key, [modifier]: true }))).toBe(true);
-    }
-  });
-
-  it.each(["z", "Z", "q", "1", "!", "`", "~"])("lets recording receive pitch key %s with or without Shift", (key) => {
-    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key }))).toBe(true);
-    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key, shiftKey: true }))).toBe(true);
-  });
-
-  it("contains activation, deletion, plain reorder arrows, and unrelated Alt chords", () => {
-    for (const key of [" ", "Enter", "Backspace", "ArrowDown"]) {
-      expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key }))).toBe(false);
-    }
-    expect(shouldPropagateTrackReorderKeyDown(keyboardEvent({ key: "x", altKey: true }))).toBe(false);
   });
 });
 

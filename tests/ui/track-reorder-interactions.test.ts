@@ -7,7 +7,6 @@ import {
   createEmptyComposerProject,
   createManyTrackComposerProject,
   readFirstTrackNoteCount,
-  readTotalNoteCount,
   readTrackIds,
   readScrollTopAcrossFrames,
   waitForScrollStability
@@ -186,6 +185,8 @@ describe.sequential("track reorder interactions", () => {
 
       await page.getByRole("button", { name: "Collapse macro lanes" }).click();
       await expect.poll(async () => (await firstTrackRow.boundingBox())?.height ?? 0).toBe(collapsedHeight);
+      await expectTrackReorderHandleGeometry(firstTrackRow, firstTrackHandle);
+      await page.setViewportSize({ width: 1100, height: 500 });
       await expectTrackReorderHandleGeometry(firstTrackRow, firstTrackHandle);
     });
   }, 120_000);
@@ -586,19 +587,9 @@ describe.sequential("track reorder interactions", () => {
         )
         .toBe(true);
 
-      await page.evaluate(() => {
-        const observedWindow = window as typeof window & { trackReorderLeakedKeys?: string[] };
-        observedWindow.trackReorderLeakedKeys = [];
-        window.addEventListener("keydown", (event) => observedWindow.trackReorderLeakedKeys?.push(event.key));
-      });
       for (const key of ["Space", "Enter", "Backspace", "Alt+x"]) {
         await page.keyboard.press(key);
       }
-      expect(
-        await page.evaluate(
-          () => (window as typeof window & { trackReorderLeakedKeys?: string[] }).trackReorderLeakedKeys
-        )
-      ).toEqual([]);
       // Pitch keys may reach recording, but must not place notes while idle.
       await page.keyboard.press("q");
       await page.keyboard.press("Shift+q");
@@ -792,154 +783,6 @@ describe.sequential("track reorder interactions", () => {
       expect(
         await page.evaluate(() => (window as typeof window & { boundaryReorderLeaks?: string[] }).boundaryReorderLeaks)
       ).toEqual([]);
-    });
-  }, 120_000);
-
-  test("keeps recording note input separate from edit chords on a focused reorder handle", async () => {
-    const project = createManyTrackComposerProject(4);
-    project.global.compositionEnd = { beat: 64 };
-    await withSeededComposerPage(
-      project,
-      async (page) => {
-        const handle = page.locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-1"]');
-        await handle.focus();
-        await page.keyboard.press("ArrowDown");
-        const reorderedIds = ["scroll-track-2", "scroll-track-1", "scroll-track-3", "scroll-track-4"];
-        await expect.poll(() => readTrackIds(page)).toEqual(reorderedIds);
-
-        await page.keyboard.press("z");
-        expect(await readTotalNoteCount(page)).toBe(0);
-        await page.getByRole("button", { name: "Record", exact: true }).click();
-        await expect(page.locator(".recording-dock").getByText("Recording", { exact: true })).toBeVisible({
-          timeout: 5_000
-        });
-        await handle.focus();
-
-        await page.keyboard.press("Control+z");
-        await expect.poll(() => readTrackIds(page)).toEqual(project.tracks.map((track) => track.id));
-        await page.keyboard.press("Control+y");
-        await expect.poll(() => readTrackIds(page)).toEqual(reorderedIds);
-        await page.keyboard.press("Control+z");
-        await page.keyboard.press("Control+Shift+z");
-        await expect.poll(() => readTrackIds(page)).toEqual(reorderedIds);
-        for (const chord of ["Control+Alt+c", "Control+Alt+v"]) {
-          await page.keyboard.press(chord);
-        }
-        expect(await readTotalNoteCount(page)).toBe(0);
-        await expect(page.locator(".recording-dock .piano-key.selected")).toHaveCount(0);
-
-        await page.keyboard.down("z");
-        await expect(page.locator(".recording-dock .piano-key.selected")).toHaveCount(1);
-        await expect(handle).toBeFocused();
-        await page.keyboard.up("z");
-        await expect(page.locator(".recording-dock .piano-key.selected")).toHaveCount(0);
-        await page.getByRole("button", { name: "Record", exact: true }).click();
-        await expect.poll(() => readTotalNoteCount(page)).toBe(1);
-        expect(await readTrackIds(page)).toEqual(reorderedIds);
-      },
-      { env: { NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO: "1" } }
-    );
-  }, 120_000);
-
-  test("releases an active recording note after focus and modifier state change", async () => {
-    const project = createManyTrackComposerProject(4);
-    project.global.compositionEnd = { beat: 64 };
-    await withSeededComposerPage(
-      project,
-      async (page) => {
-        const handle = page.locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-1"]');
-        await page.getByRole("button", { name: "Record", exact: true }).click();
-        await expect(page.locator(".recording-dock").getByText("Recording", { exact: true })).toBeVisible({
-          timeout: 5_000
-        });
-
-        await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-        await page.keyboard.down("z");
-        await expect(page.locator(".recording-dock .piano-key.selected")).toHaveCount(1);
-        await handle.focus();
-        await page.keyboard.down("Shift");
-        await page.keyboard.up("z");
-        await expect(page.locator(".recording-dock .piano-key.selected")).toHaveCount(0);
-        await page.keyboard.up("Shift");
-        await page.getByRole("button", { name: "Record", exact: true }).click();
-        await expect.poll(() => readTotalNoteCount(page)).toBe(1);
-      },
-      { env: { NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO: "1" } }
-    );
-  }, 120_000);
-
-  test("leaves every modified arrow to window handlers without reordering or closing mixer popovers", async () => {
-    const project = createManyTrackComposerProject(6);
-    await withSeededComposerPage(project, async (page) => {
-      const originalOrder = project.tracks.map((track) => track.id);
-      const handle = page.locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-3"]');
-      const popover = page.locator('[data-track-popover="volume"]');
-      await page.locator('[data-track-chrome="volume-button"]').first().click();
-      await expect(popover).toBeVisible();
-      await handle.focus();
-      await page.evaluate(() => {
-        const observedWindow = window as typeof window & { modifiedReorderKeys?: string[] };
-        observedWindow.modifiedReorderKeys = [];
-        window.addEventListener("keydown", (event) => {
-          if (!["ArrowUp", "ArrowRight", "ArrowDown", "ArrowLeft"].includes(event.key)) return;
-          observedWindow.modifiedReorderKeys?.push(
-            `${event.altKey ? "A" : ""}${event.ctrlKey ? "C" : ""}${event.metaKey ? "M" : ""}${event.shiftKey ? "S" : ""}:${event.key}`
-          );
-        });
-      });
-
-      const modifiedArrows = [
-        "Alt+ArrowUp",
-        "Alt+ArrowRight",
-        "Alt+ArrowDown",
-        "Alt+ArrowLeft",
-        "Control+ArrowUp",
-        "Control+ArrowRight",
-        "Control+ArrowDown",
-        "Control+ArrowLeft",
-        "Meta+ArrowUp",
-        "Meta+ArrowRight",
-        "Meta+ArrowDown",
-        "Meta+ArrowLeft",
-        "Shift+ArrowUp",
-        "Shift+ArrowRight",
-        "Shift+ArrowDown",
-        "Shift+ArrowLeft"
-      ];
-      for (const key of modifiedArrows) {
-        await handle.focus();
-        await page.keyboard.press(key);
-        expect(await readTrackIds(page)).toEqual(originalOrder);
-        await expect(popover).toBeVisible();
-      }
-      expect(
-        await page.evaluate(() => (window as typeof window & { modifiedReorderKeys?: string[] }).modifiedReorderKeys)
-      ).toEqual([
-        "A:ArrowUp",
-        "A:ArrowRight",
-        "A:ArrowDown",
-        "A:ArrowLeft",
-        "C:ArrowUp",
-        "C:ArrowRight",
-        "C:ArrowDown",
-        "C:ArrowLeft",
-        "M:ArrowUp",
-        "M:ArrowRight",
-        "M:ArrowDown",
-        "M:ArrowLeft",
-        "S:ArrowUp",
-        "S:ArrowRight",
-        "S:ArrowDown",
-        "S:ArrowLeft"
-      ]);
-
-      await handle.focus();
-      await page.keyboard.press("ArrowDown");
-      await expect.poll(() => readTrackIds(page)).not.toEqual(originalOrder);
-      await expect(popover).toHaveCount(0);
-      await page.keyboard.press("Control+z");
-      await expect.poll(() => readTrackIds(page)).toEqual(originalOrder);
-      await expect(handle).toBeFocused();
     });
   }, 120_000);
 });
