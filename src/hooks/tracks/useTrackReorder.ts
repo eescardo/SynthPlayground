@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { DragEvent, KeyboardEvent, RefObject } from "react";
 import {
   resolveTrackDropTarget,
@@ -27,6 +27,9 @@ export function useTrackReorder({ canvasShellRef, tracks, trackLayouts, onMoveTr
   const { mode, interaction } = useComposerInteraction();
   const [dragState, setDragState] = useState<TrackReorderDragState | null>(null);
   const activeTrackRef = useRef<string | null>(null);
+  const dragHandleRef = useRef<HTMLElement | null>(null);
+  const focusBeforeDragRef = useRef<HTMLElement | null>(null);
+  const pendingFocusRestoreRef = useRef<{ target: HTMLElement | null } | null>(null);
   const pointerRef = useRef<{ x: number; y: number } | null>(null);
   const dragging = dragState !== null;
   const [keyboardAnnouncement, setKeyboardAnnouncement] = useState("");
@@ -71,11 +74,44 @@ export function useTrackReorder({ canvasShellRef, tracks, trackLayouts, onMoveTr
   );
 
   const onTrackDragEnd = useCallback(() => {
-    if (activeTrackRef.current) interaction.holdReorder(activeTrackRef.current, false);
+    const trackId = activeTrackRef.current;
+    const handle = dragHandleRef.current;
+    const restoreFocus =
+      handle !== null && (document.activeElement === handle || document.activeElement === document.body);
+    const previousFocus = focusBeforeDragRef.current;
     activeTrackRef.current = null;
+    dragHandleRef.current = null;
+    focusBeforeDragRef.current = null;
     pointerRef.current = null;
+    if (trackId) {
+      // Pointer dragging is a complete interaction, not entry into keyboard
+      // reorder mode. Keep DOM focus and mode ownership consistent on every exit.
+      if (restoreFocus) handle.blur();
+      interaction.focusReorder(trackId, false);
+      interaction.holdReorder(trackId, false);
+      if (restoreFocus) pendingFocusRestoreRef.current = { target: previousFocus };
+    }
     setDragState(null);
   }, [interaction]);
+
+  useLayoutEffect(() => {
+    const pending = pendingFocusRestoreRef.current;
+    if (!pending) return;
+    pendingFocusRestoreRef.current = null;
+    if (mode !== "editing" || !document.hasFocus() || document.activeElement !== document.body) return;
+    // Wait for editing controls to be re-enabled before restoring prior focus.
+    // Never restore a reorder handle: that would immediately re-enter the mode.
+    const target = pending.target;
+    if (target?.isConnected && !target.matches('[data-track-chrome="reorder-handle"]')) {
+      target.focus({ preventScroll: true });
+      if (document.activeElement === target && target !== document.body) return;
+    }
+    const shell = canvasShellRef.current;
+    const fallback =
+      shell?.querySelector<HTMLElement>('[data-track-control="selected-content-tabstop"]') ??
+      shell?.querySelector<HTMLElement>('[data-track-control="playhead-tabstop"]');
+    fallback?.focus({ preventScroll: true });
+  }, [canvasShellRef, dragging, mode]);
 
   useEffect(() => {
     if (mode !== "reordering" && activeTrackRef.current) onTrackDragEnd();
@@ -162,7 +198,7 @@ export function useTrackReorder({ canvasShellRef, tracks, trackLayouts, onMoveTr
   }, [canvasShellRef, dragging, onMoveTrack, onTrackDragEnd, resolveDropTarget]);
 
   const onTrackDragStart = useCallback(
-    (event: DragEvent<HTMLElement>, trackId: string) => {
+    (event: DragEvent<HTMLElement>, trackId: string, previousFocus: HTMLElement | null) => {
       if (!interaction.startReorderDrag(trackId)) {
         event.preventDefault();
         return;
@@ -171,6 +207,8 @@ export function useTrackReorder({ canvasShellRef, tracks, trackLayouts, onMoveTr
       event.dataTransfer.effectAllowed = "move";
       event.dataTransfer.setData("text/plain", trackId);
       activeTrackRef.current = trackId;
+      dragHandleRef.current = event.currentTarget;
+      focusBeforeDragRef.current = previousFocus;
       pointerRef.current = { x: event.clientX, y: event.clientY };
       setDragState({ trackId, targetTrackId: trackId, position: "before" });
     },
