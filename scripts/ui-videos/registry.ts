@@ -148,18 +148,26 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
   },
   [VIDEO_SCENARIO.RECORD_FROM_START_8S]: {
     name: VIDEO_SCENARIO.RECORD_FROM_START_8S,
-    description: "Arm record mode at beat 0, wait through count-in, then record alternating quarter-note presses.",
+    description: "Arm recording, consume Space during count-in, record quarter-note presses, then stop with Space.",
     capture: async (page) => {
       await openApp(page);
       await applySelectionReviewFraming(page);
       await getTransportButton(page, "Record").click();
       await expect(page.getByTestId("track-reorder-handle").first()).toBeDisabled();
       await expect(page.locator(".recording-dock")).toBeVisible();
+      await page.locator('[data-track-control="playhead-tabstop"]').focus();
+      await page.keyboard.press("Space");
+      await expect(page.locator(".record-countdown-badge")).toBeVisible();
       await page.waitForTimeout(recordCountInMs);
+      await expect(page.locator(".recording-dock").getByText("Recording", { exact: true })).toBeVisible({
+        timeout: 10_000
+      });
       const key = getRecordingKey(page);
       await expect(key).toBeVisible();
       await playQuarterPattern(page, key);
-      await getTransportButton(page, "Record").click();
+      await page.locator('[data-track-control="playhead-tabstop"]').focus();
+      await page.keyboard.press("Space");
+      await expect(page.locator(".recording-dock")).toHaveCount(0);
       await page.waitForTimeout(postActionSettleMs);
     }
   },

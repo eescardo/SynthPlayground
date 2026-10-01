@@ -14,6 +14,98 @@ afterEach(cleanup);
 const captureOptions = { env: { NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO: "1" } };
 
 describe.sequential("composer interaction modes", () => {
+  test("Space remains consumed during count-in without cancelling or starting playback", async () => {
+    const project = createManyTrackComposerProject(4);
+    project.global.tempo = 60;
+    await withSeededComposerPage(
+      project,
+      async (page) => {
+        await page.getByRole("button", { name: "Record", exact: true }).click();
+        await expect(page.locator(".record-countdown-badge")).toBeVisible();
+        await page.locator('[data-track-control="playhead-tabstop"]').focus();
+        const consumed = await page.evaluate(() => {
+          const event = new KeyboardEvent("keydown", { key: " ", code: "Space", bubbles: true, cancelable: true });
+          document.activeElement!.dispatchEvent(event);
+          return event.defaultPrevented;
+        });
+        expect(consumed).toBe(true);
+        await expect(page.locator("[data-composer-actions-bar]")).toHaveAttribute("data-composer-mode", "recording");
+        await expect(page.locator(".record-countdown-badge")).toBeVisible();
+        await expect(page.locator(".playhead")).toHaveText("Beat 1");
+        await page.getByRole("button", { name: "Record", exact: true }).click();
+      },
+      captureOptions
+    );
+  }, 120_000);
+
+  test("Space stops active recording without discarding recorded notes", async () => {
+    await withSeededComposerPage(
+      createManyTrackComposerProject(4),
+      async (page) => {
+        await page.getByRole("button", { name: "Record", exact: true }).click();
+        await expect(page.locator(".recording-dock").getByText("Recording", { exact: true })).toBeVisible({
+          timeout: 5000
+        });
+        await page.locator('[data-track-control="playhead-tabstop"]').focus();
+        await page.keyboard.down("z");
+        await expect(page.locator(".recording-dock .piano-key.selected")).toHaveCount(1);
+        await page.keyboard.up("z");
+        await expect(page.locator(".recording-dock .piano-key.selected")).toHaveCount(0);
+        await page.keyboard.press("Space");
+        await expect(page.locator("[data-composer-actions-bar]")).toHaveAttribute("data-composer-mode", "editing");
+        await expect(page.locator(".recording-dock")).toHaveCount(0);
+        await expect(page.getByTestId("track-reorder-handle").first()).toBeEnabled();
+        await expect.poll(() => readTotalNoteCount(page)).toBe(1);
+      },
+      captureOptions
+    );
+  }, 120_000);
+
+  test("seeking playback to the exact end stops further playhead updates", async () => {
+    const project = createManyTrackComposerProject(4);
+    project.global.compositionEnd = { beat: 8 };
+    project.global.tempo = 60;
+    await withSeededComposerPage(
+      project,
+      async (page) => {
+        await page.getByRole("button", { name: "Play", exact: true }).click();
+        await expect(page.locator("[data-composer-actions-bar]")).toHaveAttribute("data-composer-mode", "playback");
+        await page
+          .locator(".track-canvas-shell")
+          .click({ position: { x: HEADER_WIDTH + 8 * BEAT_WIDTH, y: RULER_HEIGHT / 2 } });
+        await expect(page.locator("[data-composer-actions-bar]")).toHaveAttribute("data-composer-mode", "editing");
+        await expect(page.locator(".playhead")).toHaveText("Beat 9");
+        await page.waitForTimeout(300);
+        await expect(page.locator(".playhead")).toHaveText("Beat 9");
+        await expect(page.getByTestId("track-reorder-handle").first()).toBeEnabled();
+      },
+      captureOptions
+    );
+  }, 120_000);
+
+  test("Redo removing a focused handle clears group discovery state", async () => {
+    const project = createManyTrackComposerProject(4);
+    await withSeededComposerPage(project, async (page) => {
+      const handle = page.locator(`[data-testid="track-reorder-handle"][data-track-id="${project.tracks[0].id}"]`);
+      const group = page.locator('[data-track-chrome="header-overlays"]');
+      await page.getByRole("button", { name: "Remove Track", exact: true }).click();
+      await expect(handle).toHaveCount(0);
+      await page.keyboard.press("Control+z");
+      await expect(handle).toHaveCount(1);
+      await page.mouse.move(1200, 80);
+      await handle.focus();
+      await expect(group).toHaveAttribute("data-reorder-group-active", "true");
+      await page.keyboard.press("Control+y");
+      await expect(handle).toHaveCount(0);
+      await expect(page.locator("[data-composer-actions-bar]")).toHaveAttribute("data-composer-mode", "editing");
+      await expect(group).toHaveAttribute("data-reorder-group-active", "false");
+      await expect(page.getByTestId("track-reorder-handle").first()).toHaveCSS("opacity", "0");
+      await page.keyboard.press("Control+z");
+      await expect(handle).toHaveCount(1);
+      await expect(group).toHaveAttribute("data-reorder-group-active", "false");
+    });
+  }, 120_000);
+
   test("focus enters reorder mode, disables conflicting controls, and retains reorder Undo/Redo", async () => {
     const project = createManyTrackComposerProject(4);
     project.tracks[0].notes = [{ id: "routing-note", pitchStr: "C4", startBeat: 2, durationBeats: 1, velocity: 0.8 }];
