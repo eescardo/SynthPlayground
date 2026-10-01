@@ -1,4 +1,4 @@
-import { CSSProperties, Dispatch, RefObject, SetStateAction, useState } from "react";
+import { CSSProperties, Dispatch, RefObject, SetStateAction, useEffect, useState } from "react";
 import { MacroPanel, MacroPanelRow } from "@/components/tracks/MacroPanel";
 import { PatchSummaryPopover } from "@/components/PatchSummaryPopover";
 import { TrackPanPopover } from "@/components/TrackPanPopover";
@@ -313,6 +313,13 @@ export function TrackHeaderChrome({
   const [chromeHovered, setChromeHovered] = useState(false);
   const [hoveredHandleId, setHoveredHandleId] = useState<string | null>(null);
   const [focusedHandleId, setFocusedHandleId] = useState<string | null>(null);
+  useEffect(() => {
+    // Removing a focused/hovered DOM node need not emit blur or pointerleave.
+    const keepExistingTrack = (id: string | null) =>
+      id !== null && !project.tracks.some((track) => track.id === id) ? null : id;
+    setFocusedHandleId(keepExistingTrack);
+    setHoveredHandleId(keepExistingTrack);
+  }, [project.tracks]);
   const {
     patchSummaryPopover,
     setPatchSummaryPopover,

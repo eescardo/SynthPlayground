@@ -67,11 +67,11 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
       stopRecordingSessionRef.current();
       audioEngineRef.current?.stop();
       setPlaying(false);
-      interaction.finishTransport("playback");
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
+      interaction.finishTransport("playback");
       const resetToCue = shouldResetPlayheadOnStop(playbackStopModeRef.current, options);
       if (resetToCue) {
         setPlayheadBeat(userCueBeatRef.current);
@@ -106,8 +106,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
       userCueBeatRef.current = clampedCueBeat;
       setPlayheadBeat(clampedCueBeat);
       if (clampedCueBeat >= playbackEndBeatRef.current - 0.0001) {
-        setPlaying(false);
-        interaction.finishTransport("playback");
+        stopPlayback({ resetToCue: false });
         return;
       }
       if (!audioEngineRef.current) {
@@ -121,7 +120,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
       }
       rafRef.current = requestAnimationFrame(tickPlayhead);
     },
-    [audioEngineRef, interaction, renderProject, setPlaying, setPlayheadBeat, setRuntimeError, tickPlayhead]
+    [audioEngineRef, renderProject, setPlayheadBeat, setRuntimeError, stopPlayback, tickPlayhead]
   );
 
   const seekPlaybackToBeat = useCallback(

@@ -938,7 +938,13 @@ export function useComposerHardwareNavigation({
       if (trackChromeKeyboardFocused && !arrowKeyPressed) {
         return;
       }
-      if (interaction.getMode() === "recording" || interaction.getMode() === "reordering") {
+      if (interaction.getMode() === "reordering") {
+        return;
+      }
+      if (interaction.getMode() === "recording") {
+        // Recording owns pitch input, but Space still owns transport (and is
+        // consumed without starting playback during count-in).
+        if (!isModifierChord(event)) handleTransportKey(event);
         return;
       }
       const normalizedPhysicalTriggerKey = normalizePhysicalPitchKey(event.key);
