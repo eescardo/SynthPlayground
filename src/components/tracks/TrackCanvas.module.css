@@ -141,6 +141,15 @@
   cursor: grabbing;
 }
 
+.trackDragGrip:disabled {
+  cursor: not-allowed;
+}
+
+.trackDragGrip:disabled::before,
+.trackDragGrip:disabled::after {
+  opacity: 0.35;
+}
+
 .trackDropIndicator {
   position: absolute;
   left: 4px;

@@ -3,7 +3,6 @@
 import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import { BaseHardwareNavigationResult } from "@/hooks/useBaseHardwareNavigation";
 import {
-  canHandleTrackControlKeyDown,
   isModifierChord,
   isPlayheadTabStopFocused,
   isTextEditingTarget,
@@ -37,6 +36,7 @@ import { DEFAULT_NOTE_VELOCITY } from "@/lib/noteDefaults";
 import { beatToSample, getMeasureBeatsForMeter, snapToGrid, snapUpToGrid } from "@/lib/musicTiming";
 import { keyToPitch, normalizePhysicalPitchKey, pitchToVoct } from "@/lib/pitch";
 import { createSproutError, toError } from "@/lib/sproutErrors";
+import { useComposerInteraction } from "@/components/app/ComposerInteraction";
 
 const GHOST_PREVIEW_DELAY_MS = 2000;
 const TAB_SELECTION_PREVIEW_DELAY_MS = 600;
@@ -105,8 +105,9 @@ export function useComposerHardwareNavigation({
   tracks,
   base
 }: UseComposerHardwareNavigationArgs): ComposerHardwareNavigationResult {
+  const { mode, interaction } = useComposerInteraction();
   const isComposerView = view === "composer";
-  const isTransportIdle = !isPlaying && recordPhase === "idle";
+  const isTransportIdle = mode === "editing" && !isPlaying && recordPhase === "idle";
   const arePitchPickersClosed = !pitchPickerOpen && !previewPitchPickerOpen;
   const hasActivePlacement = activePlacement !== null;
   const hasSelectedTrack = Boolean(selectedTrack);
@@ -286,6 +287,14 @@ export function useComposerHardwareNavigation({
       return;
     }
 
+    if (mode !== "editing") {
+      // Retain the placed note, but release its sound and ownership without
+      // seeking the playhead in the newly entered mode.
+      releasePlacementPreview(activePlacement.trackId, activePlacement.noteId, activePlacement.durationBeats);
+      setActivePlacement(null);
+      return;
+    }
+
     const step = () => {
       const elapsedBeats = ((performance.now() - activePlacement.startedAtMs) / 1000) * (projectTempo / 60);
       const durationBeats = Math.max(projectGridBeats, snapUpToGrid(elapsedBeats, projectGridBeats));
@@ -316,7 +325,15 @@ export function useComposerHardwareNavigation({
         placementRafRef.current = null;
       }
     };
-  }, [activePlacement, projectGridBeats, projectTempo, setActivePlacement, setPlacedNote]);
+  }, [
+    activePlacement,
+    mode,
+    projectGridBeats,
+    projectTempo,
+    releasePlacementPreview,
+    setActivePlacement,
+    setPlacedNote
+  ]);
 
   // Show the delayed ghost note when the composer is idle over an empty spot.
   useEffect(() => {
@@ -508,10 +525,12 @@ export function useComposerHardwareNavigation({
     const finishPlacement = () => {
       if (activePlacement) {
         releasePlacementPreview(activePlacement.trackId, activePlacement.noteId, activePlacement.durationBeats);
-        setPlayheadBeatFromUser(
-          snapToGrid(activePlacement.startBeat + activePlacement.durationBeats, projectGridBeats)
-        );
-        base.setPlayheadNavigationFocused(true);
+        if (interaction.getMode() === "editing") {
+          setPlayheadBeatFromUser(
+            snapToGrid(activePlacement.startBeat + activePlacement.durationBeats, projectGridBeats)
+          );
+          base.setPlayheadNavigationFocused(true);
+        }
       }
       setActivePlacement(null);
     };
@@ -916,14 +935,13 @@ export function useComposerHardwareNavigation({
       if (isTextEditingTarget(event.target) || !canHandleComposerKeyboardShortcut) {
         return;
       }
-      if (!canHandleTrackControlKeyDown(event, "navigation")) {
+      if (trackChromeKeyboardFocused && !arrowKeyPressed) {
+        return;
+      }
+      if (interaction.getMode() === "recording" || interaction.getMode() === "reordering") {
         return;
       }
       const normalizedPhysicalTriggerKey = normalizePhysicalPitchKey(event.key);
-      // Recording owns physical pitch keys; placement must not claim them first.
-      if (recordPhase === "recording" && normalizedPhysicalTriggerKey) {
-        return;
-      }
       const isActivePlacementTriggerKey =
         Boolean(activePlacement) &&
         (event.key === activePlacement?.triggerKey ||
@@ -1038,6 +1056,7 @@ export function useComposerHardwareNavigation({
     deleteNote,
     expandSelectionActionPopover,
     hasActivePlacement,
+    interaction,
     isComposerView,
     isPlaying,
     isTransportIdle,

@@ -455,7 +455,7 @@ describe.sequential("track reorder interactions", () => {
     120_000
   );
 
-  test("lets Escape dismiss a mixer popover from the focused reorder handle", async () => {
+  test("Escape exits reorder mode and dismisses a mixer popover", async () => {
     const project = createManyTrackComposerProject(4);
     await withSeededComposerPage(project, async (page) => {
       const popover = page.locator('[data-track-popover="volume"]');
@@ -479,7 +479,8 @@ describe.sequential("track reorder interactions", () => {
       expect(
         await page.evaluate(() => (window as typeof window & { reorderEscapePhases?: string[] }).reorderEscapePhases)
       ).toEqual(["down:Escape", "up:Escape"]);
-      await expect(handle).toBeFocused();
+      await expect(page.locator('[data-track-control="playhead-tabstop"]')).toBeFocused();
+      await expect(page.locator("[data-composer-actions-bar]")).toHaveAttribute("data-composer-mode", "editing");
     });
   }, 120_000);
 
@@ -564,7 +565,7 @@ describe.sequential("track reorder interactions", () => {
     const seededProject = createManyTrackComposerProject(10);
     await withSeededComposerPage(seededProject, async (page) => {
       const lastTrackHandle = page.locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-10"]');
-      const reorderStatus = page.getByRole("status");
+      const reorderStatus = page.locator('[role="status"][aria-atomic="true"]');
       await expect(lastTrackHandle).toHaveAccessibleName(
         "Reorder Scroll Track 10, position 10 of 10. Use Arrow Up or Arrow Down to move."
       );
@@ -590,7 +591,7 @@ describe.sequential("track reorder interactions", () => {
       for (const key of ["Space", "Enter", "Backspace", "Alt+x"]) {
         await page.keyboard.press(key);
       }
-      // Pitch keys may reach recording, but must not place notes while idle.
+      // Reorder mode must not place notes or change their pitch.
       await page.keyboard.press("q");
       await page.keyboard.press("Shift+q");
       await expect(lastTrackHandle).toBeFocused();

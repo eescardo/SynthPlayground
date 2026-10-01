@@ -23,6 +23,7 @@ import { TrackCanvasSelectedContentTabStopRect } from "@/components/tracks/track
 import { formatBeatName } from "@/lib/musicTiming";
 import { Project } from "@/types/music";
 import styles from "./TrackCanvas.module.css";
+import { useComposerInteraction } from "@/components/app/ComposerInteraction";
 
 interface TrackCanvasOverlaysProps {
   project: Project;
@@ -81,6 +82,7 @@ interface TrackCanvasOverlaysProps {
 }
 
 export function TrackCanvasOverlays(props: TrackCanvasOverlaysProps) {
+  const { mode, interaction } = useComposerInteraction();
   return (
     <div
       className={`track-canvas-shell ${styles.shell}`}
@@ -132,13 +134,19 @@ export function TrackCanvasOverlays(props: TrackCanvasOverlaysProps) {
         width={props.width}
         height={props.height}
         style={{
-          cursor: resolveTrackCanvasCursor(props.canvasCursor)
+          cursor: mode === "reordering" ? "not-allowed" : resolveTrackCanvasCursor(props.canvasCursor)
         }}
-        onPointerDown={props.onPointerDown}
+        onPointerDown={(event) => {
+          if (interaction.getMode() === "reordering") return;
+          props.onPointerDown(event);
+        }}
         onPointerMove={props.onPointerMove}
         onPointerUp={props.onPointerUp}
         onPointerLeave={props.onPointerLeave}
-        onDoubleClick={props.onDoubleClick}
+        onDoubleClick={(event) => {
+          if (interaction.getMode() === "reordering") return;
+          props.onDoubleClick(event);
+        }}
         onContextMenu={(event) => event.preventDefault()}
       />
       <TrackCanvasTabStops

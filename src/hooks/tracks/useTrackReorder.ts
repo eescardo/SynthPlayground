@@ -10,6 +10,7 @@ import {
 } from "@/components/tracks/trackReorder";
 import { RULER_HEIGHT } from "@/components/tracks/trackCanvasConstants";
 import type { TrackLayout } from "@/components/tracks/trackCanvasTypes";
+import { useComposerInteraction } from "@/components/app/ComposerInteraction";
 
 export interface TrackReorderDragState extends TrackDropTarget {
   trackId: string;
@@ -23,6 +24,7 @@ interface UseTrackReorderOptions {
 }
 
 export function useTrackReorder({ canvasShellRef, tracks, trackLayouts, onMoveTrack }: UseTrackReorderOptions) {
+  const { mode, interaction } = useComposerInteraction();
   const [dragState, setDragState] = useState<TrackReorderDragState | null>(null);
   const activeTrackRef = useRef<string | null>(null);
   const pointerRef = useRef<{ x: number; y: number } | null>(null);
@@ -69,10 +71,15 @@ export function useTrackReorder({ canvasShellRef, tracks, trackLayouts, onMoveTr
   );
 
   const onTrackDragEnd = useCallback(() => {
+    if (activeTrackRef.current) interaction.holdReorder(activeTrackRef.current, false);
     activeTrackRef.current = null;
     pointerRef.current = null;
     setDragState(null);
-  }, []);
+  }, [interaction]);
+
+  useEffect(() => {
+    if (mode !== "reordering" && activeTrackRef.current) onTrackDragEnd();
+  }, [mode, onTrackDragEnd]);
 
   useEffect(() => {
     if (!dragging) return;
@@ -154,19 +161,26 @@ export function useTrackReorder({ canvasShellRef, tracks, trackLayouts, onMoveTr
     };
   }, [canvasShellRef, dragging, onMoveTrack, onTrackDragEnd, resolveDropTarget]);
 
-  const onTrackDragStart = useCallback((event: DragEvent<HTMLElement>, trackId: string) => {
-    event.stopPropagation();
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", trackId);
-    activeTrackRef.current = trackId;
-    pointerRef.current = { x: event.clientX, y: event.clientY };
-    setDragState({ trackId, targetTrackId: trackId, position: "before" });
-  }, []);
+  const onTrackDragStart = useCallback(
+    (event: DragEvent<HTMLElement>, trackId: string) => {
+      if (!interaction.startReorderDrag(trackId)) {
+        event.preventDefault();
+        return;
+      }
+      event.stopPropagation();
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", trackId);
+      activeTrackRef.current = trackId;
+      pointerRef.current = { x: event.clientX, y: event.clientY };
+      setDragState({ trackId, targetTrackId: trackId, position: "before" });
+    },
+    [interaction]
+  );
 
   const onTrackReorderKeyDown = useCallback(
     (event: KeyboardEvent<HTMLElement>, trackId: string, onWillMove?: () => void) => {
       const direction = resolveTrackReorderKeyDirection(event);
-      if (direction === 0) {
+      if (direction === 0 || !interaction.focusReorder(trackId, true)) {
         return false;
       }
       event.preventDefault();
@@ -182,7 +196,7 @@ export function useTrackReorder({ canvasShellRef, tracks, trackLayouts, onMoveTr
       announceKeyboardMove(`Moved ${sourceTrack.name} to position ${sourceIndex + direction + 1} of ${tracks.length}.`);
       return true;
     },
-    [announceKeyboardMove, onMoveTrack, tracks]
+    [announceKeyboardMove, interaction, onMoveTrack, tracks]
   );
 
   return {
