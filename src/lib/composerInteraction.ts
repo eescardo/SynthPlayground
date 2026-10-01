@@ -16,8 +16,8 @@ export type ComposerInteraction = {
 /** One composer-wide mode; recording includes count-in and playback startup. */
 export function createComposerInteraction(): ComposerInteraction {
   let mode: ComposerMode = "editing";
-  let focusedTrack: string | null = null;
-  let heldTrack: string | null = null;
+  let focusedReorderTrackId: string | null = null;
+  let heldReorderTrackId: string | null = null;
   let dragging = false;
   const listeners = new Set<(mode: ComposerMode) => void>();
   const setMode = (next: ComposerMode) => {
@@ -27,16 +27,16 @@ export function createComposerInteraction(): ComposerInteraction {
   };
   const reconcileReorder = () => {
     if (mode === "editing" || mode === "reordering") {
-      setMode(focusedTrack || heldTrack ? "reordering" : "editing");
+      setMode(focusedReorderTrackId || heldReorderTrackId ? "reordering" : "editing");
     }
   };
   const holdReorder = (trackId: string, held: boolean) => {
     if (mode !== "editing" && mode !== "reordering") return false;
     if (held) {
-      if (heldTrack && heldTrack !== trackId) return false;
-      heldTrack = trackId;
-    } else if (heldTrack === trackId) {
-      heldTrack = null;
+      if (heldReorderTrackId && heldReorderTrackId !== trackId) return false;
+      heldReorderTrackId = trackId;
+    } else if (heldReorderTrackId === trackId) {
+      heldReorderTrackId = null;
       dragging = false;
     }
     reconcileReorder();
@@ -60,8 +60,8 @@ export function createComposerInteraction(): ComposerInteraction {
     },
     focusReorder: (trackId: string, focused: boolean) => {
       if (mode !== "editing" && mode !== "reordering") return false;
-      if (focused) focusedTrack = trackId;
-      else if (focusedTrack === trackId) focusedTrack = null;
+      if (focused) focusedReorderTrackId = trackId;
+      else if (focusedReorderTrackId === trackId) focusedReorderTrackId = null;
       reconcileReorder();
       return true;
     },
@@ -73,11 +73,11 @@ export function createComposerInteraction(): ComposerInteraction {
     },
     releaseReorderPress: () => {
       // Native DnD sends pointercancel after dragstart; the drag owns release now.
-      if (!dragging && heldTrack) holdReorder(heldTrack, false);
+      if (!dragging && heldReorderTrackId) holdReorder(heldReorderTrackId, false);
     },
     cancelReorder: () => {
-      focusedTrack = null;
-      heldTrack = null;
+      focusedReorderTrackId = null;
+      heldReorderTrackId = null;
       dragging = false;
       if (mode === "reordering") setMode("editing");
     }
