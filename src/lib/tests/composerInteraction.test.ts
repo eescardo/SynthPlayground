@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createComposerInteraction, isReorderModeKey } from "@/lib/composerInteraction";
+import { createComposerInteraction, isReorderModeKey, type ComposerMode } from "@/lib/composerInteraction";
 
 describe("composer interaction modes", () => {
   it.each(["playback", "recording"] as const)("excludes reorder focus and presses throughout %s", (mode) => {
@@ -78,16 +78,22 @@ describe("composer interaction modes", () => {
     expect(state.getMode()).toBe("editing");
   });
 
-  it("notifies only on mode changes and unsubscribes cleanly", () => {
+  it("passes the new mode only on changes and unsubscribes cleanly", () => {
     const state = createComposerInteraction();
-    const listener = vi.fn();
+    const listener = vi.fn<(mode: ComposerMode) => void>();
     const unsubscribe = state.subscribe(listener);
+    expect(listener).not.toHaveBeenCalled();
     state.focusReorder("a", true);
     state.holdReorder("a", true);
-    expect(listener).toHaveBeenCalledTimes(1);
-    unsubscribe();
+    expect(listener.mock.calls).toEqual([["reordering"]]);
     state.cancelReorder();
-    expect(listener).toHaveBeenCalledTimes(1);
+    state.startTransport("playback");
+    state.finishTransport("playback");
+    state.startTransport("recording");
+    expect(listener.mock.calls).toEqual([["reordering"], ["editing"], ["playback"], ["editing"], ["recording"]]);
+    unsubscribe();
+    state.finishTransport("recording");
+    expect(listener).toHaveBeenCalledTimes(5);
   });
 });
 

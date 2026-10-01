@@ -3,7 +3,7 @@ export type ComposerMode = "editing" | "reordering" | "playback" | "recording";
 /** Shared interaction contract; boolean actions report whether the current mode permits them. */
 export type ComposerInteraction = {
   getMode: () => ComposerMode;
-  subscribe: (listener: () => void) => () => void;
+  subscribe: (listener: (mode: ComposerMode) => void) => () => void;
   startTransport: (next: "playback" | "recording") => boolean;
   finishTransport: (expected: "playback" | "recording") => void;
   focusReorder: (trackId: string, focused: boolean) => boolean;
@@ -19,11 +19,11 @@ export function createComposerInteraction(): ComposerInteraction {
   let focusedTrack: string | null = null;
   let heldTrack: string | null = null;
   let dragging = false;
-  const listeners = new Set<() => void>();
+  const listeners = new Set<(mode: ComposerMode) => void>();
   const setMode = (next: ComposerMode) => {
     if (next === mode) return;
     mode = next;
-    for (const listener of listeners) listener();
+    for (const listener of listeners) listener(next);
   };
   const reconcileReorder = () => {
     if (mode === "editing" || mode === "reordering") {
@@ -44,7 +44,7 @@ export function createComposerInteraction(): ComposerInteraction {
   };
   return {
     getMode: () => mode,
-    subscribe: (listener: () => void) => {
+    subscribe: (listener: (mode: ComposerMode) => void) => {
       listeners.add(listener);
       return () => {
         listeners.delete(listener);
