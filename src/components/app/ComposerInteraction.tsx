@@ -9,9 +9,9 @@ import {
   useSyncExternalStore,
   type ReactNode
 } from "react";
-import { createComposerInteraction, isReorderModeKey } from "@/lib/composerInteraction";
+import { createComposerInteraction, isReorderModeKey, type ComposerInteraction } from "@/lib/composerInteraction";
 
-const Context = createContext<ReturnType<typeof createComposerInteraction> | null>(null);
+const Context = createContext<ComposerInteraction | null>(null);
 
 export function ComposerInteractionProvider({ children }: { children: ReactNode }) {
   const [interaction] = useState(createComposerInteraction);
