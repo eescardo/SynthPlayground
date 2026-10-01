@@ -26,6 +26,7 @@ import { snapRecordedNoteStartBeat } from "@/lib/recordingTiming";
 import { shouldStartRecordingKeyboardNote } from "@/lib/recordingKeyboard";
 import { createSproutError, SproutErrorSetter, toError } from "@/lib/sproutErrors";
 import { Note, Project, Track } from "@/types/music";
+import { useComposerInteraction } from "@/components/app/ComposerInteraction";
 
 export type RecordPhase = "idle" | "count_in" | "recording";
 
@@ -74,6 +75,7 @@ interface UseRecordingControllerArgs {
 }
 
 export function useRecordingController(args: UseRecordingControllerArgs) {
+  const { interaction } = useComposerInteraction();
   const {
     project,
     selectedTrack,
@@ -275,6 +277,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
       setRecordingTrackId(null);
       setRecordingActive(false);
       setRecordPhase("idle");
+      interaction.finishTransport("recording");
       setRecordCountIn(null);
       setRecordingHintText(null);
       if (hintTimerRef.current !== null) {
@@ -282,7 +285,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
         hintTimerRef.current = null;
       }
     },
-    [audioEngineRef, finishActiveRecordedNotes, playheadBeat, recordPhase]
+    [audioEngineRef, finishActiveRecordedNotes, interaction, playheadBeat, recordPhase]
   );
 
   const handlePlayheadBeat = useCallback(
@@ -322,6 +325,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
   );
 
   const startRecordMode = useCallback(async () => {
+    if (interaction.getMode() !== "editing") return;
     if (!wasmReady) {
       setRuntimeError(
         createSproutError({
@@ -339,6 +343,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
       return;
     }
 
+    if (!interaction.startTransport("recording")) return;
     const token = beginRecordingStart(recordingStartGateRef.current);
     const countIn: RecordCountInState = {
       cueBeat: userCueBeat,
@@ -353,7 +358,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
     setRecordCountIn(countIn);
     setCountInNowMs(countIn.startedAtMs);
     setRecordPhase("count_in");
-  }, [selectedTrack, setPlayheadBeat, setRuntimeError, userCueBeat, wasmReady]);
+  }, [interaction, selectedTrack, setPlayheadBeat, setRuntimeError, userCueBeat, wasmReady]);
 
   useEffect(() => {
     if (!recordCountIn) {
@@ -383,6 +388,9 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
               return;
             }
             setRecordPhase("idle");
+            interaction.finishTransport("recording");
+            setRecordingActive(false);
+            setRecordingTrackId(null);
             setRecordCountIn(null);
             const recordingError = toError(error);
             setRuntimeError(
@@ -409,7 +417,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
         countInRafRef.current = null;
       }
     };
-  }, [beginRecordingPlayback, project.global.tempo, recordCountIn, setRuntimeError]);
+  }, [beginRecordingPlayback, interaction, project.global.tempo, recordCountIn, setRuntimeError]);
 
   const startRecordedNote = useCallback(
     (inputId: string, pitch: string) => {

@@ -67,6 +67,7 @@ import { useAppProjectChanges } from "@/hooks/app/useAppProjectChanges";
 import { useAppTrackEditing } from "@/hooks/app/useAppTrackEditing";
 import { useAppSelectionModel, useAppSelectionEffects } from "@/hooks/app/useAppSelectionModel";
 import { AppRootOverlays } from "@/components/app/AppRootOverlays";
+import { ComposerInteractionProvider, useComposerInteraction } from "@/components/app/ComposerInteraction";
 
 interface AppRootContextValue {
   composerControllerProps: ComposerControllerProps;
@@ -84,6 +85,15 @@ export const useAppRoot = () => {
 };
 
 export function AppRoot({ children }: { children: ReactNode }) {
+  return (
+    <ComposerInteractionProvider>
+      <AppRootState>{children}</AppRootState>
+    </ComposerInteractionProvider>
+  );
+}
+
+function AppRootState({ children }: { children: ReactNode }) {
+  const { interaction } = useComposerInteraction();
   const [playing, setPlaying] = useState(false);
   const [playheadBeat, setPlayheadBeat] = useState(0);
   const [userCueBeat, setUserCueBeat] = useState(0);
@@ -702,6 +712,7 @@ export function AppRoot({ children }: { children: ReactNode }) {
     });
   const setPitchPreviewPitch = useCallback(
     (pitch: string) => {
+      if (interaction.getMode() !== "editing") return;
       if (selectedPitchPreviewNote) {
         updateNote(
           selectedPitchPreviewNote.track.id,
@@ -718,15 +729,23 @@ export function AppRoot({ children }: { children: ReactNode }) {
       patchWorkspace.setPreviewPitch(pitch);
       previewDefaultPitchNow(pitch);
     },
-    [patchWorkspace, previewDefaultPitchNow, previewNoteForPitchPicker, selectedPitchPreviewNote, updateNote]
+    [
+      interaction,
+      patchWorkspace,
+      previewDefaultPitchNow,
+      previewNoteForPitchPicker,
+      selectedPitchPreviewNote,
+      updateNote
+    ]
   );
   const openPitchPreviewPicker = useCallback(() => {
+    if (interaction.getMode() !== "editing") return;
     if (selectedPitchPreviewNote) {
       openPitchPicker(selectedPitchPreviewNote.track.id, selectedPitchPreviewNote.note.id);
       return;
     }
     patchWorkspace.setPreviewPitchPickerOpen(true);
-  }, [openPitchPicker, patchWorkspace, selectedPitchPreviewNote]);
+  }, [interaction, openPitchPicker, patchWorkspace, selectedPitchPreviewNote]);
   const hardwareNavigation = useHardwareNavigation({
     view: workspaceView,
     projectGridBeats: project.global.gridBeats,

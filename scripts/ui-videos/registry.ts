@@ -130,11 +130,18 @@ const playQuarterPattern = async (page: Page, key: Locator) => {
 export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefinition> = {
   [VIDEO_SCENARIO.PLAY_FROM_START_5S]: {
     name: VIDEO_SCENARIO.PLAY_FROM_START_5S,
-    description: "Start playback from beat 0 and capture five seconds of motion.",
+    description: "Show reorder-mode exclusion, exit it, then capture five seconds of playback from beat 0.",
     capture: async (page) => {
       await openApp(page);
       await applySelectionReviewFraming(page);
+      const reorderHandle = page.getByTestId("track-reorder-handle").first();
+      await reorderHandle.focus();
+      await expect(getTransportButton(page, "Play")).toBeDisabled();
+      await expect(getTransportButton(page, "Record")).toBeDisabled();
+      await page.waitForTimeout(postActionSettleMs * 2);
+      await page.keyboard.press("Escape");
       await getTransportButton(page, "Play").click();
+      await expect(reorderHandle).toBeDisabled();
       await waitForPlaybackToAdvance(page);
       await page.waitForTimeout(playbackDurationMs);
     }
@@ -146,6 +153,7 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await openApp(page);
       await applySelectionReviewFraming(page);
       await getTransportButton(page, "Record").click();
+      await expect(page.getByTestId("track-reorder-handle").first()).toBeDisabled();
       await expect(page.locator(".recording-dock")).toBeVisible();
       await page.waitForTimeout(recordCountInMs);
       const key = getRecordingKey(page);

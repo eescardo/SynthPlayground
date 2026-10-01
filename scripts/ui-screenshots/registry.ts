@@ -231,6 +231,9 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
       await savePageScreenshot(page, outputPath.replace(/\.png$/, "-chrome-hover.png"));
       await page.getByTestId("track-reorder-handle").first().hover();
       await savePageScreenshot(page, outputPath.replace(/\.png$/, "-grip-hover.png"));
+      await page.getByTestId("track-reorder-handle").first().focus();
+      await expect(page.locator("[data-composer-actions-bar]")).toHaveAttribute("data-composer-mode", "reordering");
+      await savePageScreenshot(page, outputPath.replace(/\.png$/, "-reorder-mode.png"));
     }
   }
 };

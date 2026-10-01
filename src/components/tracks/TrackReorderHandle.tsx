@@ -5,6 +5,7 @@ import { resolveFocusedHandleScrollTop } from "./trackReorder";
 import type { CanvasShellGeometry } from "@/hooks/tracks/useCanvasShellGeometry";
 import type { TrackLayout } from "./trackCanvasTypes";
 import styles from "./TrackCanvas.module.css";
+import { useComposerInteraction } from "@/components/app/ComposerInteraction";
 
 interface TrackReorderHandleProps {
   track: { id: string; name: string };
@@ -37,8 +38,16 @@ export function TrackReorderHandle({
   onKeyDown,
   onWheel
 }: TrackReorderHandleProps) {
+  const { mode, interaction } = useComposerInteraction();
+  const disabled = mode === "playback" || mode === "recording";
   const handleRef = useRef<HTMLButtonElement>(null);
   const revealAfterKeyboardMoveRef = useRef(false);
+  useEffect(() => {
+    return () => {
+      interaction.holdReorder(track.id, false);
+      interaction.focusReorder(track.id, false);
+    };
+  }, [interaction, track.id]);
 
   const keepFocusedHandleVisible = useCallback(() => {
     const handle = handleRef.current;
@@ -110,23 +119,46 @@ export function TrackReorderHandle({
         height,
         clipPath: `inset(${Math.max(0, visibleTop - top)}px -4px ${Math.max(0, top + height - visibleBottom)}px -4px)`
       }}
-      draggable
+      disabled={disabled}
+      draggable={!disabled}
       aria-keyshortcuts="ArrowUp ArrowDown"
       aria-label={`Reorder ${track.name}, position ${layout.index + 1} of ${trackCount}. Use Arrow Up or Arrow Down to move.`}
-      title={`Drag ${track.name} or use Arrow Up/Down to reorder`}
-      onPointerDown={(event) => event.stopPropagation()}
+      title={disabled ? `Reordering unavailable during ${mode}` : `Drag ${track.name} or use Arrow Up/Down to reorder`}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        if (event.button === 0 && !interaction.holdReorder(track.id, true)) event.preventDefault();
+      }}
       onClick={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
       onPointerEnter={() => onHoverChange(true)}
       onPointerLeave={() => onHoverChange(false)}
       onFocus={() => {
+        if (!interaction.focusReorder(track.id, true)) return;
         onFocusChange(true);
         keepFocusedHandleVisible();
       }}
-      onBlur={() => onFocusChange(false)}
+      onBlur={() => {
+        interaction.focusReorder(track.id, false);
+        onFocusChange(false);
+      }}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          interaction.cancelReorder();
+          onFocusChange(false);
+          // Let Escape's other dismissals settle before returning to the canvas.
+          requestAnimationFrame(() => {
+            if (interaction.getMode() !== "editing") return;
+            const shell = shellRef.current;
+            const target =
+              shell?.querySelector<HTMLElement>('[data-track-control="selected-content-tabstop"]') ??
+              shell?.querySelector<HTMLElement>('[data-track-control="playhead-tabstop"]');
+            target?.focus();
+          });
+          return;
+        }
         revealAfterKeyboardMoveRef.current = onKeyDown(event);
       }}
     />

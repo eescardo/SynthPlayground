@@ -7,6 +7,7 @@ import { getLoopPlaybackEndBeat } from "@/lib/looping";
 import { createSproutError, SproutErrorSetter } from "@/lib/sproutErrors";
 import { Project } from "@/types/music";
 import { AudioRenderProject } from "@/types/audio";
+import { useComposerInteraction } from "@/components/app/ComposerInteraction";
 
 interface UsePlaybackControllerArgs {
   project: Project;
@@ -29,6 +30,7 @@ export const shouldResetPlayheadOnStop = (playbackStopMode: PlaybackStopMode, op
   options?.resetToCue ?? playbackStopMode === "reset";
 
 export function usePlaybackController(args: UsePlaybackControllerArgs) {
+  const { interaction } = useComposerInteraction();
   const {
     project,
     renderProject,
@@ -65,6 +67,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
       stopRecordingSessionRef.current();
       audioEngineRef.current?.stop();
       setPlaying(false);
+      interaction.finishTransport("playback");
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
@@ -74,7 +77,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
         setPlayheadBeat(userCueBeatRef.current);
       }
     },
-    [audioEngineRef, setPlaying, setPlayheadBeat]
+    [audioEngineRef, interaction, setPlaying, setPlayheadBeat]
   );
 
   const tickPlayhead = useCallback(() => {
@@ -104,6 +107,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
       setPlayheadBeat(clampedCueBeat);
       if (clampedCueBeat >= playbackEndBeatRef.current - 0.0001) {
         setPlaying(false);
+        interaction.finishTransport("playback");
         return;
       }
       if (!audioEngineRef.current) {
@@ -117,7 +121,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
       }
       rafRef.current = requestAnimationFrame(tickPlayhead);
     },
-    [audioEngineRef, renderProject, setPlaying, setPlayheadBeat, setRuntimeError, tickPlayhead]
+    [audioEngineRef, interaction, renderProject, setPlaying, setPlayheadBeat, setRuntimeError, tickPlayhead]
   );
 
   const seekPlaybackToBeat = useCallback(
@@ -129,6 +133,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
   );
 
   const startPlayback = useCallback(async () => {
+    if (interaction.getMode() !== "editing") return;
     if (!wasmReady) {
       setRuntimeError(
         createSproutError({
@@ -148,9 +153,25 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
       setPlaying(false);
       return;
     }
+    if (!interaction.startTransport("playback")) return;
     setPlaying(true);
-    await beginPlaybackAtBeat(clampedPlayheadBeat);
-  }, [beginPlaybackAtBeat, playheadBeat, playbackEndBeat, setPlaying, setPlayheadBeat, setRuntimeError, wasmReady]);
+    try {
+      await beginPlaybackAtBeat(clampedPlayheadBeat);
+    } catch (error) {
+      stopPlayback();
+      throw error;
+    }
+  }, [
+    beginPlaybackAtBeat,
+    interaction,
+    playheadBeat,
+    playbackEndBeat,
+    setPlaying,
+    setPlayheadBeat,
+    setRuntimeError,
+    stopPlayback,
+    wasmReady
+  ]);
 
   useEffect(() => {
     return () => {

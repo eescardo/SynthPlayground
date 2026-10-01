@@ -10,6 +10,7 @@ import { DEFAULT_NOTE_PITCH } from "@/lib/noteDefaults";
 import { pitchToVoct } from "@/lib/pitch";
 import { createSproutError, toError, type SproutErrorSetter } from "@/lib/sproutErrors";
 import type { Project } from "@/types/music";
+import { useComposerInteraction } from "@/components/app/ComposerInteraction";
 
 type PitchPickerState = Pick<ReturnType<typeof useComposerTransientUi>, "pitchPicker" | "setPitchPicker">;
 type PitchPickerActions = ReturnType<typeof useAppPitchPickerActions>;
@@ -26,6 +27,7 @@ export function useAppPitchPickerActions({
   audioEngineRef: RefObject<AudioEngine | null>;
   setRuntimeError: SproutErrorSetter;
 }) {
+  const { interaction } = useComposerInteraction();
   const previewNoteForPitchPicker = useCallback(
     (trackId: string, noteId: string, pitch: string) => {
       if (playing) {
@@ -59,13 +61,14 @@ export function useAppPitchPickerActions({
 
   const openPitchPicker = useCallback(
     (trackId: string, noteId: string) => {
+      if (interaction.getMode() !== "editing") return;
       setPitchPicker({ trackId, noteId });
       const notePitch = project.tracks
         .find((track) => track.id === trackId)
         ?.notes.find((note) => note.id === noteId)?.pitchStr;
       previewNoteForPitchPicker(trackId, noteId, notePitch ?? DEFAULT_NOTE_PITCH);
     },
-    [previewNoteForPitchPicker, project.tracks, setPitchPicker]
+    [interaction, previewNoteForPitchPicker, project.tracks, setPitchPicker]
   );
 
   const closePitchPicker = useCallback(() => {

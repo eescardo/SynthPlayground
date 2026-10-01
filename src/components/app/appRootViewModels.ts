@@ -318,7 +318,6 @@ export function createComposerControllerProps(options: UseComposerControllerProp
           playback.stopPlayback({ resetToCue: true });
           return;
         }
-        playback.stopPlayback({ resetToCue: true });
         void recording.startRecordMode();
       }
     },
