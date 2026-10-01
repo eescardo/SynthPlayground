@@ -154,6 +154,59 @@ describe.sequential("composer interaction modes", () => {
     );
   }, 120_000);
 
+  test("entering reorder mode releases an existing wheel-pitch scroll lock", async () => {
+    const project = createManyTrackComposerProject(12);
+    project.tracks[0].notes = [{ id: "wheel-note", pitchStr: "C4", startBeat: 2, durationBeats: 1, velocity: 0.8 }];
+    await withSeededComposerPage(project, async (page) => {
+      const shell = page.locator(".track-canvas-shell");
+      const bar = page.locator("[data-composer-actions-bar]");
+      const handle = page.getByTestId("track-reorder-handle").first();
+      // Keep the 420ms wheel lock alive while React processes mode changes.
+      await page.clock.install();
+      await page.clock.pauseAt(Date.now() + 1000);
+      const lockedScrollTop = await shell.evaluate(
+        (element, point) => {
+          const canvas = element.querySelector("canvas")!;
+          const bounds = canvas.getBoundingClientRect();
+          canvas.dispatchEvent(
+            new WheelEvent("wheel", {
+              bubbles: true,
+              cancelable: true,
+              altKey: true,
+              deltaY: -100,
+              clientX: bounds.left + point.x,
+              clientY: bounds.top + point.y
+            })
+          );
+          element.scrollTop = 100;
+          element.dispatchEvent(new Event("scroll"));
+          return element.scrollTop;
+        },
+        { x: HEADER_WIDTH + 2 * BEAT_WIDTH + 8, y: RULER_HEIGHT + TRACK_HEIGHT / 2 }
+      );
+      expect(lockedScrollTop).toBe(0);
+
+      await handle.focus();
+      await expect(bar).toHaveAttribute("data-composer-mode", "reordering");
+      await expect(shell).toHaveCSS("overflow-x", "auto");
+      const scrollTo = (top: number) =>
+        shell.evaluate((element, nextTop) => {
+          element.scrollTop = nextTop;
+          element.dispatchEvent(new Event("scroll"));
+          return element.scrollTop;
+        }, top);
+      expect(await scrollTo(100)).toBe(100);
+
+      // Leaving reorder must not resurrect the previous gesture's lock.
+      await handle.evaluate((element) => element.blur());
+      await expect(bar).toHaveAttribute("data-composer-mode", "editing");
+      expect(await scrollTo(150)).toBe(150);
+      await page.clock.runFor(500);
+      expect((await readActiveProject(page)).tracks[0].notes[0].pitchStr).toBe("C#4");
+      await page.clock.resume();
+    });
+  }, 120_000);
+
   test("a pointer hold owns reorder mode until release or cancellation, independently of focus", async () => {
     await withSeededComposerPage(
       createManyTrackComposerProject(4),
