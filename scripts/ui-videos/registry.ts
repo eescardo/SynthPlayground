@@ -130,7 +130,7 @@ const playQuarterPattern = async (page: Page, key: Locator) => {
 export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefinition> = {
   [VIDEO_SCENARIO.PLAY_FROM_START_5S]: {
     name: VIDEO_SCENARIO.PLAY_FROM_START_5S,
-    description: "Show reorder-mode exclusion, exit it, then capture five seconds of playback from beat 0.",
+    description: "Drag a track, return automatically to editing, then capture five seconds of playback from beat 0.",
     capture: async (page) => {
       await openApp(page);
       await applySelectionReviewFraming(page);
@@ -139,7 +139,9 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await expect(getTransportButton(page, "Play")).toBeDisabled();
       await expect(getTransportButton(page, "Record")).toBeDisabled();
       await page.waitForTimeout(postActionSettleMs * 2);
-      await page.keyboard.press("Escape");
+      await reorderHandle.dragTo(page.locator('[data-track-control="instrument-selection"]').nth(1));
+      await expect(page.locator("[data-composer-actions-bar]")).toHaveAttribute("data-composer-mode", "editing");
+      await expect(getTransportButton(page, "Record")).toBeEnabled();
       await getTransportButton(page, "Play").click();
       await expect(reorderHandle).toBeDisabled();
       await waitForPlaybackToAdvance(page);

@@ -428,9 +428,9 @@ export function TrackHeaderChrome({
                 layout={layout}
                 shellRef={canvasShellRef}
                 shellGeometry={shellGeometry}
-                onDragStart={(event) => {
+                onDragStart={(event, previousFocus) => {
                   closeMixerPopovers();
-                  onTrackDragStart(event, track.id);
+                  onTrackDragStart(event, track.id, previousFocus);
                 }}
                 onDragEnd={onTrackDragEnd}
                 onHoverChange={(hovered) =>

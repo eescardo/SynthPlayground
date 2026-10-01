@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import type { DragEventHandler, KeyboardEvent, RefObject } from "react";
+import type { DragEvent, DragEventHandler, KeyboardEvent, RefObject } from "react";
 import { RULER_HEIGHT } from "./trackCanvasConstants";
 import { resolveFocusedHandleScrollTop } from "./trackReorder";
 import type { CanvasShellGeometry } from "@/hooks/tracks/useCanvasShellGeometry";
@@ -15,7 +15,7 @@ interface TrackReorderHandleProps {
   layout: TrackLayout;
   shellRef: RefObject<HTMLDivElement | null>;
   shellGeometry: CanvasShellGeometry;
-  onDragStart: DragEventHandler<HTMLButtonElement>;
+  onDragStart: (event: DragEvent<HTMLButtonElement>, previousFocus: HTMLElement | null) => void;
   onDragEnd: DragEventHandler<HTMLButtonElement>;
   onFocusChange: (focused: boolean) => void;
   onHoverChange: (hovered: boolean) => void;
@@ -41,6 +41,7 @@ export function TrackReorderHandle({
   const { mode, interaction } = useComposerInteraction();
   const disabled = mode === "playback" || mode === "recording";
   const handleRef = useRef<HTMLButtonElement>(null);
+  const focusBeforePressRef = useRef<HTMLElement | null>(null);
   const revealAfterKeyboardMoveRef = useRef(false);
   useEffect(() => {
     return () => {
@@ -126,7 +127,10 @@ export function TrackReorderHandle({
       title={disabled ? `Reordering unavailable during ${mode}` : `Drag ${track.name} or use Arrow Up/Down to reorder`}
       onPointerDown={(event) => {
         event.stopPropagation();
-        if (event.button === 0 && !interaction.holdReorder(track.id, true)) event.preventDefault();
+        if (event.button !== 0) return;
+        // dragstart runs after the browser has already focused this button.
+        focusBeforePressRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        if (!interaction.holdReorder(track.id, true)) event.preventDefault();
       }}
       onClick={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
@@ -141,7 +145,11 @@ export function TrackReorderHandle({
         interaction.focusReorder(track.id, false);
         onFocusChange(false);
       }}
-      onDragStart={onDragStart}
+      onDragStart={(event) => {
+        const previousFocus = focusBeforePressRef.current;
+        focusBeforePressRef.current = null;
+        onDragStart(event, previousFocus);
+      }}
       onDragEnd={onDragEnd}
       onKeyDown={(event) => {
         if (event.key === "Escape") {

@@ -14,6 +14,71 @@ afterEach(cleanup);
 const captureOptions = { env: { NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO: "1" } };
 
 describe.sequential("composer interaction modes", () => {
+  test.each([
+    { outcome: "move", previousFocus: "handle" },
+    { outcome: "no-op", previousFocus: "handle" },
+    { outcome: "cancel", previousFocus: "handle" },
+    { outcome: "move", previousFocus: "track-name" },
+    { outcome: "no-op", previousFocus: "Play" },
+    { outcome: "cancel", previousFocus: "Record" },
+    { outcome: "move", previousFocus: "rename-input" }
+  ] as const)(
+    "mouse drag completion ($outcome, prior focus: $previousFocus) restores focus and editing mode",
+    async ({ outcome, previousFocus }) => {
+      const project = createManyTrackComposerProject(4);
+      await withSeededComposerPage(
+        project,
+        async (page) => {
+          const bar = page.locator("[data-composer-actions-bar]");
+          const handle = page.getByTestId("track-reorder-handle").first();
+          if (previousFocus === "rename-input") {
+            await page.getByTestId("track-name-button").first().press("Enter");
+          }
+          const priorControl =
+            previousFocus === "handle"
+              ? handle
+              : previousFocus === "track-name"
+                ? page.getByTestId("track-name-button").filter({ hasText: project.tracks[0].name })
+                : previousFocus === "rename-input"
+                  ? page.locator(".track-name-input")
+                  : page.getByRole("button", { name: previousFocus, exact: true });
+          await priorControl.focus();
+          const grip = (await handle.boundingBox())!;
+          const destination = (await page
+            .getByTestId("track-header-row")
+            .nth(outcome === "move" ? 1 : 0)
+            .boundingBox())!;
+          await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+          await page.mouse.down();
+          await page.mouse.move(destination.x + HEADER_WIDTH + 50, destination.y + destination.height * 0.8, {
+            steps: 12
+          });
+          await expect(page.locator('[data-testid="track-reorder-handle"][data-dragging="true"]')).toHaveCount(1);
+          await expect(bar).toHaveAttribute("data-composer-mode", "reordering");
+          if (outcome === "cancel") await page.keyboard.press("Escape");
+          await page.mouse.up();
+          await expect(page.locator('[data-testid="track-reorder-handle"][data-dragging="true"]')).toHaveCount(0);
+          await expect(bar).toHaveAttribute("data-composer-mode", "editing");
+          // The rename input unmounts on blur, so its saved node needs a fallback.
+          if (previousFocus === "rename-input") await expect(priorControl).toHaveCount(0);
+          await expect(
+            previousFocus === "handle" || previousFocus === "rename-input"
+              ? page.locator('[data-track-control="playhead-tabstop"]')
+              : priorControl
+          ).toBeFocused();
+          await expect(page.getByRole("button", { name: "Play", exact: true })).toBeEnabled();
+          await expect(page.getByRole("button", { name: "Record", exact: true })).toBeEnabled();
+          const ids = project.tracks.map((track) => track.id);
+          await expect
+            .poll(() => readTrackIds(page))
+            .toEqual(outcome === "move" ? [ids[1], ids[0], ...ids.slice(2)] : ids);
+        },
+        captureOptions
+      );
+    },
+    120_000
+  );
+
   test("Space remains consumed during count-in without cancelling or starting playback", async () => {
     const project = createManyTrackComposerProject(4);
     project.global.tempo = 60;
@@ -336,7 +401,8 @@ describe.sequential("composer interaction modes", () => {
         const transfer = await page.evaluateHandle(() => new DataTransfer());
         await handle.focus();
         await handle.dispatchEvent("dragstart", { dataTransfer: transfer });
-        await page.getByTestId("track-name-button").first().focus();
+        const nameControl = page.getByTestId("track-name-button").filter({ hasText: project.tracks[0].name });
+        await nameControl.focus();
         await expect(bar).toHaveAttribute("data-composer-mode", "reordering");
         await expect(page.getByRole("button", { name: "Record", exact: true })).toBeDisabled();
         await page.locator("body").dispatchEvent("drop", { dataTransfer: transfer, clientX: 100, clientY: 2000 });
@@ -344,6 +410,7 @@ describe.sequential("composer interaction modes", () => {
         await expect
           .poll(() => readTrackIds(page))
           .toEqual([...project.tracks.slice(1).map((track) => track.id), project.tracks[0].id]);
+        await expect(nameControl).toBeFocused();
         await transfer.dispose();
       },
       captureOptions
