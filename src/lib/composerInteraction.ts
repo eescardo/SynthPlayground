@@ -1,7 +1,20 @@
 export type ComposerMode = "editing" | "reordering" | "playback" | "recording";
 
+/** Shared interaction contract; boolean actions report whether the current mode permits them. */
+export type ComposerInteraction = {
+  getMode: () => ComposerMode;
+  subscribe: (listener: () => void) => () => void;
+  startTransport: (next: "playback" | "recording") => boolean;
+  finishTransport: (expected: "playback" | "recording") => void;
+  focusReorder: (trackId: string, focused: boolean) => boolean;
+  holdReorder: (trackId: string, held: boolean) => boolean;
+  startReorderDrag: (trackId: string) => boolean;
+  releaseReorderPress: () => void;
+  cancelReorder: () => void;
+};
+
 /** One composer-wide mode; recording includes count-in and playback startup. */
-export function createComposerInteraction() {
+export function createComposerInteraction(): ComposerInteraction {
   let mode: ComposerMode = "editing";
   let focusedTrack: string | null = null;
   let heldTrack: string | null = null;
