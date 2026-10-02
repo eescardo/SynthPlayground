@@ -45,6 +45,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const zoomScrollCorrectionTokenRef = useRef(0);
   const playheadTabStopRef = useRef<HTMLButtonElement | null>(null);
   const selectedContentTabStopRef = useRef<HTMLButtonElement | null>(null);
+  const handledSelectedContentFocusTokenRef = useRef(0);
   const noteRectsRef = useRef<NoteRect[]>([]);
   const automationKeyframeRectsRef = useRef<AutomationKeyframeRect[]>([]);
   const muteRectsRef = useRef<MuteRect[]>([]);
@@ -524,6 +525,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
     if (!selectedContentTabStopFocusToken || !selectedContentTabStopRect) {
       return;
     }
+    if (handledSelectedContentFocusTokenRef.current === selectedContentTabStopFocusToken) {
+      return;
+    }
+    handledSelectedContentFocusTokenRef.current = selectedContentTabStopFocusToken;
     selectedContentTabStopRef.current?.focus();
   }, [selectedContentTabStopFocusToken, selectedContentTabStopRect]);
 

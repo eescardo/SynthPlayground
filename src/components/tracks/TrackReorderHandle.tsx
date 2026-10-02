@@ -43,6 +43,7 @@ export function TrackReorderHandle({
   const handleRef = useRef<HTMLButtonElement>(null);
   const focusBeforePressRef = useRef<HTMLElement | null>(null);
   const revealAfterKeyboardMoveRef = useRef(false);
+  const suppressFocusReentryRef = useRef(false);
   useEffect(() => {
     return () => {
       interaction.holdReorder(track.id, false);
@@ -75,6 +76,11 @@ export function TrackReorderHandle({
   }, [dragging, layout.height, layout.y, shellRef]);
 
   useLayoutEffect(() => {
+    const handle = handleRef.current;
+    if (handle && document.activeElement === handle && mode === "editing" && !suppressFocusReentryRef.current) {
+      interaction.focusReorder(track.id, true);
+      onFocusChange(true);
+    }
     // Reveal the newly positioned track once after a keyboard move. A focused
     // grip must never pull the viewport back during wheel or scrollbar scrolling.
     if (revealAfterKeyboardMoveRef.current) {
@@ -137,6 +143,7 @@ export function TrackReorderHandle({
       onPointerEnter={() => onHoverChange(true)}
       onPointerLeave={() => onHoverChange(false)}
       onFocus={() => {
+        suppressFocusReentryRef.current = false;
         if (!interaction.focusReorder(track.id, true)) return;
         onFocusChange(true);
         keepFocusedHandleVisible();
@@ -154,6 +161,7 @@ export function TrackReorderHandle({
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();
+          suppressFocusReentryRef.current = true;
           interaction.cancelReorder();
           onFocusChange(false);
           // Let Escape's other dismissals settle before returning to the canvas.
