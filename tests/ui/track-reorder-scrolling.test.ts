@@ -77,14 +77,18 @@ describe.sequential("track reorder scrolling", () => {
   test("allows scrolling away from a handle after a pointer reorder", async () => {
     const project = createManyTrackComposerProject(10);
     await withSeededComposerPage(project, async (page) => {
+      const bar = page.locator("[data-composer-actions-bar]");
       const shell = page.locator(".track-canvas-shell");
       const handle = page.locator('[data-testid="track-reorder-handle"][data-track-id="scroll-track-1"]');
+      const playheadTabStop = page.locator('[data-track-control="playhead-tabstop"]');
       await handle.focus();
       await handle.dragTo(page.locator('[data-track-control="instrument-selection"]').nth(1));
       await expect
         .poll(() => readTrackIds(page))
         .toEqual([project.tracks[1].id, project.tracks[0].id, ...project.tracks.slice(2).map((track) => track.id)]);
-      await expect(handle).toBeFocused();
+      await expect(bar).toHaveAttribute("data-composer-mode", "editing");
+      await expect(handle).not.toBeFocused();
+      await expect(playheadTabStop).toBeFocused();
 
       const shellBox = (await shell.boundingBox())!;
       await page.mouse.move(shellBox.x + HEADER_WIDTH + 100, shellBox.y + RULER_HEIGHT + 20);
@@ -92,7 +96,9 @@ describe.sequential("track reorder scrolling", () => {
       await page.mouse.wheel(0, maximumScrollTop);
       await expect.poll(() => shell.evaluate((element) => element.scrollTop)).toBe(maximumScrollTop);
       expect((await readScrollTopAcrossFrames(shell, 5)).every((value) => value === maximumScrollTop)).toBe(true);
-      await expect(handle).toBeFocused();
+      await expect(bar).toHaveAttribute("data-composer-mode", "editing");
+      await expect(handle).not.toBeFocused();
+      await expect(playheadTabStop).toBeFocused();
     });
   }, 120_000);
 });
