@@ -181,7 +181,7 @@ describe.sequential("composer interaction modes", () => {
           .locator(".track-canvas-shell > canvas")
           .click({ position: { x: HEADER_WIDTH + 2.25 * BEAT_WIDTH, y: RULER_HEIGHT + TRACK_HEIGHT / 2 } });
         const pitch = page.getByRole("button", { name: "Selected note pitch C4", exact: true });
-        const handle = page.getByTestId("track-reorder-handle").first();
+        const handle = page.locator(`[data-testid="track-reorder-handle"][data-track-id="${project.tracks[0].id}"]`);
         await handle.focus();
         const bar = page.locator("[data-composer-actions-bar]");
         await expect(bar).toHaveAttribute("data-composer-mode", "reordering");
@@ -238,10 +238,31 @@ describe.sequential("composer interaction modes", () => {
         await page.keyboard.press("ArrowDown");
         const reordered = [order[1], order[0], ...order.slice(2)];
         await expect.poll(() => readTrackIds(page)).toEqual(reordered);
+        await expect(handle).toBeFocused();
+        await expect(bar).toHaveAttribute("data-composer-mode", "reordering");
+        await page.keyboard.press("ArrowDown");
+        const reorderedTwice = [order[1], order[2], order[0], ...order.slice(3)];
+        await expect.poll(() => readTrackIds(page)).toEqual(reorderedTwice);
+        await expect(handle).toBeFocused();
+        await expect(bar).toHaveAttribute("data-composer-mode", "reordering");
+        await page.keyboard.press("Control+z");
+        await expect.poll(() => readTrackIds(page)).toEqual(reordered);
+        await expect(handle).toBeFocused();
+        await expect(bar).toHaveAttribute("data-composer-mode", "reordering");
         await page.keyboard.press("Control+z");
         await expect.poll(() => readTrackIds(page)).toEqual(order);
+        await expect(handle).toBeFocused();
         await page.keyboard.press("Control+y");
         await expect.poll(() => readTrackIds(page)).toEqual(reordered);
+        await page.keyboard.press("Control+y");
+        await expect.poll(() => readTrackIds(page)).toEqual(reorderedTwice);
+        await expect(handle).toBeFocused();
+        await expect(bar).toHaveAttribute("data-composer-mode", "reordering");
+        await page.keyboard.press("Tab");
+        await expect(handle).not.toBeFocused();
+        await expect(bar).toHaveAttribute("data-composer-mode", "editing");
+        await handle.focus();
+        await expect(bar).toHaveAttribute("data-composer-mode", "reordering");
         await page.keyboard.press("Escape");
         await expect(bar).toHaveAttribute("data-composer-mode", "editing");
         await expect
