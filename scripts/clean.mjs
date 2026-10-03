@@ -21,6 +21,7 @@ const pathsToRemove = [
   ".next-ui-capture-3502",
   ".next-ui-capture-3503",
   ".next-ui-capture-3504",
+  ".next-ui-capture-3604",
   "out",
   "build",
   "artifacts/screenshots",
