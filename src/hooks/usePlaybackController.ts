@@ -7,6 +7,7 @@ import { getLoopPlaybackEndBeat } from "@/lib/looping";
 import { createSproutError, SproutErrorSetter } from "@/lib/sproutErrors";
 import { Project } from "@/types/music";
 import { AudioRenderProject } from "@/types/audio";
+import { useComposerInteraction } from "@/components/app/ComposerInteraction";
 
 interface UsePlaybackControllerArgs {
   project: Project;
@@ -29,6 +30,7 @@ export const shouldResetPlayheadOnStop = (playbackStopMode: PlaybackStopMode, op
   options?.resetToCue ?? playbackStopMode === "reset";
 
 export function usePlaybackController(args: UsePlaybackControllerArgs) {
+  const { interaction } = useComposerInteraction();
   const {
     project,
     renderProject,
@@ -52,6 +54,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
   const userCueBeatRef = useRef(userCueBeat);
   const stopRecordingSessionRef = useRef(onStopRecordingSession);
   const handleRecordingBeatRef = useRef(onHandleRecordingBeat);
+  const playbackStartAttemptRef = useRef(0);
 
   playbackStopModeRef.current = playbackStopMode;
   playbackEndBeatRef.current = playbackEndBeat;
@@ -62,6 +65,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
 
   const stopPlayback = useCallback(
     (options?: { resetToCue?: boolean }) => {
+      playbackStartAttemptRef.current += 1;
       stopRecordingSessionRef.current();
       audioEngineRef.current?.stop();
       setPlaying(false);
@@ -69,12 +73,13 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
+      interaction.finishTransport("playback");
       const resetToCue = shouldResetPlayheadOnStop(playbackStopModeRef.current, options);
       if (resetToCue) {
         setPlayheadBeat(userCueBeatRef.current);
       }
     },
-    [audioEngineRef, setPlaying, setPlayheadBeat]
+    [audioEngineRef, interaction, setPlaying, setPlayheadBeat]
   );
 
   const tickPlayhead = useCallback(() => {
@@ -99,11 +104,12 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
 
   const beginPlaybackAtBeat = useCallback(
     async (cueBeat: number, options?: AudioEnginePlayOptions) => {
+      playbackStartAttemptRef.current += 1;
       const clampedCueBeat = Math.min(Math.max(0, cueBeat), playbackEndBeatRef.current);
       userCueBeatRef.current = clampedCueBeat;
       setPlayheadBeat(clampedCueBeat);
       if (clampedCueBeat >= playbackEndBeatRef.current - 0.0001) {
-        setPlaying(false);
+        stopPlayback({ resetToCue: false });
         return;
       }
       if (!audioEngineRef.current) {
@@ -117,7 +123,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
       }
       rafRef.current = requestAnimationFrame(tickPlayhead);
     },
-    [audioEngineRef, renderProject, setPlaying, setPlayheadBeat, setRuntimeError, tickPlayhead]
+    [audioEngineRef, renderProject, setPlayheadBeat, setRuntimeError, stopPlayback, tickPlayhead]
   );
 
   const seekPlaybackToBeat = useCallback(
@@ -129,6 +135,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
   );
 
   const startPlayback = useCallback(async () => {
+    if (interaction.getMode() !== "editing") return;
     if (!wasmReady) {
       setRuntimeError(
         createSproutError({
@@ -148,12 +155,33 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
       setPlaying(false);
       return;
     }
+    if (!interaction.startTransport("playback")) return;
     setPlaying(true);
-    await beginPlaybackAtBeat(clampedPlayheadBeat);
-  }, [beginPlaybackAtBeat, playheadBeat, playbackEndBeat, setPlaying, setPlayheadBeat, setRuntimeError, wasmReady]);
+    const playbackStartPromise = beginPlaybackAtBeat(clampedPlayheadBeat);
+    const playbackStartAttempt = playbackStartAttemptRef.current;
+    try {
+      await playbackStartPromise;
+    } catch (error) {
+      if (playbackStartAttemptRef.current === playbackStartAttempt && interaction.getMode() === "playback") {
+        stopPlayback();
+      }
+      throw error;
+    }
+  }, [
+    beginPlaybackAtBeat,
+    interaction,
+    playheadBeat,
+    playbackEndBeat,
+    setPlaying,
+    setPlayheadBeat,
+    setRuntimeError,
+    stopPlayback,
+    wasmReady
+  ]);
 
   useEffect(() => {
     return () => {
+      playbackStartAttemptRef.current += 1;
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
       }

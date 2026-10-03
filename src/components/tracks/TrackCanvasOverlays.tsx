@@ -10,7 +10,7 @@ import type {
 import { SelectionActionPopover } from "@/components/SelectionActionPopover";
 import { TrackCanvasTabStops } from "@/components/tracks/TrackCanvasTabStops";
 import { TrackHeaderChrome } from "@/components/tracks/TrackCanvasChrome";
-import { resolveTrackCanvasCursor } from "@/components/tracks/trackCanvasConstants";
+import { HEADER_WIDTH, resolveTrackCanvasCursor, RULER_HEIGHT } from "@/components/tracks/trackCanvasConstants";
 import {
   TrackCanvasAutomationActions,
   TrackCanvasPatchActions,
@@ -23,10 +23,12 @@ import { TrackCanvasSelectedContentTabStopRect } from "@/components/tracks/track
 import { formatBeatName } from "@/lib/musicTiming";
 import { Project } from "@/types/music";
 import styles from "./TrackCanvas.module.css";
+import { useComposerInteraction } from "@/components/app/ComposerInteraction";
 
 interface TrackCanvasOverlaysProps {
   project: Project;
   canvasRef: RefObject<HTMLCanvasElement | null>;
+  rulerCanvasRef: RefObject<HTMLCanvasElement | null>;
   wrapperRef: RefObject<HTMLDivElement | null>;
   playheadTabStopRef: RefObject<HTMLButtonElement | null>;
   selectedContentTabStopRef: RefObject<HTMLButtonElement | null>;
@@ -48,9 +50,11 @@ interface TrackCanvasOverlaysProps {
   panPopoverPosition: { left: number; top: number } | null;
   openVolumePopover: (trackId: string, anchor?: HTMLElement | null) => void;
   openPanPopover: (trackId: string, anchor?: HTMLElement | null) => void;
+  closeMixerPopovers: () => void;
   scheduleVolumePopoverOpen: (trackId: string, anchor?: HTMLElement | null) => void;
   scheduleVolumePopoverDismiss: () => void;
   cancelScheduledVolumePopoverDismiss: () => void;
+  onReorderHandleWheel: (event: WheelEvent) => void;
   trackActions: TrackCanvasTrackActions;
   patchActions: TrackCanvasPatchActions;
   automationActions: TrackCanvasAutomationActions;
@@ -78,6 +82,7 @@ interface TrackCanvasOverlaysProps {
 }
 
 export function TrackCanvasOverlays(props: TrackCanvasOverlaysProps) {
+  const { mode, interaction } = useComposerInteraction();
   return (
     <div
       className={`track-canvas-shell ${styles.shell}`}
@@ -87,6 +92,16 @@ export function TrackCanvasOverlays(props: TrackCanvasOverlaysProps) {
       data-visible-beat-end={props.visibleBeatRange.endBeat}
       ref={props.wrapperRef}
     >
+      <div className={styles.stickyRuler} style={{ width: `${props.width}px` }} aria-hidden="true">
+        <canvas ref={props.rulerCanvasRef} width={props.width} height={RULER_HEIGHT} />
+      </div>
+      <div className={styles.rulerCornerLayer} style={{ width: `${HEADER_WIDTH}px` }}>
+        <div
+          className={styles.rulerCornerMask}
+          data-testid="track-ruler-corner-mask"
+          style={{ height: `${RULER_HEIGHT}px` }}
+        />
+      </div>
       <TrackHeaderChrome
         project={props.project}
         canvasShellRef={props.wrapperRef}
@@ -104,9 +119,11 @@ export function TrackCanvasOverlays(props: TrackCanvasOverlaysProps) {
         panPopoverPosition={props.panPopoverPosition}
         openVolumePopover={props.openVolumePopover}
         openPanPopover={props.openPanPopover}
+        closeMixerPopovers={props.closeMixerPopovers}
         scheduleVolumePopoverOpen={props.scheduleVolumePopoverOpen}
         scheduleVolumePopoverDismiss={props.scheduleVolumePopoverDismiss}
         cancelScheduledVolumePopoverDismiss={props.cancelScheduledVolumePopoverDismiss}
+        onReorderHandleWheel={props.onReorderHandleWheel}
         trackActions={props.trackActions}
         patchActions={props.patchActions}
         automationActions={props.automationActions}
@@ -117,13 +134,19 @@ export function TrackCanvasOverlays(props: TrackCanvasOverlaysProps) {
         width={props.width}
         height={props.height}
         style={{
-          cursor: resolveTrackCanvasCursor(props.canvasCursor)
+          cursor: mode === "reordering" ? "not-allowed" : resolveTrackCanvasCursor(props.canvasCursor)
         }}
-        onPointerDown={props.onPointerDown}
+        onPointerDown={(event) => {
+          if (interaction.getMode() === "reordering") return;
+          props.onPointerDown(event);
+        }}
         onPointerMove={props.onPointerMove}
         onPointerUp={props.onPointerUp}
         onPointerLeave={props.onPointerLeave}
-        onDoubleClick={props.onDoubleClick}
+        onDoubleClick={(event) => {
+          if (interaction.getMode() === "reordering") return;
+          props.onDoubleClick(event);
+        }}
         onContextMenu={(event) => event.preventDefault()}
       />
       <TrackCanvasTabStops

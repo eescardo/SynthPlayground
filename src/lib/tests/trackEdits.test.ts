@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createDefaultProject } from "@/lib/patch/presets";
-import { removeTrackFromProject, renameTrackInProject } from "@/lib/trackEdits";
+import { moveTrackInProject, removeTrackFromProject, renameTrackInProject } from "@/lib/trackEdits";
 
 describe("trackEdits", () => {
   it("renames a matching track and trims whitespace", () => {
@@ -37,5 +37,50 @@ describe("trackEdits", () => {
     };
 
     expect(removeTrackFromProject(singleTrackProject, project.tracks[0].id)).toBe(singleTrackProject);
+  });
+
+  it("moves tracks before or after another track without changing track data", () => {
+    const project = createDefaultProject();
+    const [first, second, ...rest] = project.tracks;
+
+    const movedAfter = moveTrackInProject(project, first.id, second.id, "after");
+    expect(movedAfter.tracks).toEqual([second, first, ...rest]);
+
+    const movedBefore = moveTrackInProject(movedAfter, first.id, second.id, "before");
+    expect(movedBefore.tracks).toEqual(project.tracks);
+  });
+
+  it.each([
+    {
+      name: "first to last",
+      sourceIndex: 0,
+      targetIndex: 3,
+      position: "after" as const,
+      expectedIndexes: [1, 2, 3, 0]
+    },
+    {
+      name: "last to first",
+      sourceIndex: 3,
+      targetIndex: 0,
+      position: "before" as const,
+      expectedIndexes: [3, 0, 1, 2]
+    }
+  ])("moves $name", ({ sourceIndex, targetIndex, position, expectedIndexes }) => {
+    const project = createDefaultProject();
+
+    const next = moveTrackInProject(project, project.tracks[sourceIndex].id, project.tracks[targetIndex].id, position);
+
+    expect(next.tracks).toEqual(expectedIndexes.map((index) => project.tracks[index]));
+  });
+
+  it("ignores invalid and no-op track moves", () => {
+    const project = createDefaultProject();
+    const [first, second] = project.tracks;
+
+    expect(moveTrackInProject(project, "missing", second.id, "before")).toBe(project);
+    expect(moveTrackInProject(project, first.id, "missing", "after")).toBe(project);
+    expect(moveTrackInProject(project, first.id, first.id, "after")).toBe(project);
+    expect(moveTrackInProject(project, first.id, second.id, "before")).toBe(project);
+    expect(moveTrackInProject(project, second.id, first.id, "after")).toBe(project);
   });
 });

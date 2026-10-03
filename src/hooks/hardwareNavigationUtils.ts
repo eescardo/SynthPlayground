@@ -20,7 +20,7 @@ export const isPlayheadTabStopFocused = () => {
 
 export const isTrackChromeKeyboardTarget = (target: EventTarget | null) => {
   const element = target as HTMLElement | null;
-  return Boolean(element?.closest('[data-track-chrome="header-overlays"]'));
+  return Boolean(element?.closest?.('[data-track-chrome="header-overlays"]'));
 };
 
 export const focusLastTrackChromeTabStop = () => {

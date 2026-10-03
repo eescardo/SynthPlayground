@@ -1,10 +1,11 @@
 .shell {
   position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
   background: rgba(9, 17, 26, 0.8);
   border: 1px solid var(--border);
   border-radius: 10px;
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: auto;
   overscroll-behavior-x: contain;
   overscroll-behavior-y: auto;
   max-width: 100%;
@@ -14,15 +15,152 @@
   display: block;
 }
 
-.headerOverlays {
+.stickyRuler {
   position: sticky;
   top: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.stickyRuler canvas {
+  display: block;
+}
+
+.rulerCornerLayer {
+  position: sticky;
+  top: 0;
+  left: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.rulerCornerMask {
+  box-sizing: border-box;
+  pointer-events: auto;
+  background: #121b27;
+  border-bottom: 1px solid #1a2e42;
+}
+
+.headerOverlays {
+  position: sticky;
   left: 0;
   width: var(--track-header-width);
   height: 0;
   overflow: visible;
   pointer-events: none;
   z-index: 3;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.trackDragGrip {
+  position: fixed;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 11.2px;
+  box-sizing: border-box;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(214, 235, 255, 0.92);
+  cursor: grab;
+  opacity: 0;
+}
+
+.trackDragGrip:hover,
+.trackDragGrip:focus-visible,
+.trackDragGrip[data-dragging="true"],
+.trackDragGrip[data-group-active="true"] {
+  opacity: 1;
+}
+
+.trackDragGrip::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  box-sizing: border-box;
+  border-radius: 2px;
+  background: var(--border);
+  pointer-events: none;
+}
+
+.trackDragGrip:is(:hover, :focus-visible, [data-dragging="true"])::before {
+  width: 100%;
+  border: 1px solid rgba(148, 179, 213, 0.38);
+  border-radius: 4px;
+  /* Composite the macro panel over selected chrome, including outside the canvas. */
+  background:
+    linear-gradient(rgba(214, 232, 248, 0.18), rgba(214, 232, 248, 0.18)),
+    linear-gradient(rgba(33, 112, 210, 0.2), rgba(33, 112, 210, 0.2)), #121b27;
+  box-shadow: inset 0 0 0 1px rgba(19, 40, 61, 0.06);
+}
+
+.trackDragGrip::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: calc(100% - 8px);
+  min-height: 12px;
+  background-image: radial-gradient(circle, currentColor 1px, transparent 1.25px);
+  background-position: center top;
+  background-size: 4px 6px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.trackDragGrip:is(:hover, :focus-visible, [data-dragging="true"])::after {
+  opacity: 1;
+}
+
+.trackDragGrip:focus-visible {
+  outline: 1px solid rgba(121, 200, 255, 0.9);
+  outline-offset: 2px;
+}
+
+.trackDragGrip:active {
+  cursor: grabbing;
+}
+
+.trackDragGrip:disabled {
+  cursor: not-allowed;
+}
+
+.trackDragGrip:disabled::before,
+.trackDragGrip:disabled::after {
+  opacity: 0.35;
+}
+
+.trackDropIndicator {
+  position: absolute;
+  left: 4px;
+  width: calc(var(--track-header-width) - 8px);
+  height: 3px;
+  border-radius: 999px;
+  background: #79c8ff;
+  box-shadow: 0 0 8px rgba(79, 184, 255, 0.8);
+  pointer-events: none;
+  transform: translateY(-1px);
+  z-index: 5;
 }
 
 .headerMask {

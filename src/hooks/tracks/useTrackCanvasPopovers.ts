@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type RefObject } from "react";
 import { useVolumePopover } from "@/hooks/useVolumePopover";
 import { clamp } from "@/lib/numeric";
 
@@ -25,7 +25,7 @@ function getPanPopoverPosition(anchor: HTMLElement) {
   };
 }
 
-export function useTrackCanvasPopovers() {
+export function useTrackCanvasPopovers(canvasShellRef: RefObject<HTMLDivElement | null>) {
   const [panPopoverTrackId, setPanPopoverTrackId] = useState<string | null>(null);
   const [panPopoverPosition, setPanPopoverPosition] = useState<{ left: number; top: number } | null>(null);
   const {
@@ -43,6 +43,20 @@ export function useTrackCanvasPopovers() {
     setPanPopoverTrackId(null);
     setPanPopoverPosition(null);
   }, []);
+
+  const closeMixerPopovers = useCallback(() => {
+    // Closing volume also cancels any pending hover-open timer.
+    closeVolumePopover();
+    closePanPopover();
+  }, [closePanPopover, closeVolumePopover]);
+
+  useEffect(() => {
+    const shell = canvasShellRef.current;
+    if (!shell) return;
+    // Fixed-position controls must not remain beside a different track after scrolling.
+    shell.addEventListener("scroll", closeMixerPopovers, { passive: true });
+    return () => shell.removeEventListener("scroll", closeMixerPopovers);
+  }, [canvasShellRef, closeMixerPopovers]);
 
   const openVolumeOnlyPopover = useCallback(
     (trackId: string, anchor?: HTMLElement | null) => {
@@ -75,8 +89,7 @@ export function useTrackCanvasPopovers() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        closeVolumePopover();
-        closePanPopover();
+        closeMixerPopovers();
       }
     };
 
@@ -98,7 +111,7 @@ export function useTrackCanvasPopovers() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("pointerdown", onPointerDown);
     };
-  }, [closePanPopover, closeVolumePopover]);
+  }, [closeMixerPopovers, closePanPopover, closeVolumePopover]);
 
   return {
     volumePopoverTrackId,
@@ -107,6 +120,7 @@ export function useTrackCanvasPopovers() {
     panPopoverPosition,
     openVolumePopover: openVolumeOnlyPopover,
     openPanPopover,
+    closeMixerPopovers,
     scheduleVolumePopoverOpen: scheduleVolumeOnlyPopoverOpen,
     scheduleVolumePopoverDismiss,
     cancelScheduledVolumePopoverDismiss

@@ -34,6 +34,7 @@ export interface TimelineActionsPopoverRequest {
 
 export interface TrackCanvasTrackActions {
   onSelectTrack: (trackId: string) => void;
+  onMoveTrack: (trackId: string, targetTrackId: string, position: "before" | "after") => void;
   onRenameTrack: (trackId: string, name: string) => void;
   onToggleTrackMute: (trackId: string) => void;
   onSetTrackVolume: (trackId: string, volume: number, options?: { commit?: boolean }) => void;
