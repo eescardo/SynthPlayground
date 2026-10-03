@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { ChildProcess, spawn } from "node:child_process";
 import { expect, Locator, Page } from "@playwright/test";
 import { createDefaultProject } from "../../src/lib/patch/presets";
@@ -774,7 +775,10 @@ export const waitForServer = async (url: string, timeoutMs: number) => {
 export const startDevServer = (port: number, envOverrides?: Record<string, string>): ChildProcess => {
   const distDir = `.next-ui-capture-${port}`;
   fs.rmSync(path.join(process.cwd(), distDir), { recursive: true, force: true });
-  return spawn("pnpm", ["exec", "next", "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
+  const nextCli = createRequire(path.join(process.cwd(), "package.json")).resolve("next/dist/bin/next");
+  // Awaiting pnpm's exit does not await Next's shutdown trace/telemetry writes.
+  // Return the CLI itself so callers can safely remove/reuse its output after exit.
+  return spawn(process.execPath, [nextCli, "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
     cwd: process.cwd(),
     stdio: "inherit",
     env: { ...process.env, NEXT_UI_CAPTURE: "1", NEXT_DIST_DIR: distDir, ...envOverrides }
