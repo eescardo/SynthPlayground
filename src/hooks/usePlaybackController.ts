@@ -54,6 +54,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
   const userCueBeatRef = useRef(userCueBeat);
   const stopRecordingSessionRef = useRef(onStopRecordingSession);
   const handleRecordingBeatRef = useRef(onHandleRecordingBeat);
+  const playbackStartAttemptRef = useRef(0);
 
   playbackStopModeRef.current = playbackStopMode;
   playbackEndBeatRef.current = playbackEndBeat;
@@ -64,6 +65,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
 
   const stopPlayback = useCallback(
     (options?: { resetToCue?: boolean }) => {
+      playbackStartAttemptRef.current += 1;
       stopRecordingSessionRef.current();
       audioEngineRef.current?.stop();
       setPlaying(false);
@@ -102,6 +104,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
 
   const beginPlaybackAtBeat = useCallback(
     async (cueBeat: number, options?: AudioEnginePlayOptions) => {
+      playbackStartAttemptRef.current += 1;
       const clampedCueBeat = Math.min(Math.max(0, cueBeat), playbackEndBeatRef.current);
       userCueBeatRef.current = clampedCueBeat;
       setPlayheadBeat(clampedCueBeat);
@@ -154,10 +157,14 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
     }
     if (!interaction.startTransport("playback")) return;
     setPlaying(true);
+    const playbackStartPromise = beginPlaybackAtBeat(clampedPlayheadBeat);
+    const playbackStartAttempt = playbackStartAttemptRef.current;
     try {
-      await beginPlaybackAtBeat(clampedPlayheadBeat);
+      await playbackStartPromise;
     } catch (error) {
-      stopPlayback();
+      if (playbackStartAttemptRef.current === playbackStartAttempt && interaction.getMode() === "playback") {
+        stopPlayback();
+      }
       throw error;
     }
   }, [
@@ -174,6 +181,7 @@ export function usePlaybackController(args: UsePlaybackControllerArgs) {
 
   useEffect(() => {
     return () => {
+      playbackStartAttemptRef.current += 1;
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
       }
