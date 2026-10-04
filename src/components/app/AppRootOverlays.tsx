@@ -5,18 +5,16 @@ import { BrowserCompatibilityDialog } from "./BrowserCompatibilityDialog";
 import { PatchRemovalDialogModal } from "@/components/composer/PatchRemovalDialogModal";
 import { PresetUpdateDialogModal } from "@/components/composer/PresetUpdateDialogModal";
 import { PitchPickerModal } from "@/components/composer/PitchPickerModal";
-import { RecordingDock } from "@/components/composer/RecordingDock";
 import { ExplodeSelectionDialog } from "@/components/ExplodeSelectionDialog";
 import { LoopConflictDialog } from "@/components/LoopConflictDialog";
 import type { useWasmReadiness } from "@/hooks/app/useWasmReadiness";
 import type { useLoopSettings } from "@/hooks/useLoopSettings";
 import type { useExplodeSelectionDialog } from "@/hooks/useExplodeSelectionDialog";
 import type { useComposerTransientUi } from "@/hooks/useComposerTransientUi";
-import type { useRecordingController } from "@/hooks/useRecordingController";
 import type { usePatchWorkspaceState } from "@/hooks/patch/usePatchWorkspaceState";
 import type { useNoteEditor } from "@/hooks/useNoteEditor";
 import type { getProjectPresetUpdateSummary } from "@/lib/patch/source";
-import type { Project, Track, Note } from "@/types/music";
+import type { Project, Note } from "@/types/music";
 
 type AppRootOverlaysProps = Pick<
   ReturnType<typeof useWasmReadiness>,
@@ -31,17 +29,6 @@ type AppRootOverlaysProps = Pick<
     project: Project;
     trackNameById: Map<string, string>;
     confirmExplodeSelection: () => void;
-    recording: Pick<
-      ReturnType<typeof useRecordingController>,
-      | "recordingActive"
-      | "recordPhase"
-      | "recordStatusText"
-      | "recordingHintText"
-      | "pressedRecordingPitches"
-      | "startRecordedNote"
-      | "stopRecordedInput"
-    >;
-    activeRecordingTrack: Track | undefined;
     pitchPickerNote: Note | undefined;
     patchWorkspace: Pick<
       ReturnType<typeof usePatchWorkspaceState>,
@@ -74,8 +61,6 @@ export function AppRootOverlays({
   setExplodeSelectionDialogState,
   closeExplodeSelectionDialog,
   confirmExplodeSelection,
-  recording,
-  activeRecordingTrack,
   pitchPicker,
   pitchPickerNote,
   patchWorkspace,
@@ -127,21 +112,6 @@ export function AppRootOverlays({
           setExplodeSelectionDialogState((current) => (current ? { ...current, scope } : current))
         }
         onModeChange={(mode) => setExplodeSelectionDialogState((current) => (current ? { ...current, mode } : current))}
-      />
-
-      <RecordingDock
-        open={recording.recordingActive}
-        track={activeRecordingTrack}
-        title={recording.recordPhase === "count_in" ? "Record Count-In" : "Recording"}
-        statusText={recording.recordStatusText}
-        hintText={recording.recordingHintText}
-        pressedPitches={recording.pressedRecordingPitches}
-        onPressStart={(pitch) => {
-          if (recording.recordPhase === "recording") {
-            recording.startRecordedNote(`pointer:${pitch}`, pitch);
-          }
-        }}
-        onPressEnd={(pitch) => recording.stopRecordedInput(`pointer:${pitch}`)}
       />
 
       <PitchPickerModal

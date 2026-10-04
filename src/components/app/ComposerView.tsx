@@ -5,6 +5,7 @@ import type { ComposerRecordPhase } from "@/components/composer/ComposerActionsB
 import type { PlaybackStopMode } from "@/hooks/usePlaybackController";
 import { QuickHelpDialog } from "@/components/QuickHelpDialog";
 import { ComposerActionsBar } from "@/components/composer/ComposerActionsBar";
+import { RecordingDock } from "@/components/composer/RecordingDock";
 import { TimelineActionsPopover } from "@/components/TimelineActionsPopover";
 import { TimelineActionsPopoverRequest, TrackCanvas, TrackCanvasSelection } from "@/components/tracks/TrackCanvas";
 import { TransportBar } from "@/components/TransportBar";
@@ -26,6 +27,7 @@ export interface ComposerViewProps {
   transport: ComposerTransportProps;
   runtimeErrorMessage?: string | null;
   recording: ComposerRecordingProps;
+  recordingDock: ComponentProps<typeof RecordingDock>;
   canvasPreview: ComposerCanvasPreviewProps;
   timeline: ComposerTimelineProps;
   projectActions: ComposerProjectActions;
@@ -210,6 +212,7 @@ export function ComposerView(props: ComposerViewProps) {
             selectionActions={props.selectionActions}
           />
         </div>
+        <RecordingDock {...props.recordingDock} />
       </div>
 
       {props.timeline.timelineActionsPopover && (

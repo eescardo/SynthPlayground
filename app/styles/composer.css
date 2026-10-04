@@ -753,6 +753,7 @@
 
 .recording-dock {
   display: flex;
+  flex: 0 0 auto;
   flex-direction: column;
   gap: 0.65rem;
   width: min(980px, calc(100vw - 1.6rem));

@@ -673,10 +673,6 @@ function AppRootState({ children }: { children: ReactNode }) {
 
   const pitchPickerTrack = pitchPicker ? project.tracks.find((track) => track.id === pitchPicker.trackId) : undefined;
   const pitchPickerNote = pitchPickerTrack?.notes.find((note) => note.id === pitchPicker?.noteId);
-  const activeRecordingTrackId = recording.activeRecordingTrackId;
-  const activeRecordingTrack = activeRecordingTrackId
-    ? project.tracks.find((track) => track.id === activeRecordingTrackId)
-    : undefined;
   const { clearCurrentProject, createNewProject, importJson, openRecentProject, resetToDefaultProject } =
     useProjectLifecycleActions({
       project,
@@ -972,8 +968,6 @@ function AppRootState({ children }: { children: ReactNode }) {
           setExplodeSelectionDialogState={setExplodeSelectionDialogState}
           closeExplodeSelectionDialog={closeExplodeSelectionDialog}
           confirmExplodeSelection={confirmExplodeSelection}
-          recording={recording}
-          activeRecordingTrack={activeRecordingTrack}
           pitchPicker={pitchPicker}
           pitchPickerNote={pitchPickerNote}
           patchWorkspace={patchWorkspace}

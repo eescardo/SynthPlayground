@@ -79,7 +79,18 @@ interface ComposerRuntimeState {
   playing: boolean;
   recording: Pick<
     RecordingState,
-    "activeRecordedNotes" | "countInLabel" | "ghostPlayheadBeat" | "recordingActive" | "recordPhase" | "startRecordMode"
+    | "activeRecordedNotes"
+    | "countInLabel"
+    | "ghostPlayheadBeat"
+    | "recordingActive"
+    | "recordPhase"
+    | "startRecordMode"
+    | "activeRecordingTrackId"
+    | "recordStatusText"
+    | "recordingHintText"
+    | "pressedRecordingPitches"
+    | "startRecordedNote"
+    | "stopRecordedInput"
   >;
   playback: Pick<PlaybackState, "playbackStopMode" | "startPlayback" | "stopPlayback" | "togglePlaybackStopMode">;
   hardwareNavigation: Pick<
@@ -278,6 +289,20 @@ export function createComposerControllerProps(options: UseComposerControllerProp
       isPlaying: playing || recording.recordPhase === "count_in",
       recordingActive: recording.recordingActive,
       recordPhase: recording.recordPhase
+    },
+    recordingDock: {
+      open: recording.recordingActive,
+      track: project.tracks.find((track) => track.id === recording.activeRecordingTrackId),
+      title: recording.recordPhase === "count_in" ? "Record Count-In" : "Recording",
+      statusText: recording.recordStatusText,
+      hintText: recording.recordingHintText,
+      pressedPitches: recording.pressedRecordingPitches,
+      onPressStart: (pitch) => {
+        if (recording.recordPhase === "recording") {
+          recording.startRecordedNote(`pointer:${pitch}`, pitch);
+        }
+      },
+      onPressEnd: (pitch) => recording.stopRecordedInput(`pointer:${pitch}`)
     },
     canvasPreview: {
       keyboardPlacementNote: hardwareNavigation.activePlacement

@@ -156,7 +156,7 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
       await applySelectionReviewFraming(page);
       await getTransportButton(page, "Record").click();
       await expect(page.getByTestId("track-reorder-handle").first()).toBeDisabled();
-      await expect(page.locator(".recording-dock")).toBeVisible();
+      await expect(page.locator(".recording-dock")).toBeInViewport({ ratio: 1 });
       await page.locator('[data-track-control="playhead-tabstop"]').focus();
       await page.keyboard.press("Space");
       await expect(page.locator(".record-countdown-badge")).toBeVisible();
@@ -165,7 +165,7 @@ export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefi
         timeout: 10_000
       });
       const key = getRecordingKey(page);
-      await expect(key).toBeVisible();
+      await expect(key).toBeInViewport({ ratio: 1 });
       await playQuarterPattern(page, key);
       await page.locator('[data-track-control="playhead-tabstop"]').focus();
       await page.keyboard.press("Space");

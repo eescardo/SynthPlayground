@@ -2,6 +2,7 @@ import { expect, Page } from "@playwright/test";
 import {
   PATCH_WORKSPACE_CAPTURE_ROOT_SELECTOR,
   createMicrotonalCaptureProject,
+  ensureArtifactDir,
   openApp,
   openSeededApp,
   savePageScreenshot,
@@ -176,8 +177,10 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
     capture: async (page, outputPath) => {
       await openApp(page);
       await page.getByRole("button", { name: "Record" }).click();
-      await expect(page.locator(".recording-dock")).toBeVisible();
-      await savePageScreenshot(page, outputPath);
+      await expect(page.locator(".recording-dock")).toBeInViewport({ ratio: 1 });
+      await expect(page.locator(".recording-dock .piano-key.white").first()).toBeInViewport({ ratio: 1 });
+      ensureArtifactDir(outputPath);
+      await page.screenshot({ path: outputPath, fullPage: false });
     }
   },
   [SCREENSHOT_SCENARIO.PATCH_EDITOR]: {
