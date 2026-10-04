@@ -26,4 +26,4 @@ export function useAppProjectChanges({
   return { commitProjectChange };
 }
 
-export type CommitProjectChange = ReturnType<typeof useAppProjectChanges>["commitProjectChange"];
+export type { CommitProjectChange } from "@/lib/projectChanges";

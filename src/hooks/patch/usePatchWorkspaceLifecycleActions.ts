@@ -19,7 +19,7 @@ import { buildPatchRemovalRequest } from "@/lib/patch/patchRemoval";
 import { createSproutError, SproutErrorSetter } from "@/lib/sproutErrors";
 import { Project } from "@/types/music";
 import { Patch } from "@/types/patch";
-import { PatchRemovalDialogState } from "@/components/composer/PatchRemovalDialogModal";
+import type { PatchRemovalRequest } from "@/lib/patch/patchRemoval";
 
 interface UsePatchWorkspaceLifecycleActionsOptions {
   activeTab?: LocalPatchWorkspaceTab;
@@ -33,7 +33,7 @@ interface UsePatchWorkspaceLifecycleActionsOptions {
   schedulePatchPreview: (patchId: string, patchOverride?: Patch, macroValues?: Record<string, number>) => void;
   selectedPatch?: Patch;
   setActiveTabId: (tabId: string | undefined) => void;
-  setPatchRemovalDialog: Dispatch<SetStateAction<PatchRemovalDialogState | null>>;
+  setPatchRemovalDialog: Dispatch<SetStateAction<PatchRemovalRequest | null>>;
   setRuntimeError: SproutErrorSetter;
   setTabMacroValuesById: Dispatch<SetStateAction<Record<string, Record<string, number>>>>;
   setTabs: Dispatch<SetStateAction<LocalPatchWorkspaceTab[]>>;

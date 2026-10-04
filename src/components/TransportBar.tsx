@@ -20,6 +20,7 @@ interface TransportBarProps {
   onRenameProject: (name: string) => void;
   onNewProject: () => void;
   onOpenPatchWorkspace: () => void;
+  workspaceDisabled?: boolean;
   onExportAudio: () => void;
   exportAudioDisabled?: boolean;
   onTempoChange: (value: number) => void;
@@ -64,8 +65,9 @@ export function TransportBar(props: TransportBarProps) {
         <button
           type="button"
           className="transport-nav-button"
-          title="open patch workspace"
+          title={props.workspaceDisabled ? "Stop recording before opening Patch Workspace" : "open patch workspace"}
           aria-label="Open Patch Workspace"
+          disabled={props.workspaceDisabled}
           onClick={props.onOpenPatchWorkspace}
         >
           <Image

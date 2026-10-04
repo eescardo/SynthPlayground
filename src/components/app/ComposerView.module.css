@@ -21,3 +21,15 @@
   flex: 1 1 auto;
   min-height: 0;
 }
+
+/* Recording takes priority over editing/settings on phone and short landscape screens.
+   Keep at least a ruler and a full track visible; the dock owns its compact sizing. */
+@media (max-width: 760px), (max-height: 480px) {
+  .layout[data-recording="true"] .topChrome :global(.transport) {
+    display: none;
+  }
+
+  .layout[data-recording="true"] .canvasRegion {
+    min-height: 120px;
+  }
+}

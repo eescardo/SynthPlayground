@@ -181,6 +181,20 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
       await expect(page.locator(".recording-dock .piano-key.white").first()).toBeInViewport({ ratio: 1 });
       ensureArtifactDir(outputPath);
       await page.screenshot({ path: outputPath, fullPage: false });
+      for (const [width, height] of [
+        [390, 520],
+        [320, 568],
+        [844, 390],
+        [390, 620]
+      ]) {
+        await page.setViewportSize({ width, height });
+        await expect(page.locator(".recording-dock")).toBeInViewport({ ratio: 1 });
+        await expect(page.getByRole("button", { name: "Record", exact: true })).toBeInViewport({ ratio: 1 });
+        await expect
+          .poll(() => page.locator(".track-canvas-shell").evaluate((element) => element.getBoundingClientRect().height))
+          .toBeGreaterThanOrEqual(120);
+        await page.screenshot({ path: outputPath.replace(/\.png$/, `-${width}x${height}.png`), fullPage: false });
+      }
     }
   },
   [SCREENSHOT_SCENARIO.PATCH_EDITOR]: {

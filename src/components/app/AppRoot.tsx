@@ -342,6 +342,7 @@ function AppRootState({ children }: { children: ReactNode }) {
   });
 
   const recording = useRecordingController({
+    composerActive: !pathname.endsWith("/patch-workspace"),
     project,
     selectedTrack,
     playheadBeat,
@@ -363,6 +364,13 @@ function AppRootState({ children }: { children: ReactNode }) {
 
   recordingStopSessionRef.current = recording.stopRecordSession;
   recordingHandleBeatRef.current = recording.handlePlayheadBeat;
+
+  // Browser history can bypass the disabled Workspace button and navigation guard.
+  // Never leave a recording session alive without its composer controls.
+  const { stopPlayback } = playback;
+  useEffect(() => {
+    if (pathname.endsWith("/patch-workspace") && recording.recordingActive) stopPlayback();
+  }, [pathname, stopPlayback, recording.recordingActive]);
 
   const { exportingAudio, exportAudio, setTrackVolume, setTrackPan } = useProjectAudioActions({
     project,
@@ -650,7 +658,8 @@ function AppRootState({ children }: { children: ReactNode }) {
     selectedTrack,
     selectedTrackPatch,
     selectedTrackId,
-    patchWorkspace,
+    setSelectedNodeId: patchWorkspace.setSelectedNodeId,
+    previewPatchById: patchWorkspace.previewPatchById,
     patchRemovalDialog,
     setPatchRemovalDialog,
     setSelectedTrackId,

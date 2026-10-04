@@ -121,3 +121,37 @@
   border-color: rgba(155, 212, 255, 0.9);
   color: #f3fbff;
 }
+
+@media (max-width: 760px), (max-height: 480px) {
+  .bar[data-composer-mode="recording"] {
+    align-items: center;
+    margin-bottom: 0;
+  }
+
+  .bar[data-composer-mode="recording"] > .group:first-child,
+  .bar[data-composer-mode="recording"] .pitchPreviewStack,
+  .bar[data-composer-mode="recording"] .stopControlStack,
+  .bar[data-composer-mode="recording"] .group > button {
+    display: none;
+  }
+
+  .bar[data-composer-mode="recording"] > .status {
+    flex: 1 1 0;
+    order: -1;
+  }
+
+  .bar[data-composer-mode="recording"] :global(.record-button-wrap) {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .bar[data-composer-mode="recording"] :global(.record-countdown-badge) {
+    position: static;
+    transform: none;
+  }
+
+  .bar[data-composer-mode="recording"] :global(.record-countdown-badge)::after {
+    display: none;
+  }
+}

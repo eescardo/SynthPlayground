@@ -49,6 +49,7 @@ const COUNT_IN_BEATS = 3;
 const RECORD_DENSE_INPUT_HINT_MS = 2_400;
 
 interface UseRecordingControllerArgs {
+  composerActive: boolean;
   project: Project;
   selectedTrack?: Track;
   playheadBeat: number;
@@ -77,6 +78,7 @@ interface UseRecordingControllerArgs {
 export function useRecordingController(args: UseRecordingControllerArgs) {
   const { interaction } = useComposerInteraction();
   const {
+    composerActive,
     project,
     selectedTrack,
     playheadBeat,
@@ -325,6 +327,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
   );
 
   const startRecordMode = useCallback(async () => {
+    if (!composerActive) return;
     if (interaction.getMode() !== "editing") return;
     if (!wasmReady) {
       setRuntimeError(
@@ -358,7 +361,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
     setRecordCountIn(countIn);
     setCountInNowMs(countIn.startedAtMs);
     setRecordPhase("count_in");
-  }, [interaction, selectedTrack, setPlayheadBeat, setRuntimeError, userCueBeat, wasmReady]);
+  }, [composerActive, interaction, selectedTrack, setPlayheadBeat, setRuntimeError, userCueBeat, wasmReady]);
 
   useEffect(() => {
     if (!recordCountIn) {
@@ -517,6 +520,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!composerActive) return;
       if (pitchPickerOpen || previewPitchPickerOpen) return;
       if (recordPhase !== "recording") return;
       const target = event.target as HTMLElement | null;
@@ -552,6 +556,7 @@ export function useRecordingController(args: UseRecordingControllerArgs) {
   }, [
     audioEngineRef,
     finishActiveRecordedNotes,
+    composerActive,
     pitchPickerOpen,
     playheadBeat,
     previewPitchPickerOpen,

@@ -11,9 +11,17 @@ const { cleanup, withSeededComposerPage } = createComposerTestHarness(3603);
 afterEach(cleanup);
 
 describe("recording dock viewport layout", () => {
-  test.each([620, 900, 1400])(
-    "reserves dock space within a %ipx viewport",
-    async (height) => {
+  test.each([
+    [1400, 620],
+    [1400, 900],
+    [1400, 1400],
+    [390, 520],
+    [320, 568],
+    [844, 390],
+    [390, 620]
+  ])(
+    "reserves dock and usable canvas space within a %ix%i viewport",
+    async (width, height) => {
       const project = createManyTrackComposerProject(24);
       project.global.tempo = 60;
       await withSeededComposerPage(
@@ -33,16 +41,23 @@ describe("recording dock viewport layout", () => {
             await expect(dock.locator(".piano-key.white").first()).toBeInViewport({ ratio: 1 });
             const canvasBox = (await shell.boundingBox())!;
             const dockBox = (await dock.boundingBox())!;
-            expect(canvasBox.height).toBeGreaterThan(0);
-            expect(canvasBox.height).toBeLessThan(initialShell.height);
+            expect(canvasBox.height).toBeGreaterThanOrEqual(120);
+            if (width > 760 && height > 480) expect(canvasBox.height).toBeLessThan(initialShell.height);
             expect(canvasBox.y + canvasBox.height).toBeLessThanOrEqual(dockBox.y);
-            expect((await toolbar.boundingBox())!.y).toBe(toolbarTop);
+            if (width > 760 && height > 480) expect((await toolbar.boundingBox())!.y).toBe(toolbarTop);
+            await expect(page.getByRole("button", { name: "Record", exact: true })).toBeInViewport({ ratio: 1 });
+            const documentSize = await page.evaluate(() => ({
+              width: document.documentElement.scrollWidth,
+              height: document.documentElement.scrollHeight
+            }));
+            expect(documentSize.width).toBeLessThanOrEqual(width);
+            expect(documentSize.height).toBeLessThanOrEqual(height);
             expect(await page.evaluate(() => window.scrollY)).toBe(0);
           };
           await expectViewportLayout();
           await expect(dock.getByText("Recording", { exact: true })).toBeVisible({ timeout: 10_000 });
           await expectViewportLayout();
-          const screenshotPath = `artifacts/screenshots/recording-dock-layout/recording-${height}.png`;
+          const screenshotPath = `artifacts/screenshots/recording-dock-layout/recording-${width}x${height}.png`;
           ensureArtifactDir(screenshotPath);
           await page.screenshot({ path: screenshotPath, fullPage: false });
 
@@ -56,7 +71,8 @@ describe("recording dock viewport layout", () => {
           await expectViewportLayout();
 
           // Use viewport coordinates so Playwright cannot hide a regression by scrolling to the key.
-          const key = dock.locator(".piano-key.white").first();
+          // Avoid Next's development indicator over the bottom-left corner on phones.
+          const key = dock.locator(".piano-key.white").nth(2);
           const keyBox = (await key.boundingBox())!;
           await page.mouse.move(keyBox.x + keyBox.width / 2, keyBox.y + keyBox.height - 10);
           await page.mouse.down();
@@ -69,7 +85,7 @@ describe("recording dock viewport layout", () => {
           await expect.poll(() => readTotalNoteCount(page)).toBe(1);
           expect(await page.evaluate(() => window.scrollY)).toBe(0);
         },
-        { env: { NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO: "1" }, viewport: { width: 1400, height } }
+        { env: { NEXT_PUBLIC_UI_CAPTURE_FAKE_AUDIO: "1" }, viewport: { width, height } }
       );
     },
     120_000

@@ -1,12 +1,16 @@
-import { PatchRemovalDialogState } from "@/components/composer/PatchRemovalDialogModal";
 import { resolveRemovedPatchFallbackId } from "@/hooks/patch/patchWorkspaceStateUtils";
 import { Project } from "@/types/music";
 import { Patch } from "@/types/patch";
 
+export interface PatchRemovalRequest {
+  patchId: string;
+  rows: Array<{ trackId: string; mode: "fallback" | "remove"; fallbackPatchId: string }>;
+}
+
 export function buildPatchRemovalRequest(
   project: Pick<Project, "patches" | "tracks">,
   patch: Patch | undefined
-): PatchRemovalDialogState | null {
+): PatchRemovalRequest | null {
   if (!patch) {
     return null;
   }
@@ -22,7 +26,7 @@ export function buildPatchRemovalRequest(
   };
 }
 
-export function removePatchFromProject(project: Project, removal: PatchRemovalDialogState): Project {
+export function removePatchFromProject(project: Project, removal: PatchRemovalRequest): Project {
   const rowsByTrackId = new Map(removal.rows.map((row) => [row.trackId, row] as const));
   const tracks = project.tracks.flatMap((track) => {
     if (track.instrumentPatchId !== removal.patchId) {
@@ -42,7 +46,7 @@ export function removePatchFromProject(project: Project, removal: PatchRemovalDi
   };
 }
 
-export function resolveSurvivingTrackIds(project: Pick<Project, "tracks">, removal: PatchRemovalDialogState) {
+export function resolveSurvivingTrackIds(project: Pick<Project, "tracks">, removal: PatchRemovalRequest) {
   const nextTrackIds = new Set(project.tracks.map((track) => track.id));
   for (const row of removal.rows) {
     if (row.mode === "remove") {
@@ -52,7 +56,7 @@ export function resolveSurvivingTrackIds(project: Pick<Project, "tracks">, remov
   return nextTrackIds;
 }
 
-export function hasInvalidPatchRemovalFallback(removal: PatchRemovalDialogState) {
+export function hasInvalidPatchRemovalFallback(removal: PatchRemovalRequest) {
   return removal.rows.some(
     (row) => row.mode === "fallback" && (!row.fallbackPatchId || row.fallbackPatchId === removal.patchId)
   );

@@ -134,7 +134,7 @@ export function ComposerView(props: ComposerViewProps) {
 
   return (
     <>
-      <div className={styles.layout}>
+      <div className={styles.layout} data-recording={props.recording.recordingActive}>
         <div className={styles.topChrome}>
           <TransportBar
             projectName={props.project.name}
@@ -147,6 +147,7 @@ export function ComposerView(props: ComposerViewProps) {
             onRenameProject={props.projectActions.onRenameProject}
             onNewProject={props.projectMenu.onNewProject}
             onOpenPatchWorkspace={props.projectActions.onOpenPatchWorkspace}
+            workspaceDisabled={props.recording.recordingActive}
             onExportAudio={props.projectActions.onExportAudio}
             exportAudioDisabled={props.transport.exportingAudio}
             onTempoChange={props.projectActions.onTempoChange}

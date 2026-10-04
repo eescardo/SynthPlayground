@@ -10,6 +10,8 @@ export interface ProjectChangeOptions {
   skipHistory?: boolean;
 }
 
+export type CommitProjectChange = (updater: (current: Project) => Project, options?: ProjectChangeOptions) => void;
+
 /** Apply project rules at the edit boundary, before handing snapshots to history. */
 export function applyProjectChange(
   previous: HistoryState<Project>,

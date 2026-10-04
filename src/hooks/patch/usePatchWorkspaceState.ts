@@ -2,9 +2,10 @@
 
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useComposerInteraction } from "@/components/app/ComposerInteraction";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { AudioEngine } from "@/audio/engine";
-import { PatchRemovalDialogState } from "@/components/composer/PatchRemovalDialogModal";
+import type { PatchRemovalRequest } from "@/lib/patch/patchRemoval";
 import {
   resolvePatchWorkspaceMacroValues,
   usePatchWorkspaceMacroValues
@@ -49,10 +50,11 @@ interface UsePatchWorkspaceStateOptions {
   playing: boolean;
   router: AppRouterInstance;
   setRuntimeError: SproutErrorSetter;
-  setPatchRemovalDialog: Dispatch<SetStateAction<PatchRemovalDialogState | null>>;
+  setPatchRemovalDialog: Dispatch<SetStateAction<PatchRemovalRequest | null>>;
 }
 
 export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
+  const { interaction } = useComposerInteraction();
   const {
     project,
     projectAssets,
@@ -212,6 +214,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
 
   const openPatchWorkspace = useCallback(
     (patchId?: string) => {
+      if (interaction.getMode() === "recording") return;
       const resolvedPatchId = patchId ?? selectedTrack?.instrumentPatchId ?? project.patches[0]?.id;
       if (resolvedPatchId) {
         const existingTab = tabs.find((tab) => tab.patchId === resolvedPatchId);
@@ -228,6 +231,7 @@ export function usePatchWorkspaceState(options: UsePatchWorkspaceStateOptions) {
     },
     [
       activateWorkspaceTab,
+      interaction,
       createWorkspaceTab,
       project.patches,
       router,

@@ -1,15 +1,11 @@
 import { Dispatch, SetStateAction } from "react";
 import { Project } from "@/types/music";
-
-export interface PatchRemovalDialogState {
-  patchId: string;
-  rows: Array<{ trackId: string; mode: "fallback" | "remove"; fallbackPatchId: string }>;
-}
+import type { PatchRemovalRequest } from "@/lib/patch/patchRemoval";
 
 interface PatchRemovalDialogModalProps {
-  dialog: PatchRemovalDialogState | null;
+  dialog: PatchRemovalRequest | null;
   project: Project;
-  setDialog: Dispatch<SetStateAction<PatchRemovalDialogState | null>>;
+  setDialog: Dispatch<SetStateAction<PatchRemovalRequest | null>>;
   onConfirm: () => void;
 }
 
