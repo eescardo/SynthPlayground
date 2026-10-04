@@ -29,6 +29,27 @@ export const removeTrackFromProject = (project: Project, trackId: string): Proje
   };
 };
 
+export const moveTrackInProject = (
+  project: Project,
+  trackId: string,
+  targetTrackId: string,
+  position: "before" | "after"
+): Project => {
+  const sourceIndex = project.tracks.findIndex((track) => track.id === trackId);
+  const targetIndex = project.tracks.findIndex((track) => track.id === targetTrackId);
+  if (sourceIndex < 0 || targetIndex < 0 || trackId === targetTrackId) {
+    return project;
+  }
+
+  const tracks = [...project.tracks];
+  const [movedTrack] = tracks.splice(sourceIndex, 1);
+  const remainingTargetIndex = tracks.findIndex((track) => track.id === targetTrackId);
+  const insertionIndex = remainingTargetIndex + (position === "after" ? 1 : 0);
+  tracks.splice(insertionIndex, 0, movedTrack);
+
+  return tracks.every((track, index) => track === project.tracks[index]) ? project : { ...project, tracks };
+};
+
 export const switchTrackPatchInProject = (project: Project, trackId: string, patchId: string): Project => {
   let changed = false;
   const tracks = project.tracks.map((track) => {

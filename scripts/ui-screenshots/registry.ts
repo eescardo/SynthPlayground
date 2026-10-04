@@ -2,6 +2,7 @@ import { expect, Page } from "@playwright/test";
 import {
   PATCH_WORKSPACE_CAPTURE_ROOT_SELECTOR,
   createMicrotonalCaptureProject,
+  ensureArtifactDir,
   openApp,
   openSeededApp,
   savePageScreenshot,
@@ -63,6 +64,44 @@ function createPresetUpdateScreenshotProject() {
 }
 
 export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, ScreenshotScenarioDefinition> = {
+  [SCREENSHOT_SCENARIO.MIXER_SCROLL]: {
+    name: SCREENSHOT_SCENARIO.MIXER_SCROLL,
+    description: "Volume and pan popovers before and after scrolling their track controls",
+    capture: async (page, outputPath) => {
+      const project = createDefaultProject();
+      project.tracks = Array.from({ length: 10 }, (_, index) => ({
+        ...structuredClone(project.tracks[0]),
+        id: `mixer-scroll-${index}`,
+        name: `Mixer Track ${index + 1}`,
+        notes: []
+      }));
+      await openSeededApp(page, project);
+      const shell = page.locator(".track-canvas-shell");
+      // Give base and head the same scrollable capture viewport, even before sticky layout existed.
+      await shell.evaluate((element) => {
+        element.style.maxHeight = "360px";
+        element.style.overflow = "auto";
+      });
+      for (const kind of ["volume", "pan"] as const) {
+        await page.keyboard.press("Escape");
+        await shell.evaluate((element) => {
+          element.scrollTop = 0;
+        });
+        await page.locator(`[data-track-chrome="${kind}-button"]`).first().click();
+        await expect(page.locator(`[data-track-popover="${kind}"]`)).toBeVisible();
+        await savePageScreenshot(page, outputPath.replace(/\.png$/, `-${kind}-open.png`));
+        await shell.evaluate((element) => {
+          element.scrollTop = 180;
+          return new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        });
+        // Do not assert dismissal here: the PR-base image should expose the stale overlay.
+        await savePageScreenshot(
+          page,
+          kind === "volume" ? outputPath : outputPath.replace(/\.png$/, "-pan-after-scroll.png")
+        );
+      }
+    }
+  },
   [SCREENSHOT_SCENARIO.MAIN_VIEW]: {
     name: SCREENSHOT_SCENARIO.MAIN_VIEW,
     description: "Full main composition view",
@@ -138,8 +177,24 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
     capture: async (page, outputPath) => {
       await openApp(page);
       await page.getByRole("button", { name: "Record" }).click();
-      await expect(page.locator(".recording-dock")).toBeVisible();
-      await savePageScreenshot(page, outputPath);
+      await expect(page.locator(".recording-dock")).toBeInViewport({ ratio: 1 });
+      await expect(page.locator(".recording-dock .piano-key.white").first()).toBeInViewport({ ratio: 1 });
+      ensureArtifactDir(outputPath);
+      await page.screenshot({ path: outputPath, fullPage: false });
+      for (const [width, height] of [
+        [390, 520],
+        [320, 568],
+        [844, 390],
+        [390, 620]
+      ]) {
+        await page.setViewportSize({ width, height });
+        await expect(page.locator(".recording-dock")).toBeInViewport({ ratio: 1 });
+        await expect(page.getByRole("button", { name: "Record", exact: true })).toBeInViewport({ ratio: 1 });
+        await expect
+          .poll(() => page.locator(".track-canvas-shell").evaluate((element) => element.getBoundingClientRect().height))
+          .toBeGreaterThanOrEqual(120);
+        await page.screenshot({ path: outputPath.replace(/\.png$/, `-${width}x${height}.png`), fullPage: false });
+      }
     }
   },
   [SCREENSHOT_SCENARIO.PATCH_EDITOR]: {
@@ -186,7 +241,16 @@ export const SCREENSHOT_SCENARIO_DEFINITIONS: Record<ScreenshotScenario, Screens
     description: "Track canvas with an automated macro lane and interpolated keyframes visible",
     capture: async (page, outputPath) => {
       await setupMacroAutomationLane(page);
-      await savePageScreenshot(page, outputPath, ".track-canvas-shell");
+      // Include the page margin occupied by the track reorder grips.
+      await page.mouse.move(600, 80);
+      await savePageScreenshot(page, outputPath);
+      await page.getByTestId("track-name-button").first().hover();
+      await savePageScreenshot(page, outputPath.replace(/\.png$/, "-chrome-hover.png"));
+      await page.getByTestId("track-reorder-handle").first().hover();
+      await savePageScreenshot(page, outputPath.replace(/\.png$/, "-grip-hover.png"));
+      await page.getByTestId("track-reorder-handle").first().focus();
+      await expect(page.locator("[data-composer-actions-bar]")).toHaveAttribute("data-composer-mode", "reordering");
+      await savePageScreenshot(page, outputPath.replace(/\.png$/, "-reorder-mode.png"));
     }
   }
 };

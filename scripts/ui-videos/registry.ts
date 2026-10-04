@@ -130,28 +130,46 @@ const playQuarterPattern = async (page: Page, key: Locator) => {
 export const VIDEO_SCENARIO_DEFINITIONS: Record<VideoScenario, VideoScenarioDefinition> = {
   [VIDEO_SCENARIO.PLAY_FROM_START_5S]: {
     name: VIDEO_SCENARIO.PLAY_FROM_START_5S,
-    description: "Start playback from beat 0 and capture five seconds of motion.",
+    description: "Drag a track, return automatically to editing, then capture five seconds of playback from beat 0.",
     capture: async (page) => {
       await openApp(page);
       await applySelectionReviewFraming(page);
+      const reorderHandle = page.getByTestId("track-reorder-handle").first();
+      await reorderHandle.focus();
+      await expect(getTransportButton(page, "Play")).toBeDisabled();
+      await expect(getTransportButton(page, "Record")).toBeDisabled();
+      await page.waitForTimeout(postActionSettleMs * 2);
+      await reorderHandle.dragTo(page.locator('[data-track-control="instrument-selection"]').nth(1));
+      await expect(page.locator("[data-composer-actions-bar]")).toHaveAttribute("data-composer-mode", "editing");
+      await expect(getTransportButton(page, "Record")).toBeEnabled();
       await getTransportButton(page, "Play").click();
+      await expect(reorderHandle).toBeDisabled();
       await waitForPlaybackToAdvance(page);
       await page.waitForTimeout(playbackDurationMs);
     }
   },
   [VIDEO_SCENARIO.RECORD_FROM_START_8S]: {
     name: VIDEO_SCENARIO.RECORD_FROM_START_8S,
-    description: "Arm record mode at beat 0, wait through count-in, then record alternating quarter-note presses.",
+    description: "Arm recording, consume Space during count-in, record quarter-note presses, then stop with Space.",
     capture: async (page) => {
       await openApp(page);
       await applySelectionReviewFraming(page);
       await getTransportButton(page, "Record").click();
-      await expect(page.locator(".recording-dock")).toBeVisible();
+      await expect(page.getByTestId("track-reorder-handle").first()).toBeDisabled();
+      await expect(page.locator(".recording-dock")).toBeInViewport({ ratio: 1 });
+      await page.locator('[data-track-control="playhead-tabstop"]').focus();
+      await page.keyboard.press("Space");
+      await expect(page.locator(".record-countdown-badge")).toBeVisible();
       await page.waitForTimeout(recordCountInMs);
+      await expect(page.locator(".recording-dock").getByText("Recording", { exact: true })).toBeVisible({
+        timeout: 10_000
+      });
       const key = getRecordingKey(page);
-      await expect(key).toBeVisible();
+      await expect(key).toBeInViewport({ ratio: 1 });
       await playQuarterPattern(page, key);
-      await getTransportButton(page, "Record").click();
+      await page.locator('[data-track-control="playhead-tabstop"]').focus();
+      await page.keyboard.press("Space");
+      await expect(page.locator(".recording-dock")).toHaveCount(0);
       await page.waitForTimeout(postActionSettleMs);
     }
   },

@@ -15,7 +15,7 @@ import {
 } from "@/components/tracks/trackCanvasConstants";
 import { LoopMarkerRect, MuteRect, PitchRect } from "@/components/tracks/trackCanvasGeometry";
 import { renderTrackCanvas } from "@/components/tracks/trackCanvasDrawing";
-import { consumeTimelinePopoverWheelEvent } from "@/components/tracks/trackCanvasWheelGuards";
+import { consumeTimelinePopoverWheelEvent, wheelDeltaToPixels } from "@/components/tracks/trackCanvasWheelGuards";
 import { useTrackCanvasPointerInteractions } from "@/hooks/tracks/useTrackCanvasPointerInteractions";
 import type { NoteRect } from "@/hooks/tracks/trackCanvasPointerTypes";
 import { TrackCanvasProps, TrackLayout } from "@/components/tracks/trackCanvasTypes";
@@ -36,6 +36,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const { automationActions, noteActions, patchActions, project, selection, selectionActions, trackActions } = props;
   const { onUpdateNote } = noteActions;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const rulerCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const beatWidthRef = useRef(BEAT_WIDTH);
   const totalBeatsRef = useRef(0);
@@ -44,6 +45,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
   const zoomScrollCorrectionTokenRef = useRef(0);
   const playheadTabStopRef = useRef<HTMLButtonElement | null>(null);
   const selectedContentTabStopRef = useRef<HTMLButtonElement | null>(null);
+  const handledSelectedContentFocusTokenRef = useRef(0);
   const noteRectsRef = useRef<NoteRect[]>([]);
   const automationKeyframeRectsRef = useRef<AutomationKeyframeRect[]>([]);
   const muteRectsRef = useRef<MuteRect[]>([]);
@@ -62,12 +64,22 @@ export function TrackCanvas(props: TrackCanvasProps) {
     volumePopoverPosition,
     openVolumePopover,
     openPanPopover,
+    closeMixerPopovers,
     scheduleVolumePopoverOpen,
     scheduleVolumePopoverDismiss,
     cancelScheduledVolumePopoverDismiss,
     panPopoverTrackId,
     panPopoverPosition
-  } = useTrackCanvasPopovers();
+  } = useTrackCanvasPopovers(wrapperRef);
+  const orderedTrackIdsKey = JSON.stringify(project.tracks.map((track) => track.id));
+  const orderedTrackIdsKeyRef = useRef(orderedTrackIdsKey);
+
+  useEffect(() => {
+    if (orderedTrackIdsKeyRef.current !== orderedTrackIdsKey) {
+      orderedTrackIdsKeyRef.current = orderedTrackIdsKey;
+      closeMixerPopovers();
+    }
+  }, [closeMixerPopovers, orderedTrackIdsKey]);
 
   const {
     activeRecordedNotes,
@@ -243,6 +255,26 @@ export function TrackCanvas(props: TrackCanvasProps) {
     };
   }, [onWheelZoom]);
 
+  const onReorderHandleWheel = useCallback(
+    (event: WheelEvent) => {
+      const wrapper = wrapperRef.current;
+      if (!wrapper) {
+        return;
+      }
+      if (event.ctrlKey || event.metaKey) {
+        onWheelZoom(event);
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      wrapper.scrollLeft += wheelDeltaToPixels(event.deltaX, event.deltaMode, wrapper.clientWidth);
+      wrapper.scrollTop += wheelDeltaToPixels(event.deltaY, event.deltaMode, wrapper.clientHeight);
+    },
+    [onWheelZoom]
+  );
+
   useEffect(() => {
     const wrapper = wrapperRef.current;
     if (!wrapper) {
@@ -270,11 +302,15 @@ export function TrackCanvas(props: TrackCanvasProps) {
       return { x: 0, y: 0 };
     }
     const rect = canvas.getBoundingClientRect();
+    const wrapperRect = wrapperRef.current?.getBoundingClientRect();
     const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
     const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
+    const pointerWithinStickyRuler = Boolean(
+      wrapperRect && clientY >= wrapperRect.top && clientY <= wrapperRect.top + RULER_HEIGHT
+    );
     return {
       x: (clientX - rect.left) * scaleX,
-      y: (clientY - rect.top) * scaleY
+      y: pointerWithinStickyRuler && wrapperRect ? (clientY - wrapperRect.top) * scaleY : (clientY - rect.top) * scaleY
     };
   }, []);
 
@@ -404,6 +440,13 @@ export function TrackCanvas(props: TrackCanvasProps) {
       tabSelectionPreviewNote,
       timelineActionsPopoverOpen
     });
+    const canvas = canvasRef.current;
+    const rulerCanvas = rulerCanvasRef.current;
+    const rulerContext = rulerCanvas?.getContext("2d");
+    if (canvas && rulerCanvas && rulerContext) {
+      rulerContext.clearRect(0, 0, width, RULER_HEIGHT);
+      rulerContext.drawImage(canvas, 0, 0, width, RULER_HEIGHT, 0, 0, width, RULER_HEIGHT);
+    }
   }, [
     countInLabel,
     beatWidth,
@@ -482,6 +525,10 @@ export function TrackCanvas(props: TrackCanvasProps) {
     if (!selectedContentTabStopFocusToken || !selectedContentTabStopRect) {
       return;
     }
+    if (handledSelectedContentFocusTokenRef.current === selectedContentTabStopFocusToken) {
+      return;
+    }
+    handledSelectedContentFocusTokenRef.current = selectedContentTabStopFocusToken;
     selectedContentTabStopRef.current?.focus();
   }, [selectedContentTabStopFocusToken, selectedContentTabStopRect]);
 
@@ -502,6 +549,7 @@ export function TrackCanvas(props: TrackCanvasProps) {
     <TrackCanvasOverlays
       project={project}
       canvasRef={canvasRef}
+      rulerCanvasRef={rulerCanvasRef}
       wrapperRef={wrapperRef}
       playheadTabStopRef={playheadTabStopRef}
       selectedContentTabStopRef={selectedContentTabStopRef}
@@ -523,9 +571,11 @@ export function TrackCanvas(props: TrackCanvasProps) {
       panPopoverPosition={panPopoverPosition}
       openVolumePopover={openVolumePopover}
       openPanPopover={openPanPopover}
+      closeMixerPopovers={closeMixerPopovers}
       scheduleVolumePopoverOpen={scheduleVolumePopoverOpen}
       scheduleVolumePopoverDismiss={scheduleVolumePopoverDismiss}
       cancelScheduledVolumePopoverDismiss={cancelScheduledVolumePopoverDismiss}
+      onReorderHandleWheel={onReorderHandleWheel}
       trackActions={trackActions}
       patchActions={patchActions}
       automationActions={automationActions}

@@ -1,7 +1,7 @@
 "use client";
 
 import { Dispatch, SetStateAction, useCallback, useState } from "react";
-import { PatchRemovalDialogState } from "@/components/composer/PatchRemovalDialogModal";
+import type { PatchRemovalRequest } from "@/lib/patch/patchRemoval";
 import { TimelineActionsPopoverRequest } from "@/components/tracks/TrackCanvas";
 
 interface UseComposerTransientUiArgs {
@@ -10,10 +10,10 @@ interface UseComposerTransientUiArgs {
 
 export function useComposerTransientUi({ onClearEditorSelection }: UseComposerTransientUiArgs): {
   clearTransientComposerUi: () => void;
-  patchRemovalDialog: PatchRemovalDialogState | null;
+  patchRemovalDialog: PatchRemovalRequest | null;
   pitchPicker: { trackId: string; noteId: string } | null;
   selectionActionPopoverMode: "expanded" | "collapsed";
-  setPatchRemovalDialog: Dispatch<SetStateAction<PatchRemovalDialogState | null>>;
+  setPatchRemovalDialog: Dispatch<SetStateAction<PatchRemovalRequest | null>>;
   setPitchPicker: Dispatch<SetStateAction<{ trackId: string; noteId: string } | null>>;
   setSelectionActionPopoverMode: Dispatch<SetStateAction<"expanded" | "collapsed">>;
   setTimelineActionsPopover: Dispatch<SetStateAction<TimelineActionsPopoverRequest | null>>;
@@ -22,7 +22,7 @@ export function useComposerTransientUi({ onClearEditorSelection }: UseComposerTr
   const [pitchPicker, setPitchPicker] = useState<{ trackId: string; noteId: string } | null>(null);
   const [timelineActionsPopover, setTimelineActionsPopover] = useState<TimelineActionsPopoverRequest | null>(null);
   const [selectionActionPopoverMode, setSelectionActionPopoverMode] = useState<"expanded" | "collapsed">("expanded");
-  const [patchRemovalDialog, setPatchRemovalDialog] = useState<PatchRemovalDialogState | null>(null);
+  const [patchRemovalDialog, setPatchRemovalDialog] = useState<PatchRemovalRequest | null>(null);
 
   const clearTransientComposerUi = useCallback(() => {
     setTimelineActionsPopover(null);

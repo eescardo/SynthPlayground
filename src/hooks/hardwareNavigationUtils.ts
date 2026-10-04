@@ -1,5 +1,24 @@
 "use client";
 
+import { HEADER_WIDTH } from "@/components/tracks/trackCanvasConstants";
+
+export const getTrackCanvasVisibleBeatRange = (): { startBeat: number; endBeat: number } | null => {
+  const shell = document.querySelector<HTMLElement>('[data-track-canvas-shell="true"]');
+  const beatWidth = Number(shell?.dataset.beatWidth);
+  const startBeat =
+    shell && Number.isFinite(beatWidth) && beatWidth > 0
+      ? Math.max(0, shell.scrollLeft / beatWidth)
+      : Number(shell?.dataset.visibleBeatStart);
+  const endBeat =
+    shell && Number.isFinite(beatWidth) && beatWidth > 0
+      ? Math.max(startBeat, (shell.scrollLeft + shell.clientWidth - HEADER_WIDTH) / beatWidth)
+      : Number(shell?.dataset.visibleBeatEnd);
+  if (!Number.isFinite(startBeat) || !Number.isFinite(endBeat) || endBeat < startBeat) {
+    return null;
+  }
+  return { startBeat, endBeat };
+};
+
 export const isTextEditingTarget = (target: EventTarget | null) => {
   const element = target as HTMLElement | null;
   return Boolean(
@@ -20,7 +39,7 @@ export const isPlayheadTabStopFocused = () => {
 
 export const isTrackChromeKeyboardTarget = (target: EventTarget | null) => {
   const element = target as HTMLElement | null;
-  return Boolean(element?.closest('[data-track-chrome="header-overlays"]'));
+  return Boolean(element?.closest?.('[data-track-chrome="header-overlays"]'));
 };
 
 export const focusLastTrackChromeTabStop = () => {

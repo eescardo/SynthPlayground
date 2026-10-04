@@ -7,6 +7,7 @@ import { consumeTimelinePopoverWheelEvent } from "@/components/tracks/trackCanva
 import { clamp } from "@/lib/numeric";
 import { midiToPitch, pitchToMidi } from "@/lib/pitch";
 import type { Track } from "@/types/music";
+import { useComposerInteraction } from "@/components/app/ComposerInteraction";
 
 interface UseTrackCanvasWheelPitchEditingOptions {
   wrapperRef: RefObject<HTMLDivElement | null>;
@@ -23,10 +24,22 @@ export function useTrackCanvasWheelPitchEditing({
   getCanvasPoint,
   onUpdateNote
 }: UseTrackCanvasWheelPitchEditingOptions) {
+  const { mode, interaction } = useComposerInteraction();
   const wheelPitchLockUntilRef = useRef(0);
   const wheelLockedScrollTopRef = useRef(0);
   const wheelLockedScrollLeftRef = useRef(0);
   const wheelLockTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (mode !== "reordering") return;
+    // A previous pitch gesture must not hold scrolling in the newly entered mode.
+    wheelPitchLockUntilRef.current = 0;
+    if (wheelLockTimerRef.current !== null) {
+      window.clearTimeout(wheelLockTimerRef.current);
+      wheelLockTimerRef.current = null;
+    }
+    if (wrapperRef.current) wrapperRef.current.style.overflowX = "auto";
+  }, [mode, wrapperRef]);
 
   useEffect(() => {
     const wrapper = wrapperRef.current;
@@ -52,6 +65,7 @@ export function useTrackCanvasWheelPitchEditing({
     };
 
     const onWheelNative = (event: WheelEvent) => {
+      if (interaction.getMode() === "reordering") return;
       if (consumeTimelinePopoverWheelEvent(event)) {
         return;
       }
@@ -105,6 +119,7 @@ export function useTrackCanvasWheelPitchEditing({
     };
 
     const onScrollNative = () => {
+      if (interaction.getMode() === "reordering") return;
       if (performance.now() < wheelPitchLockUntilRef.current) {
         wrapper.scrollTop = wheelLockedScrollTopRef.current;
         wrapper.scrollLeft = wheelLockedScrollLeftRef.current;
@@ -122,5 +137,5 @@ export function useTrackCanvasWheelPitchEditing({
       }
       wrapper.style.overflowX = "auto";
     };
-  }, [getCanvasPoint, onUpdateNote, pitchRectsRef, tracks, wrapperRef]);
+  }, [getCanvasPoint, interaction, onUpdateNote, pitchRectsRef, tracks, wrapperRef]);
 }

@@ -24,6 +24,9 @@ import {
   TrackCanvasTrackActions
 } from "@/components/tracks/trackCanvasTypes";
 import { usePatchSummaryPopover } from "@/hooks/tracks/usePatchSummaryPopover";
+import { useTrackReorder } from "@/hooks/tracks/useTrackReorder";
+import { useCanvasShellGeometry, type CanvasShellGeometry } from "@/hooks/tracks/useCanvasShellGeometry";
+import { TrackReorderHandle } from "./TrackReorderHandle";
 import {
   getTrackMacroLane,
   getTrackPanLane,
@@ -56,9 +59,11 @@ interface TrackHeaderChromeProps {
   panPopoverPosition: { left: number; top: number } | null;
   openVolumePopover: (trackId: string, anchor?: HTMLElement | null) => void;
   openPanPopover: (trackId: string, anchor?: HTMLElement | null) => void;
+  closeMixerPopovers: () => void;
   scheduleVolumePopoverOpen: (trackId: string, anchor?: HTMLElement | null) => void;
   scheduleVolumePopoverDismiss: () => void;
   cancelScheduledVolumePopoverDismiss: () => void;
+  onReorderHandleWheel: (event: WheelEvent) => void;
   trackActions: TrackCanvasTrackActions;
   patchActions: TrackCanvasPatchActions;
   automationActions: TrackCanvasAutomationActions;
@@ -143,7 +148,7 @@ const resolvePatchSummaryAnchor = (args: {
   macroPanelShellTop: number | null;
   macroPanelShellHeight: number;
   popoverMode?: "teaser" | "expanded";
-  canvasViewport: { left: number; top: number; scrollTop: number };
+  shellGeometry: Pick<CanvasShellGeometry, "left" | "top" | "scrollTop">;
 }): PatchSummaryAnchor => {
   const anchorTop = args.layout.y + 8;
   const anchorBottom =
@@ -155,8 +160,8 @@ const resolvePatchSummaryAnchor = (args: {
   const expandedTop = anchorTop + (anchorHeight - expandedHeight) * 0.5;
   const localTop = args.popoverMode === "expanded" ? expandedTop : anchorTop;
   return {
-    viewportLeft: args.canvasViewport.left + HEADER_WIDTH,
-    viewportTop: args.canvasViewport.top + localTop - args.canvasViewport.scrollTop,
+    viewportLeft: args.shellGeometry.left + HEADER_WIDTH,
+    viewportTop: args.shellGeometry.top + localTop - args.shellGeometry.scrollTop,
     anchorHeight,
     expandedHeight
   };
@@ -295,14 +300,26 @@ export function TrackHeaderChrome({
   panPopoverPosition,
   openVolumePopover,
   openPanPopover,
+  closeMixerPopovers,
   scheduleVolumePopoverOpen,
   scheduleVolumePopoverDismiss,
   cancelScheduledVolumePopoverDismiss,
+  onReorderHandleWheel,
   trackActions,
   patchActions,
   automationActions
 }: TrackHeaderChromeProps) {
   const renameActivation = useRenameActivation<string>();
+  const [chromeHovered, setChromeHovered] = useState(false);
+  const [hoveredHandleId, setHoveredHandleId] = useState<string | null>(null);
+  const [focusedHandleId, setFocusedHandleId] = useState<string | null>(null);
+  useEffect(() => {
+    // Removing a focused/hovered DOM node need not emit blur or pointerleave.
+    const keepExistingTrack = (id: string | null) =>
+      id !== null && !project.tracks.some((track) => track.id === id) ? null : id;
+    setFocusedHandleId(keepExistingTrack);
+    setHoveredHandleId(keepExistingTrack);
+  }, [project.tracks]);
   const {
     patchSummaryPopover,
     setPatchSummaryPopover,
@@ -312,46 +329,34 @@ export function TrackHeaderChrome({
     schedulePatchSummaryDismiss,
     cancelPatchSummaryDismiss
   } = usePatchSummaryPopover({ selectedTrackId });
-  const [canvasViewport, setCanvasViewport] = useState({ left: 0, top: 0, scrollTop: 0 });
-
-  useEffect(() => {
-    const shell = canvasShellRef.current;
-    if (!shell) {
-      return;
-    }
-    const updateCanvasViewport = () => {
-      const rect = shell.getBoundingClientRect();
-      const nextViewport = {
-        left: rect.left,
-        top: rect.top,
-        scrollTop: shell.scrollTop
-      };
-      setCanvasViewport((previousViewport) => {
-        if (
-          previousViewport.left === nextViewport.left &&
-          previousViewport.top === nextViewport.top &&
-          previousViewport.scrollTop === nextViewport.scrollTop
-        ) {
-          return previousViewport;
-        }
-        return nextViewport;
-      });
-    };
-    updateCanvasViewport();
-    shell.addEventListener("scroll", updateCanvasViewport, { passive: true });
-    window.addEventListener("resize", updateCanvasViewport);
-    return () => {
-      shell.removeEventListener("scroll", updateCanvasViewport);
-      window.removeEventListener("resize", updateCanvasViewport);
-    };
-  }, [canvasShellRef]);
+  const shellGeometry = useCanvasShellGeometry(canvasShellRef);
+  const {
+    dragState: trackDrag,
+    keyboardAnnouncement,
+    onTrackDragEnd,
+    onTrackDragStart,
+    onTrackReorderKeyDown
+  } = useTrackReorder({
+    canvasShellRef,
+    tracks: project.tracks.map(({ id, name }) => ({ id, name })),
+    trackLayouts,
+    onMoveTrack: trackActions.onMoveTrack
+  });
+  const reorderGroupActive =
+    chromeHovered || hoveredHandleId !== null || focusedHandleId !== null || trackDrag !== null;
 
   return (
     <div
       className={styles.headerOverlays}
       data-track-chrome="header-overlays"
+      data-reorder-group-active={reorderGroupActive}
       style={{ "--track-header-width": `${HEADER_WIDTH}px` } as CSSProperties}
+      onPointerEnter={() => setChromeHovered(true)}
+      onPointerLeave={() => setChromeHovered(false)}
     >
+      <div className={styles.visuallyHidden} role="status" aria-live="polite" aria-atomic="true">
+        {keyboardAnnouncement}
+      </div>
       <div className={styles.headerMask} style={{ height: `${canvasHeight}px` }} />
       {project.tracks.map((track) => {
         const layout = trackLayouts.find((entry) => entry.trackId === track.id);
@@ -378,7 +383,7 @@ export function TrackHeaderChrome({
           macroPanelShellTop: macroPanelGeometry.shellTop,
           macroPanelShellHeight: macroPanelGeometry.shellHeight,
           popoverMode: patchSummaryPopover?.mode,
-          canvasViewport
+          shellGeometry
         });
         const patchInvalid = Boolean(invalidPatchIds?.has(track.instrumentPatchId));
         const macroPanelRows = buildMacroPanelRows({
@@ -395,6 +400,8 @@ export function TrackHeaderChrome({
               className={`${styles.headerRow}${selected ? ` ${styles.headerRowSelected}` : ""}${
                 patchInvalid ? ` ${styles.headerRowInvalid}` : ""
               }`}
+              data-testid="track-header-row"
+              data-track-id={track.id}
               style={{
                 top: `${layout.y}px`,
                 height: `${layout.height}px`
@@ -412,7 +419,38 @@ export function TrackHeaderChrome({
                 trackActions.onToggleTrackMacroPanel(track.id);
               }}
               onContextMenu={(event) => event.preventDefault()}
-            />
+            >
+              <TrackReorderHandle
+                track={track}
+                trackCount={project.tracks.length}
+                dragging={trackDrag?.trackId === track.id}
+                groupActive={reorderGroupActive}
+                layout={layout}
+                shellRef={canvasShellRef}
+                shellGeometry={shellGeometry}
+                onDragStart={(event, previousFocus) => {
+                  closeMixerPopovers();
+                  onTrackDragStart(event, track.id, previousFocus);
+                }}
+                onDragEnd={onTrackDragEnd}
+                onHoverChange={(hovered) =>
+                  setHoveredHandleId((current) => (hovered ? track.id : current === track.id ? null : current))
+                }
+                onWheel={onReorderHandleWheel}
+                onFocusChange={(focused) =>
+                  setFocusedHandleId((current) => (focused ? track.id : current === track.id ? null : current))
+                }
+                onKeyDown={(event) => {
+                  return onTrackReorderKeyDown(event, track.id, closeMixerPopovers);
+                }}
+              />
+            </div>
+            {trackDrag?.targetTrackId === track.id && trackDrag.trackId !== track.id && (
+              <div
+                className={styles.trackDropIndicator}
+                style={{ top: `${trackDrag.position === "before" ? layout.y : layout.y + layout.height}px` }}
+              />
+            )}
             <button
               type="button"
               className={`${styles.trackNameButton}${
